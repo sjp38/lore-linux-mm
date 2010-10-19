@@ -1,128 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 604976B00A5
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 03:34:36 -0400 (EDT)
-Received: by ywa8 with SMTP id 8so222551ywa.14
-        for <linux-mm@kvack.org>; Tue, 19 Oct 2010 00:34:32 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20101019071534.GA15105@sli10-conroe.sh.intel.com>
-References: <20101019093142.509d6947@notabene>
-	<20101018154137.90f5325f.akpm@linux-foundation.org>
-	<20101019095144.A1B0.A69D9226@jp.fujitsu.com>
-	<AANLkTin38qJ-U3B7XwMh-3aR9zRs21LgR1yHfqYifxrn@mail.gmail.com>
-	<20101019023537.GB8310@localhost>
-	<AANLkTikHxDyjOGgM8-X6FNT15Hr3s4NaA-=+FRhma+3D@mail.gmail.com>
-	<20101019030515.GB11924@localhost>
-	<AANLkTinvcGjF2-dvu8kpDY4V7kGkRJjHTWDtQPNRKMU_@mail.gmail.com>
-	<20101019032145.GA3108@sli10-conroe.sh.intel.com>
-	<20101019071534.GA15105@sli10-conroe.sh.intel.com>
-Date: Tue, 19 Oct 2010 16:34:32 +0900
-Message-ID: <AANLkTimQzT3SYf0LMqEH8Bfta2gnvVjWCHRj=kmb_4Z7@mail.gmail.com>
-Subject: Re: Deadlock possibly caused by too_many_isolated.
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 68ACD5F0047
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 04:32:02 -0400 (EDT)
+Date: Tue, 19 Oct 2010 17:27:44 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH v3 02/11] memcg: document cgroup dirty memory interfaces
+Message-Id: <20101019172744.45e0a8dc.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <1287448784-25684-3-git-send-email-gthelen@google.com>
+References: <1287448784-25684-1-git-send-email-gthelen@google.com>
+	<1287448784-25684-3-git-send-email-gthelen@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: "Wu, Fengguang" <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Neil Brown <neilb@suse.de>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 19, 2010 at 4:15 PM, Shaohua Li <shaohua.li@intel.com> wrote:
-> On Tue, Oct 19, 2010 at 11:21:45AM +0800, Shaohua Li wrote:
->> On Tue, Oct 19, 2010 at 11:09:29AM +0800, Minchan Kim wrote:
->> > On Tue, Oct 19, 2010 at 12:05 PM, Wu Fengguang <fengguang.wu@intel.com=
-> wrote:
->> > > On Tue, Oct 19, 2010 at 10:52:47AM +0800, Minchan Kim wrote:
->> > >> Hi Wu,
->> > >>
->> > >> On Tue, Oct 19, 2010 at 11:35 AM, Wu Fengguang <fengguang.wu@intel.=
-com> wrote:
->> > >> >> @@ -2054,10 +2069,11 @@ rebalance:
->> > >> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto got_pg;
->> > >> >>
->> > >> >> =A0 =A0 =A0 =A0 /*
->> > >> >> - =A0 =A0 =A0 =A0* If we failed to make any progress reclaiming,=
- then we are
->> > >> >> - =A0 =A0 =A0 =A0* running out of options and have to consider g=
-oing OOM
->> > >> >> + =A0 =A0 =A0 =A0* If we failed to make any progress reclaiming =
-and there aren't
->> > >> >> + =A0 =A0 =A0 =A0* many parallel reclaiming, then we are unning =
-out of options and
->> > >> >> + =A0 =A0 =A0 =A0* have to consider going OOM
->> > >> >> =A0 =A0 =A0 =A0 =A0*/
->> > >> >> - =A0 =A0 =A0 if (!did_some_progress) {
->> > >> >> + =A0 =A0 =A0 if (!did_some_progress && !too_many_isolated_zone(=
-preferred_zone)) {
->> > >> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if ((gfp_mask & __GFP_FS) && !(g=
-fp_mask & __GFP_NORETRY)) {
->> > >> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (oom_killer_d=
-isabled)
->> > >> >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-goto nopage;
->> > >> >
->> > >> > This is simply wrong.
->> > >> >
->> > >> > It disabled this block for 99% system because there won't be enou=
-gh
->> > >> > tasks to make (!too_many_isolated_zone =3D=3D true). As a result =
-the LRU
->> > >> > will be scanned like mad and no task get OOMed when it should be.
->> > >>
->> > >> If !too_many_isolated_zone is false, it means there are already man=
-y
->> > >> direct reclaiming tasks.
->> > >> So they could exit reclaim path and !too_many_isolated_zone will be=
- true.
->> > >> What am I missing now?
->> > >
->> > > Ah sorry, my brain get short circuited.. but I still feel uneasy wit=
-h
->> > > this change. It's not fixing the root cause and won't prevent too ma=
-ny
->> > > LRU pages be isolated. It's too late to test too_many_isolated_zone(=
-)
->> > > after direct reclaim returns (after sleeping for a long time).
->> > >
->> >
->> > Intend to agree.
->> > I think root cause is a infinite looping in too_many_isolated holding =
-FS lock.
->> > Would it be simple that too_many_isolated would be bail out after some=
- try?
->> I'm wondering if we need too_many_isolated_zone logic. The do_try_to_fre=
-e_pages
->> will return progress till all zones are unreclaimable. Assume before thi=
-s we
->> don't oomkiller. If the direct reclaim fails but has progress, it will s=
-leep.
-> Not sure if this is clear. What I mean is we can delete too_many_isolated=
-_zone,
-> do_try_to_free_pages can still return 1 till all zones are unreclaimable.=
- Before
-> this direct reclaim will not oom, because it sees progress and will call =
-congestion_wait
-> to sleep. Am I missing anything?
->
+On Mon, 18 Oct 2010 17:39:35 -0700
+Greg Thelen <gthelen@google.com> wrote:
 
-You mean could we remove too_many_isolated? not too_many_isolated_zone. Rig=
-ht?
-It it is, we can't.
+> Document cgroup dirty memory interfaces and statistics.
+> 
+> Signed-off-by: Andrea Righi <arighi@develer.com>
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> ---
+> 
+> Changelog since v1:
+> - Renamed "nfs"/"total_nfs" to "nfs_unstable"/"total_nfs_unstable" in per cgroup
+>   memory.stat to match /proc/meminfo.
+> 
+> - Allow [kKmMgG] suffixes for newly created dirty limit value cgroupfs files.
+> 
+> - Describe a situation where a cgroup can exceed its dirty limit.
+> 
+>  Documentation/cgroups/memory.txt |   60 ++++++++++++++++++++++++++++++++++++++
+>  1 files changed, 60 insertions(+), 0 deletions(-)
+> 
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index 7781857..02bbd6f 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
+> @@ -385,6 +385,10 @@ mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
+>  pgpgin		- # of pages paged in (equivalent to # of charging events).
+>  pgpgout		- # of pages paged out (equivalent to # of uncharging events).
+>  swap		- # of bytes of swap usage
+> +dirty		- # of bytes that are waiting to get written back to the disk.
+> +writeback	- # of bytes that are actively being written back to the disk.
+> +nfs_unstable	- # of bytes sent to the NFS server, but not yet committed to
+> +		the actual storage.
+>  inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+>  		LRU list.
+>  active_anon	- # of bytes of anonymous and swap cache memory on active
 
-Your saying is right.
-do_try_to_free_pages can return 1 until all zones are unreclaimable.
-But If we remove throttling logic which is too_many_isolated, too many
-process can enter direct reclaim path and they can increase
-zone->pages_scanned while zone_reclaimable pages are decreased by
-isolation. At last, we could reach all zones are unreclaimable much
-faster.
+Shouldn't we add description of "total_diryt/writeback/nfs_unstable" too ?
+Seeing [5/11], it will be showed in memory.stat.
+
+> @@ -453,6 +457,62 @@ memory under it will be reclaimed.
+>  You can reset failcnt by writing 0 to failcnt file.
+>  # echo 0 > .../memory.failcnt
+>  
+> +5.5 dirty memory
+> +
+> +Control the maximum amount of dirty pages a cgroup can have at any given time.
+> +
+> +Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
+> +page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
+> +not be able to consume more than their designated share of dirty pages and will
+> +be forced to perform write-out if they cross that limit.
+> +
+> +The interface is equivalent to the procfs interface: /proc/sys/vm/dirty_*.  It
+> +is possible to configure a limit to trigger both a direct writeback or a
+> +background writeback performed by per-bdi flusher threads.  The root cgroup
+> +memory.dirty_* control files are read-only and match the contents of
+> +the /proc/sys/vm/dirty_* files.
+> +
+> +Per-cgroup dirty limits can be set using the following files in the cgroupfs:
+> +
+> +- memory.dirty_ratio: the amount of dirty memory (expressed as a percentage of
+> +  cgroup memory) at which a process generating dirty pages will itself start
+> +  writing out dirty data.
+> +
+> +- memory.dirty_limit_in_bytes: the amount of dirty memory (expressed in bytes)
+> +  in the cgroup at which a process generating dirty pages will start itself
+> +  writing out dirty data.  Suffix (k, K, m, M, g, or G) can be used to indicate
+> +  that value is kilo, mega or gigabytes.
+> +
+> +  Note: memory.dirty_limit_in_bytes is the counterpart of memory.dirty_ratio.
+> +  Only one of them may be specified at a time.  When one is written it is
+> +  immediately taken into account to evaluate the dirty memory limits and the
+> +  other appears as 0 when read.
+> +
+> +- memory.dirty_background_ratio: the amount of dirty memory of the cgroup
+> +  (expressed as a percentage of cgroup memory) at which background writeback
+> +  kernel threads will start writing out dirty data.
+> +
+> +- memory.dirty_background_limit_in_bytes: the amount of dirty memory (expressed
+> +  in bytes) in the cgroup at which background writeback kernel threads will
+> +  start writing out dirty data.  Suffix (k, K, m, M, g, or G) can be used to
+> +  indicate that value is kilo, mega or gigabytes.
+> +
+> +  Note: memory.dirty_background_limit_in_bytes is the counterpart of
+> +  memory.dirty_background_ratio.  Only one of them may be specified at a time.
+> +  When one is written it is immediately taken into account to evaluate the dirty
+> +  memory limits and the other appears as 0 when read.
+> +
+> +A cgroup may contain more dirty memory than its dirty limit.  This is possible
+> +because of the principle that the first cgroup to touch a page is charged for
+> +it.  Subsequent page counting events (dirty, writeback, nfs_unstable) are also
+> +counted to the originally charged cgroup.
+> +
+> +Example: If page is allocated by a cgroup A task, then the page is charged to
+> +cgroup A.  If the page is later dirtied by a task in cgroup B, then the cgroup A
+> +dirty count will be incremented.  If cgroup A is over its dirty limit but cgroup
+> +B is not, then dirtying a cgroup A page from a cgroup B task may push cgroup A
+> +over its dirty limit without throttling the dirtying cgroup B task.
+> +
+>  6. Hierarchy support
+>  
+>  The memory controller supports a deep hierarchy and hierarchical accounting.
+> -- 
+> 1.7.1
+> 
+Can you clarify whether we can limit the "total" dirty pages under hierarchy
+in use_hierarchy==1 case ?
+If we can, I think it would be better to note it in this documentation.
 
 
-
-
---=20
-Kind regards,
-Minchan Kim
+Thanks,
+Daisuke Nishimura. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
