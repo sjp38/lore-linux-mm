@@ -1,65 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 909746B00A5
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 21:34:17 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9J1YExZ018362
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 19 Oct 2010 10:34:15 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C3F7C45DE51
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 10:34:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 962FA45DE4E
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 10:34:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 806C91DB803C
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 10:34:14 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3ACD41DB803B
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 10:34:14 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [experimental][PATCH] mm,vmstat: per cpu stat flush too when per cpu page cache flushed
-In-Reply-To: <20101018110829.GZ30667@csn.ul.ie>
-References: <20101014114541.8B89.A69D9226@jp.fujitsu.com> <20101018110829.GZ30667@csn.ul.ie>
-Message-Id: <20101019102428.A1BF.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 45FD76B00A5
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 21:37:36 -0400 (EDT)
+Received: by iwn1 with SMTP id 1so1986279iwn.14
+        for <linux-mm@kvack.org>; Mon, 18 Oct 2010 18:32:28 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 19 Oct 2010 10:34:13 +0900 (JST)
+In-Reply-To: <20101019102114.A1B9.A69D9226@jp.fujitsu.com>
+References: <20101019095144.A1B0.A69D9226@jp.fujitsu.com>
+	<AANLkTin38qJ-U3B7XwMh-3aR9zRs21LgR1yHfqYifxrn@mail.gmail.com>
+	<20101019102114.A1B9.A69D9226@jp.fujitsu.com>
+Date: Tue, 19 Oct 2010 10:32:27 +0900
+Message-ID: <AANLkTinU9qHEGgK5NDLi-zBSXJZmRDoZEnyLOHRYe8rd@mail.gmail.com>
+Subject: Re: Deadlock possibly caused by too_many_isolated.
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux.com" <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Neil Brown <neilb@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Li, Shaohua" <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-> > Initial variable ZVC commit (df9ecaba3f1) says 
-> > 
-> > >     [PATCH] ZVC: Scale thresholds depending on the size of the system
-> > > 
-> > >     The ZVC counter update threshold is currently set to a fixed value of 32.
-> > >     This patch sets up the threshold depending on the number of processors and
-> > >     the sizes of the zones in the system.
-> > > 
-> > >     With the current threshold of 32, I was able to observe slight contention
-> > >     when more than 130-140 processors concurrently updated the counters.  The
-> > >     contention vanished when I either increased the threshold to 64 or used
-> > >     Andrew's idea of overstepping the interval (see ZVC overstep patch).
-> > > 
-> > >     However, we saw contention again at 220-230 processors.  So we need higher
-> > >     values for larger systems.
-> > 
-> > So, I'm worry about your patch reintroduce old cache contention issue that Christoph
-> > observed when run 128-256cpus system.  May I ask how do you think this issue?
-> 
-> It only reintroduces the overhead while kswapd is awake and the system is in danger
-> of accidentally allocating all of its pages. Yes, it's slower but it's
-> less risky.
+On Tue, Oct 19, 2010 at 10:21 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> On Tue, Oct 19, 2010 at 9:57 AM, KOSAKI Motohiro
+>> <kosaki.motohiro@jp.fujitsu.com> wrote:
+>> >> > I think there are two bugs here.
+>> >> > The raid1 bug that Torsten mentions is certainly real (and has been=
+ around
+>> >> > for an embarrassingly long time).
+>> >> > The bug that I identified in too_many_isolated is also a real bug a=
+nd can be
+>> >> > triggered without md/raid1 in the mix.
+>> >> > So this is not a 'full fix' for every bug in the kernel :-), but it=
+ could
+>> >> > well be a full fix for this particular bug.
+>> >> >
+>> >>
+>> >> Can we just delete the too_many_isolated() logic? =A0(Crappy comment
+>> >> describes what the code does but not why it does it).
+>> >
+>> > if my remember is correct, we got bug report that LTP may makes mister=
+ious
+>> > OOM killer invocation about 1-2 years ago. because, if too many paroce=
+ss are in
+>> > reclaim path, all of reclaimable pages can be isolated and last reclai=
+mer found
+>> > the system don't have any reclaimable pages and lead to invoke OOM kil=
+ler.
+>> > We have strong motivation to avoid false positive oom. then, some disc=
+usstion
+>> > made this patch.
+>> >
+>> > if my remember is incorrect, I hope Wu or Rik fix me.
+>>
+>> AFAIR, it's right.
+>>
+>> How about this?
+>>
+>> It's rather aggressive throttling than old(ie, it considers not lru
+>> type granularity but zone )
+>> But I think it can prevent unnecessary OOM problem and solve deadlock pr=
+oblem.
+>
+> Can you please elaborate your intention? Do you think Wu's approach is wr=
+ong?
 
-When we have rich storage and running IO intensive workload, kswapd are almost 
-always awake ;)
-However, yes, your approach is less risky.
+No. I think Wu's patch may work well. But I agree Andrew.
+Couldn't we remove the too_many_isolated logic? If it is, we can solve
+the problem simply.
+But If we remove the logic, we will meet long time ago problem, again.
+So my patch's intention is to prevent OOM and deadlock problem with
+simple patch without adding new heuristic in too_many_isolated.
 
 
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
