@@ -1,92 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 89F6A6B00DA
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 19:46:51 -0400 (EDT)
-Date: Mon, 18 Oct 2010 16:46:47 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] Add vzalloc shortcut
-Message-Id: <20101018164647.bc928c78.akpm@linux-foundation.org>
-In-Reply-To: <20101016043331.GA3177@darkstar>
-References: <20101016043331.GA3177@darkstar>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D327E6B00DA
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 19:59:17 -0400 (EDT)
+Subject: Re: [UnifiedV4 00/16] The Unified slab allocator (V4)
+From: "Alex,Shi" <alex.shi@intel.com>
+In-Reply-To: <alpine.DEB.2.00.1010181249540.2092@router.home>
+References: <20101005185725.088808842@linux.com>
+	 <AANLkTinPU4T59PvDH1wX2Rcy7beL=TvmHOZh_wWuBU-T@mail.gmail.com>
+	 <20101006123753.GA17674@localhost> <1286936472.31597.50.camel@debian>
+	 <alpine.DEB.2.00.1010181249540.2092@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 19 Oct 2010 08:01:44 +0800
+Message-ID: <1287446504.24927.4.camel@debian>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Young <hidave.darkstar@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: "Wu, Fengguang" <fengguang.wu@intel.com>, Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "yanmin_zhang@linux.intel.com" <yanmin_zhang@linux.intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Oct 2010 12:33:31 +0800
-Dave Young <hidave.darkstar@gmail.com> wrote:
-
-> Add vzalloc for convinience of vmalloc-then-memset-zero case 
+On Tue, 2010-10-19 at 02:00 +0800, Christoph Lameter wrote:
+> On Wed, 13 Oct 2010, Alex,Shi wrote:
 > 
-> Use __GFP_ZERO in vzalloc to zero fill the allocated memory.
+> > I got the code from
+> > git://git.kernel.org/pub/scm/linux/kernel/git/christoph/slab.git unified
+> > on branch "origin/unified" and do a patch base on 36-rc7 kernel. Then I
+> > tested the patch on our 2P/4P core2 machines and 2P NHM, 2P WSM
+> > machines. Most of benchmark have no clear improvement or regression. The
+> > testing benchmarks is listed here.
+> > http://kernel-perf.sourceforge.net/about_tests.php
 > 
-> Signed-off-by: Dave Young <hidave.darkstar@gmail.com>
-> ---
->  include/linux/vmalloc.h |    1 +
->  mm/vmalloc.c            |   13 +++++++++++++
->  2 files changed, 14 insertions(+)
+> Ah. Thanks. The tests needs to show a clear benefit for this to be a
+> viable solution. They did earlier without all the NUMA queuing on SMP.
 > 
-> --- linux-2.6.orig/include/linux/vmalloc.h	2010-08-22 15:31:38.000000000 +0800
-> +++ linux-2.6/include/linux/vmalloc.h	2010-10-16 10:50:54.739996121 +0800
-> @@ -53,6 +53,7 @@ static inline void vmalloc_init(void)
->  #endif
->  
->  extern void *vmalloc(unsigned long size);
-> +extern void *vzalloc(unsigned long size);
->  extern void *vmalloc_user(unsigned long size);
->  extern void *vmalloc_node(unsigned long size, int node);
->  extern void *vmalloc_exec(unsigned long size);
-> --- linux-2.6.orig/mm/vmalloc.c	2010-08-22 15:31:39.000000000 +0800
-> +++ linux-2.6/mm/vmalloc.c	2010-10-16 10:51:57.126665918 +0800
-> @@ -1604,6 +1604,19 @@ void *vmalloc(unsigned long size)
->  EXPORT_SYMBOL(vmalloc);
->  
->  /**
-> + *	vzalloc  -  allocate virtually contiguous memory with zero filled
-
-s/filled/fill/
-
-> + *	@size:		allocation size
-> + *	Allocate enough pages to cover @size from the page level
-> + *	allocator and map them into contiguous kernel virtual space.
-> + */
-> +void *vzalloc(unsigned long size)
-> +{
-> +	return __vmalloc_node(size, 1, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO,
-> +				PAGE_KERNEL, -1, __builtin_return_address(0));
-> +}
-> +EXPORT_SYMBOL(vzalloc);
-
-We'd need to add the same interface to nommu, please.
-
-Also, a slightly better implementation would be
-
-static inline void *__vmalloc_node_flags(unsigned long size, gfp_t flags)
-{
-	return __vmalloc_node(size, 1, flags, PAGE_KERNEL, -1,
-				__builtin_return_address(0));
-}
-
-void *vzalloc(unsigned long size)
-{
-	return __vmalloc_node_flags(size,
-				GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO);
-}
-
-void *vmalloc(unsigned long size)
-{
-	return __vmalloc_node_flags(size, GFP_KERNEL | __GFP_HIGHMEM);
-}
-
-just to avoid code duplication (and possible later errors derived from it).
-
-Perhaps it should be always_inline, so the __builtin_return_address()
-can't get broken.
-
-Or just leave it the way you had it :)
+> > BTW, I save several time kernel panic in fio testing:
+> > ===================
+> > > Pid: 776, comm: kswapd0 Not tainted 2.6.36-rc7-unified #1 X8DTN/X8DTN
+> > > > RIP: 0010:[<ffffffff810cc21c>]  [<ffffffff810cc21c>] slab_alloc
+> > > > +0x562/0x6f2
+> 
+> Cannot see the error message? I guess this is the result of a BUG_ON()?
+> I'll try to run that fio test first.
+> 
+Can not see error messages since the machine hang when any ops appear.
+And the panic ops just pop up randomly, don't know how to reproduce it
+now. 
 
 
 --
