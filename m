@@ -1,102 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 197556B00CE
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 22:16:20 -0400 (EDT)
-Received: by iwn1 with SMTP id 1so2023454iwn.14
-        for <linux-mm@kvack.org>; Mon, 18 Oct 2010 19:16:18 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20101019105257.A1C6.A69D9226@jp.fujitsu.com>
-References: <20101019102114.A1B9.A69D9226@jp.fujitsu.com>
-	<AANLkTinU9qHEGgK5NDLi-zBSXJZmRDoZEnyLOHRYe8rd@mail.gmail.com>
-	<20101019105257.A1C6.A69D9226@jp.fujitsu.com>
-Date: Tue, 19 Oct 2010 11:16:17 +0900
-Message-ID: <AANLkTi=1j5ejRyki+2wmKvOitorteW6uL53wfAWiPeAs@mail.gmail.com>
-Subject: Re: Deadlock possibly caused by too_many_isolated.
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D7036B00CE
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 22:18:00 -0400 (EDT)
+Date: Mon, 18 Oct 2010 19:18:40 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] Add vzalloc shortcut
+Message-Id: <20101018191840.89b39aa3.akpm@linux-foundation.org>
+In-Reply-To: <AANLkTi=t2U5wa_7pqcb1pAq6p_x7VqYKbfMDZ10q+Geq@mail.gmail.com>
+References: <20101016043331.GA3177@darkstar>
+	<20101018164647.bc928c78.akpm@linux-foundation.org>
+	<AANLkTikVueTjihngtC2rsoeqkUb5Wg-zeEFH1HKgcuuo@mail.gmail.com>
+	<AANLkTi=t2U5wa_7pqcb1pAq6p_x7VqYKbfMDZ10q+Geq@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Neil Brown <neilb@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Li, Shaohua" <shaohua.li@intel.com>
+To: Dave Young <hidave.darkstar@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 19, 2010 at 11:03 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> On Tue, Oct 19, 2010 at 10:21 AM, KOSAKI Motohiro
->> <kosaki.motohiro@jp.fujitsu.com> wrote:
->> >> On Tue, Oct 19, 2010 at 9:57 AM, KOSAKI Motohiro
->> >> <kosaki.motohiro@jp.fujitsu.com> wrote:
->> >> >> > I think there are two bugs here.
->> >> >> > The raid1 bug that Torsten mentions is certainly real (and has b=
-een around
->> >> >> > for an embarrassingly long time).
->> >> >> > The bug that I identified in too_many_isolated is also a real bu=
-g and can be
->> >> >> > triggered without md/raid1 in the mix.
->> >> >> > So this is not a 'full fix' for every bug in the kernel :-), but=
- it could
->> >> >> > well be a full fix for this particular bug.
->> >> >> >
->> >> >>
->> >> >> Can we just delete the too_many_isolated() logic? =A0(Crappy comme=
-nt
->> >> >> describes what the code does but not why it does it).
->> >> >
->> >> > if my remember is correct, we got bug report that LTP may makes mis=
-terious
->> >> > OOM killer invocation about 1-2 years ago. because, if too many par=
-ocess are in
->> >> > reclaim path, all of reclaimable pages can be isolated and last rec=
-laimer found
->> >> > the system don't have any reclaimable pages and lead to invoke OOM =
-killer.
->> >> > We have strong motivation to avoid false positive oom. then, some d=
-iscusstion
->> >> > made this patch.
->> >> >
->> >> > if my remember is incorrect, I hope Wu or Rik fix me.
->> >>
->> >> AFAIR, it's right.
->> >>
->> >> How about this?
->> >>
->> >> It's rather aggressive throttling than old(ie, it considers not lru
->> >> type granularity but zone )
->> >> But I think it can prevent unnecessary OOM problem and solve deadlock=
- problem.
->> >
->> > Can you please elaborate your intention? Do you think Wu's approach is=
- wrong?
->>
->> No. I think Wu's patch may work well. But I agree Andrew.
->> Couldn't we remove the too_many_isolated logic? If it is, we can solve
->> the problem simply.
->> But If we remove the logic, we will meet long time ago problem, again.
->> So my patch's intention is to prevent OOM and deadlock problem with
->> simple patch without adding new heuristic in too_many_isolated.
->
-> But your patch is much false positive/negative chance because isolated pa=
-ges timing
-> and too_many_isolated_zone() call site are in far distance place.
+On Tue, 19 Oct 2010 09:55:17 +0800 Dave Young <hidave.darkstar@gmail.com> wrote:
 
-Yes.
-How about the returning *did_some_progress can imply too_many_isolated
-fail by using MSB or new variable?
-Then, page_allocator can check it whether it causes read reclaim fail
-or parallel reclaim.
-The point is let's throttle without holding FS/IO lock.
+> On Tue, Oct 19, 2010 at 9:27 AM, Dave Young <hidave.darkstar@gmail.com> wrote:
+> > On Tue, Oct 19, 2010 at 7:46 AM, Andrew Morton
+> >>
+> >> Also, a slightly better implementation would be
+> >>
+> >> static inline void * vmalloc_node_flags(unsigned long size, gfp_t flags)
+> >> {
+> >>        return  vmalloc_node(size, 1, flags, PAGE_KERNEL, -1,
+> >>                                 builtin_return_address(0));
+> >> }
+> 
+> Is this better? might  vmalloc_node_flags would be used by other than vmalloc?
+> 
+> static inline void * vmalloc_node_flags(unsigned long size, int node,
+> gfp_t flags)
 
-> So, if anyone don't say Wu's one is wrong, I like his one.
->
-
-I am not against it and just want to solve the problem without adding new l=
-ogic.
-
-
-
---=20
-Kind regards,
-Minchan Kim
+I have no strong opinions, really.  If we add more and more arguments
+to vmalloc_node_flags() it ends up looking like vmalloc_node(), so we
+may as well just call vmalloc_node().  Do whatever feels good ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
