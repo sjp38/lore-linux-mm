@@ -1,129 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 150656B00A4
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 23:13:04 -0400 (EDT)
-Date: Wed, 20 Oct 2010 14:12:56 +1100
-From: Nick Piggin <npiggin@kernel.dk>
-Subject: Re: [patch 31/35] fs: icache per-zone inode LRU
-Message-ID: <20101020031256.GA4095@amd>
-References: <20101019034216.319085068@kernel.dk>
- <20101019034658.744504135@kernel.dk>
- <20101019123852.GA12506@dastard>
- <20101020023556.GC3740@amd>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D45D76B00BB
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 23:23:48 -0400 (EDT)
+Message-ID: <20101020032345.5240.qmail@kosh.dhis.org>
+From: pacman@kosh.dhis.org
+Subject: Re: PROBLEM: memory corrupting bug, bisected to 6dda9d55
+Date: Tue, 19 Oct 2010 22:23:45 -0500 (GMT+5)
+In-Reply-To: <1287522168.2198.5.camel@pasglop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101020023556.GC3740@amd>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@kernel.dk>, linux-mm@kvack.org
-Cc: Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Segher Boessenkool <segher@kernel.crashing.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Gah. Try again.
+Benjamin Herrenschmidt writes:
+> 
+> On Tue, 2010-10-19 at 22:47 +0200, Segher Boessenkool wrote:
+> > 
+> > It looks like it is the frame counter in an USB OHCI HCCA.
+> > 16-bit, 1kHz update, offset x'80 in a page.
+> > 
+> > So either the kernel forgot to call quiesce on it, or the firmware
+> > doesn't implement that, or the firmware messed up some other way.
+> 
+> I vote for the FW being on crack. Wouldn't be the first time with
+> Pegasos.
+> 
+> It's an OHCI or an UHCI in there ?
 
-On Wed, Oct 20, 2010 at 01:35:56PM +1100, Nick Piggin wrote:
-> [I should have cc'ed this one to linux-mm as well, so I quote your
-> reply in full here]
+There's one of each... UHCI on the motherboard, OHCI on a card in a PCI
+expansion slot. They shipped the ODW with the extra controller on an
+expansion card since the on-board UHCI doesn't do USB2.0.
+
+And that OHCI controller does appear to be the culprit. The 2 affected
+addresses tick at 1000Hz until ohci-hcd is modprobe'd, then they stop.
+
+I think the mm people can consider this closed. 6dda9d55 didn't do anything
+but expose a problem which has been here all along. Will drop them from Cc
+list in any further messages.
+
 > 
-> On Tue, Oct 19, 2010 at 11:38:52PM +1100, Dave Chinner wrote:
-> > On Tue, Oct 19, 2010 at 02:42:47PM +1100, npiggin@kernel.dk wrote:
-> > > Per-zone LRUs and shrinkers for inode cache.
-> > 
-> > Regardless of whether this is the right way to scale or not, I don't
-> > like the fact that this moves the cache LRUs into the memory
-> > management structures, and expands the use of MM specific structures
-> > throughout the code.
+> Can you try in prom_init.c changing the prom_close_stdin() function to
+> also close "stdout" ? 
 > 
-> The zone structure really is the basic unit of memory abstraction
-> in the whole zoned VM concept (which covers different properties
-> of both physical address and NUMA cost).
+>          if (prom_getprop(_prom->chosen, "stdin", &val, sizeof(val)) > 0)
+>                  call_prom("close", 1, 0, val);
+> +        if (prom_getprop(_prom->chosen, "stdout", &val, sizeof(val)) > 0)
+> +               call_prom("close", 1, 0, val);
 > 
-> The zone contains structures for memory management that aren't
-> otherwise directly related to one another. Generic page waitqueues,
-> page allocator structures, pagecache reclaim structures, memory model
-> data, and various statistics.
-> 
-> Structures to reclaim inodes from a particular zone belong in the
-> zone struct as much as those to reclaim pagecache or anonymous
-> memory from that zone too. It actually fits far better in here than
-> globally, because all our allocation/reclaiming/watermarks etc is
-> driven per-zone.
-> 
-> The structure is not frequent -- a couple per NUMA node.
-> 
-> 
-> > It ties the cache implementation to the current
-> > VM implementation. That, IMO, goes against all the principle of
-> > modularisation at the source code level, and it means we have to tie
-> > all shrinker implemenations to the current internal implementation
-> > of the VM. I don't think that is wise thing to do because of the
-> > dependencies and impedance mismatches it introduces.
-> 
-> It's very fundamental. We allocate memory from, and have to reclaim
-> memory from -- zones. Memory reclaim is driven based on how the VM
-> wants to reclaim memory: nothing you can do to avoid some linkage
-> between the two.
-> 
-> Look at it this way. The dumb global shrinker is also tied to an
-> MM implementation detail, but that detail in fact does *not* match
-> the reality of the MM, and so it has all these problems interacting
-> with real reclaim.
-> 
-> What problems? OK, on an N zone system (assuming equal zones and
-> even distribution of objects around memory), then if there is a shortage
-> on a particular zone, slabs from _all_ zones are reclaimed. We reclaim
-> a factor of N too many objects. In a NUMA situation, we also touch
-> remote memory with a chance (N-1)/N.
-> 
-> As number of nodes grow beyond 2, this quickly goes down hill.
-> 
-> In summary, there needs to be some knowledge of how MM reclaims memory
-> in memory reclaim shrinkers -- simply can't do a good implementation
-> without that. If the zone concept changes, the MM gets turned upside
-> down and all those assumptions would need to be revisited anyway.
-> 
-> 
-> > As an example: XFS inodes to be reclaimed are simply tagged in a
-> > radix tree so the shrinker can reclaim inodes in optimal IO order
-> > rather strict LRU order. It simply does not match a zone-based
-> 
-> This is another problem, similar to what we have in pagecache. In
-> the pagecache, we need to clean pages in optimal IO order, but we
-> still reclaim them according to some LRU order.
-> 
-> If you reclaim them in optimal IO order, cache efficiency will go
-> down because you sacrifice recency/frequency information. If you
-> IO in reclaim order, IO efficiency goes down. The solution is to
-> decouple them with like writeout versus reclaim.
-> 
-> But anyway, that's kind of an "aside": inode caches are reclaimed
-> in LRU, IO-suboptimal order today anyway. Per-zone LRU doesn't
-> change that in the slightest.
-> 
-> > shrinker implementation in any way, shape or form, nor does it's
-> > inherent parallelism match that of the way shrinkers are called.
-> > 
-> > Any change in shrinker infrastructure needs to be able to handle
-> > these sorts of impedance mismatches between the VM and the cache
-> > subsystem. The current API doesn't handle this very well, either,
-> > so it's something that we need to fix so that scalability is easy
-> > for everyone.
-> > 
-> > Anyway, my main point is that tying the LRU and shrinker scaling to
-> > the implementation of the VM is a one-off solution that doesn't work
-> > for generic infrastructure.
-> 
-> No it isn't. It worked for the pagecache, and it works for dcache.
-> 
-> 
-> > Other subsystems need the same
-> > large-machine scaling treatment, and there's no way we should be
-> > tying them all into the struct zone. It needs further abstraction.
-> 
-> An abstraction? Other than the zone? What do you suggest? Invent
-> something that the VM has no concept of and try to use that?
-> 
-> No. The zone is the right thing to base it on.
+> See if that makes a difference ?
+
+Huge difference. With no stdout to print to, the kernel seems to freeze up.
+Or at least it loses the console. The last message it prints is "Device tree
+struct 0x00933000 -> 0x00957000" then there's just nothing. I waited a while
+for the console to come on but it didn't.
+
+The diff fragment above applied inside prom_close_stdin, but there are some
+prom_printf calls after prom_close_stdin. Calling prom_printf after closing
+stdout sounds like it could be bad. If I moved it down below all the
+prom_printf's, it would be after the "quiesce" call. Would that be acceptable
+(or even interesting as an experiment)? Does a close need a quiesce after it?
+
+-- 
+Alan Curry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
