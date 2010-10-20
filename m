@@ -1,69 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 088015F0048
-	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 00:12:23 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 566105F0048
+	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 00:20:02 -0400 (EDT)
 Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9K4CL5u017225
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9K4JurK011283
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 20 Oct 2010 13:12:21 +0900
+	Wed, 20 Oct 2010 13:19:57 +0900
 Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F50C45DE6E
-	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 13:12:21 +0900 (JST)
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6956845DE7A
+	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 13:19:56 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1291A45DE60
-	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 13:12:21 +0900 (JST)
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B91BA45DE6F
+	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 13:19:55 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id F13131DB803A
-	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 13:12:20 +0900 (JST)
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EEB21EF800B
+	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 13:19:54 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AABD2EF8001
-	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 13:12:20 +0900 (JST)
-Date: Wed, 20 Oct 2010 13:06:54 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DED1EF8007
+	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 13:19:54 +0900 (JST)
+Date: Wed, 20 Oct 2010 13:14:27 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3 02/11] memcg: document cgroup dirty memory interfaces
-Message-Id: <20101020130654.bf861eda.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <xr93r5fl1poc.fsf@ninji.mtv.corp.google.com>
+Subject: Re: [PATCH][memcg+dirtylimit] Fix  overwriting global vm dirty
+ limit setting by memcg (Re: [PATCH v3 00/11] memcg: per cgroup dirty page
+ accounting
+Message-Id: <20101020131427.a4998c33.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20101020122144.47f2b60b.kamezawa.hiroyu@jp.fujitsu.com>
 References: <1287448784-25684-1-git-send-email-gthelen@google.com>
-	<1287448784-25684-3-git-send-email-gthelen@google.com>
-	<20101019172744.45e0a8dc.nishimura@mxp.nes.nec.co.jp>
-	<xr93lj5t5245.fsf@ninji.mtv.corp.google.com>
-	<20101020091109.ccd7b39a.kamezawa.hiroyu@jp.fujitsu.com>
-	<xr93r5fl1poc.fsf@ninji.mtv.corp.google.com>
+	<20101020122144.47f2b60b.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 19 Oct 2010 17:45:08 -0700
-Greg Thelen <gthelen@google.com> wrote:
+On Wed, 20 Oct 2010 12:21:44 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
-> > BTW, how about supporing dirty_limit_in_bytes when use_hierarchy=0 or
-> > leave it as broken when use_hierarchy=1 ?  It seems we can only
-> > support dirty_ratio when hierarchy is used.
 > 
-> I am not sure what you mean here.
+> One bug fix here.
+> ==
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Now, at calculating dirty limit, vm_dirty_param() is called.
+> This function returns dirty-limit related parameters considering
+> memory cgroup settings.
+> 
+> Now, assume that vm_dirty_bytes=100M (global dirty limit) and
+> memory cgroup has 1G of pages and 40 dirty_ratio, dirtyable memory is
+> 500MB.
+> 
+> In this case, global_dirty_limits will consider dirty_limt as
+> 500 *0.4 = 200MB. This is bad...memory cgroup is not back door.
+> 
+> This patch limits the return value of vm_dirty_param() considring
+> global settings.
+> 
+> 
 
-When using dirty_ratio, we can check the value of dirty_ratio at setting it
-and make guarantee that any children's dirty_ratio cannot exceeds it parent's.
-
-If we guarantee that, we can keep dirty_ratio even under hierarchy.
-
-When it comes to dirty_limit_in_bytes, we never able to do such kind of
-controls. So, it will be broken and will do different behavior than
-dirty_ratio.
-
-So, not supporing dirty_bytes when use_hierarchy==1 for now sounds reasonable to me.
+Sorry, this one is buggy. I'll post a new one later.
 
 Thanks,
 -Kame
-
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
