@@ -1,67 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 941FB5F0048
-	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 00:44:51 -0400 (EDT)
-Date: Wed, 20 Oct 2010 13:34:51 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH v3 11/11] memcg: check memcg dirty limits in page
- writeback
-Message-Id: <20101020133451.93026a1b.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20101020131857.cd0ecd38.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1287448784-25684-1-git-send-email-gthelen@google.com>
-	<1287448784-25684-12-git-send-email-gthelen@google.com>
-	<20101019100015.7a0d4695.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101020131857.cd0ecd38.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 193AF6B0089
+	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 01:05:52 -0400 (EDT)
+Received: by gwj21 with SMTP id 21so1948334gwj.14
+        for <linux-mm@kvack.org>; Tue, 19 Oct 2010 22:05:51 -0700 (PDT)
+Date: Wed, 20 Oct 2010 14:05:18 +0900
+From: Adam Jiang <jiang.adam@gmail.com>
+Subject: Re: oom_killer crash linux system
+Message-ID: <20101020050518.GD5796@rcwf64-moto>
+References: <20101020112828.1818.A69D9226@jp.fujitsu.com>
+ <1287543520.2074.1.camel@myhost>
+ <20101020122137.1824.A69D9226@jp.fujitsu.com>
+ <1287546225.2121.14.camel@myhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1287546225.2121.14.camel@myhost>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: "Figo.zhang" <zhangtianfei@leadcoretech.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rientjes@google.com" <rientjes@google.com>, figo1802 <figo1802@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Oct 2010 13:18:57 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> On Tue, 19 Oct 2010 10:00:15 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Wed, Oct 20, 2010 at 11:43:45AM +0800, Figo.zhang wrote:
 > 
-> > On Mon, 18 Oct 2010 17:39:44 -0700
-> > Greg Thelen <gthelen@google.com> wrote:
+> > > active_anon:398375 inactive_anon:82967 isolated_anon:0 
+> > >  active_file:81 inactive_file:429 isolated_file:32
+> > >  unevictable:13 dirty:2 writeback:14 unstable:0
+> > >  free:11942 slab_reclaimable:2391 slab_unreclaimable:3303
+> > >  mapped:5617 shmem:33909 pagetables:2280 bounce:0
 > > 
-> > > If the current process is in a non-root memcg, then
-> > > global_dirty_limits() will consider the memcg dirty limit.
-> > > This allows different cgroups to have distinct dirty limits
-> > > which trigger direct and background writeback at different
-> > > levels.
-> > > 
-> > > Signed-off-by: Andrea Righi <arighi@develer.com>
-> > > Signed-off-by: Greg Thelen <gthelen@google.com>
+> > active_anon + inactive_anon + isolated_anon = 481342 pages ~= 1.8GB
+> > Um, this oom doesn't makes accounting lost.
 > > 
-> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > >              total	    515071     2011
 > > 
-> Why FREEPAGES in memcg is not counted as dirtyable ?
+> > page-types show similar result.
+> > 
+> > 
+> > The big difference is, previous and current are showing some different processes.
+> > only previous has VirtualBox, only current has vmware-usbarbit, etc..
+> > 
+> > Can you use same test environment?
+> yes, it is the same desktop, and i open some pdf files and applications
+> by random. 
 > 
-It's counted as memcg_hierarchical_free_pages() in mem_cgroup_page_stat().
-As for FREEPAGES, we should count ancestors, not children.
+> but when my desktop eat up to 1.8GB RAM (active_anon + inactive_anon +
+> isolated_anon = 481342 pages >= 1.8GB), the system became extraordinary
+> slow. when i move the mouse, the mouse cant move a little on screen. i
+> deem it have "crashed", but i ping it's ip by other desktop, it is ok.
+> 
+> so what is apect affect the system seem to "crashed", page-writeback?
+> page-reclaimed?  and the oom-killer seem to be very conservative? in
+> that condition , oom_killer must kill some process to release memory for
+> new process.
 
-mem_cgroup_page_stat():
-   1311         if (mem && !mem_cgroup_is_root(mem)) {
-   1312                 /*
-   1313                  * If we're looking for dirtyable pages we need to evaluate
-   1314                  * free pages depending on the limit and usage of the parents
-   1315                  * first of all.
-   1316                  */
-   1317                 if (item == MEMCG_NR_DIRTYABLE_PAGES)
-   1318                         value = memcg_hierarchical_free_pages(mem);
-   1319                 else
-   1320                         value = 0;
-   1321                 /*
-   1322                  * Recursively evaluate page statistics against all cgroup
-   1323                  * under hierarchy tree
-   1324                  */
-   1325                 for_each_mem_cgroup_tree(iter, mem)
-   1326                         value += mem_cgroup_local_page_stat(iter, item);
+I think it just simply the test caused system *almost* dead but not
+really trigger oom-killer. You have 2GB RAM, right. 0.2G is a huge
+amount of memory for Linux kernel.
+
+If you do want to test the new oom-killer, you can just right a simple
+program to allocate memory continues but make different instances to
+eat memory in different paces. Then, you can find out who will be killed
+first eventually.
+
+/Adam
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
