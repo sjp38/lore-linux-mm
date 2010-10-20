@@ -1,70 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D45D76B00BB
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 23:23:48 -0400 (EDT)
-Message-ID: <20101020032345.5240.qmail@kosh.dhis.org>
-From: pacman@kosh.dhis.org
-Subject: Re: PROBLEM: memory corrupting bug, bisected to 6dda9d55
-Date: Tue, 19 Oct 2010 22:23:45 -0500 (GMT+5)
-In-Reply-To: <1287522168.2198.5.camel@pasglop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7CA1E6B00BF
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 23:24:41 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9K3ObgQ020135
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 20 Oct 2010 12:24:37 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8AED745DE61
+	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 12:24:36 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C82545DE69
+	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 12:24:36 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C6791DB803C
+	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 12:24:35 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 119E0E1800F
+	for <linux-mm@kvack.org>; Wed, 20 Oct 2010 12:24:35 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: oom_killer crash linux system
+In-Reply-To: <1287543520.2074.1.camel@myhost>
+References: <20101020112828.1818.A69D9226@jp.fujitsu.com> <1287543520.2074.1.camel@myhost>
+Message-Id: <20101020122137.1824.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Wed, 20 Oct 2010 12:24:34 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Segher Boessenkool <segher@kernel.crashing.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
+To: "Figo.zhang" <zhangtianfei@leadcoretech.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rientjes@google.com" <rientjes@google.com>, figo1802 <figo1802@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt writes:
 > 
-> On Tue, 2010-10-19 at 22:47 +0200, Segher Boessenkool wrote:
 > > 
-> > It looks like it is the frame counter in an USB OHCI HCCA.
-> > 16-bit, 1kHz update, offset x'80 in a page.
+> > can you please try 1) invoke oom 2) get page-types -r again. I'm curious
+> > that oom makes page accounting lost again. I mean, please send us oom 
+> > log and "page-types -r" result.
 > > 
-> > So either the kernel forgot to call quiesce on it, or the firmware
-> > doesn't implement that, or the firmware messed up some other way.
+> > thanks
 > 
-> I vote for the FW being on crack. Wouldn't be the first time with
-> Pegasos.
+> ok, i do the experiment and catch the log:
+
+thanks.
+
+
+> active_anon:398375 inactive_anon:82967 isolated_anon:0 
+>  active_file:81 inactive_file:429 isolated_file:32
+>  unevictable:13 dirty:2 writeback:14 unstable:0
+>  free:11942 slab_reclaimable:2391 slab_unreclaimable:3303
+>  mapped:5617 shmem:33909 pagetables:2280 bounce:0
+
+active_anon + inactive_anon + isolated_anon = 481342 pages ~= 1.8GB
+Um, this oom doesn't makes accounting lost.
+
+> here is the page-types log:
+>              flags	page-count       MB  symbolic-flags long-symbolic-flags
 > 
-> It's an OHCI or an UHCI in there ?
+> 0x0000000000005828	     83024      324 ___U_l_____Ma_b___________________ uptodate,lru,mmap,anonymous,swapbacked
+> 0x0000000000005868	    358737     1401 ___U_lA____Ma_b___________________ uptodate,lru,active,mmap,anonymous,swapbacked
+>              total	    515071     2011
 
-There's one of each... UHCI on the motherboard, OHCI on a card in a PCI
-expansion slot. They shipped the ODW with the extra controller on an
-expansion card since the on-board UHCI doesn't do USB2.0.
+page-types show similar result.
 
-And that OHCI controller does appear to be the culprit. The 2 affected
-addresses tick at 1000Hz until ohci-hcd is modprobe'd, then they stop.
 
-I think the mm people can consider this closed. 6dda9d55 didn't do anything
-but expose a problem which has been here all along. Will drop them from Cc
-list in any further messages.
+The big difference is, previous and current are showing some different processes.
+only previous has VirtualBox, only current has vmware-usbarbit, etc..
 
-> 
-> Can you try in prom_init.c changing the prom_close_stdin() function to
-> also close "stdout" ? 
-> 
->          if (prom_getprop(_prom->chosen, "stdin", &val, sizeof(val)) > 0)
->                  call_prom("close", 1, 0, val);
-> +        if (prom_getprop(_prom->chosen, "stdout", &val, sizeof(val)) > 0)
-> +               call_prom("close", 1, 0, val);
-> 
-> See if that makes a difference ?
+Can you use same test environment?
 
-Huge difference. With no stdout to print to, the kernel seems to freeze up.
-Or at least it loses the console. The last message it prints is "Device tree
-struct 0x00933000 -> 0x00957000" then there's just nothing. I waited a while
-for the console to come on but it didn't.
 
-The diff fragment above applied inside prom_close_stdin, but there are some
-prom_printf calls after prom_close_stdin. Calling prom_printf after closing
-stdout sounds like it could be bad. If I moved it down below all the
-prom_printf's, it would be after the "quiesce" call. Would that be acceptable
-(or even interesting as an experiment)? Does a close need a quiesce after it?
-
--- 
-Alan Curry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
