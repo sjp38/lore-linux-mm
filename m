@@ -1,263 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A90F25F0040
-	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 05:29:23 -0400 (EDT)
-Subject: Re: [PATCH] [v2] slub tracing: move trace calls out of always
- inlined functions to reduce kernel code size
-From: Richard Kennedy <richard@rsk.demon.co.uk>
-In-Reply-To: <1287049769.1909.4.camel@castor.rsk>
-References: <1286986178.1901.60.camel@castor.rsk>
-	 <4CB6ACB7.8060006@kernel.org>  <1287049769.1909.4.camel@castor.rsk>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 21 Oct 2010 10:29:19 +0100
-Message-ID: <1287653359.1906.13.camel@castor.rsk>
-Mime-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3C2035F0040
+	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 08:02:17 -0400 (EDT)
+From: Nikanth Karthikesan <knikanth@suse.de>
+Subject: Re: [PATCH 0/9] v3 De-couple sysfs memory directories from memory sections
+Date: Thu, 21 Oct 2010 17:35:19 +0530
+References: <4CA62700.7010809@austin.ibm.com>
+In-Reply-To: <4CA62700.7010809@austin.ibm.com>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201010211735.19276.knikanth@suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Steven Rostedt <rostedt@goodmis.org>
+To: Nathan Fontenot <nfont@austin.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Robin Holt <holt@sgi.com>, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Having the trace calls defined in the always inlined kmalloc functions
-in include/linux/slub_def.h causes a lot of code duplication as the
-trace functions get instantiated for each kamalloc call site. This can
-simply be removed by pushing the trace calls down into the functions in
-slub.c.
+On Friday 01 October 2010 23:52:56 Nathan Fontenot wrote:
+> This set of patches decouples the concept that a single memory
+> section corresponds to a single directory in
+> /sys/devices/system/memory/.  On systems
+> with large amounts of memory (1+ TB) there are performance issues
+> related to creating the large number of sysfs directories.  For
+> a powerpc machine with 1 TB of memory we are creating 63,000+
+> directories.  This is resulting in boot times of around 45-50
+> minutes for systems with 1 TB of memory and 8 hours for systems
+> with 2 TB of memory.  With this patch set applied I am now seeing
+> boot times of 5 minutes or less.
+> 
+> The root of this issue is in sysfs directory creation. Every time
+> a directory is created a string compare is done against all sibling
+> directories to ensure we do not create duplicates.  The list of
+> directory nodes in sysfs is kept as an unsorted list which results
+> in this being an exponentially longer operation as the number of
+> directories are created.
+> 
 
-On my x86_64 built this patch shrinks the code size of the kernel by
-approx 36K and also shrinks the code size of many modules -- too many to
-list here ;)
+Can we simply remove this check for this case alone?! :)
 
-size vmlinux (2.6.36) reports
-       text        data     bss     dec     hex filename
-    5410611	 743172	 828928	6982711	 6a8c37	vmlinux
-    5373738	 744244	 828928	6946910	 6a005e	vmlinux + patch
+Thanks
+Nikanth
 
-The resulting kernel has had some testing & kmalloc trace still seems to
-work.
+Do not check for an entry with the same name is already present, when
+__sysfs_add_one() is directly called, bypassing sysfs_add_one().
 
-This patch
-- moves trace_kmalloc out of the inlined kmalloc() and pushes it down
-into kmem_cache_alloc_trace() so this it only get instantiated once.
+Currently register_mem_sect_under_node() calls
+sysfs_create_link_nowarn(), which is the only caller to do so.
 
-- rename kmem_cache_alloc_notrace()  to kmem_cache_alloc_trace() to
-indicate that now is does have tracing. (maybe this would better being
-called something like kmalloc_kmem_cache ?)
+Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
 
-- adds a new function kmalloc_order() to handle allocation and tracing
-of large allocations of page order.
+---
 
-- removes tracing from the inlined kmalloc_large() replacing them with a
-call to kmalloc_order();
-
-- move tracing out of inlined kmalloc_node() and pushing it down into
-kmem_cache_alloc_node_trace
-
-- rename kmem_cache_alloc_node_notrace() to
-kmem_cache_alloc_node_trace()
-
-- removes the include of trace/events/kmem.h from slub_def.h.
-
-v2
-- keep kmalloc_order_trace inline when !CONFIG_TRACE
-
-Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
-
-----
-patch against v2.6.36
-compiled & tested on x86_64
-
-regards
-Richard
-
- include/linux/slub_def.h |   55 ++++++++++++++++++++++-------------------------
- mm/slub.c                |   30 +++++++++++++++++++------
- 2 files changed, 49 insertions(+), 36 deletions(-)
-
-
-
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index 9f63538..d5a4ced 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -10,9 +10,8 @@
- #include <linux/gfp.h>
- #include <linux/workqueue.h>
- #include <linux/kobject.h>
--#include <linux/kmemleak.h>
- 
--#include <trace/events/kmem.h>
-+#include <linux/kmemleak.h>
- 
- enum stat_item {
- 	ALLOC_FASTPATH,		/* Allocation from cpu slab */
-@@ -222,31 +221,40 @@ static __always_inline struct kmem_cache *kmalloc_slab(size_t size)
- void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
- void *__kmalloc(size_t size, gfp_t flags);
- 
-+static __always_inline void *
-+kmalloc_order(size_t size, gfp_t flags, unsigned int order)
-+{
-+	void *ret = (void *) __get_free_pages(flags | __GFP_COMP, order);
-+	kmemleak_alloc(ret, size, 1, flags);
-+	return ret;
-+}
-+
- #ifdef CONFIG_TRACING
--extern void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags);
-+extern void *
-+kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size);
-+extern void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order);
- #else
- static __always_inline void *
--kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
-+kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
+diff --git a/fs/sysfs/dir.c b/fs/sysfs/dir.c
+index 7e54bac..14d965c 100644
+--- a/fs/sysfs/dir.c
++++ b/fs/sysfs/dir.c
+@@ -368,21 +368,16 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
+  *	This function should be called between calls to
+  *	sysfs_addrm_start() and sysfs_addrm_finish() and should be
+  *	passed the same @acxt as passed to sysfs_addrm_start().
++ *	And there should be no sibling with the same name.
+  *
+  *	LOCKING:
+  *	Determined by sysfs_addrm_start().
+  *
+- *	RETURNS:
+- *	0 on success, -EEXIST if entry with the given name already
+- *	exists.
+  */
+-int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
++void __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
  {
- 	return kmem_cache_alloc(s, gfpflags);
- }
-+
-+static __always_inline void *
-+kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
-+{
-+	return kmalloc_order(size, flags, order);
-+}
- #endif
+ 	struct sysfs_inode_attrs *ps_iattr;
  
- static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
- {
- 	unsigned int order = get_order(size);
--	void *ret = (void *) __get_free_pages(flags | __GFP_COMP, order);
+-	if (sysfs_find_dirent(acxt->parent_sd, sd->s_ns, sd->s_name))
+-		return -EEXIST;
 -
--	kmemleak_alloc(ret, size, 1, flags);
--	trace_kmalloc(_THIS_IP_, ret, size, PAGE_SIZE << order, flags);
--
--	return ret;
-+	return kmalloc_order_trace(size, flags, order);
- }
+ 	sd->s_parent = sysfs_get(acxt->parent_sd);
  
- static __always_inline void *kmalloc(size_t size, gfp_t flags)
- {
--	void *ret;
--
- 	if (__builtin_constant_p(size)) {
- 		if (size > SLUB_MAX_SIZE)
- 			return kmalloc_large(size, flags);
-@@ -257,11 +265,7 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
- 			if (!s)
- 				return ZERO_SIZE_PTR;
- 
--			ret = kmem_cache_alloc_notrace(s, flags);
--
--			trace_kmalloc(_THIS_IP_, ret, size, s->size, flags);
--
--			return ret;
-+			return kmem_cache_alloc_trace(s, flags, size);
- 		}
+ 	sysfs_link_sibling(sd);
+@@ -394,7 +389,6 @@ int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
+ 		ps_iattrs->ia_ctime = ps_iattrs->ia_mtime = CURRENT_TIME;
  	}
- 	return __kmalloc(size, flags);
-@@ -272,14 +276,14 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node);
- void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
  
- #ifdef CONFIG_TRACING
--extern void *kmem_cache_alloc_node_notrace(struct kmem_cache *s,
-+extern void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
- 					   gfp_t gfpflags,
--					   int node);
-+					   int node, size_t size);
- #else
- static __always_inline void *
--kmem_cache_alloc_node_notrace(struct kmem_cache *s,
-+kmem_cache_alloc_node_trace(struct kmem_cache *s,
- 			      gfp_t gfpflags,
--			      int node)
-+			      int node, size_t size)
- {
- 	return kmem_cache_alloc_node(s, gfpflags, node);
+-	return 0;
  }
-@@ -287,8 +291,6 @@ kmem_cache_alloc_node_notrace(struct kmem_cache *s,
  
- static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+ /**
+@@ -439,10 +433,9 @@ static char *sysfs_pathname(struct sysfs_dirent *sd, char *path)
+  */
+ int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
  {
--	void *ret;
--
- 	if (__builtin_constant_p(size) &&
- 		size <= SLUB_MAX_SIZE && !(flags & SLUB_DMA)) {
- 			struct kmem_cache *s = kmalloc_slab(size);
-@@ -296,12 +298,7 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
- 		if (!s)
- 			return ZERO_SIZE_PTR;
+-	int ret;
++	int ret = 0;
  
--		ret = kmem_cache_alloc_node_notrace(s, flags, node);
--
--		trace_kmalloc_node(_THIS_IP_, ret,
--				   size, s->size, flags, node);
--
--		return ret;
-+		return kmem_cache_alloc_node_trace(s, flags, node, size);
+-	ret = __sysfs_add_one(acxt, sd);
+-	if (ret == -EEXIST) {
++	if (sysfs_find_dirent(acxt->parent_sd, sd->s_ns, sd->s_name)) {
+ 		char *path = kzalloc(PATH_MAX, GFP_KERNEL);
+ 		WARN(1, KERN_WARNING
+ 		     "sysfs: cannot create duplicate filename '%s'\n",
+@@ -450,8 +443,11 @@ int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
+ 		     strcat(strcat(sysfs_pathname(acxt->parent_sd, path), "/"),
+ 		            sd->s_name));
+ 		kfree(path);
++		ret = -EEXIST;
  	}
- 	return __kmalloc_node(size, flags, node);
- }
-diff --git a/mm/slub.c b/mm/slub.c
-index 13fffe1..aab2165 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -28,6 +28,8 @@
- #include <linux/math64.h>
- #include <linux/fault-inject.h>
  
-+#include <trace/events/kmem.h>
++	__sysfs_add_one(acxt, sd);
 +
- /*
-  * Lock order:
-  *   1. slab_lock(page)
-@@ -1736,11 +1738,21 @@ void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
- EXPORT_SYMBOL(kmem_cache_alloc);
- 
- #ifdef CONFIG_TRACING
--void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
-+void *kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
-+{
-+	void *ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
-+	trace_kmalloc(_RET_IP_, ret, size, s->size, gfpflags);
-+	return ret;
-+}
-+EXPORT_SYMBOL(kmem_cache_alloc_trace);
-+
-+void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
- {
--	return slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
-+	void *ret = kmalloc_order(size, flags, order);
-+	trace_kmalloc(_RET_IP_, ret, size, PAGE_SIZE << order, flags);
-+	return ret;
+ 	return ret;
  }
--EXPORT_SYMBOL(kmem_cache_alloc_notrace);
-+EXPORT_SYMBOL(kmalloc_order_trace);
- #endif
  
- #ifdef CONFIG_NUMA
-@@ -1757,13 +1769,17 @@ EXPORT_SYMBOL(kmem_cache_alloc_node);
- #endif
- 
- #ifdef CONFIG_TRACING
--void *kmem_cache_alloc_node_notrace(struct kmem_cache *s,
-+void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
- 				    gfp_t gfpflags,
--				    int node)
-+				    int node, size_t size)
- {
--	return slab_alloc(s, gfpflags, node, _RET_IP_);
-+	void *ret = slab_alloc(s, gfpflags, node, _RET_IP_);
-+
-+	trace_kmalloc_node(_RET_IP_, ret,
-+			   size, s->size, gfpflags, node);
-+	return ret;
- }
--EXPORT_SYMBOL(kmem_cache_alloc_node_notrace);
-+EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
- #endif
- 
- /*
-
+diff --git a/fs/sysfs/symlink.c b/fs/sysfs/symlink.c
+index a7ac78f..7c56d34 100644
+--- a/fs/sysfs/symlink.c
++++ b/fs/sysfs/symlink.c
+@@ -72,7 +72,7 @@ static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
+ 		if (warn)
+ 			error = sysfs_add_one(&acxt, sd);
+ 		else
+-			error = __sysfs_add_one(&acxt, sd);
++			__sysfs_add_one(&acxt, sd);
+ 	} else {
+ 		error = -EINVAL;
+ 		WARN(1, KERN_WARNING
+diff --git a/fs/sysfs/sysfs.h b/fs/sysfs/sysfs.h
+index d9be60a..35449c8 100644
+--- a/fs/sysfs/sysfs.h
++++ b/fs/sysfs/sysfs.h
+@@ -155,7 +155,7 @@ struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd);
+ void sysfs_put_active(struct sysfs_dirent *sd);
+ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
+ 		       struct sysfs_dirent *parent_sd);
+-int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd);
++void __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd);
+ int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd);
+ void sysfs_remove_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd);
+ void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
