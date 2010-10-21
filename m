@@ -1,35 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 372B15F0040
-	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 16:26:13 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id o9LKFSBa003790
-	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 13:15:28 -0700
-Received: from pwj5 (pwj5.prod.google.com [10.241.219.69])
-	by wpaz21.hot.corp.google.com with ESMTP id o9LKF4vc014686
-	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 13:15:27 -0700
-Received: by pwj5 with SMTP id 5so165976pwj.1
-        for <linux-mm@kvack.org>; Thu, 21 Oct 2010 13:15:27 -0700 (PDT)
-Date: Thu, 21 Oct 2010 13:15:22 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: slub: move slabinfo.c to tools/slub/slabinfo.c
-In-Reply-To: <alpine.DEB.2.00.1010211300550.24115@router.home>
-Message-ID: <alpine.DEB.2.00.1010211315070.14946@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1010211300550.24115@router.home>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1724E6B004A
+	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 16:28:40 -0400 (EDT)
+Date: Thu, 21 Oct 2010 15:28:35 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: vmscan: Do not run shrinkers for zones other than ZONE_NORMAL
+In-Reply-To: <20101021131428.f2f7214a.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1010211527050.32674@router.home>
+References: <alpine.DEB.2.00.1010211255570.24115@router.home> <20101021124054.14b85e50.akpm@linux-foundation.org> <alpine.DEB.2.00.1010211455100.30295@router.home> <20101021131428.f2f7214a.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: npiggin@kernel.dk, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Oct 2010, Christoph Lameter wrote:
+On Thu, 21 Oct 2010, Andrew Morton wrote:
 
-> We now have a tools directory for these things.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+> The patch changes balance_pgdat() to not shrink slab when inspecting
+> the highmem zone.  It will therefore change zone balancing behaviour on
+> a humble 1G laptop, will it not?
 
-Acked-by: David Rientjes <rientjes@google.com>
+It will avoid a slab shrink call on the HIGHMEM zone that will put useless
+pressure on the cache objects in ZONE_NORMAL and ZONE_DMA. There will have
+been already shrinker calls for ZONE_DMA and ZONE_NORMAL before. This is
+going to be the third round....
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
