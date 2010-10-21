@@ -1,56 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id D93FC5F0040
-	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 10:01:09 -0400 (EDT)
-Date: Thu, 21 Oct 2010 22:01:05 +0800
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 472615F0040
+	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 10:25:46 -0400 (EDT)
+Date: Thu, 21 Oct 2010 22:25:34 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 1/3] page_isolation: codeclean fix comment and rm
- unneeded val init
-Message-ID: <20101021140105.GA9709@localhost>
+Subject: Re: [PATCH 2/3] do_migrate_range: exit loop if not_managed is true.
+Message-ID: <20101021142534.GB9709@localhost>
 References: <1287667701-8081-1-git-send-email-lliubbo@gmail.com>
+ <1287667701-8081-2-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1287667701-8081-1-git-send-email-lliubbo@gmail.com>
+In-Reply-To: <1287667701-8081-2-git-send-email-lliubbo@gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Bob Liu <lliubbo@gmail.com>
 Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 21, 2010 at 09:28:19PM +0800, Bob Liu wrote:
-> function __test_page_isolated_in_pageblock() return 1 if all pages
-> in the range is isolated, so fix the comment.
-> value pfn will be init in the following loop so rm it.
+On Thu, Oct 21, 2010 at 09:28:20PM +0800, Bob Liu wrote:
+> If not_managed is true all pages will be putback to lru, so
+> break the loop earlier to skip other pages isolate.
 
-This is a bit confusing, but the original comment should be intended
-for test_pages_isolated()..
+It's good fix in itself. However it's normal for isolate_lru_page() to
+fail at times (when there are active reclaimers). The failures are
+typically temporal and may well go away when offline_pages() retries
+the call. So it seems more reasonable to migrate as much as possible
+to increase the chance of complete success in next retry.
 
 > Signed-off-by: Bob Liu <lliubbo@gmail.com>
 > ---
->  mm/page_isolation.c |    3 +--
->  1 files changed, 1 insertions(+), 2 deletions(-)
+>  mm/memory_hotplug.c |   10 ++++++----
+>  1 files changed, 6 insertions(+), 4 deletions(-)
 > 
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 5e0ffd9..4ae42bb 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -86,7 +86,7 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
->   * all pages in [start_pfn...end_pfn) must be in the same zone.
->   * zone->lock must be held before call this.
->   *
-> - * Returns 0 if all pages in the range is isolated.
-> + * Returns 1 if all pages in the range is isolated.
->   */
->  static int
->  __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
-> @@ -119,7 +119,6 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
->  	struct zone *zone;
->  	int ret;
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index d4e940a..4f72184 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -709,15 +709,17 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+>  					    page_is_file_cache(page));
 >  
-> -	pfn = start_pfn;
->  	/*
->  	 * Note: pageblock_nr_page != MAX_ORDER. Then, chunks of free page
->  	 * is not aligned to pageblock_nr_pages.
+>  		} else {
+> -			/* Becasue we don't have big zone->lock. we should
+> -			   check this again here. */
+> -			if (page_count(page))
+> -				not_managed++;
+>  #ifdef CONFIG_DEBUG_VM
+>  			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
+>  			       pfn);
+>  			dump_page(page);
+>  #endif
+> +			/* Becasue we don't have big zone->lock. we should
+> +			   check this again here. */
+> +			if (page_count(page)) {
+> +				not_managed++;
+> +				break;
+> +			}
+>  		}
+>  	}
+>  	ret = -EBUSY;
 > -- 
 > 1.5.6.3
 
