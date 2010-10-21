@@ -1,50 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id AA7DD5F0040
-	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 08:54:06 -0400 (EDT)
-Received: from localhost.localdomain by digidescorp.com (Cipher TLSv1:RC4-MD5:128) (MDaemon PRO v10.1.1)
-	with ESMTP id md50001457164.msg
-	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 07:54:04 -0500
-From: "Steven J. Magnani" <steve@digidescorp.com>
-Subject: [PATCH] nommu: yield CPU periodically while disposing large VM
-Date: Thu, 21 Oct 2010 07:53:55 -0500
-Message-Id: <1287665635-7925-1-git-send-email-steve@digidescorp.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A6E8E5F0040
+	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 09:28:58 -0400 (EDT)
+Received: by pwj2 with SMTP id 2so79133pwj.14
+        for <linux-mm@kvack.org>; Thu, 21 Oct 2010 06:28:58 -0700 (PDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH 2/3] do_migrate_range: exit loop if not_managed is true.
+Date: Thu, 21 Oct 2010 21:28:20 +0800
+Message-Id: <1287667701-8081-2-git-send-email-lliubbo@gmail.com>
+In-Reply-To: <1287667701-8081-1-git-send-email-lliubbo@gmail.com>
+References: <1287667701-8081-1-git-send-email-lliubbo@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: dhowells@redhat.com, linux-kernel@vger.kernel.org, "Steven J. Magnani" <steve@digidescorp.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, fengguang.wu@intel.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, kosaki.motohiro@jp.fujitsu.com, Bob Liu <lliubbo@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Depending on processor speed, page size, and the amount of memory a process
-is allowed to amass, cleanup of a large VM may freeze the system for many
-seconds. This can result in a watchdog timeout.
+If not_managed is true all pages will be putback to lru, so
+break the loop earlier to skip other pages isolate.
 
-Make sure other tasks receive some service when cleaning up large VMs.
-
-Signed-off-by: Steven J. Magnani <steve@digidescorp.com>
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
 ---
-diff -uprN a/mm/nommu.c b/mm/nommu.c
---- a/mm/nommu.c	2010-10-21 07:42:23.000000000 -0500
-+++ b/mm/nommu.c	2010-10-21 07:46:50.000000000 -0500
-@@ -1656,6 +1656,7 @@ SYSCALL_DEFINE2(munmap, unsigned long, a
- void exit_mmap(struct mm_struct *mm)
- {
- 	struct vm_area_struct *vma;
-+	unsigned long next_yield = jiffies + HZ;
+ mm/memory_hotplug.c |   10 ++++++----
+ 1 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index d4e940a..4f72184 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -709,15 +709,17 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 					    page_is_file_cache(page));
  
- 	if (!mm)
- 		return;
-@@ -1668,6 +1669,11 @@ void exit_mmap(struct mm_struct *mm)
- 		mm->mmap = vma->vm_next;
- 		delete_vma_from_mm(vma);
- 		delete_vma(mm, vma);
-+		/* Yield periodically to prevent watchdog timeout */
-+		if (time_after(jiffies, next_yield)) {
-+			cond_resched();
-+			next_yield = jiffies + HZ;
-+		}
+ 		} else {
+-			/* Becasue we don't have big zone->lock. we should
+-			   check this again here. */
+-			if (page_count(page))
+-				not_managed++;
+ #ifdef CONFIG_DEBUG_VM
+ 			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
+ 			       pfn);
+ 			dump_page(page);
+ #endif
++			/* Becasue we don't have big zone->lock. we should
++			   check this again here. */
++			if (page_count(page)) {
++				not_managed++;
++				break;
++			}
+ 		}
  	}
- 
- 	kleave("");
+ 	ret = -EBUSY;
+-- 
+1.5.6.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
