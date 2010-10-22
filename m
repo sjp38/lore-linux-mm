@@ -1,39 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7CB2F6B004A
-	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 23:25:36 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9M3PYFb012593
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 22 Oct 2010 12:25:34 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9445F45DE55
-	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 12:25:33 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 691BA45DE52
-	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 12:25:33 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 253301DB8051
-	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 12:25:33 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C98D6E38002
-	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 12:25:32 +0900 (JST)
-Date: Fri, 22 Oct 2010 12:20:10 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D9E936B004A
+	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 23:53:12 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e38.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o9M3jAOh000834
+	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 21:45:10 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id o9M3r8C1222572
+	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 21:53:08 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o9M3r8GL019365
+	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 21:53:08 -0600
+Date: Fri, 22 Oct 2010 09:23:03 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [PATCH V3] nommu: add anonymous page memcg accounting
-Message-Id: <20101022122010.793bebac.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1287664088-4483-1-git-send-email-steve@digidescorp.com>
+Message-ID: <20101022035302.GA15844@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 References: <1287664088-4483-1-git-send-email-steve@digidescorp.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1287664088-4483-1-git-send-email-steve@digidescorp.com>
 Sender: owner-linux-mm@kvack.org
 To: "Steven J. Magnani" <steve@digidescorp.com>
-Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, dhowells@redhat.com, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, dhowells@redhat.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Oct 2010 07:28:08 -0500
-"Steven J. Magnani" <steve@digidescorp.com> wrote:
+* Steven J. Magnani <steve@digidescorp.com> [2010-10-21 07:28:08]:
 
 > Add the necessary calls to track VM anonymous page usage (only).
 > 
@@ -50,16 +43,15 @@ On Thu, 21 Oct 2010 07:28:08 -0500
 > 
 > Signed-off-by: Steven J. Magnani <steve@digidescorp.com>
 
-Thanks,
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+BTW, I have no way of testing this, we need to rely on the NOMMU
+community to test this.
+ 
 
-BTW, have you tried oom_notifier+NOMMU memory limit oom-killer ?
-It may be a chance to implement a custom OOM-Killer in userland on
-EMBEDED systems.
-
-Thanks,
--Kame
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
