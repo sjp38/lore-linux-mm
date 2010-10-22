@@ -1,57 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A85DC5F0040
-	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 21:39:48 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9M1dkn5007586
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 22 Oct 2010 10:39:46 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 78F3B45DE50
-	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 10:39:46 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D42945DE4E
-	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 10:39:46 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 08C0DE08002
-	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 10:39:46 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 92154E08005
-	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 10:39:45 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: slub: move slabinfo.c to tools/slub/slabinfo.c
-In-Reply-To: <alpine.DEB.2.00.1010211324190.24115@router.home>
-References: <20101021111626.e3f214f5.randy.dunlap@oracle.com> <alpine.DEB.2.00.1010211324190.24115@router.home>
-Message-Id: <20101022103842.53AC.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D74FC6B004A
+	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 22:06:14 -0400 (EDT)
+Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id o9M25ftM020578
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 19:05:41 -0700
+Received: by iwn9 with SMTP id 9so74712iwn.14
+        for <linux-mm@kvack.org>; Thu, 21 Oct 2010 19:05:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 22 Oct 2010 10:39:44 +0900 (JST)
+In-Reply-To: <201010220050.o9M0ognt032167@hera.kernel.org>
+References: <201010220050.o9M0ognt032167@hera.kernel.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 21 Oct 2010 18:59:16 -0700
+Message-ID: <AANLkTi=2tPU6qwuoOEfS7NfsNX+7vCYhvkHzNOcx4Gf3@mail.gmail.com>
+Subject: Re: [GIT PULL] memblock for 2.6.37
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Randy Dunlap <randy.dunlap@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: "H. Peter Anvin" <hpa@linux.intel.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, CAI Qian <caiqian@redhat.com>, "David S. Miller" <davem@davemloft.net>, Felipe Balbi <balbi@ti.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Jan Beulich <jbeulich@novell.com>, Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Kevin Hilman <khilman@deeprootsystems.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michael Ellerman <michael@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Mundt <lethal@linux-sh.org>, Peter Zijlstra <peterz@infradead.org>, Russell King <linux@arm.linux.org.uk>, Russell King <rmk@arm.linux.org.uk>, Stephen Rothwell <sfr@canb.auug.org.au>, Thomas Gleixner <tglx@linutronix.de>, Tomi Valkeinen <tomi.valkeinen@nokia.com>, Vivek Goyal <vgoyal@redhat.com>, Yinghai Lu <yinghai@kernel.org>, ext Grazvydas Ignotas <notasas@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, 21 Oct 2010, Randy Dunlap wrote:
-> 
-> > Any special build/make rules needed, or just use straight 'gcc slabinfo.c -o slabinfo' ?
-> > (as listed in the source file :)
-> 
-> Just straight.
+On Thu, Oct 21, 2010 at 5:50 PM, H. Peter Anvin <hpa@linux.intel.com> wrote=
+:
+>
+> The unmerged branch is at:
+>
+> =A0git://git.kernel.org/pub/scm/linux/kernel/git/tip/linux-2.6-tip.git co=
+re-memblock-for-linus
+>
+> The premerged branch is at:
+>
+> =A0git://git.kernel.org/pub/scm/linux/kernel/git/tip/linux-2.6-tip.git co=
+re-memblock-for-linus-merged
 
-Now, slabinfo has a lot of user. so few line simple Makefile takes a lot
-of help, I think. :)
+I always tend to take the unmerged version, because I want to see what
+the conflicts are (it gives me some view of what clashes), but when
+people do pre-merges I then try to compare my merge against theirs.
 
-Anyway, I like this change.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+However, in this case, your pre-merged version differs. But I think
+it's your merge that was incorrect. You left this line:
 
+   obj-$(CONFIG_HAVE_EARLY_RES) +=3D early_res.o
 
-> 
-> > Why move only this one source file from Documentation/vm/ ?
-> > There are several others there.
-> 
-> I felt somehow responsible since I placed it there.
+in kernel/Makefile, even though kernel/early_res.c is gone.
 
+I'll push out my merge, but please do verify that it all looks ok.
+
+                               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
