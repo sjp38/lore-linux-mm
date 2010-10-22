@@ -1,48 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4A0C16B004A
-	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 04:09:07 -0400 (EDT)
-Message-ID: <4CC146B1.8060906@kernel.dk>
-Date: Fri, 22 Oct 2010 10:09:21 +0200
-From: Jens Axboe <axboe@kernel.dk>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2FBB06B004A
+	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 04:41:16 -0400 (EDT)
+Received: by wwi18 with SMTP id 18so573944wwi.26
+        for <linux-mm@kvack.org>; Fri, 22 Oct 2010 01:41:13 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: Deadlock possibly caused by too_many_isolated.
-References: <AANLkTimVu+5gTDs8przJVP2EbWC=FX-zWW7aH08BtrHC@mail.gmail.com> <20101020055717.GA12752@localhost> <20101020150346.1832.A69D9226@jp.fujitsu.com> <20101020092739.GA23869@localhost> <4CBEE888.2090606@kernel.dk> <20101022053755.GB16804@localhost> <20101022080725.GA22594@localhost>
-In-Reply-To: <20101022080725.GA22594@localhost>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20101022121610.2c380b0b.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1287667701-8081-1-git-send-email-lliubbo@gmail.com>
+	<1287667701-8081-2-git-send-email-lliubbo@gmail.com>
+	<20101022121610.2c380b0b.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 22 Oct 2010 16:41:13 +0800
+Message-ID: <AANLkTik9p3U-oUPC=KrUbd5iBWgEGJYKx8bHcWNkUCuE@mail.gmail.com>
+Subject: Re: [PATCH 2/3] do_migrate_range: exit loop if not_managed is true.
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Torsten Kaiser <just.for.lkml@googlemail.com>, Neil Brown <neilb@suse.de>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Li, Shaohua" <shaohua.li@intel.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, fengguang.wu@intel.com, mel@csn.ul.ie, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On 2010-10-22 10:07, Wu Fengguang wrote:
->>> We surely need 1 set aside for each level of that stack that will
->>> potentially consume one. 1 should be enough for the generic pool, and
->>> then clones will use a separate pool. So md and friends should really
->>> have a pool per device, so that stacking will always work properly.
->>
->> Agreed for the deadlock problem.
->>
->>> There should be no throughput concerns, it should purely be a safe guard
->>> measure to prevent us deadlocking when doing IO for reclaim.
->>
->> It's easy to verify whether the minimal size will have negative
->> impacts on IO throughput. In Torsten's case, increase BIO_POOL_SIZE
->> by one and check how it performs.
-> 
-> Sorry it seems simply increasing BIO_POOL_SIZE is not enough to fix
-> possible deadlocks. We need adding new mempool(s). Because when there
-> BIO_POOL_SIZE=2 and there are two concurrent reclaimers each take 1
-> reservation, they will deadlock each other when trying to take the
-> next bio at the raid1 level.
-
-Yes, plus it's not a practical solution since you don't know how deep
-the stack is. As I wrote in the initial email, each consumer needs it's
-own private mempool (and just 1 entry should suffice).
-
--- 
-Jens Axboe
+T24gRnJpLCBPY3QgMjIsIDIwMTAgYXQgMTE6MTYgQU0sIEtBTUVaQVdBIEhpcm95dWtpCjxrYW1l
+emF3YS5oaXJveXVAanAuZnVqaXRzdS5jb20+IHdyb3RlOgo+IE9uIFRodSwgMjEgT2N0IDIwMTAg
+MjE6Mjg6MjAgKzA4MDAKPiBCb2IgTGl1IDxsbGl1YmJvQGdtYWlsLmNvbT4gd3JvdGU6Cj4KPj4g
+SWYgbm90X21hbmFnZWQgaXMgdHJ1ZSBhbGwgcGFnZXMgd2lsbCBiZSBwdXRiYWNrIHRvIGxydSwg
+c28KPj4gYnJlYWsgdGhlIGxvb3AgZWFybGllciB0byBza2lwIG90aGVyIHBhZ2VzIGlzb2xhdGUu
+Cj4+Cj4+IFNpZ25lZC1vZmYtYnk6IEJvYiBMaXUgPGxsaXViYm9AZ21haWwuY29tPgo+Cj4gcGxl
+YXNlIGRvbid0IHNraXAgZHVtcF9wYWdlKCkuCj4KCkhpLCBLYW1lCgpJIHB1dCB0aGUgY2hlY2sg
+YWZ0ZXIgZHVtcF9wYWdlKCkgaW4gb3JkZXIgdG8gd2UgY2FuIHN0aWxsIHNlZSB0aGUKZHVtcCBt
+ZXNzYWdlIGlmIHRoZSBsb29wIGlzIGJyb2tlbiBlYXJsaWVyLgoKVGhhbmtzCgo+IC1LYW1lCj4K
+Pj4gLS0tCj4+IMKgbW0vbWVtb3J5X2hvdHBsdWcuYyB8IMKgIDEwICsrKysrKy0tLS0KPj4gwqAx
+IGZpbGVzIGNoYW5nZWQsIDYgaW5zZXJ0aW9ucygrKSwgNCBkZWxldGlvbnMoLSkKPj4KPj4gZGlm
+ZiAtLWdpdCBhL21tL21lbW9yeV9ob3RwbHVnLmMgYi9tbS9tZW1vcnlfaG90cGx1Zy5jCj4+IGlu
+ZGV4IGQ0ZTk0MGEuLjRmNzIxODQgMTAwNjQ0Cj4+IC0tLSBhL21tL21lbW9yeV9ob3RwbHVnLmMK
+Pj4gKysrIGIvbW0vbWVtb3J5X2hvdHBsdWcuYwo+PiBAQCAtNzA5LDE1ICs3MDksMTcgQEAgZG9f
+bWlncmF0ZV9yYW5nZSh1bnNpZ25lZCBsb25nIHN0YXJ0X3BmbiwgdW5zaWduZWQgbG9uZyBlbmRf
+cGZuKQo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCBwYWdlX2lzX2ZpbGVfY2FjaGUocGFnZSkpOwo+Pgo+PiDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCB9IGVsc2Ugewo+PiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIC8q
+IEJlY2FzdWUgd2UgZG9uJ3QgaGF2ZSBiaWcgem9uZS0+bG9jay4gd2Ugc2hvdWxkCj4+IC0gwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBjaGVjayB0aGlzIGFnYWluIGhlcmUuICov
+Cj4+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKHBhZ2VfY291bnQocGFnZSkp
+Cj4+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgbm90X21hbmFn
+ZWQrKzsKPj4gwqAjaWZkZWYgQ09ORklHX0RFQlVHX1ZNCj4+IMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIHByaW50ayhLRVJOX0FMRVJUICJyZW1vdmluZyBwZm4gJWx4IGZyb20gTFJV
+IGZhaWxlZFxuIiwKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqBwZm4pOwo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBkdW1wX3BhZ2UocGFn
+ZSk7Cj4+IMKgI2VuZGlmCj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgLyogQmVj
+YXN1ZSB3ZSBkb24ndCBoYXZlIGJpZyB6b25lLT5sb2NrLiB3ZSBzaG91bGQKPj4gKyDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGNoZWNrIHRoaXMgYWdhaW4gaGVyZS4gKi8KPj4g
+KyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpZiAocGFnZV9jb3VudChwYWdlKSkgewo+
+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIG5vdF9tYW5hZ2Vk
+Kys7Cj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgYnJlYWs7
+Cj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgfQo+PiDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCB9Cj4+IMKgIMKgIMKgIH0KPj4gwqAgwqAgwqAgcmV0ID0gLUVCVVNZOwotLSAKUmVnYXJk
+cywKLS1Cb2IK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
