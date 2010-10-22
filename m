@@ -1,105 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id DBF8C6B004A
-	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 22:48:52 -0400 (EDT)
-Received: by gxk4 with SMTP id 4so246640gxk.14
-        for <linux-mm@kvack.org>; Thu, 21 Oct 2010 19:48:51 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 351B05F0040
+	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 22:52:19 -0400 (EDT)
+Message-ID: <4CC0FBDC.4010700@zytor.com>
+Date: Thu, 21 Oct 2010 19:50:04 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-In-Reply-To: <20101021142534.GB9709@localhost>
-References: <1287667701-8081-1-git-send-email-lliubbo@gmail.com>
-	<1287667701-8081-2-git-send-email-lliubbo@gmail.com>
-	<20101021142534.GB9709@localhost>
-Date: Fri, 22 Oct 2010 10:48:51 +0800
-Message-ID: <AANLkTi=zJV52imMNHEhftsBdyL1-8W30+tpZpY_yaj_s@mail.gmail.com>
-Subject: Re: [PATCH 2/3] do_migrate_range: exit loop if not_managed is true.
-From: Bob Liu <lliubbo@gmail.com>
+Subject: Re: [GIT PULL] memblock for 2.6.37
+References: <201010220050.o9M0ognt032167@hera.kernel.org> <AANLkTi=2tPU6qwuoOEfS7NfsNX+7vCYhvkHzNOcx4Gf3@mail.gmail.com>
+In-Reply-To: <AANLkTi=2tPU6qwuoOEfS7NfsNX+7vCYhvkHzNOcx4Gf3@mail.gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "H. Peter Anvin" <hpa@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, CAI Qian <caiqian@redhat.com>, "David S. Miller" <davem@davemloft.net>, Felipe Balbi <balbi@ti.com>, Ingo Molnar <mingo@elte.hu>, Jan Beulich <jbeulich@novell.com>, Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Kevin Hilman <khilman@deeprootsystems.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michael Ellerman <michael@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Mundt <lethal@linux-sh.org>, Peter Zijlstra <peterz@infradead.org>, Russell King <linux@arm.linux.org.uk>, Russell King <rmk@arm.linux.org.uk>, Stephen Rothwell <sfr@canb.auug.org.au>, Thomas Gleixner <tglx@linutronix.de>, Tomi Valkeinen <tomi.valkeinen@nokia.com>, Vivek Goyal <vgoyal@redhat.com>, Yinghai Lu <yinghai@kernel.org>, ext Grazvydas Ignotas <notasas@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 21, 2010 at 10:25 PM, Wu Fengguang <fengguang.wu@intel.com> wro=
-te:
-> On Thu, Oct 21, 2010 at 09:28:20PM +0800, Bob Liu wrote:
->> If not_managed is true all pages will be putback to lru, so
->> break the loop earlier to skip other pages isolate.
->
-> It's good fix in itself. However it's normal for isolate_lru_page() to
-> fail at times (when there are active reclaimers). The failures are
-> typically temporal and may well go away when offline_pages() retries
-> the call. So it seems more reasonable to migrate as much as possible
-> to increase the chance of complete success in next retry.
->
-
-Hi, Wu
-
-The original code will try to migrate pages as much as possible except
-page_count(page) is true.
-If page_count(page) is true, isolate more pages is mean-less, because
-all of them will
-be put back after the loop.
-
-Or maybe we can skip the page_count() check?  It seems unreasonable,
-if isolate one page failed and
-that page was in use why it needs to put back the whole isolated list?
-
-Thanks
-
->> Signed-off-by: Bob Liu <lliubbo@gmail.com>
->> ---
->> =C2=A0mm/memory_hotplug.c | =C2=A0 10 ++++++----
->> =C2=A01 files changed, 6 insertions(+), 4 deletions(-)
+On 10/21/2010 06:59 PM, Linus Torvalds wrote:
+> On Thu, Oct 21, 2010 at 5:50 PM, H. Peter Anvin <hpa@linux.intel.com> wrote:
 >>
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index d4e940a..4f72184 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -709,15 +709,17 @@ do_migrate_range(unsigned long start_pfn, unsigned=
- long end_pfn)
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 page_is_file_cache(page));
+>> The unmerged branch is at:
 >>
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 } else {
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-/* Becasue we don't have big zone->lock. we should
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0check this again here. */
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-if (page_count(page))
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 not_managed++;
->> =C2=A0#ifdef CONFIG_DEBUG_VM
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0pfn);
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 dump_page(page);
->> =C2=A0#endif
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-/* Becasue we don't have big zone->lock. we should
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0check this again here. */
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-if (page_count(page)) {
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 not_managed++;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 break;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-}
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
->> =C2=A0 =C2=A0 =C2=A0 }
->> =C2=A0 =C2=A0 =C2=A0 ret =3D -EBUSY;
->> --
->> 1.5.6.3
->
---=20
-Regards,
---Bob
+>>  git://git.kernel.org/pub/scm/linux/kernel/git/tip/linux-2.6-tip.git core-memblock-for-linus
+>>
+>> The premerged branch is at:
+>>
+>>  git://git.kernel.org/pub/scm/linux/kernel/git/tip/linux-2.6-tip.git core-memblock-for-linus-merged
+> 
+> I always tend to take the unmerged version, because I want to see what
+> the conflicts are (it gives me some view of what clashes), but when
+> people do pre-merges I then try to compare my merge against theirs.
+> 
+
+Sounds like a very good idea.  I'll take it as a request to continue to
+do both if there are anything but trivial conflicts.
+
+
+> However, in this case, your pre-merged version differs. But I think
+> it's your merge that was incorrect. You left this line:
+> 
+>    obj-$(CONFIG_HAVE_EARLY_RES) += early_res.o
+> 
+> in kernel/Makefile, even though kernel/early_res.c is gone.
+> 
+> I'll push out my merge, but please do verify that it all looks ok.
+> 
+>                                Linus
+> 
+
+You're right, my mistake.  Thanks for checking and fixing it up.
+
+I will pull your tree later and test if and add the fixes for the other
+trees.
+
+	-hpa
+
+-- 
+H. Peter Anvin, Intel Open Source Technology Center
+I work for Intel.  I don't speak on their behalf.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
