@@ -1,55 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D74FC6B004A
-	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 22:06:14 -0400 (EDT)
-Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id o9M25ftM020578
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 19:05:41 -0700
-Received: by iwn9 with SMTP id 9so74712iwn.14
-        for <linux-mm@kvack.org>; Thu, 21 Oct 2010 19:05:41 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5DF3F6B004A
+	for <linux-mm@kvack.org>; Thu, 21 Oct 2010 22:12:46 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9M2Cine021688
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 22 Oct 2010 11:12:44 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F18B745DE7A
+	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 11:12:43 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CB0C145DE4D
+	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 11:12:43 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B4BDCEF8002
+	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 11:12:43 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6CB9F1DB803B
+	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 11:12:43 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] fix error reporting in move_pages syscall
+In-Reply-To: <20101019101505.GG10207@redhat.com>
+References: <20101019101505.GG10207@redhat.com>
+Message-Id: <20101022110754.53B5.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <201010220050.o9M0ognt032167@hera.kernel.org>
-References: <201010220050.o9M0ognt032167@hera.kernel.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 21 Oct 2010 18:59:16 -0700
-Message-ID: <AANLkTi=2tPU6qwuoOEfS7NfsNX+7vCYhvkHzNOcx4Gf3@mail.gmail.com>
-Subject: Re: [GIT PULL] memblock for 2.6.37
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 22 Oct 2010 11:12:42 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: "H. Peter Anvin" <hpa@linux.intel.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, CAI Qian <caiqian@redhat.com>, "David S. Miller" <davem@davemloft.net>, Felipe Balbi <balbi@ti.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Jan Beulich <jbeulich@novell.com>, Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Kevin Hilman <khilman@deeprootsystems.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michael Ellerman <michael@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Mundt <lethal@linux-sh.org>, Peter Zijlstra <peterz@infradead.org>, Russell King <linux@arm.linux.org.uk>, Russell King <rmk@arm.linux.org.uk>, Stephen Rothwell <sfr@canb.auug.org.au>, Thomas Gleixner <tglx@linutronix.de>, Tomi Valkeinen <tomi.valkeinen@nokia.com>, Vivek Goyal <vgoyal@redhat.com>, Yinghai Lu <yinghai@kernel.org>, ext Grazvydas Ignotas <notasas@gmail.com>, linux-mm@kvack.org
+To: Gleb Natapov <gleb@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 21, 2010 at 5:50 PM, H. Peter Anvin <hpa@linux.intel.com> wrote=
-:
->
-> The unmerged branch is at:
->
-> =A0git://git.kernel.org/pub/scm/linux/kernel/git/tip/linux-2.6-tip.git co=
-re-memblock-for-linus
->
-> The premerged branch is at:
->
-> =A0git://git.kernel.org/pub/scm/linux/kernel/git/tip/linux-2.6-tip.git co=
-re-memblock-for-linus-merged
+> vma returned by find_vma does not necessary include given address. If
+> this happens code tries to follow page outside of any vma and returns
+> ENOENT instead of EFAULT.
+> 
+> Signed-off-by: Gleb Natapov <gleb@redhat.com>
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 38e7cad..b91a253 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -841,7 +841,7 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
+>  
+>  		err = -EFAULT;
+>  		vma = find_vma(mm, pp->addr);
+> -		if (!vma || !vma_migratable(vma))
+> +		if (!vma || pp->addr < vma->vm_start || !vma_migratable(vma))
+>  			goto set_status;
+>  
+>  		page = follow_page(vma, pp->addr, FOLL_GET);
+> @@ -1005,7 +1005,7 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
+>  		int err = -EFAULT;
+>  
+>  		vma = find_vma(mm, addr);
+> -		if (!vma)
+> +		if (!vma || addr < vma->vm_start)
+>  			goto set_status;
+>  
+>  		page = follow_page(vma, addr, 0);
+> --
+> 			Gleb.
 
-I always tend to take the unmerged version, because I want to see what
-the conflicts are (it gives me some view of what clashes), but when
-people do pre-merges I then try to compare my merge against theirs.
+Looks good to me.
+	Revewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-However, in this case, your pre-merged version differs. But I think
-it's your merge that was incorrect. You left this line:
 
-   obj-$(CONFIG_HAVE_EARLY_RES) +=3D early_res.o
 
-in kernel/Makefile, even though kernel/early_res.c is gone.
-
-I'll push out my merge, but please do verify that it all looks ok.
-
-                               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
