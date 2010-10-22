@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5E1736B004A
-	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 11:23:38 -0400 (EDT)
-Date: Fri, 22 Oct 2010 10:23:34 -0500 (CDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 77BEB6B004A
+	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 11:27:59 -0400 (EDT)
+Date: Fri, 22 Oct 2010 10:27:55 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
 Subject: Re: zone state overhead
 In-Reply-To: <20101022141223.GF2160@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1010221015001.20437@router.home>
+Message-ID: <alpine.DEB.2.00.1010221024080.20437@router.home>
 References: <20101014120804.8B8F.A69D9226@jp.fujitsu.com> <20101018103941.GX30667@csn.ul.ie> <20101019100658.A1B3.A69D9226@jp.fujitsu.com> <20101019090803.GF30667@csn.ul.ie> <20101022141223.GF2160@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -17,19 +17,21 @@ List-ID: <linux-mm.kvack.org>
 
 On Fri, 22 Oct 2010, Mel Gorman wrote:
 
-> index eaaea37..c67d333 100644
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -254,6 +254,8 @@ extern void dec_zone_state(struct zone *, enum zone_stat_item);
->  extern void __dec_zone_state(struct zone *, enum zone_stat_item);
 >
->  void refresh_cpu_vm_stats(int);
-> +void disable_pgdat_percpu_threshold(pg_data_t *pgdat);
-> +void enable_pgdat_percpu_threshold(pg_data_t *pgdat);
->  #else /* CONFIG_SMP */
+> +void disable_pgdat_percpu_threshold(pg_data_t *pgdat)
 
-The naming is a bit misleading since disabling may only mean reducing the
-treshold.
+Call this set_pgdat_stat_threshold() and make it take a calculate_pressure
+() function?
+
+void set_pgdat_stat_threshold(pg_data_t *pgdat, int (*calculate_pressure)(struct zone *)) ?
+
+Then  do
+
+	set_pgdat_stat_threshold(pgdat, threshold_normal)
+
+	set_pgdat_stat_threshold(pgdat, threshold_pressure)
+
+?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
