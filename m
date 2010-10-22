@@ -1,40 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9E78D6B0085
-	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 08:00:57 -0400 (EDT)
-Message-ID: <4CC17CF1.4000109@redhat.com>
-Date: Fri, 22 Oct 2010 08:00:49 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id B310B6B0071
+	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 08:12:17 -0400 (EDT)
+Date: Fri, 22 Oct 2010 14:12:11 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: shrinkers: Add node to indicate where to target shrinking
+Message-ID: <20101022121210.GG10456@basil.fritz.box>
+References: <alpine.DEB.2.00.1010211255570.24115@router.home>
+ <alpine.DEB.2.00.1010211259360.24115@router.home>
+ <20101021235854.GD3270@amd>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Avoid possible deadlock caused by too_many_isolated()
-References: <20101022045509.GA16804@localhost>
-In-Reply-To: <20101022045509.GA16804@localhost>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101021235854.GD3270@amd>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Neil Brown <neilb@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Li, Shaohua" <shaohua.li@intel.com>
+To: Nick Piggin <npiggin@kernel.dk>
+Cc: Christoph Lameter <cl@linux.com>, akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-On 10/22/2010 12:55 AM, Wu Fengguang wrote:
+> Again, I really think it needs to be per zone. Something like inode
+> cache could still have lots of allocations in ZONE_NORMAL with plenty
+> of memory free there, but a DMA zone shortage could cause it to trash
+> the caches.
 
-> Now !GFP_IOFS reclaims won't be waiting for GFP_IOFS reclaims to
-> progress. They will be blocked only when there are too many concurrent
-> !GFP_IOFS reclaims, however that's very unlikely because the IO-less
-> direct reclaims is able to progress much more faster, and they won't
-> deadlock each other. The threshold is raised high enough for them, so
-> that there can be sufficient parallel progress of !GFP_IOFS reclaims.
->
-> CC: Torsten Kaiser<just.for.lkml@googlemail.com>
-> CC: Minchan Kim<minchan.kim@gmail.com>
-> Tested-by: NeilBrown<neilb@suse.de>
-> Acked-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: Wu Fengguang<fengguang.wu@intel.com>
+For hwpoison ideally I would like it per page. But that's harder of course.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+But if all the shrinkers are adapted it may be worth thinking about that.
 
+-Andi
 -- 
-All rights reversed
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
