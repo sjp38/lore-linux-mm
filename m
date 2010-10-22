@@ -1,37 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 77BEB6B004A
-	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 11:27:59 -0400 (EDT)
-Date: Fri, 22 Oct 2010 10:27:55 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: zone state overhead
-In-Reply-To: <20101022141223.GF2160@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1010221024080.20437@router.home>
-References: <20101014120804.8B8F.A69D9226@jp.fujitsu.com> <20101018103941.GX30667@csn.ul.ie> <20101019100658.A1B3.A69D9226@jp.fujitsu.com> <20101019090803.GF30667@csn.ul.ie> <20101022141223.GF2160@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id 0FC856B004A
+	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 11:43:22 -0400 (EDT)
+Date: Fri, 22 Oct 2010 11:43:16 -0400
+From: Dean Nelson <dnelson@redhat.com>
+Message-Id: <20101022154315.3643.86047.send-patch@localhost6.localdomain6>
+Subject: [PATCH] Add missing spin_lock() to hugetlb_cow()
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 22 Oct 2010, Mel Gorman wrote:
+Add missing spin_lock() of the page_table_lock before an error return in
+hugetlb_cow(). Callers of hugtelb_cow() expect it to be held upon return.
 
->
-> +void disable_pgdat_percpu_threshold(pg_data_t *pgdat)
+Signed-off-by: Dean Nelson <dnelson@redhat.com>
+CC: stable@kernel.org
 
-Call this set_pgdat_stat_threshold() and make it take a calculate_pressure
-() function?
+---
 
-void set_pgdat_stat_threshold(pg_data_t *pgdat, int (*calculate_pressure)(struct zone *)) ?
+Sorry for the noise, if there has already been a patch posted to fix this
+issue. I didn't see one.
 
-Then  do
+ mm/hugetlb.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
 
-	set_pgdat_stat_threshold(pgdat, threshold_normal)
-
-	set_pgdat_stat_threshold(pgdat, threshold_pressure)
-
-?
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index c032738..8ee804b 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2380,8 +2380,11 @@ retry_avoidcopy:
+ 	 * When the original hugepage is shared one, it does not have
+ 	 * anon_vma prepared.
+ 	 */
+-	if (unlikely(anon_vma_prepare(vma)))
++	if (unlikely(anon_vma_prepare(vma))) {
++		/* Caller expects lock to be held */
++		spin_lock(&mm->page_table_lock);
+ 		return VM_FAULT_OOM;
++	}
+ 
+ 	copy_huge_page(new_page, old_page, address, vma);
+ 	__SetPageUptodate(new_page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
