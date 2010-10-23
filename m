@@ -1,61 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 3665D6B0071
-	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 18:52:19 -0400 (EDT)
-From: Mandeep Singh Baines <msb@chromium.org>
-Subject: [PATCH] vmscan: move referenced VM_EXEC pages to active list
-Date: Fri, 22 Oct 2010 15:51:51 -0700
-Message-Id: <1287787911-4257-1-git-send-email-msb@chromium.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 96B5E6B0071
+	for <linux-mm@kvack.org>; Fri, 22 Oct 2010 20:00:06 -0400 (EDT)
+Received: by wyf23 with SMTP id 23so1453514wyf.14
+        for <linux-mm@kvack.org>; Fri, 22 Oct 2010 17:00:04 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1287774180.23017.228.camel@bobble.smo.corp.google.com>
+References: <1286580739.3153.57.camel@bobble.smo.corp.google.com>
+	<1287774180.23017.228.camel@bobble.smo.corp.google.com>
+Date: Sat, 23 Oct 2010 08:00:04 +0800
+Message-ID: <AANLkTi=Pm34F7-ydwzzgsKZKNGCemFRnMj_e740+sdTF@mail.gmail.com>
+Subject: Re: VFS scaling evaluation results, redux.
+From: Lin Ming <lin@ming.vg>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, wad@chromium.org, olofj@chromium.org, Mandeep Singh Baines <msb@chromium.org>
+To: Frank Mayhar <fmayhar@google.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, mrubin@google.com, ext4-team@google.com
 List-ID: <linux-mm.kvack.org>
 
-In commit 64574746, "vmscan: detect mapped file pages used only once",
-Johannes Weiner, added logic to page_check_reference to cycle again
-used once pages.
+On Sat, Oct 23, 2010 at 3:03 AM, Frank Mayhar <fmayhar@google.com> wrote:
+> After seeing the newer work a couple of weeks ago, I decided to rerun
+> the tests against Dave Chinner's tree just to see how things fare with
+> his changes. =A0This time I only ran the "socket test" due to time
+> constraints and since the "storage test" didn't produce anything
+> particularly interesting last time.
 
-In commit 8cab4754, "vmscan: make mapped executable pages the first
-class citizen", Wu Fengguang, added logic to shrink_active_list which
-protects file-backed VM_EXEC pages by keeping them in the active_list if
-they are referenced.
+Could you share your "socket test" test case?
+I'd like to test these vfs scaling patches also.
 
-This patch adds logic to move such pages from the inactive list to the
-active list immediately if they have been referenced. If a VM_EXEC page
-is seen as referenced during an inactive list scan, that reference must
-have occurred after the page was put on the inactive list. There is no
-need to wait for the page to be referenced again.
-
-Change-Id: I17c312e916377e93e5a92c52518b6c829f9ab30b
-Signed-off-by: Mandeep Singh Baines <msb@chromium.org>
----
- mm/vmscan.c |   11 +++++++++++
- 1 files changed, 11 insertions(+), 0 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c5dfabf..0984dee 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -593,6 +593,17 @@ static enum page_references page_check_references(struct page *page,
- 	if (referenced_ptes) {
- 		if (PageAnon(page))
- 			return PAGEREF_ACTIVATE;
-+
-+		/*
-+		 * Identify referenced, file-backed active pages and move them
-+		 * to the active list. We know that this page has been
-+		 * referenced since being put on the inactive list. VM_EXEC
-+		 * pages are only moved to the inactive list when they have not
-+		 * been referenced between scans (see shrink_active_list).
-+		 */
-+		if ((vm_flags & VM_EXEC) && page_is_file_cache(page))
-+			return PAGEREF_ACTIVATE;
-+
- 		/*
- 		 * All mapped pages start out with page table
- 		 * references from the instantiating fault, so we need
--- 
-1.7.1
+Thanks,
+Lin Ming
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
