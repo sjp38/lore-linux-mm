@@ -1,74 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B49276B0071
-	for <linux-mm@kvack.org>; Sat, 23 Oct 2010 21:31:39 -0400 (EDT)
-Date: Sun, 24 Oct 2010 12:31:33 +1100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 58BDE6B0087
+	for <linux-mm@kvack.org>; Sat, 23 Oct 2010 21:37:35 -0400 (EDT)
+Date: Sun, 24 Oct 2010 12:37:32 +1100
 From: Nick Piggin <npiggin@kernel.dk>
-Subject: Re: shrinkers: Add node to indicate where to target shrinking
-Message-ID: <20101024013133.GA3168@amd>
+Subject: Re: vmscan: Do not run shrinkers for zones other than ZONE_NORMAL
+Message-ID: <20101024013732.GC3168@amd>
 References: <alpine.DEB.2.00.1010211255570.24115@router.home>
- <alpine.DEB.2.00.1010211259360.24115@router.home>
- <20101021235854.GD3270@amd>
- <20101022155513.GA26790@infradead.org>
+ <20101022103620.53A9.A69D9226@jp.fujitsu.com>
+ <alpine.DEB.2.00.1010220859080.19498@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101022155513.GA26790@infradead.org>
+In-Reply-To: <alpine.DEB.2.00.1010220859080.19498@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Nick Piggin <npiggin@kernel.dk>, Christoph Lameter <cl@linux.com>, akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, akpm@linux-foundation.org, npiggin@kernel.dk, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 22, 2010 at 11:55:13AM -0400, Christoph Hellwig wrote:
-> On Fri, Oct 22, 2010 at 10:58:54AM +1100, Nick Piggin wrote:
-> > Again, I really think it needs to be per zone. Something like inode
-> > cache could still have lots of allocations in ZONE_NORMAL with plenty
-> > of memory free there, but a DMA zone shortage could cause it to trash
-> > the caches.
+On Fri, Oct 22, 2010 at 09:06:48AM -0500, Christoph Lameter wrote:
+> On Fri, 22 Oct 2010, KOSAKI Motohiro wrote:
 > 
-> I think making shrinking decision per-zone is fine.  But do we need to
-> duplicate all the lru lists and infrastructure per-zone for that instead
-> of simply per-zone?
+> > I think this series has the same target with Nick's per-zone shrinker.
+> > So, Do you dislike Nick's approach? can you please elaborate your intention?
+> 
+> Sorry. I have not seen Nicks approach.
 
-No, they don't. As you can see, less important shrinkers can even
-continue to do global scanning. But per-zone is the right abstraction
-for the API.
+Latest was posted to linux-mm a few days ago.
 
->   Even with per-node lists we can easily skip over
-> items from the wrong zone.
+ 
+> The per zone approach seems to be at variance with how objects are tracked
+> at the slab layer. There is no per zone accounting there. So attempts to
+> do expiration of caches etc at that layer would not work right.
 
-It's possible, but that would make things more complex, considering
-that you don't have statistics etc in the zone.
+It is not a "slab shrinker", despite the convention to call it that.
+It is a "did you allocate memory that you might be nice and be able
+to give some back if we have a memory shortage" callback.
 
-Consider:
+The pagecache is all totally driven (calculated, accounted, scanned)
+ per-zone, and pagecache reclaim progress drives shrinker reclaim.
+Making it per-node adds an unneccesary complicated coupling.
 
-zone X has a shortage. zone X is in node 0, along with several more
-zones.
+If a particular subsystem only tracks things on a per-node basis, they
+can easily to zone_to_nid(zone) in the callback or something like that.
 
-Pagecache scan 10% of zone X, which is 5% of the total memory. Give
-this information to the shrinker.
-
-Shrinker has to make some VM assumptions like "zone X has the shortage,
-but we only have lists for node 0, so let's scan 5% of node 0 objects
-because we know there is another zone in there with more memory, but
-just skip other zones on the node".
-
-But then if there were fewer objects in other zones, it doesn't scan
-enough (in the extreme case, 0 objects on other nodes, it scans only
-half the required objects on zone X).
-
-Then it has also trashed the LRU position of the other zones in the
-node when it skipped over them -- if the shortage was actually in
-both the zones, the first scan for zone X would trash the LRU, only
-to have to scan again.
-
-
-> Given that we have up to 6 zones per node currently, and we would mostly
-> use one with a few fallbacks that seems like a lot of overkill.
-
-A handful of words per zone? A list head, a couple of stats, and a lock?
-Worrying about memory consumption for that and adding strange complexity
-to the shrinker is totally the wrong tradeoff.
+But really, doing LRUs in the zones makes much more sense than in the
+nodes. Slab layer doesn't have huge amounts of critical reclaimable
+objects like dcache or inode layers, so it is probably fine just to
+kick off slab reapers for the node when it gets a request.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
