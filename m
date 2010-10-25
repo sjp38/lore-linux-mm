@@ -1,153 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 0E5818D0001
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 06:49:55 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9PAnqit001783
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 25 Oct 2010 19:49:52 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AF2845DE52
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 19:49:52 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E0DB45DE54
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 19:49:52 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DFB781DB8013
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 19:49:51 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B5441DB8015
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 19:49:51 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: mem-hotplug + ksm make lockdep warning
-Message-Id: <20101025193711.917F.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B625E8D0001
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 07:28:54 -0400 (EDT)
+From: pageexec@freemail.hu
+Date: Mon, 25 Oct 2010 13:28:27 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 25 Oct 2010 19:49:50 +0900 (JST)
+Subject: Re: [resend][PATCH 4/4] oom: don't ignore rss in nascent mm
+Reply-to: pageexec@freemail.hu
+Message-ID: <4CC569DB.17734.314BBE7A@pageexec.freemail.hu>
+In-reply-to: <20101025122914.9173.A69D9226@jp.fujitsu.com>
+References: <20101025122538.9167.A69D9226@jp.fujitsu.com>, <20101025122914.9173.A69D9226@jp.fujitsu.com>
+Content-type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7BIT
+Content-description: Mail message body
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Oleg Nesterov <oleg@redhat.com>, Roland McGrath <roland@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Hugh,
+On 25 Oct 2010 at 12:29, KOSAKI Motohiro wrote:
 
-commit 62b61f611e(ksm: memory hotremove migration only) makes following
-lockdep warnings. Is this intentional?
+hi,
 
-More detail: current lockdep hieralcy is here.
+i've got a few comments/questions about the whole approach, see them inline.
 
-memory_notify
-	offline_pages
-		lock_system_sleep();
-			mutex_lock(&pm_mutex);
-		memory_notify(MEM_GOING_OFFLINE)
-			__blocking_notifier_call_chain
-				down_read(memory_chain.rwsem)
-				ksm_memory_callback()
-					mutex_lock(&ksm_thread_mutex);  // memory_chain.rmsem -> ksm_thread_mutex order
-				up_read(memory_chain.rwsem)
-		memory_notify(MEM_OFFLINE)
-			__blocking_notifier_call_chain
-				down_read(memory_chain.rwsem)		// ksm_thread_mutex -> memory_chain.rmsem order
-				ksm_memory_callback()
-					mutex_unlock(&ksm_thread_mutex);
-				up_read(memory_chain.rwsem)
-		unlock_system_sleep();
-			mutex_unlock(&pm_mutex);
+> index 0644a15..a85b196 100644
+> --- a/fs/compat.c
+> +++ b/fs/compat.c
+> @@ -1567,8 +1567,10 @@ int compat_do_execve(char * filename,
+>  	return retval;
+>  
+>  out:
+> -	if (bprm->mm)
+> +	if (bprm->mm) {
+> +		set_exec_mm(NULL);
+>  		mmput(bprm->mm);
+> +	}
+>  
+>  out_file:
+>  	if (bprm->file) {
+> diff --git a/fs/exec.c b/fs/exec.c
+> index 94dabd2..2395d10 100644
+> --- a/fs/exec.c
+> +++ b/fs/exec.c
+> @@ -347,6 +347,8 @@ int bprm_mm_init(struct linux_binprm *bprm)
+>  	if (err)
+>  		goto err;
+>  
+> +	set_exec_mm(mm);
+> +
+>  	return 0;
+>  
+>  err:
+> @@ -1416,8 +1428,10 @@ int do_execve(const char * filename,
+>  	return retval;
+>  
+>  out:
+> -	if (bprm->mm)
+> +	if (bprm->mm) {
+> +		set_exec_mm(NULL);
+>  		mmput (bprm->mm);
+> +	}
+>  
+>  out_file:
+>  	if (bprm->file) {
 
-So, I think pm_mutex protect ABBA deadlock. but it exist only when
-CONFIG_HIBERNATION=y. IOW, this code is not correct generically. Am I
-missing something?
+what happens when two (or more) threads in the same process call execve? the
+above set_exec_mm calls will race (de_thread doesn't happen until much later
+in execve) and overwrite each other's ->in_exec_mm which will still lead to
+problems since there will be at most one temporary mm accounted for in the
+oom killer.
 
-Thanks.
+[update: since i don't seem to have been cc'd on the other patch that
+serializes execve, the above point is moot ;)]
 
+worse, even if each temporary mm was tracked separately there'd still be a
+race where the oom killer can get triggered with the culprit thread long
+gone (and reset ->in_exec_mm) and never to be found, so the oom killer would
+find someone else as guilty.
 
+now all this leads me to suggest a simpler solution, at least for the first
+problem mentioned above (i don't know what to do with the second one yet as
+it seems to be a generic issue with the oom killer, probably it should verify
+the oom situation once again after it took the task_list lock).
 
-=======================================================
-[ INFO: possible circular locking dependency detected ]
-2.6.36-rc7-mm1+ #148
--------------------------------------------------------
-bash/1621 is trying to acquire lock:
- ((memory_chain).rwsem){.+.+.+}, at: [<ffffffff81079339>] __blocking_notifier_call_chain+0x69/0xc0
+[update: while the serialized execve solves the first problem, i still think
+that my idea is simpler and worth considering, so i leave it here even if for
+just documentation purposes ;)]
 
-but task is already holding lock:
- (ksm_thread_mutex){+.+.+.}, at: [<ffffffff8113a3aa>] ksm_memory_callback+0x3a/0xc0
+given that all the oom killer needs from the mm struct is either ->total_pages
+(in .35 and before, so be careful with the stable backport) or some ->rss_stat
+counters, wouldn't it be much easier to simply transfer the bprm->mm counters
+into current->mm for the duration of the execve (say, add them in get_arg_page
+and remove them when bprm->mm is mmput in the do_execve failure path, etc)? the
+transfer can be either to the existing counters or to new ones (obviously in
+the latter case the oom code needs a small change to take the new counters into
+account as well).
 
-which lock already depends on the new lock.
+cheers,
 
-
-the existing dependency chain (in reverse order) is:
-
--> #1 (ksm_thread_mutex){+.+.+.}:
-       [<ffffffff8108b70a>] lock_acquire+0xaa/0x140
-       [<ffffffff81505d74>] __mutex_lock_common+0x44/0x3f0
-       [<ffffffff81506228>] mutex_lock_nested+0x48/0x60
-       [<ffffffff8113a3aa>] ksm_memory_callback+0x3a/0xc0		
-       [<ffffffff8150c21c>] notifier_call_chain+0x8c/0xe0
-       [<ffffffff8107934e>] __blocking_notifier_call_chain+0x7e/0xc0	
-       [<ffffffff810793a6>] blocking_notifier_call_chain+0x16/0x20
-       [<ffffffff813afbfb>] memory_notify+0x1b/0x20
-       [<ffffffff81141b7c>] remove_memory+0x1cc/0x5f0
-       [<ffffffff813af53d>] memory_block_change_state+0xfd/0x1a0
-       [<ffffffff813afd62>] store_mem_state+0xe2/0xf0
-       [<ffffffff813a0bb0>] sysdev_store+0x20/0x30
-       [<ffffffff811bc116>] sysfs_write_file+0xe6/0x170
-       [<ffffffff8114f398>] vfs_write+0xc8/0x190
-       [<ffffffff8114fc14>] sys_write+0x54/0x90
-       [<ffffffff810028b2>] system_call_fastpath+0x16/0x1b
-
--> #0 ((memory_chain).rwsem){.+.+.+}:
-       [<ffffffff8108b5ba>] __lock_acquire+0x155a/0x1600
-       [<ffffffff8108b70a>] lock_acquire+0xaa/0x140
-       [<ffffffff81506601>] down_read+0x51/0xa0
-       [<ffffffff81079339>] __blocking_notifier_call_chain+0x69/0xc0	
-       [<ffffffff810793a6>] blocking_notifier_call_chain+0x16/0x20
-       [<ffffffff813afbfb>] memory_notify+0x1b/0x20
-       [<ffffffff81141f1e>] remove_memory+0x56e/0x5f0
-       [<ffffffff813af53d>] memory_block_change_state+0xfd/0x1a0
-       [<ffffffff813afd62>] store_mem_state+0xe2/0xf0
-       [<ffffffff813a0bb0>] sysdev_store+0x20/0x30
-       [<ffffffff811bc116>] sysfs_write_file+0xe6/0x170
-       [<ffffffff8114f398>] vfs_write+0xc8/0x190
-       [<ffffffff8114fc14>] sys_write+0x54/0x90
-       [<ffffffff810028b2>] system_call_fastpath+0x16/0x1b
-
-other info that might help us debug this:
-
-5 locks held by bash/1621:
- #0:  (&buffer->mutex){+.+.+.}, at: [<ffffffff811bc074>] sysfs_write_file+0x44/0x170
- #1:  (s_active#110){.+.+.+}, at: [<ffffffff811bc0fd>] sysfs_write_file+0xcd/0x170
- #2:  (&mem->state_mutex){+.+.+.}, at: [<ffffffff813af478>] memory_block_change_state+0x38/0x1a0
- #3:  (pm_mutex){+.+.+.}, at: [<ffffffff81141ad9>] remove_memory+0x129/0x5f0
- #4:  (ksm_thread_mutex){+.+.+.}, at: [<ffffffff8113a3aa>] ksm_memory_callback+0x3a/0xc0
-
-stack backtrace:
-Pid: 1621, comm: bash Not tainted 2.6.36-rc7-mm1+ #148
-Call Trace:
- [<ffffffff81088b5b>] print_circular_bug+0xeb/0xf0
- [<ffffffff8108b5ba>] __lock_acquire+0x155a/0x1600
- [<ffffffff8103a1f9>] ? finish_task_switch+0x79/0xe0
- [<ffffffff815049a9>] ? schedule+0x419/0xa80
- [<ffffffff8108b70a>] lock_acquire+0xaa/0x140
- [<ffffffff81079339>] ? __blocking_notifier_call_chain+0x69/0xc0	
- [<ffffffff81506601>] down_read+0x51/0xa0
- [<ffffffff81079339>] ? __blocking_notifier_call_chain+0x69/0xc0
- [<ffffffff81079339>] __blocking_notifier_call_chain+0x69/0xc0
- [<ffffffff81110f06>] ? next_online_pgdat+0x26/0x50
- [<ffffffff810793a6>] blocking_notifier_call_chain+0x16/0x20
- [<ffffffff813afbfb>] memory_notify+0x1b/0x20			
- [<ffffffff81141f1e>] remove_memory+0x56e/0x5f0
- [<ffffffff8108ba98>] ? lock_release_non_nested+0x2f8/0x3a0
- [<ffffffff813af53d>] memory_block_change_state+0xfd/0x1a0
- [<ffffffff8111705c>] ? might_fault+0x5c/0xb0
- [<ffffffff813afd62>] store_mem_state+0xe2/0xf0
- [<ffffffff811bc0fd>] ? sysfs_write_file+0xcd/0x170
- [<ffffffff813a0bb0>] sysdev_store+0x20/0x30
- [<ffffffff811bc116>] sysfs_write_file+0xe6/0x170
- [<ffffffff8114f398>] vfs_write+0xc8/0x190
- [<ffffffff8114fc14>] sys_write+0x54/0x90
- [<ffffffff810028b2>] system_call_fastpath+0x16/0x1b
+ PaX Team
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
