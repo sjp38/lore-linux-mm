@@ -1,142 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B12B38D000B
-	for <linux-mm@kvack.org>; Sun, 24 Oct 2010 23:27:30 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9P3RS5r030109
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 25 Oct 2010 12:27:28 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0747345DE57
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 12:27:28 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CFEAE45DE4E
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 12:27:27 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 98A5FE38001
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 12:27:27 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 417031DB803C
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 12:27:27 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [resend][PATCH 2/4] Revert "oom: deprecate oom_adj tunable"
-In-Reply-To: <20101025122538.9167.A69D9226@jp.fujitsu.com>
-References: <20101025122538.9167.A69D9226@jp.fujitsu.com>
-Message-Id: <20101025122723.916D.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9751B8D000B
+	for <linux-mm@kvack.org>; Sun, 24 Oct 2010 23:28:30 -0400 (EDT)
+Date: Mon, 25 Oct 2010 11:28:27 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] do_migrate_range: avoid failure as much as possible
+Message-ID: <20101025032827.GA15933@localhost>
+References: <1287974851-4064-1-git-send-email-lliubbo@gmail.com>
+ <20101025114017.86ee5e54.kamezawa.hiroyu@jp.fujitsu.com>
+ <20101025025703.GA13858@localhost>
+ <20101025120550.45745c3d.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 25 Oct 2010 12:27:26 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101025120550.45745c3d.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Bob Liu <lliubbo@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-oom_adj is not only used for kernel knob, but also used for
-application interface. Then, adding new knob is no good
-reason to deprecate it. Don't do stupid!
+On Mon, Oct 25, 2010 at 11:05:50AM +0800, KAMEZAWA Hiroyuki wrote:
+> On Mon, 25 Oct 2010 10:57:03 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
+> 
+> > On Mon, Oct 25, 2010 at 10:40:17AM +0800, KAMEZAWA Hiroyuki wrote:
+> > > On Mon, 25 Oct 2010 10:47:31 +0800
+> > > Bob Liu <lliubbo@gmail.com> wrote:
+> > > 
+> > > > It's normal for isolate_lru_page() to fail at times. The failures are
+> > > > typically temporal and may well go away when offline_pages() retries
+> > > > the call. So it seems more reasonable to migrate as much as possible
+> > > > to increase the chance of complete success in next retry.
+> > > > 
+> > > > This patch remove page_count() check and remove putback_lru_pages() and
+> > > > call migrate_pages() regardless of not_managed to reduce failure as much
+> > > > as possible.
+> > > > 
+> > > > Signed-off-by: Bob Liu <lliubbo@gmail.com>
+> > > 
+> > > -EBUSY should be returned.
+> > 
+> > It does return -EBUSY when ALL pages cannot be isolated from LRU (or
+> > is non-LRU pages at all). That means offline_pages() will repeat calls
+> > to do_migrate_range() as fast as possible as long as it can make
+> > progress.
+> > 
+> I read the patch wrong ? "ret = -EBUSY" is dropped and "ret" will be
+> 0 or just a return code of migrate_page().
 
-Also, after former patch, oom_score_adj can't be used for setting
-OOM_DISABLE. We need "echo -17 > /proc/<pid>/oom_adj" thing.
+        for () {
+                ret = isolate_lru_page(page);
+        }
 
-This reverts commit 51b1bd2ace1595b72956224deda349efa880b693.
+        if (list_empty(&source))
+                goto out;
 
-Cc: stable@kernel.org
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- Documentation/feature-removal-schedule.txt |   25 -------------------------
- Documentation/filesystems/proc.txt         |    3 ---
- fs/proc/base.c                             |    8 --------
- include/linux/oom.h                        |    3 ---
- 4 files changed, 0 insertions(+), 39 deletions(-)
+out:
+        return ret;
 
-diff --git a/Documentation/feature-removal-schedule.txt b/Documentation/feature-removal-schedule.txt
-index 9961f15..1cba5b8 100644
---- a/Documentation/feature-removal-schedule.txt
-+++ b/Documentation/feature-removal-schedule.txt
-@@ -151,31 +151,6 @@ Who:	Eric Biederman <ebiederm@xmission.com>
+So do_migrate_range() will return -EBUSY if the last isolate_lru_page() returns
+-EBUSY.
+
+> 
+> 
+> 
+> > Is that behavior good enough? It does need some comment for this
+> > non-obvious return value. 
+> > 
+> > btw, the caller side code can be simplified (no behavior change).
+> > 
+> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > index dd186c1..606d358 100644
+> > --- a/mm/memory_hotplug.c
+> > +++ b/mm/memory_hotplug.c
+> > @@ -848,17 +848,13 @@ repeat:
+> >     pfn = scan_lru_pages(start_pfn, end_pfn);
+> >     if (pfn) { /* We have page on LRU */
+> >             ret = do_migrate_range(pfn, end_pfn);
+> > -           if (!ret) {
+> > -                   drain = 1;
+> > -                   goto repeat;
+> > -           } else {
+> > -                   if (ret < 0)
+> > -                           if (--retry_max == 0)
+> > -                                   goto failed_removal;
+> > +           if (ret < 0) {
+> > +                   if (--retry_max <= 0)
+> > +                           goto failed_removal;
+> >                     yield();
+> > -                   drain = 1;
+> > -                   goto repeat;
+> >             }
+> > +           drain = 1;
+> > +           goto repeat;
+> >     }
+> 
+> This changes behavior.
+
+Ah yes!
  
- ---------------------------
- 
--What:	/proc/<pid>/oom_adj
--When:	August 2012
--Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
--	badness heuristic used to determine which task to kill when the kernel
--	is out of memory.
--
--	The badness heuristic has since been rewritten since the introduction of
--	this tunable such that its meaning is deprecated.  The value was
--	implemented as a bitshift on a score generated by the badness()
--	function that did not have any precise units of measure.  With the
--	rewrite, the score is given as a proportion of available memory to the
--	task allocating pages, so using a bitshift which grows the score
--	exponentially is, thus, impossible to tune with fine granularity.
--
--	A much more powerful interface, /proc/<pid>/oom_score_adj, was
--	introduced with the oom killer rewrite that allows users to increase or
--	decrease the badness() score linearly.  This interface will replace
--	/proc/<pid>/oom_adj.
--
--	A warning will be emitted to the kernel log if an application uses this
--	deprecated interface.  After it is printed once, future warnings will be
--	suppressed until the kernel is rebooted.
--
-----------------------------
--
- What:	remove EXPORT_SYMBOL(kernel_thread)
- When:	August 2006
- Files:	arch/*/kernel/*_ksyms.c
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index a6aca87..cf1295c 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -1285,9 +1285,6 @@ scaled linearly with /proc/<pid>/oom_score_adj.
- Writing to /proc/<pid>/oom_score_adj or /proc/<pid>/oom_adj will change the
- other with its scaled value.
- 
--NOTICE: /proc/<pid>/oom_adj is deprecated and will be removed, please see
--Documentation/feature-removal-schedule.txt.
--
- Caveat: when a parent task is selected, the oom killer will sacrifice any first
- generation children with seperate address spaces instead, if possible.  This
- avoids servers and important system daemons from being killed and loses the
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 86c402e..0d2ce21 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -1046,14 +1046,6 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
- 		return -EACCES;
- 	}
- 
--	/*
--	 * Warn that /proc/pid/oom_adj is deprecated, see
--	 * Documentation/feature-removal-schedule.txt.
--	 */
--	printk_once(KERN_WARNING "%s (%d): /proc/%d/oom_adj is deprecated, "
--			"please use /proc/%d/oom_score_adj instead.\n",
--			current->comm, task_pid_nr(current),
--			task_pid_nr(task), task_pid_nr(task));
- 	task->signal->oom_adj = oom_adjust;
- 	unlock_task_sighand(task, &flags);
- 	put_task_struct(task);
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 21006dc..394f2e6 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -2,9 +2,6 @@
- #define __INCLUDE_LINUX_OOM_H
- 
- /*
-- * /proc/<pid>/oom_adj is deprecated, see
-- * Documentation/feature-removal-schedule.txt.
-- *
-  * /proc/<pid>/oom_adj set to -17 protects from the oom-killer
-  */
- #define OOM_DISABLE (-17)
--- 
-1.6.5.2
+> This "ret" can be > 0 because migrate_page()'s return code is
+> "Return: Number of pages not migrated or error code."
+> 
+> Then, 
+> ret < 0  ===> maybe ebusy
+> ret > 0  ===> some pages are not migrated. maybe PG_writeback or some
+> ret == 0 ===> ok, all condition green. try next chunk soon.
+> 
+> Then, I added "yield()" and --retrym_max for !ret cases.
 
+You are right, there is the "ret > 0, some pages are not migrated" case.
+But I'm not sure it's PG_writeback pages, because migrate_pages() will wait on
+writeback after pass 2.
 
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
