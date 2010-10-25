@@ -1,76 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 6E5356B0092
-	for <linux-mm@kvack.org>; Sun, 24 Oct 2010 18:55:11 -0400 (EDT)
-Received: by iwn9 with SMTP id 9so3776070iwn.14
-        for <linux-mm@kvack.org>; Sun, 24 Oct 2010 15:55:09 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20101022045509.GA16804@localhost>
-References: <20101022045509.GA16804@localhost>
-Date: Mon, 25 Oct 2010 07:55:09 +0900
-Message-ID: <AANLkTinU7UqBpoUOzE=JfMLtk006Ou=EVJ+6dB1KnBVj@mail.gmail.com>
-Subject: Re: [PATCH] mm: Avoid possible deadlock caused by too_many_isolated()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3C3116B008A
+	for <linux-mm@kvack.org>; Sun, 24 Oct 2010 20:18:38 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9P0IYTV030328
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 25 Oct 2010 09:18:34 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F0F4945DE4F
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 09:18:33 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D38E045DD75
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 09:18:33 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B1F26E08002
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 09:18:33 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 64C25E08001
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 09:18:33 +0900 (JST)
+Date: Mon, 25 Oct 2010 09:13:04 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH V3] nommu: add anonymous page memcg accounting
+Message-Id: <20101025091304.871c8a50.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1287753968.2589.58.camel@iscandar.digidescorp.com>
+References: <1287664088-4483-1-git-send-email-steve@digidescorp.com>
+	<20101022122010.793bebac.kamezawa.hiroyu@jp.fujitsu.com>
+	<1287753968.2589.58.camel@iscandar.digidescorp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Neil Brown <neilb@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Li, Shaohua" <shaohua.li@intel.com>
+To: steve@digidescorp.com
+Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, dhowells@redhat.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 22, 2010 at 1:55 PM, Wu Fengguang <fengguang.wu@intel.com> wrot=
-e:
-> Neil find that if too_many_isolated() returns true while performing
-> direct reclaim we can end up waiting for other threads to complete their
-> direct reclaim. =A0If those threads are allowed to enter the FS or IO to
-> free memory, but this thread is not, then it is possible that those
-> threads will be waiting on this thread and so we get a circular
-> deadlock.
->
-> some task enters direct reclaim with GFP_KERNEL
-> =A0=3D> too_many_isolated() false
-> =A0 =A0=3D> vmscan and run into dirty pages
-> =A0 =A0 =A0=3D> pageout()
-> =A0 =A0 =A0 =A0=3D> take some FS lock
-> =A0 =A0 =A0 =A0 =A0=3D> fs/block code does GFP_NOIO allocation
-> =A0 =A0 =A0 =A0 =A0 =A0=3D> enter direct reclaim again
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0=3D> too_many_isolated() true
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=3D> waiting for others to progress, h=
-owever the other
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 tasks may be circular waiting for=
- the FS lock..
->
-> The fix is to let !__GFP_IO and !__GFP_FS direct reclaims enjoy higher
-> priority than normal ones, by lowering the throttle threshold for the
-> latter.
->
-> Allowing ~1/8 isolated pages in normal is large enough. For example,
-> for a 1GB LRU list, that's ~128MB isolated pages, or 1k blocked tasks
-> (each isolates 32 4KB pages), or 64 blocked tasks per logical CPU
-> (assuming 16 logical CPUs per NUMA node). So it's not likely some CPU
-> goes idle waiting (when it could make progress) because of this limit:
-> there are much more sleeping reclaim tasks than the number of CPU, so
-> the task may well be blocked by some low level queue/lock anyway.
->
-> Now !GFP_IOFS reclaims won't be waiting for GFP_IOFS reclaims to
-> progress. They will be blocked only when there are too many concurrent
-> !GFP_IOFS reclaims, however that's very unlikely because the IO-less
-> direct reclaims is able to progress much more faster, and they won't
-> deadlock each other. The threshold is raised high enough for them, so
-> that there can be sufficient parallel progress of !GFP_IOFS reclaims.
->
-> CC: Torsten Kaiser <just.for.lkml@googlemail.com>
-> CC: Minchan Kim <minchan.kim@gmail.com>
-> Tested-by: NeilBrown <neilb@suse.de>
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Fri, 22 Oct 2010 08:26:08 -0500
+"Steven J. Magnani" <steve@digidescorp.com> wrote:
 
+> On Fri, 2010-10-22 at 12:20 +0900, KAMEZAWA Hiroyuki wrote:
+> > BTW, have you tried oom_notifier+NOMMU memory limit oom-killer ?
+> > It may be a chance to implement a custom OOM-Killer in userland on
+> > EMBEDED systems.
+> 
+> No - for what I need (simple sandboxing) just running my 'problem'
+> process in a memory cgroup is sufficient. I might even be able to get
+> away with oom_kill_allocating_task and no cgroup, but since that would
+> allow dosfsck to run the system completely out of memory there's no
+> guarantee that it would be the one that pushes the system over the edge.
+> 
+> What do you mean by "NOMMU memory limit"? (Is there some other way to
+> achieve the same functionality?)
+> 
 
+I just meant memory cgroup for NOMMU.
 
---=20
-Kind regards,
-Minchan Kim
+> I looked into David's initial suggestion of using ulimit to create a
+> sandbox but it seems that nommu.c doesn't respect RLIMIT_AS. When I can
+> find some time I'll try to cook up a patch for that.
+
+Hmm. I think fixing RLIMIT_AS is better. (but no nack to this patch.)
+Using memcg for _a_ program sounds like overkill...
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
