@@ -1,295 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BF2DC8D0015
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 02:41:06 -0400 (EDT)
-Date: Mon, 25 Oct 2010 17:40:51 +1100
-From: Neil Brown <neilb@suse.de>
-Subject: Re: Deadlock possibly caused by too_many_isolated.
-Message-ID: <20101025174051.31a00481@notabene>
-In-Reply-To: <20101024165234.GA23508@localhost>
-References: <AANLkTimVu+5gTDs8przJVP2EbWC=FX-zWW7aH08BtrHC@mail.gmail.com>
-	<20101020055717.GA12752@localhost>
-	<20101020150346.1832.A69D9226@jp.fujitsu.com>
-	<20101020092739.GA23869@localhost>
-	<4CBEE888.2090606@kernel.dk>
-	<20101022053755.GB16804@localhost>
-	<20101022080725.GA22594@localhost>
-	<4CC146B1.8060906@kernel.dk>
-	<20101024165234.GA23508@localhost>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 4BF168D0015
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 02:43:08 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9P6h5i2019492
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 25 Oct 2010 15:43:05 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EE6145DE4F
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 15:43:05 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6274245DE4E
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 15:43:05 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 458501DB8013
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 15:43:05 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 03226E38002
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 15:43:05 +0900 (JST)
+Date: Mon, 25 Oct 2010 15:37:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [BUGFIX][PATCH] fix is_mem_section_removable() page_order BUG_ON
+ check.
+Message-Id: <20101025153726.2ae9baec.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jens Axboe <axboe@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Torsten Kaiser <just.for.lkml@googlemail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Li, Shaohua" <shaohua.li@intel.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, fengguang.wu@intel.com, Mel Gorman <mel@csn.ul.ie>"akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Oct 2010 00:52:34 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+I wonder this should be for stable tree...but want to hear opinions before.
+==
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> On Fri, Oct 22, 2010 at 04:09:21PM +0800, Jens Axboe wrote:
-> > On 2010-10-22 10:07, Wu Fengguang wrote:
-> > >>> We surely need 1 set aside for each level of that stack that will
-> > >>> potentially consume one. 1 should be enough for the generic pool, and
-> > >>> then clones will use a separate pool. So md and friends should really
-> > >>> have a pool per device, so that stacking will always work properly.
-> > >>
-> > >> Agreed for the deadlock problem.
-> > >>
-> > >>> There should be no throughput concerns, it should purely be a safe guard
-> > >>> measure to prevent us deadlocking when doing IO for reclaim.
-> > >>
-> > >> It's easy to verify whether the minimal size will have negative
-> > >> impacts on IO throughput. In Torsten's case, increase BIO_POOL_SIZE
-> > >> by one and check how it performs.
-> > > 
-> > > Sorry it seems simply increasing BIO_POOL_SIZE is not enough to fix
-> > > possible deadlocks. We need adding new mempool(s). Because when there
-> > > BIO_POOL_SIZE=2 and there are two concurrent reclaimers each take 1
-> > > reservation, they will deadlock each other when trying to take the
-> > > next bio at the raid1 level.
-> > 
-> > Yes, plus it's not a practical solution since you don't know how deep
-> > the stack is. As I wrote in the initial email, each consumer needs it's
-> > own private mempool (and just 1 entry should suffice).
-> 
-> You are right. The below scratch patch adds minimal mempool code for raid1.
-> It passed simple stress test of resync + 3 dd writers. Although write
-> throughput is rather slow in my qemu, I don't observe any
-> temporary/permanent stuck ups.
+page_order() is called by memory hotplug's user interface to check 
+the section is removable or not. (is_mem_section_removable())
 
-Hi,
-  thanks for the patch.  I'll make a few changes to what I finally apply -
-  for example we don't really need mempools in r1buf_poll_alloc as that isn't
-  on the writeout path - so I'll tidy that up first.
+It calls page_order() withoug holding zone->lock.
+So, even if the caller does
 
-  Also I'll avoid making changes to fs/bio.c at first.  It may still be a
-  good idea to have a bio_clone_bioset, but that should be a separate patch -
-  there are at least 3 places that would use it.
+	if (PageBuddy(page))
+		ret = page_order(page) ...
+The caller may hit BUG_ON().
 
-Thanks - I'll try to get this into the current merge window.
+For fixing this, there are 2 choices.
+  1. add zone->lock.
+  2. remove BUG_ON().
 
-NeilBrown
+is_mem_section_removable() is used for some "advice" and doesn't need
+to be 100% accurate. This is_removable() can be called via user program..
+We don't want to take this important lock for long by user's request.
+So, this patch removes BUG_ON().
 
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/internal.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-> 
->  drivers/md/raid1.c  |   32 ++++++++++++++++++++++++++++----
->  drivers/md/raid1.h  |    2 ++
->  fs/bio.c            |   31 +++++++++++++++++++++----------
->  include/linux/bio.h |    2 ++
->  4 files changed, 53 insertions(+), 14 deletions(-)
-> 
-> --- linux-next.orig/drivers/md/raid1.c	2010-10-25 00:02:40.000000000 +0800
-> +++ linux-next/drivers/md/raid1.c	2010-10-25 00:28:16.000000000 +0800
-> @@ -76,6 +76,14 @@ static void r1bio_pool_free(void *r1_bio
->  	kfree(r1_bio);
->  }
->  
-> +static void r1_bio_destructor(struct bio *bio)
-> +{
-> +	r1bio_t *r1_bio = bio->bi_private;
-> +	conf_t *conf = r1_bio->mddev->private;
-> +
-> +	bio_free(bio, conf->r1_bio_set);
-> +}
-> +
->  #define RESYNC_BLOCK_SIZE (64*1024)
->  //#define RESYNC_BLOCK_SIZE PAGE_SIZE
->  #define RESYNC_SECTORS (RESYNC_BLOCK_SIZE >> 9)
-> @@ -85,6 +93,7 @@ static void r1bio_pool_free(void *r1_bio
->  static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
->  {
->  	struct pool_info *pi = data;
-> +	conf_t *conf = pi->mddev->private;
->  	struct page *page;
->  	r1bio_t *r1_bio;
->  	struct bio *bio;
-> @@ -100,7 +109,8 @@ static void * r1buf_pool_alloc(gfp_t gfp
->  	 * Allocate bios : 1 for reading, n-1 for writing
->  	 */
->  	for (j = pi->raid_disks ; j-- ; ) {
-> -		bio = bio_alloc(gfp_flags, RESYNC_PAGES);
-> +		bio = bio_alloc_bioset(gfp_flags, RESYNC_PAGES,
-> +				       conf->r1_bio_set);
->  		if (!bio)
->  			goto out_free_bio;
->  		r1_bio->bios[j] = bio;
-> @@ -386,6 +396,10 @@ static void raid1_end_write_request(stru
->  				!test_bit(R1BIO_Degraded, &r1_bio->state),
->  				behind);
->  		md_write_end(r1_bio->mddev);
-> +		if (to_put) {
-> +			bio_put(to_put);
-> +			to_put = NULL;
-> +		}
->  		raid_end_bio_io(r1_bio);
->  	}
->  
-> @@ -851,7 +865,7 @@ static int make_request(mddev_t *mddev, 
->  		}
->  		r1_bio->read_disk = rdisk;
->  
-> -		read_bio = bio_clone(bio, GFP_NOIO);
-> +		read_bio = bio_clone_bioset(bio, GFP_NOIO, conf->r1_bio_set);
->  
->  		r1_bio->bios[rdisk] = read_bio;
->  
-> @@ -946,7 +960,7 @@ static int make_request(mddev_t *mddev, 
->  		if (!r1_bio->bios[i])
->  			continue;
->  
-> -		mbio = bio_clone(bio, GFP_NOIO);
-> +		mbio = bio_clone_bioset(bio, GFP_NOIO, conf->r1_bio_set);
->  		r1_bio->bios[i] = mbio;
->  
->  		mbio->bi_sector	= r1_bio->sector + conf->mirrors[i].rdev->data_offset;
-> @@ -1646,7 +1660,9 @@ static void raid1d(mddev_t *mddev)
->  					mddev->ro ? IO_BLOCKED : NULL;
->  				r1_bio->read_disk = disk;
->  				bio_put(bio);
-> -				bio = bio_clone(r1_bio->master_bio, GFP_NOIO);
-> +				bio = bio_clone_bioset(r1_bio->master_bio,
-> +						       GFP_NOIO,
-> +						       conf->r1_bio_set);
->  				r1_bio->bios[r1_bio->read_disk] = bio;
->  				rdev = conf->mirrors[disk].rdev;
->  				if (printk_ratelimit())
-> @@ -1948,6 +1964,10 @@ static conf_t *setup_conf(mddev_t *mddev
->  					  conf->poolinfo);
->  	if (!conf->r1bio_pool)
->  		goto abort;
-> +	conf->r1_bio_set = bioset_create(mddev->raid_disks * 2, 0);
-> +	if (!conf->r1_bio_set)
-> +		goto abort;
-> +	conf->r1_bio_set->bio_destructor = r1_bio_destructor;
->  
->  	conf->poolinfo->mddev = mddev;
->  
-> @@ -2012,6 +2032,8 @@ static conf_t *setup_conf(mddev_t *mddev
->  	if (conf) {
->  		if (conf->r1bio_pool)
->  			mempool_destroy(conf->r1bio_pool);
-> +		if (conf->r1_bio_set)
-> +			bioset_free(conf->r1_bio_set);
->  		kfree(conf->mirrors);
->  		safe_put_page(conf->tmppage);
->  		kfree(conf->poolinfo);
-> @@ -2121,6 +2143,8 @@ static int stop(mddev_t *mddev)
->  	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
->  	if (conf->r1bio_pool)
->  		mempool_destroy(conf->r1bio_pool);
-> +	if (conf->r1_bio_set)
-> +		bioset_free(conf->r1_bio_set);
->  	kfree(conf->mirrors);
->  	kfree(conf->poolinfo);
->  	kfree(conf);
-> --- linux-next.orig/fs/bio.c	2010-10-25 00:02:39.000000000 +0800
-> +++ linux-next/fs/bio.c	2010-10-25 00:03:37.000000000 +0800
-> @@ -306,6 +306,7 @@ out_set:
->  	bio->bi_flags |= idx << BIO_POOL_OFFSET;
->  	bio->bi_max_vecs = nr_iovecs;
->  	bio->bi_io_vec = bvl;
-> +	bio->bi_destructor = bs->bio_destructor;
->  	return bio;
->  
->  err_free:
-> @@ -340,12 +341,7 @@ static void bio_fs_destructor(struct bio
->   */
->  struct bio *bio_alloc(gfp_t gfp_mask, int nr_iovecs)
->  {
-> -	struct bio *bio = bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
-> -
-> -	if (bio)
-> -		bio->bi_destructor = bio_fs_destructor;
-> -
-> -	return bio;
-> +	return bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
->  }
->  EXPORT_SYMBOL(bio_alloc);
->  
-> @@ -460,20 +456,21 @@ void __bio_clone(struct bio *bio, struct
->  EXPORT_SYMBOL(__bio_clone);
->  
->  /**
-> - *	bio_clone	-	clone a bio
-> + *	bio_clone_bioset	-	clone a bio
->   *	@bio: bio to clone
->   *	@gfp_mask: allocation priority
-> + *	@bs: bio_set to allocate from
->   *
->   * 	Like __bio_clone, only also allocates the returned bio
->   */
-> -struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
-> +struct bio *
-> +bio_clone_bioset(struct bio *bio, gfp_t gfp_mask, struct bio_set *bs)
->  {
-> -	struct bio *b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs, fs_bio_set);
-> +	struct bio *b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs, bs);
->  
->  	if (!b)
->  		return NULL;
->  
-> -	b->bi_destructor = bio_fs_destructor;
->  	__bio_clone(b, bio);
->  
->  	if (bio_integrity(bio)) {
-> @@ -489,6 +486,19 @@ struct bio *bio_clone(struct bio *bio, g
->  
->  	return b;
->  }
-> +EXPORT_SYMBOL(bio_clone_bioset);
-> +
-> +/**
-> + *	bio_clone	-	clone a bio
-> + *	@bio: bio to clone
-> + *	@gfp_mask: allocation priority
-> + *
-> + *	Like __bio_clone, only also allocates the returned bio
-> + */
-> +struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
-> +{
-> +	return bio_clone_bioset(bio, gfp_mask, fs_bio_set);
-> +}
->  EXPORT_SYMBOL(bio_clone);
->  
->  /**
-> @@ -1664,6 +1674,7 @@ static int __init init_bio(void)
->  	fs_bio_set = bioset_create(BIO_POOL_SIZE, 0);
->  	if (!fs_bio_set)
->  		panic("bio: can't allocate bios\n");
-> +	fs_bio_set->bio_destructor = bio_fs_destructor;
->  
->  	bio_split_pool = mempool_create_kmalloc_pool(BIO_SPLIT_ENTRIES,
->  						     sizeof(struct bio_pair));
-> --- linux-next.orig/include/linux/bio.h	2010-10-25 00:02:40.000000000 +0800
-> +++ linux-next/include/linux/bio.h	2010-10-25 00:03:37.000000000 +0800
-> @@ -227,6 +227,7 @@ extern int bio_phys_segments(struct requ
->  
->  extern void __bio_clone(struct bio *, struct bio *);
->  extern struct bio *bio_clone(struct bio *, gfp_t);
-> +extern struct bio *bio_clone_bioset(struct bio *, gfp_t, struct bio_set *);
->  
->  extern void bio_init(struct bio *);
->  
-> @@ -299,6 +300,7 @@ struct bio_set {
->  	mempool_t *bio_integrity_pool;
->  #endif
->  	mempool_t *bvec_pool;
-> +	bio_destructor_t	*bio_destructor;
->  };
->  
->  struct biovec_slab {
-> --- linux-next.orig/drivers/md/raid1.h	2010-10-25 00:02:40.000000000 +0800
-> +++ linux-next/drivers/md/raid1.h	2010-10-25 00:03:37.000000000 +0800
-> @@ -60,6 +60,8 @@ struct r1_private_data_s {
->  	mempool_t *r1bio_pool;
->  	mempool_t *r1buf_pool;
->  
-> +	struct bio_set *r1_bio_set;
-> +
->  	/* When taking over an array from a different personality, we store
->  	 * the new thread here until we fully activate the array.
->  	 */
+Index: mmotm-1024/mm/internal.h
+===================================================================
+--- mmotm-1024.orig/mm/internal.h
++++ mmotm-1024/mm/internal.h
+@@ -62,7 +62,7 @@ extern bool is_free_buddy_page(struct pa
+  */
+ static inline unsigned long page_order(struct page *page)
+ {
+-	VM_BUG_ON(!PageBuddy(page));
++	/* PageBuddy() must be checked by the caller */
+ 	return page_private(page);
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
