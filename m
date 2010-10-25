@@ -1,236 +1,314 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E83DC8D0015
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 03:14:01 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9P7Dxsb024861
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 25 Oct 2010 16:13:59 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E426545DE52
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 16:13:58 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C471245DE50
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 16:13:58 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AA961E18002
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 16:13:58 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4758DE08001
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 16:13:58 +0900 (JST)
-Date: Mon, 25 Oct 2010 16:08:26 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v2][memcg+dirtylimit] Fix  overwriting global vm dirty
- limit setting by memcg (Re: [PATCH v3 00/11] memcg: per cgroup dirty page
- accounting
-Message-Id: <20101025160826.3889328c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4CC52BBB.8010407@linux.vnet.ibm.com>
-References: <1287448784-25684-1-git-send-email-gthelen@google.com>
-	<20101020122144.47f2b60b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101020140255.5b8afb63.kamezawa.hiroyu@jp.fujitsu.com>
-	<xr937hh7sa5l.fsf@ninji.mtv.corp.google.com>
-	<4CC52BBB.8010407@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id D00328D0002
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 03:26:24 -0400 (EDT)
+Date: Mon, 25 Oct 2010 15:26:17 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: Deadlock possibly caused by too_many_isolated.
+Message-ID: <20101025072616.GA5452@localhost>
+References: <AANLkTimVu+5gTDs8przJVP2EbWC=FX-zWW7aH08BtrHC@mail.gmail.com>
+ <20101020055717.GA12752@localhost>
+ <20101020150346.1832.A69D9226@jp.fujitsu.com>
+ <20101020092739.GA23869@localhost>
+ <4CBEE888.2090606@kernel.dk>
+ <20101022053755.GB16804@localhost>
+ <20101022080725.GA22594@localhost>
+ <4CC146B1.8060906@kernel.dk>
+ <20101024165234.GA23508@localhost>
+ <20101025174051.31a00481@notabene>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101025174051.31a00481@notabene>
 Sender: owner-linux-mm@kvack.org
-To: Ciju Rajan K <ciju@linux.vnet.ibm.com>
-Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, David Rientjes <rientjes@google.com>
+To: Neil Brown <neilb@suse.de>
+Cc: Jens Axboe <axboe@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Torsten Kaiser <just.for.lkml@googlemail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Li, Shaohua" <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Oct 2010 12:33:23 +0530
-Ciju Rajan K <ciju@linux.vnet.ibm.com> wrote:
+On Mon, Oct 25, 2010 at 02:40:51PM +0800, Neil Brown wrote:
+> On Mon, 25 Oct 2010 00:52:34 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
+> 
+> > On Fri, Oct 22, 2010 at 04:09:21PM +0800, Jens Axboe wrote:
+> > > On 2010-10-22 10:07, Wu Fengguang wrote:
+> > > >>> We surely need 1 set aside for each level of that stack that will
+> > > >>> potentially consume one. 1 should be enough for the generic pool, and
+> > > >>> then clones will use a separate pool. So md and friends should really
+> > > >>> have a pool per device, so that stacking will always work properly.
+> > > >>
+> > > >> Agreed for the deadlock problem.
+> > > >>
+> > > >>> There should be no throughput concerns, it should purely be a safe guard
+> > > >>> measure to prevent us deadlocking when doing IO for reclaim.
+> > > >>
+> > > >> It's easy to verify whether the minimal size will have negative
+> > > >> impacts on IO throughput. In Torsten's case, increase BIO_POOL_SIZE
+> > > >> by one and check how it performs.
+> > > > 
+> > > > Sorry it seems simply increasing BIO_POOL_SIZE is not enough to fix
+> > > > possible deadlocks. We need adding new mempool(s). Because when there
+> > > > BIO_POOL_SIZE=2 and there are two concurrent reclaimers each take 1
+> > > > reservation, they will deadlock each other when trying to take the
+> > > > next bio at the raid1 level.
+> > > 
+> > > Yes, plus it's not a practical solution since you don't know how deep
+> > > the stack is. As I wrote in the initial email, each consumer needs it's
+> > > own private mempool (and just 1 entry should suffice).
+> > 
+> > You are right. The below scratch patch adds minimal mempool code for raid1.
+> > It passed simple stress test of resync + 3 dd writers. Although write
+> > throughput is rather slow in my qemu, I don't observe any
+> > temporary/permanent stuck ups.
+> 
+> Hi,
+>   thanks for the patch.  I'll make a few changes to what I finally apply -
+>   for example we don't really need mempools in r1buf_poll_alloc as that isn't
+>   on the writeout path - so I'll tidy that up first.
 
-> Greg Thelen wrote:
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
-> >
-> >   
-> >> Fixed one here.
-> >> ==
-> >> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >>
-> >> Now, at calculating dirty limit, vm_dirty_param() is called.
-> >> This function returns dirty-limit related parameters considering
-> >> memory cgroup settings.
-> >>
-> >> Now, assume that vm_dirty_bytes=100M (global dirty limit) and
-> >> memory cgroup has 1G of pages and 40 dirty_ratio, dirtyable memory is
-> >> 500MB.
-> >>
-> >> In this case, global_dirty_limits will consider dirty_limt as
-> >> 500 *0.4 = 200MB. This is bad...memory cgroup is not back door.
-> >>
-> >> This patch limits the return value of vm_dirty_param() considring
-> >> global settings.
-> >>
-> >> Changelog:
-> >>  - fixed an argument "mem" int to u64
-> >>  - fixed to use global available memory to cap memcg's value.
-> >>
-> >> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >> ---
-> >>  include/linux/memcontrol.h |    5 +++--
-> >>  mm/memcontrol.c            |   30 +++++++++++++++++++++++++++++-
-> >>  mm/page-writeback.c        |    3 ++-
-> >>  3 files changed, 34 insertions(+), 4 deletions(-)
-> >>
-> >> Index: dirty_limit_new/mm/memcontrol.c
-> >> ===================================================================
-> >> --- dirty_limit_new.orig/mm/memcontrol.c
-> >> +++ dirty_limit_new/mm/memcontrol.c
-> >> @@ -1171,9 +1171,11 @@ static void __mem_cgroup_dirty_param(str
-> >>   * can be moved after our access and writeback tends to take long time.  At
-> >>   * least, "memcg" will not be freed while holding rcu_read_lock().
-> >>   */
-> >> -void vm_dirty_param(struct vm_dirty_param *param)
-> >> +void vm_dirty_param(struct vm_dirty_param *param,
-> >> +	 u64 mem, u64 global)
-> >>  {
-> >>  	struct mem_cgroup *memcg;
-> >> +	u64 limit, bglimit;
-> >>  
-> >>  	if (mem_cgroup_disabled()) {
-> >>  		global_vm_dirty_param(param);
-> >> @@ -1183,6 +1185,32 @@ void vm_dirty_param(struct vm_dirty_para
-> >>  	rcu_read_lock();
-> >>  	memcg = mem_cgroup_from_task(current);
-> >>  	__mem_cgroup_dirty_param(param, memcg);
-> >> +	/*
-> >> +	 * A limitation under memory cgroup is under global vm, too.
-> >> +	 */
-> >> +	if (vm_dirty_ratio)
-> >> +		limit = global * vm_dirty_ratio / 100;
-> >> +	else
-> >> +		limit = vm_dirty_bytes;
-> >> +	if (param->dirty_ratio) {
-> >> +		param->dirty_bytes = mem * param->dirty_ratio / 100;
-> >> +		param->dirty_ratio = 0;
-> >> +	}
-> >> +	if (param->dirty_bytes > limit)
-> >> +		param->dirty_bytes = limit;
-> >> +
-> >> +	if (dirty_background_ratio)
-> >> +		bglimit = global * dirty_background_ratio / 100;
-> >> +	else
-> >> +		bglimit = dirty_background_bytes;
-> >> +
-> >> +	if (param->dirty_background_ratio) {
-> >> +		param->dirty_background_bytes =
-> >> +			mem * param->dirty_background_ratio / 100;
-> >> +		param->dirty_background_ratio = 0;
-> >> +	}
-> >> +	if (param->dirty_background_bytes > bglimit)
-> >> +		param->dirty_background_bytes = bglimit;
-> >>  	rcu_read_unlock();
-> >>  }
-> >>  
-> >> Index: dirty_limit_new/include/linux/memcontrol.h
-> >> ===================================================================
-> >> --- dirty_limit_new.orig/include/linux/memcontrol.h
-> >> +++ dirty_limit_new/include/linux/memcontrol.h
-> >> @@ -171,7 +171,7 @@ static inline void mem_cgroup_dec_page_s
-> >>  }
-> >>  
-> >>  bool mem_cgroup_has_dirty_limit(void);
-> >> -void vm_dirty_param(struct vm_dirty_param *param);
-> >> +void vm_dirty_param(struct vm_dirty_param *param, u64 mem, u64 global);
-> >>  s64 mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item);
-> >>  
-> >>  unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
-> >> @@ -360,7 +360,8 @@ static inline bool mem_cgroup_has_dirty_
-> >>  	return false;
-> >>  }
-> >>  
-> >> -static inline void vm_dirty_param(struct vm_dirty_param *param)
-> >> +static inline void vm_dirty_param(struct vm_dirty_param *param,
-> >> +		u64 mem, u64 global)
-> >>  {
-> >>  	global_vm_dirty_param(param);
-> >>  }
-> >> Index: dirty_limit_new/mm/page-writeback.c
-> >> ===================================================================
-> >> --- dirty_limit_new.orig/mm/page-writeback.c
-> >> +++ dirty_limit_new/mm/page-writeback.c
-> >> @@ -466,7 +466,8 @@ void global_dirty_limits(unsigned long *
-> >>  	struct task_struct *tsk;
-> >>  	struct vm_dirty_param dirty_param;
-> >>  
-> >> -	vm_dirty_param(&dirty_param);
-> >> +	vm_dirty_param(&dirty_param,
-> >> +		available_memory, global_dirtyable_memory());
-> >>  
-> >>  	if (dirty_param.dirty_bytes)
-> >>  		dirty = DIV_ROUND_UP(dirty_param.dirty_bytes, PAGE_SIZE);
-> >>     
-> >
-> > I think there is a problem with the patch above.  In the patch
-> > vm_dirty_param() sets param->dirty_[background_]bytes to the smallest
-> > limits considering the memcg and global limits.  Assuming the current
-> > task is in a memcg, then the memcg dirty (not system-wide) usage is
-> > always compared to the selected limits (which may be per-memcg or
-> > system).  The problem is that if:
-> > a) per-memcg dirty limit is smaller than system then vm_dirty_param()
-> >    will select per-memcg dirty limit, and
-> > b) per-memcg dirty usage is well below memcg dirty limit, and
-> > b) system usage is at system limit
-> > Then the above patch will not trigger writeback.  Example with two
-> > memcg:
-> >          sys
-> >         B   C
-> >       
-> >       limit  usage
-> >   sys  10     10
-> >    B    7      6
-> >    C    5      4
-> >
-> > If B wants to grow, the system will exceed system limit of 10 and should
-> > be throttled.  However, the smaller limit (7) will be selected and
-> > applied to memcg usage (6), which indicates no need to throttle, so the
-> > system could get as bad as:
-> >
-> >       limit  usage
-> >   sys  10     12
-> >    B    7      7
-> >    C    5      5
-> >
-> > In this case the system usage exceeds the system limit because each
-> > the per-memcg checks see no per-memcg problems.
-> >
-> >   
-> What about the following scenarios?
-> a) limit usage
-> sys 9 7
-> B 8 6
-> A 4 1
-> Now assume B consumes 2 more. The total of B reaches 8 (memcg max) and 
-> the system total reaches 9 (Global limit).
-> The scenario will be like this.
-> 
-> limit usage
-> sys 9 9
-> B 8 8
-> A 4 1
-> 
-> In this case, group A is not getting a fair chance to utilize its limit.
-> Do we need to consider this case also?
-> 
+OK. That change is not absolutely necessary for the deadlock fix.
 
-IMHO, it's admin's job to make the limitation fair.
-In general, all cgroups should use the same dirty_ratio for getting fairness.
+It's done just in hope of improving things a bit under memory
+pressure: r1buf_poll_alloc() allocates N bios at one time, which might
+temporarily exhaust BIO_POOL_SIZE. Since that path is independent of
+the normal write path, so I simply reuse the r1_bio_set.
 
-> b) Even though we are defining per cgroup dirty limit, it is not 
-> actually the case.
-> Is it indirectly dependent on the the total system wide limit in this 
-> implementation?
-> 
-Yes, it should be. memory cgroup isn't a backdoor to break system's control.
+>   Also I'll avoid making changes to fs/bio.c at first.  It may still be a
+>   good idea to have a bio_clone_bioset, but that should be a separate patch -
+>   there are at least 3 places that would use it.
+
+Fair enough. I did the
+
+        fs_bio_set->bio_destructor = bio_fs_destructor;
+
+hack for the same reason: it's better to pass the destructor func as
+a parameter to bioset_create(), however that requires changing more
+places.
+
+> Thanks - I'll try to get this into the current merge window.
+
+Thank you!
 
 Thanks,
--Kame
+Fengguang
 
-
-
-
+> > 
+> >  drivers/md/raid1.c  |   32 ++++++++++++++++++++++++++++----
+> >  drivers/md/raid1.h  |    2 ++
+> >  fs/bio.c            |   31 +++++++++++++++++++++----------
+> >  include/linux/bio.h |    2 ++
+> >  4 files changed, 53 insertions(+), 14 deletions(-)
+> > 
+> > --- linux-next.orig/drivers/md/raid1.c	2010-10-25 00:02:40.000000000 +0800
+> > +++ linux-next/drivers/md/raid1.c	2010-10-25 00:28:16.000000000 +0800
+> > @@ -76,6 +76,14 @@ static void r1bio_pool_free(void *r1_bio
+> >  	kfree(r1_bio);
+> >  }
+> >  
+> > +static void r1_bio_destructor(struct bio *bio)
+> > +{
+> > +	r1bio_t *r1_bio = bio->bi_private;
+> > +	conf_t *conf = r1_bio->mddev->private;
+> > +
+> > +	bio_free(bio, conf->r1_bio_set);
+> > +}
+> > +
+> >  #define RESYNC_BLOCK_SIZE (64*1024)
+> >  //#define RESYNC_BLOCK_SIZE PAGE_SIZE
+> >  #define RESYNC_SECTORS (RESYNC_BLOCK_SIZE >> 9)
+> > @@ -85,6 +93,7 @@ static void r1bio_pool_free(void *r1_bio
+> >  static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
+> >  {
+> >  	struct pool_info *pi = data;
+> > +	conf_t *conf = pi->mddev->private;
+> >  	struct page *page;
+> >  	r1bio_t *r1_bio;
+> >  	struct bio *bio;
+> > @@ -100,7 +109,8 @@ static void * r1buf_pool_alloc(gfp_t gfp
+> >  	 * Allocate bios : 1 for reading, n-1 for writing
+> >  	 */
+> >  	for (j = pi->raid_disks ; j-- ; ) {
+> > -		bio = bio_alloc(gfp_flags, RESYNC_PAGES);
+> > +		bio = bio_alloc_bioset(gfp_flags, RESYNC_PAGES,
+> > +				       conf->r1_bio_set);
+> >  		if (!bio)
+> >  			goto out_free_bio;
+> >  		r1_bio->bios[j] = bio;
+> > @@ -386,6 +396,10 @@ static void raid1_end_write_request(stru
+> >  				!test_bit(R1BIO_Degraded, &r1_bio->state),
+> >  				behind);
+> >  		md_write_end(r1_bio->mddev);
+> > +		if (to_put) {
+> > +			bio_put(to_put);
+> > +			to_put = NULL;
+> > +		}
+> >  		raid_end_bio_io(r1_bio);
+> >  	}
+> >  
+> > @@ -851,7 +865,7 @@ static int make_request(mddev_t *mddev, 
+> >  		}
+> >  		r1_bio->read_disk = rdisk;
+> >  
+> > -		read_bio = bio_clone(bio, GFP_NOIO);
+> > +		read_bio = bio_clone_bioset(bio, GFP_NOIO, conf->r1_bio_set);
+> >  
+> >  		r1_bio->bios[rdisk] = read_bio;
+> >  
+> > @@ -946,7 +960,7 @@ static int make_request(mddev_t *mddev, 
+> >  		if (!r1_bio->bios[i])
+> >  			continue;
+> >  
+> > -		mbio = bio_clone(bio, GFP_NOIO);
+> > +		mbio = bio_clone_bioset(bio, GFP_NOIO, conf->r1_bio_set);
+> >  		r1_bio->bios[i] = mbio;
+> >  
+> >  		mbio->bi_sector	= r1_bio->sector + conf->mirrors[i].rdev->data_offset;
+> > @@ -1646,7 +1660,9 @@ static void raid1d(mddev_t *mddev)
+> >  					mddev->ro ? IO_BLOCKED : NULL;
+> >  				r1_bio->read_disk = disk;
+> >  				bio_put(bio);
+> > -				bio = bio_clone(r1_bio->master_bio, GFP_NOIO);
+> > +				bio = bio_clone_bioset(r1_bio->master_bio,
+> > +						       GFP_NOIO,
+> > +						       conf->r1_bio_set);
+> >  				r1_bio->bios[r1_bio->read_disk] = bio;
+> >  				rdev = conf->mirrors[disk].rdev;
+> >  				if (printk_ratelimit())
+> > @@ -1948,6 +1964,10 @@ static conf_t *setup_conf(mddev_t *mddev
+> >  					  conf->poolinfo);
+> >  	if (!conf->r1bio_pool)
+> >  		goto abort;
+> > +	conf->r1_bio_set = bioset_create(mddev->raid_disks * 2, 0);
+> > +	if (!conf->r1_bio_set)
+> > +		goto abort;
+> > +	conf->r1_bio_set->bio_destructor = r1_bio_destructor;
+> >  
+> >  	conf->poolinfo->mddev = mddev;
+> >  
+> > @@ -2012,6 +2032,8 @@ static conf_t *setup_conf(mddev_t *mddev
+> >  	if (conf) {
+> >  		if (conf->r1bio_pool)
+> >  			mempool_destroy(conf->r1bio_pool);
+> > +		if (conf->r1_bio_set)
+> > +			bioset_free(conf->r1_bio_set);
+> >  		kfree(conf->mirrors);
+> >  		safe_put_page(conf->tmppage);
+> >  		kfree(conf->poolinfo);
+> > @@ -2121,6 +2143,8 @@ static int stop(mddev_t *mddev)
+> >  	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
+> >  	if (conf->r1bio_pool)
+> >  		mempool_destroy(conf->r1bio_pool);
+> > +	if (conf->r1_bio_set)
+> > +		bioset_free(conf->r1_bio_set);
+> >  	kfree(conf->mirrors);
+> >  	kfree(conf->poolinfo);
+> >  	kfree(conf);
+> > --- linux-next.orig/fs/bio.c	2010-10-25 00:02:39.000000000 +0800
+> > +++ linux-next/fs/bio.c	2010-10-25 00:03:37.000000000 +0800
+> > @@ -306,6 +306,7 @@ out_set:
+> >  	bio->bi_flags |= idx << BIO_POOL_OFFSET;
+> >  	bio->bi_max_vecs = nr_iovecs;
+> >  	bio->bi_io_vec = bvl;
+> > +	bio->bi_destructor = bs->bio_destructor;
+> >  	return bio;
+> >  
+> >  err_free:
+> > @@ -340,12 +341,7 @@ static void bio_fs_destructor(struct bio
+> >   */
+> >  struct bio *bio_alloc(gfp_t gfp_mask, int nr_iovecs)
+> >  {
+> > -	struct bio *bio = bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
+> > -
+> > -	if (bio)
+> > -		bio->bi_destructor = bio_fs_destructor;
+> > -
+> > -	return bio;
+> > +	return bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
+> >  }
+> >  EXPORT_SYMBOL(bio_alloc);
+> >  
+> > @@ -460,20 +456,21 @@ void __bio_clone(struct bio *bio, struct
+> >  EXPORT_SYMBOL(__bio_clone);
+> >  
+> >  /**
+> > - *	bio_clone	-	clone a bio
+> > + *	bio_clone_bioset	-	clone a bio
+> >   *	@bio: bio to clone
+> >   *	@gfp_mask: allocation priority
+> > + *	@bs: bio_set to allocate from
+> >   *
+> >   * 	Like __bio_clone, only also allocates the returned bio
+> >   */
+> > -struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
+> > +struct bio *
+> > +bio_clone_bioset(struct bio *bio, gfp_t gfp_mask, struct bio_set *bs)
+> >  {
+> > -	struct bio *b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs, fs_bio_set);
+> > +	struct bio *b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs, bs);
+> >  
+> >  	if (!b)
+> >  		return NULL;
+> >  
+> > -	b->bi_destructor = bio_fs_destructor;
+> >  	__bio_clone(b, bio);
+> >  
+> >  	if (bio_integrity(bio)) {
+> > @@ -489,6 +486,19 @@ struct bio *bio_clone(struct bio *bio, g
+> >  
+> >  	return b;
+> >  }
+> > +EXPORT_SYMBOL(bio_clone_bioset);
+> > +
+> > +/**
+> > + *	bio_clone	-	clone a bio
+> > + *	@bio: bio to clone
+> > + *	@gfp_mask: allocation priority
+> > + *
+> > + *	Like __bio_clone, only also allocates the returned bio
+> > + */
+> > +struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
+> > +{
+> > +	return bio_clone_bioset(bio, gfp_mask, fs_bio_set);
+> > +}
+> >  EXPORT_SYMBOL(bio_clone);
+> >  
+> >  /**
+> > @@ -1664,6 +1674,7 @@ static int __init init_bio(void)
+> >  	fs_bio_set = bioset_create(BIO_POOL_SIZE, 0);
+> >  	if (!fs_bio_set)
+> >  		panic("bio: can't allocate bios\n");
+> > +	fs_bio_set->bio_destructor = bio_fs_destructor;
+> >  
+> >  	bio_split_pool = mempool_create_kmalloc_pool(BIO_SPLIT_ENTRIES,
+> >  						     sizeof(struct bio_pair));
+> > --- linux-next.orig/include/linux/bio.h	2010-10-25 00:02:40.000000000 +0800
+> > +++ linux-next/include/linux/bio.h	2010-10-25 00:03:37.000000000 +0800
+> > @@ -227,6 +227,7 @@ extern int bio_phys_segments(struct requ
+> >  
+> >  extern void __bio_clone(struct bio *, struct bio *);
+> >  extern struct bio *bio_clone(struct bio *, gfp_t);
+> > +extern struct bio *bio_clone_bioset(struct bio *, gfp_t, struct bio_set *);
+> >  
+> >  extern void bio_init(struct bio *);
+> >  
+> > @@ -299,6 +300,7 @@ struct bio_set {
+> >  	mempool_t *bio_integrity_pool;
+> >  #endif
+> >  	mempool_t *bvec_pool;
+> > +	bio_destructor_t	*bio_destructor;
+> >  };
+> >  
+> >  struct biovec_slab {
+> > --- linux-next.orig/drivers/md/raid1.h	2010-10-25 00:02:40.000000000 +0800
+> > +++ linux-next/drivers/md/raid1.h	2010-10-25 00:03:37.000000000 +0800
+> > @@ -60,6 +60,8 @@ struct r1_private_data_s {
+> >  	mempool_t *r1bio_pool;
+> >  	mempool_t *r1buf_pool;
+> >  
+> > +	struct bio_set *r1_bio_set;
+> > +
+> >  	/* When taking over an array from a different personality, we store
+> >  	 * the new thread here until we fully activate the array.
+> >  	 */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
