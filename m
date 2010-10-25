@@ -1,130 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AB2BA6B0095
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 17:37:16 -0400 (EDT)
-Date: Mon, 25 Oct 2010 14:36:41 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] do_migrate_range: reduce list_empty() check.
-Message-Id: <20101025143641.5be6cb5b.akpm@linux-foundation.org>
-In-Reply-To: <1287667701-8081-3-git-send-email-lliubbo@gmail.com>
-References: <1287667701-8081-1-git-send-email-lliubbo@gmail.com>
-	<1287667701-8081-2-git-send-email-lliubbo@gmail.com>
-	<1287667701-8081-3-git-send-email-lliubbo@gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 6C8798D0002
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 19:19:08 -0400 (EDT)
+Received: from chimera.site ([173.50.240.230]) by xenotime.net for <linux-mm@kvack.org>; Mon, 25 Oct 2010 16:18:58 -0700
+Date: Mon, 25 Oct 2010 16:18:58 -0700
+From: Randy Dunlap <rdunlap@xenotime.net>
+Subject: [PATCH] Fix typos in Documentation/sysctl/vm.txt
+Message-Id: <20101025161858.fb2e8353.rdunlap@xenotime.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, fengguang.wu@intel.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, kosaki.motohiro@jp.fujitsu.com
+To: linux-mm@kvack.org, akpm <akpm@linux-foundation.org>
+Cc: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
+Hi Andrew,
 
-It's not completely clear to me that these three patches are finalised.
-If updates are needed, lease send them ASAP.
+Please merge this (unless someone sees problems with it).
+Looks good to me.
 
-On Thu, 21 Oct 2010 21:28:21 +0800
-Bob Liu <lliubbo@gmail.com> wrote:
+Acked-by: Randy Dunlap <rdunlap@xenotime.net>
+---
 
-> simple code for reducing list_empty(&source) check.
-> 
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> ---
->  mm/memory_hotplug.c |   17 +++++++----------
->  1 files changed, 7 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 4f72184..b6ffcfe 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -718,22 +718,19 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
->  			   check this again here. */
->  			if (page_count(page)) {
->  				not_managed++;
-> +				ret = -EBUSY;
->  				break;
->  			}
->  		}
->  	}
-> -	ret = -EBUSY;
-> -	if (not_managed) {
-> -		if (!list_empty(&source))
-> +	if (!list_empty(&source)) {
-> +		if (not_managed) {
->  			putback_lru_pages(&source);
-> -		goto out;
-> +			goto out;
-> +		}
-> +		/* this function returns # of failed pages */
-> +		ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
->  	}
-> -	ret = 0;
-> -	if (list_empty(&source))
-> -		goto out;
-> -	/* this function returns # of failed pages */
-> -	ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
-> -
->  out:
->  	return ret;
+Date: Mon, 18 Oct 2010 11:06:54 +0530
+From: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+To: linux-doc@vger.kernel.org
+Cc: rdunlap@xenotime.net, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
+Subject: [PATCH] Fix typos in Documentation/sysctl/vm.txt
 
-The code you're patching has changed a bit in -mm.  Here's what I ended
-up with:
 
-	static int
-	do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
-	{
-		unsigned long pfn;
-		struct page *page;
-		int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
-		int not_managed = 0;
-		int ret = 0;
-		LIST_HEAD(source);
-	
-		for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
-			if (!pfn_valid(pfn))
-				continue;
-			page = pfn_to_page(pfn);
-			if (!page_count(page))
-				continue;
-			/*
-			 * We can skip free pages. And we can only deal with pages on
-			 * LRU.
-			 */
-			ret = isolate_lru_page(page);
-			if (!ret) { /* Success */
-				list_add_tail(&page->lru, &source);
-				move_pages--;
-				inc_zone_page_state(page, NR_ISOLATED_ANON +
-						    page_is_file_cache(page));
-	
-			} else {
-	#ifdef CONFIG_DEBUG_VM
-				printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
-				       pfn);
-				dump_page(page);
-	#endif
-				/* Becasue we don't have big zone->lock. we should
-				   check this again here. */
-				if (page_count(page)) {
-					not_managed++;
-					ret = -EBUSY;
-					break;
-				}
-			}
-		}
-		if (!list_empty(&source)) {
-			if (not_managed) {
-				putback_lru_pages(&source);
-				goto out;
-			}
-			/* this function returns # of failed pages */
-			ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
--->>			if (ret)
--->>				putback_lru_pages(&source);
-		}
-	out:
-		return ret;
-	}
-	
+ Fix couple of typos in Documentation/sysctl/vm.txt under
+numa_zonelist_order.
+
+Signed-off-by: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
+--
+ Documentation/sysctl/vm.txt |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index b606c2c..4de9d5b 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -477,12 +477,12 @@ the DMA zone.
+ Type(A) is called as "Node" order. Type (B) is "Zone" order.
+ 
+ "Node order" orders the zonelists by node, then by zone within each node.
+-Specify "[Nn]ode" for zone order
++Specify "[Nn]ode" for node order.
+ 
+ "Zone Order" orders the zonelists by zone type, then by node within each
+-zone.  Specify "[Zz]one"for zode order.
++zone.  Specify "[Zz]one" for zone order.
+ 
+-Specify "[Dd]efault" to request automatic configuration.  Autoconfiguration
++Specify "[Dd]efault" to request automatic configuration. Autoconfiguration
+ will select "node" order in following case.
+ (1) if the DMA zone does not exist or
+ (2) if the DMA zone comprises greater than 50% of the available memory or
+			
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
