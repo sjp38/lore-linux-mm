@@ -1,120 +1,271 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9751B8D000B
-	for <linux-mm@kvack.org>; Sun, 24 Oct 2010 23:28:30 -0400 (EDT)
-Date: Mon, 25 Oct 2010 11:28:27 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] do_migrate_range: avoid failure as much as possible
-Message-ID: <20101025032827.GA15933@localhost>
-References: <1287974851-4064-1-git-send-email-lliubbo@gmail.com>
- <20101025114017.86ee5e54.kamezawa.hiroyu@jp.fujitsu.com>
- <20101025025703.GA13858@localhost>
- <20101025120550.45745c3d.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id D6DE48D000B
+	for <linux-mm@kvack.org>; Sun, 24 Oct 2010 23:28:45 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9P3Shsc023336
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 25 Oct 2010 12:28:43 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A67745DD75
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 12:28:43 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F163445DE4F
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 12:28:42 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C4D7DE08007
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 12:28:42 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 09357E1800E
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 12:28:41 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [resend][PATCH 3/4] move cred_guard_mutex from task_struct to signal_struct
+In-Reply-To: <20101025122538.9167.A69D9226@jp.fujitsu.com>
+References: <20101025122538.9167.A69D9226@jp.fujitsu.com>
+Message-Id: <20101025122801.9170.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101025120550.45745c3d.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 25 Oct 2010 12:28:40 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Bob Liu <lliubbo@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Roland McGrath <roland@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 25, 2010 at 11:05:50AM +0800, KAMEZAWA Hiroyuki wrote:
-> On Mon, 25 Oct 2010 10:57:03 +0800
-> Wu Fengguang <fengguang.wu@intel.com> wrote:
-> 
-> > On Mon, Oct 25, 2010 at 10:40:17AM +0800, KAMEZAWA Hiroyuki wrote:
-> > > On Mon, 25 Oct 2010 10:47:31 +0800
-> > > Bob Liu <lliubbo@gmail.com> wrote:
-> > > 
-> > > > It's normal for isolate_lru_page() to fail at times. The failures are
-> > > > typically temporal and may well go away when offline_pages() retries
-> > > > the call. So it seems more reasonable to migrate as much as possible
-> > > > to increase the chance of complete success in next retry.
-> > > > 
-> > > > This patch remove page_count() check and remove putback_lru_pages() and
-> > > > call migrate_pages() regardless of not_managed to reduce failure as much
-> > > > as possible.
-> > > > 
-> > > > Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> > > 
-> > > -EBUSY should be returned.
-> > 
-> > It does return -EBUSY when ALL pages cannot be isolated from LRU (or
-> > is non-LRU pages at all). That means offline_pages() will repeat calls
-> > to do_migrate_range() as fast as possible as long as it can make
-> > progress.
-> > 
-> I read the patch wrong ? "ret = -EBUSY" is dropped and "ret" will be
-> 0 or just a return code of migrate_page().
+Changelog
+  o since v1
+    - function comment also change current->cred_guard_mutex to
+      current->signal->cred_guard_mutex.
 
-        for () {
-                ret = isolate_lru_page(page);
-        }
+---------------------------------------------------------------------------
+Oleg Nesterov pointed out we have to prevent multiple-threads-inside-exec
+itself and we can reuse ->cred_guard_mutex for it. Yes, concurrent
+execve() has no worth.
 
-        if (list_empty(&source))
-                goto out;
+Let's move ->cred_guard_mutex from task_struct to signal_struct. It
+naturally prevent multiple-threads-inside-exec.
 
-out:
-        return ret;
+Cc: stable@kernel.org
+Reviewed-by: Oleg Nesterov <oleg@redhat.com>
+Cc: Roland McGrath <roland@redhat.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ fs/exec.c                 |   10 +++++-----
+ fs/proc/base.c            |    8 ++++----
+ include/linux/init_task.h |    4 ++--
+ include/linux/sched.h     |    7 ++++---
+ include/linux/tracehook.h |    2 +-
+ kernel/cred.c             |    4 +---
+ kernel/fork.c             |    2 ++
+ kernel/ptrace.c           |    4 ++--
+ 8 files changed, 21 insertions(+), 20 deletions(-)
 
-So do_migrate_range() will return -EBUSY if the last isolate_lru_page() returns
--EBUSY.
-
-> 
-> 
-> 
-> > Is that behavior good enough? It does need some comment for this
-> > non-obvious return value. 
-> > 
-> > btw, the caller side code can be simplified (no behavior change).
-> > 
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index dd186c1..606d358 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -848,17 +848,13 @@ repeat:
-> >     pfn = scan_lru_pages(start_pfn, end_pfn);
-> >     if (pfn) { /* We have page on LRU */
-> >             ret = do_migrate_range(pfn, end_pfn);
-> > -           if (!ret) {
-> > -                   drain = 1;
-> > -                   goto repeat;
-> > -           } else {
-> > -                   if (ret < 0)
-> > -                           if (--retry_max == 0)
-> > -                                   goto failed_removal;
-> > +           if (ret < 0) {
-> > +                   if (--retry_max <= 0)
-> > +                           goto failed_removal;
-> >                     yield();
-> > -                   drain = 1;
-> > -                   goto repeat;
-> >             }
-> > +           drain = 1;
-> > +           goto repeat;
-> >     }
-> 
-> This changes behavior.
-
-Ah yes!
+diff --git a/fs/exec.c b/fs/exec.c
+index 6d2b6f9..94dabd2 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1078,14 +1078,14 @@ EXPORT_SYMBOL(setup_new_exec);
+  */
+ int prepare_bprm_creds(struct linux_binprm *bprm)
+ {
+-	if (mutex_lock_interruptible(&current->cred_guard_mutex))
++	if (mutex_lock_interruptible(&current->signal->cred_guard_mutex))
+ 		return -ERESTARTNOINTR;
  
-> This "ret" can be > 0 because migrate_page()'s return code is
-> "Return: Number of pages not migrated or error code."
-> 
-> Then, 
-> ret < 0  ===> maybe ebusy
-> ret > 0  ===> some pages are not migrated. maybe PG_writeback or some
-> ret == 0 ===> ok, all condition green. try next chunk soon.
-> 
-> Then, I added "yield()" and --retrym_max for !ret cases.
+ 	bprm->cred = prepare_exec_creds();
+ 	if (likely(bprm->cred))
+ 		return 0;
+ 
+-	mutex_unlock(&current->cred_guard_mutex);
++	mutex_unlock(&current->signal->cred_guard_mutex);
+ 	return -ENOMEM;
+ }
+ 
+@@ -1093,7 +1093,7 @@ void free_bprm(struct linux_binprm *bprm)
+ {
+ 	free_arg_pages(bprm);
+ 	if (bprm->cred) {
+-		mutex_unlock(&current->cred_guard_mutex);
++		mutex_unlock(&current->signal->cred_guard_mutex);
+ 		abort_creds(bprm->cred);
+ 	}
+ 	kfree(bprm);
+@@ -1114,13 +1114,13 @@ void install_exec_creds(struct linux_binprm *bprm)
+ 	 * credentials; any time after this it may be unlocked.
+ 	 */
+ 	security_bprm_committed_creds(bprm);
+-	mutex_unlock(&current->cred_guard_mutex);
++	mutex_unlock(&current->signal->cred_guard_mutex);
+ }
+ EXPORT_SYMBOL(install_exec_creds);
+ 
+ /*
+  * determine how safe it is to execute the proposed program
+- * - the caller must hold current->cred_guard_mutex to protect against
++ * - the caller must hold ->cred_guard_mutex to protect against
+  *   PTRACE_ATTACH
+  */
+ int check_unsafe_exec(struct linux_binprm *bprm)
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 0d2ce21..d3ea8b0 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -226,7 +226,7 @@ struct mm_struct *mm_for_maps(struct task_struct *task)
+ {
+ 	struct mm_struct *mm;
+ 
+-	if (mutex_lock_killable(&task->cred_guard_mutex))
++	if (mutex_lock_killable(&task->signal->cred_guard_mutex))
+ 		return NULL;
+ 
+ 	mm = get_task_mm(task);
+@@ -235,7 +235,7 @@ struct mm_struct *mm_for_maps(struct task_struct *task)
+ 		mmput(mm);
+ 		mm = NULL;
+ 	}
+-	mutex_unlock(&task->cred_guard_mutex);
++	mutex_unlock(&task->signal->cred_guard_mutex);
+ 
+ 	return mm;
+ }
+@@ -2277,14 +2277,14 @@ static ssize_t proc_pid_attr_write(struct file * file, const char __user * buf,
+ 		goto out_free;
+ 
+ 	/* Guard against adverse ptrace interaction */
+-	length = mutex_lock_interruptible(&task->cred_guard_mutex);
++	length = mutex_lock_interruptible(&task->signal->cred_guard_mutex);
+ 	if (length < 0)
+ 		goto out_free;
+ 
+ 	length = security_setprocattr(task,
+ 				      (char*)file->f_path.dentry->d_name.name,
+ 				      (void*)page, count);
+-	mutex_unlock(&task->cred_guard_mutex);
++	mutex_unlock(&task->signal->cred_guard_mutex);
+ out_free:
+ 	free_page((unsigned long) page);
+ out:
+diff --git a/include/linux/init_task.h b/include/linux/init_task.h
+index 2fea6c8..1f8c06c 100644
+--- a/include/linux/init_task.h
++++ b/include/linux/init_task.h
+@@ -29,6 +29,8 @@ extern struct fs_struct init_fs;
+ 		.running = 0,						\
+ 		.lock = __SPIN_LOCK_UNLOCKED(sig.cputimer.lock),	\
+ 	},								\
++	.cred_guard_mutex =						\
++		 __MUTEX_INITIALIZER(sig.cred_guard_mutex),		\
+ }
+ 
+ extern struct nsproxy init_nsproxy;
+@@ -145,8 +147,6 @@ extern struct cred init_cred;
+ 	.group_leader	= &tsk,						\
+ 	RCU_INIT_POINTER(.real_cred, &init_cred),			\
+ 	RCU_INIT_POINTER(.cred, &init_cred),				\
+-	.cred_guard_mutex =						\
+-		 __MUTEX_INITIALIZER(tsk.cred_guard_mutex),		\
+ 	.comm		= "swapper",					\
+ 	.thread		= INIT_THREAD,					\
+ 	.fs		= &init_fs,					\
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 74ed859..ac65605 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -626,6 +626,10 @@ struct signal_struct {
+ 
+ 	int oom_adj;		/* OOM kill score adjustment (bit shift) */
+ 	long oom_score_adj;	/* OOM kill score adjustment */
++
++	struct mutex cred_guard_mutex;	/* guard against foreign influences on
++					 * credential calculations
++					 * (notably. ptrace) */
+ };
+ 
+ /* Context switch must be unlocked if interrupts are to be enabled */
+@@ -1305,9 +1309,6 @@ struct task_struct {
+ 					 * credentials (COW) */
+ 	const struct cred __rcu *cred;	/* effective (overridable) subjective task
+ 					 * credentials (COW) */
+-	struct mutex cred_guard_mutex;	/* guard against foreign influences on
+-					 * credential calculations
+-					 * (notably. ptrace) */
+ 	struct cred *replacement_session_keyring; /* for KEYCTL_SESSION_TO_PARENT */
+ 
+ 	char comm[TASK_COMM_LEN]; /* executable name excluding path
+diff --git a/include/linux/tracehook.h b/include/linux/tracehook.h
+index 10db010..3a2e66d 100644
+--- a/include/linux/tracehook.h
++++ b/include/linux/tracehook.h
+@@ -150,7 +150,7 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
+  *
+  * Return %LSM_UNSAFE_* bits applied to an exec because of tracing.
+  *
+- * @task->cred_guard_mutex is held by the caller through the do_execve().
++ * @task->signal->cred_guard_mutex is held by the caller through the do_execve().
+  */
+ static inline int tracehook_unsafe_exec(struct task_struct *task)
+ {
+diff --git a/kernel/cred.c b/kernel/cred.c
+index 9a3e226..6a1aa00 100644
+--- a/kernel/cred.c
++++ b/kernel/cred.c
+@@ -325,7 +325,7 @@ EXPORT_SYMBOL(prepare_creds);
+ 
+ /*
+  * Prepare credentials for current to perform an execve()
+- * - The caller must hold current->cred_guard_mutex
++ * - The caller must hold ->cred_guard_mutex
+  */
+ struct cred *prepare_exec_creds(void)
+ {
+@@ -384,8 +384,6 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
+ 	struct cred *new;
+ 	int ret;
+ 
+-	mutex_init(&p->cred_guard_mutex);
+-
+ 	if (
+ #ifdef CONFIG_KEYS
+ 		!p->cred->thread_keyring &&
+diff --git a/kernel/fork.c b/kernel/fork.c
+index c445f8c..8c09cf9 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -904,6 +904,8 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
+ 	sig->oom_adj = current->signal->oom_adj;
+ 	sig->oom_score_adj = current->signal->oom_score_adj;
+ 
++	mutex_init(&sig->cred_guard_mutex);
++
+ 	return 0;
+ }
+ 
+diff --git a/kernel/ptrace.c b/kernel/ptrace.c
+index f34d798..ac5013a 100644
+--- a/kernel/ptrace.c
++++ b/kernel/ptrace.c
+@@ -181,7 +181,7 @@ int ptrace_attach(struct task_struct *task)
+ 	 * under ptrace.
+ 	 */
+ 	retval = -ERESTARTNOINTR;
+-	if (mutex_lock_interruptible(&task->cred_guard_mutex))
++	if (mutex_lock_interruptible(&task->signal->cred_guard_mutex))
+ 		goto out;
+ 
+ 	task_lock(task);
+@@ -208,7 +208,7 @@ int ptrace_attach(struct task_struct *task)
+ unlock_tasklist:
+ 	write_unlock_irq(&tasklist_lock);
+ unlock_creds:
+-	mutex_unlock(&task->cred_guard_mutex);
++	mutex_unlock(&task->signal->cred_guard_mutex);
+ out:
+ 	return retval;
+ }
+-- 
+1.6.5.2
 
-You are right, there is the "ret > 0, some pages are not migrated" case.
-But I'm not sure it's PG_writeback pages, because migrate_pages() will wait on
-writeback after pass 2.
 
-Thanks,
-Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
