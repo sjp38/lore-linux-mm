@@ -1,75 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 18DCB6B00A7
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 00:41:32 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9P4fSXI029884
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 25 Oct 2010 13:41:28 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BB0145DE70
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 13:41:28 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 542F045DE4D
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 13:41:28 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 297851DB8037
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 13:41:28 +0900 (JST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2532A6B00A9
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 00:46:24 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9P4kL2t031979
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 25 Oct 2010 13:46:21 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6810145DE4F
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 13:46:21 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 33BE745DE52
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 13:46:21 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E39901DB8055
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 13:46:20 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CB0261DB803A
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 13:41:24 +0900 (JST)
-Date: Mon, 25 Oct 2010 13:35:56 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [resend][PATCH] mm: increase RECLAIM_DISTANCE to 30
-Message-Id: <20101025133556.64056c92.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101025122343.9165.A69D9226@jp.fujitsu.com>
-References: <20101025122343.9165.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 876FDE38004
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 13:46:20 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: zone state overhead
+In-Reply-To: <20101022141223.GF2160@csn.ul.ie>
+References: <20101019090803.GF30667@csn.ul.ie> <20101022141223.GF2160@csn.ul.ie>
+Message-Id: <20101025132824.9176.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Mon, 25 Oct 2010 13:46:19 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux.com>, Mel Gorman <mel@csn.ul.ie>, Rob Mueller <robm@fastmail.fm>, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux.com" <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Oct 2010 12:24:24 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> - * Return 1 if free pages are above 'mark'. This takes into account the order
+> + * Return true if free pages are above 'mark'. This takes into account the order
+>   * of the allocation.
+>   */
+> -int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+> -		      int classzone_idx, int alloc_flags)
+> +bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+> +		      int classzone_idx, int alloc_flags, long free_pages)
 
-> Recently, Robert Mueller reported zone_reclaim_mode doesn't work
-> properly on his new NUMA server (Dual Xeon E5520 + Intel S5520UR MB).
-> He is using Cyrus IMAPd and it's built on a very traditional
-> single-process model.
-> 
->   * a master process which reads config files and manages the other
->     process
->   * multiple imapd processes, one per connection
->   * multiple pop3d processes, one per connection
->   * multiple lmtpd processes, one per connection
->   * periodical "cleanup" processes.
-> 
-> Then, there are thousands of independent processes. The problem is,
-> recent Intel motherboard turn on zone_reclaim_mode by default and
-> traditional prefork model software don't work fine on it.
-> Unfortunatelly, Such model is still typical one even though 21th
-> century. We can't ignore them.
-> 
-> This patch raise zone_reclaim_mode threshold to 30. 30 don't have
-> specific meaning. but 20 mean one-hop QPI/Hypertransport and such
-> relatively cheap 2-4 socket machine are often used for tradiotional
-> server as above. The intention is, their machine don't use
-> zone_reclaim_mode.
-> 
-> Note: ia64 and Power have arch specific RECLAIM_DISTANCE definition.
-> then this patch doesn't change such high-end NUMA machine behavior.
-> 
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Bron Gondwana <brong@fastmail.fm>
-> Cc: Robert Mueller <robm@fastmail.fm>
-> Acked-by: Christoph Lameter <cl@linux.com>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+static?
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index c5dfabf..ba0c70a 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2082,7 +2082,7 @@ static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
+>  		if (zone->all_unreclaimable)
+>  			continue;
+>  
+> -		if (!zone_watermark_ok(zone, order, high_wmark_pages(zone),
+> +		if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone),
+>  								0, 0))
+>  			return 1;
+>  	}
+
+Do we need to change balance_pgdat() too?
+Otherwise, balance_pgdat() return immediately and can make semi-infinite busy loop.
+
+
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 355a9e6..ddee139 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -81,6 +81,12 @@ EXPORT_SYMBOL(vm_stat);
+>  
+>  #ifdef CONFIG_SMP
+>  
+> +static int calculate_pressure_threshold(struct zone *zone)
+> +{
+> +	return max(1, (int)((high_wmark_pages(zone) - low_wmark_pages(zone) /
+> +				num_online_cpus())));
+> +}
+
+On Shaohua's machine,
+
+	CPU: 64
+	MEM: 8GBx4 (=32GB)
+	per-cpu vm-stat threashold: 98
+
+	zone->min = sqrt(32x1024x1024x16)/4 = 5792 KB = 1448 pages
+	zone->high - zone->low = zone->min/4 = 362pages
+	pressure-vm-threshold = 362/64 ~= 5
+
+Hrm, this reduction seems slightly dramatically (98->5). 
+Shaohua, can you please rerun your problem workload on your 64cpus machine with
+applying this patch?
+Of cource, If there is no performance degression, I'm not against this one.
+
+Thanks.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
