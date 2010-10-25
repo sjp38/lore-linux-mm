@@ -1,71 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 12EA96B008C
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 17:25:18 -0400 (EDT)
-Date: Mon, 25 Oct 2010 14:24:42 -0700
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id AB2BA6B0095
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 17:37:16 -0400 (EDT)
+Date: Mon, 25 Oct 2010 14:36:41 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUGFIX][PATCH] fix is_mem_section_removable() page_order
- BUG_ON check.
-Message-Id: <20101025142442.9cf4fd19.akpm@linux-foundation.org>
-In-Reply-To: <20101025131025.GA18570@tiehlicka.suse.cz>
-References: <20101025153726.2ae9baec.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101025074933.GB5452@localhost>
-	<20101025131025.GA18570@tiehlicka.suse.cz>
+Subject: Re: [PATCH 3/3] do_migrate_range: reduce list_empty() check.
+Message-Id: <20101025143641.5be6cb5b.akpm@linux-foundation.org>
+In-Reply-To: <1287667701-8081-3-git-send-email-lliubbo@gmail.com>
+References: <1287667701-8081-1-git-send-email-lliubbo@gmail.com>
+	<1287667701-8081-2-git-send-email-lliubbo@gmail.com>
+	<1287667701-8081-3-git-send-email-lliubbo@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: linux-mm@kvack.org, fengguang.wu@intel.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Oct 2010 15:10:25 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
 
-> On Mon 25-10-10 15:49:33, Wu Fengguang wrote:
-> > On Mon, Oct 25, 2010 at 02:37:26PM +0800, KAMEZAWA Hiroyuki wrote:
-> > > I wonder this should be for stable tree...but want to hear opinions before.
-> > > ==
-> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > 
-> > > page_order() is called by memory hotplug's user interface to check 
-> > > the section is removable or not. (is_mem_section_removable())
-> > > 
-> > > It calls page_order() withoug holding zone->lock.
-> > > So, even if the caller does
-> > > 
-> > > 	if (PageBuddy(page))
-> > > 		ret = page_order(page) ...
-> > > The caller may hit BUG_ON().
-> > > 
-> > > For fixing this, there are 2 choices.
-> > >   1. add zone->lock.
-> > >   2. remove BUG_ON().
-> > 
-> > One more alternative might be to introduce a private
-> > maybe_page_order() for is_mem_section_removable(). Not a big deal. 
+It's not completely clear to me that these three patches are finalised.
+If updates are needed, lease send them ASAP.
+
+On Thu, 21 Oct 2010 21:28:21 +0800
+Bob Liu <lliubbo@gmail.com> wrote:
+
+> simple code for reducing list_empty(&source) check.
 > 
-> I guess this is not necessary as all page_order callers check PageBuddy
-> anyway AFAICS.
-
-And hold zone->lock, one hopes.
-
-> >  
-> > > is_mem_section_removable() is used for some "advice" and doesn't need
-> > > to be 100% accurate. This is_removable() can be called via user program..
-> > > We don't want to take this important lock for long by user's request.
-> > > So, this patch removes BUG_ON().
-> > 
-> > Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+> ---
+>  mm/memory_hotplug.c |   17 +++++++----------
+>  1 files changed, 7 insertions(+), 10 deletions(-)
 > 
-> Yes, the change looks good.
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 4f72184..b6ffcfe 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -718,22 +718,19 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+>  			   check this again here. */
+>  			if (page_count(page)) {
+>  				not_managed++;
+> +				ret = -EBUSY;
+>  				break;
+>  			}
+>  		}
+>  	}
+> -	ret = -EBUSY;
+> -	if (not_managed) {
+> -		if (!list_empty(&source))
+> +	if (!list_empty(&source)) {
+> +		if (not_managed) {
+>  			putback_lru_pages(&source);
+> -		goto out;
+> +			goto out;
+> +		}
+> +		/* this function returns # of failed pages */
+> +		ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
+>  	}
+> -	ret = 0;
+> -	if (list_empty(&source))
+> -		goto out;
+> -	/* this function returns # of failed pages */
+> -	ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
+> -
+>  out:
+>  	return ret;
 
-It removes a valid assertion because one of the callers is doing
-something exceptional.  That exceptional caller should implement the
-exceptional code, rather than weakening useful code for other callers!
+The code you're patching has changed a bit in -mm.  Here's what I ended
+up with:
 
-But I'll grab the patch anyway, since BUG_ON in an inlined function is
-a pretty bad idea from a bloat POV.
+	static int
+	do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+	{
+		unsigned long pfn;
+		struct page *page;
+		int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
+		int not_managed = 0;
+		int ret = 0;
+		LIST_HEAD(source);
+	
+		for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
+			if (!pfn_valid(pfn))
+				continue;
+			page = pfn_to_page(pfn);
+			if (!page_count(page))
+				continue;
+			/*
+			 * We can skip free pages. And we can only deal with pages on
+			 * LRU.
+			 */
+			ret = isolate_lru_page(page);
+			if (!ret) { /* Success */
+				list_add_tail(&page->lru, &source);
+				move_pages--;
+				inc_zone_page_state(page, NR_ISOLATED_ANON +
+						    page_is_file_cache(page));
+	
+			} else {
+	#ifdef CONFIG_DEBUG_VM
+				printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
+				       pfn);
+				dump_page(page);
+	#endif
+				/* Becasue we don't have big zone->lock. we should
+				   check this again here. */
+				if (page_count(page)) {
+					not_managed++;
+					ret = -EBUSY;
+					break;
+				}
+			}
+		}
+		if (!list_empty(&source)) {
+			if (not_managed) {
+				putback_lru_pages(&source);
+				goto out;
+			}
+			/* this function returns # of failed pages */
+			ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
+-->>			if (ret)
+-->>				putback_lru_pages(&source);
+		}
+	out:
+		return ret;
+	}
+	
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
