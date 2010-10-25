@@ -1,60 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 4FAE68D0001
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 11:08:03 -0400 (EDT)
-Date: Mon, 25 Oct 2010 10:07:59 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: vmscan: Do not run shrinkers for zones other than ZONE_NORMAL
-In-Reply-To: <20101025101009.915D.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1010251000480.7461@router.home>
-References: <20101022103620.53A9.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1010220859080.19498@router.home> <20101025101009.915D.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5ED866B004A
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 13:03:37 -0400 (EDT)
+Date: Mon, 25 Oct 2010 18:03:21 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [BUGFIX][PATCH] fix is_mem_section_removable() page_order
+	BUG_ON check.
+Message-ID: <20101025170321.GA5383@csn.ul.ie>
+References: <20101025153726.2ae9baec.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20101025153726.2ae9baec.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, npiggin@kernel.dk, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Oct 2010, KOSAKI Motohiro wrote:
+On Mon, Oct 25, 2010 at 03:37:26PM +0900, KAMEZAWA Hiroyuki wrote:
+> I wonder this should be for stable tree...but want to hear opinions before.
 
-> > The per zone approach seems to be at variance with how objects are tracked
-> > at the slab layer. There is no per zone accounting there. So attempts to
-> > do expiration of caches etc at that layer would not work right.
->
-> Please define your 'right' behavior ;-)
+Because it's VM_BUG_ON instead of BUG_ON, I don't think it's something
+we are likely to see triggered on stable kernels. It is worth
+introducing a VM_WARN_ON do you think to catch really bad callers, ones
+where it is not advisory?
 
-Right here meant not excessive shrink calls for a particular node.
+Whether such a helper was introduced or not though, this does fix a real
+problem so;
 
-> If we need to discuss 'right' thing, we also need to define how behavior
-> is right, I think. slab API itself don't have zone taste. but it implictly
-> depend on a zone because buddy and reclaim are constructed on zones and
-> slab is constructed on buddy. IOW, every slab object have a home zone.
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-True every page has a zone. However, per cpu caching and NUMA distances
-only work per node (or per cache sharing domain which may just be a
-fraction of a "node"). The slab allocators attempt to keep objects on
-queues that are cache hot. For that purpose only the node matters not the
-zone.
-
-> So, which workload or usecause make a your head pain?
-
-The head pain is because of the conflict of object tracking in the page
-allocator per zone and in the slabs per node.
-
-In general per zone object tracking in the page allocators percpu lists is
-not optimal since at variance with how the cpu caches actually work.
-
-- Cpu caches exist typically per node or per sharing domain (which is not
-  reflected in the page allocators at all)
-
-- NUMA distance effects only change for per node allocations.
-
-The concept of a "zone" is for the benefit of certain legacy drivers that
-have limitations for the memory range on which they can performa DMA
-operations. With the IOMMUs and other modern technology this should no
-longer be an issue.
-
-An Mel used it to attach a side car (ZONE_MOVABLE) to the VM ...
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
