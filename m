@@ -1,168 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id DED2D6B009D
-	for <linux-mm@kvack.org>; Sun, 24 Oct 2010 23:16:11 -0400 (EDT)
-Date: Mon, 25 Oct 2010 11:16:08 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] do_migrate_range: avoid failure as much as possible
-Message-ID: <20101025031608.GA15913@localhost>
-References: <1287974851-4064-1-git-send-email-lliubbo@gmail.com>
- <20101025114017.86ee5e54.kamezawa.hiroyu@jp.fujitsu.com>
- <20101025025703.GA13858@localhost>
- <20101025030634.GA15386@localhost>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id CB0B46B009F
+	for <linux-mm@kvack.org>; Sun, 24 Oct 2010 23:24:29 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9P3OQj2028823
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 25 Oct 2010 12:24:27 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BCBF445DE52
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 12:24:26 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9940645DE4F
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 12:24:26 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C018E18004
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 12:24:26 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D711E18001
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 12:24:26 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [resend][PATCH] mm: increase RECLAIM_DISTANCE to 30
+Message-Id: <20101025122343.9165.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101025030634.GA15386@localhost>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 25 Oct 2010 12:24:24 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Bob Liu <lliubbo@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux.com>, Mel Gorman <mel@csn.ul.ie>, Rob Mueller <robm@fastmail.fm>, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 25, 2010 at 11:06:34AM +0800, Wu Fengguang wrote:
-> On Mon, Oct 25, 2010 at 10:57:03AM +0800, Wu Fengguang wrote:
-> > On Mon, Oct 25, 2010 at 10:40:17AM +0800, KAMEZAWA Hiroyuki wrote:
-> > > On Mon, 25 Oct 2010 10:47:31 +0800
-> > > Bob Liu <lliubbo@gmail.com> wrote:
-> > > 
-> > > > It's normal for isolate_lru_page() to fail at times. The failures are
-> > > > typically temporal and may well go away when offline_pages() retries
-> > > > the call. So it seems more reasonable to migrate as much as possible
-> > > > to increase the chance of complete success in next retry.
-> > > > 
-> > > > This patch remove page_count() check and remove putback_lru_pages() and
-> > > > call migrate_pages() regardless of not_managed to reduce failure as much
-> > > > as possible.
-> > > > 
-> > > > Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> > > 
-> > > -EBUSY should be returned.
-> > 
-> > It does return -EBUSY when ALL pages cannot be isolated from LRU (or
-> > is non-LRU pages at all). That means offline_pages() will repeat calls
-> > to do_migrate_range() as fast as possible as long as it can make
-> > progress.
-> > 
-> > Is that behavior good enough? It does need some comment for this
-> > non-obvious return value. 
-> > 
-> > btw, the caller side code can be simplified (no behavior change).
-> > 
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index dd186c1..606d358 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -848,17 +848,13 @@ repeat:
-> >  	pfn = scan_lru_pages(start_pfn, end_pfn);
-> >  	if (pfn) { /* We have page on LRU */
-> >  		ret = do_migrate_range(pfn, end_pfn);
-> > -		if (!ret) {
-> > -			drain = 1;
-> > -			goto repeat;
-> > -		} else {
-> > -			if (ret < 0)
-> > -				if (--retry_max == 0)
-> > -					goto failed_removal;
-> > +		if (ret < 0) {
-> > +			if (--retry_max <= 0)
-> > +				goto failed_removal;
-> >  			yield();
-> > -			drain = 1;
-> > -			goto repeat;
-> >  		}
-> > +		drain = 1;
-> > +		goto repeat;
-> >  	}
-> >  	/* drain all zone's lru pagevec, this is asyncronous... */
-> >  	lru_add_drain_all();
-> 
-> And it seems the costly drain operations could be avoided as long as
-> it's making progress. What do you think?
-> 
-> --- linux-next.orig/mm/memory_hotplug.c	2010-10-25 11:04:05.000000000 +0800
-> +++ linux-next/mm/memory_hotplug.c	2010-10-25 11:04:22.000000000 +0800
-> @@ -852,8 +852,8 @@ repeat:
->  			if (--retry_max <= 0)
->  				goto failed_removal;
->  			yield();
-> +			drain = 1;
->  		}
-> -		drain = 1;
->  		goto repeat;
->  	}
->  	/* drain all zone's lru pagevec, this is asyncronous... */
+Recently, Robert Mueller reported zone_reclaim_mode doesn't work
+properly on his new NUMA server (Dual Xeon E5520 + Intel S5520UR MB).
+He is using Cyrus IMAPd and it's built on a very traditional
+single-process model.
 
-This is a more heavy weight patch for the above one-liner change.
-I don't have real experiences to understand the requirements for
-memory hot remove, so the idea may be way too imaginary.
+  * a master process which reads config files and manages the other
+    process
+  * multiple imapd processes, one per connection
+  * multiple pop3d processes, one per connection
+  * multiple lmtpd processes, one per connection
+  * periodical "cleanup" processes.
 
---- linux-next.orig/mm/memory_hotplug.c	2010-10-25 11:04:05.000000000 +0800
-+++ linux-next/mm/memory_hotplug.c	2010-10-25 11:12:07.000000000 +0800
-@@ -788,7 +788,7 @@ static int offline_pages(unsigned long s
- {
- 	unsigned long pfn, nr_pages, expire;
- 	long offlined_pages;
--	int ret, drain, retry_max, node;
-+	int ret, retry_max, node;
- 	struct zone *zone;
- 	struct memory_notify arg;
- 
-@@ -827,7 +827,6 @@ static int offline_pages(unsigned long s
- 
- 	pfn = start_pfn;
- 	expire = jiffies + timeout;
--	drain = 0;
- 	retry_max = 5;
- repeat:
- 	/* start memory hot removal */
-@@ -838,13 +837,6 @@ repeat:
- 	if (signal_pending(current))
- 		goto failed_removal;
- 	ret = 0;
--	if (drain) {
--		lru_add_drain_all();
--		flush_scheduled_work();
--		cond_resched();
--		drain_all_pages();
--	}
--
- 	pfn = scan_lru_pages(start_pfn, end_pfn);
- 	if (pfn) { /* We have page on LRU */
- 		ret = do_migrate_range(pfn, end_pfn);
-@@ -852,15 +844,19 @@ repeat:
- 			if (--retry_max <= 0)
- 				goto failed_removal;
- 			yield();
-+			lru_add_drain_all();
-+			flush_scheduled_work();
-+			cond_resched();
-+			drain_all_pages();
- 		}
--		drain = 1;
- 		goto repeat;
- 	}
--	/* drain all zone's lru pagevec, this is asyncronous... */
-+
-+	/* drain all zone's lru pagevec, this is asynchronous... */
- 	lru_add_drain_all();
- 	flush_scheduled_work();
- 	yield();
--	/* drain pcp pages , this is synchrouns. */
-+	/* drain pcp pages , this is asynchronous. */
- 	drain_all_pages();
- 	/* check again */
- 	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
-@@ -869,7 +865,7 @@ repeat:
- 		goto failed_removal;
- 	}
- 	printk(KERN_INFO "Offlined Pages %ld\n", offlined_pages);
--	/* Ok, all of our target is islaoted.
-+	/* Ok, all of our target is isolated.
- 	   We cannot do rollback at this point. */
- 	offline_isolated_pages(start_pfn, end_pfn);
- 	/* reset pagetype flags and makes migrate type to be MOVABLE */
-Thanks,
-Fengguang
+Then, there are thousands of independent processes. The problem is,
+recent Intel motherboard turn on zone_reclaim_mode by default and
+traditional prefork model software don't work fine on it.
+Unfortunatelly, Such model is still typical one even though 21th
+century. We can't ignore them.
+
+This patch raise zone_reclaim_mode threshold to 30. 30 don't have
+specific meaning. but 20 mean one-hop QPI/Hypertransport and such
+relatively cheap 2-4 socket machine are often used for tradiotional
+server as above. The intention is, their machine don't use
+zone_reclaim_mode.
+
+Note: ia64 and Power have arch specific RECLAIM_DISTANCE definition.
+then this patch doesn't change such high-end NUMA machine behavior.
+
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Bron Gondwana <brong@fastmail.fm>
+Cc: Robert Mueller <robm@fastmail.fm>
+Acked-by: Christoph Lameter <cl@linux.com>
+Acked-by: David Rientjes <rientjes@google.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ include/linux/topology.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/topology.h b/include/linux/topology.h
+index 64e084f..bfbec49 100644
+--- a/include/linux/topology.h
++++ b/include/linux/topology.h
+@@ -60,7 +60,7 @@ int arch_update_cpu_topology(void);
+  * (in whatever arch specific measurement units returned by node_distance())
+  * then switch on zone reclaim on boot.
+  */
+-#define RECLAIM_DISTANCE 20
++#define RECLAIM_DISTANCE 30
+ #endif
+ #ifndef PENALTY_FOR_NODE_WITH_CPUS
+ #define PENALTY_FOR_NODE_WITH_CPUS	(1)
+-- 
+1.6.5.2
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
