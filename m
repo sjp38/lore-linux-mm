@@ -1,109 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B4B5F6B00AE
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 00:56:02 -0400 (EDT)
-Date: Mon, 25 Oct 2010 12:55:59 +0800
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8466D6B00B5
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2010 01:12:08 -0400 (EDT)
+Date: Mon, 25 Oct 2010 13:12:02 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] do_migrate_range: avoid failure as much as possible
-Message-ID: <20101025045559.GA20750@localhost>
-References: <1287974851-4064-1-git-send-email-lliubbo@gmail.com>
- <20101025114017.86ee5e54.kamezawa.hiroyu@jp.fujitsu.com>
- <20101025025703.GA13858@localhost>
- <20101025120550.45745c3d.kamezawa.hiroyu@jp.fujitsu.com>
- <20101025120901.88fdbd17.kamezawa.hiroyu@jp.fujitsu.com>
- <20101025034833.GB15933@localhost>
- <20101025124816.330846a5.kamezawa.hiroyu@jp.fujitsu.com>
- <20101025040604.GA18268@localhost>
- <20101025133448.6abd912f.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] memory-hotplug: only drain LRU when failed to offline pages
+Message-ID: <20101025051202.GA22412@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101025133448.6abd912f.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Bob Liu <lliubbo@gmail.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Bob Liu <lliubbo@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 25, 2010 at 12:34:48PM +0800, KAMEZAWA Hiroyuki wrote:
-> On Mon, 25 Oct 2010 12:06:04 +0800
-> Wu Fengguang <fengguang.wu@intel.com> wrote:
-> 
-> > On Mon, Oct 25, 2010 at 11:48:16AM +0800, KAMEZAWA Hiroyuki wrote:
-> > > On Mon, 25 Oct 2010 11:48:33 +0800
-> > > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > > 
-> > > > On Mon, Oct 25, 2010 at 11:09:01AM +0800, KAMEZAWA Hiroyuki wrote:
-> > > > > On Mon, 25 Oct 2010 12:05:50 +0900
-> > > > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > > 
-> > > > > > This changes behavior.
-> > > > > > 
-> > > > > > This "ret" can be > 0 because migrate_page()'s return code is
-> > > > > > "Return: Number of pages not migrated or error code."
-> > > > > > 
-> > > > > > Then, 
-> > > > > > ret < 0  ===> maybe ebusy
-> > > > > > ret > 0  ===> some pages are not migrated. maybe PG_writeback or some
-> > > > > > ret == 0 ===> ok, all condition green. try next chunk soon.
-> > > > > > 
-> > > > > > Then, I added "yield()" and --retrym_max for !ret cases.
-> > > > >                                                ^^^^^^^^
-> > > > > 						wrong.
-> > > > > 
-> > > > > The code here does
-> > > > > 
-> > > > > ret == 0 ==> ok, all condition green, try next chunk.
-> > > > 
-> > > > It seems reasonable to remove the drain operations for "ret == 0"
-> > > > case.  That would help large NUMA boxes noticeably I guess.
-> > > > 
-> > > Maybe.
+do_migrate_range() offlines 1MB pages at one time and hence might be
+called up to 16000 times when trying to offline 16GB memory. It makes
+sense to avoid sending the costly IPIs to drain pages on all LRU for
+the 99% cases that do_migrate_range() succeeds offlining some pages.
 
-OK, I'll post a patch for it.
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/memory_hotplug.c |   24 ++++++++++--------------
+ 1 file changed, 10 insertions(+), 14 deletions(-)
 
-> > > > > ret > 0  ==> all pages are isolated but some pages cannot be migrated. maybe under I/O
-> > > > > 	     do yield.
-> > > > 
-> > > > Don't know how to deal with the possible "migration fail" pages --
-> > > > sorry I have no idea about that situation at all.
-> > > > 
-> > > 
-> > > In typical case, page_count() > 0 by get_user_pages() or PG_writeback is set.
-> > > All we can do is just waiting.
-> > 
-> > OK.
-> > 
-> > > > Perhaps, OOM while offlining pages?
-> > > > 
-> > > 
-> > > I never see that..because memory offline is scheduled to be done only when
-> > > there are free memory.
-> > 
-> > OK.
-> > 
-> > On OOM migrate_page() will return -ENOMEM, which will be handled in
-> > the "ret < 0" case. So it will give up after some retries.
-> > 
-> > migrate_page() has a comment /* Permanent failure */ when returning
-> > positive ret. So it looks safer not to retry indefinitely on the
-> > "ret > 0" case?
-> > 
-> > Then it's reduced to two cases: "ret != 0, cannot make smooth
-> > progress, unconditional retries may livelock" and "ret ==0, makes some
-> > progress, safe to retry".
-> > 
-> Memory offline is designed to be able to stop by Ctrl-C. And it has timeout
-> of 120 sec.
-> 
-> I don't called as livelock.
-
-Ah sorry for overlooking that!  I should really think twice..(after
-thinking twice) I find it's even better. Unmigratible pages will be
-put back to LRU. Then -EBUSY will be returned when trying to isolate
-it the next time. So it's an imaginary problem.
-
-Thanks,
-Fengguang
+--- linux-next.orig/mm/memory_hotplug.c	2010-10-25 11:20:47.000000000 +0800
++++ linux-next/mm/memory_hotplug.c	2010-10-25 13:07:10.000000000 +0800
+@@ -788,7 +788,7 @@ static int offline_pages(unsigned long s
+ {
+ 	unsigned long pfn, nr_pages, expire;
+ 	long offlined_pages;
+-	int ret, drain, retry_max, node;
++	int ret, retry_max, node;
+ 	struct zone *zone;
+ 	struct memory_notify arg;
+ 
+@@ -827,7 +827,6 @@ static int offline_pages(unsigned long s
+ 
+ 	pfn = start_pfn;
+ 	expire = jiffies + timeout;
+-	drain = 0;
+ 	retry_max = 5;
+ repeat:
+ 	/* start memory hot removal */
+@@ -838,34 +837,31 @@ repeat:
+ 	if (signal_pending(current))
+ 		goto failed_removal;
+ 	ret = 0;
+-	if (drain) {
+-		lru_add_drain_all();
+-		flush_scheduled_work();
+-		cond_resched();
+-		drain_all_pages();
+-	}
+-
+ 	pfn = scan_lru_pages(start_pfn, end_pfn);
+ 	if (pfn) { /* We have page on LRU */
+ 		ret = do_migrate_range(pfn, end_pfn);
+ 		if (!ret) {
+-			drain = 1;
+ 			goto repeat;
+ 		} else {
+ 			if (ret < 0)
+ 				if (--retry_max == 0)
+ 					goto failed_removal;
+ 			yield();
+-			drain = 1;
++			lru_add_drain_all();
++			flush_scheduled_work();
++			cond_resched();
++			drain_all_pages();
+ 			goto repeat;
+ 		}
+ 	}
+-	/* drain all zone's lru pagevec, this is asyncronous... */
++
++	/* drain all zone's lru pagevec, this is asynchronous... */
+ 	lru_add_drain_all();
+ 	flush_scheduled_work();
+ 	yield();
+-	/* drain pcp pages , this is synchrouns. */
++	/* drain pcp pages , this is asynchronous. */
+ 	drain_all_pages();
++
+ 	/* check again */
+ 	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
+ 	if (offlined_pages < 0) {
+@@ -873,7 +869,7 @@ repeat:
+ 		goto failed_removal;
+ 	}
+ 	printk(KERN_INFO "Offlined Pages %ld\n", offlined_pages);
+-	/* Ok, all of our target is islaoted.
++	/* Ok, all of our target is isolated.
+ 	   We cannot do rollback at this point. */
+ 	offline_isolated_pages(start_pfn, end_pfn);
+ 	/* reset pagetype flags and makes migrate type to be MOVABLE */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
