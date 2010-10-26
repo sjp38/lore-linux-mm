@@ -1,321 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E4F066B004A
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 06:07:48 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9QA7jdv029559
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 26 Oct 2010 19:07:45 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E31BA45DE4F
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 19:07:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C112E45DE4D
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 19:07:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AC04AE18002
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 19:07:44 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C129E08002
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 19:07:44 +0900 (JST)
-Date: Tue, 26 Oct 2010 19:02:19 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 1/3] move code from memory_hotplug to page_isolation
-Message-Id: <20101026190219.359e9c9c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101026190042.57f30338.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20101026190042.57f30338.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 38E0B6B004A
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 06:09:28 -0400 (EDT)
+Date: Tue, 26 Oct 2010 12:09:23 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: [GIT PULL] Please pull hwpoison updates for 2.6.37
+Message-ID: <20101026100923.GA5118@basil.fritz.box>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, andi.kleen@intel.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, fujita.tomonori@lab.ntt.co.jp, felipe.contreras@gmail.com
+To: torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: n-horiguchi@ah.jp.nec.com, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Memory hotplug is a logic for making pages unused in the specified range
-of pfn. So, some of core logics can be used for other purpose as
-allocating a very large contigous memory block.
+Linus,
 
-This patch moves some functions from mm/memory_hotplug.c to
-mm/page_isolation.c. This helps adding a function for large-alloc in
-page_isolation.c with memory-unplug technique.
+Here are the hwpoison updates for 2.6.37. The main new feature is 
+soft offlining support for huge pages: support to predictively offline 
+hugepages based on corrected memory error statistics.  
+This can be a large win in memory reliability in some setups
+and is transparent to applications.
+We already supported that for small pages, but now have it for 
+large pages too, because some large memory users like to use those.
 
-Changelog: 2010/10/26
- - adjusted to mmotm-1024 + Bob's 3 clean ups.
-Changelog: 2010/10/21
- - adjusted to mmotm-1020
+Thanks to Naoya-san for spending a lot of time on that
+and also cleaning up some code on the way.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/page-isolation.h |    7 ++
- mm/memory_hotplug.c            |  108 ---------------------------------------
- mm/page_isolation.c            |  112 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 119 insertions(+), 108 deletions(-)
+This also is the basis for generic huge page migration (most of
+the infrastructure is there, but not fully hooked up yet), which
+will also give some NUMA tuning benefits.
 
-Index: mmotm-1024/include/linux/page-isolation.h
-===================================================================
---- mmotm-1024.orig/include/linux/page-isolation.h
-+++ mmotm-1024/include/linux/page-isolation.h
-@@ -33,5 +33,12 @@ test_pages_isolated(unsigned long start_
- extern int set_migratetype_isolate(struct page *page);
- extern void unset_migratetype_isolate(struct page *page);
- 
-+/*
-+ * For migration.
-+ */
-+
-+int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn);
-+unsigned long scan_lru_pages(unsigned long start, unsigned long end);
-+int do_migrate_range(unsigned long start_pfn, unsigned long end_pfn);
- 
- #endif
-Index: mmotm-1024/mm/memory_hotplug.c
-===================================================================
---- mmotm-1024.orig/mm/memory_hotplug.c
-+++ mmotm-1024/mm/memory_hotplug.c
-@@ -617,114 +617,6 @@ int is_mem_section_removable(unsigned lo
- }
- 
- /*
-- * Confirm all pages in a range [start, end) is belongs to the same zone.
-- */
--static int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
--{
--	unsigned long pfn;
--	struct zone *zone = NULL;
--	struct page *page;
--	int i;
--	for (pfn = start_pfn;
--	     pfn < end_pfn;
--	     pfn += MAX_ORDER_NR_PAGES) {
--		i = 0;
--		/* This is just a CONFIG_HOLES_IN_ZONE check.*/
--		while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + i))
--			i++;
--		if (i == MAX_ORDER_NR_PAGES)
--			continue;
--		page = pfn_to_page(pfn + i);
--		if (zone && page_zone(page) != zone)
--			return 0;
--		zone = page_zone(page);
--	}
--	return 1;
--}
--
--/*
-- * Scanning pfn is much easier than scanning lru list.
-- * Scan pfn from start to end and Find LRU page.
-- */
--static unsigned long scan_lru_pages(unsigned long start, unsigned long end)
--{
--	unsigned long pfn;
--	struct page *page;
--	for (pfn = start; pfn < end; pfn++) {
--		if (pfn_valid(pfn)) {
--			page = pfn_to_page(pfn);
--			if (PageLRU(page))
--				return pfn;
--		}
--	}
--	return 0;
--}
--
--static struct page *
--hotremove_migrate_alloc(struct page *page, unsigned long private, int **x)
--{
--	/* This should be improooooved!! */
--	return alloc_page(GFP_HIGHUSER_MOVABLE);
--}
--
--#define NR_OFFLINE_AT_ONCE_PAGES	(256)
--static int
--do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
--{
--	unsigned long pfn;
--	struct page *page;
--	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
--	int not_managed = 0;
--	int ret = 0;
--	LIST_HEAD(source);
--
--	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
--		if (!pfn_valid(pfn))
--			continue;
--		page = pfn_to_page(pfn);
--		if (!page_count(page))
--			continue;
--		/*
--		 * We can skip free pages. And we can only deal with pages on
--		 * LRU.
--		 */
--		ret = isolate_lru_page(page);
--		if (!ret) { /* Success */
--			list_add_tail(&page->lru, &source);
--			move_pages--;
--			inc_zone_page_state(page, NR_ISOLATED_ANON +
--					    page_is_file_cache(page));
--
--		} else {
--#ifdef CONFIG_DEBUG_VM
--			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
--			       pfn);
--			dump_page(page);
--#endif
--			/* Becasue we don't have big zone->lock. we should
--			   check this again here. */
--			if (page_count(page)) {
--				not_managed++;
--				ret = -EBUSY;
--				break;
--			}
--		}
--	}
--	if (!list_empty(&source)) {
--		if (not_managed) {
--			putback_lru_pages(&source);
--			goto out;
--		}
--		/* this function returns # of failed pages */
--		ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
--		if (ret)
--			putback_lru_pages(&source);
--	}
--out:
--	return ret;
--}
--
--/*
-  * remove from free_area[] and mark all as Reserved.
-  */
- static int
-Index: mmotm-1024/mm/page_isolation.c
-===================================================================
---- mmotm-1024.orig/mm/page_isolation.c
-+++ mmotm-1024/mm/page_isolation.c
-@@ -5,6 +5,9 @@
- #include <linux/mm.h>
- #include <linux/page-isolation.h>
- #include <linux/pageblock-flags.h>
-+#include <linux/memcontrol.h>
-+#include <linux/migrate.h>
-+#include <linux/mm_inline.h>
- #include "internal.h"
- 
- static inline struct page *
-@@ -139,3 +142,111 @@ int test_pages_isolated(unsigned long st
- 	spin_unlock_irqrestore(&zone->lock, flags);
- 	return ret ? 0 : -EBUSY;
- }
-+
-+
-+/*
-+ * Confirm all pages in a range [start, end) is belongs to the same zone.
-+ */
-+int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
-+{
-+	unsigned long pfn;
-+	struct zone *zone = NULL;
-+	struct page *page;
-+	int i;
-+	for (pfn = start_pfn;
-+	     pfn < end_pfn;
-+	     pfn += MAX_ORDER_NR_PAGES) {
-+		i = 0;
-+		/* This is just a CONFIG_HOLES_IN_ZONE check.*/
-+		while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + i))
-+			i++;
-+		if (i == MAX_ORDER_NR_PAGES)
-+			continue;
-+		page = pfn_to_page(pfn + i);
-+		if (zone && page_zone(page) != zone)
-+			return 0;
-+		zone = page_zone(page);
-+	}
-+	return 1;
-+}
-+
-+/*
-+ * Scanning pfn is much easier than scanning lru list.
-+ * Scan pfn from start to end and Find LRU page.
-+ */
-+unsigned long scan_lru_pages(unsigned long start, unsigned long end)
-+{
-+	unsigned long pfn;
-+	struct page *page;
-+	for (pfn = start; pfn < end; pfn++) {
-+		if (pfn_valid(pfn)) {
-+			page = pfn_to_page(pfn);
-+			if (PageLRU(page))
-+				return pfn;
-+		}
-+	}
-+	return 0;
-+}
-+
-+struct page *
-+hotremove_migrate_alloc(struct page *page, unsigned long private, int **x)
-+{
-+	/* This should be improooooved!! */
-+	return alloc_page(GFP_HIGHUSER_MOVABLE);
-+}
-+
-+#define NR_OFFLINE_AT_ONCE_PAGES	(256)
-+int do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
-+{
-+	unsigned long pfn;
-+	struct page *page;
-+	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
-+	int not_managed = 0;
-+	int ret = 0;
-+	LIST_HEAD(source);
-+
-+	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
-+		if (!pfn_valid(pfn))
-+			continue;
-+		page = pfn_to_page(pfn);
-+		if (!page_count(page))
-+			continue;
-+		/*
-+		 * We can skip free pages. And we can only deal with pages on
-+		 * LRU.
-+		 */
-+		ret = isolate_lru_page(page);
-+		if (!ret) { /* Success */
-+			list_add_tail(&page->lru, &source);
-+			move_pages--;
-+			inc_zone_page_state(page, NR_ISOLATED_ANON +
-+					    page_is_file_cache(page));
-+
-+		} else {
-+#ifdef CONFIG_DEBUG_VM
-+			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
-+			       pfn);
-+			dump_page(page);
-+#endif
-+			/* Because we don't have big zone->lock. we should
-+			   check this again here. */
-+			if (page_count(page)) {
-+				not_managed++;
-+				ret = -EBUSY;
-+				break;
-+			}
-+		}
-+	}
-+	if (!list_empty(&source)) {
-+		if (not_managed) {
-+			putback_lru_pages(&source);
-+			goto out;
-+		}
-+		/* this function returns # of failed pages */
-+		ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
-+		if (ret)
-+			putback_lru_pages(&source);
-+	}
-+out:
-+	return ret;
-+}
+Also various cleanups and improvements to hwpoison code.
+
+There are some changes outside the usual hwpoison files,
+which were needed to implement these features:
+
+Signals:
+- IA64 signal fix for _addr_lsb. Similar to the earlier MIPS change.
+Acked by Tony.
+- signalfd.h fix (from Seto-san): Same fix as for ia64 for signalfd.
+This is all really just to report the _addr_lsb siginfo field out to
+user space, so that it knows how much memory got corrupted. 
+The code for siginfo is unfortunately scattered all over
+the tree and I didn't find anyone who felt responsible for it.
+
+- x86 hwpoison signal reporting fix. I tried to get an ack for that,
+but wasn't able to motivate the x86 maintainers to reply to their emails.
+Basically just pass around the address granuality from handle_mm_fault
+to the hwpoison code in fault.c when an error happens.
+
+MM:
+- Some fixes to handle_memory_fault() to pass out the error
+granuality in the return code. Does not affect any non hwpoison path.
+- Migration changes for huge pages.
+The migration code has been reviewed extensively by Christoph Lameter.
+- hugetlb changes for migration. Have been reviewed by Mel.
+- rmap changes for hugetlb migration, including the cleanups you requested 
+in the last review cycle. Acked by Rik and others.
+
+Please consider pulling,
+
+Thanks,
+-Andi
+
+The following changes since commit 72e58063d63c5f0a7bf65312f1e3a5ed9bb5c2ff:
+
+  Merge branch 'davinci-for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-davinci (2010-10-25 10:59:31 -0700)
+
+are available in the git repository at:
+
+  git://git.kernel.org/pub/scm/linux/kernel/git/ak/linux-mce-2.6.git hwpoison
+
+Andi Kleen (14):
+      Clean up __page_set_anon_rmap
+      hugepage: move is_hugepage_on_freelist inside ifdef to avoid warning
+      Encode huge page size for VM_FAULT_HWPOISON errors
+      x86: HWPOISON: Report correct address granuality for huge hwpoison faults
+      HWPOISON: Improve comments in memory-failure.c
+      HWPOISON: Convert pr_debugs to pr_info
+      HWPOISON: Disable DEBUG by default
+      HWPOISON: Turn addr_valid from bitfield into char
+      HWPOISON: Remove retry loop for try_to_unmap
+      Fix migration.c compilation on s390
+      Add _addr_lsb field to ia64 siginfo
+      Merge branch 'hwpoison-fixes-2.6.37' into hwpoison
+      Merge branch 'hwpoison-cleanups' into hwpoison
+      Merge branch 'hwpoison-hugepages' into hwpoison
+
+Hidetoshi Seto (1):
+      HWPOISON/signalfd: add support for addr_lsb
+
+Naoya Horiguchi (10):
+      hugetlb: fix metadata corruption in hugetlb_fault()
+      hugetlb: add allocate function for hugepage migration
+      hugetlb: redefine hugepage copy functions
+      hugetlb: hugepage migration core
+      HWPOISON, hugetlb: add free check to dequeue_hwpoison_huge_page()
+      hugetlb: move refcounting in hugepage allocation inside hugetlb_lock
+      HWPOSION, hugetlb: recover from free hugepage error when !MF_COUNT_INCREASED
+      HWPOISON, hugetlb: soft offlining for hugepage
+      HWPOISON, hugetlb: fix unpoison for hugepage
+      Fix build error with !CONFIG_MIGRATION
+
+ arch/ia64/include/asm/siginfo.h |    1 +
+ arch/x86/mm/fault.c             |   19 ++-
+ fs/hugetlbfs/inode.c            |   15 +++
+ fs/signalfd.c                   |   10 ++
+ include/linux/hugetlb.h         |   17 +++-
+ include/linux/migrate.h         |   16 +++
+ include/linux/mm.h              |   12 ++-
+ include/linux/signalfd.h        |    3 +-
+ mm/hugetlb.c                    |  233 +++++++++++++++++++++++++++------------
+ mm/memory-failure.c             |  175 +++++++++++++++++++++--------
+ mm/memory.c                     |    3 +-
+ mm/migrate.c                    |  234 ++++++++++++++++++++++++++++++++++++---
+ mm/rmap.c                       |   25 ++---
+ 13 files changed, 596 insertions(+), 167 deletions(-)
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
