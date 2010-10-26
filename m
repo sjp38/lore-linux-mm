@@ -1,69 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F1C96B004A
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 13:43:32 -0400 (EDT)
-Message-ID: <4CC71345.9050907@kernel.org>
-Date: Tue, 26 Oct 2010 20:43:33 +0300
-From: Pekka Enberg <penberg@kernel.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 1EFF26B0071
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 15:39:58 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id o9QJcA03016271
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 12:38:10 -0700
+Received: from pxi11 (pxi11.prod.google.com [10.243.27.11])
+	by wpaz9.hot.corp.google.com with ESMTP id o9QJc4Ff027554
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 12:38:09 -0700
+Received: by pxi11 with SMTP id 11so1018726pxi.8
+        for <linux-mm@kvack.org>; Tue, 26 Oct 2010 12:38:04 -0700 (PDT)
+Date: Tue, 26 Oct 2010 12:37:59 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [resend][PATCH 2/4] Revert "oom: deprecate oom_adj tunable"
+In-Reply-To: <20101026220237.B7DA.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1010261234230.5578@chino.kir.corp.google.com>
+References: <20101025122723.916D.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1010251338081.21737@chino.kir.corp.google.com> <20101026220237.B7DA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] [v2] slub tracing: move trace calls out of always inlined
- functions to reduce kernel code size
-References: <1286986178.1901.60.camel@castor.rsk>	 <4CB6ACB7.8060006@kernel.org>  <1287049769.1909.4.camel@castor.rsk> <1287653359.1906.13.camel@castor.rsk>
-In-Reply-To: <1287653359.1906.13.camel@castor.rsk>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: Christoph Lameter <cl@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Steven Rostedt <rostedt@goodmis.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 21.10.2010 12.29, Richard Kennedy wrote:
-> Having the trace calls defined in the always inlined kmalloc functions
-> in include/linux/slub_def.h causes a lot of code duplication as the
-> trace functions get instantiated for each kamalloc call site. This can
-> simply be removed by pushing the trace calls down into the functions in
-> slub.c.
->
-> On my x86_64 built this patch shrinks the code size of the kernel by
-> approx 36K and also shrinks the code size of many modules -- too many to
-> list here ;)
->
-> size vmlinux (2.6.36) reports
->         text        data     bss     dec     hex filename
->      5410611	 743172	 828928	6982711	 6a8c37	vmlinux
->      5373738	 744244	 828928	6946910	 6a005e	vmlinux + patch
->
-> The resulting kernel has had some testing&  kmalloc trace still seems to
-> work.
->
-> This patch
-> - moves trace_kmalloc out of the inlined kmalloc() and pushes it down
-> into kmem_cache_alloc_trace() so this it only get instantiated once.
->
-> - rename kmem_cache_alloc_notrace()  to kmem_cache_alloc_trace() to
-> indicate that now is does have tracing. (maybe this would better being
-> called something like kmalloc_kmem_cache ?)
->
-> - adds a new function kmalloc_order() to handle allocation and tracing
-> of large allocations of page order.
->
-> - removes tracing from the inlined kmalloc_large() replacing them with a
-> call to kmalloc_order();
->
-> - move tracing out of inlined kmalloc_node() and pushing it down into
-> kmem_cache_alloc_node_trace
->
-> - rename kmem_cache_alloc_node_notrace() to
-> kmem_cache_alloc_node_trace()
->
-> - removes the include of trace/events/kmem.h from slub_def.h.
->
-> v2
-> - keep kmalloc_order_trace inline when !CONFIG_TRACE
->
-> Signed-off-by: Richard Kennedy<richard@rsk.demon.co.uk>
+On Tue, 26 Oct 2010, KOSAKI Motohiro wrote:
 
-Applied, thanks!
+> > NACK as a logical follow-up to my NACK for "oom: remove totalpage 
+> > normalization from oom_badness()"
+> 
+> Huh?
+> 
+> I requested you show us justification. BUT YOU DIDNT. If you have any 
+> usecase, show us RIGHT NOW. 
+> 
+
+The new tunable added in 2.6.36, /proc/pid/oom_score_adj, is necessary for 
+the units that the badness score now uses.  We need a tunable with a much 
+higher resolution than the oom_adj scale from -16 to +15, and one that 
+scales linearly as opposed to exponentially.  Since that tunable is much 
+more powerful than the oom_adj implementation, which never made any real 
+sense for defining oom killing priority for any purpose other than 
+polarization, the old tunable is deprecated for two years.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
