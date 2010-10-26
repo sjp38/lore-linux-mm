@@ -1,54 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C19396B004A
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 09:04:58 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9QD4rIS024726
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 26 Oct 2010 22:04:53 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 04BAC45DE52
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 22:04:53 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D113545DE4E
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 22:04:52 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B5D481DB803C
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 22:04:52 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B3641DB8038
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 22:04:51 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [resend][PATCH 3/4] move cred_guard_mutex from task_struct to signal_struct
-In-Reply-To: <20101025175113.963CCC9E3C@blackie.sf.frob.com>
-References: <20101025174220.GA21375@redhat.com> <20101025175113.963CCC9E3C@blackie.sf.frob.com>
-Message-Id: <20101026220314.B7DD.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 67F8B6B004A
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 09:10:27 -0400 (EDT)
+Date: Tue, 26 Oct 2010 08:10:23 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: vmscan: Do not run shrinkers for zones other than ZONE_NORMAL
+In-Reply-To: <20101026111025.B7B2.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1010260804080.813@router.home>
+References: <20101025101009.915D.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1010251000480.7461@router.home> <20101026111025.B7B2.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 26 Oct 2010 22:04:50 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Roland McGrath <roland@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, npiggin@kernel.dk, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Tue, 26 Oct 2010, KOSAKI Motohiro wrote:
 
-> > Except: I am not sure about -stable. At least, this patch should
-> > not go into the <2.6.35 kernels, it relies on misc changes which
-> > changed the scope of task->signal. Before 2.6.35 almost any user
-> > of ->cred_guard_mutex can race with exit and hit ->signal == NULL.
-> 
-> I see no justification for a change like this in any -stable tree.  It's
-> just a cleanup, right?  If it's a prerequisite for the fix we like for an
-> "important" bug, then that's a different story.  In its own right, it's
-> clearly not appropriate for backporting.
+> But, I have one question. Do you want to keep per-cpu cache although
+> reclaim running? If my remember is correct, your unified slab allocator
+> patch series drop percpu slab cache if memory reclaim occur.
 
-Because [4/4] depend on [3/4] and I hope to backport it. Do you dislike it
-too?
+I modified the unified allocator to use a slab shrinker for the next
+release.
 
+> I mean I'd like to know how much important slab percpu cache is. can
+> you please explain your ideal cache dropping behavior of slab?
 
-Thanks.
+Caches both keep state of the physical cpu caches and optimize locking
+since you avoid the overhead of taking objects from slab pages and pushing
+them in. Ideally they are kept as long as possible. But if the system has
+other needs then they should be dropped so that pages can be freed.
+
+> > The concept of a "zone" is for the benefit of certain legacy drivers that
+> > have limitations for the memory range on which they can performa DMA
+> > operations. With the IOMMUs and other modern technology this should no
+> > longer be an issue.
+>
+> IOMMU is certenary modern. but it's still costly a bit. So I'm not sure
+> all desktop devices will equip IOMMU. At least, we still have 32bit limitation
+> drivers in kernel tree. At least, desktop pc of this year still have PCI slot.
+>
+> Another interesting example, KVM is one of user __GFP_DMA32. it is
+> necessary to implement 32bit cpu emulation (i.e. 32bit guest).
+
+Why does KVM use __GFP_DMA32? They need a physical address below 32 bit in
+the 64 bit host? A 32 bit guest would only have __GFP dma and not
+GFP_DMA32.
+
+> I'm not sure destroying zone is good idea. I can only say that it still has
+> user even nowaday..
+
+Sure it does but it creates certain headaches. I like those to be reduced
+as much as possible.
+
+> So again, I was thinking a reclaim should drop both page allocator pcp
+> cache and slab cpu cache. Am I wrong? if so, why do you disagree?
+
+I agree.
 
 
 
