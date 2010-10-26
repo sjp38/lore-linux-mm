@@ -1,122 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 505D56B0071
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 09:11:27 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9QDAvk7016442
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 127366B0085
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 09:11:48 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9QDBk6f027570
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 26 Oct 2010 22:10:57 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A02945DE52
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 22:10:57 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D34B145DE50
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 22:10:56 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BBA9A1DB8055
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 22:10:56 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DB021DB804D
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 22:10:56 +0900 (JST)
+	Tue, 26 Oct 2010 22:11:46 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 641E745DE4E
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 22:11:46 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 204E045DE4F
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 22:11:46 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D18541DB803C
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 22:11:45 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D71A1DB803A
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 22:11:42 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 1/2] mm, mem-hotplug: recalculate lowmem_reserve when memory hotplug occur
-Message-Id: <20101026221017.B7DF.A69D9226@jp.fujitsu.com>
+Subject: [PATCH 2/2] mm, mem-hotplug: update pcp->stat_threshold when memory hotplug occur
+In-Reply-To: <20101026221017.B7DF.A69D9226@jp.fujitsu.com>
+References: <20101026221017.B7DF.A69D9226@jp.fujitsu.com>
+Message-Id: <20101026221213.B7E2.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 26 Oct 2010 22:10:55 +0900 (JST)
+Date: Tue, 26 Oct 2010 22:11:41 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Currently, memory hotplug call setup_per_zone_wmarks() and
-calculate_zone_inactive_ratio(), but don't call setup_per_zone_lowmem_reserve().
-
-It mean number of reserved pages aren't updated even if memory hot plug
-occur. This patch fixes it.
+Currently, cpu hotplug updates pcp->stat_threashold, but memory
+hotplug doesn't. there is no reason.
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Christoph Lameter <cl@linux.com>
 ---
- include/linux/mm.h  |    3 +--
- mm/memory_hotplug.c |    9 +++++----
- mm/page_alloc.c     |    6 +++---
- 3 files changed, 9 insertions(+), 9 deletions(-)
+ include/linux/vmstat.h |    5 ++++-
+ mm/page_alloc.c        |    2 ++
+ mm/vmstat.c            |    5 ++---
+ 3 files changed, 8 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 721f451..71d1670 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1221,8 +1221,7 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn);
- extern void set_dma_reserve(unsigned long new_dma_reserve);
- extern void memmap_init_zone(unsigned long, int, unsigned long,
- 				unsigned long, enum memmap_context);
--extern void setup_per_zone_wmarks(void);
--extern void calculate_zone_inactive_ratio(struct zone *zone);
-+extern int __meminit init_per_zone_wmark_min(void);
- extern void mem_init(void);
- extern void __init mmap_init(void);
- extern void show_mem(void);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index d8375bb..27d580d 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -437,8 +437,9 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
- 		zone_pcp_update(zone);
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index eaaea37..1997988 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -254,6 +254,7 @@ extern void dec_zone_state(struct zone *, enum zone_stat_item);
+ extern void __dec_zone_state(struct zone *, enum zone_stat_item);
  
- 	mutex_unlock(&zonelists_mutex);
--	setup_per_zone_wmarks();
--	calculate_zone_inactive_ratio(zone);
-+
-+	init_per_zone_wmark_min();
-+
- 	if (onlined_pages) {
- 		kswapd_run(zone_to_nid(zone));
- 		node_set_state(zone_to_nid(zone), N_HIGH_MEMORY);
-@@ -872,8 +873,8 @@ repeat:
- 	zone->zone_pgdat->node_present_pages -= offlined_pages;
- 	totalram_pages -= offlined_pages;
+ void refresh_cpu_vm_stats(int);
++void refresh_zone_stat_thresholds(void);
+ #else /* CONFIG_SMP */
  
--	setup_per_zone_wmarks();
--	calculate_zone_inactive_ratio(zone);
-+	init_per_zone_wmark_min();
+ /*
+@@ -299,6 +300,8 @@ static inline void __dec_zone_page_state(struct page *page,
+ #define mod_zone_page_state __mod_zone_page_state
+ 
+ static inline void refresh_cpu_vm_stats(int cpu) { }
+-#endif
++static inline void refresh_zone_stat_thresholds(void) { }
 +
- 	if (!node_present_pages(node)) {
- 		node_clear_state(node, N_HIGH_MEMORY);
- 		kswapd_stop(node);
++#endif /* CONFIG_SMP */
+ 
+ #endif /* _LINUX_VMSTAT_H */
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b48dea2..14ee899 100644
+index 14ee899..410df70 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -4880,7 +4880,7 @@ static void setup_per_zone_lowmem_reserve(void)
-  * Ensures that the watermark[min,low,high] values for each zone are set
-  * correctly with respect to min_free_kbytes.
-  */
--void setup_per_zone_wmarks(void)
-+static void setup_per_zone_wmarks(void)
- {
- 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
- 	unsigned long lowmem_pages = 0;
-@@ -4956,7 +4956,7 @@ void setup_per_zone_wmarks(void)
-  *    1TB     101        10GB
-  *   10TB     320        32GB
-  */
--void calculate_zone_inactive_ratio(struct zone *zone)
-+static void calculate_zone_inactive_ratio(struct zone *zone)
- {
- 	unsigned int gb, ratio;
+@@ -51,6 +51,7 @@
+ #include <linux/kmemleak.h>
+ #include <linux/memory.h>
+ #include <linux/compaction.h>
++#include <linux/vmstat.h>
+ #include <trace/events/kmem.h>
+ #include <linux/ftrace_event.h>
  
-@@ -5002,7 +5002,7 @@ static void __init setup_per_zone_inactive_ratio(void)
-  * 8192MB:	11584k
-  * 16384MB:	16384k
+@@ -5014,6 +5015,7 @@ int __meminit init_per_zone_wmark_min(void)
+ 	if (min_free_kbytes > 65536)
+ 		min_free_kbytes = 65536;
+ 	setup_per_zone_wmarks();
++	refresh_zone_stat_thresholds();
+ 	setup_per_zone_lowmem_reserve();
+ 	setup_per_zone_inactive_ratio();
+ 	return 0;
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index cd2e42b..b6b7fed 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -133,7 +133,7 @@ static int calculate_threshold(struct zone *zone)
+ /*
+  * Refresh the thresholds for each zone.
   */
--static int __init init_per_zone_wmark_min(void)
-+int __meminit init_per_zone_wmark_min(void)
+-static void refresh_zone_stat_thresholds(void)
++void refresh_zone_stat_thresholds(void)
  {
- 	unsigned long lowmem_kbytes;
+ 	struct zone *zone;
+ 	int cpu;
+@@ -371,7 +371,7 @@ void refresh_cpu_vm_stats(int cpu)
+ 			atomic_long_add(global_diff[i], &vm_stat[i]);
+ }
  
+-#endif
++#endif /* CONFIG_SMP */
+ 
+ #ifdef CONFIG_NUMA
+ /*
+@@ -1059,7 +1059,6 @@ static int __init setup_vmstat(void)
+ #ifdef CONFIG_SMP
+ 	int cpu;
+ 
+-	refresh_zone_stat_thresholds();
+ 	register_cpu_notifier(&vmstat_notifier);
+ 
+ 	for_each_online_cpu(cpu)
 -- 
 1.6.5.2
 
