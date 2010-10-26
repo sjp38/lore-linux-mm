@@ -1,109 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 780E38D0001
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 03:25:56 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9Q7PrbT013717
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 26 Oct 2010 16:25:54 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A2E1445DE53
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 16:25:53 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 771FF45DE4F
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 16:25:53 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 57411E08002
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 16:25:53 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AF0F4E18005
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 16:25:52 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [resend][PATCH 4/4] oom: don't ignore rss in nascent mm
-In-Reply-To: <4CC569DB.17734.314BBE7A@pageexec.freemail.hu>
-References: <20101025122914.9173.A69D9226@jp.fujitsu.com> <4CC569DB.17734.314BBE7A@pageexec.freemail.hu>
-Message-Id: <20101026155614.B7BC.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0624A6B004A
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 04:03:27 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id o9Q83Jwj006535
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 01:03:23 -0700
+Received: from pvb32 (pvb32.prod.google.com [10.241.209.96])
+	by wpaz1.hot.corp.google.com with ESMTP id o9Q83Hii012142
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 01:03:17 -0700
+Received: by pvb32 with SMTP id 32so802310pvb.33
+        for <linux-mm@kvack.org>; Tue, 26 Oct 2010 01:03:17 -0700 (PDT)
+Date: Tue, 26 Oct 2010 01:03:12 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: understand KSM
+In-Reply-To: <1877317998.247611287997865214.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Message-ID: <alpine.LSU.2.00.1010260045120.2939@sister.anvils>
+References: <1877317998.247611287997865214.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 26 Oct 2010 16:25:51 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: pageexec@freemail.hu
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Oleg Nesterov <oleg@redhat.com>, Roland McGrath <roland@redhat.com>
+To: caiqian@redhat.com
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Mon, 25 Oct 2010, caiqian@redhat.com wrote:
 
-Thank you for reviewing.
+> Hi everyone, while developing some tests for KSM in LTP
 
-> what happens when two (or more) threads in the same process call execve? the
-> above set_exec_mm calls will race (de_thread doesn't happen until much later
-> in execve) and overwrite each other's ->in_exec_mm which will still lead to
-> problems since there will be at most one temporary mm accounted for in the
-> oom killer.
+Thank you!
 
-patch 3/4 prevent this race :)
-now, 3/4 move cred_guard_mutex into signal struct. and execve() take 
-signal->cred_guard_mutex for protecting concurent execve race.
+> - http://marc.info/?l=ltp-list&m=128754077917739&w=2 , noticed that pages_shared, pages_sharing and pages_unshared have different values than the expected values in the tests after read the doc. I am not sure if I misunderstood those values or there were bugs somewhere.
 
+You were expecting KSM to share pages between processes, but you were
+not expecting it to share pages within a process, which it does also.
 
-> [update: since i don't seem to have been cc'd on the other patch that
-> serializes execve, the above point is moot ;)]
+To check the exact numbers, it would be easier if you use page-aligned
+mmap() rather than byte-aligned malloc() for your MADV_MERGEABLE buffers:
+some numbers are a little "off" because of part-pages at start and end.
 
-Ah, sorry. that's my mistake. I thought you've reviewed this one at
-my last posting. 
-
-can you please see 3/4? the URL is below.
-
-http://www.gossamer-threads.com/lists/linux/kernel/1293297?do=post_view_threaded
-
-> worse, even if each temporary mm was tracked separately there'd still be a
-> race where the oom killer can get triggered with the culprit thread long
-> gone (and reset ->in_exec_mm) and never to be found, so the oom killer would
-> find someone else as guilty.
-
-Sorry, I haven't got this point. can you please elaborate this worse scenario? 
-
-
-> now all this leads me to suggest a simpler solution, at least for the first
-> problem mentioned above (i don't know what to do with the second one yet as
-> it seems to be a generic issue with the oom killer, probably it should verify
-> the oom situation once again after it took the task_list lock).
 > 
-> [update: while the serialized execve solves the first problem, i still think
-> that my idea is simpler and worth considering, so i leave it here even if for
-> just documentation purposes ;)]
+> There are 3 programs (A, B ,C) to allocate 128M memory each using KSM.
 > 
-> given that all the oom killer needs from the mm struct is either ->total_pages
-> (in .35 and before, so be careful with the stable backport) or some ->rss_stat
-> counters, wouldn't it be much easier to simply transfer the bprm->mm counters
-> into current->mm for the duration of the execve (say, add them in get_arg_page
-> and remove them when bprm->mm is mmput in the do_execve failure path, etc)? the
-> transfer can be either to the existing counters or to new ones (obviously in
-> the latter case the oom code needs a small change to take the new counters into
-> account as well).
+> A has memory content equal 'c'.
+> B has memory content equal 'a'.
+> C has memory content equal 'a'.
+> 
+> Then (using the latest mmotm tree),
+> pages_shared = 2
+> pages_sharing = 98292
+> pages_unshared = 0
 
-As I said at previous discussion, It is possible and one of option. and I've
-made the patch of this way too at once. But, It is messy than current. because
-pages in nascent mm are also swappable. then, a swapping-out of such page need
-to update both mm->rss_stat and nascent_mm->rss_stat. IOW, we need to change 
-VM core. But, actually, execve vs OOM race is very rarely event, then, I don't 
-hope to add some new branch and complexity.
+So, after KSM has done its best, it all reduces to 1 page full of 'a's
+and another 1 page full of 'c's.
 
-Note: before 2.6.35, oom_kill.c track amount of process virtual address space.
-then changing get_arg_page() is enough. but on 2.6.36 or later, oom_kill.c track
-amount of process rss. then we can't ignore swap in/out event. and changing
-get_arg_page() is not enough. Or, Do you propse new OOM account 
-mm->rss + nascent_mm->total_vm? this can be easily. but tricky more.
+> 
+> Later,
+> A has memory content = 'c'
+> B has memory content = 'b'
+> C has memory content = 'a'.
+> 
+> Then,
+> pages_shared = 4
+> pages_sharing = 98282
+> pages_unshared = 0
 
-So, I think this is one of trade-off issue. If you have better patch rather
-than me, I'm glad to accept your one and join to review it. However myself 
-don't plan to take this approach.
+pages_shared 3 would be the obvious: I expect the extra 1 is an artifact
+of part-pages at start and end of your buffers, a page shared there too.
 
+> 
+> Finally,
+> A has memory content = 'd'
+> B has memory content = 'd'
+> C has memory content = 'd'
+> 
+> Then,
+> pages_shared = 0
+> pages_sharing = 0
+> pages_unshared = 0
 
-Thanks.
+The children appear to exit(1) as soon as they have filled
+their buffers with 'd's, so there's nothing left to share.
 
+Hugh
 
+> 
+> The following was the failed LTP output,
+> 
+> # ./ksm01 
+> ksm01       0  TINFO  :  KSM merging...
+> ksm01       0  TINFO  :  child 0 allocates 128 MB filled with 'c'.
+> ksm01       0  TINFO  :  child 1 allocates 128 MB filled with 'a'.
+> ksm01       0  TINFO  :  child 2 allocates 128 MB filled with 'a'.
+> ksm01       0  TINFO  :  check!
+> ksm01       0  TINFO  :  run is 1.
+> ksm01       0  TINFO  :  pages_shared is 2.
+> ksm01       1  TFAIL  :  pages_shared is not 32768.
+> ksm01       0  TINFO  :  pages_sharing is 98292.
+> ksm01       2  TFAIL  :  pages_sharing is not 32768.
+> ksm01       0  TINFO  :  pages_unshared is 0.
+> ksm01       3  TFAIL  :  pages_unshared is not 32768.
+> ksm01       0  TINFO  :  child 1 continues...
+> ksm01       0  TINFO  :  child 1 changes memory content to 'b'.
+> ksm01       0  TINFO  :  check!
+> ksm01       0  TINFO  :  run is 1.
+> ksm01       0  TINFO  :  pages_shared is 4.
+> ksm01       4  TFAIL  :  pages_shared is not 0.
+> ksm01       0  TINFO  :  pages_sharing is 98282.
+> ksm01       5  TFAIL  :  pages_sharing is not 0.
+> ksm01       0  TINFO  :  pages_unshared is 0.
+> ksm01       6  TFAIL  :  pages_unshared is not 98304.
+> ksm01       0  TINFO  :  child 0 continues...
+> ksm01       0  TINFO  :  child 0 changes memory content to 'd'.
+> ksm01       0  TINFO  :  child 1 continues...
+> ksm01       0  TINFO  :  child 1 changes memory content to 'd'
+> ksm01       0  TINFO  :  child 2 continues...
+> ksm01       0  TINFO  :  child 2 changes memory content to 'd'
+> ksm01       0  TINFO  :  check!
+> ksm01       0  TINFO  :  run is 1.
+> ksm01       0  TINFO  :  pages_shared is 0.
+> ksm01       7  TFAIL  :  pages_shared is not 32768.
+> ksm01       0  TINFO  :  pages_sharing is 0.
+> ksm01       8  TFAIL  :  pages_sharing is not 65536.
+> ksm01       0  TINFO  :  pages_unshared is 0.
+> ksm01       0  TINFO  :  KSM unmerging...
+> ksm01       0  TINFO  :  check!
+> ksm01       0  TINFO  :  run is 2.
+> ksm01       0  TINFO  :  pages_shared is 0.
+> ksm01       0  TINFO  :  pages_sharing is 0.
+> ksm01       0  TINFO  :  pages_unshared is 0.
+> ksm01       0  TINFO  :  stop KSM.
+> ksm01       0  TINFO  :  check!
+> ksm01       0  TINFO  :  run is 0.
+> ksm01       0  TINFO  :  pages_shared is 0.
+> ksm01       0  TINFO  :  pages_sharing is 0.
+> ksm01       0  TINFO  :  pages_unshared is 0.
+> ksm01       9  TFAIL  :  ksmtest() failed with 1.
+> 
+> CAI Qian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
