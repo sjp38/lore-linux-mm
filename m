@@ -1,142 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 0624A6B004A
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 04:03:27 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id o9Q83Jwj006535
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 01:03:23 -0700
-Received: from pvb32 (pvb32.prod.google.com [10.241.209.96])
-	by wpaz1.hot.corp.google.com with ESMTP id o9Q83Hii012142
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 01:03:17 -0700
-Received: by pvb32 with SMTP id 32so802310pvb.33
-        for <linux-mm@kvack.org>; Tue, 26 Oct 2010 01:03:17 -0700 (PDT)
-Date: Tue, 26 Oct 2010 01:03:12 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: understand KSM
-In-Reply-To: <1877317998.247611287997865214.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Message-ID: <alpine.LSU.2.00.1010260045120.2939@sister.anvils>
-References: <1877317998.247611287997865214.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B5BA26B0085
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 04:07:36 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9Q87Xwj017781
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 26 Oct 2010 17:07:33 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F291C45DE4F
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 17:07:32 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BBEED45DE4E
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 17:07:32 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 34F1D1DB8046
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 17:07:31 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D94761DB8042
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 17:07:30 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: mem-hotplug + ksm make lockdep warning
+In-Reply-To: <alpine.LSU.2.00.1010252248210.2939@sister.anvils>
+References: <20101025193711.917F.A69D9226@jp.fujitsu.com> <alpine.LSU.2.00.1010252248210.2939@sister.anvils>
+Message-Id: <20101026163218.B7BF.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 26 Oct 2010 17:07:29 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: caiqian@redhat.com
-Cc: linux-mm <linux-mm@kvack.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Oct 2010, caiqian@redhat.com wrote:
+> On Mon, 25 Oct 2010, KOSAKI Motohiro wrote:
+> > Hi Hugh,
+> > 
+> > commit 62b61f611e(ksm: memory hotremove migration only) makes following
+> > lockdep warnings. Is this intentional?
+> 
+> No, certainly not intentional: thanks for finding this.  Looking back,
+> I think the machine I tested memory hotplug versus KSM upon was not
+> the machine I habitually ran lockdep on, I bet I forgot to try it.
+> 
+> > 
+> > More detail: current lockdep hieralcy is here.
+> 
+> And especial thanks for taking the trouble to present it in a way
+> that I find much easier to understand than lockdep's pronouncements.
+> 
+> > 
+> > memory_notify
+> > 	offline_pages
+> > 		lock_system_sleep();
+> > 			mutex_lock(&pm_mutex);
+> > 		memory_notify(MEM_GOING_OFFLINE)
+> > 			__blocking_notifier_call_chain
+> > 				down_read(memory_chain.rwsem)
+> > 				ksm_memory_callback()
+> > 					mutex_lock(&ksm_thread_mutex);  // memory_chain.rmsem -> ksm_thread_mutex order
+> > 				up_read(memory_chain.rwsem)
+> > 		memory_notify(MEM_OFFLINE)
+> > 			__blocking_notifier_call_chain
+> > 				down_read(memory_chain.rwsem)		// ksm_thread_mutex -> memory_chain.rmsem order
+> > 				ksm_memory_callback()
+> > 					mutex_unlock(&ksm_thread_mutex);
+> > 				up_read(memory_chain.rwsem)
+> > 		unlock_system_sleep();
+> > 			mutex_unlock(&pm_mutex);
+> > 
+> > So, I think pm_mutex protect ABBA deadlock. but it exist only when
+> > CONFIG_HIBERNATION=y. IOW, this code is not correct generically. Am I
+> > missing something?
+> 
+> I do remember taking great comfort from lock_system_sleep() i.e. pm_mutex
+> when I did the ksm_memory_callback(); but I think that comfort was more
+> along the lines of it making obvious that taking a mutex was okay there,
+> than it providing any safety.  I think I was unconscious of the issue you
+> raise, perhaps didn't even notice rwsem in __blocking_notifier_call_chain.
+> 
+> But is it really a problem, given that it's down_read(rwsem) in each case?
+> Yes, but I had to look up akpm's comment on msync in ChangeLog-2.6.11 to
+> remember why:
+> 
+> 	And yes, the ranking of down_read() versus down() does matter:
+> 	
+> 		Task A			Task B		Task C
+> 	
+> 		down_read(rwsem)
+> 					down(sem)
+> 							down_write(rwsem)
+> 		down(sem)
+> 					down_read(rwsem)
+> 	
+> 	C's down_write() will cause B's down_read to block.
+> 	B holds `sem', so A will never release `rwsem'.
 
-> Hi everyone, while developing some tests for KSM in LTP
+Yeah, in other word, my raised issue is neccessary following three actor.
 
-Thank you!
+A. do memory unplug
+B. ditto
+C. register new blocking notifier chain
 
-> - http://marc.info/?l=ltp-list&m=128754077917739&w=2 , noticed that pages_shared, pages_sharing and pages_unshared have different values than the expected values in the tests after read the doc. I am not sure if I misunderstood those values or there were bugs somewhere.
+Thus, I don't think this issue is occur so frquently. (Who want to unplug memory
+concurrently?) But even though, some arch don't have hibernation support at all
+and we need to fix it, maybe.
 
-You were expecting KSM to share pages between processes, but you were
-not expecting it to share pages within a process, which it does also.
-
-To check the exact numbers, it would be easier if you use page-aligned
-mmap() rather than byte-aligned malloc() for your MADV_MERGEABLE buffers:
-some numbers are a little "off" because of part-pages at start and end.
 
 > 
-> There are 3 programs (A, B ,C) to allocate 128M memory each using KSM.
-> 
-> A has memory content equal 'c'.
-> B has memory content equal 'a'.
-> C has memory content equal 'a'.
-> 
-> Then (using the latest mmotm tree),
-> pages_shared = 2
-> pages_sharing = 98292
-> pages_unshared = 0
+> Am I mistaken, or is get_any_page() in mm/memory-failure.c also relying
+> on lock_system_sleep() to do real locking, even without CONFIG_HIBERNATION?
 
-So, after KSM has done its best, it all reduces to 1 page full of 'a's
-and another 1 page full of 'c's.
+I think get_any_page() also need to fix. ;)
+Andi, please double check.
 
-> 
-> Later,
-> A has memory content = 'c'
-> B has memory content = 'b'
-> C has memory content = 'a'.
-> 
-> Then,
-> pages_shared = 4
-> pages_sharing = 98282
-> pages_unshared = 0
+> If it is, then I think we should solve both problems by making it lock
+> unconditionally: though neither "lock_system_sleep" nor "pm_mutex" is an
+> appropriate name then... maybe "lock_memory_hotplug", but still using a
+> pm_mutex declared outside of CONFIG_PM?  Seems a bit weird.
 
-pages_shared 3 would be the obvious: I expect the extra 1 is an artifact
-of part-pages at start and end of your buffers, a page shared there too.
+I agree with making lock_memory_hotplug.
 
-> 
-> Finally,
-> A has memory content = 'd'
-> B has memory content = 'd'
-> C has memory content = 'd'
-> 
-> Then,
-> pages_shared = 0
-> pages_sharing = 0
-> pages_unshared = 0
+> And some kind of lockdep annotation needed for ksm_memory_callback(),
+> to help it understand how the outer mutex makes the inner inversion safe?
+> Or does lockdep manage that without help?
 
-The children appear to exit(1) as soon as they have filled
-their buffers with 'd's, so there's nothing left to share.
+I don't know lockdep internal at all. I can only say CONFIG_HIBERNATION=y
+still makes this lockdep splat. iow, lockdep can't handle this inner 
+inversion safe issue automatically.
 
-Hugh
 
-> 
-> The following was the failed LTP output,
-> 
-> # ./ksm01 
-> ksm01       0  TINFO  :  KSM merging...
-> ksm01       0  TINFO  :  child 0 allocates 128 MB filled with 'c'.
-> ksm01       0  TINFO  :  child 1 allocates 128 MB filled with 'a'.
-> ksm01       0  TINFO  :  child 2 allocates 128 MB filled with 'a'.
-> ksm01       0  TINFO  :  check!
-> ksm01       0  TINFO  :  run is 1.
-> ksm01       0  TINFO  :  pages_shared is 2.
-> ksm01       1  TFAIL  :  pages_shared is not 32768.
-> ksm01       0  TINFO  :  pages_sharing is 98292.
-> ksm01       2  TFAIL  :  pages_sharing is not 32768.
-> ksm01       0  TINFO  :  pages_unshared is 0.
-> ksm01       3  TFAIL  :  pages_unshared is not 32768.
-> ksm01       0  TINFO  :  child 1 continues...
-> ksm01       0  TINFO  :  child 1 changes memory content to 'b'.
-> ksm01       0  TINFO  :  check!
-> ksm01       0  TINFO  :  run is 1.
-> ksm01       0  TINFO  :  pages_shared is 4.
-> ksm01       4  TFAIL  :  pages_shared is not 0.
-> ksm01       0  TINFO  :  pages_sharing is 98282.
-> ksm01       5  TFAIL  :  pages_sharing is not 0.
-> ksm01       0  TINFO  :  pages_unshared is 0.
-> ksm01       6  TFAIL  :  pages_unshared is not 98304.
-> ksm01       0  TINFO  :  child 0 continues...
-> ksm01       0  TINFO  :  child 0 changes memory content to 'd'.
-> ksm01       0  TINFO  :  child 1 continues...
-> ksm01       0  TINFO  :  child 1 changes memory content to 'd'
-> ksm01       0  TINFO  :  child 2 continues...
-> ksm01       0  TINFO  :  child 2 changes memory content to 'd'
-> ksm01       0  TINFO  :  check!
-> ksm01       0  TINFO  :  run is 1.
-> ksm01       0  TINFO  :  pages_shared is 0.
-> ksm01       7  TFAIL  :  pages_shared is not 32768.
-> ksm01       0  TINFO  :  pages_sharing is 0.
-> ksm01       8  TFAIL  :  pages_sharing is not 65536.
-> ksm01       0  TINFO  :  pages_unshared is 0.
-> ksm01       0  TINFO  :  KSM unmerging...
-> ksm01       0  TINFO  :  check!
-> ksm01       0  TINFO  :  run is 2.
-> ksm01       0  TINFO  :  pages_shared is 0.
-> ksm01       0  TINFO  :  pages_sharing is 0.
-> ksm01       0  TINFO  :  pages_unshared is 0.
-> ksm01       0  TINFO  :  stop KSM.
-> ksm01       0  TINFO  :  check!
-> ksm01       0  TINFO  :  run is 0.
-> ksm01       0  TINFO  :  pages_shared is 0.
-> ksm01       0  TINFO  :  pages_sharing is 0.
-> ksm01       0  TINFO  :  pages_unshared is 0.
-> ksm01       9  TFAIL  :  ksmtest() failed with 1.
-> 
-> CAI Qian
+
+> I think I'm not going to find time to do the patch for a while,
+> so please go ahead if you can.
+
+I also need to attend KS. So, If you can accept to waiting until middle of 
+next month, I'll do.
+
+Thanks.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
