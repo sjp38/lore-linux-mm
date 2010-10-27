@@ -1,59 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A5B506B0071
-	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 04:16:41 -0400 (EDT)
-Date: Wed, 27 Oct 2010 04:16:38 -0400 (EDT)
-From: caiqian@redhat.com
-Message-ID: <1014156042.534481288167398779.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-In-Reply-To: <395413139.534301288167215758.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Subject: Re: understand KSM
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C8B26B0071
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 04:19:09 -0400 (EDT)
+Date: Wed, 27 Oct 2010 10:18:53 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [GIT PULL] Please pull hwpoison updates for 2.6.37
+Message-ID: <20101027081853.GA20196@elte.hu>
+References: <20101026100923.GA5118@basil.fritz.box>
+ <20101027074254.GA809@elte.hu>
+ <20101027075846.GA2472@basil.fritz.box>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101027075846.GA2472@basil.fritz.box>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, n-horiguchi@ah.jp.nec.com, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
 
-> Since your 1MB malloc'ed buffers may not fall on page boundaries,
-> and there might occasionally be other malloc'ed areas interspersed
-> amongst them, I'm not surprised that pages_sharing falls a little
-> short of 98302.  But I am surprised that pages_unshared does not
-> make up the difference; probably pages_volatile does, but I don't
-> see why some should remain volatile indefinitely.
-The test program (http://people.redhat.com/qcai/ksm01.c) was changed to use mmap instead of malloc, and pages_sharing was short of the expected value and pages_volatile was indeed non-zero. Those makes it is difficult to predict pages_sharing and pages_volatile although it might be fine to check pages_sharing + pages_volatile with an expected value. Any suggestion to alter the test code to check the stable numbers? Thanks.
+* Andi Kleen <andi@firstfloor.org> wrote:
 
-ksm01       0  TINFO  :  child 0 allocates 128 MB filled with 'c'.
-ksm01       0  TINFO  :  child 1 allocates 128 MB filled with 'a'.
-ksm01       0  TINFO  :  child 2 allocates 128 MB filled with 'a'.
-ksm01       0  TINFO  :  pages_shared is 2.
-ksm01       0  TINFO  :  pages_sharing is 98300.
-ksm01       0  TINFO  :  pages_unshared is 0.
-ksm01       0  TINFO  :  pages_volatile is 2.
+> * Ingo Molnar <mingo@elte.hu> wrote:
+>
+> > 
+> > * Andi Kleen <andi@firstfloor.org> wrote:
+> >
+> > > [...]
+> > >
+> > > - x86 hwpoison signal reporting fix. I tried to get an ack for that,
+> > >   but wasn't able to motivate the x86 maintainers to reply to their emails.
+> > 
+> > Hm, you sent it once two weeks before the merge window and we missed that.
+> > 
+> > Patch looks ok. (I'd personally not expose an #ifdef in the middle of a function 
+> > like that but that's a detail that doesnt affect correctness.)
+> > 
+> > Thanks,
+> 
+> Thanks for the review.
 
-ksm01       0  TINFO  :  child 1 changes memory content to 'b'.
-ksm01       0  TINFO  :  pages_shared is 3.
-ksm01       0  TINFO  :  pages_sharing is 98291.
-ksm01       0  TINFO  :  pages_unshared is 0.
-ksm01       0  TINFO  :  pages_volatile is 10.
+You are welcome! How about the cleanliness feedback that i gave?
+(the stuff in parentheses)
 
-ksm01       0  TINFO  :  child 0 changes memory content to 'd'.
-ksm01       0  TINFO  :  child 1 changes memory content to 'd'
-ksm01       0  TINFO  :  child 2 changes memory content to 'd'
-ksm01       0  TINFO  :  pages_shared is 1.
-ksm01       0  TINFO  :  pages_sharing is 98299.
-ksm01       0  TINFO  :  pages_unshared is 0.
-ksm01       0  TINFO  :  pages_volatile is 4.
+Thanks,
 
-ksm01       0  TINFO  :  child 1 changes one page to 'e'.
-ksm01       0  TINFO  :  pages_shared is 1.
-ksm01       0  TINFO  :  pages_sharing is 98299.
-ksm01       0  TINFO  :  pages_unshared is 1.
-ksm01       0  TINFO  :  pages_volatile is 3.
-
-
-CAI Qian
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
