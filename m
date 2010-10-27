@@ -1,49 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 435C26B0071
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 23:55:51 -0400 (EDT)
-Date: Tue, 26 Oct 2010 23:55:44 -0400 (EDT)
-From: caiqian@redhat.com
-Message-ID: <980303336.519221288151744899.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-In-Reply-To: <314680146.519081288151589117.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Subject: inode scaling series broke zram
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CA2E6B0071
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 00:00:58 -0400 (EDT)
+Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
+	by smtp-out.google.com with ESMTP id o9R40u57027776
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 21:00:56 -0700
+Received: from yxd5 (yxd5.prod.google.com [10.190.1.197])
+	by hpaq1.eem.corp.google.com with ESMTP id o9R40sex031379
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 21:00:54 -0700
+Received: by yxd5 with SMTP id 5so103446yxd.32
+        for <linux-mm@kvack.org>; Tue, 26 Oct 2010 21:00:54 -0700 (PDT)
+Date: Tue, 26 Oct 2010 21:00:42 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: understand KSM
+In-Reply-To: <862326461.384731288091669063.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Message-ID: <alpine.LSU.2.00.1010262050140.6304@sister.anvils>
+References: <862326461.384731288091669063.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
-Cc: npiggin <npiggin@kernel.dk>, linux-kernel <linux-kernel@vger.kernel.org>
+To: CAI Qian <caiqian@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-After applied the inode scaling series (http://lkml.org/lkml/2010/10/19/15) on top of linus's tree, "modprobe zram" threw those warnings,
+On Tue, 26 Oct 2010, CAI Qian wrote:
+> 
+> > > There are 3 programs (A, B ,C) to allocate 128M memory each using
+> > KSM.
+> > > 
+> > > A has memory content equal 'c'.
+> > > B has memory content equal 'a'.
+> > > C has memory content equal 'a'.
+> > > 
+> > > Then (using the latest mmotm tree),
+> > > pages_shared = 2
+> > > pages_sharing = 98292
+> > > pages_unshared = 0
+> > 
+> > So, after KSM has done its best, it all reduces to 1 page full of
+> > 'a's and another 1 page full of 'c's.
+> I would expect pages_sharing to be 98302 (128 * 256 - 2), but this one looks unstable. Increased pages_to_scan to 2 * 98304 did not help either.
 
-zram: module is from the staging directory, the quality is unknown, you have been warned.
-zram: num_devices not specified. Using default: 1
-zram: Creating 1 devices ...
-------------[ cut here ]------------
-WARNING: at lib/list_debug.c:26 __list_add+0x6d/0xa0()
-Hardware name: KVM
-list_add corruption. next->prev should be prev (ffffffff81a636a0), but was (null). (next=ffff88020a5c1950).
-Modules linked in: zram(C+) veth snd_seq_dummy tun autofs4 sunrpc ipt_REJECT nf_conntrack_ipv4 nf_defrag_ipv4 iptable_filter ip_tables ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 xt_state nf_conntrack ip6table_filter ip6_tables ipv6 dm_mirror dm_region_hash dm_log virtio_balloon pcspkr snd_intel8x0 snd_ac97_codec ac97_bus snd_seq snd_seq_device snd_pcm snd_timer snd soundcore snd_page_alloc 8139too 8139cp mii i2c_piix4 i2c_core sg ext4 mbcache jbd2 floppy virtio_blk sd_mod crc_t10dif virtio_pci virtio_ring virtio pata_acpi ata_generic ata_piix dm_mod [last unloaded: speedstep_lib]
-Pid: 10267, comm: modprobe Tainted: G        WC  2.6.36vfs+ #2
-Call Trace:
- [<ffffffff81060eef>] warn_slowpath_common+0x7f/0xc0
- [<ffffffff81060fe6>] warn_slowpath_fmt+0x46/0x50
- [<ffffffff812300cd>] __list_add+0x6d/0xa0
- [<ffffffffa0067000>] ? zram_init+0x0/0x27e [zram]
- [<ffffffff81234256>] __percpu_counter_init+0x56/0x70
- [<ffffffff8111439a>] bdi_init+0x10a/0x190
- [<ffffffffa0067000>] ? zram_init+0x0/0x27e [zram]
- [<ffffffff81207629>] blk_alloc_queue_node+0x79/0x190
- [<ffffffff81207753>] blk_alloc_queue+0x13/0x20
- [<ffffffffa00670f2>] zram_init+0xf2/0x27e [zram]
- [<ffffffff81002053>] do_one_initcall+0x43/0x190
- [<ffffffff8109e6fb>] sys_init_module+0xbb/0x200
- [<ffffffff8100b0b2>] system_call_fastpath+0x16/0x1b
----[ end trace 84534d674448c5db ]---
-zram: Invalid ioctl 21297
+Since your 1MB malloc'ed buffers may not fall on page boundaries,
+and there might occasionally be other malloc'ed areas interspersed
+amongst them, I'm not surprised that pages_sharing falls a little
+short of 98302.  But I am surprised that pages_unshared does not
+make up the difference; probably pages_volatile does, but I don't
+see why some should remain volatile indefinitely.
 
-CAI Qian
+> 
+> Thanks for the other suggestions! After modified the test accordingly, it looks like work as expected.
+
+Oh good, that's a relief.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
