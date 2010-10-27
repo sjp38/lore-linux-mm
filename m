@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4841A6B009F
-	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 16:13:59 -0400 (EDT)
-Date: Wed, 27 Oct 2010 15:13:55 -0500 (CDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0127D6B00A1
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 16:16:29 -0400 (EDT)
+Date: Wed, 27 Oct 2010 15:16:24 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/2] mm: vmstat: Use a single setter function and callback
- for adjusting percpu thresholds
-In-Reply-To: <1288169256-7174-3-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1010271513380.6255@router.home>
-References: <1288169256-7174-1-git-send-email-mel@csn.ul.ie> <1288169256-7174-3-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 1/2] mm: page allocator: Adjust the per-cpu counter
+ threshold when memory is low
+In-Reply-To: <1288169256-7174-2-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1010271510500.6255@router.home>
+References: <1288169256-7174-1-git-send-email-mel@csn.ul.ie> <1288169256-7174-2-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
