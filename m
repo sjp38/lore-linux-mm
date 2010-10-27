@@ -1,46 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EFF26B0071
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 15:39:58 -0400 (EDT)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id o9QJcA03016271
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 12:38:10 -0700
-Received: from pxi11 (pxi11.prod.google.com [10.243.27.11])
-	by wpaz9.hot.corp.google.com with ESMTP id o9QJc4Ff027554
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 12:38:09 -0700
-Received: by pxi11 with SMTP id 11so1018726pxi.8
-        for <linux-mm@kvack.org>; Tue, 26 Oct 2010 12:38:04 -0700 (PDT)
-Date: Tue, 26 Oct 2010 12:37:59 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [resend][PATCH 2/4] Revert "oom: deprecate oom_adj tunable"
-In-Reply-To: <20101026220237.B7DA.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1010261234230.5578@chino.kir.corp.google.com>
-References: <20101025122723.916D.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1010251338081.21737@chino.kir.corp.google.com> <20101026220237.B7DA.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 4E8E56B0071
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 23:45:16 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id o9R3jCeT015075
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 20:45:12 -0700
+Received: from yxe1 (yxe1.prod.google.com [10.190.2.1])
+	by hpaq3.eem.corp.google.com with ESMTP id o9R3ie8I019798
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 20:45:10 -0700
+Received: by yxe1 with SMTP id 1so164348yxe.15
+        for <linux-mm@kvack.org>; Tue, 26 Oct 2010 20:45:10 -0700 (PDT)
+Date: Tue, 26 Oct 2010 20:44:59 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: TMPFS Maximum File Size
+In-Reply-To: <AANLkTim=6Oan-CSnGMD1CTsd5iGRr98X44TAcirQt7Q_@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1010262015520.6207@sister.anvils>
+References: <AANLkTikn_44WcCBmWUW=8E3q3=cznZNx=dHdOcgZSKgH@mail.gmail.com> <AANLkTin32b4SaC0PTJpX8Pg4anQ3aSMUZFe0QFbt9y36@mail.gmail.com> <AANLkTim=6Oan-CSnGMD1CTsd5iGRr98X44TAcirQt7Q_@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Tharindu Rukshan Bamunuarachchi <btharindu@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Oct 2010, KOSAKI Motohiro wrote:
+On Tue, 26 Oct 2010, Tharindu Rukshan Bamunuarachchi wrote:
 
-> > NACK as a logical follow-up to my NACK for "oom: remove totalpage 
-> > normalization from oom_badness()"
+> Dear Hugh/Christoph/All,
 > 
-> Huh?
+> After investigating further into issue I experienced abnormal memory
+> allocation behavior.
+> I do not know whether this is the expected behavior or due to misconfiguration.
 > 
-> I requested you show us justification. BUT YOU DIDNT. If you have any 
-> usecase, show us RIGHT NOW. 
+> I have two node NUMA system and 100G TMPFS mount.
 > 
+> 1. When "dd" running freely (without CPU affinity) all memory pages
+> were allocated from NODE 0 and then from NODE 1.
+> 
+> 2. When "dd" running bound (using taskset) to CPU core in NODE 1 ....
+>     All memory pages were allocated from NODE 1.
+>     BUT machine stopped responding after exhausting NODE 1.
+>     No memory pages were allocated from NODE 0.
+> 
+> Do you have any comment / suggestions to try out ?
+> Why "dd" cannot allocate memory from NODE 0 when it is running bound
+> to NODE 1 CPU core ?
 
-The new tunable added in 2.6.36, /proc/pid/oom_score_adj, is necessary for 
-the units that the badness score now uses.  We need a tunable with a much 
-higher resolution than the oom_adj scale from -16 to +15, and one that 
-scales linearly as opposed to exponentially.  Since that tunable is much 
-more powerful than the oom_adj implementation, which never made any real 
-sense for defining oom killing priority for any purpose other than 
-polarization, the old tunable is deprecated for two years.
+Please take a look at Documentation/filesystems/tmpfs.txt in the
+kernel source tree, the section "tmpfs has a mount option to set
+the NUMA memory allocation policy" explaining mpol=
+
+I hope that mounting the tmpfs with mpol=interleave, or mpol=local,
+will give you the behaviour you want; but perhaps not, since I notice
+it does say that the policy applied will be modified by calling task's
+cpuset constraints, and it sounds like your dd is constrained to use
+memory only from its node.  Documentation/cgroups/cpusets.txt may be
+needed too.
+
+
+(I am not the right person to advise on managing NUMA and cpusets!)
+
+> 
+> This is the back trace of core generated from our application process.
+> 
+> Core was generated by `DataWareHouseEngine Surv:1:1:DataWareHouseEngine:1'.
+> Program terminated with signal 11, Segmentation fault.
+> #0  0x00007fd924b0cf7c in write () from /lib64/libc.so.6
+
+Nor do I understand why you should be getting a SIGSEGV in libc's write(),
+sorry.
+
+> (gdb) bt
+> #0  0x00007fd924b0cf7c in write () from /lib64/libc.so.6
+> #1  0x000000000053ed02 in NBasicFile::Write (this=0x7fd9100030c8,
+> pBuf=0x7fd91c0ce050, iBufLen=29)
+>     at /home/surv_3/0/src/app/SURV/libs/SurvNoraLite/29/NBasicFile.cpp:420
+> #2  0x00000000005454d4 in NIndex::GenarateHeader (this=0x7fd9100030c0,
+> rErr=@0x7fd91c8ccdd0)
+>     at /home/surv_3/0/src/app/SURV/libs/SurvNoraLite/29/NIndex.cpp:2350
+> #3  0x0000000000545a13 in NIndex::Sync (this=0x7fd9100030c0,
+> oNHandle=26832031833, rErr=@0x7fd91c8ccdd0)
+>     at /home/surv_3/0/src/app/SURV/libs/SurvNoraLite/29/NIndex.cpp:2440
+> #4  0x0000000000486538 in MIndex::Sync (this=0x7fd9100027b0,
+> roNHandleTableEnd=@0x2697f470) at
+> /home/surv_3/0/src/app/SURV/libs/SSDWI/67/MIndex.C:1562
+> #5  0x0000000000483ebf in MDataStore::Fix (this=0x2697f0e8) at
+> /home/surv_3/0/src/app/SURV/libs/SSDWI/67/MDataStore.C:762
+> #6  0x000000000047971b in SSPage::Connect (this=0x7fd90c01c320,
+> iPage=0, bIsRecover=true) at
+> /home/surv_3/0/src/app/SURV/libs/SSDWI/67/SSPage.cpp:1548
+> #7  0x000000000046a911 in DWHEWriter::Init (this=0x9640f0) at
+> /home/surv_3/0/src/app/SURV/components/DataWareHouseEngine/62/DWHEWriter.C:170
+> #8  0x000000000046ae8a in DWHEWriter::Run (pPT=0x9640f0) at
+> /home/surv_3/0/src/app/SURV/components/DataWareHouseEngine/62/DWHEWriter.C:97
+> #9  0x00007fd924832070 in start_thread () from /lib64/libpthread.so.0
+> #10 0x00007fd924b1a10d in clone () from /lib64/libc.so.6
+> #11 0x0000000000000000 in ?? ()
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
