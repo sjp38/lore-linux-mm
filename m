@@ -1,100 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id F1A3B6B0099
-	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 14:37:32 -0400 (EDT)
-Received: by gyh20 with SMTP id 20so709563gyh.14
-        for <linux-mm@kvack.org>; Wed, 27 Oct 2010 11:37:31 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTikL+v6uzkXg-7J2FGVz-7kc0Myw_cO5s_wYfHHm@mail.gmail.com>
-References: <1288200090-23554-1-git-send-email-yinghan@google.com>
-	<4CC869F5.2070405@redhat.com>
-	<AANLkTikL+v6uzkXg-7J2FGVz-7kc0Myw_cO5s_wYfHHm@mail.gmail.com>
-Date: Wed, 27 Oct 2010 12:37:31 -0600
-Message-ID: <AANLkTimLBO7mJugVXH0S=QSnwQ+NDcz3zxmcHmPRjngd@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 807006B009B
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 15:14:14 -0400 (EDT)
+Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
+	by smtp-out.google.com with ESMTP id o9RJEBrT008935
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 12:14:12 -0700
+Received: from qyk10 (qyk10.prod.google.com [10.241.83.138])
+	by hpaq1.eem.corp.google.com with ESMTP id o9RJDupf017528
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 12:14:10 -0700
+Received: by qyk10 with SMTP id 10so1147747qyk.5
+        for <linux-mm@kvack.org>; Wed, 27 Oct 2010 12:14:06 -0700 (PDT)
+Date: Wed, 27 Oct 2010 12:13:57 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
 Subject: Re: [PATCH] mm: don't flush TLB when propagate PTE access bit to
  struct page.
-From: Nick Piggin <npiggin@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <AANLkTimLBO7mJugVXH0S=QSnwQ+NDcz3zxmcHmPRjngd@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1010271144540.5039@tigran.mtv.corp.google.com>
+References: <1288200090-23554-1-git-send-email-yinghan@google.com> <4CC869F5.2070405@redhat.com> <AANLkTikL+v6uzkXg-7J2FGVz-7kc0Myw_cO5s_wYfHHm@mail.gmail.com> <AANLkTimLBO7mJugVXH0S=QSnwQ+NDcz3zxmcHmPRjngd@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="380388936-1837877089-1288206844=:5039"
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Ying Han <yinghan@google.com>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@gmail.com>
+Cc: Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 27, 2010 at 12:22 PM, Nick Piggin <npiggin@gmail.com> wrote:
-> On Wed, Oct 27, 2010 at 12:05 PM, Rik van Riel <riel@redhat.com> wrote:
->> On 10/27/2010 01:21 PM, Ying Han wrote:
->>>
->>> kswapd's use case of hardware PTE accessed bit is to approximate page L=
-RU.
->>> =A0The
->>> ActiveLRU demotion to InactiveLRU are not base on accessed bit, while i=
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
+
+--380388936-1837877089-1288206844=:5039
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
+
+On Wed, 27 Oct 2010, Nick Piggin wrote:
+> On Wed, Oct 27, 2010 at 12:22 PM, Nick Piggin <npiggin@gmail.com> wrote:
+> > On Wed, Oct 27, 2010 at 12:05 PM, Rik van Riel <riel@redhat.com> wrote:
+> >> On 10/27/2010 01:21 PM, Ying Han wrote:
+> >>>
+> >>> kswapd's use case of hardware PTE accessed bit is to approximate page=
+ LRU.
+> >>> =A0The
+> >>> ActiveLRU demotion to InactiveLRU are not base on accessed bit, while=
+ it
+> >>> is only
+> >>> used to promote when a page is on inactive LRU list. =A0All of the st=
+ate
+> >>> transitions
+> >>> are triggered by memory pressure and thus has weak relationship with
+> >>> respect to
+> >>> time. =A0In addition, hardware already transparently flush tlb whenev=
+er CPU
+> >>> context
+> >>> switch processes and given limited hardware TLB resource, the time pe=
+riod
+> >>> in
+> >>> which a page is accessed but not yet propagated to struct page is ver=
+y
+> >>> small
+> >>> in practice. With the nature of approximation, kernel really don't ne=
+ed to
+> >>> flush TLB
+> >>> for changing PTE's access bit. =A0This commit removes the flush opera=
+tion
+> >>> from it.
+
+It should at least add a comment there in page_referenced_one(), that
+a TLB flush ought to be done, but is now judged not worth the effort.
+
+(I'd expect architectures to differ on whether it's worth the effort.)
+
+> >>>
+> >>> Signed-off-by: Ying Han<yinghan@google.com>
+> >>> Singed-off-by: Ken Chen<kenchen@google.com>
+
+Hey, Ken, switch off those curling tongs :)
+
+> However, it's a scary change -- higher chance of reclaiming a TLB covered=
+ page.
+
+Yes, I was often tempted to make such a change in the past;
+but ran away when it appeared to be in danger of losing the pte
+referenced bit of precisely the most intensively referenced pages.
+
+Ying's point (about what the pte referenced bit is being used for in our
+current implementation) is interesting, and might have tipped the balance;
+but that's not clear to me - and the flush is only done when mm is on CPU.
+
+>=20
+> I had a vague memory of this problem biting someone when this flush wasn'=
 t
->>> is only
->>> used to promote when a page is on inactive LRU list. =A0All of the stat=
-e
->>> transitions
->>> are triggered by memory pressure and thus has weak relationship with
->>> respect to
->>> time. =A0In addition, hardware already transparently flush tlb whenever=
- CPU
->>> context
->>> switch processes and given limited hardware TLB resource, the time peri=
-od
->>> in
->>> which a page is accessed but not yet propagated to struct page is very
->>> small
->>> in practice. With the nature of approximation, kernel really don't need=
- to
->>> flush TLB
->>> for changing PTE's access bit. =A0This commit removes the flush operati=
-on
->>> from it.
->>>
->>> Signed-off-by: Ying Han<yinghan@google.com>
->>> Singed-off-by: Ken Chen<kenchen@google.com>
->>
->> The reasoning behind the patch makes sense.
->>
->> However, have you measured any improvements in run time with
->> this patch? =A0The VM is already tweaked to minimize the number
->> of pages that get aged, so it would be interesting to know
->> where you saw issues.
->
-> Firstly, not all CPUs do flush the TLB on VM switch, and secondly, it
-> would be theoretically possible to spin and never be able to flush free
-> pages even if none are ever being touched.
->
-> It doesn't have to be an absurdly tiny machine, either. You could cover
-> a good few megs with TLBs (and a small embedded system could easily
-> have less than that of mapped memory on its LRU).
->
-> I agree the theory is fine because if the CPU thinks it is worth to keep =
-a
-> TLB entry around, then it probably knows better than our stupid LRU :)
-> And TLB flushing can get nasty when we start swapping a lot with
-> threaded apps.
->
-> However, to handle corner cases it should either:
->
-> flush all TLBs once per *something* [eg. every scan priority level above =
-N,
-> or every N pages scanned, etc]
->
-> start doing the flush versions of the ptep manipulation when memory
-> pressure is getting high.
->
+> actually done properly... maybe powerpc.
+>=20
+> But anyway, same solution could be possible, by flushing every N pages sc=
+anned.
 
-I'm sorry, that's absurd, ignore that :)
+Yes, batching seems safer.
 
-However, it's a scary change -- higher chance of reclaiming a TLB covered p=
-age.
-
-I had a vague memory of this problem biting someone when this flush wasn't
-actually done properly... maybe powerpc.
-
-But anyway, same solution could be possible, by flushing every N pages scan=
-ned.
+Hugh
+--380388936-1837877089-1288206844=:5039--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
