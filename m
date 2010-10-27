@@ -1,37 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FF3D6B0071
-	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 03:43:12 -0400 (EDT)
-Date: Wed, 27 Oct 2010 09:42:54 +0200
-From: Ingo Molnar <mingo@elte.hu>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C8346B0071
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 03:58:54 -0400 (EDT)
+Date: Wed, 27 Oct 2010 09:58:46 +0200
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [GIT PULL] Please pull hwpoison updates for 2.6.37
-Message-ID: <20101027074254.GA809@elte.hu>
+Message-ID: <20101027075846.GA2472@basil.fritz.box>
 References: <20101026100923.GA5118@basil.fritz.box>
+ <20101027074254.GA809@elte.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101026100923.GA5118@basil.fritz.box>
+In-Reply-To: <20101027074254.GA809@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, n-horiguchi@ah.jp.nec.com, x86@kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andi Kleen <andi@firstfloor.org>, torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, n-horiguchi@ah.jp.nec.com, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
 
-* Andi Kleen <andi@firstfloor.org> wrote:
+Thanks for the review.
 
-> [...]
->
-> - x86 hwpoison signal reporting fix. I tried to get an ack for that,
->   but wasn't able to motivate the x86 maintainers to reply to their emails.
-
-Hm, you sent it once two weeks before the merge window and we missed that.
-
-Patch looks ok. (I'd personally not expose an #ifdef in the middle of a function 
-like that but that's a detail that doesnt affect correctness.)
-
-Thanks,
-
-	Ingo
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
