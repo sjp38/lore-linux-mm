@@ -1,59 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CA2E6B0071
-	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 00:00:58 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id o9R40u57027776
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 21:00:56 -0700
-Received: from yxd5 (yxd5.prod.google.com [10.190.1.197])
-	by hpaq1.eem.corp.google.com with ESMTP id o9R40sex031379
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 21:00:54 -0700
-Received: by yxd5 with SMTP id 5so103446yxd.32
-        for <linux-mm@kvack.org>; Tue, 26 Oct 2010 21:00:54 -0700 (PDT)
-Date: Tue, 26 Oct 2010 21:00:42 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: understand KSM
-In-Reply-To: <862326461.384731288091669063.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Message-ID: <alpine.LSU.2.00.1010262050140.6304@sister.anvils>
-References: <862326461.384731288091669063.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FF3D6B0071
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 03:43:12 -0400 (EDT)
+Date: Wed, 27 Oct 2010 09:42:54 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [GIT PULL] Please pull hwpoison updates for 2.6.37
+Message-ID: <20101027074254.GA809@elte.hu>
+References: <20101026100923.GA5118@basil.fritz.box>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101026100923.GA5118@basil.fritz.box>
 Sender: owner-linux-mm@kvack.org
-To: CAI Qian <caiqian@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, n-horiguchi@ah.jp.nec.com, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Oct 2010, CAI Qian wrote:
-> 
-> > > There are 3 programs (A, B ,C) to allocate 128M memory each using
-> > KSM.
-> > > 
-> > > A has memory content equal 'c'.
-> > > B has memory content equal 'a'.
-> > > C has memory content equal 'a'.
-> > > 
-> > > Then (using the latest mmotm tree),
-> > > pages_shared = 2
-> > > pages_sharing = 98292
-> > > pages_unshared = 0
-> > 
-> > So, after KSM has done its best, it all reduces to 1 page full of
-> > 'a's and another 1 page full of 'c's.
-> I would expect pages_sharing to be 98302 (128 * 256 - 2), but this one looks unstable. Increased pages_to_scan to 2 * 98304 did not help either.
 
-Since your 1MB malloc'ed buffers may not fall on page boundaries,
-and there might occasionally be other malloc'ed areas interspersed
-amongst them, I'm not surprised that pages_sharing falls a little
-short of 98302.  But I am surprised that pages_unshared does not
-make up the difference; probably pages_volatile does, but I don't
-see why some should remain volatile indefinitely.
+* Andi Kleen <andi@firstfloor.org> wrote:
 
-> 
-> Thanks for the other suggestions! After modified the test accordingly, it looks like work as expected.
+> [...]
+>
+> - x86 hwpoison signal reporting fix. I tried to get an ack for that,
+>   but wasn't able to motivate the x86 maintainers to reply to their emails.
 
-Oh good, that's a relief.
+Hm, you sent it once two weeks before the merge window and we missed that.
 
-Hugh
+Patch looks ok. (I'd personally not expose an #ifdef in the middle of a function 
+like that but that's a detail that doesnt affect correctness.)
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
