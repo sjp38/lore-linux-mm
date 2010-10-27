@@ -1,102 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 807006B009B
-	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 15:14:14 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id o9RJEBrT008935
-	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 12:14:12 -0700
-Received: from qyk10 (qyk10.prod.google.com [10.241.83.138])
-	by hpaq1.eem.corp.google.com with ESMTP id o9RJDupf017528
-	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 12:14:10 -0700
-Received: by qyk10 with SMTP id 10so1147747qyk.5
-        for <linux-mm@kvack.org>; Wed, 27 Oct 2010 12:14:06 -0700 (PDT)
-Date: Wed, 27 Oct 2010 12:13:57 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: don't flush TLB when propagate PTE access bit to
- struct page.
-In-Reply-To: <AANLkTimLBO7mJugVXH0S=QSnwQ+NDcz3zxmcHmPRjngd@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1010271144540.5039@tigran.mtv.corp.google.com>
-References: <1288200090-23554-1-git-send-email-yinghan@google.com> <4CC869F5.2070405@redhat.com> <AANLkTikL+v6uzkXg-7J2FGVz-7kc0Myw_cO5s_wYfHHm@mail.gmail.com> <AANLkTimLBO7mJugVXH0S=QSnwQ+NDcz3zxmcHmPRjngd@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1ED8D6B009D
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 16:08:53 -0400 (EDT)
+Date: Wed, 27 Oct 2010 15:08:49 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: TMPFS Maximum File Size
+In-Reply-To: <AANLkTim=6Oan-CSnGMD1CTsd5iGRr98X44TAcirQt7Q_@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1010271503360.6255@router.home>
+References: <AANLkTikn_44WcCBmWUW=8E3q3=cznZNx=dHdOcgZSKgH@mail.gmail.com> <AANLkTin32b4SaC0PTJpX8Pg4anQ3aSMUZFe0QFbt9y36@mail.gmail.com> <AANLkTim=6Oan-CSnGMD1CTsd5iGRr98X44TAcirQt7Q_@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="380388936-1837877089-1288206844=:5039"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@gmail.com>
-Cc: Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Ken Chen <kenchen@google.com>, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Tharindu Rukshan Bamunuarachchi <btharindu@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Tue, 26 Oct 2010, Tharindu Rukshan Bamunuarachchi wrote:
 
---380388936-1837877089-1288206844=:5039
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+> I have two node NUMA system and 100G TMPFS mount.
+>
+> 1. When "dd" running freely (without CPU affinity) all memory pages
+> were allocated from NODE 0 and then from NODE 1.
+>
+> 2. When "dd" running bound (using taskset) to CPU core in NODE 1 ....
+>     All memory pages were allocated from NODE 1.
+>     BUT machine stopped responding after exhausting NODE 1.
+>     No memory pages were allocated from NODE 0.
 
-On Wed, 27 Oct 2010, Nick Piggin wrote:
-> On Wed, Oct 27, 2010 at 12:22 PM, Nick Piggin <npiggin@gmail.com> wrote:
-> > On Wed, Oct 27, 2010 at 12:05 PM, Rik van Riel <riel@redhat.com> wrote:
-> >> On 10/27/2010 01:21 PM, Ying Han wrote:
-> >>>
-> >>> kswapd's use case of hardware PTE accessed bit is to approximate page=
- LRU.
-> >>> =A0The
-> >>> ActiveLRU demotion to InactiveLRU are not base on accessed bit, while=
- it
-> >>> is only
-> >>> used to promote when a page is on inactive LRU list. =A0All of the st=
-ate
-> >>> transitions
-> >>> are triggered by memory pressure and thus has weak relationship with
-> >>> respect to
-> >>> time. =A0In addition, hardware already transparently flush tlb whenev=
-er CPU
-> >>> context
-> >>> switch processes and given limited hardware TLB resource, the time pe=
-riod
-> >>> in
-> >>> which a page is accessed but not yet propagated to struct page is ver=
-y
-> >>> small
-> >>> in practice. With the nature of approximation, kernel really don't ne=
-ed to
-> >>> flush TLB
-> >>> for changing PTE's access bit. =A0This commit removes the flush opera=
-tion
-> >>> from it.
+Hmmm... Strange it should fall back like under #1. Can you tell us where
+it hung?
 
-It should at least add a comment there in page_referenced_one(), that
-a TLB flush ought to be done, but is now judged not worth the effort.
+> Do you have any comment / suggestions to try out ?
+> Why "dd" cannot allocate memory from NODE 0 when it is running bound
+> to NODE 1 CPU core ?
 
-(I'd expect architectures to differ on whether it's worth the effort.)
+Definitely looks like a bug somewhere. TMPFS policies are not correctly
+falling over to more distant zones?
 
-> >>>
-> >>> Signed-off-by: Ying Han<yinghan@google.com>
-> >>> Singed-off-by: Ken Chen<kenchen@google.com>
+> Core was generated by `DataWareHouseEngine Surv:1:1:DataWareHouseEngine:1'.
+> Program terminated with signal 11, Segmentation fault.
+> #0  0x00007fd924b0cf7c in write () from /lib64/libc.so.6
 
-Hey, Ken, switch off those curling tongs :)
-
-> However, it's a scary change -- higher chance of reclaiming a TLB covered=
- page.
-
-Yes, I was often tempted to make such a change in the past;
-but ran away when it appeared to be in danger of losing the pte
-referenced bit of precisely the most intensively referenced pages.
-
-Ying's point (about what the pte referenced bit is being used for in our
-current implementation) is interesting, and might have tipped the balance;
-but that's not clear to me - and the flush is only done when mm is on CPU.
-
->=20
-> I had a vague memory of this problem biting someone when this flush wasn'=
-t
-> actually done properly... maybe powerpc.
->=20
-> But anyway, same solution could be possible, by flushing every N pages sc=
-anned.
-
-Yes, batching seems safer.
-
-Hugh
---380388936-1837877089-1288206844=:5039--
+Hmmm... Kernel oops? Or a segfault because of an invalid reference by your
+app?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
