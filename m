@@ -1,82 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4781E6B0093
-	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 14:22:46 -0400 (EDT)
-Received: by wwj40 with SMTP id 40so991704wwj.26
-        for <linux-mm@kvack.org>; Wed, 27 Oct 2010 11:22:43 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4CC869F5.2070405@redhat.com>
-References: <1288200090-23554-1-git-send-email-yinghan@google.com>
-	<4CC869F5.2070405@redhat.com>
-Date: Wed, 27 Oct 2010 12:22:43 -0600
-Message-ID: <AANLkTikL+v6uzkXg-7J2FGVz-7kc0Myw_cO5s_wYfHHm@mail.gmail.com>
-Subject: Re: [PATCH] mm: don't flush TLB when propagate PTE access bit to
- struct page.
-From: Nick Piggin <npiggin@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with SMTP id 37A2C6B0096
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 14:35:51 -0400 (EDT)
+Subject: [PATCH] parisc: fix compile failure with kmap_atomic changes
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 27 Oct 2010 13:35:47 -0500
+Message-ID: <1288204547.6886.23.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Ying Han <yinghan@google.com>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Parisc List <linux-parisc@vger.kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 27, 2010 at 12:05 PM, Rik van Riel <riel@redhat.com> wrote:
-> On 10/27/2010 01:21 PM, Ying Han wrote:
->>
->> kswapd's use case of hardware PTE accessed bit is to approximate page LR=
-U.
->> =A0The
->> ActiveLRU demotion to InactiveLRU are not base on accessed bit, while it
->> is only
->> used to promote when a page is on inactive LRU list. =A0All of the state
->> transitions
->> are triggered by memory pressure and thus has weak relationship with
->> respect to
->> time. =A0In addition, hardware already transparently flush tlb whenever =
-CPU
->> context
->> switch processes and given limited hardware TLB resource, the time perio=
-d
->> in
->> which a page is accessed but not yet propagated to struct page is very
->> small
->> in practice. With the nature of approximation, kernel really don't need =
-to
->> flush TLB
->> for changing PTE's access bit. =A0This commit removes the flush operatio=
-n
->> from it.
->>
->> Signed-off-by: Ying Han<yinghan@google.com>
->> Singed-off-by: Ken Chen<kenchen@google.com>
->
-> The reasoning behind the patch makes sense.
->
-> However, have you measured any improvements in run time with
-> this patch? =A0The VM is already tweaked to minimize the number
-> of pages that get aged, so it would be interesting to know
-> where you saw issues.
+This commit:
 
-Firstly, not all CPUs do flush the TLB on VM switch, and secondly, it
-would be theoretically possible to spin and never be able to flush free
-pages even if none are ever being touched.
+commit 3e4d3af501cccdc8a8cca41bdbe57d54ad7e7e73
+Author: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date:   Tue Oct 26 14:21:51 2010 -0700
 
-It doesn't have to be an absurdly tiny machine, either. You could cover
-a good few megs with TLBs (and a small embedded system could easily
-have less than that of mapped memory on its LRU).
+    mm: stack based kmap_atomic()
 
-I agree the theory is fine because if the CPU thinks it is worth to keep a
-TLB entry around, then it probably knows better than our stupid LRU :)
-And TLB flushing can get nasty when we start swapping a lot with
-threaded apps.
+overlooked the fact that parisc uses kmap as a coherence mechanism, so
+even though we have no highmem, we do need to supply our own versions of
+kmap (and atomic).  This patch converts the parisc kmap to the form
+which is needed to keep it compiling (it's a simple prototype and name
+change).
 
-However, to handle corner cases it should either:
+Signed-off-by: James Bottomley <James.Bottomley@suse.de>
 
-flush all TLBs once per *something* [eg. every scan priority level above N,
-or every N pages scanned, etc]
+---
 
-start doing the flush versions of the ptep manipulation when memory
-pressure is getting high.
+diff --git a/arch/parisc/include/asm/cacheflush.h b/arch/parisc/include/asm/cacheflush.h
+index dba11ae..f388a85 100644
+--- a/arch/parisc/include/asm/cacheflush.h
++++ b/arch/parisc/include/asm/cacheflush.h
+@@ -126,20 +126,20 @@ static inline void *kmap(struct page *page)
+ 
+ #define kunmap(page)			kunmap_parisc(page_address(page))
+ 
+-static inline void *kmap_atomic(struct page *page, enum km_type idx)
++static inline void *__kmap_atomic(struct page *page)
+ {
+ 	pagefault_disable();
+ 	return page_address(page);
+ }
+ 
+-static inline void kunmap_atomic_notypecheck(void *addr, enum km_type idx)
++static inline void __kunmap_atomic(void *addr)
+ {
+ 	kunmap_parisc(addr);
+ 	pagefault_enable();
+ }
+ 
+-#define kmap_atomic_prot(page, idx, prot)	kmap_atomic(page, idx)
+-#define kmap_atomic_pfn(pfn, idx)	kmap_atomic(pfn_to_page(pfn), (idx))
++#define kmap_atomic_prot(page, prot)	kmap_atomic(page)
++#define kmap_atomic_pfn(pfn)	kmap_atomic(pfn_to_page(pfn))
+ #define kmap_atomic_to_page(ptr)	virt_to_page(ptr)
+ #endif
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
