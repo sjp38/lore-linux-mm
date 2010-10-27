@@ -1,100 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E8E56B0071
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 23:45:16 -0400 (EDT)
-Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
-	by smtp-out.google.com with ESMTP id o9R3jCeT015075
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 20:45:12 -0700
-Received: from yxe1 (yxe1.prod.google.com [10.190.2.1])
-	by hpaq3.eem.corp.google.com with ESMTP id o9R3ie8I019798
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 20:45:10 -0700
-Received: by yxe1 with SMTP id 1so164348yxe.15
-        for <linux-mm@kvack.org>; Tue, 26 Oct 2010 20:45:10 -0700 (PDT)
-Date: Tue, 26 Oct 2010 20:44:59 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: TMPFS Maximum File Size
-In-Reply-To: <AANLkTim=6Oan-CSnGMD1CTsd5iGRr98X44TAcirQt7Q_@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1010262015520.6207@sister.anvils>
-References: <AANLkTikn_44WcCBmWUW=8E3q3=cznZNx=dHdOcgZSKgH@mail.gmail.com> <AANLkTin32b4SaC0PTJpX8Pg4anQ3aSMUZFe0QFbt9y36@mail.gmail.com> <AANLkTim=6Oan-CSnGMD1CTsd5iGRr98X44TAcirQt7Q_@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 435C26B0071
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2010 23:55:51 -0400 (EDT)
+Date: Tue, 26 Oct 2010 23:55:44 -0400 (EDT)
+From: caiqian@redhat.com
+Message-ID: <980303336.519221288151744899.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <314680146.519081288151589117.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Subject: inode scaling series broke zram
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Tharindu Rukshan Bamunuarachchi <btharindu@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
+Cc: npiggin <npiggin@kernel.dk>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Oct 2010, Tharindu Rukshan Bamunuarachchi wrote:
+After applied the inode scaling series (http://lkml.org/lkml/2010/10/19/15) on top of linus's tree, "modprobe zram" threw those warnings,
 
-> Dear Hugh/Christoph/All,
-> 
-> After investigating further into issue I experienced abnormal memory
-> allocation behavior.
-> I do not know whether this is the expected behavior or due to misconfiguration.
-> 
-> I have two node NUMA system and 100G TMPFS mount.
-> 
-> 1. When "dd" running freely (without CPU affinity) all memory pages
-> were allocated from NODE 0 and then from NODE 1.
-> 
-> 2. When "dd" running bound (using taskset) to CPU core in NODE 1 ....
->     All memory pages were allocated from NODE 1.
->     BUT machine stopped responding after exhausting NODE 1.
->     No memory pages were allocated from NODE 0.
-> 
-> Do you have any comment / suggestions to try out ?
-> Why "dd" cannot allocate memory from NODE 0 when it is running bound
-> to NODE 1 CPU core ?
+zram: module is from the staging directory, the quality is unknown, you have been warned.
+zram: num_devices not specified. Using default: 1
+zram: Creating 1 devices ...
+------------[ cut here ]------------
+WARNING: at lib/list_debug.c:26 __list_add+0x6d/0xa0()
+Hardware name: KVM
+list_add corruption. next->prev should be prev (ffffffff81a636a0), but was (null). (next=ffff88020a5c1950).
+Modules linked in: zram(C+) veth snd_seq_dummy tun autofs4 sunrpc ipt_REJECT nf_conntrack_ipv4 nf_defrag_ipv4 iptable_filter ip_tables ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 xt_state nf_conntrack ip6table_filter ip6_tables ipv6 dm_mirror dm_region_hash dm_log virtio_balloon pcspkr snd_intel8x0 snd_ac97_codec ac97_bus snd_seq snd_seq_device snd_pcm snd_timer snd soundcore snd_page_alloc 8139too 8139cp mii i2c_piix4 i2c_core sg ext4 mbcache jbd2 floppy virtio_blk sd_mod crc_t10dif virtio_pci virtio_ring virtio pata_acpi ata_generic ata_piix dm_mod [last unloaded: speedstep_lib]
+Pid: 10267, comm: modprobe Tainted: G        WC  2.6.36vfs+ #2
+Call Trace:
+ [<ffffffff81060eef>] warn_slowpath_common+0x7f/0xc0
+ [<ffffffff81060fe6>] warn_slowpath_fmt+0x46/0x50
+ [<ffffffff812300cd>] __list_add+0x6d/0xa0
+ [<ffffffffa0067000>] ? zram_init+0x0/0x27e [zram]
+ [<ffffffff81234256>] __percpu_counter_init+0x56/0x70
+ [<ffffffff8111439a>] bdi_init+0x10a/0x190
+ [<ffffffffa0067000>] ? zram_init+0x0/0x27e [zram]
+ [<ffffffff81207629>] blk_alloc_queue_node+0x79/0x190
+ [<ffffffff81207753>] blk_alloc_queue+0x13/0x20
+ [<ffffffffa00670f2>] zram_init+0xf2/0x27e [zram]
+ [<ffffffff81002053>] do_one_initcall+0x43/0x190
+ [<ffffffff8109e6fb>] sys_init_module+0xbb/0x200
+ [<ffffffff8100b0b2>] system_call_fastpath+0x16/0x1b
+---[ end trace 84534d674448c5db ]---
+zram: Invalid ioctl 21297
 
-Please take a look at Documentation/filesystems/tmpfs.txt in the
-kernel source tree, the section "tmpfs has a mount option to set
-the NUMA memory allocation policy" explaining mpol=
-
-I hope that mounting the tmpfs with mpol=interleave, or mpol=local,
-will give you the behaviour you want; but perhaps not, since I notice
-it does say that the policy applied will be modified by calling task's
-cpuset constraints, and it sounds like your dd is constrained to use
-memory only from its node.  Documentation/cgroups/cpusets.txt may be
-needed too.
-
-
-(I am not the right person to advise on managing NUMA and cpusets!)
-
-> 
-> This is the back trace of core generated from our application process.
-> 
-> Core was generated by `DataWareHouseEngine Surv:1:1:DataWareHouseEngine:1'.
-> Program terminated with signal 11, Segmentation fault.
-> #0  0x00007fd924b0cf7c in write () from /lib64/libc.so.6
-
-Nor do I understand why you should be getting a SIGSEGV in libc's write(),
-sorry.
-
-> (gdb) bt
-> #0  0x00007fd924b0cf7c in write () from /lib64/libc.so.6
-> #1  0x000000000053ed02 in NBasicFile::Write (this=0x7fd9100030c8,
-> pBuf=0x7fd91c0ce050, iBufLen=29)
->     at /home/surv_3/0/src/app/SURV/libs/SurvNoraLite/29/NBasicFile.cpp:420
-> #2  0x00000000005454d4 in NIndex::GenarateHeader (this=0x7fd9100030c0,
-> rErr=@0x7fd91c8ccdd0)
->     at /home/surv_3/0/src/app/SURV/libs/SurvNoraLite/29/NIndex.cpp:2350
-> #3  0x0000000000545a13 in NIndex::Sync (this=0x7fd9100030c0,
-> oNHandle=26832031833, rErr=@0x7fd91c8ccdd0)
->     at /home/surv_3/0/src/app/SURV/libs/SurvNoraLite/29/NIndex.cpp:2440
-> #4  0x0000000000486538 in MIndex::Sync (this=0x7fd9100027b0,
-> roNHandleTableEnd=@0x2697f470) at
-> /home/surv_3/0/src/app/SURV/libs/SSDWI/67/MIndex.C:1562
-> #5  0x0000000000483ebf in MDataStore::Fix (this=0x2697f0e8) at
-> /home/surv_3/0/src/app/SURV/libs/SSDWI/67/MDataStore.C:762
-> #6  0x000000000047971b in SSPage::Connect (this=0x7fd90c01c320,
-> iPage=0, bIsRecover=true) at
-> /home/surv_3/0/src/app/SURV/libs/SSDWI/67/SSPage.cpp:1548
-> #7  0x000000000046a911 in DWHEWriter::Init (this=0x9640f0) at
-> /home/surv_3/0/src/app/SURV/components/DataWareHouseEngine/62/DWHEWriter.C:170
-> #8  0x000000000046ae8a in DWHEWriter::Run (pPT=0x9640f0) at
-> /home/surv_3/0/src/app/SURV/components/DataWareHouseEngine/62/DWHEWriter.C:97
-> #9  0x00007fd924832070 in start_thread () from /lib64/libpthread.so.0
-> #10 0x00007fd924b1a10d in clone () from /lib64/libc.so.6
-> #11 0x0000000000000000 in ?? ()
+CAI Qian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
