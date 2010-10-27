@@ -1,199 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A2B5B6B0071
-	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 12:42:14 -0400 (EDT)
-Date: Wed, 27 Oct 2010 18:41:38 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 4/7] vmscan: narrowing synchrounous lumply reclaim
- condition
-Message-ID: <20101027164138.GD29304@random.random>
-References: <20100805150624.31B7.A69D9226@jp.fujitsu.com>
- <20100805151341.31C3.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100805151341.31C3.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AC8BF6B0071
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 13:16:49 -0400 (EDT)
+From: Ying Han <yinghan@google.com>
+Subject: [PATCH] Fix ext2 and ext4 buffer-head accounting.
+Date: Wed, 27 Oct 2010 10:16:37 -0700
+Message-Id: <1288199797-22541-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>
+To: linux-mm@kvack.org
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@lst.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Paul Turner <pjt@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Pages pinned to block group_descriptors in the super_block are non-reclaimable.
+Those pages are showed up as file-backed in meminfo which confuse user program
+issuing too many drop_caches/ttfp when this memory will never be freed.
 
-On Thu, Aug 05, 2010 at 03:14:13PM +0900, KOSAKI Motohiro wrote:
-> @@ -265,6 +271,36 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
->  	return ret;
->  }
->  
-> +static void set_lumpy_reclaim_mode(int priority, struct scan_control *sc,
-> +				   bool sync)
-> +{
-> +	enum lumpy_mode mode = sync ? LUMPY_MODE_SYNC : LUMPY_MODE_ASYNC;
-> +
-> +	/*
-> +	 * Some reclaim have alredy been failed. No worth to try synchronous
-> +	 * lumpy reclaim.
-> +	 */
-> +	if (sync && sc->lumpy_reclaim_mode == LUMPY_MODE_NONE)
-> +		return;
-> +
-> +	/*
-> +	 * If we need a large contiguous chunk of memory, or have
-> +	 * trouble getting a small set of contiguous pages, we
-> +	 * will reclaim both active and inactive pages.
-> +	 */
-> +	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
-> +		sc->lumpy_reclaim_mode = mode;
-> +	else if (sc->order && priority < DEF_PRIORITY - 2)
-> +		sc->lumpy_reclaim_mode = mode;
-> +	else
-> +		sc->lumpy_reclaim_mode = LUMPY_MODE_NONE;
-> +}
-> +
-> +static void disable_lumpy_reclaim_mode(struct scan_control *sc)
-> +{
-> +	sc->lumpy_reclaim_mode = LUMPY_MODE_NONE;
-> +}
-> +
->  static inline int is_page_cache_freeable(struct page *page)
->  {
->  	/*
-> @@ -275,7 +311,8 @@ static inline int is_page_cache_freeable(struct page *page)
->  	return page_count(page) - page_has_private(page) == 2;
->  }
->  
-> -static int may_write_to_queue(struct backing_dev_info *bdi)
-> +static int may_write_to_queue(struct backing_dev_info *bdi,
-> +			      struct scan_control *sc)
->  {
->  	if (current->flags & PF_SWAPWRITE)
->  		return 1;
-> @@ -283,6 +320,10 @@ static int may_write_to_queue(struct backing_dev_info *bdi)
->  		return 1;
->  	if (bdi == current->backing_dev_info)
->  		return 1;
-> +
-> +	/* lumpy reclaim for hugepage often need a lot of write */
-> +	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
-> +		return 1;
->  	return 0;
->  }
->  
-> @@ -307,12 +348,6 @@ static void handle_write_error(struct address_space *mapping,
->  	unlock_page(page);
->  }
->  
-> -/* Request for sync pageout. */
-> -enum pageout_io {
-> -	PAGEOUT_IO_ASYNC,
-> -	PAGEOUT_IO_SYNC,
-> -};
-> -
->  /* possible outcome of pageout() */
->  typedef enum {
->  	/* failed to write page out, page is locked */
-> @@ -330,7 +365,7 @@ typedef enum {
->   * Calls ->writepage().
->   */
->  static pageout_t pageout(struct page *page, struct address_space *mapping,
-> -						enum pageout_io sync_writeback)
-> +			 struct scan_control *sc)
->  {
->  	/*
->  	 * If the page is dirty, only perform writeback if that write
-> @@ -366,8 +401,10 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
->  	}
->  	if (mapping->a_ops->writepage == NULL)
->  		return PAGE_ACTIVATE;
-> -	if (!may_write_to_queue(mapping->backing_dev_info))
-> +	if (!may_write_to_queue(mapping->backing_dev_info, sc)) {
-> +		disable_lumpy_reclaim_mode(sc);
->  		return PAGE_KEEP;
-> +	}
->  
->  	if (clear_page_dirty_for_io(page)) {
->  		int res;
-> @@ -394,7 +431,8 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
->  		 * direct reclaiming a large contiguous area and the
->  		 * first attempt to free a range of pages fails.
->  		 */
-> -		if (PageWriteback(page) && sync_writeback == PAGEOUT_IO_SYNC)
-> +		if (PageWriteback(page) &&
-> +		    sc->lumpy_reclaim_mode == LUMPY_MODE_SYNC)
->  			wait_on_page_writeback(page);
->  
->  		if (!PageWriteback(page)) {
-> @@ -402,7 +440,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
->  			ClearPageReclaim(page);
->  		}
->  		trace_mm_vmscan_writepage(page,
-> -			sync_writeback == PAGEOUT_IO_SYNC);
-> +				sc->lumpy_reclaim_mode == LUMPY_MODE_SYNC);
->  		inc_zone_page_state(page, NR_VMSCAN_WRITE);
->  		return PAGE_SUCCESS;
->  	}
-> @@ -580,7 +618,7 @@ static enum page_references page_check_references(struct page *page,
->  	referenced_page = TestClearPageReferenced(page);
->  
->  	/* Lumpy reclaim - ignore references */
-> -	if (sc->lumpy_reclaim_mode)
-> +	if (sc->lumpy_reclaim_mode != LUMPY_MODE_NONE)
->  		return PAGEREF_RECLAIM;
->  
->  	/*
-> @@ -644,8 +682,7 @@ static noinline_for_stack void free_page_list(struct list_head *free_pages)
->   * shrink_page_list() returns the number of reclaimed pages
->   */
->  static unsigned long shrink_page_list(struct list_head *page_list,
-> -					struct scan_control *sc,
-> -					enum pageout_io sync_writeback)
-> +				      struct scan_control *sc)
->  {
->  	LIST_HEAD(ret_pages);
->  	LIST_HEAD(free_pages);
-> @@ -665,7 +702,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		page = lru_to_page(page_list);
->  		list_del(&page->lru);
->  
-> -		if (sync_writeback == PAGEOUT_IO_SYNC)
-> +		if (sc->lumpy_reclaim_mode == LUMPY_MODE_SYNC)
->  			lock_page(page);
->  		else if (!trylock_page(page))
->  			goto keep;
-> @@ -696,10 +733,13 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			 * for any page for which writeback has already
->  			 * started.
->  			 */
-> -			if (sync_writeback == PAGEOUT_IO_SYNC && may_enter_fs)
-> +			if (sc->lumpy_reclaim_mode == LUMPY_MODE_SYNC &&
-> +			    may_enter_fs)
->  				wait_on_page_writeback(page);
-> -			else
-> -				goto keep_locked;
-> +			else {
-> +				unlock_page(page);
-> +				goto keep_lumpy;
-> +			}
->  		}
->  
->  		references = page_check_references(page, sc);
+The change has us not account for the file system descriptors by taking the pages
+off LRU and decrementing the NR_FILE_PAGES counter. The pages are putting back when
+the filesystem is being unmounted.
 
-[...]
+Signed-off-by: Ying Han <yinghan@google.com>
+Signed-off-by: Paul Turner <pjt@google.com>
+---
+ fs/buffer.c                 |   44 +++++++++++++++++++++++++++++++++++++++++++
+ fs/ext2/super.c             |   15 +++++++++++++-
+ fs/ext4/super.c             |   12 ++++++++++-
+ include/linux/buffer_head.h |    5 ++++
+ 4 files changed, 74 insertions(+), 2 deletions(-)
 
-this rejects on THP code, lumpy is unusable with hugepages, it grinds
-the system to an halt, and there's no reason to let it survive. Lumpy
-is like compaction done with an hammer while blindfolded.
-
-I don't know why community insists on improving lumpy when it has to
-be removed completely, especially now that we have memory compaction.
-
-I'll keep deleting on my tree...
-
-I hope lumpy work stops here and that it goes away whenever THP is
-merged.
-
-Thanks,
-Andrea
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 3e7dca2..677d5f1 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -22,6 +22,8 @@
+ #include <linux/syscalls.h>
+ #include <linux/fs.h>
+ #include <linux/mm.h>
++#include <linux/memcontrol.h>
++#include <linux/mm_inline.h>
+ #include <linux/percpu.h>
+ #include <linux/slab.h>
+ #include <linux/capability.h>
+@@ -3314,6 +3316,48 @@ int bh_submit_read(struct buffer_head *bh)
+ }
+ EXPORT_SYMBOL(bh_submit_read);
+ 
++void bh_disable_accounting(struct buffer_head *bh)
++{
++	struct page *page = bh->b_page;
++	struct zone *zone = page_zone(page);
++	unsigned long flags;
++
++	if (buffer_unaccounted(bh))
++		return;
++
++	spin_lock_irqsave(&zone->lru_lock, flags);
++	/* If someone else is holding it off-LRU we can't safely do anything */
++	if (PageLRU(page)) {
++		BUG_ON(buffer_unaccounted(bh));
++		ClearPageLRU(page);
++		del_page_from_lru(zone, page);
++		__dec_zone_state(zone, NR_FILE_PAGES);
++		set_buffer_unaccounted(bh);
++	}
++	spin_unlock_irqrestore(&zone->lru_lock, flags);
++}
++EXPORT_SYMBOL(bh_disable_accounting);
++
++void bh_enable_accounting(struct buffer_head *bh)
++{
++	struct page *page = bh->b_page;
++	struct zone *zone = page_zone(page);
++	unsigned long flags;
++
++	if (!buffer_unaccounted(bh))
++		return;
++
++	spin_lock_irqsave(&zone->lru_lock, flags);
++	if (buffer_unaccounted(bh)) {
++		SetPageLRU(page);
++		add_page_to_lru_list(zone, page, LRU_INACTIVE_FILE);
++		__inc_zone_state(zone, NR_FILE_PAGES);
++		clear_buffer_unaccounted(bh);
++	}
++	spin_unlock_irqrestore(&zone->lru_lock, flags);
++}
++EXPORT_SYMBOL(bh_enable_accounting);
++
+ void __init buffer_init(void)
+ {
+ 	int nrpages;
+diff --git a/fs/ext2/super.c b/fs/ext2/super.c
+index 1ec6026..a4d21ce 100644
+--- a/fs/ext2/super.c
++++ b/fs/ext2/super.c
+@@ -29,6 +29,7 @@
+ #include <linux/vfs.h>
+ #include <linux/seq_file.h>
+ #include <linux/mount.h>
++#include <linux/swap.h>
+ #include <linux/log2.h>
+ #include <linux/quotaops.h>
+ #include <asm/uaccess.h>
+@@ -135,13 +136,16 @@ static void ext2_put_super (struct super_block * sb)
+ 	}
+ 	db_count = sbi->s_gdb_count;
+ 	for (i = 0; i < db_count; i++)
+-		if (sbi->s_group_desc[i])
++		if (sbi->s_group_desc[i]) {
++			bh_enable_accounting(sbi->s_group_desc[i]);
+ 			brelse (sbi->s_group_desc[i]);
++		}
+ 	kfree(sbi->s_group_desc);
+ 	kfree(sbi->s_debts);
+ 	percpu_counter_destroy(&sbi->s_freeblocks_counter);
+ 	percpu_counter_destroy(&sbi->s_freeinodes_counter);
+ 	percpu_counter_destroy(&sbi->s_dirs_counter);
++	bh_enable_accounting(sbi->s_sbh);
+ 	brelse (sbi->s_sbh);
+ 	sb->s_fs_info = NULL;
+ 	kfree(sbi->s_blockgroup_lock);
+@@ -1080,9 +1084,18 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
+ 	if (EXT2_HAS_COMPAT_FEATURE(sb, EXT3_FEATURE_COMPAT_HAS_JOURNAL))
+ 		ext2_msg(sb, KERN_WARNING,
+ 			"warning: mounting ext3 filesystem as ext2");
++
+ 	if (ext2_setup_super (sb, es, sb->s_flags & MS_RDONLY))
+ 		sb->s_flags |= MS_RDONLY;
+ 	ext2_write_super(sb);
++
++	/* disable accounting of pinned file pages */
++	lru_add_drain_all();
++	db_count = sbi->s_gdb_count;
++	for (i = 0; i < db_count; i++)
++		bh_disable_accounting(sbi->s_group_desc[i]);
++	bh_disable_accounting(sbi->s_sbh);
++
+ 	return 0;
+ 
+ cantfind_ext2:
+diff --git a/fs/ext4/super.c b/fs/ext4/super.c
+index 2614774..5203476 100644
+--- a/fs/ext4/super.c
++++ b/fs/ext4/super.c
+@@ -32,6 +32,7 @@
+ #include <linux/vfs.h>
+ #include <linux/random.h>
+ #include <linux/mount.h>
++#include <linux/swap.h>
+ #include <linux/namei.h>
+ #include <linux/quotaops.h>
+ #include <linux/seq_file.h>
+@@ -734,8 +735,10 @@ static void ext4_put_super(struct super_block *sb)
+ 	}
+ 	kobject_del(&sbi->s_kobj);
+ 
+-	for (i = 0; i < sbi->s_gdb_count; i++)
++	for (i = 0; i < sbi->s_gdb_count; i++) {
++		bh_enable_accounting(sbi->s_group_desc[i]);
+ 		brelse(sbi->s_group_desc[i]);
++	}
+ 	kfree(sbi->s_group_desc);
+ 	if (is_vmalloc_addr(sbi->s_flex_groups))
+ 		vfree(sbi->s_flex_groups);
+@@ -745,6 +748,7 @@ static void ext4_put_super(struct super_block *sb)
+ 	percpu_counter_destroy(&sbi->s_freeinodes_counter);
+ 	percpu_counter_destroy(&sbi->s_dirs_counter);
+ 	percpu_counter_destroy(&sbi->s_dirtyblocks_counter);
++	bh_enable_accounting(sbi->s_sbh);
+ 	brelse(sbi->s_sbh);
+ #ifdef CONFIG_QUOTA
+ 	for (i = 0; i < MAXQUOTAS; i++)
+@@ -3129,6 +3133,12 @@ no_journal:
+ 		goto failed_mount4;
+ 	}
+ 
++	/* disable accounting of pinned file pages */
++	lru_add_drain_all();
++	for (i = 0; i < db_count; i++)
++		bh_disable_accounting(sbi->s_group_desc[i]);
++	bh_disable_accounting(sbi->s_sbh);
++
+ 	sbi->s_kobj.kset = ext4_kset;
+ 	init_completion(&sbi->s_kobj_unregister);
+ 	err = kobject_init_and_add(&sbi->s_kobj, &ext4_ktype, NULL,
+diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
+index ec94c12..7d48499 100644
+--- a/include/linux/buffer_head.h
++++ b/include/linux/buffer_head.h
+@@ -34,6 +34,7 @@ enum bh_state_bits {
+ 	BH_Write_EIO,	/* I/O error on write */
+ 	BH_Eopnotsupp,	/* operation not supported (barrier) */
+ 	BH_Unwritten,	/* Buffer is allocated on disk but not written */
++	BH_Unaccounted, /* Backing page has been removed from accounting */
+ 	BH_Quiet,	/* Buffer Error Prinks to be quiet */
+ 
+ 	BH_PrivateStart,/* not a state bit, but the first bit available
+@@ -126,6 +127,7 @@ BUFFER_FNS(Boundary, boundary)
+ BUFFER_FNS(Write_EIO, write_io_error)
+ BUFFER_FNS(Eopnotsupp, eopnotsupp)
+ BUFFER_FNS(Unwritten, unwritten)
++BUFFER_FNS(Unaccounted, unaccounted)
+ 
+ #define bh_offset(bh)		((unsigned long)(bh)->b_data & ~PAGE_MASK)
+ #define touch_buffer(bh)	mark_page_accessed(bh->b_page)
+@@ -234,6 +236,9 @@ int nobh_truncate_page(struct address_space *, loff_t, get_block_t *);
+ int nobh_writepage(struct page *page, get_block_t *get_block,
+                         struct writeback_control *wbc);
+ 
++void bh_disable_accounting(struct buffer_head *bh);
++void bh_enable_accounting(struct buffer_head *bh);
++
+ void buffer_init(void);
+ 
+ /*
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
