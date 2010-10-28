@@ -1,41 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C93396B0095
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 08:12:53 -0400 (EDT)
-Date: Thu, 28 Oct 2010 08:12:40 -0400
-From: William Thompson <wt@electro-mechanical.com>
-Subject: Re: OOM help
-Message-ID: <20101028121240.GA14603@electro-mechanical.com>
-References: <20100915120349.GH29041@electro-mechanical.com> <20100916164231.3BC3.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7BD528D0011
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 08:18:07 -0400 (EDT)
+Received: by iwn38 with SMTP id 38so1291099iwn.14
+        for <linux-mm@kvack.org>; Thu, 28 Oct 2010 05:18:05 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100916164231.3BC3.A69D9226@jp.fujitsu.com>
+In-Reply-To: <AANLkTikx4zZwMLiAUrGKcH6yoo_PGgRA7nT9BzYMxQ89@mail.gmail.com>
+References: <AANLkTimt7wzR9RwGWbvhiOmot_zzayfCfSh_-v6yvuAP@mail.gmail.com>
+	<AANLkTikRKVBzO=ruy=JDmBF28NiUdJmAqb4-1VhK0QBX@mail.gmail.com>
+	<AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com>
+	<AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com>
+	<AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com>
+	<20101028090002.GA12446@elte.hu>
+	<AANLkTinoGGLTN2JRwjJtF6Ra5auZVg+VSa=TyrtAkDor@mail.gmail.com>
+	<AANLkTikyYQk1FH7d6jkw2GYHLN8jmghuGZQw=EFVgjuA@mail.gmail.com>
+	<AANLkTikx4zZwMLiAUrGKcH6yoo_PGgRA7nT9BzYMxQ89@mail.gmail.com>
+Date: Thu, 28 Oct 2010 18:18:05 +0600
+Message-ID: <AANLkTi=Yt-vK-=8X8xu0htCQeEieEGfkWMCRYKUeK+PF@mail.gmail.com>
+Subject: Re: 2.6.36 io bring the system to its knees
+From: Aidar Kultayev <the.aidar@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@kernel.dk, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 17, 2010 at 09:39:11AM +0900, KOSAKI Motohiro wrote:
-> Hi William
-> 
-> That said, there are two possibility.
->  1) your kernel (probably drivers) have memory leak
->  2) you are using really lots of GFP_KERNEL memory. and then, you need to switch 64bit kernel
-> 
-> 
-> Can you please try latest kernel and try reproduce? I'm curios two point.
-> 1) If latest doesn't OOM, the leak has been fixed already. 2) If the OOM occur,
-> latest output more detailed information.
-> 
-> But, if you want asap solution, I recommend to try 64bit kernel.
+http://picasaweb.google.com/aidar.eiei/LinuxIo#5533068249408411698
 
-I'm having the problem again.  This time, I'm using 2.6.35.4.  Would
-changing from 1gb kernel/3gb user to 2gb/2gb help?  I don't believe I
-actually use more than 1gb or so of user space memory anyway.
+I will look into latencytop output and will figure out a usage pattern
+that is most annoying with regards to IO.
+Will try to see what leads to that & if possible to make a screenshot
+of what is going on.
+The thing is, I don't think the program that captures the screenshots
+does it in a meaningful way, because at the moment the system is
+brought to its knees, I don't think that this particular program
+(KSnapshot) can get away from being affected. I mean it might take a
+snapshot which is not representative enough.
 
-64-bit would require that I completely reinstall this system which is
-definately not something I want to do.
+
+thanks, Aidar
+
+On Thu, Oct 28, 2010 at 5:48 PM, Pekka Enberg <penberg@kernel.org> wrote:
+> On Thu, Oct 28, 2010 at 2:33 PM, Aidar Kultayev <the.aidar@gmail.com> wrote:
+>> if it wasn't picasa, it would have been something else. I mean if I
+>> kill picasa ( later on it was done indexing new pics anyway ), it
+>> would have been for virtualbox to thrash the io. So, nope, getting rid
+>> of picasa doesn't help either. In general the systems responsiveness
+>> or sluggishness is dominated by those io operations going on - the DD
+>> & CP & probably VBOX issuing whole bunch of its load for IO.
+>
+> Do you still see high latencies in vfs_lseek() and vfs_fsync()? I'm
+> not a VFS expert but looking at your latencytop output, it seems that
+> fsync grabs ->i_mutex which blocks vfs_llseek(), for example. I'm not
+> sure why that causes high latencies though it's a mutex we're holding.
+>
+> On Thu, Oct 28, 2010 at 2:33 PM, Aidar Kultayev <the.aidar@gmail.com> wrote:
+>> Another way I see these delays, is when I leave system overnight, with
+>> ktorrent & juk(stopped) in the background. It takes some time for
+>> WM(kwin) to work out ALT+TAB the very next morning. But this might be
+>> because the WM(kwin & its code) has been swapped out, because of long
+>> period of not using it.
+>
+> Yeah, that's probably paging overhead.
+>
+> P.S. Can you please upload latencytop output somewhere and post an URL
+> to it so other people can also see it?
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
