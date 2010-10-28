@@ -1,72 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C05988D0015
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 09:31:17 -0400 (EDT)
-Date: Thu, 28 Oct 2010 15:30:36 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: 2.6.36 io bring the system to its knees
-Message-ID: <20101028133036.GA30565@elte.hu>
-References: <AANLkTimt7wzR9RwGWbvhiOmot_zzayfCfSh_-v6yvuAP@mail.gmail.com>
- <AANLkTikRKVBzO=ruy=JDmBF28NiUdJmAqb4-1VhK0QBX@mail.gmail.com>
- <AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com>
- <AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com>
- <AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com>
- <20101028090002.GA12446@elte.hu>
- <AANLkTinoGGLTN2JRwjJtF6Ra5auZVg+VSa=TyrtAkDor@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0B0118D0015
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 09:36:14 -0400 (EDT)
+Received: by gxk3 with SMTP id 3so887803gxk.14
+        for <linux-mm@kvack.org>; Thu, 28 Oct 2010 06:36:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTinoGGLTN2JRwjJtF6Ra5auZVg+VSa=TyrtAkDor@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1010271503360.6255@router.home>
+References: <AANLkTikn_44WcCBmWUW=8E3q3=cznZNx=dHdOcgZSKgH@mail.gmail.com>
+ <AANLkTin32b4SaC0PTJpX8Pg4anQ3aSMUZFe0QFbt9y36@mail.gmail.com>
+ <AANLkTim=6Oan-CSnGMD1CTsd5iGRr98X44TAcirQt7Q_@mail.gmail.com> <alpine.DEB.2.00.1010271503360.6255@router.home>
+From: Tharindu Rukshan Bamunuarachchi <btharindu@gmail.com>
+Date: Thu, 28 Oct 2010 19:05:33 +0530
+Message-ID: <AANLkTikX2LkCfEAuJAaWJ5FsWC25mkQi2qLCSe=L=4q1@mail.gmail.com>
+Subject: Re: TMPFS Maximum File Size
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Christoph Lameter <cl@linux.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Dear Hugh/Christoph/All,
 
-* Pekka Enberg <penberg@kernel.org> wrote:
+I have done further testing to isolate the issue & found following.
 
-> * Pekka Enberg <penberg@kernel.org> wrote:
-> >> On Thu, Oct 28, 2010 at 9:09 AM, Aidar Kultayev <the.aidar@gmail.com> wrote:
-> >> > Find attached screenshot ( latencytop_n_powertop.png ) which depicts
-> >> > artifacts where the window manager froze at the time I was trying to
-> >> > see a tab in Konsole where the powertop was running.
-> >>
-> >> You seem to have forgotten to include the attachment.
-> 
-> On Thu, Oct 28, 2010 at 12:00 PM, Ingo Molnar <mingo@elte.hu> wrote:
-> > I got it - it appears it was too large for lkml's ~500K mail size limit.
+1. At the moment .... Issue only occurs with IBM hardware. (x3550/x3650).
+    It did not occur in HP Nehalem or Sun X4600. I have only IBM/HP/Sun box=
+es.
+2. Issue is not visible with vanilla kernel 2.6.32 or 2.6.36.
+
+SLES 11 is running with 2.6.27-45. I think I should turn to IBM/Novell
+for further help.
+I still wonder why this happens only with IBM+SLES 11 kernel ? Same HW
+works with later kernels ?
+
+__
+Tharindu R Bamunuarachchi.
+
+
+
+On Thu, Oct 28, 2010 at 1:38 AM, Christoph Lameter <cl@linux.com> wrote:
+>
+> On Tue, 26 Oct 2010, Tharindu Rukshan Bamunuarachchi wrote:
+>
+> > I have two node NUMA system and 100G TMPFS mount.
 > >
-> > Aidar, mind sending a smaller image?
-> 
-> Looks mostly VFS to me. Aidar, does killing Picasa make things smoother for you? 
-> If so, maybe the VFS scalability patches will help.
-
-Hm, but the VFS scalability patches mostly decrease CPU usage, and does that mostly 
-on many-core systems.
-
-While the bugreport here is rather plain:
-
-> How do I notice slowdowns ? The JuK lags so badly that it can't play any music, 
-> the mouse pointer freezes, kwin effects freeze for few seconds.
+> > 1. When "dd" running freely (without CPU affinity) all memory pages
+> > were allocated from NODE 0 and then from NODE 1.
+> >
+> > 2. When "dd" running bound (using taskset) to CPU core in NODE 1 ....
+> > =C2=A0 =C2=A0 All memory pages were allocated from NODE 1.
+> > =C2=A0 =C2=A0 BUT machine stopped responding after exhausting NODE 1.
+> > =C2=A0 =C2=A0 No memory pages were allocated from NODE 0.
 >
-> How can I make it much worse ? I can try & run disk clean up under XP, that is 
-> running in VBox, with folder compression. On top of it if I start copying big 
-> files in linux ( 700MB avis, etc ), GUI effects freeze, mouse pointer freezes for 
-> few seconds.
+> Hmmm... Strange it should fall back like under #1. Can you tell us where
+> it hung?
 >
-> And this is on 2.6.36 that is supposed to cure these "features". From this 
-> perspective, 2.6.36 is no better than any previous stable kernel I've tried. 
-> Probably as bad with regards to IO issues.
-
-"Many seconds freezes" and slowdowns wont be fixed via the VFS scalability patches 
-i'm afraid.
-
-This has the appearance of some really bad IO or VM latency problem. Unfixed and 
-present in stable kernel versions going from years ago all the way to v2.6.36.
-
-Thanks,
-
-	Ingo
+> > Do you have any comment / suggestions to try out ?
+> > Why "dd" cannot allocate memory from NODE 0 when it is running bound
+> > to NODE 1 CPU core ?
+>
+> Definitely looks like a bug somewhere. TMPFS policies are not correctly
+> falling over to more distant zones?
+>
+> > Core was generated by `DataWareHouseEngine Surv:1:1:DataWareHouseEngine=
+:1'.
+> > Program terminated with signal 11, Segmentation fault.
+> > #0 =C2=A00x00007fd924b0cf7c in write () from /lib64/libc.so.6
+>
+> Hmmm... Kernel oops? Or a segfault because of an invalid reference by you=
+r
+> app?
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
