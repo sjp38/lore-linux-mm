@@ -1,50 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C7A9F6B00CA
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 11:23:22 -0400 (EDT)
-Date: Thu, 28 Oct 2010 17:22:46 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 4/7] vmscan: narrowing synchrounous lumply reclaim
- condition
-Message-ID: <20101028152246.GO29304@random.random>
-References: <20100805150624.31B7.A69D9226@jp.fujitsu.com>
- <20100805151341.31C3.A69D9226@jp.fujitsu.com>
- <20101027164138.GD29304@random.random>
- <201010272231.08978.edt@aei.ca>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B4D456B00DD
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 11:52:23 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o9SFa1SP026971
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 11:36:01 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o9SFqFse191772
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 11:52:15 -0400
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o9SFqExx010334
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 09:52:15 -0600
+Date: Thu, 28 Oct 2010 21:22:07 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [patch] memcg: null dereference on allocation failure
+Message-ID: <20101028155207.GB3769@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20101028111241.GC6062@bicker>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <201010272231.08978.edt@aei.ca>
+In-Reply-To: <20101028111241.GC6062@bicker>
 Sender: owner-linux-mm@kvack.org
-To: Ed Tomlinson <edt@aei.ca>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>
+To: Dan Carpenter <error27@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+* Dan Carpenter <error27@gmail.com> [2010-10-28 13:12:41]:
 
-On Wed, Oct 27, 2010 at 10:31:07PM -0400, Ed Tomlinson wrote:
-> On Wednesday 27 October 2010 12:41:38 Andrea Arcangeli wrote:
-> > I hope lumpy work stops here and that it goes away whenever THP is
-> > merged.
+> The original code had a null dereference if alloc_percpu() failed.
+> This was introduced in 711d3d2c9bc3 "memcg: cpu hotplug aware percpu
+> count updates"
 > 
-> Andrea,
+> Signed-off-by: Dan Carpenter <error27@gmail.com>
 > 
-> I've been running THP here for since May (#25).  Here it does its job as it should.
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 9a99cfa..2efa8ea 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4208,15 +4208,17 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
+> 
+>  	memset(mem, 0, size);
+>  	mem->stat = alloc_percpu(struct mem_cgroup_stat_cpu);
+> -	if (!mem->stat) {
+> -		if (size < PAGE_SIZE)
+> -			kfree(mem);
+> -		else
+> -			vfree(mem);
+> -		mem = NULL;
+> -	}
+> +	if (!mem->stat)
+> +		goto out_free;
+>  	spin_lock_init(&mem->pcp_counter_lock);
+>  	return mem;
+> +
+> +out_free:
+> +	if (size < PAGE_SIZE)
+> +		kfree(mem);
+> +	else
+> +		vfree(mem);
+> +	return NULL;
+>  }
 
-Thanks for the report :).
+Good catch!
+Reviewed-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
 
-> When do you see it as ready for inclusion?
-
-It is already ready for inclusion. I posted it on 24 Oct to Linus but
-got no answer. I guess he's being busy with merging the other stuff
-(including the lumpy improvements that now requires me to remove more
-stuff, but that's not big deal, but I'll have to audit everything and
-separate the good from the bad and identify any real fix from the
-lumpy stuff that I'll drop, I'll drop also removing the vmstat.h
-lumpy stats, so some userland rebuild may be needed).
-
-As long as sc->lumpy_reclaim_mode is always = LUMPY_MODE_NONE,
-whenever sc->order == 0, I'm not going to let it live in my tree.
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
