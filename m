@@ -1,56 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id CB0326B00B2
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 07:12:53 -0400 (EDT)
-Received: by wyf23 with SMTP id 23so1895004wyf.14
-        for <linux-mm@kvack.org>; Thu, 28 Oct 2010 04:12:51 -0700 (PDT)
-Date: Thu, 28 Oct 2010 13:12:41 +0200
-From: Dan Carpenter <error27@gmail.com>
-Subject: [patch] memcg: null dereference on allocation failure
-Message-ID: <20101028111241.GC6062@bicker>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id F25456B00B3
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 07:16:13 -0400 (EDT)
+Received: by ywl5 with SMTP id 5so581474ywl.14
+        for <linux-mm@kvack.org>; Thu, 28 Oct 2010 04:16:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20101028090002.GA12446@elte.hu>
+References: <AANLkTimt7wzR9RwGWbvhiOmot_zzayfCfSh_-v6yvuAP@mail.gmail.com>
+	<AANLkTikRKVBzO=ruy=JDmBF28NiUdJmAqb4-1VhK0QBX@mail.gmail.com>
+	<AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com>
+	<AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com>
+	<AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com>
+	<20101028090002.GA12446@elte.hu>
+Date: Thu, 28 Oct 2010 14:16:11 +0300
+Message-ID: <AANLkTinoGGLTN2JRwjJtF6Ra5auZVg+VSa=TyrtAkDor@mail.gmail.com>
+Subject: Re: 2.6.36 io bring the system to its knees
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The original code had a null dereference if alloc_percpu() failed.
-This was introduced in 711d3d2c9bc3 "memcg: cpu hotplug aware percpu
-count updates"
+* Pekka Enberg <penberg@kernel.org> wrote:
+>> On Thu, Oct 28, 2010 at 9:09 AM, Aidar Kultayev <the.aidar@gmail.com> wrote:
+>> > Find attached screenshot ( latencytop_n_powertop.png ) which depicts
+>> > artifacts where the window manager froze at the time I was trying to
+>> > see a tab in Konsole where the powertop was running.
+>>
+>> You seem to have forgotten to include the attachment.
 
-Signed-off-by: Dan Carpenter <error27@gmail.com>
+On Thu, Oct 28, 2010 at 12:00 PM, Ingo Molnar <mingo@elte.hu> wrote:
+> I got it - it appears it was too large for lkml's ~500K mail size limit.
+>
+> Aidar, mind sending a smaller image?
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9a99cfa..2efa8ea 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4208,15 +4208,17 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- 
- 	memset(mem, 0, size);
- 	mem->stat = alloc_percpu(struct mem_cgroup_stat_cpu);
--	if (!mem->stat) {
--		if (size < PAGE_SIZE)
--			kfree(mem);
--		else
--			vfree(mem);
--		mem = NULL;
--	}
-+	if (!mem->stat)
-+		goto out_free;
- 	spin_lock_init(&mem->pcp_counter_lock);
- 	return mem;
-+
-+out_free:
-+	if (size < PAGE_SIZE)
-+		kfree(mem);
-+	else
-+		vfree(mem);
-+	return NULL;
- }
- 
- /*
+Looks mostly VFS to me. Aidar, does killing Picasa make things
+smoother for you? If so, maybe the VFS scalability patches will help.
+
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
