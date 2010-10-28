@@ -1,83 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6A2598D0004
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 01:18:10 -0400 (EDT)
-Subject: Re: [PATCH] parisc: fix compile failure with kmap_atomic changes
-Date: Thu, 28 Oct 2010 01:18:06 -0400 (EDT)
-From: "John David Anglin" <dave@hiauly1.hia.nrc.ca>
-In-Reply-To: <1288204547.6886.23.camel@mulgrave.site> from "James Bottomley" at Oct 27, 2010 01:35:47 pm
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E51098D0004
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 01:52:56 -0400 (EDT)
+Received: by wwe15 with SMTP id 15so823339wwe.2
+        for <linux-mm@kvack.org>; Wed, 27 Oct 2010 22:52:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Message-Id: <20101028051807.539484D30@hiauly1.hia.nrc.ca>
+Date: Thu, 28 Oct 2010 13:52:54 +0800
+Message-ID: <AANLkTi=f2AQBMOU4jn=jrYB1Z5rOE9va_eR7KoFSGNPL@mail.gmail.com>
+Subject: [PATCH] mm: add rcu read lock to protect pid structure
+From: Zeng Zhaoming <zengzm.kernel@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-parisc@vger.kernel.org, peterz@infradead.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Signed-off-by: John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+find_task_by_vpid should be protected by rcu_read_lock(),
+to prevent free_pid() reclaiming pid.
 
-Sent effectively the same change to parisc-linux list months ago...
+Signed-off-by: Zeng Zhaoming <zengzm.kernel@gmail.com>
+---
+ mm/mempolicy.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
-> This commit:
-> 
-> commit 3e4d3af501cccdc8a8cca41bdbe57d54ad7e7e73
-> Author: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Date:   Tue Oct 26 14:21:51 2010 -0700
-> 
->     mm: stack based kmap_atomic()
-> 
-> overlooked the fact that parisc uses kmap as a coherence mechanism, so
-> even though we have no highmem, we do need to supply our own versions of
-> kmap (and atomic).  This patch converts the parisc kmap to the form
-> which is needed to keep it compiling (it's a simple prototype and name
-> change).
-> 
-> Signed-off-by: James Bottomley <James.Bottomley@suse.de>
-> 
-> ---
-> 
-> diff --git a/arch/parisc/include/asm/cacheflush.h b/arch/parisc/include/asm/cacheflush.h
-> index dba11ae..f388a85 100644
-> --- a/arch/parisc/include/asm/cacheflush.h
-> +++ b/arch/parisc/include/asm/cacheflush.h
-> @@ -126,20 +126,20 @@ static inline void *kmap(struct page *page)
->  
->  #define kunmap(page)			kunmap_parisc(page_address(page))
->  
-> -static inline void *kmap_atomic(struct page *page, enum km_type idx)
-> +static inline void *__kmap_atomic(struct page *page)
->  {
->  	pagefault_disable();
->  	return page_address(page);
->  }
->  
-> -static inline void kunmap_atomic_notypecheck(void *addr, enum km_type idx)
-> +static inline void __kunmap_atomic(void *addr)
->  {
->  	kunmap_parisc(addr);
->  	pagefault_enable();
->  }
->  
-> -#define kmap_atomic_prot(page, idx, prot)	kmap_atomic(page, idx)
-> -#define kmap_atomic_pfn(pfn, idx)	kmap_atomic(pfn_to_page(pfn), (idx))
-> +#define kmap_atomic_prot(page, prot)	kmap_atomic(page)
-> +#define kmap_atomic_pfn(pfn)	kmap_atomic(pfn_to_page(pfn))
->  #define kmap_atomic_to_page(ptr)	virt_to_page(ptr)
->  #endif
->  
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-parisc" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 81a1276..ceaf0d8 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1307,15 +1307,18 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pid,
+unsigned long, maxnode,
+ 		goto out;
 
+ 	/* Find the mm_struct */
++	rcu_read_lock();
+ 	read_lock(&tasklist_lock);
+ 	task = pid ? find_task_by_vpid(pid) : current;
+ 	if (!task) {
+ 		read_unlock(&tasklist_lock);
++		rcu_read_unlock();
+ 		err = -ESRCH;
+ 		goto out;
+ 	}
+ 	mm = get_task_mm(task);
+ 	read_unlock(&tasklist_lock);
++	rcu_read_unlock();
 
+ 	err = -EINVAL;
+ 	if (!mm)
 -- 
-J. David Anglin                                  dave.anglin@nrc-cnrc.gc.ca
-National Research Council of Canada              (613) 990-0752 (FAX: 952-6602)
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
