@@ -1,153 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CAC046B00C7
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 11:14:05 -0400 (EDT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 2/2] mm: vmstat: Use a single setter function and callback for adjusting percpu thresholds
-Date: Thu, 28 Oct 2010 16:13:36 +0100
-Message-Id: <1288278816-32667-3-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1288278816-32667-1-git-send-email-mel@csn.ul.ie>
-References: <1288278816-32667-1-git-send-email-mel@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id C7A9F6B00CA
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 11:23:22 -0400 (EDT)
+Date: Thu, 28 Oct 2010 17:22:46 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 4/7] vmscan: narrowing synchrounous lumply reclaim
+ condition
+Message-ID: <20101028152246.GO29304@random.random>
+References: <20100805150624.31B7.A69D9226@jp.fujitsu.com>
+ <20100805151341.31C3.A69D9226@jp.fujitsu.com>
+ <20101027164138.GD29304@random.random>
+ <201010272231.08978.edt@aei.ca>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201010272231.08978.edt@aei.ca>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
+To: Ed Tomlinson <edt@aei.ca>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-reduce_pgdat_percpu_threshold() and restore_pgdat_percpu_threshold()
-exist to adjust the per-cpu vmstat thresholds while kswapd is awake to
-avoid errors due to counter drift. The functions duplicate some code so
-this patch replaces them with a single set_pgdat_percpu_threshold() that
-takes a callback function to calculate the desired threshold as a
-parameter.
+Hi,
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Christoph Lameter <cl@linux.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/vmstat.h |   10 ++++++----
- mm/vmscan.c            |    6 ++++--
- mm/vmstat.c            |   32 ++++++--------------------------
- 3 files changed, 16 insertions(+), 32 deletions(-)
+On Wed, Oct 27, 2010 at 10:31:07PM -0400, Ed Tomlinson wrote:
+> On Wednesday 27 October 2010 12:41:38 Andrea Arcangeli wrote:
+> > I hope lumpy work stops here and that it goes away whenever THP is
+> > merged.
+> 
+> Andrea,
+> 
+> I've been running THP here for since May (#25).  Here it does its job as it should.
 
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index e4cc21c..833e676 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -254,8 +254,11 @@ extern void dec_zone_state(struct zone *, enum zone_stat_item);
- extern void __dec_zone_state(struct zone *, enum zone_stat_item);
- 
- void refresh_cpu_vm_stats(int);
--void reduce_pgdat_percpu_threshold(pg_data_t *pgdat);
--void restore_pgdat_percpu_threshold(pg_data_t *pgdat);
-+
-+int calculate_pressure_threshold(struct zone *zone);
-+int calculate_normal_threshold(struct zone *zone);
-+void set_pgdat_percpu_threshold(pg_data_t *pgdat,
-+				int (*calculate_pressure)(struct zone *));
- #else /* CONFIG_SMP */
- 
- /*
-@@ -300,8 +303,7 @@ static inline void __dec_zone_page_state(struct page *page,
- #define dec_zone_page_state __dec_zone_page_state
- #define mod_zone_page_state __mod_zone_page_state
- 
--static inline void reduce_pgdat_percpu_threshold(pg_data_t *pgdat) { }
--static inline void restore_pgdat_percpu_threshold(pg_data_t *pgdat) { }
-+#define set_pgdat_percpu_threshold(pgdat, callback) { }
- 
- static inline void refresh_cpu_vm_stats(int cpu) { }
- #endif
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3e71cb1..7966110 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2378,9 +2378,11 @@ static int kswapd(void *p)
- 				 */
- 				if (!sleeping_prematurely(pgdat, order, remaining)) {
- 					trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
--					restore_pgdat_percpu_threshold(pgdat);
-+					set_pgdat_percpu_threshold(pgdat,
-+						calculate_normal_threshold);
- 					schedule();
--					reduce_pgdat_percpu_threshold(pgdat);
-+					set_pgdat_percpu_threshold(pgdat,
-+						calculate_pressure_threshold);
- 				} else {
- 					if (remaining)
- 						count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 4d7faeb..14cc031 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -81,7 +81,7 @@ EXPORT_SYMBOL(vm_stat);
- 
- #ifdef CONFIG_SMP
- 
--static int calculate_pressure_threshold(struct zone *zone)
-+int calculate_pressure_threshold(struct zone *zone)
- {
- 	int threshold;
- 	int watermark_distance;
-@@ -105,7 +105,7 @@ static int calculate_pressure_threshold(struct zone *zone)
- 	return threshold;
- }
- 
--static int calculate_threshold(struct zone *zone)
-+int calculate_normal_threshold(struct zone *zone)
- {
- 	int threshold;
- 	int mem;	/* memory in 128 MB units */
-@@ -164,7 +164,7 @@ static void refresh_zone_stat_thresholds(void)
- 	for_each_populated_zone(zone) {
- 		unsigned long max_drift, tolerate_drift;
- 
--		threshold = calculate_threshold(zone);
-+		threshold = calculate_normal_threshold(zone);
- 
- 		for_each_online_cpu(cpu)
- 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
-@@ -183,7 +183,8 @@ static void refresh_zone_stat_thresholds(void)
- 	}
- }
- 
--void reduce_pgdat_percpu_threshold(pg_data_t *pgdat)
-+void set_pgdat_percpu_threshold(pg_data_t *pgdat,
-+				int (*calculate_pressure)(struct zone *))
- {
- 	struct zone *zone;
- 	int cpu;
-@@ -196,28 +197,7 @@ void reduce_pgdat_percpu_threshold(pg_data_t *pgdat)
- 		if (!zone->percpu_drift_mark)
- 			continue;
- 
--		threshold = calculate_pressure_threshold(zone);
--		for_each_online_cpu(cpu)
--			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
--							= threshold;
--	}
--	put_online_cpus();
--}
--
--void restore_pgdat_percpu_threshold(pg_data_t *pgdat)
--{
--	struct zone *zone;
--	int cpu;
--	int threshold;
--	int i;
--
--	get_online_cpus();
--	for (i = 0; i < pgdat->nr_zones; i++) {
--		zone = &pgdat->node_zones[i];
--		if (!zone->percpu_drift_mark)
--			continue;
--
--		threshold = calculate_threshold(zone);
-+		threshold = calculate_pressure(zone);
- 		for_each_online_cpu(cpu)
- 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
- 							= threshold;
--- 
-1.7.1
+Thanks for the report :).
+
+> When do you see it as ready for inclusion?
+
+It is already ready for inclusion. I posted it on 24 Oct to Linus but
+got no answer. I guess he's being busy with merging the other stuff
+(including the lumpy improvements that now requires me to remove more
+stuff, but that's not big deal, but I'll have to audit everything and
+separate the good from the bad and identify any real fix from the
+lumpy stuff that I'll drop, I'll drop also removing the vmstat.h
+lumpy stats, so some userland rebuild may be needed).
+
+As long as sc->lumpy_reclaim_mode is always = LUMPY_MODE_NONE,
+whenever sc->order == 0, I'm not going to let it live in my tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
