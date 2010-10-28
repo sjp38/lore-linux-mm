@@ -1,34 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9D2408D0015
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 19:29:30 -0400 (EDT)
-Received: by iwn38 with SMTP id 38so1973981iwn.14
-        for <linux-mm@kvack.org>; Thu, 28 Oct 2010 16:29:29 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTi=VnTkuyYht8D+2MPO1d4mXR1ah-0aQeAjZsTaq@mail.gmail.com>
-References: <20101028191523.GA14972@google.com>
-	<20101028131029.ee0aadc0.akpm@linux-foundation.org>
-	<20101028220331.GZ26494@google.com>
-	<AANLkTi=VnTkuyYht8D+2MPO1d4mXR1ah-0aQeAjZsTaq@mail.gmail.com>
-Date: Fri, 29 Oct 2010 08:29:29 +0900
-Message-ID: <AANLkTi=f5-4rOcf8WwSnM4bwV-xBxQ_G++ZdYj_GL1ii@mail.gmail.com>
-Subject: Re: [PATCH] RFC: vmscan: add min_filelist_kbytes sysctl for
- protecting the working set
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id E0AC08D0015
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 19:44:59 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9SNivcd028302
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 29 Oct 2010 08:44:57 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id DCCA845DE4E
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 08:44:56 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C2ED245DD71
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 08:44:56 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A3DF1DB8015
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 08:44:56 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B7E31DB8012
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 08:44:55 +0900 (JST)
+Date: Fri, 29 Oct 2010 08:39:17 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch] memcg: null dereference on allocation failure
+Message-Id: <20101029083917.610f9b0b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20101028111241.GC6062@bicker>
+References: <20101028111241.GC6062@bicker>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mandeep Singh Baines <msb@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wad@chromium.org, olofj@chromium.org, hughd@chromium.org
+To: Dan Carpenter <error27@gmail.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 29, 2010 at 8:28 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> I think this feature that "System response time doesn't allow but OOM allow".
-I think we _need_ this feature that "System response time doesn't
-allow but OOM allow".
+On Thu, 28 Oct 2010 13:12:41 +0200
+Dan Carpenter <error27@gmail.com> wrote:
 
--- 
-Kind regards,
-Minchan Kim
+> The original code had a null dereference if alloc_percpu() failed.
+> This was introduced in 711d3d2c9bc3 "memcg: cpu hotplug aware percpu
+> count updates"
+> 
+> Signed-off-by: Dan Carpenter <error27@gmail.com>
+
+
+Ah, my fault. Thank you for catching.
+
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
