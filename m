@@ -1,114 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 750E18D000B
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 06:04:16 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9SA4D27014721
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 28 Oct 2010 19:04:13 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B1A46326A88
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 19:04:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1373345DE64
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 19:04:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DEA6F1DB8038
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 19:04:06 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 24765E38004
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 19:04:06 +0900 (JST)
-Date: Thu, 28 Oct 2010 18:58:39 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] mm: page allocator: Adjust the per-cpu counter
- threshold when memory is low
-Message-Id: <20101028185839.4b951bdb.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101028094903.GC4896@csn.ul.ie>
-References: <1288169256-7174-1-git-send-email-mel@csn.ul.ie>
-	<1288169256-7174-2-git-send-email-mel@csn.ul.ie>
-	<20101028100920.5d4ce413.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101028094903.GC4896@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 525038D000B
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 06:21:03 -0400 (EDT)
+Date: Thu, 28 Oct 2010 11:20:48 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 4/7] vmscan: narrowing synchrounous lumply reclaim
+	condition
+Message-ID: <20101028102048.GD4896@csn.ul.ie>
+References: <20100805150624.31B7.A69D9226@jp.fujitsu.com> <20100805151341.31C3.A69D9226@jp.fujitsu.com> <20101027164138.GD29304@random.random> <20101027171643.GA4896@csn.ul.ie> <20101027180333.GE29304@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20101027180333.GE29304@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Oct 2010 10:49:03 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
-
-> On Thu, Oct 28, 2010 at 10:09:20AM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Wed, 27 Oct 2010 09:47:35 +0100
-> > Mel Gorman <mel@csn.ul.ie> wrote:
-> > 
-> > > Commit [aa45484: calculate a better estimate of NR_FREE_PAGES when
-> > > memory is low] noted that watermarks were based on the vmstat
-> > > NR_FREE_PAGES. To avoid synchronization overhead, these counters are
-> > > maintained on a per-cpu basis and drained both periodically and when a
-> > > threshold is above a threshold. On large CPU systems, the difference
-> > > between the estimate and real value of NR_FREE_PAGES can be very high.
-> > > The system can get into a case where pages are allocated far below the
-> > > min watermark potentially causing livelock issues. The commit solved the
-> > > problem by taking a better reading of NR_FREE_PAGES when memory was low.
-> > > 
-> > > <SNIP>
-> > > 
-> > > diff --git a/mm/vmstat.c b/mm/vmstat.c
-> > > index 355a9e6..cafcc2d 100644
-> > > --- a/mm/vmstat.c
-> > > +++ b/mm/vmstat.c
-> > > @@ -81,6 +81,12 @@ EXPORT_SYMBOL(vm_stat);
-> > >  
-> > >  #ifdef CONFIG_SMP
-> > >  
-> > > +static int calculate_pressure_threshold(struct zone *zone)
-> > > +{
-> > > +	return max(1, (int)((high_wmark_pages(zone) - low_wmark_pages(zone) /
-> > > +				num_online_cpus())));
-> > > +}
-> > > +
-> > 
-> > Could you add background theory of this calculation as a comment to
-> > show the difference with calculate_threshold() ?
-> > 
+On Wed, Oct 27, 2010 at 08:03:33PM +0200, Andrea Arcangeli wrote:
+> Hi Mel,
 > 
-> Sure. When writing it, I realised that the calculations here differ from
-> what percpu_drift_mark does. This is what I currently have
+> On Wed, Oct 27, 2010 at 06:16:43PM +0100, Mel Gorman wrote:
+> > The series drastically limits the level of hammering lumpy does to the
+> > system. I'm currently keeping it alive because lumpy reclaim has received a lot
+> > more testing than compaction has. While I ultimately see it going away, I am
+> > resisting it being deleted until compaction has been around for a few releases.
 > 
-> int calculate_pressure_threshold(struct zone *zone)
-> {
->         int threshold;
->         int watermark_distance;
-> 
->         /*
->          * As vmstats are not up to date, there is drift between the estimated
->          * and real values. For high thresholds and a high number of CPUs, it
->          * is possible for the min watermark to be breached while the estimated
->          * value looks fine. The pressure threshold is a reduced value such
->          * that even the maximum amount of drift will not accidentally breach
->          * the min watermark
->          */
->         watermark_distance = low_wmark_pages(zone) - min_wmark_pages(zone);
->         threshold = max(1, watermark_distance / num_online_cpus());
-> 
->         /*
->          * Maximum threshold is 125
->          */
->         threshold = min(125, threshold);
-> 
->         return threshold;
-> }
-> 
-> Is this better?
+> I admit I didn't yet test this modification yet to verify how
+> "drastical" is the drastical change. But "less unusable lumpy" I doubt
+> will translate to "as usable as without lumpy". And I doubt lumpy will
+> ever lead to something "usable" when order 9 allocations are the norm
+> and more frequent than order 0 allocations.
 > 
 
-sounds nice.
+Except in the case that this is what you really want - you want those order-9
+pages even if it means there is a high allocating cost. This applies when
+resizing the static huge page pool to start a very long-lived job for
+example.
 
-Regards,
--Kame
+However, I do agree that lumpy really was bashing the system way too hard
+which led to that series of patches. It still could be a lot lighter but
+it's much better than it was.
 
+
+> > Simply because it has been tested and even with compaction there were cases
+> > envisoned where it would be used - low memory or when compaction is not
+> > configured in for example. The ideal is that compaction is used until lumpy
+> 
+> Compaction should always be configured in.
+
+That is not the same as guaranteed and it's disabled by default. While I'd
+expect distros to enable it, they might not.
+
+> All archs supports
+> migration. Only reason to disable compaction is for debugging
+> purposes, and should go in kernel hacking section. Or alternatively if
+> it's not important that order >0 allocation succeeds (some embedded
+> may be in that lucky situation and they can save some bytecode).
+> 
+> Keeping lumpy in and activated for all high order allocations like
+
+This is not true. We always compact first if it is possible and only if
+that fails do we fall back to direct reclaim leading to lumpy reclaim.
+
+> this, can only _hide_ bugs and inefficiencies in compaction in my view
+> so in addition to damaging the runtime, it fragment userbase and
+> debuggability and I see zero good out of lumpy for all normal
+> allocations.
+> 
+
+As both code paths are hit, I do not see how it fragments the userbase.
+As for debuggability to see if lumpy reclaim is being relied on, one can
+monitor if lumpy reclaim using the mm_vmscan_lru_isolate tracepoint and
+checking the values for the "lumpy" fields or the order field there.
+
+That said, if it was possible, I'd be also watching to see how often
+lumpy reclaim or compaction is being used for small orders because if
+it is a common occurance, there is something else possibly wrong (e.g.
+MIGRATE_RESERVE broken again).
+
+> > is necessary although this applies more to the static resizing of the huge
+> > page pool than THP which I'd expect to backoff without using lumpy reclaim
+> > i.e. fail the allocation rather than using lumpy reclaim.
+> 
+> I agree lumpy is more drastic and aggressive than reclaim and it may
+> be quicker to generate hugepages by throwing its blind hammer, in turn
+> destroying everything else running and hanging the system for a long
+> while.
+
+The point of the series was to be more precise about the hammering and
+reduce the allocation latency while also reducing the number of pages
+reclaimed and the disruption to the system.
+
+> I wouldn't be so against lumpy if it was only activated by a
+> special __GFP_LUMPY flag that only hugetlbfs pool resizing uses.
+> hugetlbfs is the very special case, not all other normal
+> allocations.
+> 
+
+Then by all means try taking it in this direction. I would prefer it over
+deletion. Just be careful on what has to happen when compaction is not
+available or when it fails because there was not enough memory free to both
+allocate the page and satisfy watermarks. Returning "fail" only suits THP. It
+doesn't suit static huge page pool resizing and it doesn't suit users of
+dynamic huge page pool resizing either.
+
+> > Uhhh, I have one more modification in mind when lumpy is involved and
+> > it's to relax the zone watermark slightly to only obey up to
+> > PAGE_ALLOC_COSTLY_ORDER. At the moment, it is freeing more pages than
+> > are necessary to satisfy an allocation request and hits the system
+> > harder than it should. Similar logic should apply to compaction.
+> 
+> On a side note I want to remove the PAGE_ALLOC_COSTLY_ORDER too, that
+> is a flawed concept in the first place.
+
+I didn't say remove. In zone_watermark_ok(), we do not consider any pages of
+the lower orders to be free. Depending on the required watermark level, the
+system can end up freeing multiple order-9 pages for 1 request unnecessarily.
+
+> A VM that behaves radically
+> (radically as in grinding system to an halt and being unusable and
+> creating swap storms) different when the order of allocation raises
+> from 3 to 4 is hackish and fundamentally incompatible with logics that
+> uses frequent order 9 allocations and makes them the default.
+> 
+
+Are order-4 allocations common? If so, that in itself needs to be examined. If
+they are kernel allocations, both compaction and lumpy reclaim are going
+to hit a wall eventually as large numbers of long-lived high-order kernel
+allocations impair anti-fragmentation.
+
+> Basically anybody asking an order 9 during the normal runtime (not
+> some magic sysfs control) has to be ok if it fails and only relay on
+> compaction, or it's in some corner case and as such shall be threated
+> instead of mandating the default VM behavior for >=4 order allocation
+> for everything else.
+> 
+
+And as I've said before, there are users that are happy to wait while those
+order-9 allocations happen because it occurs early in the lifetime of a very
+long-lived process and where rebooting the machine is not an option.
+
+> The PAGE_ALLOC_COSTLY_ORDER was in practice a not stack-local
+> per-process equivalent of what I recommended as the way to trigger
+> lumpy (i.e. __GFP_LUMPY), but it's not a good enough approximation
+> anymore. So the "activation" for
+> blindfolded-hammer-algorithm-creating-swap-storms has to be in
+> function of the caller stack, and not in function of the allocation
+> order. If that change is done, I won't be forced to drop lumpy
+> anymore! But even then I find it hard to justify to keep lumpy alive
+> unless it is proven to be more efficient than compaction. But I could
+> avoid touching the lumpy code at least.
+> 
+
+To make compaction a full replacement for lumpy, reclaim would have to
+know how to reclaim order-9 worth of pages and then compact properly.
+It's not setup for this and a naive algorithm would spend a lot of time
+in the compaction scanning code (which is pretty inefficient). A possible
+alternative would be to lumpy-compact i.e. select a page from the LRU and
+move all pages around it elsewhere. Again, this is not what we are currently
+doing but it's a direction that could be taken.
+
+> My tree uses compaction in a fine way inside kswapd too and tons of
+> systems are running without lumpy and floods of order 9 allocations
+> with only compaction (in direct reclaim and kswapd) without the
+> slighest problem.
+>
+> Furthermore I extended compaction for all
+> allocations not just that PAGE_ALLOC_COSTLY_ORDER (maybe I already
+> removed all PAGE_ALLOC_COSTLY_ORDER checks?). There's no good reason
+> not to use compaction for every allocation including 1,2,3, and things
+> works fine this way.
+> 
+
+I see no problem with using compaction for the lower orders when it is
+available. It was during review that it got disabled because there were
+concerns about how stable migration was as there were a number of bugs being
+ironed out.
+
+> For now, to fixup the reject I think I'll go ahead remove these new
+> lumpy changes, which also guarantees me the most tested configuration
+> that I'm sure works fine without having to test how "less unusable"
+> lumpy has become. If later I'll be asked to retain lumpy in order to
+> merge THP I'll simply add the __GFP_LUMPY and I'll restrict lumpy in
+> the sysfs tweaking corner case.
+> 
+
+Just bear in mind what happens when compaction is not available.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
