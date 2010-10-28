@@ -1,54 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A66D08D0004
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 04:01:05 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9S8122q021023
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 28 Oct 2010 17:01:03 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 76F7645DE4F
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 17:01:02 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4481A45DE52
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 17:01:02 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 228221DB804D
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 17:01:02 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 93761E38001
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 17:00:58 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/7] vmscan: narrowing synchrounous lumply reclaim condition
-In-Reply-To: <20101027180333.GE29304@random.random>
-References: <20101027171643.GA4896@csn.ul.ie> <20101027180333.GE29304@random.random>
-Message-Id: <20101028162522.B0B5.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 939366B00B6
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 05:00:14 -0400 (EDT)
+Date: Thu, 28 Oct 2010 11:00:02 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: 2.6.36 io bring the system to its knees
+Message-ID: <20101028090002.GA12446@elte.hu>
+References: <AANLkTimt7wzR9RwGWbvhiOmot_zzayfCfSh_-v6yvuAP@mail.gmail.com>
+ <AANLkTikRKVBzO=ruy=JDmBF28NiUdJmAqb4-1VhK0QBX@mail.gmail.com>
+ <AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com>
+ <AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com>
+ <AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 28 Oct 2010 17:00:57 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
 
-> My tree uses compaction in a fine way inside kswapd too and tons of
-> systems are running without lumpy and floods of order 9 allocations
-> with only compaction (in direct reclaim and kswapd) without the
-> slighest problem. Furthermore I extended compaction for all
-> allocations not just that PAGE_ALLOC_COSTLY_ORDER (maybe I already
-> removed all PAGE_ALLOC_COSTLY_ORDER checks?). There's no good reason
-> not to use compaction for every allocation including 1,2,3, and things
-> works fine this way.
+* Pekka Enberg <penberg@kernel.org> wrote:
 
-Interesting. I parsed this you have compaction improvement. If so,
-can you please post them? Generically, 1) improve the feature 2) remove
-unused one is safety order. In the other hand, reverse order seems to has
-regression risk.
+> On Thu, Oct 28, 2010 at 9:09 AM, Aidar Kultayev <the.aidar@gmail.com> wrote:
+> > Find attached screenshot ( latencytop_n_powertop.png ) which depicts
+> > artifacts where the window manager froze at the time I was trying to
+> > see a tab in Konsole where the powertop was running.
+> 
+> You seem to have forgotten to include the attachment.
 
+I got it - it appears it was too large for lkml's ~500K mail size limit.
 
+Aidar, mind sending a smaller image?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
