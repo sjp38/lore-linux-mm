@@ -1,34 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9B1498D0015
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 09:49:09 -0400 (EDT)
-Date: Thu, 28 Oct 2010 08:49:05 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: TMPFS Maximum File Size
-In-Reply-To: <AANLkTikX2LkCfEAuJAaWJ5FsWC25mkQi2qLCSe=L=4q1@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1010280848130.25874@router.home>
-References: <AANLkTikn_44WcCBmWUW=8E3q3=cznZNx=dHdOcgZSKgH@mail.gmail.com> <AANLkTin32b4SaC0PTJpX8Pg4anQ3aSMUZFe0QFbt9y36@mail.gmail.com> <AANLkTim=6Oan-CSnGMD1CTsd5iGRr98X44TAcirQt7Q_@mail.gmail.com> <alpine.DEB.2.00.1010271503360.6255@router.home>
- <AANLkTikX2LkCfEAuJAaWJ5FsWC25mkQi2qLCSe=L=4q1@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D1678D0015
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 09:50:52 -0400 (EDT)
+Date: Thu, 28 Oct 2010 15:50:38 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: 2.6.36 io bring the system to its knees
+Message-ID: <20101028135038.GA32157@elte.hu>
+References: <AANLkTimt7wzR9RwGWbvhiOmot_zzayfCfSh_-v6yvuAP@mail.gmail.com>
+ <AANLkTikRKVBzO=ruy=JDmBF28NiUdJmAqb4-1VhK0QBX@mail.gmail.com>
+ <AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com>
+ <AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com>
+ <AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com>
+ <20101028090002.GA12446@elte.hu>
+ <AANLkTinoGGLTN2JRwjJtF6Ra5auZVg+VSa=TyrtAkDor@mail.gmail.com>
+ <20101028133036.GA30565@elte.hu>
+ <20101028134724.GB4416@infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101028134724.GB4416@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: Tharindu Rukshan Bamunuarachchi <btharindu@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Oct 2010, Tharindu Rukshan Bamunuarachchi wrote:
 
-> SLES 11 is running with 2.6.27-45. I think I should turn to IBM/Novell
-> for further help.
+* Christoph Hellwig <hch@infradead.org> wrote:
 
-Good idea.
+> On Thu, Oct 28, 2010 at 03:30:36PM +0200, Ingo Molnar wrote:
+> > > Looks mostly VFS to me. Aidar, does killing Picasa make things smoother for you? 
+> > > If so, maybe the VFS scalability patches will help.
+> > 
+> > Hm, but the VFS scalability patches mostly decrease CPU usage, and does that 
+> > mostly on many-core systems.
+> 
+> If you have i_mutex contention they are not going to change anything.
 
-> I still wonder why this happens only with IBM+SLES 11 kernel ? Same HW
-> works with later kernels ?
+Yes, that was my point.
 
-I have no idea how Novell hacks up their SLES11 kernels. Good to hear that
-we do not have the issue upstream.
+Thanks,
 
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
