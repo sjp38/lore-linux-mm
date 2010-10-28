@@ -1,45 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F25608D0015
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 09:47:54 -0400 (EDT)
-Date: Thu, 28 Oct 2010 09:46:41 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: 2.6.36 io bring the system to its knees
-Message-ID: <20101028134641.GA4416@infradead.org>
-References: <AANLkTimt7wzR9RwGWbvhiOmot_zzayfCfSh_-v6yvuAP@mail.gmail.com>
- <AANLkTikRKVBzO=ruy=JDmBF28NiUdJmAqb4-1VhK0QBX@mail.gmail.com>
- <AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com>
- <AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com>
- <AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com>
- <20101028090002.GA12446@elte.hu>
- <AANLkTinoGGLTN2JRwjJtF6Ra5auZVg+VSa=TyrtAkDor@mail.gmail.com>
- <AANLkTikyYQk1FH7d6jkw2GYHLN8jmghuGZQw=EFVgjuA@mail.gmail.com>
- <AANLkTikx4zZwMLiAUrGKcH6yoo_PGgRA7nT9BzYMxQ89@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9B1498D0015
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 09:49:09 -0400 (EDT)
+Date: Thu, 28 Oct 2010 08:49:05 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: TMPFS Maximum File Size
+In-Reply-To: <AANLkTikX2LkCfEAuJAaWJ5FsWC25mkQi2qLCSe=L=4q1@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1010280848130.25874@router.home>
+References: <AANLkTikn_44WcCBmWUW=8E3q3=cznZNx=dHdOcgZSKgH@mail.gmail.com> <AANLkTin32b4SaC0PTJpX8Pg4anQ3aSMUZFe0QFbt9y36@mail.gmail.com> <AANLkTim=6Oan-CSnGMD1CTsd5iGRr98X44TAcirQt7Q_@mail.gmail.com> <alpine.DEB.2.00.1010271503360.6255@router.home>
+ <AANLkTikX2LkCfEAuJAaWJ5FsWC25mkQi2qLCSe=L=4q1@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTikx4zZwMLiAUrGKcH6yoo_PGgRA7nT9BzYMxQ89@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Aidar Kultayev <the.aidar@gmail.com>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@kernel.dk, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Tharindu Rukshan Bamunuarachchi <btharindu@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 28, 2010 at 02:48:20PM +0300, Pekka Enberg wrote:
-> On Thu, Oct 28, 2010 at 2:33 PM, Aidar Kultayev <the.aidar@gmail.com> wrote:
-> > if it wasn't picasa, it would have been something else. I mean if I
-> > kill picasa ( later on it was done indexing new pics anyway ), it
-> > would have been for virtualbox to thrash the io. So, nope, getting rid
-> > of picasa doesn't help either. In general the systems responsiveness
-> > or sluggishness is dominated by those io operations going on - the DD
-> > & CP & probably VBOX issuing whole bunch of its load for IO.
-> 
-> Do you still see high latencies in vfs_lseek() and vfs_fsync()? I'm
-> not a VFS expert but looking at your latencytop output, it seems that
-> fsync grabs ->i_mutex which blocks vfs_llseek(), for example. I'm not
-> sure why that causes high latencies though it's a mutex we're holding.
+On Thu, 28 Oct 2010, Tharindu Rukshan Bamunuarachchi wrote:
 
-It does.  But what workload does a lot of llseeks while fsyncing the
-same file?  I'd bet some application is doing really stupid things here.
+> SLES 11 is running with 2.6.27-45. I think I should turn to IBM/Novell
+> for further help.
+
+Good idea.
+
+> I still wonder why this happens only with IBM+SLES 11 kernel ? Same HW
+> works with later kernels ?
+
+I have no idea how Novell hacks up their SLES11 kernels. Good to hear that
+we do not have the issue upstream.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
