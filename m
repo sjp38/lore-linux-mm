@@ -1,53 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 72CF66B00AA
-	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 21:16:26 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9S1GLq1006703
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 28 Oct 2010 10:16:21 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 34F6945DE57
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 10:16:21 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1102545DE4F
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 10:16:21 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E883AE08005
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 10:16:20 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A269FE08002
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 10:16:20 +0900 (JST)
-Date: Thu, 28 Oct 2010 10:10:53 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2] mm: vmstat: Use a single setter function and
- callback for adjusting percpu thresholds
-Message-Id: <20101028101053.f68ad2c4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1288169256-7174-3-git-send-email-mel@csn.ul.ie>
-References: <1288169256-7174-1-git-send-email-mel@csn.ul.ie>
-	<1288169256-7174-3-git-send-email-mel@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BC3C6B00AC
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 21:17:48 -0400 (EDT)
+Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
+	by smtp-out.google.com with ESMTP id o9S1Hk2M001378
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 18:17:46 -0700
+Received: from ywa6 (ywa6.prod.google.com [10.192.1.6])
+	by kpbe14.cbf.corp.google.com with ESMTP id o9S1HixX011687
+	for <linux-mm@kvack.org>; Wed, 27 Oct 2010 18:17:45 -0700
+Received: by ywa6 with SMTP id 6so958547ywa.12
+        for <linux-mm@kvack.org>; Wed, 27 Oct 2010 18:17:44 -0700 (PDT)
+Date: Wed, 27 Oct 2010 18:17:39 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/2] mm, mem-hotplug: recalculate lowmem_reserve when
+ memory hotplug occur
+In-Reply-To: <20101026221017.B7DF.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1010271815430.32477@chino.kir.corp.google.com>
+References: <20101026221017.B7DF.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Oct 2010 09:47:36 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Tue, 26 Oct 2010, KOSAKI Motohiro wrote:
 
-> reduce_pgdat_percpu_threshold() and restore_pgdat_percpu_threshold()
-> exist to adjust the per-cpu vmstat thresholds while kswapd is awake to
-> avoid errors due to counter drift. The functions duplicate some code so
-> this patch replaces them with a single set_pgdat_percpu_threshold() that
-> takes a callback function to calculate the desired threshold as a
-> parameter.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index b48dea2..14ee899 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5002,7 +5002,7 @@ static void __init setup_per_zone_inactive_ratio(void)
+>   * 8192MB:	11584k
+>   * 16384MB:	16384k
+>   */
+> -static int __init init_per_zone_wmark_min(void)
+> +int __meminit init_per_zone_wmark_min(void)
+>  {
+>  	unsigned long lowmem_kbytes;
+>  
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
+setup_per_zone_inactive_ratio() should be moved from __init to __meminit, 
+right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
