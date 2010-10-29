@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 658CB8D0030
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 03:11:40 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ABFB8D0030
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 03:12:08 -0400 (EDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH v4 03/11] memcg: create extensible page stat update routines
-Date: Fri, 29 Oct 2010 00:09:06 -0700
-Message-Id: <1288336154-23256-4-git-send-email-gthelen@google.com>
+Subject: [PATCH v4 04/11] memcg: add lock to synchronize page accounting and migration
+Date: Fri, 29 Oct 2010 00:09:07 -0700
+Message-Id: <1288336154-23256-5-git-send-email-gthelen@google.com>
 In-Reply-To: <1288336154-23256-1-git-send-email-gthelen@google.com>
 References: <1288336154-23256-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,159 +13,168 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Replace usage of the mem_cgroup_update_file_mapped() memcg
-statistic update routine with two new routines:
-* mem_cgroup_inc_page_stat()
-* mem_cgroup_dec_page_stat()
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-As before, only the file_mapped statistic is managed.  However,
-these more general interfaces allow for new statistics to be
-more easily added.  New statistics are added with memcg dirty
-page accounting.
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+Introduce a new bit spin lock, PCG_MOVE_LOCK, to synchronize
+the page accounting and migration code.  This reworks the
+locking scheme of _update_stat() and _move_account() by
+adding new lock bit PCG_MOVE_LOCK, which is always taken
+under IRQ disable.
+
+1. If pages are being migrated from a memcg, then updates to
+   that memcg page statistics are protected by grabbing
+   PCG_MOVE_LOCK using move_lock_page_cgroup().  In an
+   upcoming commit, memcg dirty page accounting will be
+   updating memcg page accounting (specifically: num
+   writeback pages) from IRQ context (softirq).  Avoid a
+   deadlocking nested spin lock attempt by disabling irq on
+   the local processor when grabbing the PCG_MOVE_LOCK.
+
+2. lock for update_page_stat is used only for avoiding race
+   with move_account().  So, IRQ awareness of
+   lock_page_cgroup() itself is not a problem.  The problem
+   is between mem_cgroup_update_page_stat() and
+   mem_cgroup_move_account_page().
+
+Trade-off:
+  * Changing lock_page_cgroup() to always disable IRQ (or
+    local_bh) has some impacts on performance and I think
+    it's bad to disable IRQ when it's not necessary.
+  * adding a new lock makes move_account() slower.  Score is
+    here.
+
+Performance Impact: moving a 8G anon process.
+
+Before:
+	real    0m0.792s
+	user    0m0.000s
+	sys     0m0.780s
+
+After:
+	real    0m0.854s
+	user    0m0.000s
+	sys     0m0.842s
+
+This score is bad but planned patches for optimization can reduce
+this impact.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Greg Thelen <gthelen@google.com>
-Signed-off-by: Andrea Righi <arighi@develer.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 ---
-Changelog since v1:
-- Rename (for clarity):
-  - mem_cgroup_write_page_stat_item -> mem_cgroup_page_stat_item
-  - mem_cgroup_read_page_stat_item -> mem_cgroup_nr_pages_item
+ include/linux/page_cgroup.h |   31 ++++++++++++++++++++++++++++---
+ mm/memcontrol.c             |    9 +++++++--
+ 2 files changed, 35 insertions(+), 5 deletions(-)
 
- include/linux/memcontrol.h |   31 ++++++++++++++++++++++++++++---
- mm/memcontrol.c            |   16 +++++++---------
- mm/rmap.c                  |    4 ++--
- 3 files changed, 37 insertions(+), 14 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 159a076..067115c 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -25,6 +25,11 @@ struct page_cgroup;
- struct page;
- struct mm_struct;
+diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+index b59c298..509452e 100644
+--- a/include/linux/page_cgroup.h
++++ b/include/linux/page_cgroup.h
+@@ -35,15 +35,18 @@ struct page_cgroup *lookup_page_cgroup(struct page *page);
  
-+/* Stats that can be updated by kernel. */
-+enum mem_cgroup_page_stat_item {
-+	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
-+};
-+
- extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
- 					struct list_head *dst,
- 					unsigned long *scanned, int order,
-@@ -121,7 +126,22 @@ static inline bool mem_cgroup_disabled(void)
- 	return false;
- }
+ enum {
+ 	/* flags for mem_cgroup */
+-	PCG_LOCK,  /* page cgroup is locked */
++	PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
+ 	PCG_CACHE, /* charged as cache */
+ 	PCG_USED, /* this object is in use. */
+-	PCG_ACCT_LRU, /* page has been accounted for */
++	PCG_MIGRATION, /* under page migration */
++	/* flags for mem_cgroup and file and I/O status */
++	PCG_MOVE_LOCK, /* For race between move_account v.s. following bits */
+ 	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
+ 	PCG_FILE_DIRTY, /* page is dirty */
+ 	PCG_FILE_WRITEBACK, /* page is under writeback */
+ 	PCG_FILE_UNSTABLE_NFS, /* page is NFS unstable */
+-	PCG_MIGRATION, /* under page migration */
++	/* No lock in page_cgroup */
++	PCG_ACCT_LRU, /* page has been accounted for (under lru_lock) */
+ };
  
--void mem_cgroup_update_file_mapped(struct page *page, int val);
-+void mem_cgroup_update_page_stat(struct page *page,
-+				 enum mem_cgroup_page_stat_item idx,
-+				 int val);
-+
-+static inline void mem_cgroup_inc_page_stat(struct page *page,
-+					    enum mem_cgroup_page_stat_item idx)
-+{
-+	mem_cgroup_update_page_stat(page, idx, 1);
-+}
-+
-+static inline void mem_cgroup_dec_page_stat(struct page *page,
-+					    enum mem_cgroup_page_stat_item idx)
-+{
-+	mem_cgroup_update_page_stat(page, idx, -1);
-+}
-+
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 						gfp_t gfp_mask);
- u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
-@@ -293,8 +313,13 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ #define TESTPCGFLAG(uname, lname)			\
+@@ -119,6 +122,10 @@ static inline enum zone_type page_cgroup_zid(struct page_cgroup *pc)
+ 
+ static inline void lock_page_cgroup(struct page_cgroup *pc)
  {
++	/*
++	 * Don't take this lock in IRQ context.
++	 * This lock is for pc->mem_cgroup, USED, CACHE, MIGRATION
++	 */
+ 	bit_spin_lock(PCG_LOCK, &pc->flags);
  }
  
--static inline void mem_cgroup_update_file_mapped(struct page *page,
--							int val)
-+static inline void mem_cgroup_inc_page_stat(struct page *page,
-+					    enum mem_cgroup_page_stat_item idx)
+@@ -127,6 +134,24 @@ static inline void unlock_page_cgroup(struct page_cgroup *pc)
+ 	bit_spin_unlock(PCG_LOCK, &pc->flags);
+ }
+ 
++static inline void move_lock_page_cgroup(struct page_cgroup *pc,
++	unsigned long *flags)
 +{
++	/*
++	 * We know updates to pc->flags of page cache's stats are from both of
++	 * usual context or IRQ context. Disable IRQ to avoid deadlock.
++	 */
++	local_irq_save(*flags);
++	bit_spin_lock(PCG_MOVE_LOCK, &pc->flags);
 +}
 +
-+static inline void mem_cgroup_dec_page_stat(struct page *page,
-+					    enum mem_cgroup_page_stat_item idx)
- {
- }
++static inline void move_unlock_page_cgroup(struct page_cgroup *pc,
++	unsigned long *flags)
++{
++	bit_spin_unlock(PCG_MOVE_LOCK, &pc->flags);
++	local_irq_restore(*flags);
++}
++
+ #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+ struct page_cgroup;
  
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9a99cfa..4fd00c4 100644
+index 4fd00c4..94359d6 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1592,7 +1592,8 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
-  * possibility of race condition. If there is, we take a lock.
-  */
- 
--static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
-+void mem_cgroup_update_page_stat(struct page *page,
-+				 enum mem_cgroup_page_stat_item idx, int val)
- {
+@@ -1598,6 +1598,7 @@ void mem_cgroup_update_page_stat(struct page *page,
  	struct mem_cgroup *mem;
  	struct page_cgroup *pc = lookup_page_cgroup(page);
-@@ -1615,30 +1616,27 @@ static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
- 			goto out;
- 	}
+ 	bool need_unlock = false;
++	unsigned long uninitialized_var(flags);
  
--	this_cpu_add(mem->stat->count[idx], val);
--
- 	switch (idx) {
--	case MEM_CGROUP_STAT_FILE_MAPPED:
-+	case MEMCG_NR_FILE_MAPPED:
- 		if (val > 0)
- 			SetPageCgroupFileMapped(pc);
- 		else if (!page_mapped(page))
- 			ClearPageCgroupFileMapped(pc);
-+		idx = MEM_CGROUP_STAT_FILE_MAPPED;
- 		break;
- 	default:
- 		BUG();
- 	}
+ 	if (unlikely(!pc))
+ 		return;
+@@ -1609,7 +1610,7 @@ void mem_cgroup_update_page_stat(struct page *page,
+ 	/* pc->mem_cgroup is unstable ? */
+ 	if (unlikely(mem_cgroup_stealed(mem))) {
+ 		/* take a lock against to access pc->mem_cgroup */
+-		lock_page_cgroup(pc);
++		move_lock_page_cgroup(pc, &flags);
+ 		need_unlock = true;
+ 		mem = pc->mem_cgroup;
+ 		if (!mem || !PageCgroupUsed(pc))
+@@ -1632,7 +1633,7 @@ void mem_cgroup_update_page_stat(struct page *page,
  
-+	this_cpu_add(mem->stat->count[idx], val);
-+
  out:
  	if (unlikely(need_unlock))
- 		unlock_page_cgroup(pc);
+-		unlock_page_cgroup(pc);
++		move_unlock_page_cgroup(pc, &flags);
  	rcu_read_unlock();
  	return;
  }
--
--void mem_cgroup_update_file_mapped(struct page *page, int val)
--{
--	mem_cgroup_update_file_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, val);
--}
-+EXPORT_SYMBOL(mem_cgroup_update_page_stat);
- 
- /*
-  * size of first charge trial. "32" comes from vmscan.c's magic value.
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 1a8bf76..a66ab76 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -911,7 +911,7 @@ void page_add_file_rmap(struct page *page)
+@@ -2186,9 +2187,13 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
+ 		struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
  {
- 	if (atomic_inc_and_test(&page->_mapcount)) {
- 		__inc_zone_page_state(page, NR_FILE_MAPPED);
--		mem_cgroup_update_file_mapped(page, 1);
-+		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_MAPPED);
+ 	int ret = -EINVAL;
++	unsigned long flags;
++
+ 	lock_page_cgroup(pc);
+ 	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
++		move_lock_page_cgroup(pc, &flags);
+ 		__mem_cgroup_move_account(pc, from, to, uncharge);
++		move_unlock_page_cgroup(pc, &flags);
+ 		ret = 0;
  	}
- }
- 
-@@ -949,7 +949,7 @@ void page_remove_rmap(struct page *page)
- 		__dec_zone_page_state(page, NR_ANON_PAGES);
- 	} else {
- 		__dec_zone_page_state(page, NR_FILE_MAPPED);
--		mem_cgroup_update_file_mapped(page, -1);
-+		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
- 	}
- 	/*
- 	 * It would be tidy to reset the PageAnon mapping here,
+ 	unlock_page_cgroup(pc);
 -- 
 1.7.3.1
 
