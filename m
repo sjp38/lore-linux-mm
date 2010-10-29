@@ -1,121 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A8B878D0030
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 05:18:19 -0400 (EDT)
-Received: from eu_spt2 (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LB100CCJOIG8O@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 29 Oct 2010 10:18:16 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LB1005Q4OIF28@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 29 Oct 2010 10:18:16 +0100 (BST)
-Date: Fri, 29 Oct 2010 11:20:40 +0200
-From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
-Subject: Re: [RFC][PATCH 0/3] big chunk memory allocator v2
-In-reply-to: <AANLkTim4fFXQKqmFCeR8pvi0SZPXpjDqyOkbV6PYJYkR@mail.gmail.com>
-Message-id: <op.vlbywq137p4s8u@pikus>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Content-transfer-encoding: Quoted-Printable
-References: <20101026190042.57f30338.kamezawa.hiroyu@jp.fujitsu.com>
- <AANLkTim4fFXQKqmFCeR8pvi0SZPXpjDqyOkbV6PYJYkR@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id DA11B8D0030
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 06:12:28 -0400 (EDT)
+Date: Fri, 29 Oct 2010 11:12:11 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/2] mm: page allocator: Adjust the per-cpu counter
+	threshold when memory is low
+Message-ID: <20101029101210.GG4896@csn.ul.ie>
+References: <1288278816-32667-1-git-send-email-mel@csn.ul.ie> <1288278816-32667-2-git-send-email-mel@csn.ul.ie> <20101028150433.fe4f2d77.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20101028150433.fe4f2d77.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, andi.kleen@intel.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, fujita.tomonori@lab.ntt.co.jp, felipe.contreras@gmail.com, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Russell King <linux@arm.linux.org.uk>, Pawel Osciak <pawel@osciak.com>, Peter Zijlstra <peterz@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, Oct 26, 2010 at 7:00 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> I only did small test and it seems to work (but I think there will be=
- bug...)
->> I post this now just because I'll be out of office 10/31-11/15 with k=
-summit and
->> a private trip.
->>
->> Any comments are welcome but please see the interface is enough for u=
-se cases or
->> not.  For example) If MAX_ORDER alignment is too bad, I need to rewri=
-te almost
->> all code.
+On Thu, Oct 28, 2010 at 03:04:33PM -0700, Andrew Morton wrote:
+> On Thu, 28 Oct 2010 16:13:35 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > Commit [aa45484: calculate a better estimate of NR_FREE_PAGES when
+> > memory is low] noted that watermarks were based on the vmstat
+> > NR_FREE_PAGES. To avoid synchronization overhead, these counters are
+> > maintained on a per-cpu basis and drained both periodically and when a
+> > threshold is above a threshold. On large CPU systems, the difference
+> > between the estimate and real value of NR_FREE_PAGES can be very high.
+> > The system can get into a case where pages are allocated far below the
+> > min watermark potentially causing livelock issues. The commit solved the
+> > problem by taking a better reading of NR_FREE_PAGES when memory was low.
+> > 
+> > Unfortately, as reported by Shaohua Li this accurate reading can consume
+> > a large amount of CPU time on systems with many sockets due to cache
+> > line bouncing. This patch takes a different approach. For large machines
+> > where counter drift might be unsafe and while kswapd is awake, the per-cpu
+> > thresholds for the target pgdat are reduced to limit the level of drift
+> > to what should be a safe level. This incurs a performance penalty in heavy
+> > memory pressure by a factor that depends on the workload and the machine but
+> > the machine should function correctly without accidentally exhausting all
+> > memory on a node. There is an additional cost when kswapd wakes and sleeps
+> > but the event is not expected to be frequent - in Shaohua's test case,
+> > there was one recorded sleep and wake event at least.
+> > 
+> > To ensure that kswapd wakes up, a safe version of zone_watermark_ok()
+> > is introduced that takes a more accurate reading of NR_FREE_PAGES when
+> > called from wakeup_kswapd, when deciding whether it is really safe to go
+> > back to sleep in sleeping_prematurely() and when deciding if a zone is
+> > really balanced or not in balance_pgdat(). We are still using an expensive
+> > function but limiting how often it is called.
+> 
+> Here I go again.  I have a feeling that I already said this, but I
+> can't find versions 2 or 3 in the archives..
+> 
+> Did you evaluate using plain on percpu_counters for this?  They won't
+> solve the performance problem as they're basically the same thing as
+> these open-coded counters.  But they'd reduce the amount of noise and
+> custom-coded boilerplate in mm/.
+> 
 
-On Thu, 28 Oct 2010 01:22:38 +0200, Minchan Kim <minchan.kim@gmail.com> =
-wrote:
-> First of all, thanks for the endless your effort to embedded system.
-> It's time for statkeholders to review this.
-> Cced some guys. Maybe many people of them have to attend KS.
-> So I hope SAMSUNG guys review this.
->
-> Maybe they can't test this since ARM doesn't support movable zone now.=
+You did bring this up before. Here is the reference to the answer you got
+from Christoph at the time http://lkml.org/lkml/2010/9/3/453 . It seemed
+like a reasonable answer.
 
-> (I will look into this).
-> As Kame said, please, review this patch whether this patch have enough=
+> > When the test case is reproduced, the time spent in the watermark functions
+> > is reduced. The following report is on the percentage of time spent
+> > cumulatively spent in the functions zone_nr_free_pages(), zone_watermark_ok(),
+> > __zone_watermark_ok(), zone_watermark_ok_safe(), zone_page_state_snapshot(),
+> > zone_page_state().
+> 
+> So how did you decide which callsites needed to use the
+> fast-but-inaccurate zone_watermark_ok() and which needed to use the
+> slow-but-more-accurate zone_watermark_ok_safe()?  (Those functions need
+> comments explaining the difference btw)
+> 
 
-> interface and meet your requirement.
-> I think this can't meet _all_ of your requirements(ex, latency and
-> making sure getting big contiguous memory) but I believe it can meet
-> NOT CRITICAL many cases, I guess.
+Selection was based on kswapd being woken up and staying awake
 
-I'm currently working on a framework (the CMA framework some may be awar=
-e of) which
-in principle is meant for the same purpose: allocating physically contig=
-uous blocks
-of memory.  I'm hoping to help with latency, remove the need for MAX_ORD=
-ER alignment
-as well as help with fragmentation by letting different drivers allocate=
- memory from
-different memory range.
+1. When deciding if kswapd should wake (wakeup_kswapd()), we have failed
+   the initial allocation attempt and we should be sure of the
+   watermarks to decide if kswapd really should wake or not
+2. Once kswapd is awake, it shouldn't go to sleep prematurely
 
-When I was posting CMA, it had been suggested to create a new migration =
-type
-dedicated to contiguous allocations.  I think I already did that and tha=
-nks to
-this new migration type we have (i) an area of memory that only accepts =
-movable
-and reclaimable pages and (ii) is used only if all other (non-reserved) =
-pages have
-been allocated.
+While kswapd is awake, drift is less of a problem because thresholds are
+reduced.
 
-I'm currently working on migration so that those movable and reclaimable=
- pages
-allocated in area dedicated for CMA are freed and Kame's work is quite h=
-elpful
-in this regard as I have something to base my work on. :)
+> 
+> I have a feeling this problem will bite us again perhaps due to those
+> other callsites, but we haven't found the workload yet.
+> 
+> I don't undestand why restore/reduce_pgdat_percpu_threshold() were
+> called around that particular sleep in kswapd and nowhere else.
+> 
+> > vanilla                      11.6615%
+> > disable-threshold            0.2584%
+> 
+> Wow.  That's 12% of all CPUs?  How many CPUs and what workload?
+> 
 
-Nonetheless, it's a conference time now (ELC, PLC; interestingly both ar=
-e in
-Cambridge :P) so I guess we, here at SPRC, will look into it more after =
-PLC.
+112 threads CPUs 14 sockets. Workload initialisation creates NR_CPU sparse
+files that are 10*TOTAL_MEMORY/NR_CPU in size. Workload itself is NR_CPU
+processes just reading their own file.
 
->> Now interface is:
->>
->> struct page *__alloc_contig_pages(unsigned long base, unsigned long e=
-nd,
->>                        unsigned long nr_pages, int align_order,
->>                        int node, gfp_t gfpflag, nodemask_t *mask)
->>
->>  * @base: the lowest pfn which caller wants.
->>  * @end:  the highest pfn which caller wants.
->>  * @nr_pages: the length of a chunk of pages to be allocated.
->>  * @align_order: alignment of start address of returned chunk in orde=
-r.
->>  *   Returned' page's order will be aligned to (1 << align_order).If =
-smaller
->>  *   than MAX_ORDER, it's raised to MAX_ORDER.
->>  * @node: allocate near memory to the node, If -1, current node is us=
-ed
+The critical thing is the number of sockets. For single-socket-8-thread
+for example, vanilla was just 0.66% of time (although the patches did
+bring it down to 0.11%).
 
+> >
+> > ...
+> >
+> >  				if (!sleeping_prematurely(pgdat, order, remaining)) {
+> >  					trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
+> > +					restore_pgdat_percpu_threshold(pgdat);
+> >  					schedule();
+> > +					reduce_pgdat_percpu_threshold(pgdat);
+> 
+> We could do with some code comments here explaining what's going on.
+> 
 
-PS. Please note that Pawel's new address is <pawel@osciak.com>.  Fixing =
-in Cc.
+Follow-on patch?
 
--- =
+> >  				} else {
+> >  					if (remaining)
+> >  						count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
+> >
+> > ...
+> >
+> > +static int calculate_pressure_threshold(struct zone *zone)
+> > +{
+> > +	int threshold;
+> > +	int watermark_distance;
+> > +
+> > +	/*
+> > +	 * As vmstats are not up to date, there is drift between the estimated
+> > +	 * and real values. For high thresholds and a high number of CPUs, it
+> > +	 * is possible for the min watermark to be breached while the estimated
+> > +	 * value looks fine. The pressure threshold is a reduced value such
+> > +	 * that even the maximum amount of drift will not accidentally breach
+> > +	 * the min watermark
+> > +	 */
+> > +	watermark_distance = low_wmark_pages(zone) - min_wmark_pages(zone);
+> > +	threshold = max(1, (int)(watermark_distance / num_online_cpus()));
+> > +
+> > +	/*
+> > +	 * Maximum threshold is 125
+> 
+> Reasoning?
+> 
 
-Best regards,                                        _     _
-| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
-| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
-+----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
+To match the existing maximum which I assume is due to the deltas being
+stored in a s8.
+
+> > +	 */
+> > +	threshold = min(125, threshold);
+> > +
+> > +	return threshold;
+> > +}
+> > +
+> >  static int calculate_threshold(struct zone *zone)
+> >  {
+> >  	int threshold;
+> >
+> > ...
+> >
+> > +void reduce_pgdat_percpu_threshold(pg_data_t *pgdat)
+> > +{
+> > +	struct zone *zone;
+> > +	int cpu;
+> > +	int threshold;
+> > +	int i;
+> > +
+> > +	get_online_cpus();
+> > +	for (i = 0; i < pgdat->nr_zones; i++) {
+> > +		zone = &pgdat->node_zones[i];
+> > +		if (!zone->percpu_drift_mark)
+> > +			continue;
+> > +
+> > +		threshold = calculate_pressure_threshold(zone);
+> > +		for_each_online_cpu(cpu)
+> > +			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+> > +							= threshold;
+> > +	}
+> > +	put_online_cpus();
+> > +}
+> > +
+> > +void restore_pgdat_percpu_threshold(pg_data_t *pgdat)
+> > +{
+> > +	struct zone *zone;
+> > +	int cpu;
+> > +	int threshold;
+> > +	int i;
+> > +
+> > +	get_online_cpus();
+> > +	for (i = 0; i < pgdat->nr_zones; i++) {
+> > +		zone = &pgdat->node_zones[i];
+> > +		if (!zone->percpu_drift_mark)
+> > +			continue;
+> > +
+> > +		threshold = calculate_threshold(zone);
+> > +		for_each_online_cpu(cpu)
+> > +			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+> > +							= threshold;
+> > +	}
+> > +	put_online_cpus();
+> > +}
+> 
+> Given that ->stat_threshold is the same for each CPU, why store it for
+> each CPU at all?  Why not put it in the zone and eliminate the inner
+> loop?
+> 
+
+I asked why we couldn't move the threshold to struct zone and Christoph
+responded;
+
+"If you move it then the cache footprint of the vm stat functions (which
+need to access the threshold for each access!) will increase and the
+performance sink dramatically. I tried to avoid placing the threshold
+there when I developed that approach but it always caused a dramatic
+regression under heavy load."
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
