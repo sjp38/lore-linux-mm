@@ -1,32 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CE7038D0030
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 00:06:28 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9T46QQY006384
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8E5128D0030
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 00:08:29 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9T48Qh5017422
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 29 Oct 2010 13:06:26 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CEA3645DE55
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 13:06:25 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B03E245DE51
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 13:06:25 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A9151DB803A
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 13:06:25 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 43880E08001
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 13:06:22 +0900 (JST)
-Date: Fri, 29 Oct 2010 13:00:49 +0900
+	Fri, 29 Oct 2010 13:08:26 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id DBBDE45DE50
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 13:08:25 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id BC0D645DE4F
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 13:08:25 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 90186E38008
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 13:08:25 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 35C841DB8014
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 13:08:22 +0900 (JST)
+Date: Fri, 29 Oct 2010 13:02:51 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 2/3] a help function for find physically contiguous
- block.
-Message-Id: <20101029130049.5818fbce.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <AANLkTikffUvWeD9Pgt_wSug_MjXo1vxr61KhUcdtHxLk@mail.gmail.com>
+Subject: Re: [RFC][PATCH 3/3] a big contig memory allocator
+Message-Id: <20101029130251.f82f6925.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <AANLkTik-d4-6xN6BFYNcAOyR3P7uJDB-0ucr6Uks3AXv@mail.gmail.com>
 References: <20101026190042.57f30338.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101026190458.4e1c0d98.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTikffUvWeD9Pgt_wSug_MjXo1vxr61KhUcdtHxLk@mail.gmail.com>
+	<20101026190809.4869b4f0.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTik-d4-6xN6BFYNcAOyR3P7uJDB-0ucr6Uks3AXv@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -35,203 +34,166 @@ To: Bob Liu <lliubbo@gmail.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, andi.kleen@intel.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, fujita.tomonori@lab.ntt.co.jp, felipe.contreras@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Thank you for review.
-
-On Fri, 29 Oct 2010 11:53:18 +0800
+On Fri, 29 Oct 2010 11:55:10 +0800
 Bob Liu <lliubbo@gmail.com> wrote:
 
-> On Tue, Oct 26, 2010 at 6:04 PM, KAMEZAWA Hiroyuki
+> On Tue, Oct 26, 2010 at 6:08 PM, KAMEZAWA Hiroyuki
 > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > >
-> > Unlike memory hotplug, at an allocation of contigous memory range, address
-> > may not be a problem. IOW, if a requester of memory wants to allocate 100M of
-> > of contigous memory, placement of allocated memory may not be a problem.
-> > So, "finding a range of memory which seems to be MOVABLE" is required.
+> > Add an function to allocate contiguous memory larger than MAX_ORDER.
+> > The main difference between usual page allocator is that this uses
+> > memory offline technique (Isolate pages and migrate remaining pages.).
 > >
-> > This patch adds a functon to isolate a length of memory within [start, end).
-> > This function returns a pfn which is 1st page of isolated contigous chunk
-> > of given length within [start, end).
+> > I think this is not 100% solution because we can't avoid fragmentation,
+> > but we have kernelcore= boot option and can create MOVABLE zone. That
+> > helps us to allow allocate a contiguous range on demand.
 > >
-> > After isolation, free memory within this area will never be allocated.
-> > But some pages will remain as "Used/LRU" pages. They should be dropped by
-> > page reclaim or migration.
+> > The new function is
 > >
-> > Changelog:
-> > A - zone is added to the argument.
-> > A - fixed a case that zones are not in linear.
-> > A - added zone->lock.
+> > A alloc_contig_pages(base, end, nr_pages, alignment)
 > >
+> > This function will allocate contiguous pages of nr_pages from the range
+> > [base, end). If [base, end) is bigger than nr_pages, some pfn which
+> > meats alignment will be allocated. If alignment is smaller than MAX_ORDER,
+> > it will be raised to be MAX_ORDER.
+> >
+> > __alloc_contig_pages() has much more arguments.
+> >
+> > Some drivers allocates contig pages by bootmem or hiding some memory
+> > from the kernel at boot. But if contig pages are necessary only in some
+> > situation, kernelcore= boot option and using page migration is a choice.
+> >
+> > Note: I'm not 100% sure __GFP_HARDWALL check is required or not..
+> >
+> >
+> > Changelog: 2010-10-26
+> > A - support gfp_t
+> > A - support zonelist/nodemask
+> > A - support [base, end)
+> > A - support alignment
 > >
 > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > > ---
-> > A mm/page_isolation.c | A 148 ++++++++++++++++++++++++++++++++++++++++++++++++++++
-> > A 1 file changed, 148 insertions(+)
+> > A include/linux/page-isolation.h | A  15 ++
+> > A mm/page_alloc.c A  A  A  A  A  A  A  A | A  29 ++++
+> > A mm/page_isolation.c A  A  A  A  A  A | A 239 +++++++++++++++++++++++++++++++++++++++++
+> > A 3 files changed, 283 insertions(+)
 > >
 > > Index: mmotm-1024/mm/page_isolation.c
 > > ===================================================================
 > > --- mmotm-1024.orig/mm/page_isolation.c
 > > +++ mmotm-1024/mm/page_isolation.c
-> > @@ -7,6 +7,7 @@
+> > @@ -5,6 +5,7 @@
+> > A #include <linux/mm.h>
+> > A #include <linux/page-isolation.h>
 > > A #include <linux/pageblock-flags.h>
+> > +#include <linux/swap.h>
 > > A #include <linux/memcontrol.h>
 > > A #include <linux/migrate.h>
-> > +#include <linux/memory_hotplug.h>
-> > A #include <linux/mm_inline.h>
-> > A #include "internal.h"
-> >
-> > @@ -250,3 +251,150 @@ int do_migrate_range(unsigned long start
-> > A out:
-> > A  A  A  A return ret;
+> > A #include <linux/memory_hotplug.h>
+> > @@ -398,3 +399,241 @@ retry:
+> > A  A  A  A }
+> > A  A  A  A return 0;
 > > A }
 > > +
 > > +/*
-> > + * Functions for getting contiguous MOVABLE pages in a zone.
+> > + * Comparing user specified [user_start, user_end) with physical memory layout
+> > + * [phys_start, phys_end). If no intersection of length nr_pages, return 1.
+> > + * If there is an intersection, return 0 and fill range in [*start, *end)
 > > + */
-> > +struct page_range {
-> > + A  A  A  unsigned long base; /* Base address of searching contigouous block */
-> > + A  A  A  unsigned long end;
-> > + A  A  A  unsigned long pages;/* Length of contiguous block */
-> > + A  A  A  int align_order;
-> > + A  A  A  unsigned long align_mask;
-> > +};
-> > +
-> > +int __get_contig_block(unsigned long pfn, unsigned long nr_pages, void *arg)
+> > +static int
+> > +__calc_search_range(unsigned long user_start, unsigned long user_end,
+> > + A  A  A  A  A  A  A  unsigned long nr_pages,
+> > + A  A  A  A  A  A  A  unsigned long phys_start, unsigned long phys_end,
+> > + A  A  A  A  A  A  A  unsigned long *start, unsigned long *end)
 > > +{
-> > + A  A  A  struct page_range *blockinfo = arg;
-> > + A  A  A  unsigned long end;
-> > +
-> > + A  A  A  end = pfn + nr_pages;
-> > + A  A  A  pfn = ALIGN(pfn, 1 << blockinfo->align_order);
-> > + A  A  A  end = end & ~(MAX_ORDER_NR_PAGES - 1);
-> > +
-> > + A  A  A  if (end < pfn)
-> > + A  A  A  A  A  A  A  return 0;
-> > + A  A  A  if (end - pfn >= blockinfo->pages) {
-> > + A  A  A  A  A  A  A  blockinfo->base = pfn;
-> > + A  A  A  A  A  A  A  blockinfo->end = end;
+> > + A  A  A  if ((user_start >= phys_end) || (user_end <= phys_start))
 > > + A  A  A  A  A  A  A  return 1;
+> > + A  A  A  if (user_start <= phys_start) {
+> > + A  A  A  A  A  A  A  *start = phys_start;
+> > + A  A  A  A  A  A  A  *end = min(user_end, phys_end);
+> > + A  A  A  } else {
+> > + A  A  A  A  A  A  A  *start = user_start;
+> > + A  A  A  A  A  A  A  *end = min(user_end, phys_end);
 > > + A  A  A  }
+> > + A  A  A  if (*end - *start < nr_pages)
+> > + A  A  A  A  A  A  A  return 1;
 > > + A  A  A  return 0;
 > > +}
 > > +
-> > +static void __trim_zone(struct zone *zone, struct page_range *range)
-> > +{
-> > + A  A  A  unsigned long pfn;
-> > + A  A  A  /*
-> > + A  A  A  A * skip pages which dones'nt under the zone.
-> > + A  A  A  A * There are some archs which zones are not in linear layout.
-> > + A  A  A  A */
-> > + A  A  A  if (page_zone(pfn_to_page(range->base)) != zone) {
-> > + A  A  A  A  A  A  A  for (pfn = range->base;
-> > + A  A  A  A  A  A  A  A  A  A  A  pfn < range->end;
-> > + A  A  A  A  A  A  A  A  A  A  A  pfn += MAX_ORDER_NR_PAGES) {
-> > + A  A  A  A  A  A  A  A  A  A  A  if (page_zone(pfn_to_page(pfn)) == zone)
-> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  break;
-> > + A  A  A  A  A  A  A  }
-> > + A  A  A  A  A  A  A  range->base = min(pfn, range->end);
-> > + A  A  A  }
-> > + A  A  A  /* Here, range-> base is in the zone if range->base != range->end */
-> > + A  A  A  for (pfn = range->base;
-> > + A  A  A  A  A  A pfn < range->end;
-> > + A  A  A  A  A  A pfn += MAX_ORDER_NR_PAGES) {
-> > + A  A  A  A  A  A  A  if (zone != page_zone(pfn_to_page(pfn))) {
-> > + A  A  A  A  A  A  A  A  A  A  A  pfn = pfn - MAX_ORDER_NR_PAGES;
-> > + A  A  A  A  A  A  A  A  A  A  A  break;
-> > + A  A  A  A  A  A  A  }
-> > + A  A  A  }
-> > + A  A  A  range->end = min(pfn, range->end);
-> > + A  A  A  return;
-> > +}
 > > +
-> > +/*
-> > + * This function is for finding a contiguous memory block which has length
-> > + * of pages and MOVABLE. If it finds, make the range of pages as ISOLATED
-> > + * and return the first page's pfn.
-> > + * This checks all pages in the returned range is free of Pg_LRU. To reduce
-> > + * the risk of false-positive testing, lru_add_drain_all() should be called
-> > + * before this function to reduce pages on pagevec for zones.
+> > +/**
+> > + * __alloc_contig_pages - allocate a contiguous physical pages
+> > + * @base: the lowest pfn which caller wants.
+> > + * @end: A the highest pfn which caller wants.
+> > + * @nr_pages: the length of a chunk of pages to be allocated.
+> > + * @align_order: alignment of start address of returned chunk in order.
+> > + * A  Returned' page's order will be aligned to (1 << align_order).If smaller
+> > + * A  than MAX_ORDER, it's raised to MAX_ORDER.
+> > + * @node: allocate near memory to the node, If -1, current node is used.
+> > + * @gfpflag: used to specify what zone the memory should be from.
+> > + * @nodemask: allocate memory within the nodemask.
+> > + *
+> > + * Search a memory range [base, end) and allocates physically contiguous
+> > + * pages. If end - base is larger than nr_pages, a chunk in [base, end) will
+> > + * be allocated
+> > + *
+> > + * This returns a page of the beginning of contiguous block. At failure, NULL
+> > + * is returned.
+> > + *
+> > + * Limitation: at allocation, nr_pages may be increased to be aligned to
+> > + * MAX_ORDER before searching a range. So, even if there is a enough chunk
+> > + * for nr_pages, it may not be able to be allocated. Extra tail pages of
+> > + * allocated chunk is returned to buddy allocator before returning the caller.
 > > + */
 > > +
-> > +static unsigned long find_contig_block(unsigned long base,
-> > + A  A  A  A  A  A  A  unsigned long end, unsigned long pages,
-> > + A  A  A  A  A  A  A  int align_order, struct zone *zone)
+> > +#define MIGRATION_RETRY A  A  A  A (5)
+> > +struct page *__alloc_contig_pages(unsigned long base, unsigned long end,
+> > + A  A  A  A  A  A  A  A  A  A  A  unsigned long nr_pages, int align_order,
+> > + A  A  A  A  A  A  A  A  A  A  A  int node, gfp_t gfpflag, nodemask_t *mask)
 > > +{
-> > + A  A  A  unsigned long pfn, pos;
-> > + A  A  A  struct page_range blockinfo;
-> > + A  A  A  int ret;
+> > + A  A  A  unsigned long found, aligned_pages, start;
+> > + A  A  A  struct page *ret = NULL;
+> > + A  A  A  int migration_failed;
+> > + A  A  A  bool no_search = false;
+> > + A  A  A  unsigned long align_mask;
+> > + A  A  A  struct zoneref *z;
+> > + A  A  A  struct zone *zone;
+> > + A  A  A  struct zonelist *zonelist;
+> > + A  A  A  enum zone_type highzone_idx = gfp_zone(gfpflag);
+> > + A  A  A  unsigned long zone_start, zone_end, rs, re, pos;
 > > +
-> > + A  A  A  VM_BUG_ON(pages & (MAX_ORDER_NR_PAGES - 1));
-> > + A  A  A  VM_BUG_ON(base & ((1 << align_order) - 1));
-> > +retry:
-> > + A  A  A  blockinfo.base = base;
-> > + A  A  A  blockinfo.end = end;
-> > + A  A  A  blockinfo.pages = pages;
-> > + A  A  A  blockinfo.align_order = align_order;
-> > + A  A  A  blockinfo.align_mask = (1 << align_order) - 1;
+> > + A  A  A  if (node == -1)
+> > + A  A  A  A  A  A  A  node = numa_node_id();
+> > +
+> > + A  A  A  /* check unsupported flags */
+> > + A  A  A  if (gfpflag & __GFP_NORETRY)
+> > + A  A  A  A  A  A  A  return NULL;
+> > + A  A  A  if ((gfpflag & (__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL)) !=
+> > + A  A  A  A  A  A  A  (__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL))
+> > + A  A  A  A  A  A  A  return NULL;
+> > +
+> > + A  A  A  if (gfpflag & __GFP_THISNODE)
+> > + A  A  A  A  A  A  A  zonelist = &NODE_DATA(node)->node_zonelists[1];
+> > + A  A  A  else
+> > + A  A  A  A  A  A  A  zonelist = &NODE_DATA(node)->node_zonelists[0];
 > > + A  A  A  /*
-> > + A  A  A  A * At first, check physical page layout and skip memory holes.
+> > + A  A  A  A * Base/nr_page/end should be aligned to MAX_ORDER
 > > + A  A  A  A */
-> > + A  A  A  ret = walk_system_ram_range(base, end - base, &blockinfo,
-> > + A  A  A  A  A  A  A  __get_contig_block);
-> > + A  A  A  if (!ret)
-> > + A  A  A  A  A  A  A  return 0;
-> > + A  A  A  /* check contiguous pages in a zone */
-> > + A  A  A  __trim_zone(zone, &blockinfo);
+> > + A  A  A  found = 0;
 > > +
-> > + A  A  A  /*
-> > + A  A  A  A * Ok, we found contiguous memory chunk of size. Isolate it.
-> > + A  A  A  A * We just search MAX_ORDER aligned range.
-> > + A  A  A  A */
-> > + A  A  A  for (pfn = blockinfo.base; pfn + pages <= blockinfo.end;
-> > + A  A  A  A  A  A pfn += (1 << align_order)) {
-> > + A  A  A  A  A  A  A  struct zone *z = page_zone(pfn_to_page(pfn));
+> > + A  A  A  if (align_order < MAX_ORDER)
+> > + A  A  A  A  A  A  A  align_order = MAX_ORDER;
 > > +
-> > + A  A  A  A  A  A  A  spin_lock_irq(&z->lock);
-> > + A  A  A  A  A  A  A  pos = pfn;
-> > + A  A  A  A  A  A  A  /*
-> > + A  A  A  A  A  A  A  A * Check the range only contains free pages or LRU pages.
-> > + A  A  A  A  A  A  A  A */
-> > + A  A  A  A  A  A  A  while (pos < pfn + pages) {
-> > + A  A  A  A  A  A  A  A  A  A  A  struct page *p;
-> > +
-> > + A  A  A  A  A  A  A  A  A  A  A  if (!pfn_valid_within(pos))
-> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  break;
-> > + A  A  A  A  A  A  A  A  A  A  A  p = pfn_to_page(pos);
-> > + A  A  A  A  A  A  A  A  A  A  A  if (PageReserved(p))
-> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  break;
-> > + A  A  A  A  A  A  A  A  A  A  A  if (!page_count(p)) {
-> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  if (!PageBuddy(p))
-> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  pos++;
-> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  else if (PageBuddy(p)) {
+> > + A  A  A  align_mask = (1 << align_order) - 1;
+> > + A  A  A  if (end - base == nr_pages)
+> > + A  A  A  A  A  A  A  no_search = true;
 > 
-> just else is okay?
+> no_search is not used ?
 > 
-yes.
-
-
-> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  int order = page_order(p);
-> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  pos += (1 << order);
-> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  }
-> > + A  A  A  A  A  A  A  A  A  A  A  } else if (PageLRU(p)) {
-> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  pos++;
-> > + A  A  A  A  A  A  A  A  A  A  A  } else
-> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  break;
-> > + A  A  A  A  A  A  A  }
-> > + A  A  A  A  A  A  A  spin_unlock_irq(&z->lock);
-> > + A  A  A  A  A  A  A  if ((pos == pfn + pages) &&
-> > + A  A  A  A  A  A  A  A  A  A  A  !start_isolate_page_range(pfn, pfn + pages))
-> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  return pfn;
-> > + A  A  A  A  A  A  A  if (pos & ((1 << align_order) - 1))
-> > + A  A  A  A  A  A  A  A  A  A  A  pfn = ALIGN(pos, (1 << align_order));
-> > + A  A  A  A  A  A  A  else
-> > + A  A  A  A  A  A  A  A  A  A  A  pfn = pos + (1 << align_order);
-> 
-> pfn has changed here, then why the for loop still need pfn += (1 <<
-> align_order))?
-> or maybe I missed something.
-> 
-you'r right. I'll fix.
+Ah, yes. I wanted to remove this and I missed this one.
+But I have to do check again whether no_search check is required or not..
 
 Thanks,
 -Kame
