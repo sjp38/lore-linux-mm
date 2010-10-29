@@ -1,63 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 209266B0149
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 17:30:09 -0400 (EDT)
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate3.de.ibm.com (8.13.1/8.13.1) with ESMTP id o9TLU517011129
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 21:30:05 GMT
-Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o9TLU6TE4091988
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 23:30:06 +0200
-Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id o9TLU4nr016991
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 23:30:05 +0200
-Date: Fri, 29 Oct 2010 23:30:04 +0200
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C01406B014B
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 17:34:16 -0400 (EDT)
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o9TLDCB9024994
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 17:13:12 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o9TLYCXs2195624
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 17:34:12 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o9TLYBjS029440
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 19:34:12 -0200
 Subject: Re: oom killer question
-Message-ID: <20101029213004.GA2315@osiris.boeblingen.de.ibm.com>
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20101029213004.GA2315@osiris.boeblingen.de.ibm.com>
 References: <20101029121456.GA6896@osiris.boeblingen.de.ibm.com>
- <1288376008.13539.8991.camel@nimitz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1288376008.13539.8991.camel@nimitz>
+	 <1288376008.13539.8991.camel@nimitz>
+	 <20101029213004.GA2315@osiris.boeblingen.de.ibm.com>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Fri, 29 Oct 2010 14:34:09 -0700
+Message-ID: <1288388049.6872.263.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
 Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Hartmut Beinlich <HBEINLIC@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 29, 2010 at 11:13:28AM -0700, Dave Hansen wrote:
-> On Fri, 2010-10-29 at 14:14 +0200, Heiko Carstens wrote:
-> > present:2068480kB
+On Fri, 2010-10-29 at 23:30 +0200, Heiko Carstens wrote:
 > 
-> So, ~2GB available.
-> 
-> >  mlocked:4452kB
-> >  unevictable:4452kB writeback:0kB mapped:3684kB shmem:0kB 
-> > slab_reclaimable:1778388kB
-> > slab_unreclaimable:188388kB kernel_stack:4016kB pagetables:2232kB
-> > unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:542
-> > all_unreclaimable? yes
-> 
-> Plus about 1.8GB of unreclaimable slab.  all_unreclaimable is set.  So,
-> you reclaimed all of the user memory that you could get and swapped out
-> what could have been swapped out.  What was left was slab.
-> 
-> This OOM looks proper to me.  What was eating all of your slab?
+> Looking only at slab_reclaimable I had the impression there _could_
+> have been plenty of memory that could be reclaimed. Just wondering :) 
 
-Thanks to you and Andrew for looking at this. I'll ask Hartmut to rerun
-the test and taking slabinfo snapshots while doing that.
+Yeah, something funky is probably going on.
 
-One question remains however: why is the verbose output saying
+But, the "reclaimable" ones aren't guaranteed to be reclaimable.  It
+just means that we can usually reclaim most of them.  If you have a
+refcount leak on an object or something like that, they're effectively
+unreclaimable still.
 
-slab_reclaimable:1778388kB
+So, either way, the next step is to see which slab it was that blew up.
 
-and just afterwards
-
-slab_unreclaimable:188388kB
-
-Looking only at slab_reclaimable I had the impression there _could_
-have been plenty of memory that could be reclaimed. Just wondering :)
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
