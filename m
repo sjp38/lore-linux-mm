@@ -1,78 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F1358D0030
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 14:16:36 -0400 (EDT)
-Date: Fri, 29 Oct 2010 11:16:27 -0700
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A0598D0030
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 14:26:22 -0400 (EDT)
+Date: Fri, 29 Oct 2010 11:25:41 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: oom killer question
-Message-Id: <20101029111627.2a8c9982.akpm@linux-foundation.org>
-In-Reply-To: <20101029121456.GA6896@osiris.boeblingen.de.ibm.com>
-References: <20101029121456.GA6896@osiris.boeblingen.de.ibm.com>
+Subject: Re: [PATCH 1/2] mm: page allocator: Adjust the per-cpu counter
+ threshold when memory is low
+Message-Id: <20101029112541.8ab906bb.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1010290955510.20370@router.home>
+References: <1288278816-32667-1-git-send-email-mel@csn.ul.ie>
+	<1288278816-32667-2-git-send-email-mel@csn.ul.ie>
+	<20101028150433.fe4f2d77.akpm@linux-foundation.org>
+	<alpine.DEB.2.00.1010290955510.20370@router.home>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Hartmut Beinlich <HBEINLIC@de.ibm.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 Oct 2010 14:14:56 +0200
-Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
+On Fri, 29 Oct 2010 09:58:25 -0500 (CDT)
+Christoph Lameter <cl@linux.com> wrote:
 
-> Hello,
+> On Thu, 28 Oct 2010, Andrew Morton wrote:
 > 
-> I've got an OOM killed rsyslogd where I'm wondering why the oom killer
-> got involved at all. Looking at the verbose output it looks to me like
-> there is a lot of swap space and also a lot of reclaimable slab.
-> Any idea why this happened?
+> > > To ensure that kswapd wakes up, a safe version of zone_watermark_ok()
+> > > is introduced that takes a more accurate reading of NR_FREE_PAGES when
+> > > called from wakeup_kswapd, when deciding whether it is really safe to go
+> > > back to sleep in sleeping_prematurely() and when deciding if a zone is
+> > > really balanced or not in balance_pgdat(). We are still using an expensive
+> > > function but limiting how often it is called.
+> >
+> > Here I go again.  I have a feeling that I already said this, but I
+> > can't find versions 2 or 3 in the archives..
+> >
+> > Did you evaluate using plain on percpu_counters for this?  They won't
+> > solve the performance problem as they're basically the same thing as
+> > these open-coded counters.  But they'd reduce the amount of noise and
+> > custom-coded boilerplate in mm/.
 > 
-> Thanks!
-> 
-> [18132.475583] blast invoked oom-killer: gfp_mask=0x201da, order=0, oom_adj=0, oom_score_adj=0
-> [18132.475612] blast cpuset=/ mems_allowed=0
-> [18132.475616] CPU: 7 Not tainted 2.6.36-45.x.20101028-s390xdefault #1
-> [18132.475619] Process blast (pid: 8067, task: 000000007a244640, ksp: 000000003dc8f678)
-> [18132.475623] 000000003dc8f888 000000003dc8f808 0000000000000002 0000000000000000 
-> [18132.475628]        000000003dc8f8a8 000000003dc8f820 000000003dc8f820 000000000055ee3e 
-> [18132.475634]        0000000000000000 0000000000000000 0000000000000000 00000000000201da 
-> [18132.475640]        000000000000000d 000000000000000c 000000003dc8f870 0000000000000000 
-> [18132.475646]        0000000000000000 0000000000100afa 000000003dc8f808 000000003dc8f848 
-> [18132.475653] Call Trace:
-> [18132.475655] ([<0000000000100a02>] show_trace+0xee/0x144)
-> [18132.475662]  [<00000000001d73d0>] dump_header+0x98/0x298
-> [18132.475669]  [<00000000001d7a26>] oom_kill_process+0xb6/0x224
-> [18132.475672]  [<00000000001d7f26>] out_of_memory+0x10e/0x23c
-> [18132.475676]  [<00000000001ddb80>] __alloc_pages_nodemask+0x9a4/0xa50
-> [18132.475680]  [<00000000001e0588>] __do_page_cache_readahead+0x1a4/0x334
-> [18132.475685]  [<00000000001e0758>] ra_submit+0x40/0x54
-> [18132.475688]  [<00000000001d542a>] filemap_fault+0x45a/0x48c
-> [18132.475692]  [<00000000001f2a0e>] __do_fault+0x7e/0x5e8
-> [18132.475696]  [<00000000001f5fc2>] handle_mm_fault+0x24a/0xaa8
-> [18132.475700]  [<00000000005656e2>] do_dat_exception+0x14e/0x3c8
-> [18132.475705]  [<0000000000114b38>] pgm_exit+0x0/0x14
-> [18132.475710]  [<0000000080011132>] 0x80011132
-> [18132.475717] 2 locks held by blast/8067:
-> [18132.475719]  #0:  (&mm->mmap_sem){++++++}, at: [<0000000000565672>] do_dat_exception+0xde/0x3c8
-> [18132.475726]  #1:  (tasklist_lock){.+.+..}, at: [<00000000001d7ebe>] out_of_memory+0xa6/0x23c
-> [18132.475734] Mem-Info:
-> [18132.475736] DMA per-cpu:
-> [18132.475738] CPU    6: hi:  186, btch:  31 usd:   0
-> [18132.475741] CPU    7: hi:  186, btch:  31 usd:  45
-> [18132.475744] CPU    8: hi:  186, btch:  31 usd:   0
-> [18132.475746] CPU    9: hi:  186, btch:  31 usd:   0
-> [18132.475750] active_anon:29 inactive_anon:13 isolated_anon:25
-> [18132.475751]  active_file:11 inactive_file:30 isolated_file:52
-> [18132.475752]  unevictable:1113 dirty:0 writeback:0 unstable:0
-> [18132.475753]  free:1404 slab_reclaimable:444597 slab_unreclaimable:47097
-> [18132.475753]  mapped:921 shmem:0 pagetables:558 bounce:0
-> [18132.475762] DMA free:5616kB min:5752kB low:7188kB high:8628kB active_anon:116kB inactive_anon:52kB active_file:44kB inactive_file:120kB unevictable:4452kB isolated(anon):100kB isolated(file):208kB present:2068480kB mlocked:4452kB dirty:0kB writeback:0kB mapped:3684kB shmem:0kB slab_reclaimable:1778388kB slab_unreclaimable:188388kB kernel_stack:4016kB pagetables:2232kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:542 all_unreclaimable? yes
-> [18132.475771] lowmem_reserve[]: 0 0 0
-> [18132.475776] DMA: 1134*4kB 0*8kB 3*16kB 1*32kB 1*64kB 0*128kB 0*256kB 0*512kB 1*1024kB = 5704kB
+> The zone counters are done using the ZVCs in vmstat.c to save space
 
-Looks like a slab leak.  Nothing in pagecache, no anon memory (hence
-that free swap cannot be used) and vast amounts of slab.
+well, they actually waste space because of that threshold thing.
 
-Can you run it again and keep an eye on slabinfo?
+> and to
+> be in the same cacheline as other hot data necessary for allocation and
+> free.
+
+Yes, that'll save some misses.
+
+>  >
+> > > +	threshold = max(1, (int)(watermark_distance / num_online_cpus()));
+> > > +
+> > > +	/*
+> > > +	 * Maximum threshold is 125
+> >
+> > Reasoning?
+> 
+> Differentials are stored in 8 bit signed ints.
+> 
+> > > +	put_online_cpus();
+> > > +}
+> >
+> > Given that ->stat_threshold is the same for each CPU, why store it for
+> > each CPU at all?  Why not put it in the zone and eliminate the inner
+> > loop?
+> 
+> Doing that caused cache misses in the past and reduced the performance of
+> the ZVCs. This way the threshold is in the same cacheline as the
+> differentials.
+
+This sounds wrong.  As long as that threshold isn't stored in a
+cacheline which other CPUs are modifying, all CPUs should be able to
+happily cache it.  Maybe it needed a bit of padding inside the zone
+struct.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
