@@ -1,47 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 96BD46B00FD
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 21:30:40 -0400 (EDT)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id o9T1UROd025974
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 18:30:29 -0700
-Received: from iwn39 (iwn39.prod.google.com [10.241.68.103])
-	by wpaz9.hot.corp.google.com with ESMTP id o9T1UNiY019437
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 18:30:26 -0700
-Received: by iwn39 with SMTP id 39so3030605iwn.27
-        for <linux-mm@kvack.org>; Thu, 28 Oct 2010 18:30:23 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2F1A96B00FF
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 22:01:45 -0400 (EDT)
+Received: by iwn38 with SMTP id 38so2163611iwn.14
+        for <linux-mm@kvack.org>; Thu, 28 Oct 2010 19:01:37 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20101028091158.4de545e9.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1288200090-23554-1-git-send-email-yinghan@google.com>
-	<4CC869F5.2070405@redhat.com>
-	<AANLkTikL+v6uzkXg-7J2FGVz-7kc0Myw_cO5s_wYfHHm@mail.gmail.com>
-	<AANLkTimLBO7mJugVXH0S=QSnwQ+NDcz3zxmcHmPRjngd@mail.gmail.com>
-	<alpine.LSU.2.00.1010271144540.5039@tigran.mtv.corp.google.com>
-	<AANLkTim9NBXrAWkMW7C5C6=1sh52OJm=u5HT7ShyC7hv@mail.gmail.com>
-	<20101028091158.4de545e9.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 28 Oct 2010 18:30:23 -0700
-Message-ID: <AANLkTikdE---MJ-LSwNHEniCphvwu0T2apkWzGsRQ8i=@mail.gmail.com>
-Subject: Re: [PATCH] mm: don't flush TLB when propagate PTE access bit to
- struct page.
-From: Ken Chen <kenchen@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <alpine.DEB.2.00.1010280848130.25874@router.home>
+References: <AANLkTikn_44WcCBmWUW=8E3q3=cznZNx=dHdOcgZSKgH@mail.gmail.com>
+ <AANLkTin32b4SaC0PTJpX8Pg4anQ3aSMUZFe0QFbt9y36@mail.gmail.com>
+ <AANLkTim=6Oan-CSnGMD1CTsd5iGRr98X44TAcirQt7Q_@mail.gmail.com>
+ <alpine.DEB.2.00.1010271503360.6255@router.home> <AANLkTikX2LkCfEAuJAaWJ5FsWC25mkQi2qLCSe=L=4q1@mail.gmail.com>
+ <alpine.DEB.2.00.1010280848130.25874@router.home>
+From: Tharindu Rukshan Bamunuarachchi <btharindu@gmail.com>
+Date: Fri, 29 Oct 2010 07:31:06 +0530
+Message-ID: <AANLkTikZh4J6qKBJirxphB2s7MU0BHU50gQwwpVRYOko@mail.gmail.com>
+Subject: Re: TMPFS Maximum File Size
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 27, 2010 at 5:11 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> I'd like to vote for batching.
+On Thu, Oct 28, 2010 at 7:19 PM, Christoph Lameter <cl@linux.com> wrote:
+>> I still wonder why this happens only with IBM+SLES 11 kernel ? Same HW
+>> works with later kernels ?
+>
+> I have no idea how Novell hacks up their SLES11 kernels. Good to hear that
+> we do not have the issue upstream.
+>
+>
+Could this be a SLES 11 issue ? Even SLES 11 works well with different hardware.
+I thought this is an IBM hardware issue.
 
-Batch mode isn't going to add much value because the effect of
-accessed bit is already deferred.  There are two outcome: (1) the tlb
-mapping is already flushed due to capacity conflict or (2) process
-context'ed out.  You would want to transfer accessed bit from pte to
-page table, but flushing TLB on a already deferred operation seems not
-that useful.
-
-- Ken
+Thankx.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
