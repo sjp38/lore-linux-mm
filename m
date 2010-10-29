@@ -1,82 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 196078D0030
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 08:27:18 -0400 (EDT)
-Date: Fri, 29 Oct 2010 14:29:28 +0200
-From: Andi Kleen <andi.kleen@intel.com>
-Subject: Re: [RFC][PATCH 0/3] big chunk memory allocator v2
-Message-ID: <20101029122928.GA17792@gargoyle.fritz.box>
-References: <20101026190042.57f30338.kamezawa.hiroyu@jp.fujitsu.com>
- <AANLkTim4fFXQKqmFCeR8pvi0SZPXpjDqyOkbV6PYJYkR@mail.gmail.com>
- <op.vlbywq137p4s8u@pikus>
- <20101029103154.GA10823@gargoyle.fritz.box>
- <20101029195900.88559162.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 482F98D0030
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 08:31:37 -0400 (EDT)
+Message-ID: <4CCABEA0.8080909@redhat.com>
+Date: Fri, 29 Oct 2010 08:31:28 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101029195900.88559162.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: don't flush TLB when propagate PTE access bit to
+ struct page.
+References: <1288200090-23554-1-git-send-email-yinghan@google.com>	<4CC869F5.2070405@redhat.com>	<AANLkTikL+v6uzkXg-7J2FGVz-7kc0Myw_cO5s_wYfHHm@mail.gmail.com>	<AANLkTimLBO7mJugVXH0S=QSnwQ+NDcz3zxmcHmPRjngd@mail.gmail.com>	<alpine.LSU.2.00.1010271144540.5039@tigran.mtv.corp.google.com>	<AANLkTim9NBXrAWkMW7C5C6=1sh52OJm=u5HT7ShyC7hv@mail.gmail.com>	<20101028091158.4de545e9.kamezawa.hiroyu@jp.fujitsu.com>	<AANLkTikdE---MJ-LSwNHEniCphvwu0T2apkWzGsRQ8i=@mail.gmail.com>	<20101029114529.4d3a8b9c.kamezawa.hiroyu@jp.fujitsu.com>	<4CCA42D0.5090603@redhat.com> <AANLkTiku321ZpSrO4hSLyj7n9NM7QvN+RQ-A73KK4eRa@mail.gmail.com>
+In-Reply-To: <AANLkTiku321ZpSrO4hSLyj7n9NM7QvN+RQ-A73KK4eRa@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: =?utf-8?Q?Micha=C5=82?= Nazarewicz <m.nazarewicz@samsung.com>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "fujita.tomonori@lab.ntt.co.jp" <fujita.tomonori@lab.ntt.co.jp>, "felipe.contreras@gmail.com" <felipe.contreras@gmail.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Russell King <linux@arm.linux.org.uk>, Pawel Osciak <pawel@osciak.com>, Peter Zijlstra <peterz@infradead.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ken Chen <kenchen@google.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 29, 2010 at 11:59:00AM +0100, KAMEZAWA Hiroyuki wrote:
-> On Fri, 29 Oct 2010 12:31:54 +0200
-> Andi Kleen <andi.kleen@intel.com> wrote:
-> 
-> > > When I was posting CMA, it had been suggested to create a new migration type
-> > > dedicated to contiguous allocations.  I think I already did that and thanks to
-> > > this new migration type we have (i) an area of memory that only accepts movable
-> > > and reclaimable pages and 
-> > 
-> > Aka highmem next generation :-(
-> > 
-> 
-> yes. But Nick's new shrink_slab() may be a new help even without
-> new zone.
+On 10/29/2010 12:27 AM, Minchan Kim wrote:
 
-You would really need callbacks into lots of code. Christoph
-used to have some patches for directed shrink of dcache/icache,
-but they are currently not on the table.
+> What happens if we don't flush TLB?
+> It will make for old page to pretend young page.
+> If it is, how does it affect reclaim?
 
-I don't think Nick's patch does that, he simply optimizes the existing
-shrinker (which in practice tends to not shrink a lot) to be a bit
-less wasteful.
+Other way around - it will make a young page pretend to be an
+old page, because the TLB won't know it needs to flush the
+Accessed bit into the page tables (where the bit was recently
+cleared).
 
-The coverage will never be 100% in any case. So you always have to
-make a choice between movable or fully usable. That's essentially
-highmem with most of its problems.
-
-> 
-> 
-> > > (ii) is used only if all other (non-reserved) pages have
-> > > been allocated.
-> > 
-> > That will be near always the case after some uptime, as memory fills up
-> > with caches. Unless you do early reclaim? 
-> > 
-> 
-> memory migration always do work with alloc_page() for getting migration target
-> pages. So, memory will be reclaimed if filled by cache.
-
-Was talking about that paragraph CMA, not your patch. 
-
-If I understand it correctly CMA wants to define
-a new zone which is somehow similar to movable, but only sometimes used
-when another zone is full (which is the usual state in normal
-operation actually)
-
-It was unclear to me how this was all supposed to work. At least
-as described in the paragraph it cannot I think.
-
-
-> About my patch, I may have to prealloc all required pages before start.
-> But I didn't do that at this time.
-
-preallocate when? I thought the whole point of the large memory allocator
-was to not have to pre-allocate.
-
--Andi
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
