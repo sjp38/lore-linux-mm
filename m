@@ -1,137 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A1696B013D
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 15:41:24 -0400 (EDT)
-Date: Fri, 29 Oct 2010 12:40:02 -0700
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 95E1E6B00EE
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 16:20:19 -0400 (EDT)
+Date: Fri, 29 Oct 2010 13:19:46 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm: page allocator: Adjust the per-cpu counter
- threshold when memory is low
-Message-Id: <20101029124002.356bd592.akpm@linux-foundation.org>
-In-Reply-To: <20101029101210.GG4896@csn.ul.ie>
-References: <1288278816-32667-1-git-send-email-mel@csn.ul.ie>
-	<1288278816-32667-2-git-send-email-mel@csn.ul.ie>
-	<20101028150433.fe4f2d77.akpm@linux-foundation.org>
-	<20101029101210.GG4896@csn.ul.ie>
+Subject: Re: [PATCH v4 00/11] memcg: per cgroup dirty page accounting
+Message-Id: <20101029131946.5905d244.akpm@linux-foundation.org>
+In-Reply-To: <1288336154-23256-1-git-send-email-gthelen@google.com>
+References: <1288336154-23256-1-git-send-email-gthelen@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 Oct 2010 11:12:11 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Fri, 29 Oct 2010 00:09:03 -0700
+Greg Thelen <gthelen@google.com> wrote:
 
-> On Thu, Oct 28, 2010 at 03:04:33PM -0700, Andrew Morton wrote:
-> > On Thu, 28 Oct 2010 16:13:35 +0100
+This is cool stuff - it's been a long haul.  One day we'll be
+nearly-finished and someone will write a book telling people how to use
+it all and lots of people will go "holy crap".  I hope.
+
+> Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
+> page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
+> not be able to consume more than their designated share of dirty pages and will
+> be forced to perform write-out if they cross that limit.
 > 
-> > 
-> > I have a feeling this problem will bite us again perhaps due to those
-> > other callsites, but we haven't found the workload yet.
-> > 
-> > I don't undestand why restore/reduce_pgdat_percpu_threshold() were
-> > called around that particular sleep in kswapd and nowhere else.
-> > 
-> > > vanilla                      11.6615%
-> > > disable-threshold            0.2584%
-> > 
-> > Wow.  That's 12% of all CPUs?  How many CPUs and what workload?
-> > 
+> The patches are based on a series proposed by Andrea Righi in Mar 2010.
 > 
-> 112 threads CPUs 14 sockets. Workload initialisation creates NR_CPU sparse
-> files that are 10*TOTAL_MEMORY/NR_CPU in size. Workload itself is NR_CPU
-> processes just reading their own file.
+> Overview:
+> - Add page_cgroup flags to record when pages are dirty, in writeback, or nfs
+>   unstable.
 > 
-> The critical thing is the number of sockets. For single-socket-8-thread
-> for example, vanilla was just 0.66% of time (although the patches did
-> bring it down to 0.11%).
-
-I'm surprised.  I thought the inefficiency here was caused by CPUs
-tromping through percpu data, adding things up.  But the above info
-would indicate that the problem was caused by lots of cross-socket
-traffic?  If so, where did that come from?
-
-> ...
->
-> Follow-on patch?
-
-Sometime, please.
-
-> > >
-> > > ...
-> > >
-> > >  				if (!sleeping_prematurely(pgdat, order, remaining)) {
-> > >  					trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
-> > > +					restore_pgdat_percpu_threshold(pgdat);
-> > >  					schedule();
-> > > +					reduce_pgdat_percpu_threshold(pgdat);
-> > 
-> > We could do with some code comments here explaining what's going on.
-> > 
+> - Extend mem_cgroup to record the total number of pages in each of the 
+>   interesting dirty states (dirty, writeback, unstable_nfs).  
 > 
-> Follow-on patch?
+> - Add dirty parameters similar to the system-wide  /proc/sys/vm/dirty_*
+>   limits to mem_cgroup.  The mem_cgroup dirty parameters are accessible
+>   via cgroupfs control files.
+
+Curious minds will want to know what the default values are set to and
+how they were determined.
+
+> - Consider both system and per-memcg dirty limits in page writeback when
+>   deciding to queue background writeback or block for foreground writeback.
 > 
-> > >  				} else {
-> > >  					if (remaining)
-> > >  						count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
-> > >
-> > > ...
-> > >
-> > > +static int calculate_pressure_threshold(struct zone *zone)
-> > > +{
-> > > +	int threshold;
-> > > +	int watermark_distance;
-> > > +
-> > > +	/*
-> > > +	 * As vmstats are not up to date, there is drift between the estimated
-> > > +	 * and real values. For high thresholds and a high number of CPUs, it
-> > > +	 * is possible for the min watermark to be breached while the estimated
-> > > +	 * value looks fine. The pressure threshold is a reduced value such
-> > > +	 * that even the maximum amount of drift will not accidentally breach
-> > > +	 * the min watermark
-> > > +	 */
-> > > +	watermark_distance = low_wmark_pages(zone) - min_wmark_pages(zone);
-> > > +	threshold = max(1, (int)(watermark_distance / num_online_cpus()));
-> > > +
-> > > +	/*
-> > > +	 * Maximum threshold is 125
-> > 
-> > Reasoning?
-> > 
+> Known shortcomings:
+> - When a cgroup dirty limit is exceeded, then bdi writeback is employed to
+>   writeback dirty inodes.  Bdi writeback considers inodes from any cgroup, not
+>   just inodes contributing dirty pages to the cgroup exceeding its limit.  
+
+yup.  Some broader discussion of the implications of this shortcoming
+is needed.  I'm not sure where it would be placed, though. 
+Documentation/ for now, until you write that book.
+
+> - When memory.use_hierarchy is set, then dirty limits are disabled.  This is a
+>   implementation detail.
+
+So this is unintentional, and forced upon us my the present implementation?
+
+>  An enhanced implementation is needed to check the
+>   chain of parents to ensure that no dirty limit is exceeded.
+
+How important is it that this be fixed?
+
+And how feasible would that fix be?  A linear walk up the hierarchy
+list?  More than that?
+
+> Performance data:
+> - A page fault microbenchmark workload was used to measure performance, which
+>   can be called in read or write mode:
+>         f = open(foo. $cpu)
+>         truncate(f, 4096)
+>         alarm(60)
+>         while (1) {
+>                 p = mmap(f, 4096)
+>                 if (write)
+> 			*p = 1
+> 		else
+> 			x = *p
+>                 munmap(p)
+>         }
 > 
-> To match the existing maximum which I assume is due to the deltas being
-> stored in a s8.
-
-hm, OK.  So (CHAR_MAX-2) would be a tad clearer, only there's no
-CHAR_MAX and "2" remains mysterious ;)
-
-I do go on about code comments a lot lately.  Eric D's kernel just
-crashed because we didn't adequately comment first_zones_zonelist()
-so I'm feeling all vindicated!
-
->
-> > Given that ->stat_threshold is the same for each CPU, why store it for
-> > each CPU at all?  Why not put it in the zone and eliminate the inner
-> > loop?
-> > 
+> - The workload was called for several points in the patch series in different
+>   modes:
+>   - s_read is a single threaded reader
+>   - s_write is a single threaded writer
+>   - p_read is a 16 thread reader, each operating on a different file
+>   - p_write is a 16 thread writer, each operating on a different file
 > 
-> I asked why we couldn't move the threshold to struct zone and Christoph
-> responded;
+> - Measurements were collected on a 16 core non-numa system using "perf stat
+>   --repeat 3".  The -a option was used for parallel (p_*) runs.
 > 
-> "If you move it then the cache footprint of the vm stat functions (which
-> need to access the threshold for each access!) will increase and the
-> performance sink dramatically. I tried to avoid placing the threshold
-> there when I developed that approach but it always caused a dramatic
-> regression under heavy load."
+> - All numbers are page fault rate (M/sec).  Higher is better.
+> 
+> - To compare the performance of a kernel without non-memcg compare the first and
+>   last rows, neither has memcg configured.  The first row does not include any
+>   of these memcg patches.
+> 
+> - To compare the performance of using memcg dirty limits, compare the baseline
+>   (2nd row titled "w/ memcg") with the the code and memcg enabled (2nd to last
+>   row titled "all patches").
+> 
+>                            root_cgroup                    child_cgroup
+>                  s_read s_write p_read p_write   s_read s_write p_read p_write
+> mmotm w/o memcg   0.428  0.390   0.429  0.388
+> mmotm w/ memcg    0.411  0.378   0.391  0.362     0.412  0.377   0.385  0.363
+> all patches       0.384  0.360   0.370  0.348     0.381  0.363   0.368  0.347
+> all patches       0.431  0.402   0.427  0.395
+>   w/o memcg
 
-I don't really buy that.  The cache footprint will be increased by a
-max of one cacheline (for zone->stat_threshold) and the cache footprint
-will be actually reduced in the much larger percpu area (depending on
-alignment and padding and stuff).
+afaict this benchmark has demonstrated that the changes do not cause an
+appreciable performance regression in terms of CPU loading, yes?
 
-I'm suspecting something went wrong here, perhaps zone->stat_threshold
-shared a cacheline with something unfortunate.
+Can we come up with any tests which demonstrate the _benefits_ of the
+feature?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
