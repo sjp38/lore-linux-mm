@@ -1,64 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id ED8946B00D6
-	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 20:46:58 -0400 (EDT)
-Date: Fri, 29 Oct 2010 09:38:53 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [patch] memcg: null dereference on allocation failure
-Message-Id: <20101029093853.49e75309.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20101028111241.GC6062@bicker>
-References: <20101028111241.GC6062@bicker>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 96BD46B00FD
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 21:30:40 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id o9T1UROd025974
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 18:30:29 -0700
+Received: from iwn39 (iwn39.prod.google.com [10.241.68.103])
+	by wpaz9.hot.corp.google.com with ESMTP id o9T1UNiY019437
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2010 18:30:26 -0700
+Received: by iwn39 with SMTP id 39so3030605iwn.27
+        for <linux-mm@kvack.org>; Thu, 28 Oct 2010 18:30:23 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20101028091158.4de545e9.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1288200090-23554-1-git-send-email-yinghan@google.com>
+	<4CC869F5.2070405@redhat.com>
+	<AANLkTikL+v6uzkXg-7J2FGVz-7kc0Myw_cO5s_wYfHHm@mail.gmail.com>
+	<AANLkTimLBO7mJugVXH0S=QSnwQ+NDcz3zxmcHmPRjngd@mail.gmail.com>
+	<alpine.LSU.2.00.1010271144540.5039@tigran.mtv.corp.google.com>
+	<AANLkTim9NBXrAWkMW7C5C6=1sh52OJm=u5HT7ShyC7hv@mail.gmail.com>
+	<20101028091158.4de545e9.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 28 Oct 2010 18:30:23 -0700
+Message-ID: <AANLkTikdE---MJ-LSwNHEniCphvwu0T2apkWzGsRQ8i=@mail.gmail.com>
+Subject: Re: [PATCH] mm: don't flush TLB when propagate PTE access bit to
+ struct page.
+From: Ken Chen <kenchen@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Dan Carpenter <error27@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-(I add Andrew to CC-list)
+On Wed, Oct 27, 2010 at 5:11 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> I'd like to vote for batching.
 
-On Thu, 28 Oct 2010 13:12:41 +0200
-Dan Carpenter <error27@gmail.com> wrote:
+Batch mode isn't going to add much value because the effect of
+accessed bit is already deferred.  There are two outcome: (1) the tlb
+mapping is already flushed due to capacity conflict or (2) process
+context'ed out.  You would want to transfer accessed bit from pte to
+page table, but flushing TLB on a already deferred operation seems not
+that useful.
 
-> The original code had a null dereference if alloc_percpu() failed.
-> This was introduced in 711d3d2c9bc3 "memcg: cpu hotplug aware percpu
-> count updates"
-> 
-> Signed-off-by: Dan Carpenter <error27@gmail.com>
-> 
-
-Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 9a99cfa..2efa8ea 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4208,15 +4208,17 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
->  
->  	memset(mem, 0, size);
->  	mem->stat = alloc_percpu(struct mem_cgroup_stat_cpu);
-> -	if (!mem->stat) {
-> -		if (size < PAGE_SIZE)
-> -			kfree(mem);
-> -		else
-> -			vfree(mem);
-> -		mem = NULL;
-> -	}
-> +	if (!mem->stat)
-> +		goto out_free;
->  	spin_lock_init(&mem->pcp_counter_lock);
->  	return mem;
-> +
-> +out_free:
-> +	if (size < PAGE_SIZE)
-> +		kfree(mem);
-> +	else
-> +		vfree(mem);
-> +	return NULL;
->  }
->  
->  /*
+- Ken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
