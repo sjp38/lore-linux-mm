@@ -1,392 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 776ED8D0030
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 03:13:45 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 30C728D0030
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 03:14:22 -0400 (EDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH v4 08/11] memcg: add dirty limits to mem_cgroup
-Date: Fri, 29 Oct 2010 00:09:11 -0700
-Message-Id: <1288336154-23256-9-git-send-email-gthelen@google.com>
+Subject: [PATCH v4 09/11] memcg: CPU hotplug lockdep warning fix
+Date: Fri, 29 Oct 2010 00:09:12 -0700
+Message-Id: <1288336154-23256-10-git-send-email-gthelen@google.com>
 In-Reply-To: <1288336154-23256-1-git-send-email-gthelen@google.com>
 References: <1288336154-23256-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Extend mem_cgroup to contain dirty page limits.  Also add routines
-allowing the kernel to query the dirty usage of a memcg.
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-These interfaces not used by the kernel yet.  A subsequent commit
-will add kernel calls to utilize these new routines.
+memcg has lockdep warnings (sleep inside rcu lock)
 
-Signed-off-by: Greg Thelen <gthelen@google.com>
-Signed-off-by: Andrea Righi <arighi@develer.com>
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+
+Recent move to get_online_cpus() ends up calling get_online_cpus() from
+mem_cgroup_read_stat(). However mem_cgroup_read_stat() is called under rcu
+lock. get_online_cpus() can sleep. The dirty limit patches expose
+this BUG more readily due to their usage of mem_cgroup_page_stat()
+
+This patch address this issue as identified by lockdep and moves the
+hotplug protection to a higher layer. This might increase the time
+required to hotplug, but not by much.
+
+Warning messages
+
+BUG: sleeping function called from invalid context at kernel/cpu.c:62
+in_atomic(): 0, irqs_disabled(): 0, pid: 6325, name: pagetest
+2 locks held by pagetest/6325:
+do_page_fault+0x27d/0x4a0
+mem_cgroup_page_stat+0x0/0x23f
+Pid: 6325, comm: pagetest Not tainted 2.6.36-rc5-mm1+ #201
+Call Trace:
+[<ffffffff81041224>] __might_sleep+0x12d/0x131
+[<ffffffff8104f4af>] get_online_cpus+0x1c/0x51
+[<ffffffff8110eedb>] mem_cgroup_read_stat+0x27/0xa3
+[<ffffffff811125d2>] mem_cgroup_page_stat+0x131/0x23f
+[<ffffffff811124a1>] ? mem_cgroup_page_stat+0x0/0x23f
+[<ffffffff810d57c3>] global_dirty_limits+0x42/0xf8
+[<ffffffff810d58b3>] throttle_vm_writeout+0x3a/0xb4
+[<ffffffff810dc2f8>] shrink_zone+0x3e6/0x3f8
+[<ffffffff81074a35>] ? ktime_get_ts+0xb2/0xbf
+[<ffffffff810dd1aa>] do_try_to_free_pages+0x106/0x478
+[<ffffffff810dd601>] try_to_free_mem_cgroup_pages+0xe5/0x14c
+[<ffffffff8110f947>] mem_cgroup_hierarchical_reclaim+0x314/0x3a2
+[<ffffffff81111b31>] __mem_cgroup_try_charge+0x29b/0x593
+[<ffffffff8111194a>] ? __mem_cgroup_try_charge+0xb4/0x593
+[<ffffffff81071258>] ? local_clock+0x40/0x59
+[<ffffffff81009015>] ? sched_clock+0x9/0xd
+[<ffffffff810710d5>] ? sched_clock_local+0x1c/0x82
+[<ffffffff8111398a>] mem_cgroup_charge_common+0x4b/0x76
+[<ffffffff81141469>] ? bio_add_page+0x36/0x38
+[<ffffffff81113ba9>] mem_cgroup_cache_charge+0x1f4/0x214
+[<ffffffff810cd195>] add_to_page_cache_locked+0x4a/0x148
+....
+
+Acked-by: Greg Thelen <gthelen@google.com>
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 Changelog since v3:
-- Previously memcontrol.c used struct vm_dirty_param and vm_dirty_param() to
-  advertise dirty memory limits.  Now struct dirty_info and
-  mem_cgroup_dirty_info() is used to share dirty limits between memcontrol and
-  the rest of the kernel.
-- __mem_cgroup_has_dirty_limit() now returns false if use_hierarchy is set.
-- memcg_hierarchical_free_pages() now uses parent_mem_cgroup() and is simpler.
-- created internal routine, __mem_cgroup_has_dirty_limit(), to consolidate the
-  logic.
+- Make use of new routine: __mem_cgroup_has_dirty_limit()
 
-Changelog since v1:
-- Rename (for clarity):
-  - mem_cgroup_write_page_stat_item -> mem_cgroup_page_stat_item
-  - mem_cgroup_read_page_stat_item -> mem_cgroup_nr_pages_item
-- Removed unnecessary get_ prefix from get_xxx() functions.
-- Avoid lockdep warnings by using rcu_read_[un]lock() in
-  mem_cgroup_has_dirty_limit().
+ mm/memcontrol.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
- include/linux/memcontrol.h |   30 ++++++
- mm/memcontrol.c            |  248 +++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 277 insertions(+), 1 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index ef2eec7..736d318 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -19,6 +19,7 @@
- 
- #ifndef _LINUX_MEMCONTROL_H
- #define _LINUX_MEMCONTROL_H
-+#include <linux/writeback.h>
- #include <linux/cgroup.h>
- struct mem_cgroup;
- struct page_cgroup;
-@@ -33,6 +34,14 @@ enum mem_cgroup_page_stat_item {
- 	MEMCG_NR_FILE_UNSTABLE_NFS, /* # of NFS unstable pages */
- };
- 
-+/* Cgroup memory statistics items exported to the kernel. */
-+enum mem_cgroup_nr_pages_item {
-+	MEMCG_NR_DIRTYABLE_PAGES,
-+	MEMCG_NR_RECLAIM_PAGES,
-+	MEMCG_NR_WRITEBACK,
-+	MEMCG_NR_DIRTY_WRITEBACK_PAGES,
-+};
-+
- extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
- 					struct list_head *dst,
- 					unsigned long *scanned, int order,
-@@ -145,6 +154,11 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
- 	mem_cgroup_update_page_stat(page, idx, -1);
- }
- 
-+bool mem_cgroup_has_dirty_limit(void);
-+bool mem_cgroup_dirty_info(unsigned long sys_available_mem,
-+			   struct dirty_info *info);
-+s64 mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item);
-+
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 						gfp_t gfp_mask);
- u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
-@@ -326,6 +340,22 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
- {
- }
- 
-+static inline bool mem_cgroup_has_dirty_limit(void)
-+{
-+	return false;
-+}
-+
-+static inline bool mem_cgroup_dirty_info(unsigned long sys_available_mem,
-+					 struct dirty_info *info)
-+{
-+	return false;
-+}
-+
-+static inline s64 mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item)
-+{
-+	return -ENOSYS;
-+}
-+
- static inline
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 					    gfp_t gfp_mask)
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7f91029..52d688d 100644
+index 52d688d..35dc329 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -188,6 +188,14 @@ struct mem_cgroup_eventfd_list {
- static void mem_cgroup_threshold(struct mem_cgroup *mem);
- static void mem_cgroup_oom_notify(struct mem_cgroup *mem);
+@@ -579,7 +579,6 @@ static s64 mem_cgroup_read_stat(struct mem_cgroup *mem,
+ 	int cpu;
+ 	s64 val = 0;
  
-+/* Dirty memory parameters */
-+struct vm_dirty_param {
-+	int dirty_ratio;
-+	int dirty_background_ratio;
-+	unsigned long dirty_bytes;
-+	unsigned long dirty_background_bytes;
-+};
-+
- /*
-  * The memory controller data structure. The memory controller controls both
-  * page cache and RSS per cgroup. We would eventually like to provide
-@@ -233,6 +241,10 @@ struct mem_cgroup {
- 	atomic_t	refcnt;
- 
- 	unsigned int	swappiness;
-+
-+	/* control memory cgroup dirty pages */
-+	struct vm_dirty_param dirty_param;
-+
- 	/* OOM-Killer disable */
- 	int		oom_kill_disable;
- 
-@@ -1132,6 +1144,232 @@ static unsigned int get_swappiness(struct mem_cgroup *memcg)
- 	return swappiness;
+-	get_online_cpus();
+ 	for_each_online_cpu(cpu)
+ 		val += per_cpu(mem->stat->count[idx], cpu);
+ #ifdef CONFIG_HOTPLUG_CPU
+@@ -587,7 +586,6 @@ static s64 mem_cgroup_read_stat(struct mem_cgroup *mem,
+ 	val += mem->nocpu_base.count[idx];
+ 	spin_unlock(&mem->pcp_counter_lock);
+ #endif
+-	put_online_cpus();
+ 	return val;
  }
  
-+/*
-+ * Return true if the current memory cgroup has local dirty memory settings.
-+ * There is an allowed race between the current task migrating in-to/out-of the
-+ * root cgroup while this routine runs.  So the return value may be incorrect if
-+ * the current task is being simultaneously migrated.
-+ */
-+static bool __mem_cgroup_has_dirty_limit(struct mem_cgroup *mem)
-+{
-+	if (!mem)
-+		return false;
-+	if (mem_cgroup_is_root(mem))
-+		return false;
-+	/*
-+	 * The current memcg implementation does not yet support hierarchical
-+	 * dirty limits.
-+	 */
-+	if (mem->use_hierarchy)
-+		return false;
-+	return true;
-+}
-+
-+bool mem_cgroup_has_dirty_limit(void)
-+{
-+	struct mem_cgroup *mem;
-+	bool ret;
-+
-+	if (mem_cgroup_disabled())
-+		return false;
-+
-+	rcu_read_lock();
-+	mem = mem_cgroup_from_task(current);
-+	ret = __mem_cgroup_has_dirty_limit(mem);
-+	rcu_read_unlock();
-+
-+	return ret;
-+}
-+
-+/*
-+ * Returns a snapshot of the current dirty limits which is not synchronized with
-+ * the routines that change the dirty limits.  If this routine races with an
-+ * update to the dirty bytes/ratio value, then the caller must handle the case
-+ * where both dirty_[background_]_ratio and _bytes are set.
-+ */
-+static void __mem_cgroup_dirty_param(struct vm_dirty_param *param,
-+				     struct mem_cgroup *mem)
-+{
-+	if (__mem_cgroup_has_dirty_limit(mem)) {
-+		param->dirty_ratio = mem->dirty_param.dirty_ratio;
-+		param->dirty_bytes = mem->dirty_param.dirty_bytes;
-+		param->dirty_background_ratio =
-+			mem->dirty_param.dirty_background_ratio;
-+		param->dirty_background_bytes =
-+			mem->dirty_param.dirty_background_bytes;
-+	} else {
-+		param->dirty_ratio = vm_dirty_ratio;
-+		param->dirty_bytes = vm_dirty_bytes;
-+		param->dirty_background_ratio = dirty_background_ratio;
-+		param->dirty_background_bytes = dirty_background_bytes;
-+	}
-+}
-+
-+/*
-+ * Return the background-writeback and dirty-throttling thresholds as well as
-+ * dirty usage metrics.
-+ *
-+ * The current task may be moved to another cgroup while this routine accesses
-+ * the dirty limit.  But a precise check is meaningless because the task can be
-+ * moved after our access and writeback tends to take long time.  At least,
-+ * "memcg" will not be freed while holding rcu_read_lock().
-+ */
-+bool mem_cgroup_dirty_info(unsigned long sys_available_mem,
-+			   struct dirty_info *info)
-+{
-+	s64 available_mem;
-+	struct vm_dirty_param dirty_param;
-+	struct mem_cgroup *memcg;
-+
-+	if (mem_cgroup_disabled())
-+		return false;
-+
-+	rcu_read_lock();
-+	memcg = mem_cgroup_from_task(current);
-+	if (!__mem_cgroup_has_dirty_limit(memcg)) {
-+		rcu_read_unlock();
-+		return false;
-+	}
-+	__mem_cgroup_dirty_param(&dirty_param, memcg);
-+	rcu_read_unlock();
-+
-+	available_mem = mem_cgroup_page_stat(MEMCG_NR_DIRTYABLE_PAGES);
-+	if (available_mem < 0)
-+		return false;
-+
-+	available_mem = min((unsigned long)available_mem, sys_available_mem);
-+
-+	if (dirty_param.dirty_bytes)
-+		info->dirty_thresh =
-+			DIV_ROUND_UP(dirty_param.dirty_bytes, PAGE_SIZE);
-+	else
-+		info->dirty_thresh =
-+			(dirty_param.dirty_ratio * available_mem) / 100;
-+
-+	if (dirty_param.dirty_background_bytes)
-+		info->background_thresh =
-+			DIV_ROUND_UP(dirty_param.dirty_background_bytes,
-+				     PAGE_SIZE);
-+	else
-+		info->background_thresh =
-+			(dirty_param.dirty_background_ratio *
-+			       available_mem) / 100;
-+
-+	info->nr_reclaimable =
-+		mem_cgroup_page_stat(MEMCG_NR_RECLAIM_PAGES);
-+	if (info->nr_reclaimable < 0)
-+		return false;
-+
-+	info->nr_writeback = mem_cgroup_page_stat(MEMCG_NR_WRITEBACK);
-+	if (info->nr_writeback < 0)
-+		return false;
-+
-+	return true;
-+}
-+
-+static inline bool mem_cgroup_can_swap(struct mem_cgroup *memcg)
-+{
-+	if (!do_swap_account)
-+		return nr_swap_pages > 0;
-+	return !memcg->memsw_is_minimum &&
-+		(res_counter_read_u64(&memcg->memsw, RES_LIMIT) > 0);
-+}
-+
-+static s64 mem_cgroup_local_page_stat(struct mem_cgroup *mem,
-+				      enum mem_cgroup_nr_pages_item item)
-+{
-+	s64 ret;
-+
-+	switch (item) {
-+	case MEMCG_NR_DIRTYABLE_PAGES:
-+		ret = mem_cgroup_read_stat(mem, LRU_ACTIVE_FILE) +
-+			mem_cgroup_read_stat(mem, LRU_INACTIVE_FILE);
-+		if (mem_cgroup_can_swap(mem))
-+			ret += mem_cgroup_read_stat(mem, LRU_ACTIVE_ANON) +
-+				mem_cgroup_read_stat(mem, LRU_INACTIVE_ANON);
-+		break;
-+	case MEMCG_NR_RECLAIM_PAGES:
-+		ret = mem_cgroup_read_stat(mem,	MEM_CGROUP_STAT_FILE_DIRTY) +
-+			mem_cgroup_read_stat(mem,
-+					     MEM_CGROUP_STAT_FILE_UNSTABLE_NFS);
-+		break;
-+	case MEMCG_NR_WRITEBACK:
-+		ret = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_WRITEBACK);
-+		break;
-+	case MEMCG_NR_DIRTY_WRITEBACK_PAGES:
-+		ret = mem_cgroup_read_stat(mem,
-+					   MEM_CGROUP_STAT_FILE_WRITEBACK) +
-+			mem_cgroup_read_stat(mem,
-+					     MEM_CGROUP_STAT_FILE_UNSTABLE_NFS);
-+		break;
-+	default:
-+		BUG();
-+		break;
-+	}
-+	return ret;
-+}
-+
-+/*
-+ * Return the number of pages that the @mem cgroup could allocate.  If
-+ * use_hierarchy is set, then this involves parent mem cgroups to find the
-+ * cgroup with the smallest free space.
-+ */
-+static unsigned long long
-+memcg_hierarchical_free_pages(struct mem_cgroup *mem)
-+{
-+	unsigned long free, min_free;
-+
-+	min_free = global_page_state(NR_FREE_PAGES) << PAGE_SHIFT;
-+
-+	while (mem) {
-+		free = res_counter_read_u64(&mem->res, RES_LIMIT) -
-+			res_counter_read_u64(&mem->res, RES_USAGE);
-+		min_free = min(min_free, free);
-+		mem = parent_mem_cgroup(mem);
-+	}
-+
-+	/* Translate free memory in pages */
-+	return min_free >> PAGE_SHIFT;
-+}
-+
-+/*
-+ * mem_cgroup_page_stat() - get memory cgroup file cache statistics
-+ * @item:      memory statistic item exported to the kernel
-+ *
-+ * Return the accounted statistic value or negative value if current task is
-+ * root cgroup.
-+ */
-+s64 mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item)
-+{
-+	struct mem_cgroup *mem;
-+	struct mem_cgroup *iter;
-+	s64 value;
-+
-+	rcu_read_lock();
-+	mem = mem_cgroup_from_task(current);
-+	if (__mem_cgroup_has_dirty_limit(mem)) {
-+		/*
-+		 * If we're looking for dirtyable pages we need to evaluate
-+		 * free pages depending on the limit and usage of the parents
-+		 * first of all.
-+		 */
-+		if (item == MEMCG_NR_DIRTYABLE_PAGES)
-+			value = memcg_hierarchical_free_pages(mem);
-+		else
-+			value = 0;
-+		/*
-+		 * Recursively evaluate page statistics against all cgroup
-+		 * under hierarchy tree
-+		 */
-+		for_each_mem_cgroup_tree(iter, mem)
-+			value += mem_cgroup_local_page_stat(iter, item);
-+	} else
-+		value = -EINVAL;
-+	rcu_read_unlock();
-+
-+	return value;
-+}
-+
- static void mem_cgroup_start_move(struct mem_cgroup *mem)
- {
- 	int cpu;
-@@ -4440,8 +4678,16 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
- 	spin_lock_init(&mem->reclaim_param_lock);
- 	INIT_LIST_HEAD(&mem->oom_notify);
+@@ -1345,6 +1343,7 @@ s64 mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item)
+ 	struct mem_cgroup *iter;
+ 	s64 value;
  
--	if (parent)
-+	if (parent) {
- 		mem->swappiness = get_swappiness(parent);
-+		__mem_cgroup_dirty_param(&mem->dirty_param, parent);
-+	} else {
-+		/*
-+		 * The root cgroup dirty_param field is not used, instead,
-+		 * system-wide dirty limits are used.
-+		 */
-+	}
-+
- 	atomic_set(&mem->refcnt, 1);
- 	mem->move_charge_at_immigrate = 0;
- 	mutex_init(&mem->thresholds_lock);
++	get_online_cpus();
+ 	rcu_read_lock();
+ 	mem = mem_cgroup_from_task(current);
+ 	if (__mem_cgroup_has_dirty_limit(mem)) {
+@@ -1366,6 +1365,7 @@ s64 mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item)
+ 	} else
+ 		value = -EINVAL;
+ 	rcu_read_unlock();
++	put_online_cpus();
+ 
+ 	return value;
+ }
 -- 
 1.7.3.1
 
