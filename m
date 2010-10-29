@@ -1,47 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C01406B014B
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 17:34:16 -0400 (EDT)
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o9TLDCB9024994
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 17:13:12 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o9TLYCXs2195624
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 17:34:12 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o9TLYBjS029440
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 19:34:12 -0200
-Subject: Re: oom killer question
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20101029213004.GA2315@osiris.boeblingen.de.ibm.com>
-References: <20101029121456.GA6896@osiris.boeblingen.de.ibm.com>
-	 <1288376008.13539.8991.camel@nimitz>
-	 <20101029213004.GA2315@osiris.boeblingen.de.ibm.com>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Fri, 29 Oct 2010 14:34:09 -0700
-Message-ID: <1288388049.6872.263.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 1F8908D0030
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 17:36:16 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH v4 02/11] memcg: document cgroup dirty memory interfaces
+References: <1288336154-23256-1-git-send-email-gthelen@google.com>
+	<1288336154-23256-3-git-send-email-gthelen@google.com>
+	<20101029110331.GA29774@localhost>
+Date: Fri, 29 Oct 2010 14:35:50 -0700
+In-Reply-To: <20101029110331.GA29774@localhost> (Wu Fengguang's message of
+	"Fri, 29 Oct 2010 19:03:31 +0800")
+Message-ID: <xr9339rolm15.fsf@ninji.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Hartmut Beinlich <HBEINLIC@de.ibm.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-10-29 at 23:30 +0200, Heiko Carstens wrote:
-> 
-> Looking only at slab_reclaimable I had the impression there _could_
-> have been plenty of memory that could be reclaimed. Just wondering :) 
+Wu Fengguang <fengguang.wu@intel.com> writes:
 
-Yeah, something funky is probably going on.
+> Hi Greg,
+>
+> On Fri, Oct 29, 2010 at 03:09:05PM +0800, Greg Thelen wrote:
+>
+>> Document cgroup dirty memory interfaces and statistics.
+>> 
+>> Signed-off-by: Andrea Righi <arighi@develer.com>
+>> Signed-off-by: Greg Thelen <gthelen@google.com>
+>> ---
+>
+>> +Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
+>> +page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
+>> +not be able to consume more than their designated share of dirty pages and will
+>> +be forced to perform write-out if they cross that limit.
+>
+> It's more pertinent to say "will be throttled", as "perform write-out"
+> is some implementation behavior that will change soon. 
 
-But, the "reclaimable" ones aren't guaranteed to be reclaimable.  It
-just means that we can usually reclaim most of them.  If you have a
-refcount leak on an object or something like that, they're effectively
-unreclaimable still.
+Good point.  I will update reword the docs to be less specific about
+where the write-out occurs.  The important point is that the writer is
+throttled.
 
-So, either way, the next step is to see which slab it was that blew up.
+>> +- memory.dirty_limit_in_bytes: the amount of dirty memory (expressed in bytes)
+>> +  in the cgroup at which a process generating dirty pages will start itself
+>> +  writing out dirty data.  Suffix (k, K, m, M, g, or G) can be used to indicate
+>> +  that value is kilo, mega or gigabytes.
+>
+> The suffix feature is handy, thanks! It makes sense to also add this
+> for the global interfaces, perhaps in a standalone patch.
 
--- Dave
+I agree that this would also be useful for the global interfaces.  I
+will submit an independent patch for the global interfaces.
+
+>> +A cgroup may contain more dirty memory than its dirty limit.  This is possible
+>> +because of the principle that the first cgroup to touch a page is charged for
+>> +it.  Subsequent page counting events (dirty, writeback, nfs_unstable) are also
+>> +counted to the originally charged cgroup.
+>> +
+>> +Example: If page is allocated by a cgroup A task, then the page is charged to
+>> +cgroup A.  If the page is later dirtied by a task in cgroup B, then the cgroup A
+>> +dirty count will be incremented.  If cgroup A is over its dirty limit but cgroup
+>> +B is not, then dirtying a cgroup A page from a cgroup B task may push cgroup A
+>> +over its dirty limit without throttling the dirtying cgroup B task.
+>
+> It's good to document the above "misbehavior". But why not throttling
+> the dirtying cgroup B task? Is it simply not implemented or makes no
+> sense to do so at all?
+
+Ideally cgroup B would be throttled.  Note, even with this misbehavior,
+the system dirty limit will keep cgroup B from exceeding system-wide
+limits.
+
+The challenge here is that when the current system increments dirty
+counters using account_page_dirtied() which does not immediately check
+against dirty limits.  Later balance_dirty_pages() checks to see if any
+limits were exceeded, but only after a batch of pages may have been
+dirtied.  The task may have written many pages in many different memcg.
+So checking all possible memcg that may have been written in the mapping
+may be a large set.  I do not like this approach.
+
+memcontrol.c can easily detect when memcg other than the current task's
+memcg is charged for a dirty page.  It does not record this today, but
+it could.  When such a foreign page dirty event occurs the associated
+memcg could be linked into the dirtying address_space so that
+balance_dirty_pages() could check the limits of all foreign memcg.  In
+the common case I think the task is dirtying pages that have been
+charged to the task's cgroup, so the address_space's foreign_memcg list
+would be empty.  But when such foreign memcg are dirtied
+balance_dirty_pages() would have access to references to all memcg that
+need dirty limits checking.  This approach might work.  Comments?
+
+> Thanks,
+> Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
