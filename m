@@ -1,47 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6AE398D0030
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 03:55:47 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9T7tjL8006282
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 29 Oct 2010 16:55:45 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 84A0845DE67
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 16:55:44 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D9E6045DE57
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 16:55:43 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 79EABE1800A
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 16:55:43 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B54BE38002
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 16:55:43 +0900 (JST)
-Date: Fri, 29 Oct 2010 16:50:12 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v4 05/11] writeback: create dirty_info structure
-Message-Id: <20101029165012.ec0574ea.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1288336154-23256-6-git-send-email-gthelen@google.com>
-References: <1288336154-23256-1-git-send-email-gthelen@google.com>
-	<1288336154-23256-6-git-send-email-gthelen@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A8B878D0030
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 05:18:19 -0400 (EDT)
+Received: from eu_spt2 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LB100CCJOIG8O@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 29 Oct 2010 10:18:16 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LB1005Q4OIF28@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 29 Oct 2010 10:18:16 +0100 (BST)
+Date: Fri, 29 Oct 2010 11:20:40 +0200
+From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Subject: Re: [RFC][PATCH 0/3] big chunk memory allocator v2
+In-reply-to: <AANLkTim4fFXQKqmFCeR8pvi0SZPXpjDqyOkbV6PYJYkR@mail.gmail.com>
+Message-id: <op.vlbywq137p4s8u@pikus>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Content-transfer-encoding: Quoted-Printable
+References: <20101026190042.57f30338.kamezawa.hiroyu@jp.fujitsu.com>
+ <AANLkTim4fFXQKqmFCeR8pvi0SZPXpjDqyOkbV6PYJYkR@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, andi.kleen@intel.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, fujita.tomonori@lab.ntt.co.jp, felipe.contreras@gmail.com, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Russell King <linux@arm.linux.org.uk>, Pawel Osciak <pawel@osciak.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 Oct 2010 00:09:08 -0700
-Greg Thelen <gthelen@google.com> wrote:
+> On Tue, Oct 26, 2010 at 7:00 PM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> I only did small test and it seems to work (but I think there will be=
+ bug...)
+>> I post this now just because I'll be out of office 10/31-11/15 with k=
+summit and
+>> a private trip.
+>>
+>> Any comments are welcome but please see the interface is enough for u=
+se cases or
+>> not.  For example) If MAX_ORDER alignment is too bad, I need to rewri=
+te almost
+>> all code.
 
-> Bundle dirty limits and dirty memory usage metrics into a dirty_info
-> structure to simplify interfaces of routines that need all.
-> 
-> Signed-off-by: Greg Thelen <gthelen@google.com>
+On Thu, 28 Oct 2010 01:22:38 +0200, Minchan Kim <minchan.kim@gmail.com> =
+wrote:
+> First of all, thanks for the endless your effort to embedded system.
+> It's time for statkeholders to review this.
+> Cced some guys. Maybe many people of them have to attend KS.
+> So I hope SAMSUNG guys review this.
+>
+> Maybe they can't test this since ARM doesn't support movable zone now.=
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> (I will look into this).
+> As Kame said, please, review this patch whether this patch have enough=
+
+> interface and meet your requirement.
+> I think this can't meet _all_ of your requirements(ex, latency and
+> making sure getting big contiguous memory) but I believe it can meet
+> NOT CRITICAL many cases, I guess.
+
+I'm currently working on a framework (the CMA framework some may be awar=
+e of) which
+in principle is meant for the same purpose: allocating physically contig=
+uous blocks
+of memory.  I'm hoping to help with latency, remove the need for MAX_ORD=
+ER alignment
+as well as help with fragmentation by letting different drivers allocate=
+ memory from
+different memory range.
+
+When I was posting CMA, it had been suggested to create a new migration =
+type
+dedicated to contiguous allocations.  I think I already did that and tha=
+nks to
+this new migration type we have (i) an area of memory that only accepts =
+movable
+and reclaimable pages and (ii) is used only if all other (non-reserved) =
+pages have
+been allocated.
+
+I'm currently working on migration so that those movable and reclaimable=
+ pages
+allocated in area dedicated for CMA are freed and Kame's work is quite h=
+elpful
+in this regard as I have something to base my work on. :)
+
+Nonetheless, it's a conference time now (ELC, PLC; interestingly both ar=
+e in
+Cambridge :P) so I guess we, here at SPRC, will look into it more after =
+PLC.
+
+>> Now interface is:
+>>
+>> struct page *__alloc_contig_pages(unsigned long base, unsigned long e=
+nd,
+>>                        unsigned long nr_pages, int align_order,
+>>                        int node, gfp_t gfpflag, nodemask_t *mask)
+>>
+>>  * @base: the lowest pfn which caller wants.
+>>  * @end:  the highest pfn which caller wants.
+>>  * @nr_pages: the length of a chunk of pages to be allocated.
+>>  * @align_order: alignment of start address of returned chunk in orde=
+r.
+>>  *   Returned' page's order will be aligned to (1 << align_order).If =
+smaller
+>>  *   than MAX_ORDER, it's raised to MAX_ORDER.
+>>  * @node: allocate near memory to the node, If -1, current node is us=
+ed
+
+
+PS. Please note that Pawel's new address is <pawel@osciak.com>.  Fixing =
+in Cc.
+
+-- =
+
+Best regards,                                        _     _
+| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
+| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
++----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
