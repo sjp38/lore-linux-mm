@@ -1,48 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 154286B0146
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 16:27:15 -0400 (EDT)
-Date: Fri, 29 Oct 2010 13:19:52 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 02/11] memcg: document cgroup dirty memory interfaces
-Message-Id: <20101029131952.1191023d.akpm@linux-foundation.org>
-In-Reply-To: <1288336154-23256-3-git-send-email-gthelen@google.com>
-References: <1288336154-23256-1-git-send-email-gthelen@google.com>
-	<1288336154-23256-3-git-send-email-gthelen@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 209266B0149
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 17:30:09 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate3.de.ibm.com (8.13.1/8.13.1) with ESMTP id o9TLU517011129
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 21:30:05 GMT
+Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o9TLU6TE4091988
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 23:30:06 +0200
+Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id o9TLU4nr016991
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 23:30:05 +0200
+Date: Fri, 29 Oct 2010 23:30:04 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: oom killer question
+Message-ID: <20101029213004.GA2315@osiris.boeblingen.de.ibm.com>
+References: <20101029121456.GA6896@osiris.boeblingen.de.ibm.com>
+ <1288376008.13539.8991.camel@nimitz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1288376008.13539.8991.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Hartmut Beinlich <HBEINLIC@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 Oct 2010 00:09:05 -0700
-Greg Thelen <gthelen@google.com> wrote:
-
-> Document cgroup dirty memory interfaces and statistics.
+On Fri, Oct 29, 2010 at 11:13:28AM -0700, Dave Hansen wrote:
+> On Fri, 2010-10-29 at 14:14 +0200, Heiko Carstens wrote:
+> > present:2068480kB
 > 
->
-> ...
->
-> +When use_hierarchy=0, each cgroup has dirty memory usage and limits.
-> +System-wide dirty limits are also consulted.  Dirty memory consumption is
-> +checked against both system-wide and per-cgroup dirty limits.
-> +
-> +The current implementation does enforce per-cgroup dirty limits when
+> So, ~2GB available.
+> 
+> >  mlocked:4452kB
+> >  unevictable:4452kB writeback:0kB mapped:3684kB shmem:0kB 
+> > slab_reclaimable:1778388kB
+> > slab_unreclaimable:188388kB kernel_stack:4016kB pagetables:2232kB
+> > unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:542
+> > all_unreclaimable? yes
+> 
+> Plus about 1.8GB of unreclaimable slab.  all_unreclaimable is set.  So,
+> you reclaimed all of the user memory that you could get and swapped out
+> what could have been swapped out.  What was left was slab.
+> 
+> This OOM looks proper to me.  What was eating all of your slab?
 
-"does not", I trust.
+Thanks to you and Andrew for looking at this. I'll ask Hartmut to rerun
+the test and taking slabinfo snapshots while doing that.
 
-> +use_hierarchy=1.  System-wide dirty limits are used for processes in such
-> +cgroups.  Attempts to read memory.dirty_* files return the system-wide values.
-> +Writes to the memory.dirty_* files return error.  An enhanced implementation is
-> +needed to check the chain of parents to ensure that no dirty limit is exceeded.
-> +
->  6. Hierarchy support
->  
->  The memory controller supports a deep hierarchy and hierarchical accounting.
-> -- 
-> 1.7.3.1
+One question remains however: why is the verbose output saying
+
+slab_reclaimable:1778388kB
+
+and just afterwards
+
+slab_unreclaimable:188388kB
+
+Looking only at slab_reclaimable I had the impression there _could_
+have been plenty of memory that could be reclaimed. Just wondering :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
