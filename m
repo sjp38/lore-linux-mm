@@ -1,51 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 575998D0030
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 12:10:04 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH v4 11/11] memcg: check memcg dirty limits in page writeback
-References: <1288336154-23256-1-git-send-email-gthelen@google.com>
-	<1288336154-23256-12-git-send-email-gthelen@google.com>
-	<20101029164835.06eef3cf.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Fri, 29 Oct 2010 09:06:33 -0700
-In-Reply-To: <20101029164835.06eef3cf.kamezawa.hiroyu@jp.fujitsu.com>
-	(KAMEZAWA Hiroyuki's message of "Fri, 29 Oct 2010 16:48:35 +0900")
-Message-ID: <xr93eib9nfue.fsf@ninji.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A602C8D0030
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 14:13:41 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o9TI4W4s021618
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 12:04:32 -0600
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id o9TIDY7J244030
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 12:13:34 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o9TIDXg9006915
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 12:13:34 -0600
+Subject: Re: oom killer question
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20101029121456.GA6896@osiris.boeblingen.de.ibm.com>
+References: <20101029121456.GA6896@osiris.boeblingen.de.ibm.com>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Fri, 29 Oct 2010 11:13:28 -0700
+Message-ID: <1288376008.13539.8991.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Hartmut Beinlich <HBEINLIC@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+On Fri, 2010-10-29 at 14:14 +0200, Heiko Carstens wrote:
+> present:2068480kB
 
-> On Fri, 29 Oct 2010 00:09:14 -0700
-> Greg Thelen <gthelen@google.com> wrote:
->
->> If the current process is in a non-root memcg, then
->> balance_dirty_pages() will consider the memcg dirty limits
->> as well as the system-wide limits.  This allows different
->> cgroups to have distinct dirty limits which trigger direct
->> and background writeback at different levels.
->> 
->> Signed-off-by: Andrea Righi <arighi@develer.com>
->> Signed-off-by: Greg Thelen <gthelen@google.com>
->
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
-> Ideally, I think some comments in the code for "why we need double-check system's
-> dirty limit and memcg's dirty limit" will be appreciated.
+So, ~2GB available.
 
-I will add to the balance_dirty_pages() comment.  It will read:
-/*
- * balance_dirty_pages() must be called by processes which are generating dirty
- * data.  It looks at the number of dirty pages in the machine and will force
- * the caller to perform writeback if the system is over `vm_dirty_ratio'.
- * If we're over `background_thresh' then the writeback threads are woken to
- * perform some writeout.  The current task may have per-memcg dirty
- * limits, which are also checked.
- */
+>  mlocked:4452kB
+>  unevictable:4452kB writeback:0kB mapped:3684kB shmem:0kB 
+> slab_reclaimable:1778388kB
+> slab_unreclaimable:188388kB kernel_stack:4016kB pagetables:2232kB
+> unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:542
+> all_unreclaimable? yes
+
+Plus about 1.8GB of unreclaimable slab.  all_unreclaimable is set.  So,
+you reclaimed all of the user memory that you could get and swapped out
+what could have been swapped out.  What was left was slab.
+
+This OOM looks proper to me.  What was eating all of your slab?
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
