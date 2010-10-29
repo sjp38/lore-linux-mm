@@ -1,65 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AE90B6B0123
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 07:03:43 -0400 (EDT)
-Date: Fri, 29 Oct 2010 19:03:31 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH v4 02/11] memcg: document cgroup dirty memory interfaces
-Message-ID: <20101029110331.GA29774@localhost>
-References: <1288336154-23256-1-git-send-email-gthelen@google.com>
- <1288336154-23256-3-git-send-email-gthelen@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1288336154-23256-3-git-send-email-gthelen@google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 4952A6B0124
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 07:04:46 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9TB4bYr031888
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 29 Oct 2010 20:04:38 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 933C345DE51
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 20:04:37 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 73AC345DE4F
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 20:04:37 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6117E1DB803C
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 20:04:37 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1DFCD1DB8038
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 20:04:34 +0900 (JST)
+Date: Fri, 29 Oct 2010 19:59:00 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 0/3] big chunk memory allocator v2
+Message-Id: <20101029195900.88559162.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20101029103154.GA10823@gargoyle.fritz.box>
+References: <20101026190042.57f30338.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTim4fFXQKqmFCeR8pvi0SZPXpjDqyOkbV6PYJYkR@mail.gmail.com>
+	<op.vlbywq137p4s8u@pikus>
+	<20101029103154.GA10823@gargoyle.fritz.box>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
+To: Andi Kleen <andi.kleen@intel.com>
+Cc: =?UTF-8?B?TWljaGHFgg==?= Nazarewicz <m.nazarewicz@samsung.com>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "fujita.tomonori@lab.ntt.co.jp" <fujita.tomonori@lab.ntt.co.jp>, "felipe.contreras@gmail.com" <felipe.contreras@gmail.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Russell King <linux@arm.linux.org.uk>, Pawel Osciak <pawel@osciak.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Greg,
+On Fri, 29 Oct 2010 12:31:54 +0200
+Andi Kleen <andi.kleen@intel.com> wrote:
 
-On Fri, Oct 29, 2010 at 03:09:05PM +0800, Greg Thelen wrote:
-
-> Document cgroup dirty memory interfaces and statistics.
+> > When I was posting CMA, it had been suggested to create a new migration type
+> > dedicated to contiguous allocations.  I think I already did that and thanks to
+> > this new migration type we have (i) an area of memory that only accepts movable
+> > and reclaimable pages and 
 > 
-> Signed-off-by: Andrea Righi <arighi@develer.com>
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> ---
+> Aka highmem next generation :-(
+> 
 
-> +Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
-> +page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
-> +not be able to consume more than their designated share of dirty pages and will
-> +be forced to perform write-out if they cross that limit.
+yes. But Nick's new shrink_slab() may be a new help even without
+new zone.
 
-It's more pertinent to say "will be throttled", as "perform write-out"
-is some implementation behavior that will change soon. 
 
-> +- memory.dirty_limit_in_bytes: the amount of dirty memory (expressed in bytes)
-> +  in the cgroup at which a process generating dirty pages will start itself
-> +  writing out dirty data.  Suffix (k, K, m, M, g, or G) can be used to indicate
-> +  that value is kilo, mega or gigabytes.
+> > (ii) is used only if all other (non-reserved) pages have
+> > been allocated.
+> 
+> That will be near always the case after some uptime, as memory fills up
+> with caches. Unless you do early reclaim? 
+> 
 
-The suffix feature is handy, thanks! It makes sense to also add this
-for the global interfaces, perhaps in a standalone patch.
+memory migration always do work with alloc_page() for getting migration target
+pages. So, memory will be reclaimed if filled by cache.
 
-> +A cgroup may contain more dirty memory than its dirty limit.  This is possible
-> +because of the principle that the first cgroup to touch a page is charged for
-> +it.  Subsequent page counting events (dirty, writeback, nfs_unstable) are also
-> +counted to the originally charged cgroup.
-> +
-> +Example: If page is allocated by a cgroup A task, then the page is charged to
-> +cgroup A.  If the page is later dirtied by a task in cgroup B, then the cgroup A
-> +dirty count will be incremented.  If cgroup A is over its dirty limit but cgroup
-> +B is not, then dirtying a cgroup A page from a cgroup B task may push cgroup A
-> +over its dirty limit without throttling the dirtying cgroup B task.
-
-It's good to document the above "misbehavior". But why not throttling
-the dirtying cgroup B task? Is it simply not implemented or makes no
-sense to do so at all?
+About my patch, I may have to prealloc all required pages before start.
+But I didn't do that at this time.
 
 Thanks,
-Fengguang
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
