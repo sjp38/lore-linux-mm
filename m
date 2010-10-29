@@ -1,59 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EB6D88D0030
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 10:52:34 -0400 (EDT)
-Date: Fri, 29 Oct 2010 10:52:12 -0400
-From: Ted Ts'o <tytso@mit.edu>
-Subject: Re: 2.6.36 io bring the system to its knees
-Message-ID: <20101029145212.GA21205@thunk.org>
-References: <AANLkTimt7wzR9RwGWbvhiOmot_zzayfCfSh_-v6yvuAP@mail.gmail.com>
- <AANLkTikRKVBzO=ruy=JDmBF28NiUdJmAqb4-1VhK0QBX@mail.gmail.com>
- <AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com>
- <AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com>
- <AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com>
- <20101028090002.GA12446@elte.hu>
- <AANLkTinoGGLTN2JRwjJtF6Ra5auZVg+VSa=TyrtAkDor@mail.gmail.com>
- <20101028133036.GA30565@elte.hu>
- <20101028170132.GY27796@think>
- <AANLkTikgO=n88ZAQ6EYAg1+aC1d0+o923FYyhkOouaH5@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTikgO=n88ZAQ6EYAg1+aC1d0+o923FYyhkOouaH5@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id D69A56B0088
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 10:56:09 -0400 (EDT)
+Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LB2001KS45IZI@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 29 Oct 2010 15:56:07 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LB200CTT45I0E@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 29 Oct 2010 15:56:06 +0100 (BST)
+Date: Fri, 29 Oct 2010 16:58:31 +0200
+From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Subject: Re: [RFC][PATCH 0/3] big chunk memory allocator v2
+In-reply-to: <20101029142741.GB19823@gargoyle.fritz.box>
+Message-id: <op.vlcejtth7p4s8u@pikus>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Content-transfer-encoding: Quoted-Printable
+References: <20101026190042.57f30338.kamezawa.hiroyu@jp.fujitsu.com>
+ <AANLkTim4fFXQKqmFCeR8pvi0SZPXpjDqyOkbV6PYJYkR@mail.gmail.com>
+ <op.vlbywq137p4s8u@pikus> <20101029103154.GA10823@gargoyle.fritz.box>
+ <20101029195900.88559162.kamezawa.hiroyu@jp.fujitsu.com>
+ <20101029122928.GA17792@gargoyle.fritz.box> <op.vlb8bda87p4s8u@pikus>
+ <20101029142741.GB19823@gargoyle.fritz.box>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Andi Kleen <andi.kleen@intel.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "fujita.tomonori@lab.ntt.co.jp" <fujita.tomonori@lab.ntt.co.jp>, "felipe.contreras@gmail.com" <felipe.contreras@gmail.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Russell King <linux@arm.linux.org.uk>, Pawel Osciak <pawel@osciak.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 28, 2010 at 08:57:49PM +0300, Pekka Enberg wrote:
-> Don't we need to call ext4_should_writeback_data() before we drop the
-> lock? It pokes at ->i_mode which needs ->i_mutex AFAICT.
+On Fri, 29 Oct 2010 16:27:41 +0200, Andi Kleen <andi.kleen@intel.com> wr=
+ote:
 
-No, it should be fine.  It's not like a file is going to change from
-being a regular file to a directory or vice versa.  :-)
+> On Fri, Oct 29, 2010 at 01:43:51PM +0100, Micha=C5=82 Nazarewicz wrote=
+:
+>> Hmm... true.  Still the point remains that only movable and reclaimab=
+le pages are
+>> allowed in the marked regions.  This in effect means that from unmova=
+ble pages
+>> point of view, the area is unusable but I havn't thought of any other=
+ way to
+>> guarantee that because of fragmentation, long sequence of free/movabl=
+e/reclaimable
+>> pages is available.
 
->From a quick inspection it looks OK, but I haven't had the time to
-look more closely to be 100% sure, and of course I haven't run it
-through a battery of regression tests.  For normal usage it should be
-fine though.
+> Essentially a movable zone as defined today.
 
-Aidar, if you'd be willing to try it with this patch applied, and with
-the file system mounted data=writeback, and then let me know what the
-latencytop reports, that would be useful.  I'm fairly sure that fixing
-llseek() probably won't make that much difference, since it will
-probably spread things out to other places, but it would be good to
-make the experiment.
+Ah, right, I somehow was under the impresion that movable zone can be us=
+ed as a fallback
+zone.  When I'm finished with my current approach I'll look more closely=
+ into it.
 
-We will probably also need to use the uninitialized bit for protecting
-data from showing up after a crash for extent-based files, and turning
-on data=writeback is a good way to simulate that.  (Sorry, no way
-we're going to make a change like that this merge cycle, but that
-might be something we could do for 2.6.38.)  But I am curious to see
-what are the next things that come up as being problematic after that.
+> That gets you near all the problems of highmem (except for the mapping=
 
-Thanks,
+> problem and you're a bit more flexible in the splits):
+>
+> Someone has to decide at boot how much should be movable
+> and what not, some workloads will run out of space, some may
+> deadlock when it runs out of management objects, etc.etc.
+> Classic highmem had a long string of issues with all of this.
 
-					- Ted
+Here's where the rest of CMA comes.  The solution may be not perfect but=
+ it's
+probably better then nothing.  The idea is to define regions for each de=
+vice
+(with possibility for a single region to be shared) which, hopefuly, can=
+ help
+with fragmentation.
+
+In the current form, CMA is designed mostly for embeded systems where on=
+e can
+define what kind of devices will be used, but in general this could be u=
+sed
+for other systems as well.
+
+-- =
+
+Best regards,                                        _     _
+| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
+| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
++----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
