@@ -1,64 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4E0C78D0030
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 09:15:40 -0400 (EDT)
-Message-ID: <4CCAC8F3.3020704@redhat.com>
-Date: Fri, 29 Oct 2010 09:15:31 -0400
-From: Rik van Riel <riel@redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id 89FFE6B00E8
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 10:26:00 -0400 (EDT)
+Date: Fri, 29 Oct 2010 16:27:41 +0200
+From: Andi Kleen <andi.kleen@intel.com>
+Subject: Re: [RFC][PATCH 0/3] big chunk memory allocator v2
+Message-ID: <20101029142741.GB19823@gargoyle.fritz.box>
+References: <20101026190042.57f30338.kamezawa.hiroyu@jp.fujitsu.com>
+ <AANLkTim4fFXQKqmFCeR8pvi0SZPXpjDqyOkbV6PYJYkR@mail.gmail.com>
+ <op.vlbywq137p4s8u@pikus>
+ <20101029103154.GA10823@gargoyle.fritz.box>
+ <20101029195900.88559162.kamezawa.hiroyu@jp.fujitsu.com>
+ <20101029122928.GA17792@gargoyle.fritz.box>
+ <op.vlb8bda87p4s8u@pikus>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: don't flush TLB when propagate PTE access bit to
- struct page.
-References: <1288200090-23554-1-git-send-email-yinghan@google.com>	<4CC869F5.2070405@redhat.com>	<AANLkTikL+v6uzkXg-7J2FGVz-7kc0Myw_cO5s_wYfHHm@mail.gmail.com>	<AANLkTimLBO7mJugVXH0S=QSnwQ+NDcz3zxmcHmPRjngd@mail.gmail.com>	<alpine.LSU.2.00.1010271144540.5039@tigran.mtv.corp.google.com>	<AANLkTim9NBXrAWkMW7C5C6=1sh52OJm=u5HT7ShyC7hv@mail.gmail.com>	<20101028091158.4de545e9.kamezawa.hiroyu@jp.fujitsu.com>	<AANLkTikdE---MJ-LSwNHEniCphvwu0T2apkWzGsRQ8i=@mail.gmail.com>	<20101029114529.4d3a8b9c.kamezawa.hiroyu@jp.fujitsu.com>	<4CCA42D0.5090603@redhat.com>	<AANLkTiku321ZpSrO4hSLyj7n9NM7QvN+RQ-A73KK4eRa@mail.gmail.com>	<4CCABEA0.8080909@redhat.com> <AANLkTim9iHYDxATbfOMPm614QfcB6uc3LkOR73nnpg2L@mail.gmail.com>
-In-Reply-To: <AANLkTim9iHYDxATbfOMPm614QfcB6uc3LkOR73nnpg2L@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <op.vlb8bda87p4s8u@pikus>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ken Chen <kenchen@google.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: =?utf-8?Q?Micha=C5=82?= Nazarewicz <m.nazarewicz@samsung.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "fujita.tomonori@lab.ntt.co.jp" <fujita.tomonori@lab.ntt.co.jp>, "felipe.contreras@gmail.com" <felipe.contreras@gmail.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Russell King <linux@arm.linux.org.uk>, Pawel Osciak <pawel@osciak.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On 10/29/2010 09:03 AM, Minchan Kim wrote:
-> On Fri, Oct 29, 2010 at 9:31 PM, Rik van Riel<riel@redhat.com>  wrote:
->> On 10/29/2010 12:27 AM, Minchan Kim wrote:
->>
->>> What happens if we don't flush TLB?
->>> It will make for old page to pretend young page.
->>> If it is, how does it affect reclaim?
->>
->> Other way around - it will make a young page pretend to be an
->> old page, because the TLB won't know it needs to flush the
->> Accessed bit into the page tables (where the bit was recently
->> cleared).
->
-> Ying's patch just removes TLB flush when page access bit is changed
-> from young to old.
-> We still flush TLB flush when from old to young change by
-> ptep_set_access_flags. Do I miss something?
+On Fri, Oct 29, 2010 at 01:43:51PM +0100, MichaA? Nazarewicz wrote:
+> >>>> (ii) is used only if all other (non-reserved) pages have
+> >>>> been allocated.
+> 
+> >>> That will be near always the case after some uptime, as memory fills up
+> >>> with caches. Unless you do early reclaim?
+> 
+> Hmm... true.  Still the point remains that only movable and reclaimable pages are
+> allowed in the marked regions.  This in effect means that from unmovable pages
+> point of view, the area is unusable but I havn't thought of any other way to
+> guarantee that because of fragmentation, long sequence of free/movable/reclaimable
+> pages is available.
 
-The TLB is write-through for the accessed and dirty
-bits.
+Essentially a movable zone as defined today.
 
-If the TLB has a page translation without the accessed
-bit (and is accessing it), the accessed bit will be set
-in the page table entry.
+That gets you near all the problems of highmem (except for the mapping
+problem and you're a bit more flexible in the splits): 
 
-If the TLB has a page translation that already has the
-accessed bit set, nothing will be written to the page
-table entry.
+Someone has to decide at boot how much should be movable
+and what not, some workloads will run out of space, some may
+deadlock when it runs out of management objects, etc.etc. 
+Classic highmem had a long string of issues with all of this.
 
-With Ying's change, we will clear the accessed bit in
-the page table, without invalidating the corresponding
-TLB entry.
+If it was an easy problem it had been long solved, but it isn't really.
 
-This can cause accesses to pages to not lead to the
-accessed bit getting set in the corresponding page table
-entry.
-
-Making sure the TLB is flushed periodically could fix
-that issue.
-
--- 
-All rights reversed
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
