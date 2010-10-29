@@ -1,80 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A1A7D6B0106
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 00:27:16 -0400 (EDT)
-Received: by qwi2 with SMTP id 2so2738265qwi.14
-        for <linux-mm@kvack.org>; Thu, 28 Oct 2010 21:27:15 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4CCA42D0.5090603@redhat.com>
-References: <1288200090-23554-1-git-send-email-yinghan@google.com>
-	<4CC869F5.2070405@redhat.com>
-	<AANLkTikL+v6uzkXg-7J2FGVz-7kc0Myw_cO5s_wYfHHm@mail.gmail.com>
-	<AANLkTimLBO7mJugVXH0S=QSnwQ+NDcz3zxmcHmPRjngd@mail.gmail.com>
-	<alpine.LSU.2.00.1010271144540.5039@tigran.mtv.corp.google.com>
-	<AANLkTim9NBXrAWkMW7C5C6=1sh52OJm=u5HT7ShyC7hv@mail.gmail.com>
-	<20101028091158.4de545e9.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTikdE---MJ-LSwNHEniCphvwu0T2apkWzGsRQ8i=@mail.gmail.com>
-	<20101029114529.4d3a8b9c.kamezawa.hiroyu@jp.fujitsu.com>
-	<4CCA42D0.5090603@redhat.com>
-Date: Fri, 29 Oct 2010 13:27:15 +0900
-Message-ID: <AANLkTiku321ZpSrO4hSLyj7n9NM7QvN+RQ-A73KK4eRa@mail.gmail.com>
-Subject: Re: [PATCH] mm: don't flush TLB when propagate PTE access bit to
- struct page.
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BFCA98D0030
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 03:09:58 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: [PATCH v4 00/11] memcg: per cgroup dirty page accounting
+Date: Fri, 29 Oct 2010 00:09:03 -0700
+Message-Id: <1288336154-23256-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ken Chen <kenchen@google.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Greg Thelen <gthelen@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 29, 2010 at 12:43 PM, Rik van Riel <riel@redhat.com> wrote:
-> On 10/28/2010 10:45 PM, KAMEZAWA Hiroyuki wrote:
->
->> Hmm. Without flushing anywhere in memory reclaim path, a process which
->> cause page fault and enter vmscan will not see his own recent access bit
->> on
->> pages in LRU ?
->
-> Worse still, because kernel threads do a lazy mmu switch, even
-> page faulting in the process will not cause the TLB entries to
-> be flushed.
->
->> I think it should be flushed at least once..
->
-> A periodic flush may make sense.
->
-> Maybe something along the lines of if the TLB has not been
-> flushed for over a second (we can see that in timer or scheduler
-> code), flush it?
+Changes since v3:
+- Refactored balance_dirty_pages() dirtying checking to use new struct
+  dirty_info, which is used to compare both system and memcg dirty limits
+  against usage.
+- Disabled memcg dirty limits when memory.use_hierarchy=1.  An enhancement is
+  needed to check the chain of parents to ensure that no dirty limit is
+  exceeded.
+- Ported to mmotm-2010-10-22-16-36.
 
-What happens if we don't flush TLB?
-It will make for old page to pretend young page.
-If it is, how does it affect reclaim?
+Changes since v2:
+- Rather than disabling softirq in lock_page_cgroup(), introduce a separate lock
+  to synchronize between memcg page accounting and migration.  This only affects
+  patch 4 of the series.  Patch 4 used to disable softirq, now it introduces the
+  new lock.
 
-It makes for old page to promote into active list by page_check_references.
-Of couse, It's not good. But for it, we have to keep wrong TLB until
-moving head to tail in inactive list. It's very unlikely. That's
-because TLB is very smalll and the process will be switching out.
+Changes since v1:
+- Renamed "nfs"/"total_nfs" to "nfs_unstable"/"total_nfs_unstable" in per cgroup
+  memory.stat to match /proc/meminfo.
+- Avoid lockdep warnings by using rcu_read_[un]lock() in
+  mem_cgroup_has_dirty_limit().
+- Fixed lockdep issue in mem_cgroup_read_stat() which is exposed by these
+  patches.
+- Remove redundant comments.
+- Rename (for clarity):
+  - mem_cgroup_write_page_stat_item -> mem_cgroup_page_stat_item
+  - mem_cgroup_read_page_stat_item -> mem_cgroup_nr_pages_item
+- Renamed newly created proc files:
+  - memory.dirty_bytes -> memory.dirty_limit_in_bytes
+  - memory.dirty_background_bytes -> memory.dirty_background_limit_in_bytes
+- Removed unnecessary get_ prefix from get_xxx() functions.
+- Allow [kKmMgG] suffixes for newly created dirty limit value cgroupfs files.
+- Disable softirq rather than hardirq in lock_page_cgroup()
+- Made mem_cgroup_move_account_page_stat() inline.
+- Ported patches to mmotm-2010-10-13-17-13.
 
-If lumpy happens(ie, not waiting from head to tail in inactive list to
-hold a victim page), that's all right since we ignore young bit in
-lumpy case.
+This patch set provides the ability for each cgroup to have independent dirty
+page limits.
 
-I think it's no problem unless inactive list is very short.
-Remained one is kernel thread's lazy TLB flush.
+Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
+page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
+not be able to consume more than their designated share of dirty pages and will
+be forced to perform write-out if they cross that limit.
 
-So how about flushing TLB in kswapd scheduled in?
+The patches are based on a series proposed by Andrea Righi in Mar 2010.
 
+Overview:
+- Add page_cgroup flags to record when pages are dirty, in writeback, or nfs
+  unstable.
 
-> --
-> All rights reversed
->
+- Extend mem_cgroup to record the total number of pages in each of the 
+  interesting dirty states (dirty, writeback, unstable_nfs).  
 
+- Add dirty parameters similar to the system-wide  /proc/sys/vm/dirty_*
+  limits to mem_cgroup.  The mem_cgroup dirty parameters are accessible
+  via cgroupfs control files.
 
+- Consider both system and per-memcg dirty limits in page writeback when
+  deciding to queue background writeback or block for foreground writeback.
+
+Known shortcomings:
+- When a cgroup dirty limit is exceeded, then bdi writeback is employed to
+  writeback dirty inodes.  Bdi writeback considers inodes from any cgroup, not
+  just inodes contributing dirty pages to the cgroup exceeding its limit.  
+
+- When memory.use_hierarchy is set, then dirty limits are disabled.  This is a
+  implementation detail.  An enhanced implementation is needed to check the
+  chain of parents to ensure that no dirty limit is exceeded.
+
+Performance data:
+- A page fault microbenchmark workload was used to measure performance, which
+  can be called in read or write mode:
+        f = open(foo. $cpu)
+        truncate(f, 4096)
+        alarm(60)
+        while (1) {
+                p = mmap(f, 4096)
+                if (write)
+			*p = 1
+		else
+			x = *p
+                munmap(p)
+        }
+
+- The workload was called for several points in the patch series in different
+  modes:
+  - s_read is a single threaded reader
+  - s_write is a single threaded writer
+  - p_read is a 16 thread reader, each operating on a different file
+  - p_write is a 16 thread writer, each operating on a different file
+
+- Measurements were collected on a 16 core non-numa system using "perf stat
+  --repeat 3".  The -a option was used for parallel (p_*) runs.
+
+- All numbers are page fault rate (M/sec).  Higher is better.
+
+- To compare the performance of a kernel without non-memcg compare the first and
+  last rows, neither has memcg configured.  The first row does not include any
+  of these memcg patches.
+
+- To compare the performance of using memcg dirty limits, compare the baseline
+  (2nd row titled "w/ memcg") with the the code and memcg enabled (2nd to last
+  row titled "all patches").
+
+                           root_cgroup                    child_cgroup
+                 s_read s_write p_read p_write   s_read s_write p_read p_write
+mmotm w/o memcg   0.428  0.390   0.429  0.388
+mmotm w/ memcg    0.411  0.378   0.391  0.362     0.412  0.377   0.385  0.363
+all patches       0.384  0.360   0.370  0.348     0.381  0.363   0.368  0.347
+all patches       0.431  0.402   0.427  0.395
+  w/o memcg
+
+Balbir Singh (1):
+  memcg: CPU hotplug lockdep warning fix
+
+Greg Thelen (9):
+  memcg: add page_cgroup flags for dirty page tracking
+  memcg: document cgroup dirty memory interfaces
+  memcg: create extensible page stat update routines
+  writeback: create dirty_info structure
+  memcg: add dirty page accounting infrastructure
+  memcg: add kernel calls for memcg dirty page stats
+  memcg: add dirty limits to mem_cgroup
+  memcg: add cgroupfs interface to memcg dirty limits
+  memcg: check memcg dirty limits in page writeback
+
+KAMEZAWA Hiroyuki (1):
+  memcg: add lock to synchronize page accounting and migration
+
+ Documentation/cgroups/memory.txt |   73 ++++++
+ fs/fs-writeback.c                |    7 +-
+ fs/nfs/write.c                   |    4 +
+ include/linux/memcontrol.h       |   64 +++++-
+ include/linux/page_cgroup.h      |   54 ++++-
+ include/linux/writeback.h        |    9 +-
+ mm/backing-dev.c                 |   12 +-
+ mm/filemap.c                     |    1 +
+ mm/memcontrol.c                  |  477 ++++++++++++++++++++++++++++++++++++--
+ mm/page-writeback.c              |  135 ++++++++----
+ mm/rmap.c                        |    4 +-
+ mm/truncate.c                    |    1 +
+ mm/vmstat.c                      |    6 +-
+ 13 files changed, 764 insertions(+), 83 deletions(-)
 
 -- 
-Kind regards,
-Minchan Kim
+1.7.3.1
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
