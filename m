@@ -1,47 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A209E6B00ED
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 18:08:51 -0400 (EDT)
-Date: Fri, 29 Oct 2010 23:58:39 +0200 (CEST)
-From: Jesper Juhl <jj@chaosbits.net>
-Subject: [PATCH] Zero memory more efficiently in
- mm/percpu.c::pcpu_mem_alloc()
-Message-ID: <alpine.LNX.2.00.1010292354060.24561@swampdragon.chaosbits.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DFFD56B0151
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 19:20:11 -0400 (EDT)
+Date: Fri, 29 Oct 2010 16:19:11 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Fix ext2 and ext4 buffer-head accounting.
+Message-Id: <20101029161911.046abe8a.akpm@linux-foundation.org>
+In-Reply-To: <1288199797-22541-1-git-send-email-yinghan@google.com>
+References: <1288199797-22541-1-git-send-email-yinghan@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ying Han <yinghan@google.com>
+Cc: linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@lst.de>, Nick Piggin <npiggin@suse.de>, Paul Turner <pjt@google.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Don't do vmalloc() + memset() when vzalloc() will do.
+On Wed, 27 Oct 2010 10:16:37 -0700
+Ying Han <yinghan@google.com> wrote:
 
-Signed-off-by: Jesper Juhl <jj@chaosbits.net>
----
- percpu.c |    4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+> Pages pinned to block group_descriptors in the super_block are non-reclaimable.
+> Those pages are showed up as file-backed in meminfo which confuse user program
+> issuing too many drop_caches/ttfp when this memory will never be freed.
+> 
+> The change has us not account for the file system descriptors by taking the pages
+> off LRU and decrementing the NR_FILE_PAGES counter. The pages are putting back when
+> the filesystem is being unmounted.
 
-diff --git a/mm/percpu.c b/mm/percpu.c
-index efe8168..8d75223 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -294,9 +294,7 @@ static void *pcpu_mem_alloc(size_t size)
- 	if (size <= PAGE_SIZE)
- 		return kzalloc(size, GFP_KERNEL);
- 	else {
--		void *ptr = vmalloc(size);
--		if (ptr)
--			memset(ptr, 0, size);
-+		void *ptr = vzalloc(size);
- 		return ptr;
- 	}
- }
+Well, it's not just ext2 and ext4.
+
+Is this the simplest way of solving the problem?  This is just pinned
+pagecache.  We already have way of handling pinned pagecache (eg,
+mlocked pages).  Can we reuse those mechanisms, perhaps after suitable
+generalisation?
 
 
--- 
-Jesper Juhl <jj@chaosbits.net>             http://www.chaosbits.net/
-Plain text mails only, please      http://www.expita.com/nomime.html
-Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
