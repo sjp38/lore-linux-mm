@@ -1,59 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CD1B8D0030
-	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 17:37:53 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH v4 02/11] memcg: document cgroup dirty memory interfaces
-References: <1288336154-23256-1-git-send-email-gthelen@google.com>
-	<1288336154-23256-3-git-send-email-gthelen@google.com>
-	<20101029131952.1191023d.akpm@linux-foundation.org>
-Date: Fri, 29 Oct 2010 14:37:30 -0700
-In-Reply-To: <20101029131952.1191023d.akpm@linux-foundation.org> (Andrew
-	Morton's message of "Fri, 29 Oct 2010 13:19:52 -0700")
-Message-ID: <xr93wrp0k7dx.fsf@ninji.mtv.corp.google.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A209E6B00ED
+	for <linux-mm@kvack.org>; Fri, 29 Oct 2010 18:08:51 -0400 (EDT)
+Date: Fri, 29 Oct 2010 23:58:39 +0200 (CEST)
+From: Jesper Juhl <jj@chaosbits.net>
+Subject: [PATCH] Zero memory more efficiently in
+ mm/percpu.c::pcpu_mem_alloc()
+Message-ID: <alpine.LNX.2.00.1010292354060.24561@swampdragon.chaosbits.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@linux-foundation.org> writes:
+Don't do vmalloc() + memset() when vzalloc() will do.
 
-> On Fri, 29 Oct 2010 00:09:05 -0700
-> Greg Thelen <gthelen@google.com> wrote:
->
->> Document cgroup dirty memory interfaces and statistics.
->> 
->>
->> ...
->>
->> +When use_hierarchy=0, each cgroup has dirty memory usage and limits.
->> +System-wide dirty limits are also consulted.  Dirty memory consumption is
->> +checked against both system-wide and per-cgroup dirty limits.
->> +
->> +The current implementation does enforce per-cgroup dirty limits when
->
-> "does not", I trust.
+Signed-off-by: Jesper Juhl <jj@chaosbits.net>
+---
+ percpu.c |    4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-Correct.  Thanks.
+diff --git a/mm/percpu.c b/mm/percpu.c
+index efe8168..8d75223 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -294,9 +294,7 @@ static void *pcpu_mem_alloc(size_t size)
+ 	if (size <= PAGE_SIZE)
+ 		return kzalloc(size, GFP_KERNEL);
+ 	else {
+-		void *ptr = vmalloc(size);
+-		if (ptr)
+-			memset(ptr, 0, size);
++		void *ptr = vzalloc(size);
+ 		return ptr;
+ 	}
+ }
 
->> +use_hierarchy=1.  System-wide dirty limits are used for processes in such
->> +cgroups.  Attempts to read memory.dirty_* files return the system-wide values.
->> +Writes to the memory.dirty_* files return error.  An enhanced implementation is
->> +needed to check the chain of parents to ensure that no dirty limit is exceeded.
->> +
->>  6. Hierarchy support
->>  
->>  The memory controller supports a deep hierarchy and hierarchical accounting.
->> -- 
->> 1.7.3.1
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Jesper Juhl <jj@chaosbits.net>             http://www.chaosbits.net/
+Plain text mails only, please      http://www.expita.com/nomime.html
+Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
