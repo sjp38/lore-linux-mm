@@ -1,54 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 88C308D005B
-	for <linux-mm@kvack.org>; Sat, 30 Oct 2010 09:58:31 -0400 (EDT)
-Message-ID: <4CCC2480.70303@kernel.org>
-Date: Sat, 30 Oct 2010 15:58:24 +0200
-From: Tejun Heo <tj@kernel.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 4153E8D005B
+	for <linux-mm@kvack.org>; Sat, 30 Oct 2010 12:06:17 -0400 (EDT)
+Date: Sat, 30 Oct 2010 17:55:58 +0200 (CEST)
+From: Jesper Juhl <jj@chaosbits.net>
+Subject: Re: [PATCH] percpu: zero memory more efficiently in
+ mm/percpu.c::pcpu_mem_alloc()
+In-Reply-To: <4CCC2480.70303@kernel.org>
+Message-ID: <alpine.LNX.2.00.1010301754490.1572@swampdragon.chaosbits.net>
+References: <alpine.LNX.2.00.1010292354060.24561@swampdragon.chaosbits.net> <4CCC2480.70303@kernel.org>
 MIME-Version: 1.0
-Subject: [PATCH] percpu: zero memory more efficiently in mm/percpu.c::pcpu_mem_alloc()
-References: <alpine.LNX.2.00.1010292354060.24561@swampdragon.chaosbits.net>
-In-Reply-To: <alpine.LNX.2.00.1010292354060.24561@swampdragon.chaosbits.net>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Jesper Juhl <jj@chaosbits.net>
+To: Tejun Heo <tj@kernel.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Don't do vmalloc() + memset() when vzalloc() will do.
+On Sat, 30 Oct 2010, Tejun Heo wrote:
 
-tj: dropped unnecessary temp variable ptr.
+> Don't do vmalloc() + memset() when vzalloc() will do.
+> 
+> tj: dropped unnecessary temp variable ptr.
+> 
+I must be needing glasses, I should have seen that initially. Thanks for 
+fixing that up :)
 
-Signed-off-by: Jesper Juhl <jj@chaosbits.net>
-Signed-off-by: Tejun Heo <tj@kernel.org>
----
-Applied with slight modification.  Thank you.
-
- mm/percpu.c |    8 ++------
- 1 files changed, 2 insertions(+), 6 deletions(-)
-
-diff --git a/mm/percpu.c b/mm/percpu.c
-index efe8168..9e16d1c 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -293,12 +293,8 @@ static void *pcpu_mem_alloc(size_t size)
-
- 	if (size <= PAGE_SIZE)
- 		return kzalloc(size, GFP_KERNEL);
--	else {
--		void *ptr = vmalloc(size);
--		if (ptr)
--			memset(ptr, 0, size);
--		return ptr;
--	}
-+	else
-+		return vzalloc(size);
- }
-
- /**
 -- 
-1.7.1
+Jesper Juhl <jj@chaosbits.net>             http://www.chaosbits.net/
+Plain text mails only, please      http://www.expita.com/nomime.html
+Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
