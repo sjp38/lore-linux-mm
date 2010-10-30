@@ -1,73 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FBBD6B015B
-	for <linux-mm@kvack.org>; Sat, 30 Oct 2010 08:48:43 -0400 (EDT)
-Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
-	by smtp-out.google.com with ESMTP id o9UCmcj6014065
-	for <linux-mm@kvack.org>; Sat, 30 Oct 2010 05:48:39 -0700
-Received: from vws19 (vws19.prod.google.com [10.241.21.147])
-	by kpbe13.cbf.corp.google.com with ESMTP id o9UCmaES019000
-	for <linux-mm@kvack.org>; Sat, 30 Oct 2010 05:48:37 -0700
-Received: by vws19 with SMTP id 19so1438172vws.26
-        for <linux-mm@kvack.org>; Sat, 30 Oct 2010 05:48:36 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id DF0446B015D
+	for <linux-mm@kvack.org>; Sat, 30 Oct 2010 09:08:52 -0400 (EDT)
+Received: by iwn38 with SMTP id 38so4024997iwn.14
+        for <linux-mm@kvack.org>; Sat, 30 Oct 2010 06:08:51 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <AANLkTik4NM5YOgh48bOWDQZuUKmEHLH6Ja10eOzn-_tj@mail.gmail.com>
-References: <AANLkTik4NM5YOgh48bOWDQZuUKmEHLH6Ja10eOzn-_tj@mail.gmail.com>
-Date: Sat, 30 Oct 2010 05:48:36 -0700
-Message-ID: <AANLkTikrgUhVNqM0OmZAjA-YXn_WRNPpdtFWKB+H3iDR@mail.gmail.com>
-Subject: Re: RFC: reviving mlock isolation dead code
-From: Michel Lespinasse <walken@google.com>
+In-Reply-To: <20101030091440.GA15276@elte.hu>
+References: <AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com>
+	<AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com>
+	<AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com>
+	<20101028090002.GA12446@elte.hu>
+	<AANLkTinoGGLTN2JRwjJtF6Ra5auZVg+VSa=TyrtAkDor@mail.gmail.com>
+	<20101028133036.GA30565@elte.hu>
+	<20101028170132.GY27796@think>
+	<AANLkTikgO=n88ZAQ6EYAg1+aC1d0+o923FYyhkOouaH5@mail.gmail.com>
+	<20101029145212.GA21205@thunk.org>
+	<AANLkTim-A7DLOOw4myQU3Lfip+ZEE32F2Ap_PJXuxG6G@mail.gmail.com>
+	<20101030091440.GA15276@elte.hu>
+Date: Sat, 30 Oct 2010 19:02:35 +0600
+Message-ID: <AANLkTim-hgA3-9T_N5k53Sga5LMazMQPmmQZzQsoQvRY@mail.gmail.com>
+Subject: Re: 2.6.36 io bring the system to its knees
+From: Aidar Kultayev <the.aidar@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Ted Ts'o <tytso@mit.edu>, Pekka Enberg <penberg@kernel.org>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Oct 30, 2010 at 3:16 AM, Michel Lespinasse <walken@google.com> wrot=
-e:
-> The following code at the bottom of try_to_unmap_one appears to be dead:
+Hi,
+
+here is what I have :
+
+.ext4 mounted with data=3Dordered
+.-tip tree ( uname -a gives : Linux pussy 2.6.36-tip+ )
+
+here is the latencytop & powertop & top screenshot:
+
+http://picasaweb.google.com/lh/photo/bMTgbVDoojwUeXtVdyvIKw?feat=3Ddirectli=
+nk
+
+the system is/was doing :
+.dd if=3D/dev/zero of=3Dtest.10g bs=3D1M count=3D10000;rm test.10g
+.netbeans
+.compiling gcc-4.5.1
+.running VBox, which wasn't doing any IO. The guest os was idle in other wo=
+rds
+.vlc
+.chromium
+.firefox
+and bunch of other small stuff.
+
+Even without having running DD, the mouse cursor would occasionally
+lag. The alt+tab effect in KWin would take 5+seconds to workout.
+When I run DD on top of the workload it consistently made system much
+more laggy. The cursor would freeze much more frequent. It is like if
+you drag your mouse physically, but the cursor on the screen would
+jump discretely, in other words there is no continuity.
+Music would stop.
+
+I am free to try out anything here.
+
+thanks, Aidar
+
+On Sat, Oct 30, 2010 at 3:14 PM, Ingo Molnar <mingo@elte.hu> wrote:
 >
-> =A0out_mlock:
-> =A0 =A0 =A0 =A0pte_unmap_unlock(pte, ptl);
+> * Aidar Kultayev <the.aidar@gmail.com> wrote:
 >
-> =A0 =A0 =A0 =A0/*
-> =A0 =A0 =A0 =A0 * We need mmap_sem locking, Otherwise VM_LOCKED check mak=
-es
-> =A0 =A0 =A0 =A0 * unstable result and race. Plus, We can't wait here beca=
-use
-> =A0 =A0 =A0 =A0 * we now hold anon_vma->lock or mapping->i_mmap_lock.
-> =A0 =A0 =A0 =A0 * if trylock failed, the page remain in evictable lru and=
- later
-> =A0 =A0 =A0 =A0 * vmscan could retry to move the page to unevictable lru =
-if the
-> =A0 =A0 =A0 =A0 * page is actually mlocked.
-> =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (vma->vm_flags & VM_LOCKED) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mlock_vma_page(page);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D SWAP_MLOCK;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0up_read(&vma->vm_mm->mmap_sem);
-> =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0return ret;
-
-All right, not entirely dead - Documentation/vm/unevictable-lru.txt
-actually explains this very well.
-
-But still, the problem remains that lazy mlocking doesn't work while
-mmap_sem is exclusively held by a long-running mlock().
-
-> One approach I am considering would be to modify
-> __mlock_vma_pages_range() and it call sites so the mmap sem is only
-> read-owned while __mlock_vma_pages_range() runs. The mlock handling
-> code in try_to_unmap_one() would then be able to acquire the
-> mmap_sem() and help, as it is designed to do.
-
-I'm still looking for any comments people might have about this :)
-
---=20
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+>> puling the git now - I will try whatever you throw at me.
+>
+> Ted, i stuck that patch into tip:out-of-tree as:
+>
+> =A022fd555f6c5f: <not for upstream> ext4: Relax i_mutex hold times
+>
+> So that Aidar can test things more easily via:
+>
+> =A0http://people.redhat.com/mingo/tip.git/README
+>
+> Thanks,
+>
+> =A0 =A0 =A0 =A0Ingo
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
