@@ -1,86 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id DF0446B015D
-	for <linux-mm@kvack.org>; Sat, 30 Oct 2010 09:08:52 -0400 (EDT)
-Received: by iwn38 with SMTP id 38so4024997iwn.14
-        for <linux-mm@kvack.org>; Sat, 30 Oct 2010 06:08:51 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 88C308D005B
+	for <linux-mm@kvack.org>; Sat, 30 Oct 2010 09:58:31 -0400 (EDT)
+Message-ID: <4CCC2480.70303@kernel.org>
+Date: Sat, 30 Oct 2010 15:58:24 +0200
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20101030091440.GA15276@elte.hu>
-References: <AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com>
-	<AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com>
-	<AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com>
-	<20101028090002.GA12446@elte.hu>
-	<AANLkTinoGGLTN2JRwjJtF6Ra5auZVg+VSa=TyrtAkDor@mail.gmail.com>
-	<20101028133036.GA30565@elte.hu>
-	<20101028170132.GY27796@think>
-	<AANLkTikgO=n88ZAQ6EYAg1+aC1d0+o923FYyhkOouaH5@mail.gmail.com>
-	<20101029145212.GA21205@thunk.org>
-	<AANLkTim-A7DLOOw4myQU3Lfip+ZEE32F2Ap_PJXuxG6G@mail.gmail.com>
-	<20101030091440.GA15276@elte.hu>
-Date: Sat, 30 Oct 2010 19:02:35 +0600
-Message-ID: <AANLkTim-hgA3-9T_N5k53Sga5LMazMQPmmQZzQsoQvRY@mail.gmail.com>
-Subject: Re: 2.6.36 io bring the system to its knees
-From: Aidar Kultayev <the.aidar@gmail.com>
+Subject: [PATCH] percpu: zero memory more efficiently in mm/percpu.c::pcpu_mem_alloc()
+References: <alpine.LNX.2.00.1010292354060.24561@swampdragon.chaosbits.net>
+In-Reply-To: <alpine.LNX.2.00.1010292354060.24561@swampdragon.chaosbits.net>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Ted Ts'o <tytso@mit.edu>, Pekka Enberg <penberg@kernel.org>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Jesper Juhl <jj@chaosbits.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Don't do vmalloc() + memset() when vzalloc() will do.
 
-here is what I have :
+tj: dropped unnecessary temp variable ptr.
 
-.ext4 mounted with data=3Dordered
-.-tip tree ( uname -a gives : Linux pussy 2.6.36-tip+ )
+Signed-off-by: Jesper Juhl <jj@chaosbits.net>
+Signed-off-by: Tejun Heo <tj@kernel.org>
+---
+Applied with slight modification.  Thank you.
 
-here is the latencytop & powertop & top screenshot:
+ mm/percpu.c |    8 ++------
+ 1 files changed, 2 insertions(+), 6 deletions(-)
 
-http://picasaweb.google.com/lh/photo/bMTgbVDoojwUeXtVdyvIKw?feat=3Ddirectli=
-nk
+diff --git a/mm/percpu.c b/mm/percpu.c
+index efe8168..9e16d1c 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -293,12 +293,8 @@ static void *pcpu_mem_alloc(size_t size)
 
-the system is/was doing :
-.dd if=3D/dev/zero of=3Dtest.10g bs=3D1M count=3D10000;rm test.10g
-.netbeans
-.compiling gcc-4.5.1
-.running VBox, which wasn't doing any IO. The guest os was idle in other wo=
-rds
-.vlc
-.chromium
-.firefox
-and bunch of other small stuff.
+ 	if (size <= PAGE_SIZE)
+ 		return kzalloc(size, GFP_KERNEL);
+-	else {
+-		void *ptr = vmalloc(size);
+-		if (ptr)
+-			memset(ptr, 0, size);
+-		return ptr;
+-	}
++	else
++		return vzalloc(size);
+ }
 
-Even without having running DD, the mouse cursor would occasionally
-lag. The alt+tab effect in KWin would take 5+seconds to workout.
-When I run DD on top of the workload it consistently made system much
-more laggy. The cursor would freeze much more frequent. It is like if
-you drag your mouse physically, but the cursor on the screen would
-jump discretely, in other words there is no continuity.
-Music would stop.
-
-I am free to try out anything here.
-
-thanks, Aidar
-
-On Sat, Oct 30, 2010 at 3:14 PM, Ingo Molnar <mingo@elte.hu> wrote:
->
-> * Aidar Kultayev <the.aidar@gmail.com> wrote:
->
->> puling the git now - I will try whatever you throw at me.
->
-> Ted, i stuck that patch into tip:out-of-tree as:
->
-> =A022fd555f6c5f: <not for upstream> ext4: Relax i_mutex hold times
->
-> So that Aidar can test things more easily via:
->
-> =A0http://people.redhat.com/mingo/tip.git/README
->
-> Thanks,
->
-> =A0 =A0 =A0 =A0Ingo
->
+ /**
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
