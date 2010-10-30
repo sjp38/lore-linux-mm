@@ -1,55 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 31E296B015A
-	for <linux-mm@kvack.org>; Sat, 30 Oct 2010 17:53:24 -0400 (EDT)
-Date: Sat, 30 Oct 2010 23:43:05 +0200 (CEST)
-From: Jesper Juhl <jj@chaosbits.net>
-Subject: [PATCH] kmemleak: remove memset by using kzalloc
-Message-ID: <alpine.LNX.2.00.1010302340260.1572@swampdragon.chaosbits.net>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id DE3128D005B
+	for <linux-mm@kvack.org>; Sat, 30 Oct 2010 19:28:23 -0400 (EDT)
+Received: by iwn38 with SMTP id 38so4514749iwn.14
+        for <linux-mm@kvack.org>; Sat, 30 Oct 2010 16:28:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.LNX.2.00.1010302340260.1572@swampdragon.chaosbits.net>
+References: <alpine.LNX.2.00.1010302340260.1572@swampdragon.chaosbits.net>
+Date: Sun, 31 Oct 2010 08:28:19 +0900
+Message-ID: <AANLkTik0hfWygPnBSBPEj2nwgx_Cx0fYoU1h07=ZqM=P@mail.gmail.com>
+Subject: Re: [PATCH] kmemleak: remove memset by using kzalloc
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>
+To: Jesper Juhl <jj@chaosbits.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>
 List-ID: <linux-mm.kvack.org>
 
-We don't need to memset if we just use kzalloc() rather than kmalloc() in 
-kmemleak_test_init().
+On Sun, Oct 31, 2010 at 6:43 AM, Jesper Juhl <jj@chaosbits.net> wrote:
+> We don't need to memset if we just use kzalloc() rather than kmalloc() in
+> kmemleak_test_init().
+>
+> (please CC on replies)
+>
+>
+> Signed-off-by: Jesper Juhl <jj@chaosbits.net>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-(please CC on replies)
-
-
-Signed-off-by: Jesper Juhl <jj@chaosbits.net>
----
- kmemleak-test.c |    6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
-
-diff --git a/mm/kmemleak-test.c b/mm/kmemleak-test.c
-index 177a516..ff0d977 100644
---- a/mm/kmemleak-test.c
-+++ b/mm/kmemleak-test.c
-@@ -75,13 +75,11 @@ static int __init kmemleak_test_init(void)
- 	 * after the module is removed.
- 	 */
- 	for (i = 0; i < 10; i++) {
--		elem = kmalloc(sizeof(*elem), GFP_KERNEL);
--		pr_info("kmemleak: kmalloc(sizeof(*elem)) = %p\n", elem);
-+		elem = kzalloc(sizeof(*elem), GFP_KERNEL);
-+		pr_info("kmemleak: kzalloc(sizeof(*elem)) = %p\n", elem);
- 		if (!elem)
- 			return -ENOMEM;
--		memset(elem, 0, sizeof(*elem));
- 		INIT_LIST_HEAD(&elem->list);
--
- 		list_add_tail(&elem->list, &test_list);
- 	}
- 
 
 
 -- 
-Jesper Juhl <jj@chaosbits.net>             http://www.chaosbits.net/
-Plain text mails only, please      http://www.expita.com/nomime.html
-Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
