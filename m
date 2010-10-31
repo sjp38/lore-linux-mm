@@ -1,78 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id F109F6B0174
-	for <linux-mm@kvack.org>; Sun, 31 Oct 2010 14:08:42 -0400 (EDT)
-Received: by vws18 with SMTP id 18so2475142vws.14
-        for <linux-mm@kvack.org>; Sun, 31 Oct 2010 11:08:41 -0700 (PDT)
-From: Ben Gamari <bgamari.foss@gmail.com>
-Subject: [RFC PATCH] Add Kconfig option for default swappiness
-Date: Sun, 31 Oct 2010 14:08:28 -0400
-Message-Id: <1288548508-22070-1-git-send-email-bgamari.foss@gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6A00F8D005B
+	for <linux-mm@kvack.org>; Sun, 31 Oct 2010 16:04:58 -0400 (EDT)
+Date: Mon, 1 Nov 2010 04:03:41 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH v4 11/11] memcg: check memcg dirty limits in page
+ writeback
+Message-ID: <20101031200341.GA455@localhost>
+References: <1288336154-23256-1-git-send-email-gthelen@google.com>
+ <1288336154-23256-12-git-send-email-gthelen@google.com>
+ <20101029164835.06eef3cf.kamezawa.hiroyu@jp.fujitsu.com>
+ <xr93eib9nfue.fsf@ninji.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <xr93eib9nfue.fsf@ninji.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Ben Gamari <bgamari.foss@gmail.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "containers@lists.osdl.org" <containers@lists.osdl.org>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-This will allow distributions to tune this important vm parameter in a more
-self-contained manner.
+On Sat, Oct 30, 2010 at 12:06:33AM +0800, Greg Thelen wrote:
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+> 
+> > On Fri, 29 Oct 2010 00:09:14 -0700
+> > Greg Thelen <gthelen@google.com> wrote:
+> >
+> >> If the current process is in a non-root memcg, then
+> >> balance_dirty_pages() will consider the memcg dirty limits
+> >> as well as the system-wide limits.  This allows different
+> >> cgroups to have distinct dirty limits which trigger direct
+> >> and background writeback at different levels.
+> >> 
+> >> Signed-off-by: Andrea Righi <arighi@develer.com>
+> >> Signed-off-by: Greg Thelen <gthelen@google.com>
+> >
+> > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Signed-off-by: Ben Gamari <bgamari.foss@gmail.com>
----
- Documentation/sysctl/vm.txt |    2 +-
- mm/Kconfig                  |   11 +++++++++++
- mm/vmscan.c                 |    2 +-
- 3 files changed, 13 insertions(+), 2 deletions(-)
+The "check both memcg&global dirty limit" looks much more sane than
+the V3 implementation. Although it still has misbehaviors in some
+cases, it's generally a good new feature to have.
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 6c7d18c..792823b 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -614,7 +614,7 @@ This control is used to define how aggressive the kernel will swap
- memory pages.  Higher values will increase agressiveness, lower values
- decrease the amount of swap.
- 
--The default value is 60.
-+The default value is 60 (changed with CONFIG_DEFAULT_SWAPINESS).
- 
- ==============================================================
- 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9c61158..729ecec 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -61,6 +61,17 @@ config SPARSEMEM_MANUAL
- 
- endchoice
- 
-+config DEFAULT_SWAPPINESS
-+	int "Default swappiness"
-+	default "60"
-+	range 0 100
-+	help
-+	  This control is used to define how aggressive the kernel will swap
-+	  memory pages.  Higher values will increase agressiveness, lower
-+	  values decrease the amount of swap. Valid values range from 0 to 100.
-+
-+	  If unsure, keep default value of 60.
-+
- config DISCONTIGMEM
- 	def_bool y
- 	depends on (!SELECT_MEMORY_MODEL && ARCH_DISCONTIGMEM_ENABLE) || DISCONTIGMEM_MANUAL
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3ff3311..342975f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -126,7 +126,7 @@ struct scan_control {
- /*
-  * From 0 .. 100.  Higher means more swappy.
-  */
--int vm_swappiness = 60;
-+int vm_swappiness = CONFIG_DEFAULT_SWAPPINESS;
- long vm_total_pages;	/* The total number of pages which the VM controls */
- 
- static LIST_HEAD(shrinker_list);
--- 
-1.7.1
+Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+
+> > Ideally, I think some comments in the code for "why we need double-check system's
+> > dirty limit and memcg's dirty limit" will be appreciated.
+> 
+> I will add to the balance_dirty_pages() comment.  It will read:
+> /*
+>  * balance_dirty_pages() must be called by processes which are generating dirty
+>  * data.  It looks at the number of dirty pages in the machine and will force
+>  * the caller to perform writeback if the system is over `vm_dirty_ratio'.
+                   ~~~~~~~~~~~~~~~~~                  ~~~~
+
+To be exact, it tries to throttle the dirty speed so that
+vm_dirty_ratio is not exceeded. In fact balance_dirty_pages() starts
+throttling the dirtier slightly below vm_dirty_ratio.
+
+>  * If we're over `background_thresh' then the writeback threads are woken to
+>  * perform some writeout.  The current task may have per-memcg dirty
+>  * limits, which are also checked.
+>  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
