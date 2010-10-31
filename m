@@ -1,224 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 233D78D005B
-	for <linux-mm@kvack.org>; Sun, 31 Oct 2010 16:12:10 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH v4 03/11] memcg: create extensible page stat update routines
-References: <1288336154-23256-1-git-send-email-gthelen@google.com>
-	<1288336154-23256-4-git-send-email-gthelen@google.com>
-	<4CCD81CB.9030503@linux.vnet.ibm.com>
-Date: Sun, 31 Oct 2010 13:11:46 -0700
-In-Reply-To: <4CCD81CB.9030503@linux.vnet.ibm.com> (Ciju Rajan K.'s message of
-	"Sun, 31 Oct 2010 20:18:43 +0530")
-Message-ID: <xr93sjzmcebh.fsf@ninji.mtv.corp.google.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4F5548D005B
+	for <linux-mm@kvack.org>; Sun, 31 Oct 2010 16:38:40 -0400 (EDT)
+Date: Sun, 31 Oct 2010 21:38:35 +0100 (CET)
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Subject: [PATCH/RFC] m68k/sun3: Kill pte_unmap() warnings
+Message-ID: <alpine.DEB.2.00.1010312135110.22279@ayla.of.borg>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=ISO-8859-7
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 Sender: owner-linux-mm@kvack.org
-To: Ciju Rajan K <ciju@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: Sam Creasey <sammy@sammy.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux/m68k <linux-m68k@lists.linux-m68k.org>, Linux Kernel Development <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ciju Rajan K <ciju@linux.vnet.ibm.com> writes:
+Which one is preferable?
 
-> Greg Thelen wrote:
->> Replace usage of the mem_cgroup_update_file_mapped() memcg
->> statistic update routine with two new routines:
->> * mem_cgroup_inc_page_stat()
->> * mem_cgroup_dec_page_stat()
->>
->> As before, only the file_mapped statistic is managed.  However,
->> these more general interfaces allow for new statistics to be
->> more easily added.  New statistics are added with memcg dirty
->> page accounting.
->>
->> Signed-off-by: Greg Thelen <gthelen@google.com>
->> Signed-off-by: Andrea Righi <arighi@develer.com>
->> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
->> ---
->> Changelog since v1:
->> - Rename (for clarity):
->>   - mem_cgroup_write_page_stat_item -> mem_cgroup_page_stat_item
->>   - mem_cgroup_read_page_stat_item -> mem_cgroup_nr_pages_item
->>
->>  include/linux/memcontrol.h |   31 ++++++++++++++++++++++++++++---
->>  mm/memcontrol.c            |   16 +++++++---------
->>  mm/rmap.c                  |    4 ++--
->>  3 files changed, 37 insertions(+), 14 deletions(-)
->>
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index 159a076..067115c 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -25,6 +25,11 @@ struct page_cgroup;
->>  struct page;
->>  struct mm_struct;
->>
->> +/* Stats that can be updated by kernel. */
->> +enum mem_cgroup_page_stat_item {
->> +	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
->> +};
->> +
->>  extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
->>  					struct list_head *dst,
->>  					unsigned long *scanned, int order,
->> @@ -121,7 +126,22 @@ static inline bool mem_cgroup_disabled(void)
->>  	return false;
->>  }
->>
->> -void mem_cgroup_update_file_mapped(struct page *page, int val);
->> +void mem_cgroup_update_page_stat(struct page *page,
->> +				 enum mem_cgroup_page_stat_item idx,
->> +				 int val);
->> +
->> +static inline void mem_cgroup_inc_page_stat(struct page *page,
->> +					    enum mem_cgroup_page_stat_item idx)
->> +{
->> +	mem_cgroup_update_page_stat(page, idx, 1);
->> +}
->> +
->> +static inline void mem_cgroup_dec_page_stat(struct page *page,
->> +					    enum mem_cgroup_page_stat_item idx)
->> +{
->> +	mem_cgroup_update_page_stat(page, idx, -1);
->> +}
->> +
->>  unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
->>  						gfp_t gfp_mask);
->>  u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
->> @@ -293,8 +313,13 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
->>  {
->>  }
->>
->> -static inline void mem_cgroup_update_file_mapped(struct page *page,
->> -							int val)
->> +static inline void mem_cgroup_inc_page_stat(struct page *page,
->> +					    enum mem_cgroup_page_stat_item idx)
->> +{
->> +}
->> +
->> +static inline void mem_cgroup_dec_page_stat(struct page *page,
->> +					    enum mem_cgroup_page_stat_item idx)
->>  {
->>  }
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 9a99cfa..4fd00c4 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -1592,7 +1592,8 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
->>   * possibility of race condition. If there is, we take a lock.
->>   */
->>
->>   
-> Greg,
->
-> I am not seeing the function mem_cgroup_update_file_stat() in the latest mmotm
-> 2010-10-22-16-36.
-> So not able to apply this patch. Tried couple of times cloning the entire mmotm
-> git repository. But no luck.
-> Tried in the web interface http://git.zen-kernel.org/mmotm/tree/mm/memcontrol.c
-> also. It is not there.
-> Surprisingly git log doesn't show any recent changes to mm/memcontrol.c. Am I
-> missing something?
-> I could see this function in the mainline linux 2.6 git tree.
->
-> -Ciju
+---------------------------------------------------------------------------=
+----
+Since commit 31c911329e048b715a1dfeaaf617be9430fd7f4e ("mm: check the argum=
+ent
+of kunmap on architectures without highmem"), we get lots of warnings like
 
-mem_cgroup_update_file_mapped() was renamed to
-mem_cgroup_update_file_stat() in
-http://userweb.kernel.org/~akpm/mmotm/broken-out/memcg-generic-filestat-update-interface.patch
+arch/m68k/kernel/sys_m68k.c:508: warning: passing argument 1 of =A1kunmap=
+=A2 from incompatible pointer type
 
-I also do not see this in the mmotm git repo.  However, if I manually
-apply the mmotm patches to v2.6.36 using quilt then I see the expected
-patched memcontrol.c.  I am not sure why the zen-kernel.org git mmotm
-repo differs from a mmotm patched mainline 2.6.36.
+As m68k doesn't support highmem anyway, open code the calls to kmap() and
+kunmap() (the latter is a no-op) to kill the warnings.
 
-Here is my procedure using quilt to patch mainline:
+Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
+---
+ arch/m68k/include/asm/sun3_pgtable.h |    5 ++---
+ 1 files changed, 2 insertions(+), 3 deletions(-)
 
-# Checkout 2.6.36 mainline
-$ git checkout v2.6.36
+diff --git a/arch/m68k/include/asm/sun3_pgtable.h b/arch/m68k/include/asm/s=
+un3_pgtable.h
+index cf5fad9..f55aa04 100644
+--- a/arch/m68k/include/asm/sun3_pgtable.h
++++ b/arch/m68k/include/asm/sun3_pgtable.h
+@@ -217,9 +217,8 @@ static inline pte_t pgoff_to_pte(unsigned off)
+ /* Find an entry in the third-level pagetable. */
+ #define pte_index(address) ((address >> PAGE_SHIFT) & (PTRS_PER_PTE-1))
+ #define pte_offset_kernel(pmd, address) ((pte_t *) __pmd_page(*pmd) + pte_=
+index(address))
+-/* FIXME: should we bother with kmap() here? */
+-#define pte_offset_map(pmd, address) ((pte_t *)kmap(pmd_page(*pmd)) + pte_=
+index(address))
+-#define pte_unmap(pte) kunmap(pte)
++#define pte_offset_map(pmd, address) ((pte_t *)page_address(pmd_page(*pmd)=
+) + pte_index(address))
++#define pte_unmap(pte) do { } while (0)
+=20
+ /* Macros to (de)construct the fake PTEs representing swap pages. */
+ #define __swp_type(x)=09=09((x).val & 0x7F)
+--=20
+1.7.0.4
+---------------------------------------------------------------------------=
+----
+Since commit 31c911329e048b715a1dfeaaf617be9430fd7f4e ("mm: check the argum=
+ent
+of kunmap on architectures without highmem"), we get lots of warnings like
 
-# Confirm mainline 2.6.36 does not have mem_cgroup_update_file_stat()
-$ grep mem_cgroup_update_file_stat -r mm
+arch/m68k/kernel/sys_m68k.c:508: warning: passing argument 1 of =A1kunmap=
+=A2 from incompatible pointer type
 
-# Apply patches
-$ curl http://userweb.kernel.org/~akpm/mmotm/broken-out.tar.gz | tar -xzf -
-$ export QUILT_PATCHES=broken-out
-$ quilt push -aq
-...
-Now at patch memblock-add-input-size-checking-to-memblock_find_region-fix.patch
+M68k doesn't support highmem, so kunmap() is a no-op anyway, but replace th=
+e
+calls to k{,un}map() by calls to k{,un}map_atomic() to kill the warnings.
 
-# Now the memcontrol contains mem_cgroup_update_file_stat()
-$ grep mem_cgroup_update_file_stat -r mm
-mm/memcontrol.c:static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
-mm/memcontrol.c:        mem_cgroup_update_file_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, val);
+Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
+---
+ arch/m68k/include/asm/sun3_pgtable.h |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
->> -static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
->> +void mem_cgroup_update_page_stat(struct page *page,
->> +				 enum mem_cgroup_page_stat_item idx, int val)
->>  {
->>  	struct mem_cgroup *mem;
->>  	struct page_cgroup *pc = lookup_page_cgroup(page);
->> @@ -1615,30 +1616,27 @@ static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
->>  			goto out;
->>  	}
->>
->> -	this_cpu_add(mem->stat->count[idx], val);
->> -
->>  	switch (idx) {
->> -	case MEM_CGROUP_STAT_FILE_MAPPED:
->> +	case MEMCG_NR_FILE_MAPPED:
->>  		if (val > 0)
->>  			SetPageCgroupFileMapped(pc);
->>  		else if (!page_mapped(page))
->>  			ClearPageCgroupFileMapped(pc);
->> +		idx = MEM_CGROUP_STAT_FILE_MAPPED;
->>  		break;
->>  	default:
->>  		BUG();
->>  	}
->>
->> +	this_cpu_add(mem->stat->count[idx], val);
->> +
->>  out:
->>  	if (unlikely(need_unlock))
->>  		unlock_page_cgroup(pc);
->>  	rcu_read_unlock();
->>  	return;
->>  }
->> -
->> -void mem_cgroup_update_file_mapped(struct page *page, int val)
->> -{
->> -	mem_cgroup_update_file_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, val);
->> -}
->> +EXPORT_SYMBOL(mem_cgroup_update_page_stat);
->>
->>  /*
->>   * size of first charge trial. "32" comes from vmscan.c's magic value.
->> diff --git a/mm/rmap.c b/mm/rmap.c
->> index 1a8bf76..a66ab76 100644
->> --- a/mm/rmap.c
->> +++ b/mm/rmap.c
->> @@ -911,7 +911,7 @@ void page_add_file_rmap(struct page *page)
->>  {
->>  	if (atomic_inc_and_test(&page->_mapcount)) {
->>  		__inc_zone_page_state(page, NR_FILE_MAPPED);
->> -		mem_cgroup_update_file_mapped(page, 1);
->> +		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_MAPPED);
->>  	}
->>  }
->>
->> @@ -949,7 +949,7 @@ void page_remove_rmap(struct page *page)
->>  		__dec_zone_page_state(page, NR_ANON_PAGES);
->>  	} else {
->>  		__dec_zone_page_state(page, NR_FILE_MAPPED);
->> -		mem_cgroup_update_file_mapped(page, -1);
->> +		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
->>  	}
->>  	/*
->>  	 * It would be tidy to reset the PageAnon mapping here,
->>   
+diff --git a/arch/m68k/include/asm/sun3_pgtable.h b/arch/m68k/include/asm/s=
+un3_pgtable.h
+index cf5fad9..637dda4 100644
+--- a/arch/m68k/include/asm/sun3_pgtable.h
++++ b/arch/m68k/include/asm/sun3_pgtable.h
+@@ -218,8 +218,8 @@ static inline pte_t pgoff_to_pte(unsigned off)
+ #define pte_index(address) ((address >> PAGE_SHIFT) & (PTRS_PER_PTE-1))
+ #define pte_offset_kernel(pmd, address) ((pte_t *) __pmd_page(*pmd) + pte_=
+index(address))
+ /* FIXME: should we bother with kmap() here? */
+-#define pte_offset_map(pmd, address) ((pte_t *)kmap(pmd_page(*pmd)) + pte_=
+index(address))
+-#define pte_unmap(pte) kunmap(pte)
++#define pte_offset_map(pmd, address) ((pte_t *)kmap_atomic(pmd_page(*pmd))=
+ + pte_index(address))
++#define pte_unmap(pte) kunmap_atomic(pte)
+=20
+ /* Macros to (de)construct the fake PTEs representing swap pages. */
+ #define __swp_type(x)=09=09((x).val & 0x7F)
+--=20
+1.7.0.4
+
+Gr{oetje,eeting}s,
+
+=09=09=09=09=09=09Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k=
+=2Eorg
+
+In personal conversations with technical people, I call myself a hacker. Bu=
+t
+when I'm talking to journalists I just say "programmer" or something like t=
+hat.
+=09=09=09=09=09=09=09    -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
