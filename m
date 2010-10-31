@@ -1,67 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 284AD8D005B
-	for <linux-mm@kvack.org>; Sat, 30 Oct 2010 23:58:58 -0400 (EDT)
-Subject: Re: [PATCH] vmscan: move referenced VM_EXEC pages to active list
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <AANLkTinWp-M4S5EXz6-xJvHAnzdk96_5+d2OJVjCycsm@mail.gmail.com>
-References: <1287787911-4257-1-git-send-email-msb@chromium.org>
-	 <AANLkTinWp-M4S5EXz6-xJvHAnzdk96_5+d2OJVjCycsm@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Sun, 31 Oct 2010 11:58:52 +0800
-Message-ID: <1288497532.1945.21.camel@shli-laptop>
-Mime-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 69C916B0163
+	for <linux-mm@kvack.org>; Sun, 31 Oct 2010 10:48:56 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp07.au.ibm.com (8.14.4/8.13.1) with ESMTP id o9VEmpP7005640
+	for <linux-mm@kvack.org>; Mon, 1 Nov 2010 01:48:51 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o9VEmplb1036344
+	for <linux-mm@kvack.org>; Mon, 1 Nov 2010 01:48:51 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o9VEmohb016823
+	for <linux-mm@kvack.org>; Mon, 1 Nov 2010 01:48:50 +1100
+Message-ID: <4CCD81CB.9030503@linux.vnet.ibm.com>
+Date: Sun, 31 Oct 2010 20:18:43 +0530
+From: Ciju Rajan K <ciju@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v4 03/11] memcg: create extensible page stat update routines
+References: <1288336154-23256-1-git-send-email-gthelen@google.com> <1288336154-23256-4-git-send-email-gthelen@google.com>
+In-Reply-To: <1288336154-23256-4-git-send-email-gthelen@google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Mandeep Singh Baines <msb@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, "Wu, Fengguang" <fengguang.wu@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "wad@chromium.org" <wad@chromium.org>, "olofj@chromium.org" <olofj@chromium.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-10-25 at 06:52 +0800, Minchan Kim wrote:
-> On Sat, Oct 23, 2010 at 7:51 AM, Mandeep Singh Baines <msb@chromium.org> wrote:
-> > In commit 64574746, "vmscan: detect mapped file pages used only once",
-> > Johannes Weiner, added logic to page_check_reference to cycle again
-> > used once pages.
-> >
-> > In commit 8cab4754, "vmscan: make mapped executable pages the first
-> > class citizen", Wu Fengguang, added logic to shrink_active_list which
-> > protects file-backed VM_EXEC pages by keeping them in the active_list if
-> > they are referenced.
-> >
-> > This patch adds logic to move such pages from the inactive list to the
-> > active list immediately if they have been referenced. If a VM_EXEC page
-> > is seen as referenced during an inactive list scan, that reference must
-> > have occurred after the page was put on the inactive list. There is no
-> > need to wait for the page to be referenced again.
-> >
-> > Change-Id: I17c312e916377e93e5a92c52518b6c829f9ab30b
-> > Signed-off-by: Mandeep Singh Baines <msb@chromium.org>
-> 
-> It seems to be similar to http://www.spinics.net/lists/linux-mm/msg09617.html.
-> I don't know what it is going. Shaohua?
-I should have sent the test result earlier but was offlined last week.
-Here is my test result:
-kernel1: base kernel + revert commit 8cab4754
-kernel2: base kernel
-kernel3: base kernel + my patch (similar like Mandeep's)
-I'm using Fengguang's test of commit 8cab4754. But the test result isn't
-stable, sometimes one kernel above has more majfault, but sometimes the
-kernel has less majfault. This is true for all the above kernels.
-Apparently kernel behavior changes (guess because of commit 64574746),
-and vm_exec protect (even the vm_exec protect in active list) is not
-important now with new kernel in Fengguang's test suite.
+Greg Thelen wrote:
+> Replace usage of the mem_cgroup_update_file_mapped() memcg
+> statistic update routine with two new routines:
+> * mem_cgroup_inc_page_stat()
+> * mem_cgroup_dec_page_stat()
+>
+> As before, only the file_mapped statistic is managed.  However,
+> these more general interfaces allow for new statistics to be
+> more easily added.  New statistics are added with memcg dirty
+> page accounting.
+>
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> Signed-off-by: Andrea Righi <arighi@develer.com>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> ---
+> Changelog since v1:
+> - Rename (for clarity):
+>   - mem_cgroup_write_page_stat_item -> mem_cgroup_page_stat_item
+>   - mem_cgroup_read_page_stat_item -> mem_cgroup_nr_pages_item
+>
+>  include/linux/memcontrol.h |   31 ++++++++++++++++++++++++++++---
+>  mm/memcontrol.c            |   16 +++++++---------
+>  mm/rmap.c                  |    4 ++--
+>  3 files changed, 37 insertions(+), 14 deletions(-)
+>
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 159a076..067115c 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -25,6 +25,11 @@ struct page_cgroup;
+>  struct page;
+>  struct mm_struct;
+>
+> +/* Stats that can be updated by kernel. */
+> +enum mem_cgroup_page_stat_item {
+> +	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
+> +};
+> +
+>  extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+>  					struct list_head *dst,
+>  					unsigned long *scanned, int order,
+> @@ -121,7 +126,22 @@ static inline bool mem_cgroup_disabled(void)
+>  	return false;
+>  }
+>
+> -void mem_cgroup_update_file_mapped(struct page *page, int val);
+> +void mem_cgroup_update_page_stat(struct page *page,
+> +				 enum mem_cgroup_page_stat_item idx,
+> +				 int val);
+> +
+> +static inline void mem_cgroup_inc_page_stat(struct page *page,
+> +					    enum mem_cgroup_page_stat_item idx)
+> +{
+> +	mem_cgroup_update_page_stat(page, idx, 1);
+> +}
+> +
+> +static inline void mem_cgroup_dec_page_stat(struct page *page,
+> +					    enum mem_cgroup_page_stat_item idx)
+> +{
+> +	mem_cgroup_update_page_stat(page, idx, -1);
+> +}
+> +
+>  unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+>  						gfp_t gfp_mask);
+>  u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
+> @@ -293,8 +313,13 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+>  {
+>  }
+>
+> -static inline void mem_cgroup_update_file_mapped(struct page *page,
+> -							int val)
+> +static inline void mem_cgroup_inc_page_stat(struct page *page,
+> +					    enum mem_cgroup_page_stat_item idx)
+> +{
+> +}
+> +
+> +static inline void mem_cgroup_dec_page_stat(struct page *page,
+> +					    enum mem_cgroup_page_stat_item idx)
+>  {
+>  }
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 9a99cfa..4fd00c4 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1592,7 +1592,8 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+>   * possibility of race condition. If there is, we take a lock.
+>   */
+>
+>   
+Greg,
 
-But on the other hand, if I add a new task into Fengguang's test suite.
-The task produces a lot of used one file page read (sequential read a
-large sparse file). Kernel2 has less majfault than kernel1, and kernel3
-has even less majfault than kernel2, so kernel3 has best performance.
-Basically the majfault number from kernel1 is 3x, kernel2 2x, kernel3
-1x. One issue is I'm afraid this isn't a typical desktop usage any more
-(because of sequential read sparse file), so not sure if we can use this
-test as a judgment to merge the patch.
+I am not seeing the function mem_cgroup_update_file_stat() in the latest 
+mmotm 2010-10-22-16-36.
+So not able to apply this patch. Tried couple of times cloning the 
+entire mmotm git repository. But no luck.
+Tried in the web interface 
+http://git.zen-kernel.org/mmotm/tree/mm/memcontrol.c also. It is not there.
+Surprisingly git log doesn't show any recent changes to mm/memcontrol.c. 
+Am I missing something?
+I could see this function in the mainline linux 2.6 git tree.
 
-Thanks,
-Shaohua
+-Ciju
+
+> -static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
+> +void mem_cgroup_update_page_stat(struct page *page,
+> +				 enum mem_cgroup_page_stat_item idx, int val)
+>  {
+>  	struct mem_cgroup *mem;
+>  	struct page_cgroup *pc = lookup_page_cgroup(page);
+> @@ -1615,30 +1616,27 @@ static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
+>  			goto out;
+>  	}
+>
+> -	this_cpu_add(mem->stat->count[idx], val);
+> -
+>  	switch (idx) {
+> -	case MEM_CGROUP_STAT_FILE_MAPPED:
+> +	case MEMCG_NR_FILE_MAPPED:
+>  		if (val > 0)
+>  			SetPageCgroupFileMapped(pc);
+>  		else if (!page_mapped(page))
+>  			ClearPageCgroupFileMapped(pc);
+> +		idx = MEM_CGROUP_STAT_FILE_MAPPED;
+>  		break;
+>  	default:
+>  		BUG();
+>  	}
+>
+> +	this_cpu_add(mem->stat->count[idx], val);
+> +
+>  out:
+>  	if (unlikely(need_unlock))
+>  		unlock_page_cgroup(pc);
+>  	rcu_read_unlock();
+>  	return;
+>  }
+> -
+> -void mem_cgroup_update_file_mapped(struct page *page, int val)
+> -{
+> -	mem_cgroup_update_file_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, val);
+> -}
+> +EXPORT_SYMBOL(mem_cgroup_update_page_stat);
+>
+>  /*
+>   * size of first charge trial. "32" comes from vmscan.c's magic value.
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 1a8bf76..a66ab76 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -911,7 +911,7 @@ void page_add_file_rmap(struct page *page)
+>  {
+>  	if (atomic_inc_and_test(&page->_mapcount)) {
+>  		__inc_zone_page_state(page, NR_FILE_MAPPED);
+> -		mem_cgroup_update_file_mapped(page, 1);
+> +		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_MAPPED);
+>  	}
+>  }
+>
+> @@ -949,7 +949,7 @@ void page_remove_rmap(struct page *page)
+>  		__dec_zone_page_state(page, NR_ANON_PAGES);
+>  	} else {
+>  		__dec_zone_page_state(page, NR_FILE_MAPPED);
+> -		mem_cgroup_update_file_mapped(page, -1);
+> +		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
+>  	}
+>  	/*
+>  	 * It would be tidy to reset the PageAnon mapping here,
+>   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
