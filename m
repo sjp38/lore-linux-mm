@@ -1,30 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A9D6D6B0093
-	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 16:41:45 -0400 (EDT)
-Received: by gwb11 with SMTP id 11so3984927gwb.14
-        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 13:41:42 -0700 (PDT)
-From: Ben Gamari <bgamari.foss@gmail.com>
-Subject: Re: [RFC PATCH] Add Kconfig option for default swappiness
-In-Reply-To: <alpine.LNX.2.00.1011012108360.12889@swampdragon.chaosbits.net>
-References: <1288548508-22070-1-git-send-email-bgamari.foss@gmail.com> <alpine.LNX.2.00.1011012108360.12889@swampdragon.chaosbits.net>
-Date: Mon, 01 Nov 2010 16:41:35 -0400
-Message-ID: <87wrowrd34.fsf@gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 484828D0001
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 18:00:23 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id oA1M0JWq011250
+	for <linux-mm@kvack.org>; Mon, 1 Nov 2010 15:00:20 -0700
+Received: from gwb20 (gwb20.prod.google.com [10.200.2.20])
+	by wpaz29.hot.corp.google.com with ESMTP id oA1LxKcj002751
+	for <linux-mm@kvack.org>; Mon, 1 Nov 2010 15:00:18 -0700
+Received: by gwb20 with SMTP id 20so3130678gwb.23
+        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 15:00:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <alpine.LNX.2.00.1010302333130.1572@swampdragon.chaosbits.net>
+References: <alpine.LNX.2.00.1010302333130.1572@swampdragon.chaosbits.net>
+Date: Mon, 1 Nov 2010 15:00:14 -0700
+Message-ID: <AANLkTi=3mnPWpBB_jehkM6OCyjDwzdwxvyQW9tLQQTC6@mail.gmail.com>
+Subject: Re: [PATCH] cgroup: Avoid a memset by using vzalloc
+From: Paul Menage <menage@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 To: Jesper Juhl <jj@chaosbits.net>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Nov 2010 21:09:58 +0100 (CET), Jesper Juhl <jj@chaosbits.net> wrote:
-> Perhaps this help text should mention the fact that swapiness setting can 
-> be changed at runtime (regardless of the set default) by writing to 
-> /proc/sys/vm/swappiness ???
-> 
-This definitely wouldn't hurt. I'll respin with updated help text.
+On Sat, Oct 30, 2010 at 2:35 PM, Jesper Juhl <jj@chaosbits.net> wrote:
+> Hi,
+>
+> We can avoid doing a memset in swap_cgroup_swapon() by using vzalloc().
+>
+>
+> Signed-off-by: Jesper Juhl <jj@chaosbits.net>
 
-- Ben
+Acked-by: Paul Menage <menage@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
