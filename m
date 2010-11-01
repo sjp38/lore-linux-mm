@@ -1,37 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 484828D0001
-	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 18:00:23 -0400 (EDT)
-Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
-	by smtp-out.google.com with ESMTP id oA1M0JWq011250
-	for <linux-mm@kvack.org>; Mon, 1 Nov 2010 15:00:20 -0700
-Received: from gwb20 (gwb20.prod.google.com [10.200.2.20])
-	by wpaz29.hot.corp.google.com with ESMTP id oA1LxKcj002751
-	for <linux-mm@kvack.org>; Mon, 1 Nov 2010 15:00:18 -0700
-Received: by gwb20 with SMTP id 20so3130678gwb.23
-        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 15:00:15 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3570D8D0001
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 19:11:47 -0400 (EDT)
+Received: by iwn38 with SMTP id 38so6895896iwn.14
+        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 16:11:42 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LNX.2.00.1010302333130.1572@swampdragon.chaosbits.net>
-References: <alpine.LNX.2.00.1010302333130.1572@swampdragon.chaosbits.net>
-Date: Mon, 1 Nov 2010 15:00:14 -0700
-Message-ID: <AANLkTi=3mnPWpBB_jehkM6OCyjDwzdwxvyQW9tLQQTC6@mail.gmail.com>
-Subject: Re: [PATCH] cgroup: Avoid a memset by using vzalloc
-From: Paul Menage <menage@google.com>
+In-Reply-To: <alpine.LNX.2.00.1011012030150.12889@swampdragon.chaosbits.net>
+References: <alpine.LNX.2.00.1011012030150.12889@swampdragon.chaosbits.net>
+Date: Tue, 2 Nov 2010 08:11:42 +0900
+Message-ID: <AANLkTimL7Rbbf_7YxkJrxQPzb7v=J4Zg9=ZMV2tkHTAN@mail.gmail.com>
+Subject: Re: [PATCH] cgroup: prefer [kv]zalloc over [kv]malloc+memset in
+ memory controller code.
+From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 To: Jesper Juhl <jj@chaosbits.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
+Cc: linux-kernel@vger.kernel.or, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Oct 30, 2010 at 2:35 PM, Jesper Juhl <jj@chaosbits.net> wrote:
-> Hi,
+On Tue, Nov 2, 2010 at 4:35 AM, Jesper Juhl <jj@chaosbits.net> wrote:
+> Hi (please CC me on replies),
 >
-> We can avoid doing a memset in swap_cgroup_swapon() by using vzalloc().
+> In mem_cgroup_alloc() we currently do either kmalloc() or vmalloc() then
+> followed by memset() to zero the memory. This can be more efficiently
+> achieved by using kzalloc() and vzalloc().
 >
 >
 > Signed-off-by: Jesper Juhl <jj@chaosbits.net>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-Acked-by: Paul Menage <menage@google.com>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
