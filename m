@@ -1,50 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1F7896B0169
-	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 01:50:58 -0400 (EDT)
-Date: Mon, 1 Nov 2010 06:40:27 +0100 (CET)
-From: Jesper Juhl <jj@chaosbits.net>
-Subject: Re: [PATCH] cgroup: Avoid a memset by using vzalloc
-In-Reply-To: <20101031173336.GA28141@balbir.in.ibm.com>
-Message-ID: <alpine.LNX.2.00.1011010639410.31190@swampdragon.chaosbits.net>
-References: <alpine.LNX.2.00.1010302333130.1572@swampdragon.chaosbits.net> <AANLkTi=nMU3ezNFD8LKBhJxr6CmW6-qHY_Mo3HRt6Os0@mail.gmail.com> <20101031173336.GA28141@balbir.in.ibm.com>
+	by kanga.kvack.org (Postfix) with SMTP id 3DD188D0030
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 02:26:20 -0400 (EDT)
+Date: Mon, 1 Nov 2010 17:24:46 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 00/17] [RFC] soft and dynamic dirty throttling limits
+Message-ID: <20101101062446.GK2715@dastard>
+References: <20100912154945.758129106@intel.com>
+ <20101012141716.GA26702@infradead.org>
+ <20101013030733.GV4681@dastard>
+ <20101013082611.GA6733@localhost>
+ <20101013092627.GY4681@dastard>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101013092627.GY4681@dastard>
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, "Li, Shaohua" <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 31 Oct 2010, Balbir Singh wrote:
-
-> * MinChan Kim <minchan.kim@gmail.com> [2010-10-31 08:34:01]:
-> 
-> > On Sun, Oct 31, 2010 at 6:35 AM, Jesper Juhl <jj@chaosbits.net> wrote:
-> > > Hi,
-> > >
-> > > We can avoid doing a memset in swap_cgroup_swapon() by using vzalloc().
-> > >
-> > >
-> > > Signed-off-by: Jesper Juhl <jj@chaosbits.net>
-> > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Wed, Oct 13, 2010 at 08:26:27PM +1100, Dave Chinner wrote:
+> On Wed, Oct 13, 2010 at 04:26:12PM +0800, Wu Fengguang wrote:
+> > On Wed, Oct 13, 2010 at 11:07:33AM +0800, Dave Chinner wrote:
+> > > On Tue, Oct 12, 2010 at 10:17:16AM -0400, Christoph Hellwig wrote:
+> > > > Wu, what's the state of this series?  It looks like we'll need it
+> > > > rather sooner than later - try to get at least the preparations in
+> > > > ASAP would be really helpful.
+> > > 
+> > > Not ready in it's current form. This load (creating millions of 1
+> > > byte files in parallel):
+> > > 
+> > > $ /usr/bin/time ./fs_mark -D 10000 -S0 -n 100000 -s 1 -L 63 \
+> > > > -d /mnt/scratch/0 -d /mnt/scratch/1 \
+> > > > -d /mnt/scratch/2 -d /mnt/scratch/3 \
+> > > > -d /mnt/scratch/4 -d /mnt/scratch/5 \
+> > > > -d /mnt/scratch/6 -d /mnt/scratch/7
+> > > 
+> > > Locks up all the fs_mark processes spinning in traces like the
+> > > following and no further progress is made when the inode cache
+> > > fills memory.
 > > 
-> > There are so many placed need vzalloc.
-> > Thanks, Jesper.
+> > I reproduced the problem on a 6G/8p 2-socket 11-disk box.
+> > 
+> > The root cause is, pageout() is somehow called with low scan priority,
+> > which deserves more investigation.
+> > 
+> > The direct cause is, balance_dirty_pages() then keeps nr_dirty too low,
+> > which can be improved easily by not pushing down the soft dirty limit
+> > to less than 1-second worth of dirty pages.
+> > 
+> > My test box has two nodes, and their memory usage are rather unbalanced:
+> > (Dave, maybe you have NUMA setup too?)
 > 
-> Yes, please check memcontrol.c as well
+> No, I'm running the test in a single node VM.
 > 
-I will shortly, I'm slowly working my way through a mountain of code 
-checking for this. I'll get to memcontrol.c
+> FYI, I'm running the test on XFS (16TB 12 disk RAID0 stripe), using
+> the mount options "inode64,nobarrier,logbsize=262144,delaylog".
 
-> 
-> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
->  
-Thanks.
+Any update on the current status of this patchset?
 
+Cheers,
+
+Dave.
 -- 
-Jesper Juhl <jj@chaosbits.net>             http://www.chaosbits.net/
-Plain text mails only, please      http://www.expita.com/nomime.html
-Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
