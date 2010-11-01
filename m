@@ -1,20 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 31D836B00A2
-	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 15:46:33 -0400 (EDT)
-Date: Mon, 1 Nov 2010 20:35:54 +0100 (CET)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 666898D0030
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 15:51:30 -0400 (EDT)
+Date: Mon, 1 Nov 2010 20:40:56 +0100 (CET)
 From: Jesper Juhl <jj@chaosbits.net>
 Subject: [PATCH] cgroup: prefer [kv]zalloc over [kv]malloc+memset in memory
  controller code.
-Message-ID: <alpine.LNX.2.00.1011012030150.12889@swampdragon.chaosbits.net>
+Message-ID: <alpine.LNX.2.00.1011012038490.12889@swampdragon.chaosbits.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.or
+To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Minchan Kim <minchan.kim@gmail.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
 Hi (please CC me on replies),
+
+
+Apologies to those who receive this multiple times. I screwed up the To: 
+field in my original mail :-(
+
 
 In mem_cgroup_alloc() we currently do either kmalloc() or vmalloc() then 
 followed by memset() to zero the memory. This can be more efficiently 
