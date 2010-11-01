@@ -1,42 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id F33628D0030
-	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 08:52:39 -0400 (EDT)
-Received: by gxk2 with SMTP id 2so1937250gxk.14
-        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 05:52:36 -0700 (PDT)
-From: Ben Gamari <bgamari.foss@gmail.com>
-Subject: Re: [RFC PATCH] Add Kconfig option for default swappiness
-In-Reply-To: <20101101124322.GG840@cmpxchg.org>
-References: <1288548508-22070-1-git-send-email-bgamari.foss@gmail.com> <20101101124322.GG840@cmpxchg.org>
-Date: Mon, 01 Nov 2010 08:52:30 -0400
-Message-ID: <8739rlnr3l.fsf@gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 126648D0030
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 09:15:44 -0400 (EDT)
+Date: Mon, 1 Nov 2010 20:22:52 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 2/2] writeback: stop background/kupdate works from
+ livelocking other works
+Message-ID: <20101101122252.GA10637@localhost>
+References: <20100913123110.372291929@intel.com>
+ <20100913130149.994322762@intel.com>
+ <20100914124033.GA4874@quack.suse.cz>
+ <20101101121408.GB9006@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101101121408.GB9006@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Nov 2010 08:43:22 -0400, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Sun, Oct 31, 2010 at 02:08:28PM -0400, Ben Gamari wrote:
-> > This will allow distributions to tune this important vm parameter in a more
-> > self-contained manner.
-> 
-> What's wrong with sticking
-> 
-> 	vm.swappiness = <your value>
-> 
-> into the shipped /etc/sysctl.conf?
+From: Jan Kara <jack@suse.cz>
 
-Ubuntu ships different kernels for desktop and server usage. From a
-packaging standpoint it would be much nicer to have this set in the
-kernel configuration. If we were to throw the setting /etc/sysctl.conf
-the kernel would depend upon the package containing sysctl(8)
-(procps). We'd rather avoid this and keep the default kernel
-configuration in one place. This was just an RFC though; let me know if
-you think this is totally insane.
+Background writeback are easily livelockable (from a definition of their
+target). This is inconvenient because it can make sync(1) stall forever waiting
+on its queued work to be finished. Generally, when a flusher thread has
+some work queued, someone submitted the work to achieve a goal more specific
+than what background writeback does. So it makes sense to give it a priority
+over a generic page cleaning.
 
-- Ben
+Thus we interrupt background writeback if there is some other work to do. We
+return to the background writeback after completing all the queued work.
+
+Signed-off-by: Jan Kara <jack@suse.cz>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/fs-writeback.c |    9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+--- linux-next.orig/fs/fs-writeback.c	2010-11-01 19:50:22.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-11-01 19:56:54.000000000 +0800
+@@ -664,6 +664,15 @@ static long wb_writeback(struct bdi_writ
+ 			break;
+ 
+ 		/*
++		 * Background writeout and kupdate-style writeback are
++		 * easily livelockable. Stop them if there is other work
++		 * to do so that e.g. sync can proceed.
++		 */
++		if ((work->for_background || work->for_kupdate) &&
++		    !list_empty(&wb->bdi->work_list))
++			break;
++
++		/*
+ 		 * For background writeout, stop when we are below the
+ 		 * background dirty threshold
+ 		 */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
