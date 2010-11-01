@@ -1,68 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 05E236B008C
-	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 15:36:25 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id oA1JaMTe015095
-	for <linux-mm@kvack.org>; Mon, 1 Nov 2010 12:36:22 -0700
-Received: from pwj9 (pwj9.prod.google.com [10.241.219.73])
-	by wpaz37.hot.corp.google.com with ESMTP id oA1JaLNc011098
-	for <linux-mm@kvack.org>; Mon, 1 Nov 2010 12:36:21 -0700
-Received: by pwj9 with SMTP id 9so1589019pwj.7
-        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 12:36:20 -0700 (PDT)
-Date: Mon, 1 Nov 2010 12:36:15 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [resend][PATCH 2/4] Revert "oom: deprecate oom_adj tunable"
-In-Reply-To: <20101101030353.607A.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1011011232120.6822@chino.kir.corp.google.com>
-References: <20101026220237.B7DA.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1010261234230.5578@chino.kir.corp.google.com> <20101101030353.607A.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F1276B009C
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 15:43:09 -0400 (EDT)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id oA1Jh5Jt019789
+	for <linux-mm@kvack.org>; Mon, 1 Nov 2010 12:43:05 -0700
+Received: from wyf23 (wyf23.prod.google.com [10.241.226.87])
+	by wpaz24.hot.corp.google.com with ESMTP id oA1Jh4AO026568
+	for <linux-mm@kvack.org>; Mon, 1 Nov 2010 12:43:04 -0700
+Received: by wyf23 with SMTP id 23so6037637wyf.14
+        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 12:43:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <4CCF0BE3.2090700@redhat.com>
+References: <20101028191523.GA14972@google.com>
+	<20101101012322.605C.A69D9226@jp.fujitsu.com>
+	<20101101182416.GB31189@google.com>
+	<4CCF0BE3.2090700@redhat.com>
+Date: Mon, 1 Nov 2010 12:43:03 -0700
+Message-ID: <AANLkTi=src1L0gAFsogzCmejGOgg5uh=9O4Uw+ZmfBg4@mail.gmail.com>
+Subject: Re: [PATCH] RFC: vmscan: add min_filelist_kbytes sysctl for
+ protecting the working set
+From: Mandeep Singh Baines <msb@chromium.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wad@chromium.org, olofj@chromium.org, hughd@chromium.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Nov 2010, KOSAKI Motohiro wrote:
+On Mon, Nov 1, 2010 at 11:50 AM, Rik van Riel <riel@redhat.com> wrote:
+> On 11/01/2010 02:24 PM, Mandeep Singh Baines wrote:
+>
+>> Under memory pressure, I see the active list get smaller and smaller. Its
+>> getting smaller because we're scanning it faster and faster, causing more
+>> and more page faults which slows forward progress resulting in the active
+>> list getting smaller still. One way to approach this might to make the
+>> scan rate constant and configurable. It doesn't seem right that we scan
+>> memory faster and faster under low memory. For us, we'd rather OOM than
+>> evict pages that are likely to be accessed again so we'd prefer to make
+>> a conservative estimate as to what belongs in the working set. Other
+>> folks (long computations) might want to reclaim more aggressively.
+>
+> Have you actually read the code?
+>
 
-> > The new tunable added in 2.6.36, /proc/pid/oom_score_adj, is necessary for 
-> > the units that the badness score now uses.  We need a tunable with a much 
-> 
-> Who we?
-> 
+I have but really just recently. I consider myself an mm newb so take any
+conclusion I make with a grain of salt.
 
-Linux users who care about prioritizing tasks for oom kill with a tunable 
-that (1) has a unit, (2) has a higher resolution, and (3) is linear and 
-not exponential.  Memcg doesn't solve this issue without incurring a 1% 
-memory cost.
+> The active file list is only ever scanned when it is larger
+> than the inactive file list.
+>
 
-> > higher resolution than the oom_adj scale from -16 to +15, and one that 
-> > scales linearly as opposed to exponentially.  Since that tunable is much 
-> > more powerful than the oom_adj implementation, which never made any real 
-> 
-> The reason that you ware NAKed was not to introduce new powerful feature.
-> It was caused to break old and used feature from applications.
-> 
+Yes, this prevents you from reclaiming the active list all at once. But if the
+memory pressure doesn't go away, you'll start to reclaim the active list
+little by little. First you'll empty the inactive list, and then
+you'll start scanning
+the active list and pulling pages from inactive to active. The problem is that
+there is no minimum time limit to how long a page will sit in the inactive list
+before it is reclaimed. Just depends on scan rate which does not depend
+on time.
 
-No, it doesn't, and you completely and utterly failed to show a single 
-usecase that broke as a result of this because nobody can currently use 
-oom_adj for anything other than polarization.  Thus, there's no backwards 
-compatibility issue.
+In my experiments, I saw the active list get smaller and smaller
+over time until eventually it was only a few MB at which point the system came
+grinding to a halt due to thrashing.
 
-> > sense for defining oom killing priority for any purpose other than 
-> > polarization, the old tunable is deprecated for two years.
-> 
-> You haven't tested your patch at all. Distro's initram script are using
-> oom_adj interface and latest kernel show pointless warnings 
-> "/proc/xx/oom_adj is deprecated, please use /proc/xx/oom_score_adj instead."
-> at _every_ boot time.
-> 
+I played around with making the active/inactive ratio configurable. I
+sent a patch out
+for an inactive_file_ratio. So instead of the default 50%, you'd make the
+ratio configurable.
 
-Yes, I've tested it, and it deprecates the tunable as expected.  A single 
-warning message serves the purpose well: let users know one time without 
-being overly verbose that the tunable is deprecated and give them 
-sufficient time (2 years) to start using the new tunable.  That's how 
-deprecation is done.
+inactive_file_ratio = (inactive * 100) / (inactive + active)
+
+I saw less thrashing at 10% but this patch wasn't nearly as effective
+as min_filelist_kbytes.
+I can resend the patch if you think its interesting.
+
+>>> Q2: In the above you used min_filelist_kbytes=50000. How do you decide
+>>> such value? Do other users can calculate proper value?
+>>>
+>>
+>> 50M was small enough that we were comfortable with keeping 50M of file
+>> pages
+>> in memory and large enough that it is bigger than the working set. I
+>> tested
+>> by loading up a bunch of popular web sites in chrome and then observing
+>> what
+>> happend when I ran out of memory. With 50M, I saw almost no thrashing and
+>> the system stayed responsive even under low memory. but I wanted to be
+>> conservative since I'm really just guessing.
+>>
+>> Other users could calculate their value by doing something similar.
+>
+> Maybe we can scale this by memory amount?
+>
+> Say, make sure the total amount of page cache in the system
+> is at least 2* as much as the sum of all the zone->pages_high
+> watermarks, and refuse to evict page cache if we have less
+> than that?
+>
+> This may need to be tunable for a few special use cases,
+> like HPC and virtual machine hosting nodes, but it may just
+> do the right thing for everybody else.
+>
+> Another alternative could be to really slow down the
+> reclaiming of page cache once we hit this level, so virt
+> hosts and HPC nodes can still decrease the page cache to
+> something really small ... but only if it is not being
+> used.
+>
+> Andrew, could a hack like the above be "good enough"?
+>
+> Anybody - does the above hack inspire you to come up with
+> an even better idea?
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
