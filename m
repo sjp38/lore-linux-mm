@@ -1,135 +1,54 @@
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] support polling of /proc/swaps
-Date: Tue, 19 Oct 2010 13:09:46 +0200
-Message-ID: <1287486586.1994.3.camel@twins>
-References: <1287479956.1729.1.camel@yio.site>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8BIT
-Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <1287479956.1729.1.camel@yio.site>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Kay Sievers <kay.sievers@vrfy.org>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1F7896B0169
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 01:50:58 -0400 (EDT)
+Date: Mon, 1 Nov 2010 06:40:27 +0100 (CET)
+From: Jesper Juhl <jj@chaosbits.net>
+Subject: Re: [PATCH] cgroup: Avoid a memset by using vzalloc
+In-Reply-To: <20101031173336.GA28141@balbir.in.ibm.com>
+Message-ID: <alpine.LNX.2.00.1011010639410.31190@swampdragon.chaosbits.net>
+References: <alpine.LNX.2.00.1010302333130.1572@swampdragon.chaosbits.net> <AANLkTi=nMU3ezNFD8LKBhJxr6CmW6-qHY_Mo3HRt6Os0@mail.gmail.com> <20101031173336.GA28141@balbir.in.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
+List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-10-19 at 11:19 +0200, Kay Sievers wrote:
-> From: Kay Sievers <kay.sievers@vrfy.org>
-> Subject: support polling of /proc/swaps
-> 
-> System management wants to subscribe to changes in swap
-> configuration. Make /proc/swaps pollable like /proc/mounts.
+On Sun, 31 Oct 2010, Balbir Singh wrote:
 
-And yet you didn't cc any of the mm/ folks on this patch...
+> * MinChan Kim <minchan.kim@gmail.com> [2010-10-31 08:34:01]:
+> 
+> > On Sun, Oct 31, 2010 at 6:35 AM, Jesper Juhl <jj@chaosbits.net> wrote:
+> > > Hi,
+> > >
+> > > We can avoid doing a memset in swap_cgroup_swapon() by using vzalloc().
+> > >
+> > >
+> > > Signed-off-by: Jesper Juhl <jj@chaosbits.net>
+> > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> > 
+> > There are so many placed need vzalloc.
+> > Thanks, Jesper.
+> 
+> Yes, please check memcontrol.c as well
+> 
+I will shortly, I'm slowly working my way through a mountain of code 
+checking for this. I'll get to memcontrol.c
 
-> Signed-Off-By: Kay Sievers <kay.sievers@vrfy.org>
-> ---
->  mm/swapfile.c |   48 +++++++++++++++++++++++++++++++++++++++++++++++-
->  1 file changed, 47 insertions(+), 1 deletion(-)
 > 
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -30,6 +30,7 @@
->  #include <linux/capability.h>
->  #include <linux/syscalls.h>
->  #include <linux/memcontrol.h>
-> +#include <linux/poll.h>
+> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 >  
->  #include <asm/pgtable.h>
->  #include <asm/tlbflush.h>
-> @@ -58,6 +59,9 @@ static struct swap_info_struct *swap_inf
->  
->  static DEFINE_MUTEX(swapon_mutex);
->  
-> +static DECLARE_WAIT_QUEUE_HEAD(proc_poll_wait);
-> +static int proc_poll_event;
-> +
->  static inline unsigned char swap_count(unsigned char ent)
->  {
->  	return ent & ~SWAP_HAS_CACHE;	/* may include SWAP_HAS_CONT flag */
-> @@ -1680,6 +1684,8 @@ SYSCALL_DEFINE1(swapoff, const char __us
->  	}
->  	filp_close(swap_file, NULL);
->  	err = 0;
-> +	proc_poll_event++;
-> +	wake_up_interruptible(&proc_poll_wait);
->  
->  out_dput:
->  	filp_close(victim, NULL);
-> @@ -1688,6 +1694,25 @@ out:
->  }
->  
->  #ifdef CONFIG_PROC_FS
-> +struct proc_swaps {
-> +	struct seq_file seq;
-> +	int event;
-> +};
-> +
-> +static unsigned swaps_poll(struct file *file, poll_table *wait)
-> +{
-> +	struct proc_swaps *s = file->private_data;
-> +
-> +	poll_wait(file, &proc_poll_wait, wait);
-> +
-> +	if (s->event != proc_poll_event) {
-> +		s->event = proc_poll_event;
-> +		return POLLIN | POLLRDNORM | POLLERR | POLLPRI;
-> +	}
-> +
-> +	return POLLIN | POLLRDNORM;
-> +}
-> +
->  /* iterator */
->  static void *swap_start(struct seq_file *swap, loff_t *pos)
->  {
-> @@ -1771,7 +1796,24 @@ static const struct seq_operations swaps
->  
->  static int swaps_open(struct inode *inode, struct file *file)
->  {
-> -	return seq_open(file, &swaps_op);
-> +	struct proc_swaps *s;
-> +	int ret;
-> +
-> +	s = kmalloc(sizeof(struct proc_swaps), GFP_KERNEL);
-> +	if (!s)
-> +		return -ENOMEM;
-> +
-> +	file->private_data = &s->seq;
-> +
-> +	ret = seq_open(file, &swaps_op);
-> +	if (ret) {
-> +		kfree(s);
-> +		return ret;
-> +	}
-> +
-> +	s->seq.private = s;
-> +	s->event = proc_poll_event;
-> +	return ret;
->  }
->  
->  static const struct file_operations proc_swaps_operations = {
-> @@ -1779,6 +1821,7 @@ static const struct file_operations proc
->  	.read		= seq_read,
->  	.llseek		= seq_lseek,
->  	.release	= seq_release,
-> +	.poll		= swaps_poll,
->  };
->  
->  static int __init procswaps_init(void)
-> @@ -2084,6 +2127,9 @@ SYSCALL_DEFINE2(swapon, const char __use
->  		swap_info[prev]->next = type;
->  	spin_unlock(&swap_lock);
->  	mutex_unlock(&swapon_mutex);
-> +	proc_poll_event++;
-> +	wake_up_interruptible(&proc_poll_wait);
-> +
->  	error = 0;
->  	goto out;
->  bad_swap:
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+Thanks.
+
+-- 
+Jesper Juhl <jj@chaosbits.net>             http://www.chaosbits.net/
+Plain text mails only, please      http://www.expita.com/nomime.html
+Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
