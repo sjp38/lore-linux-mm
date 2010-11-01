@@ -1,47 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9A77A8D0030
-	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 03:07:00 -0400 (EDT)
-Date: Mon, 1 Nov 2010 16:06:22 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] mm, mem-hotplug: recalculate lowmem_reserve when memory hotplug occur
-In-Reply-To: <alpine.DEB.2.00.1010271815430.32477@chino.kir.corp.google.com>
-References: <20101026221017.B7DF.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1010271815430.32477@chino.kir.corp.google.com>
-Message-Id: <20101101030021.6077.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 101168D0030
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 08:43:28 -0400 (EDT)
+Date: Mon, 1 Nov 2010 08:43:22 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH] Add Kconfig option for default swappiness
+Message-ID: <20101101124322.GG840@cmpxchg.org>
+References: <1288548508-22070-1-git-send-email-bgamari.foss@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1288548508-22070-1-git-send-email-bgamari.foss@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>
+To: Ben Gamari <bgamari.foss@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 26 Oct 2010, KOSAKI Motohiro wrote:
-> 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index b48dea2..14ee899 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -5002,7 +5002,7 @@ static void __init setup_per_zone_inactive_ratio(void)
-> >   * 8192MB:	11584k
-> >   * 16384MB:	16384k
-> >   */
-> > -static int __init init_per_zone_wmark_min(void)
-> > +int __meminit init_per_zone_wmark_min(void)
-> >  {
-> >  	unsigned long lowmem_kbytes;
-> >  
-> 
-> setup_per_zone_inactive_ratio() should be moved from __init to __meminit, 
-> right?
+On Sun, Oct 31, 2010 at 02:08:28PM -0400, Ben Gamari wrote:
+> This will allow distributions to tune this important vm parameter in a more
+> self-contained manner.
 
-Right. You are pointing out very old issue. I don't know why old code
-worked. but we certainly need to fix it. Thank you.
+What's wrong with sticking
 
-I'll prepare another incremental patch because this is another issue.
-Thanks.
+	vm.swappiness = <your value>
 
-
+into the shipped /etc/sysctl.conf?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
