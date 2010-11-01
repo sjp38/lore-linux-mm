@@ -1,67 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 0863E6B0092
-	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 16:30:08 -0400 (EDT)
-Received: from list by lo.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1PD112-0001St-5X
-	for linux-mm@kvack.org; Mon, 01 Nov 2010 21:30:04 +0100
-Received: from 178-14-100.dynamic.cyta.gr ([178.59.14.100])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 21:30:04 +0100
-Received: from jimis by 178-14-100.dynamic.cyta.gr with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 21:30:04 +0100
-From: Dimitrios Apostolou <jimis@gmx.net>
-Subject: Re: 2.6.36 io bring the system to its knees
-Date: Mon, 1 Nov 2010 01:09:34 +0000 (UTC)
-Message-ID: <ial40e$jpj$1@dough.gmane.org>
-References: <AANLkTimt7wzR9RwGWbvhiOmot_zzayfCfSh_-v6yvuAP@mail.gmail.com>
-	<AANLkTikRKVBzO=ruy=JDmBF28NiUdJmAqb4-1VhK0QBX@mail.gmail.com>
-	<AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com>
-	<AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com>
-	<20101031012224.GA8007@localhost> <20101031015132.GA10086@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 196906B0093
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 16:37:08 -0400 (EDT)
+Date: Tue, 2 Nov 2010 04:37:02 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/2] writeback: integrated background writeback work
+Message-ID: <20101101203702.GA7309@localhost>
+References: <20100913123110.372291929@intel.com>
+ <20100913130149.994322762@intel.com>
+ <20100914124033.GA4874@quack.suse.cz>
+ <20101101121408.GB9006@localhost>
+ <20101101152149.GA12741@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101101152149.GA12741@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello, 
-
-On Sun, 31 Oct 2010 09:51:32 +0800, Wu Fengguang wrote:
-> It may also help to lower the dirty ratio.
+On Mon, Nov 01, 2010 at 11:21:50PM +0800, Christoph Hellwig wrote:
+> > +static void _bdi_wakeup_flusher(struct backing_dev_info *bdi)
 > 
-> echo 5 > /proc/sys/vm/dirty_ratio
-> 
-> Memory pressure + heavy write can easily hurt responsiveness.
-> 
-> - eats up to 20% (the default value for dirty_ratio) memory with dirty
->   pages and hence increase the memory pressure and number of swap IO
+> Remove the leading underscore, please.
 
-My experience has been different with that. Wouldn't it make more sense 
-to _increase_ dirty_ratio (to 50 lets say) and at the same time decrease 
-dirty_background_ratio? That way writing to disk starts early, but the 
-related apps stall waiting for I/O only when dirty_ratio is reached.
+OK, makes sense. The updated patch will follow.
 
-
-Thanks, 
-Dimitris
-
+> >  void bdi_start_background_writeback(struct backing_dev_info *bdi)
+> >  {
+> > -	__bdi_start_writeback(bdi, LONG_MAX, true, true);
+> > +	/*
+> > +	 * We just wake up the flusher thread. It will perform background
+> > +	 * writeback as soon as there is no other work to do.
+> > +	 */
+> > +	spin_lock_bh(&bdi->wb_lock);
+> > +	_bdi_wakeup_flusher(bdi);
+> > +	spin_unlock_bh(&bdi->wb_lock);
 > 
-> - the file copy makes the device write congested and hence makes
->   pageout() easily blocked in get_request_wait()
+> We probably want a trace point here, too.
 > 
-> As a result every application may be slowed down by the heavy swap IO
-> when page fault as well as being blocked when allocating memory (which
-> may go into direct reclaim and then call pageout()).
-> 
-> Thanks,
-> Fengguang
+> Otherwise the patch looks good to me.  Thanks for bringing it up again.
 
+Thanks. It's trivial to add the trace point, here is the incremental
+patch.
+
+Thanks,
+Fengguang
+
+---
+writeback: trace wakeup event for background writeback
+
+This tracks when balance_dirty_pages() tries to wakeup the flusher
+thread for background writeback (if it was not started already).
+
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/fs-writeback.c                |    1 +
+ include/trace/events/writeback.h |    1 +
+ 2 files changed, 2 insertions(+)
+
+--- linux-next.orig/include/trace/events/writeback.h	2010-11-02 04:17:26.000000000 +0800
++++ linux-next/include/trace/events/writeback.h	2010-11-02 04:21:02.000000000 +0800
+@@ -81,6 +81,7 @@ DEFINE_EVENT(writeback_class, name, \
+ 	TP_ARGS(bdi))
+ 
+ DEFINE_WRITEBACK_EVENT(writeback_nowork);
++DEFINE_WRITEBACK_EVENT(writeback_wake_background);
+ DEFINE_WRITEBACK_EVENT(writeback_wake_thread);
+ DEFINE_WRITEBACK_EVENT(writeback_wake_forker_thread);
+ DEFINE_WRITEBACK_EVENT(writeback_bdi_register);
+--- linux-next.orig/fs/fs-writeback.c	2010-11-02 04:22:17.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-11-02 04:22:33.000000000 +0800
+@@ -164,6 +164,7 @@ void bdi_start_background_writeback(stru
+ 	 * We just wake up the flusher thread. It will perform background
+ 	 * writeback as soon as there is no other work to do.
+ 	 */
++	trace_writeback_wake_background(bdi);
+ 	spin_lock_bh(&bdi->wb_lock);
+ 	bdi_wakeup_flusher(bdi);
+ 	spin_unlock_bh(&bdi->wb_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
