@@ -1,54 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 7ADCC8D0030
-	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 03:06:37 -0400 (EDT)
-Date: Mon, 1 Nov 2010 16:06:27 +0900 (JST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2187E8D0030
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 03:06:39 -0400 (EDT)
+Date: Mon, 1 Nov 2010 16:05:52 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [resend][PATCH 2/4] Revert "oom: deprecate oom_adj tunable"
-In-Reply-To: <alpine.DEB.2.00.1010261234230.5578@chino.kir.corp.google.com>
-References: <20101026220237.B7DA.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1010261234230.5578@chino.kir.corp.google.com>
-Message-Id: <20101101030353.607A.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH] RFC: vmscan: add min_filelist_kbytes sysctl for protecting the working set
+In-Reply-To: <20101028191523.GA14972@google.com>
+References: <20101028191523.GA14972@google.com>
+Message-Id: <20101101012322.605C.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Mandeep Singh Baines <msb@chromium.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wad@chromium.org, olofj@chromium.org, hughd@chromium.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 26 Oct 2010, KOSAKI Motohiro wrote:
+Hi
+
+> On ChromiumOS, we do not use swap. When memory is low, the only way to
+> free memory is to reclaim pages from the file list. This results in a
+> lot of thrashing under low memory conditions. We see the system become
+> unresponsive for minutes before it eventually OOMs. We also see very
+> slow browser tab switching under low memory. Instead of an unresponsive
+> system, we'd really like the kernel to OOM as soon as it starts to
+> thrash. If it can't keep the working set in memory, then OOM.
+> Losing one of many tabs is a better behaviour for the user than an
+> unresponsive system.
 > 
-> > > NACK as a logical follow-up to my NACK for "oom: remove totalpage 
-> > > normalization from oom_badness()"
-> > 
-> > Huh?
-> > 
-> > I requested you show us justification. BUT YOU DIDNT. If you have any 
-> > usecase, show us RIGHT NOW. 
-> > 
+> This patch create a new sysctl, min_filelist_kbytes, which disables reclaim
+> of file-backed pages when when there are less than min_filelist_bytes worth
+> of such pages in the cache. This tunable is handy for low memory systems
+> using solid-state storage where interactive response is more important
+> than not OOMing.
 > 
-> The new tunable added in 2.6.36, /proc/pid/oom_score_adj, is necessary for 
-> the units that the badness score now uses.  We need a tunable with a much 
+> With this patch and min_filelist_kbytes set to 50000, I see very little
+> block layer activity during low memory. The system stays responsive under
+> low memory and browser tab switching is fast. Eventually, a process a gets
+> killed by OOM. Without this patch, the system gets wedged for minutes
+> before it eventually OOMs. Below is the vmstat output from my test runs.
 
-Who we?
+I've heared similar requirement sometimes from embedded people. then also
+don't use swap. then, I don't think this is hopeless idea. but I hope to 
+clarify some thing at first.
 
-> higher resolution than the oom_adj scale from -16 to +15, and one that 
-> scales linearly as opposed to exponentially.  Since that tunable is much 
-> more powerful than the oom_adj implementation, which never made any real 
+Yes, a system often have should-not-be-evicted-file-caches. Typically, they
+are libc, libX11 and some GUI libraries. Traditionally, we was making tiny
+application which linked above important lib and call mlockall() at startup.
+such technique prevent reclaim. So, Q1: Why do you think above traditional way
+is insufficient? 
 
-The reason that you ware NAKed was not to introduce new powerful feature.
-It was caused to break old and used feature from applications.
+Q2: In the above you used min_filelist_kbytes=50000. How do you decide 
+such value? Do other users can calculate proper value?
 
+In addition, I have two request. R1: I think chromium specific feature is
+harder acceptable because it's harder maintable. but we have good chance to
+solve embedded generic issue. Please discuss Minchan and/or another embedded
+developers. R2: If you want to deal OOM combination, please consider to 
+combination of memcg OOM notifier too. It is most flexible and powerful OOM
+mechanism. Probably desktop and server people never use bare OOM killer intentionally.
 
-> sense for defining oom killing priority for any purpose other than 
-> polarization, the old tunable is deprecated for two years.
+Thanks.
 
-You haven't tested your patch at all. Distro's initram script are using
-oom_adj interface and latest kernel show pointless warnings 
-"/proc/xx/oom_adj is deprecated, please use /proc/xx/oom_score_adj instead."
-at _every_ boot time.
-
-As I said, DON'T SEND UNTESTED PATCH! DON'T BREAK USERLAND CARELESSLY!
 
 
 --
