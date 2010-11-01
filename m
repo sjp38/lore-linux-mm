@@ -1,74 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A08C08D0030
-	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 16:20:32 -0400 (EDT)
-Date: Mon, 1 Nov 2010 21:09:58 +0100 (CET)
-From: Jesper Juhl <jj@chaosbits.net>
-Subject: Re: [RFC PATCH] Add Kconfig option for default swappiness
-In-Reply-To: <1288548508-22070-1-git-send-email-bgamari.foss@gmail.com>
-Message-ID: <alpine.LNX.2.00.1011012108360.12889@swampdragon.chaosbits.net>
-References: <1288548508-22070-1-git-send-email-bgamari.foss@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0863E6B0092
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 16:30:08 -0400 (EDT)
+Received: from list by lo.gmane.org with local (Exim 4.69)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1PD112-0001St-5X
+	for linux-mm@kvack.org; Mon, 01 Nov 2010 21:30:04 +0100
+Received: from 178-14-100.dynamic.cyta.gr ([178.59.14.100])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 21:30:04 +0100
+Received: from jimis by 178-14-100.dynamic.cyta.gr with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 21:30:04 +0100
+From: Dimitrios Apostolou <jimis@gmx.net>
+Subject: Re: 2.6.36 io bring the system to its knees
+Date: Mon, 1 Nov 2010 01:09:34 +0000 (UTC)
+Message-ID: <ial40e$jpj$1@dough.gmane.org>
+References: <AANLkTimt7wzR9RwGWbvhiOmot_zzayfCfSh_-v6yvuAP@mail.gmail.com>
+	<AANLkTikRKVBzO=ruy=JDmBF28NiUdJmAqb4-1VhK0QBX@mail.gmail.com>
+	<AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com>
+	<AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com>
+	<20101031012224.GA8007@localhost> <20101031015132.GA10086@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Ben Gamari <bgamari.foss@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 31 Oct 2010, Ben Gamari wrote:
+Hello, 
 
-> This will allow distributions to tune this important vm parameter in a more
-> self-contained manner.
+On Sun, 31 Oct 2010 09:51:32 +0800, Wu Fengguang wrote:
+> It may also help to lower the dirty ratio.
 > 
-> Signed-off-by: Ben Gamari <bgamari.foss@gmail.com>
-> ---
->  Documentation/sysctl/vm.txt |    2 +-
->  mm/Kconfig                  |   11 +++++++++++
->  mm/vmscan.c                 |    2 +-
->  3 files changed, 13 insertions(+), 2 deletions(-)
+> echo 5 > /proc/sys/vm/dirty_ratio
 > 
-> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-> index 6c7d18c..792823b 100644
-> --- a/Documentation/sysctl/vm.txt
-> +++ b/Documentation/sysctl/vm.txt
-> @@ -614,7 +614,7 @@ This control is used to define how aggressive the kernel will swap
->  memory pages.  Higher values will increase agressiveness, lower values
->  decrease the amount of swap.
->  
-> -The default value is 60.
-> +The default value is 60 (changed with CONFIG_DEFAULT_SWAPINESS).
->  
->  ==============================================================
->  
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 9c61158..729ecec 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -61,6 +61,17 @@ config SPARSEMEM_MANUAL
->  
->  endchoice
->  
-> +config DEFAULT_SWAPPINESS
-> +	int "Default swappiness"
-> +	default "60"
-> +	range 0 100
-> +	help
-> +	  This control is used to define how aggressive the kernel will swap
-> +	  memory pages.  Higher values will increase agressiveness, lower
-> +	  values decrease the amount of swap. Valid values range from 0 to 100.
-> +
-> +	  If unsure, keep default value of 60.
-> +
+> Memory pressure + heavy write can easily hurt responsiveness.
+> 
+> - eats up to 20% (the default value for dirty_ratio) memory with dirty
+>   pages and hence increase the memory pressure and number of swap IO
 
-Perhaps this help text should mention the fact that swapiness setting can 
-be changed at runtime (regardless of the set default) by writing to 
-/proc/sys/vm/swappiness ???
+My experience has been different with that. Wouldn't it make more sense 
+to _increase_ dirty_ratio (to 50 lets say) and at the same time decrease 
+dirty_background_ratio? That way writing to disk starts early, but the 
+related apps stall waiting for I/O only when dirty_ratio is reached.
 
 
--- 
-Jesper Juhl <jj@chaosbits.net>             http://www.chaosbits.net/
-Plain text mails only, please      http://www.expita.com/nomime.html
-Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
+Thanks, 
+Dimitris
+
+> 
+> - the file copy makes the device write congested and hence makes
+>   pageout() easily blocked in get_request_wait()
+> 
+> As a result every application may be slowed down by the heavy swap IO
+> when page fault as well as being blocked when allocating memory (which
+> may go into direct reclaim and then call pageout()).
+> 
+> Thanks,
+> Fengguang
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
