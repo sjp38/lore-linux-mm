@@ -1,323 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 64AAE8D0030
-	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 09:15:56 -0400 (EDT)
-Date: Mon, 1 Nov 2010 20:35:36 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/4] writeback: introduce bdi_start_inode_writeback()
-Message-ID: <20101101123536.GA11208@localhost>
-References: <20100913123110.372291929@intel.com>
- <20100913130150.138758012@intel.com>
- <20100914133652.GC4874@quack.suse.cz>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 84AD96B016B
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 09:41:55 -0400 (EDT)
+Received: by pxi12 with SMTP id 12so670287pxi.14
+        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 06:41:53 -0700 (PDT)
+Date: Mon, 1 Nov 2010 22:41:39 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH] vmscan: move referenced VM_EXEC pages to active list
+Message-ID: <20101101134139.GA2104@barrios-desktop>
+References: <1287787911-4257-1-git-send-email-msb@chromium.org>
+ <AANLkTinWp-M4S5EXz6-xJvHAnzdk96_5+d2OJVjCycsm@mail.gmail.com>
+ <1288497532.1945.21.camel@shli-laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100914133652.GC4874@quack.suse.cz>
+In-Reply-To: <1288497532.1945.21.camel@shli-laptop>
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Mandeep Singh Baines <msb@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, "Wu, Fengguang" <fengguang.wu@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "wad@chromium.org" <wad@chromium.org>, "olofj@chromium.org" <olofj@chromium.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 14, 2010 at 09:36:52PM +0800, Jan Kara wrote:
-> On Mon 13-09-10 20:31:13, Wu Fengguang wrote:
-> > This is to transfer dirty pages encountered in page reclaim to the
-> > flusher threads for writeback.
+On Sun, Oct 31, 2010 at 11:58:52AM +0800, Shaohua Li wrote:
+> On Mon, 2010-10-25 at 06:52 +0800, Minchan Kim wrote:
+> > On Sat, Oct 23, 2010 at 7:51 AM, Mandeep Singh Baines <msb@chromium.org> wrote:
+> > > In commit 64574746, "vmscan: detect mapped file pages used only once",
+> > > Johannes Weiner, added logic to page_check_reference to cycle again
+> > > used once pages.
+> > >
+> > > In commit 8cab4754, "vmscan: make mapped executable pages the first
+> > > class citizen", Wu Fengguang, added logic to shrink_active_list which
+> > > protects file-backed VM_EXEC pages by keeping them in the active_list if
+> > > they are referenced.
+> > >
+> > > This patch adds logic to move such pages from the inactive list to the
+> > > active list immediately if they have been referenced. If a VM_EXEC page
+> > > is seen as referenced during an inactive list scan, that reference must
+> > > have occurred after the page was put on the inactive list. There is no
+> > > need to wait for the page to be referenced again.
+> > >
+> > > Change-Id: I17c312e916377e93e5a92c52518b6c829f9ab30b
+> > > Signed-off-by: Mandeep Singh Baines <msb@chromium.org>
 > > 
-> > The flusher will piggy back more dirty pages for IO
-> > - it's more IO efficient
-> > - it helps clean more pages, a good number of them may sit in the same
-> >   LRU list that is being scanned.
-> > 
-> > To avoid memory allocations at page reclaim, a mempool is created.
-> > 
-> > Background/periodic works will quit automatically, so as to clean the
-> > pages under reclaim ASAP. However the sync work can still block us for
-> > long time.
-> > 
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> >  fs/fs-writeback.c           |  103 +++++++++++++++++++++++++++++++++-
-> >  include/linux/backing-dev.h |    2 
-> >  2 files changed, 102 insertions(+), 3 deletions(-)
-> > 
-> ...
-> > +int bdi_start_inode_writeback(struct backing_dev_info *bdi,
-> > +			      struct inode *inode, pgoff_t offset)
-> > +{
-> > +	struct wb_writeback_work *work;
-> > +
-> > +	spin_lock_bh(&bdi->wb_lock);
-> > +	list_for_each_entry_reverse(work, &bdi->work_list, list) {
-> > +		unsigned long end;
-> > +		if (work->inode != inode)
-> > +			continue;
->   Hmm, this looks rather inefficient. I can imagine the list of work items
-> can grow rather large on memory stressed machine and the linear scan does
-> not play well with that (and contention on wb_lock would make it even
-> worse). I'm not sure how to best handle your set of intervals... RB tree
-> attached to an inode is an obvious choice but it seems too expensive
-> (memory spent for every inode) for such a rare use. Maybe you could have
-> a per-bdi mapping (hash table) from ino to it's tree of intervals for
-> reclaim... But before going for this, probably measuring how many intervals
-> are we going to have under memory pressure would be good.
+> > It seems to be similar to http://www.spinics.net/lists/linux-mm/msg09617.html.
+> > I don't know what it is going. Shaohua?
+> I should have sent the test result earlier but was offlined last week.
+> Here is my test result:
+> kernel1: base kernel + revert commit 8cab4754
+> kernel2: base kernel
+> kernel3: base kernel + my patch (similar like Mandeep's)
+> I'm using Fengguang's test of commit 8cab4754. But the test result isn't
+> stable, sometimes one kernel above has more majfault, but sometimes the
+> kernel has less majfault. This is true for all the above kernels.
+> Apparently kernel behavior changes (guess because of commit 64574746),
+> and vm_exec protect (even the vm_exec protect in active list) is not
+> important now with new kernel in Fengguang's test suite.
 
-Good point. For now I'll just limit the search to 100 recent works.
-Could be further improved later.
+Tend to agree.
+When I saw 64574746, I doubted 8cab4754's effectiveness.
+When we reviewed 8cab4754, there were many discussion. 
+The thing I kept my mind was a trick of VM_EXEC.
+Someone can whip LRU by VM_EXEC hack intentionally.
+Apparently, It's bad. 
 
-> > +		end = work->offset + work->nr_pages;
-> > +		if (work->offset - offset < WRITE_AROUND_PAGES) {
->        It's slightly unclear what's intended here when offset >
-> work->offset. Could you make that explicit?
+> 
+> But on the other hand, if I add a new task into Fengguang's test suite.
+> The task produces a lot of used one file page read (sequential read a
+> large sparse file). Kernel2 has less majfault than kernel1, and kernel3
+> has even less majfault than kernel2, so kernel3 has best performance.
+> Basically the majfault number from kernel1 is 3x, kernel2 2x, kernel3
+> 1x. One issue is I'm afraid this isn't a typical desktop usage any more
+> (because of sequential read sparse file), so not sure if we can use this
+> test as a judgment to merge the patch.
 
-It implicitly takes advantage of the "unsigned" compare.  When offset
- > work->offset, "work->offset - offset" will normally be a
-huge _positive_ value.  I added a comment for it in the following
-updated version. Is this still way too hacky?
+We can't make sure desktop doesn't has such workload and server also can have
+such workload. I mean if it enhance VM by general POV, we can merge it enoughly.
+In your testcase, Removing VM_EXEC test(ie, kernel 2) doesn't have biased.
+It means it's not the best but not worst, either. 
+Although we can't get the best, we can remove VM_EXEC hack. It's not a bad deal.
+So how about removing VM_EXEC hack in this chance?
 
-Thanks,
-Fengguang
----
-Subject: vmscan: transfer async file writeback to the flusher
+I hope we revert VM_EXEC hack in this chance.
+Of course, before we discuss it, we can need more and detail data.
+I hope you could help for the number.
 
-This is to transfer dirty pages encountered in page reclaim to the
-flusher threads for writeback.
+Thanks, Shaohua.
 
-Only ASYNC pageout() is relayed to the flusher threads, the less
-frequent SYNC pageout()s will work as before as a last resort.
-This helps to avoid OOM when the LRU list is small and/or the storage is
-slow, and the flusher cannot clean enough pages before the LRU is
-full scanned. 
-
-The flusher will piggy back more dirty pages for IO
-- it's more IO efficient
-- it helps clean more pages, a good number of them may sit in the same
-  LRU list that is being scanned.
-
-To avoid memory allocations at page reclaim, a mempool is created.
-
-Background/periodic works will quit automatically (as done in another
-patch), so as to clean the pages under reclaim ASAP. However for now the
-sync work can still block us for long time.
-
-Jan Kara: limit the search scope.
-
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- fs/fs-writeback.c           |  118 +++++++++++++++++++++++++++++++++-
- include/linux/backing-dev.h |    2 
- 2 files changed, 117 insertions(+), 3 deletions(-)
-
---- linux-next.orig/mm/vmscan.c	2010-11-01 04:10:37.000000000 +0800
-+++ linux-next/mm/vmscan.c	2010-11-01 04:49:47.000000000 +0800
-@@ -752,6 +754,16 @@ static unsigned long shrink_page_list(st
- 				}
- 			}
- 
-+			if (page_is_file_cache(page) && mapping &&
-+			    sync_writeback == PAGEOUT_IO_ASYNC) {
-+				if (!bdi_start_inode_writeback(
-+					mapping->backing_dev_info,
-+					mapping->host, page_index(page))) {
-+					SetPageReclaim(page);
-+					goto keep_locked;
-+				}
-+			}
-+
- 			if (references == PAGEREF_RECLAIM_CLEAN)
- 				goto keep_locked;
- 			if (!may_enter_fs)
---- linux-next.orig/fs/fs-writeback.c	2010-10-31 19:31:32.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2010-11-01 04:32:17.000000000 +0800
-@@ -30,11 +30,20 @@
- #include "internal.h"
- 
- /*
-+ * When flushing an inode page (for page reclaim), try to piggy back more
-+ * nearby pages for IO efficiency. These pages will have good opportunity
-+ * to be in the same LRU list.
-+ */
-+#define WRITE_AROUND_PAGES	(1UL << (20 - PAGE_CACHE_SHIFT))
-+
-+/*
-  * Passed into wb_writeback(), essentially a subset of writeback_control
-  */
- struct wb_writeback_work {
- 	long nr_pages;
- 	struct super_block *sb;
-+	struct inode *inode;
-+	pgoff_t offset;
- 	enum writeback_sync_modes sync_mode;
- 	unsigned int for_kupdate:1;
- 	unsigned int range_cyclic:1;
-@@ -57,6 +66,27 @@ struct wb_writeback_work {
-  */
- int nr_pdflush_threads;
- 
-+static mempool_t *wb_work_mempool;
-+
-+static void *wb_work_alloc(gfp_t gfp_mask, void *pool_data)
-+{
-+	/*
-+	 * bdi_start_inode_writeback() may be called on page reclaim
-+	 */
-+	if (current->flags & PF_MEMALLOC)
-+		return NULL;
-+
-+	return kmalloc(sizeof(struct wb_writeback_work), gfp_mask);
-+}
-+
-+static __init int wb_work_init(void)
-+{
-+	wb_work_mempool = mempool_create(1024,
-+					 wb_work_alloc, mempool_kfree, NULL);
-+	return wb_work_mempool ? 0 : -ENOMEM;
-+}
-+fs_initcall(wb_work_init);
-+
- /**
-  * writeback_in_progress - determine whether there is writeback in progress
-  * @bdi: the device's backing_dev_info structure.
-@@ -116,7 +146,7 @@ __bdi_start_writeback(struct backing_dev
- 	 * This is WB_SYNC_NONE writeback, so if allocation fails just
- 	 * wakeup the thread for old dirty data writeback
- 	 */
--	work = kzalloc(sizeof(*work), GFP_ATOMIC);
-+	work = mempool_alloc(wb_work_mempool, GFP_NOWAIT);
- 	if (!work) {
- 		if (bdi->wb.task) {
- 			trace_writeback_nowork(bdi);
-@@ -125,6 +155,7 @@ __bdi_start_writeback(struct backing_dev
- 		return;
- 	}
- 
-+	memset(work, 0, sizeof(*work));
- 	work->sync_mode	= WB_SYNC_NONE;
- 	work->nr_pages	= nr_pages;
- 	work->range_cyclic = range_cyclic;
-@@ -169,6 +200,70 @@ void bdi_start_background_writeback(stru
- 	spin_unlock_bh(&bdi->wb_lock);
- }
- 
-+static bool try_extend_writeback_range(struct wb_writeback_work *work,
-+				       pgoff_t offset)
-+{
-+	pgoff_t end = work->offset + work->nr_pages;
-+
-+	if (offset > work->offset && offset < end)
-+		return true;
-+
-+	/* the unsigned comparison helps eliminate one compare */
-+	if (work->offset - offset < WRITE_AROUND_PAGES) {
-+		work->nr_pages += work->offset - offset;
-+		work->offset = offset;
-+		return true;
-+	}
-+
-+	if (offset - end < WRITE_AROUND_PAGES) {
-+		work->nr_pages += offset - end;
-+		return true;
-+	}
-+
-+	return false;
-+}
-+
-+int bdi_start_inode_writeback(struct backing_dev_info *bdi,
-+			      struct inode *inode, pgoff_t offset)
-+{
-+	struct wb_writeback_work *work;
-+	int i = 0;
-+
-+	spin_lock_bh(&bdi->wb_lock);
-+	list_for_each_entry_reverse(work, &bdi->work_list, list) {
-+		unsigned long end;
-+		if (work->inode != inode)
-+			continue;
-+		if (try_extend_writeback_range(work, offset)) {
-+			inode = NULL;
-+			break;
-+		}
-+		if (i++ > 100)	/* do limited search */
-+			break;
-+	}
-+	spin_unlock_bh(&bdi->wb_lock);
-+
-+	if (!inode)
-+		return 0;
-+
-+	if (!igrab(inode))
-+		return -ENOENT;
-+
-+	work = mempool_alloc(wb_work_mempool, GFP_NOWAIT);
-+	if (!work)
-+		return -ENOMEM;
-+
-+	memset(work, 0, sizeof(*work));
-+	work->sync_mode		= WB_SYNC_NONE;
-+	work->inode		= inode;
-+	work->offset		= offset;
-+	work->nr_pages		= 1;
-+
-+	bdi_queue_work(inode->i_sb->s_bdi, work);
-+
-+	return 0;
-+}
-+
- /*
-  * Redirty an inode: set its when-it-was dirtied timestamp and move it to the
-  * furthest end of its superblock's dirty-inode list.
-@@ -745,6 +840,20 @@ get_next_work_item(struct backing_dev_in
- 	return work;
- }
- 
-+static long wb_flush_inode(struct bdi_writeback *wb,
-+			   struct wb_writeback_work *work)
-+{
-+	pgoff_t start = round_down(work->offset, WRITE_AROUND_PAGES);
-+	pgoff_t end = round_up(work->offset + work->nr_pages,
-+			       WRITE_AROUND_PAGES);
-+	int wrote;
-+
-+	wrote = __filemap_fdatawrite_range(work->inode->i_mapping,
-+					   start, end, WB_SYNC_NONE);
-+	iput(work->inode);
-+	return wrote;
-+}
-+
- static long wb_check_background_flush(struct bdi_writeback *wb)
- {
- 	if (over_bground_thresh()) {
-@@ -817,7 +926,10 @@ long wb_do_writeback(struct bdi_writebac
- 
- 		trace_writeback_exec(bdi, work);
- 
--		wrote += wb_writeback(wb, work);
-+		if (work->inode)
-+			wrote += wb_flush_inode(wb, work);
-+		else
-+			wrote += wb_writeback(wb, work);
- 
- 		/*
- 		 * Notify the caller of completion if this is a synchronous
-@@ -826,7 +938,7 @@ long wb_do_writeback(struct bdi_writebac
- 		if (work->done)
- 			complete(work->done);
- 		else
--			kfree(work);
-+			mempool_free(work, wb_work_mempool);
- 	}
- 
- 	/*
---- linux-next.orig/include/linux/backing-dev.h	2010-10-26 11:21:17.000000000 +0800
-+++ linux-next/include/linux/backing-dev.h	2010-10-31 19:32:00.000000000 +0800
-@@ -107,6 +107,8 @@ void bdi_unregister(struct backing_dev_i
- int bdi_setup_and_register(struct backing_dev_info *, char *, unsigned int);
- void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages);
- void bdi_start_background_writeback(struct backing_dev_info *bdi);
-+int bdi_start_inode_writeback(struct backing_dev_info *bdi,
-+			      struct inode *inode, pgoff_t offset);
- int bdi_writeback_thread(void *data);
- int bdi_has_dirty_io(struct backing_dev_info *bdi);
- void bdi_arm_supers_timer(void);
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
