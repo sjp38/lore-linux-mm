@@ -1,81 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E1BEE8D0001
-	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 01:07:59 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id oA250Ugk030050
-	for <linux-mm@kvack.org>; Tue, 2 Nov 2010 01:00:30 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oA257vOX350014
-	for <linux-mm@kvack.org>; Tue, 2 Nov 2010 01:07:57 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oA257u5W025710
-	for <linux-mm@kvack.org>; Tue, 2 Nov 2010 03:07:57 -0200
-Date: Tue, 2 Nov 2010 10:37:53 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH] cgroup: prefer [kv]zalloc over [kv]malloc+memset in
- memory controller code.
-Message-ID: <20101102050752.GG3769@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <alpine.LNX.2.00.1011012038490.12889@swampdragon.chaosbits.net>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 38C916B009E
+	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 03:49:22 -0400 (EDT)
+Received: by vws18 with SMTP id 18so4756342vws.14
+        for <linux-mm@kvack.org>; Tue, 02 Nov 2010 00:49:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1011012038490.12889@swampdragon.chaosbits.net>
+Reply-To: sedat.dilek@gmail.com
+Date: Tue, 2 Nov 2010 08:49:20 +0100
+Message-ID: <AANLkTinPTrc6FpBRTZbDcsOdwpRUayQuE+2K8U8yPorz@mail.gmail.com>
+Subject: Where is the SLAM (a mutable slab allocator) development happening?
+From: Sedat Dilek <sedat.dilek@googlemail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Jesper Juhl <jj@chaosbits.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pavel Emelianov <xemul@openvz.org>, Minchan Kim <minchan.kim@gmail.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-* Jesper Juhl <jj@chaosbits.net> [2010-11-01 20:40:56]:
+Hi,
 
-> Hi (please CC me on replies),
-> 
-> 
-> Apologies to those who receive this multiple times. I screwed up the To: 
-> field in my original mail :-(
-> 
-> 
-> In mem_cgroup_alloc() we currently do either kmalloc() or vmalloc() then 
-> followed by memset() to zero the memory. This can be more efficiently 
-> achieved by using kzalloc() and vzalloc().
-> 
-> 
-> Signed-off-by: Jesper Juhl <jj@chaosbits.net>
-> ---
->  memcontrol.c |    5 ++---
->  1 file changed, 2 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 9a99cfa..90da698 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4199,14 +4199,13 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
-> 
->  	/* Can be very big if MAX_NUMNODES is very big */
->  	if (size < PAGE_SIZE)
-> -		mem = kmalloc(size, GFP_KERNEL);
-> +		mem = kzalloc(size, GFP_KERNEL);
->  	else
-> -		mem = vmalloc(size);
-> +		mem = vzalloc(size);
-> 
->  	if (!mem)
->  		return NULL;
-> 
-> -	memset(mem, 0, size);
->  	mem->stat = alloc_percpu(struct mem_cgroup_stat_cpu);
->  	if (!mem->stat) {
->  		if (size < PAGE_SIZE)
->
+while looking through the program of LPC, I have seen a proposal for a
+talk called "SLAM: a mutable slab allocator" [1].
 
- 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
- 
+As there was no reference given to the code-base, I went searching on
+the Wild Wild Web and found a thread called "[UnifiedV4 00/16] The
+Unified slab allocator (V4)" posted to LKML.
+It looks to me that these patches went to Pekka's slab/for-next GIT-branch [2].
+I am not sure if this is "SLAM".
 
--- 
-	Three Cheers,
-	Balbir
+[1] says:
+"I have worked as a kernel developer at Google for 3 1/2 years...",
+not sure if David Rientjes email-address at Google is still valid,
+thus I am sending my request to slab ML and Mainrtainers.
+
+Can someone say where to get more informations on SLAM?
+The commits in slab/for-next look also interesting to me, can someone
+give an overview what can be expected in 2.6.38?
+(I would give linux-next a try).
+
+Thanks in advance for answering my questions.
+
+Kind Regards,
+- Sedat -
+
+[1] http://www.linuxplumbersconf.org/2010/ocw/proposals/405
+[2] http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=shortlog;h=refs/heads/for-next
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
