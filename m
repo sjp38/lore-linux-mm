@@ -1,49 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 88E8C6B00B6
-	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 10:38:20 -0400 (EDT)
-Date: Tue, 2 Nov 2010 22:01:20 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] Add Kconfig option for default swappiness
-Message-ID: <20101102140119.GA8294@localhost>
-References: <1288668052-32036-1-git-send-email-bgamari.foss@gmail.com>
- <alpine.DEB.2.00.1011012030100.12298@chino.kir.corp.google.com>
- <87oca7evbo.fsf@gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7320C8D0001
+	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 11:10:54 -0400 (EDT)
+Received: by wwb39 with SMTP id 39so745794wwb.2
+        for <linux-mm@kvack.org>; Tue, 02 Nov 2010 08:10:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87oca7evbo.fsf@gmail.com>
+Date: Wed, 3 Nov 2010 00:10:50 +0900
+Message-ID: <AANLkTikCUdpx-jGhKdzueML39CnExumk1i_X_OZJihE2@mail.gmail.com>
+Subject: [BUGFIX][PATCH] fix wrong VM_BUG_ON() in try_charge()'s mm->owner check
+From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Content-Type: multipart/mixed; boundary=0016e6dab1828c9da804941354f2
 Sender: owner-linux-mm@kvack.org
-To: Ben Gamari <bgamari.foss@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jesper Juhl <jj@chaosbits.net>, Dave Jones <davej@redhat.com>
+To: linux-mm@kvack.org
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, hughd@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 02, 2010 at 08:58:19PM +0800, Ben Gamari wrote:
-> On Mon, 1 Nov 2010 20:33:10 -0700 (PDT), David Rientjes <rientjes@google.com> wrote:
-> > And they can't use an init script to tune /proc/sys/vm/swappiness 
-> > because...?
-> 
-> Packaging concerns, as I mentioned before,
-> 
-> On Mon, Nov 01, 2010 at 08:52:30AM -0400, Ben Gamari wrote:
-> > Ubuntu ships different kernels for desktop and server usage. From a
-> > packaging standpoint it would be much nicer to have this set in the
-> > kernel configuration. If we were to throw the setting /etc/sysctl.conf
-> > the kernel would depend upon the package containing sysctl(8)
-> > (procps). We'd rather avoid this and keep the default kernel
-> > configuration in one place.
-> 
-> In short, being able to specify this default in .config is just far
-> simpler from a packaging standpoint than the alternatives.
+--0016e6dab1828c9da804941354f2
+Content-Type: text/plain; charset=ISO-8859-1
 
-It's interesting to know what value you plan to use for your
-desktop/server systems and the rationals (is it based on any
-testing results?). And why it's easier to do it in kernel (hope it's
-not because of trouble communicating with the user space packaging
-team).
+I'm sorry for attached file, I have to use unusual mailer this time.
+This is a fix for wrong VM_BUG_ON() for mm/memcontol.c
 
 Thanks,
-Fengguang
+-Kame
+
+--0016e6dab1828c9da804941354f2
+Content-Type: application/octet-stream; name="fix-mm-owner-check.patch"
+Content-Disposition: attachment; filename="fix-mm-owner-check.patch"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_gg0wx5k80
+
+QXQgX19tZW1fY2dyb3VwX3RyeV9jaGFyZ2UoKSwgVk1fQlVHX09OKCFtbS0+b3duZXIpIGlzIGNo
+ZWNrZWQuCkJ1dCBhcyBjb21tZW50ZWQgaW4gbWVtX2Nncm91cF9mcm9tX3Rhc2soKSwgbW0tPm93
+bmVyIGNhbiBiZSBOVUxMIGluIHNvbWUgcmFjeQpjYXNlLiBUaGlzIGNoZWNrIG9mIFZNX0JVR19P
+TigpIGlzIGJhZC4KCkEgcG9zc2libGUgc3Ryb3kgdG8gaGl0IHRoaXMgaXMgYXQgc3dhcG9mZigp
+LT50cnlfdG9fdW51c2UoKS4gSXQgcGFzc2VzCm1tX3N0cnVjdCB0byBtZW1fY2dyb3VwX3RyeV9j
+aGFyZ2Vfc3dhcGluKCkgd2hpbGUgbW0tPm93bmVyIGlzIE5VTEwuIElmIHdlCmNhbid0IGdldCBw
+cm9wZXIgbWVtX2Nncm91cCBmcm9tIHN3YXBfY2dyb3VwIGluZm9ybWF0aW9uLCBtbS0+b3duZXIg
+aXMgdXNlZAphcyBjaGFyZ2UgdGFyZ2V0IGFuZCB3ZSBzZWUgTlVMTC4KCkNjOiBCYWxiaXIgU2lu
+Z2ggPGJhbGJpckBpbi5pYm0uY29tPgpDYzogRGFpc3VrZSBOaXNoaW11cmEgPG5pc2hpbXVyYUBt
+eHAubmVzLm5lYy5jby5qcD4KQ2M6IEtPU0FLSSBNb3RvaGlybyA8a29zYWtpLm1vdG9oaXJvQGpw
+LmZ1aml0c3UuY29tPgpSZXBvcnRlZC1ieTogSHVnaCBEaWNraW5zIDxodWdoZEBnb29nbGUuY29t
+PgpTaWduZWQtb2ZmLWJ5OiBLQU1FWkFXQSBIaXJveXVraSA8a2FtZXphd2EuaGlyb3l1QGpwLmZ1
+aml0c3UuY29tPgotLS0KIG1tL21lbWNvbnRyb2wuYyB8ICAgMTkgKysrKysrKysrLS0tLS0tLS0t
+LQogMSBmaWxlIGNoYW5nZWQsIDkgaW5zZXJ0aW9ucygrKSwgMTAgZGVsZXRpb25zKC0pCgpJbmRl
+eDogbGludXgtMi42LjM2L21tL21lbWNvbnRyb2wuYwo9PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Ci0tLSBsaW51eC0yLjYu
+MzYub3JpZy9tbS9tZW1jb250cm9sLmMKKysrIGxpbnV4LTIuNi4zNi9tbS9tZW1jb250cm9sLmMK
+QEAgLTE3MjksMTkgKzE3MjksMTggQEAgYWdhaW46CiAKIAkJcmN1X3JlYWRfbG9jaygpOwogCQlw
+ID0gcmN1X2RlcmVmZXJlbmNlKG1tLT5vd25lcik7Ci0JCVZNX0JVR19PTighcCk7CiAJCS8qCi0J
+CSAqIGJlY2F1c2Ugd2UgZG9uJ3QgaGF2ZSB0YXNrX2xvY2soKSwgInAiIGNhbiBleGl0IHdoaWxl
+Ci0JCSAqIHdlJ3JlIGhlcmUuIEluIHRoYXQgY2FzZSwgIm1lbSIgY2FuIHBvaW50IHRvIHJvb3QK
+LQkJICogY2dyb3VwIGJ1dCBuZXZlciBiZSBOVUxMLiAoYW5kIHRhc2tfc3RydWN0IGl0c2VsZiBp
+cyBmcmVlZAotCQkgKiBieSBSQ1UsIGNncm91cCBpdHNlbGYgaXMgUkNVIHNhZmUuKSBUaGVuLCB3
+ZSBoYXZlIHNtYWxsCi0JCSAqIHJpc2sgaGVyZSB0byBnZXQgd3JvbmcgY2dyb3VwLiBCdXQgc3Vj
+aCBraW5kIG9mIG1pcy1hY2NvdW50Ci0JCSAqIGJ5IHJhY2UgYWx3YXlzIGhhcHBlbnMgYmVjYXVz
+ZSB3ZSBkb24ndCBoYXZlIGNncm91cF9tdXRleCgpLgotCQkgKiBJdCdzIG92ZXJraWxsIGFuZCB3
+ZSBhbGxvdyB0aGF0IHNtYWxsIHJhY2UsIGhlcmUuCisJCSAqIEJlY2F1c2Ugd2UgZG9uJ3QgaGF2
+ZSB0YXNrX2xvY2soKSwgInAiIGNhbiBleGl0LgorCQkgKiBJbiB0aGF0IGNhc2UsICJtZW0iIGNh
+biBwb2ludCB0byByb290IG9yIHAgY2FuIGJlIE5VTEwgd2l0aAorCQkgKiByYWNlIHdpdGggc3dh
+cG9mZi4gVGhlbiwgd2UgaGF2ZSBzbWFsbCByaXNrIG9mIG1pcy1hY2NvdW5pbmcuCisJCSAqIEJ1
+dCBzdWNoIGtpbmQgb2YgbWlzLWFjY291bnQgYnkgcmFjZSBhbHdheXMgaGFwcGVucyBiZWNhdXNl
+CisJCSAqIHdlIGRvbid0IGhhdmUgY2dyb3VwX211dGV4KCkuIEl0J3Mgb3ZlcmtpbGwgYW5kIHdl
+IGFsbG8gdGhhdAorCQkgKiBzbWFsbCByYWNlLCBoZXJlLgorCQkgKiAoKikgc3dhcG9mZiBhdCBl
+bCB3aWxsIGNoYXJnZSBhZ2FpbnN0IG1tLXN0cnVjdCBub3QgYWdhaW5zdAorCQkgKiB0YXNrLXN0
+cnVjdC4gU28sIG1tLT5vd25lciBjYW4gYmUgTlVMTC4KIAkJICovCiAJCW1lbSA9IG1lbV9jZ3Jv
+dXBfZnJvbV90YXNrKHApOwotCQlWTV9CVUdfT04oIW1lbSk7Ci0JCWlmIChtZW1fY2dyb3VwX2lz
+X3Jvb3QobWVtKSkgeworCQlpZiAoIW1lbSB8fCBtZW1fY2dyb3VwX2lzX3Jvb3QobWVtKSkgewog
+CQkJcmN1X3JlYWRfdW5sb2NrKCk7CiAJCQlnb3RvIGRvbmU7CiAJCX0K
+--0016e6dab1828c9da804941354f2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
