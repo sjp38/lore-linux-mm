@@ -1,94 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1A6008D0001
-	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 20:31:05 -0400 (EDT)
-Subject: Re: [PATCH] vmscan: move referenced VM_EXEC pages to active list
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id D5A606B0102
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 20:53:14 -0400 (EDT)
+Subject: Re: [PATCH 1/2] mm: page allocator: Adjust the per-cpu counter
+ threshold when memory is low
 From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20101101134139.GA2104@barrios-desktop>
-References: <1287787911-4257-1-git-send-email-msb@chromium.org>
-	 <AANLkTinWp-M4S5EXz6-xJvHAnzdk96_5+d2OJVjCycsm@mail.gmail.com>
-	 <1288497532.1945.21.camel@shli-laptop>
-	 <20101101134139.GA2104@barrios-desktop>
+In-Reply-To: <20101029124002.356bd592.akpm@linux-foundation.org>
+References: <1288278816-32667-1-git-send-email-mel@csn.ul.ie>
+	 <1288278816-32667-2-git-send-email-mel@csn.ul.ie>
+	 <20101028150433.fe4f2d77.akpm@linux-foundation.org>
+	 <20101029101210.GG4896@csn.ul.ie>
+	 <20101029124002.356bd592.akpm@linux-foundation.org>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 02 Nov 2010 08:31:10 +0800
-Message-ID: <1288657870.8722.959.camel@sli10-conroe.sh.intel.com>
+Date: Tue, 02 Nov 2010 08:53:20 +0800
+Message-ID: <1288659200.8722.963.camel@sli10-conroe.sh.intel.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Mandeep Singh Baines <msb@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, "Wu, Fengguang" <fengguang.wu@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "wad@chromium.org" <wad@chromium.org>, "olofj@chromium.org" <olofj@chromium.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-11-01 at 21:41 +0800, Minchan Kim wrote:
-> On Sun, Oct 31, 2010 at 11:58:52AM +0800, Shaohua Li wrote:
-> > On Mon, 2010-10-25 at 06:52 +0800, Minchan Kim wrote:
-> > > On Sat, Oct 23, 2010 at 7:51 AM, Mandeep Singh Baines <msb@chromium.org> wrote:
-> > > > In commit 64574746, "vmscan: detect mapped file pages used only once",
-> > > > Johannes Weiner, added logic to page_check_reference to cycle again
-> > > > used once pages.
-> > > >
-> > > > In commit 8cab4754, "vmscan: make mapped executable pages the first
-> > > > class citizen", Wu Fengguang, added logic to shrink_active_list which
-> > > > protects file-backed VM_EXEC pages by keeping them in the active_list if
-> > > > they are referenced.
-> > > >
-> > > > This patch adds logic to move such pages from the inactive list to the
-> > > > active list immediately if they have been referenced. If a VM_EXEC page
-> > > > is seen as referenced during an inactive list scan, that reference must
-> > > > have occurred after the page was put on the inactive list. There is no
-> > > > need to wait for the page to be referenced again.
-> > > >
-> > > > Change-Id: I17c312e916377e93e5a92c52518b6c829f9ab30b
-> > > > Signed-off-by: Mandeep Singh Baines <msb@chromium.org>
-> > > 
-> > > It seems to be similar to http://www.spinics.net/lists/linux-mm/msg09617.html.
-> > > I don't know what it is going. Shaohua?
-> > I should have sent the test result earlier but was offlined last week.
-> > Here is my test result:
-> > kernel1: base kernel + revert commit 8cab4754
-> > kernel2: base kernel
-> > kernel3: base kernel + my patch (similar like Mandeep's)
-> > I'm using Fengguang's test of commit 8cab4754. But the test result isn't
-> > stable, sometimes one kernel above has more majfault, but sometimes the
-> > kernel has less majfault. This is true for all the above kernels.
-> > Apparently kernel behavior changes (guess because of commit 64574746),
-> > and vm_exec protect (even the vm_exec protect in active list) is not
-> > important now with new kernel in Fengguang's test suite.
+On Sat, 2010-10-30 at 03:40 +0800, Andrew Morton wrote:
+> On Fri, 29 Oct 2010 11:12:11 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> Tend to agree.
-> When I saw 64574746, I doubted 8cab4754's effectiveness.
-> When we reviewed 8cab4754, there were many discussion. 
-> The thing I kept my mind was a trick of VM_EXEC.
-> Someone can whip LRU by VM_EXEC hack intentionally.
-> Apparently, It's bad. 
-> 
+> > On Thu, Oct 28, 2010 at 03:04:33PM -0700, Andrew Morton wrote:
+> > > On Thu, 28 Oct 2010 16:13:35 +0100
 > > 
-> > But on the other hand, if I add a new task into Fengguang's test suite.
-> > The task produces a lot of used one file page read (sequential read a
-> > large sparse file). Kernel2 has less majfault than kernel1, and kernel3
-> > has even less majfault than kernel2, so kernel3 has best performance.
-> > Basically the majfault number from kernel1 is 3x, kernel2 2x, kernel3
-> > 1x. One issue is I'm afraid this isn't a typical desktop usage any more
-> > (because of sequential read sparse file), so not sure if we can use this
-> > test as a judgment to merge the patch.
+> > > 
+> > > I have a feeling this problem will bite us again perhaps due to those
+> > > other callsites, but we haven't found the workload yet.
+> > > 
+> > > I don't undestand why restore/reduce_pgdat_percpu_threshold() were
+> > > called around that particular sleep in kswapd and nowhere else.
+> > > 
+> > > > vanilla                      11.6615%
+> > > > disable-threshold            0.2584%
+> > > 
+> > > Wow.  That's 12% of all CPUs?  How many CPUs and what workload?
+> > > 
+> > 
+> > 112 threads CPUs 14 sockets. Workload initialisation creates NR_CPU sparse
+> > files that are 10*TOTAL_MEMORY/NR_CPU in size. Workload itself is NR_CPU
+> > processes just reading their own file.
+> > 
+> > The critical thing is the number of sockets. For single-socket-8-thread
+> > for example, vanilla was just 0.66% of time (although the patches did
+> > bring it down to 0.11%).
 > 
-> We can't make sure desktop doesn't has such workload and server also can have
-> such workload. I mean if it enhance VM by general POV, we can merge it enoughly.
-> In your testcase, Removing VM_EXEC test(ie, kernel 2) doesn't have biased.
-> It means it's not the best but not worst, either. 
-> Although we can't get the best, we can remove VM_EXEC hack. It's not a bad deal.
-> So how about removing VM_EXEC hack in this chance?
-> 
-> I hope we revert VM_EXEC hack in this chance.
-> Of course, before we discuss it, we can need more and detail data.
-> I hope you could help for the number.
-I'm thinking if we should revert VM_EXEC hack too. The headache is we
-need find a typical workload which can convince people and get number
-under the workload. Fengguang's test case hasn't enough non vm_exec file
-pages I think.
-
-Thanks,
-Shaohua
+> I'm surprised.  I thought the inefficiency here was caused by CPUs
+> tromping through percpu data, adding things up.  But the above info
+> would indicate that the problem was caused by lots of cross-socket
+> traffic?  If so, where did that come from?
+>From my understanding, the problem is zone_nr_free_pages() will try to
+read each cpu's ->vm_stat_diff, while other CPUs are changing their
+vm_stat_diff. This will cause a lot of cache bounce.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
