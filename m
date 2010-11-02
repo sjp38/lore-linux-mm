@@ -1,47 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A75746B0095
-	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 09:14:15 -0400 (EDT)
-Date: Tue, 2 Nov 2010 09:12:39 -0400
-From: Chris Mason <chris.mason@Oracle.COM>
-Subject: Re: 2.6.36 io bring the system to its knees
-Message-ID: <20101102131239.GA8680@think>
-References: <20101028170132.GY27796@think>
- <E1PDFKe-0005sq-2D@approx.mit.edu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <E1PDFKe-0005sq-2D@approx.mit.edu>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BC2E76B016F
+	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 10:29:33 -0400 (EDT)
+Received: by pwi1 with SMTP id 1so1922464pwi.14
+        for <linux-mm@kvack.org>; Tue, 02 Nov 2010 07:29:31 -0700 (PDT)
+Subject: Re: [PATCH]oom-kill: direct hardware access processes should get
+ bonus
+From: "Figo.zhang" <figo1802@gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1011012008160.9383@chino.kir.corp.google.com>
+References: <1288662213.10103.2.camel@localhost.localdomain>
+	 <alpine.DEB.2.00.1011012008160.9383@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 02 Nov 2010 22:24:54 +0800
+Message-ID: <1288707894.19865.1.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Sanjoy Mahajan <sanjoy@olin.edu>
-Cc: Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter.Zijl@MIT.EDU
+To: David Rientjes <rientjes@google.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 02, 2010 at 07:47:15AM -0400, Sanjoy Mahajan wrote:
-> Chris Mason <chris.mason@oracle.com> wrote:
+
 > 
-> > > This has the appearance of some really bad IO or VM latency
-> > > problem. Unfixed and present in stable kernel versions going from
-> > > years ago all the way to v2.6.36.
-> > 
-> > Hmmm, the workload you're describing here has two special parts.
-> > First it dramatically overloads the disk, and then it has guis doing
-> > things waiting for the disk.
+> Which applications are you referring to that cannot gracefully exit if 
+> killed?
+
+like Xorg server, if xorg server be killed, the gnome desktop will be
+crashed.
+
+
 > 
-> I think I see this same issue every few days when I back up my hard
-> drive to a USB hard drive using rsync.  While the backup is running, the
-> interactive response is bad.  A reproducible measurement of the badness
-> is starting an rxvt with F8 (bound to "rxvt &" in my .twmrc).  Often it
-> takes 8 seconds for the window to appear (as it just did about 2 minutes
-> ago)!  (Starting a subsequent rxvt is quick.)
+> CAP_SYS_RAWIO had a much more dramatic impact in the previous heuristic to 
+> such a point that it would often allow memory hogging tasks to elude the 
+> oom killer at the expense of innocent tasks.  I'm not sure this is the 
+> best way to go.
 
-So this sounds like the backup is just thrashing your cache.  Latencies
-starting an app are less surprising than latencies where a running app
-doesn't respond at all.
+is it some experiments for demonstration the  CAP_SYS_RAWIO will elude
+the oom killer?
 
-Does rsync have the option to do an fadvise DONTNEED?
 
--chris
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
