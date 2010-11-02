@@ -1,113 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9A0648D0001
-	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 00:27:43 -0400 (EDT)
-Received: by iwn38 with SMTP id 38so7191957iwn.14
-        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 21:27:42 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E1BEE8D0001
+	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 01:07:59 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id oA250Ugk030050
+	for <linux-mm@kvack.org>; Tue, 2 Nov 2010 01:00:30 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oA257vOX350014
+	for <linux-mm@kvack.org>; Tue, 2 Nov 2010 01:07:57 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oA257u5W025710
+	for <linux-mm@kvack.org>; Tue, 2 Nov 2010 03:07:57 -0200
+Date: Tue, 2 Nov 2010 10:37:53 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH] cgroup: prefer [kv]zalloc over [kv]malloc+memset in
+ memory controller code.
+Message-ID: <20101102050752.GG3769@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <alpine.LNX.2.00.1011012038490.12889@swampdragon.chaosbits.net>
 MIME-Version: 1.0
-In-Reply-To: <1288668052-32036-1-git-send-email-bgamari.foss@gmail.com>
-References: <1288668052-32036-1-git-send-email-bgamari.foss@gmail.com>
-Date: Tue, 2 Nov 2010 13:27:41 +0900
-Message-ID: <AANLkTim0oHFehpJggt9c8PhSZpOZZA1Qz=h6rC5NjeCY@mail.gmail.com>
-Subject: Re: [PATCH] Add Kconfig option for default swappiness
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1011012038490.12889@swampdragon.chaosbits.net>
 Sender: owner-linux-mm@kvack.org
-To: Ben Gamari <bgamari.foss@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Juhl <jj@chaosbits.net>, Wu Fengguang <fengguang.wu@intel.com>
+To: Jesper Juhl <jj@chaosbits.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pavel Emelianov <xemul@openvz.org>, Minchan Kim <minchan.kim@gmail.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 2, 2010 at 12:20 PM, Ben Gamari <bgamari.foss@gmail.com> wrote:
-> This will allow distributions to tune this important vm parameter in a mo=
-re
-> self-contained manner.
->
-> Signed-off-by: Ben Gamari <bgamari.foss@gmail.com>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+* Jesper Juhl <jj@chaosbits.net> [2010-11-01 20:40:56]:
+
+> Hi (please CC me on replies),
+> 
+> 
+> Apologies to those who receive this multiple times. I screwed up the To: 
+> field in my original mail :-(
+> 
+> 
+> In mem_cgroup_alloc() we currently do either kmalloc() or vmalloc() then 
+> followed by memset() to zero the memory. This can be more efficiently 
+> achieved by using kzalloc() and vzalloc().
+> 
+> 
+> Signed-off-by: Jesper Juhl <jj@chaosbits.net>
 > ---
-> =A0Documentation/sysctl/vm.txt | =A0 =A02 +-
-> =A0mm/Kconfig =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 14 ++++++++++++++
-> =A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A02 +-
-> =A03 files changed, 16 insertions(+), 2 deletions(-)
+>  memcontrol.c |    5 ++---
+>  1 file changed, 2 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 9a99cfa..90da698 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4199,14 +4199,13 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
+> 
+>  	/* Can be very big if MAX_NUMNODES is very big */
+>  	if (size < PAGE_SIZE)
+> -		mem = kmalloc(size, GFP_KERNEL);
+> +		mem = kzalloc(size, GFP_KERNEL);
+>  	else
+> -		mem = vmalloc(size);
+> +		mem = vzalloc(size);
+> 
+>  	if (!mem)
+>  		return NULL;
+> 
+> -	memset(mem, 0, size);
+>  	mem->stat = alloc_percpu(struct mem_cgroup_stat_cpu);
+>  	if (!mem->stat) {
+>  		if (size < PAGE_SIZE)
 >
-> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-> index 30289fa..d159d02 100644
-> --- a/Documentation/sysctl/vm.txt
-> +++ b/Documentation/sysctl/vm.txt
-> @@ -643,7 +643,7 @@ This control is used to define how aggressive the ker=
-nel will swap
-> =A0memory pages. =A0Higher values will increase agressiveness, lower valu=
-es
-> =A0decrease the amount of swap.
->
-> -The default value is 60.
-> +The default value is 60 (changed with CONFIG_DEFAULT_SWAPINESS).
->
-> =A0=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index c2c8a4a..dc23737 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -61,6 +61,20 @@ config SPARSEMEM_MANUAL
->
-> =A0endchoice
->
-> +config DEFAULT_SWAPPINESS
-> + =A0 =A0 =A0 int "Default swappiness"
-> + =A0 =A0 =A0 default "60"
-> + =A0 =A0 =A0 range 0 100
-> + =A0 =A0 =A0 help
-> + =A0 =A0 =A0 =A0 This control is used to define how aggressive the kerne=
-l will swap
-> + =A0 =A0 =A0 =A0 memory pages. =A0Higher values will increase agressiven=
-ess, lower
-> + =A0 =A0 =A0 =A0 values decrease the amount of swap. Valid values range =
-from 0 to 100.
-> +
-> + =A0 =A0 =A0 =A0 This only sets the default value at boot. Swappiness ca=
-n be set at
-> + =A0 =A0 =A0 =A0 runtime through /proc/sys/vm/swappiness.
-> +
-> + =A0 =A0 =A0 =A0 If unsure, keep default value of 60.
-> +
-> =A0config DISCONTIGMEM
-> =A0 =A0 =A0 =A0def_bool y
-> =A0 =A0 =A0 =A0depends on (!SELECT_MEMORY_MODEL && ARCH_DISCONTIGMEM_ENAB=
-LE) || DISCONTIGMEM_MANUAL
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index b8a6fdc..d9f5bba 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -133,7 +133,7 @@ struct scan_control {
-> =A0/*
-> =A0* From 0 .. 100. =A0Higher means more swappy.
-> =A0*/
-> -int vm_swappiness =3D 60;
-> +int vm_swappiness =3D CONFIG_DEFAULT_SWAPPINESS;
-> =A0long vm_total_pages; =A0 /* The total number of pages which the VM con=
-trols */
->
-> =A0static LIST_HEAD(shrinker_list);
 
-Apparently, it wouldn't hurt maintain the kernel. But I have a concern.
-As someone think this parameter is very important and would be better
-to control by kernel config rather than init script to make the
-package, it would make new potential kernel configs by someone in
-future.
-But I can't convince my opinion myself. Because if there will be lots
-of kernel config for tuning parameters, could it hurt
-maintain/usability? I can't say "Yes" strongly. so I am not against
-this idea strongly.
-Hmm,,  Just pass the decision to others.
+ 
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
 
---=20
-Kind regards,
-Minchan Kim
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
