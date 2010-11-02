@@ -1,67 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 2C1456B017E
-	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 23:10:32 -0400 (EDT)
-Subject: Re: 2.6.36 io bring the system to its knees
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <AANLkTim-hgA3-9T_N5k53Sga5LMazMQPmmQZzQsoQvRY@mail.gmail.com>
-References: <AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com>
-	 <AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com>
-	 <AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com>
-	 <20101028090002.GA12446@elte.hu>
-	 <AANLkTinoGGLTN2JRwjJtF6Ra5auZVg+VSa=TyrtAkDor@mail.gmail.com>
-	 <20101028133036.GA30565@elte.hu>	<20101028170132.GY27796@think>
-	 <AANLkTikgO=n88ZAQ6EYAg1+aC1d0+o923FYyhkOouaH5@mail.gmail.com>
-	 <20101029145212.GA21205@thunk.org>
-	 <AANLkTim-A7DLOOw4myQU3Lfip+ZEE32F2Ap_PJXuxG6G@mail.gmail.com>
-	 <20101030091440.GA15276@elte.hu>
-	 <AANLkTim-hgA3-9T_N5k53Sga5LMazMQPmmQZzQsoQvRY@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 02 Nov 2010 11:10:19 +0800
-Message-ID: <1288667419.8722.965.camel@sli10-conroe.sh.intel.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id D166F6B017E
+	for <linux-mm@kvack.org>; Mon,  1 Nov 2010 23:11:09 -0400 (EDT)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id oA23Ar0I022587
+	for <linux-mm@kvack.org>; Mon, 1 Nov 2010 20:10:53 -0700
+Received: from pwi3 (pwi3.prod.google.com [10.241.219.3])
+	by wpaz37.hot.corp.google.com with ESMTP id oA23ApYE025594
+	for <linux-mm@kvack.org>; Mon, 1 Nov 2010 20:10:52 -0700
+Received: by pwi3 with SMTP id 3so1416164pwi.34
+        for <linux-mm@kvack.org>; Mon, 01 Nov 2010 20:10:51 -0700 (PDT)
+Date: Mon, 1 Nov 2010 20:10:47 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH]oom-kill: direct hardware access processes should get
+ bonus
+In-Reply-To: <1288662213.10103.2.camel@localhost.localdomain>
+Message-ID: <alpine.DEB.2.00.1011012008160.9383@chino.kir.corp.google.com>
+References: <1288662213.10103.2.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Aidar Kultayev <the.aidar@gmail.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Ted Ts'o <tytso@mit.edu>, Pekka Enberg <penberg@kernel.org>, Chris Mason <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
+To: "Figo.zhang" <figo1802@gmail.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2010-10-30 at 21:02 +0800, Aidar Kultayev wrote:
-> Hi,
-> 
-> here is what I have :
-> 
-> .ext4 mounted with data=ordered
-> .-tip tree ( uname -a gives : Linux pussy 2.6.36-tip+ )
-> 
-> here is the latencytop & powertop & top screenshot:
-> 
-> http://picasaweb.google.com/lh/photo/bMTgbVDoojwUeXtVdyvIKw?feat=directlink
-> 
-> the system is/was doing :
-> .dd if=/dev/zero of=test.10g bs=1M count=10000;rm test.10g
-> .netbeans
-> .compiling gcc-4.5.1
-> .running VBox, which wasn't doing any IO. The guest os was idle in other words
-> .vlc
-> .chromium
-> .firefox
-> and bunch of other small stuff.
-> 
-> Even without having running DD, the mouse cursor would occasionally
-> lag. The alt+tab effect in KWin would take 5+seconds to workout.
-> When I run DD on top of the workload it consistently made system much
-> more laggy. The cursor would freeze much more frequent. It is like if
-> you drag your mouse physically, but the cursor on the screen would
-> jump discretely, in other words there is no continuity.
-> Music would stop.
-> 
-> I am free to try out anything here.
-would you please try the vm_exec protect patch here?
-http://www.spinics.net/lists/linux-mm/msg09617.html
+On Tue, 2 Nov 2010, Figo.zhang wrote:
 
-Thanks,
-Shaohua
+> the victim should not directly access hardware devices like Xorg server,
+> because the hardware could be left in an unpredictable state, although 
+> user-application can set /proc/pid/oom_score_adj to protect it. so i think
+> those processes should get 3% bonus for protection.
+> 
+
+Which applications are you referring to that cannot gracefully exit if 
+killed?
+
+> Signed-off-by: Figo.zhang <figo1802@gmail.com>
+> ---
+> mm/oom_kill.c |    8 +++++---
+>  1 files changed, 5 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 4029583..df6a9da 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -195,10 +195,12 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
+>  	task_unlock(p);
+>  
+>  	/*
+> -	 * Root processes get 3% bonus, just like the __vm_enough_memory()
+> -	 * implementation used by LSMs.
+> +	 * Root and direct hardware access processes get 3% bonus, just like the
+> +	 * __vm_enough_memory() implementation used by LSMs.
+
+LSM's have this bonus for CAP_SYS_ADMIN, but not for CAP_SYS_RAWIO, so 
+this comment is incorrect.
+
+>  	 */
+> -	if (has_capability_noaudit(p, CAP_SYS_ADMIN))
+> +	if (has_capability_noaudit(p, CAP_SYS_ADMIN) ||
+> +	    has_capability_noaudit(p, CAP_SYS_RESOURCE) ||
+> +	    has_capability_noaudit(p, CAP_SYS_RAWIO))
+>  		points -= 30;
+>  
+>  	/*
+
+CAP_SYS_RAWIO had a much more dramatic impact in the previous heuristic to 
+such a point that it would often allow memory hogging tasks to elude the 
+oom killer at the expense of innocent tasks.  I'm not sure this is the 
+best way to go.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
