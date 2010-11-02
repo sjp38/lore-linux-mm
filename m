@@ -1,35 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 648C56B016C
-	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 04:57:56 -0400 (EDT)
-Received: by vws18 with SMTP id 18so4831826vws.14
-        for <linux-mm@kvack.org>; Tue, 02 Nov 2010 01:57:51 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 4086D8D0001
+	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 07:34:19 -0400 (EDT)
+Message-ID: <4CCFF1BA.1010206@redhat.com>
+Date: Tue, 02 Nov 2010 07:10:50 -0400
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <AANLkTinPTrc6FpBRTZbDcsOdwpRUayQuE+2K8U8yPorz@mail.gmail.com>
-References: <AANLkTinPTrc6FpBRTZbDcsOdwpRUayQuE+2K8U8yPorz@mail.gmail.com>
-Date: Tue, 2 Nov 2010 10:57:51 +0200
-Message-ID: <AANLkTi=tFRb6FYJ0Zi0ybZOr=Wt8_nAP1YO=4Cipg4wE@mail.gmail.com>
-Subject: Re: Where is the SLAM (a mutable slab allocator) development happening?
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC][PATCH] Cross Memory Attach
+References: <20100915104855.41de3ebf@lilo>	<4C90A6C7.9050607@redhat.com>	<AANLkTi=rmUUPCm212Sju-wW==5cT4eqqU+FEP_hX-Z_y@mail.gmail.com>	<20100916104819.36d10acb@lilo>	<4C91E2CC.9040709@redhat.com> <20101102140710.5f2a6557@lilo>
+In-Reply-To: <20101102140710.5f2a6557@lilo>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: sedat.dilek@gmail.com
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>
+To: Christopher Yeoh <cyeoh@au1.ibm.com>
+Cc: Bryan Donlan <bdonlan@gmail.com>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 2, 2010 at 9:49 AM, Sedat Dilek <sedat.dilek@googlemail.com> wrote:
-> Hi,
+  On 11/01/2010 11:37 PM, Christopher Yeoh wrote:
+> >
+> >  You could have each process open /proc/self/mem and pass the fd using
+> >  SCM_RIGHTS.
+> >
+> >  That eliminates a race; with copy_to_process(), by the time the pid
+> >  is looked up it might designate a different process.
 >
-> while looking through the program of LPC, I have seen a proposal for a
-> talk called "SLAM: a mutable slab allocator" [1].
+> Just to revive an old thread (I've been on holidays), but this doesn't
+> work either. the ptrace check is done by mem_read (eg on each read) so
+> even if you do pass the fd using SCM_RIGHTS, reads on the fd still
+> fail.
 >
-> As there was no reference given to the code-base, I went searching on
-> the Wild Wild Web and found a thread called "[UnifiedV4 00/16] The
-> Unified slab allocator (V4)" posted to LKML.
-> It looks to me that these patches went to Pekka's slab/for-next GIT-branch [2].
-> I am not sure if this is "SLAM".
+> So unless there's good reason to believe that the ptrace permission
+> check is no longer needed, the /proc/pid/mem interface doesn't seem to
+> be an option for what we want to do.
+>
 
-I've never heard of such a beast. Lets ask David?
+Perhaps move the check to open().  I can understand the desire to avoid 
+letting random processes peek each other's memory, but once a process 
+has opened its own /proc/self/mem and explicitly passed it to another, 
+we should allow it.
+
+-- 
+I have a truly marvellous patch that fixes the bug which this
+signature is too narrow to contain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
