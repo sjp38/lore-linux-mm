@@ -1,227 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A2CB68D0001
-	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 15:33:31 -0400 (EDT)
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by e28smtp04.in.ibm.com (8.14.4/8.13.1) with ESMTP id oA2JXKnt030323
-	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 01:03:20 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oA2JXKws3453012
-	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 01:03:20 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oA2JXJGa020698
-	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 01:03:20 +0530
-Message-ID: <4CD0677B.3060800@linux.vnet.ibm.com>
-Date: Wed, 03 Nov 2010 01:03:15 +0530
-From: Ciju Rajan K <ciju@linux.vnet.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 1497E8D0001
+	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 15:34:23 -0400 (EDT)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id oA2JYLsJ006982
+	for <linux-mm@kvack.org>; Tue, 2 Nov 2010 12:34:21 -0700
+Received: from pwj3 (pwj3.prod.google.com [10.241.219.67])
+	by hpaq7.eem.corp.google.com with ESMTP id oA2JY95m029947
+	for <linux-mm@kvack.org>; Tue, 2 Nov 2010 12:34:19 -0700
+Received: by pwj3 with SMTP id 3so2152027pwj.5
+        for <linux-mm@kvack.org>; Tue, 02 Nov 2010 12:34:19 -0700 (PDT)
+Date: Tue, 2 Nov 2010 12:34:14 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH]oom-kill: direct hardware access processes should get
+ bonus
+In-Reply-To: <1288707894.19865.1.camel@localhost.localdomain>
+Message-ID: <alpine.DEB.2.00.1011021228590.20105@chino.kir.corp.google.com>
+References: <1288662213.10103.2.camel@localhost.localdomain> <alpine.DEB.2.00.1011012008160.9383@chino.kir.corp.google.com> <1288707894.19865.1.camel@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 00/11] memcg: per cgroup dirty page accounting
-References: <1288336154-23256-1-git-send-email-gthelen@google.com> <20101029131946.5905d244.akpm@linux-foundation.org> <xr93sjzne4m6.fsf@ninji.mtv.corp.google.com>
-In-Reply-To: <xr93sjzne4m6.fsf@ninji.mtv.corp.google.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>
+To: "Figo.zhang" <figo1802@gmail.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Greg Thelen wrote:
-> Andrew Morton <akpm@linux-foundation.org> writes:
->
->   
->> On Fri, 29 Oct 2010 00:09:03 -0700
->> Greg Thelen <gthelen@google.com> wrote:
->>
->> This is cool stuff - it's been a long haul.  One day we'll be
->> nearly-finished and someone will write a book telling people how to use
->> it all and lots of people will go "holy crap".  I hope.
->>
->>     
->>> Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
->>> page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
->>> not be able to consume more than their designated share of dirty pages and will
->>> be forced to perform write-out if they cross that limit.
->>>
->>> The patches are based on a series proposed by Andrea Righi in Mar 2010.
->>>
->>> Overview:
->>> - Add page_cgroup flags to record when pages are dirty, in writeback, or nfs
->>>   unstable.
->>>
->>> - Extend mem_cgroup to record the total number of pages in each of the 
->>>   interesting dirty states (dirty, writeback, unstable_nfs).  
->>>
->>> - Add dirty parameters similar to the system-wide  /proc/sys/vm/dirty_*
->>>   limits to mem_cgroup.  The mem_cgroup dirty parameters are accessible
->>>   via cgroupfs control files.
->>>       
->> Curious minds will want to know what the default values are set to and
->> how they were determined.
->>     
->
-> When a memcg is created, its dirty limits are set to a copy of the
-> parent's limits.  If the new cgroup is a top level cgroup, then it
-> inherits from the system parameters (/proc/sys/vm/dirty_*).
->
->   
->>> - Consider both system and per-memcg dirty limits in page writeback when
->>>   deciding to queue background writeback or block for foreground writeback.
->>>
->>> Known shortcomings:
->>> - When a cgroup dirty limit is exceeded, then bdi writeback is employed to
->>>   writeback dirty inodes.  Bdi writeback considers inodes from any cgroup, not
->>>   just inodes contributing dirty pages to the cgroup exceeding its limit.  
->>>       
->> yup.  Some broader discussion of the implications of this shortcoming
->> is needed.  I'm not sure where it would be placed, though. 
->> Documentation/ for now, until you write that book.
->>     
->
-> Fair enough.  I can add more text to Documentation/ describing the
-> behavior and issue in more detail.
->
->   
->>> - When memory.use_hierarchy is set, then dirty limits are disabled.  This is a
->>>   implementation detail.
->>>       
->> So this is unintentional, and forced upon us my the present implementation?
->>     
->
-> Yes, this is not ideal.  I chose not to address this particular issue in
-> this series to keep the series smaller.
->
->   
->>>  An enhanced implementation is needed to check the
->>>   chain of parents to ensure that no dirty limit is exceeded.
->>>       
->> How important is it that this be fixed?
->>     
->
-> I am not sure if there is interest in hierarchical per-memcg dirty
-> limits.  So I don't think that this is very important to be fixed
-> immediately.  But the fact that it doesn't work is unexpected.  It would
-> be nice if it just worked.  I'll look into making it work.
->
->   
->> And how feasible would that fix be?  A linear walk up the hierarchy
->> list?  More than that?
->>     
->
-> I think it should be a simple matter of enhancing
-> mem_cgroup_dirty_info() to walk up the hierarchy looking for the cgroup
-> closest to its dirty limit.  The only tricky part is that there are
-> really two limits (foreground/throttling limit, and a background limit)
-> that need to be considered when finding the memcg that most deserves
-> inspection by balance_dirty_pages().
->
->   
->>> Performance data:
->>> - A page fault microbenchmark workload was used to measure performance, which
->>>   can be called in read or write mode:
->>>         f = open(foo. $cpu)
->>>         truncate(f, 4096)
->>>         alarm(60)
->>>         while (1) {
->>>                 p = mmap(f, 4096)
->>>                 if (write)
->>> 			*p = 1
->>> 		else
->>> 			x = *p
->>>                 munmap(p)
->>>         }
->>>
->>> - The workload was called for several points in the patch series in different
->>>   modes:
->>>   - s_read is a single threaded reader
->>>   - s_write is a single threaded writer
->>>   - p_read is a 16 thread reader, each operating on a different file
->>>   - p_write is a 16 thread writer, each operating on a different file
->>>
->>> - Measurements were collected on a 16 core non-numa system using "perf stat
->>>   --repeat 3".  The -a option was used for parallel (p_*) runs.
->>>
->>> - All numbers are page fault rate (M/sec).  Higher is better.
->>>
->>> - To compare the performance of a kernel without non-memcg compare the first and
->>>   last rows, neither has memcg configured.  The first row does not include any
->>>   of these memcg patches.
->>>
->>> - To compare the performance of using memcg dirty limits, compare the baseline
->>>   (2nd row titled "w/ memcg") with the the code and memcg enabled (2nd to last
->>>   row titled "all patches").
->>>
->>>                            root_cgroup                    child_cgroup
->>>                  s_read s_write p_read p_write   s_read s_write p_read p_write
->>> mmotm w/o memcg   0.428  0.390   0.429  0.388
->>> mmotm w/ memcg    0.411  0.378   0.391  0.362     0.412  0.377   0.385  0.363
->>> all patches       0.384  0.360   0.370  0.348     0.381  0.363   0.368  0.347
->>> all patches       0.431  0.402   0.427  0.395
->>>   w/o memcg
->>>       
->> afaict this benchmark has demonstrated that the changes do not cause an
->> appreciable performance regression in terms of CPU loading, yes?
->>     
->
-> Using the mmap() workload, which is a fault heavy workload...
->
-> When memcg is not configured, there is no significant performance
-> change.  Depending on the workload the performance is between 0%..3%
-> faster.  This is likely workload noise.
->
-> When memcg is configured, the performance drops between 4% and 8%.  Some
-> of this might be noise, but it is expected that memcg faults will get
-> slower because there's more code in the fault path.
->
->   
->> Can we come up with any tests which demonstrate the _benefits_ of the
->> feature?
->>     
->
-> Here is a test script that shows a situation where memcg dirty limits
-> are beneficial.  The script runs two programs: a dirty page background
-> antagonist (dd) and an interactive foreground process (tar).  If the
-> scripts argument is false, then both processes are run together in the
-> root cgroup sharing system-wide dirty memory in classic fashion.  If the
-> script is given a true argument, then a cgroup is used to contain dd
-> dirty page consumption.
->
-> ---[start]---
-> #!/bin/bash
-> # dirty.sh - dirty limit performance test script
-> echo use_cgroup: $1
->
-> # start antagonist
-> if $1; then    # if using cgroup to contain 'dd'...
->   mkdir /dev/cgroup/A
->   echo 400M > /dev/cgroup/A/memory.dirty_limit_in_bytes
->   (echo $BASHPID > /dev/cgroup/A/tasks; dd if=/dev/zero of=big.file
->   count=10k bs=1M) &
-> else
->   dd if=/dev/zero of=big.file count=10k bs=1M &
-> fi
->
-> sleep 10
->
-> time tar -xzf linux-2.6.36.tar.gz
-> wait
-> $1 && rmdir /dev/cgroup/A
-> ---[end]---
->
-> dirty.sh false : dd 59.7MB/s stddev 7.442%, tar 12.2s stddev 25.720%
->   # both in root_cgroup
-> dirty.sh true  : dd 55.4MB/s stddev 0.958%, tar  3.8s stddev  0.250%
->   # tar in root_cgroup, dd in cgroup
->   
-Reviewed-by: Ciju Rajan K <ciju@linux.vnet.ibm.com>
+On Tue, 2 Nov 2010, Figo.zhang wrote:
 
-Tested-by: Ciju Rajan K <ciju@linux.vnet.ibm.com>
+> > Which applications are you referring to that cannot gracefully exit if 
+> > killed?
+> 
+> like Xorg server, if xorg server be killed, the gnome desktop will be
+> crashed.
+> 
 
-> The cgroup reserved dirty memory resources for the rest of the system
-> processes (tar in this case).  The tar process had faster and more
-> predictable performance.  memcg dirty ratios might be useful to serve
-> different task classes (interactive vs batch).  A past discussion
-> touched on this: http://lkml.org/lkml/2010/5/20/136
->   
+Right, but you didn't explicitly prohibit such applications from being 
+killed, so that suggests that doing so may be inconvenient but doesn't 
+incur something like corruption or data loss, which is what I would 
+consider "unstable" or "inconsistent" state.
+
+We're trying to avoid any additional heuristics from being introduced for 
+specific usecases, even for Xorg.  That ensures that the heuristic remains 
+as predictable as possible and frees a large amount of memory.  If Xorg is 
+being killed first instead of a true memory hogger, then it seems like a 
+forkbomb scenario instead; could you please post your kernel log so that 
+we can diagnose that issue seperately?
+
+> > CAP_SYS_RAWIO had a much more dramatic impact in the previous heuristic to 
+> > such a point that it would often allow memory hogging tasks to elude the 
+> > oom killer at the expense of innocent tasks.  I'm not sure this is the 
+> > best way to go.
+> 
+> is it some experiments for demonstration the  CAP_SYS_RAWIO will elude
+> the oom killer?
+> 
+
+The old heuristic would allow it to elude the oom killer because it would 
+divide the score by four if a task had the capability, which is a much 
+more drastic "bonus" than you suggest here.  That would reduce the score 
+for the memory hogging task significantly enough that we killed tons of 
+innocent tasks instead before eventually killing the task that was leaking 
+memory but failed to be identified because it had CAP_SYS_RAWIO.  I'm 
+trying to avoid any such repeats.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
