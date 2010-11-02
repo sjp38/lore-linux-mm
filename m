@@ -1,47 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4086D8D0001
-	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 07:34:19 -0400 (EDT)
-Message-ID: <4CCFF1BA.1010206@redhat.com>
-Date: Tue, 02 Nov 2010 07:10:50 -0400
-From: Avi Kivity <avi@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id C99976B00B2
+	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 07:47:32 -0400 (EDT)
+Message-ID: <E1PDFKe-0005sq-2D@approx.mit.edu>
+Subject: Re: 2.6.36 io bring the system to its knees
+In-Reply-To: Your message of "Thu, 28 Oct 2010 13:01:32 EDT."
+             <20101028170132.GY27796@think>
+Date: Tue, 2 Nov 2010 07:47:15 -0400
+From: Sanjoy Mahajan <sanjoy@olin.edu>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] Cross Memory Attach
-References: <20100915104855.41de3ebf@lilo>	<4C90A6C7.9050607@redhat.com>	<AANLkTi=rmUUPCm212Sju-wW==5cT4eqqU+FEP_hX-Z_y@mail.gmail.com>	<20100916104819.36d10acb@lilo>	<4C91E2CC.9040709@redhat.com> <20101102140710.5f2a6557@lilo>
-In-Reply-To: <20101102140710.5f2a6557@lilo>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
-To: Christopher Yeoh <cyeoh@au1.ibm.com>
-Cc: Bryan Donlan <bdonlan@gmail.com>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter.Zijl@MIT.EDU
 List-ID: <linux-mm.kvack.org>
 
-  On 11/01/2010 11:37 PM, Christopher Yeoh wrote:
-> >
-> >  You could have each process open /proc/self/mem and pass the fd using
-> >  SCM_RIGHTS.
-> >
-> >  That eliminates a race; with copy_to_process(), by the time the pid
-> >  is looked up it might designate a different process.
->
-> Just to revive an old thread (I've been on holidays), but this doesn't
-> work either. the ptrace check is done by mem_read (eg on each read) so
-> even if you do pass the fd using SCM_RIGHTS, reads on the fd still
-> fail.
->
-> So unless there's good reason to believe that the ptrace permission
-> check is no longer needed, the /proc/pid/mem interface doesn't seem to
-> be an option for what we want to do.
->
+Chris Mason <chris.mason@oracle.com> wrote:
 
-Perhaps move the check to open().  I can understand the desire to avoid 
-letting random processes peek each other's memory, but once a process 
-has opened its own /proc/self/mem and explicitly passed it to another, 
-we should allow it.
+> > This has the appearance of some really bad IO or VM latency
+> > problem. Unfixed and present in stable kernel versions going from
+> > years ago all the way to v2.6.36.
+> 
+> Hmmm, the workload you're describing here has two special parts.
+> First it dramatically overloads the disk, and then it has guis doing
+> things waiting for the disk.
 
--- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
+I think I see this same issue every few days when I back up my hard
+drive to a USB hard drive using rsync.  While the backup is running, the
+interactive response is bad.  A reproducible measurement of the badness
+is starting an rxvt with F8 (bound to "rxvt &" in my .twmrc).  Often it
+takes 8 seconds for the window to appear (as it just did about 2 minutes
+ago)!  (Starting a subsequent rxvt is quick.)
+
+The command for running the backup:
+
+  rsync -av --delete /etc /home /media/usbdrive/bak > /tmp/homebackup.log
+
+The hardware is a T60 w/ Intel graphics and wireless, 1.5GB RAM, 5400rpm
+160GB harddrive w/ ext3 filesystems, and it's running vanilla 2.6.36.
+There's not much memory pressure.  The swap is mostly empty, and there's
+usually a Firefox eating 500MB of RAM.  Even Emacs at 50MB is in the
+noise compared to the Firefox.
+
+Here's the 'free' output:
+
+             total       used       free     shared    buffers     cached
+Mem:       1545292    1500288      45004          0      92848     713988
+-/+ buffers/cache:     693452     851840
+Swap:      2000088      22680    1977408
+
+What tests or probes are worth running when the problem reappears in
+order to find the root cause?
+
+-Sanjoy
+
+`Until lions have their historians, tales of the hunt shall always
+ glorify the hunters.'  --African Proverb
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
