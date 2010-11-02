@@ -1,31 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 5F57E6B009B
-	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 12:13:29 -0400 (EDT)
-Date: Tue, 2 Nov 2010 11:13:24 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Where is the SLAM (a mutable slab allocator) development
- happening?
-In-Reply-To: <AANLkTi=tFRb6FYJ0Zi0ybZOr=Wt8_nAP1YO=4Cipg4wE@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1011021111520.20326@router.home>
-References: <AANLkTinPTrc6FpBRTZbDcsOdwpRUayQuE+2K8U8yPorz@mail.gmail.com> <AANLkTi=tFRb6FYJ0Zi0ybZOr=Wt8_nAP1YO=4Cipg4wE@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E13896B00CC
+	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 12:38:40 -0400 (EDT)
+Received: by iwn38 with SMTP id 38so7891445iwn.14
+        for <linux-mm@kvack.org>; Tue, 02 Nov 2010 09:38:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 2 Nov 2010 19:32:40 +0300
+Message-ID: <AANLkTino-GJTpmved=SjmN2O_dN=fhrS+vVfHAPoKQ6y@mail.gmail.com>
+Subject: Low priority writers make realtime processes thrashing
+From: Evgeniy Ivanov <lolkaantimat@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@kernel.org>
-Cc: sedat.dilek@gmail.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Nov 2010, Pekka Enberg wrote:
+Hi,
 
-> I've never heard of such a beast. Lets ask David?
+When I run few "hard-writers" I get problems with my 15 realtime
+processes (do some very small writes, just 2 pages per-time): they
+start thrashing. I thought it's caused by write-back and was waiting
+for Greg Tellen's per-cgroup dirty page accounting patch. Before
+testing it I tried to change threshold in
+page-writeback.c:get_dirty_limits(), I set dirty_ratio for RT process
+80% (instead of just extra dirty / 4), but it didn't help me. What
+else can cause problems?
+I'm linux kernel newbie and will appreciate any addvices.
 
-There is a proposal at
-
-http://www.linuxplumbersconf.org/2010/ocw/proposals/405
-
-Sadly it was rejected. Wish we knew more about this.
-
+-- 
+Evgeniy Ivanov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
