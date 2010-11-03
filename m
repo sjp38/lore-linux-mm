@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9CF746B00BD
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id DDF7E6B00BA
 	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 11:29:33 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 05 of 66] compound_lock
-Message-Id: <fc2579c9bddbfcf78d72.1288798060@v2.random>
+Subject: [PATCH 26 of 66] clear_copy_huge_page
+Message-Id: <f5544d270c4d6ff6be44.1288798081@v2.random>
 In-Reply-To: <patchbomb.1288798055@v2.random>
 References: <patchbomb.1288798055@v2.random>
-Date: Wed, 03 Nov 2010 16:27:40 +0100
+Date: Wed, 03 Nov 2010 16:28:01 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
@@ -18,101 +18,203 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add a new compound_lock() needed to serialize put_page against
-__split_huge_page_refcount().
+Move the copy/clear_huge_page functions to common code to share between
+hugetlb.c and huge_memory.c.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
 diff --git a/include/linux/mm.h b/include/linux/mm.h
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -14,6 +14,7 @@
- #include <linux/mm_types.h>
- #include <linux/range.h>
- #include <linux/pfn.h>
-+#include <linux/bit_spinlock.h>
+@@ -1574,5 +1574,14 @@ static inline int is_hwpoison_address(un
  
- struct mempolicy;
- struct anon_vma;
-@@ -302,6 +303,40 @@ static inline int is_vmalloc_or_module_a
+ extern void dump_page(struct page *page);
+ 
++#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
++extern void clear_huge_page(struct page *page,
++			    unsigned long addr,
++			    unsigned int pages_per_huge_page);
++extern void copy_user_huge_page(struct page *dst, struct page *src,
++				unsigned long addr, struct vm_area_struct *vma,
++				unsigned int pages_per_huge_page);
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
++
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_H */
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -394,70 +394,6 @@ static int vma_has_reserves(struct vm_ar
+ 	return 0;
  }
- #endif
  
-+static inline void compound_lock(struct page *page)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	bit_spin_lock(PG_compound_lock, &page->flags);
-+#endif
-+}
-+
-+static inline void compound_unlock(struct page *page)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	bit_spin_unlock(PG_compound_lock, &page->flags);
-+#endif
-+}
-+
-+static inline void compound_lock_irqsave(struct page *page,
-+					 unsigned long *flagsp)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	unsigned long flags;
-+	local_irq_save(flags);
-+	compound_lock(page);
-+	*flagsp = flags;
-+#endif
-+}
-+
-+static inline void compound_unlock_irqrestore(struct page *page,
-+					      unsigned long flags)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	compound_unlock(page);
-+	local_irq_restore(flags);
-+#endif
-+}
-+
- static inline struct page *compound_head(struct page *page)
+-static void clear_gigantic_page(struct page *page,
+-			unsigned long addr, unsigned long sz)
+-{
+-	int i;
+-	struct page *p = page;
+-
+-	might_sleep();
+-	for (i = 0; i < sz/PAGE_SIZE; i++, p = mem_map_next(p, page, i)) {
+-		cond_resched();
+-		clear_user_highpage(p, addr + i * PAGE_SIZE);
+-	}
+-}
+-static void clear_huge_page(struct page *page,
+-			unsigned long addr, unsigned long sz)
+-{
+-	int i;
+-
+-	if (unlikely(sz/PAGE_SIZE > MAX_ORDER_NR_PAGES)) {
+-		clear_gigantic_page(page, addr, sz);
+-		return;
+-	}
+-
+-	might_sleep();
+-	for (i = 0; i < sz/PAGE_SIZE; i++) {
+-		cond_resched();
+-		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
+-	}
+-}
+-
+-static void copy_user_gigantic_page(struct page *dst, struct page *src,
+-			   unsigned long addr, struct vm_area_struct *vma)
+-{
+-	int i;
+-	struct hstate *h = hstate_vma(vma);
+-	struct page *dst_base = dst;
+-	struct page *src_base = src;
+-
+-	for (i = 0; i < pages_per_huge_page(h); ) {
+-		cond_resched();
+-		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
+-
+-		i++;
+-		dst = mem_map_next(dst, dst_base, i);
+-		src = mem_map_next(src, src_base, i);
+-	}
+-}
+-
+-static void copy_user_huge_page(struct page *dst, struct page *src,
+-			   unsigned long addr, struct vm_area_struct *vma)
+-{
+-	int i;
+-	struct hstate *h = hstate_vma(vma);
+-
+-	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
+-		copy_user_gigantic_page(dst, src, addr, vma);
+-		return;
+-	}
+-
+-	might_sleep();
+-	for (i = 0; i < pages_per_huge_page(h); i++) {
+-		cond_resched();
+-		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
+-	}
+-}
+ 
+ static void copy_gigantic_page(struct page *dst, struct page *src)
  {
- 	if (unlikely(PageTail(page)))
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -108,6 +108,9 @@ enum pageflags {
- #ifdef CONFIG_MEMORY_FAILURE
- 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	PG_compound_lock,
-+#endif
- 	__NR_PAGEFLAGS,
+@@ -2454,7 +2390,8 @@ retry_avoidcopy:
+ 		return VM_FAULT_OOM;
+ 	}
  
- 	/* Filesystems */
-@@ -397,6 +400,12 @@ static inline void __ClearPageTail(struc
- #define __PG_MLOCKED		0
- #endif
+-	copy_user_huge_page(new_page, old_page, address, vma);
++	copy_user_huge_page(new_page, old_page, address, vma,
++			    pages_per_huge_page(h));
+ 	__SetPageUptodate(new_page);
  
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define __PG_COMPOUND_LOCK		(1 << PG_compound_lock)
-+#else
-+#define __PG_COMPOUND_LOCK		0
-+#endif
+ 	/*
+@@ -2558,7 +2495,7 @@ retry:
+ 			ret = -PTR_ERR(page);
+ 			goto out;
+ 		}
+-		clear_huge_page(page, address, huge_page_size(h));
++		clear_huge_page(page, address, pages_per_huge_page(h));
+ 		__SetPageUptodate(page);
+ 
+ 		if (vma->vm_flags & VM_MAYSHARE) {
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3602,3 +3602,74 @@ void might_fault(void)
+ }
+ EXPORT_SYMBOL(might_fault);
+ #endif
 +
- /*
-  * Flags checked when a page is freed.  Pages being freed should not have
-  * these flags set.  It they are, there is a problem.
-@@ -406,7 +415,8 @@ static inline void __ClearPageTail(struc
- 	 1 << PG_private | 1 << PG_private_2 | \
- 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
--	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
-+	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
-+	 __PG_COMPOUND_LOCK)
- 
- /*
-  * Flags checked when a page is prepped for return by the page allocator.
++#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
++static void clear_gigantic_page(struct page *page,
++				unsigned long addr,
++				unsigned int pages_per_huge_page)
++{
++	int i;
++	struct page *p = page;
++
++	might_sleep();
++	for (i = 0; i < pages_per_huge_page;
++	     i++, p = mem_map_next(p, page, i)) {
++		cond_resched();
++		clear_user_highpage(p, addr + i * PAGE_SIZE);
++	}
++}
++void clear_huge_page(struct page *page,
++		     unsigned long addr, unsigned int pages_per_huge_page)
++{
++	int i;
++
++	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
++		clear_gigantic_page(page, addr, pages_per_huge_page);
++		return;
++	}
++
++	might_sleep();
++	for (i = 0; i < pages_per_huge_page; i++) {
++		cond_resched();
++		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
++	}
++}
++
++static void copy_user_gigantic_page(struct page *dst, struct page *src,
++				    unsigned long addr,
++				    struct vm_area_struct *vma,
++				    unsigned int pages_per_huge_page)
++{
++	int i;
++	struct page *dst_base = dst;
++	struct page *src_base = src;
++
++	for (i = 0; i < pages_per_huge_page; ) {
++		cond_resched();
++		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
++
++		i++;
++		dst = mem_map_next(dst, dst_base, i);
++		src = mem_map_next(src, src_base, i);
++	}
++}
++
++void copy_user_huge_page(struct page *dst, struct page *src,
++			 unsigned long addr, struct vm_area_struct *vma,
++			 unsigned int pages_per_huge_page)
++{
++	int i;
++
++	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
++		copy_user_gigantic_page(dst, src, addr, vma,
++					pages_per_huge_page);
++		return;
++	}
++
++	might_sleep();
++	for (i = 0; i < pages_per_huge_page; i++) {
++		cond_resched();
++		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
++	}
++}
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
