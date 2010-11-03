@@ -1,16 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C36156B00C6
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0F75D8D001A
 	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 11:30:45 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 57 of 66] avoid breaking huge pmd invariants in case of
-	vma_adjust failures
-Message-Id: <7109b653df89696ed9f9.1288798112@v2.random>
+Subject: [PATCH 07 of 66] update futex compound knowledge
+Message-Id: <4c0192396a2fc13a2d0a.1288798062@v2.random>
 In-Reply-To: <patchbomb.1288798055@v2.random>
 References: <patchbomb.1288798055@v2.random>
-Date: Wed, 03 Nov 2010 16:28:32 +0100
+Date: Wed, 03 Nov 2010 16:27:42 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
@@ -19,163 +18,124 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-An huge pmd can only be mapped if the corresponding 2M virtual range
-is fully contained in the vma. At times the VM calls split_vma twice,
-if the first split_vma succeeds and the second fail, the first
-split_vma remains in effect and it's not rolled back. For split_vma or
-vma_adjust to fail an allocation failure is needed so it's a very
-unlikely event (the out of memory killer would normally fire before
-any allocation failure is visible to kernel and userland and if an out
-of memory condition happens it's unlikely to happen exactly
-here). Nevertheless it's safer to ensure that no huge pmd can be left
-around if the vma is adjusted in a way that can't fit hugepages
-anymore at the new vm_start/vm_end address.
+Futex code is smarter than most other gup_fast O_DIRECT code and knows about
+the compound internals. However now doing a put_page(head_page) will not
+release the pin on the tail page taken by gup-fast, leading to all sort of
+refcounting bugchecks. Getting a stable head_page is a little tricky.
+
+page_head = page is there because if this is not a tail page it's also the
+page_head. Only in case this is a tail page, compound_head is called, otherwise
+it's guaranteed unnecessary. And if it's a tail page compound_head has to run
+atomically inside irq disabled section __get_user_pages_fast before returning.
+Otherwise ->first_page won't be a stable pointer.
+
+Disableing irq before __get_user_page_fast and releasing irq after running
+compound_head is needed because if __get_user_page_fast returns == 1, it means
+the huge pmd is established and cannot go away from under us.
+pmdp_splitting_flush_notify in __split_huge_page_splitting will have to wait
+for local_irq_enable before the IPI delivery can return. This means
+__split_huge_page_refcount can't be running from under us, and in turn when we
+run compound_head(page) we're not reading a dangling pointer from
+tailpage->first_page. Then after we get to stable head page, we are always safe
+to call compound_lock and after taking the compound lock on head page we can
+finally re-check if the page returned by gup-fast is still a tail page. in
+which case we're set and we didn't need to split the hugepage in order to take
+a futex on it.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -106,6 +106,19 @@ extern void __split_huge_page_pmd(struct
- 
- extern unsigned long vma_address(struct page *page, struct vm_area_struct *vma);
- extern int hugepage_madvise(unsigned long *vm_flags);
-+extern void __vma_adjust_trans_huge(struct vm_area_struct *vma,
-+				    unsigned long start,
-+				    unsigned long end,
-+				    long adjust_next);
-+static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
-+					 unsigned long start,
-+					 unsigned long end,
-+					 long adjust_next)
-+{
-+	if (!vma->anon_vma || vma->vm_ops || vma->vm_file)
-+		return;
-+	__vma_adjust_trans_huge(vma, start, end, adjust_next);
-+}
- static inline int PageTransHuge(struct page *page)
+diff --git a/kernel/futex.c b/kernel/futex.c
+--- a/kernel/futex.c
++++ b/kernel/futex.c
+@@ -219,7 +219,7 @@ get_futex_key(u32 __user *uaddr, int fsh
  {
- 	VM_BUG_ON(PageTail(page));
-@@ -138,6 +151,12 @@ static inline int hugepage_madvise(unsig
- 	BUG_ON(0);
- 	return 0;
- }
-+static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
-+					 unsigned long start,
-+					 unsigned long end,
-+					 long adjust_next)
-+{
-+}
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 	unsigned long address = (unsigned long)uaddr;
+ 	struct mm_struct *mm = current->mm;
+-	struct page *page;
++	struct page *page, *page_head;
+ 	int err;
  
- #endif /* _LINUX_HUGE_MM_H */
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1071,8 +1071,16 @@ pmd_t *page_check_address_pmd(struct pag
- 		goto out;
- 	if (pmd_page(*pmd) != page)
- 		goto out;
--	VM_BUG_ON(flag == PAGE_CHECK_ADDRESS_PMD_NOTSPLITTING_FLAG &&
--		  pmd_trans_splitting(*pmd));
-+	/*
-+	 * split_vma() may create temporary aliased mappings. There is
-+	 * no risk as long as all huge pmd are found and have their
-+	 * splitting bit set before __split_huge_page_refcount
-+	 * runs. Finding the same huge pmd more than once during the
-+	 * same rmap walk is not a problem.
-+	 */
-+	if (flag == PAGE_CHECK_ADDRESS_PMD_NOTSPLITTING_FLAG &&
-+	    pmd_trans_splitting(*pmd))
-+		goto out;
- 	if (pmd_trans_huge(*pmd)) {
- 		VM_BUG_ON(flag == PAGE_CHECK_ADDRESS_PMD_SPLITTING_FLAG &&
- 			  !pmd_trans_splitting(*pmd));
-@@ -2174,3 +2182,71 @@ void __split_huge_page_pmd(struct mm_str
- 	put_page(page);
- 	BUG_ON(pmd_trans_huge(*pmd));
- }
-+
-+static void split_huge_page_address(struct mm_struct *mm,
-+				    unsigned long address)
-+{
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+
-+	VM_BUG_ON(!(address & ~HPAGE_PMD_MASK));
-+
-+	pgd = pgd_offset(mm, address);
-+	if (!pgd_present(*pgd))
-+		return;
-+
-+	pud = pud_offset(pgd, address);
-+	if (!pud_present(*pud))
-+		return;
-+
-+	pmd = pmd_offset(pud, address);
-+	if (!pmd_present(*pmd))
-+		return;
-+	/*
-+	 * Caller holds the mmap_sem write mode, so a huge pmd cannot
-+	 * materialize from under us.
-+	 */
-+	split_huge_page_pmd(mm, pmd);
-+}
-+
-+void __vma_adjust_trans_huge(struct vm_area_struct *vma,
-+			     unsigned long start,
-+			     unsigned long end,
-+			     long adjust_next)
-+{
-+	/*
-+	 * If the new start address isn't hpage aligned and it could
-+	 * previously contain an hugepage: check if we need to split
-+	 * an huge pmd.
-+	 */
-+	if (start & ~HPAGE_PMD_MASK &&
-+	    (start & HPAGE_PMD_MASK) >= vma->vm_start &&
-+	    (start & HPAGE_PMD_MASK) + HPAGE_PMD_SIZE <= vma->vm_end)
-+		split_huge_page_address(vma->vm_mm, start);
-+
-+	/*
-+	 * If the new end address isn't hpage aligned and it could
-+	 * previously contain an hugepage: check if we need to split
-+	 * an huge pmd.
-+	 */
-+	if (end & ~HPAGE_PMD_MASK &&
-+	    (end & HPAGE_PMD_MASK) >= vma->vm_start &&
-+	    (end & HPAGE_PMD_MASK) + HPAGE_PMD_SIZE <= vma->vm_end)
-+		split_huge_page_address(vma->vm_mm, end);
-+
-+	/*
-+	 * If we're also updating the vma->vm_next->vm_start, if the new
-+	 * vm_next->vm_start isn't page aligned and it could previously
-+	 * contain an hugepage: check if we need to split an huge pmd.
-+	 */
-+	if (adjust_next > 0) {
-+		struct vm_area_struct *next = vma->vm_next;
-+		unsigned long nstart = next->vm_start;
-+		nstart += adjust_next << PAGE_SHIFT;
-+		if (nstart & ~HPAGE_PMD_MASK &&
-+		    (nstart & HPAGE_PMD_MASK) >= next->vm_start &&
-+		    (nstart & HPAGE_PMD_MASK) + HPAGE_PMD_SIZE <= next->vm_end)
-+			split_huge_page_address(next->vm_mm, nstart);
+ 	/*
+@@ -251,11 +251,46 @@ again:
+ 	if (err < 0)
+ 		return err;
+ 
+-	page = compound_head(page);
+-	lock_page(page);
+-	if (!page->mapping) {
+-		unlock_page(page);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	page_head = page;
++	if (unlikely(PageTail(page))) {
+ 		put_page(page);
++		/* serialize against __split_huge_page_splitting() */
++		local_irq_disable();
++		if (likely(__get_user_pages_fast(address, 1, 1, &page) == 1)) {
++			page_head = compound_head(page);
++			/*
++			 * page_head is valid pointer but we must pin
++			 * it before taking the PG_lock and/or
++			 * PG_compound_lock. The moment we re-enable
++			 * irqs __split_huge_page_splitting() can
++			 * return and the head page can be freed from
++			 * under us. We can't take the PG_lock and/or
++			 * PG_compound_lock on a page that could be
++			 * freed from under us.
++			 */
++			if (page != page_head) {
++				get_page(page_head);
++				put_page(page);
++			}
++			local_irq_enable();
++		} else {
++			local_irq_enable();
++			goto again;
++		}
 +	}
-+}
-diff --git a/mm/mmap.c b/mm/mmap.c
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -589,6 +589,8 @@ again:			remove_next = 1 + (end > next->
- 		}
++#else
++	page_head = compound_head(page);
++	if (page != page_head) {
++		get_page(page_head);
++		put_page(page);
++	}
++#endif
++
++	lock_page(page_head);
++	if (!page_head->mapping) {
++		unlock_page(page_head);
++		put_page(page_head);
+ 		goto again;
  	}
  
-+	vma_adjust_trans_huge(vma, start, end, adjust_next);
-+
- 	/*
- 	 * When changing only vma->vm_end, we don't really need anon_vma
- 	 * lock. This is a fairly rare case by itself, but the anon_vma
+@@ -266,20 +301,20 @@ again:
+ 	 * it's a read-only handle, it's expected that futexes attach to
+ 	 * the object not the particular process.
+ 	 */
+-	if (PageAnon(page)) {
++	if (PageAnon(page_head)) {
+ 		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
+ 		key->private.mm = mm;
+ 		key->private.address = address;
+ 	} else {
+ 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
+-		key->shared.inode = page->mapping->host;
+-		key->shared.pgoff = page->index;
++		key->shared.inode = page_head->mapping->host;
++		key->shared.pgoff = page_head->index;
+ 	}
+ 
+ 	get_futex_key_refs(key);
+ 
+-	unlock_page(page);
+-	put_page(page);
++	unlock_page(page_head);
++	put_page(page_head);
+ 	return 0;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
