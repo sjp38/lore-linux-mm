@@ -1,46 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 94BF88D0001
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 10:35:36 -0400 (EDT)
-Date: Wed, 3 Nov 2010 09:35:33 -0500 (CDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 832048D0001
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 10:38:29 -0400 (EDT)
+Date: Wed, 3 Nov 2010 09:38:25 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH 1/3] Linux/Guest unmapped page cache control
-In-Reply-To: <20101028224008.32626.69769.sendpatchset@localhost.localdomain>
-Message-ID: <alpine.DEB.2.00.1011030932260.10599@router.home>
-References: <20101028224002.32626.13015.sendpatchset@localhost.localdomain> <20101028224008.32626.69769.sendpatchset@localhost.localdomain>
+Subject: Re: [PATCH] cgroup: Avoid a memset by using vzalloc
+In-Reply-To: <alpine.LNX.2.00.1011010639410.31190@swampdragon.chaosbits.net>
+Message-ID: <alpine.DEB.2.00.1011030937580.10599@router.home>
+References: <alpine.LNX.2.00.1010302333130.1572@swampdragon.chaosbits.net> <AANLkTi=nMU3ezNFD8LKBhJxr6CmW6-qHY_Mo3HRt6Os0@mail.gmail.com> <20101031173336.GA28141@balbir.in.ibm.com> <alpine.LNX.2.00.1011010639410.31190@swampdragon.chaosbits.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org
+To: Jesper Juhl <jj@chaosbits.net>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Minchan Kim <minchan.kim@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 Oct 2010, Balbir Singh wrote:
+On Mon, 1 Nov 2010, Jesper Juhl wrote:
 
-> A lot of the code is borrowed from zone_reclaim_mode logic for
-> __zone_reclaim(). One might argue that the with ballooning and
-> KSM this feature is not very useful, but even with ballooning,
+> On Sun, 31 Oct 2010, Balbir Singh wrote:
 
-Interesting use of zone reclaim. I am having a difficult time reviewing
-the patch since you move and modify functions at the same time. Could you
-separate that out a bit?
-
-> +#define UNMAPPED_PAGE_RATIO 16
-
-Maybe come up with a scheme that allows better configuration of the
-mininum? I think in some setting we may want an absolute limit and in
-other a fraction of something (total zone size or working set?)
+> > > There are so many placed need vzalloc.
+> > > Thanks, Jesper.
 
 
-> +bool should_balance_unmapped_pages(struct zone *zone)
-> +{
-> +	if (unmapped_page_control &&
-> +		(zone_unmapped_file_pages(zone) >
-> +			UNMAPPED_PAGE_RATIO * zone->min_unmapped_pages))
-> +		return true;
-> +	return false;
-> +}
-
+Could we avoid this painful exercise with a "semantic patch"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
