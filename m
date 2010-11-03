@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3375E8D0003
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 5552F8D0005
 	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 11:29:36 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 22 of 66] clear page compound
-Message-Id: <07e16ab3de7087625751.1288798077@v2.random>
+Subject: [PATCH 19 of 66] bail out gup_fast on splitting pmd
+Message-Id: <6ba80da6e5b0d4097cab.1288798074@v2.random>
 In-Reply-To: <patchbomb.1288798055@v2.random>
 References: <patchbomb.1288798055@v2.random>
-Date: Wed, 03 Nov 2010 16:27:57 +0100
+Date: Wed, 03 Nov 2010 16:27:54 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
@@ -18,55 +18,37 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-split_huge_page must transform a compound page to a regular page and needs
-ClearPageCompound.
+Force gup_fast to take the slow path and block if the pmd is splitting, not
+only if it's none.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -347,7 +347,7 @@ static inline void set_page_writeback(st
-  * tests can be used in performance sensitive paths. PageCompound is
-  * generally not used in hot code paths.
-  */
--__PAGEFLAG(Head, head)
-+__PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
- __PAGEFLAG(Tail, tail)
+diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -160,7 +160,18 @@ static int gup_pmd_range(pud_t pud, unsi
+ 		pmd_t pmd = *pmdp;
  
- static inline int PageCompound(struct page *page)
-@@ -355,6 +355,13 @@ static inline int PageCompound(struct pa
- 	return page->flags & ((1L << PG_head) | (1L << PG_tail));
- 
- }
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void ClearPageCompound(struct page *page)
-+{
-+	BUG_ON(!PageHead(page));
-+	ClearPageHead(page);
-+}
-+#endif
- #else
- /*
-  * Reduce page flag use as much as possible by overlapping
-@@ -392,6 +399,14 @@ static inline void __ClearPageTail(struc
- 	page->flags &= ~PG_head_tail_mask;
- }
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+static inline void ClearPageCompound(struct page *page)
-+{
-+	BUG_ON((page->flags & PG_head_tail_mask) != (1 << PG_compound));
-+	clear_bit(PG_compound, &page->flags);
-+}
-+#endif
-+
- #endif /* !PAGEFLAGS_EXTENDED */
- 
- #ifdef CONFIG_MMU
+ 		next = pmd_addr_end(addr, end);
+-		if (pmd_none(pmd))
++		/*
++		 * The pmd_trans_splitting() check below explains why
++		 * pmdp_splitting_flush has to flush the tlb, to stop
++		 * this gup-fast code from running while we set the
++		 * splitting bit in the pmd. Returning zero will take
++		 * the slow path that will call wait_split_huge_page()
++		 * if the pmd is still in splitting state. gup-fast
++		 * can't because it has irq disabled and
++		 * wait_split_huge_page() would never return as the
++		 * tlb flush IPI wouldn't run.
++		 */
++		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
+ 			return 0;
+ 		if (unlikely(pmd_large(pmd))) {
+ 			if (!gup_huge_pmd(pmd, addr, next, write, pages, nr))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
