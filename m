@@ -1,289 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4BE096B00B2
-	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 16:31:18 -0400 (EDT)
-Date: Wed, 3 Nov 2010 05:31:03 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: [PATCH] mm: make ioremap_prot() take a pgprot.
-Message-ID: <20101102203102.GA12723@linux-sh.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BC856B00A0
+	for <linux-mm@kvack.org>; Tue,  2 Nov 2010 20:42:07 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id oA30g3AP005612
+	for <linux-mm@kvack.org>; Tue, 2 Nov 2010 17:42:03 -0700
+Received: from pvc7 (pvc7.prod.google.com [10.241.209.135])
+	by wpaz5.hot.corp.google.com with ESMTP id oA30g1JH028958
+	for <linux-mm@kvack.org>; Tue, 2 Nov 2010 17:42:01 -0700
+Received: by pvc7 with SMTP id 7so21189pvc.6
+        for <linux-mm@kvack.org>; Tue, 02 Nov 2010 17:42:01 -0700 (PDT)
+Date: Tue, 2 Nov 2010 17:41:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch v2] oom: fix oom_score_adj consistency with
+ oom_disable_count
+In-Reply-To: <alpine.DEB.2.00.1011011738200.26266@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1011021741520.21871@chino.kir.corp.google.com>
+References: <201010262121.o9QLLNFo016375@imap1.linux-foundation.org> <20101101024949.6074.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011011738200.26266@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, Chris Metcalf <cmetcalf@tilera.com>, Tejun Heo <tj@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The current definition of ioremap_prot() takes an unsigned long for the
-page flags and then converts to/from a pgprot as necessary. This is
-unfortunately not sufficient for the SH-X2 TLB case which has a 64-bit
-pgprot and a 32-bit unsigned long.
+p->mm->oom_disable_count tracks how many threads sharing p->mm have an
+oom_score_adj value of OOM_SCORE_ADJ_MIN, which disables the oom killer
+for that task.  If non-zero, p->mm->oom_disable_count indicates killing a
+task sharing p->mm won't help since other threads cannot be killed and
+the memory can't be freed.
 
-An inspection of the tree shows that tile and cris also have their
-own equivalent routines that are using the pgprot_t but do not set
-HAVE_IOREMAP_PROT, both of which could trivially be adapted.
+oom_score_adj is a per-process value stored in p->signal->oom_score_adj,
+which is protected by p->sighand->siglock.  Thus, it's necessary to take
+this lock whenever the value is tested.
 
-After cris/tile are updated there would also be enough critical mass to
-move the powerpc devm_ioremap_prot() in to the generic lib/devres.c.
+This patch introduces the necessary locking to ensure oom_score_adj can
+be tested and/or changed with consistency.  This isn't the only locking
+necessary to work with oom_score_adj: task_lock(p) must also be held or
+the mm otherwise pinned in memory to ensure it doesn't change while
+siglock is held.  That locking is already in place.
 
-Signed-off-by: Paul Mundt <lethal@linux-sh.org>
-
+Reported-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
+ v2: cleaned up locking and fixed lockdep warnings
 
- arch/powerpc/include/asm/io.h       |    8 +++++---
- arch/powerpc/lib/devres.c           |   10 +++++-----
- arch/sh/Kconfig                     |    2 +-
- arch/sh/boards/mach-landisk/setup.c |    2 +-
- arch/sh/boards/mach-lboxre2/setup.c |    2 +-
- arch/sh/boards/mach-sh03/setup.c    |    2 +-
- arch/sh/include/asm/io.h            |    4 ++--
- arch/x86/include/asm/io.h           |    2 +-
- arch/x86/mm/ioremap.c               |    5 +++--
- arch/x86/mm/pat.c                   |    5 ++---
- include/linux/mm.h                  |    2 +-
- mm/memory.c                         |    6 +++---
- 12 files changed, 26 insertions(+), 24 deletions(-)
+ For 2.6.37-rc-series.
 
-diff --git a/arch/powerpc/include/asm/io.h b/arch/powerpc/include/asm/io.h
-index 001f2f1..27f40e6 100644
---- a/arch/powerpc/include/asm/io.h
-+++ b/arch/powerpc/include/asm/io.h
-@@ -618,7 +618,8 @@ static inline void iosync(void)
-  *
-  * * ioremap_flags allows to specify the page flags as an argument and can
-  *   also be hooked by the platform via ppc_md. ioremap_prot is the exact
-- *   same thing as ioremap_flags.
-+ *   same thing as ioremap_flags, with the exception that it takes a
-+ *   pgprot value instead.
-  *
-  * * ioremap_nocache is identical to ioremap
-  *
-@@ -643,7 +644,8 @@ extern void __iomem *ioremap(phys_addr_t address, unsigned long size);
- extern void __iomem *ioremap_flags(phys_addr_t address, unsigned long size,
- 				   unsigned long flags);
- #define ioremap_nocache(addr, size)	ioremap((addr), (size))
--#define ioremap_prot(addr, size, prot)	ioremap_flags((addr), (size), (prot))
-+#define ioremap_prot(addr, size, prot)	ioremap_flags((addr), (size), \
-+						      pgprot_val(prot))
- 
- extern void iounmap(volatile void __iomem *addr);
- 
-@@ -779,7 +781,7 @@ static inline void * bus_to_virt(unsigned long address)
- #define clrsetbits_8(addr, clear, set) clrsetbits(8, addr, clear, set)
- 
- void __iomem *devm_ioremap_prot(struct device *dev, resource_size_t offset,
--				size_t size, unsigned long flags);
-+				size_t size, pgprot_t prot);
- 
- #endif /* __KERNEL__ */
- 
-diff --git a/arch/powerpc/lib/devres.c b/arch/powerpc/lib/devres.c
-index deac4d3..045f7a7 100644
---- a/arch/powerpc/lib/devres.c
-+++ b/arch/powerpc/lib/devres.c
-@@ -9,21 +9,21 @@
- 
- #include <linux/device.h>	/* devres_*(), devm_ioremap_release() */
- #include <linux/gfp.h>
--#include <linux/io.h>		/* ioremap_flags() */
-+#include <linux/io.h>		/* ioremap_prot() */
- #include <linux/module.h>	/* EXPORT_SYMBOL() */
- 
- /**
-- * devm_ioremap_prot - Managed ioremap_flags()
-+ * devm_ioremap_prot - Managed ioremap_prot()
-  * @dev: Generic device to remap IO address for
-  * @offset: BUS offset to map
-  * @size: Size of map
-- * @flags: Page flags
-+ * @prot: Page protection flags
-  *
-  * Managed ioremap_prot().  Map is automatically unmapped on driver
-  * detach.
-  */
- void __iomem *devm_ioremap_prot(struct device *dev, resource_size_t offset,
--				 size_t size, unsigned long flags)
-+				 size_t size, pgprot_t prot)
+ fs/exec.c     |   10 +++++++---
+ kernel/exit.c |    8 ++++++--
+ kernel/fork.c |   31 ++++++++++++++++++++++---------
+ 3 files changed, 35 insertions(+), 14 deletions(-)
+
+diff --git a/fs/exec.c b/fs/exec.c
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -741,6 +741,7 @@ static int exec_mmap(struct mm_struct *mm)
  {
- 	void __iomem **ptr, *addr;
+ 	struct task_struct *tsk;
+ 	struct mm_struct * old_mm, *active_mm;
++	unsigned long flags;
  
-@@ -31,7 +31,7 @@ void __iomem *devm_ioremap_prot(struct device *dev, resource_size_t offset,
- 	if (!ptr)
- 		return NULL;
- 
--	addr = ioremap_flags(offset, size, flags);
-+	addr = ioremap_prot(offset, size, prot);
- 	if (addr) {
- 		*ptr = addr;
- 		devres_add(dev, ptr);
-diff --git a/arch/sh/Kconfig b/arch/sh/Kconfig
-index 435e7f8..71ce972 100644
---- a/arch/sh/Kconfig
-+++ b/arch/sh/Kconfig
-@@ -33,7 +33,7 @@ config SUPERH32
- 	def_bool ARCH = "sh"
- 	select HAVE_KPROBES
- 	select HAVE_KRETPROBES
--	select HAVE_IOREMAP_PROT if MMU && !X2TLB
-+	select HAVE_IOREMAP_PROT if MMU
- 	select HAVE_FUNCTION_TRACER
- 	select HAVE_FTRACE_MCOUNT_RECORD
- 	select HAVE_DYNAMIC_FTRACE
-diff --git a/arch/sh/boards/mach-landisk/setup.c b/arch/sh/boards/mach-landisk/setup.c
-index 50337ac..94ab2bb 100644
---- a/arch/sh/boards/mach-landisk/setup.c
-+++ b/arch/sh/boards/mach-landisk/setup.c
-@@ -63,7 +63,7 @@ static int __init landisk_devices_setup(void)
- 	/* open I/O area window */
- 	paddrbase = virt_to_phys((void *)PA_AREA5_IO);
- 	prot = PAGE_KERNEL_PCC(1, _PAGE_PCC_IO16);
--	cf_ide_base = ioremap_prot(paddrbase, PAGE_SIZE, pgprot_val(prot));
-+	cf_ide_base = ioremap_prot(paddrbase, PAGE_SIZE, prot);
- 	if (!cf_ide_base) {
- 		printk("allocate_cf_area : can't open CF I/O window!\n");
- 		return -ENOMEM;
-diff --git a/arch/sh/boards/mach-lboxre2/setup.c b/arch/sh/boards/mach-lboxre2/setup.c
-index 79b4e0d..30e0eeb 100644
---- a/arch/sh/boards/mach-lboxre2/setup.c
-+++ b/arch/sh/boards/mach-lboxre2/setup.c
-@@ -57,7 +57,7 @@ static int __init lboxre2_devices_setup(void)
- 	paddrbase = virt_to_phys((void*)PA_AREA5_IO);
- 	psize = PAGE_SIZE;
- 	prot = PAGE_KERNEL_PCC(1, _PAGE_PCC_IO16);
--	cf0_io_base = (u32)ioremap_prot(paddrbase, psize, pgprot_val(prot));
-+	cf0_io_base = (u32)ioremap_prot(paddrbase, psize, prot);
- 	if (!cf0_io_base) {
- 		printk(KERN_ERR "%s : can't open CF I/O window!\n" , __func__ );
- 		return -ENOMEM;
-diff --git a/arch/sh/boards/mach-sh03/setup.c b/arch/sh/boards/mach-sh03/setup.c
-index af4a0c0..abfb782 100644
---- a/arch/sh/boards/mach-sh03/setup.c
-+++ b/arch/sh/boards/mach-sh03/setup.c
-@@ -82,7 +82,7 @@ static int __init sh03_devices_setup(void)
- 	/* open I/O area window */
- 	paddrbase = virt_to_phys((void *)PA_AREA5_IO);
- 	prot = PAGE_KERNEL_PCC(1, _PAGE_PCC_IO16);
--	cf_ide_base = ioremap_prot(paddrbase, PAGE_SIZE, pgprot_val(prot));
-+	cf_ide_base = ioremap_prot(paddrbase, PAGE_SIZE, prot);
- 	if (!cf_ide_base) {
- 		printk("allocate_cf_area : can't open CF I/O window!\n");
- 		return -ENOMEM;
-diff --git a/arch/sh/include/asm/io.h b/arch/sh/include/asm/io.h
-index 89ab2c5..e3f47f3 100644
---- a/arch/sh/include/asm/io.h
-+++ b/arch/sh/include/asm/io.h
-@@ -389,9 +389,9 @@ ioremap_cache(phys_addr_t offset, unsigned long size)
- 
- #ifdef CONFIG_HAVE_IOREMAP_PROT
- static inline void __iomem *
--ioremap_prot(phys_addr_t offset, unsigned long size, unsigned long flags)
-+ioremap_prot(phys_addr_t offset, unsigned long size, pgprot_t prot)
- {
--	return __ioremap_mode(offset, size, __pgprot(flags));
-+	return __ioremap_mode(offset, size, prot);
- }
- #endif
- 
-diff --git a/arch/x86/include/asm/io.h b/arch/x86/include/asm/io.h
-index 0722730..e61c439 100644
---- a/arch/x86/include/asm/io.h
-+++ b/arch/x86/include/asm/io.h
-@@ -196,7 +196,7 @@ static inline unsigned int isa_virt_to_bus(volatile void *address)
- extern void __iomem *ioremap_nocache(resource_size_t offset, unsigned long size);
- extern void __iomem *ioremap_cache(resource_size_t offset, unsigned long size);
- extern void __iomem *ioremap_prot(resource_size_t offset, unsigned long size,
--				unsigned long prot_val);
-+				pgprot_t prot);
- 
- /*
-  * The default ioremap() behavior is non-cached:
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index 0369843..7e028ac 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -243,9 +243,10 @@ void __iomem *ioremap_cache(resource_size_t phys_addr, unsigned long size)
- EXPORT_SYMBOL(ioremap_cache);
- 
- void __iomem *ioremap_prot(resource_size_t phys_addr, unsigned long size,
--				unsigned long prot_val)
-+				pgprot_t prot)
- {
--	return __ioremap_caller(phys_addr, size, (prot_val & _PAGE_CACHE_MASK),
-+	return __ioremap_caller(phys_addr, size,
-+				(pgprot_val(prot) & _PAGE_CACHE_MASK),
- 				__builtin_return_address(0));
- }
- EXPORT_SYMBOL(ioremap_prot);
-diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index f6ff57b..56e8041 100644
---- a/arch/x86/mm/pat.c
-+++ b/arch/x86/mm/pat.c
-@@ -661,7 +661,6 @@ static void free_pfn_range(u64 paddr, unsigned long size)
- int track_pfn_vma_copy(struct vm_area_struct *vma)
- {
- 	resource_size_t paddr;
--	unsigned long prot;
- 	unsigned long vma_size = vma->vm_end - vma->vm_start;
- 	pgprot_t pgprot;
- 
-@@ -670,11 +669,11 @@ int track_pfn_vma_copy(struct vm_area_struct *vma)
- 		 * reserve the whole chunk covered by vma. We need the
- 		 * starting address and protection from pte.
- 		 */
--		if (follow_phys(vma, vma->vm_start, 0, &prot, &paddr)) {
-+		if (follow_phys(vma, vma->vm_start, 0, &pgprot, &paddr)) {
- 			WARN_ON_ONCE(1);
- 			return -EINVAL;
- 		}
--		pgprot = __pgprot(prot);
-+
- 		return reserve_pfn_range(paddr, vma_size, &pgprot, 1);
+ 	/* Notify parent that we're no longer interested in the old VM */
+ 	tsk = current;
+@@ -766,9 +767,12 @@ static int exec_mmap(struct mm_struct *mm)
+ 	tsk->mm = mm;
+ 	tsk->active_mm = mm;
+ 	activate_mm(active_mm, mm);
+-	if (old_mm && tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+-		atomic_dec(&old_mm->oom_disable_count);
+-		atomic_inc(&tsk->mm->oom_disable_count);
++	if (lock_task_sighand(tsk, &flags)) {
++		if (old_mm && tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
++			atomic_dec(&old_mm->oom_disable_count);
++			atomic_inc(&tsk->mm->oom_disable_count);
++		}
++		unlock_task_sighand(tsk, &flags);
  	}
- 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 721f451..0f7d3a1 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -818,7 +818,7 @@ void unmap_mapping_range(struct address_space *mapping,
- int follow_pfn(struct vm_area_struct *vma, unsigned long address,
- 	unsigned long *pfn);
- int follow_phys(struct vm_area_struct *vma, unsigned long address,
--		unsigned int flags, unsigned long *prot, resource_size_t *phys);
-+		unsigned int flags, pgprot_t *prot, resource_size_t *phys);
- int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
- 			void *buf, int len, int write);
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index 02e48aa..598eee3 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3431,7 +3431,7 @@ EXPORT_SYMBOL(follow_pfn);
- #ifdef CONFIG_HAVE_IOREMAP_PROT
- int follow_phys(struct vm_area_struct *vma,
- 		unsigned long address, unsigned int flags,
--		unsigned long *prot, resource_size_t *phys)
-+		pgprot_t *prot, resource_size_t *phys)
+ 	task_unlock(tsk);
+ 	arch_pick_mmap_layout(mm);
+diff --git a/kernel/exit.c b/kernel/exit.c
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -644,6 +644,7 @@ static void exit_mm(struct task_struct * tsk)
  {
- 	int ret = -EINVAL;
- 	pte_t *ptep, pte;
-@@ -3447,7 +3447,7 @@ int follow_phys(struct vm_area_struct *vma,
- 	if ((flags & FOLL_WRITE) && !pte_write(pte))
- 		goto unlock;
+ 	struct mm_struct *mm = tsk->mm;
+ 	struct core_state *core_state;
++	unsigned long flags;
  
--	*prot = pgprot_val(pte_pgprot(pte));
-+	*prot = pte_pgprot(pte);
- 	*phys = (resource_size_t)pte_pfn(pte) << PAGE_SHIFT;
- 
- 	ret = 0;
-@@ -3461,7 +3461,7 @@ int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
- 			void *buf, int len, int write)
+ 	mm_release(tsk, mm);
+ 	if (!mm)
+@@ -688,8 +689,11 @@ static void exit_mm(struct task_struct * tsk)
+ 	enter_lazy_tlb(mm, current);
+ 	/* We don't want this task to be frozen prematurely */
+ 	clear_freeze_flag(tsk);
+-	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+-		atomic_dec(&mm->oom_disable_count);
++	if (lock_task_sighand(tsk, &flags)) {
++		if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
++			atomic_dec(&mm->oom_disable_count);
++		unlock_task_sighand(tsk, &flags);
++	}
+ 	task_unlock(tsk);
+ 	mm_update_next_owner(mm);
+ 	mmput(mm);
+diff --git a/kernel/fork.c b/kernel/fork.c
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -708,6 +708,7 @@ fail_nocontext:
+ static int copy_mm(unsigned long clone_flags, struct task_struct * tsk)
  {
- 	resource_size_t phys_addr;
--	unsigned long prot = 0;
-+	pgprot_t prot;
- 	void __iomem *maddr;
- 	int offset = addr & (PAGE_SIZE-1);
+ 	struct mm_struct * mm, *oldmm;
++	unsigned long flags;
+ 	int retval;
  
+ 	tsk->min_flt = tsk->maj_flt = 0;
+@@ -743,8 +744,11 @@ good_mm:
+ 	/* Initializing for Swap token stuff */
+ 	mm->token_priority = 0;
+ 	mm->last_interval = 0;
+-	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+-		atomic_inc(&mm->oom_disable_count);
++	if (lock_task_sighand(tsk, &flags)) {
++		if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
++			atomic_inc(&mm->oom_disable_count);
++		unlock_task_sighand(tsk, &flags);
++	}
+ 
+ 	tsk->mm = mm;
+ 	tsk->active_mm = mm;
+@@ -1306,10 +1310,13 @@ bad_fork_cleanup_namespaces:
+ 	exit_task_namespaces(p);
+ bad_fork_cleanup_mm:
+ 	if (p->mm) {
+-		task_lock(p);
+-		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+-			atomic_dec(&p->mm->oom_disable_count);
+-		task_unlock(p);
++		unsigned long flags;
++
++		if (lock_task_sighand(p, &flags)) {
++			if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
++				atomic_dec(&p->mm->oom_disable_count);
++			unlock_task_sighand(p, &flags);
++		}
+ 		mmput(p->mm);
+ 	}
+ bad_fork_cleanup_signal:
+@@ -1700,13 +1707,19 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
+ 		}
+ 
+ 		if (new_mm) {
++			unsigned long flags;
++
+ 			mm = current->mm;
+ 			active_mm = current->active_mm;
+ 			current->mm = new_mm;
+ 			current->active_mm = new_mm;
+-			if (current->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+-				atomic_dec(&mm->oom_disable_count);
+-				atomic_inc(&new_mm->oom_disable_count);
++			if (lock_task_sighand(current, &flags)) {
++				if (current->signal->oom_score_adj ==
++							OOM_SCORE_ADJ_MIN) {
++					atomic_dec(&mm->oom_disable_count);
++					atomic_inc(&new_mm->oom_disable_count);
++				}
++				unlock_task_sighand(current, &flags);
+ 			}
+ 			activate_mm(active_mm, new_mm);
+ 			new_mm = mm;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
