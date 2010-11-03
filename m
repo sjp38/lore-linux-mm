@@ -1,46 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 63AE56B00BF
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 19:44:29 -0400 (EDT)
-Received: by gyd8 with SMTP id 8so564931gyd.14
-        for <linux-mm@kvack.org>; Wed, 03 Nov 2010 16:44:28 -0700 (PDT)
-Subject: [PATCH v2]oom-kill: CAP_SYS_RESOURCE should get bonus
-From: "Figo.zhang" <figo1802@gmail.com>
-In-Reply-To: <1288662213.10103.2.camel@localhost.localdomain>
-References: <1288662213.10103.2.camel@localhost.localdomain>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 04 Nov 2010 07:43:24 +0800
-Message-ID: <1288827804.2725.0.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 8630A6B00BF
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 19:47:24 -0400 (EDT)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id oA3NlKdh028033
+	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 16:47:20 -0700
+Received: from pwj6 (pwj6.prod.google.com [10.241.219.70])
+	by kpbe17.cbf.corp.google.com with ESMTP id oA3NkR5T007936
+	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 16:47:19 -0700
+Received: by pwj6 with SMTP id 6so498688pwj.18
+        for <linux-mm@kvack.org>; Wed, 03 Nov 2010 16:47:19 -0700 (PDT)
+Date: Wed, 3 Nov 2010 16:47:16 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2]oom-kill: CAP_SYS_RESOURCE should get bonus
+In-Reply-To: <1288827804.2725.0.camel@localhost.localdomain>
+Message-ID: <alpine.DEB.2.00.1011031646110.7830@chino.kir.corp.google.com>
+References: <1288662213.10103.2.camel@localhost.localdomain> <1288827804.2725.0.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: lkml <linux-kernel@vger.kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, "rientjes@google.com" <rientjes@google.com>
+To: "Figo.zhang" <figo1802@gmail.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 4 Nov 2010, Figo.zhang wrote:
 
-CAP_SYS_RESOURCE also had better get 3% bonus for protection.
+> CAP_SYS_RESOURCE also had better get 3% bonus for protection.
+> 
 
-Signed-off-by: Figo.zhang <figo1802@gmail.com>
---- 
-mm/oom_kill.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
+Would you like to elaborate as to why?
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 4029583..30b24b9 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -198,7 +198,8 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
- 	 * Root processes get 3% bonus, just like the __vm_enough_memory()
- 	 * implementation used by LSMs.
- 	 */
--	if (has_capability_noaudit(p, CAP_SYS_ADMIN))
-+	if (has_capability_noaudit(p, CAP_SYS_ADMIN) ||
-+	    has_capability_noaudit(p, CAP_SYS_RESOURCE))
- 		points -= 30;
- 
- 	/*
-
+> Signed-off-by: Figo.zhang <figo1802@gmail.com>
+> --- 
+> mm/oom_kill.c |    3 ++-
+>  1 files changed, 2 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 4029583..30b24b9 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -198,7 +198,8 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
+>  	 * Root processes get 3% bonus, just like the __vm_enough_memory()
+>  	 * implementation used by LSMs.
+>  	 */
+> -	if (has_capability_noaudit(p, CAP_SYS_ADMIN))
+> +	if (has_capability_noaudit(p, CAP_SYS_ADMIN) ||
+> +	    has_capability_noaudit(p, CAP_SYS_RESOURCE))
+>  		points -= 30;
+>  
+>  	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
