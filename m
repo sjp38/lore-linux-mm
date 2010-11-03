@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0D4216B00B9
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 11:29:31 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 384266B00BA
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 11:29:33 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 39 of 66] memcg huge memory
-Message-Id: <877d2f205026b0463450.1288798094@v2.random>
+Subject: [PATCH 43 of 66] don't leave orhpaned swap cache after ksm merging
+Message-Id: <d5aefe85d1dab1bb7e99.1288798098@v2.random>
 In-Reply-To: <patchbomb.1288798055@v2.random>
 References: <patchbomb.1288798055@v2.random>
-Date: Wed, 03 Nov 2010 16:28:14 +0100
+Date: Wed, 03 Nov 2010 16:28:18 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
@@ -18,97 +18,72 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add memcg charge/uncharge to hugepage faults in huge_memory.c.
+When swapcache is replaced by a ksm page don't leave orhpaned swap cache.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -233,6 +233,7 @@ static int __do_huge_pmd_anonymous_page(
- 	VM_BUG_ON(!PageCompound(page));
- 	pgtable = pte_alloc_one(mm, haddr);
- 	if (unlikely(!pgtable)) {
-+		mem_cgroup_uncharge_page(page);
- 		put_page(page);
- 		return VM_FAULT_OOM;
- 	}
-@@ -243,6 +244,7 @@ static int __do_huge_pmd_anonymous_page(
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_none(*pmd))) {
- 		spin_unlock(&mm->page_table_lock);
-+		mem_cgroup_uncharge_page(page);
- 		put_page(page);
- 		pte_free(mm, pgtable);
- 	} else {
-@@ -286,6 +288,10 @@ int do_huge_pmd_anonymous_page(struct mm
- 		page = alloc_hugepage(transparent_hugepage_defrag(vma));
- 		if (unlikely(!page))
- 			goto out;
-+		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
-+			put_page(page);
-+			goto out;
-+		}
+diff --git a/mm/ksm.c b/mm/ksm.c
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -800,7 +800,7 @@ static int replace_page(struct vm_area_s
+ 	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
  
- 		return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page);
- 	}
-@@ -402,9 +408,15 @@ static int do_huge_pmd_wp_page_fallback(
- 	for (i = 0; i < HPAGE_PMD_NR; i++) {
- 		pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
- 					  vma, address);
--		if (unlikely(!pages[i])) {
--			while (--i >= 0)
-+		if (unlikely(!pages[i] ||
-+			     mem_cgroup_newpage_charge(pages[i], mm,
-+						       GFP_KERNEL))) {
-+			if (pages[i])
- 				put_page(pages[i]);
-+			while (--i >= 0) {
-+				mem_cgroup_uncharge_page(pages[i]);
-+				put_page(pages[i]);
-+			}
- 			kfree(pages);
- 			ret |= VM_FAULT_OOM;
- 			goto out;
-@@ -455,8 +467,10 @@ out:
+ 	page_remove_rmap(page);
+-	put_page(page);
++	free_page_and_swap_cache(page);
  
- out_free_pages:
- 	spin_unlock(&mm->page_table_lock);
--	for (i = 0; i < HPAGE_PMD_NR; i++)
-+	for (i = 0; i < HPAGE_PMD_NR; i++) {
-+		mem_cgroup_uncharge_page(pages[i]);
- 		put_page(pages[i]);
-+	}
- 	kfree(pages);
- 	goto out;
- }
-@@ -501,14 +515,22 @@ int do_huge_pmd_wp_page(struct mm_struct
- 		goto out;
- 	}
- 
-+	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
-+		put_page(new_page);
-+		put_page(page);
-+		ret |= VM_FAULT_OOM;
-+		goto out;
-+	}
+ 	pte_unmap_unlock(ptep, ptl);
+ 	err = 0;
+@@ -846,7 +846,18 @@ static int try_to_merge_one_page(struct 
+ 	 * ptes are necessarily already write-protected.  But in either
+ 	 * case, we need to lock and check page_count is not raised.
+ 	 */
+-	if (write_protect_page(vma, page, &orig_pte) == 0) {
++	err = write_protect_page(vma, page, &orig_pte);
 +
- 	copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
- 	__SetPageUptodate(new_page);
++	/*
++	 * After this mapping is wrprotected we don't need further
++	 * checks for PageSwapCache vs page_count unlock_page(page)
++	 * and we rely only on the pte_same() check run under PT lock
++	 * to ensure the pte didn't change since when we wrprotected
++	 * it under PG_lock.
++	 */
++	unlock_page(page);
++
++	if (!err) {
+ 		if (!kpage) {
+ 			/*
+ 			 * While we hold page lock, upgrade page from
+@@ -855,22 +866,22 @@ static int try_to_merge_one_page(struct 
+ 			 */
+ 			set_page_stable_node(page, NULL);
+ 			mark_page_accessed(page);
+-			err = 0;
+ 		} else if (pages_identical(page, kpage))
+ 			err = replace_page(vma, page, kpage, orig_pte);
+-	}
++	} else
++		err = -EFAULT;
  
- 	spin_lock(&mm->page_table_lock);
- 	put_page(page);
--	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-+	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
-+		mem_cgroup_uncharge_page(new_page);
- 		put_page(new_page);
--	else {
-+	} else {
- 		pmd_t entry;
- 		VM_BUG_ON(!PageHead(page));
- 		entry = mk_pmd(new_page, vma->vm_page_prot);
+ 	if ((vma->vm_flags & VM_LOCKED) && kpage && !err) {
++		lock_page(page);	/* for LRU manipulation */
+ 		munlock_vma_page(page);
++		unlock_page(page);
+ 		if (!PageMlocked(kpage)) {
+-			unlock_page(page);
+ 			lock_page(kpage);
+ 			mlock_vma_page(kpage);
+-			page = kpage;		/* for final unlock */
++			unlock_page(kpage);
+ 		}
+ 	}
+ 
+-	unlock_page(page);
+ out:
+ 	return err;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
