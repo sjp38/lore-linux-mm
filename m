@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 384266B00BA
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8CAD96B00BB
 	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 11:29:33 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 43 of 66] don't leave orhpaned swap cache after ksm merging
-Message-Id: <d5aefe85d1dab1bb7e99.1288798098@v2.random>
+Subject: [PATCH 28 of 66] _GFP_NO_KSWAPD
+Message-Id: <b1b95be209a2927d21c7.1288798083@v2.random>
 In-Reply-To: <patchbomb.1288798055@v2.random>
 References: <patchbomb.1288798055@v2.random>
-Date: Wed, 03 Nov 2010 16:28:18 +0100
+Date: Wed, 03 Nov 2010 16:28:03 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
@@ -18,72 +18,55 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-When swapcache is replaced by a ksm page don't leave orhpaned swap cache.
+Transparent hugepage allocations must be allowed not to invoke kswapd or any
+other kind of indirect reclaim (especially when the defrag sysfs is control
+disabled). It's unacceptable to swap out anonymous pages (potentially
+anonymous transparent hugepages) in order to create new transparent hugepages.
+This is true for the MADV_HUGEPAGE areas too (swapping out a kvm virtual
+machine and so having it suffer an unbearable slowdown, so another one with
+guest physical memory marked MADV_HUGEPAGE can run 30% faster if it is running
+memory intensive workloads, makes no sense). If a transparent hugepage
+allocation fails the slowdown is minor and there is total fallback, so kswapd
+should never be asked to swapout memory to allow the high order allocation to
+succeed.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
-diff --git a/mm/ksm.c b/mm/ksm.c
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -800,7 +800,7 @@ static int replace_page(struct vm_area_s
- 	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -81,13 +81,15 @@ struct vm_area_struct;
+ #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
+ #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
  
- 	page_remove_rmap(page);
--	put_page(page);
-+	free_page_and_swap_cache(page);
- 
- 	pte_unmap_unlock(ptep, ptl);
- 	err = 0;
-@@ -846,7 +846,18 @@ static int try_to_merge_one_page(struct 
- 	 * ptes are necessarily already write-protected.  But in either
- 	 * case, we need to lock and check page_count is not raised.
- 	 */
--	if (write_protect_page(vma, page, &orig_pte) == 0) {
-+	err = write_protect_page(vma, page, &orig_pte);
++#define __GFP_NO_KSWAPD	((__force gfp_t)0x400000u)
 +
-+	/*
-+	 * After this mapping is wrprotected we don't need further
-+	 * checks for PageSwapCache vs page_count unlock_page(page)
-+	 * and we rely only on the pte_same() check run under PT lock
-+	 * to ensure the pte didn't change since when we wrprotected
-+	 * it under PG_lock.
-+	 */
-+	unlock_page(page);
-+
-+	if (!err) {
- 		if (!kpage) {
- 			/*
- 			 * While we hold page lock, upgrade page from
-@@ -855,22 +866,22 @@ static int try_to_merge_one_page(struct 
- 			 */
- 			set_page_stable_node(page, NULL);
- 			mark_page_accessed(page);
--			err = 0;
- 		} else if (pages_identical(page, kpage))
- 			err = replace_page(vma, page, kpage, orig_pte);
--	}
-+	} else
-+		err = -EFAULT;
+ /*
+  * This may seem redundant, but it's a way of annotating false positives vs.
+  * allocations that simply cannot be supported (e.g. page tables).
+  */
+ #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
  
- 	if ((vma->vm_flags & VM_LOCKED) && kpage && !err) {
-+		lock_page(page);	/* for LRU manipulation */
- 		munlock_vma_page(page);
-+		unlock_page(page);
- 		if (!PageMlocked(kpage)) {
--			unlock_page(page);
- 			lock_page(kpage);
- 			mlock_vma_page(kpage);
--			page = kpage;		/* for final unlock */
-+			unlock_page(kpage);
- 		}
- 	}
+-#define __GFP_BITS_SHIFT 22	/* Room for 22 __GFP_FOO bits */
++#define __GFP_BITS_SHIFT 23	/* Room for 23 __GFP_FOO bits */
+ #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
  
--	unlock_page(page);
- out:
- 	return err;
- }
+ /* This equals 0, but use constants in case they ever change */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1996,7 +1996,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, u
+ 		goto nopage;
+ 
+ restart:
+-	wake_all_kswapd(order, zonelist, high_zoneidx);
++	if (!(gfp_mask & __GFP_NO_KSWAPD))
++		wake_all_kswapd(order, zonelist, high_zoneidx);
+ 
+ 	/*
+ 	 * OK, we're below the kswapd watermark and have kicked background
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
