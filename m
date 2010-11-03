@@ -1,61 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id AF1E88D0001
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 10:34:12 -0400 (EDT)
-Date: Wed, 3 Nov 2010 10:33:59 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: [PATCH] Add Kconfig option for default swappiness
-Message-ID: <20101103143358.GA19777@redhat.com>
-References: <1288668052-32036-1-git-send-email-bgamari.foss@gmail.com>
- <alpine.DEB.2.00.1011012030100.12298@chino.kir.corp.google.com>
- <87oca7evbo.fsf@gmail.com>
- <20101102140119.GA8294@localhost>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 94BF88D0001
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 10:35:36 -0400 (EDT)
+Date: Wed, 3 Nov 2010 09:35:33 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH 1/3] Linux/Guest unmapped page cache control
+In-Reply-To: <20101028224008.32626.69769.sendpatchset@localhost.localdomain>
+Message-ID: <alpine.DEB.2.00.1011030932260.10599@router.home>
+References: <20101028224002.32626.13015.sendpatchset@localhost.localdomain> <20101028224008.32626.69769.sendpatchset@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101102140119.GA8294@localhost>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Ben Gamari <bgamari.foss@gmail.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jesper Juhl <jj@chaosbits.net>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 02, 2010 at 10:01:20PM +0800, Wu Fengguang wrote:
- 
- > > On Mon, Nov 01, 2010 at 08:52:30AM -0400, Ben Gamari wrote:
- > > > Ubuntu ships different kernels for desktop and server usage. From a
- > > > packaging standpoint it would be much nicer to have this set in the
- > > > kernel configuration. If we were to throw the setting /etc/sysctl.conf
- > > > the kernel would depend upon the package containing sysctl(8)
- > > > (procps). We'd rather avoid this and keep the default kernel
- > > > configuration in one place.
- > > 
- > > In short, being able to specify this default in .config is just far
- > > simpler from a packaging standpoint than the alternatives.
- > 
- > It's interesting to know what value you plan to use for your
- > desktop/server systems and the rationals (is it based on any
- > testing results?). And why it's easier to do it in kernel (hope it's
- > not because of trouble communicating with the user space packaging
- > team).
+On Fri, 29 Oct 2010, Balbir Singh wrote:
 
-Not sure why I was cc'd on this, but at least for Fedora, we still take
-the 'one kernel to rule them all' approach for every spin (and will likely
-continue to do so to maximise coverage testing) so a config option for us
-for things like this is moot.
+> A lot of the code is borrowed from zone_reclaim_mode logic for
+> __zone_reclaim(). One might argue that the with ballooning and
+> KSM this feature is not very useful, but even with ballooning,
 
-Whenever I've tried to push changes to our defaults through to our
-default /etc/sysctl.conf, it's been met with resistance due to beliefs
-that a) the file is there for _users_ to override decisions
-the distro made at build time and b) if this is the right default,
-why isn't the kernel setting it?
+Interesting use of zone reclaim. I am having a difficult time reviewing
+the patch since you move and modify functions at the same time. Could you
+separate that out a bit?
 
-The idea keeps coming up to have some userspace thing automatically
-tune the kernel to dtrt based upon whatever profile it has been fed.
-Various implementations of things like this have come and gone
-(Arjan and myself even wrote one circa 2000). For whatever reason,
-they don't seem to catch on.
+> +#define UNMAPPED_PAGE_RATIO 16
 
-	Dave
+Maybe come up with a scheme that allows better configuration of the
+mininum? I think in some setting we may want an absolute limit and in
+other a fraction of something (total zone size or working set?)
+
+
+> +bool should_balance_unmapped_pages(struct zone *zone)
+> +{
+> +	if (unmapped_page_control &&
+> +		(zone_unmapped_file_pages(zone) >
+> +			UNMAPPED_PAGE_RATIO * zone->min_unmapped_pages))
+> +		return true;
+> +	return false;
+> +}
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
