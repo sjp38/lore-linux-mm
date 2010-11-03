@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 062C16B00C0
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 11:29:34 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A9F7F8D0003
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 11:29:35 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 25 of 66] split_huge_page paging
-Message-Id: <c1df1dd887b7839d19d3.1288798080@v2.random>
+Subject: [PATCH 13 of 66] export maybe_mkwrite
+Message-Id: <15324c9c30081da3a740.1288798068@v2.random>
 In-Reply-To: <patchbomb.1288798055@v2.random>
 References: <patchbomb.1288798055@v2.random>
-Date: Wed, 03 Nov 2010 16:28:00 +0100
+Date: Wed, 03 Nov 2010 16:27:48 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
@@ -18,76 +18,60 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Paging logic that splits the page before it is unmapped and added to swap to
-ensure backwards compatibility with the legacy swap code. Eventually swap
-should natively pageout the hugepages to increase performance and decrease
-seeking and fragmentation of swap space. swapoff can just skip over huge pmd as
-they cannot be part of swap yet. In add_to_swap be careful to split the page
-only if we got a valid swap entry so we don't split hugepages with a full swap.
-
-In theory we could split pages before isolating them during the lru scan, but
-for khugepaged to be safe, I'm relying on either mmap_sem write mode, or
-PG_lock taken, so split_huge_page has to run either with mmap_sem read/write
-mode or PG_lock taken. Calling it from isolate_lru_page would make locking more
-complicated, in addition to that split_huge_page would deadlock if called by
-__isolate_lru_page because it has to take the lru lock to add the tail pages.
+huge_memory.c needs it too when it fallbacks in copying hugepages into regular
+fragmented pages if hugepage allocation fails during COW.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 ---
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -385,6 +385,8 @@ static void collect_procs_anon(struct pa
- 	struct task_struct *tsk;
- 	struct anon_vma *av;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -416,6 +416,19 @@ static inline void set_compound_order(st
+ }
  
-+	if (unlikely(split_huge_page(page)))
-+		return;
- 	read_lock(&tasklist_lock);
- 	av = page_lock_anon_vma(page);
- 	if (av == NULL)	/* Not actually mapped anymore */
-diff --git a/mm/rmap.c b/mm/rmap.c
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1372,6 +1372,7 @@ int try_to_unmap(struct page *page, enum
- 	int ret;
- 
- 	BUG_ON(!PageLocked(page));
-+	BUG_ON(PageTransHuge(page));
- 
- 	if (unlikely(PageKsm(page)))
- 		ret = try_to_unmap_ksm(page, flags);
-diff --git a/mm/swap_state.c b/mm/swap_state.c
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -157,6 +157,12 @@ int add_to_swap(struct page *page)
- 	if (!entry.val)
- 		return 0;
- 
-+	if (unlikely(PageTransHuge(page)))
-+		if (unlikely(split_huge_page(page))) {
-+			swapcache_free(entry, NULL);
-+			return 0;
-+		}
+ /*
++ * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
++ * servicing faults for write access.  In the normal case, do always want
++ * pte_mkwrite.  But get_user_pages can cause write faults for mappings
++ * that do not have writing enabled, when used by access_process_vm.
++ */
++static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
++{
++	if (likely(vma->vm_flags & VM_WRITE))
++		pte = pte_mkwrite(pte);
++	return pte;
++}
 +
++/*
+  * Multiple processes may "see" the same page. E.g. for untouched
+  * mappings of /dev/null, all processes see the same page full of
+  * zeroes, and text pages of executables and shared libraries have
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2048,19 +2048,6 @@ static inline int pte_unmap_same(struct 
+ 	return same;
+ }
+ 
+-/*
+- * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
+- * servicing faults for write access.  In the normal case, do always want
+- * pte_mkwrite.  But get_user_pages can cause write faults for mappings
+- * that do not have writing enabled, when used by access_process_vm.
+- */
+-static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+-{
+-	if (likely(vma->vm_flags & VM_WRITE))
+-		pte = pte_mkwrite(pte);
+-	return pte;
+-}
+-
+ static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
+ {
  	/*
- 	 * Radix-tree node allocations from PF_MEMALLOC contexts could
- 	 * completely exhaust the page allocator. __GFP_NOMEMALLOC
-diff --git a/mm/swapfile.c b/mm/swapfile.c
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -964,6 +964,8 @@ static inline int unuse_pmd_range(struct
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		if (unlikely(pmd_trans_huge(*pmd)))
-+			continue;
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		ret = unuse_pte_range(vma, pmd, addr, next, entry, page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
