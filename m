@@ -1,43 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id EC2156B00D5
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 12:41:13 -0400 (EDT)
-Received: by iwn9 with SMTP id 9so841997iwn.14
-        for <linux-mm@kvack.org>; Wed, 03 Nov 2010 09:41:12 -0700 (PDT)
-Date: Thu, 4 Nov 2010 00:37:20 +0800
-From: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
-Subject: Re: [PATCH] cgroup: Avoid a memset by using vzalloc
-Message-ID: <20101103163702.GA4683@hack>
-References: <alpine.LNX.2.00.1010302333130.1572@swampdragon.chaosbits.net> <AANLkTi=nMU3ezNFD8LKBhJxr6CmW6-qHY_Mo3HRt6Os0@mail.gmail.com> <20101031173336.GA28141@balbir.in.ibm.com> <alpine.LNX.2.00.1011010639410.31190@swampdragon.chaosbits.net> <alpine.DEB.2.00.1011030937580.10599@router.home> <AANLkTinhAQ7mNQWtjWCOWEHHwgUf+BynMM7jnVBMG32-@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id E8DE26B00BA
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 13:17:41 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id oA3H6Jhj009482
+	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 11:06:19 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id oA3HHZVA256766
+	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 11:17:35 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oA3HHZk8026147
+	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 11:17:35 -0600
+Date: Wed, 3 Nov 2010 22:47:33 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH 1/3] Linux/Guest unmapped page cache control
+Message-ID: <20101103171733.GP3769@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20101028224002.32626.13015.sendpatchset@localhost.localdomain>
+ <20101028224008.32626.69769.sendpatchset@localhost.localdomain>
+ <alpine.DEB.2.00.1011030932260.10599@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <AANLkTinhAQ7mNQWtjWCOWEHHwgUf+BynMM7jnVBMG32-@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1011030932260.10599@router.home>
 Sender: owner-linux-mm@kvack.org
-To: jovi zhang <bookjovi@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Jesper Juhl <jj@chaosbits.net>, Balbir Singh <balbir@linux.vnet.ibm.com>, Minchan Kim <minchan.kim@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
+To: Christoph Lameter <cl@linux.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 03, 2010 at 11:20:32PM +0800, jovi zhang wrote:
->On Wed, Nov 3, 2010 at 10:38 PM, Christoph Lameter <cl@linux.com> wrote:
->> On Mon, 1 Nov 2010, Jesper Juhl wrote:
->>
->>> On Sun, 31 Oct 2010, Balbir Singh wrote:
->>
->>> > > There are so many placed need vzalloc.
->>> > > Thanks, Jesper.
->>
->>
->> Could we avoid this painful exercise with a "semantic patch"?
->>
->Can we make a grep script to walk all files to find vzalloc usage like this?
->No need to send patch mail one by one like this.
+* Christoph Lameter <cl@linux.com> [2010-11-03 09:35:33]:
 
-No, grep doesn't understand C. :)
+> On Fri, 29 Oct 2010, Balbir Singh wrote:
+> 
+> > A lot of the code is borrowed from zone_reclaim_mode logic for
+> > __zone_reclaim(). One might argue that the with ballooning and
+> > KSM this feature is not very useful, but even with ballooning,
+> 
+> Interesting use of zone reclaim. I am having a difficult time reviewing
+> the patch since you move and modify functions at the same time. Could you
+> separate that out a bit?
+>
+
+Sure, I'll split it out into more readable bits and repost the mm
+versions first.
+ 
+> > +#define UNMAPPED_PAGE_RATIO 16
+> 
+> Maybe come up with a scheme that allows better configuration of the
+> mininum? I think in some setting we may want an absolute limit and in
+> other a fraction of something (total zone size or working set?)
+>
+
+Are you suggesting a sysctl or computation based on zone size and
+limit, etc? I understand it to be the latter.
+ 
+> 
+> > +bool should_balance_unmapped_pages(struct zone *zone)
+> > +{
+> > +	if (unmapped_page_control &&
+> > +		(zone_unmapped_file_pages(zone) >
+> > +			UNMAPPED_PAGE_RATIO * zone->min_unmapped_pages))
+> > +		return true;
+> > +	return false;
+> > +}
+> 
+
+Thanks for your review.
 
 -- 
-Live like a child, think like the god.
- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
