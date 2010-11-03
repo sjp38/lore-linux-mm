@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id EE09B6B00C0
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 11:30:38 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 27C066B00C1
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 11:30:39 -0400 (EDT)
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH 56 of 66] transhuge isolate_migratepages()
-Message-Id: <deca9009a1afa678b7e0.1288798111@v2.random>
+Subject: [PATCH 42 of 66] khugepaged vma merge
+Message-Id: <faf02e40e7c56b202ef7.1288798097@v2.random>
 In-Reply-To: <patchbomb.1288798055@v2.random>
 References: <patchbomb.1288798055@v2.random>
-Date: Wed, 03 Nov 2010 16:28:31 +0100
+Date: Wed, 03 Nov 2010 16:28:17 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
@@ -18,41 +18,54 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-It's not worth migrating transparent hugepages during compaction. Those
-hugepages don't create fragmentation.
+register in khugepaged if the vma grows.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
 
-diff --git a/mm/compaction.c b/mm/compaction.c
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -272,10 +272,25 @@ static unsigned long isolate_migratepage
- 		if (PageBuddy(page))
- 			continue;
+diff --git a/mm/mmap.c b/mm/mmap.c
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -29,6 +29,7 @@
+ #include <linux/mmu_notifier.h>
+ #include <linux/perf_event.h>
+ #include <linux/audit.h>
++#include <linux/khugepaged.h>
  
-+		if (!PageLRU(page))
-+			continue;
-+
-+		/*
-+		 * PageLRU is set, and lru_lock excludes isolation,
-+		 * splitting and collapsing (collapsing has already
-+		 * happened if PageLRU is set).
-+		 */
-+		if (PageTransHuge(page)) {
-+			low_pfn += (1 << compound_order(page)) - 1;
-+			continue;
-+		}
-+
- 		/* Try isolate the page */
- 		if (__isolate_lru_page(page, ISOLATE_BOTH, 0) != 0)
- 			continue;
+ #include <asm/uaccess.h>
+ #include <asm/cacheflush.h>
+@@ -815,6 +816,7 @@ struct vm_area_struct *vma_merge(struct 
+ 				end, prev->vm_pgoff, NULL);
+ 		if (err)
+ 			return NULL;
++		khugepaged_enter_vma_merge(prev);
+ 		return prev;
+ 	}
  
-+		VM_BUG_ON(PageTransCompound(page));
-+
- 		/* Successfully isolated */
- 		del_page_from_lru_list(zone, page, page_lru(page));
- 		list_add(&page->lru, migratelist);
+@@ -833,6 +835,7 @@ struct vm_area_struct *vma_merge(struct 
+ 				next->vm_pgoff - pglen, NULL);
+ 		if (err)
+ 			return NULL;
++		khugepaged_enter_vma_merge(area);
+ 		return area;
+ 	}
+ 
+@@ -1761,6 +1764,7 @@ int expand_upwards(struct vm_area_struct
+ 		}
+ 	}
+ 	vma_unlock_anon_vma(vma);
++	khugepaged_enter_vma_merge(vma);
+ 	return error;
+ }
+ #endif /* CONFIG_STACK_GROWSUP || CONFIG_IA64 */
+@@ -1808,6 +1812,7 @@ static int expand_downwards(struct vm_ar
+ 		}
+ 	}
+ 	vma_unlock_anon_vma(vma);
++	khugepaged_enter_vma_merge(vma);
+ 	return error;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
