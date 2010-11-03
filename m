@@ -1,73 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 75FEF6B00F7
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 06:50:49 -0400 (EDT)
-Received: from d06nrmr1707.portsmouth.uk.ibm.com (d06nrmr1707.portsmouth.uk.ibm.com [9.149.39.225])
-	by mtagate6.uk.ibm.com (8.13.1/8.13.1) with ESMTP id oA3Aog9Y020757
-	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 10:50:42 GMT
-Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
-	by d06nrmr1707.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oA3Aobom2470126
-	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 10:50:42 GMT
-Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av04.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oA3Aoaxt003980
-	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 04:50:36 -0600
-Message-ID: <4CD13E7B.5090804@linux.vnet.ibm.com>
-Date: Wed, 03 Nov 2010 11:50:35 +0100
-From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5E4936B00A4
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 07:29:27 -0400 (EDT)
+Date: Wed, 3 Nov 2010 12:23:24 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [patch v2] oom: fix oom_score_adj consistency with
+	oom_disable_count
+Message-ID: <20101103112324.GA29695@redhat.com>
+References: <201010262121.o9QLLNFo016375@imap1.linux-foundation.org> <20101101024949.6074.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011011738200.26266@chino.kir.corp.google.com> <alpine.DEB.2.00.1011021741520.21871@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/8] Reduce latencies and improve overall reclaim efficiency
- v2
-References: <1284553671-31574-1-git-send-email-mel@csn.ul.ie> <4CB721A1.4010508@linux.vnet.ibm.com> <20101018135535.GC30667@csn.ul.ie>
-In-Reply-To: <20101018135535.GC30667@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1011021741520.21871@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hmm. I did a quick grep trying to understand what ->oom_disable_count
+means, and the whole idea behind this counter looks very wrong to me.
+This patch doesn't look right too...
+
+IOW. I believe that 3d5992d2ac7dc09aed8ab537cba074589f0f0a52
+"oom: add per-mm oom disable count" should be reverted or fixed.
+
+Trivial example. A process with 2 threads, T1 and T2.
+->mm->oom_disable_count = 0.
+
+oom_score_adj_write() sets OOM_SCORE_ADJ_MIN and increments
+oom_disable_count.
+
+T2 exits, notices OOM_SCORE_ADJ_MIN and decrements ->oom_disable_count
+back to zero.
+
+Now, T1 runs with OOM_SCORE_ADJ_MIN, but its ->oom_disable_count == 0.
+
+No?
 
 
-On 10/18/2010 03:55 PM, Mel Gorman wrote:
-> On Thu, Oct 14, 2010 at 05:28:33PM +0200, Christian Ehrhardt wrote:
-> 
->> Seing the patches Mel sent a few weeks ago I realized that this series
->> might be at least partially related to my reports in 1Q 2010 - so I ran my
->> testcase on a few kernels to provide you with some more backing data.
-> 
-> Thanks very much for revisiting this.
-> 
->> Results are always the average of three iozone runs as it is known to be somewhat noisy - especially when affected by the issue I try to show here.
->> As discussed in detail in older threads the setup uses 16 disks and scales the number of concurrent iozone processes.
->> Processes are evenly distributed so that it always is one process per disk.
->> In the past we reported 40% to 80% degradation for the sequential read case based on 2.6.32 which can still be seen.
->> What we found was that the allocations for page cache with GFP_COLD flag loop a long time between try_to_free, get_page, reclaim as free makes some progress and due to that GFP_COLD allocations can loop and retry.
->> In addition my case had no writes at all, which forced congestion_wait to wait the full timeout all the time.
->>
->> Kernel (git)                   4          8         16   deviation #16 case                           comment
->> linux-2.6.30              902694    1396073    1892624                 base                              base
->> linux-2.6.32              752008     990425     932938               -50.7%     impact as reported in 1Q 2010
->> linux-2.6.35               63532      71573      64083               -96.6%                    got even worse
->> linux-2.6.35.6            176485     174442     212102               -88.8%  fixes useful, but still far away
->> linux-2.6.36-rc4-trace    119683     188997     187012               -90.1%                         still bad
->> linux-2.6.36-rc4-fix      884431    1114073    1470659               -22.3%            Mels fixes help a lot!
->>
-[...]
-> If all goes according to plan,
-> kernel 2.6.37-rc1 will be of interest. Thanks again.
+On 11/02, David Rientjes wrote:
+>
+> p->mm->oom_disable_count tracks how many threads sharing p->mm have an
+> oom_score_adj value of OOM_SCORE_ADJ_MIN, which disables the oom killer
+> for that task.
 
-Here a measurement with 2.6.37-rc1 as confirmation of progress:
-   linux-2.6.37-rc1          876588    1161876    1643430               -13.1%       even better than 2.6.36-fix
+Another reason to move ->oom_score_adj into ->mm ;)
 
-That means 2.6.37-rc1 really shows what we hoped for.
-And it eventually even turned out a little bit better than 2.6.36 + your fixes.
+> This patch introduces the necessary locking to ensure oom_score_adj can
+> be tested and/or changed with consistency.
 
- 
+Oh. We should avoid abusing ->siglock, but OK, we don't have
+anything else right now.
 
--- 
+David, nothing in this patch needs lock_task_sighand(), ->sighand
+can't go away in copy_process/exec_mmap/unshare. You can just do
+spin_lock_irq(->siglock). This is minor, but personally I dislike
+the fact the code looks as if lock_task_sighand() can fail.
 
-Grusse / regards, Christian Ehrhardt
-IBM Linux Technology Center, System z Linux Performance 
+> @@ -741,6 +741,7 @@ static int exec_mmap(struct mm_struct *mm)
+>  {
+>  	struct task_struct *tsk;
+>  	struct mm_struct * old_mm, *active_mm;
+> +	unsigned long flags;
+>
+>  	/* Notify parent that we're no longer interested in the old VM */
+>  	tsk = current;
+> @@ -766,9 +767,12 @@ static int exec_mmap(struct mm_struct *mm)
+>  	tsk->mm = mm;
+>  	tsk->active_mm = mm;
+>  	activate_mm(active_mm, mm);
+> -	if (old_mm && tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+> -		atomic_dec(&old_mm->oom_disable_count);
+> -		atomic_inc(&tsk->mm->oom_disable_count);
+> +	if (lock_task_sighand(tsk, &flags)) {
+> +		if (old_mm && tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+> +			atomic_dec(&old_mm->oom_disable_count);
+> +			atomic_inc(&tsk->mm->oom_disable_count);
+> +		}
+
+Not sure this needs additional locking. exec_mmap() is called when
+there are no other threads, we can rely on task_lock() we hold.
+
+>  static int copy_mm(unsigned long clone_flags, struct task_struct * tsk)
+>  {
+>  	struct mm_struct * mm, *oldmm;
+> +	unsigned long flags;
+>  	int retval;
+>
+>  	tsk->min_flt = tsk->maj_flt = 0;
+> @@ -743,8 +744,11 @@ good_mm:
+>  	/* Initializing for Swap token stuff */
+>  	mm->token_priority = 0;
+>  	mm->last_interval = 0;
+> -	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+> -		atomic_inc(&mm->oom_disable_count);
+> +	if (lock_task_sighand(tsk, &flags)) {
+> +		if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+> +			atomic_inc(&mm->oom_disable_count);
+> +		unlock_task_sighand(tsk, &flags);
+> +	}
+
+This doesn't need ->siglock too. Nobody can see this new child,
+nobody can access its tsk->signal.
+
+> @@ -1700,13 +1707,19 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
+>  		}
+>
+>  		if (new_mm) {
+> +			unsigned long flags;
+> +
+>  			mm = current->mm;
+>  			active_mm = current->active_mm;
+>  			current->mm = new_mm;
+>  			current->active_mm = new_mm;
+> -			if (current->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+> -				atomic_dec(&mm->oom_disable_count);
+> -				atomic_inc(&new_mm->oom_disable_count);
+> +			if (lock_task_sighand(current, &flags)) {
+> +				if (current->signal->oom_score_adj ==
+> +							OOM_SCORE_ADJ_MIN) {
+> +					atomic_dec(&mm->oom_disable_count);
+> +					atomic_inc(&new_mm->oom_disable_count);
+> +				}
+
+This is racy anyway, even if we take ->siglock.
+
+If we need the protection from oom_score_adj_write(), then we have
+to change ->mm under ->siglock as well. Otherwise, suppose that
+oom_score_adj_write() sets OOM_SCORE_ADJ_MIN right after unshare()
+does current->mm = new_mm.
+
+However. Please do not touch this code. It doesn't work anyway,
+I'll resend the patch which removes this crap.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
