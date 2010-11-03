@@ -1,139 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5E4936B00A4
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 07:29:27 -0400 (EDT)
-Date: Wed, 3 Nov 2010 12:23:24 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [patch v2] oom: fix oom_score_adj consistency with
-	oom_disable_count
-Message-ID: <20101103112324.GA29695@redhat.com>
-References: <201010262121.o9QLLNFo016375@imap1.linux-foundation.org> <20101101024949.6074.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011011738200.26266@chino.kir.corp.google.com> <alpine.DEB.2.00.1011021741520.21871@chino.kir.corp.google.com>
+	by kanga.kvack.org (Postfix) with SMTP id 7A6076B00A4
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 07:42:22 -0400 (EDT)
+Message-ID: <4CD14A6F.4010109@redhat.com>
+Date: Wed, 03 Nov 2010 07:41:35 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1011021741520.21871@chino.kir.corp.google.com>
+Subject: Re: [PATCH] RFC: vmscan: add min_filelist_kbytes sysctl for protecting
+ the working set
+References: <20101028191523.GA14972@google.com>	<20101101012322.605C.A69D9226@jp.fujitsu.com>	<20101101182416.GB31189@google.com>	<4CCF0BE3.2090700@redhat.com>	<AANLkTi=src1L0gAFsogzCmejGOgg5uh=9O4Uw+ZmfBg4@mail.gmail.com>	<4CCF8151.3010202@redhat.com>	<AANLkTi=JJ-0ae+QybtR+e=4_4mpQghh61c4=TZYAw8uF@mail.gmail.com>	<4CD0C22B.2000905@redhat.com> <AANLkTik8y=bh3dBJe0bFmjAUvc7y8yBpjP4DKuKU+Z2j@mail.gmail.com>
+In-Reply-To: <AANLkTik8y=bh3dBJe0bFmjAUvc7y8yBpjP4DKuKU+Z2j@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Mandeep Singh Baines <msb@chromium.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wad@chromium.org, olofj@chromium.org, hughd@chromium.org
 List-ID: <linux-mm.kvack.org>
 
-Hmm. I did a quick grep trying to understand what ->oom_disable_count
-means, and the whole idea behind this counter looks very wrong to me.
-This patch doesn't look right too...
+On 11/02/2010 11:03 PM, Minchan Kim wrote:
 
-IOW. I believe that 3d5992d2ac7dc09aed8ab537cba074589f0f0a52
-"oom: add per-mm oom disable count" should be reverted or fixed.
-
-Trivial example. A process with 2 threads, T1 and T2.
-->mm->oom_disable_count = 0.
-
-oom_score_adj_write() sets OOM_SCORE_ADJ_MIN and increments
-oom_disable_count.
-
-T2 exits, notices OOM_SCORE_ADJ_MIN and decrements ->oom_disable_count
-back to zero.
-
-Now, T1 runs with OOM_SCORE_ADJ_MIN, but its ->oom_disable_count == 0.
-
-No?
-
-
-On 11/02, David Rientjes wrote:
+> It could.
+> But time based approach would be same, IMHO.
+> First of all, I don't want long latency of direct reclaim process.
+> It could affect response of foreground process directly.
 >
-> p->mm->oom_disable_count tracks how many threads sharing p->mm have an
-> oom_score_adj value of OOM_SCORE_ADJ_MIN, which disables the oom killer
-> for that task.
+> If VM limits the number of pages reclaimed per second, direct reclaim
+> process's latency will be affected. so we should avoid throttling in
+> direct reclaim path. Agree?
 
-Another reason to move ->oom_score_adj into ->mm ;)
+The idea would be to not throttle the processes trying to
+reclaim page cache pages, but to only reclaim anonymous
+pages when the page cache pages are low (and occasionally
+a few page cache pages, say 128 a second).
 
-> This patch introduces the necessary locking to ensure oom_score_adj can
-> be tested and/or changed with consistency.
+If too many reclaimers come in when the page cache is
+low and no swap is available, we will OOM kill instead
+of stalling.
 
-Oh. We should avoid abusing ->siglock, but OK, we don't have
-anything else right now.
+After all, the entire point of this patch would be to
+avoid minutes-long latencies in triggering the OOM
+killer.
 
-David, nothing in this patch needs lock_task_sighand(), ->sighand
-can't go away in copy_process/exec_mmap/unshare. You can just do
-spin_lock_irq(->siglock). This is minor, but personally I dislike
-the fact the code looks as if lock_task_sighand() can fail.
-
-> @@ -741,6 +741,7 @@ static int exec_mmap(struct mm_struct *mm)
->  {
->  	struct task_struct *tsk;
->  	struct mm_struct * old_mm, *active_mm;
-> +	unsigned long flags;
->
->  	/* Notify parent that we're no longer interested in the old VM */
->  	tsk = current;
-> @@ -766,9 +767,12 @@ static int exec_mmap(struct mm_struct *mm)
->  	tsk->mm = mm;
->  	tsk->active_mm = mm;
->  	activate_mm(active_mm, mm);
-> -	if (old_mm && tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-> -		atomic_dec(&old_mm->oom_disable_count);
-> -		atomic_inc(&tsk->mm->oom_disable_count);
-> +	if (lock_task_sighand(tsk, &flags)) {
-> +		if (old_mm && tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-> +			atomic_dec(&old_mm->oom_disable_count);
-> +			atomic_inc(&tsk->mm->oom_disable_count);
-> +		}
-
-Not sure this needs additional locking. exec_mmap() is called when
-there are no other threads, we can rely on task_lock() we hold.
-
->  static int copy_mm(unsigned long clone_flags, struct task_struct * tsk)
->  {
->  	struct mm_struct * mm, *oldmm;
-> +	unsigned long flags;
->  	int retval;
->
->  	tsk->min_flt = tsk->maj_flt = 0;
-> @@ -743,8 +744,11 @@ good_mm:
->  	/* Initializing for Swap token stuff */
->  	mm->token_priority = 0;
->  	mm->last_interval = 0;
-> -	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-> -		atomic_inc(&mm->oom_disable_count);
-> +	if (lock_task_sighand(tsk, &flags)) {
-> +		if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-> +			atomic_inc(&mm->oom_disable_count);
-> +		unlock_task_sighand(tsk, &flags);
-> +	}
-
-This doesn't need ->siglock too. Nobody can see this new child,
-nobody can access its tsk->signal.
-
-> @@ -1700,13 +1707,19 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
->  		}
->
->  		if (new_mm) {
-> +			unsigned long flags;
-> +
->  			mm = current->mm;
->  			active_mm = current->active_mm;
->  			current->mm = new_mm;
->  			current->active_mm = new_mm;
-> -			if (current->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-> -				atomic_dec(&mm->oom_disable_count);
-> -				atomic_inc(&new_mm->oom_disable_count);
-> +			if (lock_task_sighand(current, &flags)) {
-> +				if (current->signal->oom_score_adj ==
-> +							OOM_SCORE_ADJ_MIN) {
-> +					atomic_dec(&mm->oom_disable_count);
-> +					atomic_inc(&new_mm->oom_disable_count);
-> +				}
-
-This is racy anyway, even if we take ->siglock.
-
-If we need the protection from oom_score_adj_write(), then we have
-to change ->mm under ->siglock as well. Otherwise, suppose that
-oom_score_adj_write() sets OOM_SCORE_ADJ_MIN right after unshare()
-does current->mm = new_mm.
-
-However. Please do not touch this code. It doesn't work anyway,
-I'll resend the patch which removes this crap.
-
-Oleg.
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
