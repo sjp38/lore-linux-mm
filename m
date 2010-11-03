@@ -1,258 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A034D6B0098
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 18:41:11 -0400 (EDT)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id oA3Mf85U009614
-	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 15:41:08 -0700
-Received: from pwj9 (pwj9.prod.google.com [10.241.219.73])
-	by kpbe20.cbf.corp.google.com with ESMTP id oA3Medr4023589
-	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 15:41:06 -0700
-Received: by pwj9 with SMTP id 9so513953pwj.35
-        for <linux-mm@kvack.org>; Wed, 03 Nov 2010 15:41:06 -0700 (PDT)
-Date: Wed, 3 Nov 2010 15:40:55 -0700
-From: Mandeep Singh Baines <msb@chromium.org>
-Subject: Re: [PATCH] RFC: vmscan: add min_filelist_kbytes sysctl for
- protecting the working set
-Message-ID: <20101103224055.GC19646@google.com>
-References: <20101028191523.GA14972@google.com>
- <20101101012322.605C.A69D9226@jp.fujitsu.com>
- <20101101182416.GB31189@google.com>
- <4CCF0BE3.2090700@redhat.com>
- <AANLkTi=src1L0gAFsogzCmejGOgg5uh=9O4Uw+ZmfBg4@mail.gmail.com>
- <4CCF8151.3010202@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id F07BB6B0098
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 18:48:49 -0400 (EDT)
+Received: by iwn9 with SMTP id 9so1173131iwn.14
+        for <linux-mm@kvack.org>; Wed, 03 Nov 2010 15:48:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4CCF8151.3010202@redhat.com>
+In-Reply-To: <20101103220941.C88FA932@kernel.beaverton.ibm.com>
+References: <20101103220941.C88FA932@kernel.beaverton.ibm.com>
+Date: Thu, 4 Nov 2010 07:48:45 +0900
+Message-ID: <AANLkTi=4a6+4qQHN5pqi8Dd7-FUSn7TzauK4uUQ4YCVf@mail.gmail.com>
+Subject: Re: [PATCH] Revalidate page->mapping in do_generic_file_read()
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Mandeep Singh Baines <msb@chromium.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wad@chromium.org, olofj@chromium.org, hughd@chromium.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, arunabal@in.ibm.com, sbest@us.ibm.com, stable <stable@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Al Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel (riel@redhat.com) wrote:
-> On 11/01/2010 03:43 PM, Mandeep Singh Baines wrote:
-> 
-> >Yes, this prevents you from reclaiming the active list all at once. But if the
-> >memory pressure doesn't go away, you'll start to reclaim the active list
-> >little by little. First you'll empty the inactive list, and then
-> >you'll start scanning
-> >the active list and pulling pages from inactive to active. The problem is that
-> >there is no minimum time limit to how long a page will sit in the inactive list
-> >before it is reclaimed. Just depends on scan rate which does not depend
-> >on time.
-> >
-> >In my experiments, I saw the active list get smaller and smaller
-> >over time until eventually it was only a few MB at which point the system came
-> >grinding to a halt due to thrashing.
-> 
-> I believe that changing the active/inactive ratio has other
-> potential thrashing issues.  Specifically, when the inactive
-> list is too small, pages may not stick around long enough to
-> be accessed multiple times and get promoted to the active
-> list, even when they are in active use.
-> 
-> I prefer a more flexible solution, that automatically does
-> the right thing.
-> 
-> The problem you see is that the file list gets reclaimed
-> very quickly, even when it is already very small.
-> 
-> I wonder if a possible solution would be to limit how fast
-> file pages get reclaimed, when the page cache is very small.
-> Say, inactive_file * active_file < 2 * zone->pages_high ?
-> 
-> At that point, maybe we could slow down the reclaiming of
-> page cache pages to be significantly slower than they can
-> be refilled by the disk.  Maybe 100 pages a second - that
-> can be refilled even by an actual spinning metal disk
-> without even the use of readahead.
-> 
-> That can be rounded up to one batch of SWAP_CLUSTER_MAX
-> file pages every 1/4 second, when the number of page cache
-> pages is very low.
-> 
-> This way HPC and virtual machine hosting nodes can still
-> get rid of totally unused page cache, but on any system
-> that actually uses page cache, some minimal amount of
-> cache will be protected under heavy memory pressure.
-> 
-> Does this sound like a reasonable approach?
-> 
-> I realize the threshold may have to be tweaked...
-> 
-> The big question is, how do we integrate this with the
-> OOM killer?  Do we pretend we are out of memory when
-> we've hit our file cache eviction quota and kill something?
-> 
-> Would there be any downsides to this approach?
-> 
-> Are there any volunteers for implementing this idea?
-> (Maybe someone who needs the feature?)
-> 
+On Thu, Nov 4, 2010 at 7:09 AM, Dave Hansen <dave@linux.vnet.ibm.com> wrote=
+:
+>
+> 70 hours into some stress tests of a 2.6.32-based enterprise kernel,
+> we ran into a NULL dereference in here:
+>
+> =A0 =A0 =A0 =A0int block_is_partially_uptodate(struct page *page, read_de=
+scriptor_t *desc,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0unsigned long from)
+> =A0 =A0 =A0 =A0{
+> ----> =A0 =A0 =A0 =A0 =A0 struct inode *inode =3D page->mapping->host;
+>
+> It looks like page->mapping was the culprit. =A0(xmon trace is below).
+> After closer examination, I realized that do_generic_file_read() does
+> a find_get_page(), and eventually locks the page before calling
+> block_is_partially_uptodate(). =A0However, it doesn't revalidate the
+> page->mapping after the page is locked. =A0So, there's a small window
+> between the find_get_page() and ->is_partially_uptodate() where the
+> page could get truncated and page->mapping cleared.
+>
+> We _have_ a reference, so it can't get reclaimed, but it certainly
+> can be truncated.
+>
+> I think the correct thing is to check page->mapping after the
+> trylock_page(), and jump out if it got truncated. =A0This patch has
+> been running in the test environment for a month or so now, and we
+> have not seen this bug pop up again.
+>
+> xmon info:
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> 1f:mon> e
+> cpu 0x1f: Vector: 300 (Data Access) at [c0000002ae36f770]
+> =A0 =A0pc: c0000000001e7a6c: .block_is_partially_uptodate+0xc/0x100
+> =A0 =A0lr: c000000000142944: .generic_file_aio_read+0x1e4/0x770
+> =A0 =A0sp: c0000002ae36f9f0
+> =A0 msr: 8000000000009032
+> =A0 dar: 0
+> =A0dsisr: 40000000
+> =A0current =3D 0xc000000378f99e30
+> =A0paca =A0 =A0=3D 0xc000000000f66300
+> =A0 =A0pid =A0 =3D 21946, comm =3D bash
+> 1f:mon> r
+> R00 =3D 0025c0500000006d =A0 R16 =3D 0000000000000000
+> R01 =3D c0000002ae36f9f0 =A0 R17 =3D c000000362cd3af0
+> R02 =3D c000000000e8cd80 =A0 R18 =3D ffffffffffffffff
+> R03 =3D c0000000031d0f88 =A0 R19 =3D 0000000000000001
+> R04 =3D c0000002ae36fa68 =A0 R20 =3D c0000003bb97b8a0
+> R05 =3D 0000000000000000 =A0 R21 =3D c0000002ae36fa68
+> R06 =3D 0000000000000000 =A0 R22 =3D 0000000000000000
+> R07 =3D 0000000000000001 =A0 R23 =3D c0000002ae36fbb0
+> R08 =3D 0000000000000002 =A0 R24 =3D 0000000000000000
+> R09 =3D 0000000000000000 =A0 R25 =3D c000000362cd3a80
+> R10 =3D 0000000000000000 =A0 R26 =3D 0000000000000002
+> R11 =3D c0000000001e7b60 =A0 R27 =3D 0000000000000000
+> R12 =3D 0000000042000484 =A0 R28 =3D 0000000000000001
+> R13 =3D c000000000f66300 =A0 R29 =3D c0000003bb97b9b8
+> R14 =3D 0000000000000001 =A0 R30 =3D c000000000e28a08
+> R15 =3D 000000000000ffff =A0 R31 =3D c0000000031d0f88
+> pc =A0=3D c0000000001e7a6c .block_is_partially_uptodate+0xc/0x100
+> lr =A0=3D c000000000142944 .generic_file_aio_read+0x1e4/0x770
+> msr =3D 8000000000009032 =A0 cr =A0=3D 22000488
+> ctr =3D c0000000001e7a60 =A0 xer =3D 0000000020000000 =A0 trap =3D =A0300
+> dar =3D 0000000000000000 =A0 dsisr =3D 40000000
+> 1f:mon> t
+> [link register =A0 ] c000000000142944 .generic_file_aio_read+0x1e4/0x770
+> [c0000002ae36f9f0] c000000000142a14 .generic_file_aio_read+0x2b4/0x770
+> (unreliable)
+> [c0000002ae36fb40] c0000000001b03e4 .do_sync_read+0xd4/0x160
+> [c0000002ae36fce0] c0000000001b153c .vfs_read+0xec/0x1f0
+> [c0000002ae36fd80] c0000000001b1768 .SyS_read+0x58/0xb0
+> [c0000002ae36fe30] c00000000000852c syscall_exit+0x0/0x40
+> --- Exception: c00 (System Call) at 00000080a840bc54
+> SP (fffca15df30) is in userspace
+> 1f:mon> di c0000000001e7a6c
+> c0000000001e7a6c =A0e9290000 =A0 =A0 =A0ld =A0 =A0 =A0r9,0(r9)
+> c0000000001e7a70 =A0418200c0 =A0 =A0 =A0beq =A0 =A0 c0000000001e7b30 =A0 =
+=A0 =A0 =A0#
+> .block_is_partially_uptodate+0xd0/0x100
+> c0000000001e7a74 =A0e9440008 =A0 =A0 =A0ld =A0 =A0 =A0r10,8(r4)
+> c0000000001e7a78 =A078a80020 =A0 =A0 =A0clrldi =A0r8,r5,32
+> c0000000001e7a7c =A03c000001 =A0 =A0 =A0lis =A0 =A0 r0,1
+> c0000000001e7a80 =A0812900a8 =A0 =A0 =A0lwz =A0 =A0 r9,168(r9)
+> c0000000001e7a84 =A039600001 =A0 =A0 =A0li =A0 =A0 =A0r11,1
+> c0000000001e7a88 =A07c080050 =A0 =A0 =A0subf =A0 =A0r0,r8,r0
+> c0000000001e7a8c =A07f805040 =A0 =A0 =A0cmplw =A0 cr7,r0,r10
+> c0000000001e7a90 =A07d6b4830 =A0 =A0 =A0slw =A0 =A0 r11,r11,r9
+> c0000000001e7a94 =A0796b0020 =A0 =A0 =A0clrldi =A0r11,r11,32
+> c0000000001e7a98 =A0419d00a8 =A0 =A0 =A0bgt =A0 =A0 cr7,c0000000001e7b40 =
+=A0 =A0#
+> .block_is_partially_uptodate+0xe0/0x100
+> c0000000001e7a9c =A07fa55840 =A0 =A0 =A0cmpld =A0 cr7,r5,r11
+> c0000000001e7aa0 =A07d004214 =A0 =A0 =A0add =A0 =A0 r8,r0,r8
+> c0000000001e7aa4 =A079080020 =A0 =A0 =A0clrldi =A0r8,r8,32
+> c0000000001e7aa8 =A0419c0078 =A0 =A0 =A0blt =A0 =A0 cr7,c0000000001e7b20 =
+=A0 =A0#
+> .block_is_partially_uptodate+0xc0/0x100
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+>
+> Cc: arunabal@in.ibm.com
+> Cc: sbest@us.ibm.com
+> Cc: stable <stable@kernel.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Al Viro <viro@zeniv.linux.org.uk>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-I've created a patch which takes a slightly different approach.
-Instead of limiting how fast pages get reclaimed, the patch limits
-how fast the active list gets scanned. This should result in the
-active list being a better measure of the working set. I've seen
-fairly good results with this patch and a scan inteval of 1
-centisecond. I see no thrashing when the scan interval is non-zero.
-
-I've made it a tunable because I don't know what to set the scan
-interval. The final patch could set the value based on HZ and some
-other system parameters. Maybe relate it to sched_period?
-
----
-
-[PATCH] vmscan: add a configurable scan interval
-
-On ChromiumOS, we see a lot of thrashing under low memory. We do not
-use swap, so the mm system can only free file-backed pages. Eventually,
-we are left with little file back pages remaining (a few MB) and the
-system becomes unresponsive due to thrashing.
-
-Our preference is for the system to OOM instead of becoming unresponsive.
-
-This patch create a tunable, vmscan_interval_centisecs, for controlling
-the minimum interval between active list scans. At 0, I see the same
-thrashing. At 1, I see no thrashing. The mm system does a good job
-of protecting the working set. If a page has been referenced in the
-last vmscan_interval_centisecs it is kept in memory.
-
-Signed-off-by: Mandeep Singh Baines <msb@chromium.org>
----
- include/linux/mm.h     |    2 ++
- include/linux/mmzone.h |    9 +++++++++
- kernel/sysctl.c        |    7 +++++++
- mm/page_alloc.c        |    2 ++
- mm/vmscan.c            |   21 +++++++++++++++++++--
- 5 files changed, 39 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 721f451..af058f6 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -36,6 +36,8 @@ extern int sysctl_legacy_va_layout;
- #define sysctl_legacy_va_layout 0
- #endif
- 
-+extern unsigned int vmscan_interval;
-+
- #include <asm/page.h>
- #include <asm/pgtable.h>
- #include <asm/processor.h>
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 39c24eb..6c4b6e1 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -415,6 +415,15 @@ struct zone {
- 	unsigned long		present_pages;	/* amount of memory (excluding holes) */
- 
- 	/*
-+	 * To avoid over-scanning, we store the time of the last
-+	 * scan (in jiffies).
-+	 *
-+	 * The anon LRU stats live in [0], file LRU stats in [1]
-+	 */
-+
-+	unsigned long		last_scan[2];
-+
-+	/*
- 	 * rarely used fields:
- 	 */
- 	const char		*name;
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index c33a1ed..c34251d 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1318,6 +1318,13 @@ static struct ctl_table vm_table[] = {
- 		.extra2		= &one,
- 	},
- #endif
-+	{
-+		.procname	= "scan_interval_centisecs",
-+		.data		= &vmscan_interval,
-+		.maxlen		= sizeof(vmscan_interval),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec,
-+	},
- 
- /*
-  * NOTE: do not add new entries to this table unless you have read
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 07a6544..46991d2 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -51,6 +51,7 @@
- #include <linux/kmemleak.h>
- #include <linux/memory.h>
- #include <linux/compaction.h>
-+#include <linux/jiffies.h>
- #include <trace/events/kmem.h>
- #include <linux/ftrace_event.h>
- 
-@@ -4150,6 +4151,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 		BUG_ON(ret);
- 		memmap_init(size, nid, j, zone_start_pfn);
- 		zone_start_pfn += size;
-+		zone->last_scan[0] = zone->last_scan[1] = jiffies;
- 	}
- }
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b8a6fdc..be45b91 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -40,6 +40,7 @@
- #include <linux/memcontrol.h>
- #include <linux/delayacct.h>
- #include <linux/sysctl.h>
-+#include <linux/jiffies.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -136,6 +137,11 @@ struct scan_control {
- int vm_swappiness = 60;
- long vm_total_pages;	/* The total number of pages which the VM controls */
- 
-+/*
-+ * Minimum interval between active list scans.
-+ */
-+unsigned int vmscan_interval = 0;
-+
- static LIST_HEAD(shrinker_list);
- static DECLARE_RWSEM(shrinker_rwsem);
- 
-@@ -1659,14 +1665,25 @@ static int inactive_list_is_low(struct zone *zone, struct scan_control *sc,
- 		return inactive_anon_is_low(zone, sc);
- }
- 
-+static int list_scanned_recently(struct zone *zone, int file)
-+{
-+	unsigned long now = jiffies;
-+	unsigned long delta = vmscan_interval * HZ / 100;
-+
-+	return time_after(zone->last_scan[file] + delta, now);
-+}
-+
- static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 	struct zone *zone, struct scan_control *sc, int priority)
- {
- 	int file = is_file_lru(lru);
- 
- 	if (is_active_lru(lru)) {
--		if (inactive_list_is_low(zone, sc, file))
--		    shrink_active_list(nr_to_scan, zone, sc, priority, file);
-+		if (inactive_list_is_low(zone, sc, file) &&
-+		    !list_scanned_recently(zone, file)) {
-+			shrink_active_list(nr_to_scan, zone, sc, priority, file);
-+			zone->last_scan[file] = jiffies;
-+		}
- 		return 0;
- 	}
- 
--- 
-1.7.3.1
+Nice catch.
+It was much better if you comment it.
+Thanks, Dave.
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
