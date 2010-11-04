@@ -1,86 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id AABAD6B00A9
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 23:11:40 -0400 (EDT)
-Date: Wed, 3 Nov 2010 23:10:47 -0400 (EDT)
-From: caiqian@redhat.com
-Message-ID: <690735095.1385111288840247360.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-In-Reply-To: <1562100965.1384941288839981384.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Subject: Re: [PATCH 00 of 66] Transparent Hugepage Support #32
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7DDA48D0001
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 23:13:35 -0400 (EDT)
+Received: by qyk5 with SMTP id 5so760136qyk.14
+        for <linux-mm@kvack.org>; Wed, 03 Nov 2010 20:13:34 -0700 (PDT)
+From: Ben Gamari <bgamari.foss@gmail.com>
+Subject: Re: [PATCH] Add Kconfig option for default swappiness
+In-Reply-To: <alpine.DEB.2.00.1011021235130.21387@chino.kir.corp.google.com>
+References: <1288668052-32036-1-git-send-email-bgamari.foss@gmail.com> <alpine.DEB.2.00.1011012030100.12298@chino.kir.corp.google.com> <87oca7evbo.fsf@gmail.com> <alpine.DEB.2.00.1011021235130.21387@chino.kir.corp.google.com>
+Date: Wed, 03 Nov 2010 23:13:31 -0400
+Message-ID: <878w19bx2c.fsf@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Juhl <jj@chaosbits.net>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-There were some changes of behaviours with THP and KSM statistics demonstrated by this program, http://people.redhat.com/qcai/ksm01.c. 
+On Tue, 2 Nov 2010 12:39:52 -0700 (PDT), David Rientjes <rientjes@google.com> wrote:
+> On Tue, 2 Nov 2010, Ben Gamari wrote:
+> > Packaging concerns, as I mentioned before,
+> 
+> That you snipped from the changelog?
+> 
+Guilty as charged. Sorry about that, time has been in short supply
+recently.
 
-There are 3 programs (A, B ,C) to allocate 128M memory each using KSM.
-A has memory content = 'c'.
-B has memory content = 'a'.
-C has memory content = 'a'.
-Then without THP,
-pages_shared = 2
-pages_sharing = 98285
-pages_sharing = 98292
-pages_unshared = 0
-pages_volatile = 17
-pages_to_scan = 98304
-sleep_millisecs = 0
-with THP,
-pages_shared is 2.
-pages_sharing is 18422.
-pages_unshared is 0.
-pages_volatile is 8.
+> You could say the same thing for any sysctl, it's not indicative of why 
+> this particular change is needed in the kernel.
+> 
+This is certainly true; a distribution could in principle want to tweak
+the default values of any of the sysctl knobs. If we wanted to tweak
+anything else in addition to swappiness that I wouldn't have even
+bothered to submit the patch since I'll be the first to admit that the
+precedent set by further growing the Kconfig phase space is not a
+positive one. That being said, swappiness is one of the more significant
+knobs in the vm and certainly one of the more likely to be tuned by a
+distribution.
 
-Later,
-A has memory content = 'c'
-B has memory content = 'b'
-C has memory content = 'a'.
-Then without THP,
-pages_shared = 3
-pages_sharing = 98296
-pages_unshared = 0
-pages_volatile = 5
-with THP,
-pages_shared = 3
-pages_sharing = 16358
-pages_unshared = 0
-pages_volatile = 23
+> Let's not have the "in short" answer, what's the "long" answer?
 
-Later,
-A has memory content = 'd'
-B has memory content = 'd'
-C has memory content = 'd'
-Then without THP,
-pages_shared = 1
-pages_sharing = 98274
-pages_unshared = 0
-pages_volatile = 29
-with THP,
-pages_shared = 1
-pages_sharing = 8668
-pages_unshared = 0
-pages_volatile = 35
+See my recent response to Wu Fengguang.
 
-Finally,
-A changes one page to 'e'
-Then without THP,
-pages_shared = 1
-pages_sharing = 98274
-pages_unshared = 1
-pages_volatile = 28
-with THP,
-pages_shared = 1
-pages_sharing = 8163
-pages_unshared = 1
-pages_volatile = 27
+Cheers,
 
-Are those differences for pages_sharing between with and without THP are expected?
-
-CAI Qian
+- Ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
