@@ -1,91 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 2C8818D0001
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 23:41:28 -0400 (EDT)
-Date: Thu, 4 Nov 2010 11:41:19 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 00/17] [RFC] soft and dynamic dirty throttling limits
-Message-ID: <20101104034119.GA18910@localhost>
-References: <20100912154945.758129106@intel.com>
- <20101012141716.GA26702@infradead.org>
- <20101013030733.GV4681@dastard>
- <20101013082611.GA6733@localhost>
- <20101013092627.GY4681@dastard>
- <20101101062446.GK2715@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101101062446.GK2715@dastard>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3C1AC6B00B4
+	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 00:56:21 -0400 (EDT)
+Subject: Re: Re:[PATCH v2]oom-kill: CAP_SYS_RESOURCE should get bonus
+From: "Figo.zhang" <zhangtianfei@leadcoretech.com>
+In-Reply-To: <alpine.DEB.2.00.1011031952110.28251@chino.kir.corp.google.com>
+References: <1288662213.10103.2.camel@localhost.localdomain>
+	 <1288827804.2725.0.camel@localhost.localdomain>
+	 <alpine.DEB.2.00.1011031646110.7830@chino.kir.corp.google.com>
+	 <AANLkTimjfmLzr_9+Sf4gk0xGkFjffQ1VcCnwmCXA88R8@mail.gmail.com>
+	 <1288834737.2124.11.camel@myhost>
+	 <alpine.DEB.2.00.1011031847450.21550@chino.kir.corp.google.com>
+	 <1288836733.2124.18.camel@myhost>
+	 <alpine.DEB.2.00.1011031952110.28251@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 04 Nov 2010 12:42:10 +0800
+Message-ID: <1288845730.2102.11.camel@myhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, "Li, Shaohua" <shaohua.li@intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: figo zhang <figo1802@gmail.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Dave,
-
-On Mon, Nov 01, 2010 at 02:24:46PM +0800, Dave Chinner wrote:
-> On Wed, Oct 13, 2010 at 08:26:27PM +1100, Dave Chinner wrote:
-> > On Wed, Oct 13, 2010 at 04:26:12PM +0800, Wu Fengguang wrote:
-> > > On Wed, Oct 13, 2010 at 11:07:33AM +0800, Dave Chinner wrote:
-> > > > On Tue, Oct 12, 2010 at 10:17:16AM -0400, Christoph Hellwig wrote:
-> > > > > Wu, what's the state of this series?  It looks like we'll need it
-> > > > > rather sooner than later - try to get at least the preparations in
-> > > > > ASAP would be really helpful.
-> > > > 
-> > > > Not ready in it's current form. This load (creating millions of 1
-> > > > byte files in parallel):
-> > > > 
-> > > > $ /usr/bin/time ./fs_mark -D 10000 -S0 -n 100000 -s 1 -L 63 \
-> > > > > -d /mnt/scratch/0 -d /mnt/scratch/1 \
-> > > > > -d /mnt/scratch/2 -d /mnt/scratch/3 \
-> > > > > -d /mnt/scratch/4 -d /mnt/scratch/5 \
-> > > > > -d /mnt/scratch/6 -d /mnt/scratch/7
-> > > > 
-> > > > Locks up all the fs_mark processes spinning in traces like the
-> > > > following and no further progress is made when the inode cache
-> > > > fills memory.
-> > > 
-> > > I reproduced the problem on a 6G/8p 2-socket 11-disk box.
-> > > 
-> > > The root cause is, pageout() is somehow called with low scan priority,
-> > > which deserves more investigation.
-> > > 
-> > > The direct cause is, balance_dirty_pages() then keeps nr_dirty too low,
-> > > which can be improved easily by not pushing down the soft dirty limit
-> > > to less than 1-second worth of dirty pages.
-> > > 
-> > > My test box has two nodes, and their memory usage are rather unbalanced:
-> > > (Dave, maybe you have NUMA setup too?)
-> > 
-> > No, I'm running the test in a single node VM.
-> > 
-> > FYI, I'm running the test on XFS (16TB 12 disk RAID0 stripe), using
-> > the mount options "inode64,nobarrier,logbsize=262144,delaylog".
+On Wed, 2010-11-03 at 19:54 -0700, David Rientjes wrote:
+> On Thu, 4 Nov 2010, Figo.zhang wrote:
 > 
-> Any update on the current status of this patchset?
+> > In your new heuristic, you also get CAP_SYS_RESOURCE to protection.
+> > see fs/proc/base.c, line 1167:
+> > 	if (oom_score_adj < task->signal->oom_score_adj &&
+> > 			!capable(CAP_SYS_RESOURCE)) {
+> > 		err = -EACCES;
+> > 		goto err_sighand;
+> > 	}
+> 
+> That's unchanged from the old behavior with oom_adj.
+> 
+> > so i want to protect some process like normal process not
+> > CAP_SYS_RESOUCE, i set a small oom_score_adj , if new oom_score_adj is
+> > small than now and it is not limited resource, it will not adjust, that
+> > seems not right?
+> > 
+> 
+> Tasks without CAP_SYS_RESOURCE cannot lower their own oom_score_adj, 
 
-The last 3 patches to dynamically lower the 20% dirty limit seem
-to hurt writeback throughput when it goes too small. That's not
-surprising. I tried moderately increase the low bound of dynamic
-dirty limit but tests show that it's still not enough. Days ago I
-came up with another low bound scheme, however the test box has
-been running LKP (and other) benchmarks for the new -rc1 release..
+CAP_SYS_RESOURCE == 1 means without resource limits just like a
+superuser,
+CAP_SYS_RESOURCE == 0 means hold resource limits, like normal user,
+right?
 
-Anyway I see some tricky points in deciding the low bound for dynamic
-dirty limit. It seems reasonable to bypass this feature for now, and
-to test/submit the other important parts first.
+a new lower oom_score_adj will protect the process, right?
 
-I'm feeling relatively good about the first 14 patches to do IO-less
-balance_dirty_pages() and larger writeback chunk size. I'll repost
-them separately as v2 after returning to Shanghai.
+Tasks without CAP_SYS_RESOURCE, means that it is not a superuser, why
+user canot protect it by oom_score_adj?
 
-Some days ago I prepared some slides which has some figures on the old
-and new dirty throttling schemes. Hope it helps.
+like i want to protect my program such as gnome-terminal which is
+without CAP_SYS_RESOURCE (have resource limits), 
 
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling.pdf
+[figo@myhost ~]$ ps -ax | grep gnome-ter
+Warning: bad ps syntax, perhaps a bogus '-'? See
+http://procps.sf.net/faq.html
+ 2280 ?        Sl     0:01 gnome-terminal
+ 8839 pts/0    S+     0:00 grep gnome-ter
+[figo@myhost ~]$ cat /proc/2280/oom_adj 
+3
+[figo@myhost ~]$ echo -17 >  /proc/2280/oom_adj 
+bash: echo: write error: Permission denied
+[figo@myhost ~]$ 
 
-Thanks,
-Fengguang
+so, i canot protect my program.
+
+
+> otherwise it can trivially kill other tasks.  They can, however, increase 
+> their own oom_score_adj so the oom killer prefers to kill it first.
+> 
+> I think you may be confused: CAP_SYS_RESOURCE override resource limits.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
