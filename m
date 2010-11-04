@@ -1,70 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 825206B00C5
-	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 11:31:40 -0400 (EDT)
-Message-ID: <4CD2D18C.9080407@redhat.com>
-Date: Thu, 04 Nov 2010 11:30:20 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BBFB26B00C5
+	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 12:05:56 -0400 (EDT)
+Message-ID: <E1PE2Jp-00031X-Tx@approx.mit.edu>
+Subject: Re: 2.6.36 io bring the system to its knees
+In-Reply-To: Your message of "Tue, 02 Nov 2010 09:12:39 EDT."
+             <20101102131239.GA8680@think>
+Date: Thu, 4 Nov 2010 12:05:41 -0400
+From: Sanjoy Mahajan <sanjoy@olin.edu>
 MIME-Version: 1.0
-Subject: Re: [PATCH] RFC: vmscan: add min_filelist_kbytes sysctl for protecting
- the working set
-References: <20101028191523.GA14972@google.com> <20101101012322.605C.A69D9226@jp.fujitsu.com> <20101101182416.GB31189@google.com> <4CCF0BE3.2090700@redhat.com> <AANLkTi=src1L0gAFsogzCmejGOgg5uh=9O4Uw+ZmfBg4@mail.gmail.com> <4CCF8151.3010202@redhat.com> <20101103224055.GC19646@google.com>
-In-Reply-To: <20101103224055.GC19646@google.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
-To: Mandeep Singh Baines <msb@chromium.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wad@chromium.org, olofj@chromium.org, hughd@chromium.org
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter.Zijl@MIT.EDU
 List-ID: <linux-mm.kvack.org>
 
-On 11/03/2010 06:40 PM, Mandeep Singh Baines wrote:
+> So this sounds like the backup is just thrashing your cache.
 
-> I've created a patch which takes a slightly different approach.
-> Instead of limiting how fast pages get reclaimed, the patch limits
-> how fast the active list gets scanned. This should result in the
-> active list being a better measure of the working set. I've seen
-> fairly good results with this patch and a scan inteval of 1
-> centisecond. I see no thrashing when the scan interval is non-zero.
->
-> I've made it a tunable because I don't know what to set the scan
-> interval. The final patch could set the value based on HZ and some
-> other system parameters. Maybe relate it to sched_period?
+I think it's more than that.  Starting an rxvt shouldn't take 8 seconds,
+even with a cold cache.  Actually, it does take a while, so you do have
+a point.  I just did
 
-I like your approach. For file pages it looks like it
-could work fine, since new pages always start on the
-inactive file list.
+  echo 3 > /proc/sys/vm/drop_caches
 
-However, for anonymous pages I could see your patch
-leading to problems, because all anonymous pages start
-on the active list.  With a scan interval of 1
-centiseconds, that means there would be a limit of 3200
-pages, or 12MB of anonymous memory that can be moved to
-the inactive list a second.
+and then started rxvt.  That takes about 3 seconds (which seems long,
+but I don't know wherein that slowness lies), of which maybe 0.25
+seconds is loading and running 'date':
 
-I have seen systems with single SATA disks push out
-several times that to swap per second, which matters
-when someone starts up a program that is just too big
-to fit in memory and requires that something is pushed
-out.
+$ time rxvt -e date
+real	0m2.782s
+user	0m0.148s
+sys	0m0.032s
 
-That would reduce the size of the inactive list to
-zero, reducing our page replacement to a slow FIFO
-at best, causing false OOM kills at worst.
+The 8-second delay during the rsync must have at least two causes: (1)
+the cache is wiped out, and (2) the rxvt binary cannot be paged in
+quickly because the disk is doing lots of other I/O.  
 
-Staying with a default of 0 would of course not do
-anything, which would make merging the code not too
-useful.
+Can the system someknow that paging in the rxvt binary and shared
+libraries is interactive I/O, because it was started by an interactive
+process, and therefore should take priority over the rsync?
 
-I believe we absolutely need to preserve the ability
-to evict pages quickly, when new pages are brought
-into memory or allocated quickly.
+> Does rsync have the option to do an fadvise DONTNEED?
 
-However, speed limits are probably a very good idea
-once a cache has been reduced to a smaller size, or
-when most IO bypasses the reclaim-speed-limited cache.
+I couldn't find one.  It would be good to have a solution that is
+independent of the backup app.  (The 'locate' cron job does a similar
+thrashing of the interactive response.)
 
--- 
-All rights reversed
+-Sanjoy
+
+`Until lions have their historians, tales of the hunt shall always
+ glorify the hunters.'  --African Proverb
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
