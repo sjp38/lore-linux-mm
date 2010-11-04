@@ -1,37 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 6C6486B00A9
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 22:44:15 -0400 (EDT)
-Received: by qwi2 with SMTP id 2so823280qwi.14
-        for <linux-mm@kvack.org>; Wed, 03 Nov 2010 19:44:13 -0700 (PDT)
-From: Ben Gamari <bgamari.foss@gmail.com>
-Subject: Re: [PATCH] Add Kconfig option for default swappiness
-In-Reply-To: <AANLkTimDPdDHAg0Odp0WchOLKh3OUSOWX7_0ps8eizFk@mail.gmail.com>
-References: <1288668052-32036-1-git-send-email-bgamari.foss@gmail.com> <alpine.DEB.2.00.1011012030100.12298@chino.kir.corp.google.com> <87oca7evbo.fsf@gmail.com> <AANLkTimDPdDHAg0Odp0WchOLKh3OUSOWX7_0ps8eizFk@mail.gmail.com>
-Date: Wed, 03 Nov 2010 22:44:11 -0400
-Message-ID: <87eib1byf8.fsf@gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 9A5676B00A9
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 22:55:02 -0400 (EDT)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id oA42sxo8018582
+	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 19:55:00 -0700
+Received: from pvg4 (pvg4.prod.google.com [10.241.210.132])
+	by kpbe17.cbf.corp.google.com with ESMTP id oA42swvU023260
+	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 19:54:58 -0700
+Received: by pvg4 with SMTP id 4so665829pvg.40
+        for <linux-mm@kvack.org>; Wed, 03 Nov 2010 19:54:58 -0700 (PDT)
+Date: Wed, 3 Nov 2010 19:54:53 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Re:[PATCH v2]oom-kill: CAP_SYS_RESOURCE should get bonus
+In-Reply-To: <1288836733.2124.18.camel@myhost>
+Message-ID: <alpine.DEB.2.00.1011031952110.28251@chino.kir.corp.google.com>
+References: <1288662213.10103.2.camel@localhost.localdomain> <1288827804.2725.0.camel@localhost.localdomain> <alpine.DEB.2.00.1011031646110.7830@chino.kir.corp.google.com> <AANLkTimjfmLzr_9+Sf4gk0xGkFjffQ1VcCnwmCXA88R8@mail.gmail.com> <1288834737.2124.11.camel@myhost>
+ <alpine.DEB.2.00.1011031847450.21550@chino.kir.corp.google.com> <1288836733.2124.18.camel@myhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Juhl <jj@chaosbits.net>, Wu Fengguang <fengguang.wu@intel.com>
+To: "Figo.zhang" <zhangtianfei@leadcoretech.com>
+Cc: figo zhang <figo1802@gmail.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Nov 2010 23:34:27 +0900, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com> wrote:
-> Hmm, then, can't we add a sysctl template config/script for generic
-> sysctl values ?
->
-That is one idea. Unfortunately, then we have something of a dependency
-on out of tree userspace utilities.
+On Thu, 4 Nov 2010, Figo.zhang wrote:
 
-> Adding this kind of CONFIG one by one seems not very helpful...
+> In your new heuristic, you also get CAP_SYS_RESOURCE to protection.
+> see fs/proc/base.c, line 1167:
+> 	if (oom_score_adj < task->signal->oom_score_adj &&
+> 			!capable(CAP_SYS_RESOURCE)) {
+> 		err = -EACCES;
+> 		goto err_sighand;
+> 	}
+
+That's unchanged from the old behavior with oom_adj.
+
+> so i want to protect some process like normal process not
+> CAP_SYS_RESOUCE, i set a small oom_score_adj , if new oom_score_adj is
+> small than now and it is not limited resource, it will not adjust, that
+> seems not right?
 > 
-This was definitely a concern of mine as well. In principle, a
-distribution might want to tune any of the knobs in /proc/sys, so I
-agree that adding them to Kconfig is a bit of a poor path to go down.
-That being said, swappiness is an especially important tunable.
 
-- Ben
+Tasks without CAP_SYS_RESOURCE cannot lower their own oom_score_adj, 
+otherwise it can trivially kill other tasks.  They can, however, increase 
+their own oom_score_adj so the oom killer prefers to kill it first.
+
+I think you may be confused: CAP_SYS_RESOURCE override resource limits.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
