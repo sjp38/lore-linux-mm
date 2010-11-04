@@ -1,53 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 8DE086B0085
-	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 01:59:03 -0400 (EDT)
-Received: by qyk5 with SMTP id 5so884308qyk.14
-        for <linux-mm@kvack.org>; Wed, 03 Nov 2010 22:59:01 -0700 (PDT)
-From: Ben Gamari <bgamari.foss@gmail.com>
-Subject: fadvise DONTNEED implementation (or lack thereof)
-Date: Thu, 04 Nov 2010 01:58:58 -0400
-Message-ID: <87lj597hp9.fsf@gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id C32536B00CA
+	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 04:42:09 -0400 (EDT)
+Date: Thu, 4 Nov 2010 04:41:12 -0400 (EDT)
+From: CAI Qian <caiqian@redhat.com>
+Message-ID: <2080208615.1392881288860072684.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <690735095.1385111288840247360.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Subject: Re: [PATCH 00 of 66] Transparent Hugepage Support #32
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I've recently been trying to track down the root cause of my server's
-persistent issue of thrashing horribly after being left inactive. It
-seems that the issue is likely my nightly backup schedule (using rsync)
-which traverses my entire 50GB home directory. I was surprised to find
-that rsync does not use fadvise to notify the kernel of its use-once
-data usage pattern.
+Thank Andrea for pointing out to me there are ongoing works for KSM and THP integration. Sorry for the noise.
 
-It looks like a patch[1] was written (although never merged, it seems)
-incorporating fadvise support, but I found its implementation rather
-odd, using mincore() and FADV_DONTNEED to kick out only regions brought
-in by rsync. It seemed to me the simpler and more appropriate solution
-would be to simply flag every touched file with FADV_NOREUSE and let the
-kernel manage automatically expelling used pages.
+CAI Qian
 
-After looking deeper into the kernel implementation[2] of fadvise() the
-reason for using DONTNEED became more apparant. It seems that the kernel
-implements NOREUSE as a noop. A little googling revealed[3] that I not
-the first person to encounter this limitation. It looks like a few
-folks[4] have discussed addressing the issue in the past, but nothing
-has happened as of 2.6.36. Are there plans to implement this
-functionality in the near future? It seems like the utility of fadvise
-is severely limited by lacking support for NOREUSE.
+----- caiqian@redhat.com wrote:
 
-Cheers,
-
-- Ben
-
-
-[1] http://insights.oetiker.ch/linux/fadvise.html
-[2] http://lxr.free-electrons.com/source/mm/fadvise.c?a=avr32
-[3] https://issues.apache.org/jira/browse/CASSANDRA-1470
-    http://chbits.blogspot.com/2010/06/lucene-and-fadvisemadvise.html
-[4] http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg179576.html
-    http://lkml.indiana.edu/hypermail/linux/kernel/0807.2/0442.html
+> There were some changes of behaviours with THP and KSM statistics
+> demonstrated by this program, http://people.redhat.com/qcai/ksm01.c.
+> 
+> There are 3 programs (A, B ,C) to allocate 128M memory each using KSM.
+> A has memory content = 'c'.
+> B has memory content = 'a'.
+> C has memory content = 'a'.
+> Then without THP,
+> pages_shared = 2
+> pages_sharing = 98285
+> pages_sharing = 98292
+> pages_unshared = 0
+> pages_volatile = 17
+> pages_to_scan = 98304
+> sleep_millisecs = 0
+> with THP,
+> pages_shared is 2.
+> pages_sharing is 18422.
+> pages_unshared is 0.
+> pages_volatile is 8.
+> 
+> Later,
+> A has memory content = 'c'
+> B has memory content = 'b'
+> C has memory content = 'a'.
+> Then without THP,
+> pages_shared = 3
+> pages_sharing = 98296
+> pages_unshared = 0
+> pages_volatile = 5
+> with THP,
+> pages_shared = 3
+> pages_sharing = 16358
+> pages_unshared = 0
+> pages_volatile = 23
+> 
+> Later,
+> A has memory content = 'd'
+> B has memory content = 'd'
+> C has memory content = 'd'
+> Then without THP,
+> pages_shared = 1
+> pages_sharing = 98274
+> pages_unshared = 0
+> pages_volatile = 29
+> with THP,
+> pages_shared = 1
+> pages_sharing = 8668
+> pages_unshared = 0
+> pages_volatile = 35
+> 
+> Finally,
+> A changes one page to 'e'
+> Then without THP,
+> pages_shared = 1
+> pages_sharing = 98274
+> pages_unshared = 1
+> pages_volatile = 28
+> with THP,
+> pages_shared = 1
+> pages_sharing = 8163
+> pages_unshared = 1
+> pages_volatile = 27
+> 
+> Are those differences for pages_sharing between with and without THP
+> are expected?
+> 
+> CAI Qian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
