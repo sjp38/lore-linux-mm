@@ -1,79 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 322418D0001
-	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 19:35:37 -0400 (EDT)
-Received: by gyd8 with SMTP id 8so1572310gyd.14
-        for <linux-mm@kvack.org>; Thu, 04 Nov 2010 16:35:35 -0700 (PDT)
-Message-ID: <4CD34349.9010504@gmail.com>
-Date: Thu, 04 Nov 2010 18:35:37 -0500
-From: Steven Barrett <damentz@gmail.com>
-MIME-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id D50AE8D0001
+	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 19:55:33 -0400 (EDT)
+Date: Fri, 5 Nov 2010 00:44:35 +0100 (CET)
+From: Jesper Juhl <jj@chaosbits.net>
 Subject: Re: 2.6.36 io bring the system to its knees
-References: <E1PE2Jp-00031X-Tx@approx.mit.edu>
-In-Reply-To: <E1PE2Jp-00031X-Tx@approx.mit.edu>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20101028170132.GY27796@think>
+Message-ID: <alpine.LNX.2.00.1011050032440.16015@swampdragon.chaosbits.net>
+References: <AANLkTimt7wzR9RwGWbvhiOmot_zzayfCfSh_-v6yvuAP@mail.gmail.com> <AANLkTikRKVBzO=ruy=JDmBF28NiUdJmAqb4-1VhK0QBX@mail.gmail.com> <AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com> <AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com>
+ <AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com> <20101028090002.GA12446@elte.hu> <AANLkTinoGGLTN2JRwjJtF6Ra5auZVg+VSa=TyrtAkDor@mail.gmail.com> <20101028133036.GA30565@elte.hu> <20101028170132.GY27796@think>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Sanjoy Mahajan <sanjoy@olin.edu>
-Cc: Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter.Zijl@MIT.EDU
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ted Ts'o <tytso@mit.edu>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Sanjoy Mahajan <sanjoy@olin.edu>, Steven Barrett <damentz@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On 11/04/2010 11:05 AM, Sanjoy Mahajan wrote:
->> So this sounds like the backup is just thrashing your cache.
-> 
-> I think it's more than that.  Starting an rxvt shouldn't take 8 seconds,
-> even with a cold cache.  Actually, it does take a while, so you do have
-> a point.  I just did
-> 
->   echo 3 > /proc/sys/vm/drop_caches
-> 
-> and then started rxvt.  That takes about 3 seconds (which seems long,
-> but I don't know wherein that slowness lies), of which maybe 0.25
-> seconds is loading and running 'date':
-> 
-> $ time rxvt -e date
-> real	0m2.782s
-> user	0m0.148s
-> sys	0m0.032s
-> 
-> The 8-second delay during the rsync must have at least two causes: (1)
-> the cache is wiped out, and (2) the rxvt binary cannot be paged in
-> quickly because the disk is doing lots of other I/O.  
-> 
-> Can the system someknow that paging in the rxvt binary and shared
-> libraries is interactive I/O, because it was started by an interactive
-> process, and therefore should take priority over the rsync?
-> 
->> Does rsync have the option to do an fadvise DONTNEED?
-> 
-> I couldn't find one.  It would be good to have a solution that is
-> independent of the backup app.  (The 'locate' cron job does a similar
-> thrashing of the interactive response.)
+On Thu, 28 Oct 2010, Chris Mason wrote:
 
-I'm definitely no expert in Linux' file cache management, but from what
-I've experienced... isn't the real problem that the "interactive"
-processes, like your web browser or file manager, lose their inode and
-dentry cache when rsync runs?  Then while rsync is busy reading and
-writing to the disk, whenever you click on your interactive application,
-it tries to read what it lost to rsync from the disk while rsync is
-still thrashing your inode/dentry cache.
-
-This is a major problem even when my system has lots of ram (4gB on this
-laptop).
-
-What has helped me, however, is reducing vm.vfs_cache_pressure to a
-smaller value (25 here) so that Linux prefers to retain the current
-inode / dentry cache rather than suddenly give it up for a new greedy
-I/O type of program.  The only side effect is that file copying is a
-little slower than usual... totally worth it though.
-
+> On Thu, Oct 28, 2010 at 03:30:36PM +0200, Ingo Molnar wrote:
+> > 
+> > "Many seconds freezes" and slowdowns wont be fixed via the VFS scalability patches 
+> > i'm afraid.
+> > 
+> > This has the appearance of some really bad IO or VM latency problem. Unfixed and 
+> > present in stable kernel versions going from years ago all the way to v2.6.36.
 > 
-> -Sanjoy
+> Hmmm, the workload you're describing here has two special parts.  First
+> it dramatically overloads the disk, and then it has guis doing things
+> waiting for the disk.
 > 
-> `Until lions have their historians, tales of the hunt shall always
->  glorify the hunters.'  --African Proverb
 
-	Steven Barrett
+Just want to chime in with a 'me too'.
+
+I see something similar on Arch Linux when doing 'pacman -Syyuv' and there 
+are many (as in more than 5-10) updates to apply. While the update is 
+running (even if that's all the system is doing) system responsiveness is 
+terrible - just starting 'chromium' which is usually instant (at least 
+less than 2 sec at worst) can take upwards of 10 seconds and the mouse 
+cursor in X starts to jump a bit as well and switching virtual desktops 
+noticably lags when redrawing the new desktop if there's a full screen app 
+like gimp or OpenOffice open there. This is on a Lenovo Thinkpad R61i 
+which has a 'Intel(R) Core(TM)2 Duo CPU T7250 @ 2.00GHz' CPU, 2GB of 
+memory and 499996 kilobytes of swap.
+
+
+-- 
+Jesper Juhl <jj@chaosbits.net>             http://www.chaosbits.net/
+Plain text mails only, please      http://www.expita.com/nomime.html
+Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
