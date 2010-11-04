@@ -1,29 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FFE26B00BB
-	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 10:00:16 -0400 (EDT)
-Date: Thu, 4 Nov 2010 15:00:11 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch]vmscan: avoid set zone congested if no page dirty
-Message-ID: <20101104140011.GC6384@cmpxchg.org>
-References: <1288831858.23014.129.camel@sli10-conroe>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B38616B00BB
+	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 10:12:20 -0400 (EDT)
+Message-ID: <4CD2BF1C.10608@redhat.com>
+Date: Thu, 04 Nov 2010 10:11:40 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1288831858.23014.129.camel@sli10-conroe>
+Subject: Re: [PATCH] Revalidate page->mapping in do_generic_file_read()
+References: <20101103220941.C88FA932@kernel.beaverton.ibm.com>
+In-Reply-To: <20101103220941.C88FA932@kernel.beaverton.ibm.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: linux-mm <linux-mm@kvack.org>, mel <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, arunabal@in.ibm.com, sbest@us.ibm.com, stable <stable@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Al Viro <viro@zeniv.linux.org.uk>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 04, 2010 at 08:50:58AM +0800, Shaohua Li wrote:
-> nr_dirty and nr_congested are increased only when page is dirty. So if all pages
-> are clean, both them will be zero. In this case, we should not mark the zone
-> congested.
-> 
-> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+On 11/03/2010 06:09 PM, Dave Hansen wrote:
+> 70 hours into some stress tests of a 2.6.32-based enterprise kernel,
+> we ran into a NULL dereference in here:
+>
+> 	int block_is_partially_uptodate(struct page *page, read_descriptor_t *desc,
+> 	                                        unsigned long from)
+> 	{
+> ---->		struct inode *inode = page->mapping->host;
+>
+> It looks like page->mapping was the culprit.  (xmon trace is below).
+> After closer examination, I realized that do_generic_file_read() does
+> a find_get_page(), and eventually locks the page before calling
+> block_is_partially_uptodate().  However, it doesn't revalidate the
+> page->mapping after the page is locked.  So, there's a small window
+> between the find_get_page() and ->is_partially_uptodate() where the
+> page could get truncated and page->mapping cleared.
+>
+> We _have_ a reference, so it can't get reclaimed, but it certainly
+> can be truncated.
 
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Rik van Riel <riel@redhat.com>
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
