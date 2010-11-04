@@ -1,52 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A5676B00A9
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 22:55:02 -0400 (EDT)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id oA42sxo8018582
-	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 19:55:00 -0700
-Received: from pvg4 (pvg4.prod.google.com [10.241.210.132])
-	by kpbe17.cbf.corp.google.com with ESMTP id oA42swvU023260
-	for <linux-mm@kvack.org>; Wed, 3 Nov 2010 19:54:58 -0700
-Received: by pvg4 with SMTP id 4so665829pvg.40
-        for <linux-mm@kvack.org>; Wed, 03 Nov 2010 19:54:58 -0700 (PDT)
-Date: Wed, 3 Nov 2010 19:54:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Re:[PATCH v2]oom-kill: CAP_SYS_RESOURCE should get bonus
-In-Reply-To: <1288836733.2124.18.camel@myhost>
-Message-ID: <alpine.DEB.2.00.1011031952110.28251@chino.kir.corp.google.com>
-References: <1288662213.10103.2.camel@localhost.localdomain> <1288827804.2725.0.camel@localhost.localdomain> <alpine.DEB.2.00.1011031646110.7830@chino.kir.corp.google.com> <AANLkTimjfmLzr_9+Sf4gk0xGkFjffQ1VcCnwmCXA88R8@mail.gmail.com> <1288834737.2124.11.camel@myhost>
- <alpine.DEB.2.00.1011031847450.21550@chino.kir.corp.google.com> <1288836733.2124.18.camel@myhost>
+	by kanga.kvack.org (Postfix) with SMTP id 99C9D6B00A9
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 23:09:31 -0400 (EDT)
+Received: by qyk4 with SMTP id 4so847524qyk.14
+        for <linux-mm@kvack.org>; Wed, 03 Nov 2010 20:09:30 -0700 (PDT)
+From: Ben Gamari <bgamari.foss@gmail.com>
+Subject: Re: [PATCH] Add Kconfig option for default swappiness
+In-Reply-To: <20101102140119.GA8294@localhost>
+References: <1288668052-32036-1-git-send-email-bgamari.foss@gmail.com> <alpine.DEB.2.00.1011012030100.12298@chino.kir.corp.google.com> <87oca7evbo.fsf@gmail.com> <20101102140119.GA8294@localhost>
+Date: Wed, 03 Nov 2010 23:09:27 -0400
+Message-ID: <87aalpbx94.fsf@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: "Figo.zhang" <zhangtianfei@leadcoretech.com>
-Cc: figo zhang <figo1802@gmail.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jesper Juhl <jj@chaosbits.net>, Dave Jones <davej@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Nov 2010, Figo.zhang wrote:
+On Tue, 2 Nov 2010 22:01:20 +0800, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> It's interesting to know what value you plan to use for your
+> desktop/server systems and the rationals (is it based on any
+> testing results?).
 
-> In your new heuristic, you also get CAP_SYS_RESOURCE to protection.
-> see fs/proc/base.c, line 1167:
-> 	if (oom_score_adj < task->signal->oom_score_adj &&
-> 			!capable(CAP_SYS_RESOURCE)) {
-> 		err = -EACCES;
-> 		goto err_sighand;
-> 	}
+This is something that will likely require a great deal of research,
+thinking, and testing. I wish I could give you a better answer at the
+moment. I have read many opinions on this but have not seen enough
+evidence to suggest specific values. In the desktop case, it seems clear
+that the preferred value should be lower than the current default to
+preserve interactive performance (long latencies due to swapping is
+something that many desktop users complain about currently). I set
+swappiness to 10 on my own machines machines with good results, but mine
+is anything but a model case. I don't believe there is any direct need
+to touch the server kernel swappiness at the moment.
 
-That's unchanged from the old behavior with oom_adj.
+> And why it's easier to do it in kernel (hope it's not because of
+> trouble communicating with the user space packaging team).
 
-> so i want to protect some process like normal process not
-> CAP_SYS_RESOUCE, i set a small oom_score_adj , if new oom_score_adj is
-> small than now and it is not limited resource, it will not adjust, that
-> seems not right?
-> 
+Fear not, this is certainly not the case. We would simply like to be
+able to keep this our kernel configuration self-contained. We already
+have separate packages for various kernel flavors with their own
+configurations. Allowing us to tune swappiness from the configuration
+would keep things much cleaner.
 
-Tasks without CAP_SYS_RESOURCE cannot lower their own oom_score_adj, 
-otherwise it can trivially kill other tasks.  They can, however, increase 
-their own oom_score_adj so the oom killer prefers to kill it first.
+The other option would be to drop a file in /etc/sysctl.d from the
+kernel meta-package (e.g. linux-image-generic and
+linux-image-server). However, it would make little sense to do this
+without adding a dependency on procps to this package (although,
+admittedly, procps is in the default installation) which we would rather
+not do if possible. Furthermore, this spreads the kernel configuration
+across the system. In sum, it seems that configuring the default in the
+kernel itself is by far the most elegant way to proceed.
 
-I think you may be confused: CAP_SYS_RESOURCE override resource limits.
+Cheers,
+
+- Ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
