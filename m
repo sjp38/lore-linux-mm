@@ -1,258 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D4FD98D0001
-	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 12:41:52 -0400 (EDT)
-Date: Thu, 4 Nov 2010 17:41:44 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Deadlocks with transparent huge pages and userspace fs daemons
-Message-ID: <20101104164144.GI11602@random.random>
-References: <1288817005.4235.11393.camel@nimitz>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C85628D0001
+	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 13:32:55 -0400 (EDT)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
+	by smtp-out.google.com with ESMTP id oA4HWNTT026670
+	for <linux-mm@kvack.org>; Thu, 4 Nov 2010 10:32:23 -0700
+Received: from pwj7 (pwj7.prod.google.com [10.241.219.71])
+	by hpaq14.eem.corp.google.com with ESMTP id oA4HWJLe003985
+	for <linux-mm@kvack.org>; Thu, 4 Nov 2010 10:32:22 -0700
+Received: by pwj7 with SMTP id 7so285213pwj.19
+        for <linux-mm@kvack.org>; Thu, 04 Nov 2010 10:32:19 -0700 (PDT)
+Date: Thu, 4 Nov 2010 10:31:58 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [BUGFIX][PATCH] fix wrong VM_BUG_ON() in try_charge()'s mm->owner
+ check
+In-Reply-To: <AANLkTikCUdpx-jGhKdzueML39CnExumk1i_X_OZJihE2@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1011041016520.19411@tigran.mtv.corp.google.com>
+References: <AANLkTikCUdpx-jGhKdzueML39CnExumk1i_X_OZJihE2@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1288817005.4235.11393.camel@nimitz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Lin Feng Shen <shenlinf@cn.ibm.com>, Yuri L Volobuev <volobuev@us.ibm.com>, Mel Gorman <mel@linux.vnet.ibm.com>, dingc@cn.ibm.com, lnxninja <lnxninja@us.ibm.com>
+To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 03, 2010 at 01:43:25PM -0700, Dave Hansen wrote:
-> Hey Miklos,
-> 
-> When testing with a transparent huge page kernel:
-> 
-> 	http://git.kernel.org/gitweb.cgi?p=linux/kernel/git/andrea/aa.git;a=summary
-> 
-> some IBM testers ran into some deadlocks.  It appears that the
-> khugepaged process is trying to migrate one of a filesystem daemon's
-> pages while khugepaged holds the daemon's mmap_sem for write.
+On Wed, 3 Nov 2010, Hiroyuki Kamezawa wrote:
+> I'm sorry for attached file, I have to use unusual mailer this time.
+> This is a fix for wrong VM_BUG_ON() for mm/memcontol.c
 
-Correct. So now I'm wondering what happens if some library of this
-daemon happens to execute a munmap that calls split_vma and allocates
-memory while holding the mmap_sem, and the memory allocation triggers
-I/O that will have to be executed by the daemon.
+Thanks, Kame, that's good: I've inlined it below with Balbir's Review,
+my Ack, and a Cc: stable@kernel.org.
 
-> I think I've reproduced this issue in a slightly different form with
-> FUSE.  In my case, I think the FUSE process actually deadlocks on itself
-> instead of with khugepaged as in the IBM tester example that got me
-> looking at this.
-> 
-> Andrea put it this way:
-> > As long as page faults are needed to execute the I/O I doubt it's safe. But
-> > I'll definitely change khugepaged not to allocate memory. If nothing else
-> > because I don't want khugepaged to make easier to trigger issues like this. But
-> > it's hard for me to consider this a bug of khugepaged from a theoretical
-> > standpoint.
-> 
-> I tend to agree.  khugepaged makes the likelyhood of these things
-> happening much higher, but I don't think it fundamentally creates the
-> issue.
+Hugh
 
-Yep.
 
-> 
-> Should we do something like make page compaction always non-blocking on
-> lock_page()?  Should we teach the VM about fuse daemons somehow?
-> 
-> INFO: task unionfs:3527 blocked for more than 120 seconds.
-> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
-> message.
-> unionfs       D ffff88007d356ec0     0  3527   3478 0x00000000
->  ffff88007b0db9a8 0000000000000082 ffffea00000650c8 ffff88007d356c70
->  ffff88007d1286a0 000000000000000d 0000000000000000 0000000000000301
->  ffff88007b0db978 ffffffff81098f70 ffff88007b0dba58 ffff880001db1f40
-> Call Trace:
->  [<ffffffff81098f70>] ? vma_prio_tree_next+0x3c/0x52
->  [<ffffffff813eb183>] io_schedule+0x38/0x4d
->  [<ffffffff8108683a>] sync_page+0x44/0x48
->  [<ffffffff813eb5e7>] __wait_on_bit_lock+0x42/0x8a
->  [<ffffffff810867f6>] ? sync_page+0x0/0x48
->  [<ffffffff810867e2>] __lock_page+0x64/0x6b
->  [<ffffffff810467bb>] ? wake_bit_function+0x0/0x2a
->  [<ffffffff810bce62>] migrate_pages+0x1df/0x66b
->  [<ffffffff810b8b33>] ? compaction_alloc+0x0/0x2b9
->  [<ffffffff8108fa2c>] ? ____pagevec_lru_add+0x13c/0x14f
->  [<ffffffff810b85e5>] compact_zone+0x331/0x54d
->  [<ffffffff810b89e4>] compact_zone_order+0xaa/0xb9
->  [<ffffffff810b8acd>] try_to_compact_pages+0xda/0x140
->  [<ffffffff8108c3f0>] __alloc_pages_nodemask+0x3a6/0x74b
->  [<ffffffff810b5db5>] alloc_pages_vma+0x110/0x13d
->  [<ffffffff810c6d6d>] do_huge_pmd_anonymous_page+0xc0/0x287
->  [<ffffffff810a0ed7>] handle_mm_fault+0x15c/0x201
->  [<ffffffff813efa5c>] do_page_fault+0x304/0x422
->  [<ffffffff810a5e8a>] ? do_brk+0x282/0x2c8
->  [<ffffffff813ed40f>] page_fault+0x1f/0x30
-> 
-> I had to make some changes to the transparent huge page code to get this
-> to happen.  First, I made the scanning *REALLY* aggressive:
-> 
-> echo 1 > /sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs
-> echo 1 > /sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
-> echo 65536 > /sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
-> 
-> Then, I hacked migrate_pages() call of unmap_and_move() to always
-> 'force', so that it tries to lock_page() unconditionally.  That's just
-> to make this race more common.  I also created some large malloc()'d
-> memory areas in the unionfs daemon and touched them constantly to cause
-> lots of page faults.
-> 
-> Other relevant tasks:
-> 
-> INFO: task mmap-and-touch:3584 blocked for more than 120 seconds.
-> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> mmap-and-touc D ffff88007bd71510     0  3584   3542 0x00000000
->  ffff88007a591b88 0000000000000086 ffff88007bd57400 ffff88007bd712c0
->  ffff88007d01cd70 ffffffff00000004 ffff88007d22e578 ffff88005e5b7440
->  ffff88007a591b58 0000000181182a8c ffff88007a591b88 ffff880001c91f40
-> Call Trace:
->  [<ffffffff813eb183>] io_schedule+0x38/0x4d
->  [<ffffffff8108683a>] sync_page+0x44/0x48
->  [<ffffffff813eb5e7>] __wait_on_bit_lock+0x42/0x8a
->  [<ffffffff810867f6>] ? sync_page+0x0/0x48
->  [<ffffffff810867e2>] __lock_page+0x64/0x6b
->  [<ffffffff810467bb>] ? wake_bit_function+0x0/0x2a
->  [<ffffffff810868a1>] find_lock_page+0x39/0x5d
->  [<ffffffff81087f60>] filemap_fault+0x1a6/0x30e
->  [<ffffffff8109e5e0>] __do_fault+0x50/0x432
->  [<ffffffff8109f636>] handle_pte_fault+0x2db/0x717
->  [<ffffffff8108b67c>] ? __free_pages+0x1b/0x24
->  [<ffffffff810a0d6c>] ? __pte_alloc+0x112/0x121
->  [<ffffffff810a0f64>] handle_mm_fault+0x1e9/0x201
->  [<ffffffff813efa5c>] do_page_fault+0x304/0x422
->  [<ffffffff810cc83d>] ? sys_newfstat+0x29/0x34
->  [<ffffffff813ed40f>] page_fault+0x1f/0x30
-> INFO: task memknobs:3599 blocked for more than 120 seconds.
-> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> memknobs      D ffff88007d305b20     0  3599   3573 0x00000000
->  ffff88005e4539a8 0000000000000086 ffff88005e453978 ffff88007d3058d0
->  ffff88007dbb60d0 ffffea0000000002 000000003963d000 ffff88007a4c11e8
->  ffffea000033aa10 000000017b1e69e0 ffff88005e453988 ffff880001c51f40
-> Call Trace:
->  [<ffffffff813eb183>] io_schedule+0x38/0x4d
->  [<ffffffff8108683a>] sync_page+0x44/0x48
->  [<ffffffff813eb5e7>] __wait_on_bit_lock+0x42/0x8a
->  [<ffffffff810867f6>] ? sync_page+0x0/0x48
->  [<ffffffff810867e2>] __lock_page+0x64/0x6b
->  [<ffffffff810467bb>] ? wake_bit_function+0x0/0x2a
->  [<ffffffff810bce62>] migrate_pages+0x1df/0x66b
->  [<ffffffff810b8b33>] ? compaction_alloc+0x0/0x2b9
->  [<ffffffff8108fa2c>] ? ____pagevec_lru_add+0x13c/0x14f
->  [<ffffffff810b85e5>] compact_zone+0x331/0x54d
->  [<ffffffff810b89e4>] compact_zone_order+0xaa/0xb9
->  [<ffffffff810b8acd>] try_to_compact_pages+0xda/0x140
->  [<ffffffff8108c3f0>] __alloc_pages_nodemask+0x3a6/0x74b
->  [<ffffffff810b5db5>] alloc_pages_vma+0x110/0x13d
->  [<ffffffff810c6d6d>] do_huge_pmd_anonymous_page+0xc0/0x287
->  [<ffffffff810a0ed7>] handle_mm_fault+0x15c/0x201
->  [<ffffffff813efa5c>] do_page_fault+0x304/0x422
->  [<ffffffff81020e5e>] ? __dequeue_entity+0x2e/0x33
->  [<ffffffff81000e25>] ? __switch_to+0x22a/0x23c
->  [<ffffffff81020e7b>] ? set_next_entity+0x18/0x36
->  [<ffffffff81022e83>] ? finish_task_switch+0x3c/0x81
->  [<ffffffff813eb0a5>] ? schedule+0x6f4/0x79a
->  [<ffffffff813ed40f>] page_fault+0x1f/0x30
-> INFO: task khugepaged:515 blocked for more than 120 seconds.
-> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
-> message.
-> khugepaged    D ffff88007d1e8360     0   515      2 0x00000000
->  ffff88007cad5d00 0000000000000046 ffff88007cad5cc0 ffff88007d1e8110
->  ffff88007d0986e0 0000000000000008 ffff88007cad5ce0 ffffffff81037e33
->  00000000ffffffff 000000017cad5d50 00000001000dd090 0000000000000002
-> Call Trace:
->  [<ffffffff81037e33>] ? lock_timer_base+0x26/0x4a
->  [<ffffffff813ec8af>] rwsem_down_failed_common+0xcc/0xfe
->  [<ffffffff813ec8f4>] rwsem_down_write_failed+0x13/0x15
->  [<ffffffff811ccef3>] call_rwsem_down_write_failed+0x13/0x20
->  [<ffffffff813ec09b>] ? down_write+0x20/0x22
->  [<ffffffff810c6174>] khugepaged+0xee0/0xf5f
->  [<ffffffff81046783>] ? autoremove_wake_function+0x0/0x38
->  [<ffffffff810c5294>] ? khugepaged+0x0/0xf5f
->  [<ffffffff810462ce>] kthread+0x81/0x89
->  [<ffffffff81002cf4>] kernel_thread_helper+0x4/0x10
->  [<ffffffff8104624d>] ? kthread+0x0/0x89
->  [<ffffffff81002cf0>] ? kernel_thread_helper+0x0/0x10
-> 
-> 
-> Original stack trace from GPFS deadlock:
-> 
-> > khugepaged    D ffff88007c823080     0    52      2 0x00000000
-> >  ffff8800378c98f0 0000000000000046 0000000000000000 001a7949f3208ca4
-> >  ffffffffffffff10 ffff880079efc670 000000002b6c79c0 00000001169be651
-> >  ffff88003780c638 ffff8800378c9fd8 0000000000010518 ffff88003780c638
-> > Call Trace:
-> >  [<ffffffff8110c060>] ? sync_page+0x0/0x50
-> >  [<ffffffff814c8a23>] io_schedule+0x73/0xc0
-> >  [<ffffffff8110c09d>] sync_page+0x3d/0x50
-> >  [<ffffffff814c914a>] __wait_on_bit_lock+0x5a/0xc0
-> >  [<ffffffff8110c037>] __lock_page+0x67/0x70
-> >  [<ffffffff81091ce0>] ? wake_bit_function+0x0/0x50
-> >  [<ffffffff81122461>] ? lru_cache_add_lru+0x21/0x40
-> >  [<ffffffff8115b730>] lock_page+0x30/0x40
-> >  [<ffffffff8115bdad>] migrate_pages+0x59d/0x5d0
-> >  [<ffffffff81152470>] ? compaction_alloc+0x0/0x370
-> >  [<ffffffff81151f1c>] compact_zone+0x4ac/0x5e0
-> >  [<ffffffff8111cd1c>] ? get_page_from_freelist+0x15c/0x820
-> >  [<ffffffff811522ce>] compact_zone_order+0x7e/0xb0
-> >  [<ffffffff81152409>] try_to_compact_pages+0x109/0x170
-> >  [<ffffffff8111e62c>] __alloc_pages_nodemask+0x55c/0x810
-> >  [<ffffffff81150374>] alloc_pages_vma+0x84/0x110
-> >  [<ffffffff8116530f>] khugepaged+0xa4f/0x1190
-> >  [<ffffffff81091ca0>] ? autoremove_wake_function+0x0/0x40
-> >  [<ffffffff811648c0>] ? khugepaged+0x0/0x1190
-> >  [<ffffffff81091936>] kthread+0x96/0xa0
-> >  [<ffffffff810141ca>] child_rip+0xa/0x20
-> >  [<ffffffff810918a0>] ? kthread+0x0/0xa0
-> >  [<ffffffff810141c0>] ? child_rip+0x0/0x20
-> > 
-> > 
-> > mmfsd         D ffff88007c823680     0  4453   4118 0x00000080          
-> >  ffff88001ad1ddf0 0000000000000082 0000000000000000 0000000000000000            
-> >  0000000000000000 ffff880037fcee40 ffff880079d40ab0 00000001169be9c1            
-> >  ffff8800782b7ad8 ffff88001ad1dfd8 0000000000010518 ffff8800782b7ad8            
-> > Call Trace:             
-> >  [<ffffffff814c8286>] ? thread_return+0x4e/0x778                
-> >  [<ffffffff81095da3>] ? __hrtimer_start_range_ns+0x1a3/0x430            
-> >  [<ffffffff814ca6b5>] rwsem_down_failed_common+0x95/0x1d0               
-> >  [<ffffffff814ca846>] rwsem_down_read_failed+0x26/0x30          
-> >  [<ffffffff81264224>] call_rwsem_down_read_failed+0x14/0x30             
-> >  [<ffffffff814c9d44>] ? down_read+0x24/0x30             
-> >  [<ffffffff814cd6fa>] do_page_fault+0x34a/0x3a0         
-> >  [<ffffffff814caf45>] page_fault+0x25/0x30              
-> 
+[PATCH] memcg: fix wrong VM_BUG_ON() in try_charge()'s mm->owner check
 
-So I understand the gpfs deadlock perfectly, and like you said it's
-hard for me to consider it a definitive khugepaged bug from a
-theoretical standpoint, but I definitely plan to send a 67/66 patch
-that moves the khugepaged allocation outside of the mmap_sem write
-mode. In fact if you were to run with CONFIG_NUMA=n likely it would
-already work just fine (but if you use gpfs I bet you need NUMA=y :).
+At __mem_cgroup_try_charge(), VM_BUG_ON(!mm->owner) is checked.
+But as commented in mem_cgroup_from_task(), mm->owner can be NULL in some racy
+case. This check of VM_BUG_ON() is bad.
 
-I need to check your other reproducer better.
+A possible story to hit this is at swapoff()->try_to_unuse(). It passes
+mm_struct to mem_cgroup_try_charge_swapin() while mm->owner is NULL. If we
+can't get proper mem_cgroup from swap_cgroup information, mm->owner is used
+as charge target and we see NULL.
 
-I think this could be fixed in userland, this applies to openvpn too
-if used as nfs backend.
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reported-by: Hugh Dickins <hughd@google.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Reviewed-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Acked-by: Hugh Dickins <hughd@google.com>
+Cc: stable@kernel.org
+---
+ mm/memcontrol.c |   19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)
 
-And for the record, this filesystem in userland scanned by khugepaged
-("fuse/gpfs") is the only open issue there is with the patchset (with
-regard to the version for 2.6.32), no other issue at all as far as
-2.6.32 is concerned so the same should apply to the 2.6.37-rc
-version. cgroups still need more work in the 2.6.37-rc version
-though. Fixing the above is actually a walk in the park compared to
-the cgroup updates, and I'll do it very soon, just I didn't think it
-was important enough to defer the submit as I can send a simple
-67/66. Plus the problem is not reproducible unless you're in the stress
-test scenario you described above that is unlikely to match any
-production environment (and no corruption can ever materialize because
-of this, it's just a subtle annoyance that we need to get rid of).
-
-Thanks a lot for all very useful testing, I hope you'll be able to
-verify the fix as soon as I send it (likely next week as I'm on
-travel). If you want fix yourself go ahead, you only need to find the
-vma and do the allocation before dropping the mmap_sem read mode and
-taking the mmap_sem write mode to call collapse_huge_page (plus some
-other detail).
-
-Andrea
+Index: linux-2.6.36/mm/memcontrol.c
+===================================================================
+--- linux-2.6.36.orig/mm/memcontrol.c
++++ linux-2.6.36/mm/memcontrol.c
+@@ -1729,19 +1729,18 @@ again:
+ 
+ 		rcu_read_lock();
+ 		p = rcu_dereference(mm->owner);
+-		VM_BUG_ON(!p);
+ 		/*
+-		 * because we don't have task_lock(), "p" can exit while
+-		 * we're here. In that case, "mem" can point to root
+-		 * cgroup but never be NULL. (and task_struct itself is freed
+-		 * by RCU, cgroup itself is RCU safe.) Then, we have small
+-		 * risk here to get wrong cgroup. But such kind of mis-account
+-		 * by race always happens because we don't have cgroup_mutex().
+-		 * It's overkill and we allow that small race, here.
++		 * Because we don't have task_lock(), "p" can exit.
++		 * In that case, "mem" can point to root or p can be NULL with
++		 * race with swapoff. Then, we have small risk of mis-accouning.
++		 * But such kind of mis-account by race always happens because
++		 * we don't have cgroup_mutex(). It's overkill and we allo that
++		 * small race, here.
++		 * (*) swapoff at el will charge against mm-struct not against
++		 * task-struct. So, mm->owner can be NULL.
+ 		 */
+ 		mem = mem_cgroup_from_task(p);
+-		VM_BUG_ON(!mem);
+-		if (mem_cgroup_is_root(mem)) {
++		if (!mem || mem_cgroup_is_root(mem)) {
+ 			rcu_read_unlock();
+ 			goto done;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
