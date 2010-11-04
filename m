@@ -1,158 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BC35D6B00C4
-	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 14:49:06 -0400 (EDT)
-Date: Thu, 4 Nov 2010 19:42:50 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [patch v2] oom: fix oom_score_adj consistency with
-	oom_disable_count
-Message-ID: <20101104184250.GA18558@redhat.com>
-References: <201010262121.o9QLLNFo016375@imap1.linux-foundation.org> <20101101024949.6074.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011011738200.26266@chino.kir.corp.google.com> <alpine.DEB.2.00.1011021741520.21871@chino.kir.corp.google.com> <20101103112324.GA29695@redhat.com> <alpine.DEB.2.00.1011031312400.15465@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1011031312400.15465@chino.kir.corp.google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F53C6B00B2
+	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 15:53:56 -0400 (EDT)
+In-reply-to: <20101104164144.GI11602@random.random> (message from Andrea
+	Arcangeli on Thu, 4 Nov 2010 17:41:44 +0100)
+Subject: Re: Deadlocks with transparent huge pages and userspace fs daemons
+References: <1288817005.4235.11393.camel@nimitz> <20101104164144.GI11602@random.random>
+Message-Id: <E1PE5sG-0005Em-Qb@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Thu, 04 Nov 2010 20:53:28 +0100
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: dave@linux.vnet.ibm.com, miklos@szeredi.hu, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, shenlinf@cn.ibm.com, volobuev@us.ibm.com, mel@linux.vnet.ibm.com, dingc@cn.ibm.com, lnxninja@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On 11/03, David Rientjes wrote:
->
-> On Wed, 3 Nov 2010, Oleg Nesterov wrote:
->
-> > IOW. I believe that 3d5992d2ac7dc09aed8ab537cba074589f0f0a52
-> > "oom: add per-mm oom disable count" should be reverted or fixed.
-> >
-> > Trivial example. A process with 2 threads, T1 and T2.
-> > ->mm->oom_disable_count = 0.
-> >
-> > oom_score_adj_write() sets OOM_SCORE_ADJ_MIN and increments
-> > oom_disable_count.
-> >
-> > T2 exits, notices OOM_SCORE_ADJ_MIN and decrements ->oom_disable_count
-> > back to zero.
-> >
-> > Now, T1 runs with OOM_SCORE_ADJ_MIN, but its ->oom_disable_count == 0.
-> >
-> > No?
-> >
->
-> The intent of Ying's patch was for mm->oom_disable_count to map the number
-> of threads sharing the ->mm that have p->signal->oom_score_adj ==
-> OOM_SCORE_ADJ_MIN.
+On Thu, 4 Nov 2010, Andrea Arcangeli wrote:
+> On Wed, Nov 03, 2010 at 01:43:25PM -0700, Dave Hansen wrote:
+> > some IBM testers ran into some deadlocks.  It appears that the
+> > khugepaged process is trying to migrate one of a filesystem daemon's
+> > pages while khugepaged holds the daemon's mmap_sem for write.
+> 
+> Correct. So now I'm wondering what happens if some library of this
+> daemon happens to execute a munmap that calls split_vma and allocates
+> memory while holding the mmap_sem, and the memory allocation triggers
+> I/O that will have to be executed by the daemon.
 
-Yes, I see the intent. But the patch is obviouly wrong.
+mmap_sem is not really relevant here(*), page lock is.  And in vmscan.c,
+there's not a single blocking lock_page().
 
-> > Another reason to move ->oom_score_adj into ->mm ;)
-> >
->
-> I would _love_ to move oom_score_adj into struct mm_struct, and I fought
-> very strongly to do so,
+Also, as I mentioned, fuse does writeback in a special way: it copies dirty
+pages to non-page cache pages which don't interact in any way with
+reclaim.  Fuse writeback is instantaneous from the reclaim PoV.
 
-Yes, I know ;)
+> I think this could be fixed in userland, this applies to openvpn too
+> if used as nfs backend.
 
-> > Not sure this needs additional locking. exec_mmap() is called when
-> > there are no other threads, we can rely on task_lock() we hold.
-> >
->
-> There are no other threads that can share tsk->signal at this point?  I
-> was mislead by the de_thread() comment about CLONE_SIGHAND.
+How?
 
-Agreed, the comment is misleading. "Other processes might share the signal
-table" actually means: other processes (not only sub-threads) can share
-->sighand. That is why de_thread() checks oldsighand->count at the end
-of this function, after we already killed all sub-threads.
+Thanks,
+Miklos
 
-But at this point nobody except current uses this ->signal.
-
-> > >  static int copy_mm(unsigned long clone_flags, struct task_struct * tsk)
-> > >  {
-> > >  	struct mm_struct * mm, *oldmm;
-> > > +	unsigned long flags;
-> > >  	int retval;
-> > >
-> > >  	tsk->min_flt = tsk->maj_flt = 0;
-> > > @@ -743,8 +744,11 @@ good_mm:
-> > >  	/* Initializing for Swap token stuff */
-> > >  	mm->token_priority = 0;
-> > >  	mm->last_interval = 0;
-> > > -	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-> > > -		atomic_inc(&mm->oom_disable_count);
-> > > +	if (lock_task_sighand(tsk, &flags)) {
-> > > +		if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-> > > +			atomic_inc(&mm->oom_disable_count);
-> > > +		unlock_task_sighand(tsk, &flags);
-> > > +	}
-> >
-> > This doesn't need ->siglock too. Nobody can see this new child,
-> > nobody can access its tsk->signal.
->
-> Ok!
-
-OOPS! Sorry, I didn't notice that this code works in CLONE_VM|CLONE_THREAD
-case too. In this case we do need the locking.
-
-Wait. And what about the case I meant, !CLONE_THREAD case? In this case
-we don't need ->siglock, but atomic_inc() is very wrong. Note that
-this (new) mm_struct has the "random" value in ->oom_disable_count
-copied from parent's ->mm.
-
-> > > @@ -1700,13 +1707,19 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
-> > >  		}
-> > >
-> > >  		if (new_mm) {
-> > > +			unsigned long flags;
-> > > +
-> > >  			mm = current->mm;
-> > >  			active_mm = current->active_mm;
-> > >  			current->mm = new_mm;
-> > >  			current->active_mm = new_mm;
-> > > -			if (current->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-> > > -				atomic_dec(&mm->oom_disable_count);
-> > > -				atomic_inc(&new_mm->oom_disable_count);
-> > > +			if (lock_task_sighand(current, &flags)) {
-> > > +				if (current->signal->oom_score_adj ==
-> > > +							OOM_SCORE_ADJ_MIN) {
-> > > +					atomic_dec(&mm->oom_disable_count);
-> > > +					atomic_inc(&new_mm->oom_disable_count);
-> > > +				}
-> >
-> > This is racy anyway, even if we take ->siglock.
-> >
-> > If we need the protection from oom_score_adj_write(), then we have
-> > to change ->mm under ->siglock as well. Otherwise, suppose that
-> > oom_score_adj_write() sets OOM_SCORE_ADJ_MIN right after unshare()
-> > does current->mm = new_mm.
-> >
->
-> We're protected by task_lock(current) in unshare, it can't do
-> current->mm = new_mm while task_lock() is held in oom_score_adj_write().
-
-Indeed, I was wrong, thanks. I forgot that this code actually never works
-(if it worked, it should change ->mm for all sub-threads, each has its
- own task->alloc_lock).
-
-> > However. Please do not touch this code. It doesn't work anyway,
-> > I'll resend the patch which removes this crap.
-> >
->
-> Ok, I'll look forward to that :)
-
-Sorry, don't have the time today. Will do tomorrow.
-
-> Do you see issues with the mapping of threads attached to an mm being
-> counted appropriately in mm->oom_disable_count?
-
-Not sure I understand you.
-
-The main problem is, they are not counted correctly. If exit_mm()
-decrements this counter then oom_score_adj_write() should account
-every live (with ->mm != NULL) thread, this is nasty. Or we should
-find the way to drop the counter only when the whole process exits
-(and in this case CLONE_THREAD shouldn't touch the counter).
-
-Oleg.
+(*) In the original gpfs trace it is relevant but only because the
+page migration is triggered by khugepaged.  In the reproduced example
+the page migration is triggered directly by an allocation.  Since page
+migration does blocking lock_page(), there's really no way to avoid a
+deadlock in that case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
