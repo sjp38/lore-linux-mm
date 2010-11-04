@@ -1,65 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D32008D0001
-	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 22:15:39 -0400 (EDT)
-Subject: Re: Re:[PATCH v2]oom-kill: CAP_SYS_RESOURCE should get bonus
-From: "Figo.zhang" <zhangtianfei@leadcoretech.com>
-In-Reply-To: <alpine.DEB.2.00.1011031847450.21550@chino.kir.corp.google.com>
-References: <1288662213.10103.2.camel@localhost.localdomain>
-	 <1288827804.2725.0.camel@localhost.localdomain>
-	 <alpine.DEB.2.00.1011031646110.7830@chino.kir.corp.google.com>
-	 <AANLkTimjfmLzr_9+Sf4gk0xGkFjffQ1VcCnwmCXA88R8@mail.gmail.com>
-	 <1288834737.2124.11.camel@myhost>
-	 <alpine.DEB.2.00.1011031847450.21550@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 04 Nov 2010 10:12:13 +0800
-Message-ID: <1288836733.2124.18.camel@myhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 55DD36B00A9
+	for <linux-mm@kvack.org>; Wed,  3 Nov 2010 22:40:57 -0400 (EDT)
+Received: by qwi2 with SMTP id 2so820689qwi.14
+        for <linux-mm@kvack.org>; Wed, 03 Nov 2010 19:40:55 -0700 (PDT)
+From: Ben Gamari <bgamari.foss@gmail.com>
+Subject: Re: [PATCH] Add Kconfig option for default swappiness
+In-Reply-To: <20101103143358.GA19777@redhat.com>
+References: <1288668052-32036-1-git-send-email-bgamari.foss@gmail.com> <alpine.DEB.2.00.1011012030100.12298@chino.kir.corp.google.com> <87oca7evbo.fsf@gmail.com> <20101102140119.GA8294@localhost> <20101103143358.GA19777@redhat.com>
+Date: Wed, 03 Nov 2010 22:40:52 -0400
+Message-ID: <87hbfxbykr.fsf@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: figo zhang <figo1802@gmail.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+To: Dave Jones <davej@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>
+Cc: David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jesper Juhl <jj@chaosbits.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-11-03 at 18:50 -0700, David Rientjes wrote:
-> On Thu, 4 Nov 2010, Figo.zhang wrote:
+On Wed, 3 Nov 2010 10:33:59 -0400, Dave Jones <davej@redhat.com> wrote:
+> Not sure why I was cc'd on this, but at least for Fedora, we still take
+> the 'one kernel to rule them all' approach for every spin (and will likely
+> continue to do so to maximise coverage testing) so a config option for us
+> for things like this is moot.
 > 
-> > > > CAP_SYS_RESOURCE also had better get 3% bonus for protection.
-> > > >
-> > > 
-> > > 
-> > > Would you like to elaborate as to why?
-> > > 
-> > > 
-> > 
-> > process with CAP_SYS_RESOURCE capibility which have system resource
-> > limits, like journaling resource on ext3/4 filesystem, RTC clock. so it
-> > also the same treatment as process with CAP_SYS_ADMIN.
-> > 
-> 
-> NACK, there's no justification that these tasks should be given a 3% 
-> memory bonus in the oom killer heuristic; in fact, since they can allocate 
-> without limits it is more important to target these tasks if they are 
-> using an egregious amount of memory.  CAP_SYS_RESOURCE threads have the 
-> ability to lower their own oom_score_adj values, thus, they should protect 
-> themselves if necessary like everything else.
+Just didn't want to miss anyone important. Sorry for the noise.
 
-In your new heuristic, you also get CAP_SYS_RESOURCE to protection.
-see fs/proc/base.c, line 1167:
-	if (oom_score_adj < task->signal->oom_score_adj &&
-			!capable(CAP_SYS_RESOURCE)) {
-		err = -EACCES;
-		goto err_sighand;
-	}
+> Whenever I've tried to push changes to our defaults through to our
+> default /etc/sysctl.conf, it's been met with resistance due to beliefs
+> that a) the file is there for _users_ to override decisions
+> the distro made at build time and b) if this is the right default,
+> why isn't the kernel setting it?
+>
+This seems to be the consensus within the Ubuntu community as well. I
+don't have any strong opinion either way but I will admit that setting
+it in userspace does make the packaging issue messy.
 
-so i want to protect some process like normal process not
-CAP_SYS_RESOUCE, i set a small oom_score_adj , if new oom_score_adj is
-small than now and it is not limited resource, it will not adjust, that
-seems not right?
-
-
-
-
+- Ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
