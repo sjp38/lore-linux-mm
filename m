@@ -1,94 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C85628D0001
-	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 13:32:55 -0400 (EDT)
-Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
-	by smtp-out.google.com with ESMTP id oA4HWNTT026670
-	for <linux-mm@kvack.org>; Thu, 4 Nov 2010 10:32:23 -0700
-Received: from pwj7 (pwj7.prod.google.com [10.241.219.71])
-	by hpaq14.eem.corp.google.com with ESMTP id oA4HWJLe003985
-	for <linux-mm@kvack.org>; Thu, 4 Nov 2010 10:32:22 -0700
-Received: by pwj7 with SMTP id 7so285213pwj.19
-        for <linux-mm@kvack.org>; Thu, 04 Nov 2010 10:32:19 -0700 (PDT)
-Date: Thu, 4 Nov 2010 10:31:58 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [BUGFIX][PATCH] fix wrong VM_BUG_ON() in try_charge()'s mm->owner
- check
-In-Reply-To: <AANLkTikCUdpx-jGhKdzueML39CnExumk1i_X_OZJihE2@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1011041016520.19411@tigran.mtv.corp.google.com>
-References: <AANLkTikCUdpx-jGhKdzueML39CnExumk1i_X_OZJihE2@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id BC35D6B00C4
+	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 14:49:06 -0400 (EDT)
+Date: Thu, 4 Nov 2010 19:42:50 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [patch v2] oom: fix oom_score_adj consistency with
+	oom_disable_count
+Message-ID: <20101104184250.GA18558@redhat.com>
+References: <201010262121.o9QLLNFo016375@imap1.linux-foundation.org> <20101101024949.6074.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011011738200.26266@chino.kir.corp.google.com> <alpine.DEB.2.00.1011021741520.21871@chino.kir.corp.google.com> <20101103112324.GA29695@redhat.com> <alpine.DEB.2.00.1011031312400.15465@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1011031312400.15465@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Nov 2010, Hiroyuki Kamezawa wrote:
-> I'm sorry for attached file, I have to use unusual mailer this time.
-> This is a fix for wrong VM_BUG_ON() for mm/memcontol.c
+On 11/03, David Rientjes wrote:
+>
+> On Wed, 3 Nov 2010, Oleg Nesterov wrote:
+>
+> > IOW. I believe that 3d5992d2ac7dc09aed8ab537cba074589f0f0a52
+> > "oom: add per-mm oom disable count" should be reverted or fixed.
+> >
+> > Trivial example. A process with 2 threads, T1 and T2.
+> > ->mm->oom_disable_count = 0.
+> >
+> > oom_score_adj_write() sets OOM_SCORE_ADJ_MIN and increments
+> > oom_disable_count.
+> >
+> > T2 exits, notices OOM_SCORE_ADJ_MIN and decrements ->oom_disable_count
+> > back to zero.
+> >
+> > Now, T1 runs with OOM_SCORE_ADJ_MIN, but its ->oom_disable_count == 0.
+> >
+> > No?
+> >
+>
+> The intent of Ying's patch was for mm->oom_disable_count to map the number
+> of threads sharing the ->mm that have p->signal->oom_score_adj ==
+> OOM_SCORE_ADJ_MIN.
 
-Thanks, Kame, that's good: I've inlined it below with Balbir's Review,
-my Ack, and a Cc: stable@kernel.org.
+Yes, I see the intent. But the patch is obviouly wrong.
 
-Hugh
+> > Another reason to move ->oom_score_adj into ->mm ;)
+> >
+>
+> I would _love_ to move oom_score_adj into struct mm_struct, and I fought
+> very strongly to do so,
 
+Yes, I know ;)
 
-[PATCH] memcg: fix wrong VM_BUG_ON() in try_charge()'s mm->owner check
+> > Not sure this needs additional locking. exec_mmap() is called when
+> > there are no other threads, we can rely on task_lock() we hold.
+> >
+>
+> There are no other threads that can share tsk->signal at this point?  I
+> was mislead by the de_thread() comment about CLONE_SIGHAND.
 
-At __mem_cgroup_try_charge(), VM_BUG_ON(!mm->owner) is checked.
-But as commented in mem_cgroup_from_task(), mm->owner can be NULL in some racy
-case. This check of VM_BUG_ON() is bad.
+Agreed, the comment is misleading. "Other processes might share the signal
+table" actually means: other processes (not only sub-threads) can share
+->sighand. That is why de_thread() checks oldsighand->count at the end
+of this function, after we already killed all sub-threads.
 
-A possible story to hit this is at swapoff()->try_to_unuse(). It passes
-mm_struct to mem_cgroup_try_charge_swapin() while mm->owner is NULL. If we
-can't get proper mem_cgroup from swap_cgroup information, mm->owner is used
-as charge target and we see NULL.
+But at this point nobody except current uses this ->signal.
 
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Reported-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-Acked-by: Hugh Dickins <hughd@google.com>
-Cc: stable@kernel.org
----
- mm/memcontrol.c |   19 +++++++++----------
- 1 file changed, 9 insertions(+), 10 deletions(-)
+> > >  static int copy_mm(unsigned long clone_flags, struct task_struct * tsk)
+> > >  {
+> > >  	struct mm_struct * mm, *oldmm;
+> > > +	unsigned long flags;
+> > >  	int retval;
+> > >
+> > >  	tsk->min_flt = tsk->maj_flt = 0;
+> > > @@ -743,8 +744,11 @@ good_mm:
+> > >  	/* Initializing for Swap token stuff */
+> > >  	mm->token_priority = 0;
+> > >  	mm->last_interval = 0;
+> > > -	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+> > > -		atomic_inc(&mm->oom_disable_count);
+> > > +	if (lock_task_sighand(tsk, &flags)) {
+> > > +		if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+> > > +			atomic_inc(&mm->oom_disable_count);
+> > > +		unlock_task_sighand(tsk, &flags);
+> > > +	}
+> >
+> > This doesn't need ->siglock too. Nobody can see this new child,
+> > nobody can access its tsk->signal.
+>
+> Ok!
 
-Index: linux-2.6.36/mm/memcontrol.c
-===================================================================
---- linux-2.6.36.orig/mm/memcontrol.c
-+++ linux-2.6.36/mm/memcontrol.c
-@@ -1729,19 +1729,18 @@ again:
- 
- 		rcu_read_lock();
- 		p = rcu_dereference(mm->owner);
--		VM_BUG_ON(!p);
- 		/*
--		 * because we don't have task_lock(), "p" can exit while
--		 * we're here. In that case, "mem" can point to root
--		 * cgroup but never be NULL. (and task_struct itself is freed
--		 * by RCU, cgroup itself is RCU safe.) Then, we have small
--		 * risk here to get wrong cgroup. But such kind of mis-account
--		 * by race always happens because we don't have cgroup_mutex().
--		 * It's overkill and we allow that small race, here.
-+		 * Because we don't have task_lock(), "p" can exit.
-+		 * In that case, "mem" can point to root or p can be NULL with
-+		 * race with swapoff. Then, we have small risk of mis-accouning.
-+		 * But such kind of mis-account by race always happens because
-+		 * we don't have cgroup_mutex(). It's overkill and we allo that
-+		 * small race, here.
-+		 * (*) swapoff at el will charge against mm-struct not against
-+		 * task-struct. So, mm->owner can be NULL.
- 		 */
- 		mem = mem_cgroup_from_task(p);
--		VM_BUG_ON(!mem);
--		if (mem_cgroup_is_root(mem)) {
-+		if (!mem || mem_cgroup_is_root(mem)) {
- 			rcu_read_unlock();
- 			goto done;
- 		}
+OOPS! Sorry, I didn't notice that this code works in CLONE_VM|CLONE_THREAD
+case too. In this case we do need the locking.
+
+Wait. And what about the case I meant, !CLONE_THREAD case? In this case
+we don't need ->siglock, but atomic_inc() is very wrong. Note that
+this (new) mm_struct has the "random" value in ->oom_disable_count
+copied from parent's ->mm.
+
+> > > @@ -1700,13 +1707,19 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
+> > >  		}
+> > >
+> > >  		if (new_mm) {
+> > > +			unsigned long flags;
+> > > +
+> > >  			mm = current->mm;
+> > >  			active_mm = current->active_mm;
+> > >  			current->mm = new_mm;
+> > >  			current->active_mm = new_mm;
+> > > -			if (current->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+> > > -				atomic_dec(&mm->oom_disable_count);
+> > > -				atomic_inc(&new_mm->oom_disable_count);
+> > > +			if (lock_task_sighand(current, &flags)) {
+> > > +				if (current->signal->oom_score_adj ==
+> > > +							OOM_SCORE_ADJ_MIN) {
+> > > +					atomic_dec(&mm->oom_disable_count);
+> > > +					atomic_inc(&new_mm->oom_disable_count);
+> > > +				}
+> >
+> > This is racy anyway, even if we take ->siglock.
+> >
+> > If we need the protection from oom_score_adj_write(), then we have
+> > to change ->mm under ->siglock as well. Otherwise, suppose that
+> > oom_score_adj_write() sets OOM_SCORE_ADJ_MIN right after unshare()
+> > does current->mm = new_mm.
+> >
+>
+> We're protected by task_lock(current) in unshare, it can't do
+> current->mm = new_mm while task_lock() is held in oom_score_adj_write().
+
+Indeed, I was wrong, thanks. I forgot that this code actually never works
+(if it worked, it should change ->mm for all sub-threads, each has its
+ own task->alloc_lock).
+
+> > However. Please do not touch this code. It doesn't work anyway,
+> > I'll resend the patch which removes this crap.
+> >
+>
+> Ok, I'll look forward to that :)
+
+Sorry, don't have the time today. Will do tomorrow.
+
+> Do you see issues with the mapping of threads attached to an mm being
+> counted appropriately in mm->oom_disable_count?
+
+Not sure I understand you.
+
+The main problem is, they are not counted correctly. If exit_mm()
+decrements this counter then oom_score_adj_write() should account
+every live (with ->mm != NULL) thread, this is nasty. Or we should
+find the way to drop the counter only when the whole process exits
+(and in this case CLONE_THREAD shouldn't touch the counter).
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
