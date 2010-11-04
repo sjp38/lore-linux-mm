@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BBFB26B00C5
-	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 12:05:56 -0400 (EDT)
-Message-ID: <E1PE2Jp-00031X-Tx@approx.mit.edu>
-Subject: Re: 2.6.36 io bring the system to its knees
-In-Reply-To: Your message of "Tue, 02 Nov 2010 09:12:39 EDT."
-             <20101102131239.GA8680@think>
-Date: Thu, 4 Nov 2010 12:05:41 -0400
-From: Sanjoy Mahajan <sanjoy@olin.edu>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2BD798D0001
+	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 12:34:43 -0400 (EDT)
+Date: Thu, 4 Nov 2010 17:30:26 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 00 of 66] Transparent Hugepage Support #32
+Message-ID: <20101104163026.GH11602@random.random>
+References: <690735095.1385111288840247360.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+ <2080208615.1392881288860072684.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2080208615.1392881288860072684.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter.Zijl@MIT.EDU
+To: CAI Qian <caiqian@redhat.com>
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> So this sounds like the backup is just thrashing your cache.
+Hi Qian,
 
-I think it's more than that.  Starting an rxvt shouldn't take 8 seconds,
-even with a cold cache.  Actually, it does take a while, so you do have
-a point.  I just did
+On Thu, Nov 04, 2010 at 04:41:12AM -0400, CAI Qian wrote:
+> Thank Andrea for pointing out to me there are ongoing works for KSM
+> and THP integration. Sorry for the noise.
 
-  echo 3 > /proc/sys/vm/drop_caches
+No problem, thanks for your feedback!
 
-and then started rxvt.  That takes about 3 seconds (which seems long,
-but I don't know wherein that slowness lies), of which maybe 0.25
-seconds is loading and running 'date':
+The longer answer is: PageKsm pages will already co-exist fine with
+PageTransHuge pages in the same vma with regular pages. So 3 type of
+pages in the same vma. But before KSM scan can see the content of the
+hugepages there has to be some memory pressure... So it's not ideal
+and we will make KSM able to scan inside hugepages before they're
+splitted (and to split them when it finds a match and then merge them
+in the stable tree).
 
-$ time rxvt -e date
-real	0m2.782s
-user	0m0.148s
-sys	0m0.032s
+So it's perfectly normal that KSM becomes less effective when THP is
+enabled. But in the mainline version we have MADV_HUGEPAGE, so if you
+need KSM in full effect, you can simply "echo madvise
+>/sys/kernel/mm/transparent_hugepage/enabled", and then you can decide
+if to mark a mapping either with madvise(MADV_HUGEPAGE) or
+madvise(MADV_MERGEABLE).
 
-The 8-second delay during the rsync must have at least two causes: (1)
-the cache is wiped out, and (2) the rxvt binary cannot be paged in
-quickly because the disk is doing lots of other I/O.  
-
-Can the system someknow that paging in the rxvt binary and shared
-libraries is interactive I/O, because it was started by an interactive
-process, and therefore should take priority over the rsync?
-
-> Does rsync have the option to do an fadvise DONTNEED?
-
-I couldn't find one.  It would be good to have a solution that is
-independent of the backup app.  (The 'locate' cron job does a similar
-thrashing of the interactive response.)
-
--Sanjoy
-
-`Until lions have their historians, tales of the hunt shall always
- glorify the hunters.'  --African Proverb
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
