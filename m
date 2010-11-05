@@ -1,75 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 43AF68D0001
-	for <linux-mm@kvack.org>; Fri,  5 Nov 2010 12:34:57 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH] memcg: use do_div to divide s64 in 32 bit machine.
-References: <1288973333-7891-1-git-send-email-minchan.kim@gmail.com>
-Date: Fri, 05 Nov 2010 09:34:33 -0700
-In-Reply-To: <1288973333-7891-1-git-send-email-minchan.kim@gmail.com> (Minchan
-	Kim's message of "Sat, 6 Nov 2010 01:08:53 +0900")
-Message-ID: <xr931v6zd90m.fsf@ninji.mtv.corp.google.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1B87F8D0001
+	for <linux-mm@kvack.org>; Fri,  5 Nov 2010 13:47:49 -0400 (EDT)
+Date: Fri, 5 Nov 2010 18:41:42 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: [PATCH 0/1] (Was: oom: fix oom_score_adj consistency with
+	oom_disable_count)
+Message-ID: <20101105174142.GA19469@redhat.com>
+References: <201010262121.o9QLLNFo016375@imap1.linux-foundation.org> <20101101024949.6074.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011011738200.26266@chino.kir.corp.google.com> <alpine.DEB.2.00.1011021741520.21871@chino.kir.corp.google.com> <20101103112324.GA29695@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101103112324.GA29695@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Young <hidave.darkstar@gmail.com>, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Roland McGrath <roland@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, JANAK DESAI <janak@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Minchan Kim <minchan.kim@gmail.com> writes:
-
-> Use do_div to divide s64 value. Otherwise, build would be failed
-> like Dave Young reported.
+On 11/03, Oleg Nesterov wrote:
 >
-> mm/built-in.o: In function `mem_cgroup_dirty_info':
-> /home/dave/vdb/build/mm/linux-2.6.36/mm/memcontrol.c:1251: undefined
-> reference to `__divdi3'
-> /home/dave/vdb/build/mm/linux-2.6.36/mm/memcontrol.c:1259: undefined
-> reference to `__divdi3'
-> make: *** [.tmp_vmlinux1] Error 1
->
-> Tested-by: Dave Young <hidave.darkstar@gmail.com>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Tested-by: Greg Thelen <gthelen@google.com>
+> However. Please do not touch this code. It doesn't work anyway,
+> I'll resend the patch which removes this crap.
 
-Thanks for report and the patch.
+This code continues to confuse developers. And this is the only
+effect it has.
 
-> ---
->  mm/memcontrol.c |   16 +++++++++-------
->  1 files changed, 9 insertions(+), 7 deletions(-)
->
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 76386f4..a15d95e 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1247,18 +1247,20 @@ bool mem_cgroup_dirty_info(unsigned long sys_available_mem,
->  	if (dirty_param.dirty_bytes)
->  		info->dirty_thresh =
->  			DIV_ROUND_UP(dirty_param.dirty_bytes, PAGE_SIZE);
-> -	else
-> -		info->dirty_thresh =
-> -			(dirty_param.dirty_ratio * available_mem) / 100;
-> +	else {
-> +		info->dirty_thresh = dirty_param.dirty_ratio * available_mem;
-> +		do_div(info->dirty_thresh, 100);
-> +	}
->  
->  	if (dirty_param.dirty_background_bytes)
->  		info->background_thresh =
->  			DIV_ROUND_UP(dirty_param.dirty_background_bytes,
->  				     PAGE_SIZE);
-> -	else
-> -		info->background_thresh =
-> -			(dirty_param.dirty_background_ratio *
-> -			       available_mem) / 100;
-> +	else {
-> +		info->background_thresh = dirty_param.dirty_background_ratio *
-> +			available_mem;
-> +		do_div(info->background_thresh, 100);
-> +	}
->  
->  	info->nr_reclaimable =
->  		mem_cgroup_page_stat(MEMCG_NR_RECLAIM_PAGES);
+Once again. The patch removes the DEAD code. It is never called,
+it can't work (from 2006) but this is not immediately clear.
+Howver it often needs attention/changes because it _looks_ as if
+it works.
+
+Let's remove it, finally.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
