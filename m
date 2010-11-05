@@ -1,43 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 536518D0001
-	for <linux-mm@kvack.org>; Fri,  5 Nov 2010 08:15:27 -0400 (EDT)
-Date: Fri, 5 Nov 2010 13:15:13 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/2] writeback: stop background/kupdate works from
- livelocking other works
-Message-ID: <20101105121513.GC23393@cmpxchg.org>
-References: <20100913123110.372291929@intel.com>
- <20100913130149.994322762@intel.com>
- <20100914124033.GA4874@quack.suse.cz>
- <20101101121408.GB9006@localhost>
- <20101101122252.GA10637@localhost>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 50BC06B00AF
+	for <linux-mm@kvack.org>; Fri,  5 Nov 2010 08:48:24 -0400 (EDT)
+Message-ID: <E1PELiI-0001Pj-8g@approx.mit.edu>
+Subject: Re: 2.6.36 io bring the system to its knees
+In-Reply-To: Your message of "Fri, 05 Nov 2010 12:43:34 +1100."
+             <20101105014334.GF13830@dastard>
+Date: Fri, 5 Nov 2010 08:48:13 -0400
+From: Sanjoy Mahajan <sanjoy@olin.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101101122252.GA10637@localhost>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jesper Juhl <jj@chaosbits.net>, Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ted Ts'o <tytso@mit.edu>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Steven Barrett <damentz@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 01, 2010 at 08:22:52PM +0800, Wu Fengguang wrote:
-> From: Jan Kara <jack@suse.cz>
-> 
-> Background writeback are easily livelockable (from a definition of their
-> target). This is inconvenient because it can make sync(1) stall forever waiting
-> on its queued work to be finished. Generally, when a flusher thread has
-> some work queued, someone submitted the work to achieve a goal more specific
-> than what background writeback does. So it makes sense to give it a priority
-> over a generic page cleaning.
-> 
-> Thus we interrupt background writeback if there is some other work to do. We
-> return to the background writeback after completing all the queued work.
-> 
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+Dave Chinner <david@fromorbit.com> wrote:
 
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+> I think anyone reporting a interactivity problem also needs to
+> indicate what their filesystem is, what mount paramters they are
+> using, what their storage config is, whether barriers are active or
+> not, what elevator they are using, whether one or more of the
+> applications are issuing fsync() or sync() calls, and so on.
+
+Good idea.  
+
+The filesystems are all ext3 with default mount parameters.  The dmesgs
+say that the filesystems are mounted in ordered data mode and that
+barriers are not enabled.
+
+mount says:
+
+/dev/sda2 on / type ext3 (rw,errors=remount-ro,commit=0)
+/dev/sda1 on /boot type ext3 (rw,commit=0)
+/dev/sda3 on /home type ext3 (rw,commit=0)
+
+> storage config
+
+Do you mean the partition sizes?  Here's that:
+
+$ df -h
+Filesystem            Size  Used Avail Use% Mounted on
+/dev/sda2              72G   52G   17G  77% /
+tmpfs                 755M  4.0K  755M   1% /lib/init/rw
+udev                  750M  212K  750M   1% /dev
+tmpfs                 755M     0  755M   0% /dev/shm
+/dev/sda1             274M  117M  143M  45% /boot
+/dev/sda3              74G   37G   33G  53% /home
+
+> elevator
+
+CFQ
+
+> sync-related calls
+
+I don't have a test from the time I ran rsync (but I'll check that
+tonight), but I traced the currently running emacs and iceweasel
+(a.k.a. firefox) with "strace -p PID 2>&1 | grep sync".  That didn't
+turn up any sync-related calls.
+
+(I checked the firefox because I seem to remember that it used to do
+fsync absurdly often, but I also seem to remember that the outcry made
+them stop.)
+
+-Sanjoy
+
+`Until lions have their historians, tales of the hunt shall always
+ glorify the hunters.'  --African Proverb
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
