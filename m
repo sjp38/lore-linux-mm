@@ -1,106 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6E8998D0001
-	for <linux-mm@kvack.org>; Thu,  4 Nov 2010 23:09:11 -0400 (EDT)
-From: Joe Perches <joe@perches.com>
-Subject: [PATCH 44/49] mm: Use vzalloc
-Date: Thu,  4 Nov 2010 20:08:08 -0700
-Message-Id: <fb9608ce19d2a2a536be8330c40fc922583a5bda.1288925425.git.joe@perches.com>
-In-Reply-To: <alpine.DEB.2.00.1011031108260.11625@router.home>
-References: <alpine.DEB.2.00.1011031108260.11625@router.home>
-In-Reply-To: <cover.1288925424.git.joe@perches.com>
-References: <cover.1288925424.git.joe@perches.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id ACA726B00BE
+	for <linux-mm@kvack.org>; Fri,  5 Nov 2010 08:01:59 -0400 (EDT)
+Date: Fri, 5 Nov 2010 13:01:40 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/2 v2] writeback: integrated background writeback work
+Message-ID: <20101105120139.GB23393@cmpxchg.org>
+References: <20100913123110.372291929@intel.com>
+ <20100913130149.994322762@intel.com>
+ <20100914124033.GA4874@quack.suse.cz>
+ <20101101121408.GB9006@localhost>
+ <20101101152149.GA12741@infradead.org>
+ <20101101203947.GB7309@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101101203947.GB7309@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Jiri Kosina <trivial@kernel.org>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, containers@lists.linux-foundation.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Signed-off-by: Joe Perches <joe@perches.com>
----
- mm/memcontrol.c  |    5 ++---
- mm/page_cgroup.c |    3 +--
- mm/percpu.c      |    8 ++------
- mm/swapfile.c    |    3 +--
- 4 files changed, 6 insertions(+), 13 deletions(-)
+On Tue, Nov 02, 2010 at 04:39:47AM +0800, Wu Fengguang wrote:
+> From: Jan Kara <jack@suse.cz>
+> 
+> Check whether background writeback is needed after finishing each work.
+> 
+> When bdi flusher thread finishes doing some work check whether any kind
+> of background writeback needs to be done (either because
+> dirty_background_ratio is exceeded or because we need to start flushing
+> old inodes). If so, just do background write back.
+> 
+> This way, bdi_start_background_writeback() just needs to wake up the
+> flusher thread. It will do background writeback as soon as there is no
+> other work.
+> 
+> This is a preparatory patch for the next patch which stops background
+> writeback as soon as there is other work to do.
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9a99cfa..90da698 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4199,14 +4199,13 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- 
- 	/* Can be very big if MAX_NUMNODES is very big */
- 	if (size < PAGE_SIZE)
--		mem = kmalloc(size, GFP_KERNEL);
-+		mem = kzalloc(size, GFP_KERNEL);
- 	else
--		mem = vmalloc(size);
-+		mem = vzalloc(size);
- 
- 	if (!mem)
- 		return NULL;
- 
--	memset(mem, 0, size);
- 	mem->stat = alloc_percpu(struct mem_cgroup_stat_cpu);
- 	if (!mem->stat) {
- 		if (size < PAGE_SIZE)
-diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 5bffada..34970c7 100644
---- a/mm/page_cgroup.c
-+++ b/mm/page_cgroup.c
-@@ -450,11 +450,10 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
- 	length = ((max_pages/SC_PER_PAGE) + 1);
- 	array_size = length * sizeof(void *);
- 
--	array = vmalloc(array_size);
-+	array = vzalloc(array_size);
- 	if (!array)
- 		goto nomem;
- 
--	memset(array, 0, array_size);
- 	ctrl = &swap_cgroup_ctrl[type];
- 	mutex_lock(&swap_cgroup_mutex);
- 	ctrl->length = length;
-diff --git a/mm/percpu.c b/mm/percpu.c
-index efe8168..9e16d1c 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -293,12 +293,8 @@ static void *pcpu_mem_alloc(size_t size)
- 
- 	if (size <= PAGE_SIZE)
- 		return kzalloc(size, GFP_KERNEL);
--	else {
--		void *ptr = vmalloc(size);
--		if (ptr)
--			memset(ptr, 0, size);
--		return ptr;
--	}
-+	else
-+		return vzalloc(size);
- }
- 
- /**
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 67ddaaf..43e6988 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2044,13 +2044,12 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		goto bad_swap;
- 
- 	/* OK, set up the swap map and apply the bad block list */
--	swap_map = vmalloc(maxpages);
-+	swap_map = vzalloc(maxpages);
- 	if (!swap_map) {
- 		error = -ENOMEM;
- 		goto bad_swap;
- 	}
- 
--	memset(swap_map, 0, maxpages);
- 	nr_good_pages = maxpages - 1;	/* omit header page */
- 
- 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
--- 
-1.7.3.1.g432b3.dirty
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
