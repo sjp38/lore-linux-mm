@@ -1,240 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C5F2B6B0089
-	for <linux-mm@kvack.org>; Fri,  5 Nov 2010 13:49:48 -0400 (EDT)
-Date: Fri, 5 Nov 2010 18:43:43 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH 1/1][2nd resend] sys_unshare: remove the dead
-	CLONE_THREAD/SIGHAND/VM code
-Message-ID: <20101105174343.GB19469@redhat.com>
-References: <201010262121.o9QLLNFo016375@imap1.linux-foundation.org> <20101101024949.6074.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011011738200.26266@chino.kir.corp.google.com> <alpine.DEB.2.00.1011021741520.21871@chino.kir.corp.google.com> <20101103112324.GA29695@redhat.com> <20101105174142.GA19469@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101105174142.GA19469@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B482D6B0099
+	for <linux-mm@kvack.org>; Fri,  5 Nov 2010 17:16:21 -0400 (EDT)
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id oA5Kt6jM001966
+	for <linux-mm@kvack.org>; Fri, 5 Nov 2010 16:55:06 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oA5LGI4B2322448
+	for <linux-mm@kvack.org>; Fri, 5 Nov 2010 17:16:18 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oA5LGHv3005757
+	for <linux-mm@kvack.org>; Fri, 5 Nov 2010 19:16:17 -0200
+Subject: [v2][PATCH] [v2] Revalidate page->mapping in do_generic_file_read()
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+Date: Fri, 05 Nov 2010 14:16:15 -0700
+Message-Id: <20101105211615.2D67A348@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Roland McGrath <roland@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, JANAK DESAI <janak@us.ibm.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>, arunabal@in.ibm.com, sbest@us.ibm.com, stable <stable@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Al Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-Cleanup: kill the dead code which does nothing but complicates the code
-and confuses the reader.
 
-sys_unshare(CLONE_THREAD/SIGHAND/VM) is not really implemented, and I doubt
-very much it will ever work. At least, nobody even tried since the original
-"unshare system call -v5: system call handler function" commit
-99d1419d96d7df9cfa56bc977810be831bd5ef64 was applied more than 4 years ago.
+changes from v1:
+ * added a comment
+ * changed the ->mapping check to NULL-only to make it more
+   clear that we're only checking for truncation
 
-And the code is not consistent. unshare_thread() always fails unconditionally,
-while unshare_sighand() and unshare_vm() pretend to work if there is nothing
-to unshare.
+--
 
-Remove unshare_thread(), unshare_sighand(), unshare_vm() helpers and related
-variables and add a simple CLONE_THREAD | CLONE_SIGHAND| CLONE_VM check into
-check_unshare_flags().
+70 hours into some stress tests of a 2.6.32-based enterprise kernel,
+we ran into a NULL dereference in here:
 
-Also, move the "CLONE_NEWNS needs CLONE_FS" check from check_unshare_flags()
-to sys_unshare(). This looks more consistent and matches the similar
-do_sysvsem check in sys_unshare().
+	int block_is_partially_uptodate(struct page *page, read_descriptor_t *desc,
+	                                        unsigned long from)
+	{
+---->		struct inode *inode = page->mapping->host;
 
-Note: with or without this patch "atomic_read(mm->mm_users) > 1" can give
-a false positive due to get_task_mm().
+It looks like page->mapping was the culprit.  (xmon trace is below).
+After closer examination, I realized that do_generic_file_read() does
+a find_get_page(), and eventually locks the page before calling
+block_is_partially_uptodate().  However, it doesn't revalidate the
+page->mapping after the page is locked.  So, there's a small window
+between the find_get_page() and ->is_partially_uptodate() where the
+page could get truncated and page->mapping cleared.
 
-Signed-off-by: Oleg Nesterov <oleg@redhat.com>
-Acked-by: Roland McGrath <roland@redhat.com>
+We _have_ a reference, so it can't get reclaimed, but it certainly
+can be truncated.
+
+I think the correct thing is to check page->mapping after the
+trylock_page(), and jump out if it got truncated.  This patch has
+been running in the test environment for a month or so now, and we
+have not seen this bug pop up again.
+
+xmon info:
+======================================
+1f:mon> e
+cpu 0x1f: Vector: 300 (Data Access) at [c0000002ae36f770]
+    pc: c0000000001e7a6c: .block_is_partially_uptodate+0xc/0x100
+    lr: c000000000142944: .generic_file_aio_read+0x1e4/0x770
+    sp: c0000002ae36f9f0
+   msr: 8000000000009032
+   dar: 0
+ dsisr: 40000000
+  current = 0xc000000378f99e30
+  paca    = 0xc000000000f66300
+    pid   = 21946, comm = bash
+1f:mon> r
+R00 = 0025c0500000006d   R16 = 0000000000000000
+R01 = c0000002ae36f9f0   R17 = c000000362cd3af0
+R02 = c000000000e8cd80   R18 = ffffffffffffffff
+R03 = c0000000031d0f88   R19 = 0000000000000001
+R04 = c0000002ae36fa68   R20 = c0000003bb97b8a0
+R05 = 0000000000000000   R21 = c0000002ae36fa68
+R06 = 0000000000000000   R22 = 0000000000000000
+R07 = 0000000000000001   R23 = c0000002ae36fbb0
+R08 = 0000000000000002   R24 = 0000000000000000
+R09 = 0000000000000000   R25 = c000000362cd3a80
+R10 = 0000000000000000   R26 = 0000000000000002
+R11 = c0000000001e7b60   R27 = 0000000000000000
+R12 = 0000000042000484   R28 = 0000000000000001
+R13 = c000000000f66300   R29 = c0000003bb97b9b8
+R14 = 0000000000000001   R30 = c000000000e28a08
+R15 = 000000000000ffff   R31 = c0000000031d0f88
+pc  = c0000000001e7a6c .block_is_partially_uptodate+0xc/0x100
+lr  = c000000000142944 .generic_file_aio_read+0x1e4/0x770
+msr = 8000000000009032   cr  = 22000488
+ctr = c0000000001e7a60   xer = 0000000020000000   trap =  300
+dar = 0000000000000000   dsisr = 40000000
+1f:mon> t 
+[link register   ] c000000000142944 .generic_file_aio_read+0x1e4/0x770
+[c0000002ae36f9f0] c000000000142a14 .generic_file_aio_read+0x2b4/0x770
+(unreliable)
+[c0000002ae36fb40] c0000000001b03e4 .do_sync_read+0xd4/0x160
+[c0000002ae36fce0] c0000000001b153c .vfs_read+0xec/0x1f0
+[c0000002ae36fd80] c0000000001b1768 .SyS_read+0x58/0xb0
+[c0000002ae36fe30] c00000000000852c syscall_exit+0x0/0x40
+--- Exception: c00 (System Call) at 00000080a840bc54
+SP (fffca15df30) is in userspace
+1f:mon> di c0000000001e7a6c
+c0000000001e7a6c  e9290000      ld      r9,0(r9)
+c0000000001e7a70  418200c0      beq     c0000000001e7b30        #
+.block_is_partially_uptodate+0xd0/0x100
+c0000000001e7a74  e9440008      ld      r10,8(r4)
+c0000000001e7a78  78a80020      clrldi  r8,r5,32
+c0000000001e7a7c  3c000001      lis     r0,1
+c0000000001e7a80  812900a8      lwz     r9,168(r9)
+c0000000001e7a84  39600001      li      r11,1
+c0000000001e7a88  7c080050      subf    r0,r8,r0
+c0000000001e7a8c  7f805040      cmplw   cr7,r0,r10
+c0000000001e7a90  7d6b4830      slw     r11,r11,r9
+c0000000001e7a94  796b0020      clrldi  r11,r11,32
+c0000000001e7a98  419d00a8      bgt     cr7,c0000000001e7b40    #
+.block_is_partially_uptodate+0xe0/0x100
+c0000000001e7a9c  7fa55840      cmpld   cr7,r5,r11
+c0000000001e7aa0  7d004214      add     r8,r0,r8
+c0000000001e7aa4  79080020      clrldi  r8,r8,32
+c0000000001e7aa8  419c0078      blt     cr7,c0000000001e7b20    #
+.block_is_partially_uptodate+0xc0/0x100
+======================================
+
+Cc: arunabal@in.ibm.com
+Cc: sbest@us.ibm.com
+Cc: stable <stable@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
- kernel/fork.c |  123 +++++++++++-----------------------------------------------
- 1 file changed, 25 insertions(+), 98 deletions(-)
+ linux-2.6.git-dave/mm/filemap.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
---- 2.6.37/kernel/fork.c~unshare-killcrap	2010-11-05 18:03:28.000000000 +0100
-+++ 2.6.37/kernel/fork.c	2010-11-05 18:09:52.000000000 +0100
-@@ -1522,38 +1522,24 @@ void __init proc_caches_init(void)
- }
- 
- /*
-- * Check constraints on flags passed to the unshare system call and
-- * force unsharing of additional process context as appropriate.
-+ * Check constraints on flags passed to the unshare system call.
-  */
--static void check_unshare_flags(unsigned long *flags_ptr)
-+static int check_unshare_flags(unsigned long unshare_flags)
- {
-+	if (unshare_flags & ~(CLONE_THREAD|CLONE_FS|CLONE_NEWNS|CLONE_SIGHAND|
-+				CLONE_VM|CLONE_FILES|CLONE_SYSVSEM|
-+				CLONE_NEWUTS|CLONE_NEWIPC|CLONE_NEWNET))
-+		return -EINVAL;
- 	/*
--	 * If unsharing a thread from a thread group, must also
--	 * unshare vm.
--	 */
--	if (*flags_ptr & CLONE_THREAD)
--		*flags_ptr |= CLONE_VM;
--
--	/*
--	 * If unsharing vm, must also unshare signal handlers.
--	 */
--	if (*flags_ptr & CLONE_VM)
--		*flags_ptr |= CLONE_SIGHAND;
--
--	/*
--	 * If unsharing namespace, must also unshare filesystem information.
-+	 * Not implemented, but pretend it works if there is nothing to
-+	 * unshare. Note that unsharing CLONE_THREAD or CLONE_SIGHAND
-+	 * needs to unshare vm.
- 	 */
--	if (*flags_ptr & CLONE_NEWNS)
--		*flags_ptr |= CLONE_FS;
--}
--
--/*
-- * Unsharing of tasks created with CLONE_THREAD is not supported yet
-- */
--static int unshare_thread(unsigned long unshare_flags)
--{
--	if (unshare_flags & CLONE_THREAD)
--		return -EINVAL;
-+	if (unshare_flags & (CLONE_THREAD | CLONE_SIGHAND | CLONE_VM)) {
-+		/* FIXME: get_task_mm() increments ->mm_users */
-+		if (atomic_read(&current->mm->mm_users) > 1)
-+			return -EINVAL;
-+	}
- 
- 	return 0;
- }
-@@ -1580,34 +1566,6 @@ static int unshare_fs(unsigned long unsh
- }
- 
- /*
-- * Unsharing of sighand is not supported yet
-- */
--static int unshare_sighand(unsigned long unshare_flags, struct sighand_struct **new_sighp)
--{
--	struct sighand_struct *sigh = current->sighand;
--
--	if ((unshare_flags & CLONE_SIGHAND) && atomic_read(&sigh->count) > 1)
--		return -EINVAL;
--	else
--		return 0;
--}
--
--/*
-- * Unshare vm if it is being shared
-- */
--static int unshare_vm(unsigned long unshare_flags, struct mm_struct **new_mmp)
--{
--	struct mm_struct *mm = current->mm;
--
--	if ((unshare_flags & CLONE_VM) &&
--	    (mm && atomic_read(&mm->mm_users) > 1)) {
--		return -EINVAL;
--	}
--
--	return 0;
--}
--
--/*
-  * Unshare file descriptor table if it is being shared
-  */
- static int unshare_fd(unsigned long unshare_flags, struct files_struct **new_fdp)
-@@ -1635,45 +1593,37 @@ static int unshare_fd(unsigned long unsh
-  */
- SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
- {
--	int err = 0;
- 	struct fs_struct *fs, *new_fs = NULL;
--	struct sighand_struct *new_sigh = NULL;
--	struct mm_struct *mm, *new_mm = NULL, *active_mm = NULL;
- 	struct files_struct *fd, *new_fd = NULL;
- 	struct nsproxy *new_nsproxy = NULL;
- 	int do_sysvsem = 0;
-+	int err;
- 
--	check_unshare_flags(&unshare_flags);
--
--	/* Return -EINVAL for all unsupported flags */
--	err = -EINVAL;
--	if (unshare_flags & ~(CLONE_THREAD|CLONE_FS|CLONE_NEWNS|CLONE_SIGHAND|
--				CLONE_VM|CLONE_FILES|CLONE_SYSVSEM|
--				CLONE_NEWUTS|CLONE_NEWIPC|CLONE_NEWNET))
-+	err = check_unshare_flags(unshare_flags);
-+	if (err)
- 		goto bad_unshare_out;
- 
- 	/*
-+	 * If unsharing namespace, must also unshare filesystem information.
-+	 */
-+	if (unshare_flags & CLONE_NEWNS)
-+		unshare_flags |= CLONE_FS;
-+	/*
- 	 * CLONE_NEWIPC must also detach from the undolist: after switching
- 	 * to a new ipc namespace, the semaphore arrays from the old
- 	 * namespace are unreachable.
- 	 */
- 	if (unshare_flags & (CLONE_NEWIPC|CLONE_SYSVSEM))
- 		do_sysvsem = 1;
--	if ((err = unshare_thread(unshare_flags)))
--		goto bad_unshare_out;
- 	if ((err = unshare_fs(unshare_flags, &new_fs)))
--		goto bad_unshare_cleanup_thread;
--	if ((err = unshare_sighand(unshare_flags, &new_sigh)))
--		goto bad_unshare_cleanup_fs;
--	if ((err = unshare_vm(unshare_flags, &new_mm)))
--		goto bad_unshare_cleanup_sigh;
-+		goto bad_unshare_out;
- 	if ((err = unshare_fd(unshare_flags, &new_fd)))
--		goto bad_unshare_cleanup_vm;
-+		goto bad_unshare_cleanup_fs;
- 	if ((err = unshare_nsproxy_namespaces(unshare_flags, &new_nsproxy,
- 			new_fs)))
- 		goto bad_unshare_cleanup_fd;
- 
--	if (new_fs ||  new_mm || new_fd || do_sysvsem || new_nsproxy) {
-+	if (new_fs || new_fd || do_sysvsem || new_nsproxy) {
- 		if (do_sysvsem) {
- 			/*
- 			 * CLONE_SYSVSEM is equivalent to sys_exit().
-@@ -1699,19 +1649,6 @@ SYSCALL_DEFINE1(unshare, unsigned long, 
- 			spin_unlock(&fs->lock);
- 		}
- 
--		if (new_mm) {
--			mm = current->mm;
--			active_mm = current->active_mm;
--			current->mm = new_mm;
--			current->active_mm = new_mm;
--			if (current->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
--				atomic_dec(&mm->oom_disable_count);
--				atomic_inc(&new_mm->oom_disable_count);
--			}
--			activate_mm(active_mm, new_mm);
--			new_mm = mm;
--		}
--
- 		if (new_fd) {
- 			fd = current->files;
- 			current->files = new_fd;
-@@ -1728,20 +1665,10 @@ bad_unshare_cleanup_fd:
- 	if (new_fd)
- 		put_files_struct(new_fd);
- 
--bad_unshare_cleanup_vm:
--	if (new_mm)
--		mmput(new_mm);
--
--bad_unshare_cleanup_sigh:
--	if (new_sigh)
--		if (atomic_dec_and_test(&new_sigh->count))
--			kmem_cache_free(sighand_cachep, new_sigh);
--
- bad_unshare_cleanup_fs:
- 	if (new_fs)
- 		free_fs_struct(new_fs);
- 
--bad_unshare_cleanup_thread:
- bad_unshare_out:
- 	return err;
- }
+diff -puN mm/filemap.c~is_partially_uptodate-revalidate-page mm/filemap.c
+--- linux-2.6.git/mm/filemap.c~is_partially_uptodate-revalidate-page	2010-11-03 13:49:21.000000000 -0700
++++ linux-2.6.git-dave/mm/filemap.c	2010-11-04 06:59:08.000000000 -0700
+@@ -1016,6 +1016,9 @@ find_page:
+ 				goto page_not_up_to_date;
+ 			if (!trylock_page(page))
+ 				goto page_not_up_to_date;
++			/* Did it get truncated before we got the lock? */
++			if (!page->mapping)
++				goto page_not_up_to_date_locked;
+ 			if (!mapping->a_ops->is_partially_uptodate(page,
+ 								desc, offset))
+ 				goto page_not_up_to_date_locked;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
