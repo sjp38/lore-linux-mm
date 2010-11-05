@@ -1,42 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3CAD78D0001
-	for <linux-mm@kvack.org>; Fri,  5 Nov 2010 19:12:43 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0F7318D0001
+	for <linux-mm@kvack.org>; Fri,  5 Nov 2010 19:12:45 -0400 (EDT)
 From: Joe Perches <joe@perches.com>
-Subject: [PATCH 0/7] Convert sprintf_symbol uses to %p[Ss]
-Date: Fri,  5 Nov 2010 16:12:33 -0700
-Message-Id: <1288998760-11775-1-git-send-email-joe@perches.com>
+Subject: [PATCH 6/7] mm: Convert sprintf_symbol to %pS
+Date: Fri,  5 Nov 2010 16:12:39 -0700
+Message-Id: <1288998760-11775-7-git-send-email-joe@perches.com>
+In-Reply-To: <1288998760-11775-1-git-send-email-joe@perches.com>
+References: <1288998760-11775-1-git-send-email-joe@perches.com>
 Sender: owner-linux-mm@kvack.org
 To: Jiri Kosina <trivial@kernel.org>
-Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, cluster-devel@redhat.com, linux-mm@kvack.org, linux-nfs@vger.kernel.org, netdev@vger.kernel.org
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Remove unnecessary declarations of temporary buffers.
-Use %pS or %ps as appropriate.
-Minor reformatting in a couple of places.
+Signed-off-by: Joe Perches <joe@perches.com>
+---
+ mm/slub.c    |   11 ++++-------
+ mm/vmalloc.c |    9 ++-------
+ 2 files changed, 6 insertions(+), 14 deletions(-)
 
-Compiled, but otherwise untested.
-
-Joe Perches (7):
-  arch/arm/kernel/traps.c: Convert sprintf_symbol to %pS
-  arch/x86/kernel/pci-iommu_table.c: Convert sprintf_symbol to %pS
-  fs/gfs2/glock.c: Convert sprintf_symbol to %pS
-  fs/proc/base.c kernel/latencytop.c: Convert sprintf_symbol to %ps
-  kernel/lockdep_proc.c: Convert sprintf_symbol to %pS
-  mm: Convert sprintf_symbol to %pS
-  net/sunrpc/clnt.c: Convert sprintf_symbol to %ps
-
- arch/arm/kernel/traps.c           |    5 +----
- arch/x86/kernel/pci-iommu_table.c |   18 ++++--------------
- fs/gfs2/glock.c                   |   15 +++++++--------
- fs/proc/base.c                    |   22 ++++++++--------------
- kernel/latencytop.c               |   23 +++++++++--------------
- kernel/lockdep_proc.c             |   16 ++++++----------
- mm/slub.c                         |   11 ++++-------
- mm/vmalloc.c                      |    9 ++-------
- net/sunrpc/clnt.c                 |   12 ++----------
- 9 files changed, 43 insertions(+), 88 deletions(-)
-
+diff --git a/mm/slub.c b/mm/slub.c
+index 8fd5401..43b3857 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3660,7 +3660,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
+ 		len += sprintf(buf + len, "%7ld ", l->count);
+ 
+ 		if (l->addr)
+-			len += sprint_symbol(buf + len, (unsigned long)l->addr);
++			len += sprintf(buf + len, "%pS", (void *)l->addr);
+ 		else
+ 			len += sprintf(buf + len, "<not-available>");
+ 
+@@ -3969,12 +3969,9 @@ SLAB_ATTR(min_partial);
+ 
+ static ssize_t ctor_show(struct kmem_cache *s, char *buf)
+ {
+-	if (s->ctor) {
+-		int n = sprint_symbol(buf, (unsigned long)s->ctor);
+-
+-		return n + sprintf(buf + n, "\n");
+-	}
+-	return 0;
++	if (!s->ctor)
++		return 0;
++	return sprintf(buf, "%pS\n", s->ctor);
+ }
+ SLAB_ATTR_RO(ctor);
+ 
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index a3d66b3..b7e18f6 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -2450,13 +2450,8 @@ static int s_show(struct seq_file *m, void *p)
+ 	seq_printf(m, "0x%p-0x%p %7ld",
+ 		v->addr, v->addr + v->size, v->size);
+ 
+-	if (v->caller) {
+-		char buff[KSYM_SYMBOL_LEN];
+-
+-		seq_putc(m, ' ');
+-		sprint_symbol(buff, (unsigned long)v->caller);
+-		seq_puts(m, buff);
+-	}
++	if (v->caller)
++		seq_printf(m, " %pS", v->caller);
+ 
+ 	if (v->nr_pages)
+ 		seq_printf(m, " pages=%d", v->nr_pages);
 -- 
 1.7.3.2.146.gca209
 
