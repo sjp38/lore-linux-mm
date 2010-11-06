@@ -1,93 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id D00F68D0001
-	for <linux-mm@kvack.org>; Sat,  6 Nov 2010 11:14:22 -0400 (EDT)
-Date: Sun, 7 Nov 2010 02:12:37 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: 2.6.36 io bring the system to its knees
-Message-ID: <20101106151237.GM13830@dastard>
-References: <20101105014334.GF13830@dastard>
- <E1PELiI-0001Pj-8g@approx.mit.edu>
- <AANLkTimON_GL6vRF9=_U6oRFQ30EYssx3wv5xdNsU9JM@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3D3586B00A6
+	for <linux-mm@kvack.org>; Sat,  6 Nov 2010 12:23:52 -0400 (EDT)
+Received: by wwj40 with SMTP id 40so4216464wwj.26
+        for <linux-mm@kvack.org>; Sat, 06 Nov 2010 09:23:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTimON_GL6vRF9=_U6oRFQ30EYssx3wv5xdNsU9JM@mail.gmail.com>
+In-Reply-To: <87lj597hp9.fsf@gmail.com>
+References: <87lj597hp9.fsf@gmail.com>
+Date: Sat, 6 Nov 2010 09:23:49 -0700
+Message-ID: <AANLkTi=mprHyKd=bvr=n9UaN_KVjd3acir1pigayqHKT@mail.gmail.com>
+Subject: Re: fadvise DONTNEED implementation (or lack thereof)
+From: Wayne Davison <wayned@samba.org>
+Content-Type: multipart/alternative; boundary=000e0cd72c00ed327f049464d02f
 Sender: owner-linux-mm@kvack.org
-To: dave b <db.pub.mail@gmail.com>
-Cc: Sanjoy Mahajan <sanjoy@olin.edu>, Jesper Juhl <jj@chaosbits.net>, Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ted Ts'o <tytso@mit.edu>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Steven Barrett <damentz@gmail.com>
+To: Ben Gamari <bgamari.foss@gmail.com>
+Cc: linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Nov 07, 2010 at 01:10:24AM +1100, dave b wrote:
-> I now personally have thought that this problem is the kernel not
-> keeping track of reads vs writers properly  or not providing enough
-> time to reading processes as writing ones which look like they are
-> blocking the system....
+--000e0cd72c00ed327f049464d02f
+Content-Type: text/plain; charset=UTF-8
 
-Could be anything from that description....
+On Wed, Nov 3, 2010 at 10:58 PM, Ben Gamari <bgamari.foss@gmail.com> wrote:
 
-> If you want to do a simple test do an unlimited dd  (or two dd's of a
-> limited size, say 10gb) and a find /
-> Tell me how it goes :)
+> It looks like a few folks have discussed addressing the issue in the past,
+> but nothing has happened as of 2.6.36.
 
-The find runs at IO latency speed while the dd processes run at disk
-bandwidth:
 
-Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await  svctm  %util
-vda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00   0.00   0.00
-vdb               0.00     0.00   58.00 1251.00     0.45   556.54   871.45    26.69   20.39   0.72  94.32
-sda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00   0.00   0.00
+Yeah, the linux code for this has long been buggy and near useless.  What is
+really needed is a way for some file access to be marked as generating
+low-priority cache data into the filesystem cache.  Such a flag should only
+apply to newly cached data, so that copying a file that was cached by some
+other program would not lower its cache priority (nor kick it out of the
+cache).  If some other process comes along and reads from the low-priority
+cache with a normal-priority read, it should get upgraded to normal
+priority.  Something like that seems pretty simple and useful.
 
-That looks pretty normal to me for XFS and the noop IO scheduler,
-and there are no signs of latency or interactive problems in
-the system at all. Kill the dd's and:
+As for rsync, all current implementations of cache dropping are way too
+klugey to go into rsync.  I'd personally suggest that someone create a
+linux-specific pre-load library that overrides read() and write() calls and
+use that when running rsync (or whatever else) to implement the extreme
+weirdness that is currently needed for cache twiddling.
 
-Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await  svctm  %util
-vda               0.00     0.00    0.00    0.00     0.00     0.00 0.00     0.00    0.00   0.00   0.00
-vdb               0.00     0.00  214.80    0.40     1.68     0.00 15.99     0.33    1.54   1.54  33.12
-sda               0.00     0.00    0.00    0.00     0.00     0.00 0.00     0.00    0.00   0.00   0.00
+..wayne..
 
-And the find runs 3-4x faster, but ~200 iops is about the limit
-I'd expect from 7200rpm SATA drives given a single thread issuing IO
-(i.e. 5ms average seek time).
+--000e0cd72c00ed327f049464d02f
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-> ( the system will stall)
+<div class=3D"gmail_quote">On Wed, Nov 3, 2010 at 10:58 PM, Ben Gamari <spa=
+n dir=3D"ltr">&lt;<a href=3D"mailto:bgamari.foss@gmail.com">bgamari.foss@gm=
+ail.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D=
+"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+It looks like a few=C2=A0folks have discussed addressing the issue in the p=
+ast, but nothing=C2=A0has happened as of 2.6.36.</blockquote><div><br></div=
+><div>Yeah, the linux code for this has long been buggy and near useless. =
+=C2=A0What is really needed is a way for some file access to be marked as g=
+enerating low-priority cache data into the filesystem cache. =C2=A0Such a f=
+lag should only apply to newly cached data, so that copying a file that was=
+ cached by some other program would not lower its cache priority (nor kick =
+it out of the cache). =C2=A0If some other process comes along and reads fro=
+m the low-priority cache with a normal-priority read, it should get upgrade=
+d to normal priority. =C2=A0Something like that seems pretty simple and use=
+ful.</div>
+<div><br></div><div>As for rsync, all current implementations of cache drop=
+ping are way too klugey to go into rsync. =C2=A0I&#39;d personally suggest =
+that someone create a linux-specific pre-load library that overrides read()=
+ and write() calls and use that when running rsync (or whatever else) to im=
+plement the extreme weirdness that is currently needed for cache twiddling.=
+</div>
+<div><br></div></div>..wayne..<br>
 
-No, the system doesn't stall at all. It runs just fine. Sure,
-anything that requires IO on the loaded filesystem is _slower_, but
-if you're writing huge files to it that's pretty much expected. The
-root drive (on a different spindle) is still perfectly responsive on
-a cold cache:
-
-$ sudo time find / -xdev > /dev/null
-0.10user 1.87system 0:03.39elapsed 58%CPU (0avgtext+0avgdata 7008maxresident)k
-0inputs+0outputs (1major+844minor)pagefaults 0swap
-
-So what you describe is not a systemic problem, but a problem that
-your system configuration triggers. That's why we need to know
-_exactly_ how your storage subsystem is configured....
-
-> http://article.gmane.org/gmane.linux.kernel.device-mapper.dm-crypt/4561
-> iirc can reproduce this on plain ext3.
-
-You're pointing to a "fsync-tester" program that exercises a
-well-known problem with ext3 (sync-the-world-on-fsync). Other
-filesystems do not have that design flaw so don't suffer from
-interactivity problems uner these workloads.  As it is, your above
-dd workload example is not related to this fsync problem, either.
-
-This is what I'm trying to point out - you need to describe in
-significant detail your setup and what your applications are doing
-so we can identify if you are seeing a known problem or not. If you
-are seeing problems as a result of the above ext3 fsync problem,
-then the simple answer is "don't use ext3".
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+--000e0cd72c00ed327f049464d02f--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
