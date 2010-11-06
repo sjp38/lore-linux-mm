@@ -1,34 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 507F58D0001
-	for <linux-mm@kvack.org>; Sat,  6 Nov 2010 10:35:41 -0400 (EDT)
-Received: by iwn9 with SMTP id 9so3947233iwn.14
-        for <linux-mm@kvack.org>; Sat, 06 Nov 2010 07:35:40 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C5916B00AA
+	for <linux-mm@kvack.org>; Sat,  6 Nov 2010 11:00:34 -0400 (EDT)
+Message-ID: <4CD56D94.2000806@cs.helsinki.fi>
+Date: Sat, 06 Nov 2010 17:00:36 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-In-Reply-To: <E1PELiI-0001Pj-8g@approx.mit.edu>
-References: <20101105014334.GF13830@dastard> <E1PELiI-0001Pj-8g@approx.mit.edu>
-From: dave b <db.pub.mail@gmail.com>
-Date: Sun, 7 Nov 2010 01:10:24 +1100
-Message-ID: <AANLkTimON_GL6vRF9=_U6oRFQ30EYssx3wv5xdNsU9JM@mail.gmail.com>
-Subject: Re: 2.6.36 io bring the system to its knees
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 6/7] mm: Convert sprintf_symbol to %pS
+References: <1288998760-11775-1-git-send-email-joe@perches.com> <1288998760-11775-7-git-send-email-joe@perches.com>
+In-Reply-To: <1288998760-11775-7-git-send-email-joe@perches.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Sanjoy Mahajan <sanjoy@olin.edu>
-Cc: Dave Chinner <david@fromorbit.com>, Jesper Juhl <jj@chaosbits.net>, Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ted Ts'o <tytso@mit.edu>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Steven Barrett <damentz@gmail.com>
+To: Joe Perches <joe@perches.com>
+Cc: Jiri Kosina <trivial@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-I now personally have thought that this problem is the kernel not
-keeping track of reads vs writers properly  or not providing enough
-time to reading processes as writing ones which look like they are
-blocking the system....
+On 6.11.2010 1.12, Joe Perches wrote:
+> Signed-off-by: Joe Perches<joe@perches.com>
 
-If you want to do a simple test do an unlimited dd  (or two dd's of a
-limited size, say 10gb) and a find /
-Tell me how it goes :) ( the system will stall)
-(obviously stop the dd after some time :) ).
+Acked-by: Pekka Enberg <penberg@kernel.org>
 
-http://article.gmane.org/gmane.linux.kernel.device-mapper.dm-crypt/4561
-iirc can reproduce this on plain ext3.
+I think this ought to go through Andrew's tree rather than the trivial tree.
+
+> ---
+>   mm/slub.c    |   11 ++++-------
+>   mm/vmalloc.c |    9 ++-------
+>   2 files changed, 6 insertions(+), 14 deletions(-)
+>
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 8fd5401..43b3857 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3660,7 +3660,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
+>   		len += sprintf(buf + len, "%7ld ", l->count);
+>
+>   		if (l->addr)
+> -			len += sprint_symbol(buf + len, (unsigned long)l->addr);
+> +			len += sprintf(buf + len, "%pS", (void *)l->addr);
+>   		else
+>   			len += sprintf(buf + len, "<not-available>");
+>
+> @@ -3969,12 +3969,9 @@ SLAB_ATTR(min_partial);
+>
+>   static ssize_t ctor_show(struct kmem_cache *s, char *buf)
+>   {
+> -	if (s->ctor) {
+> -		int n = sprint_symbol(buf, (unsigned long)s->ctor);
+> -
+> -		return n + sprintf(buf + n, "\n");
+> -	}
+> -	return 0;
+> +	if (!s->ctor)
+> +		return 0;
+> +	return sprintf(buf, "%pS\n", s->ctor);
+>   }
+>   SLAB_ATTR_RO(ctor);
+>
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index a3d66b3..b7e18f6 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -2450,13 +2450,8 @@ static int s_show(struct seq_file *m, void *p)
+>   	seq_printf(m, "0x%p-0x%p %7ld",
+>   		v->addr, v->addr + v->size, v->size);
+>
+> -	if (v->caller) {
+> -		char buff[KSYM_SYMBOL_LEN];
+> -
+> -		seq_putc(m, ' ');
+> -		sprint_symbol(buff, (unsigned long)v->caller);
+> -		seq_puts(m, buff);
+> -	}
+> +	if (v->caller)
+> +		seq_printf(m, " %pS", v->caller);
+>
+>   	if (v->nr_pages)
+>   		seq_printf(m, " pages=%d", v->nr_pages);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
