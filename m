@@ -1,82 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C5916B00AA
-	for <linux-mm@kvack.org>; Sat,  6 Nov 2010 11:00:34 -0400 (EDT)
-Message-ID: <4CD56D94.2000806@cs.helsinki.fi>
-Date: Sat, 06 Nov 2010 17:00:36 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id D00F68D0001
+	for <linux-mm@kvack.org>; Sat,  6 Nov 2010 11:14:22 -0400 (EDT)
+Date: Sun, 7 Nov 2010 02:12:37 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: 2.6.36 io bring the system to its knees
+Message-ID: <20101106151237.GM13830@dastard>
+References: <20101105014334.GF13830@dastard>
+ <E1PELiI-0001Pj-8g@approx.mit.edu>
+ <AANLkTimON_GL6vRF9=_U6oRFQ30EYssx3wv5xdNsU9JM@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 6/7] mm: Convert sprintf_symbol to %pS
-References: <1288998760-11775-1-git-send-email-joe@perches.com> <1288998760-11775-7-git-send-email-joe@perches.com>
-In-Reply-To: <1288998760-11775-7-git-send-email-joe@perches.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTimON_GL6vRF9=_U6oRFQ30EYssx3wv5xdNsU9JM@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Joe Perches <joe@perches.com>
-Cc: Jiri Kosina <trivial@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: dave b <db.pub.mail@gmail.com>
+Cc: Sanjoy Mahajan <sanjoy@olin.edu>, Jesper Juhl <jj@chaosbits.net>, Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ted Ts'o <tytso@mit.edu>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Steven Barrett <damentz@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On 6.11.2010 1.12, Joe Perches wrote:
-> Signed-off-by: Joe Perches<joe@perches.com>
+On Sun, Nov 07, 2010 at 01:10:24AM +1100, dave b wrote:
+> I now personally have thought that this problem is the kernel not
+> keeping track of reads vs writers properly  or not providing enough
+> time to reading processes as writing ones which look like they are
+> blocking the system....
 
-Acked-by: Pekka Enberg <penberg@kernel.org>
+Could be anything from that description....
 
-I think this ought to go through Andrew's tree rather than the trivial tree.
+> If you want to do a simple test do an unlimited dd  (or two dd's of a
+> limited size, say 10gb) and a find /
+> Tell me how it goes :)
 
-> ---
->   mm/slub.c    |   11 ++++-------
->   mm/vmalloc.c |    9 ++-------
->   2 files changed, 6 insertions(+), 14 deletions(-)
->
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 8fd5401..43b3857 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -3660,7 +3660,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
->   		len += sprintf(buf + len, "%7ld ", l->count);
->
->   		if (l->addr)
-> -			len += sprint_symbol(buf + len, (unsigned long)l->addr);
-> +			len += sprintf(buf + len, "%pS", (void *)l->addr);
->   		else
->   			len += sprintf(buf + len, "<not-available>");
->
-> @@ -3969,12 +3969,9 @@ SLAB_ATTR(min_partial);
->
->   static ssize_t ctor_show(struct kmem_cache *s, char *buf)
->   {
-> -	if (s->ctor) {
-> -		int n = sprint_symbol(buf, (unsigned long)s->ctor);
-> -
-> -		return n + sprintf(buf + n, "\n");
-> -	}
-> -	return 0;
-> +	if (!s->ctor)
-> +		return 0;
-> +	return sprintf(buf, "%pS\n", s->ctor);
->   }
->   SLAB_ATTR_RO(ctor);
->
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index a3d66b3..b7e18f6 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -2450,13 +2450,8 @@ static int s_show(struct seq_file *m, void *p)
->   	seq_printf(m, "0x%p-0x%p %7ld",
->   		v->addr, v->addr + v->size, v->size);
->
-> -	if (v->caller) {
-> -		char buff[KSYM_SYMBOL_LEN];
-> -
-> -		seq_putc(m, ' ');
-> -		sprint_symbol(buff, (unsigned long)v->caller);
-> -		seq_puts(m, buff);
-> -	}
-> +	if (v->caller)
-> +		seq_printf(m, " %pS", v->caller);
->
->   	if (v->nr_pages)
->   		seq_printf(m, " pages=%d", v->nr_pages);
+The find runs at IO latency speed while the dd processes run at disk
+bandwidth:
+
+Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await  svctm  %util
+vda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00   0.00   0.00
+vdb               0.00     0.00   58.00 1251.00     0.45   556.54   871.45    26.69   20.39   0.72  94.32
+sda               0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00   0.00   0.00
+
+That looks pretty normal to me for XFS and the noop IO scheduler,
+and there are no signs of latency or interactive problems in
+the system at all. Kill the dd's and:
+
+Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await  svctm  %util
+vda               0.00     0.00    0.00    0.00     0.00     0.00 0.00     0.00    0.00   0.00   0.00
+vdb               0.00     0.00  214.80    0.40     1.68     0.00 15.99     0.33    1.54   1.54  33.12
+sda               0.00     0.00    0.00    0.00     0.00     0.00 0.00     0.00    0.00   0.00   0.00
+
+And the find runs 3-4x faster, but ~200 iops is about the limit
+I'd expect from 7200rpm SATA drives given a single thread issuing IO
+(i.e. 5ms average seek time).
+
+> ( the system will stall)
+
+No, the system doesn't stall at all. It runs just fine. Sure,
+anything that requires IO on the loaded filesystem is _slower_, but
+if you're writing huge files to it that's pretty much expected. The
+root drive (on a different spindle) is still perfectly responsive on
+a cold cache:
+
+$ sudo time find / -xdev > /dev/null
+0.10user 1.87system 0:03.39elapsed 58%CPU (0avgtext+0avgdata 7008maxresident)k
+0inputs+0outputs (1major+844minor)pagefaults 0swap
+
+So what you describe is not a systemic problem, but a problem that
+your system configuration triggers. That's why we need to know
+_exactly_ how your storage subsystem is configured....
+
+> http://article.gmane.org/gmane.linux.kernel.device-mapper.dm-crypt/4561
+> iirc can reproduce this on plain ext3.
+
+You're pointing to a "fsync-tester" program that exercises a
+well-known problem with ext3 (sync-the-world-on-fsync). Other
+filesystems do not have that design flaw so don't suffer from
+interactivity problems uner these workloads.  As it is, your above
+dd workload example is not related to this fsync problem, either.
+
+This is what I'm trying to point out - you need to describe in
+significant detail your setup and what your applications are doing
+so we can identify if you are seeing a known problem or not. If you
+are seeing problems as a result of the above ext3 fsync problem,
+then the simple answer is "don't use ext3".
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
