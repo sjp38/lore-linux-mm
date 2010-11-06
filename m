@@ -1,78 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E40106B0089
-	for <linux-mm@kvack.org>; Sun,  7 Nov 2010 08:22:09 -0500 (EST)
-Date: Sun, 7 Nov 2010 14:22:04 +0100
-From: Jan Kara <jack@suse.cz>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2837E6B008A
+	for <linux-mm@kvack.org>; Sun,  7 Nov 2010 08:26:07 -0500 (EST)
+Date: Sun, 7 Nov 2010 00:39:55 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [PATCH] mm: Avoid livelocking of WB_SYNC_ALL writeback
-Message-ID: <20101107132204.GC5126@quack.suse.cz>
+Message-ID: <20101106163955.GA9340@localhost>
 References: <1288992383-25475-1-git-send-email-jack@suse.cz>
- <20101106041202.GA15411@localhost>
+ <20101105223038.GA16666@lst.de>
+ <20101106025548.GA16378@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101106041202.GA15411@localhost>
+In-Reply-To: <20101106025548.GA16378@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+Cc: Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat 06-11-10 12:12:02, Wu Fengguang wrote:
-> On Sat, Nov 06, 2010 at 05:26:23AM +0800, Jan Kara wrote:
+On Sat, Nov 06, 2010 at 10:55:48AM +0800, Wu Fengguang wrote:
+> [add CC to linux-mm list]
 > 
-> > +	/*
-> > +	 * In WB_SYNC_ALL mode, we just want to ignore nr_to_write as
-> > +	 * we need to write everything and livelock avoidance is implemented
-> > +	 * differently.
-> > +	 */
-> > +	if (wbc.sync_mode == WB_SYNC_NONE)
-> > +		write_chunk = MAX_WRITEBACK_PAGES;
-> > +	else
-> > +		write_chunk = LONG_MAX;
+> On Sat, Nov 06, 2010 at 06:30:38AM +0800, Christoph Hellwig wrote:
+> > > +	/*
+> > > +	 * In WB_SYNC_ALL mode, we just want to ignore nr_to_write as
+> > > +	 * we need to write everything and livelock avoidance is implemented
+> > > +	 * differently.
+> > > +	 */
+> > > +       if (wbc.sync_mode == WB_SYNC_NONE)
+> > > +               write_chunk = MAX_WRITEBACK_PAGES;
+> > > +       else
+> > > +               write_chunk = LONG_MAX;
 > 
-> This looks like a safe change for .37.  I updated the patch on the
-> above comment and made no other changes (it seems OK to also remove
-> the below line, however that's not the necessary change as a bug fix,
-> so I'd rather leave the extra change to the next merge window).
-> write_cache_pages():
+> Good catch!
 > 
-> -->                     /*
-> -->                      * We stop writing back only if we are not doing
-> -->                      * integrity sync. In case of integrity sync we have to
-> -->                      * keep going until we have written all the pages
-> -->                      * we tagged for writeback prior to entering this loop.
-> -->                      */
->                         if (--wbc->nr_to_write <= 0 &&
-> ==>                         wbc->sync_mode == WB_SYNC_NONE) {
->                                 done = 1;
->                                 break;
-  Well, I'd rather leave the test as is. In fact, in my mind-model the
-target rather is to completely ignore nr_to_write when we do WB_SYNC_ALL
-writeback since obeying it is never what a caller wants to happen...
+> > 
+> > I think it would be useful to elaborate here on how livelock avoidance
+> > is supposed to work.
+> 
+> It's supposed to sync files in a big loop
+> 
+>         for each dirty inode
+>             write_cache_pages()
+>                 (quickly) tag currently dirty pages
+>                 (maybe slowly) sync all tagged pages
+> 
+> Ideally the loop should call write_cache_pages() _once_ for each inode.
+> At least this is the assumption made by commit f446daaea (mm:
+> implement writeback livelock avoidance using page tagging).
 
-> +	/*
-> +	 * WB_SYNC_ALL mode does livelock avoidance by syncing dirty
-> +	 * inodes/pages in one big loop. Setting wbc.nr_to_write=LONG_MAX
-> +	 * here avoids calling into writeback_inodes_wb() more than once.
-  Maybe I'd add here:
-The intended call sequence for WB_SYNC_ALL writeback is:
-> +	 *
-> +	 *      wb_writeback()
-> +	 *          writeback_inodes_wb()       <== called only once
-> +	 *              write_cache_pages()     <== called once for each inode
-> +	 *                   (quickly) tag currently dirty pages
-> +	 *                   (maybe slowly) sync all tagged pages
-> +	 */
-> +	if (wbc.sync_mode == WB_SYNC_NONE)
-> +		write_chunk = MAX_WRITEBACK_PAGES;
-> +	else
-> +		write_chunk = LONG_MAX;
-> +
+The above scheme relies on the filesystems to not skip pages in
+WB_SYNC_ALL mode. It seems necessary to add an explicit check at
+least in the -mm tree.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Thanks,
+Fengguang
+---
+writeback: check skipped pages on WB_SYNC_ALL 
+
+In WB_SYNC_ALL mode, filesystems are not expected to skip dirty pages on
+temporal lock contentions or non fatal errors, otherwise sync() will
+return without actually syncing the skipped pages. Add a check to
+catch possible redirty_page_for_writepage() callers that violate this
+expectation.
+
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/fs-writeback.c |    1 +
+ 1 file changed, 1 insertion(+)
+
+--- linux-next.orig/fs/fs-writeback.c	2010-11-07 00:20:43.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-11-07 00:29:29.000000000 +0800
+@@ -527,6 +527,7 @@ static int writeback_sb_inodes(struct su
+ 			 * buffers.  Skip this inode for now.
+ 			 */
+ 			redirty_tail(inode);
++			WARN_ON_ONCE(wbc->sync_mode == WB_SYNC_ALL);
+ 		}
+ 		spin_unlock(&inode_lock);
+ 		iput(inode);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
