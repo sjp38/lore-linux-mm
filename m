@@ -1,60 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A8F356B0096
-	for <linux-mm@kvack.org>; Sat,  6 Nov 2010 13:31:14 -0400 (EDT)
-Received: by iwn9 with SMTP id 9so4104667iwn.14
-        for <linux-mm@kvack.org>; Sat, 06 Nov 2010 10:31:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTin9m65JVKRuStZ1-qhU5_1AY-GcbBRC0TodsfYC@mail.gmail.com>
-References: <1288973333-7891-1-git-send-email-minchan.kim@gmail.com>
-	<20101106010357.GD23393@cmpxchg.org>
-	<AANLkTin9m65JVKRuStZ1-qhU5_1AY-GcbBRC0TodsfYC@mail.gmail.com>
-Date: Sun, 7 Nov 2010 02:31:13 +0900
-Message-ID: <AANLkTin8UMMszcz+C9iGJ62T+mARmnQ-LEu4p1VdqKjC@mail.gmail.com>
-Subject: Re: [PATCH] memcg: use do_div to divide s64 in 32 bit machine.
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 830706B0095
+	for <linux-mm@kvack.org>; Sat,  6 Nov 2010 15:11:17 -0400 (EDT)
+Date: Sat, 6 Nov 2010 12:10:42 -0700
+From: Arjan van de Ven <arjan@infradead.org>
+Subject: Re: 2.6.36 io bring the system to its knees
+Message-ID: <20101106121042.10b3d96b@infradead.org>
+In-Reply-To: <E1PELiI-0001Pj-8g@approx.mit.edu>
+References: <20101105014334.GF13830@dastard>
+	<E1PELiI-0001Pj-8g@approx.mit.edu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: hannes@cmpxchg.org, Andrew Morton <akpm@linux-foundation.org>, Dave Young <hidave.darkstar@gmail.com>, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Sanjoy Mahajan <sanjoy@olin.edu>
+Cc: Dave Chinner <david@fromorbit.com>, Jesper Juhl <jj@chaosbits.net>, Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Ted Ts'o <tytso@mit.edu>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Steven Barrett <damentz@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Nov 7, 2010 at 2:19 AM, Greg Thelen <gthelen@google.com> wrote:
-> On Fri, Nov 5, 2010 at 6:03 PM, =A0<hannes@cmpxchg.org> wrote:
->> On Sat, Nov 06, 2010 at 01:08:53AM +0900, Minchan Kim wrote:
->>> Use do_div to divide s64 value. Otherwise, build would be failed
->>> like Dave Young reported.
->>
->> I thought about that too, but then I asked myself why you would want
->> to represent a number of pages as signed 64bit type, even on 32 bit?
->
-> I think the reason that 64 byte type is used for page count in
-> memcontrol.c is because the low level res_counter primitives operate
-> on 64 bit counters, even on 32 bit machines.
->
->> Isn't the much better fix to get the types right instead?
->>
->
-> I agree that consistent types between mem_cgroup_dirty_info() and
-> global_dirty_info() is important. =A0There seems to be a lot of usage of
-> s64 for page counts in memcontrol.c, which I think is due to the
-> res_counter types. =A0I think these s64 be switched to unsigned long
-> rather to be consistent with the rest of mm code. =A0It looks like this
-> will be a clean patch, except for the lowest level where
-> res_counter_read_u64() is used, where some casting may be needed.
->
-> I'll post a patch for that change.
->
+On Fri, 5 Nov 2010 08:48:13 -0400
+Sanjoy Mahajan <sanjoy@olin.edu> wrote:
 
-Agree. I don't mind it.
-Thanks, Hannes and Greg.
+> Dave Chinner <david@fromorbit.com> wrote:
+> 
+> > I think anyone reporting a interactivity problem also needs to
+> > indicate what their filesystem is, what mount paramters they are
+> > using, what their storage config is, whether barriers are active or
+> > not, what elevator they are using, whether one or more of the
+> > applications are issuing fsync() or sync() calls, and so on.
+> 
+> Good idea.  
+> 
+> The filesystems are all ext3 with default mount parameters.  The
+> dmesgs say that the filesystems are mounted in ordered data mode and
+> that barriers are not enabled.
+
+btw few more things to try (from my standard rc.local script):
+
+echo 4096 > /sys/block/sda/queue/nr_requests
+
+for i in `pidof kjournald` ; do ionice -c1 -p $i ; done
+
+echo 75 >  /proc/sys/vm/dirty_ratio
 
 
+(replace sda with whatever your disk is of course)
 
---=20
-Kind regards,
-Minchan Kim
+-- 
+Arjan van de Ven 	Intel Open Source Technology Centre
+For development, discussion and tips for power savings, 
+visit http://www.lesswatts.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
