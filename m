@@ -1,153 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id CDF976B00CD
-	for <linux-mm@kvack.org>; Sat,  6 Nov 2010 00:12:07 -0400 (EDT)
-Date: Sat, 6 Nov 2010 12:12:02 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm: Avoid livelocking of WB_SYNC_ALL writeback
-Message-ID: <20101106041202.GA15411@localhost>
-References: <1288992383-25475-1-git-send-email-jack@suse.cz>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 01CC26B00AE
+	for <linux-mm@kvack.org>; Sat,  6 Nov 2010 06:45:53 -0400 (EDT)
+Date: Sat, 6 Nov 2010 21:42:11 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 00/17] [RFC] soft and dynamic dirty throttling limits
+Message-ID: <20101106104211.GL13830@dastard>
+References: <20100912154945.758129106@intel.com>
+ <20101012141716.GA26702@infradead.org>
+ <20101013030733.GV4681@dastard>
+ <20101013082611.GA6733@localhost>
+ <20101013092627.GY4681@dastard>
+ <20101101062446.GK2715@dastard>
+ <20101104034119.GA18910@localhost>
+ <20101104131228.GA22718@lst.de>
+ <20101105145639.GA6300@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1288992383-25475-1-git-send-email-jack@suse.cz>
+In-Reply-To: <20101105145639.GA6300@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: Christoph Hellwig <hch@lst.de>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, "Li, Shaohua" <shaohua.li@intel.com>, Greg Thelen <gthelen@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Nov 06, 2010 at 05:26:23AM +0800, Jan Kara wrote:
+On Fri, Nov 05, 2010 at 10:56:39PM +0800, Wu Fengguang wrote:
+> On Thu, Nov 04, 2010 at 09:12:28PM +0800, Christoph Hellwig wrote:
+> > On Thu, Nov 04, 2010 at 11:41:19AM +0800, Wu Fengguang wrote:
+> > > I'm feeling relatively good about the first 14 patches to do IO-less
+> > > balance_dirty_pages() and larger writeback chunk size. I'll repost
+> > > them separately as v2 after returning to Shanghai.
+> > 
+> > Going for as small as possible patchsets is a pretty good idea.  Just
+> > getting the I/O less balance_dirty_pages on it's own would be a really
+> > good start, as that's one of the really criticial pieces of
+> > infrastructure that a lot of people are waiting for.  Getting it into
+> > linux-mm/linux-next ASAP so that it gets a lot of testing would be
+> > highly useful.
+> 
+> OK, I'll do a smaller IO-less balance_dirty_pages() patchset (it's
+> good to know which part is the most relevant one, which is not always
+> obvious by my limited field experiences), which will further reduce
+> the possible risk of unexpected regressions.
 
-> +	/*
-> +	 * In WB_SYNC_ALL mode, we just want to ignore nr_to_write as
-> +	 * we need to write everything and livelock avoidance is implemented
-> +	 * differently.
-> +	 */
-> +	if (wbc.sync_mode == WB_SYNC_NONE)
-> +		write_chunk = MAX_WRITEBACK_PAGES;
-> +	else
-> +		write_chunk = LONG_MAX;
+Which is good given the recent history of writeback mods. :/
 
-This looks like a safe change for .37.  I updated the patch on the
-above comment and made no other changes (it seems OK to also remove
-the below line, however that's not the necessary change as a bug fix,
-so I'd rather leave the extra change to the next merge window).
+> Currently the -mm tree includes Greg's patchset "memcg: per cgroup
+> dirty page accounting". I'm going to rebase my patches onto it,
+> however I'd like to first make sure if Greg's patches are going to be
+> pushed in the next merge window. I personally have no problem with
+> that.  Andrew?
 
-write_cache_pages():
+Well, I'd prefer that you provide a git tree that I can just pull
+into my current working branch to test. Having to pull in a thousand
+other changes to test your writeback changes makes it much harder
+for me as I'd have to establish a new stable performance/behavioural
+baseline before starting to analyse your series. If it's based on
+mainline then I've already got that baseline....
 
--->                     /*
--->                      * We stop writing back only if we are not doing
--->                      * integrity sync. In case of integrity sync we have to
--->                      * keep going until we have written all the pages
--->                      * we tagged for writeback prior to entering this loop.
--->                      */
-                        if (--wbc->nr_to_write <= 0 &&
-==>                         wbc->sync_mode == WB_SYNC_NONE) {
-                                done = 1;
-                                break;
-                        }
+Cheers,
 
-Thanks,
-Fengguang
----
-Subject: writeback: avoid livelocking WB_SYNC_ALL writeback
-
-From: Jan Kara <jack@suse.cz>
-
-When wb_writeback() is called in WB_SYNC_ALL mode, work->nr_to_write is
-usually set to LONG_MAX. The logic in wb_writeback() then calls
-__writeback_inodes_sb() with nr_to_write == MAX_WRITEBACK_PAGES and thus
-we easily end up with negative nr_to_write after the function returns.
-wb_writeback() then decides we need another round of writeback but this
-is wrong in some cases! For example when a single large file is
-continuously dirtied, we would never finish syncing it because each pass
-would be able to write MAX_WRITEBACK_PAGES and inode dirty timestamp
-never gets updated (as inode is never completely clean).
-
-Fix the issue by setting nr_to_write to LONG_MAX in WB_SYNC_ALL mode. We
-do not need nr_to_write in WB_SYNC_ALL mode anyway since livelock
-avoidance is done differently for it.
-
-After this patch, program from http://lkml.org/lkml/2010/10/24/154 is no
-longer able to stall sync forever.
-
-Signed-off-by: Jan Kara <jack@suse.cz>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- fs/fs-writeback.c |   25 +++++++++++++++++++++----
- 1 file changed, 21 insertions(+), 4 deletions(-)
-
-  Fengguang, I've been testing with those writeback fixes you reposted
-a few days ago and I've been able to still reproduce livelocks with
-Jan Engelhard's test case. Using writeback tracing I've tracked the
-problem to the above and with this patch, sync finishes OK (well, it still
-takes about 15 minutes but that's about expected time given the throughput
-I see to the disk - the test case randomly dirties pages in a huge file).
-So could you please add this patch to the previous two send them to Jens
-for inclusion?
-
---- linux-next.orig/fs/fs-writeback.c	2010-11-06 11:04:30.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2010-11-06 11:31:20.000000000 +0800
-@@ -626,6 +626,7 @@ static long wb_writeback(struct bdi_writ
- 	};
- 	unsigned long oldest_jif;
- 	long wrote = 0;
-+	long write_chunk;
- 	struct inode *inode;
- 
- 	if (wbc.for_kupdate) {
-@@ -638,6 +639,22 @@ static long wb_writeback(struct bdi_writ
- 		wbc.range_end = LLONG_MAX;
- 	}
- 
-+	/*
-+	 * WB_SYNC_ALL mode does livelock avoidance by syncing dirty
-+	 * inodes/pages in one big loop. Setting wbc.nr_to_write=LONG_MAX
-+	 * here avoids calling into writeback_inodes_wb() more than once.
-+	 *
-+	 *      wb_writeback()
-+	 *          writeback_inodes_wb()       <== called only once
-+	 *              write_cache_pages()     <== called once for each inode
-+	 *                   (quickly) tag currently dirty pages
-+	 *                   (maybe slowly) sync all tagged pages
-+	 */
-+	if (wbc.sync_mode == WB_SYNC_NONE)
-+		write_chunk = MAX_WRITEBACK_PAGES;
-+	else
-+		write_chunk = LONG_MAX;
-+
- 	wbc.wb_start = jiffies; /* livelock avoidance */
- 	for (;;) {
- 		/*
-@@ -663,7 +680,7 @@ static long wb_writeback(struct bdi_writ
- 			break;
- 
- 		wbc.more_io = 0;
--		wbc.nr_to_write = MAX_WRITEBACK_PAGES;
-+		wbc.nr_to_write = write_chunk;
- 		wbc.pages_skipped = 0;
- 
- 		trace_wbc_writeback_start(&wbc, wb->bdi);
-@@ -673,8 +690,8 @@ static long wb_writeback(struct bdi_writ
- 			writeback_inodes_wb(wb, &wbc);
- 		trace_wbc_writeback_written(&wbc, wb->bdi);
- 
--		work->nr_pages -= MAX_WRITEBACK_PAGES - wbc.nr_to_write;
--		wrote += MAX_WRITEBACK_PAGES - wbc.nr_to_write;
-+		work->nr_pages -= write_chunk - wbc.nr_to_write;
-+		wrote += write_chunk - wbc.nr_to_write;
- 
- 		/*
- 		 * If we consumed everything, see if we have more
-@@ -689,7 +706,7 @@ static long wb_writeback(struct bdi_writ
- 		/*
- 		 * Did we write something? Try for more
- 		 */
--		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
-+		if (wbc.nr_to_write < write_chunk)
- 			continue;
- 		/*
- 		 * Nothing written. Wait for some inode to
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
