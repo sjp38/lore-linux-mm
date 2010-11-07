@@ -1,103 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id DEC816B0085
-	for <linux-mm@kvack.org>; Sun,  7 Nov 2010 12:27:45 -0500 (EST)
-Date: Sun, 7 Nov 2010 18:16:26 +0100 (CET)
-From: Jesper Juhl <jj@chaosbits.net>
-Subject: Re: 2.6.36 io bring the system to its knees
-In-Reply-To: <20101105014334.GF13830@dastard>
-Message-ID: <alpine.LNX.2.00.1011071753560.26056@swampdragon.chaosbits.net>
-References: <AANLkTikRKVBzO=ruy=JDmBF28NiUdJmAqb4-1VhK0QBX@mail.gmail.com> <AANLkTinzJ9a+9w7G5X0uZpX2o-L8E6XW98VFKoF1R_-S@mail.gmail.com> <AANLkTinDDG0ZkNFJZXuV9k3nJgueUW=ph8AuHgyeAXji@mail.gmail.com> <AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com>
- <20101028090002.GA12446@elte.hu> <AANLkTinoGGLTN2JRwjJtF6Ra5auZVg+VSa=TyrtAkDor@mail.gmail.com> <20101028133036.GA30565@elte.hu> <20101028170132.GY27796@think> <alpine.LNX.2.00.1011050032440.16015@swampdragon.chaosbits.net>
- <alpine.LNX.2.00.1011050047220.16015@swampdragon.chaosbits.net> <20101105014334.GF13830@dastard>
+	by kanga.kvack.org (Postfix) with ESMTP id E408C6B0087
+	for <linux-mm@kvack.org>; Sun,  7 Nov 2010 13:20:35 -0500 (EST)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id oA7HxHdf006804
+	for <linux-mm@kvack.org>; Sun, 7 Nov 2010 12:59:17 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oA7IKVj7313974
+	for <linux-mm@kvack.org>; Sun, 7 Nov 2010 13:20:31 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oA7IKVIP009558
+	for <linux-mm@kvack.org>; Sun, 7 Nov 2010 13:20:31 -0500
+Date: Sun, 7 Nov 2010 10:20:28 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: INFO: suspicious rcu_dereference_check() usage -
+ kernel/pid.c:419 invoked rcu_dereference_check() without protection!
+Message-ID: <20101107182028.GZ15561@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <xr93fwwbdh1d.fsf@ninji.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <xr93fwwbdh1d.fsf@ninji.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ted Ts'o <tytso@mit.edu>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Sanjoy Mahajan <sanjoy@olin.edu>, Steven Barrett <damentz@gmail.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Oleg Nesterov <oleg@tv-sign.ru>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 5 Nov 2010, Dave Chinner wrote:
-
-> On Fri, Nov 05, 2010 at 12:48:17AM +0100, Jesper Juhl wrote:
-> > On Fri, 5 Nov 2010, Jesper Juhl wrote:
-> > 
-> > > On Thu, 28 Oct 2010, Chris Mason wrote:
-> > > 
-> > > > On Thu, Oct 28, 2010 at 03:30:36PM +0200, Ingo Molnar wrote:
-> > > > > 
-> > > > > "Many seconds freezes" and slowdowns wont be fixed via the VFS scalability patches 
-> > > > > i'm afraid.
-> > > > > 
-> > > > > This has the appearance of some really bad IO or VM latency problem. Unfixed and 
-> > > > > present in stable kernel versions going from years ago all the way to v2.6.36.
-> > > > 
-> > > > Hmmm, the workload you're describing here has two special parts.  First
-> > > > it dramatically overloads the disk, and then it has guis doing things
-> > > > waiting for the disk.
-> > > > 
-> > > 
-> > > Just want to chime in with a 'me too'.
-> > > 
-> > > I see something similar on Arch Linux when doing 'pacman -Syyuv' and there 
-> > > are many (as in more than 5-10) updates to apply. While the update is 
-> > > running (even if that's all the system is doing) system responsiveness is 
-> > > terrible - just starting 'chromium' which is usually instant (at least 
-> > > less than 2 sec at worst) can take upwards of 10 seconds and the mouse 
-> > > cursor in X starts to jump a bit as well and switching virtual desktops 
-> > > noticably lags when redrawing the new desktop if there's a full screen app 
-> > > like gimp or OpenOffice open there. This is on a Lenovo Thinkpad R61i 
-> > > which has a 'Intel(R) Core(TM)2 Duo CPU T7250 @ 2.00GHz' CPU, 2GB of 
-> > > memory and 499996 kilobytes of swap.
-> > > 
-> > Forgot to mention the kernel I currently experience this with : 
-> > 
-> > [jj@dragon ~]$ uname -a
-> > Linux dragon 2.6.35-ARCH #1 SMP PREEMPT Sat Oct 30 21:22:26 CEST 2010 x86_64 Intel(R) Core(TM)2 Duo CPU T7250 @ 2.00GHz GenuineIntel GNU/Linux
+On Tue, Oct 12, 2010 at 12:08:46AM -0700, Greg Thelen wrote:
+> I observe a failing rcu_dereference_check() in linux-next (found in
+> mmotm-2010-10-07-14-08).  An extra rcu assertion in
+> find_task_by_pid_ns() was added by:
+>   commit 4221a9918e38b7494cee341dda7b7b4bb8c04bde
+>   Author: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+>   Date:   Sat Jun 26 01:08:19 2010 +0900
+>   
+>       Add RCU check for find_task_by_vpid().
 > 
-> I think anyone reporting a interactivity problem also needs to
-> indicate what their filesystem is, what mount paramters they are
-> using, what their storage config is, whether barriers are active or
-> not, what elevator they are using, whether one or more of the
-> applications are issuing fsync() or sync() calls, and so on.
->
-Some details below.
+> This extra assertion causes a rcu_dereference_check() failure during
+> boot in 512 MIB VM.  I would be happy to get out proposed patches to
+> this issue.  My config includes:
+>   CONFIG_PREEMPT=y
+>   CONFIG_LOCKDEP=y
+>   CONFIG_PROVE_LOCKING=y
+>   CONFIG_PROVE_RCU=y
+> 
+> The console error:
+> 
+> Begin: Running /scripts/local-bottom ...
+> Done.
+> Done.
+> Begin: Running /scripts/init-bottom ...
+> Done.
+> [    3.394348]
+> [    3.394349] ===================================================
+> [    3.395162] [ INFO: suspicious rcu_dereference_check() usage. ]
+> [    3.395786] ---------------------------------------------------
+> [    3.396452] kernel/pid.c:419 invoked rcu_dereference_check() without protection!
+> [    3.397483]
+> [    3.397484] other info that might help us debug this:
+> [    3.397485]
+> [    3.398363]
+> [    3.398364] rcu_scheduler_active = 1, debug_locks = 0
+> [    3.399073] 1 lock held by ureadahead/1438:
+> [    3.399515]  #0:  (tasklist_lock){.+.+..}, at: [<ffffffff811c1d1a>] sys_ioprio_set+0x8a/0x3f0
+> [    3.400500]
+> [    3.400501] stack backtrace:
+> [    3.401036] Pid: 1438, comm: ureadahead Not tainted 2.6.36-dbg-DEV #10
+> [    3.401717] Call Trace:
+> [    3.401996]  [<ffffffff810c720b>] lockdep_rcu_dereference+0xbb/0xc0
+> [    3.402742]  [<ffffffff810aebb1>] find_task_by_pid_ns+0x81/0x90
+> [    3.403445]  [<ffffffff810aebe2>] find_task_by_vpid+0x22/0x30
+> [    3.404146]  [<ffffffff811c2074>] sys_ioprio_set+0x3e4/0x3f0
+> [    3.404756]  [<ffffffff815c5919>] ? trace_hardirqs_on_thunk+0x3a/0x3f
+> [    3.405455]  [<ffffffff8104331b>] system_call_fastpath+0x16/0x1b
+> 
+> 
+> ioprio_set() contains a comment warning against of usage of
+> rcu_read_lock() to avoid this warning:
+> 	/*
+> 	 * We want IOPRIO_WHO_PGRP/IOPRIO_WHO_USER to be "atomic",
+> 	 * so we can't use rcu_read_lock(). See re-copy of ->ioprio
+> 	 * in copy_process().
+> 	 */
+> 
+> So I'm not sure what the best fix is.
 
-[jj@dragon ~]$ mount
-proc on /proc type proc (rw,relatime)
-sys on /sys type sysfs (rw,relatime)
-udev on /dev type devtmpfs 
-(rw,nosuid,relatime,size=10240k,nr_inodes=255749,mode=755)
-/dev/disk/by-uuid/61d104a5-4f7b-40ef-a9c8-44ad2765513e on / type ext4 (rw,commit=0)
-devpts on /dev/pts type devpts (rw)
-shm on /dev/shm type tmpfs (rw,nosuid,nodev)
+I must defer to Oleg, who wrote the comment.  But please see below.
 
-[root@dragon ~]# hdparm -v /dev/disk/by-uuid/61d104a5-4f7b-40ef-a9c8-44ad2765513e
+> Also I see that sys_ioprio_get() has a similar problem that might be
+> addressed with:
 
-/dev/disk/by-uuid/61d104a5-4f7b-40ef-a9c8-44ad2765513e:
- multcount     = 16 (on)
- IO_support    =  1 (32-bit)
- readonly      =  0 (off)
- readahead     = 256 (on)
- geometry      = 9729/255/63, sectors = 25220160, start = 119644560
+There is a patch from Sergey Senozhatsky currently in -mm that encloses
+a subset of this code (both ioprio_set and ioprio_get) in rcu_read_lock()
+and rcu_read_unlock(), see http://lkml.org/lkml/2010/10/29/168.
 
-[root@dragon ~]# dmesg | grep -i ext4
-EXT4-fs (sda4): mounted filesystem with ordered data mode. Opts: (null)
-EXT4-fs (sda4): re-mounted. Opts: (null)
-EXT4-fs (sda4): re-mounted. Opts: (null)
-EXT4-fs (sda4): re-mounted. Opts: commit=0
+							Thanx, Paul
 
-The elevator in use is CFQ.
-
-The app that's causing the system to behave this way (the 'pacman' package 
-manager in Arch Linux) makes a few calls (2-4)  to fsync() during its run, 
-but that's all.
-
-
--- 
-Jesper Juhl <jj@chaosbits.net>             http://www.chaosbits.net/
-Plain text mails only, please      http://www.expita.com/nomime.html
-Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
+> diff --git a/fs/ioprio.c b/fs/ioprio.c
+> index 748cfb9..02eed30 100644
+> --- a/fs/ioprio.c
+> +++ b/fs/ioprio.c
+> @@ -197,6 +197,7 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
+>  	int ret = -ESRCH;
+>  	int tmpio;
+> 
+> +	rcu_read_lock();
+>  	read_lock(&tasklist_lock);
+>  	switch (which) {
+>  		case IOPRIO_WHO_PROCESS:
+> @@ -251,5 +252,6 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
+>  	}
+> 
+>  	read_unlock(&tasklist_lock);
+> +	rcu_read_unlock();
+>  	return ret;
+>  }
+> 
+> sys_ioprio_get() didn't have an explicit warning against usage of
+> rcu_read_lock(), but that doesn't mean this is a good patch.
+> 
+> --
+> Greg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
