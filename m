@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id EEF5A6B0095
-	for <linux-mm@kvack.org>; Sun,  7 Nov 2010 18:52:42 -0500 (EST)
-Received: by iwn9 with SMTP id 9so5404855iwn.14
-        for <linux-mm@kvack.org>; Sun, 07 Nov 2010 15:52:41 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 075596B0099
+	for <linux-mm@kvack.org>; Sun,  7 Nov 2010 18:55:09 -0500 (EST)
+Received: by iwn9 with SMTP id 9so5406839iwn.14
+        for <linux-mm@kvack.org>; Sun, 07 Nov 2010 15:55:08 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20101107220353.684449249@cmpxchg.org>
+In-Reply-To: <20101107220353.115646194@cmpxchg.org>
 References: <1288973333-7891-1-git-send-email-minchan.kim@gmail.com>
 	<20101106010357.GD23393@cmpxchg.org>
 	<AANLkTin9m65JVKRuStZ1-qhU5_1AY-GcbBRC0TodsfYC@mail.gmail.com>
 	<20101107215030.007259800@cmpxchg.org>
-	<20101107220353.684449249@cmpxchg.org>
-Date: Mon, 8 Nov 2010 08:52:41 +0900
-Message-ID: <AANLkTikhX+2E5o=vqc6Yb6GGPJJT2FwuzKMiC31GdY0s@mail.gmail.com>
-Subject: Re: [patch 3/4] memcg: break out event counters from other stats
+	<20101107220353.115646194@cmpxchg.org>
+Date: Mon, 8 Nov 2010 07:56:43 +0900
+Message-ID: <AANLkTi=qO84k-KWaG2R_nQr7vxRA2E7DbO4=XhVrFzjv@mail.gmail.com>
+Subject: Re: [patch 1/4] memcg: use native word to represent dirtyable pages
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
@@ -23,23 +23,21 @@ Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>,
 List-ID: <linux-mm.kvack.org>
 
 On Mon, Nov 8, 2010 at 7:14 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> For increasing and decreasing per-cpu cgroup usage counters it makes
-> sense to use signed types, as single per-cpu values might go negative
-> during updates. =A0But this is not the case for only-ever-increasing
-> event counters.
+> The memory cgroup dirty info calculation currently uses a signed
+> 64-bit type to represent the amount of dirtyable memory in pages.
 >
-> All the counters have been signed 64-bit so far, which was enough to
-> count events even with the sign bit wasted.
+> This can instead be changed to an unsigned word, which will allow the
+> formula to function correctly with up to 160G of LRU pages on a 32-bit
+> system, assuming 4k pages. =A0That should be plenty even when taking
+> racy folding of the per-cpu counters into account.
 >
-> The next patch narrows the usage counters type (on 32-bit CPUs, that
-> is), though, so break out the event counters and make them unsigned
-> words as they should have been from the start.
+> This fixes a compilation error on 32-bit systems as this code tries to
+> do 64-bit division.
 >
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reported-by: Dave Young <hidave.darkstar@gmail.com>
 Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-Fair enough.
-We already have used unsigned long in vmstat.
 
 --=20
 Kind regards,
