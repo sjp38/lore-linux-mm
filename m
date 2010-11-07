@@ -1,40 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 488766B0085
-	for <linux-mm@kvack.org>; Sun,  7 Nov 2010 07:08:34 -0500 (EST)
-Message-ID: <4CD696B4.6070002@kernel.dk>
-Date: Sun, 07 Nov 2010 13:08:20 +0100
-From: Jens Axboe <axboe@kernel.dk>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 26D316B0085
+	for <linux-mm@kvack.org>; Sun,  7 Nov 2010 08:07:57 -0500 (EST)
+Date: Sun, 7 Nov 2010 14:07:51 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: Avoid livelocking of WB_SYNC_ALL writeback
+Message-ID: <20101107130751.GB5126@quack.suse.cz>
+References: <1288992383-25475-1-git-send-email-jack@suse.cz>
+ <20101106013613.GE23393@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: 2.6.36 io bring the system to its knees
-References: <20101105014334.GF13830@dastard> <E1PELiI-0001Pj-8g@approx.mit.edu> <AANLkTimON_GL6vRF9=_U6oRFQ30EYssx3wv5xdNsU9JM@mail.gmail.com>
-In-Reply-To: <AANLkTimON_GL6vRF9=_U6oRFQ30EYssx3wv5xdNsU9JM@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101106013613.GE23393@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: dave b <db.pub.mail@gmail.com>
-Cc: Sanjoy Mahajan <sanjoy@olin.edu>, Dave Chinner <david@fromorbit.com>, Jesper Juhl <jj@chaosbits.net>, Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ted Ts'o <tytso@mit.edu>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Steven Barrett <damentz@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2010-11-06 15:10, dave b wrote:
-> I now personally have thought that this problem is the kernel not
-> keeping track of reads vs writers properly  or not providing enough
-> time to reading processes as writing ones which look like they are
-> blocking the system....
-> 
-> If you want to do a simple test do an unlimited dd  (or two dd's of a
-> limited size, say 10gb) and a find /
-> Tell me how it goes :) ( the system will stall)
-> (obviously stop the dd after some time :) ).
-> 
-> http://article.gmane.org/gmane.linux.kernel.device-mapper.dm-crypt/4561
-> iirc can reproduce this on plain ext3.
+On Sat 06-11-10 02:36:14, Johannes Weiner wrote:
+> Can you please keep linux-mm@kvack.org in the loop on writeback stuff?
+  Will do. Sorry for that.
 
-As already mentioned, ext3 is just not a good choice for this sort of
-thing. Did you have atimes enabled?
+								Honza
 
+> I Cc'd it now, here is the full quote:
+> 
+> On Fri, Nov 05, 2010 at 10:26:23PM +0100, Jan Kara wrote:
+> > When wb_writeback() is called in WB_SYNC_ALL mode, work->nr_to_write is usually
+> > set to LONG_MAX. The logic in wb_writeback() then calls __writeback_inodes_sb()
+> > with nr_to_write == MAX_WRITEBACK_PAGES and thus we easily end up with negative
+> > nr_to_write after the function returns. wb_writeback() then decides we need
+> > another round of writeback but this is wrong in some cases! For example when
+> > a single large file is continuously dirtied, we would never finish syncing
+> > it because each pass would be able to write MAX_WRITEBACK_PAGES and inode dirty
+> > timestamp never gets updated (as inode is never completely clean).
+> > 
+> > Fix the issue by setting nr_to_write to LONG_MAX in WB_SYNC_ALL mode. We do not
+> > need nr_to_write in WB_SYNC_ALL mode anyway since livelock avoidance is done
+> > differently for it.
+> > 
+> > After this patch, program from http://lkml.org/lkml/2010/10/24/154 is no longer
+> > able to stall sync forever.
+> > 
+> > Signed-off-by: Jan Kara <jack@suse.cz>
+> > ---
+> >  fs/fs-writeback.c |   18 ++++++++++++++----
+> >  1 files changed, 14 insertions(+), 4 deletions(-)
+> > 
+> >   Fengguang, I've been testing with those writeback fixes you reposted
+> > a few days ago and I've been able to still reproduce livelocks with
+> > Jan Engelhard's test case. Using writeback tracing I've tracked the
+> > problem to the above and with this patch, sync finishes OK (well, it still
+> > takes about 15 minutes but that's about expected time given the throughput
+> > I see to the disk - the test case randomly dirties pages in a huge file).
+> > So could you please add this patch to the previous two send them to Jens
+> > for inclusion?
+> > 
+> > diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> > index 6b4d02a..d5873a6 100644
+> > --- a/fs/fs-writeback.c
+> > +++ b/fs/fs-writeback.c
+> > @@ -629,6 +629,7 @@ static long wb_writeback(struct bdi_writeback *wb,
+> >  	};
+> >  	unsigned long oldest_jif;
+> >  	long wrote = 0;
+> > +	long write_chunk;
+> >  	struct inode *inode;
+> >  
+> >  	if (wbc.for_kupdate) {
+> > @@ -640,6 +641,15 @@ static long wb_writeback(struct bdi_writeback *wb,
+> >  		wbc.range_start = 0;
+> >  		wbc.range_end = LLONG_MAX;
+> >  	}
+> > +	/*
+> > +	 * In WB_SYNC_ALL mode, we just want to ignore nr_to_write as
+> > +	 * we need to write everything and livelock avoidance is implemented
+> > +	 * differently.
+> > +	 */
+> > +	if (wbc.sync_mode == WB_SYNC_NONE)
+> > +		write_chunk = MAX_WRITEBACK_PAGES;
+> > +	else
+> > +		write_chunk = LONG_MAX;
+> >  
+> >  	wbc.wb_start = jiffies; /* livelock avoidance */
+> >  	for (;;) {
+> > @@ -665,7 +675,7 @@ static long wb_writeback(struct bdi_writeback *wb,
+> >  			break;
+> >  
+> >  		wbc.more_io = 0;
+> > -		wbc.nr_to_write = MAX_WRITEBACK_PAGES;
+> > +		wbc.nr_to_write = write_chunk;
+> >  		wbc.pages_skipped = 0;
+> >  
+> >  		trace_wbc_writeback_start(&wbc, wb->bdi);
+> > @@ -675,8 +685,8 @@ static long wb_writeback(struct bdi_writeback *wb,
+> >  			writeback_inodes_wb(wb, &wbc);
+> >  		trace_wbc_writeback_written(&wbc, wb->bdi);
+> >  
+> > -		work->nr_pages -= MAX_WRITEBACK_PAGES - wbc.nr_to_write;
+> > -		wrote += MAX_WRITEBACK_PAGES - wbc.nr_to_write;
+> > +		work->nr_pages -= write_chunk - wbc.nr_to_write;
+> > +		wrote += write_chunk - wbc.nr_to_write;
+> >  
+> >  		/*
+> >  		 * If we consumed everything, see if we have more
+> > @@ -691,7 +701,7 @@ static long wb_writeback(struct bdi_writeback *wb,
+> >  		/*
+> >  		 * Did we write something? Try for more
+> >  		 */
+> > -		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
+> > +		if (wbc.nr_to_write < write_chunk)
+> >  			continue;
+> >  		/*
+> >  		 * Nothing written. Wait for some inode to
+> > -- 
+> > 1.7.1
+> > 
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
 -- 
-Jens Axboe
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
