@@ -1,127 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E408C6B0087
-	for <linux-mm@kvack.org>; Sun,  7 Nov 2010 13:20:35 -0500 (EST)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id oA7HxHdf006804
-	for <linux-mm@kvack.org>; Sun, 7 Nov 2010 12:59:17 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oA7IKVj7313974
-	for <linux-mm@kvack.org>; Sun, 7 Nov 2010 13:20:31 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oA7IKVIP009558
-	for <linux-mm@kvack.org>; Sun, 7 Nov 2010 13:20:31 -0500
-Date: Sun, 7 Nov 2010 10:20:28 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: INFO: suspicious rcu_dereference_check() usage -
- kernel/pid.c:419 invoked rcu_dereference_check() without protection!
-Message-ID: <20101107182028.GZ15561@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <xr93fwwbdh1d.fsf@ninji.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <xr93fwwbdh1d.fsf@ninji.mtv.corp.google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DBD116B004A
+	for <linux-mm@kvack.org>; Sun,  7 Nov 2010 17:15:07 -0500 (EST)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 1/4] memcg: use native word to represent dirtyable pages
+Date: Sun,  7 Nov 2010 23:14:36 +0100
+Message-Id: <20101107220353.115646194@cmpxchg.org>
+In-Reply-To: <20101107215030.007259800@cmpxchg.org>
+References: <20101107215030.007259800@cmpxchg.org>
+References: <1288973333-7891-1-git-send-email-minchan.kim@gmail.com> <20101106010357.GD23393@cmpxchg.org> <AANLkTin9m65JVKRuStZ1-qhU5_1AY-GcbBRC0TodsfYC@mail.gmail.com> <20101107215030.007259800@cmpxchg.org>
+Content-Disposition: inline; filename=memcg-use-native-word-to-represent-dirtyable-pages.patch
 Sender: owner-linux-mm@kvack.org
 To: Greg Thelen <gthelen@google.com>
-Cc: Oleg Nesterov <oleg@tv-sign.ru>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Young <hidave.darkstar@gmail.com>, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 12, 2010 at 12:08:46AM -0700, Greg Thelen wrote:
-> I observe a failing rcu_dereference_check() in linux-next (found in
-> mmotm-2010-10-07-14-08).  An extra rcu assertion in
-> find_task_by_pid_ns() was added by:
->   commit 4221a9918e38b7494cee341dda7b7b4bb8c04bde
->   Author: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
->   Date:   Sat Jun 26 01:08:19 2010 +0900
->   
->       Add RCU check for find_task_by_vpid().
-> 
-> This extra assertion causes a rcu_dereference_check() failure during
-> boot in 512 MIB VM.  I would be happy to get out proposed patches to
-> this issue.  My config includes:
->   CONFIG_PREEMPT=y
->   CONFIG_LOCKDEP=y
->   CONFIG_PROVE_LOCKING=y
->   CONFIG_PROVE_RCU=y
-> 
-> The console error:
-> 
-> Begin: Running /scripts/local-bottom ...
-> Done.
-> Done.
-> Begin: Running /scripts/init-bottom ...
-> Done.
-> [    3.394348]
-> [    3.394349] ===================================================
-> [    3.395162] [ INFO: suspicious rcu_dereference_check() usage. ]
-> [    3.395786] ---------------------------------------------------
-> [    3.396452] kernel/pid.c:419 invoked rcu_dereference_check() without protection!
-> [    3.397483]
-> [    3.397484] other info that might help us debug this:
-> [    3.397485]
-> [    3.398363]
-> [    3.398364] rcu_scheduler_active = 1, debug_locks = 0
-> [    3.399073] 1 lock held by ureadahead/1438:
-> [    3.399515]  #0:  (tasklist_lock){.+.+..}, at: [<ffffffff811c1d1a>] sys_ioprio_set+0x8a/0x3f0
-> [    3.400500]
-> [    3.400501] stack backtrace:
-> [    3.401036] Pid: 1438, comm: ureadahead Not tainted 2.6.36-dbg-DEV #10
-> [    3.401717] Call Trace:
-> [    3.401996]  [<ffffffff810c720b>] lockdep_rcu_dereference+0xbb/0xc0
-> [    3.402742]  [<ffffffff810aebb1>] find_task_by_pid_ns+0x81/0x90
-> [    3.403445]  [<ffffffff810aebe2>] find_task_by_vpid+0x22/0x30
-> [    3.404146]  [<ffffffff811c2074>] sys_ioprio_set+0x3e4/0x3f0
-> [    3.404756]  [<ffffffff815c5919>] ? trace_hardirqs_on_thunk+0x3a/0x3f
-> [    3.405455]  [<ffffffff8104331b>] system_call_fastpath+0x16/0x1b
-> 
-> 
-> ioprio_set() contains a comment warning against of usage of
-> rcu_read_lock() to avoid this warning:
-> 	/*
-> 	 * We want IOPRIO_WHO_PGRP/IOPRIO_WHO_USER to be "atomic",
-> 	 * so we can't use rcu_read_lock(). See re-copy of ->ioprio
-> 	 * in copy_process().
-> 	 */
-> 
-> So I'm not sure what the best fix is.
+The memory cgroup dirty info calculation currently uses a signed
+64-bit type to represent the amount of dirtyable memory in pages.
 
-I must defer to Oleg, who wrote the comment.  But please see below.
+This can instead be changed to an unsigned word, which will allow the
+formula to function correctly with up to 160G of LRU pages on a 32-bit
+system, assuming 4k pages.  That should be plenty even when taking
+racy folding of the per-cpu counters into account.
 
-> Also I see that sys_ioprio_get() has a similar problem that might be
-> addressed with:
+This fixes a compilation error on 32-bit systems as this code tries to
+do 64-bit division.
 
-There is a patch from Sergey Senozhatsky currently in -mm that encloses
-a subset of this code (both ioprio_set and ioprio_get) in rcu_read_lock()
-and rcu_read_unlock(), see http://lkml.org/lkml/2010/10/29/168.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Reported-by: Dave Young <hidave.darkstar@gmail.com>
+---
+ mm/memcontrol.c |    9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
 
-							Thanx, Paul
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1222,9 +1222,10 @@ static void __mem_cgroup_dirty_param(str
+ bool mem_cgroup_dirty_info(unsigned long sys_available_mem,
+ 			   struct dirty_info *info)
+ {
+-	s64 available_mem;
+ 	struct vm_dirty_param dirty_param;
++	unsigned long available_mem;
+ 	struct mem_cgroup *memcg;
++	s64 value;
+ 
+ 	if (mem_cgroup_disabled())
+ 		return false;
+@@ -1238,11 +1239,11 @@ bool mem_cgroup_dirty_info(unsigned long
+ 	__mem_cgroup_dirty_param(&dirty_param, memcg);
+ 	rcu_read_unlock();
+ 
+-	available_mem = mem_cgroup_page_stat(MEMCG_NR_DIRTYABLE_PAGES);
+-	if (available_mem < 0)
++	value = mem_cgroup_page_stat(MEMCG_NR_DIRTYABLE_PAGES);
++	if (value < 0)
+ 		return false;
+ 
+-	available_mem = min((unsigned long)available_mem, sys_available_mem);
++	available_mem = min((unsigned long)value, sys_available_mem);
+ 
+ 	if (dirty_param.dirty_bytes)
+ 		info->dirty_thresh =
 
-> diff --git a/fs/ioprio.c b/fs/ioprio.c
-> index 748cfb9..02eed30 100644
-> --- a/fs/ioprio.c
-> +++ b/fs/ioprio.c
-> @@ -197,6 +197,7 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
->  	int ret = -ESRCH;
->  	int tmpio;
-> 
-> +	rcu_read_lock();
->  	read_lock(&tasklist_lock);
->  	switch (which) {
->  		case IOPRIO_WHO_PROCESS:
-> @@ -251,5 +252,6 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
->  	}
-> 
->  	read_unlock(&tasklist_lock);
-> +	rcu_read_unlock();
->  	return ret;
->  }
-> 
-> sys_ioprio_get() didn't have an explicit warning against usage of
-> rcu_read_lock(), but that doesn't mean this is a good patch.
-> 
-> --
-> Greg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
