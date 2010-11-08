@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id B98996B009D
-	for <linux-mm@kvack.org>; Sun,  7 Nov 2010 19:07:37 -0500 (EST)
-Received: by iwn9 with SMTP id 9so5418543iwn.14
-        for <linux-mm@kvack.org>; Sun, 07 Nov 2010 16:07:36 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D9D3F6B009E
+	for <linux-mm@kvack.org>; Sun,  7 Nov 2010 19:09:51 -0500 (EST)
+Received: by iwn9 with SMTP id 9so5420558iwn.14
+        for <linux-mm@kvack.org>; Sun, 07 Nov 2010 16:09:50 -0800 (PST)
 MIME-Version: 1.0
 In-Reply-To: <20101107220353.964566018@cmpxchg.org>
 References: <1288973333-7891-1-git-send-email-minchan.kim@gmail.com>
@@ -11,8 +11,8 @@ References: <1288973333-7891-1-git-send-email-minchan.kim@gmail.com>
 	<AANLkTin9m65JVKRuStZ1-qhU5_1AY-GcbBRC0TodsfYC@mail.gmail.com>
 	<20101107215030.007259800@cmpxchg.org>
 	<20101107220353.964566018@cmpxchg.org>
-Date: Mon, 8 Nov 2010 09:07:35 +0900
-Message-ID: <AANLkTinh+LEQYGe9dDOKBwNnVVXMiFYpDqkqvvpNe9H8@mail.gmail.com>
+Date: Mon, 8 Nov 2010 09:01:54 +0900
+Message-ID: <AANLkTinLK5DiG3ZkEFSAJNZrPKK7aXiPPYQ6z9M6RPhc@mail.gmail.com>
 Subject: Re: [patch 4/4] memcg: use native word page statistics counters
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -31,37 +31,19 @@ On Mon, Nov 8, 2010 at 7:14 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
 > of 4k.
 >
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
-> =A0include/linux/memcontrol.h | =A0 =A02 +-
-> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 43 +++++++++++++++++++++-=
----------------------
-> =A0mm/page-writeback.c =A0 =A0 =A0 =A0| =A0 =A04 ++--
-> =A03 files changed, 24 insertions(+), 25 deletions(-)
->
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-<snip>
+This patch changes mem_cgroup_recursive_idx_stat with
+mem_cgroup_recursive_stat as well.
+As you know, It would be better to be another patch although it's
+trivial. But I don't mind it.
+I like the name. :)
 
->
-> =A0static unsigned long dirty_writeback_pages(void)
-> =A0{
-> - =A0 =A0 =A0 s64 ret;
-> + =A0 =A0 =A0 unsigned long ret;
->
-> =A0 =A0 =A0 =A0ret =3D mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGE=
-S);
-> - =A0 =A0 =A0 if (ret < 0)
-> + =A0 =A0 =A0 if ((long)ret < 0)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D global_page_state(NR_UNSTABLE_NFS)=
- +
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0global_page_state(NR_WRITE=
-BACK);
+Thanks, Hannes.
 
-BTW, let me ask a question.
-dirty_writeback_pages seems to be depends on mem_cgroup_page_stat's
-result(ie, negative) for separate global and memcg.
-But mem_cgroup_page_stat could return negative value by per-cpu as
-well as root cgroup.
-If I understand right, Isn't it a problem?
+
+
+
 
 --=20
 Kind regards,
