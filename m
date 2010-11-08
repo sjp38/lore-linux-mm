@@ -1,55 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1014E6B004A
-	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 10:21:17 -0500 (EST)
-Date: Mon, 8 Nov 2010 16:15:09 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: INFO: suspicious rcu_dereference_check() usage -
-	kernel/pid.c:419 invoked rcu_dereference_check() without protection!
-Message-ID: <20101108151509.GA3702@redhat.com>
-References: <xr93fwwbdh1d.fsf@ninji.mtv.corp.google.com> <20101107182028.GZ15561@linux.vnet.ibm.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 51C986B0085
+	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 10:45:29 -0500 (EST)
+Date: Mon, 8 Nov 2010 23:45:24 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: memcg writeout throttling, was: [patch 4/4] memcg: use native
+ word page statistics counters
+Message-ID: <20101108154524.GA9530@localhost>
+References: <1288973333-7891-1-git-send-email-minchan.kim@gmail.com>
+ <20101106010357.GD23393@cmpxchg.org>
+ <AANLkTin9m65JVKRuStZ1-qhU5_1AY-GcbBRC0TodsfYC@mail.gmail.com>
+ <20101107215030.007259800@cmpxchg.org>
+ <20101107220353.964566018@cmpxchg.org>
+ <AANLkTinh+LEQYGe9dDOKBwNnVVXMiFYpDqkqvvpNe9H8@mail.gmail.com>
+ <20101108093715.GJ23393@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101107182028.GZ15561@linux.vnet.ibm.com>
+In-Reply-To: <20101108093715.GJ23393@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Young <hidave.darkstar@gmail.com>, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 11/07, Paul E. McKenney wrote:
->
-> On Tue, Oct 12, 2010 at 12:08:46AM -0700, Greg Thelen wrote:
-> >
-> > ioprio_set() contains a comment warning against of usage of
-> > rcu_read_lock() to avoid this warning:
-> > 	/*
-> > 	 * We want IOPRIO_WHO_PGRP/IOPRIO_WHO_USER to be "atomic",
-> > 	 * so we can't use rcu_read_lock(). See re-copy of ->ioprio
-> > 	 * in copy_process().
-> > 	 */
-> >
-> > So I'm not sure what the best fix is.
+On Mon, Nov 08, 2010 at 05:37:16PM +0800, Johannes Weiner wrote:
+> On Mon, Nov 08, 2010 at 09:07:35AM +0900, Minchan Kim wrote:
+> > BTW, let me ask a question.
+> > dirty_writeback_pages seems to be depends on mem_cgroup_page_stat's
+> > result(ie, negative) for separate global and memcg.
+> > But mem_cgroup_page_stat could return negative value by per-cpu as
+> > well as root cgroup.
+> > If I understand right, Isn't it a problem?
+> 
+> Yes, the numbers are not reliable and may be off by some.  It appears
+> to me that the only sensible interpretation of a negative sum is to
+> assume zero, though.  So to be honest, I don't understand the fallback
+> to global state when the local state fluctuates around low values.
 
-(please note that "we can't use rcu_read_lock()" actually meant
- rcu_read_lock() is not _enough_)
+Agreed. It does not make sense to compare values from different domains.
 
-> I must defer to Oleg, who wrote the comment.  But please see below.
+The bdi stats use percpu_counter_sum_positive() which never return
+negative values. It may be suitable for memcg page counts, too.
 
-I added this comment to explain some oddities in copy_process().
-Nobody confirmed my understanding was correct ;)
+> This function is also only used in throttle_vm_writeout(), where the
+> outcome is compared to the global dirty threshold.  So using the
+> number of writeback pages _from the current cgroup_ and falling back
+> to global writeback pages when this number is low makes no sense to me
+> at all.
+> 
+> I looks like it should rather compare the cgroup state with the cgroup
+> limit, and the global state with the global limit.
 
-In any case, this comment doesn't look right today. This code was
-changed by fd0928df98b9578be8a786ac0cb78a47a5e17a20
-"ioprio: move io priority from task_struct to io_context" after that,
-tasklist can't help to make sys_ioprio_set(IOPRIO_WHO_PGRP) atomic.
+Right.
 
-I think tasklist_lock can be removed now.
+> Can somebody explain the reasoning behind this?  And in case it makes
+> sense after all, put a comment into this function?
 
-And, as Paul pointed out, we need rcu_read_lock() anyway, it was
-already added by Sergey.
+It seems a better match to test sc->mem_cgroup rather than
+mem_cgroup_from_task(current). The latter could make mismatches. When
+someone is changing the memcg limits and hence triggers memcg
+reclaims, the current task is actually the (unrelated) shell. It's
+also possible for the memcg task to trigger _global_ direct reclaim.
 
-Oleg.
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
