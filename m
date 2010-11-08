@@ -1,54 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 27DFC6B0085
-	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 04:51:03 -0500 (EST)
-Date: Mon, 8 Nov 2010 10:50:55 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [BUGFIX][PATCH] fix wrong VM_BUG_ON() in try_charge()'s
- mm->owner check
-Message-ID: <20101108095040.GK23393@cmpxchg.org>
-References: <AANLkTikCUdpx-jGhKdzueML39CnExumk1i_X_OZJihE2@mail.gmail.com>
- <alpine.LSU.2.00.1011041016520.19411@tigran.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1011041016520.19411@tigran.mtv.corp.google.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3C9456B004A
+	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 06:00:38 -0500 (EST)
+Received: from eu_spt2 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LBK00K56BWZF0@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Mon, 08 Nov 2010 11:00:35 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LBK005VYBWYYN@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 08 Nov 2010 11:00:35 +0000 (GMT)
+Date: Mon, 08 Nov 2010 13:03:02 +0100
+From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Subject: Re: [PATCH 34/39] mm: Update WARN uses
+In-reply-to: 
+ <01d3ac1297677b782018d82a25e2ca82f7d1ca09.1288471898.git.joe@perches.com>
+Message-id: <op.vluo3cfl7p4s8u@pikus>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Content-transfer-encoding: Quoted-Printable
+References: <cover.1288471897.git.joe@perches.com>
+ <01d3ac1297677b782018d82a25e2ca82f7d1ca09.1288471898.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com
+To: Jiri Kosina <trivial@kernel.org>, Joe Perches <joe@perches.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 04, 2010 at 10:31:58AM -0700, Hugh Dickins wrote:
-> On Wed, 3 Nov 2010, Hiroyuki Kamezawa wrote:
-> > I'm sorry for attached file, I have to use unusual mailer this time.
-> > This is a fix for wrong VM_BUG_ON() for mm/memcontol.c
-> 
-> Thanks, Kame, that's good: I've inlined it below with Balbir's Review,
-> my Ack, and a Cc: stable@kernel.org.
-> 
-> Hugh
-> 
-> 
-> [PATCH] memcg: fix wrong VM_BUG_ON() in try_charge()'s mm->owner check
-> 
-> At __mem_cgroup_try_charge(), VM_BUG_ON(!mm->owner) is checked.
-> But as commented in mem_cgroup_from_task(), mm->owner can be NULL in some racy
-> case. This check of VM_BUG_ON() is bad.
-> 
-> A possible story to hit this is at swapoff()->try_to_unuse(). It passes
-> mm_struct to mem_cgroup_try_charge_swapin() while mm->owner is NULL. If we
-> can't get proper mem_cgroup from swap_cgroup information, mm->owner is used
-> as charge target and we see NULL.
-> 
-> Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Reported-by: Hugh Dickins <hughd@google.com>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Reviewed-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> Acked-by: Hugh Dickins <hughd@google.com>
-> Cc: stable@kernel.org
+On Sat, 30 Oct 2010 23:08:51 +0200, Joe Perches <joe@perches.com> wrote:=
 
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+> diff --git a/mm/percpu.c b/mm/percpu.c
+> @@ -715,8 +715,8 @@ static void __percpu *pcpu_alloc(size_t size, size=
+_t align, bool reserved)
+>  	unsigned long flags;
+> 	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)=
+) {
+> -		WARN(true, "illegal size (%zu) or align (%zu) for "
+> -		     "percpu allocation\n", size, align);
+> +		WARN(true, "illegal size (%zu) or align (%zu) for percpu allocation=
+\n",
+> +		     size, align);
+>  		return NULL;
+>  	}
+
+The above is a bit grep-unfriendly though.  Just my 0.02 PLN.
+
+-- =
+
+Best regards,                                        _     _
+| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
+| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
++----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
