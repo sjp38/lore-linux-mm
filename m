@@ -1,42 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8584C6B0095
-	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 17:51:18 -0500 (EST)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [patch 4/4] memcg: use native word page statistics counters
-References: <1288973333-7891-1-git-send-email-minchan.kim@gmail.com>
-	<20101106010357.GD23393@cmpxchg.org>
-	<AANLkTin9m65JVKRuStZ1-qhU5_1AY-GcbBRC0TodsfYC@mail.gmail.com>
-	<20101107215030.007259800@cmpxchg.org>
-	<20101107220353.964566018@cmpxchg.org>
-	<AANLkTinLK5DiG3ZkEFSAJNZrPKK7aXiPPYQ6z9M6RPhc@mail.gmail.com>
-Date: Mon, 08 Nov 2010 14:51:01 -0800
-In-Reply-To: <AANLkTinLK5DiG3ZkEFSAJNZrPKK7aXiPPYQ6z9M6RPhc@mail.gmail.com>
-	(Minchan Kim's message of "Mon, 8 Nov 2010 09:01:54 +0900")
-Message-ID: <xr93pqufa0q2.fsf@ninji.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 334056B0089
+	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 18:19:39 -0500 (EST)
+Message-Id: <20101108231726.993880740@intel.com>
+Date: Tue, 09 Nov 2010 07:09:19 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 3/5] writeback: stop background/kupdate works from livelocking other works
+References: <20101108230916.826791396@intel.com>
+Content-Disposition: inline; filename=0002-mm-Stop-background-writeback-if-there-is-other-work-.patch
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Young <hidave.darkstar@gmail.com>, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Jan Engelhardt <jengelh@medozas.de>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Minchan Kim <minchan.kim@gmail.com> writes:
+From: Jan Kara <jack@suse.cz>
 
-> On Mon, Nov 8, 2010 at 7:14 AM, Johannes Weiner <hannes@cmpxchg.org> wrot=
-e:
->> The statistic counters are in units of pages, there is no reason to
->> make them 64-bit wide on 32-bit machines.
->>
->> Make them native words. =C2=A0Since they are signed, this leaves 31 bit =
-on
->> 32-bit machines, which can represent roughly 8TB assuming a page size
->> of 4k.
->>
->> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: Greg Thelen <gthelen@google.com>
+Background writeback are easily livelockable (from a definition of their
+target). This is inconvenient because it can make sync(1) stall forever waiting
+on its queued work to be finished. Generally, when a flusher thread has
+some work queued, someone submitted the work to achieve a goal more specific
+than what background writeback does. So it makes sense to give it a priority
+over a generic page cleaning.
+
+Thus we interrupt background writeback if there is some other work to do. We
+return to the background writeback after completing all the queued work.
+
+Signed-off-by: Jan Kara <jack@suse.cz>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/fs-writeback.c |    9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+--- linux-next.orig/fs/fs-writeback.c	2010-11-07 21:56:42.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-11-07 22:00:51.000000000 +0800
+@@ -651,6 +651,15 @@ static long wb_writeback(struct bdi_writ
+ 			break;
+ 
+ 		/*
++		 * Background writeout and kupdate-style writeback are
++		 * easily livelockable. Stop them if there is other work
++		 * to do so that e.g. sync can proceed.
++		 */
++		if ((work->for_background || work->for_kupdate) &&
++		    !list_empty(&wb->bdi->work_list))
++			break;
++
++		/*
+ 		 * For background writeout, stop when we are below the
+ 		 * background dirty threshold
+ 		 */
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
