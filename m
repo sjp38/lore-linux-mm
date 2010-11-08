@@ -1,24 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 23BD46B009E
-	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 18:20:11 -0500 (EST)
-Message-Id: <20101108230916.826791396@intel.com>
-Date: Tue, 09 Nov 2010 07:09:16 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 0/5] writeback livelock fixes
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 33EBA6B00A5
+	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 18:20:55 -0500 (EST)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [patch 3/4] memcg: break out event counters from other stats
+References: <1288973333-7891-1-git-send-email-minchan.kim@gmail.com>
+	<20101106010357.GD23393@cmpxchg.org>
+	<AANLkTin9m65JVKRuStZ1-qhU5_1AY-GcbBRC0TodsfYC@mail.gmail.com>
+	<20101107215030.007259800@cmpxchg.org>
+	<20101107220353.684449249@cmpxchg.org>
+	<AANLkTikhX+2E5o=vqc6Yb6GGPJJT2FwuzKMiC31GdY0s@mail.gmail.com>
+Date: Mon, 08 Nov 2010 15:20:38 -0800
+Message-ID: <xr93hbfr9zcp.fsf@ninji.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@lst.de>, Jan Engelhardt <jengelh@medozas.de>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Young <hidave.darkstar@gmail.com>, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew,
+Minchan Kim <minchan.kim@gmail.com> writes:
 
-Here are the two writeback livelock fixes (patch 3, 4) from Jan Kara.
-The series starts with a preparation patch and carries two more debugging
-patches.
-
-Thanks,
-Fengguang
+> On Mon, Nov 8, 2010 at 7:14 AM, Johannes Weiner <hannes@cmpxchg.org> wrot=
+e:
+>> For increasing and decreasing per-cpu cgroup usage counters it makes
+>> sense to use signed types, as single per-cpu values might go negative
+>> during updates. =C2=A0But this is not the case for only-ever-increasing
+>> event counters.
+>>
+>> All the counters have been signed 64-bit so far, which was enough to
+>> count events even with the sign bit wasted.
+>>
+>> The next patch narrows the usage counters type (on 32-bit CPUs, that
+>> is), though, so break out the event counters and make them unsigned
+>> words as they should have been from the start.
+>>
+>> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Reviewed-by: Greg Thelen <gthelen@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
