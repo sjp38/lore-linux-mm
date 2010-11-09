@@ -1,67 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E67976B00AA
-	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 18:46:00 -0500 (EST)
-Date: Tue, 9 Nov 2010 00:45:34 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 4/4] memcg: use native word page statistics counters
-Message-ID: <20101108234533.GN23393@cmpxchg.org>
-References: <20101107215030.007259800@cmpxchg.org>
- <1288973333-7891-1-git-send-email-minchan.kim@gmail.com>
- <20101106010357.GD23393@cmpxchg.org>
- <AANLkTin9m65JVKRuStZ1-qhU5_1AY-GcbBRC0TodsfYC@mail.gmail.com>
- <20101107215030.007259800@cmpxchg.org>
- <20101107220353.964566018@cmpxchg.org>
- <xr93vd478kgx.fsf@ninji.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <xr93vd478kgx.fsf@ninji.mtv.corp.google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A74658D0001
+	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 19:06:45 -0500 (EST)
+Date: Mon, 8 Nov 2010 16:05:55 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [v2][PATCH] [v2] Revalidate page->mapping in
+ do_generic_file_read()
+Message-Id: <20101108160555.2925ea57.akpm@linux-foundation.org>
+In-Reply-To: <20101105211615.2D67A348@kernel.beaverton.ibm.com>
+References: <20101105211615.2D67A348@kernel.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Young <hidave.darkstar@gmail.com>, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, arunabal@in.ibm.com, sbest@us.ibm.com, stable <stable@kernel.org>, Christoph Hellwig <hch@lst.de>, Al Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 08, 2010 at 03:27:26PM -0800, Greg Thelen wrote:
-> Johannes Weiner <hannes@cmpxchg.org> writes:
-> > --- a/include/linux/memcontrol.h
-> > +++ b/include/linux/memcontrol.h
-> > @@ -157,7 +157,7 @@ static inline void mem_cgroup_dec_page_s
-> >  bool mem_cgroup_has_dirty_limit(void);
-> >  bool mem_cgroup_dirty_info(unsigned long sys_available_mem,
-> >  			   struct dirty_info *info);
-> > -s64 mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item);
-> > +long mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item);
-> 
-> Ooops.  I missed something in my review.
-> 
-> mem_cgroup_page_stat() appears twice in memcontrol.h The return value
-> should match regardless of if CONFIG_CGROUP_MEM_RES_CTLR is set.
-> 
-> I suggest integrating the following into you patch ([patch 4/4] memcg:
-> use native word page statistics counters):
+On Fri, 05 Nov 2010 14:16:15 -0700
+Dave Hansen <dave@linux.vnet.ibm.com> wrote:
 
-Right you are!  Thanks.
+> --- linux-2.6.git/mm/filemap.c~is_partially_uptodate-revalidate-page	2010-11-03 13:49:21.000000000 -0700
+> +++ linux-2.6.git-dave/mm/filemap.c	2010-11-04 06:59:08.000000000 -0700
+> @@ -1016,6 +1016,9 @@ find_page:
+>  				goto page_not_up_to_date;
+>  			if (!trylock_page(page))
+>  				goto page_not_up_to_date;
+> +			/* Did it get truncated before we got the lock? */
+> +			if (!page->mapping)
+> +				goto page_not_up_to_date_locked;
+>  			if (!mapping->a_ops->is_partially_uptodate(page,
+>  								desc, offset))
+>  				goto page_not_up_to_date_locked;
 
-	Hannes
-
-> ---
->  include/linux/memcontrol.h |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 4e046d6..7a3d915 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -351,7 +351,7 @@ static inline bool mem_cgroup_dirty_info(unsigned long sys_available_mem,
->         return false;
->  }
->  
-> -static inline s64 mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item)
-> +static inline long mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item)
->  {
->         return -ENOSYS;
->  }
+whoops.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
