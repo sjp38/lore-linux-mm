@@ -1,58 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7C1016B004A
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:12:52 -0500 (EST)
-Date: Tue, 9 Nov 2010 22:11:45 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 55 of 66] select CONFIG_COMPACTION if
- TRANSPARENT_HUGEPAGE enabled
-Message-ID: <20101109211145.GB6809@random.random>
-References: <patchbomb.1288798055@v2.random>
- <89a62752012298bb500c.1288798110@v2.random>
- <20101109151756.BC7B.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101109151756.BC7B.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id CF9AB6B0085
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:13:48 -0500 (EST)
+Date: Tue, 9 Nov 2010 13:13:10 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/5] writeback: stop background/kupdate works from
+ livelocking other works
+Message-Id: <20101109131310.f442d210.akpm@linux-foundation.org>
+In-Reply-To: <20101108231726.993880740@intel.com>
+References: <20101108230916.826791396@intel.com>
+	<20101108231726.993880740@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@lst.de>, Jan Engelhardt <jengelh@medozas.de>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 09, 2010 at 03:20:33PM +0900, KOSAKI Motohiro wrote:
-> > From: Andrea Arcangeli <aarcange@redhat.com>
-> > 
-> > With transparent hugepage support we need compaction for the "defrag" sysfs
-> > controls to be effective.
-> > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > ---
-> > 
-> > diff --git a/mm/Kconfig b/mm/Kconfig
-> > --- a/mm/Kconfig
-> > +++ b/mm/Kconfig
-> > @@ -305,6 +305,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
-> >  config TRANSPARENT_HUGEPAGE
-> >  	bool "Transparent Hugepage Support"
-> >  	depends on X86 && MMU
-> > +	select COMPACTION
-> >  	help
-> >  	  Transparent Hugepages allows the kernel to use huge pages and
-> >  	  huge tlb transparently to the applications whenever possible.
-> 
-> I dislike this. THP and compaction are completely orthogonal. I think 
-> you are talking only your performance recommendation. I mean I dislike
-> Kconfig 'select' hell and I hope every developers try to avoid it as 
-> far as possible.
+On Tue, 09 Nov 2010 07:09:19 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
+>
 
-At the moment THP hangs the system if COMPACTION isn't selected
-(please try yourself if you don't believe), as without COMPACTION
-lumpy reclaim wouldn't be entirely disabled. So at the moment it's not
-orthogonal. When lumpy will be removed from the VM (like I tried
-multiple times to achieve) I can remove the select COMPACTION in
-theory, but then 99% of THP users would be still doing a mistake in
-disabling compaction, even if the mistake won't return in fatal
-runtime but just slightly degraded performance.
+I find the description to be somewhat incomplete...
+
+> From: Jan Kara <jack@suse.cz>
+> 
+> Background writeback are easily livelockable (from a definition of their
+> target).
+
+*why* is background writeback easily livelockable?  Under which
+circumstances does this happen and how does it come about?
+
+> This is inconvenient because it can make sync(1) stall forever waiting
+> on its queued work to be finished.
+
+Again, why?  Because there are works queued from the flusher thread,
+but that thread is stuck in a livelocked state in <unspecified code
+location> so it is unable to service the other works?  But the pocess
+which called sync() will as a last resort itself perform all the
+required IO, will it not?  If so, how can it livelock?
+
+> Generally, when a flusher thread has
+> some work queued, someone submitted the work to achieve a goal more specific
+> than what background writeback does. So it makes sense to give it a priority
+> over a generic page cleaning.
+> 
+> Thus we interrupt background writeback if there is some other work to do. We
+> return to the background writeback after completing all the queued work.
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  fs/fs-writeback.c |    9 +++++++++
+>  1 file changed, 9 insertions(+)
+> 
+> --- linux-next.orig/fs/fs-writeback.c	2010-11-07 21:56:42.000000000 +0800
+> +++ linux-next/fs/fs-writeback.c	2010-11-07 22:00:51.000000000 +0800
+> @@ -651,6 +651,15 @@ static long wb_writeback(struct bdi_writ
+>  			break;
+>  
+>  		/*
+> +		 * Background writeout and kupdate-style writeback are
+> +		 * easily livelockable. Stop them if there is other work
+> +		 * to do so that e.g. sync can proceed.
+> +		 */
+> +		if ((work->for_background || work->for_kupdate) &&
+> +		    !list_empty(&wb->bdi->work_list))
+> +			break;
+> +
+> +		/*
+>  		 * For background writeout, stop when we are below the
+>  		 * background dirty threshold
+>  		 */
+
+So...  what prevents higher priority works (eg, sync(1)) from
+livelocking or seriously retarding background or kudate writeout?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
