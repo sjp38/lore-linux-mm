@@ -1,74 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id AD6496B00CB
-	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 23:03:16 -0500 (EST)
-Date: Tue, 9 Nov 2010 15:03:06 +1100
-From: Nick Piggin <npiggin@kernel.dk>
-Subject: Re: shrinkers: Add node to indicate where to target shrinking
-Message-ID: <20101109040306.GC3493@amd>
-References: <alpine.DEB.2.00.1010211255570.24115@router.home>
- <alpine.DEB.2.00.1010211259360.24115@router.home>
- <20101021235854.GD3270@amd>
- <20101022155513.GA26790@infradead.org>
- <alpine.DEB.2.00.1010221121550.22051@router.home>
- <20101024014256.GD3168@amd>
- <alpine.DEB.2.00.1010250957120.7461@router.home>
+	by kanga.kvack.org (Postfix) with SMTP id 4EC436B00CC
+	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 23:34:21 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oA94YH74018530
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 9 Nov 2010 13:34:17 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 46BA645DE51
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 13:34:17 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 205C945DE4E
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 13:34:17 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 06280E18001
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 13:34:17 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B7402E08001
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 13:34:16 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: RFC: reviving mlock isolation dead code
+In-Reply-To: <20101101015311.6062.A69D9226@jp.fujitsu.com>
+References: <AANLkTik4NM5YOgh48bOWDQZuUKmEHLH6Ja10eOzn-_tj@mail.gmail.com> <20101101015311.6062.A69D9226@jp.fujitsu.com>
+Message-Id: <20101109115540.BC3F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1010250957120.7461@router.home>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue,  9 Nov 2010 13:34:16 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Nick Piggin <npiggin@kernel.dk>, Christoph Hellwig <hch@infradead.org>, akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 25, 2010 at 09:59:58AM -0500, Christoph Lameter wrote:
-> On Sun, 24 Oct 2010, Nick Piggin wrote:
+Hi Michel,
+
+> Hello,
 > 
-> > > A reclaim that does per zone reclaim (but in reality reclaims all objects
-> > > in a node (or worse as most shrinkers do today in the whole system) will
-> > > put 3x the pressure on node 0.
-> >
-> > No it doesn't. This is how it works:
-> >
-> > node0zoneD has 1% of pagecache for node 0
-> > node0zoneD32 has 9% of pagecache
-> > node0zoneN has 90% of pagecache
-> >
-> > If there is a memory shortage in all node0 zones, the first zone will
-> > get 1% of the pagecache scanning pressure, dma32 will get 9% and normal
-> > will get 90%, for equal pressure on each zone.
-> >
-> > In my patch, those numbers will pass through to shrinker for each zone,
-> > and ask the shrinker to scan and equal proportion of objects in each of
-> > its zones.
+> > I would like to resurect this, as I am seeing problems during a large
+> > mlock (many GB). The mlock takes a long time to complete
+> > (__mlock_vma_pages_range() is loading pages from disk), there is
+> > memory pressure as some pages have to be evicted to make room for the
+> > large mlock, and the LRU algorithm performs badly with the high amount
+> > of pages still on LRU list - PageMlocked has not been set yet - while
+> > their VMA is already VM_LOCKED.
+> > 
+> > One approach I am considering would be to modify
+> > __mlock_vma_pages_range() and it call sites so the mmap sem is only
+> > read-owned while __mlock_vma_pages_range() runs. The mlock handling
+> > code in try_to_unmap_one() would then be able to acquire the
+> > mmap_sem() and help, as it is designed to do.
 > 
-> Many shrinkers do not implement such a scheme.
+> I would like to talk historical story a bit. Originally, Lee designed it as you proposed. 
+> but Linus refused it. He thought ro-rwsem is bandaid fix. That is one of reason that
+> some developers seeks proper mmap_sem dividing way.
 
-And they don't need to.
+While in airplane to come back from KS and LPC, I was thinking this issue. now I think
+we can solve this issue. can you please hear my idea?
 
- 
-> > If you have a per node shrinker, you will get asymmetries in pressures
-> > whenever there is not an equal amount of reclaimable objects in all
-> > the zones of a node.
-> 
-> Sure there would be different amounts allocated in the various nodes but
-> you will get an equal amount of calls to the shrinkers. Anyways as you
-> pointed out the shrinker can select the zones it will perform reclaim on.
-> So for the slab shrinker it would not be an issue.
+Now, mlock has following call flow
 
-It can't without either doing the wrong thing, or knowing too much
-about what reclaim is doing with zones. zone shrinkers are the right
-way to go.
+sys_mlock
+	down_write(mmap_sem)
+	do_mlock()
+		for-each-vma
+			mlock_fixup()
+				__mlock_vma_pages_range()
+					__get_user_pages()
+	up_write(mmap_sem)
 
-If you only care about nodes, you can easily go zone->node without
-losing any information that you would have in a node shrinker scenario.
-But with a node shrinker you cannot derive the zone.
 
-Regardless of wheather you call HIGHMEM, DMA, MOVABLE, etc hacks or
-bolt ons or not, they are fundamental part of the whole reclaim scheme,
-so you really need to change that whole thing in a cohrerent way if you
-don't like it, rather than adding bits that don't work well with it.
+And, someone tried following change and Linus refuse it because releasing mmap_sem
+while mlock() syscall can makes nasty race issue. He storongly requested we don't release
+mmap_sem while processing mlock().
+
+
+sys_mlock
+	down_write(mmap_sem)
+	do_mlock()
+		for-each-vma
+			downgrade_write(mmap_sem)
+			mlock_fixup()
+				__mlock_vma_pages_range()
+					__get_user_pages()
+			up_read(mmap_sem)
+			// race here
+			down_write(mmap_sem)
+	up_write(mmap_sem)
+
+
+Then, I'd propose two phase mlock. that said,
+
+sys_mlock
+	down_write(mmap_sem)
+	do_mlock()
+		for-each-vma
+			turn on VM_LOCKED and merge/split vma
+	downgrade_write(mmap_sem)
+		for-each-vma
+			mlock_fixup()
+				__mlock_vma_pages_range()
+	up_read(mmap_sem)
+
+
+Usually, kernel developers strongly dislike two phase thing beucase it's slow. but at least
+_I_ think it's ok in this case. because mlock is really really slow syscall, it often take a few
+*miniture*. then, A few microsecond slower is not big matter.
+
+What do you think?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
