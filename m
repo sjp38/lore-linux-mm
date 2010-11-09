@@ -1,125 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8D4D96B0087
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 18:22:46 -0500 (EST)
-Received: by iwn9 with SMTP id 9so15564iwn.14
-        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 15:22:45 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id ACF186B004A
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 18:33:17 -0500 (EST)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id oA9NXEwO017697
+	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 15:33:14 -0800
+Received: from pxi16 (pxi16.prod.google.com [10.243.27.16])
+	by wpaz13.hot.corp.google.com with ESMTP id oA9NWe8e029443
+	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 15:33:12 -0800
+Received: by pxi16 with SMTP id 16so4600pxi.32
+        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 15:33:10 -0800 (PST)
+Date: Tue, 9 Nov 2010 15:33:04 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [resend][PATCH 2/4] Revert "oom: deprecate oom_adj tunable"
+In-Reply-To: <20101109105801.BC30.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1011091523370.26837@chino.kir.corp.google.com>
+References: <20101101030353.607A.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011011232120.6822@chino.kir.corp.google.com> <20101109105801.BC30.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1289294671-6865-4-git-send-email-gthelen@google.com>
-References: <1289294671-6865-1-git-send-email-gthelen@google.com>
-	<1289294671-6865-4-git-send-email-gthelen@google.com>
-Date: Wed, 10 Nov 2010 08:22:44 +0900
-Message-ID: <AANLkTinX9FSC=9azJWH7LELvLs2jYjOYUeQe4KhD_th=@mail.gmail.com>
-Subject: Re: [PATCH 3/6] memcg: make throttle_vm_writeout() memcg aware
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 9, 2010 at 6:24 PM, Greg Thelen <gthelen@google.com> wrote:
-> If called with a mem_cgroup, then throttle_vm_writeout() should
-> query the given cgroup for its dirty memory usage limits.
->
-> dirty_writeback_pages() is no longer used, so delete it.
->
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Tue, 9 Nov 2010, KOSAKI Motohiro wrote:
 
-> ---
-> =A0include/linux/writeback.h | =A0 =A02 +-
-> =A0mm/page-writeback.c =A0 =A0 =A0 | =A0 31 ++++++++++++++++-------------=
---
-> =A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A02 +-
-> =A03 files changed, 18 insertions(+), 17 deletions(-)
->
-> diff --git a/include/linux/writeback.h b/include/linux/writeback.h
-> index 335dba1..1bacdda 100644
-> --- a/include/linux/writeback.h
-> +++ b/include/linux/writeback.h
-> @@ -97,7 +97,7 @@ void laptop_mode_timer_fn(unsigned long data);
-> =A0#else
-> =A0static inline void laptop_sync_completion(void) { }
-> =A0#endif
-> -void throttle_vm_writeout(gfp_t gfp_mask);
-> +void throttle_vm_writeout(gfp_t gfp_mask, struct mem_cgroup *mem_cgroup)=
-;
->
-> =A0/* These are exported to sysctl. */
-> =A0extern int dirty_background_ratio;
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index d717fa9..bf85062 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -131,18 +131,6 @@ EXPORT_SYMBOL(laptop_mode);
-> =A0static struct prop_descriptor vm_completions;
-> =A0static struct prop_descriptor vm_dirties;
->
-> -static unsigned long dirty_writeback_pages(void)
-> -{
-> - =A0 =A0 =A0 unsigned long ret;
-> -
-> - =A0 =A0 =A0 ret =3D mem_cgroup_page_stat(NULL, MEMCG_NR_DIRTY_WRITEBACK=
-_PAGES);
-> - =A0 =A0 =A0 if ((long)ret < 0)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D global_page_state(NR_UNSTABLE_NFS) =
-+
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 global_page_state(NR_WRITEB=
-ACK);
-> -
-> - =A0 =A0 =A0 return ret;
-> -}
-> -
+> > > > The new tunable added in 2.6.36, /proc/pid/oom_score_adj, is necessary for 
+> > > > the units that the badness score now uses.  We need a tunable with a much 
+> > > 
+> > > Who we?
+> > > 
+> > 
+> > Linux users who care about prioritizing tasks for oom kill with a tunable 
+> > that (1) has a unit, (2) has a higher resolution, and (3) is linear and 
+> > not exponential.  
+> 
+> No. Majority user don't care. You only talk about your case. Don't ignore
+> end user.
+> 
 
-Nice cleanup.
+If they don't care, then they won't be using oom_adj, so you're point 
+about it's deprecation is irrelevant.
 
-> =A0/*
-> =A0* couple the period to the dirty_ratio:
-> =A0*
-> @@ -703,12 +691,25 @@ void balance_dirty_pages_ratelimited_nr(struct addr=
-ess_space *mapping,
-> =A0}
-> =A0EXPORT_SYMBOL(balance_dirty_pages_ratelimited_nr);
->
-> -void throttle_vm_writeout(gfp_t gfp_mask)
-> +/*
-> + * Throttle the current task if it is near dirty memory usage limits.
-> + * If @mem_cgroup is NULL or the root_cgroup, then use global dirty memo=
-ry
-> + * information; otherwise use the per-memcg dirty limits.
-> + */
-> +void throttle_vm_writeout(gfp_t gfp_mask, struct mem_cgroup *mem_cgroup)
-> =A0{
-> =A0 =A0 =A0 =A0struct dirty_info dirty_info;
-> + =A0 =A0 =A0 unsigned long nr_writeback;
->
-> =A0 =A0 =A0 =A0 for ( ; ; ) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 global_dirty_info(&dirty_info);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!mem_cgroup || !memcg_dirty_info(mem_cg=
-roup, &dirty_info)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 global_dirty_info(&dirty_in=
-fo);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_writeback =3D global_pag=
-e_state(NR_UNSTABLE_NFS) +
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 global_page=
-_state(NR_WRITEBACK);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 } else {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_writeback =3D mem_cgroup=
-_page_stat(
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup,=
- MEMCG_NR_DIRTY_WRITEBACK_PAGES);
+Other users do want a more powerful userspace interface with a unit and 
+higher resolution (I am one of them), there's no requirement that those 
+users need to be in the majority.
 
-In point of view rcu_read_lock removal, memcg can't destroy due to
-mem_cgroup_select_victim's css_tryget?
-Then, we can remove unnecessary rcu_read_lock in mem_cgroup_page_stat.
+> > Memcg doesn't solve this issue without incurring a 1% 
+> > memory cost.
+> 
+> Look at a real.
+> All major distributions has already turn on memcg. End user don't need
+> to pay additional cost.
+> 
 
+Memcg also has a command-line disabling option to avoid incurring this 1% 
+memory cost when you're not going to be using it.
 
+> > No, it doesn't, and you completely and utterly failed to show a single 
+> > usecase that broke as a result of this because nobody can currently use 
+> > oom_adj for anything other than polarization.  Thus, there's no backwards 
+> > compatibility issue.
+> 
+> No. I showed. 
+> 1) Google code search showed some application are using this feature.
+> 	http://www.google.com/codesearch?as_q=oom_adj&btnG=Search+Code&hl=ja&as_package=&as_lang=&as_filename=&as_class=&as_function=&as_license=&as_case=
+> 
 
---=20
-Kind regards,
-Minchan Kim
+oom_adj isn't removed, it's deprecated.  These users are using a 
+deprecated interface and have a few years to convert to using the new 
+interface (if it ever is actually removed).
+
+> 2) Not body use oom_adj other than polarization even though there are a few.
+>    example, kde are using.
+> 	http://www.google.com/codesearch/p?hl=ja#MPJuLvSvNYM/pub/kde/unstable/snapshots/kdelibs.tar.bz2%7CWClmGVN5niU/kdelibs-1164923/kinit/start_kdeinit.c&q=oom_adj%20kde%205
+> 
+> When you are talking polarization issue, you blind a real. Don't talk your dream.
+> 
+
+I don't understand what you're trying to say here, but the current users 
+of oom_adj that aren't +15 or -16 (or OOM_DISABLE) are arbitrary based 
+relative to other tasks such as +5, +10, etc.  They don't have any 
+semantics other than being arbitrarily relative because it doesn't work in 
+a linear way or with a scale.
+
+> 3) udev are using this feature. It's one of major linux component and you broke.
+> 
+> http://www.google.com/codesearch/p?hl=ja#KVTjzuVpblQ/pub/linux/utils/kernel/hotplug/udev-072.tar.bz2%7CwUSE-Ay3lLI/udev-072/udevd.c&q=oom_adj
+> 
+> You don't have to break our userland. you can't rewrite or deprecate 
+> old one. It's used! You can only add orthogonal new knob.
+> 
+
+That's incorrect, I didn't break anything by deprecating a tunable for a 
+few years.  oom_adj gets converted roughly into an equivalent (but linear) 
+oom_score_adj.
+
+Unfortunately for your argument, you can't show a single example of a 
+current oom_adj user that has a scientific calculation behind its value 
+that is now broken on the linear scale.
+
+> > Yes, I've tested it, and it deprecates the tunable as expected.  A single 
+> > warning message serves the purpose well: let users know one time without 
+> > being overly verbose that the tunable is deprecated and give them 
+> > sufficient time (2 years) to start using the new tunable.  That's how 
+> > deprecation is done.
+> 
+> no sense.
+> 
+> Why do their application need to rewrite for *YOU*? Okey, you will got
+> benefit from your new knob. But NOBDOY use the new one. and People need
+> to rewrite their application even though no benefit. 
+> 
+> Don't do selfish userland breakage!
+> 
+
+It's deprecated for a few years so users can gradually convert to the new 
+tunable, it wasn't removed when the new one was introduced.  A higher 
+resolution tunable that scales linearly with a unit is an advantage for 
+Linux (for the minority of users who care about oom killing priority 
+beyond the heuristic) and I think a few years is enough time for users to 
+do a simple conversion to the new tunable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
