@@ -1,81 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id CF9AB6B0085
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:13:48 -0500 (EST)
-Date: Tue, 9 Nov 2010 13:13:10 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/5] writeback: stop background/kupdate works from
- livelocking other works
-Message-Id: <20101109131310.f442d210.akpm@linux-foundation.org>
-In-Reply-To: <20101108231726.993880740@intel.com>
-References: <20101108230916.826791396@intel.com>
-	<20101108231726.993880740@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D1A1C6B004A
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:16:18 -0500 (EST)
+Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
+	by smtp-out.google.com with ESMTP id oA9LGGxm022980
+	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 13:16:16 -0800
+Received: from pvg6 (pvg6.prod.google.com [10.241.210.134])
+	by kpbe16.cbf.corp.google.com with ESMTP id oA9LFvrH002240
+	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 13:16:14 -0800
+Received: by pvg6 with SMTP id 6so551292pvg.9
+        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 13:16:14 -0800 (PST)
+Date: Tue, 9 Nov 2010 13:16:12 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2]mm/oom-kill: direct hardware access processes should
+ get bonus
+In-Reply-To: <1289305468.10699.2.camel@localhost.localdomain>
+Message-ID: <alpine.DEB.2.00.1011091307240.7730@chino.kir.corp.google.com>
+References: <1288662213.10103.2.camel@localhost.localdomain> <1289305468.10699.2.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@lst.de>, Jan Engelhardt <jengelh@medozas.de>, LKML <linux-kernel@vger.kernel.org>
+To: "Figo.zhang" <figo1802@gmail.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 09 Nov 2010 07:09:19 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
->
+On Tue, 9 Nov 2010, Figo.zhang wrote:
 
-I find the description to be somewhat incomplete...
-
-> From: Jan Kara <jack@suse.cz>
-> 
-> Background writeback are easily livelockable (from a definition of their
-> target).
-
-*why* is background writeback easily livelockable?  Under which
-circumstances does this happen and how does it come about?
-
-> This is inconvenient because it can make sync(1) stall forever waiting
-> on its queued work to be finished.
-
-Again, why?  Because there are works queued from the flusher thread,
-but that thread is stuck in a livelocked state in <unspecified code
-location> so it is unable to service the other works?  But the pocess
-which called sync() will as a last resort itself perform all the
-required IO, will it not?  If so, how can it livelock?
-
-> Generally, when a flusher thread has
-> some work queued, someone submitted the work to achieve a goal more specific
-> than what background writeback does. So it makes sense to give it a priority
-> over a generic page cleaning.
-> 
-> Thus we interrupt background writeback if there is some other work to do. We
-> return to the background writeback after completing all the queued work.
-> 
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  fs/fs-writeback.c |    9 +++++++++
->  1 file changed, 9 insertions(+)
-> 
-> --- linux-next.orig/fs/fs-writeback.c	2010-11-07 21:56:42.000000000 +0800
-> +++ linux-next/fs/fs-writeback.c	2010-11-07 22:00:51.000000000 +0800
-> @@ -651,6 +651,15 @@ static long wb_writeback(struct bdi_writ
->  			break;
 >  
->  		/*
-> +		 * Background writeout and kupdate-style writeback are
-> +		 * easily livelockable. Stop them if there is other work
-> +		 * to do so that e.g. sync can proceed.
-> +		 */
-> +		if ((work->for_background || work->for_kupdate) &&
-> +		    !list_empty(&wb->bdi->work_list))
-> +			break;
-> +
-> +		/*
->  		 * For background writeout, stop when we are below the
->  		 * background dirty threshold
->  		 */
+> the victim should not directly access hardware devices like Xorg server,
+> because the hardware could be left in an unpredictable state, although 
+> user-application can set /proc/pid/oom_score_adj to protect it. so i think
+> those processes should get 3% bonus for protection.
+> 
 
-So...  what prevents higher priority works (eg, sync(1)) from
-livelocking or seriously retarding background or kudate writeout?
+The logic here is wrong: if killing these tasks can leave hardware in an 
+unpredictable state (and that state is presumably harmful), then they 
+should be completely immune from oom killing since you're still leaving 
+them exposed here to be killed.
+
+So the question that needs to be answered is: why do these threads deserve 
+to use 3% more memory (not >4%) than others without getting killed?  If 
+there was some evidence that these threads have a certain quantity of 
+memory they require as a fundamental attribute of CAP_SYS_RAWIO, then I 
+have no objection, but that's going to be expressed in a memory quantity 
+not a percentage as you have here.
+
+The CAP_SYS_ADMIN heuristic has a background: it is used in the oom killer 
+because we have used the same 3% in __vm_enough_memory() for a long time 
+and we want consistency amongst the heuristics.  Adding additional bonuses 
+with arbitrary values like 3% of memory for things like CAP_SYS_RAWIO 
+makes the heuristic less predictable and moves us back toward the old 
+heuristic which was almost entirely arbitrary.
+
+Now before KOSAKI-san comes out and says the old heuristic considered 
+CAP_SYS_RAWIO and the new one does not so it _must_ be a regression: the 
+old heuristic also divided the badness score by 4 for that capability as a 
+completely arbitrary value (just like 3% is here).  Other traits like 
+runtime and nice levels were also removed from the heuristic.  What needs 
+to be shown is that CAP_SYS_RAWIO requires additional memory just to run 
+or we should neglect to free 3% of memory, which could be gigabytes, 
+because it has this trait.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
