@@ -1,68 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B57576B004A
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:39:13 -0500 (EST)
-Date: Tue, 9 Nov 2010 21:38:55 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 01 of 66] disable lumpy when compaction is enabled
-Message-ID: <20101109213855.GM32723@csn.ul.ie>
-References: <patchbomb.1288798055@v2.random> <ca2fea6527833aad8adc.1288798056@v2.random> <20101109121318.BC51.A69D9226@jp.fujitsu.com> <20101109213049.GC6809@random.random>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6384D6B004A
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:41:11 -0500 (EST)
+Date: Tue, 9 Nov 2010 22:40:36 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 43 of 66] don't leave orhpaned swap cache after ksm
+ merging
+Message-ID: <20101109214036.GE6809@random.random>
+References: <patchbomb.1288798055@v2.random>
+ <d5aefe85d1dab1bb7e99.1288798098@v2.random>
+ <20101109120747.BC4B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101109213049.GC6809@random.random>
+In-Reply-To: <20101109120747.BC4B.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 09, 2010 at 10:30:49PM +0100, Andrea Arcangeli wrote:
-> On Tue, Nov 09, 2010 at 12:18:49PM +0900, KOSAKI Motohiro wrote:
-> > I'm talking very personal thing now. I'm usually testing both feature.
-> > Then, runtime switching makes my happy :-)
-> > However I don't know what are you and Mel talking and agree about this.
-> > So, If many developer prefer this approach, I don't oppose anymore.
+On Tue, Nov 09, 2010 at 12:08:25PM +0900, KOSAKI Motohiro wrote:
+> > From: Andrea Arcangeli <aarcange@redhat.com>
+> > 
+> > When swapcache is replaced by a ksm page don't leave orhpaned swap cache.
+> > 
+> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> > Reviewed-by: Rik van Riel <riel@redhat.com>
 > 
-> Mel seem to still prefer I allow lumpy for hugetlbfs with a
-> __GFP_LUMPY specified only for hugetlbfs. But he measured compaction
-> is more reliable than lumpy at creating hugepages so he seems to be ok
-> with this too.
-> 
+> This explanation seems to tell this is bugfix. If so, please separate
+> this one from THP and will send mainline and -stable soon.
 
-Specifically, I measured that lumpy in combination with compaction is
-more reliable and lower latency but that's not the same as deleting it.
+Right. I'm uncertain if this is so bad to require -stable I think, if
+it was more urgent I would have submitted already separately but it's
+true it's not THP specific.
 
-That said, lumpy does hurt the system a lot.  I'm prototyping a series at the
-moment that pushes lumpy reclaim to the side and for the majority of cases
-replaces it with "lumpy compaction". I'd hoping this will be sufficient for
-THP and alleviate the need to delete it entirely - at least until we are 100%
-sure that compaction can replace it in all cases.
-
-Unfortunately, in the process of testing it today I also found out that
-2.6.37-rc1 had regressed severely in terms of huge page allocations so I'm
-side-tracked trying to chase that down. My initial theories for the regression
-have shown up nothing so I'm currently preparing to do a bisection. This
-will take a long time though because the test is very slow :(
-
-I can still post the series as an RFC if you like to show what direction
-I'm thinking of but at the moment, I'm unable to test it until I pin the
-regression down.
-
-> > But, I bet almost all distro choose CONFIG_COMPACTION=y. then, lumpy code
-> > will become nearly dead code. So, I like just kill than dead code. however
-> > it is also only my preference. ;)
-> 
-> Killing dead code is my preference too indeed. But then it's fine with
-> me to delete it only later. In short this is least intrusive
-> modification I could make to the VM that wouldn't than hang the system
-> when THP is selected because all pte young bits are ignored for >50%
-> of page reclaim invocations like lumpy requires.
-> 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+It's only fatal for cloud computing, where the manager has to decide
+to migrate more VM to one node, but it won't if it sees tons of swap
+used and it will think there's not enough margin for KSM cows until
+the VM is migrated back to another node.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
