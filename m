@@ -1,31 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 59DAA6B00AF
-	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 20:28:10 -0500 (EST)
-Received: by iwn9 with SMTP id 9so6869444iwn.14
-        for <linux-mm@kvack.org>; Mon, 08 Nov 2010 17:28:08 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1289265320-7025-1-git-send-email-gthelen@google.com>
-References: <1289265320-7025-1-git-send-email-gthelen@google.com>
-Date: Tue, 9 Nov 2010 10:28:08 +0900
-Message-ID: <AANLkTikDUkFgZ67tLeB080UhQByOc4yk4xmKTyEkJYq4@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1200F6B00B1
+	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 20:48:13 -0500 (EST)
+Date: Tue, 9 Nov 2010 02:47:47 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH] memcg: avoid overflow in memcg_hierarchical_free_pages()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-ID: <20101109014746.GP23393@cmpxchg.org>
+References: <1289265320-7025-1-git-send-email-gthelen@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1289265320-7025-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 9, 2010 at 10:15 AM, Greg Thelen <gthelen@google.com> wrote:
+On Mon, Nov 08, 2010 at 05:15:20PM -0800, Greg Thelen wrote:
 > Use page counts rather than byte counts to avoid overflowing
 > unsigned long local variables.
->
+> 
 > Signed-off-by: Greg Thelen <gthelen@google.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
--- 
-Kind regards,
-Minchan Kim
+
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
