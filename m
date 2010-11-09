@@ -1,144 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3631E6B004A
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 17:01:34 -0500 (EST)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: mem_cgroup_get_limit() return type, was [patch] memcg: fix unit mismatch in memcg oom limit calculation
-References: <20101109110521.GS23393@cmpxchg.org>
-	<xr93iq068dyd.fsf@ninji.mtv.corp.google.com>
-	<alpine.DEB.2.00.1011091327420.7730@chino.kir.corp.google.com>
-Date: Tue, 09 Nov 2010 14:01:07 -0800
-Message-ID: <xr9362w66tss.fsf@ninji.mtv.corp.google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 5A2D86B004A
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 17:23:40 -0500 (EST)
+Date: Tue, 9 Nov 2010 23:22:40 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 01 of 66] disable lumpy when compaction is enabled
+Message-ID: <20101109222240.GH6809@random.random>
+References: <patchbomb.1288798055@v2.random>
+ <ca2fea6527833aad8adc.1288798056@v2.random>
+ <20101109121318.BC51.A69D9226@jp.fujitsu.com>
+ <20101109213049.GC6809@random.random>
+ <20101109213855.GM32723@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101109213855.GM32723@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@in.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-David Rientjes <rientjes@google.com> writes:
+Hi Mel,
 
-> On Tue, 9 Nov 2010, Greg Thelen wrote:
->
->> Johannes Weiner <hannes@cmpxchg.org> writes:
->> 
->> > Adding the number of swap pages to the byte limit of a memory control
->> > group makes no sense.  Convert the pages to bytes before adding them.
->> >
->> > The only user of this code is the OOM killer, and the way it is used
->> > means that the error results in a higher OOM badness value.  Since the
->> > cgroup limit is the same for all tasks in the cgroup, the error should
->> > have no practical impact at the moment.
->> >
->> > But let's not wait for future or changing users to trip over it.
->> 
->> Thanks for the fix.
->> 
->
-> Nice catch, but it's done in the opposite way: the oom killer doesn't use 
-> byte limits but page limits.  So this needs to be
->
-> 	(res_counter_read_u64(&memcg->res, RES_LIMIT) >> PAGE_SHIFT) +
-> 			total_swap_pages;
+On Tue, Nov 09, 2010 at 09:38:55PM +0000, Mel Gorman wrote:
+> Specifically, I measured that lumpy in combination with compaction is
+> more reliable and lower latency but that's not the same as deleting it.
 
-In -mm, the oom killer queries memcg for a byte limit using
-mem_cgroup_get_limit(). The following is from
-mem_cgroup_out_of_memory():
+Thanks for the clarification. Well no doubt that using both could only
+increase the success rate. So the thing with hugetlbfs you may want to
+run both, but with THP we want to stop at compaction. So this would
+then require a __GFP_LUMPY if we want hugetlbfs to fallback on lumpy
+whenever compaction isn't successful. We can't just nuke and ignore
+young bits in pte if compaction fails. Trying later in khugepaged once
+every 10 seconds is a lot better.
 
-	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
+> That said, lumpy does hurt the system a lot.  I'm prototyping a series at the
+> moment that pushes lumpy reclaim to the side and for the majority of cases
+> replaces it with "lumpy compaction". I'd hoping this will be sufficient for
+> THP and alleviate the need to delete it entirely - at least until we are 100%
+> sure that compaction can replace it in all cases.
+> 
+> Unfortunately, in the process of testing it today I also found out that
+> 2.6.37-rc1 had regressed severely in terms of huge page allocations so I'm
+> side-tracked trying to chase that down. My initial theories for the regression
+> have shown up nothing so I'm currently preparing to do a bisection. This
+> will take a long time though because the test is very slow :(
 
-So I think the "[patch] memcg: fix unit mismatch in memcg oom limit
-calculation" is correct.  Although a simpler interface, would involve
-changing mem_cgroup_get_limit() to return a page count instead of a byte
-count and thus save the oom killer from having to do the conversion:
+On my side (unrelated) I also found 37-rc1 broke my mic by changing
+soundcard type (luckily csipsimple and skype on my cellphone are now
+working better than laptop for making voip calls so it was easy to
+workaround) and my backlight goes blank forever after a "xset dpms
+force standby" (so I'm stuck in presentation mode to workaround it,
+suspend to ram was successful to avoid having to reboot too as the
+bios restarts the backlight during boot).
 
-commit d12e5eded4505a673a7d77d8adab7fce30c7a680
-Author: Greg Thelen <gthelen@google.com>
-Date:   Tue Nov 9 13:46:38 2010 -0800
+> I can still post the series as an RFC if you like to show what direction
+> I'm thinking of but at the moment, I'm unable to test it until I pin the
+> regression down.
 
-    memcg: change mem_cgroup_get_limit() return type
-    
-    The mem_cgroup_get_limit() interface routine returns a
-    byte count.  The only consumer of this data is the oom
-    killer, which really wants a page count.
-    
-    This change converts mem_cgroup_get_limit() to return a
-    page count rather than a byte count.  This makes the
-    memcg interface more consistent with the rest of the mm.
-    This even makes the memcg interface more consistent.  Most other
-    memcg interface routines operate on page counts, not byte counts.
-    
-    Signed-off-by: Greg Thelen <gthelen@google.com>
+Sure feel free to post it, if it's already worth testing it, I can
+keep at the end of the patchset considering it's new code while what I
+posted had lots of testing.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 3433784..0a8720e 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -163,7 +163,7 @@ unsigned long mem_cgroup_page_stat(struct mem_cgroup *mem,
- 
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 						gfp_t gfp_mask);
--u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
-+unsigned long mem_cgroup_get_limit(struct mem_cgroup *mem);
- 
- #else /* CONFIG_CGROUP_MEM_RES_CTLR */
- struct mem_cgroup;
-@@ -368,7 +368,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- }
- 
- static inline
--u64 mem_cgroup_get_limit(struct mem_cgroup *mem)
-+unsigned long mem_cgroup_get_limit(struct mem_cgroup *mem)
- {
- 	return 0;
- }
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7b9ecdc..90efb5d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1569,22 +1569,23 @@ static int mem_cgroup_count_children(struct mem_cgroup *mem)
- }
- 
- /*
-- * Return the memory (and swap, if configured) limit for a memcg.
-+ * Return the memory (and swap, if configured) limit for a memcg expressed as
-+ * a page count.
-  */
--u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
-+unsigned long mem_cgroup_get_limit(struct mem_cgroup *memcg)
- {
- 	u64 limit;
- 	u64 memsw;
- 
--	limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
--	limit += total_swap_pages << PAGE_SHIFT;
-+	limit = res_counter_read_u64(&memcg->res, RES_LIMIT) >> PAGE_SHIFT;
-+	limit += total_swap_pages;
- 
--	memsw = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
-+	memsw = res_counter_read_u64(&memcg->memsw, RES_LIMIT) >> PAGE_SHIFT;
- 	/*
- 	 * If memsw is finite and limits the amount of swap space available
- 	 * to this memcg, return that limit.
- 	 */
--	return min(limit, memsw);
-+	return min(min(limit, memsw), ULONG_MAX);
- }
- 
- /*
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 7dcca55..9ccc59f 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -538,7 +538,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
- 	struct task_struct *p;
- 
- 	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, 0, NULL);
--	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
-+	limit = mem_cgroup_get_limit(mem);
- 	read_lock(&tasklist_lock);
- retry:
- 	p = select_bad_process(&points, limit, mem, NULL);
+With THP we have khugepaged in the background, nothing is mandatory at
+allocation time. I don't want a super aggressive thing at allocation
+time, and lumpy by ignoring all young bits is too aggressive and
+generates swap storms for every single allocation. We need to fail
+order 9 allocation quick even if compaction fails (like if more than
+90% of the ram is asked in hugepages so having to use ram in the
+unmovable page blocks selected by anti-frag) to avoid hanging the
+system during allocations. Looking my stats things seem to be working
+ok with compaction in 37-rc1, so maybe it's just the lumpy changes
+that introduced your regression?
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
