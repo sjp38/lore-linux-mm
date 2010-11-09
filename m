@@ -1,200 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 91FB26B004A
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 17:53:53 -0500 (EST)
-Received: by iwn9 with SMTP id 9so8094067iwn.14
-        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 14:53:46 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1289294671-6865-2-git-send-email-gthelen@google.com>
-References: <1289294671-6865-1-git-send-email-gthelen@google.com>
-	<1289294671-6865-2-git-send-email-gthelen@google.com>
-Date: Wed, 10 Nov 2010 07:53:46 +0900
-Message-ID: <AANLkTi=LtVcLVj+U-RGRrc2J=JGSvfbQD3Y-Y6yKu5NS@mail.gmail.com>
-Subject: Re: [PATCH 1/6] memcg: add mem_cgroup parameter to mem_cgroup_page_stat()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 553976B0087
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 18:01:03 -0500 (EST)
+Date: Tue, 9 Nov 2010 15:00:06 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/5] writeback: stop background/kupdate works from
+ livelocking other works
+Message-Id: <20101109150006.05892241.akpm@linux-foundation.org>
+In-Reply-To: <20101109222827.GJ4936@quack.suse.cz>
+References: <20101108230916.826791396@intel.com>
+	<20101108231726.993880740@intel.com>
+	<20101109131310.f442d210.akpm@linux-foundation.org>
+	<20101109222827.GJ4936@quack.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@lst.de>, Jan Engelhardt <jengelh@medozas.de>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 9, 2010 at 6:24 PM, Greg Thelen <gthelen@google.com> wrote:
-> This new parameter can be used to query dirty memory usage
-> from a given memcg rather than the current task's memcg.
->
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> ---
-> =A0include/linux/memcontrol.h | =A0 =A06 ++++--
-> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 37 +++++++++++++++++++++-=
----------------
-> =A0mm/page-writeback.c =A0 =A0 =A0 =A0| =A0 =A02 +-
-> =A03 files changed, 26 insertions(+), 19 deletions(-)
->
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 7a3d915..89a9278 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -157,7 +157,8 @@ static inline void mem_cgroup_dec_page_stat(struct pa=
-ge *page,
-> =A0bool mem_cgroup_has_dirty_limit(void);
-> =A0bool mem_cgroup_dirty_info(unsigned long sys_available_mem,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct dirty_info *in=
-fo);
-> -long mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item);
-> +long mem_cgroup_page_stat(struct mem_cgroup *mem,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 enum mem_cgroup_nr_page=
-s_item item);
->
-> =A0unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int ord=
-er,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0gfp_t gfp_mask);
-> @@ -351,7 +352,8 @@ static inline bool mem_cgroup_dirty_info(unsigned lon=
-g sys_available_mem,
-> =A0 =A0 =A0 =A0return false;
-> =A0}
->
-> -static inline long mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item it=
-em)
-> +static inline long mem_cgroup_page_stat(struct mem_cgroup *mem,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 enum mem_cgroup_nr_pages_item item)
-> =A0{
-> =A0 =A0 =A0 =A0return -ENOSYS;
-> =A0}
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index d8a06d6..1bff7cf 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1245,22 +1245,20 @@ bool mem_cgroup_dirty_info(unsigned long sys_avai=
-lable_mem,
-> =A0 =A0 =A0 =A0unsigned long available_mem;
-> =A0 =A0 =A0 =A0struct mem_cgroup *memcg;
-> =A0 =A0 =A0 =A0long value;
-> + =A0 =A0 =A0 bool valid =3D false;
->
-> =A0 =A0 =A0 =A0if (mem_cgroup_disabled())
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return false;
->
-> =A0 =A0 =A0 =A0rcu_read_lock();
-> =A0 =A0 =A0 =A0memcg =3D mem_cgroup_from_task(current);
-> - =A0 =A0 =A0 if (!__mem_cgroup_has_dirty_limit(memcg)) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 rcu_read_unlock();
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
-> - =A0 =A0 =A0 }
-> + =A0 =A0 =A0 if (!__mem_cgroup_has_dirty_limit(memcg))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto done;
-> =A0 =A0 =A0 =A0__mem_cgroup_dirty_param(&dirty_param, memcg);
-> - =A0 =A0 =A0 rcu_read_unlock();
->
-> - =A0 =A0 =A0 value =3D mem_cgroup_page_stat(MEMCG_NR_DIRTYABLE_PAGES);
-> + =A0 =A0 =A0 value =3D mem_cgroup_page_stat(memcg, MEMCG_NR_DIRTYABLE_PA=
-GES);
-> =A0 =A0 =A0 =A0if (value < 0)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto done;
->
-> =A0 =A0 =A0 =A0available_mem =3D min((unsigned long)value, sys_available_=
-mem);
->
-> @@ -1280,17 +1278,21 @@ bool mem_cgroup_dirty_info(unsigned long sys_avai=
-lable_mem,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0(dirty_param.dirty_backgro=
-und_ratio *
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 available_mem=
-) / 100;
->
-> - =A0 =A0 =A0 value =3D mem_cgroup_page_stat(MEMCG_NR_RECLAIM_PAGES);
-> + =A0 =A0 =A0 value =3D mem_cgroup_page_stat(memcg, MEMCG_NR_RECLAIM_PAGE=
-S);
-> =A0 =A0 =A0 =A0if (value < 0)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto done;
-> =A0 =A0 =A0 =A0info->nr_reclaimable =3D value;
->
-> - =A0 =A0 =A0 value =3D mem_cgroup_page_stat(MEMCG_NR_WRITEBACK);
-> + =A0 =A0 =A0 value =3D mem_cgroup_page_stat(memcg, MEMCG_NR_WRITEBACK);
-> =A0 =A0 =A0 =A0if (value < 0)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto done;
-> =A0 =A0 =A0 =A0info->nr_writeback =3D value;
->
-> - =A0 =A0 =A0 return true;
-> + =A0 =A0 =A0 valid =3D true;
-> +
-> +done:
-> + =A0 =A0 =A0 rcu_read_unlock();
-> + =A0 =A0 =A0 return valid;
-> =A0}
->
-> =A0static inline bool mem_cgroup_can_swap(struct mem_cgroup *memcg)
-> @@ -1361,20 +1363,23 @@ memcg_hierarchical_free_pages(struct mem_cgroup *=
-mem)
->
-> =A0/*
-> =A0* mem_cgroup_page_stat() - get memory cgroup file cache statistics
-> - * @item: =A0 =A0 =A0memory statistic item exported to the kernel
-> + * @mem: =A0 =A0 =A0 optional memory cgroup to query. =A0If NULL, use cu=
-rrent task's
-> + * =A0 =A0 =A0 =A0 =A0 =A0 cgroup.
-> + * @item: =A0 =A0 =A0memory statistic item exported to the kernel
-> =A0*
-> =A0* Return the accounted statistic value or negative value if current ta=
-sk is
-> =A0* root cgroup.
-> =A0*/
-> -long mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item)
-> +long mem_cgroup_page_stat(struct mem_cgroup *mem,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 enum mem_cgroup_nr_page=
-s_item item)
-> =A0{
-> =A0 =A0 =A0 =A0struct mem_cgroup *iter;
-> - =A0 =A0 =A0 struct mem_cgroup *mem;
-> =A0 =A0 =A0 =A0long value;
->
-> =A0 =A0 =A0 =A0get_online_cpus();
-> =A0 =A0 =A0 =A0rcu_read_lock();
-> - =A0 =A0 =A0 mem =3D mem_cgroup_from_task(current);
-> + =A0 =A0 =A0 if (!mem)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem =3D mem_cgroup_from_task(current);
-> =A0 =A0 =A0 =A0if (__mem_cgroup_has_dirty_limit(mem)) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * If we're looking for dirtyable pages we=
- need to evaluate
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index a477f59..dc3dbe3 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -135,7 +135,7 @@ static unsigned long dirty_writeback_pages(void)
-> =A0{
-> =A0 =A0 =A0 =A0unsigned long ret;
->
-> - =A0 =A0 =A0 ret =3D mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES=
-);
-> + =A0 =A0 =A0 ret =3D mem_cgroup_page_stat(NULL, MEMCG_NR_DIRTY_WRITEBACK=
-_PAGES);
-> =A0 =A0 =A0 =A0if ((long)ret < 0)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ret =3D global_page_state(NR_UNSTABLE_NFS)=
- +
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0global_page_state(NR_WRITE=
-BACK);
-> --
-> 1.7.3.1
->
+On Tue, 9 Nov 2010 23:28:27 +0100
+Jan Kara <jack@suse.cz> wrote:
 
-I didn't look at further patches so It might be changed.
+>   Hi,
+> 
+> On Tue 09-11-10 13:13:10, Andrew Morton wrote:
+> > On Tue, 09 Nov 2010 07:09:19 +0800
+> > Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > I find the description to be somewhat incomplete...
+>   OK, so let me fill in the gaps ;)
+> 
+> > > From: Jan Kara <jack@suse.cz>
+> > > 
+> > > Background writeback are easily livelockable (from a definition of their
+> > > target).
+> > 
+> > *why* is background writeback easily livelockable?  Under which
+> > circumstances does this happen and how does it come about?
+> > 
+> > > This is inconvenient because it can make sync(1) stall forever waiting
+> > > on its queued work to be finished.
+> > 
+> > Again, why?  Because there are works queued from the flusher thread,
+> > but that thread is stuck in a livelocked state in <unspecified code
+> > location> so it is unable to service the other works?  But the pocess
+> > which called sync() will as a last resort itself perform all the
+> > required IO, will it not?  If so, how can it livelock?
+>   New description which should address above questions:
+> Background writeback is easily livelockable in a loop in wb_writeback() by
+> a process continuously re-dirtying pages (or continuously appending to a
+> file). This is in fact intended as the target of background writeback is to
+> write dirty pages it can find as long as we are over
+> dirty_background_threshold.
 
-Now all of caller of mem_cgroup_page_stat except only
-dirty_writeback_pages hold rcu_read_lock.
-And mem_cgroup_page_stat itself hold rcu_read_lock again.
-Couldn't we remove duplicated rcu lock by adding rcu_read_lock in
-dirty_writeback_pages for the consistency?
+Well.  The objective of the kupdate function is utterly different.
 
+> But the above behavior gets inconvenient at times because no other work
+> queued in the flusher thread's queue gets processed. In particular,
+> since e.g. sync(1) relies on flusher thread to do all the IO for it,
 
---=20
-Kind regards,
-Minchan Kim
+That's fixable by doing the work synchronously within sync_inodes_sb(),
+rather than twiddling thumbs wasting a thread resource while waiting
+for kernel threads to do it.  As an added bonus, this even makes cpu
+time accounting more accurate ;)
+
+Please remind me why we decided to hand the sync_inodes_sb() work off
+to other threads?
+
+> sync(1) can hang forever waiting for flusher thread to do the work.
+> 
+> Generally, when a flusher thread has some work queued, someone submitted
+> the work to achieve a goal more specific than what background writeback
+> does. Moreover by working on the specific work, we also reduce amount of
+> dirty pages which is exactly the target of background writeout. So it makes
+> sense to give specific work a priority over a generic page cleaning.
+> 
+> Thus we interrupt background writeback if there is some other work to do. We
+> return to the background writeback after completing all the queued work.
+> 
+> Is it better now?
+> 
+> > > Generally, when a flusher thread has
+> > > some work queued, someone submitted the work to achieve a goal more specific
+> > > than what background writeback does. So it makes sense to give it a priority
+> > > over a generic page cleaning.
+> > > 
+> > > Thus we interrupt background writeback if there is some other work to do. We
+> > > return to the background writeback after completing all the queued work.
+> > > 
+> > > Signed-off-by: Jan Kara <jack@suse.cz>
+> > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > > ---
+> > >  fs/fs-writeback.c |    9 +++++++++
+> > >  1 file changed, 9 insertions(+)
+> > > 
+> > > --- linux-next.orig/fs/fs-writeback.c	2010-11-07 21:56:42.000000000 +0800
+> > > +++ linux-next/fs/fs-writeback.c	2010-11-07 22:00:51.000000000 +0800
+> > > @@ -651,6 +651,15 @@ static long wb_writeback(struct bdi_writ
+> > >  			break;
+> > >  
+> > >  		/*
+> > > +		 * Background writeout and kupdate-style writeback are
+> > > +		 * easily livelockable. Stop them if there is other work
+> > > +		 * to do so that e.g. sync can proceed.
+> > > +		 */
+> > > +		if ((work->for_background || work->for_kupdate) &&
+> > > +		    !list_empty(&wb->bdi->work_list))
+> > > +			break;
+> > > +
+> > > +		/*
+> > >  		 * For background writeout, stop when we are below the
+> > >  		 * background dirty threshold
+> > >  		 */
+> > 
+> > So...  what prevents higher priority works (eg, sync(1)) from
+> > livelocking or seriously retarding background or kudate writeout?
+>   If other work than background or kupdate writeout livelocks, it's a bug
+> which should be fixed (either by setting sensible nr_to_write or by tagging
+> like we do it for WB_SYNC_ALL writeback). Of course, higher priority work
+> can be running when background or kupdate writeout would need to run as
+> well. But the idea here is that the purpose of background/kupdate types of
+> writeout is to get rid of dirty data and any type of writeout does this so
+> working on it we also work on background/kupdate writeout only possibly
+> less efficiently.
+
+The kupdate function is a data-integrity/quality-of-service sort of
+thing.
+
+And what I'm asking is whether this change enables scenarios in which
+these threads can be kept so busy that the kupdate function gets
+interrupted so frequently that we can have dirty memory not being
+written back for arbitrarily long periods of time?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
