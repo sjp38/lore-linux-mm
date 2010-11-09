@@ -1,43 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E3BED6B004A
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:31:43 -0500 (EST)
-Date: Tue, 9 Nov 2010 22:30:49 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 01 of 66] disable lumpy when compaction is enabled
-Message-ID: <20101109213049.GC6809@random.random>
-References: <patchbomb.1288798055@v2.random>
- <ca2fea6527833aad8adc.1288798056@v2.random>
- <20101109121318.BC51.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AB406B0087
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:31:58 -0500 (EST)
+Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
+	by smtp-out.google.com with ESMTP id oA9LVqJI006684
+	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 13:31:52 -0800
+Received: from pzk10 (pzk10.prod.google.com [10.243.19.138])
+	by wpaz33.hot.corp.google.com with ESMTP id oA9LVWhD023225
+	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 13:31:51 -0800
+Received: by pzk10 with SMTP id 10so532473pzk.24
+        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 13:31:51 -0800 (PST)
+Date: Tue, 9 Nov 2010 13:31:48 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] memcg: fix unit mismatch in memcg oom limit
+ calculation
+In-Reply-To: <xr93iq068dyd.fsf@ninji.mtv.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1011091327420.7730@chino.kir.corp.google.com>
+References: <20101109110521.GS23393@cmpxchg.org> <xr93iq068dyd.fsf@ninji.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101109121318.BC51.A69D9226@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Greg Thelen <gthelen@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@in.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 09, 2010 at 12:18:49PM +0900, KOSAKI Motohiro wrote:
-> I'm talking very personal thing now. I'm usually testing both feature.
-> Then, runtime switching makes my happy :-)
-> However I don't know what are you and Mel talking and agree about this.
-> So, If many developer prefer this approach, I don't oppose anymore.
+On Tue, 9 Nov 2010, Greg Thelen wrote:
 
-Mel seem to still prefer I allow lumpy for hugetlbfs with a
-__GFP_LUMPY specified only for hugetlbfs. But he measured compaction
-is more reliable than lumpy at creating hugepages so he seems to be ok
-with this too.
+> Johannes Weiner <hannes@cmpxchg.org> writes:
+> 
+> > Adding the number of swap pages to the byte limit of a memory control
+> > group makes no sense.  Convert the pages to bytes before adding them.
+> >
+> > The only user of this code is the OOM killer, and the way it is used
+> > means that the error results in a higher OOM badness value.  Since the
+> > cgroup limit is the same for all tasks in the cgroup, the error should
+> > have no practical impact at the moment.
+> >
+> > But let's not wait for future or changing users to trip over it.
+> 
+> Thanks for the fix.
+> 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: Greg Thelen <gthelen@google.com>
+> 
 
-> But, I bet almost all distro choose CONFIG_COMPACTION=y. then, lumpy code
-> will become nearly dead code. So, I like just kill than dead code. however
-> it is also only my preference. ;)
+Nice catch, but it's done in the opposite way: the oom killer doesn't use 
+byte limits but page limits.  So this needs to be
 
-Killing dead code is my preference too indeed. But then it's fine with
-me to delete it only later. In short this is least intrusive
-modification I could make to the VM that wouldn't than hang the system
-when THP is selected because all pte young bits are ignored for >50%
-of page reclaim invocations like lumpy requires.
+	(res_counter_read_u64(&memcg->res, RES_LIMIT) >> PAGE_SHIFT) +
+			total_swap_pages;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
