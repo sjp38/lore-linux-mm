@@ -1,46 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5ECB76B004A
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 18:48:31 -0500 (EST)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id oA9NmNjA012340
-	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 15:48:23 -0800
-Received: from pzk4 (pzk4.prod.google.com [10.243.19.132])
-	by kpbe17.cbf.corp.google.com with ESMTP id oA9NlMQI008384
-	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 15:48:22 -0800
-Received: by pzk4 with SMTP id 4so8846pzk.31
-        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 15:48:21 -0800 (PST)
-Date: Tue, 9 Nov 2010 15:48:17 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D0CC6B004A
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 18:56:02 -0500 (EST)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id oA9NtxpQ031045
+	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 15:56:00 -0800
+Received: from pwi1 (pwi1.prod.google.com [10.241.219.1])
+	by hpaq2.eem.corp.google.com with ESMTP id oA9NtvXC005426
+	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 15:55:58 -0800
+Received: by pwi1 with SMTP id 1so17405pwi.0
+        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 15:55:57 -0800 (PST)
+Date: Tue, 9 Nov 2010 15:55:53 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [resend][PATCH 2/4] Revert "oom: deprecate oom_adj tunable"
-In-Reply-To: <20101109233541.13be4cd5@lxorguk.ukuu.org.uk>
-Message-ID: <alpine.DEB.2.00.1011091547030.30112@chino.kir.corp.google.com>
-References: <20101101030353.607A.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011011232120.6822@chino.kir.corp.google.com> <20101109105801.BC30.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011091523370.26837@chino.kir.corp.google.com>
- <20101109233541.13be4cd5@lxorguk.ukuu.org.uk>
+Subject: [patch] oom: document obsolete oom_adj tunable
+In-Reply-To: <alpine.DEB.2.00.1011091547030.30112@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1011091555210.30112@chino.kir.corp.google.com>
+References: <20101101030353.607A.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011011232120.6822@chino.kir.corp.google.com> <20101109105801.BC30.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011091523370.26837@chino.kir.corp.google.com> <20101109233541.13be4cd5@lxorguk.ukuu.org.uk>
+ <alpine.DEB.2.00.1011091547030.30112@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Nov 2010, Alan Cox wrote:
+/proc/pid/oom_adj was deprecated in August 2010 with the introduction of
+the new oom killer heuristic.
 
-> > It's deprecated for a few years so users can gradually convert to the new 
-> > tunable, it wasn't removed when the new one was introduced.  A higher 
-> > resolution tunable that scales linearly with a unit is an advantage for 
-> > Linux (for the minority of users who care about oom killing priority 
-> > beyond the heuristic) and I think a few years is enough time for users to 
-> > do a simple conversion to the new tunable.
-> 
-> Documentation/ABI/obsolete/
-> 
-> should have all obsoletes in it.
-> 
+This patch copies the Documentation/feature-removal-schedule.txt entry
+for this tunable to the Documentation/ABI/obsolete directory so nobody
+misses it.
 
-Good point, the only documentation right now is in 
-Documentation/feature-removal-schedule.txt and in the kernel log the first 
-time oom_adj is written.  I'll generate a patch, thanks!
+Reported-by: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ Documentation/ABI/obsolete/proc-pid-oom_adj |   22 ++++++++++++++++++++++
+ 1 files changed, 22 insertions(+), 0 deletions(-)
+ create mode 100644 Documentation/ABI/obsolete/proc-pid-oom_adj
+
+diff --git a/Documentation/ABI/obsolete/proc-pid-oom_adj b/Documentation/ABI/obsolete/proc-pid-oom_adj
+new file mode 100644
+--- /dev/null
++++ b/Documentation/ABI/obsolete/proc-pid-oom_adj
+@@ -0,0 +1,22 @@
++What:	/proc/<pid>/oom_adj
++When:	August 2012
++Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
++	badness heuristic used to determine which task to kill when the kernel
++	is out of memory.
++
++	The badness heuristic has since been rewritten since the introduction of
++	this tunable such that its meaning is deprecated.  The value was
++	implemented as a bitshift on a score generated by the badness()
++	function that did not have any precise units of measure.  With the
++	rewrite, the score is given as a proportion of available memory to the
++	task allocating pages, so using a bitshift which grows the score
++	exponentially is, thus, impossible to tune with fine granularity.
++
++	A much more powerful interface, /proc/<pid>/oom_score_adj, was
++	introduced with the oom killer rewrite that allows users to increase or
++	decrease the badness() score linearly.  This interface will replace
++	/proc/<pid>/oom_adj.
++
++	A warning will be emitted to the kernel log if an application uses this
++	deprecated interface.  After it is printed once, future warnings will be
++	suppressed until the kernel is rebooted.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
