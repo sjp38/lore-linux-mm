@@ -1,68 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2065F8D0005
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 06:33:53 -0500 (EST)
-Date: Tue, 9 Nov 2010 11:33:37 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/2] mm: page allocator: Adjust the per-cpu counter
-	threshold when memory is low
-Message-ID: <20101109113337.GI32723@csn.ul.ie>
-References: <1288278816-32667-1-git-send-email-mel@csn.ul.ie> <1288278816-32667-2-git-send-email-mel@csn.ul.ie> <20101028150433.fe4f2d77.akpm@linux-foundation.org> <20101029101210.GG4896@csn.ul.ie> <20101029124002.356bd592.akpm@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 6ECD56B0098
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 07:15:14 -0500 (EST)
+Date: Tue, 9 Nov 2010 20:15:08 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 6/6] memcg: make mem_cgroup_page_stat() return value
+ unsigned
+Message-ID: <20101109121508.GA2764@localhost>
+References: <1289294671-6865-1-git-send-email-gthelen@google.com>
+ <1289294671-6865-7-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101029124002.356bd592.akpm@linux-foundation.org>
+In-Reply-To: <1289294671-6865-7-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 29, 2010 at 12:40:02PM -0700, Andrew Morton wrote:
-> > ...
-> >
-> > Follow-on patch?
+On Tue, Nov 09, 2010 at 05:24:31PM +0800, Greg Thelen wrote:
+> mem_cgroup_page_stat() used to return a negative page count
+> value to indicate value.
 > 
-> Sometime, please.
+> mem_cgroup_page_stat() has changed so it never returns
+> error so convert the return value to the traditional page
+> count type (unsigned long).
 > 
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> ---
 
-How does this look?
+> +	/*
+> +	 * The sum of unlocked per-cpu counters may yield a slightly negative
+> +	 * value.  This function returns an unsigned value, so round it up to
+> +	 * zero to avoid returning a very large value.
+> +	 */
+> +	if (value < 0)
+> +		value = 0;
 
-==== CUT HERE ====
-mm: vmscan: Comment on why kswapd reduces the per-cpu vmstat threshold
+nitpick: it's good candidate for unlikely().
 
-While kswapd is awake, the per-cpu vmstat threshold is reduced to
-reduce per-cpu drift to acceptable levels. Add a comment explaining
-why.
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/vmscan.c |   13 +++++++++++++
- 1 files changed, 13 insertions(+), 0 deletions(-)
+Sorry, I lose track to the source code after so many patches.
+It would help if you can put the patches to a git tree.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 7966110..ba39948 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2378,6 +2378,19 @@ static int kswapd(void *p)
- 				 */
- 				if (!sleeping_prematurely(pgdat, order, remaining)) {
- 					trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
-+
-+					/*
-+					 * vmstat counters are not perfectly
-+					 * accurate and the estimated value
-+					 * for counters such as NR_FREE_PAGES
-+					 * can deviate from the true value by
-+					 * nr_online_cpus * threshold. To
-+					 * avoid the zone watermarks being
-+					 * breached while under pressure, we
-+					 * reduce the per-cpu vmstat threshold
-+					 * while kswapd is awake and restore
-+					 * them before going back to sleep.
-+					 */
- 					set_pgdat_percpu_threshold(pgdat,
- 						calculate_normal_threshold);
- 					schedule();
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
