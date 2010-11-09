@@ -1,36 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 570736B00DA
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 04:10:47 -0500 (EST)
-Date: Tue, 9 Nov 2010 10:10:06 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memcg: avoid "free" overflow in
- memcg_hierarchical_free_pages()
-Message-ID: <20101109091006.GR23393@cmpxchg.org>
-References: <1289292853-7022-1-git-send-email-gthelen@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1289292853-7022-1-git-send-email-gthelen@google.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 6EB6E6B00DD
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 04:24:47 -0500 (EST)
+From: Greg Thelen <gthelen@google.com>
+Subject: [PATCH 0/6] *** memcg: make throttle_vm_writeout() cgroup aware ***
+Date: Tue,  9 Nov 2010 01:24:25 -0800
+Message-Id: <1289294671-6865-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 09, 2010 at 12:54:13AM -0800, Greg Thelen wrote:
-> memcg limit and usage values are stored in res_counter, as 64-bit
-> numbers, even on 32-bit machines.  The "free" variable in
-> memcg_hierarchical_free_pages() stores the difference between two
-> 64-bit numbers (limit - current_usage), and thus should be stored
-> in a 64-bit local rather than a machine defined unsigned long.
+This series aims to:
+- Make throttle_vm_writeout() cgroup aware.  Prior to this patch, cgroup reclaim
+  would consider global dirty limits when deciding to throttle.  Now cgroup
+  limits are used if the cgroup being reclaimed has dirty limits.
 
-It is converted to pages before the assignment, but even that might
-overflow on 32-bit if the difference is sufficiently large (> 1<<44).
+- Part of making throttle_vm_writeout() cgroup aware involves fixing a negative
+  value signaling error in mem_cgroup_page_stat().  Previously,
+  mem_cgroup_page_stat() could falsely return a negative value if a per-cpu
+  counter sum was negative.  Calling routines considered negative a special
+  "cgroup does not have limits" value.
 
-> Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Signed-off-by: Greg Thelen <gthelen@google.com>
+Greg Thelen (6):
+  memcg: add mem_cgroup parameter to mem_cgroup_page_stat()
+  memcg: pass mem_cgroup to mem_cgroup_dirty_info()
+  memcg: make throttle_vm_writeout() memcg aware
+  memcg: simplify mem_cgroup_page_stat()
+  memcg: simplify mem_cgroup_dirty_info()
+  memcg: make mem_cgroup_page_stat() return value unsigned
 
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+ include/linux/memcontrol.h |    8 +++-
+ include/linux/writeback.h  |    2 +-
+ mm/memcontrol.c            |   92 ++++++++++++++++++++++---------------------
+ mm/page-writeback.c        |   40 ++++++++++---------
+ mm/vmscan.c                |    2 +-
+ 5 files changed, 77 insertions(+), 67 deletions(-)
+
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
