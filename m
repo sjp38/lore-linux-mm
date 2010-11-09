@@ -1,65 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D1A1C6B004A
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:16:18 -0500 (EST)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id oA9LGGxm022980
-	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 13:16:16 -0800
-Received: from pvg6 (pvg6.prod.google.com [10.241.210.134])
-	by kpbe16.cbf.corp.google.com with ESMTP id oA9LFvrH002240
-	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 13:16:14 -0800
-Received: by pvg6 with SMTP id 6so551292pvg.9
-        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 13:16:14 -0800 (PST)
-Date: Tue, 9 Nov 2010 13:16:12 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 196936B004A
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:26:00 -0500 (EST)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id oA9LPpEY008333
+	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 13:25:51 -0800
+Received: from pwi4 (pwi4.prod.google.com [10.241.219.4])
+	by wpaz9.hot.corp.google.com with ESMTP id oA9LPMpC009856
+	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 13:25:50 -0800
+Received: by pwi4 with SMTP id 4so31993pwi.37
+        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 13:25:50 -0800 (PST)
+Date: Tue, 9 Nov 2010 13:25:47 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2]mm/oom-kill: direct hardware access processes should
- get bonus
-In-Reply-To: <1289305468.10699.2.camel@localhost.localdomain>
-Message-ID: <alpine.DEB.2.00.1011091307240.7730@chino.kir.corp.google.com>
-References: <1288662213.10103.2.camel@localhost.localdomain> <1289305468.10699.2.camel@localhost.localdomain>
+Subject: Re: [PATCH v2]oom-kill: CAP_SYS_RESOURCE should get bonus
+In-Reply-To: <alpine.DEB.2.00.1011091300510.7730@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1011091319300.7730@chino.kir.corp.google.com>
+References: <1288834737.2124.11.camel@myhost> <alpine.DEB.2.00.1011031847450.21550@chino.kir.corp.google.com> <20101109195726.BC9E.A69D9226@jp.fujitsu.com> <20101109122437.2e0d71fd@lxorguk.ukuu.org.uk>
+ <alpine.DEB.2.00.1011091300510.7730@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Figo.zhang" <figo1802@gmail.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Figo.zhang" <zhangtianfei@leadcoretech.com>, figo zhang <figo1802@gmail.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Nov 2010, Figo.zhang wrote:
+On Tue, 9 Nov 2010, David Rientjes wrote:
 
->  
-> the victim should not directly access hardware devices like Xorg server,
-> because the hardware could be left in an unpredictable state, although 
-> user-application can set /proc/pid/oom_score_adj to protect it. so i think
-> those processes should get 3% bonus for protection.
+> I didn't check earlier, but CAP_SYS_RESOURCE hasn't had a place in the oom 
+> killer's heuristic in over five years, so what regression are we referring 
+> to in this thread?  These tasks already have full control over 
+> oom_score_adj to modify its oom killing priority in either direction.
 > 
 
-The logic here is wrong: if killing these tasks can leave hardware in an 
-unpredictable state (and that state is presumably harmful), then they 
-should be completely immune from oom killing since you're still leaving 
-them exposed here to be killed.
+Yes, CAP_SYS_RESOURCE was a part of the heuristic in 2.6.25 along with 
+CAP_SYS_ADMIN and was removed with the rewrite; when I said it "hasn't had 
+a place in the oom killer's heuristic," I meant it's an unnecessary 
+extention to CAP_SYS_ADMIN and allows for killing innocent tasks when a 
+CAP_SYS_RESOURCE task is using too much memory.
 
-So the question that needs to be answered is: why do these threads deserve 
-to use 3% more memory (not >4%) than others without getting killed?  If 
-there was some evidence that these threads have a certain quantity of 
-memory they require as a fundamental attribute of CAP_SYS_RAWIO, then I 
-have no objection, but that's going to be expressed in a memory quantity 
-not a percentage as you have here.
+The fundamental issue here is whether or not we should give a bonus to 
+CAP_SYS_RESOURCE tasks because they are, by definition, allowed to access 
+extra resources and we're willing to sacrifice other tasks for that.  This 
+is antagonist to the oom killer's sole goal, however, which is to kill the 
+task consuming the largest amount of memory unless protected by userspace 
+(which CAP_SYS_RESOURCE has completely control in doing).
 
-The CAP_SYS_ADMIN heuristic has a background: it is used in the oom killer 
-because we have used the same 3% in __vm_enough_memory() for a long time 
-and we want consistency amongst the heuristics.  Adding additional bonuses 
-with arbitrary values like 3% of memory for things like CAP_SYS_RAWIO 
-makes the heuristic less predictable and moves us back toward the old 
-heuristic which was almost entirely arbitrary.
-
-Now before KOSAKI-san comes out and says the old heuristic considered 
-CAP_SYS_RAWIO and the new one does not so it _must_ be a regression: the 
-old heuristic also divided the badness score by 4 for that capability as a 
-completely arbitrary value (just like 3% is here).  Other traits like 
-runtime and nice levels were also removed from the heuristic.  What needs 
-to be shown is that CAP_SYS_RAWIO requires additional memory just to run 
-or we should neglect to free 3% of memory, which could be gigabytes, 
-because it has this trait.
+Since these threads have complete ability to give themselves this bonus 
+(echo -30 > /proc/self/oom_score_adj), I don't think this needs to be a 
+part of the core heuristic nor with such an arbitrary value of 3% (the old 
+heuristic divided its badness score by 4, another arbitrary value).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
