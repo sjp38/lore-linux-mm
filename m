@@ -1,54 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5627A6B0071
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 15:00:46 -0500 (EST)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [patch] memcg: fix unit mismatch in memcg oom limit calculation
-References: <20101109110521.GS23393@cmpxchg.org>
-Date: Tue, 09 Nov 2010 12:00:26 -0800
-Message-ID: <xr93iq068dyd.fsf@ninji.mtv.corp.google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DFD386B0071
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 15:20:56 -0500 (EST)
+Date: Tue, 9 Nov 2010 15:20:33 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: 2.6.36 io bring the system to its knees
+Message-ID: <20101109202033.GA17122@infradead.org>
+References: <AANLkTikvSGNE7uGn5p0tfJNg4Hz5WRmLRC8cXu7+GhMk@mail.gmail.com>
+ <20101028090002.GA12446@elte.hu>
+ <AANLkTinoGGLTN2JRwjJtF6Ra5auZVg+VSa=TyrtAkDor@mail.gmail.com>
+ <20101028133036.GA30565@elte.hu>
+ <20101028170132.GY27796@think>
+ <alpine.LNX.2.00.1011050032440.16015@swampdragon.chaosbits.net>
+ <alpine.LNX.2.00.1011050047220.16015@swampdragon.chaosbits.net>
+ <20101105014334.GF13830@dastard>
+ <alpine.LNX.2.00.1011071753560.26056@swampdragon.chaosbits.net>
+ <AANLkTinZCBs_JO0Ug58uJdWEuqx=xzzBn2nJzdYr7+hb@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTinZCBs_JO0Ug58uJdWEuqx=xzzBn2nJzdYr7+hb@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@in.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Evgeniy Ivanov <lolkaantimat@gmail.com>
+Cc: Jesper Juhl <jj@chaosbits.net>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ted Ts'o <tytso@mit.edu>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Sanjoy Mahajan <sanjoy@olin.edu>, Steven Barrett <damentz@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Johannes Weiner <hannes@cmpxchg.org> writes:
+> I'm not sure if "data=writeback" (makes ext4 journaling similar to
+> XFS) really fixes the problem
 
-> Adding the number of swap pages to the byte limit of a memory control
-> group makes no sense.  Convert the pages to bytes before adding them.
->
-> The only user of this code is the OOM killer, and the way it is used
-> means that the error results in a higher OOM badness value.  Since the
-> cgroup limit is the same for all tasks in the cgroup, the error should
-> have no practical impact at the moment.
->
-> But let's not wait for future or changing users to trip over it.
-
-Thanks for the fix.
-
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Greg Thelen <gthelen@google.com>
-
-> ---
->  mm/memcontrol.c |    5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
->
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1552,8 +1552,9 @@ u64 mem_cgroup_get_limit(struct mem_cgro
->  	u64 limit;
->  	u64 memsw;
->  
-> -	limit = res_counter_read_u64(&memcg->res, RES_LIMIT) +
-> -			total_swap_pages;
-> +	limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
-> +	limit += total_swap_pages << PAGE_SHIFT;
-> +
->  	memsw = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
->  	/*
->  	 * If memsw is finite and limits the amount of swap space available
+It doesn't.  XFS does not expose stale data after a crash, while ext3/4
+data=writeback does.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
