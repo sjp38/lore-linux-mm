@@ -1,40 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CE68D6B00AD
-	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 20:17:39 -0500 (EST)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH] memcg: correct memcg_hierarchical_free_pages() return type
-Date: Mon,  8 Nov 2010 17:17:10 -0800
-Message-Id: <1289265430-7190-1-git-send-email-gthelen@google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 59DAA6B00AF
+	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 20:28:10 -0500 (EST)
+Received: by iwn9 with SMTP id 9so6869444iwn.14
+        for <linux-mm@kvack.org>; Mon, 08 Nov 2010 17:28:08 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1289265320-7025-1-git-send-email-gthelen@google.com>
+References: <1289265320-7025-1-git-send-email-gthelen@google.com>
+Date: Tue, 9 Nov 2010 10:28:08 +0900
+Message-ID: <AANLkTikDUkFgZ67tLeB080UhQByOc4yk4xmKTyEkJYq4@mail.gmail.com>
+Subject: Re: [PATCH] memcg: avoid overflow in memcg_hierarchical_free_pages()
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-memcg_hierarchical_free_pages() returns a page count and thus
-should return unsigned long to be consistent with the rest of
-mm code.
-
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
- mm/memcontrol.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b287afd..35870f9 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1340,7 +1340,7 @@ static long mem_cgroup_local_page_stat(struct mem_cgroup *mem,
-  * use_hierarchy is set, then this involves parent mem cgroups to find the
-  * cgroup with the smallest free space.
-  */
--static unsigned long long
-+static unsigned long
- memcg_hierarchical_free_pages(struct mem_cgroup *mem)
- {
- 	unsigned long free, min_free;
+On Tue, Nov 9, 2010 at 10:15 AM, Greg Thelen <gthelen@google.com> wrote:
+> Use page counts rather than byte counts to avoid overflowing
+> unsigned long local variables.
+>
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 -- 
-1.7.3.1
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
