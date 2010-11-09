@@ -1,38 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id BB4A96B00D0
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 00:51:22 -0500 (EST)
-Received: by yxm34 with SMTP id 34so4404772yxm.14
-        for <linux-mm@kvack.org>; Mon, 08 Nov 2010 21:51:21 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 39FB08D0005
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 01:16:28 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oA96GOue007065
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 9 Nov 2010 15:16:24 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C22245DE4E
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 15:16:24 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E056845DE4F
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 15:16:23 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id CB1EF1DB8043
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 15:16:23 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 841621DB8038
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 15:16:23 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 64 of 66] scale nr_rotated to balance memory pressure
+In-Reply-To: <54b5b2d012ff38e341ad.1288798119@v2.random>
+References: <patchbomb.1288798055@v2.random> <54b5b2d012ff38e341ad.1288798119@v2.random>
+Message-Id: <20101109151605.BC78.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20101109142733.BC69.A69D9226@jp.fujitsu.com>
-References: <AANLkTimXSSU7Mc05URg3HsONC4iyDTMVJdRxvQ1fNntH@mail.gmail.com> <20101109142733.BC69.A69D9226@jp.fujitsu.com>
-From: Luke Hutchison <luke.hutch@gmail.com>
-Date: Tue, 9 Nov 2010 00:50:40 -0500
-Message-ID: <AANLkTikGC43B=+h5MNF665rFuRYfX4NQh6XyhuwxUT0A@mail.gmail.com>
-Subject: Re: "BUG: soft lockup - CPU#0 stuck for 61s! [kswapd0:184]"
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue,  9 Nov 2010 15:16:21 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 9, 2010 at 12:33 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> AFAIK, This isssue was already fixed by Mel.
->
-> http://kerneltrap.org/mailarchive/linux-kernel/2010/10/27/4637977
+> From: Rik van Riel <riel@redhat.com>
+> 
+> Make sure we scale up nr_rotated when we encounter a referenced
+> transparent huge page.  This ensures pageout scanning balance
+> is not distorted when there are huge pages on the LRU.
+> 
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1259,7 +1259,8 @@ putback_lru_pages(struct zone *zone, str
+>  		add_page_to_lru_list(zone, page, lru);
+>  		if (is_active_lru(lru)) {
+>  			int file = is_file_lru(lru);
+> -			reclaim_stat->recent_rotated[file]++;
+> +			int numpages = hpage_nr_pages(page);
+> +			reclaim_stat->recent_rotated[file] += numpages;
+>  		}
+>  		if (!pagevec_add(&pvec, page)) {
+>  			spin_unlock_irq(&zone->lru_lock);
 
-Yes, based on where the CPU lockups were occurring
-(zone_nr_free_pages, zone_watermark_ok), this fix does seem to address
-the problem I described.  I assume the other lockup points
-(_raw_spin_unlock_irqrestore, find_next_bit, sleeping_prematurely,
-test_tsk_thread_flag) are also caused by the NR_FREE_PAGES problem?
+I haven't seen this patch series carefully yet. So, probably
+my question is dumb. Why don't we need to change ->recent_scanned[] too?
 
-Thank you for the link, I'll put it into the Fedora bug report and
-hopefully a fix will be pushed out sometime soon.
 
-Luke
+
+> @@ -1535,7 +1536,7 @@ static void shrink_active_list(unsigned 
+>  		}
+>  
+>  		if (page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
+> -			nr_rotated++;
+> +			nr_rotated += hpage_nr_pages(page);
+>  			/*
+>  			 * Identify referenced, file-backed active pages and
+>  			 * give them one more trip around the active list. So
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
