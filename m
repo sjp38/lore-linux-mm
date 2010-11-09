@@ -1,56 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C17436B004A
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:06:51 -0500 (EST)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id oA9L6lEv008333
-	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 13:06:47 -0800
-Received: from pzk36 (pzk36.prod.google.com [10.243.19.164])
-	by hpaq2.eem.corp.google.com with ESMTP id oA9L6j4e021821
-	for <linux-mm@kvack.org>; Tue, 9 Nov 2010 13:06:46 -0800
-Received: by pzk36 with SMTP id 36so1930304pzk.2
-        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 13:06:45 -0800 (PST)
-Date: Tue, 9 Nov 2010 13:06:42 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2]oom-kill: CAP_SYS_RESOURCE should get bonus
-In-Reply-To: <20101109122437.2e0d71fd@lxorguk.ukuu.org.uk>
-Message-ID: <alpine.DEB.2.00.1011091300510.7730@chino.kir.corp.google.com>
-References: <1288834737.2124.11.camel@myhost> <alpine.DEB.2.00.1011031847450.21550@chino.kir.corp.google.com> <20101109195726.BC9E.A69D9226@jp.fujitsu.com> <20101109122437.2e0d71fd@lxorguk.ukuu.org.uk>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7C1016B004A
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:12:52 -0500 (EST)
+Date: Tue, 9 Nov 2010 22:11:45 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 55 of 66] select CONFIG_COMPACTION if
+ TRANSPARENT_HUGEPAGE enabled
+Message-ID: <20101109211145.GB6809@random.random>
+References: <patchbomb.1288798055@v2.random>
+ <89a62752012298bb500c.1288798110@v2.random>
+ <20101109151756.BC7B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101109151756.BC7B.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Figo.zhang" <zhangtianfei@leadcoretech.com>, figo zhang <figo1802@gmail.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Nov 2010, Alan Cox wrote:
-
-> The reverse can be argued equally - that they can unprotect themselves if
-> necessary. In fact it seems to be a "point of view" sort of question
-> which way you deal with CAP_SYS_RESOURCE, and that to me argues that
-> changing from old expected behaviour to a new behaviour is a regression.
+On Tue, Nov 09, 2010 at 03:20:33PM +0900, KOSAKI Motohiro wrote:
+> > From: Andrea Arcangeli <aarcange@redhat.com>
+> > 
+> > With transparent hugepage support we need compaction for the "defrag" sysfs
+> > controls to be effective.
+> > 
+> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> > ---
+> > 
+> > diff --git a/mm/Kconfig b/mm/Kconfig
+> > --- a/mm/Kconfig
+> > +++ b/mm/Kconfig
+> > @@ -305,6 +305,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
+> >  config TRANSPARENT_HUGEPAGE
+> >  	bool "Transparent Hugepage Support"
+> >  	depends on X86 && MMU
+> > +	select COMPACTION
+> >  	help
+> >  	  Transparent Hugepages allows the kernel to use huge pages and
+> >  	  huge tlb transparently to the applications whenever possible.
 > 
+> I dislike this. THP and compaction are completely orthogonal. I think 
+> you are talking only your performance recommendation. I mean I dislike
+> Kconfig 'select' hell and I hope every developers try to avoid it as 
+> far as possible.
 
-I didn't check earlier, but CAP_SYS_RESOURCE hasn't had a place in the oom 
-killer's heuristic in over five years, so what regression are we referring 
-to in this thread?  These tasks already have full control over 
-oom_score_adj to modify its oom killing priority in either direction.
-
-And, as I said, giving these threads a bonus to be less preferred doesn't 
-seem appropriate since (1) it's not a defined or expected behavior of 
-CAP_SYS_RESOURCE like it is for sysadmin tasks, and (2) these threads are 
-not bound by resource limits and thus have a higher liklihood of consuming 
-larger amounts of memory.
-
-That's why I nack'd the patch in the first place and still do, there's no 
-regression here and it's not in the best interest of freeing a large 
-amount of memory which is the sole purpose of the oom killer.
-
-Futhermore, the heuristic was entirely rewritten, but I wouldn't consider 
-all the old factors such as cputime and nice level being removed as 
-"regressions" since the aim was to make it more predictable and more 
-likely to kill a large consumer of memory such that we don't have to kill 
-more tasks in the near future.
+At the moment THP hangs the system if COMPACTION isn't selected
+(please try yourself if you don't believe), as without COMPACTION
+lumpy reclaim wouldn't be entirely disabled. So at the moment it's not
+orthogonal. When lumpy will be removed from the VM (like I tried
+multiple times to achieve) I can remove the select COMPACTION in
+theory, but then 99% of THP users would be still doing a mistake in
+disabling compaction, even if the mistake won't return in fatal
+runtime but just slightly degraded performance.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
