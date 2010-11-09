@@ -1,70 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6AC666B004A
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:49:50 -0500 (EST)
-Date: Tue, 9 Nov 2010 22:49:14 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 61 of 66] use compaction for GFP_ATOMIC order > 0
-Message-ID: <20101109214914.GF6809@random.random>
-References: <patchbomb.1288798055@v2.random>
- <b540c09bfe5160120952.1288798116@v2.random>
- <20101109151440.BC75.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 3631E6B004A
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 17:01:34 -0500 (EST)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: mem_cgroup_get_limit() return type, was [patch] memcg: fix unit mismatch in memcg oom limit calculation
+References: <20101109110521.GS23393@cmpxchg.org>
+	<xr93iq068dyd.fsf@ninji.mtv.corp.google.com>
+	<alpine.DEB.2.00.1011091327420.7730@chino.kir.corp.google.com>
+Date: Tue, 09 Nov 2010 14:01:07 -0800
+Message-ID: <xr9362w66tss.fsf@ninji.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101109151440.BC75.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@in.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 09, 2010 at 07:27:37PM +0900, KOSAKI Motohiro wrote:
-> > From: Andrea Arcangeli <aarcange@redhat.com>
-> > 
-> > This takes advantage of memory compaction to properly generate pages of order >
-> > 0 if regular page reclaim fails and priority level becomes more severe and we
-> > don't reach the proper watermarks.
-> > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> 
-> First, I don't think this patch is related to GFP_ATOMIC. So, I think the 
-> patch title is a bit misleading.
-> 
-> Second, this patch has two changes. 1) remove PAGE_ALLOC_COSTLY_ORDER 
-> threshold 2) implement background compaction. please separate them.
+David Rientjes <rientjes@google.com> writes:
 
-Well the subject isn't entirely misleading: background compaction in
-kswapd is only for the GFP_ATOMIC so GFP_ATOMIC order >0 allocations
-are definitely related to this patch.
+> On Tue, 9 Nov 2010, Greg Thelen wrote:
+>
+>> Johannes Weiner <hannes@cmpxchg.org> writes:
+>> 
+>> > Adding the number of swap pages to the byte limit of a memory control
+>> > group makes no sense.  Convert the pages to bytes before adding them.
+>> >
+>> > The only user of this code is the OOM killer, and the way it is used
+>> > means that the error results in a higher OOM badness value.  Since the
+>> > cgroup limit is the same for all tasks in the cgroup, the error should
+>> > have no practical impact at the moment.
+>> >
+>> > But let's not wait for future or changing users to trip over it.
+>> 
+>> Thanks for the fix.
+>> 
+>
+> Nice catch, but it's done in the opposite way: the oom killer doesn't use 
+> byte limits but page limits.  So this needs to be
+>
+> 	(res_counter_read_u64(&memcg->res, RES_LIMIT) >> PAGE_SHIFT) +
+> 			total_swap_pages;
 
-Then I ended up then allowing compaction for all order of allocations
-as it doesn't make sense to fail order 2 for the kernel stack and
-succeed order 9 but it's true I can split that off, I will split it
-for #33, thanks for allowing me to clean up the stuff better.
+In -mm, the oom killer queries memcg for a byte limit using
+mem_cgroup_get_limit(). The following is from
+mem_cgroup_out_of_memory():
 
-> Third, This patch makes a lot of PFN order page scan and churn LRU
-> aggressively. I'm not sure this aggressive lru shuffling is safe and
-> works effective. I hope you provide some demonstration and/or show 
-> benchmark result.
+	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
 
-The patch will increase the amount of compaction for GFP_ATOMIC order
->0, but it won't alter the amount of free pages in the system, but
-it'll satisfy the in-function-of order watermarks that are right now
-ignored. If user asked GFP_ATOMIC order > 0, this is what it asks,
-it's up to the user not to ask for it if it's not worthwhile. If user
-doesn't want this but it just wants to poll the LRU it should use
-GFP_ATOMIC|__GFP_NO_KSWAPD.
+So I think the "[patch] memcg: fix unit mismatch in memcg oom limit
+calculation" is correct.  Although a simpler interface, would involve
+changing mem_cgroup_get_limit() to return a page count instead of a byte
+count and thus save the oom killer from having to do the conversion:
 
-The benchmark results I don't have at the moment but this has been
-tested with tg3 with jumbo packets that trigger order 2 allocation and
-no degradation was noticed. To be fair it didn't significantly improve
-the amount of order 2 (9046 bytes large skb) allocated from irq
-though, but I thought it was good idea to keep it in case there are
-less aggressive/frequent users doing similar things.
+commit d12e5eded4505a673a7d77d8adab7fce30c7a680
+Author: Greg Thelen <gthelen@google.com>
+Date:   Tue Nov 9 13:46:38 2010 -0800
 
-Overall the more important part of the patch is the point 2) that I
-can make it cleaner by splitting it off as you noticed and I will do
-it.
+    memcg: change mem_cgroup_get_limit() return type
+    
+    The mem_cgroup_get_limit() interface routine returns a
+    byte count.  The only consumer of this data is the oom
+    killer, which really wants a page count.
+    
+    This change converts mem_cgroup_get_limit() to return a
+    page count rather than a byte count.  This makes the
+    memcg interface more consistent with the rest of the mm.
+    This even makes the memcg interface more consistent.  Most other
+    memcg interface routines operate on page counts, not byte counts.
+    
+    Signed-off-by: Greg Thelen <gthelen@google.com>
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 3433784..0a8720e 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -163,7 +163,7 @@ unsigned long mem_cgroup_page_stat(struct mem_cgroup *mem,
+ 
+ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+ 						gfp_t gfp_mask);
+-u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
++unsigned long mem_cgroup_get_limit(struct mem_cgroup *mem);
+ 
+ #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+ struct mem_cgroup;
+@@ -368,7 +368,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+ }
+ 
+ static inline
+-u64 mem_cgroup_get_limit(struct mem_cgroup *mem)
++unsigned long mem_cgroup_get_limit(struct mem_cgroup *mem)
+ {
+ 	return 0;
+ }
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 7b9ecdc..90efb5d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1569,22 +1569,23 @@ static int mem_cgroup_count_children(struct mem_cgroup *mem)
+ }
+ 
+ /*
+- * Return the memory (and swap, if configured) limit for a memcg.
++ * Return the memory (and swap, if configured) limit for a memcg expressed as
++ * a page count.
+  */
+-u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
++unsigned long mem_cgroup_get_limit(struct mem_cgroup *memcg)
+ {
+ 	u64 limit;
+ 	u64 memsw;
+ 
+-	limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+-	limit += total_swap_pages << PAGE_SHIFT;
++	limit = res_counter_read_u64(&memcg->res, RES_LIMIT) >> PAGE_SHIFT;
++	limit += total_swap_pages;
+ 
+-	memsw = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
++	memsw = res_counter_read_u64(&memcg->memsw, RES_LIMIT) >> PAGE_SHIFT;
+ 	/*
+ 	 * If memsw is finite and limits the amount of swap space available
+ 	 * to this memcg, return that limit.
+ 	 */
+-	return min(limit, memsw);
++	return min(min(limit, memsw), ULONG_MAX);
+ }
+ 
+ /*
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 7dcca55..9ccc59f 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -538,7 +538,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
+ 	struct task_struct *p;
+ 
+ 	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, 0, NULL);
+-	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
++	limit = mem_cgroup_get_limit(mem);
+ 	read_lock(&tasklist_lock);
+ retry:
+ 	p = select_bad_process(&points, limit, mem, NULL);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
