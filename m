@@ -1,69 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 053BD6B00AC
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 03:03:13 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oA983AP4009170
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 9 Nov 2010 17:03:10 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A2A845DE70
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 17:03:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F30C45DE60
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 17:03:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2481C1DB803F
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 17:03:10 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D1A411DB803A
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 17:03:09 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: fadvise DONTNEED implementation (or lack thereof)
-In-Reply-To: <20101109162525.BC87.A69D9226@jp.fujitsu.com>
-References: <87lj597hp9.fsf@gmail.com> <20101109162525.BC87.A69D9226@jp.fujitsu.com>
-Message-Id: <20101109170303.BC90.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue,  9 Nov 2010 17:03:09 +0900 (JST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id ED0BA6B00D9
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 03:54:30 -0500 (EST)
+From: Greg Thelen <gthelen@google.com>
+Subject: [PATCH] memcg: avoid "free" overflow in memcg_hierarchical_free_pages()
+Date: Tue,  9 Nov 2010 00:54:13 -0800
+Message-Id: <1289292853-7022-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Ben Gamari <bgamari.foss@gmail.com>, linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>
 List-ID: <linux-mm.kvack.org>
 
-> > I've recently been trying to track down the root cause of my server's
-> > persistent issue of thrashing horribly after being left inactive. It
-> > seems that the issue is likely my nightly backup schedule (using rsync)
-> > which traverses my entire 50GB home directory. I was surprised to find
-> > that rsync does not use fadvise to notify the kernel of its use-once
-> > data usage pattern.
-> > 
-> > It looks like a patch[1] was written (although never merged, it seems)
-> > incorporating fadvise support, but I found its implementation rather
-> > odd, using mincore() and FADV_DONTNEED to kick out only regions brought
-> > in by rsync. It seemed to me the simpler and more appropriate solution
-> > would be to simply flag every touched file with FADV_NOREUSE and let the
-> > kernel manage automatically expelling used pages.
-> > 
-> > After looking deeper into the kernel implementation[2] of fadvise() the
-> > reason for using DONTNEED became more apparant. It seems that the kernel
-> > implements NOREUSE as a noop. A little googling revealed[3] that I not
-> > the first person to encounter this limitation. It looks like a few
-> > folks[4] have discussed addressing the issue in the past, but nothing
-> > has happened as of 2.6.36. Are there plans to implement this
-> > functionality in the near future? It seems like the utility of fadvise
-> > is severely limited by lacking support for NOREUSE.
-> 
-> btw, Other OSs seems to also don't implement it.
-> example,
+memcg limit and usage values are stored in res_counter, as 64-bit
+numbers, even on 32-bit machines.  The "free" variable in
+memcg_hierarchical_free_pages() stores the difference between two
+64-bit numbers (limit - current_usage), and thus should be stored
+in a 64-bit local rather than a machine defined unsigned long.
 
-I've heared other OSs status of fadvise() from private mail.
+Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Signed-off-by: Greg Thelen <gthelen@google.com>
+---
+ mm/memcontrol.c |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
 
-NetBSD: no-op (as linux)
-FreeBSD/DragonflyBSD/OpenBSD: don't exist posix_fadvise(2)
-
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 35870f9..d8a06d6 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1343,7 +1343,8 @@ static long mem_cgroup_local_page_stat(struct mem_cgroup *mem,
+ static unsigned long
+ memcg_hierarchical_free_pages(struct mem_cgroup *mem)
+ {
+-	unsigned long free, min_free;
++	u64 free;
++	unsigned long min_free;
+ 
+ 	min_free = global_page_state(NR_FREE_PAGES);
+ 
+@@ -1351,7 +1352,7 @@ memcg_hierarchical_free_pages(struct mem_cgroup *mem)
+ 		free = (res_counter_read_u64(&mem->res, RES_LIMIT) -
+ 			res_counter_read_u64(&mem->res, RES_USAGE)) >>
+ 			PAGE_SHIFT;
+-		min_free = min(min_free, free);
++		min_free = min((u64)min_free, free);
+ 		mem = parent_mem_cgroup(mem);
+ 	}
+ 
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
