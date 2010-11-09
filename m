@@ -1,89 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 1846E6B00C9
-	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 22:52:45 -0500 (EST)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id oA93qgrk024605
-	for <linux-mm@kvack.org>; Mon, 8 Nov 2010 19:52:42 -0800
-Received: from gya6 (gya6.prod.google.com [10.243.49.6])
-	by wpaz21.hot.corp.google.com with ESMTP id oA93qfjH019551
-	for <linux-mm@kvack.org>; Mon, 8 Nov 2010 19:52:41 -0800
-Received: by gya6 with SMTP id 6so4120245gya.13
-        for <linux-mm@kvack.org>; Mon, 08 Nov 2010 19:52:41 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id AD6496B00CB
+	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 23:03:16 -0500 (EST)
+Date: Tue, 9 Nov 2010 15:03:06 +1100
+From: Nick Piggin <npiggin@kernel.dk>
+Subject: Re: shrinkers: Add node to indicate where to target shrinking
+Message-ID: <20101109040306.GC3493@amd>
+References: <alpine.DEB.2.00.1010211255570.24115@router.home>
+ <alpine.DEB.2.00.1010211259360.24115@router.home>
+ <20101021235854.GD3270@amd>
+ <20101022155513.GA26790@infradead.org>
+ <alpine.DEB.2.00.1010221121550.22051@router.home>
+ <20101024014256.GD3168@amd>
+ <alpine.DEB.2.00.1010250957120.7461@router.home>
 MIME-Version: 1.0
-In-Reply-To: <20101109124426.312f9979.nishimura@mxp.nes.nec.co.jp>
-References: <1289265320-7025-1-git-send-email-gthelen@google.com> <20101109124426.312f9979.nishimura@mxp.nes.nec.co.jp>
-From: Greg Thelen <gthelen@google.com>
-Date: Mon, 8 Nov 2010 19:52:20 -0800
-Message-ID: <AANLkTi=7sKC_911w7NPtsX_uQ20EapC3QjMrU9Y5iA8N@mail.gmail.com>
-Subject: Re: [PATCH] memcg: avoid overflow in memcg_hierarchical_free_pages()
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1010250957120.7461@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Nick Piggin <npiggin@kernel.dk>, Christoph Hellwig <hch@infradead.org>, akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 8, 2010 at 7:44 PM, Daisuke Nishimura
-<nishimura@mxp.nes.nec.co.jp> wrote:
-> On Mon, =A08 Nov 2010 17:15:20 -0800
-> Greg Thelen <gthelen@google.com> wrote:
->
->> Use page counts rather than byte counts to avoid overflowing
->> unsigned long local variables.
->>
->> Signed-off-by: Greg Thelen <gthelen@google.com>
->> ---
->> =A0mm/memcontrol.c | =A0 10 +++++-----
->> =A01 files changed, 5 insertions(+), 5 deletions(-)
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 6c7115d..b287afd 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -1345,17 +1345,17 @@ memcg_hierarchical_free_pages(struct mem_cgroup =
-*mem)
->> =A0{
->> =A0 =A0 =A0 unsigned long free, min_free;
->>
-> hmm, the default value of RES_LIMIT is LLONG_MAX, so I think we must decl=
-are
-> "free" as unsinged long long to avoid overflow.
+On Mon, Oct 25, 2010 at 09:59:58AM -0500, Christoph Lameter wrote:
+> On Sun, 24 Oct 2010, Nick Piggin wrote:
+> 
+> > > A reclaim that does per zone reclaim (but in reality reclaims all objects
+> > > in a node (or worse as most shrinkers do today in the whole system) will
+> > > put 3x the pressure on node 0.
+> >
+> > No it doesn't. This is how it works:
+> >
+> > node0zoneD has 1% of pagecache for node 0
+> > node0zoneD32 has 9% of pagecache
+> > node0zoneN has 90% of pagecache
+> >
+> > If there is a memory shortage in all node0 zones, the first zone will
+> > get 1% of the pagecache scanning pressure, dma32 will get 9% and normal
+> > will get 90%, for equal pressure on each zone.
+> >
+> > In my patch, those numbers will pass through to shrinker for each zone,
+> > and ask the shrinker to scan and equal proportion of objects in each of
+> > its zones.
+> 
+> Many shrinkers do not implement such a scheme.
 
-Agreed.  I am testing a fix for that issue now.  I do not want
-complicate this patch with the RES_LIMIT issue you mention.  The fix
-will be in a separate patch.
+And they don't need to.
 
-> Thanks,
-> Daisuke Nishimura.
->
->> - =A0 =A0 min_free =3D global_page_state(NR_FREE_PAGES) << PAGE_SHIFT;
->> + =A0 =A0 min_free =3D global_page_state(NR_FREE_PAGES);
->>
->> =A0 =A0 =A0 while (mem) {
->> - =A0 =A0 =A0 =A0 =A0 =A0 free =3D res_counter_read_u64(&mem->res, RES_L=
-IMIT) -
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 res_counter_read_u64(&mem->res=
-, RES_USAGE);
->> + =A0 =A0 =A0 =A0 =A0 =A0 free =3D (res_counter_read_u64(&mem->res, RES_=
-LIMIT) -
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 res_counter_read_u64(&mem->res=
-, RES_USAGE)) >>
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 PAGE_SHIFT;
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 min_free =3D min(min_free, free);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem =3D parent_mem_cgroup(mem);
->> =A0 =A0 =A0 }
->>
->> - =A0 =A0 /* Translate free memory in pages */
->> - =A0 =A0 return min_free >> PAGE_SHIFT;
->> + =A0 =A0 return min_free;
->> =A0}
->>
->> =A0/*
->> --
->> 1.7.3.1
->>
->
+ 
+> > If you have a per node shrinker, you will get asymmetries in pressures
+> > whenever there is not an equal amount of reclaimable objects in all
+> > the zones of a node.
+> 
+> Sure there would be different amounts allocated in the various nodes but
+> you will get an equal amount of calls to the shrinkers. Anyways as you
+> pointed out the shrinker can select the zones it will perform reclaim on.
+> So for the slab shrinker it would not be an issue.
+
+It can't without either doing the wrong thing, or knowing too much
+about what reclaim is doing with zones. zone shrinkers are the right
+way to go.
+
+If you only care about nodes, you can easily go zone->node without
+losing any information that you would have in a node shrinker scenario.
+But with a node shrinker you cannot derive the zone.
+
+Regardless of wheather you call HIGHMEM, DMA, MOVABLE, etc hacks or
+bolt ons or not, they are fundamental part of the whole reclaim scheme,
+so you really need to change that whole thing in a cohrerent way if you
+don't like it, rather than adding bits that don't work well with it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
