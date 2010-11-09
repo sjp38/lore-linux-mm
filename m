@@ -1,39 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A74658D0001
-	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 19:06:45 -0500 (EST)
-Date: Mon, 8 Nov 2010 16:05:55 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [v2][PATCH] [v2] Revalidate page->mapping in
- do_generic_file_read()
-Message-Id: <20101108160555.2925ea57.akpm@linux-foundation.org>
-In-Reply-To: <20101105211615.2D67A348@kernel.beaverton.ibm.com>
-References: <20101105211615.2D67A348@kernel.beaverton.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id CE68D6B00AD
+	for <linux-mm@kvack.org>; Mon,  8 Nov 2010 20:17:39 -0500 (EST)
+From: Greg Thelen <gthelen@google.com>
+Subject: [PATCH] memcg: correct memcg_hierarchical_free_pages() return type
+Date: Mon,  8 Nov 2010 17:17:10 -0800
+Message-Id: <1289265430-7190-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, arunabal@in.ibm.com, sbest@us.ibm.com, stable <stable@kernel.org>, Christoph Hellwig <hch@lst.de>, Al Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 05 Nov 2010 14:16:15 -0700
-Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+memcg_hierarchical_free_pages() returns a page count and thus
+should return unsigned long to be consistent with the rest of
+mm code.
 
-> --- linux-2.6.git/mm/filemap.c~is_partially_uptodate-revalidate-page	2010-11-03 13:49:21.000000000 -0700
-> +++ linux-2.6.git-dave/mm/filemap.c	2010-11-04 06:59:08.000000000 -0700
-> @@ -1016,6 +1016,9 @@ find_page:
->  				goto page_not_up_to_date;
->  			if (!trylock_page(page))
->  				goto page_not_up_to_date;
-> +			/* Did it get truncated before we got the lock? */
-> +			if (!page->mapping)
-> +				goto page_not_up_to_date_locked;
->  			if (!mapping->a_ops->is_partially_uptodate(page,
->  								desc, offset))
->  				goto page_not_up_to_date_locked;
+Signed-off-by: Greg Thelen <gthelen@google.com>
+---
+ mm/memcontrol.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-whoops.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b287afd..35870f9 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1340,7 +1340,7 @@ static long mem_cgroup_local_page_stat(struct mem_cgroup *mem,
+  * use_hierarchy is set, then this involves parent mem cgroups to find the
+  * cgroup with the smallest free space.
+  */
+-static unsigned long long
++static unsigned long
+ memcg_hierarchical_free_pages(struct mem_cgroup *mem)
+ {
+ 	unsigned long free, min_free;
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
