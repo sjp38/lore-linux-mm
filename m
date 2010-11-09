@@ -1,80 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 5A2D86B004A
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 17:23:40 -0500 (EST)
-Date: Tue, 9 Nov 2010 23:22:40 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 01 of 66] disable lumpy when compaction is enabled
-Message-ID: <20101109222240.GH6809@random.random>
-References: <patchbomb.1288798055@v2.random>
- <ca2fea6527833aad8adc.1288798056@v2.random>
- <20101109121318.BC51.A69D9226@jp.fujitsu.com>
- <20101109213049.GC6809@random.random>
- <20101109213855.GM32723@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 604036B004A
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 17:28:31 -0500 (EST)
+Date: Tue, 9 Nov 2010 23:28:27 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 3/5] writeback: stop background/kupdate works from
+ livelocking other works
+Message-ID: <20101109222827.GJ4936@quack.suse.cz>
+References: <20101108230916.826791396@intel.com>
+ <20101108231726.993880740@intel.com>
+ <20101109131310.f442d210.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101109213855.GM32723@csn.ul.ie>
+In-Reply-To: <20101109131310.f442d210.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@lst.de>, Jan Engelhardt <jengelh@medozas.de>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Mel,
+  Hi,
 
-On Tue, Nov 09, 2010 at 09:38:55PM +0000, Mel Gorman wrote:
-> Specifically, I measured that lumpy in combination with compaction is
-> more reliable and lower latency but that's not the same as deleting it.
+On Tue 09-11-10 13:13:10, Andrew Morton wrote:
+> On Tue, 09 Nov 2010 07:09:19 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
+> I find the description to be somewhat incomplete...
+  OK, so let me fill in the gaps ;)
 
-Thanks for the clarification. Well no doubt that using both could only
-increase the success rate. So the thing with hugetlbfs you may want to
-run both, but with THP we want to stop at compaction. So this would
-then require a __GFP_LUMPY if we want hugetlbfs to fallback on lumpy
-whenever compaction isn't successful. We can't just nuke and ignore
-young bits in pte if compaction fails. Trying later in khugepaged once
-every 10 seconds is a lot better.
-
-> That said, lumpy does hurt the system a lot.  I'm prototyping a series at the
-> moment that pushes lumpy reclaim to the side and for the majority of cases
-> replaces it with "lumpy compaction". I'd hoping this will be sufficient for
-> THP and alleviate the need to delete it entirely - at least until we are 100%
-> sure that compaction can replace it in all cases.
+> > From: Jan Kara <jack@suse.cz>
+> > 
+> > Background writeback are easily livelockable (from a definition of their
+> > target).
 > 
-> Unfortunately, in the process of testing it today I also found out that
-> 2.6.37-rc1 had regressed severely in terms of huge page allocations so I'm
-> side-tracked trying to chase that down. My initial theories for the regression
-> have shown up nothing so I'm currently preparing to do a bisection. This
-> will take a long time though because the test is very slow :(
+> *why* is background writeback easily livelockable?  Under which
+> circumstances does this happen and how does it come about?
+> 
+> > This is inconvenient because it can make sync(1) stall forever waiting
+> > on its queued work to be finished.
+> 
+> Again, why?  Because there are works queued from the flusher thread,
+> but that thread is stuck in a livelocked state in <unspecified code
+> location> so it is unable to service the other works?  But the pocess
+> which called sync() will as a last resort itself perform all the
+> required IO, will it not?  If so, how can it livelock?
+  New description which should address above questions:
+Background writeback is easily livelockable in a loop in wb_writeback() by
+a process continuously re-dirtying pages (or continuously appending to a
+file). This is in fact intended as the target of background writeback is to
+write dirty pages it can find as long as we are over
+dirty_background_threshold.
 
-On my side (unrelated) I also found 37-rc1 broke my mic by changing
-soundcard type (luckily csipsimple and skype on my cellphone are now
-working better than laptop for making voip calls so it was easy to
-workaround) and my backlight goes blank forever after a "xset dpms
-force standby" (so I'm stuck in presentation mode to workaround it,
-suspend to ram was successful to avoid having to reboot too as the
-bios restarts the backlight during boot).
+But the above behavior gets inconvenient at times because no other work
+queued in the flusher thread's queue gets processed. In particular,
+since e.g. sync(1) relies on flusher thread to do all the IO for it,
+sync(1) can hang forever waiting for flusher thread to do the work.
 
-> I can still post the series as an RFC if you like to show what direction
-> I'm thinking of but at the moment, I'm unable to test it until I pin the
-> regression down.
+Generally, when a flusher thread has some work queued, someone submitted
+the work to achieve a goal more specific than what background writeback
+does. Moreover by working on the specific work, we also reduce amount of
+dirty pages which is exactly the target of background writeout. So it makes
+sense to give specific work a priority over a generic page cleaning.
 
-Sure feel free to post it, if it's already worth testing it, I can
-keep at the end of the patchset considering it's new code while what I
-posted had lots of testing.
+Thus we interrupt background writeback if there is some other work to do. We
+return to the background writeback after completing all the queued work.
 
-With THP we have khugepaged in the background, nothing is mandatory at
-allocation time. I don't want a super aggressive thing at allocation
-time, and lumpy by ignoring all young bits is too aggressive and
-generates swap storms for every single allocation. We need to fail
-order 9 allocation quick even if compaction fails (like if more than
-90% of the ram is asked in hugepages so having to use ram in the
-unmovable page blocks selected by anti-frag) to avoid hanging the
-system during allocations. Looking my stats things seem to be working
-ok with compaction in 37-rc1, so maybe it's just the lumpy changes
-that introduced your regression?
+Is it better now?
 
-Thanks,
-Andrea
+> > Generally, when a flusher thread has
+> > some work queued, someone submitted the work to achieve a goal more specific
+> > than what background writeback does. So it makes sense to give it a priority
+> > over a generic page cleaning.
+> > 
+> > Thus we interrupt background writeback if there is some other work to do. We
+> > return to the background writeback after completing all the queued work.
+> > 
+> > Signed-off-by: Jan Kara <jack@suse.cz>
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > ---
+> >  fs/fs-writeback.c |    9 +++++++++
+> >  1 file changed, 9 insertions(+)
+> > 
+> > --- linux-next.orig/fs/fs-writeback.c	2010-11-07 21:56:42.000000000 +0800
+> > +++ linux-next/fs/fs-writeback.c	2010-11-07 22:00:51.000000000 +0800
+> > @@ -651,6 +651,15 @@ static long wb_writeback(struct bdi_writ
+> >  			break;
+> >  
+> >  		/*
+> > +		 * Background writeout and kupdate-style writeback are
+> > +		 * easily livelockable. Stop them if there is other work
+> > +		 * to do so that e.g. sync can proceed.
+> > +		 */
+> > +		if ((work->for_background || work->for_kupdate) &&
+> > +		    !list_empty(&wb->bdi->work_list))
+> > +			break;
+> > +
+> > +		/*
+> >  		 * For background writeout, stop when we are below the
+> >  		 * background dirty threshold
+> >  		 */
+> 
+> So...  what prevents higher priority works (eg, sync(1)) from
+> livelocking or seriously retarding background or kudate writeout?
+  If other work than background or kupdate writeout livelocks, it's a bug
+which should be fixed (either by setting sensible nr_to_write or by tagging
+like we do it for WB_SYNC_ALL writeback). Of course, higher priority work
+can be running when background or kupdate writeout would need to run as
+well. But the idea here is that the purpose of background/kupdate types of
+writeout is to get rid of dirty data and any type of writeout does this so
+working on it we also work on background/kupdate writeout only possibly
+less efficiently.
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
