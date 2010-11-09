@@ -1,107 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D6EF8D0005
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 01:48:21 -0500 (EST)
-Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
-	by smtp-out.google.com with ESMTP id oA96mGDU023514
-	for <linux-mm@kvack.org>; Mon, 8 Nov 2010 22:48:16 -0800
-Received: from gyf3 (gyf3.prod.google.com [10.243.50.67])
-	by wpaz24.hot.corp.google.com with ESMTP id oA96mC6S001557
-	for <linux-mm@kvack.org>; Mon, 8 Nov 2010 22:48:15 -0800
-Received: by gyf3 with SMTP id 3so4307503gyf.20
-        for <linux-mm@kvack.org>; Mon, 08 Nov 2010 22:48:12 -0800 (PST)
-Date: Mon, 8 Nov 2010 22:48:03 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: understand KSM
-In-Reply-To: <1014156042.534481288167398779.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Message-ID: <alpine.LSU.2.00.1011082223120.2896@sister.anvils>
-References: <1014156042.534481288167398779.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id 92D0C8D0005
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 02:28:07 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oA97S4wb005366
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 9 Nov 2010 16:28:04 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2313E45DE4F
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:28:04 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id ECF3345DE50
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:28:03 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C14D11DB8048
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:28:03 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id ED8CA1DB8042
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 16:28:02 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: fadvise DONTNEED implementation (or lack thereof)
+In-Reply-To: <87lj597hp9.fsf@gmail.com>
+References: <87lj597hp9.fsf@gmail.com>
+Message-Id: <20101109162525.BC87.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue,  9 Nov 2010 16:28:02 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: caiqian@redhat.com
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: Ben Gamari <bgamari.foss@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Oct 2010, caiqian@redhat.com wrote:
-> > Since your 1MB malloc'ed buffers may not fall on page boundaries,
-> > and there might occasionally be other malloc'ed areas interspersed
-> > amongst them, I'm not surprised that pages_sharing falls a little
-> > short of 98302.  But I am surprised that pages_unshared does not
-> > make up the difference; probably pages_volatile does, but I don't
-> > see why some should remain volatile indefinitely.
-> The test program (http://people.redhat.com/qcai/ksm01.c) was changed to use mmap instead of malloc, and pages_sharing was short of the expected value and pages_volatile was indeed non-zero. Those makes it is difficult to predict pages_sharing and pages_volatile although it might be fine to check pages_sharing + pages_volatile with an expected value. Any suggestion to alter the test code to check the stable numbers? Thanks.
+> I've recently been trying to track down the root cause of my server's
+> persistent issue of thrashing horribly after being left inactive. It
+> seems that the issue is likely my nightly backup schedule (using rsync)
+> which traverses my entire 50GB home directory. I was surprised to find
+> that rsync does not use fadvise to notify the kernel of its use-once
+> data usage pattern.
 > 
-> ksm01       0  TINFO  :  child 0 allocates 128 MB filled with 'c'.
-> ksm01       0  TINFO  :  child 1 allocates 128 MB filled with 'a'.
-> ksm01       0  TINFO  :  child 2 allocates 128 MB filled with 'a'.
-> ksm01       0  TINFO  :  pages_shared is 2.
-> ksm01       0  TINFO  :  pages_sharing is 98300.
-> ksm01       0  TINFO  :  pages_unshared is 0.
-> ksm01       0  TINFO  :  pages_volatile is 2.
+> It looks like a patch[1] was written (although never merged, it seems)
+> incorporating fadvise support, but I found its implementation rather
+> odd, using mincore() and FADV_DONTNEED to kick out only regions brought
+> in by rsync. It seemed to me the simpler and more appropriate solution
+> would be to simply flag every touched file with FADV_NOREUSE and let the
+> kernel manage automatically expelling used pages.
 > 
-> ksm01       0  TINFO  :  child 1 changes memory content to 'b'.
-> ksm01       0  TINFO  :  pages_shared is 3.
-> ksm01       0  TINFO  :  pages_sharing is 98291.
-> ksm01       0  TINFO  :  pages_unshared is 0.
-> ksm01       0  TINFO  :  pages_volatile is 10.
-> 
-> ksm01       0  TINFO  :  child 0 changes memory content to 'd'.
-> ksm01       0  TINFO  :  child 1 changes memory content to 'd'
-> ksm01       0  TINFO  :  child 2 changes memory content to 'd'
-> ksm01       0  TINFO  :  pages_shared is 1.
-> ksm01       0  TINFO  :  pages_sharing is 98299.
-> ksm01       0  TINFO  :  pages_unshared is 0.
-> ksm01       0  TINFO  :  pages_volatile is 4.
-> 
-> ksm01       0  TINFO  :  child 1 changes one page to 'e'.
-> ksm01       0  TINFO  :  pages_shared is 1.
-> ksm01       0  TINFO  :  pages_sharing is 98299.
-> ksm01       0  TINFO  :  pages_unshared is 1.
-> ksm01       0  TINFO  :  pages_volatile is 3.
+> After looking deeper into the kernel implementation[2] of fadvise() the
+> reason for using DONTNEED became more apparant. It seems that the kernel
+> implements NOREUSE as a noop. A little googling revealed[3] that I not
+> the first person to encounter this limitation. It looks like a few
+> folks[4] have discussed addressing the issue in the past, but nothing
+> has happened as of 2.6.36. Are there plans to implement this
+> functionality in the near future? It seems like the utility of fadvise
+> is severely limited by lacking support for NOREUSE.
 
-Thank you for persisting, I was surprised by that, but didn't find time
-to try for myself until yesterday: yes, running your ksm01, pages_volatile
-stayed non-0 for erratic periods of time, say 10 or 20 seconds.  I had to
-insert more debugging to find out what and why was failing, but in the end
-it was rather obvious.
+btw, Other OSs seems to also don't implement it.
+example,
 
-Fix below, but I haven't yet signed off the patch - we usually prefer to
-avoid lru_add_drain_all() (all those inter-cpu interrupts): I think this
-is the natural place to call it, but I haven't quite decided yet whether
-it's worth adding a few lines to limit how often we call it there.
+http://src.opensolaris.org/source/xref/onnv/onnv-gate/usr/src/lib/libc/port/gen/posix_fadvise.c
 
-Why did my own testing never see this?  Largely because I was using
-system() to run a shell script to show the /sys/kernel/mm/ksm numbers
-(whereas your ksm01.c opens and reads the files directly): there's
-more than enough overhead in doing it my way to flush those pagevecs
-(on one cpu, but I'm still surprised I didn't see it from other cpus).
+     35 /*
+     36  * SUSv3 - file advisory information
+     37  *
+     38  * This function does nothing, but that's OK because the
+     39  * Posix specification doesn't require it to do anything
+     40  * other than return appropriate error numbers.
+     41  *
+     42  * In the future, a file system dependent fadvise() or fcntl()
+     43  * interface, similar to madvise(), should be developed to enable
+     44  * the kernel to optimize I/O operations based on the given advice.
+     45  */
+     46 
+     47 /* ARGSUSED1 */
+     48 int
+     49 posix_fadvise(int fd, off_t offset, off_t len, int advice)
+     50 {
+     51 	struct stat64 statb;
+     52 
+     53 	switch (advice) {
+     54 	case POSIX_FADV_NORMAL:
+     55 	case POSIX_FADV_RANDOM:
+     56 	case POSIX_FADV_SEQUENTIAL:
+     57 	case POSIX_FADV_WILLNEED:
+     58 	case POSIX_FADV_DONTNEED:
+     59 	case POSIX_FADV_NOREUSE:
+     60 		break;
+     61 	default:
+     62 		return (EINVAL);
+     63 	}
+     64 	if (len < 0)
+     65 		return (EINVAL);
+     66 	if (fstat64(fd, &statb) != 0)
+     67 		return (EBADF);
+     68 	if (S_ISFIFO(statb.st_mode))
+     69 		return (ESPIPE);
+     70 	return (0);
+     71 }
 
-Hugh
 
----
+So, I don't think application developers will use fadvise() aggressively
+because we don't have a cross platform agreement of a fadvice behavior.
 
- mm/ksm.c |    9 +++++++++
- 1 file changed, 9 insertions(+)
 
---- 2.6.37-rc1/mm/ksm.c	2010-10-20 13:30:22.000000000 -0700
-+++ linux/mm/ksm.c	2010-11-07 23:49:26.000000000 -0800
-@@ -1352,6 +1352,15 @@ static void ksm_do_scan(unsigned int sca
- 	struct rmap_item *rmap_item;
- 	struct page *uninitialized_var(page);
- 
-+	/*
-+	 * A number of pages can hang around indefinitely on per-cpu pagevecs,
-+	 * with raised page count preventing write_protect_page() from merging
-+	 * them: though it doesn't really matter much, it is disturbing to see
-+	 * them stuck in pages_volatile until other activity jostles them out,
-+	 * and it prevents deterministic LTP success; so drain them here.
-+	 */
-+	lru_add_drain_all();
-+
- 	while (scan_npages--) {
- 		cond_resched();
- 		rmap_item = scan_get_next_rmap_item(&page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
