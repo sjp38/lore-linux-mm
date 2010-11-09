@@ -1,101 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 326E28D0005
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 05:16:07 -0500 (EST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: Potential NULL pointer derefence found by static analysis tool
-Date: Mon, 8 Nov 2010 09:01:25 +0100
-References: <09BDD4480B142748B1A500A56F2CB8A362E32C@pgsmsx503.gar.corp.intel.com>
-In-Reply-To: <09BDD4480B142748B1A500A56F2CB8A362E32C@pgsmsx503.gar.corp.intel.com>
+	by kanga.kvack.org (Postfix) with SMTP id 24FA66B00A0
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 05:27:42 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oA9ARd22022953
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 9 Nov 2010 19:27:39 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8AF7845DE51
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 19:27:39 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DAC645DE4E
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 19:27:39 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4EF9F1DB8019
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 19:27:39 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 03EAA1DB8015
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 19:27:39 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 61 of 66] use compaction for GFP_ATOMIC order > 0
+In-Reply-To: <b540c09bfe5160120952.1288798116@v2.random>
+References: <patchbomb.1288798055@v2.random> <b540c09bfe5160120952.1288798116@v2.random>
+Message-Id: <20101109151440.BC75.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Message-Id: <201011080901.25410.arnd@arndb.de>
+Date: Tue,  9 Nov 2010 19:27:37 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: "Chew, Chiau Ee" <chiau.ee.chew@intel.com>
-Cc: linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 02 November 2010, Chew, Chiau Ee wrote:
-> Hi Bergmann:
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> Using the static analysis tool (Klocwork), we found the function calls in a particular code section
-> (Line 65 to 69) under /include/asm-generic/memory_model.h may potentially lead to the occurrence of
-> NULL pointer dereferencing. Below are the code snippets to explain how the NULL pointer dereferencing may occur. 
+> This takes advantage of memory compaction to properly generate pages of order >
+> 0 if regular page reclaim fails and priority level becomes more severe and we
+> don't reach the proper watermarks.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-Your analysis appears to be correct, but I don't know enough about this code to
-understand if this is a problem. My understanding at this point is that it cannot
-happen because of the way that memsections are done as long as a valid pfn is
-passed into the function.
+First, I don't think this patch is related to GFP_ATOMIC. So, I think the 
+patch title is a bit misleading.
 
-The pfn should always be valid because it comes from the kernel itself and only
-very few functions call this. I have Cc'd the linux-mm mailing list for more input
-on this.
+Second, this patch has two changes. 1) remove PAGE_ALLOC_COSTLY_ORDER 
+threshold 2) implement background compaction. please separate them.
 
-	Arnd
+Third, This patch makes a lot of PFN order page scan and churn LRU
+aggressively. I'm not sure this aggressive lru shuffling is safe and
+works effective. I hope you provide some demonstration and/or show 
+benchmark result.
 
-> Kernel version: 2.6.36
-> 
-> 
-> -> /include/asm-generic/memory_model.h Line 67: '__sec' is assigned the      
->    return value from function '__pfn_to_section'
-> 
->   	Line 65-69 under /include/asm-generic/memory_model.h: 
->   	#define __pfn_to_page(pfn)                              \
->   	({      unsigned long __pfn = (pfn);                    \
->           struct mem_section *__sec = __pfn_to_section(__pfn);    \
->           __section_mem_map_addr(__sec) + __pfn;          \
->   	})
-> 
-> 
-> -> /include/linux/mmzone.h Line1045: The return value of function  
->    '__pfn_to_section' is determined by function '__nr_to_section'
-> 
-> 	Line 1043-1046 under /include/linux/mmzone.h 
-> 	static inline struct mem_section *__pfn_to_section(unsigned long pfn)
-> 	{
->       	return __nr_to_section(pfn_to_section_nr(pfn));
-> 	}	
-> 
-> 
-> 
-> -> /include/linux/mmzone.h Line 998-999: If      
->    mem_section[SECTION_NR_TO_ROOT(nr)]is false, then function  
->    '__nr_to_section' explicitly returns a NULL value, 
->    which eventually will be the value of __sec
-> 	
-> 	Line 996 to 1001 under /include/linux/mmzone.h
->  	static inline struct mem_section *__nr_to_section(unsigned long nr)
->  	{
-> 	        if (!mem_section[SECTION_NR_TO_ROOT(nr)])
-> 	                return NULL;
-> 		  return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
-> 	}
-> 
-> -> '__sec' is being passed to function '__section_mem_map_addr' as 'section'    
->    argument at Line 68 in include/asm-generic/memory_model.h. 'section' is 
->    explicitly dereference at Line 1018 in /include/linux/mmzone.h
-> 
-> 	Line 65-69 under /include/asm-generic/memory_model.h:
->   	#define __pfn_to_page(pfn)                              \
->   	({      unsigned long __pfn = (pfn);                    \
->   	        struct mem_section *__sec = __pfn_to_section(__pfn);    \
->   	       __section_mem_map_addr(__sec) + __pfn;          \
->   	})
-> 
-> 	Line 1016-1021 under /include/linux/mmzone.h:
-> 	static inline struct page *__section_mem_map_addr(struct mem_section *section)
-> 	{
-> 	        unsigned long map = section->section_mem_map;
-> 	        map &= SECTION_MAP_MASK;
-> 	        return (struct page *)map;
-> 	}
-> 
-> 
-> Thanks,
-> Chiau Ee
-> 
+Thanks.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
