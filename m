@@ -1,51 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 6ECD56B0098
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 07:15:14 -0500 (EST)
-Date: Tue, 9 Nov 2010 20:15:08 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 6/6] memcg: make mem_cgroup_page_stat() return value
- unsigned
-Message-ID: <20101109121508.GA2764@localhost>
-References: <1289294671-6865-1-git-send-email-gthelen@google.com>
- <1289294671-6865-7-git-send-email-gthelen@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1289294671-6865-7-git-send-email-gthelen@google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C62316B00A7
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 07:25:31 -0500 (EST)
+Received: by vws18 with SMTP id 18so1986185vws.14
+        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 04:25:30 -0800 (PST)
+Subject: [PATCH v2]mm/oom-kill: direct hardware access processes should get
+ bonus
+From: "Figo.zhang" <figo1802@gmail.com>
+In-Reply-To: <1288662213.10103.2.camel@localhost.localdomain>
+References: <1288662213.10103.2.camel@localhost.localdomain>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 09 Nov 2010 20:24:28 +0800
+Message-ID: <1289305468.10699.2.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: lkml <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, "rientjes@google.com" <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 09, 2010 at 05:24:31PM +0800, Greg Thelen wrote:
-> mem_cgroup_page_stat() used to return a negative page count
-> value to indicate value.
-> 
-> mem_cgroup_page_stat() has changed so it never returns
-> error so convert the return value to the traditional page
-> count type (unsigned long).
-> 
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> ---
+ 
+the victim should not directly access hardware devices like Xorg server,
+because the hardware could be left in an unpredictable state, although 
+user-application can set /proc/pid/oom_score_adj to protect it. so i think
+those processes should get 3% bonus for protection.
 
-> +	/*
-> +	 * The sum of unlocked per-cpu counters may yield a slightly negative
-> +	 * value.  This function returns an unsigned value, so round it up to
-> +	 * zero to avoid returning a very large value.
-> +	 */
-> +	if (value < 0)
-> +		value = 0;
+in v2, fix the incorrect comment.
 
-nitpick: it's good candidate for unlikely().
+Signed-off-by: Figo.zhang <figo1802@gmail.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+mm/oom_kill.c |    7 +++++--
+ 1 files changed, 5 insertions(+), 2 deletions(-)
 
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 4029583..9b06f56 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -196,9 +196,12 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
+ 
+ 	/*
+ 	 * Root processes get 3% bonus, just like the __vm_enough_memory()
+-	 * implementation used by LSMs.
++	 * implementation used by LSMs. And direct hardware access processes
++	 * also get 3% bonus.
+ 	 */
+-	if (has_capability_noaudit(p, CAP_SYS_ADMIN))
++	if (has_capability_noaudit(p, CAP_SYS_ADMIN) ||
++	    has_capability_noaudit(p, CAP_SYS_RESOURCE) ||
++	    has_capability_noaudit(p, CAP_SYS_RAWIO))
+ 		points -= 30;
+ 
+ 	/*
 
-Sorry, I lose track to the source code after so many patches.
-It would help if you can put the patches to a git tree.
-
-Thanks,
-Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
