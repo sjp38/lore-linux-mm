@@ -1,144 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id AB69F6B0085
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 18:38:10 -0500 (EST)
-Date: Wed, 10 Nov 2010 15:37:29 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/5] writeback: stop background/kupdate works from
- livelocking other works
-Message-Id: <20101110153729.81ae6b19.akpm@linux-foundation.org>
-In-Reply-To: <20101109235632.GD11214@quack.suse.cz>
-References: <20101108230916.826791396@intel.com>
-	<20101108231726.993880740@intel.com>
-	<20101109131310.f442d210.akpm@linux-foundation.org>
-	<20101109222827.GJ4936@quack.suse.cz>
-	<20101109150006.05892241.akpm@linux-foundation.org>
-	<20101109235632.GD11214@quack.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 0BC3E6B0088
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 18:38:23 -0500 (EST)
+Date: Thu, 11 Nov 2010 10:36:48 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: 2.6.36 io bring the system to its knees
+Message-ID: <20101110233648.GY2715@dastard>
+References: <20101105014334.GF13830@dastard>
+ <E1PELiI-0001Pj-8g@approx.mit.edu>
+ <AANLkTimON_GL6vRF9=_U6oRFQ30EYssx3wv5xdNsU9JM@mail.gmail.com>
+ <4CD696B4.6070002@kernel.dk>
+ <AANLkTikNPEcwWjEQuC-_=9yH5DCCiwUAY265ggeygcSQ@mail.gmail.com>
+ <20101110013255.GR2715@dastard>
+ <C70A546B-6BC5-49CA-9E34-E69F494A71A0@mit.edu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <C70A546B-6BC5-49CA-9E34-E69F494A71A0@mit.edu>
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@lst.de>, Jan Engelhardt <jengelh@medozas.de>, LKML <linux-kernel@vger.kernel.org>
+To: Theodore Tso <tytso@MIT.EDU>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, dave b <db.pub.mail@gmail.com>, Sanjoy Mahajan <sanjoy@olin.edu>, Jesper Juhl <jj@chaosbits.net>, Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Steven Barrett <damentz@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Nov 2010 00:56:32 +0100
-Jan Kara <jack@suse.cz> wrote:
-
-> On Tue 09-11-10 15:00:06, Andrew Morton wrote:
-> > On Tue, 9 Nov 2010 23:28:27 +0100
-> > Jan Kara <jack@suse.cz> wrote:
-> > >   New description which should address above questions:
-> > > Background writeback is easily livelockable in a loop in wb_writeback() by
-> > > a process continuously re-dirtying pages (or continuously appending to a
-> > > file). This is in fact intended as the target of background writeback is to
-> > > write dirty pages it can find as long as we are over
-> > > dirty_background_threshold.
-> > 
-> > Well.  The objective of the kupdate function is utterly different.
-> > 
-> > > But the above behavior gets inconvenient at times because no other work
-> > > queued in the flusher thread's queue gets processed. In particular,
-> > > since e.g. sync(1) relies on flusher thread to do all the IO for it,
-> > 
-> > That's fixable by doing the work synchronously within sync_inodes_sb(),
-> > rather than twiddling thumbs wasting a thread resource while waiting
-> > for kernel threads to do it.  As an added bonus, this even makes cpu
-> > time accounting more accurate ;)
-> > 
-> > Please remind me why we decided to hand the sync_inodes_sb() work off
-> > to other threads?
->   Because when sync(1) does IO on it's own, it competes for the device with
-> the flusher thread running in parallel thus resulting in more seeks.
-
-Skeptical.  Has that effect been demonstrated?  Has it been shown to be
-a significant problem?  A worse problem than livelocking the machine? ;)
-
-If this _is_ a problem then it's also a problem for fsync/msync.  But
-see below.
-
-> > > sync(1) can hang forever waiting for flusher thread to do the work.
-> > > 
-> > > Generally, when a flusher thread has some work queued, someone submitted
-> > > the work to achieve a goal more specific than what background writeback
-> > > does. Moreover by working on the specific work, we also reduce amount of
-> > > dirty pages which is exactly the target of background writeout. So it makes
-> > > sense to give specific work a priority over a generic page cleaning.
-> > > 
-> > > Thus we interrupt background writeback if there is some other work to do. We
-> > > return to the background writeback after completing all the queued work.
-> > > 
-> ...
-> > > > So...  what prevents higher priority works (eg, sync(1)) from
-> > > > livelocking or seriously retarding background or kudate writeout?
-> > >   If other work than background or kupdate writeout livelocks, it's a bug
-> > > which should be fixed (either by setting sensible nr_to_write or by tagging
-> > > like we do it for WB_SYNC_ALL writeback). Of course, higher priority work
-> > > can be running when background or kupdate writeout would need to run as
-> > > well. But the idea here is that the purpose of background/kupdate types of
-> > > writeout is to get rid of dirty data and any type of writeout does this so
-> > > working on it we also work on background/kupdate writeout only possibly
-> > > less efficiently.
-> > 
-> > The kupdate function is a data-integrity/quality-of-service sort of
-> > thing.
-> > 
-> > And what I'm asking is whether this change enables scenarios in which
-> > these threads can be kept so busy that the kupdate function gets
-> > interrupted so frequently that we can have dirty memory not being
-> > written back for arbitrarily long periods of time?
->   So let me compare:
-> What kupdate writeback does:
->   queue inodes older than dirty_expire_centisecs
->   while some inode in the queue
->     write MAX_WRITEBACK_PAGES from each inode queued
->     break if nr_to_write <= 0
+On Wed, Nov 10, 2010 at 09:33:29AM -0500, Theodore Tso wrote:
 > 
-> What any other WB_SYNC_NONE writeback (let me call it "normal WB_SYNC_NONE
-> writeback") does:
->   queue all dirty inodes 
->   while some inode in the queue
->     write MAX_WRITEBACK_PAGES from each inode queued
->     break if nr_to_write <= 0
+> On Nov 9, 2010, at 8:32 PM, Dave Chinner wrote:
 > 
+> > Don't forget to mention data=writeback is not the default because if
+> > your system crashes or you lose power running in this mode it will
+> > *CORRUPT YOUR FILESYSTEM* and you *WILL LOSE DATA*. Not to mention
+> > the significant security issues (e.g stale data exposure) that also
+> > occur even if the filesystem is not corrupted by the crash. IOWs,
+> > data=writeback is the "fast but I'll eat your data" option for ext3.
 > 
-> There only one kind of WB_SYNC_ALL writeback - the one which writes
-> everything.
+> This is strictly speaking not true.  Using data=writeback will not
+> cause you to lose any data --- at least, not any more than you
+> would without the feature.   If you have applications that write
+> files in an unsafe way, that data is going to be lost, one way or
+> another.  (i.e., with XFS in a similar situation you'll get a
+> zero-length file)   The difference is that in the case of a system
+> crash, there may be unwritten data revealed if you use
+> data=writeback.  This could be a security exposure, especially if
+> you are using your system in as time-sharing system, and where you
+> see the contents of deleted files belonging to another user.
 
-fsync() uses WB_SYNC_ALL and it doesn't write "everything".
+In theory, that's all that is _supposed_ to happen. However, my
+recent experience is that massive ext3 filesystem corruption occurs
+in data=writeback mode when the system crashes and that does not
+happen in ordered mode.
 
-> So after WB_SYNC_ALL writeback (provided all livelocks are fixed ;)
-> obviously no old data should be unwritten in memory. Normal WB_SYNC_NONE
-> writeback differs from a kupdate one *only* in the fact that we queue all
-> inodes instead of only the old ones.
+Why do you think i posted the patches to change the default back to
+ordered mode a few months back? I basically trashed the root ext3
+partitions on three test machines (to the point where >5000 files
+across /sbin, /bin, /lib and /usr were corrupted or missing and I
+had to reinstall from scratch) when I'd forgotten to set the
+ordered-is-defult config option in the kernel i was testing.  And
+that is when the only thing being written to the root filesystems
+was log files...
 
-whoa.
+The worst part about this was that I also had ext3 filesystems
+corrupted by crashes in such a way that e2fsck didn't detect it but
+they would repeatedly trigger kernel crashes at runtime....
 
-That's only true for sync(), or sync_filesystem().  It isn't true for,
-say, fsync() and msync().  Now when someone comes along and changes
-fsync/msync to use flusher threads ("resulting in less seeks") then we
-could get into a situation where fsync-serving flusher threads never
-serve kupdate?
+> So it is not an "eat your data" situation,
 
-> We start writing old inodes first and
+My experience says otherwise....
 
-OT, but: your faith in those time-ordered inode lists is touching ;)
-Put a debug function in there which checks that the lists _are_
-time-ordered, and call that function from every site in the kernel
-which modifies the lists.   I bet there are still gremlins.
+Cheers,
 
-> go inode by inode writing MAX_WRITEBACK_PAGES from each. Now because the
-> queue can be longer for normal WB_SYNC_NONE writeback, it can take longer
-> before we return to the old inodes. So if normal writeback interrupts
-> kupdate one, it can take longer before all data of old inodes get to disk.
-> But we always get the old data to disk - essentially at the same time at
-> which kupdate writeback would get them to disk if dirty_expire_centisecs
-> was 0.
-> 
-> Is this enough? Do you want any of this in the changelog?
-> 
-> Thanks for the inquiry btw. It made me cleanup my thoughts on the subject ;)
-> 
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
