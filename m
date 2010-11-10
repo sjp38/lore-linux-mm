@@ -1,67 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id DF0276B004A
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 10:25:24 -0500 (EST)
-Date: Wed, 10 Nov 2010 16:25:19 +0100
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: BUG: Bad page state in process (current git)
-Message-ID: <20101110152519.GA1626@arch.trippelsdorf.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+	by kanga.kvack.org (Postfix) with SMTP id E9B226B0085
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 10:25:58 -0500 (EST)
+Received: by pxi12 with SMTP id 12so150914pxi.14
+        for <linux-mm@kvack.org>; Wed, 10 Nov 2010 07:25:57 -0800 (PST)
+Subject: [PATCH v3]mm/oom-kill: direct hardware access processes should get
+ bonus
+From: "Figo.zhang" <figo1802@gmail.com>
+In-Reply-To: <1289402093.10699.25.camel@localhost.localdomain>
+References: <1288662213.10103.2.camel@localhost.localdomain>
+	 <1289305468.10699.2.camel@localhost.localdomain>
+	 <1289402093.10699.25.camel@localhost.localdomain>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 10 Nov 2010 23:24:26 +0800
+Message-ID: <1289402666.10699.28.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: lkml <linux-kernel@vger.kernel.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, "rientjes@google.com" <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Figo.zhang" <zhangtianfei@leadcoretech.com>
 List-ID: <linux-mm.kvack.org>
 
-This happend twice in the last 24h on my machine:
+the victim should not directly access hardware devices like Xorg server,
+because the hardware could be left in an unpredictable state, although 
+user-application can set /proc/pid/oom_score_adj to protect it. so i think
+those processes should get bonus for protection.
 
-Nov  9 20:29:42 arch kernel: BUG: Bad page state in process mutt  pfn:a6869
-Nov  9 20:29:42 arch kernel: page:ffffea000246d6f8 count:0 mapcount:0 mapping:          (null) index:0x0
-Nov  9 20:29:42 arch kernel: page flags: 0x4000000000000008(uptodate)
-Nov  9 20:29:42 arch kernel: Pid: 1794, comm: mutt Not tainted 2.6.37-rc1-00168-gb369291-dirty #72
-Nov  9 20:29:42 arch kernel: Call Trace:
-Nov  9 20:29:42 arch kernel: [<ffffffff810a1d32>] ? bad_page+0x92/0xe0
-Nov  9 20:29:42 arch kernel: [<ffffffff810a2f50>] ? get_page_from_freelist+0x4b0/0x570
-Nov  9 20:29:42 arch kernel: [<ffffffff810a3123>] ? __alloc_pages_nodemask+0x113/0x6b0
-Nov  9 20:29:42 arch kernel: [<ffffffff8109c5f4>] ? find_get_page+0x64/0xb0
-Nov  9 20:29:42 arch kernel: [<ffffffff8109c858>] ? filemap_fault+0x98/0x4b0
-Nov  9 20:29:42 arch kernel: [<ffffffff811807ec>] ? cpumask_any_but+0x2c/0x40
-Nov  9 20:29:42 arch kernel: [<ffffffff810b4acc>] ? do_wp_page+0xbc/0x7e0
-Nov  9 20:29:42 arch kernel: [<ffffffff810b6ab3>] ? handle_mm_fault+0x4e3/0x970
-Nov  9 20:29:42 arch kernel: [<ffffffff8104b1d0>] ? do_page_fault+0x120/0x410
-Nov  9 20:29:42 arch kernel: [<ffffffff8144af8f>] ? page_fault+0x1f/0x30
-Nov  9 20:29:42 arch kernel: [<ffffffff8118a09d>] ? __put_user_4+0x1d/0x30
-Nov  9 20:29:42 arch kernel: [<ffffffff8144af8f>] ? page_fault+0x1f/0x30
-Nov  9 20:29:42 arch kernel: Disabling lock debugging due to kernel taint
+in v2, fix the incorrect comment.
+in v3, change the divided the badness score by 4, like old heuristic for protection. we just
+want the oom_killer don't select Root/RESOURCE/RAWIO process as possible.
 
+suppose that if a user process A such as email cleint "evolution" and a process B with
+ditecly hareware access such as "Xorg", they have eat the equal memory (the badness score is 
+the same),so which process are you want to kill? so in new heuristic, it will kill the process B.
+but in reality, we want to kill process A.
 
-Nov 10 14:35:25 arch kernel: BUG: Bad page state in process firefox-bin  pfn:a049d
-Nov 10 14:35:25 arch kernel: page:ffffea0002310258 count:0 mapcount:0 mapping:          (null) index:0x0
-Nov 10 14:35:25 arch kernel: page flags: 0x4000000000000008(uptodate)
-Nov 10 14:35:25 arch kernel: Pid: 23080, comm: firefox-bin Not tainted 2.6.37-rc1-00168-gb369291-dirty #72
-Nov 10 14:35:25 arch kernel: Call Trace:
-Nov 10 14:35:25 arch kernel: [<ffffffff810a1d32>] ? bad_page+0x92/0xe0
-Nov 10 14:35:25 arch kernel: [<ffffffff810a2f50>] ? get_page_from_freelist+0x4b0/0x570
-Nov 10 14:35:25 arch kernel: [<ffffffff8105325c>] ? enqueue_task_fair+0x14c/0x190
-Nov 10 14:35:25 arch kernel: [<ffffffff810a3123>] ? __alloc_pages_nodemask+0x113/0x6b0
-Nov 10 14:35:25 arch kernel: [<ffffffff8109bb04>] ? file_read_actor+0xc4/0x190
-Nov 10 14:35:25 arch kernel: [<ffffffff8109d788>] ? generic_file_aio_read+0x558/0x6a0
-Nov 10 14:35:25 arch kernel: [<ffffffff810b6c8d>] ? handle_mm_fault+0x6bd/0x970
-Nov 10 14:35:25 arch kernel: [<ffffffff810cda2f>] ? do_sync_read+0xbf/0x100
-Nov 10 14:35:25 arch kernel: [<ffffffff8104b1d0>] ? do_page_fault+0x120/0x410
-Nov 10 14:35:25 arch kernel: [<ffffffff810bbf7f>] ? mmap_region+0x1df/0x4b0
-Nov 10 14:35:25 arch kernel: [<ffffffff81448295>] ? schedule+0x285/0x850
-Nov 10 14:35:25 arch kernel: [<ffffffff8144af8f>] ? page_fault+0x1f/0x30
-Nov 10 14:35:25 arch kernel: Disabling lock debugging due to kernel taint
+Signed-off-by: Figo.zhang <figo1802@gmail.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+mm/oom_kill.c |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
 
-My memory is fine as far as I can tell (memtest and a linpack stress
-test ran without errors).
-Any ideas on what might be going on?
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 4029583..f43d759 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -202,6 +202,15 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
+ 		points -= 30;
+ 
+ 	/*
++	 * Root and direct hareware access processes are usually more 
++	 * important, so they should get bonus for protection. 
++	 */
++	if (has_capability_noaudit(p, CAP_SYS_ADMIN) ||
++	    has_capability_noaudit(p, CAP_SYS_RESOURCE) ||
++	    has_capability_noaudit(p, CAP_SYS_RAWIO))
++		points /= 4;
++
++	/*
+ 	 * /proc/pid/oom_score_adj ranges from -1000 to +1000 such that it may
+ 	 * either completely disable oom killing or always prefer a certain
+ 	 * task.
 
-(The dirty flag is due to this patch: https://patchwork.kernel.org/patch/311202/)
--- 
-Markus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
