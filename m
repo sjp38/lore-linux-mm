@@ -1,39 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id ECC6F6B0088
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 11:08:29 -0500 (EST)
-Date: Wed, 10 Nov 2010 17:02:11 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: INFO: suspicious rcu_dereference_check() usage -
-	kernel/pid.c:419 invoked rcu_dereference_check() without protection!
-Message-ID: <20101110160211.GA2562@redhat.com>
-References: <xr93fwwbdh1d.fsf@ninji.mtv.corp.google.com> <20101107182028.GZ15561@linux.vnet.ibm.com> <20101108151509.GA3702@redhat.com> <20101109202900.GV4032@linux.vnet.ibm.com> <20101110155530.GA1905@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D0A006B004A
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 11:09:59 -0500 (EST)
+Date: Wed, 10 Nov 2010 17:08:38 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 43 of 66] don't leave orhpaned swap cache after ksm
+ merging
+Message-ID: <20101110160838.GK6809@random.random>
+References: <patchbomb.1288798055@v2.random>
+ <d5aefe85d1dab1bb7e99.1288798098@v2.random>
+ <20101109120747.BC4B.A69D9226@jp.fujitsu.com>
+ <20101109214036.GE6809@random.random>
+ <alpine.LSU.2.00.1011092312360.6873@sister.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101110155530.GA1905@redhat.com>
+In-Reply-To: <alpine.LSU.2.00.1011092312360.6873@sister.anvils>
 Sender: owner-linux-mm@kvack.org
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>
+To: Hugh Dickins <hughd@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-(another try with the proper email address)
+On Tue, Nov 09, 2010 at 11:49:30PM -0800, Hugh Dickins wrote:
+> We did ask you back then to send in a fix separate from THP, but both
+> sides then forgot about it until recently.
 
-On 11/09, Paul E. McKenney wrote:
->
-> Thank you, Oleg!  Greg, would you be willing to update your patch
-> to remove the comment?  (Perhaps tasklist_lock as well...)
+Correct :).
 
-Agreed, I think tasklock should be killed.
+> We didn't agree on what the fix should look like.  You're keen to change
+> the page locking there, I didn't make a persuasive case for keeping it
+> as is, yet I can see no point whatever in changing it for this swap fix.
+> Could I persuade you to approve this simpler alternative?
 
-
-But wait. Whatever we do, isn't this code racy? I do not see why, say,
-sys_ioprio_set(IOPRIO_WHO_PROCESS) can't install ->io_context after
-this task has already passed exit_io_context().
-
-Jens, am I missed something?
-
-Oleg.
+Sure your version will work fine too. I insisted in removing the page
+lock around replace_page because I didn't see the point of it and I
+like strict code, but keeping it can do no harm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
