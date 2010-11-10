@@ -1,40 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D0A006B004A
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 11:09:59 -0500 (EST)
-Date: Wed, 10 Nov 2010 17:08:38 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 43 of 66] don't leave orhpaned swap cache after ksm
- merging
-Message-ID: <20101110160838.GK6809@random.random>
-References: <patchbomb.1288798055@v2.random>
- <d5aefe85d1dab1bb7e99.1288798098@v2.random>
- <20101109120747.BC4B.A69D9226@jp.fujitsu.com>
- <20101109214036.GE6809@random.random>
- <alpine.LSU.2.00.1011092312360.6873@sister.anvils>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B852D6B0089
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 11:27:00 -0500 (EST)
+Date: Wed, 10 Nov 2010 17:26:55 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 3/5] writeback: stop background/kupdate works from
+ livelocking other works
+Message-ID: <20101110162655.GA4999@quack.suse.cz>
+References: <20101110023500.404859581@intel.com>
+ <20101110024223.847210776@intel.com>
+ <20101110035516.GA12710@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1011092312360.6873@sister.anvils>
+In-Reply-To: <20101110035516.GA12710@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@lst.de>, Jan Engelhardt <jengelh@medozas.de>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 09, 2010 at 11:49:30PM -0800, Hugh Dickins wrote:
-> We did ask you back then to send in a fix separate from THP, but both
-> sides then forgot about it until recently.
+On Wed 10-11-10 11:55:16, Wu Fengguang wrote:
+> Jan, the below comment is also updated, please double check.
+  Thanks! The comment looks OK.
 
-Correct :).
+> >  		/*
+> > +		 * Background writeout and kupdate-style writeback may
+> > +		 * run forever. Stop them if there is other work to do
+> > +		 * so that e.g. sync can proceed. They'll be restarted
+> > +		 * after the other works are all done.
+> > +		 */
+> > +		if ((work->for_background || work->for_kupdate) &&
+> > +		    !list_empty(&wb->bdi->work_list))
+> > +			break;
+> > +
+> > +		/*
+> >  		 * For background writeout, stop when we are below the
+> >  		 * background dirty threshold
+> >  		 */
 
-> We didn't agree on what the fix should look like.  You're keen to change
-> the page locking there, I didn't make a persuasive case for keeping it
-> as is, yet I can see no point whatever in changing it for this swap fix.
-> Could I persuade you to approve this simpler alternative?
-
-Sure your version will work fine too. I insisted in removing the page
-lock around replace_page because I didn't see the point of it and I
-like strict code, but keeping it can do no harm.
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
