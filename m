@@ -1,56 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 6FBEE6B004A
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 09:34:24 -0500 (EST)
-Subject: Re: 2.6.36 io bring the system to its knees
-Mime-Version: 1.0 (Apple Message framework v1081)
-Content-Type: text/plain; charset=us-ascii
-From: Theodore Tso <tytso@MIT.EDU>
-In-Reply-To: <20101110013255.GR2715@dastard>
-Date: Wed, 10 Nov 2010 09:33:29 -0500
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <C70A546B-6BC5-49CA-9E34-E69F494A71A0@mit.edu>
-References: <20101105014334.GF13830@dastard> <E1PELiI-0001Pj-8g@approx.mit.edu> <AANLkTimON_GL6vRF9=_U6oRFQ30EYssx3wv5xdNsU9JM@mail.gmail.com> <4CD696B4.6070002@kernel.dk> <AANLkTikNPEcwWjEQuC-_=9yH5DCCiwUAY265ggeygcSQ@mail.gmail.com> <20101110013255.GR2715@dastard>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 479656B004A
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 09:37:49 -0500 (EST)
+Date: Wed, 10 Nov 2010 14:37:34 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/8] Reduce latencies and improve overall reclaim
+	efficiency v2
+Message-ID: <20101110143733.GD19679@csn.ul.ie>
+References: <1284553671-31574-1-git-send-email-mel@csn.ul.ie> <4CB721A1.4010508@linux.vnet.ibm.com> <20101018135535.GC30667@csn.ul.ie> <4CD13E7B.5090804@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4CD13E7B.5090804@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, dave b <db.pub.mail@gmail.com>, Sanjoy Mahajan <sanjoy@olin.edu>, Jesper Juhl <jj@chaosbits.net>, Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Steven Barrett <damentz@gmail.com>
+To: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Nov 03, 2010 at 11:50:35AM +0100, Christian Ehrhardt wrote:
+> 
+> 
+> On 10/18/2010 03:55 PM, Mel Gorman wrote:
+> > On Thu, Oct 14, 2010 at 05:28:33PM +0200, Christian Ehrhardt wrote:
+> > 
+> >> Seing the patches Mel sent a few weeks ago I realized that this series
+> >> might be at least partially related to my reports in 1Q 2010 - so I ran my
+> >> testcase on a few kernels to provide you with some more backing data.
+> > 
+> > Thanks very much for revisiting this.
+> > 
+> >> Results are always the average of three iozone runs as it is known to be somewhat noisy - especially when affected by the issue I try to show here.
+> >> As discussed in detail in older threads the setup uses 16 disks and scales the number of concurrent iozone processes.
+> >> Processes are evenly distributed so that it always is one process per disk.
+> >> In the past we reported 40% to 80% degradation for the sequential read case based on 2.6.32 which can still be seen.
+> >> What we found was that the allocations for page cache with GFP_COLD flag loop a long time between try_to_free, get_page, reclaim as free makes some progress and due to that GFP_COLD allocations can loop and retry.
+> >> In addition my case had no writes at all, which forced congestion_wait to wait the full timeout all the time.
+> >>
+> >> Kernel (git)                   4          8         16   deviation #16 case                           comment
+> >> linux-2.6.30              902694    1396073    1892624                 base                              base
+> >> linux-2.6.32              752008     990425     932938               -50.7%     impact as reported in 1Q 2010
+> >> linux-2.6.35               63532      71573      64083               -96.6%                    got even worse
+> >> linux-2.6.35.6            176485     174442     212102               -88.8%  fixes useful, but still far away
+> >> linux-2.6.36-rc4-trace    119683     188997     187012               -90.1%                         still bad
+> >> linux-2.6.36-rc4-fix      884431    1114073    1470659               -22.3%            Mels fixes help a lot!
+> >>
+> [...]
+> > If all goes according to plan,
+> > kernel 2.6.37-rc1 will be of interest. Thanks again.
+> 
+> Here a measurement with 2.6.37-rc1 as confirmation of progress:
+>    linux-2.6.37-rc1          876588    1161876    1643430               -13.1%       even better than 2.6.36-fix
+> 
 
-On Nov 9, 2010, at 8:32 PM, Dave Chinner wrote:
+Ok, great. There were a few other changes related to reclaim and
+writeback that I expected to help, but was not certain. It's good to
+have confirmation.
 
-> Don't forget to mention data=3Dwriteback is not the default because if
-> your system crashes or you lose power running in this mode it will
-> *CORRUPT YOUR FILESYSTEM* and you *WILL LOSE DATA*. Not to mention
-> the significant security issues (e.g stale data exposure) that also
-> occur even if the filesystem is not corrupted by the crash. IOWs,
-> data=3Dwriteback is the "fast but I'll eat your data" option for ext3.
+> That means 2.6.37-rc1 really shows what we hoped for.
+> And it eventually even turned out a little bit better than 2.6.36 + your fixes.
+> 
 
-This is strictly speaking not true.  Using data=3Dwriteback will not =
-cause you to lose any data --- at least, not any more than you would =
-without the feature.   If you have applications that write files in an =
-unsafe way, that data is going to be lost, one way or another.  (i.e., =
-with XFS in a similar situation you'll get a zero-length file)   The =
-difference is that in the case of a system crash, there may be unwritten =
-data revealed if you use data=3Dwriteback.  This could be a security =
-exposure, especially if you are using your system in as time-sharing =
-system, and where you see the contents of deleted files belonging to =
-another user.
+Good. I looked over your data and I see we are still losing time but I
+haven't new ideas on how to improve it further yet without falling into the
+"special case" hole. I'll keep on it and hopefully we can get parity
+performance on read while still keeping the write improvements.
 
-So it is not an "eat your data" situation,  but rather, a "possibly =
-expose old data".   Whether or not you care on a single-user workstation =
-situation, is an individual judgement call.   There's been a lot of =
-controversy about this.
+Thanks a lot for testing this.
 
-The chance that this occurs using data=3Dwriteback in ext4 is much less, =
-BTW, because with delayed allocation we delay updating the inode until =
-right before we write the block.  I have a plan for changing things so =
-that we write the data blocks *first* and then update the metadata =
-blocks second, which will mean that ext4 data=3Dordered will go away =
-entirely, and we'll get both the safety and as well as avoiding the =
-forced data page writeouts during journal commits.
-
--- Ted
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
