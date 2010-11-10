@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id ABEC16B0085
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 16:01:26 -0500 (EST)
-Date: Wed, 10 Nov 2010 13:01:19 -0800
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B34416B004A
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 16:04:20 -0500 (EST)
+Date: Wed, 10 Nov 2010 13:04:07 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] fix __set_page_dirty_no_writeback() return value
-Message-Id: <20101110130119.ca352698.akpm@linux-foundation.org>
-In-Reply-To: <1289379628-14044-1-git-send-email-lliubbo@gmail.com>
+Subject: Re: [PATCH 2/2] clean up set_page_dirty()
+Message-Id: <20101110130407.f6228a10.akpm@linux-foundation.org>
+In-Reply-To: <1289379628-14044-2-git-send-email-lliubbo@gmail.com>
 References: <1289379628-14044-1-git-send-email-lliubbo@gmail.com>
+	<1289379628-14044-2-git-send-email-lliubbo@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,53 +17,52 @@ To: Bob Liu <lliubbo@gmail.com>
 Cc: fengguang.wu@intel.com, linux-mm@kvack.org, kenchen@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Nov 2010 17:00:27 +0800
+On Wed, 10 Nov 2010 17:00:28 +0800
 Bob Liu <lliubbo@gmail.com> wrote:
 
-> __set_page_dirty_no_writeback() should return true if it actually transitioned
-> the page from a clean to dirty state although it seems nobody used its return
-> value now.
+> Use TestSetPageDirty() to clean up set_page_dirty().
 > 
 > Signed-off-by: Bob Liu <lliubbo@gmail.com>
 > ---
->  mm/page-writeback.c |    4 +---
->  1 files changed, 1 insertions(+), 3 deletions(-)
+>  mm/page-writeback.c |    7 ++-----
+>  1 files changed, 2 insertions(+), 5 deletions(-)
 > 
 > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index bf85062..e8f5f06 100644
+> index e8f5f06..da86224 100644
 > --- a/mm/page-writeback.c
 > +++ b/mm/page-writeback.c
-> @@ -1157,9 +1157,7 @@ EXPORT_SYMBOL(write_one_page);
->   */
->  int __set_page_dirty_no_writeback(struct page *page)
->  {
-> -	if (!PageDirty(page))
-> -		SetPageDirty(page);
+> @@ -1268,11 +1268,8 @@ int set_page_dirty(struct page *page)
+>  #endif
+>  		return (*spd)(page);
+>  	}
+> -	if (!PageDirty(page)) {
+> -		if (!TestSetPageDirty(page))
+> -			return 1;
+> -	}
 > -	return 0;
+> +
 > +	return !TestSetPageDirty(page);
 >  }
+>  EXPORT_SYMBOL(set_page_dirty);
 
-The idea here is to avoid modifying the cacheline which contains the
-pageframe if that page was already dirty.  So that a set_page_dirty()
-against an already-dirty page doesn't result in the CPU having to
-perform writeback of the cacheline.
+This just undoes the optimisation.
 
-The code as it stands assumes that a test_and_set_bit() will
-unconditionally modify the target.  This might not be true of certain
-CPUs - perhaps they optimise away the write in that case, I don't know.
+We could do
 
-Yes, you're right, __set_page_dirty_no_writeback() should return the
-correct value.  But the way to do that while preserving this
-optimisation is
+-		if (!TestSetPageDirty(page))
+-			return 1;
++		return !TestSetPageDirty(page);
 
-	if (!PageDirty(page))
-		return !TestSetPageDirty(page);
-	return 0;
+I suppose.
+
+Or even
 
 
-This optimisation is used in quite a few places and is done in
-differeing ways depending upon what is being modified.  I've never
-really seen any quantification of its effectiveness.
+		return (!TestSetPageDirty(page) ^ 1);
+
+if we're feeling stupid, and if TestSetPageDirty() reliably returns
+1/0, and if that really is superior (by eliminating a test-n-branch).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
