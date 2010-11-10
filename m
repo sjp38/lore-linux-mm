@@ -1,67 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 32A436B0087
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 11:04:47 -0500 (EST)
-Date: Wed, 10 Nov 2010 17:03:52 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 01 of 66] disable lumpy when compaction is enabled
-Message-ID: <20101110160352.GJ6809@random.random>
-References: <patchbomb.1288798055@v2.random>
- <ca2fea6527833aad8adc.1288798056@v2.random>
- <20101109121318.BC51.A69D9226@jp.fujitsu.com>
- <20101109213049.GC6809@random.random>
- <20101109213855.GM32723@csn.ul.ie>
- <20101109222240.GH6809@random.random>
- <20101110142704.GA19679@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 00FCF6B0088
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 11:07:54 -0500 (EST)
+Received: from mail-pv0-f169.google.com (mail-pv0-f169.google.com [74.125.83.169])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id oAAG7ODR016994
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 08:07:24 -0800
+Received: by pvc30 with SMTP id 30so170707pvc.14
+        for <linux-mm@kvack.org>; Wed, 10 Nov 2010 08:07:19 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101110142704.GA19679@csn.ul.ie>
+In-Reply-To: <20101110013255.GR2715@dastard>
+References: <20101105014334.GF13830@dastard> <E1PELiI-0001Pj-8g@approx.mit.edu>
+ <AANLkTimON_GL6vRF9=_U6oRFQ30EYssx3wv5xdNsU9JM@mail.gmail.com>
+ <4CD696B4.6070002@kernel.dk> <AANLkTikNPEcwWjEQuC-_=9yH5DCCiwUAY265ggeygcSQ@mail.gmail.com>
+ <20101110013255.GR2715@dastard>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 10 Nov 2010 07:59:10 -0800
+Message-ID: <AANLkTinpLuzd5c+WqXoa_0Z=nv=mDgd-k4QZbBZHsQnD@mail.gmail.com>
+Subject: Re: 2.6.36 io bring the system to its knees
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jens Axboe <axboe@kernel.dk>, dave b <db.pub.mail@gmail.com>, Sanjoy Mahajan <sanjoy@olin.edu>, Jesper Juhl <jj@chaosbits.net>, Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ted Ts'o <tytso@mit.edu>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Steven Barrett <damentz@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 10, 2010 at 02:27:04PM +0000, Mel Gorman wrote:
-> Agreed. Any performance increase from THP is not likely to offset the
-> cost of lumpy reclaim.
+On Tue, Nov 9, 2010 at 5:32 PM, Dave Chinner <david@fromorbit.com> wrote:
+>
+> Don't forget to mention data=writeback is not the default because if
+> your system crashes or you lose power running in this mode it will
+> *CORRUPT YOUR FILESYSTEM* and you *WILL LOSE DATA*.
 
-Exactly. Furthermore the improvement will still happen later by
-polling compaction once every 10 sec with khugepaged (this is also
-required in case some other guest or application quit releasing tons
-of ram maybe natively order 9 in the buddy without requiring any
-further compaction invocation).
+You will lose data even with data=ordered. All the data that didn't
+get logged before the crash is lost anyway.
 
-What the default should be I don't know, but I like a default that
-fails without causing swap storms. If you want the swap storms and to
-drop all ptes regardless of their young bits, you should ask
-explicitly for it I think. Anybody asking for high order allocation
-and pretending to succeed despite the anti-frag and movable pageblocks
-migrated with compaction aren't enough to succeed should be able to
-handle a full graceful failure like THP does by design (or worst case
-to return error to userland). As far as I can tell tg3 atomic order 2
-allocation also provides for a graceful fallback for the same reason
-(however in new mainline it floods the dmesg with tons of printk,
-which it didn't used to with older kernels but it's not an actual
-regression).
+So your argument is kind of dishonest. The thing is, if you have a
+crash or power outage or whatever, the only data you can really rely
+on is always going to be the data that you fsync'ed before the crash.
+Everything else is just gravy.
 
-> Again agreed, I have no problem with lumpy reclaim being pushed aside.
-> I'm just less keen on it being disabled altogether. I have high hopes
-> for the series I'm working on that it can be extended slightly to suit
-> the needs of THP.
+Are there downsides to "data=writeback"? Absolutely. But anybody who
+tries to push those downsides without taking the performance and
+latency issues into account is just not thinking straight.
 
-Great. Well this is also why I disabled it with the smallest possible
-modification, to avoid stepping on your toes.
+Too many people think that "correct" is somehow black-and-white. It's
+not. "The correct answer too late" is not worth anything. Sane people
+understand that "good enough" is important.
 
-> Nah, the first thing I did was eliminate being "my fault" :). It would
-> have surprised me because the patches in isolation worked fine. It
-> thought the inode changes might have had something to do with it so I
-> was chasing blind alleys for a while. Hopefully d065bd81 will prove to
-> be the real problem.
+And quite frankly, "data=writeback" is not wonderful, but it's "good
+enough". And it helps enormously with at least one class of serious
+performance problems. Dismissing it because it doesn't have quite the
+guarantees of "data=ordered" is like saying that you should never use
+"pi=3.14" for any calculations because it's not as exact as
+"pi=3.14159265". The thing is, for many things, three significant
+digits (or even _one_ significant digit) is plenty.
 
-Well I wasn't sure if you tested it already on that very workload, the
-patches weren't from you (even if you were in the signoffs). I
-mentioned it just in case, glad it's not related :).
+ext3 [f]sync sucks. We know. All filesystems suck. They just tend to
+do it in different dimensions.
+
+                         Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
