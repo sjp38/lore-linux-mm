@@ -1,66 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id EAE826B004A
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 09:49:19 -0500 (EST)
-Received: by fxm20 with SMTP id 20so425841fxm.14
-        for <linux-mm@kvack.org>; Wed, 10 Nov 2010 06:49:17 -0800 (PST)
-Subject: Re: [PATCH v2]mm/oom-kill: direct hardware access processes should
- get bonus
-From: "Figo.zhang" <figo1802@gmail.com>
-In-Reply-To: <alpine.DEB.2.00.1011091307240.7730@chino.kir.corp.google.com>
-References: <1288662213.10103.2.camel@localhost.localdomain>
-	 <1289305468.10699.2.camel@localhost.localdomain>
-	 <alpine.DEB.2.00.1011091307240.7730@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 10 Nov 2010 22:48:16 +0800
-Message-ID: <1289400496.10699.21.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 067766B004A
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 09:55:50 -0500 (EST)
+Date: Wed, 10 Nov 2010 09:55:11 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: 2.6.36 io bring the system to its knees
+Message-ID: <20101110145511.GA22073@infradead.org>
+References: <20101105014334.GF13830@dastard>
+ <E1PELiI-0001Pj-8g@approx.mit.edu>
+ <AANLkTimON_GL6vRF9=_U6oRFQ30EYssx3wv5xdNsU9JM@mail.gmail.com>
+ <4CD696B4.6070002@kernel.dk>
+ <AANLkTikNPEcwWjEQuC-_=9yH5DCCiwUAY265ggeygcSQ@mail.gmail.com>
+ <20101110013255.GR2715@dastard>
+ <20101110142037.GA1447@ucw.cz>
+ <20101110142721.GA14496@elte.hu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101110142721.GA14496@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Pavel Machek <pavel@ucw.cz>, Dave Chinner <david@fromorbit.com>, Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, dave b <db.pub.mail@gmail.com>, Sanjoy Mahajan <sanjoy@olin.edu>, Jesper Juhl <jj@chaosbits.net>, Chris Mason <chris.mason@oracle.com>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ted Ts'o <tytso@mit.edu>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Steven Barrett <damentz@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-11-09 at 13:16 -0800, David Rientjes wrote:
-> On Tue, 9 Nov 2010, Figo.zhang wrote:
+On Wed, Nov 10, 2010 at 03:27:21PM +0100, Ingo Molnar wrote:
+> That is data that was freshly touched around the time the system went down, right?
 > 
-> >  
-> > the victim should not directly access hardware devices like Xorg server,
-> > because the hardware could be left in an unpredictable state, although 
-> > user-application can set /proc/pid/oom_score_adj to protect it. so i think
-> > those processes should get 3% bonus for protection.
-> > 
-> 
-> The logic here is wrong: if killing these tasks can leave hardware in an 
-> unpredictable state (and that state is presumably harmful), then they 
-> should be completely immune from oom killing since you're still leaving 
-> them exposed here to be killed.
+> I.e. data that was probably half-modified by user-space to begin with.
 
-we let the processes with hardware access get bonus for protection. the
-goal is not select them to be killed as possible.
-
-
-> 
-> So the question that needs to be answered is: why do these threads deserve 
-> to use 3% more memory (not >4%) than others without getting killed?  If 
-> there was some evidence that these threads have a certain quantity of 
-> memory they require as a fundamental attribute of CAP_SYS_RAWIO, then I 
-> have no objection, but that's going to be expressed in a memory quantity 
-> not a percentage as you have here.
-> 
-> The CAP_SYS_ADMIN heuristic has a background: it is used in the oom killer 
-> because we have used the same 3% in __vm_enough_memory() for a long time 
-> and we want consistency amongst the heuristics.  Adding additional bonuses 
-> with arbitrary values like 3% of memory for things like CAP_SYS_RAWIO 
-> makes the heuristic less predictable and moves us back toward the old 
-> heuristic which was almost entirely arbitrary.
-
-
-yes, i think it is be better those processes which be protection maybe
-divided the badness score by 4, like old heuristic.
-
-
-
+It's data that wasn't synced out yet, yes.  Which isn't the problem per
+se.  With ext3/4 in ordered mode, or xfs, or btrfs the file size won't
+be incremented until the data is written.  in ext3/4 in writeback mode
+(or various non-journaling filesystems) however the inode size is
+updated, and metadagta changes are logged.  Besides exposing stale
+data which is a security risk in multi-user systems it also means the
+inode looks modified (by size and timestamps), but contains other data
+than actually written.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
