@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 55C716B004A
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 19:51:28 -0500 (EST)
-Received: by iwn9 with SMTP id 9so94783iwn.14
-        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 16:51:24 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 03B8B6B004A
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 20:01:17 -0500 (EST)
+Received: by qyk5 with SMTP id 5so2467839qyk.14
+        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 17:01:15 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1289294671-6865-2-git-send-email-gthelen@google.com>
+In-Reply-To: <1289294671-6865-6-git-send-email-gthelen@google.com>
 References: <1289294671-6865-1-git-send-email-gthelen@google.com>
-	<1289294671-6865-2-git-send-email-gthelen@google.com>
-Date: Wed, 10 Nov 2010 09:51:23 +0900
-Message-ID: <AANLkTikteK-3gVghEu7egfUH+Ngfm1e7aQMyz1KBZ0nT@mail.gmail.com>
-Subject: Re: [PATCH 1/6] memcg: add mem_cgroup parameter to mem_cgroup_page_stat()
+	<1289294671-6865-6-git-send-email-gthelen@google.com>
+Date: Wed, 10 Nov 2010 10:01:14 +0900
+Message-ID: <AANLkTin9rfeipUsy1GaT1suP+ivES-cK5U2o26i4hCtE@mail.gmail.com>
+Subject: Re: [PATCH 5/6] memcg: simplify mem_cgroup_dirty_info()
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
@@ -19,12 +19,20 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.i
 List-ID: <linux-mm.kvack.org>
 
 On Tue, Nov 9, 2010 at 6:24 PM, Greg Thelen <gthelen@google.com> wrote:
-> This new parameter can be used to query dirty memory usage
-> from a given memcg rather than the current task's memcg.
+> Because mem_cgroup_page_stat() no longer returns negative numbers
+
+I tried to understand why mem_cgroup_page_stat doesn't return negative
+number any more for a while.
+I couldn't find answer by current patches 5/6.
+The answer is where 6/6.
+It would be better to change 6/6 with 5/6.
+
+
+> to indicate failure, mem_cgroup_dirty_info() does not need to check
+> for such failures.
 >
 > Signed-off-by: Greg Thelen <gthelen@google.com>
 Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-
 
 -- 
 Kind regards,
