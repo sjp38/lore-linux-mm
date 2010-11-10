@@ -1,34 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D0FE46B0087
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 10:03:34 -0500 (EST)
-Content-Type: text/plain; charset=UTF-8
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: 2.6.36 io bring the system to its knees
-In-reply-to: <20101110145712.GB22073@infradead.org>
-References: <20101105014334.GF13830@dastard> <E1PELiI-0001Pj-8g@approx.mit.edu> <AANLkTimON_GL6vRF9=_U6oRFQ30EYssx3wv5xdNsU9JM@mail.gmail.com> <4CD696B4.6070002@kernel.dk> <AANLkTikNPEcwWjEQuC-_=9yH5DCCiwUAY265ggeygcSQ@mail.gmail.com> <20101110013255.GR2715@dastard> <C70A546B-6BC5-49CA-9E34-E69F494A71A0@mit.edu> <20101110145712.GB22073@infradead.org>
-Date: Wed, 10 Nov 2010 10:00:36 -0500
-Message-Id: <1289401148-sup-3632@think>
-Content-Transfer-Encoding: 8bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E3DCA6B0087
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 10:15:54 -0500 (EST)
+Received: by pzk32 with SMTP id 32so147677pzk.14
+        for <linux-mm@kvack.org>; Wed, 10 Nov 2010 07:15:52 -0800 (PST)
+Subject: [PATCH v3]mm/oom-kill: direct hardware access processes should get
+ bonus
+From: "Figo.zhang" <figo1802@gmail.com>
+In-Reply-To: <1289305468.10699.2.camel@localhost.localdomain>
+References: <1288662213.10103.2.camel@localhost.localdomain>
+	 <1289305468.10699.2.camel@localhost.localdomain>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 10 Nov 2010 23:14:53 +0800
+Message-ID: <1289402093.10699.25.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Theodore Tso <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, dave b <db.pub.mail@gmail.com>, Sanjoy Mahajan <sanjoy@olin.edu>, Jesper Juhl <jj@chaosbits.net>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Steven Barrett <damentz@gmail.com>
+To: lkml <linux-kernel@vger.kernel.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, "rientjes@google.com" <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Figo.zhang" <zhangtianfei@leadcoretech.com>
 List-ID: <linux-mm.kvack.org>
 
-Excerpts from Christoph Hellwig's message of 2010-11-10 09:57:12 -0500:
-> On Wed, Nov 10, 2010 at 09:33:29AM -0500, Theodore Tso wrote:
-> > The chance that this occurs using data=writeback in ext4 is much less, BTW, because with delayed allocation we delay updating the inode until right before we write the block.  I have a plan for changing things so that we write the data blocks *first* and then update the metadata blocks second, which will mean that ext4 data=ordered will go away entirely, and we'll get both the safety and as well as avoiding the forced data page writeouts during journal commits.
-> 
-> That's the scheme used by XFS and btrfs in one form or another.  Chris
-> also had a patch to implement it for ext3, which unfortunately fell
-> under the floor.
+the victim should not directly access hardware devices like Xorg server,
+because the hardware could be left in an unpredictable state, although 
+user-application can set /proc/pid/oom_score_adj to protect it. so i think
+those processes should get bonus for protection.
 
-It probably still applies, but by the time I had it stable I realized
-that ext4 was really a better place to fix this stuff.  ext3 is what it
-is (good and bad), and a big change like my data=guarded code probably
-isn't the best way to help.
+in v2, fix the incorrect comment.
+in v3, change the divided the badness score by 4, like old heuristic for protection. we just
+want the oom_killer don't select Root/RESOURCE/RAWIO process as possible.
 
--chris
+suppose that if a user process A such as email cleint "evolution" and a process B with
+ditecly hareware access such as "Xorg", they have eat the equal memory (the badness score is 
+the same),so which process are you want to kill? so in new heuristic, it will kill the process B.
+but in reality, we want to kill process A.
+
+Signed-off-by: Figo.zhang <figo1802@gmail.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+mm/oom_kill.c |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 4029583..f43d759 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -202,6 +202,15 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
+ 		points -= 30;
+ 
+ 	/*
++	 * Root and direct hareware access processor are usually more 
++	 * important, so them should get bonus for protection. 
++	 */
++	if (has_capability_noaudit(p, CAP_SYS_ADMIN) ||
++	    has_capability_noaudit(p, CAP_SYS_RESOURCE) ||
++	    has_capability_noaudit(p, CAP_SYS_RAWIO))
++		points /= 4;
++
++	/*
+ 	 * /proc/pid/oom_score_adj ranges from -1000 to +1000 such that it may
+ 	 * either completely disable oom killing or always prefer a certain
+ 	 * task.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
