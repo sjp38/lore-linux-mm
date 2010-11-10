@@ -1,69 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E39266B004A
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 20:28:22 -0500 (EST)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: mem_cgroup_get_limit() return type, was [patch] memcg: fix unit mismatch in memcg oom limit calculation
-References: <20101109110521.GS23393@cmpxchg.org>
-	<xr93iq068dyd.fsf@ninji.mtv.corp.google.com>
-	<alpine.DEB.2.00.1011091327420.7730@chino.kir.corp.google.com>
-	<xr9362w66tss.fsf@ninji.mtv.corp.google.com>
-	<alpine.DEB.2.00.1011091519420.26837@chino.kir.corp.google.com>
-Date: Tue, 09 Nov 2010 17:26:34 -0800
-In-Reply-To: <alpine.DEB.2.00.1011091519420.26837@chino.kir.corp.google.com>
-	(David Rientjes's message of "Tue, 9 Nov 2010 15:21:50 -0800 (PST)")
-Message-ID: <xr93vd4655px.fsf@ninji.mtv.corp.google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 59D386B004A
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 20:34:52 -0500 (EST)
+Date: Wed, 10 Nov 2010 12:32:55 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: 2.6.36 io bring the system to its knees
+Message-ID: <20101110013255.GR2715@dastard>
+References: <20101105014334.GF13830@dastard>
+ <E1PELiI-0001Pj-8g@approx.mit.edu>
+ <AANLkTimON_GL6vRF9=_U6oRFQ30EYssx3wv5xdNsU9JM@mail.gmail.com>
+ <4CD696B4.6070002@kernel.dk>
+ <AANLkTikNPEcwWjEQuC-_=9yH5DCCiwUAY265ggeygcSQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTikNPEcwWjEQuC-_=9yH5DCCiwUAY265ggeygcSQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@in.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Jens Axboe <axboe@kernel.dk>, dave b <db.pub.mail@gmail.com>, Sanjoy Mahajan <sanjoy@olin.edu>, Jesper Juhl <jj@chaosbits.net>, Chris Mason <chris.mason@oracle.com>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Aidar Kultayev <the.aidar@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Arjan van de Ven <arjan@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ted Ts'o <tytso@mit.edu>, Corrado Zoccolo <czoccolo@gmail.com>, Shaohua Li <shaohua.li@intel.com>, Steven Barrett <damentz@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-David Rientjes <rientjes@google.com> writes:
+On Sun, Nov 07, 2010 at 07:50:13AM -0800, Linus Torvalds wrote:
+> On Sun, Nov 7, 2010 at 4:08 AM, Jens Axboe <axboe@kernel.dk> wrote:
+> >
+> > As already mentioned, ext3 is just not a good choice for this sort of
+> > thing. Did you have atimes enabled?
+> 
+> At least for ext3, more important than atimes is the "data=writeback"
+> setting. Especially since our atime default is sane these days (ie if
+> you don't specify anything, we end up using 'relatime').
+> 
+> If you compile your own kernel, answer "N" to the question
+> 
+>   Default to 'data=ordered' in ext3?
+> 
+> at config time (CONFIG_EXT3_DEFAULTS_TO_ORDERED), or you can make sure
+> "data=writeback" is in the fstab (but I don't think everything honors
+> it for the root filesystem).
 
-> On Tue, 9 Nov 2010, Greg Thelen wrote:
->
->> >> > Adding the number of swap pages to the byte limit of a memory control
->> >> > group makes no sense.  Convert the pages to bytes before adding them.
->> >> >
->> >> > The only user of this code is the OOM killer, and the way it is used
->> >> > means that the error results in a higher OOM badness value.  Since the
->> >> > cgroup limit is the same for all tasks in the cgroup, the error should
->> >> > have no practical impact at the moment.
->> >> >
->> >> > But let's not wait for future or changing users to trip over it.
->> >> 
->> >> Thanks for the fix.
->> >> 
->> >
->> > Nice catch, but it's done in the opposite way: the oom killer doesn't use 
->> > byte limits but page limits.  So this needs to be
->> >
->> > 	(res_counter_read_u64(&memcg->res, RES_LIMIT) >> PAGE_SHIFT) +
->> > 			total_swap_pages;
->> 
->> In -mm, the oom killer queries memcg for a byte limit using
->> mem_cgroup_get_limit(). The following is from
->> mem_cgroup_out_of_memory():
->> 
->> 	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
->> 
->
-> Oops, I missed that.  I think Johannes' patch is better because 
-> mem_cgroup_get_limit() may eventually be used elsewhere and the subsystem 
-> has byte granularity.
+Don't forget to mention data=writeback is not the default because if
+your system crashes or you lose power running in this mode it will
+*CORRUPT YOUR FILESYSTEM* and you *WILL LOSE DATA*. Not to mention
+the significant security issues (e.g stale data exposure) that also
+occur even if the filesystem is not corrupted by the crash. IOWs,
+data=writeback is the "fast but I'll eat your data" option for ext3.
 
-I have no problem with mem_cgroup_get_limit() returning a byte count as
-you prefer.  I think this approach does have an issue.
-"mem_cgroup_get_limit() >> PAGE_SHIFT" may not fit within unsigned long
-on 32-bit machines.  Does this cause a problem for the 'limit' local
-variable in mem_cgroup_out_of_memory():
- 	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
+So I recommend that nobody follows this path because it only leads
+to worse trouble down the road.  Your best bet it to migrate away
+from ext3 to a filesystem that doesn't have such inherent ordering
+problems like ext4 or XFS....
 
-Do we need something like the following in mem_cgroup_out_of_memory() to
-guard against this overflow?
- 	limit = min(mem_cgroup_get_limit(mem) >> PAGE_SHIFT, ULONG_MAX);
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
