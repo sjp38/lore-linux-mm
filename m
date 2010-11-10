@@ -1,68 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 333416B0071
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 17:10:56 -0500 (EST)
-Date: Thu, 11 Nov 2010 09:10:38 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Propagating GFP_NOFS inside __vmalloc()
-Message-ID: <20101110221038.GX2715@dastard>
-References: <1289421759.11149.59.camel@oralap>
- <1289424955.11149.73.camel@oralap>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1289424955.11149.73.camel@oralap>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 95E816B004A
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 18:17:34 -0500 (EST)
+Date: Wed, 10 Nov 2010 15:16:37 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch]vmscan: avoid set zone congested if no page dirty
+Message-Id: <20101110151637.69393904.akpm@linux-foundation.org>
+In-Reply-To: <1288831858.23014.129.camel@sli10-conroe>
+References: <1288831858.23014.129.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Ricardo M. Correia" <ricardo.correia@oracle.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Brian Behlendorf <behlendorf1@llnl.gov>, Andreas Dilger <andreas.dilger@oracle.com>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: linux-mm <linux-mm@kvack.org>, mel <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 10, 2010 at 10:35:55PM +0100, Ricardo M. Correia wrote:
-> On Wed, 2010-11-10 at 21:42 +0100, Ricardo M. Correia wrote:
-> > Hi,
-> > 
-> > As part of Lustre filesystem development, we are running into a
-> > situation where we (sporadically) need to call into __vmalloc() from a
-> > thread that processes I/Os to disk (it's a long story).
-> > 
-> > In general, this would be fine as long as we pass GFP_NOFS to
-> > __vmalloc(), but the problem is that even if we pass this flag, vmalloc
-> > itself sometimes allocates memory with GFP_KERNEL.
-> 
-> By the way, it seems that existing users in Linus' tree may be
-> vulnerable to the same bug that we experienced:
-> 
-> In GFS:
->     8   1253  fs/gfs2/dir.c <<gfs2_alloc_sort_buffer>>
->              ptr = __vmalloc(size, GFP_NOFS, PAGE_KERNEL);
-> 
-> The Ceph filesystem:
->   20     22  net/ceph/buffer.c <<ceph_buffer_new>>
->              b->vec.iov_base = __vmalloc(len, gfp, PAGE_KERNEL);
-> .. which can be called from:
->    3    560  fs/ceph/inode.c <<fill_inode>>
->              xattr_blob = ceph_buffer_new(iinfo->xattr_len, GFP_NOFS);
-> 
-> In the MM code:
->   18   5184  mm/page_alloc.c <<alloc_large_system_hash>>
->              table = __vmalloc(size, GFP_ATOMIC, PAGE_KERNEL);
-> 
-> All of these seem to be vulnerable to GFP_KERNEL allocations from within
-> __vmalloc(), at least on x86-64 (as I've detailed below).
+On Thu, 04 Nov 2010 08:50:58 +0800
+Shaohua Li <shaohua.li@intel.com> wrote:
 
-Hmmm. I'd say there's a definite possibility that vm_map_ram() as
-called from in fs/xfs/linux-2.6/xfs_buf.c needs to use GFP_NOFS
-allocation, too. Currently vm_map_ram() just uses GFP_KERNEL
-internally, but is certainly being called in contexts where we don't
-allow recursion (e.g. in a transaction) so probably should allow a
-gfp mask to be passed in....
+> nr_dirty and nr_congested are increased only when page is dirty. So if all pages
+> are clean, both them will be zero. In this case, we should not mark the zone
+> congested.
+> 
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index b8a6fdc..d31d7ce 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -913,7 +913,7 @@ keep_lumpy:
+>  	 * back off and wait for congestion to clear because further reclaim
+>  	 * will encounter the same problem
+>  	 */
+> -	if (nr_dirty == nr_congested)
+> +	if (nr_dirty == nr_congested && nr_dirty != 0)
+>  		zone_set_flag(zone, ZONE_CONGESTED);
+>  
+>  	free_page_list(&free_pages);
 
-Cheers,
+In a way, this was a really big bug.  Reclaim will set the zone as
+congested a *lot* - when reclaiming simple, clean pagecache.  It does
+appear that kswapd will unset it a lot too, so the net effect isn't
+obvious.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+However most of the time, the atomic_read(&nr_bdi_congested[sync]) in
+wait_iff_congested() will prevent this bug from causing harm.
+
+
+
+btw, it's irritating that we have this asymmetry:
+
+setter: zone_set_flag(zone, ZONE_CONGESTED)
+getter: zone_is_reclaim_congested(zone)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
