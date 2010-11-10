@@ -1,43 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 250FD6B0085
-	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 20:04:32 -0500 (EST)
-Received: by vws18 with SMTP id 18so2692vws.14
-        for <linux-mm@kvack.org>; Tue, 09 Nov 2010 17:04:29 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id E39266B004A
+	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 20:28:22 -0500 (EST)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: mem_cgroup_get_limit() return type, was [patch] memcg: fix unit mismatch in memcg oom limit calculation
+References: <20101109110521.GS23393@cmpxchg.org>
+	<xr93iq068dyd.fsf@ninji.mtv.corp.google.com>
+	<alpine.DEB.2.00.1011091327420.7730@chino.kir.corp.google.com>
+	<xr9362w66tss.fsf@ninji.mtv.corp.google.com>
+	<alpine.DEB.2.00.1011091519420.26837@chino.kir.corp.google.com>
+Date: Tue, 09 Nov 2010 17:26:34 -0800
+In-Reply-To: <alpine.DEB.2.00.1011091519420.26837@chino.kir.corp.google.com>
+	(David Rientjes's message of "Tue, 9 Nov 2010 15:21:50 -0800 (PST)")
+Message-ID: <xr93vd4655px.fsf@ninji.mtv.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <1289294671-6865-7-git-send-email-gthelen@google.com>
-References: <1289294671-6865-1-git-send-email-gthelen@google.com>
-	<1289294671-6865-7-git-send-email-gthelen@google.com>
-Date: Wed, 10 Nov 2010 10:04:29 +0900
-Message-ID: <AANLkTi=fZq_+DiD+E__KhgTQz86eTrALGE9M7twX3hgB@mail.gmail.com>
-Subject: Re: [PATCH 6/6] memcg: make mem_cgroup_page_stat() return value unsigned
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@in.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 9, 2010 at 6:24 PM, Greg Thelen <gthelen@google.com> wrote:
-> mem_cgroup_page_stat() used to return a negative page count
-> value to indicate value.
->
-> mem_cgroup_page_stat() has changed so it never returns
-> error so convert the return value to the traditional page
-> count type (unsigned long).
->
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+David Rientjes <rientjes@google.com> writes:
 
-It seems to be late review. Just 1 day.
-I don't know why Andrew merge it in a hurry without any review.
-Anyway, I add my Reviewed-by in this series since my eyes can't find
-any big bug.
+> On Tue, 9 Nov 2010, Greg Thelen wrote:
+>
+>> >> > Adding the number of swap pages to the byte limit of a memory control
+>> >> > group makes no sense.  Convert the pages to bytes before adding them.
+>> >> >
+>> >> > The only user of this code is the OOM killer, and the way it is used
+>> >> > means that the error results in a higher OOM badness value.  Since the
+>> >> > cgroup limit is the same for all tasks in the cgroup, the error should
+>> >> > have no practical impact at the moment.
+>> >> >
+>> >> > But let's not wait for future or changing users to trip over it.
+>> >> 
+>> >> Thanks for the fix.
+>> >> 
+>> >
+>> > Nice catch, but it's done in the opposite way: the oom killer doesn't use 
+>> > byte limits but page limits.  So this needs to be
+>> >
+>> > 	(res_counter_read_u64(&memcg->res, RES_LIMIT) >> PAGE_SHIFT) +
+>> > 			total_swap_pages;
+>> 
+>> In -mm, the oom killer queries memcg for a byte limit using
+>> mem_cgroup_get_limit(). The following is from
+>> mem_cgroup_out_of_memory():
+>> 
+>> 	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
+>> 
+>
+> Oops, I missed that.  I think Johannes' patch is better because 
+> mem_cgroup_get_limit() may eventually be used elsewhere and the subsystem 
+> has byte granularity.
 
-Thanks.
--- 
-Kind regards,
-Minchan Kim
+I have no problem with mem_cgroup_get_limit() returning a byte count as
+you prefer.  I think this approach does have an issue.
+"mem_cgroup_get_limit() >> PAGE_SHIFT" may not fit within unsigned long
+on 32-bit machines.  Does this cause a problem for the 'limit' local
+variable in mem_cgroup_out_of_memory():
+ 	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
+
+Do we need something like the following in mem_cgroup_out_of_memory() to
+guard against this overflow?
+ 	limit = min(mem_cgroup_get_limit(mem) >> PAGE_SHIFT, ULONG_MAX);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
