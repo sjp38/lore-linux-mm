@@ -1,88 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BF9C6B004A
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 15:45:44 -0500 (EST)
-Subject: Propagating GFP_NOFS inside __vmalloc()
-From: "Ricardo M. Correia" <ricardo.correia@oracle.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 10 Nov 2010 21:42:39 +0100
-Message-ID: <1289421759.11149.59.camel@oralap>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A1BA6B004A
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 15:51:02 -0500 (EST)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id oAAKov3G012303
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 12:50:57 -0800
+Received: from pzk35 (pzk35.prod.google.com [10.243.19.163])
+	by hpaq3.eem.corp.google.com with ESMTP id oAAKoftt028112
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 12:50:56 -0800
+Received: by pzk35 with SMTP id 35so331422pzk.35
+        for <linux-mm@kvack.org>; Wed, 10 Nov 2010 12:50:55 -0800 (PST)
+Date: Wed, 10 Nov 2010 12:50:49 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2]oom-kill: CAP_SYS_RESOURCE should get bonus
+In-Reply-To: <1289399891.10699.14.camel@localhost.localdomain>
+Message-ID: <alpine.DEB.2.00.1011101242240.830@chino.kir.corp.google.com>
+References: <1288834737.2124.11.camel@myhost> <alpine.DEB.2.00.1011031847450.21550@chino.kir.corp.google.com> <20101109195726.BC9E.A69D9226@jp.fujitsu.com> <20101109122437.2e0d71fd@lxorguk.ukuu.org.uk> <alpine.DEB.2.00.1011091300510.7730@chino.kir.corp.google.com>
+ <1289399891.10699.14.camel@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Brian Behlendorf <behlendorf1@llnl.gov>, Andreas Dilger <andreas.dilger@oracle.com>
+To: "Figo.zhang" <figo1802@gmail.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Figo.zhang" <zhangtianfei@leadcoretech.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, 10 Nov 2010, Figo.zhang wrote:
 
-As part of Lustre filesystem development, we are running into a
-situation where we (sporadically) need to call into __vmalloc() from a
-thread that processes I/Os to disk (it's a long story).
+> > I didn't check earlier, but CAP_SYS_RESOURCE hasn't had a place in the oom 
+> > killer's heuristic in over five years, so what regression are we referring 
+> > to in this thread?  These tasks already have full control over 
+> > oom_score_adj to modify its oom killing priority in either direction.
+> 
+> yes, it can control by user, but is it all system administrators will
+> adjust all of the processes by each one and one in real word? suppose if
+> it has thousands of processes in database system.
+> 
 
-In general, this would be fine as long as we pass GFP_NOFS to
-__vmalloc(), but the problem is that even if we pass this flag, vmalloc
-itself sometimes allocates memory with GFP_KERNEL.
+Yes, the kernel can't possibly know the oom killing priorities of your 
+task so if you have such requirements then you must use the userspace 
+tunable.
 
-This is not OK for us because the GFP_KERNEL allocations may go into the
-synchronous reclaim path and try to write out data to disk (in order to
-free memory for the allocation), which leads to a deadlock because those
-reclaims may themselves depend on the thread that is doing the
-allocation to make forward progress (which it can't, because it's
-blocked trying to allocate the memory).
+> > Futhermore, the heuristic was entirely rewritten, but I wouldn't consider 
+> > all the old factors such as cputime and nice level being removed as 
+> > "regressions" since the aim was to make it more predictable and more 
+> > likely to kill a large consumer of memory such that we don't have to kill 
+> > more tasks in the near future.
+> 
+> the goal of oom_killer is to find out the best process to kill, the one
+> should be:
+> 1. it is a most memory comsuming process in all processes
+> 2. and it was a proper process to kill, which will not be let system 
+> into unpredictable state as possible.
+> 
 
-Andreas suggested that this may be a bug in __vmalloc(), in the sense
-that it's not propagating the gfp_mask that the caller requested to all
-allocations that happen inside it.
+There are four types of tasks that are improper to kill and this is 
+relatively unchanged in the past five years of the oom killer:
 
-On the latest torvalds git tree, for x86-64, the path for these
-GFP_KERNEL allocations go something like this:
+ - init,
 
-__vmalloc()
-  __vmalloc_node()
-    __vmalloc_area_node()
-      map_vm_area()
-        vmap_page_range()
-          vmap_pud_range()
-            vmap_pmd_range()
-              pmd_alloc()
-                __pmd_alloc()
-                  pmd_alloc_one()
-                    get_zeroed_page() <-- GFP_KERNEL
-              vmap_pte_range()
-                pte_alloc_kernel()
-                  __pte_alloc_kernel()
-                    pte_alloc_one_kernel()
-                      get_free_page() <-- GFP_KERNEL
+ - kthreads,
 
-We've actually observed these deadlocks during testing (although in an
-older kernel).
+ - tasks that are bound to a disjoint set of cpuset mems or mempolicy 
+   nodes that are not oom, and
 
-Andreas suggested that we should fix __vmalloc() to propagate the
-caller-passed gfp_mask all the way to those allocating functions. This
-may require fixing these interfaces for all architectures.
+ - those disabled from oom killing by userspace.
 
-I also suggested that it would be nice to have a per-task
-gfp_allowed_mask, similar to the existing gfp_allowed_mask /
-set_gfp_allowed_mask() interface that exists in the kernel, but instead
-of being global to the entire system, it would be stored in the thread's
-task_struct and only apply in the context of the current thread.
+That does not include CAP_SYS_RESOURCE, nor CAP_SYS_ADMIN.  Your argument 
+about killing some tasks that have CAP_SYS_RESOURCE leaving hardware in an 
+unpredictable state isn't even addressed by your own patch, you only give 
+them a 3% memory bonus so they are still eligible.
 
-This would allow us to call a function when our I/O threads are created,
-say set_thread_gfp_allowed_mask(~__GFP_IO), to make sure that any kernel
-allocations that happen in the context of those threads would have
-__GFP_IO masked out.
+As mentioned previously, for this patch to make sense, you would need to 
+show that CAP_SYS_RESOURCE equates to 3% of the available memory's 
+capacity for a task.  I don't believe that evidence has been presented.  
+This has nothing to do with preventing these threads from being killed (at 
+the risk of possibly panicking the machine) since your patch doesn't do 
+that.
 
-I am willing to code and send out any of those 2 patches (the vmalloc
-fix and/or the per-thread gfp mask), and I was wondering if this is
-something you'd be willing to accept into the upstream kernel, or if you
-have any other ideas as to how to prevent all __GFP_IO allocations from
-the kernel itself in the context of threads that perform I/O.
+> if a user process and a process such email cleint "evolution" with
+> ditecly hareware access such as "Xorg", they have eat the equal memory,
+> so which process are you want to kill?
+> 
 
-(Please reply-to-all as we are not subscribed to linux-mm).
+Both have equal oom killing priority according to the heuristic if they 
+are not run by root.  If you would like to protect Xorg, then you need to 
+use the userspace tunable to protect it just like everything else does.  
+This is completely unchanged from the oom killer rewrite.
 
-Thanks,
-Ricardo
+If you actually have a problem that you're reporting, however, it would 
+probably be better to show the oom killer log from that event and let us 
+address it instead of introducing arbitrary heuristics into something 
+which aims to be as predictable as possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
