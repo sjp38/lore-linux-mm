@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A681C6B0085
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D622C6B004A
 	for <linux-mm@kvack.org>; Tue,  9 Nov 2010 21:44:55 -0500 (EST)
-Message-Id: <20101110024223.986927990@intel.com>
-Date: Wed, 10 Nov 2010 10:35:04 +0800
+Message-Id: <20101110024223.847210776@intel.com>
+Date: Wed, 10 Nov 2010 10:35:03 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 4/5] writeback: avoid livelocking WB_SYNC_ALL writeback
+Subject: [PATCH 3/5] writeback: stop background/kupdate works from livelocking other works
 References: <20101110023500.404859581@intel.com>
-Content-Disposition: inline; filename=mutt-wfg-t61-1000-14567-7029f8c2a01ad3a473
+Content-Disposition: inline; filename=0002-mm-Stop-background-writeback-if-there-is-other-work-.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Jan Engelhardt <jengelh@medozas.de>, LKML <linux-kernel@vger.kernel.org>
@@ -15,114 +15,57 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jan Kara <jack@suse.cz>
 
-When wb_writeback() is called in WB_SYNC_ALL mode, work->nr_to_write
-is usually set to LONG_MAX. The logic in wb_writeback() then calls
-__writeback_inodes_sb() with nr_to_write == MAX_WRITEBACK_PAGES and
-we easily end up with non-positive nr_to_write after the function 
-returns, if the inode has more than MAX_WRITEBACK_PAGES dirty pages 
-at the moment.
+Background writeback is easily livelockable in a loop in wb_writeback()
+by a process continuously re-dirtying pages (or continuously appending
+to a file). This is in fact intended as the target of background
+writeback is to write dirty pages it can find as long as we are over
+dirty_background_threshold.
 
-When nr_to_write is <= 0 wb_writeback() decides we need another round
-of writeback but this is wrong in some cases! For example when a
-single large file is continuously dirtied, we would never finish
-syncing it because each pass would be able to write
-MAX_WRITEBACK_PAGES and inode dirty timestamp never gets updated (as
-inode is never completely clean). Thus __writeback_inodes_sb() would
-write the redirtied inode again and again.
+But the above behavior gets inconvenient at times because no other work
+queued in the flusher thread's queue gets processed. In particular,
+since e.g. sync(1) relies on flusher thread to do all the IO for it,
+sync(1) can hang forever waiting for flusher thread to do the work.
 
-Fix the issue by setting nr_to_write to LONG_MAX in WB_SYNC_ALL mode.
-We do not need nr_to_write in WB_SYNC_ALL mode anyway since
-write_cache_pages() does livelock avoidance using page tagging in
-WB_SYNC_ALL mode.
+Generally, when a flusher thread has some work queued, someone submitted
+the work to achieve a goal more specific than what background writeback
+does. Moreover by working on the specific work, we also reduce amount of
+dirty pages which is exactly the target of background writeout. So it
+makes sense to give specific work a priority over a generic page
+cleaning.
 
-This makes wb_writeback() call __writeback_inodes_sb() only once on
-WB_SYNC_ALL. The latter function won't livelock because it works on
+Thus we interrupt background writeback if there is some other work to
+do. We return to the background writeback after completing all the
+queued work.
 
-- a finite set of files by doing queue_io() once at the beginning
-- a finite set of pages by PAGECACHE_TAG_TOWRITE page tagging
-
-After this patch, program from http://lkml.org/lkml/2010/10/24/154 is
-no longer able to stall sync forever.
+This may delay the writeback of expired inodes for a while, however the
+expired inodes will eventually be flushed to disk as long as the other
+works won't livelock.
 
 Signed-off-by: Jan Kara <jack@suse.cz>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/fs-writeback.c |   27 +++++++++++++++++++++++----
- 1 file changed, 23 insertions(+), 4 deletions(-)
+ fs/fs-writeback.c |   10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-  Fengguang, I've been testing with those writeback fixes you reposted
-a few days ago and I've been able to still reproduce livelocks with
-Jan Engelhard's test case. Using writeback tracing I've tracked the
-problem to the above and with this patch, sync finishes OK (well, it still
-takes about 15 minutes but that's about expected time given the throughput
-I see to the disk - the test case randomly dirties pages in a huge file).
-So could you please add this patch to the previous two send them to Jens
-for inclusion?
-
---- linux-next.orig/fs/fs-writeback.c	2010-11-10 10:33:41.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2010-11-10 10:33:45.000000000 +0800
-@@ -630,6 +630,7 @@ static long wb_writeback(struct bdi_writ
- 	};
- 	unsigned long oldest_jif;
- 	long wrote = 0;
-+	long write_chunk;
- 	struct inode *inode;
- 
- 	if (wbc.for_kupdate) {
-@@ -642,6 +643,24 @@ static long wb_writeback(struct bdi_writ
- 		wbc.range_end = LLONG_MAX;
- 	}
- 
-+	/*
-+	 * WB_SYNC_ALL mode does livelock avoidance by syncing dirty
-+	 * inodes/pages in one big loop. Setting wbc.nr_to_write=LONG_MAX
-+	 * here avoids calling into writeback_inodes_wb() more than once.
-+	 *
-+	 * The intended call sequence for WB_SYNC_ALL writeback is:
-+	 *
-+	 *      wb_writeback()
-+	 *          __writeback_inodes_sb()     <== called only once
-+	 *              write_cache_pages()     <== called once for each inode
-+	 *                   (quickly) tag currently dirty pages
-+	 *                   (maybe slowly) sync all tagged pages
-+	 */
-+	if (wbc.sync_mode == WB_SYNC_NONE)
-+		write_chunk = MAX_WRITEBACK_PAGES;
-+	else
-+		write_chunk = LONG_MAX;
-+
- 	wbc.wb_start = jiffies; /* livelock avoidance */
- 	for (;;) {
- 		/*
-@@ -668,7 +687,7 @@ static long wb_writeback(struct bdi_writ
+--- linux-next.orig/fs/fs-writeback.c	2010-11-10 07:04:34.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-11-10 10:32:09.000000000 +0800
+@@ -651,6 +651,16 @@ static long wb_writeback(struct bdi_writ
  			break;
  
- 		wbc.more_io = 0;
--		wbc.nr_to_write = MAX_WRITEBACK_PAGES;
-+		wbc.nr_to_write = write_chunk;
- 		wbc.pages_skipped = 0;
- 
- 		trace_wbc_writeback_start(&wbc, wb->bdi);
-@@ -678,8 +697,8 @@ static long wb_writeback(struct bdi_writ
- 			writeback_inodes_wb(wb, &wbc);
- 		trace_wbc_writeback_written(&wbc, wb->bdi);
- 
--		work->nr_pages -= MAX_WRITEBACK_PAGES - wbc.nr_to_write;
--		wrote += MAX_WRITEBACK_PAGES - wbc.nr_to_write;
-+		work->nr_pages -= write_chunk - wbc.nr_to_write;
-+		wrote += write_chunk - wbc.nr_to_write;
- 
  		/*
- 		 * If we consumed everything, see if we have more
-@@ -694,7 +713,7 @@ static long wb_writeback(struct bdi_writ
- 		/*
- 		 * Did we write something? Try for more
++		 * Background writeout and kupdate-style writeback may
++		 * run forever. Stop them if there is other work to do
++		 * so that e.g. sync can proceed. They'll be restarted
++		 * after the other works are all done.
++		 */
++		if ((work->for_background || work->for_kupdate) &&
++		    !list_empty(&wb->bdi->work_list))
++			break;
++
++		/*
+ 		 * For background writeout, stop when we are below the
+ 		 * background dirty threshold
  		 */
--		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
-+		if (wbc.nr_to_write < write_chunk)
- 			continue;
- 		/*
- 		 * Nothing written. Wait for some inode to
 
 
 --
