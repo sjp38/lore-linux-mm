@@ -1,96 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5F5716B0085
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 19:48:03 -0500 (EST)
-Date: Thu, 11 Nov 2010 08:40:47 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/5] writeback: stop background/kupdate works from
- livelocking other works
-Message-ID: <20101111004047.GA7879@localhost>
-References: <20101108230916.826791396@intel.com>
- <20101108231726.993880740@intel.com>
- <20101109131310.f442d210.akpm@linux-foundation.org>
- <20101109222827.GJ4936@quack.suse.cz>
- <20101109150006.05892241.akpm@linux-foundation.org>
- <20101109235632.GD11214@quack.suse.cz>
- <20101110153729.81ae6b19.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101110153729.81ae6b19.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E3D126B0085
+	for <linux-mm@kvack.org>; Wed, 10 Nov 2010 19:52:16 -0500 (EST)
+Date: Thu, 11 Nov 2010 09:46:13 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC PATCH] Make swap accounting default behavior configurable
+Message-Id: <20101111094613.eab2ec0b.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20101110125154.GC5867@tiehlicka.suse.cz>
+References: <20101110125154.GC5867@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@lst.de>, Jan Engelhardt <jengelh@medozas.de>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 11, 2010 at 07:37:29AM +0800, Andrew Morton wrote:
-> On Wed, 10 Nov 2010 00:56:32 +0100
-> Jan Kara <jack@suse.cz> wrote:
+On Wed, 10 Nov 2010 13:51:54 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
+
+> Hi,
+> could you consider the patch bellow? It basically changes the default
+> swap accounting behavior (when it is turned on in configuration) to be
+> configurable as well. 
 > 
-> > On Tue 09-11-10 15:00:06, Andrew Morton wrote:
-> > > On Tue, 9 Nov 2010 23:28:27 +0100
-> > > Jan Kara <jack@suse.cz> wrote:
-> > > >   New description which should address above questions:
-> > > > Background writeback is easily livelockable in a loop in wb_writeback() by
-> > > > a process continuously re-dirtying pages (or continuously appending to a
-> > > > file). This is in fact intended as the target of background writeback is to
-> > > > write dirty pages it can find as long as we are over
-> > > > dirty_background_threshold.
-> > > 
-> > > Well.  The objective of the kupdate function is utterly different.
-> > > 
-> > > > But the above behavior gets inconvenient at times because no other work
-> > > > queued in the flusher thread's queue gets processed. In particular,
-> > > > since e.g. sync(1) relies on flusher thread to do all the IO for it,
-> > > 
-> > > That's fixable by doing the work synchronously within sync_inodes_sb(),
-> > > rather than twiddling thumbs wasting a thread resource while waiting
-> > > for kernel threads to do it.  As an added bonus, this even makes cpu
-> > > time accounting more accurate ;)
-> > > 
-> > > Please remind me why we decided to hand the sync_inodes_sb() work off
-> > > to other threads?
-> >   Because when sync(1) does IO on it's own, it competes for the device with
-> > the flusher thread running in parallel thus resulting in more seeks.
+> The rationale is described in the patch but in short it makes it much
+> more easier to enable this feature in distribution kernels as the
+> functionality can be provided in the general purpose kernel (with the
+> option disabled) without any drawbacks and interested users can enable
+> it. This is not possible currently.
 > 
-> Skeptical.  Has that effect been demonstrated?  Has it been shown to be
-> a significant problem?  A worse problem than livelocking the machine? ;)
+> I am aware that boot command line parameter name change is not ideal but
+> the original semantic wasn't good enough and I don't like
+> noswapaccount=yes|no very much. 
 > 
-> If this _is_ a problem then it's also a problem for fsync/msync.  But
-> see below.
+> If we really have to stick to it I can rework the patch to keep the name
+> and just add the yes|no logic, though. Or we can keep the original one
+> and add swapaccount paramete which would mean the oposite as the other
+> one.
+> 
+hmm, I agree that current parameter name(noswapaccount) is not desirable
+for yes|no, but IMHO changing the user interface(iow, making what worked before 
+unusable) is worse.
 
-Seriously, I also doubt the value of doing sync() in the flusher thread.
-sync() is by definition inefficient. In the block layer, it's served
-with less emphasis on throughput. In the VFS layer, it may sleep in
-inode_wait_for_writeback() and filemap_fdatawait(). In various FS,
-pages won't be skipped at the cost of more lock waiting.
-
-So when a flusher thread is serving sync(), it has difficulties
-saturating the storage device.
-
-btw, it seems current sync() does not take advantage of the flusher
-threads to sync multiple disks in parallel.
-
-And I guess (concurrent) sync/fsync/msync calls will be rare,
-especially for really performance demanding workloads (which will
-optimize sync away in the first place).
-
-And I'm still worrying about the sync work (which may take long time
-to serve even without livelock) to delay other works considerably --
-may not be a problem for now, but it will be a real priority dilemma
-when we start writeback works from pageout().
-
-> OT, but: your faith in those time-ordered inode lists is touching ;)
-> Put a debug function in there which checks that the lists _are_
-> time-ordered, and call that function from every site in the kernel
-> which modifies the lists.   I bet there are still gremlins.
-
-I'm more confident on that time orderness ;) But there is a caveat:
-redirty_tail() may touch dirtied_when. So it merely keeps the time
-orderness of b_dirty on the surface.
+Although I'm not sure how many people are using this parameter, I vote for
+using "noswapaccount[=(yes|no)]".
+And you should update Documentation/kernel-parameters.txt too.
 
 Thanks,
-Fengguang
+Daisuke Nishimura.
+
+> The patch is based on the current Linus tree.
+> 
+> Any thoughts?
+> ---
+> 
+> From c874f2c1ff1493e49611f19308434e564c2d37c6 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Wed, 10 Nov 2010 13:30:04 +0100
+> Subject: [PATCH] Make swap accounting default behavior configurable
+> 
+> Swap accounting can be configured by CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+> configuration option and then it is turned on by default. There is
+> a boot option (noswapaccount) which can disable this feature.
+> 
+> This makes it hard for distributors to enable the configuration option
+> as this feature leads to a bigger memory consumption and this is a no-go
+> for general purpose distribution kernel. On the other hand swap
+> accounting may be very usuful for some workloads.
+> 
+> This patch adds a new configuration option which controls the default
+> behavior (CGROUP_MEM_RES_CTLR_SWAP_ENABLED) and changes the original
+> noswapaccount parameter to swapaccount=true|false which provides
+> a more fine grained way to control this feature.
+> 
+> The default behavior is unchanged (if CONFIG_CGROUP_MEM_RES_CTLR_SWAP is
+> enabled then CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED is enabled as well)
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  init/Kconfig    |   13 +++++++++++++
+>  mm/memcontrol.c |   19 ++++++++++++++-----
+>  2 files changed, 27 insertions(+), 5 deletions(-)
+> 
+> diff --git a/init/Kconfig b/init/Kconfig
+> index 88c1046..61d55a7 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -613,6 +613,19 @@ config CGROUP_MEM_RES_CTLR_SWAP
+>  	  if boot option "noswapaccount" is set, swap will not be accounted.
+>  	  Now, memory usage of swap_cgroup is 2 bytes per entry. If swap page
+>  	  size is 4096bytes, 512k per 1Gbytes of swap.
+> +config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
+> +	bool "Memory Resource Controller Swap Extension enabled by default"
+> +	depends on CGROUP_MEM_RES_CTLR_SWAP
+> +	default y
+> +	help
+> +	  Memory Resource Controller Swap Extension comes with its price in
+> +	  a bigger memory consumption. General purpose distribution kernels
+> +	  which want to enable the feautre but keep it disabled by default
+> +	  and let the user enable it by swapaccount=true boot command line
+> +	  parameter should have this option unselected.
+> +	  For those who want to have the feature enabled by default should
+> +	  select this option (if, for some reason, they need to disable it
+> +	  then swapaccount=false does the trick).
+>  
+>  menuconfig CGROUP_SCHED
+>  	bool "Group CPU scheduler"
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 9a99cfa..7c699b3 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -61,7 +61,14 @@ struct mem_cgroup *root_mem_cgroup __read_mostly;
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+>  /* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
+>  int do_swap_account __read_mostly;
+> -static int really_do_swap_account __initdata = 1; /* for remember boot option*/
+> +
+> +/* for remember boot option*/
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED
+> +static int really_do_swap_account __initdata = 1;
+> +#else
+> +static int really_do_swap_account __initdata = 0;
+> +#endif
+> +
+>  #else
+>  #define do_swap_account		(0)
+>  #endif
+> @@ -4909,11 +4916,13 @@ struct cgroup_subsys mem_cgroup_subsys = {
+>  };
+>  
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+> -
+> -static int __init disable_swap_account(char *s)
+> +static int __init enable_swap_account(char *s)
+>  {
+> -	really_do_swap_account = 0;
+> +	if (!s || !strcmp(s, "true"))
+> +		really_do_swap_account = 1;
+> +	else if (!strcmp(s, "false"))
+> +		really_do_swap_account = 0;
+>  	return 1;
+>  }
+> -__setup("noswapaccount", disable_swap_account);
+> +__setup("swapaccount", enable_swap_account);
+>  #endif
+> -- 
+> 1.7.2.3
+> 
+> 
+> -- 
+> Michal Hocko
+> L3 team 
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9    
+> Czech Republic
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
