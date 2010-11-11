@@ -1,68 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3047F6B0089
-	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 07:39:36 -0500 (EST)
-Message-ID: <4CDBE401.7040401@kernel.dk>
-Date: Thu, 11 Nov 2010 13:39:29 +0100
-From: Jens Axboe <axboe@kernel.dk>
-MIME-Version: 1.0
-Subject: Re: INFO: suspicious rcu_dereference_check() usage -  kernel/pid.c:419
- invoked rcu_dereference_check() without protection!
-References: <xr93fwwbdh1d.fsf@ninji.mtv.corp.google.com> <20101107182028.GZ15561@linux.vnet.ibm.com> <20101108151509.GA3702@redhat.com> <20101109202900.GV4032@linux.vnet.ibm.com> <20101110155530.GA1905@redhat.com> <20101110160211.GA2562@redhat.com> <4CDBD12C.4010807@kernel.dk> <20101111123015.GA25991@redhat.com>
-In-Reply-To: <20101111123015.GA25991@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 639BB6B008C
+	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 08:32:21 -0500 (EST)
+Date: Thu, 11 Nov 2010 14:32:11 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 3/5] writeback: stop background/kupdate works from livelocking other works
+Message-ID: <20101111133211.GC12940@lst.de>
+References: <20101108230916.826791396@intel.com> <20101108231726.993880740@intel.com> <20101109131310.f442d210.akpm@linux-foundation.org> <20101109222827.GJ4936@quack.suse.cz> <20101109150006.05892241.akpm@linux-foundation.org> <20101109235632.GD11214@quack.suse.cz> <20101110153729.81ae6b19.akpm@linux-foundation.org> <20101111004047.GA7879@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101111004047.GA7879@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@lst.de>, Jan Engelhardt <jengelh@medozas.de>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 2010-11-11 13:30, Oleg Nesterov wrote:
-> On 11/11, Jens Axboe wrote:
->>
->> On 2010-11-10 17:02, Oleg Nesterov wrote:
->>>
->>> But wait. Whatever we do, isn't this code racy? I do not see why, say,
->>> sys_ioprio_set(IOPRIO_WHO_PROCESS) can't install ->io_context after
->>> this task has already passed exit_io_context().
->>>
->>> Jens, am I missed something?
->>
->> Not sure, I think the original intent was for the tasklist_lock to
->> protect from a concurrent exit, but that looks like nonsense and it was
->> just there to protect the task lookup.
+On Thu, Nov 11, 2010 at 08:40:47AM +0800, Wu Fengguang wrote:
+> Seriously, I also doubt the value of doing sync() in the flusher thread.
+> sync() is by definition inefficient. In the block layer, it's served
+> with less emphasis on throughput. In the VFS layer, it may sleep in
+> inode_wait_for_writeback() and filemap_fdatawait(). In various FS,
+> pages won't be skipped at the cost of more lock waiting.
 > 
-> Probably. After that (perhaps) there was another reason, see
+> So when a flusher thread is serving sync(), it has difficulties
+> saturating the storage device.
 > 
-> 	5b160f5e "copy_process: cosmetic ->ioprio tweak"
-> 	cf342e52 "Don't need to disable interrupts for tasklist_lock"
-> 
-> But this was dismissed by
-> 
-> 	fd0928df "ioprio: move io priority from task_struct to io_context"
-> 
->> How about moving the ->io_context check and exit_io_context() in
->> do_exit() under the task lock? Coupled with a check for PF_EXITING in
->> set_task_ioprio().
-> 
-> Yes, I thought about this too. The only drawback is that we should
-> take task_lock() unconditionally in exit_io_context().
+> btw, it seems current sync() does not take advantage of the flusher
+> threads to sync multiple disks in parallel.
 
-Sure, not a big problem.
+sys_sync does a wakeup_flusher_threads(0) which kicks all flusher
+threads to write back all data.  We then do another serialized task
+of kicking per-sb writeback, and then do synchronous per-sb writeback,
+interwinded with non-blocking and blocking quota sync, ->sync_fs
+and __sync_blockdev calls.
 
-> Btw, in theory get_task_ioprio() is racy too. "ret = p->io_context->ioprio"
-> can lead to use-after-free. Probably needs task_lock() as well.
+The way sync ended up looking like it did is rather historic:
 
-Indeed...
+ First Jan and I fixed sync to actually get data correctly to disk,
+ the way is was done traditionally had a lot of issues with ordering
+ it's steps.  For that we changed it to just loop around sync_filesystem
+ to have one common place to define the proper order for it.
+ That caused a large performance regression, which Yanmin Zhang found
+ and fixed, which added back the wakeup_pdflush(0) (which later became
+ wakeup_flusher_threads).
 
-> Hmm. And copy_io_context() has no callers ;)
+ The introduction of the per-bdi writeback threads by Jens changed
+ writeback_inodes_sb and sync_inodes_sb to offload the I/O submission
+ to the I/O thread.
 
-Good find. It was previously used by the AS io scheduler, seems there
-are no users left anymore. I queued up a patch to kill it.
+I'm not overly happy with the current situation.  Part of that is
+the rather complex callchain in __sync_filesystem.  If we moved the
+quota sync and the sync_blockdev into ->sync_fs we'd already be down
+to a much more managable level, and we could optimize sync down to:
 
 
--- 
-Jens Axboe
+	wakeup_flusher_threads(0);
+
+	for_each_sb
+		sb->sync_fs(sb, 0)
+
+	for_each_sb {
+		sync_inodes_sb(sb);
+		sb->sync_fs(sb, 1)
+	}
+
+We would still try to do most of the I/O from the flusher thread,
+but only if we can do it non-blocking.  If we have to block we'll
+get less optimal I/O patterns, but at least we don't block other
+writeback while waiting for it.
+
+I suspect a big problem for the statving workloads is that we only
+do the live-lock avoidance tagging inside sync_inodes_sb, so
+any page written by wakeup_flusher_threads, or the writeback_inodes_sb
+in the two first passes that gets redirties is synced out again.
+
+But I'd feel very vary doing this without a lot of performance testing.
+dpkg package install workloads, the ffsb create_4k test Yanmin used,
+or fs_mark in one of the sync using versions would be a good benchmark.
+
+Btw, where in the block I/O code do we penalize sync?
+
+
+I don't think moving the I/O submission into the caller is going to
+help us anything.  What we should look into instead is to make as
+much of the I/O submission non-blocking even inside sync.  
+
+> And I guess (concurrent) sync/fsync/msync calls will be rare,
+> especially for really performance demanding workloads (which will
+> optimize sync away in the first place).
+
+There is no way to optimize a sync away if you want your data on disk.
+
+The most common case is fsync, followed by O_SYNC, but for example due
+to the massive fsync suckage on ext3 dpkg for example has switched to
+sync instead, which is quite nasty if you have other work going on.
+
+Offloading fsync to the flusher thread is an interesting idea, but I
+wonder how well it works.  Both fsync and sync are calls the application
+waits on to make progress, so naturally we gave them some preference
+to decrease the latency will penalizing background writeback.  By
+first trying an asynchronous pass via the flusher thread we could
+optimize the I/O pattern, but at a huge cost to the latency for
+the caller.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
