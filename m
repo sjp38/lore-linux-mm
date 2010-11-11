@@ -1,50 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id CFD5F6B004A
-	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 06:19:14 -0500 (EST)
-Message-ID: <4CDBD12C.4010807@kernel.dk>
-Date: Thu, 11 Nov 2010 12:19:08 +0100
-From: Jens Axboe <axboe@kernel.dk>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 24C9E6B004A
+	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 07:03:02 -0500 (EST)
+Date: Thu, 11 Nov 2010 20:02:55 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [patch] mm: find_get_pages_contig fixlet
+Message-ID: <20101111120255.GA7654@localhost>
+References: <20101111075455.GA10210@amd>
 MIME-Version: 1.0
-Subject: Re: INFO: suspicious rcu_dereference_check() usage -  kernel/pid.c:419
- invoked rcu_dereference_check() without protection!
-References: <xr93fwwbdh1d.fsf@ninji.mtv.corp.google.com> <20101107182028.GZ15561@linux.vnet.ibm.com> <20101108151509.GA3702@redhat.com> <20101109202900.GV4032@linux.vnet.ibm.com> <20101110155530.GA1905@redhat.com> <20101110160211.GA2562@redhat.com>
-In-Reply-To: <20101110160211.GA2562@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101111075455.GA10210@amd>
 Sender: owner-linux-mm@kvack.org
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@kernel.dk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2010-11-10 17:02, Oleg Nesterov wrote:
-> (another try with the proper email address)
+On Thu, Nov 11, 2010 at 06:54:55PM +1100, Nick Piggin wrote:
+> Testing ->mapping and ->index without a ref is not stable as the page
+> may have been reused at this point.
 > 
-> On 11/09, Paul E. McKenney wrote:
->>
->> Thank you, Oleg!  Greg, would you be willing to update your patch
->> to remove the comment?  (Perhaps tasklist_lock as well...)
-> 
-> Agreed, I think tasklock should be killed.
-> 
-> 
-> But wait. Whatever we do, isn't this code racy? I do not see why, say,
-> sys_ioprio_set(IOPRIO_WHO_PROCESS) can't install ->io_context after
-> this task has already passed exit_io_context().
-> 
-> Jens, am I missed something?
+> Signed-off-by: Nick Piggin <npiggin@kernel.dk>
 
-Not sure, I think the original intent was for the tasklist_lock to
-protect from a concurrent exit, but that looks like nonsense and it was
-just there to protect the task lookup.
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 
-How about moving the ->io_context check and exit_io_context() in
-do_exit() under the task lock? Coupled with a check for PF_EXITING in
-set_task_ioprio().
+Just out of curious, did you catch it by code review or tests?
 
-
--- 
-Jens Axboe
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
