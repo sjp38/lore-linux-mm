@@ -1,107 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FEE76B0093
-	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 14:45:36 -0500 (EST)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: INFO: suspicious rcu_dereference_check() usage -  kernel/pid.c:419 invoked rcu_dereference_check() without protection!
-References: <xr93fwwbdh1d.fsf@ninji.mtv.corp.google.com>
-	<20101107182028.GZ15561@linux.vnet.ibm.com>
-	<20101108151509.GA3702@redhat.com>
-	<20101109202900.GV4032@linux.vnet.ibm.com>
-	<20101110155530.GA1905@redhat.com> <20101110160211.GA2562@redhat.com>
-	<4CDBD12C.4010807@kernel.dk> <20101111123015.GA25991@redhat.com>
-	<4CDBE401.7040401@kernel.dk>
-Date: Thu, 11 Nov 2010 11:45:17 -0800
-In-Reply-To: <4CDBE401.7040401@kernel.dk> (Jens Axboe's message of "Thu, 11
-	Nov 2010 13:39:29 +0100")
-Message-ID: <xr93sjz73ar6.fsf@ninji.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	by kanga.kvack.org (Postfix) with ESMTP id 5F8676B0096
+	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 15:07:18 -0500 (EST)
+Date: Thu, 11 Nov 2010 12:06:43 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Propagating GFP_NOFS inside __vmalloc()
+Message-Id: <20101111120643.22dcda5b.akpm@linux-foundation.org>
+In-Reply-To: <1289421759.11149.59.camel@oralap>
+References: <1289421759.11149.59.camel@oralap>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Oleg Nesterov <oleg@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Ricardo M. Correia" <ricardo.correia@oracle.com>
+Cc: linux-mm@kvack.org, Brian Behlendorf <behlendorf1@llnl.gov>, Andreas Dilger <andreas.dilger@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-Jens Axboe <axboe@kernel.dk> writes:
+On Wed, 10 Nov 2010 21:42:39 +0100
+"Ricardo M. Correia" <ricardo.correia@oracle.com> wrote:
 
-> On 2010-11-11 13:30, Oleg Nesterov wrote:
->> On 11/11, Jens Axboe wrote:
->>>
->>> On 2010-11-10 17:02, Oleg Nesterov wrote:
->>>>
->>>> But wait. Whatever we do, isn't this code racy? I do not see why, say,
->>>> sys_ioprio_set(IOPRIO_WHO_PROCESS) can't install ->io_context after
->>>> this task has already passed exit_io_context().
->>>>
->>>> Jens, am I missed something?
->>>
->>> Not sure, I think the original intent was for the tasklist_lock to
->>> protect from a concurrent exit, but that looks like nonsense and it was
->>> just there to protect the task lookup.
->> 
->> Probably. After that (perhaps) there was another reason, see
->> 
->> 	5b160f5e "copy_process: cosmetic ->ioprio tweak"
->> 	cf342e52 "Don't need to disable interrupts for tasklist_lock"
->> 
->> But this was dismissed by
->> 
->> 	fd0928df "ioprio: move io priority from task_struct to io_context"
->> 
->>> How about moving the ->io_context check and exit_io_context() in
->>> do_exit() under the task lock? Coupled with a check for PF_EXITING in
->>> set_task_ioprio().
->> 
->> Yes, I thought about this too. The only drawback is that we should
->> take task_lock() unconditionally in exit_io_context().
->
-> Sure, not a big problem.
->
->> Btw, in theory get_task_ioprio() is racy too. "ret = p->io_context->ioprio"
->> can lead to use-after-free. Probably needs task_lock() as well.
->
-> Indeed...
->
->> Hmm. And copy_io_context() has no callers ;)
->
-> Good find. It was previously used by the AS io scheduler, seems there
-> are no users left anymore. I queued up a patch to kill it.
+> Hi,
+> 
+> As part of Lustre filesystem development, we are running into a
+> situation where we (sporadically) need to call into __vmalloc() from a
+> thread that processes I/Os to disk (it's a long story).
+> 
+> In general, this would be fine as long as we pass GFP_NOFS to
+> __vmalloc(), but the problem is that even if we pass this flag, vmalloc
+> itself sometimes allocates memory with GFP_KERNEL.
+> 
+> This is not OK for us because the GFP_KERNEL allocations may go into the
+> synchronous reclaim path and try to write out data to disk (in order to
+> free memory for the allocation), which leads to a deadlock because those
+> reclaims may themselves depend on the thread that is doing the
+> allocation to make forward progress (which it can't, because it's
+> blocked trying to allocate the memory).
+> 
+> Andreas suggested that this may be a bug in __vmalloc(), in the sense
+> that it's not propagating the gfp_mask that the caller requested to all
+> allocations that happen inside it.
+> 
+> On the latest torvalds git tree, for x86-64, the path for these
+> GFP_KERNEL allocations go something like this:
+> 
+> __vmalloc()
+>   __vmalloc_node()
+>     __vmalloc_area_node()
+>       map_vm_area()
+>         vmap_page_range()
+>           vmap_pud_range()
+>             vmap_pmd_range()
+>               pmd_alloc()
+>                 __pmd_alloc()
+>                   pmd_alloc_one()
+>                     get_zeroed_page() <-- GFP_KERNEL
+>               vmap_pte_range()
+>                 pte_alloc_kernel()
+>                   __pte_alloc_kernel()
+>                     pte_alloc_one_kernel()
+>                       get_free_page() <-- GFP_KERNEL
+> 
+> We've actually observed these deadlocks during testing (although in an
+> older kernel).
 
->From this thread I gather the following changes are being proposed:
+Bug.
 
-a) my original report added rcu_read_lock() to sys_ioprio_get() and
-   claims that "something" is needed in sys_ioprio_set().
+> Andreas suggested that we should fix __vmalloc() to propagate the
+> caller-passed gfp_mask all the way to those allocating functions. This
+> may require fixing these interfaces for all architectures.
+> 
+> I also suggested that it would be nice to have a per-task
+> gfp_allowed_mask, similar to the existing gfp_allowed_mask /
+> set_gfp_allowed_mask() interface that exists in the kernel, but instead
+> of being global to the entire system, it would be stored in the thread's
+> task_struct and only apply in the context of the current thread.
 
-c) http://lkml.org/lkml/2010/10/29/168 added rcu locks to both
-   sys_ioprio_get() and sys_ioprio_set() thus addressing the issues
-   raised in a).  However, I do not see this patch in -mm.
+Possibly we should have done pass-via-task_struct for the gfp mode
+everywhere.  Fifteen years ago...  Sites which modify the mask should
+do a save/restore on the stack, so there would be no stack savings, but
+I suspect there would be some nice text size savings from all that
+pass-it-on-to-the-next-guy stuff we do.  Note that this approach could
+perhaps be used to move PF_MEMALLOC, PF_KSWAPD and maybe a few other
+things into task_struct.gfp_flags.
 
-   I just retested and confirmed that this warning still exists in
-   unmodified mmotm-2010-11-09-15-31:
-     Call Trace:
-      [<ffffffff8109befc>] lockdep_rcu_dereference+0xaa/0xb3
-      [<ffffffff81088aaf>] find_task_by_pid_ns+0x44/0x5d
-      [<ffffffff81088aea>] find_task_by_vpid+0x22/0x24
-      [<ffffffff81155ad2>] sys_ioprio_set+0xb4/0x29e
-      [<ffffffff81476819>] ? trace_hardirqs_off_thunk+0x3a/0x3c
-      [<ffffffff8105c409>] sysenter_dispatch+0x7/0x2c
-      [<ffffffff814767da>] ? trace_hardirqs_on_thunk+0x3a/0x3f
-
-   I can resubmit my patch, but want to know if there is a reason that
-   http://lkml.org/lkml/2010/10/29/168 did not make it into either -mm
-   or linux-next?
-
-d) the sys_ioprio_set() comment indicating that "we can't use
-   rcu_read_lock()" needs to be updated to be more clear.  I'm not sure
-   what this should be updated to, which leads into the next
-   sub-topic...
-
-e) possibly removing tasklist_lock, though there seems to be some
-   concern that this might introduce task->io_context usage race.  I
-   think Jens is going to address this issue.
-
---
-Greg
+But that's history.  Before embarking on that path (and introducing a
+mixture of both forms of argument-passing) we should take a look at how
+big and ugly it is to fix this bug via the normal passing convention,
+so we can make a better-informed decision.  Is that something which
+you've looked into in any detail?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
