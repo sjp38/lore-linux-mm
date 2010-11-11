@@ -1,93 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F8676B0096
-	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 15:07:18 -0500 (EST)
-Date: Thu, 11 Nov 2010 12:06:43 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Propagating GFP_NOFS inside __vmalloc()
-Message-Id: <20101111120643.22dcda5b.akpm@linux-foundation.org>
-In-Reply-To: <1289421759.11149.59.camel@oralap>
-References: <1289421759.11149.59.camel@oralap>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 29E106B0099
+	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 15:33:44 -0500 (EST)
+Received: from localhost.localdomain by digidescorp.com (Cipher TLSv1:RC4-MD5:128) (MDaemon PRO v10.1.1)
+	with ESMTP id md50001481032.msg
+	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 14:33:31 -0600
+From: "Steven J. Magnani" <steve@digidescorp.com>
+Subject: [PATCH][RESEND] nommu: yield CPU periodically while disposing large VM
+Date: Thu, 11 Nov 2010 14:33:16 -0600
+Message-Id: <1289507596-17613-1-git-send-email-steve@digidescorp.com>
 Sender: owner-linux-mm@kvack.org
-To: "Ricardo M. Correia" <ricardo.correia@oracle.com>
-Cc: linux-mm@kvack.org, Brian Behlendorf <behlendorf1@llnl.gov>, Andreas Dilger <andreas.dilger@oracle.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, "Steven J. Magnani" <steve@digidescorp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Nov 2010 21:42:39 +0100
-"Ricardo M. Correia" <ricardo.correia@oracle.com> wrote:
+Depending on processor speed, page size, and the amount of memory a process
+is allowed to amass, cleanup of a large VM may freeze the system for many
+seconds. This can result in a watchdog timeout.
 
-> Hi,
-> 
-> As part of Lustre filesystem development, we are running into a
-> situation where we (sporadically) need to call into __vmalloc() from a
-> thread that processes I/Os to disk (it's a long story).
-> 
-> In general, this would be fine as long as we pass GFP_NOFS to
-> __vmalloc(), but the problem is that even if we pass this flag, vmalloc
-> itself sometimes allocates memory with GFP_KERNEL.
-> 
-> This is not OK for us because the GFP_KERNEL allocations may go into the
-> synchronous reclaim path and try to write out data to disk (in order to
-> free memory for the allocation), which leads to a deadlock because those
-> reclaims may themselves depend on the thread that is doing the
-> allocation to make forward progress (which it can't, because it's
-> blocked trying to allocate the memory).
-> 
-> Andreas suggested that this may be a bug in __vmalloc(), in the sense
-> that it's not propagating the gfp_mask that the caller requested to all
-> allocations that happen inside it.
-> 
-> On the latest torvalds git tree, for x86-64, the path for these
-> GFP_KERNEL allocations go something like this:
-> 
-> __vmalloc()
->   __vmalloc_node()
->     __vmalloc_area_node()
->       map_vm_area()
->         vmap_page_range()
->           vmap_pud_range()
->             vmap_pmd_range()
->               pmd_alloc()
->                 __pmd_alloc()
->                   pmd_alloc_one()
->                     get_zeroed_page() <-- GFP_KERNEL
->               vmap_pte_range()
->                 pte_alloc_kernel()
->                   __pte_alloc_kernel()
->                     pte_alloc_one_kernel()
->                       get_free_page() <-- GFP_KERNEL
-> 
-> We've actually observed these deadlocks during testing (although in an
-> older kernel).
+Make sure other tasks receive some service when cleaning up large VMs.
 
-Bug.
-
-> Andreas suggested that we should fix __vmalloc() to propagate the
-> caller-passed gfp_mask all the way to those allocating functions. This
-> may require fixing these interfaces for all architectures.
-> 
-> I also suggested that it would be nice to have a per-task
-> gfp_allowed_mask, similar to the existing gfp_allowed_mask /
-> set_gfp_allowed_mask() interface that exists in the kernel, but instead
-> of being global to the entire system, it would be stored in the thread's
-> task_struct and only apply in the context of the current thread.
-
-Possibly we should have done pass-via-task_struct for the gfp mode
-everywhere.  Fifteen years ago...  Sites which modify the mask should
-do a save/restore on the stack, so there would be no stack savings, but
-I suspect there would be some nice text size savings from all that
-pass-it-on-to-the-next-guy stuff we do.  Note that this approach could
-perhaps be used to move PF_MEMALLOC, PF_KSWAPD and maybe a few other
-things into task_struct.gfp_flags.
-
-But that's history.  Before embarking on that path (and introducing a
-mixture of both forms of argument-passing) we should take a look at how
-big and ugly it is to fix this bug via the normal passing convention,
-so we can make a better-informed decision.  Is that something which
-you've looked into in any detail?
+Signed-off-by: Steven J. Magnani <steve@digidescorp.com>
+---
+diff -uprN a/mm/nommu.c b/mm/nommu.c
+--- a/mm/nommu.c	2010-10-21 07:42:23.000000000 -0500
++++ b/mm/nommu.c	2010-10-21 07:46:50.000000000 -0500
+@@ -1656,6 +1656,7 @@ SYSCALL_DEFINE2(munmap, unsigned long, a
+ void exit_mmap(struct mm_struct *mm)
+ {
+ 	struct vm_area_struct *vma;
++	unsigned long next_yield = jiffies + HZ;
+ 
+ 	if (!mm)
+ 		return;
+@@ -1668,6 +1669,11 @@ void exit_mmap(struct mm_struct *mm)
+ 		mm->mmap = vma->vm_next;
+ 		delete_vma_from_mm(vma);
+ 		delete_vma(mm, vma);
++		/* Yield periodically to prevent watchdog timeout */
++		if (time_after(jiffies, next_yield)) {
++			cond_resched();
++			next_yield = jiffies + HZ;
++		}
+ 	}
+ 
+ 	kleave("");
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
