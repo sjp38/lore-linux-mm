@@ -1,109 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 639BB6B008C
-	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 08:32:21 -0500 (EST)
-Date: Thu, 11 Nov 2010 14:32:11 +0100
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 3/5] writeback: stop background/kupdate works from livelocking other works
-Message-ID: <20101111133211.GC12940@lst.de>
-References: <20101108230916.826791396@intel.com> <20101108231726.993880740@intel.com> <20101109131310.f442d210.akpm@linux-foundation.org> <20101109222827.GJ4936@quack.suse.cz> <20101109150006.05892241.akpm@linux-foundation.org> <20101109235632.GD11214@quack.suse.cz> <20101110153729.81ae6b19.akpm@linux-foundation.org> <20101111004047.GA7879@localhost>
-Mime-Version: 1.0
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id CBF4B6B004A
+	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 11:44:28 -0500 (EST)
+Date: Thu, 11 Nov 2010 17:44:24 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 3/5] writeback: stop background/kupdate works from
+ livelocking other works
+Message-ID: <20101111164424.GC3934@quack.suse.cz>
+References: <20101108230916.826791396@intel.com>
+ <20101108231726.993880740@intel.com>
+ <20101109131310.f442d210.akpm@linux-foundation.org>
+ <20101109222827.GJ4936@quack.suse.cz>
+ <20101109150006.05892241.akpm@linux-foundation.org>
+ <20101109235632.GD11214@quack.suse.cz>
+ <20101110153729.81ae6b19.akpm@linux-foundation.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101111004047.GA7879@localhost>
+In-Reply-To: <20101110153729.81ae6b19.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@lst.de>, Jan Engelhardt <jengelh@medozas.de>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@lst.de>, Jan Engelhardt <jengelh@medozas.de>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 11, 2010 at 08:40:47AM +0800, Wu Fengguang wrote:
-> Seriously, I also doubt the value of doing sync() in the flusher thread.
-> sync() is by definition inefficient. In the block layer, it's served
-> with less emphasis on throughput. In the VFS layer, it may sleep in
-> inode_wait_for_writeback() and filemap_fdatawait(). In various FS,
-> pages won't be skipped at the cost of more lock waiting.
+On Wed 10-11-10 15:37:29, Andrew Morton wrote:
+> On Wed, 10 Nov 2010 00:56:32 +0100
+> Jan Kara <jack@suse.cz> wrote:
+> > On Tue 09-11-10 15:00:06, Andrew Morton wrote:
+> > > On Tue, 9 Nov 2010 23:28:27 +0100
+> > > Jan Kara <jack@suse.cz> wrote:
+> > > >   New description which should address above questions:
+> > > > Background writeback is easily livelockable in a loop in wb_writeback() by
+> > > > a process continuously re-dirtying pages (or continuously appending to a
+> > > > file). This is in fact intended as the target of background writeback is to
+> > > > write dirty pages it can find as long as we are over
+> > > > dirty_background_threshold.
+> > > 
+> > > Well.  The objective of the kupdate function is utterly different.
+> > > 
+> > > > But the above behavior gets inconvenient at times because no other work
+> > > > queued in the flusher thread's queue gets processed. In particular,
+> > > > since e.g. sync(1) relies on flusher thread to do all the IO for it,
+> > > 
+> > > That's fixable by doing the work synchronously within sync_inodes_sb(),
+> > > rather than twiddling thumbs wasting a thread resource while waiting
+> > > for kernel threads to do it.  As an added bonus, this even makes cpu
+> > > time accounting more accurate ;)
+> > > 
+> > > Please remind me why we decided to hand the sync_inodes_sb() work off
+> > > to other threads?
+> >   Because when sync(1) does IO on it's own, it competes for the device with
+> > the flusher thread running in parallel thus resulting in more seeks.
 > 
-> So when a flusher thread is serving sync(), it has difficulties
-> saturating the storage device.
+> Skeptical.  Has that effect been demonstrated?  Has it been shown to be
+> a significant problem?  A worse problem than livelocking the machine? ;)
+  I don't think Jens has tested this when merging per-bdi writeback
+patches. Just the argument makes sense to me (I've seen some loads where
+application doing IO from balance_dirty_pages() together with pdflush doing
+writeback did seriously harm performance and this looks like a similar
+scenario). But I'd be also interested whether the theory and practice
+matches here so I'll try to do some test to compare the two approaches.
+
+> If this _is_ a problem then it's also a problem for fsync/msync.  But
+> see below.
 > 
-> btw, it seems current sync() does not take advantage of the flusher
-> threads to sync multiple disks in parallel.
+> > > > sync(1) can hang forever waiting for flusher thread to do the work.
+> > > > 
+> > > > Generally, when a flusher thread has some work queued, someone submitted
+> > > > the work to achieve a goal more specific than what background writeback
+> > > > does. Moreover by working on the specific work, we also reduce amount of
+> > > > dirty pages which is exactly the target of background writeout. So it makes
+> > > > sense to give specific work a priority over a generic page cleaning.
+> > > > 
+> > > > Thus we interrupt background writeback if there is some other work to do. We
+> > > > return to the background writeback after completing all the queued work.
+> > > > 
+> > ...
+> > > > > So...  what prevents higher priority works (eg, sync(1)) from
+> > > > > livelocking or seriously retarding background or kudate writeout?
+> > > >   If other work than background or kupdate writeout livelocks, it's a bug
+> > > > which should be fixed (either by setting sensible nr_to_write or by tagging
+> > > > like we do it for WB_SYNC_ALL writeback). Of course, higher priority work
+> > > > can be running when background or kupdate writeout would need to run as
+> > > > well. But the idea here is that the purpose of background/kupdate types of
+> > > > writeout is to get rid of dirty data and any type of writeout does this so
+> > > > working on it we also work on background/kupdate writeout only possibly
+> > > > less efficiently.
+> > > 
+> > > The kupdate function is a data-integrity/quality-of-service sort of
+> > > thing.
+> > > 
+> > > And what I'm asking is whether this change enables scenarios in which
+> > > these threads can be kept so busy that the kupdate function gets
+> > > interrupted so frequently that we can have dirty memory not being
+> > > written back for arbitrarily long periods of time?
+> >   So let me compare:
+> > What kupdate writeback does:
+> >   queue inodes older than dirty_expire_centisecs
+> >   while some inode in the queue
+> >     write MAX_WRITEBACK_PAGES from each inode queued
+> >     break if nr_to_write <= 0
+> > 
+> > What any other WB_SYNC_NONE writeback (let me call it "normal WB_SYNC_NONE
+> > writeback") does:
+> >   queue all dirty inodes 
+> >   while some inode in the queue
+> >     write MAX_WRITEBACK_PAGES from each inode queued
+> >     break if nr_to_write <= 0
+> > 
+> > 
+> > There only one kind of WB_SYNC_ALL writeback - the one which writes
+> > everything.
+> 
+> fsync() uses WB_SYNC_ALL and it doesn't write "everything".
+  Yes, but nobody submits fsync() work to a flusher thread (currently,
+there's no way to tell flusher thread to operate only on a single inode).
+But as you write below *if* somebody started doing it and fsync() would be
+called often enough, we would have a problem.
 
-sys_sync does a wakeup_flusher_threads(0) which kicks all flusher
-threads to write back all data.  We then do another serialized task
-of kicking per-sb writeback, and then do synchronous per-sb writeback,
-interwinded with non-blocking and blocking quota sync, ->sync_fs
-and __sync_blockdev calls.
+> > So after WB_SYNC_ALL writeback (provided all livelocks are fixed ;)
+> > obviously no old data should be unwritten in memory. Normal WB_SYNC_NONE
+> > writeback differs from a kupdate one *only* in the fact that we queue all
+> > inodes instead of only the old ones.
+> 
+> whoa.
+> 
+> That's only true for sync(), or sync_filesystem().  It isn't true for,
+> say, fsync() and msync().  Now when someone comes along and changes
+> fsync/msync to use flusher threads ("resulting in less seeks") then we
+> could get into a situation where fsync-serving flusher threads never
+> serve kupdate?
+> 
+> > We start writing old inodes first and
+> 
+> OT, but: your faith in those time-ordered inode lists is touching ;)
+> Put a debug function in there which checks that the lists _are_
+> time-ordered, and call that function from every site in the kernel
+> which modifies the lists.   I bet there are still gremlins.
+  ;-)
 
-The way sync ended up looking like it did is rather historic:
-
- First Jan and I fixed sync to actually get data correctly to disk,
- the way is was done traditionally had a lot of issues with ordering
- it's steps.  For that we changed it to just loop around sync_filesystem
- to have one common place to define the proper order for it.
- That caused a large performance regression, which Yanmin Zhang found
- and fixed, which added back the wakeup_pdflush(0) (which later became
- wakeup_flusher_threads).
-
- The introduction of the per-bdi writeback threads by Jens changed
- writeback_inodes_sb and sync_inodes_sb to offload the I/O submission
- to the I/O thread.
-
-I'm not overly happy with the current situation.  Part of that is
-the rather complex callchain in __sync_filesystem.  If we moved the
-quota sync and the sync_blockdev into ->sync_fs we'd already be down
-to a much more managable level, and we could optimize sync down to:
-
-
-	wakeup_flusher_threads(0);
-
-	for_each_sb
-		sb->sync_fs(sb, 0)
-
-	for_each_sb {
-		sync_inodes_sb(sb);
-		sb->sync_fs(sb, 1)
-	}
-
-We would still try to do most of the I/O from the flusher thread,
-but only if we can do it non-blocking.  If we have to block we'll
-get less optimal I/O patterns, but at least we don't block other
-writeback while waiting for it.
-
-I suspect a big problem for the statving workloads is that we only
-do the live-lock avoidance tagging inside sync_inodes_sb, so
-any page written by wakeup_flusher_threads, or the writeback_inodes_sb
-in the two first passes that gets redirties is synced out again.
-
-But I'd feel very vary doing this without a lot of performance testing.
-dpkg package install workloads, the ffsb create_4k test Yanmin used,
-or fs_mark in one of the sync using versions would be a good benchmark.
-
-Btw, where in the block I/O code do we penalize sync?
-
-
-I don't think moving the I/O submission into the caller is going to
-help us anything.  What we should look into instead is to make as
-much of the I/O submission non-blocking even inside sync.  
-
-> And I guess (concurrent) sync/fsync/msync calls will be rare,
-> especially for really performance demanding workloads (which will
-> optimize sync away in the first place).
-
-There is no way to optimize a sync away if you want your data on disk.
-
-The most common case is fsync, followed by O_SYNC, but for example due
-to the massive fsync suckage on ext3 dpkg for example has switched to
-sync instead, which is quite nasty if you have other work going on.
-
-Offloading fsync to the flusher thread is an interesting idea, but I
-wonder how well it works.  Both fsync and sync are calls the application
-waits on to make progress, so naturally we gave them some preference
-to decrease the latency will penalizing background writeback.  By
-first trying an asynchronous pass via the flusher thread we could
-optimize the I/O pattern, but at a huge cost to the latency for
-the caller.
-
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
