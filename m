@@ -1,124 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C2CD26B0089
-	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 14:07:13 -0500 (EST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [RFC PATCH 0/3] Use compaction to reduce a dependency on lumpy reclaim
-Date: Thu, 11 Nov 2010 19:07:01 +0000
-Message-Id: <1289502424-12661-1-git-send-email-mel@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FEE76B0093
+	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 14:45:36 -0500 (EST)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: INFO: suspicious rcu_dereference_check() usage -  kernel/pid.c:419 invoked rcu_dereference_check() without protection!
+References: <xr93fwwbdh1d.fsf@ninji.mtv.corp.google.com>
+	<20101107182028.GZ15561@linux.vnet.ibm.com>
+	<20101108151509.GA3702@redhat.com>
+	<20101109202900.GV4032@linux.vnet.ibm.com>
+	<20101110155530.GA1905@redhat.com> <20101110160211.GA2562@redhat.com>
+	<4CDBD12C.4010807@kernel.dk> <20101111123015.GA25991@redhat.com>
+	<4CDBE401.7040401@kernel.dk>
+Date: Thu, 11 Nov 2010 11:45:17 -0800
+In-Reply-To: <4CDBE401.7040401@kernel.dk> (Jens Axboe's message of "Thu, 11
+	Nov 2010 13:39:29 +0100")
+Message-ID: <xr93sjz73ar6.fsf@ninji.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Oleg Nesterov <oleg@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-(cc'ing people currently looking at transparent hugepages as this series
-is aimed at avoiding lumpy reclaim being deleted)
+Jens Axboe <axboe@kernel.dk> writes:
 
-Huge page allocations are not expected to be cheap but lumpy reclaim is still
-very disruptive. While it is far better than reclaiming random order-0 pages
-and hoping for the best, it still ignore the reference bit of pages near the
-reference page selected from the LRU. Memory compaction was merged in 2.6.35
-to use less lumpy reclaim by moving pages around instead of reclaiming when
-there were enough pages free. It has been tested fairly heavily at this point.
-This is a prototype series to use compaction more aggressively.
+> On 2010-11-11 13:30, Oleg Nesterov wrote:
+>> On 11/11, Jens Axboe wrote:
+>>>
+>>> On 2010-11-10 17:02, Oleg Nesterov wrote:
+>>>>
+>>>> But wait. Whatever we do, isn't this code racy? I do not see why, say,
+>>>> sys_ioprio_set(IOPRIO_WHO_PROCESS) can't install ->io_context after
+>>>> this task has already passed exit_io_context().
+>>>>
+>>>> Jens, am I missed something?
+>>>
+>>> Not sure, I think the original intent was for the tasklist_lock to
+>>> protect from a concurrent exit, but that looks like nonsense and it was
+>>> just there to protect the task lookup.
+>> 
+>> Probably. After that (perhaps) there was another reason, see
+>> 
+>> 	5b160f5e "copy_process: cosmetic ->ioprio tweak"
+>> 	cf342e52 "Don't need to disable interrupts for tasklist_lock"
+>> 
+>> But this was dismissed by
+>> 
+>> 	fd0928df "ioprio: move io priority from task_struct to io_context"
+>> 
+>>> How about moving the ->io_context check and exit_io_context() in
+>>> do_exit() under the task lock? Coupled with a check for PF_EXITING in
+>>> set_task_ioprio().
+>> 
+>> Yes, I thought about this too. The only drawback is that we should
+>> take task_lock() unconditionally in exit_io_context().
+>
+> Sure, not a big problem.
+>
+>> Btw, in theory get_task_ioprio() is racy too. "ret = p->io_context->ioprio"
+>> can lead to use-after-free. Probably needs task_lock() as well.
+>
+> Indeed...
+>
+>> Hmm. And copy_io_context() has no callers ;)
+>
+> Good find. It was previously used by the AS io scheduler, seems there
+> are no users left anymore. I queued up a patch to kill it.
 
-When CONFIG_COMPACTION is set, lumpy reclaim is avoided where possible. What
-it does instead is reclaim a number of order-0 pages and then compact the
-zone to try and satisfy the allocation. This keeps a larger number of active
-pages in memory at the cost of increased use of migration and compaction
-scanning. As this is a prototype, it's also very clumsy. For example,
-set_lumpy_reclaim_mode() still allows lumpy reclaim to be used and the
-decision on when to use it is primitive. Lumpy reclaim can be avoided
-entirely of course but the tests were a bit inconclusive - allocation
-latency was lower if lumpy reclaim was never used but the test completion
-times and reclaim statistics looked worse so I need to reconsider both the
-analysis and the implementation. It's also about as subtle as a brick when
-it comes to compaction doing a blind compaction of the zone after reclaiming
-which is almost certainly more frequent than it needs to be but I'm leaving
-optimisation considerations for the moment.
+>From this thread I gather the following changes are being proposed:
 
-Ultimately, what I'd like to do is implement "lumpy compaction" where a
-number of order-0 pages are reclaimed and then the pages that would be lumpy
-reclaimed are instead migrated but it would be longer term and involve a
-tight integration of compaction and reclaim which maybe we'd like to avoid
-in the first pass. This series was to establish if just order-0 reclaims
-and compaction is potentially workable and the test results are reasonably
-promising. kernbench and sysbench were run as sniff tests even though they do
-not exercise reclaim and performance was not affected as expected. The target
-test was a high-order allocation stress test. Testing was based on kernel
-2.6.37-rc1 with commit d88c0922 applied which fixes an important bug related
-to page reference counting. The test machine was x86-64 with 3G of RAM.
+a) my original report added rcu_read_lock() to sys_ioprio_get() and
+   claims that "something" is needed in sys_ioprio_set().
 
-STRESS-HIGHALLOC
-                  fix-d88c0922 lumpycompact-v1r2
-Pass 1          90.00 ( 0.00%)    89.00 (-1.00%)
-Pass 2          91.00 ( 0.00%)    91.00 ( 0.00%)
-At Rest         94.00 ( 0.00%)    94.00 ( 0.00%)
+c) http://lkml.org/lkml/2010/10/29/168 added rcu locks to both
+   sys_ioprio_get() and sys_ioprio_set() thus addressing the issues
+   raised in a).  However, I do not see this patch in -mm.
 
-MMTests Statistics: duration
-User/Sys Time Running Test (seconds)       3356.15   3336.46
-Total Elapsed Time (seconds)               2052.07   1853.79
+   I just retested and confirmed that this warning still exists in
+   unmodified mmotm-2010-11-09-15-31:
+     Call Trace:
+      [<ffffffff8109befc>] lockdep_rcu_dereference+0xaa/0xb3
+      [<ffffffff81088aaf>] find_task_by_pid_ns+0x44/0x5d
+      [<ffffffff81088aea>] find_task_by_vpid+0x22/0x24
+      [<ffffffff81155ad2>] sys_ioprio_set+0xb4/0x29e
+      [<ffffffff81476819>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+      [<ffffffff8105c409>] sysenter_dispatch+0x7/0x2c
+      [<ffffffff814767da>] ? trace_hardirqs_on_thunk+0x3a/0x3f
 
-Success rates the same so functionally it's similar and it completed a bit
-faster.
+   I can resubmit my patch, but want to know if there is a reason that
+   http://lkml.org/lkml/2010/10/29/168 did not make it into either -mm
+   or linux-next?
 
-FTrace Reclaim Statistics: vmscan
-                                      fix-d88c0922 lumpycompact-v1r2
-Direct reclaims                                673        468 
-Direct reclaim pages scanned                 60521     108221 
-Direct reclaim pages reclaimed               37300      67114 
-Direct reclaim write file async I/O           1459       3825 
-Direct reclaim write anon async I/O           7989      10694 
-Direct reclaim write file sync I/O               0          0 
-Direct reclaim write anon sync I/O              92         53 
-Wake kswapd requests                           823      11681 
-Kswapd wakeups                                 608        558 
-Kswapd pages scanned                       4509407    3682736 
-Kswapd pages reclaimed                     2278056    2176076 
-Kswapd reclaim write file async I/O          58446      46853 
-Kswapd reclaim write anon async I/O         696616     410210 
-Kswapd reclaim write file sync I/O               0          0 
-Kswapd reclaim write anon sync I/O               0          0 
-Time stalled direct reclaim (seconds)       139.75     128.09 
-Time kswapd awake (seconds)                 833.03     669.29 
+d) the sys_ioprio_set() comment indicating that "we can't use
+   rcu_read_lock()" needs to be updated to be more clear.  I'm not sure
+   what this should be updated to, which leads into the next
+   sub-topic...
 
-Total pages scanned                        4569928   3790957
-Total pages reclaimed                      2315356   2243190
-%age total pages scanned/reclaimed          50.67%    59.17%
-%age total pages scanned/written            16.73%    12.44%
-%age  file pages scanned/written             1.31%     1.34%
-Percentage Time Spent Direct Reclaim         4.00%     3.70%
-Percentage Time kswapd Awake                40.59%    36.10%
+e) possibly removing tasklist_lock, though there seems to be some
+   concern that this might introduce task->io_context usage race.  I
+   think Jens is going to address this issue.
 
-The time spent stalled and with kswapd awake are both
-reduced as well as the total number of pages scanned and
-reclaimed. Some of the ratios looks nicer but it's not very
-obviously better except for the average latencies which I have posted at
-http://www.csn.ul.ie/~mel/postings/lumpycompact-20101111/highalloc-interlatency-hydra-mean.ps
-. Similar, the stddev graph in the same directory shows that allocation
-times is more predictable.
-
-The tarball I used for testing is available at
-http://www.csn.ul.ie/~mel/mmtests-0.01-lumpycompact-0.01.tar.gz . The suite
-assumes that the kernel source being tested was built and deployed on the
-test machine. Otherwise, it should be a case of 
-
-1. build + deploy kernel with d88c0922 applied
-2. ./run-mmtests.sh --run-monitor vanilla
-3. build + deploy with this series applies
-4. ./run-mmtests.sh --run-monitor lumpycompact-v1r3
-
-Results for comparison are in work/log . There is a rudimentary reporting
-script called compare-kernel.sh which should be run with a CWD of work/log.
-
-Comments?
-
- include/linux/compaction.h    |    9 +++++-
- include/linux/kernel.h        |    7 +++++
- include/trace/events/vmscan.h |    6 ++--
- mm/compaction.c               |    2 +-
- mm/vmscan.c                   |   61 +++++++++++++++++++++++++---------------
- 5 files changed, 57 insertions(+), 28 deletions(-)
+--
+Greg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
