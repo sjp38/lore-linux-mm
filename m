@@ -1,108 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BA356B009B
-	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 17:03:53 -0500 (EST)
-Received: from rcsinet10.oracle.com (rcsinet10.oracle.com [148.87.113.121])
-	by rcsinet14.oracle.com (Sentrion-MP-4.0.0/Sentrion-MP-4.0.0) with ESMTP id oABM38BX001077
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 22:03:08 GMT
-Subject: Re: Propagating GFP_NOFS inside __vmalloc()
-From: "Ricardo M. Correia" <ricardo.correia@oracle.com>
-In-Reply-To: <20101111120643.22dcda5b.akpm@linux-foundation.org>
-References: <1289421759.11149.59.camel@oralap>
-	 <20101111120643.22dcda5b.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 11 Nov 2010 23:02:04 +0100
-Message-ID: <1289512924.428.112.camel@oralap>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2C0276B009D
+	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 17:07:03 -0500 (EST)
+Date: Thu, 11 Nov 2010 23:00:49 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: INFO: suspicious rcu_dereference_check() usage -
+	kernel/pid.c:419 invoked rcu_dereference_check() without protection!
+Message-ID: <20101111220048.GA19979@redhat.com>
+References: <xr93fwwbdh1d.fsf@ninji.mtv.corp.google.com> <20101107182028.GZ15561@linux.vnet.ibm.com> <20101108151509.GA3702@redhat.com> <20101109202900.GV4032@linux.vnet.ibm.com> <20101110155530.GA1905@redhat.com> <20101110160211.GA2562@redhat.com> <4CDBD12C.4010807@kernel.dk> <20101111123015.GA25991@redhat.com> <4CDBE401.7040401@kernel.dk> <xr93sjz73ar6.fsf@ninji.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <xr93sjz73ar6.fsf@ninji.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Brian Behlendorf <behlendorf1@llnl.gov>, Andreas Dilger <andreas.dilger@oracle.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Jens Axboe <axboe@kernel.dk>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-11-11 at 12:06 -0800, Andrew Morton wrote:
-> > I also suggested that it would be nice to have a per-task
-> > gfp_allowed_mask, similar to the existing gfp_allowed_mask /
-> > set_gfp_allowed_mask() interface that exists in the kernel, but instead
-> > of being global to the entire system, it would be stored in the thread's
-> > task_struct and only apply in the context of the current thread.
-> 
-> Possibly we should have done pass-via-task_struct for the gfp mode
-> everywhere.  Fifteen years ago...  Sites which modify the mask should
-> do a save/restore on the stack, so there would be no stack savings, but
-> I suspect there would be some nice text size savings from all that
-> pass-it-on-to-the-next-guy stuff we do.  Note that this approach could
-> perhaps be used to move PF_MEMALLOC, PF_KSWAPD and maybe a few other
-> things into task_struct.gfp_flags.
+On 11/11, Greg Thelen wrote:
+>
+> a) my original report added rcu_read_lock() to sys_ioprio_get() and
+>    claims that "something" is needed in sys_ioprio_set().
+>
+> c) http://lkml.org/lkml/2010/10/29/168 added rcu locks to both
+>    sys_ioprio_get() and sys_ioprio_set() thus addressing the issues
+>    raised in a).  However, I do not see this patch in -mm.
 
-Yes.. makes sense to me.
+Well, I do not know what happened with this patch, but
 
-> But that's history.  Before embarking on that path (and introducing a
-> mixture of both forms of argument-passing) we should take a look at how
-> big and ugly it is to fix this bug via the normal passing convention,
-> so we can make a better-informed decision.  Is that something which
-> you've looked into in any detail?
+>    I can resubmit my patch, but want to know if there is a reason that
+>    http://lkml.org/lkml/2010/10/29/168 did not make it into either -mm
+>    or linux-next?
 
-Ok, I took a more detailed look... it seems we have to change at least
-these interfaces in order to make __vmalloc() propagate the gfp_mask:
+I am looking at http://lkml.org/lkml/2010/10/29/168 now, and I think
+it should be dropped or you can submit the patch on top of it.
 
-Function/macro (dependency): references
+It only adds rcu_read_lock() around of find_task_by_vpid(), but we can
+use rcu_read_lock() instead of tasklist_lock.
 
-map_vm_area (__vmalloc_area_node):  7
-vmap_page_range (map_vm_area): 3
-vmap_page_range_noflush (vmap_page_range): 3
-vmap_pud_range (vmap_vmap_page_range_noflush): 2
-pud_alloc (vmap_pud_range): 25
-__pud_alloc (pud_alloc): 4
-pud_alloc_one (__pud_alloc): 8
-crst_table_alloc (pud_alloc_one, pmd_alloc_one): 6
-vmap_pmd_range (vmap_pud_range): 2
-pmd_alloc (vmap_pmd_range): 31
-__pmd_alloc (pmd_alloc): 5
-pmd_alloc_one (__pmd_alloc): 28
-vmap_pte_range (vmap_pud_range): 2
-get_pointer_table (pmd_alloc_one): 4
-srmmu_pmd_alloc_one (pmd_alloc_one): 2
-sun4c_pmd_alloc_one (pmd_alloc_one): 2
-pte_alloc_kernel (vmap_pte_range): 14
-pte_alloc_one (pmd_alloc_one, pte_alloc_one_kernel): 38
-__pte_alloc_kernel (pte_alloc_kernel): 3
-pte_alloc_one_kernel (pte_alloc_one, __pte_alloc_kernel): 38
-page_table_alloc (pte_alloc_one, pte_alloc_one_kernel): 5
-srmmu_pte_alloc_one (pte_alloc_one): 2
-sun4c_pte_alloc_one (pte_alloc_one): 2
-srmmu_pte_alloc_one_kernel (pte_alloc_one_kernel): 3
-sun4c_pte_alloc_one_kernel (pte_alloc_one_kernel, sun4c_pte_alloc_one):
-3
+> d) the sys_ioprio_set() comment indicating that "we can't use
+>    rcu_read_lock()" needs to be updated to be more clear.  I'm not sure
+>    what this should be updated to, which leads into the next
+>    sub-topic...
 
-By looking at the number of references, we can get a rough idea of the
-number of LoC that needs to be changed, but this doesn't take into
-account changing the implementation of the leaf allocating functions
-themselves (e.g. pte_alloc_one_kernel, pmd_alloc_one, ..). Since these
-functions have one implementation for each architecture, we're looking
-at changing perhaps more than a hundred function implementations...
+It should be just removed. It doesn't match the reality today.
 
-Also, it's entirely possible that I may have missed something, since I
-looked at all this manually (well, with the help of cscope).
+> e) possibly removing tasklist_lock,
 
-There was one relatively extensive call chain which I didn't look into
-with much detail: pte_alloc_one_kernel() -> early_get_page () ->
-alloc_bootmem_pages() / memblock_alloc_base() -> ....
+Yes.
 
-The names seem to indicate that there are allocations going on there,
-but from a quick glance I only saw a couple of them with GFP_NOWAIT (I
-wouldn't be surprised if I missed others).
+> though there seems to be some
+>    concern that this might introduce task->io_context usage race.
 
-It's also interesting that some of the leaf allocating functions
-sometimes take different flags on different architectures...
+No!
 
-So do you think we should change all that?
+I am sorry for confusion, those ->io_context races are completely
+orthogonal to s/tasklist/rcu/.
 
-Or do you prefer the per-task mask? Or maybe even both? :-)
-
-Thanks,
-Ricardo
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
