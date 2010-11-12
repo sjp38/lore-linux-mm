@@ -1,114 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6D2978D0001
-	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 06:28:33 -0500 (EST)
-Subject: [PATCH/RFC] MM slub: add a sysfs entry to show the calculated
- number of fallback slabs
-From: Richard Kennedy <richard@rsk.demon.co.uk>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 12 Nov 2010 11:28:29 +0000
-Message-ID: <1289561309.1972.30.camel@castor.rsk>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 200118D0001
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 07:18:43 -0500 (EST)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id oACC2X7R021527
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 07:02:33 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oACCIZYI332972
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 07:18:35 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oACCIYUA017436
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 07:18:35 -0500
+Date: Fri, 12 Nov 2010 04:18:33 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] ioprio: grab rcu_read_lock in sys_ioprio_{set,get}()
+Message-ID: <20101112121833.GB2825@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1289547167-32675-1-git-send-email-gthelen@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1289547167-32675-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Jens Axboe <axboe@kernel.dk>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add a slub sysfs entry to show the calculated number of fallback slabs.
+On Thu, Nov 11, 2010 at 11:32:47PM -0800, Greg Thelen wrote:
+> Using:
+> - CONFIG_LOCKUP_DETECTOR=y
+> - CONFIG_PREEMPT=y
+> - CONFIG_LOCKDEP=y
+> - CONFIG_PROVE_LOCKING=y
+> - CONFIG_PROVE_RCU=y
+> found a missing rcu lock during boot on a 512 MiB x86_64 ubuntu vm:
+>   ===================================================
+>   [ INFO: suspicious rcu_dereference_check() usage. ]
+>   ---------------------------------------------------
+>   kernel/pid.c:419 invoked rcu_dereference_check() without protection!
+> 
+>   other info that might help us debug this:
+> 
+>   rcu_scheduler_active = 1, debug_locks = 0
+>   1 lock held by ureadahead/1355:
+>    #0:  (tasklist_lock){.+.+..}, at: [<ffffffff8115bc09>] sys_ioprio_set+0x7f/0x29e
+> 
+>   stack backtrace:
+>   Pid: 1355, comm: ureadahead Not tainted 2.6.37-dbg-DEV #1
+>   Call Trace:
+>    [<ffffffff8109c10c>] lockdep_rcu_dereference+0xaa/0xb3
+>    [<ffffffff81088cbf>] find_task_by_pid_ns+0x44/0x5d
+>    [<ffffffff81088cfa>] find_task_by_vpid+0x22/0x24
+>    [<ffffffff8115bc3e>] sys_ioprio_set+0xb4/0x29e
+>    [<ffffffff8147cf21>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+>    [<ffffffff8105c409>] sysenter_dispatch+0x7/0x2c
+>    [<ffffffff8147cee2>] ? trace_hardirqs_on_thunk+0x3a/0x3f
+> 
+> The fix is to:
+> a) grab rcu lock in sys_ioprio_{set,get}() and
+> b) avoid grabbing tasklist_lock.
+> Discussion in: http://marc.info/?l=linux-kernel&m=128951324702889
 
-Using the information already available it is straightforward to
-calculate the number of fallback & full size slabs. We can then track
-which slabs are particularly effected by memory fragmentation and how
-long they take to recover. 
+Acked-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-There is no change to the mainline code, the calculation is only
-performed on request, and the value is available without having to
-enable CONFIG_SLUB_STATS.  
-
-Note that this could give the wrong value if the user changes the slab
-order via the sysfs interface.
-
-Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
----
-
-
-As we have the information needed to do this calculation is seem useful
-to expose it and provide another way to understand what is happening
-inside the memory manager.
-
-On my desktop workloads (kernel compile etc) I'm seeing surprisingly
-little slab fragmentation. Do you have any suggestions for test cases
-that will fragment the memory?
-
-I copied the code to count the total objects from the slabinfo s_show
-function, but as I don't need the partial count I didn't extract it into
-a helper function.
-
-regards
-Richard
- 
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 8fd5401..8c79eaa 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -4043,6 +4043,46 @@ static ssize_t destroy_by_rcu_show(struct kmem_cache *s, char *buf)
- }
- SLAB_ATTR_RO(destroy_by_rcu);
- 
-+/* The number of fallback slabs can be calculated to give an
-+ * indication of how fragmented this slab is.
-+ * This is a snapshot of the current makeup of this cache.
-+ *
-+ *  Given
-+ *
-+ *  total_objects = (nr_fallback_slabs * objects_per_fallback_slab) +
-+ *     ( nr_normal_slabs * objects_per_slab)
-+ *  and
-+ *  nr_slabs = nr_normal_slabs + nr_fallback_slabs
-+ *
-+ * then we can easily calculate nr_fallback_slabs.
-+ *
-+ * Note that this can give the wrong answer if the user has changed the
-+ * order of this slab via sysfs.
-+ */
-+
-+static ssize_t fallback_show(struct kmem_cache *s, char *buf)
-+{
-+	unsigned long nr_objects = 0;
-+	unsigned long nr_slabs = 0;
-+	unsigned long nr_fallback = 0;
-+	unsigned long acc;
-+	int node;
-+
-+	if (oo_order(s->oo) != oo_order(s->min)) {
-+		for_each_online_node(node) {
-+			struct kmem_cache_node *n = get_node(s, node);
-+			nr_slabs += atomic_long_read(&n->nr_slabs);
-+			nr_objects += atomic_long_read(&n->total_objects);
-+		}
-+		acc = nr_objects - nr_slabs * oo_objects(s->min);
-+		acc /= (oo_objects(s->oo) - oo_objects(s->min));
-+		nr_fallback = nr_slabs - acc;
-+	}
-+	return sprintf(buf, "%lu\n", nr_fallback);
-+}
-+SLAB_ATTR_RO(fallback);
-+
-+
- #ifdef CONFIG_SLUB_DEBUG
- static ssize_t slabs_show(struct kmem_cache *s, char *buf)
- {
-@@ -4329,6 +4369,7 @@ static struct attribute *slab_attrs[] = {
- 	&reclaim_account_attr.attr,
- 	&destroy_by_rcu_attr.attr,
- 	&shrink_attr.attr,
-+	&fallback_attr.attr,
- #ifdef CONFIG_SLUB_DEBUG
- 	&total_objects_attr.attr,
- 	&slabs_attr.attr,
-
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> ---
+>  fs/ioprio.c |   13 ++++---------
+>  1 files changed, 4 insertions(+), 9 deletions(-)
+> 
+> diff --git a/fs/ioprio.c b/fs/ioprio.c
+> index 748cfb9..7da2a06 100644
+> --- a/fs/ioprio.c
+> +++ b/fs/ioprio.c
+> @@ -103,12 +103,7 @@ SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
+>  	}
+> 
+>  	ret = -ESRCH;
+> -	/*
+> -	 * We want IOPRIO_WHO_PGRP/IOPRIO_WHO_USER to be "atomic",
+> -	 * so we can't use rcu_read_lock(). See re-copy of ->ioprio
+> -	 * in copy_process().
+> -	 */
+> -	read_lock(&tasklist_lock);
+> +	rcu_read_lock();
+>  	switch (which) {
+>  		case IOPRIO_WHO_PROCESS:
+>  			if (!who)
+> @@ -153,7 +148,7 @@ free_uid:
+>  			ret = -EINVAL;
+>  	}
+> 
+> -	read_unlock(&tasklist_lock);
+> +	rcu_read_unlock();
+>  	return ret;
+>  }
+> 
+> @@ -197,7 +192,7 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
+>  	int ret = -ESRCH;
+>  	int tmpio;
+> 
+> -	read_lock(&tasklist_lock);
+> +	rcu_read_lock();
+>  	switch (which) {
+>  		case IOPRIO_WHO_PROCESS:
+>  			if (!who)
+> @@ -250,6 +245,6 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
+>  			ret = -EINVAL;
+>  	}
+> 
+> -	read_unlock(&tasklist_lock);
+> +	rcu_read_unlock();
+>  	return ret;
+>  }
+> -- 
+> 1.7.3.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
