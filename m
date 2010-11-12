@@ -1,35 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E31908D0001
-	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 11:29:57 -0500 (EST)
-Date: Fri, 12 Nov 2010 10:29:52 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH/RFC] MM slub: add a sysfs entry to show the calculated
- number of fallback slabs
-In-Reply-To: <1289578964.1972.43.camel@castor.rsk>
-Message-ID: <alpine.DEB.2.00.1011121028270.11746@router.home>
-References: <1289561309.1972.30.camel@castor.rsk>  <alpine.DEB.2.00.1011120911310.11746@router.home> <1289578964.1972.43.camel@castor.rsk>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id ECBFA8D0001
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 12:40:25 -0500 (EST)
+Date: Fri, 12 Nov 2010 18:34:00 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] ioprio: grab rcu_read_lock in sys_ioprio_{set,get}()
+Message-ID: <20101112173400.GA8659@redhat.com>
+References: <1289547167-32675-1-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1289547167-32675-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: Pekka Enberg <penberg@kernel.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Nov 2010, Richard Kennedy wrote:
+On 11/11, Greg Thelen wrote:
+>
+> The fix is to:
+> a) grab rcu lock in sys_ioprio_{set,get}() and
+> b) avoid grabbing tasklist_lock.
+> Discussion in: http://marc.info/?l=linux-kernel&m=128951324702889
+>
+> Signed-off-by: Greg Thelen <gthelen@google.com>
 
-> I know it's not ideal. Of course there already is a counter in
-> CONFIG_SLUB_STATS but it only counts the total number of fallback slabs
-> issued since boot time.
-> I'm not sure if I can reliably decrement a fallback counter when a slab
-> get freed. If the size was changed then we could have slabs with several
-> different sizes, and off the top of my head I'm not sure if I can
-> identify which ones were created as fallback slabs. I don't suppose
-> there's a spare flag anywhere.
+Reviewed-by: Oleg Nesterov <oleg@redhat.com>
 
-There are lots of spare flags to be used for SLABs. We just decommissioned
-the use of one SLUB_DEBUG. Look at the patchlist and revert that one
-giving it a new name like SLUB_FALLBACK.
+> ---
+>  fs/ioprio.c |   13 ++++---------
+>  1 files changed, 4 insertions(+), 9 deletions(-)
+> 
+> diff --git a/fs/ioprio.c b/fs/ioprio.c
+> index 748cfb9..7da2a06 100644
+> --- a/fs/ioprio.c
+> +++ b/fs/ioprio.c
+> @@ -103,12 +103,7 @@ SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
+>  	}
+>  
+>  	ret = -ESRCH;
+> -	/*
+> -	 * We want IOPRIO_WHO_PGRP/IOPRIO_WHO_USER to be "atomic",
+> -	 * so we can't use rcu_read_lock(). See re-copy of ->ioprio
+> -	 * in copy_process().
+> -	 */
+> -	read_lock(&tasklist_lock);
+> +	rcu_read_lock();
+>  	switch (which) {
+>  		case IOPRIO_WHO_PROCESS:
+>  			if (!who)
+> @@ -153,7 +148,7 @@ free_uid:
+>  			ret = -EINVAL;
+>  	}
+>  
+> -	read_unlock(&tasklist_lock);
+> +	rcu_read_unlock();
+>  	return ret;
+>  }
+>  
+> @@ -197,7 +192,7 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
+>  	int ret = -ESRCH;
+>  	int tmpio;
+>  
+> -	read_lock(&tasklist_lock);
+> +	rcu_read_lock();
+>  	switch (which) {
+>  		case IOPRIO_WHO_PROCESS:
+>  			if (!who)
+> @@ -250,6 +245,6 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
+>  			ret = -EINVAL;
+>  	}
+>  
+> -	read_unlock(&tasklist_lock);
+> +	rcu_read_unlock();
+>  	return ret;
+>  }
+> -- 
+> 1.7.3.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
