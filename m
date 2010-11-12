@@ -1,34 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 499C76B00AF
-	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 00:48:04 -0500 (EST)
-Date: Fri, 12 Nov 2010 16:48:00 +1100
-From: Nick Piggin <npiggin@kernel.dk>
-Subject: Re: [patch] mm: find_get_pages_contig fixlet
-Message-ID: <20101112054800.GA3332@amd>
-References: <20101111075455.GA10210@amd>
- <20101111120255.GA7654@localhost>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 13B626B00B1
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 01:05:05 -0500 (EST)
+Received: by iwn9 with SMTP id 9so3196167iwn.14
+        for <linux-mm@kvack.org>; Thu, 11 Nov 2010 22:05:03 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101111120255.GA7654@localhost>
+In-Reply-To: <20101111075455.GA10210@amd>
+References: <20101111075455.GA10210@amd>
+Date: Fri, 12 Nov 2010 14:58:52 +0900
+Message-ID: <AANLkTik90AS83YyrTtvBeJgUx3ZiQM6AAKqH9y+z4Ewk@mail.gmail.com>
+Subject: Re: [patch] mm: find_get_pages_contig fixlet
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Nick Piggin <npiggin@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@kernel.dk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 11, 2010 at 08:02:55PM +0800, Wu Fengguang wrote:
-> On Thu, Nov 11, 2010 at 06:54:55PM +1100, Nick Piggin wrote:
-> > Testing ->mapping and ->index without a ref is not stable as the page
-> > may have been reused at this point.
-> > 
-> > Signed-off-by: Nick Piggin <npiggin@kernel.dk>
-> 
-> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-> 
-> Just out of curious, did you catch it by code review or tests?
+On Thu, Nov 11, 2010 at 4:54 PM, Nick Piggin <npiggin@kernel.dk> wrote:
+> Testing ->mapping and ->index without a ref is not stable as the page
+> may have been reused at this point.
+>
+> Signed-off-by: Nick Piggin <npiggin@kernel.dk>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-It was just review.
+Nice catch.
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
