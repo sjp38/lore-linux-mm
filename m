@@ -1,40 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 016CF8D0001
-	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 07:20:11 -0500 (EST)
-Date: Fri, 12 Nov 2010 13:20:03 +0100
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: BUG: Bad page state in process (current git)
-Message-ID: <20101112122003.GA1572@arch.trippelsdorf.de>
-References: <20101110152519.GA1626@arch.trippelsdorf.de>
- <20101110154057.GA2191@arch.trippelsdorf.de>
- <alpine.DEB.2.00.1011101534370.30164@router.home>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 550F78D0001
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 10:13:45 -0500 (EST)
+Date: Fri, 12 Nov 2010 09:13:40 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH/RFC] MM slub: add a sysfs entry to show the calculated
+ number of fallback slabs
+In-Reply-To: <1289561309.1972.30.camel@castor.rsk>
+Message-ID: <alpine.DEB.2.00.1011120911310.11746@router.home>
+References: <1289561309.1972.30.camel@castor.rsk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1011101534370.30164@router.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Richard Kennedy <richard@rsk.demon.co.uk>
+Cc: Pekka Enberg <penberg@kernel.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 2010.11.10 at 15:46 -0600, Christoph Lameter wrote:
-> On Wed, 10 Nov 2010, Markus Trippelsdorf wrote:
-> 
-> > I found this in my dmesg:
-> > ACPI: Local APIC address 0xfee00000
-> >  [ffffea0000000000-ffffea0003ffffff] PMD -> [ffff8800d0000000-ffff8800d39fffff] on node 0
-> 
-> That only shows you how the memmap was virtually mapped.
+On Fri, 12 Nov 2010, Richard Kennedy wrote:
 
-Yes. Fortunately the BUG is gone since I pulled the upcoming drm fixes
-from: 
-git://git.kernel.org/pub/scm/linux/kernel/git/airlied/drm-2.6.git drm-fixes
+> On my desktop workloads (kernel compile etc) I'm seeing surprisingly
+> little slab fragmentation. Do you have any suggestions for test cases
+> that will fragment the memory?
 
-Maybe 06fba6d4168069d8 fixed it.
+Do a massive scan through huge amounts of files that triggers inode and
+dentry reclaim?
 
--- 
-Markus
+> + * Note that this can give the wrong answer if the user has changed the
+> + * order of this slab via sysfs.
+
+Not good. Maybe have an additional counter in kmem_cache_node instead?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
