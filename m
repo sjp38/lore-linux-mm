@@ -1,83 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id ECBFA8D0001
-	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 12:40:25 -0500 (EST)
-Date: Fri, 12 Nov 2010 18:34:00 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] ioprio: grab rcu_read_lock in sys_ioprio_{set,get}()
-Message-ID: <20101112173400.GA8659@redhat.com>
-References: <1289547167-32675-1-git-send-email-gthelen@google.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 83DC98D0001
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 13:47:03 -0500 (EST)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id oACIl074019877
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 10:47:00 -0800
+Received: from pzk33 (pzk33.prod.google.com [10.243.19.161])
+	by hpaq2.eem.corp.google.com with ESMTP id oACIkc3c008521
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 10:46:59 -0800
+Received: by pzk33 with SMTP id 33so539658pzk.38
+        for <linux-mm@kvack.org>; Fri, 12 Nov 2010 10:46:54 -0800 (PST)
+Date: Fri, 12 Nov 2010 10:46:51 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH/RFC] MM slub: add a sysfs entry to show the calculated
+ number of fallback slabs
+In-Reply-To: <1289561309.1972.30.camel@castor.rsk>
+Message-ID: <alpine.DEB.2.00.1011121043250.5830@chino.kir.corp.google.com>
+References: <1289561309.1972.30.camel@castor.rsk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1289547167-32675-1-git-send-email-gthelen@google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Richard Kennedy <richard@rsk.demon.co.uk>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 11/11, Greg Thelen wrote:
->
-> The fix is to:
-> a) grab rcu lock in sys_ioprio_{set,get}() and
-> b) avoid grabbing tasklist_lock.
-> Discussion in: http://marc.info/?l=linux-kernel&m=128951324702889
->
-> Signed-off-by: Greg Thelen <gthelen@google.com>
+On Fri, 12 Nov 2010, Richard Kennedy wrote:
 
-Reviewed-by: Oleg Nesterov <oleg@redhat.com>
+> Add a slub sysfs entry to show the calculated number of fallback slabs.
+> 
+> Using the information already available it is straightforward to
+> calculate the number of fallback & full size slabs. We can then track
+> which slabs are particularly effected by memory fragmentation and how
+> long they take to recover. 
+> 
+> There is no change to the mainline code, the calculation is only
+> performed on request, and the value is available without having to
+> enable CONFIG_SLUB_STATS.  
+> 
 
-> ---
->  fs/ioprio.c |   13 ++++---------
->  1 files changed, 4 insertions(+), 9 deletions(-)
-> 
-> diff --git a/fs/ioprio.c b/fs/ioprio.c
-> index 748cfb9..7da2a06 100644
-> --- a/fs/ioprio.c
-> +++ b/fs/ioprio.c
-> @@ -103,12 +103,7 @@ SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
->  	}
->  
->  	ret = -ESRCH;
-> -	/*
-> -	 * We want IOPRIO_WHO_PGRP/IOPRIO_WHO_USER to be "atomic",
-> -	 * so we can't use rcu_read_lock(). See re-copy of ->ioprio
-> -	 * in copy_process().
-> -	 */
-> -	read_lock(&tasklist_lock);
-> +	rcu_read_lock();
->  	switch (which) {
->  		case IOPRIO_WHO_PROCESS:
->  			if (!who)
-> @@ -153,7 +148,7 @@ free_uid:
->  			ret = -EINVAL;
->  	}
->  
-> -	read_unlock(&tasklist_lock);
-> +	rcu_read_unlock();
->  	return ret;
->  }
->  
-> @@ -197,7 +192,7 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
->  	int ret = -ESRCH;
->  	int tmpio;
->  
-> -	read_lock(&tasklist_lock);
-> +	rcu_read_lock();
->  	switch (which) {
->  		case IOPRIO_WHO_PROCESS:
->  			if (!who)
-> @@ -250,6 +245,6 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
->  			ret = -EINVAL;
->  	}
->  
-> -	read_unlock(&tasklist_lock);
-> +	rcu_read_unlock();
->  	return ret;
->  }
-> -- 
-> 1.7.3.1
-> 
+I don't see why this information is generally useful unless debugging an 
+issue where statistics are already needed such as ALLOC_SLOWPATH and 
+ALLOC_SLAB, so it CONFIG_SLUB_STATS can be enabled to also track 
+ORDER_FALLBACK.  All stats can be cleared by writing a '0' to its sysfs 
+stats file so you can collect statistics for various workloads without 
+rebooting (after doing a forced shrink, for example).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
