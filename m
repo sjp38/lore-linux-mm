@@ -1,50 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 74FFB8D0001
-	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 11:16:10 -0500 (EST)
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Fri, 12 Nov 2010 11:15:06 -0500
-Message-Id: <20101112161506.4425.11535.sendpatchset@localhost6.localdomain6>
-Subject: Announce: Auto/Lazy-migration Patches RFC on linux-numa list
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id C2DEA8D0001
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 11:22:47 -0500 (EST)
+Subject: Re: [PATCH/RFC] MM slub: add a sysfs entry to show the calculated
+ number of fallback slabs
+From: Richard Kennedy <richard@rsk.demon.co.uk>
+In-Reply-To: <alpine.DEB.2.00.1011120911310.11746@router.home>
+References: <1289561309.1972.30.camel@castor.rsk>
+	 <alpine.DEB.2.00.1011120911310.11746@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 12 Nov 2010 16:22:44 +0000
+Message-ID: <1289578964.1972.43.camel@castor.rsk>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: qemu-devel@nongnu.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, virtualization@lists.linux-foundation.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-At last weeks' LPC, there was some interest in my patches for Auto/Lazy
-Migration to improve locality and possibly performance of unpinned guest
-VMs on a NUMA platform.  As a result of these conversations I have reposted
-the patches [4 series, ~40 patches] as RFCs to the linux-numa list.  Links
-to threads given below.
+On Fri, 2010-11-12 at 09:13 -0600, Christoph Lameter wrote:
+> On Fri, 12 Nov 2010, Richard Kennedy wrote:
+> 
+> > On my desktop workloads (kernel compile etc) I'm seeing surprisingly
+> > little slab fragmentation. Do you have any suggestions for test cases
+> > that will fragment the memory?
+> 
+> Do a massive scan through huge amounts of files that triggers inode and
+> dentry reclaim?
 
-I have rebased the patches atop 3Nov10 mmotm series [2.6.36 + 3nov mmotm].
-The patched kernel builds, boots and survives some fairly heavy testing on
-an 8 node istanbul x86_64.  Under heavy load, I do encounter a race in the
-somewhat optional migration cache.  Currently this generates a warning and
-carries on, but the one migration cache entry and related page is then
-wedged.  This would need to be resolved.
+thanks, I'll give it a try.
 
-
-The series/threads in the order applied:
-
-[PATCH/RFC 0/14] Shared Policy Overview
-http://markmail.org/message/trvpl3t7gimvwht6
-
-[PATCH/RFC 0/8] numa - Migrate-on-Fault
-http://markmail.org/message/mdwbcitql5ka4uws
-
-[PATCH/RFC 0/11] numa - Automatic-migration
-http://markmail.org/message/zik3itmqed65mol2
-
-[PATCH/RFC 1/5] numa - migration cache - core implementation
-http://markmail.org/message/xvck7enyezx6chyi
-
-RESEND: [PATCH/RFC 1/5] numa - migration cache - core implementation
-http://markmail.org/message/xgvvrnn2nk4nsn2e
-
-	resend to add back the patch description missing from 1st attempt.
+> > + * Note that this can give the wrong answer if the user has changed the
+> > + * order of this slab via sysfs.
+> 
+> Not good. Maybe have an additional counter in kmem_cache_node instead?
 
 
+I know it's not ideal. Of course there already is a counter in
+CONFIG_SLUB_STATS but it only counts the total number of fallback slabs
+issued since boot time.
+I'm not sure if I can reliably decrement a fallback counter when a slab
+get freed. If the size was changed then we could have slabs with several
+different sizes, and off the top of my head I'm not sure if I can
+identify which ones were created as fallback slabs. I don't suppose
+there's a spare flag anywhere. 
 
+I'll give this some more thought.
+
+regards
+Richard   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
