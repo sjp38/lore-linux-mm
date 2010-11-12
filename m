@@ -1,83 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id EA71F8D0001
-	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 13:56:34 -0500 (EST)
-Subject: (mem hotplug, pcpu_alloc) BUG: sleeping function called from
-	invalid context at kernel/mutex.c:94
-From: Alok Kataria <akataria@vmware.com>
-Reply-To: akataria@vmware.com
-Content-Type: text/plain
-Date: Fri, 12 Nov 2010 10:56:18 -0800
-Message-Id: <1289588178.7486.15.camel@ank32.eng.vmware.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CB5E08D0001
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 15:39:51 -0500 (EST)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH 3/6] memcg: make throttle_vm_writeout() memcg aware
+References: <1289294671-6865-1-git-send-email-gthelen@google.com>
+	<1289294671-6865-4-git-send-email-gthelen@google.com>
+	<20101112081754.GE9131@cmpxchg.org>
+Date: Fri, 12 Nov 2010 12:39:35 -0800
+Message-ID: <xr93wroixomw.fsf@ninji.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Petr Vandrovec <petr@vmware.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Johannes Weiner <hannes@cmpxchg.org> writes:
 
-We have seen following might_sleep warning while hot adding memory...
+> On Tue, Nov 09, 2010 at 01:24:28AM -0800, Greg Thelen wrote:
+>> If called with a mem_cgroup, then throttle_vm_writeout() should
+>> query the given cgroup for its dirty memory usage limits.
+>> 
+>> dirty_writeback_pages() is no longer used, so delete it.
+>> 
+>> Signed-off-by: Greg Thelen <gthelen@google.com>
+>> ---
+>>  include/linux/writeback.h |    2 +-
+>>  mm/page-writeback.c       |   31 ++++++++++++++++---------------
+>>  mm/vmscan.c               |    2 +-
+>>  3 files changed, 18 insertions(+), 17 deletions(-)
+>
+>> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+>> index d717fa9..bf85062 100644
+>> --- a/mm/page-writeback.c
+>> +++ b/mm/page-writeback.c
+>> @@ -131,18 +131,6 @@ EXPORT_SYMBOL(laptop_mode);
+>>  static struct prop_descriptor vm_completions;
+>>  static struct prop_descriptor vm_dirties;
+>>  
+>> -static unsigned long dirty_writeback_pages(void)
+>> -{
+>> -	unsigned long ret;
+>> -
+>> -	ret = mem_cgroup_page_stat(NULL, MEMCG_NR_DIRTY_WRITEBACK_PAGES);
+>> -	if ((long)ret < 0)
+>> -		ret = global_page_state(NR_UNSTABLE_NFS) +
+>> -			global_page_state(NR_WRITEBACK);
+>
+> There are two bugfixes in this patch.  One is getting rid of this
+> fallback to global numbers that are compared to memcg limits.  The
+> other one is that reclaim will now throttle writeout based on the
+> cgroup it runs on behalf of, instead of that of the current task.
+>
+> Both are undocumented and should arguably not even be in the same
+> patch...?
 
-[  142.339267] BUG: sleeping function called from invalid context at kernel/mutex.c:94
-[  142.339276] in_atomic(): 0, irqs_disabled(): 1, pid: 4, name: migration/0
-[  142.339283] Pid: 4, comm: migration/0 Not tainted 2.6.35.6-45.fc14.x86_64 #1
-[  142.339288] Call Trace:
-[  142.339305]  [<ffffffff8103d12b>] __might_sleep+0xeb/0xf0
-[  142.339316]  [<ffffffff81468245>] mutex_lock+0x24/0x50
-[  142.339326]  [<ffffffff8110eaa6>] pcpu_alloc+0x6d/0x7ee
-[  142.339336]  [<ffffffff81048888>] ? load_balance+0xbe/0x60e
-[  142.339343]  [<ffffffff8103a1b3>] ? rt_se_boosted+0x21/0x2f
-[  142.339349]  [<ffffffff8103e1cf>] ? dequeue_rt_stack+0x18b/0x1ed
-[  142.339356]  [<ffffffff8110f237>] __alloc_percpu+0x10/0x12
-[  142.339362]  [<ffffffff81465e22>] setup_zone_pageset+0x38/0xbe
-[  142.339373]  [<ffffffff810d6d81>] ? build_zonelists_node.clone.58+0x79/0x8c
-[  142.339384]  [<ffffffff81452539>] __build_all_zonelists+0x419/0x46c
-[  142.339395]  [<ffffffff8108ef01>] ? cpu_stopper_thread+0xb2/0x198
-[  142.339401]  [<ffffffff8108f075>] stop_machine_cpu_stop+0x8e/0xc5
-[  142.339407]  [<ffffffff8108efe7>] ? stop_machine_cpu_stop+0x0/0xc5
-[  142.339414]  [<ffffffff8108ef57>] cpu_stopper_thread+0x108/0x198
-[  142.339420]  [<ffffffff81467a37>] ? schedule+0x5b2/0x5cc
-[  142.339426]  [<ffffffff8108ee4f>] ? cpu_stopper_thread+0x0/0x198
-[  142.339434]  [<ffffffff81065f29>] kthread+0x7f/0x87
-[  142.339443]  [<ffffffff8100aae4>] kernel_thread_helper+0x4/0x10
-[  142.339449]  [<ffffffff81065eaa>] ? kthread+0x0/0x87
-[  142.339455]  [<ffffffff8100aae0>] ? kernel_thread_helper+0x0/0x10
-[  142.340099] Built 5 zonelists in Node order, mobility grouping on.  Total pages: 289456
-[  142.340108] Policy zone: Normal
+I will better document these changes in the commit message and I will
+split the change into two patches for clarity.
 
+- sub-patch 1 will change throttle_vm_writeout() to only consider global
+  usage and limits.  This would remove memcg consideration from
+  throttle_vm_writeout() and thus ensure that only global limits are
+  compared to global usage.
 
-This warning was seen on the FC14 kernel, though looking at the current
-git, the problem seems to exist on mainline too.
-The problem is that pcpu_alloc expects that it is called from non-atomic
-context as a result it grabs the pcpu_alloc_mutex. 
-In the memory-hotplug case though, we do end up calling pcpu_alloc from
-atomic context, while all cpus are stopped.
+- sub-patch 2 will introduce memcg consideration consistently into
+  throttle_vm_writeout().  This will allow throttle_vm_writeout() to
+  consider memcg usage and limits, but they will uniformly applied.
+  memcg usage will not be compared to global limits.
 
-void build_all_zonelists(void *data)
-{
-   set_zonelist_order();
+>> @@ -703,12 +691,25 @@ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
+>>  }
+>>  EXPORT_SYMBOL(balance_dirty_pages_ratelimited_nr);
+>>  
+>> -void throttle_vm_writeout(gfp_t gfp_mask)
+>> +/*
+>> + * Throttle the current task if it is near dirty memory usage limits.
+>> + * If @mem_cgroup is NULL or the root_cgroup, then use global dirty memory
+>> + * information; otherwise use the per-memcg dirty limits.
+>> + */
+>> +void throttle_vm_writeout(gfp_t gfp_mask, struct mem_cgroup *mem_cgroup)
+>>  {
+>>  	struct dirty_info dirty_info;
+>> +	unsigned long nr_writeback;
+>>  
+>>          for ( ; ; ) {
+>> -		global_dirty_info(&dirty_info);
+>> +		if (!mem_cgroup || !memcg_dirty_info(mem_cgroup, &dirty_info)) {
+>> +			global_dirty_info(&dirty_info);
+>> +			nr_writeback = global_page_state(NR_UNSTABLE_NFS) +
+>> +				global_page_state(NR_WRITEBACK);
+>> +		} else {
+>> +			nr_writeback = mem_cgroup_page_stat(
+>> +				mem_cgroup, MEMCG_NR_DIRTY_WRITEBACK_PAGES);
+>> +		}
+>
+> Odd branch ordering, but I may be OCDing again.
+>
+> 	if (mem_cgroup && memcg_dirty_info())
+> 		do_mem_cgroup_stuff()
+> 	else
+> 		do_global_stuff()
+>
+> would be more natural, IMO.
 
-   if (system_state == SYSTEM_BOOTING) {
-      __build_all_zonelists(NULL);
-      mminit_verify_zonelist();
-      cpuset_init_current_mems_allowed();
-   } else {
-      /* we have to stop all cpus to guarantee there is no user
-         of zonelist */
-      stop_machine(__build_all_zonelists, data, NULL);   <=========
-      /* cpuset refresh routine should be here */
-   }
-
-__build_all_zonelists eventually calls pcpu_alloc. 
-
-I didn't dive through the history, so am not sure when was this
-regression introduced, but could have regressed with the new pcpu memory
-allocator.
-
---
-Alok
+I agree.  I will resubmit this series with your improved branch ordering.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
