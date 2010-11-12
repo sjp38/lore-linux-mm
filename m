@@ -1,73 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D4C36B00AD
-	for <linux-mm@kvack.org>; Thu, 11 Nov 2010 21:44:13 -0500 (EST)
-Date: Thu, 11 Nov 2010 18:40:59 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH][RESEND] nommu: yield CPU periodically while disposing
- large VM
-Message-Id: <20101111184059.5744a42f.akpm@linux-foundation.org>
-In-Reply-To: <1289507596-17613-1-git-send-email-steve@digidescorp.com>
-References: <1289507596-17613-1-git-send-email-steve@digidescorp.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 499C76B00AF
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 00:48:04 -0500 (EST)
+Date: Fri, 12 Nov 2010 16:48:00 +1100
+From: Nick Piggin <npiggin@kernel.dk>
+Subject: Re: [patch] mm: find_get_pages_contig fixlet
+Message-ID: <20101112054800.GA3332@amd>
+References: <20101111075455.GA10210@amd>
+ <20101111120255.GA7654@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101111120255.GA7654@localhost>
 Sender: owner-linux-mm@kvack.org
-To: "Steven J. Magnani" <steve@digidescorp.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Ungerer <gerg@snapgear.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Nick Piggin <npiggin@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Nov 2010 14:33:16 -0600 "Steven J. Magnani" <steve@digidescorp.com> wrote:
-
-> Depending on processor speed, page size, and the amount of memory a process
-> is allowed to amass, cleanup of a large VM may freeze the system for many
-> seconds. This can result in a watchdog timeout.
-
-hm, that's no good.
-
-> Make sure other tasks receive some service when cleaning up large VMs.
+On Thu, Nov 11, 2010 at 08:02:55PM +0800, Wu Fengguang wrote:
+> On Thu, Nov 11, 2010 at 06:54:55PM +1100, Nick Piggin wrote:
+> > Testing ->mapping and ->index without a ref is not stable as the page
+> > may have been reused at this point.
+> > 
+> > Signed-off-by: Nick Piggin <npiggin@kernel.dk>
 > 
-> Signed-off-by: Steven J. Magnani <steve@digidescorp.com>
-> ---
-> diff -uprN a/mm/nommu.c b/mm/nommu.c
-> --- a/mm/nommu.c	2010-10-21 07:42:23.000000000 -0500
-> +++ b/mm/nommu.c	2010-10-21 07:46:50.000000000 -0500
-> @@ -1656,6 +1656,7 @@ SYSCALL_DEFINE2(munmap, unsigned long, a
->  void exit_mmap(struct mm_struct *mm)
->  {
->  	struct vm_area_struct *vma;
-> +	unsigned long next_yield = jiffies + HZ;
->  
->  	if (!mm)
->  		return;
-> @@ -1668,6 +1669,11 @@ void exit_mmap(struct mm_struct *mm)
->  		mm->mmap = vma->vm_next;
->  		delete_vma_from_mm(vma);
->  		delete_vma(mm, vma);
-> +		/* Yield periodically to prevent watchdog timeout */
-> +		if (time_after(jiffies, next_yield)) {
-> +			cond_resched();
-> +			next_yield = jiffies + HZ;
-> +		}
->  	}
->  
->  	kleave("");
+> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+> 
+> Just out of curious, did you catch it by code review or tests?
 
-You might be able to do this a bit more neatly with __ratelimit:
-
-	DEFINE_RATELIMIT_STATE(rl, HZ, 1);
-
-	...
-
-	if (___ratelimit(&rl, NULL))
-		cond_resched();
-
-but ___ratelimit() isn't really ready for that - it still has (easily
-fixed) assumptions that it's being used for printk ratelimiting.
-
-
-But anyway.  cond_resched() is pretty efficient and one second is still
-a very long time.  I suspect you don't need the ratelimiting at all?
+It was just review.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
