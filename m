@@ -1,101 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CBACE6B00B6
-	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 02:33:02 -0500 (EST)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH] ioprio: grab rcu_read_lock in sys_ioprio_{set,get}()
-Date: Thu, 11 Nov 2010 23:32:47 -0800
-Message-Id: <1289547167-32675-1-git-send-email-gthelen@google.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 25C106B00B9
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 03:18:18 -0500 (EST)
+Date: Fri, 12 Nov 2010 09:17:55 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3/6] memcg: make throttle_vm_writeout() memcg aware
+Message-ID: <20101112081754.GE9131@cmpxchg.org>
+References: <1289294671-6865-1-git-send-email-gthelen@google.com>
+ <1289294671-6865-4-git-send-email-gthelen@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1289294671-6865-4-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Jens Axboe <axboe@kernel.dk>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Greg Thelen <gthelen@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Using:
-- CONFIG_LOCKUP_DETECTOR=y
-- CONFIG_PREEMPT=y
-- CONFIG_LOCKDEP=y
-- CONFIG_PROVE_LOCKING=y
-- CONFIG_PROVE_RCU=y
-found a missing rcu lock during boot on a 512 MiB x86_64 ubuntu vm:
-  ===================================================
-  [ INFO: suspicious rcu_dereference_check() usage. ]
-  ---------------------------------------------------
-  kernel/pid.c:419 invoked rcu_dereference_check() without protection!
+On Tue, Nov 09, 2010 at 01:24:28AM -0800, Greg Thelen wrote:
+> If called with a mem_cgroup, then throttle_vm_writeout() should
+> query the given cgroup for its dirty memory usage limits.
+> 
+> dirty_writeback_pages() is no longer used, so delete it.
+> 
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> ---
+>  include/linux/writeback.h |    2 +-
+>  mm/page-writeback.c       |   31 ++++++++++++++++---------------
+>  mm/vmscan.c               |    2 +-
+>  3 files changed, 18 insertions(+), 17 deletions(-)
 
-  other info that might help us debug this:
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index d717fa9..bf85062 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -131,18 +131,6 @@ EXPORT_SYMBOL(laptop_mode);
+>  static struct prop_descriptor vm_completions;
+>  static struct prop_descriptor vm_dirties;
+>  
+> -static unsigned long dirty_writeback_pages(void)
+> -{
+> -	unsigned long ret;
+> -
+> -	ret = mem_cgroup_page_stat(NULL, MEMCG_NR_DIRTY_WRITEBACK_PAGES);
+> -	if ((long)ret < 0)
+> -		ret = global_page_state(NR_UNSTABLE_NFS) +
+> -			global_page_state(NR_WRITEBACK);
 
-  rcu_scheduler_active = 1, debug_locks = 0
-  1 lock held by ureadahead/1355:
-   #0:  (tasklist_lock){.+.+..}, at: [<ffffffff8115bc09>] sys_ioprio_set+0x7f/0x29e
+There are two bugfixes in this patch.  One is getting rid of this
+fallback to global numbers that are compared to memcg limits.  The
+other one is that reclaim will now throttle writeout based on the
+cgroup it runs on behalf of, instead of that of the current task.
 
-  stack backtrace:
-  Pid: 1355, comm: ureadahead Not tainted 2.6.37-dbg-DEV #1
-  Call Trace:
-   [<ffffffff8109c10c>] lockdep_rcu_dereference+0xaa/0xb3
-   [<ffffffff81088cbf>] find_task_by_pid_ns+0x44/0x5d
-   [<ffffffff81088cfa>] find_task_by_vpid+0x22/0x24
-   [<ffffffff8115bc3e>] sys_ioprio_set+0xb4/0x29e
-   [<ffffffff8147cf21>] ? trace_hardirqs_off_thunk+0x3a/0x3c
-   [<ffffffff8105c409>] sysenter_dispatch+0x7/0x2c
-   [<ffffffff8147cee2>] ? trace_hardirqs_on_thunk+0x3a/0x3f
+Both are undocumented and should arguably not even be in the same
+patch...?
 
-The fix is to:
-a) grab rcu lock in sys_ioprio_{set,get}() and
-b) avoid grabbing tasklist_lock.
-Discussion in: http://marc.info/?l=linux-kernel&m=128951324702889
+> @@ -703,12 +691,25 @@ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
+>  }
+>  EXPORT_SYMBOL(balance_dirty_pages_ratelimited_nr);
+>  
+> -void throttle_vm_writeout(gfp_t gfp_mask)
+> +/*
+> + * Throttle the current task if it is near dirty memory usage limits.
+> + * If @mem_cgroup is NULL or the root_cgroup, then use global dirty memory
+> + * information; otherwise use the per-memcg dirty limits.
+> + */
+> +void throttle_vm_writeout(gfp_t gfp_mask, struct mem_cgroup *mem_cgroup)
+>  {
+>  	struct dirty_info dirty_info;
+> +	unsigned long nr_writeback;
+>  
+>          for ( ; ; ) {
+> -		global_dirty_info(&dirty_info);
+> +		if (!mem_cgroup || !memcg_dirty_info(mem_cgroup, &dirty_info)) {
+> +			global_dirty_info(&dirty_info);
+> +			nr_writeback = global_page_state(NR_UNSTABLE_NFS) +
+> +				global_page_state(NR_WRITEBACK);
+> +		} else {
+> +			nr_writeback = mem_cgroup_page_stat(
+> +				mem_cgroup, MEMCG_NR_DIRTY_WRITEBACK_PAGES);
+> +		}
 
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
- fs/ioprio.c |   13 ++++---------
- 1 files changed, 4 insertions(+), 9 deletions(-)
+Odd branch ordering, but I may be OCDing again.
 
-diff --git a/fs/ioprio.c b/fs/ioprio.c
-index 748cfb9..7da2a06 100644
---- a/fs/ioprio.c
-+++ b/fs/ioprio.c
-@@ -103,12 +103,7 @@ SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
- 	}
- 
- 	ret = -ESRCH;
--	/*
--	 * We want IOPRIO_WHO_PGRP/IOPRIO_WHO_USER to be "atomic",
--	 * so we can't use rcu_read_lock(). See re-copy of ->ioprio
--	 * in copy_process().
--	 */
--	read_lock(&tasklist_lock);
-+	rcu_read_lock();
- 	switch (which) {
- 		case IOPRIO_WHO_PROCESS:
- 			if (!who)
-@@ -153,7 +148,7 @@ free_uid:
- 			ret = -EINVAL;
- 	}
- 
--	read_unlock(&tasklist_lock);
-+	rcu_read_unlock();
- 	return ret;
- }
- 
-@@ -197,7 +192,7 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
- 	int ret = -ESRCH;
- 	int tmpio;
- 
--	read_lock(&tasklist_lock);
-+	rcu_read_lock();
- 	switch (which) {
- 		case IOPRIO_WHO_PROCESS:
- 			if (!who)
-@@ -250,6 +245,6 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
- 			ret = -EINVAL;
- 	}
- 
--	read_unlock(&tasklist_lock);
-+	rcu_read_unlock();
- 	return ret;
- }
--- 
-1.7.3.1
+	if (mem_cgroup && memcg_dirty_info())
+		do_mem_cgroup_stuff()
+	else
+		do_global_stuff()
+
+would be more natural, IMO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
