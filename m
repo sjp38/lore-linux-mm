@@ -1,94 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 25C106B00B9
-	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 03:18:18 -0500 (EST)
-Date: Fri, 12 Nov 2010 09:17:55 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BA896B00BB
+	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 03:20:08 -0500 (EST)
+Date: Fri, 12 Nov 2010 09:19:57 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3/6] memcg: make throttle_vm_writeout() memcg aware
-Message-ID: <20101112081754.GE9131@cmpxchg.org>
+Subject: Re: [PATCH 4/6] memcg: simplify mem_cgroup_page_stat()
+Message-ID: <20101112081957.GF9131@cmpxchg.org>
 References: <1289294671-6865-1-git-send-email-gthelen@google.com>
- <1289294671-6865-4-git-send-email-gthelen@google.com>
+ <1289294671-6865-5-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1289294671-6865-4-git-send-email-gthelen@google.com>
+In-Reply-To: <1289294671-6865-5-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 To: Greg Thelen <gthelen@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 09, 2010 at 01:24:28AM -0800, Greg Thelen wrote:
-> If called with a mem_cgroup, then throttle_vm_writeout() should
-> query the given cgroup for its dirty memory usage limits.
-> 
-> dirty_writeback_pages() is no longer used, so delete it.
+On Tue, Nov 09, 2010 at 01:24:29AM -0800, Greg Thelen wrote:
+> The cgroup given to mem_cgroup_page_stat() is no allowed to be
+> NULL or the root cgroup.  So there is no need to complicate the code
+> handling those cases.
 > 
 > Signed-off-by: Greg Thelen <gthelen@google.com>
 > ---
->  include/linux/writeback.h |    2 +-
->  mm/page-writeback.c       |   31 ++++++++++++++++---------------
->  mm/vmscan.c               |    2 +-
->  3 files changed, 18 insertions(+), 17 deletions(-)
-
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index d717fa9..bf85062 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -131,18 +131,6 @@ EXPORT_SYMBOL(laptop_mode);
->  static struct prop_descriptor vm_completions;
->  static struct prop_descriptor vm_dirties;
+>  mm/memcontrol.c |   48 ++++++++++++++++++++++--------------------------
+>  1 files changed, 22 insertions(+), 26 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index eb621ee..f8df350 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1364,12 +1364,10 @@ memcg_hierarchical_free_pages(struct mem_cgroup *mem)
 >  
-> -static unsigned long dirty_writeback_pages(void)
-> -{
-> -	unsigned long ret;
-> -
-> -	ret = mem_cgroup_page_stat(NULL, MEMCG_NR_DIRTY_WRITEBACK_PAGES);
-> -	if ((long)ret < 0)
-> -		ret = global_page_state(NR_UNSTABLE_NFS) +
-> -			global_page_state(NR_WRITEBACK);
-
-There are two bugfixes in this patch.  One is getting rid of this
-fallback to global numbers that are compared to memcg limits.  The
-other one is that reclaim will now throttle writeout based on the
-cgroup it runs on behalf of, instead of that of the current task.
-
-Both are undocumented and should arguably not even be in the same
-patch...?
-
-> @@ -703,12 +691,25 @@ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
->  }
->  EXPORT_SYMBOL(balance_dirty_pages_ratelimited_nr);
+>  /*
+>   * mem_cgroup_page_stat() - get memory cgroup file cache statistics
+> - * @mem:	optional memory cgroup to query.  If NULL, use current task's
+> - *		cgroup.
+> + * @mem:	memory cgroup to query
+>   * @item:	memory statistic item exported to the kernel
+>   *
+> - * Return the accounted statistic value or negative value if current task is
+> - * root cgroup.
+> + * Return the accounted statistic value.
+>   */
+>  long mem_cgroup_page_stat(struct mem_cgroup *mem,
+>  			  enum mem_cgroup_nr_pages_item item)
+> @@ -1377,29 +1375,27 @@ long mem_cgroup_page_stat(struct mem_cgroup *mem,
+>  	struct mem_cgroup *iter;
+>  	long value;
 >  
-> -void throttle_vm_writeout(gfp_t gfp_mask)
-> +/*
-> + * Throttle the current task if it is near dirty memory usage limits.
-> + * If @mem_cgroup is NULL or the root_cgroup, then use global dirty memory
-> + * information; otherwise use the per-memcg dirty limits.
-> + */
-> +void throttle_vm_writeout(gfp_t gfp_mask, struct mem_cgroup *mem_cgroup)
->  {
->  	struct dirty_info dirty_info;
-> +	unsigned long nr_writeback;
->  
->          for ( ; ; ) {
-> -		global_dirty_info(&dirty_info);
-> +		if (!mem_cgroup || !memcg_dirty_info(mem_cgroup, &dirty_info)) {
-> +			global_dirty_info(&dirty_info);
-> +			nr_writeback = global_page_state(NR_UNSTABLE_NFS) +
-> +				global_page_state(NR_WRITEBACK);
-> +		} else {
-> +			nr_writeback = mem_cgroup_page_stat(
-> +				mem_cgroup, MEMCG_NR_DIRTY_WRITEBACK_PAGES);
-> +		}
+> +	VM_BUG_ON(!mem);
+> +	VM_BUG_ON(mem_cgroup_is_root(mem));
+> +
+>  	get_online_cpus();
+> -	rcu_read_lock();
+> -	if (!mem)
+> -		mem = mem_cgroup_from_task(current);
+> -	if (__mem_cgroup_has_dirty_limit(mem)) {
 
-Odd branch ordering, but I may be OCDing again.
-
-	if (mem_cgroup && memcg_dirty_info())
-		do_mem_cgroup_stuff()
-	else
-		do_global_stuff()
-
-would be more natural, IMO.
+What about mem->use_hierarchy that is checked in
+__mem_cgroup_has_dirty_limit()?  Is it no longer needed?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
