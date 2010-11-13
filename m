@@ -1,60 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AA7D98D0001
-	for <linux-mm@kvack.org>; Fri, 12 Nov 2010 15:41:28 -0500 (EST)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH 6/6] memcg: make mem_cgroup_page_stat() return value unsigned
-References: <1289294671-6865-1-git-send-email-gthelen@google.com>
-	<1289294671-6865-7-git-send-email-gthelen@google.com>
-	<20101112082921.GH9131@cmpxchg.org>
-Date: Fri, 12 Nov 2010 12:41:15 -0800
-Message-ID: <xr937hgixok4.fsf@ninji.mtv.corp.google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F72C8D0001
+	for <linux-mm@kvack.org>; Sat, 13 Nov 2010 05:09:54 -0500 (EST)
+Message-ID: <4CDE63D3.4010608@kernel.org>
+Date: Sat, 13 Nov 2010 11:09:23 +0100
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: (mem hotplug, pcpu_alloc) BUG: sleeping function called from
+ invalid context at kernel/mutex.c:94
+References: <1289588178.7486.15.camel@ank32.eng.vmware.com>
+In-Reply-To: <1289588178.7486.15.camel@ank32.eng.vmware.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akataria@vmware.com
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Petr Vandrovec <petr@vmware.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-DeJohannes Weiner <hannes@cmpxchg.org> writes:
+Hello,
 
-> On Tue, Nov 09, 2010 at 01:24:31AM -0800, Greg Thelen wrote:
->> mem_cgroup_page_stat() used to return a negative page count
->> value to indicate value.
->
-> Whoops :)
->
->> mem_cgroup_page_stat() has changed so it never returns
->> error so convert the return value to the traditional page
->> count type (unsigned long).
->
-> This changelog feels a bit beside the point.
->
-> What's really interesting is that we now don't consider negative sums
-> to be invalid anymore, but just assume zero!  There is a real
-> semantical change here.
+On 11/12/2010 07:56 PM, Alok Kataria wrote:
+> We have seen following might_sleep warning while hot adding memory...
+> 
+> [  142.339267] BUG: sleeping function called from invalid context at kernel/mutex.c:94
+> [  142.339276] in_atomic(): 0, irqs_disabled(): 1, pid: 4, name: migration/0
+> [  142.339283] Pid: 4, comm: migration/0 Not tainted 2.6.35.6-45.fc14.x86_64 #1
+> [  142.339288] Call Trace:
+> [  142.339305]  [<ffffffff8103d12b>] __might_sleep+0xeb/0xf0
+> [  142.339316]  [<ffffffff81468245>] mutex_lock+0x24/0x50
+> [  142.339326]  [<ffffffff8110eaa6>] pcpu_alloc+0x6d/0x7ee
+> [  142.339336]  [<ffffffff81048888>] ? load_balance+0xbe/0x60e
+> [  142.339343]  [<ffffffff8103a1b3>] ? rt_se_boosted+0x21/0x2f
+> [  142.339349]  [<ffffffff8103e1cf>] ? dequeue_rt_stack+0x18b/0x1ed
+> [  142.339356]  [<ffffffff8110f237>] __alloc_percpu+0x10/0x12
+> [  142.339362]  [<ffffffff81465e22>] setup_zone_pageset+0x38/0xbe
+> [  142.339373]  [<ffffffff810d6d81>] ? build_zonelists_node.clone.58+0x79/0x8c
+> [  142.339384]  [<ffffffff81452539>] __build_all_zonelists+0x419/0x46c
+> [  142.339395]  [<ffffffff8108ef01>] ? cpu_stopper_thread+0xb2/0x198
+> [  142.339401]  [<ffffffff8108f075>] stop_machine_cpu_stop+0x8e/0xc5
+> [  142.339407]  [<ffffffff8108efe7>] ? stop_machine_cpu_stop+0x0/0xc5
+> [  142.339414]  [<ffffffff8108ef57>] cpu_stopper_thread+0x108/0x198
+> [  142.339420]  [<ffffffff81467a37>] ? schedule+0x5b2/0x5cc
+> [  142.339426]  [<ffffffff8108ee4f>] ? cpu_stopper_thread+0x0/0x198
+> [  142.339434]  [<ffffffff81065f29>] kthread+0x7f/0x87
+> [  142.339443]  [<ffffffff8100aae4>] kernel_thread_helper+0x4/0x10
+> [  142.339449]  [<ffffffff81065eaa>] ? kthread+0x0/0x87
+> [  142.339455]  [<ffffffff8100aae0>] ? kernel_thread_helper+0x0/0x10
+> [  142.340099] Built 5 zonelists in Node order, mobility grouping on.  Total pages: 289456
+> [  142.340108] Policy zone: Normal
+> 
+> 
+> This warning was seen on the FC14 kernel, though looking at the current
+> git, the problem seems to exist on mainline too.
+> The problem is that pcpu_alloc expects that it is called from non-atomic
+> context as a result it grabs the pcpu_alloc_mutex. 
+> In the memory-hotplug case though, we do end up calling pcpu_alloc from
+> atomic context, while all cpus are stopped.
+> 
+> void build_all_zonelists(void *data)
+> {
+>    set_zonelist_order();
+> 
+>    if (system_state == SYSTEM_BOOTING) {
+>       __build_all_zonelists(NULL);
+>       mminit_verify_zonelist();
+>       cpuset_init_current_mems_allowed();
+>    } else {
+>       /* we have to stop all cpus to guarantee there is no user
+>          of zonelist */
+>       stop_machine(__build_all_zonelists, data, NULL);   <=========
+>       /* cpuset refresh routine should be here */
+>    }
+> 
+> __build_all_zonelists eventually calls pcpu_alloc. 
+> 
+> I didn't dive through the history, so am not sure when was this
+> regression introduced, but could have regressed with the new pcpu memory
+> allocator.
 
-Prior to this patch series mem_cgroup_page_stat() returned a negative
-value (specifically -EINVAL) to indicate that the current task was in
-the root_cgroup and thus the per-cgroup usage and limit counter were
-invalid.  Callers treated all negative values as an indication of
-root-cgroup message.
+Meh... the percpu allocator required user context from the beginning.
+The new allocator didn't change that.
 
-Unfortunately there was another way that mem_cgroup_page_stat() could
-return a negative value even when current was not in the root cgroup.
-Negative sums were a possibility due to summing of unsynchronized
-per-cpu counters.  These occasional negative sums would fool callers
-into thinking that the current task was in the root cgroup.
+Wouldn't it be possible to prepare hotplug outside of cpu_stop and use
+stop_machine() only to make it available to the system.  In general,
+it's a very bad idea to allocate memory from inside stop_machine.  The
+whole machine is stopped, after all.  In general, it shouldn't be too
+difficult to add new resource without stop_machine too unlike removing
+one.  Pekka, Christoph, any ideas?
 
-Would adding this description to the commit message address your
-concerns?
+Thanks.
 
-> That the return type can then be changed to unsigned long is a nice
-> follow-up cleanup that happens to be folded into this patch.
-
-Good point.  I can separate the change into two sub-patches:
-1. use zero for a min-value (as described above)
-2. change return value to unsigned
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
