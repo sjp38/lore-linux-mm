@@ -1,90 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6F6FA8D0017
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 00:07:14 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAE57CiU019538
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id B18D68D0017
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 00:07:15 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAE57AFM023560
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sun, 14 Nov 2010 14:07:12 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3075645DE50
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 14:07:12 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 091E345DE4F
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 14:07:12 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E07CCE78002
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 14:07:11 +0900 (JST)
+	Sun, 14 Nov 2010 14:07:10 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2502545DE53
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 14:07:10 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 01B7845DE52
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 14:07:10 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id DA1ACE08001
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 14:07:09 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 97B25E78006
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 14:07:11 +0900 (JST)
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E127E08004
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 14:07:09 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH v2]mm/oom-kill: direct hardware access processes should get bonus
-In-Reply-To: <alpine.DEB.2.00.1011091307240.7730@chino.kir.corp.google.com>
-References: <1289305468.10699.2.camel@localhost.localdomain> <alpine.DEB.2.00.1011091307240.7730@chino.kir.corp.google.com>
-Message-Id: <20101112104140.DFFF.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH][RESEND] nommu: yield CPU periodically while disposing large VM
+In-Reply-To: <1289507596-17613-1-git-send-email-steve@digidescorp.com>
+References: <1289507596-17613-1-git-send-email-steve@digidescorp.com>
+Message-Id: <20101112101645.DFF9.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
-Date: Sun, 14 Nov 2010 14:07:10 +0900 (JST)
+Date: Sun, 14 Nov 2010 14:07:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, "Figo.zhang" <figo1802@gmail.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: "Steven J. Magnani" <steve@digidescorp.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > the victim should not directly access hardware devices like Xorg server,
-> > because the hardware could be left in an unpredictable state, although 
-> > user-application can set /proc/pid/oom_score_adj to protect it. so i think
-> > those processes should get 3% bonus for protection.
-> > 
+> Depending on processor speed, page size, and the amount of memory a process
+> is allowed to amass, cleanup of a large VM may freeze the system for many
+> seconds. This can result in a watchdog timeout.
 > 
-> The logic here is wrong: if killing these tasks can leave hardware in an 
-> unpredictable state (and that state is presumably harmful), then they 
-> should be completely immune from oom killing since you're still leaving 
-> them exposed here to be killed.
+> Make sure other tasks receive some service when cleaning up large VMs.
 > 
-> So the question that needs to be answered is: why do these threads deserve 
-> to use 3% more memory (not >4%) than others without getting killed?  If 
-> there was some evidence that these threads have a certain quantity of 
-> memory they require as a fundamental attribute of CAP_SYS_RAWIO, then I 
-> have no objection, but that's going to be expressed in a memory quantity 
-> not a percentage as you have here.
+> Signed-off-by: Steven J. Magnani <steve@digidescorp.com>
+> ---
+> diff -uprN a/mm/nommu.c b/mm/nommu.c
+> --- a/mm/nommu.c	2010-10-21 07:42:23.000000000 -0500
+> +++ b/mm/nommu.c	2010-10-21 07:46:50.000000000 -0500
+> @@ -1656,6 +1656,7 @@ SYSCALL_DEFINE2(munmap, unsigned long, a
+>  void exit_mmap(struct mm_struct *mm)
+>  {
+>  	struct vm_area_struct *vma;
+> +	unsigned long next_yield = jiffies + HZ;
+>  
+>  	if (!mm)
+>  		return;
+> @@ -1668,6 +1669,11 @@ void exit_mmap(struct mm_struct *mm)
+>  		mm->mmap = vma->vm_next;
+>  		delete_vma_from_mm(vma);
+>  		delete_vma(mm, vma);
+> +		/* Yield periodically to prevent watchdog timeout */
+> +		if (time_after(jiffies, next_yield)) {
+> +			cond_resched();
+> +			next_yield = jiffies + HZ;
+> +		}
 
-3% is choosed by you :-/
-
-
-> The CAP_SYS_ADMIN heuristic has a background: it is used in the oom killer 
-> because we have used the same 3% in __vm_enough_memory() for a long time 
-> and we want consistency amongst the heuristics.  Adding additional bonuses 
-> with arbitrary values like 3% of memory for things like CAP_SYS_RAWIO 
-> makes the heuristic less predictable and moves us back toward the old 
-> heuristic which was almost entirely arbitrary.
-
-That's bogus. __vm_enough_memory() does track virtual adress space. oom-killer
-doesn't. It's unrelated.
-
-
-> Now before KOSAKI-san comes out and says the old heuristic considered 
-> CAP_SYS_RAWIO and the new one does not so it _must_ be a regression: the 
-> old heuristic also divided the badness score by 4 for that capability as a 
-> completely arbitrary value (just like 3% is here).  Other traits like 
-> runtime and nice levels were also removed from the heuristic.  What needs 
-> to be shown is that CAP_SYS_RAWIO requires additional memory just to run 
-> or we should neglect to free 3% of memory, which could be gigabytes, 
-> because it has this trait.
-
-Old background is very simple and cleaner. 
-
-CAP_SYS_RESOURCE mean the process has a privilege of using more resource.
-then, oom-killer gave it additonal bonus.
-
-CAP_SYS_RAWIO mean the process has a direct hardware access privilege
-(eg X.org, RDB). and then, killing it might makes system crash.
-
-
-In another story, somebody doubt 4x bonus is good or not. but 3% has
-the same problem.
-
+If watchdog tiemr interval is less than HZ, this logic doesn't work. right?
+If so, I would suggest just remove time_after() and call cond_resched() every time
+because cond_resched is no-op if TIF_NEED_RESCHED is not setted.
 
 
 
