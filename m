@@ -1,46 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BB258D0017
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 16:39:34 -0500 (EST)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id oAELdWwN027255
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 13:39:32 -0800
-Received: from pzk26 (pzk26.prod.google.com [10.243.19.154])
-	by wpaz21.hot.corp.google.com with ESMTP id oAELdVas001900
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 13:39:31 -0800
-Received: by pzk26 with SMTP id 26so728569pzk.8
-        for <linux-mm@kvack.org>; Sun, 14 Nov 2010 13:39:30 -0800 (PST)
-Date: Sun, 14 Nov 2010 13:39:28 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [resend][PATCH 2/4] Revert "oom: deprecate oom_adj tunable"
-In-Reply-To: <20101114135323.E00D.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1011141333330.22262@chino.kir.corp.google.com>
-References: <20101109105801.BC30.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011091523370.26837@chino.kir.corp.google.com> <20101114135323.E00D.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id ACBF38D0017
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 17:00:28 -0500 (EST)
+Date: Sun, 14 Nov 2010 17:00:18 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: Oops while rebalancing, now unmountable.
+Message-ID: <20101114220018.GA4512@infradead.org>
+References: <1289236257.3611.3.camel@mars>
+ <1289310046-sup-839@think>
+ <1289326892.4231.2.camel@mars>
+ <1289764507.4303.9.camel@mars>
+ <20101114204206.GV6809@random.random>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101114204206.GV6809@random.random>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Shane Shrybman <shrybman@teksavvy.com>, linux-btrfs <linux-btrfs@vger.kernel.org>, Chris Mason <chris.mason@oracle.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 14 Nov 2010, KOSAKI Motohiro wrote:
-
-> No irrelevant. Your patch break their environment even though
-> they don't use oom_adj explicitly. because their application are using it.
+On Sun, Nov 14, 2010 at 09:42:06PM +0100, Andrea Arcangeli wrote:
+> btrfs misses this:
 > 
+> +       .migratepage    = btree_migratepage,
+> 
+> It's a bug that can trigger upstream too (not only with THP) if there
+> are hugepage allocations (like while incrasing nr_hugepages). Chris
+> already fixed it with an experimental patch.
 
-The _only_ difference too oom_adj since the rewrite is that it is now 
-mapped on a linear scale rather than an exponential scale.  That's because 
-the heuristic itself has a defined range [0, 1000] that characterizes the 
-memory usage of the application it is ranking.  To show any breakge, you 
-would have to show how oom_adj values being used by applications are based 
-on a calculated value that prioritizes those tasks amongst each other.  
-With the exponential scale, that's nearly impossible because of the number 
-of arbitrary heuristics that were used before oom_adj were considered 
-(runtime, nice level, CAP_SYS_RAWIO, etc).
+If the lack of an obscure method causes data corruption something
+is seriously wrong with THP.  At least from the 10.000 foot view
+I can't quite figure what the exact issue is, though.
+fallback_migrate_page seems to do the right thing to me for that
+case.
 
-So don't talk about userspace breakage when you can't even describe it or 
-present a single usecase.
+Btw, there's also another issue with the page migration code when used
+for filesystem pages.  If directly calls into ->writepage instead
+of using the flusher threads.  On most filesystems this will
+"only" cause nasty I/O patterns, but on ext4 for example it will
+be more nasty as ext3 doesn't do conversions from delayed allocations to
+real ones.  So unless you're doing a lot of overwrites it will be
+hard to make any progress in writeout().
+
+Btw, what codepath does THP call migrate_pages from?  If you don't
+use an explicit thread writeout will be a no-op on btrfs and XFS, too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
