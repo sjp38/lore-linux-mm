@@ -1,97 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F72C8D0001
-	for <linux-mm@kvack.org>; Sat, 13 Nov 2010 05:09:54 -0500 (EST)
-Message-ID: <4CDE63D3.4010608@kernel.org>
-Date: Sat, 13 Nov 2010 11:09:23 +0100
-From: Tejun Heo <tj@kernel.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CA8BB8D0001
+	for <linux-mm@kvack.org>; Sat, 13 Nov 2010 21:26:25 -0500 (EST)
+Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
+	by smtp-out.google.com with ESMTP id oAE2QMdQ021985
+	for <linux-mm@kvack.org>; Sat, 13 Nov 2010 18:26:23 -0800
+Received: from qwk3 (qwk3.prod.google.com [10.241.195.131])
+	by kpbe12.cbf.corp.google.com with ESMTP id oAE2Po3K002348
+	for <linux-mm@kvack.org>; Sat, 13 Nov 2010 18:26:21 -0800
+Received: by qwk3 with SMTP id 3so3315510qwk.16
+        for <linux-mm@kvack.org>; Sat, 13 Nov 2010 18:26:20 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: (mem hotplug, pcpu_alloc) BUG: sleeping function called from
- invalid context at kernel/mutex.c:94
-References: <1289588178.7486.15.camel@ank32.eng.vmware.com>
-In-Reply-To: <1289588178.7486.15.camel@ank32.eng.vmware.com>
+In-Reply-To: <alpine.DEB.2.00.1010211259360.24115@router.home>
+References: <alpine.DEB.2.00.1010211255570.24115@router.home>
+	<alpine.DEB.2.00.1010211259360.24115@router.home>
+Date: Sat, 13 Nov 2010 18:26:20 -0800
+Message-ID: <AANLkTinXftrp0NxGjsQAkoroMGDXozbA0XgUhSiOJ-xz@mail.gmail.com>
+Subject: Re: shrinkers: Add node to indicate where to target shrinking
+From: Michel Lespinasse <walken@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: akataria@vmware.com
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Petr Vandrovec <petr@vmware.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: akpm@linux-foundation.org, npiggin@kernel.dk, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Thu, Oct 21, 2010 at 11:00 AM, Christoph Lameter <cl@linux.com> wrote:
+> Add a field node to struct shrinker that can be used to indicate on which
+> node the reclaim should occur. The node field also can be set to NUMA_NO_=
+NODE
+> in which case a reclaim pass over all nodes is desired.
+>
+> Index: linux-2.6/mm/vmscan.c
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- linux-2.6.orig/mm/vmscan.c =A02010-10-21 12:50:21.000000000 -0500
+> +++ linux-2.6/mm/vmscan.c =A0 =A0 =A0 2010-10-21 12:50:31.000000000 -0500
+> @@ -202,7 +202,7 @@ EXPORT_SYMBOL(unregister_shrinker);
+> =A0* Returns the number of slab objects which we shrunk.
+> =A0*/
+> =A0unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long lru_pages)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long lru_pages, in=
+t node)
+> =A0{
+> =A0 =A0 =A0 =A0struct shrinker *shrinker;
+> =A0 =A0 =A0 =A0unsigned long ret =3D 0;
+> @@ -218,6 +218,7 @@ unsigned long shrink_slab(unsigned long
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long total_scan;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long max_pass;
+>
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrinker->node =3D node;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0max_pass =3D (*shrinker->shrink)(shrinker,=
+ 0, gfp_mask);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0delta =3D (4 * scanned) / shrinker->seeks;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0delta *=3D max_pass;
 
-On 11/12/2010 07:56 PM, Alok Kataria wrote:
-> We have seen following might_sleep warning while hot adding memory...
-> 
-> [  142.339267] BUG: sleeping function called from invalid context at kernel/mutex.c:94
-> [  142.339276] in_atomic(): 0, irqs_disabled(): 1, pid: 4, name: migration/0
-> [  142.339283] Pid: 4, comm: migration/0 Not tainted 2.6.35.6-45.fc14.x86_64 #1
-> [  142.339288] Call Trace:
-> [  142.339305]  [<ffffffff8103d12b>] __might_sleep+0xeb/0xf0
-> [  142.339316]  [<ffffffff81468245>] mutex_lock+0x24/0x50
-> [  142.339326]  [<ffffffff8110eaa6>] pcpu_alloc+0x6d/0x7ee
-> [  142.339336]  [<ffffffff81048888>] ? load_balance+0xbe/0x60e
-> [  142.339343]  [<ffffffff8103a1b3>] ? rt_se_boosted+0x21/0x2f
-> [  142.339349]  [<ffffffff8103e1cf>] ? dequeue_rt_stack+0x18b/0x1ed
-> [  142.339356]  [<ffffffff8110f237>] __alloc_percpu+0x10/0x12
-> [  142.339362]  [<ffffffff81465e22>] setup_zone_pageset+0x38/0xbe
-> [  142.339373]  [<ffffffff810d6d81>] ? build_zonelists_node.clone.58+0x79/0x8c
-> [  142.339384]  [<ffffffff81452539>] __build_all_zonelists+0x419/0x46c
-> [  142.339395]  [<ffffffff8108ef01>] ? cpu_stopper_thread+0xb2/0x198
-> [  142.339401]  [<ffffffff8108f075>] stop_machine_cpu_stop+0x8e/0xc5
-> [  142.339407]  [<ffffffff8108efe7>] ? stop_machine_cpu_stop+0x0/0xc5
-> [  142.339414]  [<ffffffff8108ef57>] cpu_stopper_thread+0x108/0x198
-> [  142.339420]  [<ffffffff81467a37>] ? schedule+0x5b2/0x5cc
-> [  142.339426]  [<ffffffff8108ee4f>] ? cpu_stopper_thread+0x0/0x198
-> [  142.339434]  [<ffffffff81065f29>] kthread+0x7f/0x87
-> [  142.339443]  [<ffffffff8100aae4>] kernel_thread_helper+0x4/0x10
-> [  142.339449]  [<ffffffff81065eaa>] ? kthread+0x0/0x87
-> [  142.339455]  [<ffffffff8100aae0>] ? kernel_thread_helper+0x0/0x10
-> [  142.340099] Built 5 zonelists in Node order, mobility grouping on.  Total pages: 289456
-> [  142.340108] Policy zone: Normal
-> 
-> 
-> This warning was seen on the FC14 kernel, though looking at the current
-> git, the problem seems to exist on mainline too.
-> The problem is that pcpu_alloc expects that it is called from non-atomic
-> context as a result it grabs the pcpu_alloc_mutex. 
-> In the memory-hotplug case though, we do end up calling pcpu_alloc from
-> atomic context, while all cpus are stopped.
-> 
-> void build_all_zonelists(void *data)
-> {
->    set_zonelist_order();
-> 
->    if (system_state == SYSTEM_BOOTING) {
->       __build_all_zonelists(NULL);
->       mminit_verify_zonelist();
->       cpuset_init_current_mems_allowed();
->    } else {
->       /* we have to stop all cpus to guarantee there is no user
->          of zonelist */
->       stop_machine(__build_all_zonelists, data, NULL);   <=========
->       /* cpuset refresh routine should be here */
->    }
-> 
-> __build_all_zonelists eventually calls pcpu_alloc. 
-> 
-> I didn't dive through the history, so am not sure when was this
-> regression introduced, but could have regressed with the new pcpu memory
-> allocator.
+Apologies for coming late to the party, but I have to ask - is there
+anything protecting shrinker->node from concurrent modification if
+several threads are trying to reclaim memory at once ?
 
-Meh... the percpu allocator required user context from the beginning.
-The new allocator didn't change that.
+(I note that there was already something similar done to shrinker->nr
+field, so I am probably missing some subtlety in the locking ?)
 
-Wouldn't it be possible to prepare hotplug outside of cpu_stop and use
-stop_machine() only to make it available to the system.  In general,
-it's a very bad idea to allocate memory from inside stop_machine.  The
-whole machine is stopped, after all.  In general, it shouldn't be too
-difficult to add new resource without stop_machine too unlike removing
-one.  Pekka, Christoph, any ideas?
-
-Thanks.
-
--- 
-tejun
+--=20
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
