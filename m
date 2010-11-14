@@ -1,72 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CA8BB8D0001
-	for <linux-mm@kvack.org>; Sat, 13 Nov 2010 21:26:25 -0500 (EST)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id oAE2QMdQ021985
-	for <linux-mm@kvack.org>; Sat, 13 Nov 2010 18:26:23 -0800
-Received: from qwk3 (qwk3.prod.google.com [10.241.195.131])
-	by kpbe12.cbf.corp.google.com with ESMTP id oAE2Po3K002348
-	for <linux-mm@kvack.org>; Sat, 13 Nov 2010 18:26:21 -0800
-Received: by qwk3 with SMTP id 3so3315510qwk.16
-        for <linux-mm@kvack.org>; Sat, 13 Nov 2010 18:26:20 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id 77CB68D0001
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 00:07:12 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAE579mt001533
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Sun, 14 Nov 2010 14:07:10 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 52B2C45DE7D
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 14:07:09 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1072545DE4D
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 14:07:09 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E04E81DB8040
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 14:07:08 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DA1C1DB803B
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 14:07:08 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 55 of 66] select CONFIG_COMPACTION if TRANSPARENT_HUGEPAGE enabled
+In-Reply-To: <20101109211145.GB6809@random.random>
+References: <20101109151756.BC7B.A69D9226@jp.fujitsu.com> <20101109211145.GB6809@random.random>
+Message-Id: <20101111091220.9941.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1010211259360.24115@router.home>
-References: <alpine.DEB.2.00.1010211255570.24115@router.home>
-	<alpine.DEB.2.00.1010211259360.24115@router.home>
-Date: Sat, 13 Nov 2010 18:26:20 -0800
-Message-ID: <AANLkTinXftrp0NxGjsQAkoroMGDXozbA0XgUhSiOJ-xz@mail.gmail.com>
-Subject: Re: shrinkers: Add node to indicate where to target shrinking
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
+Date: Sun, 14 Nov 2010 14:07:07 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: akpm@linux-foundation.org, npiggin@kernel.dk, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 21, 2010 at 11:00 AM, Christoph Lameter <cl@linux.com> wrote:
-> Add a field node to struct shrinker that can be used to indicate on which
-> node the reclaim should occur. The node field also can be set to NUMA_NO_=
-NODE
-> in which case a reclaim pass over all nodes is desired.
->
-> Index: linux-2.6/mm/vmscan.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- linux-2.6.orig/mm/vmscan.c =A02010-10-21 12:50:21.000000000 -0500
-> +++ linux-2.6/mm/vmscan.c =A0 =A0 =A0 2010-10-21 12:50:31.000000000 -0500
-> @@ -202,7 +202,7 @@ EXPORT_SYMBOL(unregister_shrinker);
-> =A0* Returns the number of slab objects which we shrunk.
-> =A0*/
-> =A0unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long lru_pages)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long lru_pages, in=
-t node)
-> =A0{
-> =A0 =A0 =A0 =A0struct shrinker *shrinker;
-> =A0 =A0 =A0 =A0unsigned long ret =3D 0;
-> @@ -218,6 +218,7 @@ unsigned long shrink_slab(unsigned long
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long total_scan;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long max_pass;
->
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrinker->node =3D node;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0max_pass =3D (*shrinker->shrink)(shrinker,=
- 0, gfp_mask);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0delta =3D (4 * scanned) / shrinker->seeks;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0delta *=3D max_pass;
+> On Tue, Nov 09, 2010 at 03:20:33PM +0900, KOSAKI Motohiro wrote:
+> > > From: Andrea Arcangeli <aarcange@redhat.com>
+> > > 
+> > > With transparent hugepage support we need compaction for the "defrag" sysfs
+> > > controls to be effective.
+> > > 
+> > > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> > > ---
+> > > 
+> > > diff --git a/mm/Kconfig b/mm/Kconfig
+> > > --- a/mm/Kconfig
+> > > +++ b/mm/Kconfig
+> > > @@ -305,6 +305,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
+> > >  config TRANSPARENT_HUGEPAGE
+> > >  	bool "Transparent Hugepage Support"
+> > >  	depends on X86 && MMU
+> > > +	select COMPACTION
+> > >  	help
+> > >  	  Transparent Hugepages allows the kernel to use huge pages and
+> > >  	  huge tlb transparently to the applications whenever possible.
+> > 
+> > I dislike this. THP and compaction are completely orthogonal. I think 
+> > you are talking only your performance recommendation. I mean I dislike
+> > Kconfig 'select' hell and I hope every developers try to avoid it as 
+> > far as possible.
+> 
+> At the moment THP hangs the system if COMPACTION isn't selected
+> (please try yourself if you don't believe), as without COMPACTION
+> lumpy reclaim wouldn't be entirely disabled. So at the moment it's not
+> orthogonal. When lumpy will be removed from the VM (like I tried
+> multiple times to achieve) I can remove the select COMPACTION in
+> theory, but then 99% of THP users would be still doing a mistake in
+> disabling compaction, even if the mistake won't return in fatal
+> runtime but just slightly degraded performance.
 
-Apologies for coming late to the party, but I have to ask - is there
-anything protecting shrinker->node from concurrent modification if
-several threads are trying to reclaim memory at once ?
+ok, I beleive you.
+but please add this reason to the description.
 
-(I note that there was already something similar done to shrinker->nr
-field, so I am probably missing some subtlety in the locking ?)
 
---=20
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
