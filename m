@@ -1,65 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CA576B008A
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 07:06:06 -0500 (EST)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id oAEC5wnO024710
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 04:05:58 -0800
-Received: from qyk38 (qyk38.prod.google.com [10.241.83.166])
-	by hpaq2.eem.corp.google.com with ESMTP id oAEC5uSr008636
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 04:05:57 -0800
-Received: by qyk38 with SMTP id 38so2552144qyk.9
-        for <linux-mm@kvack.org>; Sun, 14 Nov 2010 04:05:56 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 76D6B8D0017
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 09:55:41 -0500 (EST)
+Date: Sun, 14 Nov 2010 16:55:36 +0200 (EET)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: [GIT PULL] SLAB fixes for 2.6.37-rc2
+Message-ID: <alpine.DEB.2.00.1011141654110.4490@tiger>
 MIME-Version: 1.0
-In-Reply-To: <1289379628-14044-2-git-send-email-lliubbo@gmail.com>
-References: <1289379628-14044-1-git-send-email-lliubbo@gmail.com>
-	<1289379628-14044-2-git-send-email-lliubbo@gmail.com>
-Date: Sun, 14 Nov 2010 04:05:56 -0800
-Message-ID: <AANLkTikmg_Uiu4bP-U05wbCJnPo5Xt=qxSB+45Oq=5en@mail.gmail.com>
-Subject: Re: [PATCH 2/2] clean up set_page_dirty()
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, fengguang.wu@intel.com, linux-mm@kvack.org, kenchen@google.com
+To: torvalds@linux-foundation.org
+Cc: cl@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 10, 2010 at 1:00 AM, Bob Liu <lliubbo@gmail.com> wrote:
-> Use TestSetPageDirty() to clean up set_page_dirty().
->
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> ---
-> =A0mm/page-writeback.c | =A0 =A07 ++-----
-> =A01 files changed, 2 insertions(+), 5 deletions(-)
->
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index e8f5f06..da86224 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -1268,11 +1268,8 @@ int set_page_dirty(struct page *page)
-> =A0#endif
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return (*spd)(page);
-> =A0 =A0 =A0 =A0}
-> - =A0 =A0 =A0 if (!PageDirty(page)) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!TestSetPageDirty(page))
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 1;
-> - =A0 =A0 =A0 }
-> - =A0 =A0 =A0 return 0;
-> +
-> + =A0 =A0 =A0 return !TestSetPageDirty(page);
-> =A0}
-> =A0EXPORT_SYMBOL(set_page_dirty);
+Hi Linus,
 
-TestSetPageDirty compiles to a locked bts instruction (on x86). This
-will acquire the cache line for exclusive access, even when the bit is
-already set. I think this is why we have an extra if
-(!PageDirty(page)) test - we don't want to cause cache coherency
-overhead if the page is already dirty.
+Here's a small SLUB locking bug fix from Pavel Emelyanov.
 
---=20
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+                         Pekka
+
+The following changes since commit 151f52f09c5728ecfdd0c289da1a4b30bb416f2c:
+   Linus Torvalds (1):
+         ipw2x00: remove the right /proc/net entry
+
+are available in the git repository at:
+
+   ssh://master.kernel.org/pub/scm/linux/kernel/git/penberg/slab-2.6.git for-linus
+
+Pavel Emelyanov (1):
+       slub: Fix slub_lock down/up imbalance
+
+  mm/slub.c |    3 ++-
+  1 files changed, 2 insertions(+), 1 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
