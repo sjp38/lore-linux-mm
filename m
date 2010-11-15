@@ -1,31 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 4949B8D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 07:46:34 -0500 (EST)
-Received: by qyk31 with SMTP id 31so8238qyk.14
-        for <linux-mm@kvack.org>; Mon, 15 Nov 2010 04:46:32 -0800 (PST)
-From: Ben Gamari <bgamari.foss@gmail.com>
-Subject: Re: fadvise DONTNEED implementation (or lack thereof)
-In-Reply-To: <20101115162713.BF12.A69D9226@jp.fujitsu.com>
-References: <20101115160413.BF0F.A69D9226@jp.fujitsu.com> <AANLkTim0vCJkMoH5P0wCN9J6340rDsscyNBQ+R+_ph8m@mail.gmail.com> <20101115162713.BF12.A69D9226@jp.fujitsu.com>
-Date: Mon, 15 Nov 2010 07:46:26 -0500
-Message-ID: <87tyjisqjh.fsf@gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id ED1AA8D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:04:27 -0500 (EST)
+Date: Mon, 15 Nov 2010 08:04:23 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] set_pgdat_percpu_threshold() don't use
+ for_each_online_cpu
+In-Reply-To: <20101115102617.GK27362@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1011150802470.19175@router.home>
+References: <1288169256-7174-2-git-send-email-mel@csn.ul.ie> <20101028100920.5d4ce413.kamezawa.hiroyu@jp.fujitsu.com> <20101114163727.BEE0.A69D9226@jp.fujitsu.com> <20101115102617.GK27362@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Nov 2010 16:28:32 +0900 (JST), KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> Who can make rsync like io pattern test suite? a code change is easy. but
-> to comfirm justification is more harder work.
-> 
-I'm afraid I don't have time to work up any code. I would be happy to
-try the patch with my backup use-case though. I'll just have to think
-of an objective way of measuring the result.
+On Mon, 15 Nov 2010, Mel Gorman wrote:
 
-- Ben
+> With recent per-cpu allocator changes, are we guaranteed that the per-cpu
+> structures exist and are valid?
+
+We always guarantee that all per cpu areas for all possible cpus exist.
+That has always been the case. There was a discussion about changing
+that though. Could be difficult given the need for additional locking.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
