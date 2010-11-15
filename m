@@ -1,110 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6D87C8D0017
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 20:24:44 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAF1Ofmx023324
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1342E8D0017
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 20:37:25 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAF1bM7E028772
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 15 Nov 2010 10:24:41 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BE90145DE64
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 10:24:40 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D1B845DE55
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 10:24:40 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 644B4E1800A
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 10:24:40 +0900 (JST)
+	Mon, 15 Nov 2010 10:37:22 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D9C145DE6F
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 10:37:22 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BA5A45DE60
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 10:37:22 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EA51E1DB803B
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 10:37:21 +0900 (JST)
 Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E5A771DB8040
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 10:24:39 +0900 (JST)
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 962BB1DB8037
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 10:37:21 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH v2]mm/oom-kill: direct hardware access processes should get bonus
-In-Reply-To: <alpine.DEB.2.00.1011141322590.22262@chino.kir.corp.google.com>
-References: <20101112104140.DFFF.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011141322590.22262@chino.kir.corp.google.com>
-Message-Id: <20101115095446.BF00.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH] cleanup kswapd()
+In-Reply-To: <20101115092712.BEF4.A69D9226@jp.fujitsu.com>
+References: <alpine.LNX.2.00.1011141202430.3460@swampdragon.chaosbits.net> <20101115092712.BEF4.A69D9226@jp.fujitsu.com>
+Message-Id: <20101115103623.BF03.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 15 Nov 2010 10:24:38 +0900 (JST)
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 15 Nov 2010 10:37:20 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, "Figo.zhang" <figo1802@gmail.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Jesper Juhl <jj@chaosbits.net>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Sun, 14 Nov 2010, KOSAKI Motohiro wrote:
-> 
-> > > So the question that needs to be answered is: why do these threads deserve 
-> > > to use 3% more memory (not >4%) than others without getting killed?  If 
-> > > there was some evidence that these threads have a certain quantity of 
-> > > memory they require as a fundamental attribute of CAP_SYS_RAWIO, then I 
-> > > have no objection, but that's going to be expressed in a memory quantity 
-> > > not a percentage as you have here.
-> > 
-> > 3% is choosed by you :-/
-> > 
-> 
-> No, 3% was chosen in __vm_enough_memory() for LSMs as the comment in the 
-> oom killer shows:
-> 
->         /*
->          * Root processes get 3% bonus, just like the __vm_enough_memory()
->          * implementation used by LSMs.
->          */
-> 
-> and is described in Documentation/filesystems/proc.txt.
-> 
-> I think in cases of heuristics like this where we obviously want to give 
-> some bonus to CAP_SYS_ADMIN that there is consistency with other bonuses 
-> given elsewhere in the kernel.
+> Right. thank you.
+> I'll respin.
 
-Keep comparision apple to apple. vm_enough_memory() account _virtual_ memory.
-oom-killer try to free _physical_ memory. It's unrelated.
+Done.
 
 
-> 
-> > Old background is very simple and cleaner. 
-> > 
-> 
-> The old heuristic divided the arbitrary badness score by 4 with 
-> CAP_SYS_RESOURCE.  The new heuristic doesn't consider it.
-> 
-> How is that more clean?
-> 
-> > CAP_SYS_RESOURCE mean the process has a privilege of using more resource.
-> > then, oom-killer gave it additonal bonus.
-> > 
-> 
-> As a side-effect of being given more resources to allocate, those 
-> applications are relatively unbounded in terms of memory consumption to 
-> other tasks.  Thus, it's possible that these applications are using a 
-> massive amount of memory (say, 75%) and now with the proposed change a 
-> task using 25% of memory would be killed instead.  This increases the 
-> liklihood that the CAP_SYS_RESOURCE thread will have to be killed 
-> eventually, anyway, and the goal is to kill as few tasks as possible to 
-> free sufficient amount of memory.
 
-You are talking two difference at once. 3% vs 4x and CAP_SYS_RESOURCE and
-CAP_SYS_ADMIN.
+=46rom a29f0f5b780170fc26eb9210df03ed974aad8362 Mon Sep 17 00:00:00 2001
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Fri, 3 Dec 2010 10:48:41 +0900
+Subject: [PATCH] factor out kswapd sleeping logic from kswapd()
 
-Please keep comparing apple to apple.
+Currently, kswapd() function has deeper nest and it slightly harder to
+read. cleanup it.
 
+Cc: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/vmscan.c |   71 +++++++++++++++++++++++++++++++------------------------=
+---
+ 1 files changed, 38 insertions(+), 33 deletions(-)
 
-> 
-> Since threads having CAP_SYS_RESOURCE have full control over their 
-> oom_score_adj, they can take the additional precautions to protect 
-> themselves if necessary.  It doesn't need to be a part of the heuristic to 
-> bias these tasks which will lead to the undesired result described above 
-> by default rather than intentionally from userspace.
-> 
-> > CAP_SYS_RAWIO mean the process has a direct hardware access privilege
-> > (eg X.org, RDB). and then, killing it might makes system crash.
-> > 
-> 
-> Then you would want to explicitly filter these tasks from oom kill just as 
-> OOM_SCORE_ADJ_MIN works rather than giving them a memory quantity bonus.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 8cc90d5..3ee33a8 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2364,6 +2364,42 @@ out:
+ 	return sc.nr_reclaimed;
+ }
+=20
++static void kswapd_try_to_sleep(pg_data_t *pgdat, int order)
++{
++	long remaining =3D 0;
++	DEFINE_WAIT(wait);
++
++	if (freezing(current) || kthread_should_stop())
++		return;
++
++	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
++
++	/* Try to sleep for a short interval */
++	if (!sleeping_prematurely(pgdat, order, remaining)) {
++		remaining =3D schedule_timeout(HZ/10);
++		finish_wait(&pgdat->kswapd_wait, &wait);
++		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
++	}
++
++	/*
++	 * After a short sleep, check if it was a
++	 * premature sleep. If not, then go fully
++	 * to sleep until explicitly woken up
++	 */
++	if (!sleeping_prematurely(pgdat, order, remaining)) {
++		trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
++		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
++		schedule();
++		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
++	} else {
++		if (remaining)
++			count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
++		else
++			count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
++	}
++	finish_wait(&pgdat->kswapd_wait, &wait);
++}
++
+ /*
+  * The background pageout daemon, started as a kernel thread
+  * from the init process.
+@@ -2382,7 +2418,7 @@ static int kswapd(void *p)
+ 	unsigned long order;
+ 	pg_data_t *pgdat =3D (pg_data_t*)p;
+ 	struct task_struct *tsk =3D current;
+-	DEFINE_WAIT(wait);
++
+ 	struct reclaim_state reclaim_state =3D {
+ 		.reclaimed_slab =3D 0,
+ 	};
+@@ -2414,7 +2450,6 @@ static int kswapd(void *p)
+ 		unsigned long new_order;
+ 		int ret;
+=20
+-		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+ 		new_order =3D pgdat->kswapd_max_order;
+ 		pgdat->kswapd_max_order =3D 0;
+ 		if (order < new_order) {
+@@ -2424,39 +2459,9 @@ static int kswapd(void *p)
+ 			 */
+ 			order =3D new_order;
+ 		} else {
+-			if (!freezing(current) && !kthread_should_stop()) {
+-				long remaining =3D 0;
+-
+-				/* Try to sleep for a short interval */
+-				if (!sleeping_prematurely(pgdat, order, remaining)) {
+-					remaining =3D schedule_timeout(HZ/10);
+-					finish_wait(&pgdat->kswapd_wait, &wait);
+-					prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+-				}
+-
+-				/*
+-				 * After a short sleep, check if it was a
+-				 * premature sleep. If not, then go fully
+-				 * to sleep until explicitly woken up
+-				 */
+-				if (!sleeping_prematurely(pgdat, order, remaining)) {
+-					trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
+-					set_pgdat_percpu_threshold(pgdat,
+-						calculate_normal_threshold);
+-					schedule();
+-					set_pgdat_percpu_threshold(pgdat,
+-						calculate_pressure_threshold);
+-				} else {
+-					if (remaining)
+-						count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
+-					else
+-						count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
+-				}
+-			}
+-
++			kswapd_try_to_sleep(pgdat, order);
+ 			order =3D pgdat->kswapd_max_order;
+ 		}
+-		finish_wait(&pgdat->kswapd_wait, &wait);
+=20
+ 		ret =3D try_to_freeze();
+ 		if (kthread_should_stop())
+--=20
+1.6.5.2
 
-No. Why does userland recover your mistake?
 
 
 
