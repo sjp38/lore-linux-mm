@@ -1,79 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B431A8D0017
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 17:12:30 -0500 (EST)
-Date: Sun, 14 Nov 2010 23:12:22 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Oops while rebalancing, now unmountable.
-Message-ID: <20101114221222.GX6809@random.random>
-References: <1289236257.3611.3.camel@mars>
- <1289310046-sup-839@think>
- <1289326892.4231.2.camel@mars>
- <1289764507.4303.9.camel@mars>
- <20101114204206.GV6809@random.random>
- <20101114220018.GA4512@infradead.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id EAE388D0017
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 19:22:31 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAF0MT0m030175
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 15 Nov 2010 09:22:29 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E4BCD45DE55
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:22:28 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B9B7E45DE4F
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:22:28 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 984C31DB8040
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:22:28 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 50D511DB803B
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:22:28 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch] oom: document obsolete oom_adj tunable
+In-Reply-To: <alpine.DEB.2.00.1011091555210.30112@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1011091547030.30112@chino.kir.corp.google.com> <alpine.DEB.2.00.1011091555210.30112@chino.kir.corp.google.com>
+Message-Id: <20101115091908.BEEB.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101114220018.GA4512@infradead.org>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 15 Nov 2010 09:22:27 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Shane Shrybman <shrybman@teksavvy.com>, linux-btrfs <linux-btrfs@vger.kernel.org>, Chris Mason <chris.mason@oracle.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Alan Cox <alan@lxorguk.ukuu.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Nov 14, 2010 at 05:00:18PM -0500, Christoph Hellwig wrote:
-> On Sun, Nov 14, 2010 at 09:42:06PM +0100, Andrea Arcangeli wrote:
-> > btrfs misses this:
-> > 
-> > +       .migratepage    = btree_migratepage,
-> > 
-> > It's a bug that can trigger upstream too (not only with THP) if there
-> > are hugepage allocations (like while incrasing nr_hugepages). Chris
-> > already fixed it with an experimental patch.
+> /proc/pid/oom_adj was deprecated in August 2010 with the introduction of
+> the new oom killer heuristic.
 > 
-> If the lack of an obscure method causes data corruption something
-> is seriously wrong with THP.  At least from the 10.000 foot view
-
-I just wrote above that it can happen upstream without THP. It's not
-THP related at all. THP is the consumer, this is a problem in migrate
-that will trigger as well with migrate_pages or all other possible
-migration APIs.
-
-If more people would be using hugetlbfs they would have noticed
-without THP.
-
-> I can't quite figure what the exact issue is, though.
-> fallback_migrate_page seems to do the right thing to me for that
-> case.
+> This patch copies the Documentation/feature-removal-schedule.txt entry
+> for this tunable to the Documentation/ABI/obsolete directory so nobody
+> misses it.
 > 
-> Btw, there's also another issue with the page migration code when used
-> for filesystem pages.  If directly calls into ->writepage instead
-> of using the flusher threads.  On most filesystems this will
-> "only" cause nasty I/O patterns, but on ext4 for example it will
-> be more nasty as ext3 doesn't do conversions from delayed allocations to
-> real ones.  So unless you're doing a lot of overwrites it will be
-> hard to make any progress in writeout().
+> Reported-by: Alan Cox <alan@lxorguk.ukuu.org.uk>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-+static int btree_migratepage(struct address_space *mapping,
-+                       struct page *newpage, struct page *page)
-+{
-+       /*
-+        * we can't safely write a btree page from here,
-+        * we haven't done the locking hook
-+        */
-+       if (PageDirty(page))
-+               return -EAGAIN;
+NAK. You seems to think shouting claim makes some effect. but It's incorrect.
+Your childish shout doesn't solve any real world issue. Only code fix does.
 
-fallback_migrate_page would call writeout() which is apparently not
-ok in btrfs for locking issues leading to corruption.
 
-> Btw, what codepath does THP call migrate_pages from?  If you don't
-> use an explicit thread writeout will be a no-op on btrfs and XFS, too.
+> ---
+>  Documentation/ABI/obsolete/proc-pid-oom_adj |   22 ++++++++++++++++++++++
+>  1 files changed, 22 insertions(+), 0 deletions(-)
+>  create mode 100644 Documentation/ABI/obsolete/proc-pid-oom_adj
+> 
+> diff --git a/Documentation/ABI/obsolete/proc-pid-oom_adj b/Documentation/ABI/obsolete/proc-pid-oom_adj
+> new file mode 100644
+> --- /dev/null
+> +++ b/Documentation/ABI/obsolete/proc-pid-oom_adj
+> @@ -0,0 +1,22 @@
+> +What:	/proc/<pid>/oom_adj
+> +When:	August 2012
+> +Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
+> +	badness heuristic used to determine which task to kill when the kernel
+> +	is out of memory.
+> +
+> +	The badness heuristic has since been rewritten since the introduction of
+> +	this tunable such that its meaning is deprecated.  The value was
+> +	implemented as a bitshift on a score generated by the badness()
+> +	function that did not have any precise units of measure.  With the
+> +	rewrite, the score is given as a proportion of available memory to the
+> +	task allocating pages, so using a bitshift which grows the score
+> +	exponentially is, thus, impossible to tune with fine granularity.
+> +
+> +	A much more powerful interface, /proc/<pid>/oom_score_adj, was
+> +	introduced with the oom killer rewrite that allows users to increase or
+> +	decrease the badness() score linearly.  This interface will replace
+> +	/proc/<pid>/oom_adj.
 
-THP never calls migrate_pages, it's memory compaction that calls it
-from inside alloc_pages(order=9). It got noticed only with THP because
-it makes more frequent hugepage allocations than nr_hugepages in
-hugetlbfs (and maybe there are more THP users already).
+Incorrect. oom_adj and oom_score_adj have different concept and different abstraction.
+One can't replace another.
+
+> +
+> +	A warning will be emitted to the kernel log if an application uses this
+> +	deprecated interface.  After it is printed once, future warnings will be
+> +	suppressed until the kernel is rebooted.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
