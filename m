@@ -1,57 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0C4EF8D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:48:56 -0500 (EST)
-Message-ID: <4CE14848.2060805@redhat.com>
-Date: Mon, 15 Nov 2010 09:48:40 -0500
-From: Rik van Riel <riel@redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id 9E0B08D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 10:14:51 -0500 (EST)
+Date: Mon, 15 Nov 2010 16:13:50 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 55 of 66] select CONFIG_COMPACTION if
+ TRANSPARENT_HUGEPAGE enabled
+Message-ID: <20101115151350.GF6809@random.random>
+References: <20101109151756.BC7B.A69D9226@jp.fujitsu.com>
+ <20101109211145.GB6809@random.random>
+ <20101111091220.9941.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: fadvise DONTNEED implementation (or lack thereof)
-References: <20101109162525.BC87.A69D9226@jp.fujitsu.com>	<877hgmr72o.fsf@gmail.com>	<20101114140920.E013.A69D9226@jp.fujitsu.com>	<AANLkTim59Qx6TsvXnTBL5Lg6JorbGaqx3KsdBDWO04X9@mail.gmail.com>	<1289810825.2109.469.camel@laptop> <AANLkTikibS1fDuk67RHk4SU14pJ9nPdodWba1T3Z_pWE@mail.gmail.com>
-In-Reply-To: <AANLkTikibS1fDuk67RHk4SU14pJ9nPdodWba1T3Z_pWE@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101111091220.9941.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ben Gamari <bgamari.foss@gmail.com>, linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On 11/15/2010 04:05 AM, Minchan Kim wrote:
-> On Mon, Nov 15, 2010 at 5:47 PM, Peter Zijlstra<peterz@infradead.org>  wrote:
->> On Mon, 2010-11-15 at 15:07 +0900, Minchan Kim wrote:
+On Sun, Nov 14, 2010 at 02:07:07PM +0900, KOSAKI Motohiro wrote:
+> ok, I beleive you.
+> but please add this reason to the description.
 
->>> I wonder what's the problem in Peter's patch 'drop behind'.
->>> http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg179576.html
->>>
->>> Could anyone tell me why it can't accept upstream?
->>
->> Read the thread, its quite clear nobody got convinced it was a good idea
->> and wanted to fix the use-once policy, then Rik rewrote all of
->> page-reclaim.
->>
->
-> Thanks for the information.
-> I hope this is a chance to rethink about it.
-> Rik, Could you give us to any comment about this idea?
-
-At the time, there were all kinds of general problems
-in page reclaim that all needed to be fixed.  Peter's
-patch was mostly a band-aid for streaming IO.
-
-However, now that most of the other page reclaim problems
-seem to have been resolved, it would be worthwhile to test
-whether Peter's drop-behind approach gives an additional
-improvement.
-
-I could see it help by getting rid of already-read pages
-earlier, leaving more space for read-ahead data.
-
-I suspect it would do fairly little to protect the working
-set, because we do not scan the active file list at all
-unless it grows to be larger than the inactive file list.
-
--- 
-All rights reversed
+Good idea, I will. BTW, in general I agreed with your remark from a
+theoretical standpoint.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
