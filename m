@@ -1,52 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 389828D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 04:10:54 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAF9Aps2021683
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 15 Nov 2010 18:10:52 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 64D0545DE4F
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 18:10:51 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3714845DE51
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 18:10:51 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 089E2E08003
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 18:10:51 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A81E91DB803A
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 18:10:50 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: fadvise DONTNEED implementation (or lack thereof)
-In-Reply-To: <1289810825.2109.469.camel@laptop>
-References: <AANLkTim59Qx6TsvXnTBL5Lg6JorbGaqx3KsdBDWO04X9@mail.gmail.com> <1289810825.2109.469.camel@laptop>
-Message-Id: <20101115180153.BF18.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7FF058D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 04:15:28 -0500 (EST)
+Message-ID: <4CE0FA2E.9070001@kernel.dk>
+Date: Mon, 15 Nov 2010 10:15:26 +0100
+From: Jens Axboe <axboe@kernel.dk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Mon, 15 Nov 2010 18:10:49 +0900 (JST)
+Subject: Re: [PATCH] ioprio: grab rcu_read_lock in sys_ioprio_{set,get}()
+References: <1289547167-32675-1-git-send-email-gthelen@google.com>
+In-Reply-To: <1289547167-32675-1-git-send-email-gthelen@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Ben Gamari <bgamari.foss@gmail.com>, linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > I wonder what's the problem in Peter's patch 'drop behind'.
-> > http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg179576.html
-> > 
-> > Could anyone tell me why it can't accept upstream?
+On 2010-11-12 08:32, Greg Thelen wrote:
+> Using:
+> - CONFIG_LOCKUP_DETECTOR=y
+> - CONFIG_PREEMPT=y
+> - CONFIG_LOCKDEP=y
+> - CONFIG_PROVE_LOCKING=y
+> - CONFIG_PROVE_RCU=y
+> found a missing rcu lock during boot on a 512 MiB x86_64 ubuntu vm:
+>   ===================================================
+>   [ INFO: suspicious rcu_dereference_check() usage. ]
+>   ---------------------------------------------------
+>   kernel/pid.c:419 invoked rcu_dereference_check() without protection!
 > 
-> Read the thread, its quite clear nobody got convinced it was a good idea
-> and wanted to fix the use-once policy, then Rik rewrote all of
-> page-reclaim.
+>   other info that might help us debug this:
+> 
+>   rcu_scheduler_active = 1, debug_locks = 0
+>   1 lock held by ureadahead/1355:
+>    #0:  (tasklist_lock){.+.+..}, at: [<ffffffff8115bc09>] sys_ioprio_set+0x7f/0x29e
+> 
+>   stack backtrace:
+>   Pid: 1355, comm: ureadahead Not tainted 2.6.37-dbg-DEV #1
+>   Call Trace:
+>    [<ffffffff8109c10c>] lockdep_rcu_dereference+0xaa/0xb3
+>    [<ffffffff81088cbf>] find_task_by_pid_ns+0x44/0x5d
+>    [<ffffffff81088cfa>] find_task_by_vpid+0x22/0x24
+>    [<ffffffff8115bc3e>] sys_ioprio_set+0xb4/0x29e
+>    [<ffffffff8147cf21>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+>    [<ffffffff8105c409>] sysenter_dispatch+0x7/0x2c
+>    [<ffffffff8147cee2>] ? trace_hardirqs_on_thunk+0x3a/0x3f
+> 
+> The fix is to:
+> a) grab rcu lock in sys_ioprio_{set,get}() and
+> b) avoid grabbing tasklist_lock.
+> Discussion in: http://marc.info/?l=linux-kernel&m=128951324702889
 
-If my understand is correct, rsync touch data twice (for a hash calculation
-and for a copy). then, currect used-once-heuristics seems still doesn't work.
+Thanks Greg, applied.
 
-
-
-
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
