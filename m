@@ -1,93 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B71B8D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 05:14:34 -0500 (EST)
-Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
-	by smtp-out.google.com with ESMTP id oAFAEUQh021957
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 02:14:31 -0800
-Received: from pvg7 (pvg7.prod.google.com [10.241.210.135])
-	by wpaz24.hot.corp.google.com with ESMTP id oAFAESB7019637
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 02:14:29 -0800
-Received: by pvg7 with SMTP id 7so1131825pvg.36
-        for <linux-mm@kvack.org>; Mon, 15 Nov 2010 02:14:27 -0800 (PST)
-Date: Mon, 15 Nov 2010 02:14:24 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] Revert oom rewrite series
-In-Reply-To: <4CE0A87E.1030304@leadcoretech.com>
-Message-ID: <alpine.DEB.2.00.1011150204060.2986@chino.kir.corp.google.com>
-References: <1289402093.10699.25.camel@localhost.localdomain> <1289402666.10699.28.camel@localhost.localdomain> <20101114141913.E019.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011141330120.22262@chino.kir.corp.google.com>
- <4CE0A87E.1030304@leadcoretech.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 20A0A8D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 05:26:33 -0500 (EST)
+Date: Mon, 15 Nov 2010 10:26:17 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] set_pgdat_percpu_threshold() don't use
+	for_each_online_cpu
+Message-ID: <20101115102617.GK27362@csn.ul.ie>
+References: <1288169256-7174-2-git-send-email-mel@csn.ul.ie> <20101028100920.5d4ce413.kamezawa.hiroyu@jp.fujitsu.com> <20101114163727.BEE0.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20101114163727.BEE0.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: "Figo.zhang" <zhangtianfei@leadcoretech.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Figo.zhang" <figo1802@gmail.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Nov 2010, Figo.zhang wrote:
-
-> i am doubt that a new rewrite but the athor canot provide some evidence and
-> experiment result, why did you do that? what is the prominent change for your
-> new algorithm?
+On Sun, Nov 14, 2010 at 05:53:03PM +0900, KOSAKI Motohiro wrote:
+> > > @@ -159,6 +165,44 @@ static void refresh_zone_stat_thresholds(void)
+> > >  	}
+> > >  }
+> > >  
+> > > +void reduce_pgdat_percpu_threshold(pg_data_t *pgdat)
+> > > +{
+> > > +	struct zone *zone;
+> > > +	int cpu;
+> > > +	int threshold;
+> > > +	int i;
+> > > +
+> > 
+> > get_online_cpus();
 > 
-> as KOSAKI Motohiro said, "you removed CAP_SYS_RESOURCE condition with ZERO
-> explanation".
 > 
-> David just said that pls use userspace tunable for protection by
-> oom_score_adj. but may i ask question:
+> This caused following runtime warnings. but I don't think here is
+> real lock inversion. 
 > 
-> 1. what is your innovation for your new algorithm, the old one have the same
-> way for user tunable oom_adj.
+> =================================
+> [ INFO: inconsistent lock state ]
+> 2.6.37-rc1-mm1+ #150
+> ---------------------------------
+> inconsistent {RECLAIM_FS-ON-W} -> {IN-RECLAIM_FS-W} usage.
+> kswapd0/419 [HC0[0]:SC0[0]:HE1:SE1] takes:
+>  (cpu_hotplug.lock){+.+.?.}, at: [<ffffffff810520d1>] get_online_cpus+0x41/0x60
+> {RECLAIM_FS-ON-W} state was registered at:
+>   [<ffffffff8108a1a3>] mark_held_locks+0x73/0xa0
+>   [<ffffffff8108a296>] lockdep_trace_alloc+0xc6/0x100
+>   [<ffffffff8113fba9>] kmem_cache_alloc+0x39/0x2b0
+>   [<ffffffff812eea10>] idr_pre_get+0x60/0x90
+>   [<ffffffff812ef5b7>] ida_pre_get+0x27/0xf0
+>   [<ffffffff8106ebf5>] create_worker+0x55/0x190
+>   [<ffffffff814fb4f4>] workqueue_cpu_callback+0xbc/0x235
+>   [<ffffffff8151934c>] notifier_call_chain+0x8c/0xe0
+>   [<ffffffff8107a34e>] __raw_notifier_call_chain+0xe/0x10
+>   [<ffffffff81051f30>] __cpu_notify+0x20/0x40
+>   [<ffffffff8150bff7>] _cpu_up+0x73/0x113
+>   [<ffffffff8150c175>] cpu_up+0xde/0xf1
+>   [<ffffffff81dcc81d>] kernel_init+0x21b/0x342
+>   [<ffffffff81003724>] kernel_thread_helper+0x4/0x10
+> irq event stamp: 27
+> hardirqs last  enabled at (27): [<ffffffff815152c0>] _raw_spin_unlock_irqrestore+0x40/0x80
+> hardirqs last disabled at (26): [<ffffffff81514982>] _raw_spin_lock_irqsave+0x32/0xa0
+> softirqs last  enabled at (20): [<ffffffff810614c4>] del_timer_sync+0x54/0xa0
+> softirqs last disabled at (18): [<ffffffff8106148c>] del_timer_sync+0x1c/0xa0
+> 
+> other info that might help us debug this:
+> no locks held by kswapd0/419.
+> 
+> stack backtrace:
+> Pid: 419, comm: kswapd0 Not tainted 2.6.37-rc1-mm1+ #150
+> Call Trace:
+>  [<ffffffff810890b1>] print_usage_bug+0x171/0x180
+>  [<ffffffff8108a057>] mark_lock+0x377/0x450
+>  [<ffffffff8108ab67>] __lock_acquire+0x267/0x15e0
+>  [<ffffffff8107af0f>] ? local_clock+0x6f/0x80
+>  [<ffffffff81086789>] ? trace_hardirqs_off_caller+0x29/0x150
+>  [<ffffffff8108bf94>] lock_acquire+0xb4/0x150
+>  [<ffffffff810520d1>] ? get_online_cpus+0x41/0x60
+>  [<ffffffff81512cf4>] __mutex_lock_common+0x44/0x3f0
+>  [<ffffffff810520d1>] ? get_online_cpus+0x41/0x60
+>  [<ffffffff810744f0>] ? prepare_to_wait+0x60/0x90
+>  [<ffffffff81086789>] ? trace_hardirqs_off_caller+0x29/0x150
+>  [<ffffffff810520d1>] ? get_online_cpus+0x41/0x60
+>  [<ffffffff810868bd>] ? trace_hardirqs_off+0xd/0x10
+>  [<ffffffff8107af0f>] ? local_clock+0x6f/0x80
+>  [<ffffffff815131a8>] mutex_lock_nested+0x48/0x60
+>  [<ffffffff810520d1>] get_online_cpus+0x41/0x60
+>  [<ffffffff811138b2>] set_pgdat_percpu_threshold+0x22/0xe0
+>  [<ffffffff81113970>] ? calculate_normal_threshold+0x0/0x60
+>  [<ffffffff8110b552>] kswapd+0x1f2/0x360
+>  [<ffffffff81074180>] ? autoremove_wake_function+0x0/0x40
+>  [<ffffffff8110b360>] ? kswapd+0x0/0x360
+>  [<ffffffff81073ae6>] kthread+0xa6/0xb0
+>  [<ffffffff81003724>] kernel_thread_helper+0x4/0x10
+>  [<ffffffff81515710>] ? restore_args+0x0/0x30
+>  [<ffffffff81073a40>] ? kthread+0x0/0xb0
+>  [<ffffffff81003720>] ? kernel_thread_helper+0x0/0x10
+> 
+> 
+> I think we have two option 1) call lockdep_clear_current_reclaim_state()
+> every time 2) use for_each_possible_cpu instead for_each_online_cpu.
+> 
+> Following patch use (2) beucase removing get_online_cpus() makes good
+> side effect. It reduce potentially cpu-hotplug vs memory-shortage deadlock
+> risk. 
 > 
 
-The goal was to make the oom killer heuristic as predictable as possible 
-and to kill the most memory-hogging task to avoid having to recall it and 
-needlessly kill several tasks.
+With recent per-cpu allocator changes, are we guaranteed that the per-cpu
+structures exist and are valid?
 
-The goal behind oom_score_adj vs. oom_adj was for several reasons, as 
-pointed out before:
-
- - give it a unit (proportion of available memory), oom_adj had no unit,
-
- - allow it to work on a linear scale for more control over 
-   prioritization, oom_adj had an exponential scale,
-
- - give it a much higher resolution so it can be fine-tuned, it works with 
-   a granularity of 0.1% of memory (~128M on a 128G machine), and
-
- - allow it to describe the oom killing priority of a task regardless of 
-   its cpuset attachment, mempolicy, or memcg, or when their respective
-   limits change.
-
-> 2. if server like db-server/financial-server have huge import processes (such
-> as root/hardware access processes)want to be protection, you let the
-> administrator to find out which processes should be protection. you
-> will let the  financial-server administrator huge crazy!! and lose so many
-> money!! ^~^
-> 
-
-You have full control over disabling a task from being considered with 
-oom_score_adj just like you did with oom_adj.  Since oom_adj is 
-deprecated for two years, you can even use the old interface until then.
-
-> 3. i see your email in LKML, you just said
-> "I have repeatedly said that the oom killer no longer kills KDE when run on my
-> desktop in the presence of a memory hogging task that was written specifically
-> to oom the machine."
-> http://thread.gmane.org/gmane.linux.kernel.mm/48998
-> 
-> so you just test your new oom_killer algorithm on your desktop with KDE, so
-> have you provide the detail how you do the test? is it do the
-> experiment again for anyone and got the same result as your comment ?
-> 
-
-Xorg tends to be killed less because of the change to the heuristic's 
-baseline, which is now based on rss and swap instead of total_vm.  This is 
-seperate from the issues you list above, but is a benefit to the oom 
-killer that desktop users especially will notice.  I, personally, am 
-interested more in the server market and that's why I looked for a more 
-robust userspace tunable that would still be applicable when things like 
-cpusets have a node added or removed.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
