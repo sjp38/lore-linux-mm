@@ -1,61 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A2D088D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 02:46:20 -0500 (EST)
-Received: by iwn9 with SMTP id 9so6865374iwn.14
-        for <linux-mm@kvack.org>; Sun, 14 Nov 2010 23:46:19 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1BFF98D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 03:35:48 -0500 (EST)
+Date: Mon, 15 Nov 2010 09:35:40 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC PATCH] Make swap accounting default behavior configurable
+ v3
+Message-ID: <20101115083540.GA20156@tiehlicka.suse.cz>
+References: <20101110125154.GC5867@tiehlicka.suse.cz>
+ <20101111094613.eab2ec0b.nishimura@mxp.nes.nec.co.jp>
+ <20101111093155.GA20630@tiehlicka.suse.cz>
+ <20101112094118.b02b669f.nishimura@mxp.nes.nec.co.jp>
+ <20101112083103.GB7285@tiehlicka.suse.cz>
+ <20101115101335.8880fd87.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-In-Reply-To: <20101115162713.BF12.A69D9226@jp.fujitsu.com>
-References: <20101115160413.BF0F.A69D9226@jp.fujitsu.com>
-	<AANLkTim0vCJkMoH5P0wCN9J6340rDsscyNBQ+R+_ph8m@mail.gmail.com>
-	<20101115162713.BF12.A69D9226@jp.fujitsu.com>
-Date: Mon, 15 Nov 2010 16:46:18 +0900
-Message-ID: <AANLkTi=tZkRnbDhqx=V5TwKh9S1SouEqO5pU_9C-kope@mail.gmail.com>
-Subject: Re: fadvise DONTNEED implementation (or lack thereof)
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101115101335.8880fd87.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Ben Gamari <bgamari.foss@gmail.com>, linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 15, 2010 at 4:28 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> On Mon, Nov 15, 2010 at 4:09 PM, KOSAKI Motohiro
->> <kosaki.motohiro@jp.fujitsu.com> wrote:
->> >> > Because we have an alternative solution already. please try memcgroup :)
->> >>
->> >> I think memcg could be a solution of them but fundamental solution is
->> >> that we have to cure it in VM itself.
->> >> I feel it's absolutely absurd to enable and use memcg for amending it.
->> >>
->> >> I wonder what's the problem in Peter's patch 'drop behind'.
->> >> http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg179576.html
->> >>
->> >> Could anyone tell me why it can't accept upstream?
->> >
->> > I don't know the reason. And this one looks reasonable to me. I'm curious the above
->> > patch solve rsync issue or not.
->> > Minchan, have you tested it yourself?
->>
->> Still yet. :)
->> If we all think it's reasonable, it would be valuable to adjust it
->> with current mmotm and see the effect.
->
-> Who can make rsync like io pattern test suite? a code change is easy. but
-> to comfirm justification is more harder work.
+On Mon 15-11-10 10:13:35, Daisuke Nishimura wrote:
+> On Fri, 12 Nov 2010 09:31:03 +0100
+[...]
+> > diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+> > index ed45e98..7077148 100644
+> > --- a/Documentation/kernel-parameters.txt
+> > +++ b/Documentation/kernel-parameters.txt
+> > @@ -1752,6 +1752,8 @@ and is between 256 and 4096 characters. It is defined in the file
+> >  
+> >  	noswapaccount	[KNL] Disable accounting of swap in memory resource
+> >  			controller. (See Documentation/cgroups/memory.txt)
+> > +	swapaccount	[KNL] Enable accounting of swap in memory resource
+> > +			controller. (See Documentation/cgroups/memory.txt)
+> >  
+> >  	nosync		[HW,M68K] Disables sync negotiation for all devices.
+> >  
+> (I've add Andrew and Balbir to CC-list.)
+> It seems that almost all parameters are listed in alphabetic order in the document,
+> so I think it would be better to obey the rule.
 
-Maybe Ben, Brian those reports the problem. :)
+You are right. The header of the file says:
 
+" The following is a consolidated list of the kernel parameters as
+implemented (mostly) by the __setup() macro and sorted into English
+Dictionary order (defined as ignoring all punctuation and sorting digits
+before letters in a case insensitive manner), and with descriptions
+where known."
 
+Updated patch follows bellow.
 
--- 
-Kind regards,
-Minchan Kim
+> 
+> Thanks,
+> Daisuke Nishimura.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Changes since v2:
+* put the new parameter description to the proper (alphabetically sorted)
+  place in Documentation/kernel-parameters.txt
+
+Changes since v1:
+* do not remove noswapaccount parameter and add swapaccount parameter instead
+* Documentation/kernel-parameters.txt updated
+---
