@@ -1,59 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B50C48D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 04:23:12 -0500 (EST)
-Date: Mon, 15 Nov 2010 09:22:56 +0000
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 31F708D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 04:25:56 -0500 (EST)
+Date: Mon, 15 Nov 2010 09:25:41 +0000
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH 3/3] mm,vmscan: Reclaim order-0 and compact instead of
 	lumpy reclaim when under light pressure
-Message-ID: <20101115092256.GE27362@csn.ul.ie>
-References: <1289502424-12661-4-git-send-email-mel@csn.ul.ie> <20101112093742.GA3537@csn.ul.ie> <20101114150039.E028.A69D9226@jp.fujitsu.com>
+Message-ID: <20101115092540.GF27362@csn.ul.ie>
+References: <1289502424-12661-1-git-send-email-mel@csn.ul.ie> <1289502424-12661-4-git-send-email-mel@csn.ul.ie> <20101114145617.E025.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101114150039.E028.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20101114145617.E025.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Nov 14, 2010 at 03:02:03PM +0900, KOSAKI Motohiro wrote:
-> > On Thu, Nov 11, 2010 at 07:07:04PM +0000, Mel Gorman wrote:
-> > > +	if (COMPACTION_BUILD)
-> > > +		sc->lumpy_reclaim_mode = LUMPY_MODE_COMPACTION;
-> > > +	else
-> > > +		sc->lumpy_reclaim_mode = LUMPY_MODE_CONTIGRECLAIM;
-> > >  
+On Sun, Nov 14, 2010 at 02:59:31PM +0900, KOSAKI Motohiro wrote:
+> > Lumpy reclaim is disruptive. It reclaims both a large number of pages
+> > and ignores the age of the majority of pages it reclaims. This can incur
+> > significant stalls and potentially increase the number of major faults.
 > > 
-> > Gack, I posted the slightly wrong version. This version prevents lumpy
-> > reclaim ever being used. The figures I posted were for a patch where
-> > this condition looked like
+> > Compaction has reached the point where it is considered reasonably stable
+> > (meaning it has passed a lot of testing) and is a potential candidate for
+> > displacing lumpy reclaim. This patch reduces the use of lumpy reclaim when
+> > the priority is high enough to indicate low pressure. The basic operation
+> > is very simple. Instead of selecting a contiguous range of pages to reclaim,
+> > lumpy compaction reclaims a number of order-0 pages and then calls compaction
+> > for the zone. If the watermarks are not met, another reclaim+compaction
+> > cycle occurs.
 > > 
-> >         if (COMPACTION_BUILD && priority > DEF_PRIORITY - 2)
-> >                 sc->lumpy_reclaim_mode = LUMPY_MODE_COMPACTION;
-> >         else
-> >                 sc->lumpy_reclaim_mode = LUMPY_MODE_CONTIGRECLAIM;
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > ---
+> >  include/linux/compaction.h |    9 ++++++++-
+> >  mm/compaction.c            |    2 +-
+> >  mm/vmscan.c                |   38 ++++++++++++++++++++++++++------------
+> >  3 files changed, 35 insertions(+), 14 deletions(-)
+> > 
+> > diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> > index 5ac5155..2ae6613 100644
+> > --- a/include/linux/compaction.h
+> > +++ b/include/linux/compaction.h
+> > @@ -22,7 +22,8 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
+> >  extern int fragmentation_index(struct zone *zone, unsigned int order);
+> >  extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
+> >  			int order, gfp_t gfp_mask, nodemask_t *mask);
+> > -
+> > +extern unsigned long compact_zone_order(struct zone *zone,
+> > +			int order, gfp_t gfp_mask);
+> >  /* Do not skip compaction more than 64 times */
+> >  #define COMPACT_MAX_DEFER_SHIFT 6
+> >  
+> > @@ -59,6 +60,12 @@ static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
+> >  	return COMPACT_CONTINUE;
+> >  }
+> >  
+> > +static inline unsigned long compact_zone_order(struct zone *zone,
+> > +			int order, gfp_t gfp_mask)
+> > +{
+> > +	return 0;
+> > +}
+> > +
+> >  static inline void defer_compaction(struct zone *zone)
+> >  {
+> >  }
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index 4d709ee..f987f47 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -418,7 +418,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+> >  	return ret;
+> >  }
+> >  
+> > -static unsigned long compact_zone_order(struct zone *zone,
+> > +unsigned long compact_zone_order(struct zone *zone,
+> >  						int order, gfp_t gfp_mask)
+> >  {
+> >  	struct compact_control cc = {
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index ffa438e..da35cdb 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -32,6 +32,7 @@
+> >  #include <linux/topology.h>
+> >  #include <linux/cpu.h>
+> >  #include <linux/cpuset.h>
+> > +#include <linux/compaction.h>
+> >  #include <linux/notifier.h>
+> >  #include <linux/rwsem.h>
+> >  #include <linux/delay.h>
+> > @@ -56,6 +57,7 @@ typedef unsigned __bitwise__ lumpy_mode;
+> >  #define LUMPY_MODE_ASYNC		((__force lumpy_mode)0x02u)
+> >  #define LUMPY_MODE_SYNC			((__force lumpy_mode)0x04u)
+> >  #define LUMPY_MODE_CONTIGRECLAIM	((__force lumpy_mode)0x08u)
+> > +#define LUMPY_MODE_COMPACTION		((__force lumpy_mode)0x10u)
+> >  
+> >  struct scan_control {
+> >  	/* Incremented by the number of inactive pages that were scanned */
+> > @@ -274,25 +276,27 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+> >  static void set_lumpy_reclaim_mode(int priority, struct scan_control *sc,
+> >  				   bool sync)
+> >  {
+> > -	lumpy_mode mode = sync ? LUMPY_MODE_SYNC : LUMPY_MODE_ASYNC;
+> > +	lumpy_mode syncmode = sync ? LUMPY_MODE_SYNC : LUMPY_MODE_ASYNC;
+> >  
+> >  	/*
+> > -	 * Some reclaim have alredy been failed. No worth to try synchronous
+> > -	 * lumpy reclaim.
+> > +	 * Initially assume we are entering either lumpy reclaim or lumpy
+> > +	 * compaction. Depending on the order, we will either set the sync
+> > +	 * mode or just reclaim order-0 pages later.
+> >  	 */
+> > -	if (sync && sc->lumpy_reclaim_mode & LUMPY_MODE_SINGLE)
+> > -		return;
+> > +	if (COMPACTION_BUILD)
+> > +		sc->lumpy_reclaim_mode = LUMPY_MODE_COMPACTION;
+> > +	else
+> > +		sc->lumpy_reclaim_mode = LUMPY_MODE_CONTIGRECLAIM;
+> >  
+> >  	/*
+> >  	 * If we need a large contiguous chunk of memory, or have
+> >  	 * trouble getting a small set of contiguous pages, we
+> >  	 * will reclaim both active and inactive pages.
+> >  	 */
+> > -	sc->lumpy_reclaim_mode = LUMPY_MODE_CONTIGRECLAIM;
+> >  	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+> > -		sc->lumpy_reclaim_mode |= mode;
+> > +		sc->lumpy_reclaim_mode |= syncmode;
+> >  	else if (sc->order && priority < DEF_PRIORITY - 2)
+> > -		sc->lumpy_reclaim_mode |= mode;
+> > +		sc->lumpy_reclaim_mode |= syncmode;
 > 
-> Can you please tell us your opinition which is better 1) automatically turn lumby on
-> by priority (this approach) 2) introduce GFP_LUMPY (andrea proposed). I'm not
-> sure which is better, then I'd like to hear both pros/cons concern.
+> Does "LUMPY_MODE_COMPACTION | LUMPY_MODE_SYNC" have any benefit?
+> I haven't understand this semantics. please elaborate?
 > 
 
-That's a very good question!
+At the moment, it doesn't have any benefit. In the future, we might pass
+the flags down to migration which currently always behaves in a sync fashion.
+For now, I think it's better to flag what we expect the behaviour to be
+even if it's not responded to appropriately.
 
-The main "pro" of using lumpy reclaim is that it has been tested. It's known
-to be very heavy and disrupt the system but it's also known to work. Lumpy
-reclaim is also less suspectible to allocation races than compaction is
-i.e. if memory is low, compaction requires that X number of pages be free
-where as lumpy frees the pages it requires.
+> 
+> >  	else
+> >  		sc->lumpy_reclaim_mode = LUMPY_MODE_SINGLE | LUMPY_MODE_ASYNC;
+> >  }
+> > @@ -1366,11 +1370,18 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+> >  	lru_add_drain();
+> >  	spin_lock_irq(&zone->lru_lock);
+> >  
+> > +	/*
+> > +	 * If we are lumpy compacting, we bump nr_to_scan to at least
+> > +	 * the size of the page we are trying to allocate
+> > +	 */
+> > +	if (sc->lumpy_reclaim_mode & LUMPY_MODE_COMPACTION)
+> > +		nr_to_scan = max(nr_to_scan, (1UL << sc->order));
+> > +
+> >  	if (scanning_global_lru(sc)) {
+> >  		nr_taken = isolate_pages_global(nr_to_scan,
+> >  			&page_list, &nr_scanned, sc->order,
+> > -			sc->lumpy_reclaim_mode & LUMPY_MODE_SINGLE ?
+> > -					ISOLATE_INACTIVE : ISOLATE_BOTH,
+> > +			sc->lumpy_reclaim_mode & LUMPY_MODE_CONTIGRECLAIM ?
+> > +					ISOLATE_BOTH : ISOLATE_INACTIVE,
+> >  			zone, 0, file);
+> >  		zone->pages_scanned += nr_scanned;
+> >  		if (current_is_kswapd())
+> > @@ -1382,8 +1393,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+> >  	} else {
+> >  		nr_taken = mem_cgroup_isolate_pages(nr_to_scan,
+> >  			&page_list, &nr_scanned, sc->order,
+> > -			sc->lumpy_reclaim_mode & LUMPY_MODE_SINGLE ?
+> > -					ISOLATE_INACTIVE : ISOLATE_BOTH,
+> > +			sc->lumpy_reclaim_mode & LUMPY_MODE_CONTIGRECLAIM ?
+> > +					ISOLATE_BOTH : ISOLATE_INACTIVE,
+> >  			zone, sc->mem_cgroup,
+> >  			0, file);
+> >  		/*
+> > @@ -1416,6 +1427,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+> >  
+> >  	putback_lru_pages(zone, sc, nr_anon, nr_file, &page_list);
+> >  
+> > +	if (sc->lumpy_reclaim_mode & LUMPY_MODE_COMPACTION)
+> > +		compact_zone_order(zone, sc->order, sc->gfp_mask);
+> > +
+> 
+> If free pages are very little, compaction may not work. don't we need to
+> check NR_FREE_PAGES?
+> 
 
-GFP_LUMPY is something else and is only partially related. Transparent Huge
-Pages (THP) does not want to hit lumpy reclaim no matter what the circumstances
-are - It is always better for THP to not use lumpy reclaim. It's debatable
-whether it should even reclaim order-0 pages for compaction so even with
-this series, THP might still introduce GFP_LUMPY.
+Yes, it's on my TODO list to split out the logic used in
+try_to_compact_pages to decide if compact_zone_order() should be called
+or not.
 
-Does this answer your question?
+Well spotted!
+
+> 
+> >  	trace_mm_vmscan_lru_shrink_inactive(zone->zone_pgdat->node_id,
+> >  		zone_idx(zone),
+> >  		nr_scanned, nr_reclaimed,
+> > -- 
+> > 1.7.1
+> > 
+> 
+> 
+> 
 
 -- 
 Mel Gorman
