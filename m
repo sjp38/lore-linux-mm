@@ -1,98 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 12A168D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 04:05:02 -0500 (EST)
-Received: by iwn9 with SMTP id 9so6940797iwn.14
-        for <linux-mm@kvack.org>; Mon, 15 Nov 2010 01:05:01 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1289810825.2109.469.camel@laptop>
-References: <20101109162525.BC87.A69D9226@jp.fujitsu.com>
-	<877hgmr72o.fsf@gmail.com>
-	<20101114140920.E013.A69D9226@jp.fujitsu.com>
-	<AANLkTim59Qx6TsvXnTBL5Lg6JorbGaqx3KsdBDWO04X9@mail.gmail.com>
-	<1289810825.2109.469.camel@laptop>
-Date: Mon, 15 Nov 2010 18:05:00 +0900
-Message-ID: <AANLkTikibS1fDuk67RHk4SU14pJ9nPdodWba1T3Z_pWE@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 389828D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 04:10:54 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAF9Aps2021683
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 15 Nov 2010 18:10:52 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 64D0545DE4F
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 18:10:51 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3714845DE51
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 18:10:51 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 089E2E08003
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 18:10:51 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A81E91DB803A
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 18:10:50 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: fadvise DONTNEED implementation (or lack thereof)
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1289810825.2109.469.camel@laptop>
+References: <AANLkTim59Qx6TsvXnTBL5Lg6JorbGaqx3KsdBDWO04X9@mail.gmail.com> <1289810825.2109.469.camel@laptop>
+Message-Id: <20101115180153.BF18.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Mon, 15 Nov 2010 18:10:49 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Peter Zijlstra <peterz@infradead.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ben Gamari <bgamari.foss@gmail.com>, linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Ben Gamari <bgamari.foss@gmail.com>, linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 15, 2010 at 5:47 PM, Peter Zijlstra <peterz@infradead.org> wrot=
-e:
-> On Mon, 2010-11-15 at 15:07 +0900, Minchan Kim wrote:
->> On Sun, Nov 14, 2010 at 2:09 PM, KOSAKI Motohiro
->> <kosaki.motohiro@jp.fujitsu.com> wrote:
->> >> On Tue, =A09 Nov 2010 16:28:02 +0900 (JST), KOSAKI Motohiro <kosaki.m=
-otohiro@jp.fujitsu.com> wrote:
->> >> > So, I don't think application developers will use fadvise() aggress=
-ively
->> >> > because we don't have a cross platform agreement of a fadvice behav=
-ior.
->> >> >
->> >> I strongly disagree. For a long time I have been trying to resolve
->> >> interactivity issues caused by my rsync-based backup script. Many ker=
-nel
->> >> developers have said that there is nothing the kernel can do without
->> >> more information from user-space (e.g. cgroups, madvise). While cgrou=
-ps
->> >> help, the fix is round-about at best and requires configuration where
->> >> really none should be necessary. The easiest solution for everyone
->> >> involved would be for rsync to use FADV_DONTNEED. The behavior doesn'=
-t
->> >> need to be perfectly consistent between platforms for the flag to be
->> >> useful so long as each implementation does something sane to help
->> >> use-once access patterns.
->> >>
->> >> People seem to mention frequently that there are no users of
->> >> FADV_DONTNEED and therefore we don't need to implement it. It seems l=
-ike
->> >> this is ignoring an obvious catch-22. Currently rsync has no fadvise
->> >> support at all, since using[1] the implemented hints to get the desir=
-ed
->> >> effect is far too complicated^M^M^M^Mhacky to be considered
->> >> merge-worthy. Considering the number of Google hits returned for
->> >> fadvise, I wouldn't be surprised if there were countless other projec=
-ts
->> >> with this same difficulty. We want to be able to tell the kernel abou=
-t
->> >> our useage patterns, but the kernel won't listen.
->> >
->> > Because we have an alternative solution already. please try memcgroup =
-:)
->
-> Using memcgroup for this is utter crap, it just contains the trainwreck,
-> it doesn't solve it in any way.
->
->> I think memcg could be a solution of them but fundamental solution is
->> that we have to cure it in VM itself.
->> I feel it's absolutely absurd to enable and use memcg for amending it.
->
-> Agreed..
->
->> I wonder what's the problem in Peter's patch 'drop behind'.
->> http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg179576.html
->>
->> Could anyone tell me why it can't accept upstream?
->
+> > I wonder what's the problem in Peter's patch 'drop behind'.
+> > http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg179576.html
+> > 
+> > Could anyone tell me why it can't accept upstream?
+> 
 > Read the thread, its quite clear nobody got convinced it was a good idea
 > and wanted to fix the use-once policy, then Rik rewrote all of
 > page-reclaim.
->
 
-Thanks for the information.
-I hope this is a chance to rethink about it.
-Rik, Could you give us to any comment about this idea?
+If my understand is correct, rsync touch data twice (for a hash calculation
+and for a copy). then, currect used-once-heuristics seems still doesn't work.
 
 
 
---=20
-Kind regards,
-Minchan Kim
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
