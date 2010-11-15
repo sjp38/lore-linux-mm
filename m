@@ -1,69 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AD9E68D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 04:59:21 -0500 (EST)
-Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
-	by smtp-out.google.com with ESMTP id oAF9xJD3005693
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 01:59:19 -0800
-Received: from pzk30 (pzk30.prod.google.com [10.243.19.158])
-	by wpaz24.hot.corp.google.com with ESMTP id oAF9xHlm003133
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 01:59:18 -0800
-Received: by pzk30 with SMTP id 30so806457pzk.41
-        for <linux-mm@kvack.org>; Mon, 15 Nov 2010 01:59:17 -0800 (PST)
-Date: Mon, 15 Nov 2010 01:59:12 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 4EADF8D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 05:04:01 -0500 (EST)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id oAFA3xHg028951
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 02:03:59 -0800
+Received: from pzk32 (pzk32.prod.google.com [10.243.19.160])
+	by wpaz21.hot.corp.google.com with ESMTP id oAFA3vS0014843
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 02:03:58 -0800
+Received: by pzk32 with SMTP id 32so1216965pzk.14
+        for <linux-mm@kvack.org>; Mon, 15 Nov 2010 02:03:57 -0800 (PST)
+Date: Mon, 15 Nov 2010 02:03:54 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [resend][PATCH 2/4] Revert "oom: deprecate oom_adj tunable"
-In-Reply-To: <20101115092238.BEEE.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1011150152490.2986@chino.kir.corp.google.com>
-References: <20101109105801.BC30.A69D9226@jp.fujitsu.com> <20101109122817.BC5A.A69D9226@jp.fujitsu.com> <20101115092238.BEEE.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH v2]mm/oom-kill: direct hardware access processes should
+ get bonus
+In-Reply-To: <20101115095446.BF00.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1011150159330.2986@chino.kir.corp.google.com>
+References: <20101112104140.DFFF.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011141322590.22262@chino.kir.corp.google.com> <20101115095446.BF00.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: "Figo.zhang" <figo1802@gmail.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 15 Nov 2010, KOSAKI Motohiro wrote:
 
-> At v2.6.36-rc1, oom-killer doesn't work at all because YOU BROKE.
-> And I was working on fixing it.
+> > I think in cases of heuristics like this where we obviously want to give 
+> > some bonus to CAP_SYS_ADMIN that there is consistency with other bonuses 
+> > given elsewhere in the kernel.
 > 
-> 2010-08-19
-> http://marc.info/?t=128223176900001&r=1&w=2
-
-This existed before my oom killer rewrite, it was only noticed because the 
-rewrite enabled oom_dump_tasks by default.
-
-> http://marc.info/?t=128221532700003&r=1&w=2
-
-Yes, tasklist_lock was dropped in a mismerge of my patches when posting 
-them.  Thanks for finding it and posting a patch, I appreciate it.
-
-> http://marc.info/?t=128221532500008&r=1&w=2
+> Keep comparision apple to apple. vm_enough_memory() account _virtual_ memory.
+> oom-killer try to free _physical_ memory. It's unrelated.
 > 
 
-Yes, if a task was racing between oom_kill_process() and oom_kill_task() 
-and all threads had dropped its mm between calls then there was a NULL 
-pointer dereference, thanks for fixing that as well.
+It's not unrelated, the LSM function gives an arbitrary 3% bonus to 
+CAP_SYS_ADMIN.  Such threads should also be preferred in the oom killer 
+over other threads since they tend to be more important but not an overly 
+drastic bias such that they don't get killed when using an egregious 
+amount of memory.  So in selecting a small percentage of memory that tends 
+to be a significant bias but not overwhelming, I went with the 3% found 
+elsewhere in the kernel.  __vm_enough_memory() doesn't have that 
+preference for any scientifically calculated reason, it's a heuristic just 
+like oom_badness().
 
-> However, You submitted new crap before the fixing. 
+> > > CAP_SYS_RAWIO mean the process has a direct hardware access privilege
+> > > (eg X.org, RDB). and then, killing it might makes system crash.
+> > > 
+> > 
+> > Then you would want to explicitly filter these tasks from oom kill just as 
+> > OOM_SCORE_ADJ_MIN works rather than giving them a memory quantity bonus.
 > 
-> 2010-08-15
-> http://marc.info/?t=128184669600001&r=1&w=2
+> No. Why does userland recover your mistake?
 > 
 
-This isn't "crap", this is a necessary bit to ensure that tasks that share 
-an ->mm with a task immune from kill aren't killed themselves since we 
-can't free the memory.  We came to the consensus that it would be better 
-to count the tasks that are OOM_DISABLE in the mm_struct to avoid the 
-O(2*n) tasklist scan.
-
-> If you tested mainline a bit, you could find the problem quickly.
-> You should have fixed mainline kernel at first.
-> 
-
-Thanks for finding a couple fixes during the 2.6.36-rc1 when the rewrite 
-was first merged, it's much appreciated!
+You just said killing any CAP_SYS_RAWIO task may make the system crash, so 
+presuming that you don't want the system to crash, you are suggesting we 
+should make these threads completely immune?  That's never been the case 
+(and isn't for oom_kill_allocating_task, either), so there's no history 
+you can draw from to support your argument.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
