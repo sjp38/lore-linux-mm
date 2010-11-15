@@ -1,119 +1,532 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1873E8D006C
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 17:20:15 -0500 (EST)
-Subject: Re: Propagating GFP_NOFS inside __vmalloc()
-From: "Ricardo M. Correia" <ricardo.correia@oracle.com>
-In-Reply-To: <alpine.DEB.2.00.1011151303130.8167@chino.kir.corp.google.com>
-References: <1289421759.11149.59.camel@oralap>
-	 <20101111120643.22dcda5b.akpm@linux-foundation.org>
-	 <1289512924.428.112.camel@oralap>
-	 <20101111142511.c98c3808.akpm@linux-foundation.org>
-	 <1289840500.13446.65.camel@oralap>
-	 <alpine.DEB.2.00.1011151303130.8167@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 15 Nov 2010 23:19:56 +0100
-Message-ID: <1289859596.13446.151.camel@oralap>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A6AC8D006C
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 17:49:30 -0500 (EST)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp08.au.ibm.com (8.14.4/8.13.1) with ESMTP id oAFMnQJc014461
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 09:49:26 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oAFMnPlq2093220
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 09:49:25 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oAFMnPnj027837
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 09:49:25 +1100
+Date: Tue, 16 Nov 2010 09:19:21 +1030
+From: Christopher Yeoh <cyeoh@au1.ibm.com>
+Subject: [RFC][PATCH] Cross Memory Attach v2
+Message-ID: <20101116091921.34849f8f@lilo>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Brian Behlendorf <behlendorf1@llnl.gov>, Andreas Dilger <andreas.dilger@oracle.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Brice Goglin <Brice.Goglin@inria.fr>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-11-15 at 13:28 -0800, David Rientjes wrote:
-> This proposal essentially defines an entirely new method for passing gfp 
-> flags to the page allocator when it isn't strictly needed.
+The basic idea behind cross memory attach is to allow MPI programs doing
+intra-node communication to do a single copy of the message rather than
+a double copy of the message via shared memory.
 
-I don't see it as a way of passing gfp flags to the page allocator, but
-rather as a way of restricting which gfp flags can be used (on a
-per-thread basis). I agree it's not strictly needed.
+The following patch attempts to achieve this by allowing a
+destination process, given an address and size from a source process, to
+copy memory directly from the source process into its own address space
+via a system call. There is also a symmetrical ability to copy from 
+the current process's address space into a destination process's
+address space.
 
->   I think the 
-> problem you're addressing can be done in one of two ways:
-> 
->  - create lower-level functions in each arch that pass a gfp argument to 
->    the allocator rather than hard-coded GFP_KERNEL, or
-> 
->  - avoid doing anything other than GFP_KERNEL allocations for __vmalloc():
->    the only current users are gfs2, ntfs, and ceph (the page allocator
->    __vmalloc() can be discounted since it's done at boot and GFP_ATOMIC
->    here has almost no chance of failing since the size is determined based 
->    on what is available).
->
->
-> The first option really addresses the bug that you're running into and can 
-> be addressed in a relatively simple way by redefining current users of 
-> pmd_alloc_one(), for instance, as a form of a new lower-level 
-> __pmd_alloc_one():
-> 
-> 	static inline pmd_t *__pmd_alloc_one(struct mm_struct *mm,
-> 					unsigned long addr, gfp_t flags)
-> 	{
->         	return (pmd_t *)get_zeroed_page(flags);
-> 	}
-> 
-> 	static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
-> 	{
->         	return __pmd_alloc_one(GFP_KERNEL|__GFP_REPEAT);
-> 	}
-> 
-> and then using __pmd_alloc_one() in the vmalloc path with the passed mask 
-> rather than pmd_alloc_one(). 
+This is an updated version of the patch I posted a while ago. Changes since
+the last version:
 
-Ok, this sounds OK in theory (I'd have to change all these
-implementations for all architectures, but oh well..). But I have a
-question about your proposal.. the call chain seems to go:
+- Implementation is a bit more complicated now, but the syscall interface 
+  has been modified to provide an iovec one for 
+  both the source and destination. This allows for scattered read 
+  -> scattered write.
 
-vmap_pmd_range()
-  pmd_alloc()
-    __pmd_alloc()
-      pmd_alloc_one()
+- Rename of syscalls to process_vm_readv/process_vm_writev
 
-So you want to change this so that vmap_pmd_range() calls your new
-__pmd_alloc_one() instead of pmd_alloc_one().
+- Use of /proc/pid/mem has been considered, but there are issues with 
+  using it:
+  - Does not allow for specifying iovecs for both src and dest, assuming
+    preadv or pwritev was implemented either the area read from or written 
+    to would need to be contiguous. 
+  - Currently mem_read allows only processes who are currently ptrace'ing
+    the target and are still able to ptrace the target to read from the
+    target. This check could possibly be moved to the open call, but its not
+    clear exactly what race this restriction is stopping (reason appears to
+    have been lost)
+  - Having to send the fd of /proc/self/mem via SCM_RIGHTS on unix domain
+    socket is a bit ugly from a userspace point of view, especially when
+    you may have hundreds if not (eventually) thousands of processes that
+    all need to do this with each other
+  - Doesn't allow for some future use of the interface we would like to consider
+    adding in the future (see below)
+  - Interestingly reading from /proc/pid/mem currently actually involves two copies! (But
+    this could be fixed pretty easily)
 
-But this means that pmd_alloc() and __pmd_alloc() would need to accept
-the flag as well, right?
+- Fixed bug around using mm without correct locking
 
-Probably we should define an alias for pmd_alloc() so that we don't have
-to change all its callers to pass a flag. But __pmd_alloc() is already
-taken, so what would you suggest we call it? _pmd_alloc()? :-)
+- call set_page_dirty_lock only on pages we may have written to
 
-> Both are bugs that you'll be 
-> addressing for each architecture, so the intrusiveness of that change has 
-> merit (and be sure to cc linux-arch@vger.kernel.org on it as well).
+- Replaces custom security check with call to __ptrace_may_access
 
-Ok.
+As mentioned previously use of vmsplice instead was considered, 
+but has problems. Since you need the reader and writer working co-operatively
+ if the pipe is not drained then you block. Which requires some wrapping to do non blocking
+on the send side or polling on the receive. In all to all communication
+it requires ordering otherwise you can deadlock. And in the example of
+many MPI tasks writing to one MPI task vmsplice serialises the
+copying.
 
-> I only mention the second option because passing GFP_NOFS to __vmalloc() 
-> for sufficiently large sizes has a much higher probability of failing if 
-> you're running into issues where GFP_KERNEL is causing synchronous 
-> reclaim.  We may not be able to do any better in the contexts in which 
-> gfs2, ntfs, and ceph use it without some sort of preallocation at an 
-> earlier time,
+There are some cases of MPI collectives where even a single copy interface does
+not get us the performance gain we could. For example in an MPI_Reduce rather than
+copy the data from the source we would like to instead use it directly in a mathops
+(say the reduce is doing a sum) as this would save us doing a copy. 
+We don't need to keep a copy of the data from the
+source. I haven't implemented this, but I think this interface could in the future 
+do all this through the use of the flags - eg could specify the math operation and type
+and the kernel rather than just copying the data would apply the specified operation
+between the source and destination and store it in the destination. 
 
-Indeed... I don't think we can do any better in Lustre either. The
-preallocation also doesn't guarantee anything for us, because the amount
-of memory that we may need to allocate can be huge in the worst case,
-and it would be prohibitive to preallocate it.
+Chris
+-- 
+cyeoh@au1.ibm.com
 
-For our case, I'd think it's better to either handle failure or somehow
-retry until the allocation succeeds (if we know for sure that it will,
-eventually).
-
->  but the liklihood of those allocations failing is much 
-> harder than the typical vmalloc() that tries really hard with __GFP_REPEAT 
-> to allocate the memory required.
-
-Not sure what do you mean by this.. I don't see a typical vmalloc()
-using __GFP_REPEAT anywhere (apart from functions such as
-pmd_alloc_one(), which in the code above you suggested to keep passing
-__GFP_REPEAT).. am I missing something?
-
-Thanks,
-Ricardo
-
+Signed-off-by: Chris Yeoh <cyeoh@au1.ibm.com>
+diff --git a/arch/powerpc/include/asm/systbl.h b/arch/powerpc/include/asm/systbl.h
+index aa0f1eb..f55dbc7 100644
+--- a/arch/powerpc/include/asm/systbl.h
++++ b/arch/powerpc/include/asm/systbl.h
+@@ -348,3 +348,5 @@ COMPAT_SYS_SPU(sendmsg)
+ COMPAT_SYS_SPU(recvmsg)
+ COMPAT_SYS_SPU(recvmmsg)
+ SYSCALL_SPU(accept4)
++SYSCALL(process_vm_readv)
++SYSCALL(process_vm_writev)
+diff --git a/arch/powerpc/include/asm/unistd.h b/arch/powerpc/include/asm/unistd.h
+index 6151937..9ce27ec 100644
+--- a/arch/powerpc/include/asm/unistd.h
++++ b/arch/powerpc/include/asm/unistd.h
+@@ -367,10 +367,12 @@
+ #define __NR_recvmsg		342
+ #define __NR_recvmmsg		343
+ #define __NR_accept4		344
++#define __NR_process_vm_readv	345
++#define __NR_process_vm_writev	346
+ 
+ #ifdef __KERNEL__
+ 
+-#define __NR_syscalls		345
++#define __NR_syscalls		347
+ 
+ #define __NR__exit __NR_exit
+ #define NR_syscalls	__NR_syscalls
+diff --git a/arch/powerpc/kernel/sys_ppc32.c b/arch/powerpc/kernel/sys_ppc32.c
+index b1b6043..7f6ed34 100644
+--- a/arch/powerpc/kernel/sys_ppc32.c
++++ b/arch/powerpc/kernel/sys_ppc32.c
+@@ -624,3 +624,4 @@ asmlinkage long compat_sys_fanotify_mark(int fanotify_fd, unsigned int flags,
+ 	u64 mask = ((u64)mask_hi << 32) | mask_lo;
+ 	return sys_fanotify_mark(fanotify_fd, flags, mask, dfd, pathname);
+ }
++
+diff --git a/arch/x86/include/asm/unistd_32.h b/arch/x86/include/asm/unistd_32.h
+index b766a5e..1446daa 100644
+--- a/arch/x86/include/asm/unistd_32.h
++++ b/arch/x86/include/asm/unistd_32.h
+@@ -346,10 +346,12 @@
+ #define __NR_fanotify_init	338
+ #define __NR_fanotify_mark	339
+ #define __NR_prlimit64		340
++#define __NR_process_vm_readv	341
++#define __NR_process_vm_writev	342
+ 
+ #ifdef __KERNEL__
+ 
+-#define NR_syscalls 341
++#define NR_syscalls 343
+ 
+ #define __ARCH_WANT_IPC_PARSE_VERSION
+ #define __ARCH_WANT_OLD_READDIR
+diff --git a/arch/x86/kernel/syscall_table_32.S b/arch/x86/kernel/syscall_table_32.S
+index b35786d..f1ed82c 100644
+--- a/arch/x86/kernel/syscall_table_32.S
++++ b/arch/x86/kernel/syscall_table_32.S
+@@ -340,3 +340,5 @@ ENTRY(sys_call_table)
+ 	.long sys_fanotify_init
+ 	.long sys_fanotify_mark
+ 	.long sys_prlimit64		/* 340 */
++	.long sys_process_vm_readv
++	.long sys_process_vm_writev
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index e6319d1..a8b4f32 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -831,5 +831,17 @@ asmlinkage long sys_mmap_pgoff(unsigned long addr, unsigned long len,
+ 			unsigned long prot, unsigned long flags,
+ 			unsigned long fd, unsigned long pgoff);
+ asmlinkage long sys_old_mmap(struct mmap_arg_struct __user *arg);
++asmlinkage long sys_process_vm_readv(pid_t pid,
++				     const struct iovec __user *lvec,
++				     unsigned long liovcnt,
++				     const struct iovec __user *rvec,
++				     unsigned long riovcnt,
++				     unsigned long flags);
++asmlinkage long sys_process_vm_writev(pid_t pid,
++				      const struct iovec __user *lvec,
++				      unsigned long liovcnt,
++				      const struct iovec __user *rvec,
++				      unsigned long riovcnt,
++				      unsigned long flags);
+ 
+ #endif
+diff --git a/mm/memory.c b/mm/memory.c
+index 98b58fe..956afbd 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -57,6 +57,8 @@
+ #include <linux/swapops.h>
+ #include <linux/elf.h>
+ #include <linux/gfp.h>
++#include <linux/syscalls.h>
++#include <linux/ptrace.h>
+ 
+ #include <asm/io.h>
+ #include <asm/pgalloc.h>
+@@ -3566,6 +3568,334 @@ void print_vma_addr(char *prefix, unsigned long ip)
+ 	up_read(&current->mm->mmap_sem);
+ }
+ 
++
++/*
++ * process_vm_rw_pages - read/write pages from task specified
++ * @task: task to read/write from
++ * @process_pages: struct pages area that can store at least
++ *  nr_pages_to_copy struct page pointers
++ * @pa: address of page in task to start copying from/to
++ * @start_offset: offset in page to start copying from/to
++ * @len: number of bytes to copy
++ * @lvec: iovec array specifying where to copy to/from
++ * @lvec_cnt: number of elements in iovec array
++ * @lvec_current: index in iovec array we are up to
++ * @lvec_offset: offset in bytes from current iovec iov_base we are up to
++ * @vm_write: 0 means copy from, 1 means copy to
++ * @nr_pages_to_copy: number of pages to copy
++ */
++
++static int process_vm_rw_pages(struct task_struct *task,
++			       struct page **process_pages,
++			       unsigned long pa,
++			       unsigned long start_offset,
++			       unsigned long len,
++			       struct iovec *lvec,
++			       unsigned long lvec_cnt,
++			       unsigned long *lvec_current,
++			       size_t *lvec_offset,
++			       int vm_write,
++			       unsigned int nr_pages_to_copy)
++{
++	int pages_pinned;
++	void *target_kaddr;
++	int i = 0;
++	int j;
++	int ret;
++	unsigned long bytes_to_copy;
++	unsigned long bytes_copied = 0;
++	int rc = -EFAULT;
++
++	/* Get the pages we're interested in */
++	pages_pinned = get_user_pages(task, task->mm, pa,
++				      nr_pages_to_copy,
++				      vm_write, 0, process_pages, NULL);
++
++	if (pages_pinned != nr_pages_to_copy)
++		goto end;
++
++	/* Do the copy for each page */
++	for (i = 0; (i < nr_pages_to_copy) && (*lvec_current < lvec_cnt); i++) {
++		/* Make sure we have a non zero length iovec */
++		while (*lvec_current < lvec_cnt
++		       && lvec[*lvec_current].iov_len == 0)
++			(*lvec_current)++;
++		if (*lvec_current == lvec_cnt)
++			break;
++
++		/* Will copy smallest of:
++		   - bytes remaining in page
++		   - bytes remaining in destination iovec */
++		bytes_to_copy = min(PAGE_SIZE - start_offset,
++				    len - bytes_copied);
++		bytes_to_copy = min((size_t)bytes_to_copy,
++				    lvec[*lvec_current].iov_len - *lvec_offset);
++
++
++		target_kaddr = kmap(process_pages[i]) + start_offset;
++
++		if (vm_write)
++			ret = copy_from_user(target_kaddr,
++					     lvec[*lvec_current].iov_base
++					     + *lvec_offset,
++					     bytes_to_copy);
++		else
++			ret = copy_to_user(lvec[*lvec_current].iov_base
++					   + *lvec_offset,
++					   target_kaddr, bytes_to_copy);
++		kunmap(process_pages[i]);
++		if (ret) {
++			i++;
++			goto end;
++		}
++		bytes_copied += bytes_to_copy;
++		*lvec_offset += bytes_to_copy;
++		if (*lvec_offset == lvec[*lvec_current].iov_len) {
++			/* Need to copy remaining part of page into
++			   the next iovec if there are any bytes left in page */
++			(*lvec_current)++;
++			*lvec_offset = 0;
++			start_offset = (start_offset + bytes_to_copy)
++				% PAGE_SIZE;
++			if (start_offset)
++				i--;
++		} else {
++			if (start_offset)
++				start_offset = 0;
++		}
++	}
++
++	rc = bytes_copied;
++
++end:
++	for (j = 0; j < pages_pinned; j++) {
++		if (vm_write && j < i)
++			set_page_dirty_lock(process_pages[j]);
++		put_page(process_pages[j]);
++	}
++
++	return rc;
++}
++
++
++
++static int process_vm_rw(pid_t pid, unsigned long addr,
++			 unsigned long len,
++			 struct iovec *lvec,
++			 unsigned long lvec_cnt,
++			 unsigned long *lvec_current,
++			 size_t *lvec_offset,
++			 struct page **process_pages,
++			 struct mm_struct *mm,
++			 struct task_struct *task,
++			 unsigned long flags, int vm_write)
++{
++	unsigned long pa = addr & PAGE_MASK;
++	unsigned long start_offset = addr - pa;
++	int nr_pages;
++	unsigned long bytes_copied = 0;
++	int rc;
++	unsigned int nr_pages_copied = 0;
++	unsigned int nr_pages_to_copy;
++	unsigned int max_pages_per_loop = (PAGE_SIZE * 2)
++		/ sizeof(struct pages *);
++
++
++	/* Work out address and page range required */
++	if (len == 0)
++		return 0;
++	nr_pages = (addr + len - 1) / PAGE_SIZE - addr / PAGE_SIZE + 1;
++
++
++	down_read(&mm->mmap_sem);
++	while ((nr_pages_copied < nr_pages) && (*lvec_current < lvec_cnt)) {
++		nr_pages_to_copy = min(nr_pages - nr_pages_copied,
++				       max_pages_per_loop);
++
++		rc = process_vm_rw_pages(task, process_pages, pa,
++					 start_offset, len,
++					 lvec, lvec_cnt,
++					 lvec_current, lvec_offset,
++					 vm_write, nr_pages_to_copy);
++		start_offset = 0;
++
++		if (rc == -EFAULT)
++			goto free_mem;
++		else {
++			bytes_copied += rc;
++			len -= rc;
++			nr_pages_copied += nr_pages_to_copy;
++			pa += nr_pages_to_copy * PAGE_SIZE;
++		}
++	}
++
++	rc = bytes_copied;
++
++free_mem:
++	up_read(&mm->mmap_sem);
++
++	return rc;
++}
++
++static int process_vm_rw_v(pid_t pid, const struct iovec __user *lvec,
++			   unsigned long liovcnt,
++			   const struct iovec __user *rvec,
++			   unsigned long riovcnt,
++			   unsigned long flags, int vm_write)
++{
++	struct task_struct *task;
++	struct page **process_pages = NULL;
++	struct mm_struct *mm;
++	int i;
++	int rc;
++	int bytes_copied;
++	struct iovec iovstack_l[UIO_FASTIOV];
++	struct iovec iovstack_r[UIO_FASTIOV];
++	struct iovec *iov_l = iovstack_l;
++	struct iovec *iov_r = iovstack_r;
++	unsigned int nr_pages = 0;
++	unsigned int nr_pages_iov;
++	unsigned long iov_l_curr_idx = 0;
++	size_t iov_l_curr_offset = 0;
++	int iov_len_total = 0;
++
++	/* Get process information */
++	rcu_read_lock();
++	task = find_task_by_vpid(pid);
++	if (task)
++		get_task_struct(task);
++	rcu_read_unlock();
++	if (!task)
++		return -ESRCH;
++
++	task_lock(task);
++	if (__ptrace_may_access(task, PTRACE_MODE_ATTACH)) {
++		task_unlock(task);
++		rc = -EPERM;
++		goto end;
++	}
++	mm = task->mm;
++
++	if (!mm) {
++		rc = -EINVAL;
++		goto end;
++	}
++
++	atomic_inc(&mm->mm_users);
++	task_unlock(task);
++
++
++	if ((liovcnt > UIO_MAXIOV) || (riovcnt > UIO_MAXIOV)) {
++		rc = -EINVAL;
++		goto release_mm;
++	}
++
++	if (liovcnt > UIO_FASTIOV)
++		iov_l = kmalloc(liovcnt*sizeof(struct iovec), GFP_KERNEL);
++
++	if (riovcnt > UIO_FASTIOV)
++		iov_r = kmalloc(riovcnt*sizeof(struct iovec), GFP_KERNEL);
++
++	if (iov_l == NULL || iov_r == NULL) {
++		rc = -ENOMEM;
++		goto free_iovecs;
++	}
++
++	rc = copy_from_user(iov_l, lvec, liovcnt*sizeof(*lvec));
++	if (rc) {
++		rc = -EFAULT;
++		goto free_iovecs;
++	}
++	rc = copy_from_user(iov_r, rvec, riovcnt*sizeof(*lvec));
++	if (rc) {
++		rc = -EFAULT;
++		goto free_iovecs;
++	}
++
++	/* Work out how many pages of struct pages we're going to need
++	   when eventually calling get_user_pages */
++	for (i = 0; i < riovcnt; i++) {
++		if (iov_r[i].iov_len > 0) {
++			nr_pages_iov = ((unsigned long)iov_r[i].iov_base
++					+ iov_r[i].iov_len) /
++				PAGE_SIZE - (unsigned long)iov_r[i].iov_base
++				/ PAGE_SIZE + 1;
++			nr_pages = max(nr_pages, nr_pages_iov);
++			iov_len_total += iov_r[i].iov_len;
++			if (iov_len_total < 0) {
++				rc = -EINVAL;
++				goto free_iovecs;
++			}
++		}
++	}
++
++	if (nr_pages == 0)
++		goto free_iovecs;
++
++	/* For reliability don't try to kmalloc more than 2 pages worth */
++	process_pages = kmalloc(min((size_t)PAGE_SIZE * 2,
++				    sizeof(struct pages *) * nr_pages),
++				GFP_KERNEL);
++
++	if (!process_pages) {
++		rc = -ENOMEM;
++		goto free_iovecs;
++	}
++
++	rc = 0;
++	for (i = 0; i < riovcnt && iov_l_curr_idx < liovcnt; i++) {
++		bytes_copied = process_vm_rw(pid,
++					     (unsigned long)iov_r[i].iov_base,
++					     iov_r[i].iov_len,
++					     iov_l, liovcnt,
++					     &iov_l_curr_idx,
++					     &iov_l_curr_offset,
++					     process_pages, mm,
++					     task, flags, vm_write);
++		if (bytes_copied < 0) {
++			rc = bytes_copied;
++			goto free_proc_pages;
++		} else {
++			rc += bytes_copied;
++		}
++	}
++
++
++free_proc_pages:
++	kfree(process_pages);
++
++free_iovecs:
++	if (riovcnt > UIO_FASTIOV)
++		kfree(iov_r);
++	if (liovcnt > UIO_FASTIOV)
++		kfree(iov_l);
++
++release_mm:
++	mmput(mm);
++
++end:
++	put_task_struct(task);
++	return rc;
++}
++
++
++SYSCALL_DEFINE6(process_vm_readv, pid_t, pid, const struct iovec __user *, lvec,
++		unsigned long, liovcnt, const struct iovec __user *, rvec,
++		unsigned long, riovcnt,	unsigned long, flags)
++{
++	return process_vm_rw_v(pid, lvec, liovcnt, rvec, riovcnt, flags, 0);
++}
++
++SYSCALL_DEFINE6(process_vm_writev, pid_t, pid,
++		const struct iovec __user *, lvec,
++		unsigned long, liovcnt, const struct iovec __user *, rvec,
++		unsigned long, riovcnt,	unsigned long, flags)
++{
++	return process_vm_rw_v(pid, lvec, liovcnt, rvec, riovcnt, flags, 1);
++}
++
++
++
+ #ifdef CONFIG_PROVE_LOCKING
+ void might_fault(void)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
