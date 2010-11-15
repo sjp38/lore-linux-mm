@@ -1,82 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 804AB8D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 14:54:47 -0500 (EST)
-Date: Mon, 15 Nov 2010 20:54:39 +0100
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: BUG: Bad page state in process (current git)
-Message-ID: <20101115195439.GA1569@arch.trippelsdorf.de>
-References: <20101110152519.GA1626@arch.trippelsdorf.de>
- <20101110154057.GA2191@arch.trippelsdorf.de>
- <alpine.DEB.2.00.1011101534370.30164@router.home>
- <20101112122003.GA1572@arch.trippelsdorf.de>
- <20101115123846.GA30047@arch.trippelsdorf.de>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C55368D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 15:55:04 -0500 (EST)
+Date: Mon, 15 Nov 2010 15:54:51 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: Oops while rebalancing, now unmountable.
+Message-ID: <20101115205451.GA644@infradead.org>
+References: <1289310046-sup-839@think>
+ <1289326892.4231.2.camel@mars>
+ <1289764507.4303.9.camel@mars>
+ <20101114204206.GV6809@random.random>
+ <20101114220018.GA4512@infradead.org>
+ <20101114221222.GX6809@random.random>
+ <20101115182314.GA2493@infradead.org>
+ <20101115184657.GJ6809@random.random>
+ <20101115191204.GB11374@infradead.org>
+ <20101115192914.GL6809@random.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101115123846.GA30047@arch.trippelsdorf.de>
+In-Reply-To: <20101115192914.GL6809@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Shane Shrybman <shrybman@teksavvy.com>, linux-btrfs <linux-btrfs@vger.kernel.org>, Chris Mason <chris.mason@oracle.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 2010.11.15 at 13:38 +0100, Markus Trippelsdorf wrote:
-> On 2010.11.12 at 13:20 +0100, Markus Trippelsdorf wrote:
-> > 
-> > Yes. Fortunately the BUG is gone since I pulled the upcoming drm fixes
-> 
-> No. I happend again today (with those fixes already applied):
-> 
-> BUG: Bad page state in process knode  pfn:7f0a8
-> page:ffffea0001bca4c0 count:0 mapcount:0 mapping:          (null) index:0x0
-> page flags: 0x4000000000000008(uptodate)
-> Pid: 18310, comm: knode Not tainted 2.6.37-rc1-00549-gae712bf-dirty #16
-> Call Trace:
->  [<ffffffff810a9022>] ? bad_page+0x92/0xe0
->  [<ffffffff810aa240>] ? get_page_from_freelist+0x4b0/0x570
->  [<ffffffff8102e50e>] ? apic_timer_interrupt+0xe/0x20
->  [<ffffffff810aa413>] ? __alloc_pages_nodemask+0x113/0x6b0
->  [<ffffffff810a2dd4>] ? file_read_actor+0xc4/0x190
->  [<ffffffff810a4a70>] ? generic_file_aio_read+0x560/0x6b0
->  [<ffffffff810bdf8d>] ? handle_mm_fault+0x6bd/0x970
->  [<ffffffff8104b1d0>] ? do_page_fault+0x120/0x410
->  [<ffffffff810c3d85>] ? do_brk+0x275/0x360
->  [<ffffffff81452d8f>] ? page_fault+0x1f/0x30
-> Disabling lock debugging due to kernel taint
+On Mon, Nov 15, 2010 at 08:29:14PM +0100, Andrea Arcangeli wrote:
+> Scary stuff, so WB_SYNC_NONE wouldn't submit the dirty part of the
+> page down for I/O, so that it's all clean after wait_on_page_writeback
+> returns? (well of course unless the dirty bit was set again)
 
-And another one. But this time it seems to point to ext4:
+It might not if we have lock contention or other resource starvation.
+That's the reason why WB_SYNC_NONE was added - to not block the flusher
+threads.
 
-BUG: Bad page state in process rm  pfn:52e54
-page:ffffea0001222260 count:0 mapcount:0 mapping:          (null) index:0x0
-page flags: 0x4000000000000008(uptodate)
-Pid: 2084, comm: rm Not tainted 2.6.37-rc1-00549-gae712bf-dirty #23
-Call Trace:
- [<ffffffff810a9022>] ? bad_page+0x92/0xe0
- [<ffffffff810aa240>] ? get_page_from_freelist+0x4b0/0x570
- [<ffffffff81142ae6>] ? ext4_ext_put_in_cache+0x46/0x90
- [<ffffffff810aa413>] ? __alloc_pages_nodemask+0x113/0x6b0
- [<ffffffff8118f0c7>] ? number.clone.2+0x2b7/0x2f0
- [<ffffffff810a38d5>] ? find_get_page+0x75/0xb0
- [<ffffffff810a4011>] ? find_or_create_page+0x51/0xb0
- [<ffffffff810ff4d7>] ? __getblk+0xd7/0x260
- [<ffffffff8113158f>] ? ext4_getblk+0x8f/0x1e0
- [<ffffffff811316ed>] ? ext4_bread+0xd/0x70
- [<ffffffff811369f4>] ? htree_dirblock_to_tree+0x34/0x190
- [<ffffffff8113870f>] ? ext4_htree_fill_tree+0x9f/0x250
- [<ffffffff810e109d>] ? do_filp_open+0x12d/0x5e0
- [<ffffffff811289ed>] ? ext4_readdir+0x14d/0x5a0
- [<ffffffff810e4e80>] ? filldir+0x0/0xd0
- [<ffffffff810e50a8>] ? vfs_readdir+0xa8/0xd0
- [<ffffffff810e4e80>] ? filldir+0x0/0xd0
- [<ffffffff810e51b1>] ? sys_getdents+0x81/0xf0
- [<ffffffff8102dc2b>] ? system_call_fastpath+0x16/0x1b
-Disabling lock debugging due to kernel taint
+> I didn't realize the stack overflow issue was specific to delalloc.
 
-I don't know. Could a possible bug in linux/fs/ext4/page-io.c be
-responsible for something like this?
+It's not.  It's specific to direct reclaim.  Only ext4 special cases
+delalloc, but I'm not sure if that's intentional or just an accidental
+side effect of the mess that the ext4 writeback code is.
 
--- 
-Markus
+> In short with THP it's khugepaged that is supposed to run the
+> ->writepage in migrate.c and it will run it once every 10 sec even
+> when it fails (and not in a 100% cpu wasting loop like kswapd), so if
+> you did something magic for kswapd in XFS you should do for khugepaged
+> too.
+
+If you have a PF_ flag for it that's easy to add once it goes into
+mainline.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
