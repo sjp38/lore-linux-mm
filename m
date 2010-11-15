@@ -1,66 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1BFF98D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 03:35:48 -0500 (EST)
-Date: Mon, 15 Nov 2010 09:35:40 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH] Make swap accounting default behavior configurable
- v3
-Message-ID: <20101115083540.GA20156@tiehlicka.suse.cz>
-References: <20101110125154.GC5867@tiehlicka.suse.cz>
- <20101111094613.eab2ec0b.nishimura@mxp.nes.nec.co.jp>
- <20101111093155.GA20630@tiehlicka.suse.cz>
- <20101112094118.b02b669f.nishimura@mxp.nes.nec.co.jp>
- <20101112083103.GB7285@tiehlicka.suse.cz>
- <20101115101335.8880fd87.nishimura@mxp.nes.nec.co.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101115101335.8880fd87.nishimura@mxp.nes.nec.co.jp>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BF448D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 03:46:55 -0500 (EST)
+Subject: Re: fadvise DONTNEED implementation (or lack thereof)
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <AANLkTim59Qx6TsvXnTBL5Lg6JorbGaqx3KsdBDWO04X9@mail.gmail.com>
+References: <20101109162525.BC87.A69D9226@jp.fujitsu.com>
+	 <877hgmr72o.fsf@gmail.com> <20101114140920.E013.A69D9226@jp.fujitsu.com>
+	 <AANLkTim59Qx6TsvXnTBL5Lg6JorbGaqx3KsdBDWO04X9@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 15 Nov 2010 09:47:05 +0100
+Message-ID: <1289810825.2109.469.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, balbir@linux.vnet.ibm.com
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ben Gamari <bgamari.foss@gmail.com>, linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon 15-11-10 10:13:35, Daisuke Nishimura wrote:
-> On Fri, 12 Nov 2010 09:31:03 +0100
-[...]
-> > diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-> > index ed45e98..7077148 100644
-> > --- a/Documentation/kernel-parameters.txt
-> > +++ b/Documentation/kernel-parameters.txt
-> > @@ -1752,6 +1752,8 @@ and is between 256 and 4096 characters. It is defined in the file
-> >  
-> >  	noswapaccount	[KNL] Disable accounting of swap in memory resource
-> >  			controller. (See Documentation/cgroups/memory.txt)
-> > +	swapaccount	[KNL] Enable accounting of swap in memory resource
-> > +			controller. (See Documentation/cgroups/memory.txt)
-> >  
-> >  	nosync		[HW,M68K] Disables sync negotiation for all devices.
-> >  
-> (I've add Andrew and Balbir to CC-list.)
-> It seems that almost all parameters are listed in alphabetic order in the document,
-> so I think it would be better to obey the rule.
+On Mon, 2010-11-15 at 15:07 +0900, Minchan Kim wrote:
+> On Sun, Nov 14, 2010 at 2:09 PM, KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+> >> On Tue,  9 Nov 2010 16:28:02 +0900 (JST), KOSAKI Motohiro <kosaki.moto=
+hiro@jp.fujitsu.com> wrote:
+> >> > So, I don't think application developers will use fadvise() aggressi=
+vely
+> >> > because we don't have a cross platform agreement of a fadvice behavi=
+or.
+> >> >
+> >> I strongly disagree. For a long time I have been trying to resolve
+> >> interactivity issues caused by my rsync-based backup script. Many kern=
+el
+> >> developers have said that there is nothing the kernel can do without
+> >> more information from user-space (e.g. cgroups, madvise). While cgroup=
+s
+> >> help, the fix is round-about at best and requires configuration where
+> >> really none should be necessary. The easiest solution for everyone
+> >> involved would be for rsync to use FADV_DONTNEED. The behavior doesn't
+> >> need to be perfectly consistent between platforms for the flag to be
+> >> useful so long as each implementation does something sane to help
+> >> use-once access patterns.
+> >>
+> >> People seem to mention frequently that there are no users of
+> >> FADV_DONTNEED and therefore we don't need to implement it. It seems li=
+ke
+> >> this is ignoring an obvious catch-22. Currently rsync has no fadvise
+> >> support at all, since using[1] the implemented hints to get the desire=
+d
+> >> effect is far too complicated^M^M^M^Mhacky to be considered
+> >> merge-worthy. Considering the number of Google hits returned for
+> >> fadvise, I wouldn't be surprised if there were countless other project=
+s
+> >> with this same difficulty. We want to be able to tell the kernel about
+> >> our useage patterns, but the kernel won't listen.
+> >
+> > Because we have an alternative solution already. please try memcgroup :=
+)
 
-You are right. The header of the file says:
+Using memcgroup for this is utter crap, it just contains the trainwreck,
+it doesn't solve it in any way.
 
-" The following is a consolidated list of the kernel parameters as
-implemented (mostly) by the __setup() macro and sorted into English
-Dictionary order (defined as ignoring all punctuation and sorting digits
-before letters in a case insensitive manner), and with descriptions
-where known."
+> I think memcg could be a solution of them but fundamental solution is
+> that we have to cure it in VM itself.
+> I feel it's absolutely absurd to enable and use memcg for amending it.
 
-Updated patch follows bellow.
+Agreed..
 
-> 
-> Thanks,
-> Daisuke Nishimura.
+> I wonder what's the problem in Peter's patch 'drop behind'.
+> http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg179576.html
+>=20
+> Could anyone tell me why it can't accept upstream?
 
-Changes since v2:
-* put the new parameter description to the proper (alphabetically sorted)
-  place in Documentation/kernel-parameters.txt
+Read the thread, its quite clear nobody got convinced it was a good idea
+and wanted to fix the use-once policy, then Rik rewrote all of
+page-reclaim.
 
-Changes since v1:
-* do not remove noswapaccount parameter and add swapaccount parameter instead
-* Documentation/kernel-parameters.txt updated
----
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
