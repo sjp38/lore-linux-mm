@@ -1,87 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id EAE388D0017
-	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 19:22:31 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAF0MT0m030175
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2E4938D0017
+	for <linux-mm@kvack.org>; Sun, 14 Nov 2010 19:24:22 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAF0OJxq032282
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 15 Nov 2010 09:22:29 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E4BCD45DE55
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:22:28 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B9B7E45DE4F
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:22:28 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 984C31DB8040
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:22:28 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 50D511DB803B
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:22:28 +0900 (JST)
+	Mon, 15 Nov 2010 09:24:19 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 33FD545DE4D
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:24:19 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E73845DE6E
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:24:19 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EC9391DB8041
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:24:18 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A341C1DB803E
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 09:24:18 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch] oom: document obsolete oom_adj tunable
-In-Reply-To: <alpine.DEB.2.00.1011091555210.30112@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1011091547030.30112@chino.kir.corp.google.com> <alpine.DEB.2.00.1011091555210.30112@chino.kir.corp.google.com>
-Message-Id: <20101115091908.BEEB.A69D9226@jp.fujitsu.com>
+Subject: Re: [resend][PATCH 2/4] Revert "oom: deprecate oom_adj tunable"
+In-Reply-To: <20101109122817.BC5A.A69D9226@jp.fujitsu.com>
+References: <20101109105801.BC30.A69D9226@jp.fujitsu.com> <20101109122817.BC5A.A69D9226@jp.fujitsu.com>
+Message-Id: <20101115092238.BEEE.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Mon, 15 Nov 2010 09:22:27 +0900 (JST)
+Date: Mon, 15 Nov 2010 09:24:17 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Alan Cox <alan@lxorguk.ukuu.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> /proc/pid/oom_adj was deprecated in August 2010 with the introduction of
-> the new oom killer heuristic.
+> > > Yes, I've tested it, and it deprecates the tunable as expected.  A single 
+> > > warning message serves the purpose well: let users know one time without 
+> > > being overly verbose that the tunable is deprecated and give them 
+> > > sufficient time (2 years) to start using the new tunable.  That's how 
+> > > deprecation is done.
+> > 
+> > no sense.
+> > 
+> > Why do their application need to rewrite for *YOU*? Okey, you will got
+> > benefit from your new knob. But NOBDOY use the new one. and People need
+> > to rewrite their application even though no benefit. 
+> > 
+> > Don't do selfish userland breakage!
 > 
-> This patch copies the Documentation/feature-removal-schedule.txt entry
-> for this tunable to the Documentation/ABI/obsolete directory so nobody
-> misses it.
-> 
-> Reported-by: Alan Cox <alan@lxorguk.ukuu.org.uk>
-> Signed-off-by: David Rientjes <rientjes@google.com>
-
-NAK. You seems to think shouting claim makes some effect. but It's incorrect.
-Your childish shout doesn't solve any real world issue. Only code fix does.
+> And you said you ignore bug even though you have seen it. It suck!
 
 
-> ---
->  Documentation/ABI/obsolete/proc-pid-oom_adj |   22 ++++++++++++++++++++++
->  1 files changed, 22 insertions(+), 0 deletions(-)
->  create mode 100644 Documentation/ABI/obsolete/proc-pid-oom_adj
-> 
-> diff --git a/Documentation/ABI/obsolete/proc-pid-oom_adj b/Documentation/ABI/obsolete/proc-pid-oom_adj
-> new file mode 100644
-> --- /dev/null
-> +++ b/Documentation/ABI/obsolete/proc-pid-oom_adj
-> @@ -0,0 +1,22 @@
-> +What:	/proc/<pid>/oom_adj
-> +When:	August 2012
-> +Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
-> +	badness heuristic used to determine which task to kill when the kernel
-> +	is out of memory.
-> +
-> +	The badness heuristic has since been rewritten since the introduction of
-> +	this tunable such that its meaning is deprecated.  The value was
-> +	implemented as a bitshift on a score generated by the badness()
-> +	function that did not have any precise units of measure.  With the
-> +	rewrite, the score is given as a proportion of available memory to the
-> +	task allocating pages, so using a bitshift which grows the score
-> +	exponentially is, thus, impossible to tune with fine granularity.
-> +
-> +	A much more powerful interface, /proc/<pid>/oom_score_adj, was
-> +	introduced with the oom killer rewrite that allows users to increase or
-> +	decrease the badness() score linearly.  This interface will replace
-> +	/proc/<pid>/oom_adj.
+At v2.6.36-rc1, oom-killer doesn't work at all because YOU BROKE.
+And I was working on fixing it.
 
-Incorrect. oom_adj and oom_score_adj have different concept and different abstraction.
-One can't replace another.
+2010-08-19
+http://marc.info/?t=128223176900001&r=1&w=2
+http://marc.info/?t=128221532700003&r=1&w=2
+http://marc.info/?t=128221532500008&r=1&w=2
 
-> +
-> +	A warning will be emitted to the kernel log if an application uses this
-> +	deprecated interface.  After it is printed once, future warnings will be
-> +	suppressed until the kernel is rebooted.
+However, You submitted new crap before the fixing. 
+
+2010-08-15
+http://marc.info/?t=128184669600001&r=1&w=2
+
+If you tested mainline a bit, you could find the problem quickly.
+You should have fixed mainline kernel at first.
+
+
+	Again, YOU HAVEN'T TESTED YOUR OWN PATCH AT ALL.
 
 
 
