@@ -1,91 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 586E68D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 14:29:20 -0500 (EST)
-Date: Mon, 15 Nov 2010 20:29:14 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Oops while rebalancing, now unmountable.
-Message-ID: <20101115192914.GL6809@random.random>
-References: <1289236257.3611.3.camel@mars>
- <1289310046-sup-839@think>
- <1289326892.4231.2.camel@mars>
- <1289764507.4303.9.camel@mars>
- <20101114204206.GV6809@random.random>
- <20101114220018.GA4512@infradead.org>
- <20101114221222.GX6809@random.random>
- <20101115182314.GA2493@infradead.org>
- <20101115184657.GJ6809@random.random>
- <20101115191204.GB11374@infradead.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 804AB8D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 14:54:47 -0500 (EST)
+Date: Mon, 15 Nov 2010 20:54:39 +0100
+From: Markus Trippelsdorf <markus@trippelsdorf.de>
+Subject: Re: BUG: Bad page state in process (current git)
+Message-ID: <20101115195439.GA1569@arch.trippelsdorf.de>
+References: <20101110152519.GA1626@arch.trippelsdorf.de>
+ <20101110154057.GA2191@arch.trippelsdorf.de>
+ <alpine.DEB.2.00.1011101534370.30164@router.home>
+ <20101112122003.GA1572@arch.trippelsdorf.de>
+ <20101115123846.GA30047@arch.trippelsdorf.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101115191204.GB11374@infradead.org>
+In-Reply-To: <20101115123846.GA30047@arch.trippelsdorf.de>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Shane Shrybman <shrybman@teksavvy.com>, linux-btrfs <linux-btrfs@vger.kernel.org>, Chris Mason <chris.mason@oracle.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 15, 2010 at 02:12:04PM -0500, Christoph Hellwig wrote:
-> I didn't even notice that, but the WB_SYNC_NONE does indeed seem
-> buggy to me.  If we set the sync_mode to WB_SYNC_NONE filesystem
-> can and frequently do trylock operations and might just skip to
-> write it out completely.
+On 2010.11.15 at 13:38 +0100, Markus Trippelsdorf wrote:
+> On 2010.11.12 at 13:20 +0100, Markus Trippelsdorf wrote:
+> > 
+> > Yes. Fortunately the BUG is gone since I pulled the upcoming drm fixes
+> 
+> No. I happend again today (with those fixes already applied):
+> 
+> BUG: Bad page state in process knode  pfn:7f0a8
+> page:ffffea0001bca4c0 count:0 mapcount:0 mapping:          (null) index:0x0
+> page flags: 0x4000000000000008(uptodate)
+> Pid: 18310, comm: knode Not tainted 2.6.37-rc1-00549-gae712bf-dirty #16
+> Call Trace:
+>  [<ffffffff810a9022>] ? bad_page+0x92/0xe0
+>  [<ffffffff810aa240>] ? get_page_from_freelist+0x4b0/0x570
+>  [<ffffffff8102e50e>] ? apic_timer_interrupt+0xe/0x20
+>  [<ffffffff810aa413>] ? __alloc_pages_nodemask+0x113/0x6b0
+>  [<ffffffff810a2dd4>] ? file_read_actor+0xc4/0x190
+>  [<ffffffff810a4a70>] ? generic_file_aio_read+0x560/0x6b0
+>  [<ffffffff810bdf8d>] ? handle_mm_fault+0x6bd/0x970
+>  [<ffffffff8104b1d0>] ? do_page_fault+0x120/0x410
+>  [<ffffffff810c3d85>] ? do_brk+0x275/0x360
+>  [<ffffffff81452d8f>] ? page_fault+0x1f/0x30
+> Disabling lock debugging due to kernel taint
 
-Scary stuff, so WB_SYNC_NONE wouldn't submit the dirty part of the
-page down for I/O, so that it's all clean after wait_on_page_writeback
-returns? (well of course unless the dirty bit was set again)
+And another one. But this time it seems to point to ext4:
 
-> So we defintively do need to change writeout to do a WB_SYNC_ALL
-> writeback.  In addition to that we'll also need the
-> wait_on_page_writeback call to make sure we actually wait for I/O
-> to finish.
+BUG: Bad page state in process rm  pfn:52e54
+page:ffffea0001222260 count:0 mapcount:0 mapping:          (null) index:0x0
+page flags: 0x4000000000000008(uptodate)
+Pid: 2084, comm: rm Not tainted 2.6.37-rc1-00549-gae712bf-dirty #23
+Call Trace:
+ [<ffffffff810a9022>] ? bad_page+0x92/0xe0
+ [<ffffffff810aa240>] ? get_page_from_freelist+0x4b0/0x570
+ [<ffffffff81142ae6>] ? ext4_ext_put_in_cache+0x46/0x90
+ [<ffffffff810aa413>] ? __alloc_pages_nodemask+0x113/0x6b0
+ [<ffffffff8118f0c7>] ? number.clone.2+0x2b7/0x2f0
+ [<ffffffff810a38d5>] ? find_get_page+0x75/0xb0
+ [<ffffffff810a4011>] ? find_or_create_page+0x51/0xb0
+ [<ffffffff810ff4d7>] ? __getblk+0xd7/0x260
+ [<ffffffff8113158f>] ? ext4_getblk+0x8f/0x1e0
+ [<ffffffff811316ed>] ? ext4_bread+0xd/0x70
+ [<ffffffff811369f4>] ? htree_dirblock_to_tree+0x34/0x190
+ [<ffffffff8113870f>] ? ext4_htree_fill_tree+0x9f/0x250
+ [<ffffffff810e109d>] ? do_filp_open+0x12d/0x5e0
+ [<ffffffff811289ed>] ? ext4_readdir+0x14d/0x5a0
+ [<ffffffff810e4e80>] ? filldir+0x0/0xd0
+ [<ffffffff810e50a8>] ? vfs_readdir+0xa8/0xd0
+ [<ffffffff810e4e80>] ? filldir+0x0/0xd0
+ [<ffffffff810e51b1>] ? sys_getdents+0x81/0xf0
+ [<ffffffff8102dc2b>] ? system_call_fastpath+0x16/0x1b
+Disabling lock debugging due to kernel taint
 
-Ok that is ok... I misread it sorry. But the writeback must be started
-by WB_SYNC_NONE (or _ALL) for wait_on_page_writeback to be effective.
+I don't know. Could a possible bug in linux/fs/ext4/page-io.c be
+responsible for something like this?
 
-migration will abort if ->writepage returns error, that's safe
-though. It will retry calling on wait_on_page_writeback only if
-->writepage returns 0.
-
-> Also what protects us from updating the page while we write it out?
-> PG_writeback on many filesystems doesn't protect writes from modifying
-> the in-flight buffer, and just locking the page after ->writepage
-> is racy without a check that nothing changed.
-
-migrate established migration ptes already so nobody can write to the
-page through pagetables. The only thing left is O_DIRECT which is also
-taken care by the page count check in migrate_page_move_mapping,
-before migrate_page called by fallback_migrate_page can succeed. So
-nothing can be modifying the page if we go ahead with migrate_page
-(and no pte dirty bit can happen either). The page is also locked down
-for the whole migration so all writes syscalls should be stopped.
-
-> kswapd is fine.  Other task allocation memory are direct reclaimers.
-> Direct reclaim through the filesystem delalloc conversion and the I/O
-> stack guarantees you stack overflows, that's why filesystems refuse
-> to do anything in ->writepage for this case.  btrfs and XFS have
-> explicit checks for PF_MEMALLOC (with a carve out for kswapd in XFS),
-> and ext4 only writes already allocated blocks in ->writepage but never
-> does delalloc conversions.
-
-I didn't realize the stack overflow issue was specific to delalloc. I
-think it's ok here to skip ->writepage for delalloc, it's not
-mandatory, memory compaction isn't supposed to do much I/O anyway,
-it's supposed to copy ram instead. Sure it'd be more reliable to
-submit I/O but it's going to work pretty well, plus compaction will be
-retried again later by khugepaged once every 10 sec. kswapd actually
-with THP will not do anything because THP allocations are run with
-__GFP_NO_KSWAPD to avoid kswapd to waste cpu by trying in the
-background hard to create hugepages if 90% of ram goes in anonymous
-memory (and there are background anon allocations that would wakeup
-kswapd) but only 80% can be allocated as 2M contiguous beacuse 20% was
-at some point allocated in slab caches.
-
-In short with THP it's khugepaged that is supposed to run the
-->writepage in migrate.c and it will run it once every 10 sec even
-when it fails (and not in a 100% cpu wasting loop like kswapd), so if
-you did something magic for kswapd in XFS you should do for khugepaged
-too.
+-- 
+Markus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
