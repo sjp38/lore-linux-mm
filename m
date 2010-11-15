@@ -1,51 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id CB9558D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 04:27:11 -0500 (EST)
-Date: Mon, 15 Nov 2010 09:26:55 +0000
+	by kanga.kvack.org (Postfix) with ESMTP id 8812C8D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 04:42:58 -0500 (EST)
+Date: Mon, 15 Nov 2010 09:42:40 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/3] mm,compaction: Add COMPACTION_BUILD
-Message-ID: <20101115092655.GG27362@csn.ul.ie>
-References: <1289502424-12661-1-git-send-email-mel@csn.ul.ie> <1289502424-12661-3-git-send-email-mel@csn.ul.ie> <20101114144413.E022.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH] cleanup kswapd()
+Message-ID: <20101115094239.GH27362@csn.ul.ie>
+References: <20101114180505.BEE2.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101114144413.E022.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20101114180505.BEE2.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Nov 14, 2010 at 02:45:07PM +0900, KOSAKI Motohiro wrote:
-> > To avoid #ifdef COMPACTION in a following patch, this patch adds
-> > COMPACTION_BUILD that is similar to NUMA_BUILD in operation.
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > ---
-> >  include/linux/kernel.h |    7 +++++++
-> >  1 files changed, 7 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-> > index 450092c..c00c5d1 100644
-> > --- a/include/linux/kernel.h
-> > +++ b/include/linux/kernel.h
-> > @@ -826,6 +826,13 @@ struct sysinfo {
-> >  #define NUMA_BUILD 0
-> >  #endif
-> >  
-> > +/* This helps us avoid #ifdef CONFIG_COMPACTION */
-> > +#ifdef CONFIG_COMPACTION
-> > +#define COMPACTION_BUILD 1
-> > +#else
-> > +#define COMPACTION_BUILD 0
-> > +#endif
-> > +
+On Sun, Nov 14, 2010 at 06:05:26PM +0900, KOSAKI Motohiro wrote:
 > 
-> Looks good, of cource. but I think this patch can be fold [3/3] beucase 
-> it doesn't have any change.
+> Currently, kswapd() function has deeper nest and it slightly harder to
+> read. cleanup it.
 > 
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  mm/vmscan.c |   71 +++++++++++++++++++++++++++++++---------------------------
+>  1 files changed, 38 insertions(+), 33 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 8cc90d5..82ffe5f 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2364,6 +2364,42 @@ out:
+>  	return sc.nr_reclaimed;
+>  }
+>  
+> +void kswapd_try_to_sleep(pg_data_t *pgdat, int order)
+> +{
 
-Ok, I can do that.
+As pointed out elsewhere, this should be static.
+
+> +	long remaining = 0;
+> +	DEFINE_WAIT(wait);
+> +
+> +	if (freezing(current) || kthread_should_stop())
+> +		return;
+> +
+> +	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+> +
+> +	/* Try to sleep for a short interval */
+> +	if (!sleeping_prematurely(pgdat, order, remaining)) {
+> +		remaining = schedule_timeout(HZ/10);
+> +		finish_wait(&pgdat->kswapd_wait, &wait);
+> +		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+> +	}
+> +
+> +	/*
+> +	 * After a short sleep, check if it was a
+> +	 * premature sleep. If not, then go fully
+> +	 * to sleep until explicitly woken up
+> +	 */
+
+Very minor but that comment should now fit on fewer lines.
+
+> +	if (!sleeping_prematurely(pgdat, order, remaining)) {
+> +		trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
+> +		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
+> +		schedule();
+> +		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
+
+I posted a patch adding a comment on why set_pgdat_percpu_threshold() is
+called. I do not believe it has been picked up by Andrew but it if is,
+the patches will conflict. The resolution will be obvious but you may
+need to respin this patch if the comment patch gets picked up in mmotm.
+
+Otherwise, I see no problems.
+
+> +	} else {
+> +		if (remaining)
+> +			count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
+> +		else
+> +			count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
+> +	}
+> +	finish_wait(&pgdat->kswapd_wait, &wait);
+> +}
+> +
+>  /*
+>   * The background pageout daemon, started as a kernel thread
+>   * from the init process.
+> @@ -2382,7 +2418,7 @@ static int kswapd(void *p)
+>  	unsigned long order;
+>  	pg_data_t *pgdat = (pg_data_t*)p;
+>  	struct task_struct *tsk = current;
+> -	DEFINE_WAIT(wait);
+> +
+>  	struct reclaim_state reclaim_state = {
+>  		.reclaimed_slab = 0,
+>  	};
+> @@ -2414,7 +2450,6 @@ static int kswapd(void *p)
+>  		unsigned long new_order;
+>  		int ret;
+>  
+> -		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+>  		new_order = pgdat->kswapd_max_order;
+>  		pgdat->kswapd_max_order = 0;
+>  		if (order < new_order) {
+> @@ -2424,39 +2459,9 @@ static int kswapd(void *p)
+>  			 */
+>  			order = new_order;
+>  		} else {
+> -			if (!freezing(current) && !kthread_should_stop()) {
+> -				long remaining = 0;
+> -
+> -				/* Try to sleep for a short interval */
+> -				if (!sleeping_prematurely(pgdat, order, remaining)) {
+> -					remaining = schedule_timeout(HZ/10);
+> -					finish_wait(&pgdat->kswapd_wait, &wait);
+> -					prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+> -				}
+> -
+> -				/*
+> -				 * After a short sleep, check if it was a
+> -				 * premature sleep. If not, then go fully
+> -				 * to sleep until explicitly woken up
+> -				 */
+> -				if (!sleeping_prematurely(pgdat, order, remaining)) {
+> -					trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
+> -					set_pgdat_percpu_threshold(pgdat,
+> -						calculate_normal_threshold);
+> -					schedule();
+> -					set_pgdat_percpu_threshold(pgdat,
+> -						calculate_pressure_threshold);
+> -				} else {
+> -					if (remaining)
+> -						count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
+> -					else
+> -						count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
+> -				}
+> -			}
+> -
+> +			kswapd_try_to_sleep(pgdat, order);
+>  			order = pgdat->kswapd_max_order;
+>  		}
+> -		finish_wait(&pgdat->kswapd_wait, &wait);
+>  
+>  		ret = try_to_freeze();
+>  		if (kthread_should_stop())
+> -- 
+> 1.6.5.2
+> 
+> 
+> 
 
 -- 
 Mel Gorman
