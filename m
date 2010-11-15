@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5CCA38D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 13:47:04 -0500 (EST)
-Date: Mon, 15 Nov 2010 19:46:57 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id D40A38D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 14:03:46 -0500 (EST)
+Date: Mon, 15 Nov 2010 14:03:35 -0500
+From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: Oops while rebalancing, now unmountable.
-Message-ID: <20101115184657.GJ6809@random.random>
+Message-ID: <20101115190335.GA11374@infradead.org>
 References: <1289236257.3611.3.camel@mars>
  <1289310046-sup-839@think>
  <1289326892.4231.2.camel@mars>
@@ -14,71 +14,76 @@ References: <1289236257.3611.3.camel@mars>
  <20101114220018.GA4512@infradead.org>
  <20101114221222.GX6809@random.random>
  <20101115182314.GA2493@infradead.org>
+ <1289845457-sup-9432@think>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101115182314.GA2493@infradead.org>
+In-Reply-To: <1289845457-sup-9432@think>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Shane Shrybman <shrybman@teksavvy.com>, linux-btrfs <linux-btrfs@vger.kernel.org>, Chris Mason <chris.mason@oracle.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Shane Shrybman <shrybman@teksavvy.com>, linux-btrfs <linux-btrfs@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 15, 2010 at 01:23:14PM -0500, Christoph Hellwig wrote:
-> On Sun, Nov 14, 2010 at 11:12:22PM +0100, Andrea Arcangeli wrote:
-> > +static int btree_migratepage(struct address_space *mapping,
-> > +                       struct page *newpage, struct page *page)
-> > +{
-> > +       /*
-> > +        * we can't safely write a btree page from here,
-> > +        * we haven't done the locking hook
-> > +        */
-> > +       if (PageDirty(page))
-> > +               return -EAGAIN;
-> > 
-> > fallback_migrate_page would call writeout() which is apparently not
-> > ok in btrfs for locking issues leading to corruption.
+On Mon, Nov 15, 2010 at 01:46:02PM -0500, Chris Mason wrote:
+> For the metadata blocks, btrfs gets into a problematic lock inversion
+> where it needs to record that a block has been written so that it will
+> be properly recowed when someone tries to change it again.
 > 
-> Hmm, it seems the issue for that particular problem is indeedin btrfs.
+> Basically the rule for btree_writepage:
+> 
+> 1) lock the extent buffer (different from the page)
+> 2) mark the metadata block as written
+> 3) lock the page
+> 4) call writepage
+> 
+> Btrfs does this correctly everywhere it uses writepage, and everyone
+> else either uses writepages or is PF_MEMALLOC, except for the page
+> migration code, which just jumps to step 4.
+>
+> So, my current fix adds a migrate page hook and adds a warning into the
+> code to make sure we protest loudly when the block isn't marked as
+> written.  Since this shakedown worked well, I'm changing the warning to
+> a BUG().
+> 
 
-I've been reading the writeout() in mm/migrate.c and I wonder if maybe
-that should have been WB_SYNC_ALL or if we miss a
-wait_on_page_writeback in after ->writepage() returns? Can you have a
-look there? We check the PG_writeback bit when the page is not dirty
-(well before fallback_migrate_page is called), but after calling
-writeout() we don't return to wait on PG_writeback. We make sure to
-hold the page lock after ->writepage returns but that doesn't mean
-PG_writeback isn't still set.
+This sounds to me like you shouldn't bother to use ->writepage
+for the case that adheres to your locking protocol, but just call into
+extent_write_full_page directly.  ->writepage is supposed to directly
+callable from the VM, and not require filesystems specific calling
+conventions.  Just calling extent_write_full_page directly and
+making btree_writepage do the PF_MEMALLOC unconditionally should
+also fix the page migration corruption.  And at the same time
+making btree_writepage future proof.
 
-> If it needs external locking for writing out data it should not
-> implement ->writepage to start with.  Chris, can you explain what's
-> going on with the btree code? It's pretty funny both in the
-> btree_writepage which goes directly into extent_write_full_page
-> if PF_MEMALLOC is not set, but otherwise does much more complicated
-> work, and also in btree_writepages which skips various WB_SYNC_NONE,
-> including the very weird check for for_kupdate.
-> 
-> What's the story behing all this and the corruption that Andrea found?
-> 
-> > > Btw, what codepath does THP call migrate_pages from?  If you don't
-> > > use an explicit thread writeout will be a no-op on btrfs and XFS, too.
-> > 
-> > THP never calls migrate_pages, it's memory compaction that calls it
-> > from inside alloc_pages(order=9). It got noticed only with THP because
-> > it makes more frequent hugepage allocations than nr_hugepages in
-> > hugetlbfs (and maybe there are more THP users already).
-> 
-> Well, s/THP/compaction/ and the same problem applies.  The modern
-> filesystem all have stopped from writeback happening either at all
-> or at least for the delalloc case from direct reclaim.  Calling
-> into this code from alloc_pages for filesystem backed pages is thus
-> rather pointless.
+Btw, magic like the one there currently does need at least a long
+describing comment.
 
-Compaction practically only happens in the context of the task
-allocating memory (in my tree it is also used by kswapd). Not
-immediate to ask a separate daemon to invoke it. Not sure why this
-should screw delalloc. Compaction isn't freeing any memory at all,
-it's not reclaim. It just defragments and moves stuff around and it
-may have to write dirty pages to do so.
+> The check for kupdate in btree_writepages is different.  Once we write
+> something, we have to do a good amount of work in order to modify it
+> again.  The btrfs log commits make sure that we write metadata from time
+> to time, so we don't really need help from the flusher threads unless.
+>
+> We also don't want to waste time writing metadata from
+> balance_dirty_pages.  It'll just make more allocations later as we
+> wander around and recow things, and it is much more likely to be seeky
+> than the file IO.  So we setup a threshold where we don't bother doing
+> metadata IO unless there is a good amount pending.
+> 
+> I'm fine with removing the metadata writepage entirely, it didn't use to
+> have this many rules and it seems like a better idea to have it not
+> there at all.
+
+for_kupdate only covers a tiny subset of the flusher threads, as it's
+only set for the older_than_this still writeback.  It doesn't cover
+regular percentage background reclaim not other asynchronous activity
+from the flusher threads, like wakeup_flusher_threads or the laptop-mode
+I/O completion.
+
+At the very least it should check for_kupdate || for_background to cover
+all background writeback, which is what the few other uses of
+for_kupdate already do, but I suspect you simply want to not mark
+the btree inode as hashed in the inode hash and skip background
+writeback completely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
