@@ -1,71 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D92C68D0017
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 12:02:57 -0500 (EST)
-Subject: Re: Propagating GFP_NOFS inside __vmalloc()
-From: "Ricardo M. Correia" <ricardo.correia@oracle.com>
-In-Reply-To: <20101111142511.c98c3808.akpm@linux-foundation.org>
-References: <1289421759.11149.59.camel@oralap>
-	 <20101111120643.22dcda5b.akpm@linux-foundation.org>
-	 <1289512924.428.112.camel@oralap>
-	 <20101111142511.c98c3808.akpm@linux-foundation.org>
-Content-Type: multipart/mixed; boundary="=-fPygR0hXtWKoZOc1864v"
-Date: Mon, 15 Nov 2010 18:01:40 +0100
-Message-ID: <1289840500.13446.65.camel@oralap>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 345EC8D0017
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 13:23:24 -0500 (EST)
+Date: Mon, 15 Nov 2010 13:23:14 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: Oops while rebalancing, now unmountable.
+Message-ID: <20101115182314.GA2493@infradead.org>
+References: <1289236257.3611.3.camel@mars>
+ <1289310046-sup-839@think>
+ <1289326892.4231.2.camel@mars>
+ <1289764507.4303.9.camel@mars>
+ <20101114204206.GV6809@random.random>
+ <20101114220018.GA4512@infradead.org>
+ <20101114221222.GX6809@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101114221222.GX6809@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Brian Behlendorf <behlendorf1@llnl.gov>, Andreas Dilger <andreas.dilger@oracle.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Shane Shrybman <shrybman@teksavvy.com>, linux-btrfs <linux-btrfs@vger.kernel.org>, Chris Mason <chris.mason@oracle.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
---=-fPygR0hXtWKoZOc1864v
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-
-Hi Andrew,
-
-On Thu, 2010-11-11 at 14:25 -0800, Andrew Morton wrote:
-> > So do you think we should change all that?
+On Sun, Nov 14, 2010 at 11:12:22PM +0100, Andrea Arcangeli wrote:
+> I just wrote above that it can happen upstream without THP. It's not
+> THP related at all. THP is the consumer, this is a problem in migrate
+> that will trigger as well with migrate_pages or all other possible
+> migration APIs.
 > 
-> Oh God, what have you done :(
+> If more people would be using hugetlbfs they would have noticed
+> without THP.
+
+Okay, it seems THP is really just the messenger for bad VM practices
+here.
+
+> +static int btree_migratepage(struct address_space *mapping,
+> +                       struct page *newpage, struct page *page)
+> +{
+> +       /*
+> +        * we can't safely write a btree page from here,
+> +        * we haven't done the locking hook
+> +        */
+> +       if (PageDirty(page))
+> +               return -EAGAIN;
 > 
-> No, I don't think we want to add a gfp_t to all of that code to fix one
-> stupid bug in vmalloc().
+> fallback_migrate_page would call writeout() which is apparently not
+> ok in btrfs for locking issues leading to corruption.
+
+Hmm, it seems the issue for that particular problem is indeedin btrfs.
+If it needs external locking for writing out data it should not
+implement ->writepage to start with.  Chris, can you explain what's
+going on with the btree code? It's pretty funny both in the
+btree_writepage which goes directly into extent_write_full_page
+if PF_MEMALLOC is not set, but otherwise does much more complicated
+work, and also in btree_writepages which skips various WB_SYNC_NONE,
+including the very weird check for for_kupdate.
+
+What's the story behing all this and the corruption that Andrea found?
+
+> > Btw, what codepath does THP call migrate_pages from?  If you don't
+> > use an explicit thread writeout will be a no-op on btrfs and XFS, too.
 > 
-> > Or do you prefer the per-task mask? Or maybe even both? :-)
-> 
-> Right now I'm thinking that the thing to do is to do the
-> pass-gfp_t-via-task_struct thing.
+> THP never calls migrate_pages, it's memory compaction that calls it
+> from inside alloc_pages(order=9). It got noticed only with THP because
+> it makes more frequent hugepage allocations than nr_hugepages in
+> hugetlbfs (and maybe there are more THP users already).
 
-I have attached my first attempt to fix this in the easiest way I could
-think of.
+Well, s/THP/compaction/ and the same problem applies.  The modern
+filesystem all have stopped from writeback happening either at all
+or at least for the delalloc case from direct reclaim.  Calling
+into this code from alloc_pages for filesystem backed pages is thus
+rather pointless.
 
-Please note that the code is untested at the moment (I didn't even try
-to compile it yet) :-)
-I would like to test it, but I would also like to get your feedback
-first to make sure that I'm going in the right direction, at least.
-
-I'm not sure if at this point in time we want to do what we discussed
-before, e.g., making sure that the entire kernel uses this per-thread
-mask whenever it switches context, or whenever it crosses into the mm
-code boundary.
-
-For now, and at least for us, I think my patch would suffice to fix the
-vmalloc problem and additionally, we can also use the new per-thread
-gfp_mask API to have a much better guarantee that our I/O threads never
-allocate memory with __GFP_IO.
-
-Please let me know what you think.
-
-Thanks,
-Ricardo
-
-
---=-fPygR0hXtWKoZOc1864v
-Content-Disposition: attachment; filename*0=0001-Fix-__vmalloc-to-always-respect-the-gfp-flags-that-t.pat; filename*1=ch
-Content-Type: text/x-patch; name="0001-Fix-__vmalloc-to-always-respect-the-gfp-flags-that-t.patch"; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-
-
---=-fPygR0hXtWKoZOc1864v--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
