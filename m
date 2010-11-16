@@ -1,65 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B63C6B0085
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 16:22:27 -0500 (EST)
-Date: Tue, 16 Nov 2010 13:21:57 -0800
-From: Greg KH <greg@kroah.com>
-Subject: Re: [stable] [PATCH] Make swap accounting default behavior
- configurable
-Message-ID: <20101116212157.GB9359@kroah.com>
-References: <20101116101726.GA21296@tiehlicka.suse.cz>
- <20101116124615.978ed940.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101116124615.978ed940.akpm@linux-foundation.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id AB5848D0080
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 16:48:55 -0500 (EST)
+Subject: Re: Oops while rebalancing, now unmountable.
+From: Shane Shrybman <shrybman@teksavvy.com>
+In-Reply-To: <1289845457-sup-9432@think>
+References: <1289236257.3611.3.camel@mars> <1289310046-sup-839@think>
+	 <1289326892.4231.2.camel@mars> <1289764507.4303.9.camel@mars>
+	 <20101114204206.GV6809@random.random> <20101114220018.GA4512@infradead.org>
+	 <20101114221222.GX6809@random.random> <20101115182314.GA2493@infradead.org>
+	 <1289845457-sup-9432@think>
+Content-Type: text/plain
+Date: Tue, 16 Nov 2010 16:48:48 -0500
+Message-Id: <1289944128.4118.3.camel@mars>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-btrfs <linux-btrfs@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 16, 2010 at 12:46:15PM -0800, Andrew Morton wrote:
-> On Tue, 16 Nov 2010 11:17:26 +0100
-> Michal Hocko <mhocko@suse.cz> wrote:
+On Mon, 2010-11-15 at 13:46 -0500, Chris Mason wrote:
+> Excerpts from Christoph Hellwig's message of 2010-11-15 13:23:14 -0500:
+> > On Sun, Nov 14, 2010 at 11:12:22PM +0100, Andrea Arcangeli wrote:
+> > > I just wrote above that it can happen upstream without THP. It's not
+> > > THP related at all. THP is the consumer, this is a problem in migrate
+> > > that will trigger as well with migrate_pages or all other possible
+> > > migration APIs.
+> > > 
+> > > If more people would be using hugetlbfs they would have noticed
+> > > without THP.
+> > 
+> > Okay, it seems THP is really just the messenger for bad VM practices
+> > here.
+> > 
+> > > +static int btree_migratepage(struct address_space *mapping,
+> > > +                       struct page *newpage, struct page *page)
+> > > +{
+> > > +       /*
+> > > +        * we can't safely write a btree page from here,
+> > > +        * we haven't done the locking hook
+> > > +        */
+> > > +       if (PageDirty(page))
+> > > +               return -EAGAIN;
+> > > 
+> > > fallback_migrate_page would call writeout() which is apparently not
+> > > ok in btrfs for locking issues leading to corruption.
+> > 
+> > Hmm, it seems the issue for that particular problem is indeedin btrfs.
+> > If it needs external locking for writing out data it should not
+> > implement ->writepage to start with.  Chris, can you explain what's
+> > going on with the btree code? It's pretty funny both in the
+> > btree_writepage which goes directly into extent_write_full_page
+> > if PF_MEMALLOC is not set, but otherwise does much more complicated
+> > work, and also in btree_writepages which skips various WB_SYNC_NONE,
+> > including the very weird check for for_kupdate.
 > 
-> > Hi Andrew,
-> > could you consider the following patch for the Linus tree, please?
-> > The discussion took place in this email thread 
-> > http://lkml.org/lkml/2010/11/10/114.
-> > The patch is based on top of 151f52f09c572 commit in the Linus tree.
-> > 
-> > Please let me know if there I should route this patch through somebody
-> > else.
-> > 
-> > Thanks!
-> > 
-> > ---
-> > >From 30238aaec758988493af793939f14b0ba83dc4b3 Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.cz>
-> > Date: Wed, 10 Nov 2010 13:30:04 +0100
-> > Subject: [PATCH] Make swap accounting default behavior configurable
-> > 
-> > Swap accounting can be configured by CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-> > configuration option and then it is turned on by default. There is
-> > a boot option (noswapaccount) which can disable this feature.
-> > 
-> > This makes it hard for distributors to enable the configuration option
-> > as this feature leads to a bigger memory consumption and this is a no-go
-> > for general purpose distribution kernel. On the other hand swap
-> > accounting may be very usuful for some workloads.
+> So, I had THP + a patched btrfs running all weekend and I can safely say
+> I've fixed this one now. 
 > 
-> This patch is needed by distros, and distros use the -stable tree, I
-> assume.  Do you see reasons why this patch should be backported into
-> -stable, so distros don't need to patch it themselves?  If so, any
-> particular kernel versions?  2.6.37?
 
-Sorry, I really don't want to start backporting features to stable
-kernels if at all possible.  Distros can pick them up on their own if
-they determine it is needed.
+That seems like good news!
 
-thanks,
+Is that btrfs patch available somewhere?
 
-greg k-h
+Where does this leave the existing corrupted btrfs'?
+
+Thanks guys,
+
+Shane
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
