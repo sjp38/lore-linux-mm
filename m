@@ -1,64 +1,226 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A9A9C8D0080
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 01:51:08 -0500 (EST)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id oAG6p5I5010894
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 22:51:05 -0800
-Received: from qyk33 (qyk33.prod.google.com [10.241.83.161])
-	by wpaz1.hot.corp.google.com with ESMTP id oAG6oeYt002983
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 22:51:03 -0800
-Received: by qyk33 with SMTP id 33so397645qyk.2
-        for <linux-mm@kvack.org>; Mon, 15 Nov 2010 22:50:59 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5592E8D0080
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 02:43:47 -0500 (EST)
+Date: Tue, 16 Nov 2010 18:43:35 +1100
+From: Nick Piggin <npiggin@kernel.dk>
+Subject: Re: [patch] mm: vmscan implement per-zone shrinkers
+Message-ID: <20101116074335.GA3460@amd>
+References: <20101109123246.GA11477@amd>
+ <20101114182614.BEE5.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1011151717130.10920@tigran.mtv.corp.google.com>
-References: <20101109115540.BC3F.A69D9226@jp.fujitsu.com>
-	<AANLkTinrtXrwgwUXNOaM_AGin2iEMqN2wWciMzJUPUyB@mail.gmail.com>
-	<20101112142038.E002.A69D9226@jp.fujitsu.com>
-	<alpine.LSU.2.00.1011151717130.10920@tigran.mtv.corp.google.com>
-Date: Mon, 15 Nov 2010 22:50:59 -0800
-Message-ID: <AANLkTin+16yDxGrRfbqw9OPnDDV8OgXr_nbZnXJEHK9w@mail.gmail.com>
-Subject: Re: RFC: reviving mlock isolation dead code
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101114182614.BEE5.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Nick Piggin <npiggin@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 15, 2010 at 5:44 PM, Hugh Dickins <hughd@google.com> wrote:
-> On Sun, 14 Nov 2010, KOSAKI Motohiro wrote:
->> Michel Lespinasse <walken@google.com> wrote:
->> > ...
->> > The other mlock related issue I have is that it marks pages as dirty
->> > (if they are in a writable VMA), and causes writeback to work on them,
->> > even though the pages have not actually been modified. This looks like
->> > it would be solvable with a new get_user_pages flag for mlock use
->> > (breaking cow etc, but not writing to the pages just yet).
->>
->> To be honest, I haven't understand why current code does so. I dislike i=
-t too. but
->> I'm not sure such change is safe or not. I hope another developer commen=
-t you ;-)
->
-> It's been that way for years, and the primary purpose is to do the COWs
-> in advance, so we won't need to allocate new pages later to the locked
-> area: the pages that may be needed are already locked down.
+On Sun, Nov 14, 2010 at 07:07:17PM +0900, KOSAKI Motohiro wrote:
+> Hi
+> 
+> > Hi,
+> > 
+> > I'm doing some works that require per-zone shrinkers, I'd like to get
+> > the vmscan part signed off and merged by interested mm people, please.
+> > 
+> > [And before anybody else kindly suggests per-node shrinkers, please go
+> > back and read all the discussion about this first.]
+> 
+> vmscan part looks good to me. however I hope fs folks review too even though
+> I'm not sure who is best.
+> 
+> btw, I have some nitpick comments. see below.
 
-Thanks Hugh for posting your comments. I was aware of Suleiman's
-proposal to always do a READ mode get_user_pages years ago, and I
-could see that we'd need a new flag instead so we can break COW
-without dirtying pages, but I hadn't thought about other issues.
+Thanks for the review, it's very helpful.
 
-> That justifies it for the private mapping case, but what of shared maps?
-> There the justification is that the underlying file might be sparse, and
-> we want to allocate blocks upfront for the locked area.
->
-> Do we? =A0I dislike it also, as you both do. =A0It seems crazy to mark a
-> vast number of pages as dirty when they're not.
->
-> It makes sense to mark pte_dirty when we have a real write fault to a
-> page, to save the mmu from making that pagetable transaction immediately
-> after; but it does not make sense when the write (if any) may come
-> minutes later - we'll just do a pointless write and clear dirty meanwhile=
+
+> > +	void (*shrink_zone)(struct shrinker *shrink,
+> > +		struct zone *zone, unsigned long scanned,
+> > +		unsigned long total, unsigned long global,
+> > +		unsigned long flags, gfp_t gfp_mask);
+> > +
+> 
+> shrink_zone is slightly grep unfriendly. Can you consider shrink_slab_zone() 
+> or something else?
+
+Yes that's true. I want to move away from the term "slab" shrinker
+however. It seems to confuse people (of course, the shrinker can shrink
+memory from any allocator, not just slab).
+
+shrink_cache_zone()?
+
+
+> > +void shrinker_add_scan(unsigned long *dst,
+> > +			unsigned long scanned, unsigned long total,
+> > +			unsigned long objects, unsigned int ratio)
+> >  {
+> > -	struct shrinker *shrinker;
+> > -	unsigned long ret = 0;
+> > +	unsigned long long delta;
+> >  
+> > -	if (scanned == 0)
+> > -		scanned = SWAP_CLUSTER_MAX;
+> > +	delta = (unsigned long long)scanned * objects;
+> > +	delta *= SHRINK_FACTOR;
+> > +	do_div(delta, total + 1);
+> 
+> > +	delta *= SHRINK_FACTOR; /* ratio is also in SHRINK_FACTOR units */
+> > +	do_div(delta, ratio + 1);
+> 
+> introdusing tiny macro is better than the comment.
+> 
+> >  
+> > -	if (!down_read_trylock(&shrinker_rwsem))
+> > -		return 1;	/* Assume we'll be able to shrink next time */
+> > +	/*
+> > +	 * Avoid risking looping forever due to too large nr value:
+> > +	 * never try to free more than twice the estimate number of
+> > +	 * freeable entries.
+> > +	 */
+> > +	*dst += delta;
+> > +
+> > +	if (*dst / SHRINK_FACTOR > objects)
+> > +		*dst = objects * SHRINK_FACTOR;
+> 
+> objects * SHRINK_FACTOR appear twice in this function.
+> calculate "objects = obj * SHRINK_FACTOR" at first improve
+> code readability slightly.
+ 
+I wasn't quite sure what you meant with this comment and the above one.
+Could you illustrate what your preferred code would look like?
+
+
+> > +unsigned long shrinker_do_scan(unsigned long *dst, unsigned long batch)
+> 
+> Seems misleading name a bit. shrinker_do_scan() does NOT scan. 
+> It only does batch adjustment.
+
+True. shrinker_get_batch_nr() or similar?
+
+ 
+> > +{
+> > +	unsigned long nr = ACCESS_ONCE(*dst);
+> 
+> Dumb question: why is this ACCESS_ONCE() necessary?
+> 
+> 
+> > +	if (nr < batch * SHRINK_FACTOR)
+> > +		return 0;
+> > +	*dst = nr - batch * SHRINK_FACTOR;
+> > +	return batch;
+
+It should have a comment: *dst can be accessed without a lock.
+However if nr is reloaded from memory between the two expressions
+and *dst changes during that time, we could end up with a negative
+result in *dst.
+
+> {
+> 	unsigned long nr = ACCESS_ONCE(*dst);
+> 	batch *= SHRINK_FACTOR;
+> 
+> 	if (nr < batch)
+> 		return 0;
+> 	*dst = nr - batch;
+> 	return batch;
+> }
+> 
+> is slighly cleaner. however It's unclear why dst and batch argument
+> need to have different unit (i.e why caller can't do batch * FACTOR?).
+
+OK I'll take it into consideration. I guess I didn't want the caller
+to care too much about the fixed point.
+
+
+> > +	list_for_each_entry(shrinker, &shrinker_list, list) {
+> > +		if (!shrinker->shrink_zone)
+> > +			continue;
+> > +		(*shrinker->shrink_zone)(shrinker, zone, scanned,
+> > +					total, global, 0, gfp_mask);
+> 
+> flags argument is unused?
+
+Yes it is, at the moment. I actually have a flag that I would like
+to use (close to OOM flag), so I've just added the placeholder for
+now.
+
+It may well be useful for other things in future too.
+
+
+> > @@ -1844,6 +1985,23 @@ static void shrink_zone(int priority, st
+> >  	if (inactive_anon_is_low(zone, sc))
+> >  		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
+> >  
+> > +	/*
+> > +	 * Don't shrink slabs when reclaiming memory from
+> > +	 * over limit cgroups
+> > +	 */
+> > +	if (sc->may_reclaim_slab) {
+> > +		struct reclaim_state *reclaim_state = current->reclaim_state;
+> > +
+> > +		shrink_slab(zone, sc->nr_scanned - nr_scanned,
+> 
+> Doubtful calculation. What mean "sc->nr_scanned - nr_scanned"?
+> I think nr_scanned simply keep old slab balancing behavior.
+
+OK, good catch.
+
+
+> > +		for_each_zone_zonelist(zone, z, zonelist,
+> > +				gfp_zone(sc->gfp_mask)) {
+> > +			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+> > +				continue;
+> >  
+> > -			shrink_slab(sc->nr_scanned, sc->gfp_mask, lru_pages);
+> > -			if (reclaim_state) {
+> > -				sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+> > -				reclaim_state->reclaimed_slab = 0;
+> > -			}
+> > +			lru_pages += zone_reclaimable_pages(zone);
+> 
+> Do we really need this doubtful cpuset hardwall filtering? Why do we
+> need to change slab reclaim pressure if cpuset is used. In old days,
+> we didn't have per-zone slab shrinker, then we need artificial slab
+> pressure boost for preventing false positive oom-killer. but now we have.
+
+Yeah I'm not completely sure. But we should be mindful that until the
+major caches are converted to LRU, we still have to care for the global
+shrinker case too.
+
+
+> However, If you strongly keep old behavior at this time, I don't oppose.
+> We can change it later.
+
+Yes I would prefer that, but I would welcome patches to improve things.
+
+
+> > +		/*
+> > +		 * lru_pages / 10  -- put a 10% pressure on the slab
+> > +		 * which roughly corresponds to ZONE_RECLAIM_PRIORITY
+> > +		 * scanning 1/16th of pagecache.
+> > +		 *
+> > +		 * Global slabs will be shrink at a relatively more
+> > +		 * aggressive rate because we don't calculate the
+> > +		 * global lru size for speed. But they really should
+> > +		 * be converted to per zone slabs if they are important
+> > +		 */
+> > +		shrink_slab(zone, lru_pages / 10, lru_pages, lru_pages,
+> > +				gfp_mask);
+> 
+> Why don't you use sc.nr_scanned? It seems straight forward.
+
+Well it may not be over the pagecache limit.
+
+I agree the situation is pretty ugly here with all these magic
+constants, but I didn't want to change too much in this patch.
+
+Thanks,
+Nick
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
