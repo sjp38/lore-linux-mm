@@ -1,56 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 34E996B0158
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 11:16:36 -0500 (EST)
-From: Johan MOSSBERG <johan.xx.mossberg@stericsson.com>
-Date: Tue, 16 Nov 2010 17:16:23 +0100
-Subject: RE: [PATCH 0/3] hwmem: Hardware memory driver
-Message-ID: <C832F8F5D375BD43BFA11E82E0FE9FE0081BE73A1D@EXDCVYMBSTM005.EQ1STM.local>
-References: <1289912882-23996-1-git-send-email-johan.xx.mossberg@stericsson.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B47CE8D0080
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 12:36:07 -0500 (EST)
+Received: from eu_spt1 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LBZ007RUNK41L@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Tue, 16 Nov 2010 17:36:04 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LBZ006NMNK4Y2@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 16 Nov 2010 17:36:04 +0000 (GMT)
+Date: Tue, 16 Nov 2010 18:36:03 +0100
+From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Subject: Re: [PATCH 0/3] hwmem: Hardware memory driver
+In-reply-to: 
+ <C832F8F5D375BD43BFA11E82E0FE9FE0081BE73A1D@EXDCVYMBSTM005.EQ1STM.local>
+Message-id: <op.vl9xudve7p4s8u@pikus>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Content-transfer-encoding: Quoted-Printable
+References: 
+ <1289912882-23996-1-git-send-email-johan.xx.mossberg@stericsson.com>
  <op.vl9p52wp7p4s8u@pikus>
  <C832F8F5D375BD43BFA11E82E0FE9FE0081BE739A0@EXDCVYMBSTM005.EQ1STM.local>
  <op.vl9r6xld7p4s8u@pikus>
-In-Reply-To: <op.vl9r6xld7p4s8u@pikus>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+ <C832F8F5D375BD43BFA11E82E0FE9FE0081BE73A1D@EXDCVYMBSTM005.EQ1STM.local>
 Sender: owner-linux-mm@kvack.org
-To: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+To: Johan MOSSBERG <johan.xx.mossberg@stericsson.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-TWljaGHFgiBOYXphcmV3aWN6IHdyb3RlOg0KPiA+IEkgbWVhbiB0aGUgYWJpbGl0eSB0byBtb3Zl
-IGFsbG9jYXRlZCBidWZmZXJzIHRvIGZyZWUgbW9yZQ0KPiA+IGNvbnRpZ3VvdXMgc3BhY2UuIFRv
-IHN1cHBvcnQgdGhpcyBpbiBDTUEgdGhlIEFQSShzKSB3b3VsZCBoYXZlIHRvDQo+ID4gY2hhbmdl
-Lg0KPiA+ICogQSBidWZmZXIncyBwaHlzaWNhbCBhZGRyZXNzIGNhbm5vdCBiZSB1c2VkIHRvIGlk
-ZW50aWZ5IGl0IGFzIHRoZQ0KPiA+IHBoeXNpY2FsIGFkZHJlc3MgY2FuIGNoYW5nZS4NCj4gPiAq
-IFBpbi91bnBpbiBmdW5jdGlvbnMgd291bGQgaGF2ZSB0byBiZSBhZGRlZCBzbyB0aGF0IHlvdSBj
-YW4gcGluIGENCj4gPiBidWZmZXIgd2hlbiBoYXJkd2FyZSB1c2VzIGl0Lg0KPiA+ICogVGhlIGFs
-bG9jYXRvcnMgbmVlZHMgdG8gYmUgYWJsZSB0byBpbmZvcm0gQ01BIHRoYXQgdGhleSBoYXZlDQo+
-ID4gbW92ZWQgYSBidWZmZXIuIFRoaXMgaXMgc28gdGhhdCBDTUEgY2FuIGtlZXAgdHJhY2sgb2Yg
-d2hhdCBtZW1vcnkNCj4gPiBpcyBmcmVlIHNvIHRoYXQgaXQgY2FuIHN1cHBseSB0aGUgZnJlZSBt
-ZW1vcnkgdG8gdGhlIGtlcm5lbCBmb3INCj4gPiB0ZW1wb3JhcnkgdXNlIHRoZXJlLg0KPiANCj4g
-SSBkb24ndCB0aGluayB0aG9zZSBhcmUgZnVuZGFtZW50YWxseSBhZ2FpbnN0IENNQSBhbmQgYXMg
-c3VjaCBJIHNlZQ0KPiBubyByZWFzb24gd2h5IHN1Y2ggY2FsbHMgY291bGQgbm90IGJlIGFkZGVk
-IHRvIENNQS4gIEFsbG9jYXRvcnMgdGhhdA0KPiBkbyBub3Qgc3VwcG9ydCBkZWZyYWdtZW50YXRp
-b24gY291bGQganVzdCBpZ25vcmUgdGhvc2UgY2FsbHMuDQoNClNvdW5kcyBnb29kLg0KDQo+IElu
-IHBhcnRpY3VsYXIsIGEgY21hX2FsbG9jKCkgY291bGQgcmV0dXJuIGEgcG9pbnRlciB0byBhbiBv
-cGFxdWUNCj4gc3RydWN0IGNtYSBhbmQgdG8gZ2V0IHBoeXNpY2FsIGFkZHJlc3MgdXNlciB3b3Vs
-ZCBoYXZlIHRvIHBpbiB0aGUNCj4gYnVmZmVyIHdpdGgsIHNheSwgY21hX3BpbigpIGFuZCB0aGVu
-IGNhbGwgY21hX3BoeXMoKSB0byBvYnRhaW4NCj4gcGh5c2ljYWwgYWRkcmVzcy4NCg0KSSB0aGlu
-ayBjbWFfcGh5cygpIGlzIHJlZHVuZGFudCwgY21hX3BpbigpIGNhbiByZXR1cm4gdGhlIHBoeXNp
-Y2FsDQphZGRyZXNzLCB0aGF0J3MgaG93IHdlIGRpZCBpdCBpbiBod21lbS4NCg0KPiBJJ20gb25s
-eSB3b25kZXJpbmcgaWYgdHJlYXRpbmcgInVucGluIiBhcyAiZnJlZSIgYW5kIHBpbiBhcyBhbm90
-aGVyDQo+ICJhbGxvYyIgd291bGQgbm90IHN1ZmZpY2U/DQoNCkkgZG9uJ3QgdW5kZXJzdGFuZC4g
-V291bGRuJ3QgeW91IGxvc2UgYWxsIHRoZSBkYXRhIGluIHRoZSBidWZmZXINCndoZW4geW91IGZy
-ZWUgaXQ/IEhvdyB3b3VsZCB3ZSBoYW5kbGUgc29tZXRoaW5nIGxpa2UgdGhlIGRlc2t0b3ANCmlt
-YWdlIHdoaWNoIGlzIGJsaXR0ZWQgdG8gdGhlIGRpc3BsYXkgYWxsIHRoZSB0aW1lIGJ1dCBuZXZl
-cg0KY2hhbmdlcz8gV2UnZCBoYXZlIHRvIGtlZXAgYSBzY2F0dGVyZWQgdmVyc2lvbiBhbmQgdGhl
-biBjb3B5IGl0DQppbnRvIGEgdGVtcG9yYXJ5IGNvbnRpZ3VvdXMgYnVmZmVyIHdoaWNoIGlzIG5v
-dCBvcHRpbWFsDQpwZXJmb3JtYW5jZSB3aXNlLiBUaGUgb3RoZXIgYWx0ZXJuYXRpdmUgd291bGQg
-YmUgdG8ga2VlcCB0aGUNCmFsbG9jYXRpb24gYnV0IHRoZW4gd2Ugd291bGQgZ2V0IGZyYWdtZW50
-YXRpb24gcHJvYmxlbXMuDQoNCi9Kb2hhbiBNb3NzYmVyZw0K
+On Tue, 16 Nov 2010 17:16:23 +0100, Johan MOSSBERG <johan.xx.mossberg@st=
+ericsson.com> wrote:
+
+> Micha=C5=82 Nazarewicz wrote:
+>> In particular, a cma_alloc() could return a pointer to an opaque
+>> struct cma and to get physical address user would have to pin the
+>> buffer with, say, cma_pin() and then call cma_phys() to obtain
+>> physical address.
+
+> I think cma_phys() is redundant, cma_pin() can return the physical
+> address, that's how we did it in hwmem.
+
+Makes sense.  I'd add cma_phys() for convenience anyway.
+
+>> I'm only wondering if treating "unpin" as "free" and pin as another
+>> "alloc" would not suffice?
+
+> I don't understand. Wouldn't you lose all the data in the buffer
+> when you free it? How would we handle something like the desktop
+> image which is blitted to the display all the time but never
+> changes? We'd have to keep a scattered version and then copy it
+> into a temporary contiguous buffer which is not optimal
+> performance wise. The other alternative would be to keep the
+> allocation but then we would get fragmentation problems.
+
+Got it.
+
+Do you want to remap user space mappings when page is moved during
+defragmentation? Or would user need to unmap the region?  Ie. would
+mmap()ed buffer be pinned?
+
+-- =
+
+Best regards,                                        _     _
+| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
+| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
++----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
