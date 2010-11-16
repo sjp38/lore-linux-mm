@@ -1,41 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D56958D0080
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 04:58:26 -0500 (EST)
-Date: Tue, 16 Nov 2010 09:58:09 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] set_pgdat_percpu_threshold() don't use
-	for_each_online_cpu
-Message-ID: <20101116095809.GO27362@csn.ul.ie>
-References: <1288169256-7174-2-git-send-email-mel@csn.ul.ie> <20101028100920.5d4ce413.kamezawa.hiroyu@jp.fujitsu.com> <20101114163727.BEE0.A69D9226@jp.fujitsu.com> <20101115102617.GK27362@csn.ul.ie> <alpine.DEB.2.00.1011150802470.19175@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1011150802470.19175@router.home>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E1B068D0080
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 05:05:52 -0500 (EST)
+Date: Tue, 16 Nov 2010 19:03:09 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC PATCH] Make swap accounting default behavior configurable
+ v3
+Message-Id: <20101116190309.4c767874.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20101116081544.GA19247@tiehlicka.suse.cz>
+References: <20101110125154.GC5867@tiehlicka.suse.cz>
+	<20101111094613.eab2ec0b.nishimura@mxp.nes.nec.co.jp>
+	<20101111093155.GA20630@tiehlicka.suse.cz>
+	<20101112094118.b02b669f.nishimura@mxp.nes.nec.co.jp>
+	<20101112083103.GB7285@tiehlicka.suse.cz>
+	<20101115101335.8880fd87.nishimura@mxp.nes.nec.co.jp>
+	<20101115083540.GA20156@tiehlicka.suse.cz>
+	<20101116134800.7d8b612d.nishimura@mxp.nes.nec.co.jp>
+	<20101116081544.GA19247@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Tejun Heo <tj@kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, balbir@linux.vnet.ibm.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 15, 2010 at 08:04:23AM -0600, Christoph Lameter wrote:
-> On Mon, 15 Nov 2010, Mel Gorman wrote:
-> 
-> > With recent per-cpu allocator changes, are we guaranteed that the per-cpu
-> > structures exist and are valid?
-> 
-> We always guarantee that all per cpu areas for all possible cpus exist.
-> That has always been the case. There was a discussion about changing
-> that though. Could be difficult given the need for additional locking.
-> 
+On Tue, 16 Nov 2010 09:15:44 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
 
-In that case, I do not have any more concerns about the patch. It's
-unfortunate that more per-cpu structures will have to be updated but I
-doubt it'll be noticable.
+> On Tue 16-11-10 13:48:00, Daisuke Nishimura wrote:
+> > Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> 
+> Thank you. What should be next steps? Waiting for other ACKs or push it
+> through Andrew?
+I recommend you to resend the patch removing "RFC" in a clean patch format
+(i.e. without any quotes).
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> Btw. is this a stable tree material? I guess that distribution would
+> like to have this patch and the stable is the easiest way how to deliver
+> this.
+> 
+It's not stable material. This is not a BUG or anything that meets the conditions
+described in Documentation/stable_kernel_rules.txt.
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
