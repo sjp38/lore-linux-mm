@@ -1,75 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id BA01E6B00FE
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 10:34:58 -0500 (EST)
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Received: from spt2.w1.samsung.com ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LBZ005G8HWNW230@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 16 Nov 2010 15:33:59 +0000 (GMT)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LBZ00AIQHWN8M@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 16 Nov 2010 15:33:59 +0000 (GMT)
-Date: Tue, 16 Nov 2010 16:33:59 +0100
-From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
-Subject: Re: [PATCH 0/3] hwmem: Hardware memory driver
-In-reply-to: 
- <C832F8F5D375BD43BFA11E82E0FE9FE0081BE739A0@EXDCVYMBSTM005.EQ1STM.local>
-Message-id: <op.vl9r6xld7p4s8u@pikus>
-Content-transfer-encoding: Quoted-Printable
-References: 
- <1289912882-23996-1-git-send-email-johan.xx.mossberg@stericsson.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 34E996B0158
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 11:16:36 -0500 (EST)
+From: Johan MOSSBERG <johan.xx.mossberg@stericsson.com>
+Date: Tue, 16 Nov 2010 17:16:23 +0100
+Subject: RE: [PATCH 0/3] hwmem: Hardware memory driver
+Message-ID: <C832F8F5D375BD43BFA11E82E0FE9FE0081BE73A1D@EXDCVYMBSTM005.EQ1STM.local>
+References: <1289912882-23996-1-git-send-email-johan.xx.mossberg@stericsson.com>
  <op.vl9p52wp7p4s8u@pikus>
  <C832F8F5D375BD43BFA11E82E0FE9FE0081BE739A0@EXDCVYMBSTM005.EQ1STM.local>
+ <op.vl9r6xld7p4s8u@pikus>
+In-Reply-To: <op.vl9r6xld7p4s8u@pikus>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Johan MOSSBERG <johan.xx.mossberg@stericsson.com>
+To: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Nov 2010 16:25:20 +0100, Johan MOSSBERG <johan.xx.mossberg@st=
-ericsson.com> wrote:
-
-> Micha=C5=82 Nazarewicz wrote:
->> In particular, I'll try to figure out what you mean by defragmentatio=
-n
->> and see whethe it could be added to CMA.
->
-> I mean the ability to move allocated buffers to free more
-> contiguous space. To support this in CMA the API(s) would have to
-> change.
-> * A buffer's physical address cannot be used to identify it as the
-> physical address can change.
-> * Pin/unpin functions would have to be added so that you can pin a
-> buffer when hardware uses it.
-> * The allocators needs to be able to inform CMA that they have
-> moved a buffer. This is so that CMA can keep track of what memory
-> is free so that it can supply the free memory to the kernel for
-> temporary use there.
-
-I don't think those are fundamentally against CMA and as such I see
-no reason why such calls could not be added to CMA.  Allocators that
-do not support defragmentation could just ignore those calls.
-
-In particular, a cma_alloc() could return a pointer to an opaque
-struct cma and to get physical address user would have to pin the
-buffer with, say, cma_pin() and then call cma_phys() to obtain
-physical address.
-
-As a matter of fact, in the version of CMA I'm currently working on,
-cma_alloc() returns a pointer to a transparent structure, so the
-above would not be a huge change.
-
-I'm only wondering if treating "unpin" as "free" and pin as another
-"alloc" would not suffice?
-
--- =
-
-Best regards,                                        _     _
-| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
-| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
-+----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
+TWljaGHFgiBOYXphcmV3aWN6IHdyb3RlOg0KPiA+IEkgbWVhbiB0aGUgYWJpbGl0eSB0byBtb3Zl
+IGFsbG9jYXRlZCBidWZmZXJzIHRvIGZyZWUgbW9yZQ0KPiA+IGNvbnRpZ3VvdXMgc3BhY2UuIFRv
+IHN1cHBvcnQgdGhpcyBpbiBDTUEgdGhlIEFQSShzKSB3b3VsZCBoYXZlIHRvDQo+ID4gY2hhbmdl
+Lg0KPiA+ICogQSBidWZmZXIncyBwaHlzaWNhbCBhZGRyZXNzIGNhbm5vdCBiZSB1c2VkIHRvIGlk
+ZW50aWZ5IGl0IGFzIHRoZQ0KPiA+IHBoeXNpY2FsIGFkZHJlc3MgY2FuIGNoYW5nZS4NCj4gPiAq
+IFBpbi91bnBpbiBmdW5jdGlvbnMgd291bGQgaGF2ZSB0byBiZSBhZGRlZCBzbyB0aGF0IHlvdSBj
+YW4gcGluIGENCj4gPiBidWZmZXIgd2hlbiBoYXJkd2FyZSB1c2VzIGl0Lg0KPiA+ICogVGhlIGFs
+bG9jYXRvcnMgbmVlZHMgdG8gYmUgYWJsZSB0byBpbmZvcm0gQ01BIHRoYXQgdGhleSBoYXZlDQo+
+ID4gbW92ZWQgYSBidWZmZXIuIFRoaXMgaXMgc28gdGhhdCBDTUEgY2FuIGtlZXAgdHJhY2sgb2Yg
+d2hhdCBtZW1vcnkNCj4gPiBpcyBmcmVlIHNvIHRoYXQgaXQgY2FuIHN1cHBseSB0aGUgZnJlZSBt
+ZW1vcnkgdG8gdGhlIGtlcm5lbCBmb3INCj4gPiB0ZW1wb3JhcnkgdXNlIHRoZXJlLg0KPiANCj4g
+SSBkb24ndCB0aGluayB0aG9zZSBhcmUgZnVuZGFtZW50YWxseSBhZ2FpbnN0IENNQSBhbmQgYXMg
+c3VjaCBJIHNlZQ0KPiBubyByZWFzb24gd2h5IHN1Y2ggY2FsbHMgY291bGQgbm90IGJlIGFkZGVk
+IHRvIENNQS4gIEFsbG9jYXRvcnMgdGhhdA0KPiBkbyBub3Qgc3VwcG9ydCBkZWZyYWdtZW50YXRp
+b24gY291bGQganVzdCBpZ25vcmUgdGhvc2UgY2FsbHMuDQoNClNvdW5kcyBnb29kLg0KDQo+IElu
+IHBhcnRpY3VsYXIsIGEgY21hX2FsbG9jKCkgY291bGQgcmV0dXJuIGEgcG9pbnRlciB0byBhbiBv
+cGFxdWUNCj4gc3RydWN0IGNtYSBhbmQgdG8gZ2V0IHBoeXNpY2FsIGFkZHJlc3MgdXNlciB3b3Vs
+ZCBoYXZlIHRvIHBpbiB0aGUNCj4gYnVmZmVyIHdpdGgsIHNheSwgY21hX3BpbigpIGFuZCB0aGVu
+IGNhbGwgY21hX3BoeXMoKSB0byBvYnRhaW4NCj4gcGh5c2ljYWwgYWRkcmVzcy4NCg0KSSB0aGlu
+ayBjbWFfcGh5cygpIGlzIHJlZHVuZGFudCwgY21hX3BpbigpIGNhbiByZXR1cm4gdGhlIHBoeXNp
+Y2FsDQphZGRyZXNzLCB0aGF0J3MgaG93IHdlIGRpZCBpdCBpbiBod21lbS4NCg0KPiBJJ20gb25s
+eSB3b25kZXJpbmcgaWYgdHJlYXRpbmcgInVucGluIiBhcyAiZnJlZSIgYW5kIHBpbiBhcyBhbm90
+aGVyDQo+ICJhbGxvYyIgd291bGQgbm90IHN1ZmZpY2U/DQoNCkkgZG9uJ3QgdW5kZXJzdGFuZC4g
+V291bGRuJ3QgeW91IGxvc2UgYWxsIHRoZSBkYXRhIGluIHRoZSBidWZmZXINCndoZW4geW91IGZy
+ZWUgaXQ/IEhvdyB3b3VsZCB3ZSBoYW5kbGUgc29tZXRoaW5nIGxpa2UgdGhlIGRlc2t0b3ANCmlt
+YWdlIHdoaWNoIGlzIGJsaXR0ZWQgdG8gdGhlIGRpc3BsYXkgYWxsIHRoZSB0aW1lIGJ1dCBuZXZl
+cg0KY2hhbmdlcz8gV2UnZCBoYXZlIHRvIGtlZXAgYSBzY2F0dGVyZWQgdmVyc2lvbiBhbmQgdGhl
+biBjb3B5IGl0DQppbnRvIGEgdGVtcG9yYXJ5IGNvbnRpZ3VvdXMgYnVmZmVyIHdoaWNoIGlzIG5v
+dCBvcHRpbWFsDQpwZXJmb3JtYW5jZSB3aXNlLiBUaGUgb3RoZXIgYWx0ZXJuYXRpdmUgd291bGQg
+YmUgdG8ga2VlcCB0aGUNCmFsbG9jYXRpb24gYnV0IHRoZW4gd2Ugd291bGQgZ2V0IGZyYWdtZW50
+YXRpb24gcHJvYmxlbXMuDQoNCi9Kb2hhbiBNb3NzYmVyZw0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
