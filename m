@@ -1,200 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 164CF8D0080
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 05:20:20 -0500 (EST)
-Date: Tue, 16 Nov 2010 19:17:48 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [BUGFIX] memcg: avoid deadlock between move charge and try_charge()
-Message-Id: <20101116191748.d6645376.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4B6CA8D0080
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 06:13:46 -0500 (EST)
+Date: Tue, 16 Nov 2010 12:13:39 +0100
+From: Markus Trippelsdorf <markus@trippelsdorf.de>
+Subject: [PATCH] ext4 Fix setting random pages PageUptodate
+Message-ID: <20101116111339.GA1544@arch.trippelsdorf.de>
+References: <20101110152519.GA1626@arch.trippelsdorf.de>
+ <20101110154057.GA2191@arch.trippelsdorf.de>
+ <alpine.DEB.2.00.1011101534370.30164@router.home>
+ <20101112122003.GA1572@arch.trippelsdorf.de>
+ <20101115123846.GA30047@arch.trippelsdorf.de>
+ <20101115195439.GA1569@arch.trippelsdorf.de>
+ <AANLkTikWaADzUrqKhZ9gviW8sk8mPjC9kKFJyitvzQmx@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTikWaADzUrqKhZ9gviW8sk8mPjC9kKFJyitvzQmx@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Hugh Dickins <hughd@google.com>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+On 2010.11.15 at 13:23 -0800, Hugh Dickins wrote:
+> On Mon, Nov 15, 2010 at 11:54 AM, Markus Trippelsdorf
+> <markus@trippelsdorf.de> wrote:
+> > On 2010.11.15 at 13:38 +0100, Markus Trippelsdorf wrote:
+> >> On 2010.11.12 at 13:20 +0100, Markus Trippelsdorf wrote:
+> >> >
+> >> > Yes. Fortunately the BUG is gone since I pulled the upcoming drm fixes
+> >>
+> >> No. I happend again today (with those fixes already applied):
+> >>
+> >> BUG: Bad page state in process knode  pfn:7f0a8
+> >> page:ffffea0001bca4c0 count:0 mapcount:0 mapping:          (null) index:0x0
+> >> page flags: 0x4000000000000008(uptodate)
+> >> Pid: 18310, comm: knode Not tainted 2.6.37-rc1-00549-gae712bf-dirty #16
+> >> Call Trace:
+> >>  [<ffffffff810a9022>] ? bad_page+0x92/0xe0
+> >>  [<ffffffff810aa240>] ? get_page_from_freelist+0x4b0/0x570
+> >>  [<ffffffff8102e50e>] ? apic_timer_interrupt+0xe/0x20
+> >>  [<ffffffff810aa413>] ? __alloc_pages_nodemask+0x113/0x6b0
+> >>  [<ffffffff810a2dd4>] ? file_read_actor+0xc4/0x190
+> >>  [<ffffffff810a4a70>] ? generic_file_aio_read+0x560/0x6b0
+> >>  [<ffffffff810bdf8d>] ? handle_mm_fault+0x6bd/0x970
+> >>  [<ffffffff8104b1d0>] ? do_page_fault+0x120/0x410
+> >>  [<ffffffff810c3d85>] ? do_brk+0x275/0x360
+> >>  [<ffffffff81452d8f>] ? page_fault+0x1f/0x30
+> >> Disabling lock debugging due to kernel taint
+> >
+> > And another one. But this time it seems to point to ext4:
+> >
+> > BUG: Bad page state in process rm  pfn:52e54
+> > page:ffffea0001222260 count:0 mapcount:0 mapping:          (null) index:0x0
+> > page flags: 0x4000000000000008(uptodate)
+> > Pid: 2084, comm: rm Not tainted 2.6.37-rc1-00549-gae712bf-dirty #23
+> > Call Trace:
+> >  [<ffffffff810a9022>] ? bad_page+0x92/0xe0
+> >  [<ffffffff810aa240>] ? get_page_from_freelist+0x4b0/0x570
+> >  [<ffffffff81142ae6>] ? ext4_ext_put_in_cache+0x46/0x90
+> >  [<ffffffff810aa413>] ? __alloc_pages_nodemask+0x113/0x6b0
+> >  [<ffffffff8118f0c7>] ? number.clone.2+0x2b7/0x2f0
+> >  [<ffffffff810a38d5>] ? find_get_page+0x75/0xb0
+> >  [<ffffffff810a4011>] ? find_or_create_page+0x51/0xb0
+> >  [<ffffffff810ff4d7>] ? __getblk+0xd7/0x260
+> >  [<ffffffff8113158f>] ? ext4_getblk+0x8f/0x1e0
+> >  [<ffffffff811316ed>] ? ext4_bread+0xd/0x70
+> >  [<ffffffff811369f4>] ? htree_dirblock_to_tree+0x34/0x190
+> >  [<ffffffff8113870f>] ? ext4_htree_fill_tree+0x9f/0x250
+> >  [<ffffffff810e109d>] ? do_filp_open+0x12d/0x5e0
+> >  [<ffffffff811289ed>] ? ext4_readdir+0x14d/0x5a0
+> >  [<ffffffff810e4e80>] ? filldir+0x0/0xd0
+> >  [<ffffffff810e50a8>] ? vfs_readdir+0xa8/0xd0
+> >  [<ffffffff810e4e80>] ? filldir+0x0/0xd0
+> >  [<ffffffff810e51b1>] ? sys_getdents+0x81/0xf0
+> >  [<ffffffff8102dc2b>] ? system_call_fastpath+0x16/0x1b
+> > Disabling lock debugging due to kernel taint
+> >
+> > I don't know. Could a possible bug in linux/fs/ext4/page-io.c be
+> > responsible for something like this?
+> 
+> I do think you're right: every one of your "Bad page state" reports
+> has been complaining only about the PageUptodate bit being set, and
+> that SetPageUpdate() in ext4_end_bio() does look suspicious, coming
+> after the put_page().
+> 
+> The more suspicious given that other races have been noticed in
+> precisely that area, and fixed with put_io_page() in the current git
+> tree.
+> 
+> Perhaps that fixes your problem, but my guess would be not: I suspect
+> the "if (!partial_write) SetPageUpdate(page);" should be done before
+> the block (or put_io_page) which does the put_page().
 
-__mem_cgroup_try_charge() can be called under down_write(&mmap_sem)(e.g.
-mlock does it). This means it can cause deadlock if it races with move charge:
+ext4_end_bio calls put_page and kmem_cache_free before calling
+SetPageUpdate(). This can result in setting the PageUptodate bit on
+random pages and causes the following BUG:
 
-Ex.1)
-                move charge             |        try charge
-  --------------------------------------+------------------------------
-    mem_cgroup_can_attach()             |  down_write(&mmap_sem)
-      mc.moving_task = current          |    ..
-      mem_cgroup_precharge_mc()         |  __mem_cgroup_try_charge()
-        mem_cgroup_count_precharge()    |    prepare_to_wait()
-          down_read(&mmap_sem)          |    if (mc.moving_task)
-          -> cannot aquire the lock     |    -> true
-                                        |      schedule()
+ BUG: Bad page state in process rm  pfn:52e54
+ page:ffffea0001222260 count:0 mapcount:0 mapping:          (null) index:0x0
+ arch kernel: page flags: 0x4000000000000008(uptodate)
 
-Ex.2)
-                move charge             |        try charge
-  --------------------------------------+------------------------------
-    mem_cgroup_can_attach()             |
-      mc.moving_task = current          |
-      mem_cgroup_precharge_mc()         |
-        mem_cgroup_count_precharge()    |
-          down_read(&mmap_sem)          |
-          ..                            |
-          up_read(&mmap_sem)            |
-                                        |  down_write(&mmap_sem)
-    mem_cgroup_move_task()              |    ..
-      mem_cgroup_move_charge()          |  __mem_cgroup_try_charge()
-        down_read(&mmap_sem)            |    prepare_to_wait()
-        -> cannot aquire the lock       |    if (mc.moving_task)
-                                        |    -> true
-                                        |      schedule()
+Fix the problem by moving put_io_page() after the SetPageUpdate() call.
 
-To avoid this deadlock, we do all the move charge works (both can_attach() and
-attach()) under one mmap_sem section.
-And after this patch, we set/clear mc.moving_task outside mc.lock, because we
-use the lock only to check mc.from/to.
+Thanks to Hugh Dickins for analyzing this problem.
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: <stable@kernel.org>
+Reported-and-tested-by: Markus Trippelsdorf <markus@trippelsdorf.de>
+Signed-off-by: Markus Trippelsdorf <markus@trippelsdorf.de>
+
 ---
- mm/memcontrol.c |   43 ++++++++++++++++++++++++++-----------------
- 1 files changed, 26 insertions(+), 17 deletions(-)
+ fs/ext4/page-io.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2efa8ea..0255505 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -278,13 +278,14 @@ enum move_type {
+diff --git a/fs/ext4/page-io.c b/fs/ext4/page-io.c
+index 7f5451c..beacce1 100644
+--- a/fs/ext4/page-io.c
++++ b/fs/ext4/page-io.c
+@@ -237,8 +237,6 @@ static void ext4_end_bio(struct bio *bio, int error)
+ 			} while (bh != head);
+ 		}
  
- /* "mc" and its members are protected by cgroup_mutex */
- static struct move_charge_struct {
--	spinlock_t	  lock; /* for from, to, moving_task */
-+	spinlock_t	  lock; /* for from, to */
- 	struct mem_cgroup *from;
- 	struct mem_cgroup *to;
- 	unsigned long precharge;
- 	unsigned long moved_charge;
- 	unsigned long moved_swap;
- 	struct task_struct *moving_task;	/* a task moving charges */
-+	struct mm_struct *mm;
- 	wait_queue_head_t waitq;		/* a waitq for other context */
- } mc = {
- 	.lock = __SPIN_LOCK_UNLOCKED(mc.lock),
-@@ -4631,7 +4632,7 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
- 	unsigned long precharge;
- 	struct vm_area_struct *vma;
- 
--	down_read(&mm->mmap_sem);
-+	/* We've already held the mmap_sem */
- 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
- 		struct mm_walk mem_cgroup_count_precharge_walk = {
- 			.pmd_entry = mem_cgroup_count_precharge_pte_range,
-@@ -4643,7 +4644,6 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
- 		walk_page_range(vma->vm_start, vma->vm_end,
- 					&mem_cgroup_count_precharge_walk);
- 	}
--	up_read(&mm->mmap_sem);
- 
- 	precharge = mc.precharge;
- 	mc.precharge = 0;
-@@ -4694,11 +4694,16 @@ static void mem_cgroup_clear_mc(void)
- 
- 		mc.moved_swap = 0;
- 	}
-+	if (mc.mm) {
-+		up_read(&mc.mm->mmap_sem);
-+		mmput(mc.mm);
-+	}
- 	spin_lock(&mc.lock);
- 	mc.from = NULL;
- 	mc.to = NULL;
--	mc.moving_task = NULL;
- 	spin_unlock(&mc.lock);
-+	mc.moving_task = NULL;
-+	mc.mm = NULL;
- 	mem_cgroup_end_move(from);
- 	memcg_oom_recover(from);
- 	memcg_oom_recover(to);
-@@ -4724,12 +4729,21 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
- 			return 0;
- 		/* We move charges only when we move a owner of the mm */
- 		if (mm->owner == p) {
-+			/*
-+			 * We do all the move charge works under one mmap_sem to
-+			 * avoid deadlock with down_write(&mmap_sem)
-+			 * -> try_charge() -> if (mc.moving_task) -> sleep.
-+			 */
-+			down_read(&mm->mmap_sem);
-+
- 			VM_BUG_ON(mc.from);
- 			VM_BUG_ON(mc.to);
- 			VM_BUG_ON(mc.precharge);
- 			VM_BUG_ON(mc.moved_charge);
- 			VM_BUG_ON(mc.moved_swap);
- 			VM_BUG_ON(mc.moving_task);
-+			VM_BUG_ON(mc.mm);
-+
- 			mem_cgroup_start_move(from);
- 			spin_lock(&mc.lock);
- 			mc.from = from;
-@@ -4737,14 +4751,16 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
- 			mc.precharge = 0;
- 			mc.moved_charge = 0;
- 			mc.moved_swap = 0;
--			mc.moving_task = current;
- 			spin_unlock(&mc.lock);
-+			mc.moving_task = current;
-+			mc.mm = mm;
- 
- 			ret = mem_cgroup_precharge_mc(mm);
- 			if (ret)
- 				mem_cgroup_clear_mc();
--		}
--		mmput(mm);
-+			/* We call up_read() and mmput() in clear_mc(). */
-+		} else
-+			mmput(mm);
- 	}
- 	return ret;
- }
-@@ -4832,7 +4848,7 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
- 	struct vm_area_struct *vma;
- 
- 	lru_add_drain_all();
--	down_read(&mm->mmap_sem);
-+	/* We've already held the mmap_sem */
- 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
- 		int ret;
- 		struct mm_walk mem_cgroup_move_charge_walk = {
-@@ -4851,7 +4867,6 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
- 			 */
- 			break;
- 	}
--	up_read(&mm->mmap_sem);
- }
- 
- static void mem_cgroup_move_task(struct cgroup_subsys *ss,
-@@ -4860,17 +4875,11 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
- 				struct task_struct *p,
- 				bool threadgroup)
- {
--	struct mm_struct *mm;
+-		put_io_page(io_end->pages[i]);
 -
--	if (!mc.to)
-+	if (!mc.mm)
- 		/* no need to move charge */
- 		return;
- 
--	mm = get_task_mm(p);
--	if (mm) {
--		mem_cgroup_move_charge(mm);
--		mmput(mm);
--	}
-+	mem_cgroup_move_charge(mc.mm);
- 	mem_cgroup_clear_mc();
- }
- #else	/* !CONFIG_MMU */
+ 		/*
+ 		 * If this is a partial write which happened to make
+ 		 * all buffers uptodate then we can optimize away a
+@@ -248,6 +246,8 @@ static void ext4_end_bio(struct bio *bio, int error)
+ 		 */
+ 		if (!partial_write)
+ 			SetPageUptodate(page);
++
++		put_io_page(io_end->pages[i]);
+ 	}
+ 	io_end->num_io_pages = 0;
+ 	inode = io_end->inode;
+
 -- 
-1.7.1
+Markus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
