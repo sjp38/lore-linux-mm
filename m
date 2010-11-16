@@ -1,49 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 668BE8D006C
-	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 22:49:49 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAG3nkhB004008
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 1F1F38D006C
+	for <linux-mm@kvack.org>; Mon, 15 Nov 2010 22:51:10 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAG3p7S5005336
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 16 Nov 2010 12:49:47 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BB09245DE65
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 12:49:46 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C7F645DE62
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 12:49:46 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 695ACE08004
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 12:49:46 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1201E1DB803E
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 12:49:46 +0900 (JST)
-Date: Tue, 16 Nov 2010 12:44:14 +0900
+	Tue, 16 Nov 2010 12:51:07 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 778F345DE52
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 12:51:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 35D7145DE4F
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 12:51:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 12AAB1DB8042
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 12:51:07 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AEA541DB8041
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 12:51:06 +0900 (JST)
+Date: Tue, 16 Nov 2010 12:45:33 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 4/4] memcg: use native word page statistics counters
-Message-Id: <20101116124414.98167f7c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101107220353.964566018@cmpxchg.org>
-References: <20101107215030.007259800@cmpxchg.org>
-	<20101107220353.964566018@cmpxchg.org>
+Subject: Re: [PATCH] memcg: avoid overflow in
+ memcg_hierarchical_free_pages()
+Message-Id: <20101116124533.4c212800.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1289265320-7025-1-git-send-email-gthelen@google.com>
+References: <1289265320-7025-1-git-send-email-gthelen@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Young <hidave.darkstar@gmail.com>, Andrea Righi <arighi@develer.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun,  7 Nov 2010 23:14:39 +0100
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Mon,  8 Nov 2010 17:15:20 -0800
+Greg Thelen <gthelen@google.com> wrote:
 
-> The statistic counters are in units of pages, there is no reason to
-> make them 64-bit wide on 32-bit machines.
+> Use page counts rather than byte counts to avoid overflowing
+> unsigned long local variables.
 > 
-> Make them native words.  Since they are signed, this leaves 31 bit on
-> 32-bit machines, which can represent roughly 8TB assuming a page size
-> of 4k.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Greg Thelen <gthelen@google.com>
 
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
