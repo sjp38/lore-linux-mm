@@ -1,53 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 97BAF8D0080
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 08:04:04 -0500 (EST)
-Received: from [10.10.7.10] by digidescorp.com (Cipher SSLv3:RC4-MD5:128) (MDaemon PRO v10.1.1)
-	with ESMTP id md50001484960.msg
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 07:03:59 -0600
-Subject: Re: [PATCH][RESEND] nommu: yield CPU periodically while disposing
- large VM
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id CCD1B8D0080
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 08:06:58 -0500 (EST)
+Received: from localhost.localdomain by digidescorp.com (Cipher TLSv1:RC4-MD5:128) (MDaemon PRO v10.1.1)
+	with ESMTP id md50001484967.msg
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 07:06:54 -0600
 From: "Steven J. Magnani" <steve@digidescorp.com>
-Reply-To: steve@digidescorp.com
-In-Reply-To: <20101115204703.fc774a17.akpm@linux-foundation.org>
-References: <1289507596-17613-1-git-send-email-steve@digidescorp.com>
-	 <20101111184059.5744a42f.akpm@linux-foundation.org>
-	 <1289831351.2524.15.camel@iscandar.digidescorp.com>
-	 <20101115204703.fc774a17.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 16 Nov 2010 07:03:57 -0600
-Message-ID: <1289912637.3449.3.camel@iscandar.digidescorp.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH][V2] nommu: yield CPU while disposing VM
+Date: Tue, 16 Nov 2010 07:06:45 -0600
+Message-Id: <1289912805-4143-1-git-send-email-steve@digidescorp.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Ungerer <gerg@snapgear.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: linux-mm@kvack.org
+Cc: stable@kernel.org, linux-kernel@vger.kernel.org, gerg@snapgear.com, kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, "Steven J. Magnani" <steve@digidescorp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-11-15 at 20:47 -0800, Andrew Morton wrote:
-> On Mon, 15 Nov 2010 08:29:11 -0600 "Steven J. Magnani" <steve@digidescorp.com> wrote:
-> 
-> > As efficient as schedule() may be, it still scares me to call it on
-> > reclaim of every block of memory allocated by a terminating process,
-> > particularly on the relatively slow processors that inhabit NOMMU land.
-> 
-> This is cond_resched(), not schedule()!  cond_resched() is just a few
-> instructions, except for the super-rare case where it calls schedule().
+Depending on processor speed, page size, and the amount of memory a process
+is allowed to amass, cleanup of a large VM may freeze the system for many
+seconds. This can result in a watchdog timeout.
 
-The light comes on..._cond_resched() is overloaded. I was looking at the
-static version, which calls schedule(). The extern version is much more
-lightweight.
+Make sure other tasks receive some service when cleaning up large VMs.
 
-I'll respin the patch.
-
-Thanks,
-------------------------------------------------------------------------
- Steven J. Magnani               "I claim this network for MARS!
- www.digidescorp.com              Earthling, return my space modulator!"
-
- #include <standard.disclaimer>
-
-
+Signed-off-by: Steven J. Magnani <steve@digidescorp.com>
+---
+diff -uprN a/mm/nommu.c b/mm/nommu.c
+--- a/mm/nommu.c	2010-11-15 07:53:45.000000000 -0600
++++ b/mm/nommu.c	2010-11-15 07:57:13.000000000 -0600
+@@ -1668,6 +1668,7 @@ void exit_mmap(struct mm_struct *mm)
+ 		mm->mmap = vma->vm_next;
+ 		delete_vma_from_mm(vma);
+ 		delete_vma(mm, vma);
++		cond_resched();
+ 	}
+ 
+ 	kleave("");
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
