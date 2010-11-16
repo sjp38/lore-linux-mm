@@ -1,46 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id DD3C88D0080
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 12:43:02 -0500 (EST)
-Received: by pzk32 with SMTP id 32so282400pzk.14
-        for <linux-mm@kvack.org>; Tue, 16 Nov 2010 09:42:58 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1265C6B004A
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 15:39:06 -0500 (EST)
+Date: Tue, 16 Nov 2010 15:38:54 -0500
+From: Ted Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH] ext4 Fix setting random pages PageUptodate
+Message-ID: <20101116203854.GA1568@thunk.org>
+References: <20101110152519.GA1626@arch.trippelsdorf.de>
+ <20101110154057.GA2191@arch.trippelsdorf.de>
+ <alpine.DEB.2.00.1011101534370.30164@router.home>
+ <20101112122003.GA1572@arch.trippelsdorf.de>
+ <20101115123846.GA30047@arch.trippelsdorf.de>
+ <20101115195439.GA1569@arch.trippelsdorf.de>
+ <AANLkTikWaADzUrqKhZ9gviW8sk8mPjC9kKFJyitvzQmx@mail.gmail.com>
+ <20101116111339.GA1544@arch.trippelsdorf.de>
 MIME-Version: 1.0
-Date: Tue, 16 Nov 2010 09:42:57 -0800
-Message-ID: <AANLkTikAybJkap8d_DjSZUTj6fsiQDigCoqHL6CfgBTt@mail.gmail.com>
-Subject: Using page tables to confine memory accesses of subroutines
-From: Thomas DuBuisson <thomas.dubuisson@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101116111339.GA1544@arch.trippelsdorf.de>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-All,
+On Tue, Nov 16, 2010 at 12:13:39PM +0100, Markus Trippelsdorf wrote:
+> ext4_end_bio calls put_page and kmem_cache_free before calling
+> SetPageUpdate(). This can result in setting the PageUptodate bit on
+> random pages and causes the following BUG:
 
-I've been working on confining memory accesses of subroutines of a
-single process.  The idea is to protect the process's memory integrity
-(and perhaps confidentiality) from potentially buggy libraries.  From
-the user space standpoint its functionally similar to making a lot of
-mprotect calls before and after calling the subroutine.
+Oops.   Thanks muchly to you and to Hugh for discovering this.
 
-The initial implementation was done using some existing MM facuilities
-(dup_mm, pgd_dup, use_mm, change_pud_range) to build a new system call
-that allows the calling process to create, and switch between, a
-number of page tables.  Initial benchmarks based on this code show a 2
-to 10 time improvement on shared memory IPC performance.
+I've added this to the ext4 patch queue and will be pushing to Linus
+this week, for -rc3.
 
-Unfortunately the implementation is just a prototype - it doesn't
-behave properly when interleaving
-allocation or with multi-threaded processes.  A better implementation
-might use the thread infrastructure
-to track (and periodically activate) these alternate page tables.  I
-figure this could behave properly in the face of allocation and
-threading with less work on my part by using more existing code.
-
-Perhaps there are other solutions you can think of, if so I'd be happy
-to see a conversation on this front.
-
-Cheers,
-Thomas
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
