@@ -1,61 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id D09958D0080
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 03:26:30 -0500 (EST)
-Received: by qyk1 with SMTP id 1so768392qyk.14
-        for <linux-mm@kvack.org>; Tue, 16 Nov 2010 00:26:29 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id D56958D0080
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 04:58:26 -0500 (EST)
+Date: Tue, 16 Nov 2010 09:58:09 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] set_pgdat_percpu_threshold() don't use
+	for_each_online_cpu
+Message-ID: <20101116095809.GO27362@csn.ul.ie>
+References: <1288169256-7174-2-git-send-email-mel@csn.ul.ie> <20101028100920.5d4ce413.kamezawa.hiroyu@jp.fujitsu.com> <20101114163727.BEE0.A69D9226@jp.fujitsu.com> <20101115102617.GK27362@csn.ul.ie> <alpine.DEB.2.00.1011150802470.19175@router.home>
 MIME-Version: 1.0
-In-Reply-To: <4CE23F33.5060401@leadcoretech.com>
-References: <20101109123246.GA11477@amd>
-	<20101114182614.BEE5.A69D9226@jp.fujitsu.com>
-	<20101115092452.BEF1.A69D9226@jp.fujitsu.com>
-	<20101116074717.GB3460@amd>
-	<AANLkTi=BhuVn8F3ioTyR8S=J3LfJbuhYsMoHf9f=bvRn@mail.gmail.com>
-	<4CE23B3B.5050804@leadcoretech.com>
-	<AANLkTi=10NspL2fw66De8osjUC+2xnxsLpw+x=oNQQTv@mail.gmail.com>
-	<4CE23F33.5060401@leadcoretech.com>
-Date: Tue, 16 Nov 2010 10:26:27 +0200
-Message-ID: <AANLkTi=Da76M+s92ZZnfw7ySjp3WWfDjW6n5G=hHheKB@mail.gmail.com>
-Subject: Re: [patch] mm: vmscan implement per-zone shrinkers
-From: Anca Emanuel <anca.emanuel@gmail.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1011150802470.19175@router.home>
 Sender: owner-linux-mm@kvack.org
-To: "Figo.zhang" <zhangtianfei@leadcoretech.com>
-Cc: Nick Piggin <npiggin@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 16, 2010 at 10:22 AM, Figo.zhang
-<zhangtianfei@leadcoretech.com> wrote:
-> 于 11/16/2010 04:20 PM, Anca Emanuel 写道:
->>
->> On Tue, Nov 16, 2010 at 10:05 AM, Figo.zhang
->> <zhangtianfei@leadcoretech.com>  wrote:
->>>
->>> 于 11/16/2010 03:53 PM, Anca Emanuel 写道:
->>>>
->>>> Nick, I want to test your tree.
->>>> This is taking too long.
->>>> Make something available now. And test it in real configs.
->>>>
->>>
->>> hi Anca,
->>>
->>> would you like to give your test method?
->>>
->>
->> Nothig special, for now I will test on my PC.
->>
->
-> hi KOSAKI Motohiro,
->
-> is it any test suite or test scripts for test page-reclaim performance?
->
-> Best,
-> Figo.zhang
->
+On Mon, Nov 15, 2010 at 08:04:23AM -0600, Christoph Lameter wrote:
+> On Mon, 15 Nov 2010, Mel Gorman wrote:
+> 
+> > With recent per-cpu allocator changes, are we guaranteed that the per-cpu
+> > structures exist and are valid?
+> 
+> We always guarantee that all per cpu areas for all possible cpus exist.
+> That has always been the case. There was a discussion about changing
+> that though. Could be difficult given the need for additional locking.
+> 
 
-There is http://www.phoronix.com
+In that case, I do not have any more concerns about the patch. It's
+unfortunate that more per-cpu structures will have to be updated but I
+doubt it'll be noticable.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
