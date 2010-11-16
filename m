@@ -1,80 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D1DDF8D0080
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 09:50:19 -0500 (EST)
-Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0LBZ008Z7FVSHW@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Tue, 16 Nov 2010 14:50:16 +0000 (GMT)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LBZ008RWFVSGI@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 16 Nov 2010 14:50:16 +0000 (GMT)
-Date: Tue, 16 Nov 2010 15:50:16 +0100
-From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
-Subject: Re: [PATCH 0/3] hwmem: Hardware memory driver
-In-reply-to: 
- <1289912882-23996-1-git-send-email-johan.xx.mossberg@stericsson.com>
-Message-id: <op.vl9p52wp7p4s8u@pikus>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Content-transfer-encoding: Quoted-Printable
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B4E396B0092
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 10:25:32 -0500 (EST)
+From: Johan MOSSBERG <johan.xx.mossberg@stericsson.com>
+Date: Tue, 16 Nov 2010 16:25:20 +0100
+Subject: RE: [PATCH 0/3] hwmem: Hardware memory driver
+Message-ID: <C832F8F5D375BD43BFA11E82E0FE9FE0081BE739A0@EXDCVYMBSTM005.EQ1STM.local>
 References: <1289912882-23996-1-git-send-email-johan.xx.mossberg@stericsson.com>
+ <op.vl9p52wp7p4s8u@pikus>
+In-Reply-To: <op.vl9p52wp7p4s8u@pikus>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, Johan Mossberg <johan.xx.mossberg@stericsson.com>
+To: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Nov 2010 14:07:59 +0100, Johan Mossberg <johan.xx.mossberg@st=
-ericsson.com> wrote:
-> The following patchset implements a "hardware memory driver". The
-> main purpose of hwmem is:
->
-> * To allocate buffers suitable for use with hardware. Currently
-> this means contiguous buffers.
-> * To synchronize the caches for the allocated buffers. This is
-> achieved by keeping track of when the CPU uses a buffer and when
-> other hardware uses the buffer, when we switch from CPU to other
-> hardware or vice versa the caches are synchronized.
-> * To handle sharing of allocated buffers between processes i.e.
-> import, export.
->
-> Hwmem is available both through a user space API and through a
-> kernel API.
->
-> Here at ST-Ericsson we use hwmem for graphics buffers. Graphics
-> buffers need to be contiguous due to our hardware, are passed
-> between processes (usually application and window manager)and are
-> part of usecases where performance is top priority so we can't
-> afford to synchronize the caches unecessarily.
->
-> Hwmem and CMA (Contiguous Memory Allocator) overlap to some extent.
-> Hwmem could use CMA as its allocator and thereby remove the overlap
-> but then defragmentation can not be implemented as CMA currently
-> has no support for this. We would very much like to see a
-> discussion about adding defragmentation to CMA.
-
-I would definitelly like to see what the two solution share and try to
-merge those.
-
-In particular, I'll try to figure out what you mean by defragmentation
-and see whethe it could be added to CMA.
-
-My idea about CMA is to provide only allocator framework and let others
-interact with user space and/or share resources, which, as I understand,=
-
-hwmem does.
-
-PS. I don't follow linux-mm carefully, so I'd be great if you'd Cc me on=
-
-     future versions of hwmem.
-
--- =
-
-Best regards,                                        _     _
-| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
-| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
-+----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
+TWljaGHFgiBOYXphcmV3aWN6IHdyb3RlOiANCj4gSW4gcGFydGljdWxhciwgSSdsbCB0cnkgdG8g
+ZmlndXJlIG91dCB3aGF0IHlvdSBtZWFuIGJ5IGRlZnJhZ21lbnRhdGlvbg0KPiBhbmQgc2VlIHdo
+ZXRoZSBpdCBjb3VsZCBiZSBhZGRlZCB0byBDTUEuDQoNCkkgbWVhbiB0aGUgYWJpbGl0eSB0byBt
+b3ZlIGFsbG9jYXRlZCBidWZmZXJzIHRvIGZyZWUgbW9yZQ0KY29udGlndW91cyBzcGFjZS4gVG8g
+c3VwcG9ydCB0aGlzIGluIENNQSB0aGUgQVBJKHMpIHdvdWxkIGhhdmUgdG8NCmNoYW5nZS4NCiog
+QSBidWZmZXIncyBwaHlzaWNhbCBhZGRyZXNzIGNhbm5vdCBiZSB1c2VkIHRvIGlkZW50aWZ5IGl0
+IGFzIHRoZQ0KcGh5c2ljYWwgYWRkcmVzcyBjYW4gY2hhbmdlLg0KKiBQaW4vdW5waW4gZnVuY3Rp
+b25zIHdvdWxkIGhhdmUgdG8gYmUgYWRkZWQgc28gdGhhdCB5b3UgY2FuIHBpbiBhDQpidWZmZXIg
+d2hlbiBoYXJkd2FyZSB1c2VzIGl0Lg0KKiBUaGUgYWxsb2NhdG9ycyBuZWVkcyB0byBiZSBhYmxl
+IHRvIGluZm9ybSBDTUEgdGhhdCB0aGV5IGhhdmUNCm1vdmVkIGEgYnVmZmVyLiBUaGlzIGlzIHNv
+IHRoYXQgQ01BIGNhbiBrZWVwIHRyYWNrIG9mIHdoYXQgbWVtb3J5DQppcyBmcmVlIHNvIHRoYXQg
+aXQgY2FuIHN1cHBseSB0aGUgZnJlZSBtZW1vcnkgdG8gdGhlIGtlcm5lbCBmb3INCnRlbXBvcmFy
+eSB1c2UgdGhlcmUuDQoNCi9Kb2hhbiBNb3NzYmVyZw0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
