@@ -1,74 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AB5848D0080
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 16:48:55 -0500 (EST)
-Subject: Re: Oops while rebalancing, now unmountable.
-From: Shane Shrybman <shrybman@teksavvy.com>
-In-Reply-To: <1289845457-sup-9432@think>
-References: <1289236257.3611.3.camel@mars> <1289310046-sup-839@think>
-	 <1289326892.4231.2.camel@mars> <1289764507.4303.9.camel@mars>
-	 <20101114204206.GV6809@random.random> <20101114220018.GA4512@infradead.org>
-	 <20101114221222.GX6809@random.random> <20101115182314.GA2493@infradead.org>
-	 <1289845457-sup-9432@think>
-Content-Type: text/plain
-Date: Tue, 16 Nov 2010 16:48:48 -0500
-Message-Id: <1289944128.4118.3.camel@mars>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B1D928D0080
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 17:11:36 -0500 (EST)
+Date: Tue, 16 Nov 2010 14:11:30 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Propagating GFP_NOFS inside __vmalloc()
+Message-Id: <20101116141130.b20a8a8d.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1011151303130.8167@chino.kir.corp.google.com>
+References: <1289421759.11149.59.camel@oralap>
+	<20101111120643.22dcda5b.akpm@linux-foundation.org>
+	<1289512924.428.112.camel@oralap>
+	<20101111142511.c98c3808.akpm@linux-foundation.org>
+	<1289840500.13446.65.camel@oralap>
+	<alpine.DEB.2.00.1011151303130.8167@chino.kir.corp.google.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-btrfs <linux-btrfs@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: "Ricardo M. Correia" <ricardo.correia@oracle.com>, linux-mm@kvack.org, Brian Behlendorf <behlendorf1@llnl.gov>, Andreas Dilger <andreas.dilger@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-11-15 at 13:46 -0500, Chris Mason wrote:
-> Excerpts from Christoph Hellwig's message of 2010-11-15 13:23:14 -0500:
-> > On Sun, Nov 14, 2010 at 11:12:22PM +0100, Andrea Arcangeli wrote:
-> > > I just wrote above that it can happen upstream without THP. It's not
-> > > THP related at all. THP is the consumer, this is a problem in migrate
-> > > that will trigger as well with migrate_pages or all other possible
-> > > migration APIs.
-> > > 
-> > > If more people would be using hugetlbfs they would have noticed
-> > > without THP.
-> > 
-> > Okay, it seems THP is really just the messenger for bad VM practices
-> > here.
-> > 
-> > > +static int btree_migratepage(struct address_space *mapping,
-> > > +                       struct page *newpage, struct page *page)
-> > > +{
-> > > +       /*
-> > > +        * we can't safely write a btree page from here,
-> > > +        * we haven't done the locking hook
-> > > +        */
-> > > +       if (PageDirty(page))
-> > > +               return -EAGAIN;
-> > > 
-> > > fallback_migrate_page would call writeout() which is apparently not
-> > > ok in btrfs for locking issues leading to corruption.
-> > 
-> > Hmm, it seems the issue for that particular problem is indeedin btrfs.
-> > If it needs external locking for writing out data it should not
-> > implement ->writepage to start with.  Chris, can you explain what's
-> > going on with the btree code? It's pretty funny both in the
-> > btree_writepage which goes directly into extent_write_full_page
-> > if PF_MEMALLOC is not set, but otherwise does much more complicated
-> > work, and also in btree_writepages which skips various WB_SYNC_NONE,
-> > including the very weird check for for_kupdate.
-> 
-> So, I had THP + a patched btrfs running all weekend and I can safely say
-> I've fixed this one now. 
-> 
+On Mon, 15 Nov 2010 13:28:54 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-That seems like good news!
+>  - avoid doing anything other than GFP_KERNEL allocations for __vmalloc():
+>    the only current users are gfs2, ntfs, and ceph (the page allocator
+>    __vmalloc() can be discounted since it's done at boot and GFP_ATOMIC
+>    here has almost no chance of failing since the size is determined based 
+>    on what is available).
 
-Is that btrfs patch available somewhere?
+^^ this
 
-Where does this leave the existing corrupted btrfs'?
+Using vmalloc anywhere is lame.
 
-Thanks guys,
+Using anything weaker than GFP_KERNEL is lame.
 
-Shane
+Stomping out vmalloc callsites and stomping out non-GFP_KERNEL callers
+will result in a better kernel *regardless* of this bug.  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
