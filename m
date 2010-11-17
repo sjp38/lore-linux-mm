@@ -1,44 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D9F088D0002
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 18:18:11 -0500 (EST)
-Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
-	by smtp-out.google.com with ESMTP id oAHNI6QC001109
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 15:18:06 -0800
-Received: from gyf2 (gyf2.prod.google.com [10.243.50.66])
-	by hpaq14.eem.corp.google.com with ESMTP id oAHNHHeO006287
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 15:18:04 -0800
-Received: by gyf2 with SMTP id 2so1841635gyf.7
-        for <linux-mm@kvack.org>; Wed, 17 Nov 2010 15:18:04 -0800 (PST)
-Date: Wed, 17 Nov 2010 15:17:58 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [7/8,v3] NUMA Hotplug Emulator: extend memory probe interface
- to support NUMA
-In-Reply-To: <1290034830.9173.4363.camel@nimitz>
-Message-ID: <alpine.DEB.2.00.1011171508570.24488@chino.kir.corp.google.com>
-References: <20101117020759.016741414@intel.com> <20101117021000.916235444@intel.com> <1290019807.9173.3789.camel@nimitz> <alpine.DEB.2.00.1011171312590.10254@chino.kir.corp.google.com> <1290030945.9173.4211.camel@nimitz> <alpine.DEB.2.00.1011171434320.22190@chino.kir.corp.google.com>
- <1290034830.9173.4363.camel@nimitz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 854AA8D0002
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 18:25:33 -0500 (EST)
+Subject: Re: [PATCH 06/13] writeback: bdi write bandwidth estimation
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20101117150837.a18d56c1.akpm@linux-foundation.org>
+References: <20101117042720.033773013@intel.com>
+	 <20101117042850.002299964@intel.com>
+	 <20101117150837.a18d56c1.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Thu, 18 Nov 2010 00:24:59 +0100
+Message-ID: <1290036299.2109.1288.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: shaohui.zheng@intel.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Haicheng Li <haicheng.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Greg KH <greg@kroah.com>, Aaron Durbin <adurbin@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Li Shaohua <shaohua.li@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Nov 2010, Dave Hansen wrote:
+On Wed, 2010-11-17 at 15:08 -0800, Andrew Morton wrote:
+> On Wed, 17 Nov 2010 12:27:26 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
+>=20
+> > +     w =3D min(elapsed / (HZ/100), 128UL);
+>=20
+> I did try setting HZ=3D10 many years ago, and the kernel blew up.
+>=20
+> I do recall hearing of people who set HZ very low, perhaps because
+> their huge machines were seeing performance prolems when the timer tick
+> went off.  Probably there's no need to do that any more.
+>=20
+> But still, we shouldn't hard-wire the (HZ >=3D 100) assumption if we
+> don't absolutely need to, and I don't think it is absolutely needed
+> here. =20
 
-> It's not just the mem_map[], though.  When a section is sitting
-> "offline", it's pretty much all ready to go, except that its pages
-> aren't in the allocators.  But, all of the other mm structures have
-> already been modified to make room for the pages.  Zones have been added
-> or modified, pgdats resized, 'struct page's initialized.
-> 
-
-Ok, so let's create an interface that compliments the probe interface that 
-takes a quantity of memory to be hot-added from the amount of hidden RAM 
-only after we fake the nodes_add array for each section within that 
-quantity by calling update_nodes_add() and then looping through for each 
-section calling add_memory().
+People who do cpu bring-up on very slow FPGAs also lower HZ as far as
+possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
