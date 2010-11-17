@@ -1,75 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6F2646B0127
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 13:28:59 -0500 (EST)
-Received: by wwb18 with SMTP id 18so442448wwb.26
-        for <linux-mm@kvack.org>; Wed, 17 Nov 2010 10:28:53 -0800 (PST)
-Subject: Re: percpu: Implement this_cpu_add,sub,dec,inc_return
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <alpine.DEB.2.00.1011100939530.23566@router.home>
-References: <alpine.DEB.2.00.1011091124490.9898@router.home>
-	 <alpine.DEB.2.00.1011100939530.23566@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 17 Nov 2010 19:28:47 +0100
-Message-ID: <1290018527.2687.108.camel@edumazet-laptop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 161786B0114
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 14:04:19 -0500 (EST)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id oAHIlC54019820
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 13:47:12 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oAHJ4HxA216050
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 14:04:17 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oAHJ4GUu024198
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 17:04:17 -0200
+Subject: Re: [7/8,v3] NUMA Hotplug Emulator: extend memory probe interface
+ to support NUMA
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20101117021000.916235444@intel.com>
+References: <20101117020759.016741414@intel.com>
+	 <20101117021000.916235444@intel.com>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Wed, 17 Nov 2010 10:50:07 -0800
+Message-ID: <1290019807.9173.3789.camel@nimitz>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: shaohui.zheng@intel.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Haicheng Li <haicheng.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Greg KH <greg@kroah.com>
 List-ID: <linux-mm.kvack.org>
 
-Le mercredi 10 novembre 2010 A  09:40 -0600, Christoph Lameter a A(C)crit :
-> Tried it. This is the result.
+On Wed, 2010-11-17 at 10:08 +0800, shaohui.zheng@intel.com wrote:
+> And more we make it friendly, it is possible to add memory to do
 > 
+>         echo 3g > memory/probe
+>         echo 1024m,3 > memory/probe
 > 
-> Implement this_cpu_add_return and friends and supply an optimized
-> implementation for x86.
+> It maintains backwards compatibility.
 > 
-> Use this_cpu_add_return for vmstats and nmi processing.
+> Another format suggested by Dave Hansen:
 > 
-> There is no win in terms of code size (stays the same because xadd is a
-> longer instruction thaninc and requires loading a constant in a register first)
-> but we eliminate one memory access.
+>         echo physical_address=0x40000000 numa_node=3 > memory/probe
 > 
-> Plus we introduce a more flexible way of per cpu atomic operations.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> 
-> ---
+> it is more explicit to show meaning of the parameters.
 
-I believe this new xx_return stuff would be useful on x86_32 :
-#if defined(CONFIG_HIGHMEM) || defined(CONFIG_X86_32)
+The other thing that Greg suggested was to use configfs.  Looking back
+on it, that makes a lot of sense.  We can do better than these "probe"
+files.
 
-kmap_atomic_idx_push() / kmap_atomic_idx_pop() are a bit expensive
-because :
+In your case, it might be useful to tell the kernel to be able to add
+memory in a node and add the node all in one go.  That'll probably be
+closer to what the hardware will do, and will exercise different code
+paths that the separate "add node", "then add memory" steps that you're
+using here.
 
-c102a652:       0f 01 3b                invlpg (%ebx)
-	int idx = --__get_cpu_var(__kmap_atomic_idx);
-c102a655:       64 03 3d 90 40 5f c1    add    %fs:0xc15f4090,%edi
-c102a65c:       8b 07                   mov    (%edi),%eax
-c102a65e:       83 e8 01                sub    $0x1,%eax
-c102a661:       85 c0                   test   %eax,%eax
-c102a663:       89 07                   mov    %eax,(%edi)
+For the emulator, I also have to wonder if using debugfs is the right
+was since its ABI is a bit more, well, _flexible_ over time. :)
 
+> +       depends on NUMA_HOTPLUG_EMU
+> +       ---help---
+> +         Enable memory hotplug emulation. Reserve memory with grub parameter
+> +         "mem=N"(such as mem=1024M), where N is the initial memory size, the
+> +         rest physical memory will be removed from e820 table; the memory probe
+> +         interface is for memory hot-add to specified node in software method.
+> +         This is for debuging and testing purpose
 
+mem= actually sets the largest physical address that we're trying to
+use.  If you have a 256MB hole at 768MB, then mem=1G will only get you
+768MB of memory.  We probably get this wrong in a number of other places
+in the documentation, but we might as well get it right here.
 
-
-
-diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-index b676c58..bb5db26 100644
---- a/include/linux/highmem.h
-+++ b/include/linux/highmem.h
-@@ -91,7 +91,7 @@ static inline int kmap_atomic_idx_push(void)
- 
- static inline int kmap_atomic_idx(void)
- {
--	return __get_cpu_var(__kmap_atomic_idx) - 1;
-+	return __this_cpu_read(__kmap_atomic_idx) - 1;
- }
- 
- static inline int kmap_atomic_idx_pop(void)
-
+Maybe something like:
+        
+        Enable emulation of hotplug of NUMA nodes.  To use this, you
+        must also boot with the kernel command-line parameter
+        "mem=N"(such as mem=1024M), where N is the highest physical
+        address you would like to use at boot.  The rest of physical
+        memory will be removed from firmware tables and may be then be
+        hotplugged with this feature. This is for debuging and testing
+        purposes.
+        
+        Note that you can still examine the original, non-modified
+        firmware tables in: /sys/firmware/memmap
+        
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
