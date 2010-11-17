@@ -1,15 +1,15 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 05/13] writeback: account per-bdi accumulated written pages
-Date: Wed, 17 Nov 2010 11:58:26 +0800
-Message-ID: <20101117035905.996115619@intel.com>
+Subject: [PATCH 13/13] writeback: make nr_to_write a per-file limit
+Date: Wed, 17 Nov 2010 11:58:34 +0800
+Message-ID: <20101117035906.960519160@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PIZJa-0007NZ-PL
-	for glkm-linux-mm-2@m.gmane.org; Wed, 17 Nov 2010 05:08:11 +0100
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 21DD96B0106
+	id 1PIZJc-0007Q9-RU
+	for glkm-linux-mm-2@m.gmane.org; Wed, 17 Nov 2010 05:08:13 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8DD606B0106
 	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 23:08:09 -0500 (EST)
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -18,64 +18,63 @@ List-Id: linux-mm.kvack.org
 
 Andrew,
 References: <20101117035821.000579293@intel.com>
-Content-Disposition: inline; filename=writeback-bdi-written.patch
+Content-Disposition: inline; filename=writeback-single-file-limit.patch
 
-From: Jan Kara <jack@suse.cz>
+This ensures full 4MB (or larger) writeback size for large dirty files.
 
-Introduce the BDI_WRITTEN counter. It will be used for estimating the
-bdi's write bandwidth.
-
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Jan Kara <jack@suse.cz>
+CC: Jan Kara <jack@suse.cz>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/backing-dev.h |    1 +
- mm/backing-dev.c            |    6 ++++--
- mm/page-writeback.c         |    1 +
- 3 files changed, 6 insertions(+), 2 deletions(-)
+ fs/fs-writeback.c         |   11 +++++++++++
+ include/linux/writeback.h |    1 +
+ 2 files changed, 12 insertions(+)
 
---- linux-next.orig/include/linux/backing-dev.h	2010-11-16 22:48:28.000000000 +0800
-+++ linux-next/include/linux/backing-dev.h	2010-11-17 00:18:56.000000000 +0800
-@@ -40,6 +40,7 @@ typedef int (congested_fn)(void *, int);
- enum bdi_stat_item {
- 	BDI_RECLAIMABLE,
- 	BDI_WRITEBACK,
-+	BDI_WRITTEN,
- 	NR_BDI_STAT_ITEMS
- };
+--- linux-next.orig/fs/fs-writeback.c	2010-11-15 19:52:39.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-11-15 21:31:50.000000000 +0800
+@@ -330,6 +330,8 @@ static int
+ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
+ {
+ 	struct address_space *mapping = inode->i_mapping;
++	long per_file_limit = wbc->per_file_limit;
++	long nr_to_write;
+ 	unsigned dirty;
+ 	int ret;
  
---- linux-next.orig/mm/backing-dev.c	2010-11-16 22:48:28.000000000 +0800
-+++ linux-next/mm/backing-dev.c	2010-11-17 00:18:56.000000000 +0800
-@@ -92,6 +92,7 @@ static int bdi_debug_stats_show(struct s
- 		   "BdiDirtyThresh:   %8lu kB\n"
- 		   "DirtyThresh:      %8lu kB\n"
- 		   "BackgroundThresh: %8lu kB\n"
-+		   "BdiWritten:       %8lu kB\n"
- 		   "b_dirty:          %8lu\n"
- 		   "b_io:             %8lu\n"
- 		   "b_more_io:        %8lu\n"
-@@ -99,8 +100,9 @@ static int bdi_debug_stats_show(struct s
- 		   "state:            %8lx\n",
- 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
- 		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
--		   K(bdi_thresh), K(dirty_thresh),
--		   K(background_thresh), nr_dirty, nr_io, nr_more_io,
-+		   K(bdi_thresh), K(dirty_thresh), K(background_thresh),
-+		   (unsigned long) K(bdi_stat(bdi, BDI_WRITTEN)),
-+		   nr_dirty, nr_io, nr_more_io,
- 		   !list_empty(&bdi->bdi_list), bdi->state);
- #undef K
+@@ -365,8 +367,16 @@ writeback_single_inode(struct inode *ino
+ 	inode->i_state &= ~I_DIRTY_PAGES;
+ 	spin_unlock(&inode_lock);
  
---- linux-next.orig/mm/page-writeback.c	2010-11-17 00:18:54.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-11-17 00:18:56.000000000 +0800
-@@ -1292,6 +1292,7 @@ int test_clear_page_writeback(struct pag
- 						PAGECACHE_TAG_WRITEBACK);
- 			if (bdi_cap_account_writeback(bdi)) {
- 				__dec_bdi_stat(bdi, BDI_WRITEBACK);
-+				__inc_bdi_stat(bdi, BDI_WRITTEN);
- 				__bdi_writeout_inc(bdi);
- 			}
- 		}
++	if (per_file_limit) {
++		nr_to_write = wbc->nr_to_write;
++		wbc->nr_to_write = per_file_limit;
++	}
++
+ 	ret = do_writepages(mapping, wbc);
+ 
++	if (per_file_limit)
++		wbc->nr_to_write += nr_to_write - per_file_limit;
++
+ 	/*
+ 	 * Make sure to wait on the data before writing out the metadata.
+ 	 * This is important for filesystems that modify metadata on data
+@@ -698,6 +708,7 @@ static long wb_writeback(struct bdi_writ
+ 
+ 		wbc.more_io = 0;
+ 		wbc.nr_to_write = write_chunk;
++		wbc.per_file_limit = write_chunk;
+ 		wbc.pages_skipped = 0;
+ 
+ 		trace_wbc_writeback_start(&wbc, wb->bdi);
+--- linux-next.orig/include/linux/writeback.h	2010-11-15 19:52:39.000000000 +0800
++++ linux-next/include/linux/writeback.h	2010-11-15 21:31:50.000000000 +0800
+@@ -43,6 +43,7 @@ struct writeback_control {
+ 					   extra jobs and livelock */
+ 	long nr_to_write;		/* Write this many pages, and decrement
+ 					   this for each page written */
++	long per_file_limit;		/* Write this many pages for one file */
+ 	long pages_skipped;		/* Pages which were not written */
+ 
+ 	/*
 
 
 --
