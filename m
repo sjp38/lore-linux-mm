@@ -1,50 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C4EAC6B012B
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 10:28:54 -0500 (EST)
-Subject: Re: [PATCH 3/3] mlock: avoid dirtying pages and triggering
- writeback
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20101117125756.GA5576@amd>
-References: <1289996638-21439-1-git-send-email-walken@google.com>
-	 <1289996638-21439-4-git-send-email-walken@google.com>
-	 <20101117125756.GA5576@amd>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 17 Nov 2010 16:28:54 +0100
-Message-ID: <1290007734.2109.941.camel@laptop>
-Mime-Version: 1.0
+	by kanga.kvack.org (Postfix) with SMTP id 234B76B0112
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 11:22:15 -0500 (EST)
+Message-ID: <4CE40129.9060103@redhat.com>
+Date: Wed, 17 Nov 2010 11:22:01 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: fadvise DONTNEED implementation (or lack thereof)
+References: <20101109162525.BC87.A69D9226@jp.fujitsu.com>	<877hgmr72o.fsf@gmail.com>	<20101114140920.E013.A69D9226@jp.fujitsu.com>	<AANLkTim59Qx6TsvXnTBL5Lg6JorbGaqx3KsdBDWO04X9@mail.gmail.com>	<1289810825.2109.469.camel@laptop>	<AANLkTikibS1fDuk67RHk4SU14pJ9nPdodWba1T3Z_pWE@mail.gmail.com>	<4CE14848.2060805@redhat.com> <AANLkTi=6RtPDnZZa=jrcciB1zHQMiB3LnouBw3G2OyaK@mail.gmail.com>
+In-Reply-To: <AANLkTi=6RtPDnZZa=jrcciB1zHQMiB3LnouBw3G2OyaK@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@kernel.dk>
-Cc: Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Theodore Tso <tytso@google.com>, Michael Rubin <mrubin@google.com>, Suleiman Souhlal <suleiman@google.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ben Gamari <bgamari.foss@gmail.com>, linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-11-17 at 23:57 +1100, Nick Piggin wrote:
-> On Wed, Nov 17, 2010 at 04:23:58AM -0800, Michel Lespinasse wrote:
-> > When faulting in pages for mlock(), we want to break COW for anonymous
-> > or file pages within VM_WRITABLE, non-VM_SHARED vmas. However, there is
-> > no need to write-fault into VM_SHARED vmas since shared file pages can
-> > be mlocked first and dirtied later, when/if they actually get written t=
-o.
-> > Skipping the write fault is desirable, as we don't want to unnecessaril=
-y
-> > cause these pages to be dirtied and queued for writeback.
->=20
-> It's not just to break COW, but to do block allocation and such
-> (filesystem's page_mkwrite op). That needs to at least be explained
-> in the changelog.
+On 11/17/2010 05:16 AM, Minchan Kim wrote:
 
-Agreed, the 0/3 description actually does mention this.
+> Absolutely. But how about rsync's two touch?
+> It can evict working set.
+>
+> I need the time for investigation.
+> Thanks for the comment.
 
-> Filesystem doesn't have a good way to fully pin required things
-> according to mlock, but page_mkwrite provides some reasonable things
-> (like block allocation / reservation).
+Maybe we could exempt MADV_SEQUENTIAL and FADV_SEQUENTIAL
+touches from promoting the page to the active list?
 
-Right, but marking all pages dirty isn't really sane. I can imagine
-making the reservation but not marking things dirty solution, although
-it might be lots harder to implement, esp since some filesystems don't
-actually have a page_mkwrite() implementation.
+Then we just need to make sure rsync uses fadvise properly
+to keep the working set protected from rsync.
 
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
