@@ -1,141 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B69046B00F5
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 18:29:03 -0500 (EST)
-Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
-	by smtp-out.google.com with ESMTP id oAGNSx8u009477
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 15:28:59 -0800
-Received: from pwj4 (pwj4.prod.google.com [10.241.219.68])
-	by hpaq3.eem.corp.google.com with ESMTP id oAGNSjLJ014598
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 15:28:58 -0800
-Received: by pwj4 with SMTP id 4so476188pwj.38
-        for <linux-mm@kvack.org>; Tue, 16 Nov 2010 15:28:53 -0800 (PST)
-Date: Tue, 16 Nov 2010 15:28:45 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: RFC: reviving mlock isolation dead code
-In-Reply-To: <AANLkTin+16yDxGrRfbqw9OPnDDV8OgXr_nbZnXJEHK9w@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1011161444200.16422@tigran.mtv.corp.google.com>
-References: <20101109115540.BC3F.A69D9226@jp.fujitsu.com> <AANLkTinrtXrwgwUXNOaM_AGin2iEMqN2wWciMzJUPUyB@mail.gmail.com> <20101112142038.E002.A69D9226@jp.fujitsu.com> <alpine.LSU.2.00.1011151717130.10920@tigran.mtv.corp.google.com>
- <AANLkTin+16yDxGrRfbqw9OPnDDV8OgXr_nbZnXJEHK9w@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="380388936-495940446-1289950132=:16422"
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B1E616B00A1
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 19:08:00 -0500 (EST)
+Date: Tue, 16 Nov 2010 16:07:20 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] set_pgdat_percpu_threshold() don't use
+ for_each_online_cpu
+Message-Id: <20101116160720.5244ea22.akpm@linux-foundation.org>
+In-Reply-To: <20101114163727.BEE0.A69D9226@jp.fujitsu.com>
+References: <1288169256-7174-2-git-send-email-mel@csn.ul.ie>
+	<20101028100920.5d4ce413.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101114163727.BEE0.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Michel Lespinasse <walken@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, Arjan van de Ven <arjan@infradead.org>, linux-mm <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Shaohua Li <shaohua.li@intel.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Sun, 14 Nov 2010 17:53:03 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
---380388936-495940446-1289950132=:16422
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+> > > @@ -159,6 +165,44 @@ static void refresh_zone_stat_thresholds(void)
+> > >  	}
+> > >  }
+> > >  
+> > > +void reduce_pgdat_percpu_threshold(pg_data_t *pgdat)
+> > > +{
+> > > +	struct zone *zone;
+> > > +	int cpu;
+> > > +	int threshold;
+> > > +	int i;
+> > > +
+> > 
+> > get_online_cpus();
+> 
+> 
+> This caused following runtime warnings. but I don't think here is
+> real lock inversion. 
+> 
+> =================================
+> [ INFO: inconsistent lock state ]
+> 2.6.37-rc1-mm1+ #150
+> ---------------------------------
+> inconsistent {RECLAIM_FS-ON-W} -> {IN-RECLAIM_FS-W} usage.
+> kswapd0/419 [HC0[0]:SC0[0]:HE1:SE1] takes:
+>  (cpu_hotplug.lock){+.+.?.}, at: [<ffffffff810520d1>] get_online_cpus+0x41/0x60
+> {RECLAIM_FS-ON-W} state was registered at:
+>   [<ffffffff8108a1a3>] mark_held_locks+0x73/0xa0
+>   [<ffffffff8108a296>] lockdep_trace_alloc+0xc6/0x100
+>   [<ffffffff8113fba9>] kmem_cache_alloc+0x39/0x2b0
+>   [<ffffffff812eea10>] idr_pre_get+0x60/0x90
+>   [<ffffffff812ef5b7>] ida_pre_get+0x27/0xf0
+>   [<ffffffff8106ebf5>] create_worker+0x55/0x190
+>   [<ffffffff814fb4f4>] workqueue_cpu_callback+0xbc/0x235
+>   [<ffffffff8151934c>] notifier_call_chain+0x8c/0xe0
+>   [<ffffffff8107a34e>] __raw_notifier_call_chain+0xe/0x10
+>   [<ffffffff81051f30>] __cpu_notify+0x20/0x40
+>   [<ffffffff8150bff7>] _cpu_up+0x73/0x113
+>   [<ffffffff8150c175>] cpu_up+0xde/0xf1
+>   [<ffffffff81dcc81d>] kernel_init+0x21b/0x342
+>   [<ffffffff81003724>] kernel_thread_helper+0x4/0x10
+> irq event stamp: 27
+> hardirqs last  enabled at (27): [<ffffffff815152c0>] _raw_spin_unlock_irqrestore+0x40/0x80
+> hardirqs last disabled at (26): [<ffffffff81514982>] _raw_spin_lock_irqsave+0x32/0xa0
+> softirqs last  enabled at (20): [<ffffffff810614c4>] del_timer_sync+0x54/0xa0
+> softirqs last disabled at (18): [<ffffffff8106148c>] del_timer_sync+0x1c/0xa0
+> 
+> other info that might help us debug this:
+> no locks held by kswapd0/419.
+> 
+> stack backtrace:
+> Pid: 419, comm: kswapd0 Not tainted 2.6.37-rc1-mm1+ #150
+> Call Trace:
+>  [<ffffffff810890b1>] print_usage_bug+0x171/0x180
+>  [<ffffffff8108a057>] mark_lock+0x377/0x450
+>  [<ffffffff8108ab67>] __lock_acquire+0x267/0x15e0
+>  [<ffffffff8107af0f>] ? local_clock+0x6f/0x80
+>  [<ffffffff81086789>] ? trace_hardirqs_off_caller+0x29/0x150
+>  [<ffffffff8108bf94>] lock_acquire+0xb4/0x150
+>  [<ffffffff810520d1>] ? get_online_cpus+0x41/0x60
+>  [<ffffffff81512cf4>] __mutex_lock_common+0x44/0x3f0
+>  [<ffffffff810520d1>] ? get_online_cpus+0x41/0x60
+>  [<ffffffff810744f0>] ? prepare_to_wait+0x60/0x90
+>  [<ffffffff81086789>] ? trace_hardirqs_off_caller+0x29/0x150
+>  [<ffffffff810520d1>] ? get_online_cpus+0x41/0x60
+>  [<ffffffff810868bd>] ? trace_hardirqs_off+0xd/0x10
+>  [<ffffffff8107af0f>] ? local_clock+0x6f/0x80
+>  [<ffffffff815131a8>] mutex_lock_nested+0x48/0x60
+>  [<ffffffff810520d1>] get_online_cpus+0x41/0x60
+>  [<ffffffff811138b2>] set_pgdat_percpu_threshold+0x22/0xe0
+>  [<ffffffff81113970>] ? calculate_normal_threshold+0x0/0x60
+>  [<ffffffff8110b552>] kswapd+0x1f2/0x360
+>  [<ffffffff81074180>] ? autoremove_wake_function+0x0/0x40
+>  [<ffffffff8110b360>] ? kswapd+0x0/0x360
+>  [<ffffffff81073ae6>] kthread+0xa6/0xb0
+>  [<ffffffff81003724>] kernel_thread_helper+0x4/0x10
+>  [<ffffffff81515710>] ? restore_args+0x0/0x30
+>  [<ffffffff81073a40>] ? kthread+0x0/0xb0
+>  [<ffffffff81003720>] ? kernel_thread_helper+0x0/0x10
 
-On Mon, 15 Nov 2010, Michel Lespinasse wrote:
-> On Mon, Nov 15, 2010 at 5:44 PM, Hugh Dickins <hughd@google.com> wrote:
-> > On Sun, 14 Nov 2010, KOSAKI Motohiro wrote:
-> >> Michel Lespinasse <walken@google.com> wrote:
-> >> > ...
-> >> > The other mlock related issue I have is that it marks pages as dirty
-> >> > (if they are in a writable VMA), and causes writeback to work on the=
-m,
-> >> > even though the pages have not actually been modified. This looks li=
-ke
-> >> > it would be solvable with a new get_user_pages flag for mlock use
-> >> > (breaking cow etc, but not writing to the pages just yet).
-> >>
-> >> To be honest, I haven't understand why current code does so. I dislike=
- it too. but
-> >> I'm not sure such change is safe or not. I hope another developer comm=
-ent you ;-)
-> >
-> > It's been that way for years, and the primary purpose is to do the COWs
-> > in advance, so we won't need to allocate new pages later to the locked
-> > area: the pages that may be needed are already locked down.
->=20
-> Thanks Hugh for posting your comments. I was aware of Suleiman's
-> proposal to always do a READ mode get_user_pages years ago, and I
-> could see that we'd need a new flag instead so we can break COW
-> without dirtying pages, but I hadn't thought about other issues.
->=20
-> > That justifies it for the private mapping case, but what of shared maps=
-?
-> > There the justification is that the underlying file might be sparse, an=
-d
-> > we want to allocate blocks upfront for the locked area.
-> >
-> > Do we? =A0I dislike it also, as you both do. =A0It seems crazy to mark =
-a
-> > vast number of pages as dirty when they're not.
-> >
-> > It makes sense to mark pte_dirty when we have a real write fault to a
-> > page, to save the mmu from making that pagetable transaction immediatel=
-y
-> > after; but it does not make sense when the write (if any) may come
-> > minutes later - we'll just do a pointless write and clear dirty meanwhi=
-le.
->=20
-> If we just mlocked the page but did not made it writable (or mark it
-> dirty) yet, would we be allowed to skip the page_mkwrite method call ?
+Well what's actually happening here?  Where is the alleged deadlock?
 
-Yes, indeed you should skip it in that case.
+In the kernel_init() case we have a GFP_KERNEL allocation inside
+get_online_cpus().  In the other case we simply have kswapd calling
+get_online_cpus(), yes?
 
->=20
-> I believe this would be legal:
+Does lockdep consider all kswapd actions to be "in reclaim context"? 
+If so, why?
 
-Yes, I agree that it would be legal.
+> 
+> I think we have two option 1) call lockdep_clear_current_reclaim_state()
+> every time 2) use for_each_possible_cpu instead for_each_online_cpu.
+> 
+> Following patch use (2) beucase removing get_online_cpus() makes good
+> side effect. It reduce potentially cpu-hotplug vs memory-shortage deadlock
+> risk. 
 
->=20
-> - If/when an actual write comes later on, we'll run through
-> do_wp_page() again, and reuse the old page, making it writable and
-> dirty from then on. Since this is a shared mapping, we won't have to
-> allocate a new page at a that time, so this preserves the mlock
-> semantic of having all necessary pages preallocated.
->=20
-> - If we skip page_mkwrite(), we can't guarantee that the filesystem
-> will have a free block to allocate, but is this actually part of the
-> mlock() semantics ? I think not, given that only a few filesystems
-> implement page_mkwrite() in the first place. ext4 does, but ext2/3
-> does not, for example. So while skipping page_mkwrite() would prevent
-> data blocks from being pre-allocated, I don't really see it as
-> breaking mlock() ?
+Well.  Being able to run for_each_online_cpu() is a pretty low-level
+and fundamental thing.  It's something we're likely to want to do more
+and more of as time passes.  It seems a bad thing to tell ourselves
+that we cannot use it in reclaim context.  That blots out large chunks
+of filesystem and IO-layer code as well!
 
-Yes, allocating the blocks is not actually part of mlock() semantics.
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -193,18 +193,16 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
+>  	int threshold;
+>  	int i;
+>  
+> -	get_online_cpus();
+>  	for (i = 0; i < pgdat->nr_zones; i++) {
+>  		zone = &pgdat->node_zones[i];
+>  		if (!zone->percpu_drift_mark)
+>  			continue;
+>  
+>  		threshold = (*calculate_pressure)(zone);
+> -		for_each_online_cpu(cpu)
+> +		for_each_possible_cpu(cpu)
+>  			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+>  							= threshold;
+>  	}
+> -	put_online_cpus();
+>  }
 
-And a few years ago, there was no ->page_mkwrite(), and the ->nopage()
-interface didn't tell the filesystem whether it was read or write fault
-(and mlocking a writable vma certainly didn't do synchronous writes back
-to disk before the mlock returned success or failure).
+That's a pretty sad change IMO, especially of num_possible_cpus is much
+larger than num_online_cpus.
 
-It's all a matter of QoS: is it acceptable to make the change, that
-a write fault to an mlocked area of a sparse file might now generate
-SIGBUS, on a few filesystems which have recently been guaranteeing not?
-
-Personally, I believe that's more acceptable than doing a huge rush of
-(almost always) pointless writes at the time of mlock().  But I can
-see that others may disagree.
-
->=20
-> > If it does work out, I think you'd need to be passing the flag down to
-> > follow_page too: I have a patch or patches to merge the FOLL_flags with
-> > the FAULT_FLAGs - Linus wanted that a year ago, and I recently met a
-> > need for it with shmem - I'd better accelerate sending those in.
->=20
-> The follow_page change is simpler, it might even be sufficient to not
-> pass in the FOLL_TOUCH flag I think.
-
-Yes, in fact, is anything required beyond Peter's original simple patch?
-
-There are some tweaks that could be added.  A FAULT_FLAG to let filesystem
-know that we're mlocking a writable area, so it could be careful about it?
-only useful if some filesystem uses it!  A check on vma_wants_writenotify()
-or something like it, so mlock does set pte_write if it's okay e.g. tmpfs?
-Second order things, probably don't matter.
-
-Added Ccs of those most likely to agree or disagree with us.
-
-Hugh
---380388936-495940446-1289950132=:16422--
+What do we need to do to make get_online_cpus() safe to use in reclaim
+context?  (And in kswapd context, if that's really equivalent to
+"reclaim context").
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
