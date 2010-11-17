@@ -1,67 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 48F816B0093
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 16:11:07 -0500 (EST)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id oAHLAw3d017624
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 13:10:58 -0800
-Received: from gyd10 (gyd10.prod.google.com [10.243.49.202])
-	by kpbe12.cbf.corp.google.com with ESMTP id oAHLAhvK030401
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 13:10:56 -0800
-Received: by gyd10 with SMTP id 10so1610125gyd.18
-        for <linux-mm@kvack.org>; Wed, 17 Nov 2010 13:10:56 -0800 (PST)
-Date: Wed, 17 Nov 2010 13:10:50 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E0BA6B00DD
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 16:18:58 -0500 (EST)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id oAHLItxb028651
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 13:18:55 -0800
+Received: from gxk22 (gxk22.prod.google.com [10.202.11.22])
+	by wpaz24.hot.corp.google.com with ESMTP id oAHLIspI008776
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 13:18:54 -0800
+Received: by gxk22 with SMTP id 22so1019663gxk.15
+        for <linux-mm@kvack.org>; Wed, 17 Nov 2010 13:18:54 -0800 (PST)
+Date: Wed, 17 Nov 2010 13:18:50 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [2/8,v3] NUMA Hotplug Emulator: infrastructure of NUMA hotplug
- emulation
-In-Reply-To: <20101117075128.GA30254@shaohui>
-Message-ID: <alpine.DEB.2.00.1011171304060.10254@chino.kir.corp.google.com>
-References: <20101117020759.016741414@intel.com> <20101117021000.568681101@intel.com> <alpine.DEB.2.00.1011162359160.17408@chino.kir.corp.google.com> <20101117075128.GA30254@shaohui>
+Subject: Re: [7/8,v3] NUMA Hotplug Emulator: extend memory probe interface
+ to support NUMA
+In-Reply-To: <1290019807.9173.3789.camel@nimitz>
+Message-ID: <alpine.DEB.2.00.1011171312590.10254@chino.kir.corp.google.com>
+References: <20101117020759.016741414@intel.com> <20101117021000.916235444@intel.com> <1290019807.9173.3789.camel@nimitz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Shaohui Zheng <shaohui.zheng@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: shaohui.zheng@intel.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Haicheng Li <haicheng.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Greg KH <greg@kroah.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Nov 2010, Shaohui Zheng wrote:
+On Wed, 17 Nov 2010, Dave Hansen wrote:
 
-> > Hmm, why can't you use numa=hide to hide a specified quantity of memory 
-> > from the kernel and then use the add_memory() interface to hot-add the 
-> > offlined memory in the desired quantity?  In other words, why do you need 
-> > to track the offlined nodes with a state?
-> > 
-> > The userspace interface would take a desired size of hidden memory to 
-> > hot-add and the node id would be the first_unset_node(node_online_map).
-> Yes, it is a good idea, your solution is what we indeed do in our first 2
-> versions.  We use mem=memsize to hide memory, and we call add_memory interface
-> to hot-add offlined memory with desired quantity, and we can also add to
-> desired nodes(even through the nodes does not exists). it is very flexible
-> solution.
+> The other thing that Greg suggested was to use configfs.  Looking back
+> on it, that makes a lot of sense.  We can do better than these "probe"
+> files.
 > 
-> However, this solution was denied since we notice NUMA emulation, we should
-> reuse it.
+> In your case, it might be useful to tell the kernel to be able to add
+> memory in a node and add the node all in one go.  That'll probably be
+> closer to what the hardware will do, and will exercise different code
+> paths that the separate "add node", "then add memory" steps that you're
+> using here.
 > 
 
-I don't understand why that's a requirement, NUMA emulation is a seperate 
-feature.  Although both are primarily used to test and instrument other VM 
-and kernel code, NUMA emulation is restricted to only being used at boot 
-to fake nodes on smaller machines and can be used to test things like the 
-slab allocator.  The NUMA hotplug emulator that you're developing here is 
-primarily used to test the hotplug callbacks; for that use-case, it seems 
-particularly helpful if nodes can be hotplugged of various sizes and node 
-ids rather than having static characteristics that cannot be changed with 
-a reboot.
+That seems like a seperate issue of moving the memory hotplug interface 
+over to configfs and that seems like it will cause a lot of userspace 
+breakage.  The memory hotplug interface can already add memory to a node 
+without using the ACPI notifier, so what does it have to do with this 
+patchset?
 
-> Currently, our solution creates static nodes when OS boots, only the node with 
-> state N_HIDDEN can be hot-added with node/probe interface, and we can query 
-> 
+I think what this patchset really wants to do is map offline hot-added 
+memory to a different node id before it is onlined.  It needs no 
+additional command-line interface or kconfig options, users just need to 
+physically hot-add memory at runtime or use mem= when booting to reserve 
+present memory from being used.
 
-The idea that I've proposed (and you've apparently thought about and even 
-implemented at one point) is much more powerful than that.  We need not 
-query the state of hidden nodes that we've setup at boot but can rather 
-use the amount of hidden memory to setup the nodes in any way that we want 
-at runtime (various sizes, interleaved node ids, etc).
+Then, export the amount of memory that is actually physically present in 
+the e820 but was truncated by mem= and allow users to hot-add the memory 
+via the probe interface.  Add a writeable 'node' file to offlined memory 
+section directories and allow it to be changed prior to online.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
