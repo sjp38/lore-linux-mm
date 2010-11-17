@@ -1,53 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id B81E68D0002
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 18:44:25 -0500 (EST)
-Subject: Re: [PATCH 06/13] writeback: bdi write bandwidth estimation
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20101117153827.e9f169d1.akpm@linux-foundation.org>
-References: <20101117042720.033773013@intel.com>
-	 <20101117042850.002299964@intel.com>
-	 <20101117150837.a18d56c1.akpm@linux-foundation.org>
-	 <1290036299.2109.1288.camel@laptop>
-	 <20101117153827.e9f169d1.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 18 Nov 2010 00:43:32 +0100
-Message-ID: <1290037412.24491.11.camel@twins>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C5A238D0002
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 18:48:03 -0500 (EST)
+Date: Wed, 17 Nov 2010 15:46:41 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/8] Use memory compaction instead of lumpy reclaim
+ during high-order allocations
+Message-Id: <20101117154641.51fd7ce5.akpm@linux-foundation.org>
+In-Reply-To: <1290010969-26721-1-git-send-email-mel@csn.ul.ie>
+References: <1290010969-26721-1-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Li Shaohua <shaohua.li@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-11-17 at 15:38 -0800, Andrew Morton wrote:
-> On Thu, 18 Nov 2010 00:24:59 +0100
-> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> 
-> > On Wed, 2010-11-17 at 15:08 -0800, Andrew Morton wrote:
-> > > On Wed, 17 Nov 2010 12:27:26 +0800
-> > > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > > 
-> > > > +     w = min(elapsed / (HZ/100), 128UL);
-> > > 
-> > > I did try setting HZ=10 many years ago, and the kernel blew up.
-> > > 
-> > > I do recall hearing of people who set HZ very low, perhaps because
-> > > their huge machines were seeing performance prolems when the timer tick
-> > > went off.  Probably there's no need to do that any more.
-> > > 
-> > > But still, we shouldn't hard-wire the (HZ >= 100) assumption if we
-> > > don't absolutely need to, and I don't think it is absolutely needed
-> > > here.  
-> > 
-> > People who do cpu bring-up on very slow FPGAs also lower HZ as far as
-> > possible.
-> 
-> 	grep -r "[^a-zA-Z0-9_]HZ[ ]*/[ ]*100[^0-9]" .
+On Wed, 17 Nov 2010 16:22:41 +0000
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-Maybe they've got a patch-kit somewhere,. I'll ask around. It would be
-nice to have that sorted.
+> Huge page allocations are not expected to be cheap but lumpy reclaim
+> is still very disruptive.
 
+Huge pages are boring.  Can we expect any benefit for the
+stupid-nic-driver-which-does-order-4-GFP_ATOMIC-allocations problem?
+
+>
+> ...
+>
+> I haven't pushed hard on the concept of lumpy compaction yet and right
+> now I don't intend to during this cycle. The initial prototypes did not
+> behave as well as expected and this series improves the current situation
+> a lot without introducing new algorithms. Hence, I'd like this series to
+> be considered for merging.
+
+Translation: "Andrew, wait for the next version"? :)
+
+> I'm hoping that this series also removes the
+> necessity for the "delete lumpy reclaim" patch from the THP tree.
+
+Now I'm sad.  I read all that and was thinking "oh goody, we get to
+delete something for once".  But no :(
+
+If you can get this stuff to work nicely, why can't we remove lumpy
+reclaim?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
