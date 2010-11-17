@@ -1,68 +1,78 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 09/13] writeback: reduce per-bdi dirty threshold ramp up time
-Date: Wed, 17 Nov 2010 12:27:29 +0800
-Message-ID: <20101117042850.361893350@intel.com>
+Subject: [PATCH 13/13] writeback: make nr_to_write a per-file limit
+Date: Wed, 17 Nov 2010 12:27:33 +0800
+Message-ID: <20101117042850.839706840@intel.com>
 References: <20101117042720.033773013@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PIZgU-0001lI-QS
-	for glkm-linux-mm-2@m.gmane.org; Wed, 17 Nov 2010 05:31:51 +0100
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4F1CA6B010B
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 23:31:40 -0500 (EST)
-Content-Disposition: inline; filename=writeback-speedup-per-bdi-threshold-ramp-up.patch
+	id 1PIZga-0001o2-QI
+	for glkm-linux-mm-2@m.gmane.org; Wed, 17 Nov 2010 05:31:57 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1F4286B0108
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 23:31:55 -0500 (EST)
+Content-Disposition: inline; filename=writeback-single-file-limit.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Richard Kennedy <richard@rsk.demon.co.uk>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Reduce the dampening for the control system, yielding faster
-convergence.
+This ensures full 4MB (or larger) writeback size for large dirty files.
 
-Currently it converges at a snail's pace for slow devices (in order of
-minutes).  For really fast storage, the convergence speed should be fine.
-
-It makes sense to make it reasonably fast for typical desktops.
-
-After patch, it converges in ~10 seconds for 60MB/s writes and 4GB mem.
-So expect ~1s for a fast 600MB/s storage under 4GB mem, or ~4s under
-16GB mem, which seems reasonable.
-
-$ while true; do grep BdiDirtyThresh /debug/bdi/8:0/stats; sleep 1; done
-BdiDirtyThresh:            0 kB
-BdiDirtyThresh:       118748 kB
-BdiDirtyThresh:       214280 kB
-BdiDirtyThresh:       303868 kB
-BdiDirtyThresh:       376528 kB
-BdiDirtyThresh:       411180 kB
-BdiDirtyThresh:       448636 kB
-BdiDirtyThresh:       472260 kB
-BdiDirtyThresh:       490924 kB
-BdiDirtyThresh:       499596 kB
-BdiDirtyThresh:       507068 kB
-...
-DirtyThresh:          530392 kB
-
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-CC: Richard Kennedy <richard@rsk.demon.co.uk>
+CC: Jan Kara <jack@suse.cz>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/page-writeback.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/fs-writeback.c         |   11 +++++++++++
+ include/linux/writeback.h |    1 +
+ 2 files changed, 12 insertions(+)
 
---- linux-next.orig/mm/page-writeback.c	2010-11-15 13:08:16.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-11-15 13:08:28.000000000 +0800
-@@ -125,7 +125,7 @@ static int calc_period_shift(void)
- 	else
- 		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
- 				100;
--	return 2 + ilog2(dirty_total - 1);
-+	return ilog2(dirty_total - 1) - 1;
- }
+--- linux-next.orig/fs/fs-writeback.c	2010-11-15 19:52:39.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-11-15 21:31:50.000000000 +0800
+@@ -330,6 +330,8 @@ static int
+ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
+ {
+ 	struct address_space *mapping = inode->i_mapping;
++	long per_file_limit = wbc->per_file_limit;
++	long nr_to_write;
+ 	unsigned dirty;
+ 	int ret;
  
- /*
+@@ -365,8 +367,16 @@ writeback_single_inode(struct inode *ino
+ 	inode->i_state &= ~I_DIRTY_PAGES;
+ 	spin_unlock(&inode_lock);
+ 
++	if (per_file_limit) {
++		nr_to_write = wbc->nr_to_write;
++		wbc->nr_to_write = per_file_limit;
++	}
++
+ 	ret = do_writepages(mapping, wbc);
+ 
++	if (per_file_limit)
++		wbc->nr_to_write += nr_to_write - per_file_limit;
++
+ 	/*
+ 	 * Make sure to wait on the data before writing out the metadata.
+ 	 * This is important for filesystems that modify metadata on data
+@@ -698,6 +708,7 @@ static long wb_writeback(struct bdi_writ
+ 
+ 		wbc.more_io = 0;
+ 		wbc.nr_to_write = write_chunk;
++		wbc.per_file_limit = write_chunk;
+ 		wbc.pages_skipped = 0;
+ 
+ 		trace_wbc_writeback_start(&wbc, wb->bdi);
+--- linux-next.orig/include/linux/writeback.h	2010-11-15 19:52:39.000000000 +0800
++++ linux-next/include/linux/writeback.h	2010-11-15 21:31:50.000000000 +0800
+@@ -43,6 +43,7 @@ struct writeback_control {
+ 					   extra jobs and livelock */
+ 	long nr_to_write;		/* Write this many pages, and decrement
+ 					   this for each page written */
++	long per_file_limit;		/* Write this many pages for one file */
+ 	long pages_skipped;		/* Pages which were not written */
+ 
+ 	/*
 
 
 --
