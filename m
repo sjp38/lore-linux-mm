@@ -1,50 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BBD06B0093
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 15:32:19 -0500 (EST)
-Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
-	by smtp-out.google.com with ESMTP id oAHKWEHP010358
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 12:32:16 -0800
-Received: from ywc21 (ywc21.prod.google.com [10.192.3.21])
-	by hpaq5.eem.corp.google.com with ESMTP id oAHKWCkp005012
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 12:32:12 -0800
-Received: by ywc21 with SMTP id 21so136496ywc.0
-        for <linux-mm@kvack.org>; Wed, 17 Nov 2010 12:32:11 -0800 (PST)
-Date: Wed, 17 Nov 2010 12:32:07 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 48F816B0093
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 16:11:07 -0500 (EST)
+Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
+	by smtp-out.google.com with ESMTP id oAHLAw3d017624
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 13:10:58 -0800
+Received: from gyd10 (gyd10.prod.google.com [10.243.49.202])
+	by kpbe12.cbf.corp.google.com with ESMTP id oAHLAhvK030401
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 13:10:56 -0800
+Received: by gyd10 with SMTP id 10so1610125gyd.18
+        for <linux-mm@kvack.org>; Wed, 17 Nov 2010 13:10:56 -0800 (PST)
+Date: Wed, 17 Nov 2010 13:10:50 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 2/3] mm: remove gfp mask from pcpu_get_vm_areas
-In-Reply-To: <4CE39B89.8010908@kernel.org>
-Message-ID: <alpine.DEB.2.00.1011171229040.30790@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1011161935500.19230@chino.kir.corp.google.com> <alpine.DEB.2.00.1011161937380.19230@chino.kir.corp.google.com> <4CE39B89.8010908@kernel.org>
+Subject: Re: [2/8,v3] NUMA Hotplug Emulator: infrastructure of NUMA hotplug
+ emulation
+In-Reply-To: <20101117075128.GA30254@shaohui>
+Message-ID: <alpine.DEB.2.00.1011171304060.10254@chino.kir.corp.google.com>
+References: <20101117020759.016741414@intel.com> <20101117021000.568681101@intel.com> <alpine.DEB.2.00.1011162359160.17408@chino.kir.corp.google.com> <20101117075128.GA30254@shaohui>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org
+To: Shaohui Zheng <shaohui.zheng@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Nov 2010, Tejun Heo wrote:
+On Wed, 17 Nov 2010, Shaohui Zheng wrote:
 
-> > pcpu_get_vm_areas() only uses GFP_KERNEL allocations, so remove the gfp_t
-> > formal and use the mask internally.
+> > Hmm, why can't you use numa=hide to hide a specified quantity of memory 
+> > from the kernel and then use the add_memory() interface to hot-add the 
+> > offlined memory in the desired quantity?  In other words, why do you need 
+> > to track the offlined nodes with a state?
 > > 
-> > Signed-off-by: David Rientjes <rientjes@google.com>
+> > The userspace interface would take a desired size of hidden memory to 
+> > hot-add and the node id would be the first_unset_node(node_online_map).
+> Yes, it is a good idea, your solution is what we indeed do in our first 2
+> versions.  We use mem=memsize to hide memory, and we call add_memory interface
+> to hot-add offlined memory with desired quantity, and we can also add to
+> desired nodes(even through the nodes does not exists). it is very flexible
+> solution.
 > 
-> Patch itself looks okay to me but why do you want to drop the
-> argument?
+> However, this solution was denied since we notice NUMA emulation, we should
+> reuse it.
 > 
 
-A recent thread[*] shows a problem whereas gfp masks may be passed into 
-the vmalloc interface that restrict reclaim behavior, yet the underlying 
-pte allocator unconditionally uses GFP_KERNEL.  This is a first-pass at an 
-effort to remove all gfp_t formals from the vmalloc interface (and can be 
-completed once gfs2, ntfs, and ceph have converted) and require them to 
-use GFP_KERNEL.
+I don't understand why that's a requirement, NUMA emulation is a seperate 
+feature.  Although both are primarily used to test and instrument other VM 
+and kernel code, NUMA emulation is restricted to only being used at boot 
+to fake nodes on smaller machines and can be used to test things like the 
+slab allocator.  The NUMA hotplug emulator that you're developing here is 
+primarily used to test the hotplug callbacks; for that use-case, it seems 
+particularly helpful if nodes can be hotplugged of various sizes and node 
+ids rather than having static characteristics that cannot be changed with 
+a reboot.
 
-Luckily for the per-cpu allocator, this was trivial since that happens to 
-be the only use case already.
+> Currently, our solution creates static nodes when OS boots, only the node with 
+> state N_HIDDEN can be hot-added with node/probe interface, and we can query 
+> 
 
- [*] http://marc.info/?t=128942209500002
+The idea that I've proposed (and you've apparently thought about and even 
+implemented at one point) is much more powerful than that.  We need not 
+query the state of hidden nodes that we've setup at boot but can rather 
+use the amount of hidden memory to setup the nodes in any way that we want 
+at runtime (various sizes, interleaved node ids, etc).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
