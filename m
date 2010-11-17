@@ -1,119 +1,194 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 11/13] writeback: scale down max throttle bandwidth on concurrent dirtiers
-Date: Wed, 17 Nov 2010 11:58:32 +0800
-Message-ID: <20101117035906.702620674@intel.com>
+Subject: [PATCH 06/13] writeback: bdi write bandwidth estimation
+Date: Wed, 17 Nov 2010 11:58:27 +0800
+Message-ID: <20101117035906.117752481@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PIZKJ-0007nm-Dw
-	for glkm-linux-mm-2@m.gmane.org; Wed, 17 Nov 2010 05:08:55 +0100
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5DB548D00A4
+	id 1PIZKN-0007pq-EB
+	for glkm-linux-mm-2@m.gmane.org; Wed, 17 Nov 2010 05:08:59 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B6ABD8D00A2
 	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 23:08:12 -0500 (EST)
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Theodore Ts'o <tytso@mit.edu>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Theodore Ts'o <tytso@mit.edu>, Li Shaohua <shaohua.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
 Andrew,
 References: <20101117035821.000579293@intel.com>
-Content-Disposition: inline; filename=writeback-adaptive-throttle-bandwidth.patch
+Content-Disposition: inline; filename=writeback-bandwidth-estimation-in-flusher.patch
 
-This will noticeably reduce the fluctuaions of pause time when there are
-100+ concurrent dirtiers.
+The estimation value will start from 100MB/s and adapt to the real
+bandwidth in seconds.  It's pretty accurate for common filesystems.
 
-The more parallel dirtiers (1 dirtier => 4 dirtiers), the smaller
-bandwidth each dirtier will share (bdi_bandwidth => bdi_bandwidth/4),
-the less gap to the dirty limit ((C-A) => (C-B)), the less stable the
-pause time will be (given the same fluctuation of bdi_dirty).
+As the first use case, it replaces the fixed 100MB/s value used for
+throttle bandwidth calculation in balance_dirty_pages().
 
-For example, if A drifts to A', its pause time may drift from 5ms to
-6ms, while B to B' may drift from 50ms to 90ms.  It's much larger
-fluctuations in relative ratio as well as absolute time.
+The overheads won't be high because the bdi bandwidth udpate only occurs
+in >10ms intervals.
 
-Fig.1 before patch, gap (C-B) is too low to get smooth pause time
+Initially it's only estimated in balance_dirty_pages() because this is
+the most reliable place to get reasonable large bandwidth -- the bdi is
+normally fully utilized when bdi_thresh is reached.
 
-throttle_bandwidth_A = bdi_bandwidth .........o
-                                              | o <= A'
-                                              |   o
-                                              |     o
-                                              |       o
-                                              |         o
-throttle_bandwidth_B = bdi_bandwidth / 4 .....|...........o
-                                              |           | o <= B'
-----------------------------------------------+-----------+---o
-                                              A           B   C
+Then Shaohua recommends to also do it in the flusher thread, to keep the
+value updated when there are only periodic/background writeback and no
+tasks throttled.
 
-The solution is to lower the slope of the throttle line accordingly,
-which makes B stabilize at some point more far away from C.
+The estimation cannot be done purely in the flusher thread because it's
+not sufficient for NFS. NFS writeback won't block at get_request_wait(),
+so tend to complete quickly. Another problem is, slow devices may take
+dozens of seconds to write the initial 64MB chunk (write_bandwidth
+starts with 100MB/s, this translates to 64MB nr_to_write). So it may
+take more than 1 minute to adapt to the smallish bandwidth if the
+bandwidth is only updated in the flusher thread.
 
-Fig.2 after patch
-
-throttle_bandwidth_A = bdi_bandwidth .........o
-                                              | o <= A'
-                                              |   o
-                                              |     o
-    lowered max throttle bandwidth for B ===> *       o
-                                              |   *     o
-throttle_bandwidth_B = bdi_bandwidth / 4 .............*   o
-                                              |       |   * o
-----------------------------------------------+-------+-------o
-                                              A       B       C
-
-Note that C is actually different points for 1-dirty and 4-dirtiers
-cases, but for easy graphing, we move them together.
-
+CC: Li Shaohua <shaohua.li@intel.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/page-writeback.c |   16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ fs/fs-writeback.c           |    5 ++++
+ include/linux/backing-dev.h |    2 +
+ include/linux/writeback.h   |    3 ++
+ mm/backing-dev.c            |    1 
+ mm/page-writeback.c         |   41 +++++++++++++++++++++++++++++++++-
+ 5 files changed, 51 insertions(+), 1 deletion(-)
 
---- linux-next.orig/mm/page-writeback.c	2010-11-15 19:52:43.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-11-15 21:30:45.000000000 +0800
-@@ -537,6 +537,7 @@ static void balance_dirty_pages(struct a
- 	unsigned long background_thresh;
- 	unsigned long dirty_thresh;
- 	unsigned long bdi_thresh;
-+	unsigned long task_thresh;
- 	unsigned long bw;
+--- linux-next.orig/include/linux/backing-dev.h	2010-11-15 21:51:38.000000000 +0800
++++ linux-next/include/linux/backing-dev.h	2010-11-15 21:51:41.000000000 +0800
+@@ -75,6 +75,8 @@ struct backing_dev_info {
+ 	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
+ 
+ 	struct prop_local_percpu completions;
++	unsigned long write_bandwidth_update_time;
++	int write_bandwidth;
+ 	int dirty_exceeded;
+ 
+ 	unsigned int min_ratio;
+--- linux-next.orig/mm/backing-dev.c	2010-11-15 21:51:38.000000000 +0800
++++ linux-next/mm/backing-dev.c	2010-11-15 21:51:41.000000000 +0800
+@@ -660,6 +660,7 @@ int bdi_init(struct backing_dev_info *bd
+ 			goto err;
+ 	}
+ 
++	bdi->write_bandwidth = 100 << 20;
+ 	bdi->dirty_exceeded = 0;
+ 	err = prop_local_init_percpu(&bdi->completions);
+ 
+--- linux-next.orig/fs/fs-writeback.c	2010-11-15 21:43:51.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-11-15 21:51:41.000000000 +0800
+@@ -635,6 +635,8 @@ static long wb_writeback(struct bdi_writ
+ 		.range_cyclic		= work->range_cyclic,
+ 	};
+ 	unsigned long oldest_jif;
++	unsigned long bw_time;
++	s64 bw_written = 0;
+ 	long wrote = 0;
+ 	long write_chunk;
+ 	struct inode *inode;
+@@ -668,6 +670,8 @@ static long wb_writeback(struct bdi_writ
+ 		write_chunk = LONG_MAX;
+ 
+ 	wbc.wb_start = jiffies; /* livelock avoidance */
++	bdi_update_write_bandwidth(wb->bdi, &bw_time, &bw_written);
++
+ 	for (;;) {
+ 		/*
+ 		 * Stop writeback when nr_pages has been consumed
+@@ -702,6 +706,7 @@ static long wb_writeback(struct bdi_writ
+ 		else
+ 			writeback_inodes_wb(wb, &wbc);
+ 		trace_wbc_writeback_written(&wbc, wb->bdi);
++		bdi_update_write_bandwidth(wb->bdi, &bw_time, &bw_written);
+ 
+ 		work->nr_pages -= write_chunk - wbc.nr_to_write;
+ 		wrote += write_chunk - wbc.nr_to_write;
+--- linux-next.orig/mm/page-writeback.c	2010-11-15 21:51:38.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-11-15 21:51:41.000000000 +0800
+@@ -479,6 +479,41 @@ out:
+ 	return 1 + int_sqrt(dirty_thresh - dirty_pages);
+ }
+ 
++void bdi_update_write_bandwidth(struct backing_dev_info *bdi,
++				unsigned long *bw_time,
++				s64 *bw_written)
++{
++	unsigned long written;
++	unsigned long elapsed;
++	unsigned long bw;
++	unsigned long w;
++
++	if (*bw_written == 0)
++		goto snapshot;
++
++	elapsed = jiffies - *bw_time;
++	if (elapsed < HZ/100)
++		return;
++
++	/*
++	 * When there lots of tasks throttled in balance_dirty_pages(), they
++	 * will each try to update the bandwidth for the same period, making
++	 * the bandwidth drift much faster than the desired rate (as in the
++	 * single dirtier case). So do some rate limiting.
++	 */
++	if (jiffies - bdi->write_bandwidth_update_time < elapsed)
++		goto snapshot;
++
++	written = percpu_counter_read(&bdi->bdi_stat[BDI_WRITTEN]) - *bw_written;
++	bw = (HZ * PAGE_CACHE_SIZE * written + elapsed/2) / elapsed;
++	w = min(elapsed / (HZ/100), 128UL);
++	bdi->write_bandwidth = (bdi->write_bandwidth * (1024-w) + bw * w) >> 10;
++	bdi->write_bandwidth_update_time = jiffies;
++snapshot:
++	*bw_written = percpu_counter_read(&bdi->bdi_stat[BDI_WRITTEN]);
++	*bw_time = jiffies;
++}
++
+ /*
+  * balance_dirty_pages() must be called by processes which are generating dirty
+  * data.  It looks at the number of dirty pages in the machine and will force
+@@ -498,6 +533,8 @@ static void balance_dirty_pages(struct a
  	unsigned long pause = 0;
  	bool dirty_exceeded = false;
-@@ -566,7 +567,7 @@ static void balance_dirty_pages(struct a
- 			break;
+ 	struct backing_dev_info *bdi = mapping->backing_dev_info;
++	unsigned long bw_time;
++	s64 bw_written = 0;
  
- 		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
--		bdi_thresh = task_dirty_limit(current, bdi_thresh);
-+		task_thresh = task_dirty_limit(current, bdi_thresh);
- 
+ 	for (;;) {
  		/*
- 		 * In order to avoid the stacked BDI deadlock we need
-@@ -605,14 +606,23 @@ static void balance_dirty_pages(struct a
- 			break;
- 		bdi_prev_dirty = bdi_dirty;
- 
--		if (bdi_dirty >= bdi_thresh) {
-+		if (bdi_dirty >= task_thresh) {
- 			pause = HZ/10;
+@@ -546,7 +583,7 @@ static void balance_dirty_pages(struct a
  			goto pause;
  		}
  
-+		/*
-+		 * When bdi_dirty grows closer to bdi_thresh, it indicates more
-+		 * concurrent dirtiers. Proportionally lower the max throttle
-+		 * bandwidth. This will resist bdi_dirty from approaching to
-+		 * close to task_thresh, and help reduce fluctuations of pause
-+		 * time when there are lots of dirtiers.
-+		 */
- 		bw = bdi->write_bandwidth;
--
- 		bw = bw * (bdi_thresh - bdi_dirty);
-+		bw = bw / (bdi_thresh / BDI_SOFT_DIRTY_LIMIT + 1);
-+
-+		bw = bw * (task_thresh - bdi_dirty);
- 		bw = bw / (bdi_thresh / TASK_SOFT_DIRTY_LIMIT + 1);
+-		bw = 100 << 20; /* use static 100MB/s for the moment */
++		bw = bdi->write_bandwidth;
  
- 		pause = HZ * (pages_dirtied << PAGE_CACHE_SHIFT) / (bw + 1);
+ 		bw = bw * (bdi_thresh - bdi_dirty);
+ 		bw = bw / (bdi_thresh / TASK_SOFT_DIRTY_LIMIT + 1);
+@@ -555,8 +592,10 @@ static void balance_dirty_pages(struct a
+ 		pause = clamp_val(pause, 1, HZ/10);
+ 
+ pause:
++		bdi_update_write_bandwidth(bdi, &bw_time, &bw_written);
+ 		__set_current_state(TASK_INTERRUPTIBLE);
+ 		io_schedule_timeout(pause);
++		bdi_update_write_bandwidth(bdi, &bw_time, &bw_written);
+ 
+ 		/*
+ 		 * The bdi thresh is somehow "soft" limit derived from the
+--- linux-next.orig/include/linux/writeback.h	2010-11-15 21:43:51.000000000 +0800
++++ linux-next/include/linux/writeback.h	2010-11-15 21:51:41.000000000 +0800
+@@ -137,6 +137,9 @@ int dirty_writeback_centisecs_handler(st
+ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
+ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
+ 			       unsigned long dirty);
++void bdi_update_write_bandwidth(struct backing_dev_info *bdi,
++				unsigned long *bw_time,
++				s64 *bw_written);
+ 
+ void page_writeback_init(void);
+ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 
 
 --
