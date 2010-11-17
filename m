@@ -1,60 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 700AD8D0080
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 02:37:50 -0500 (EST)
-Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
-	by smtp-out.google.com with ESMTP id oAH7bkYn028753
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 23:37:46 -0800
-Received: from iwn3 (iwn3.prod.google.com [10.241.68.67])
-	by hpaq6.eem.corp.google.com with ESMTP id oAH7biPQ029140
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 23:37:45 -0800
-Received: by iwn3 with SMTP id 3so2005935iwn.26
-        for <linux-mm@kvack.org>; Tue, 16 Nov 2010 23:37:44 -0800 (PST)
-Date: Tue, 16 Nov 2010 23:37:39 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BE888D0080
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 03:16:51 -0500 (EST)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id oAH8GjIM020230
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 00:16:45 -0800
+Received: from gwj17 (gwj17.prod.google.com [10.200.10.17])
+	by hpaq11.eem.corp.google.com with ESMTP id oAH8GfSC030470
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 00:16:43 -0800
+Received: by gwj17 with SMTP id 17so946245gwj.19
+        for <linux-mm@kvack.org>; Wed, 17 Nov 2010 00:16:40 -0800 (PST)
+Date: Wed, 17 Nov 2010 00:16:34 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: Propagating GFP_NOFS inside __vmalloc()
-In-Reply-To: <ED9181FA-6B0E-4A7B-AA2D-7B976A876557@oracle.com>
-Message-ID: <alpine.DEB.2.00.1011162329570.13242@chino.kir.corp.google.com>
-References: <1289421759.11149.59.camel@oralap> <20101111120643.22dcda5b.akpm@linux-foundation.org> <1289512924.428.112.camel@oralap> <20101111142511.c98c3808.akpm@linux-foundation.org> <1289840500.13446.65.camel@oralap> <alpine.DEB.2.00.1011151303130.8167@chino.kir.corp.google.com>
- <20101116141130.b20a8a8d.akpm@linux-foundation.org> <ED9181FA-6B0E-4A7B-AA2D-7B976A876557@oracle.com>
+Subject: Re: [1/8,v3] NUMA Hotplug Emulator: add function to hide memory
+ region via e820 table.
+In-Reply-To: <20101117021000.479272928@intel.com>
+Message-ID: <alpine.DEB.2.00.1011162354390.16875@chino.kir.corp.google.com>
+References: <20101117020759.016741414@intel.com> <20101117021000.479272928@intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andreas Dilger <andreas.dilger@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Ricardo M. Correia" <ricardo.correia@oracle.com>, linux-mm@kvack.org, Brian Behlendorf <behlendorf1@llnl.gov>
+To: Shaohui Zheng <shaohui.zheng@intel.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Nov 2010, Andreas Dilger wrote:
+On Wed, 17 Nov 2010, shaohui.zheng@intel.com wrote:
 
-> >> - avoid doing anything other than GFP_KERNEL allocations for __vmalloc():
-> >>   the only current users are gfs2, ntfs, and ceph (the page allocator
-> >>   __vmalloc() can be discounted since it's done at boot and GFP_ATOMIC
-> >>   here has almost no chance of failing since the size is determined based 
-> >>   on what is available).
-> > 
-> > ^^ this
-> > 
-> > Using vmalloc anywhere is lame.
-> 
-> I agree.  What we really want is 1MB kmalloc() to work...  :-/
-> 
+> Index: linux-hpe4/arch/x86/kernel/e820.c
+> ===================================================================
+> --- linux-hpe4.orig/arch/x86/kernel/e820.c	2010-11-15 17:13:02.483461667 +0800
+> +++ linux-hpe4/arch/x86/kernel/e820.c	2010-11-15 17:13:07.083461581 +0800
+> @@ -971,6 +971,7 @@
+>  }
+>  
+>  static int userdef __initdata;
+> +static u64 max_mem_size __initdata = ULLONG_MAX;
+>  
+>  /* "mem=nopentium" disables the 4MB page tables. */
+>  static int __init parse_memopt(char *p)
+> @@ -989,12 +990,28 @@
+>  
+>  	userdef = 1;
+>  	mem_size = memparse(p, &p);
+> -	e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
+> +	e820_remove_range(mem_size, max_mem_size - mem_size, E820_RAM, 1);
+> +	max_mem_size = mem_size;
+>  
+>  	return 0;
+>  }
 
-Order-8 allocations are already have a higher liklihood of succeeding 
-because of memory compaction, which was explicitly targeted to aid in 
-order-9 hugepage allocations.  The problem is that it's useless for 
-GFP_NOFS.
+This needs memmap= support as well, right?
 
-I think removing gfp_t arguments from all of the public vmalloc interface 
-will inevitably be where we go with this and everything will assume 
-GFP_KERNEL | __GFP_HIGHMEM.
+>  early_param("mem", parse_memopt);
+>  
+> +#ifdef CONFIG_NODE_HOTPLUG_EMU
+> +u64 __init e820_hide_mem(u64 mem_size)
+> +{
+> +	u64 start, end_pfn;
+> +
+> +	userdef = 1;
+> +	end_pfn = e820_end_of_ram_pfn();
+> +	start = (end_pfn << PAGE_SHIFT) - mem_size;
+> +	e820_remove_range(start, max_mem_size - start, E820_RAM, 1);
+> +	max_mem_size = start;
+> +
+> +	return start;
+> +}
+> +#endif
 
-If you _really_ need 1MB of physically contiguous memory, then you'll need 
-to find a way to do it in a reclaimable context.  If we actually can 
-remove the dependency that gfs2, ntfs, and ceph have in the kernel.org 
-kernel, then this support may be pulled out from under you; the worst-case 
-scenario for Lustre is that you'll have to modify the callchains like I 
-suggested in my original email to pass the gfp mask all the way down to 
-the pte allocators if you can't find a way to do it under GFP_KERNEL.
+This doesn't have any sanity checking for whether e820_remove_range() will 
+leave any significant amount of memory behind so the kernel will even boot 
+(probably should have a guaranteed FAKE_NODE_MIN_SIZE left behind?).
+
+> +
+>  static int __init parse_memmap_opt(char *p)
+>  {
+>  	char *oldp;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
