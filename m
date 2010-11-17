@@ -1,84 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 529F26B0093
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 16:55:51 -0500 (EST)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id oAHLdd0Y031477
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 16:39:39 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oAHLtnJa354206
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 16:55:49 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oAHLtmmF004935
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 19:55:49 -0200
-Subject: Re: [7/8,v3] NUMA Hotplug Emulator: extend memory probe interface
- to support NUMA
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <alpine.DEB.2.00.1011171312590.10254@chino.kir.corp.google.com>
-References: <20101117020759.016741414@intel.com>
-	 <20101117021000.916235444@intel.com> <1290019807.9173.3789.camel@nimitz>
-	 <alpine.DEB.2.00.1011171312590.10254@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Wed, 17 Nov 2010 13:55:45 -0800
-Message-ID: <1290030945.9173.4211.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id B11DE6B0093
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 17:11:15 -0500 (EST)
+Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
+	by smtp-out.google.com with ESMTP id oAHMBB66012725
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 14:11:11 -0800
+Received: from qwf7 (qwf7.prod.google.com [10.241.194.71])
+	by hpaq5.eem.corp.google.com with ESMTP id oAHMAnIA026416
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 14:11:10 -0800
+Received: by qwf7 with SMTP id 7so28329qwf.34
+        for <linux-mm@kvack.org>; Wed, 17 Nov 2010 14:11:09 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1290007734.2109.941.camel@laptop>
+References: <1289996638-21439-1-git-send-email-walken@google.com>
+	<1289996638-21439-4-git-send-email-walken@google.com>
+	<20101117125756.GA5576@amd>
+	<1290007734.2109.941.camel@laptop>
+Date: Wed, 17 Nov 2010 14:05:30 -0800
+Message-ID: <AANLkTim4tO_aKzXLXJm-N-iEQ9rNSa0=HGJVDAz33kY6@mail.gmail.com>
+Subject: Re: [PATCH 3/3] mlock: avoid dirtying pages and triggering writeback
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: shaohui.zheng@intel.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Haicheng Li <haicheng.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Greg KH <greg@kroah.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Nick Piggin <npiggin@kernel.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Theodore Tso <tytso@google.com>, Michael Rubin <mrubin@google.com>, Suleiman Souhlal <suleiman@google.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 2010-11-17 at 13:18 -0800, David Rientjes wrote:
-> On Wed, 17 Nov 2010, Dave Hansen wrote:
-> > The other thing that Greg suggested was to use configfs.  Looking back
-> > on it, that makes a lot of sense.  We can do better than these "probe"
-> > files.
-> > 
-> > In your case, it might be useful to tell the kernel to be able to add
-> > memory in a node and add the node all in one go.  That'll probably be
-> > closer to what the hardware will do, and will exercise different code
-> > paths that the separate "add node", "then add memory" steps that you're
-> > using here.
-> 
-> That seems like a seperate issue of moving the memory hotplug interface 
-> over to configfs and that seems like it will cause a lot of userspace 
-> breakage.  The memory hotplug interface can already add memory to a node 
-> without using the ACPI notifier, so what does it have to do with this 
-> patchset?
+On Wed, Nov 17, 2010 at 7:28 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> On Wed, 2010-11-17 at 23:57 +1100, Nick Piggin wrote:
+>> On Wed, Nov 17, 2010 at 04:23:58AM -0800, Michel Lespinasse wrote:
+>> > When faulting in pages for mlock(), we want to break COW for anonymous
+>> > or file pages within VM_WRITABLE, non-VM_SHARED vmas. However, there is
+>> > no need to write-fault into VM_SHARED vmas since shared file pages can
+>> > be mlocked first and dirtied later, when/if they actually get written to.
+>> > Skipping the write fault is desirable, as we don't want to unnecessarily
+>> > cause these pages to be dirtied and queued for writeback.
+>>
+>> It's not just to break COW, but to do block allocation and such
+>> (filesystem's page_mkwrite op). That needs to at least be explained
+>> in the changelog.
+>
+> Agreed, the 0/3 description actually does mention this.
+>
+>> Filesystem doesn't have a good way to fully pin required things
+>> according to mlock, but page_mkwrite provides some reasonable things
+>> (like block allocation / reservation).
+>
+> Right, but marking all pages dirty isn't really sane. I can imagine
+> making the reservation but not marking things dirty solution, although
+> it might be lots harder to implement, esp since some filesystems don't
+> actually have a page_mkwrite() implementation.
 
-I was actually just thinking of the node hotplug interface not using a
-'probe' file.  But, you make a good point.  They _have_ to be tied
-together, and doing one via configfs would mean that we probably have to
-do the other that way.  We wouldn't have to _remove_ the ...memory/probe
-interface (breaking userspace), but we would add some redundancy.
+Really, my understanding is that not pre-allocating filesystem blocks
+is just fine. This is, after all, what happens with ext3 and it's
+never been reported as a bug (that I know of).
 
-> I think what this patchset really wants to do is map offline hot-added 
-> memory to a different node id before it is onlined.  It needs no 
-> additional command-line interface or kconfig options, users just need to 
-> physically hot-add memory at runtime or use mem= when booting to reserve 
-> present memory from being used.
-> 
-> Then, export the amount of memory that is actually physically present in 
-> the e820 but was truncated by mem=
+If filesystem people's feedback is that they really want mlock() to
+continue pre-allocating blocks, maybe we can just do it using
+fallocate() rather than page_mkwrite() callbacks ?
 
-I _think_ that's already effectively done in /sys/firmware/memmap.   
-
-> and allow users to hot-add the memory 
-> via the probe interface.  Add a writeable 'node' file to offlined memory 
-> section directories and allow it to be changed prior to online.
-
-That would work, in theory.  But, in practice, we allocate the mem_map[]
-at probe time.  So, we've already effectively picked a node at probe.
-That was done because the probe is equivalent to the hardware "add"
-event.  Once the hardware where in the address space the memory is, it
-always also knows the node.
-
-But, I guess it also wouldn't be horrible if we just hot-removed and
-hot-added an offline section if someone did write to a node file like
-you're suggesting.  It might actually exercise some interesting code
-paths.
-
--- Dave
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
