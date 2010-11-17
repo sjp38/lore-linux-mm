@@ -1,152 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0AC5B8D0080
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 23:45:39 -0500 (EST)
-Message-Id: <20101117021000.638336620@intel.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id EBCC68D0080
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 23:45:41 -0500 (EST)
+Message-Id: <20101117021000.707655043@intel.com>
 References: <20101117020759.016741414@intel.com>
-Date: Wed, 17 Nov 2010 10:08:02 +0800
+Date: Wed, 17 Nov 2010 10:08:03 +0800
 From: shaohui.zheng@intel.com
-Subject: [3/8,v3] NUMA Hotplug Emulator: Userland interface to hotplug-add fake offlined nodes.
-Content-Disposition: inline; filename=003-hotplug-emulator-userland-interface-to-add-fake-node.patch
+Subject: [4/8,v3] NUMA Hotplug Emulator: Abstract cpu register functions
+Content-Disposition: inline; filename=004-hotplug-emulator-x86-abstract-cpu-register-functions.patch
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Dave Hansen <haveblue@us.ibm.com>, Christoph Lameter <cl@linux-foundation.org>, Haicheng Li <haicheng.li@intel.com>, Shaohui Zheng <shaohui.zheng@intel.com>
+Cc: linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Shaohui Zheng <shaohui.zheng@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Haicheng Li <haicheng.li@intel.com>
+From: Shaohui Zheng <shaohui.zheng@intel.com>
 
-Add a sysfs entry "probe" under /sys/devices/system/node/:
+Abstract cpu register functions, provide a more flexible interface
+register_cpu_node, the new interface provides convenience to add cpu
+to a specified node, we can use it to add a cpu to a fake node.
 
- - to show all fake offlined nodes:
-    $ cat /sys/devices/system/node/probe
-
- - to hotadd a fake offlined node, e.g. nodeid is N:
-    $ echo N > /sys/devices/system/node/probe
-
-CC: Dave Hansen <haveblue@us.ibm.com>
-CC: Christoph Lameter <cl@linux-foundation.org>
-Signed-off-by: Haicheng Li <haicheng.li@intel.com>
+Signed-off-by: Paul Mundt <lethal@linux-sh.org>
 Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
 ---
-Index: linux-hpe4/Documentation/ABI/testing/sysfs-devices-node
+Index: linux-hpe4/arch/x86/include/asm/cpu.h
 ===================================================================
---- linux-hpe4.orig/Documentation/ABI/testing/sysfs-devices-node	2010-11-15 17:13:02.433461413 +0800
-+++ linux-hpe4/Documentation/ABI/testing/sysfs-devices-node	2010-11-15 17:13:07.093461818 +0800
-@@ -5,3 +5,11 @@
- 		When this file is written to, all memory within that node
- 		will be compacted. When it completes, memory will be freed
- 		into blocks which have as many contiguous pages as possible
-+
-+What:		/sys/devices/system/node/probe
-+Date:		Jun 2010
-+Contact:	Haicheng Li <haicheng.li@intel.com>
-+Description:
-+		This file lists all the availabe hidden nodes, when we write
-+		a nid number to this interface, and the nid is in the available
-+		node list, the hidden node becomes visible.
-Index: linux-hpe4/drivers/base/node.c
-===================================================================
---- linux-hpe4.orig/drivers/base/node.c	2010-11-15 17:13:02.433461413 +0800
-+++ linux-hpe4/drivers/base/node.c	2010-11-15 17:13:07.093461818 +0800
-@@ -538,6 +538,25 @@
- 	unregister_node(&node_devices[nid]);
- }
+--- linux-hpe4.orig/arch/x86/include/asm/cpu.h	2010-11-17 09:00:59.742608402 +0800
++++ linux-hpe4/arch/x86/include/asm/cpu.h	2010-11-17 09:01:10.192838977 +0800
+@@ -27,6 +27,7 @@
  
-+#ifdef CONFIG_NODE_HOTPLUG_EMU
-+static ssize_t store_nodes_probe(struct sysdev_class *class,
-+				  struct sysdev_class_attribute *attr,
-+				  const char *buf, size_t count)
+ #ifdef CONFIG_HOTPLUG_CPU
+ extern int arch_register_cpu(int num);
++extern int arch_register_cpu_node(int num, int nid);
+ extern void arch_unregister_cpu(int);
+ #endif
+ 
+Index: linux-hpe4/arch/x86/kernel/topology.c
+===================================================================
+--- linux-hpe4.orig/arch/x86/kernel/topology.c	2010-11-17 09:01:01.053461766 +0800
++++ linux-hpe4/arch/x86/kernel/topology.c	2010-11-17 10:05:32.934085248 +0800
+@@ -52,6 +52,15 @@
+ }
+ EXPORT_SYMBOL(arch_register_cpu);
+ 
++int __ref arch_register_cpu_node(int num, int nid)
 +{
-+	long nid;
++	if (num)
++		per_cpu(cpu_devices, num).cpu.hotpluggable = 1;
 +
-+	strict_strtol(buf, 0, &nid);
-+	if (nid < 0 || nid > nr_node_ids - 1) {
-+		printk(KERN_ERR "Invalid NUMA node id: %ld (0 <= nid < %d).\n",
-+			nid, nr_node_ids);
-+		return -EPERM;
-+	}
-+	hotadd_hidden_nodes(nid);
-+
-+	return count;
++	return register_cpu_node(&per_cpu(cpu_devices, num).cpu, num, nid);
 +}
-+#endif
++EXPORT_SYMBOL(arch_register_cpu_node);
 +
- /*
-  * node states attributes
-  */
-@@ -566,26 +585,35 @@
- 	return print_nodes_state(na->state, buf);
- }
- 
--#define _NODE_ATTR(name, state) \
-+#define _NODE_ATTR_RO(name, state) \
- 	{ _SYSDEV_CLASS_ATTR(name, 0444, show_node_state, NULL), state }
- 
-+#define _NODE_ATTR_RW(name, store_func, state) \
-+	{ _SYSDEV_CLASS_ATTR(name, 0644, show_node_state, store_func), state }
-+
- static struct node_attr node_state_attr[] = {
--	_NODE_ATTR(possible, N_POSSIBLE),
--	_NODE_ATTR(online, N_ONLINE),
--	_NODE_ATTR(has_normal_memory, N_NORMAL_MEMORY),
--	_NODE_ATTR(has_cpu, N_CPU),
-+	[N_POSSIBLE] = _NODE_ATTR_RO(possible, N_POSSIBLE),
-+#ifdef CONFIG_NODE_HOTPLUG_EMU
-+	[N_HIDDEN] = _NODE_ATTR_RW(probe, store_nodes_probe, N_HIDDEN),
-+#endif
-+	[N_ONLINE] = _NODE_ATTR_RO(online, N_ONLINE),
-+	[N_NORMAL_MEMORY] = _NODE_ATTR_RO(has_normal_memory, N_NORMAL_MEMORY),
- #ifdef CONFIG_HIGHMEM
--	_NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
-+	[N_HIGH_MEMORY] = _NODE_ATTR_RO(has_high_memory, N_HIGH_MEMORY),
- #endif
-+	[N_CPU] = _NODE_ATTR_RO(has_cpu, N_CPU),
- };
- 
- static struct sysdev_class_attribute *node_state_attrs[] = {
--	&node_state_attr[0].attr,
--	&node_state_attr[1].attr,
--	&node_state_attr[2].attr,
--	&node_state_attr[3].attr,
-+	&node_state_attr[N_POSSIBLE].attr,
-+#ifdef CONFIG_NODE_HOTPLUG_EMU
-+	&node_state_attr[N_HIDDEN].attr,
-+#endif
-+	&node_state_attr[N_ONLINE].attr,
-+	&node_state_attr[N_NORMAL_MEMORY].attr,
-+	&node_state_attr[N_CPU].attr,
- #ifdef CONFIG_HIGHMEM
--	&node_state_attr[4].attr,
-+	&node_state_attr[N_HIGH_MEMORY].attr,
- #endif
- 	NULL
- };
-Index: linux-hpe4/mm/Kconfig
+ void arch_unregister_cpu(int num)
+ {
+ 	unregister_cpu(&per_cpu(cpu_devices, num).cpu);
+Index: linux-hpe4/drivers/base/cpu.c
 ===================================================================
---- linux-hpe4.orig/mm/Kconfig	2010-11-15 17:13:02.443461606 +0800
-+++ linux-hpe4/mm/Kconfig	2010-11-15 17:21:05.535335091 +0800
-@@ -147,6 +147,21 @@
- 	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
- 	depends on MIGRATION
+--- linux-hpe4.orig/drivers/base/cpu.c	2010-11-17 09:01:01.053461766 +0800
++++ linux-hpe4/drivers/base/cpu.c	2010-11-17 10:05:32.943465010 +0800
+@@ -208,17 +208,18 @@
+ static SYSDEV_CLASS_ATTR(offline, 0444, print_cpus_offline, NULL);
  
-+config NUMA_HOTPLUG_EMU
-+	bool "NUMA hotplug emulator"
-+	depends on X86_64 && NUMA && MEMORY_HOTPLUG
+ /*
+- * register_cpu - Setup a sysfs device for a CPU.
++ * register_cpu_node - Setup a sysfs device for a CPU.
+  * @cpu - cpu->hotpluggable field set to 1 will generate a control file in
+  *	  sysfs for this CPU.
+  * @num - CPU number to use when creating the device.
++ * @nid - Node ID to use, if any.
+  *
+  * Initialize and register the CPU device.
+  */
+-int __cpuinit register_cpu(struct cpu *cpu, int num)
++int __cpuinit register_cpu_node(struct cpu *cpu, int num, int nid)
+ {
+ 	int error;
+-	cpu->node_id = cpu_to_node(num);
++	cpu->node_id = nid;
+ 	cpu->sysdev.id = num;
+ 	cpu->sysdev.cls = &cpu_sysdev_class;
+ 
+@@ -229,7 +230,7 @@
+ 	if (!error)
+ 		per_cpu(cpu_sys_devices, num) = &cpu->sysdev;
+ 	if (!error)
+-		register_cpu_under_node(num, cpu_to_node(num));
++		register_cpu_under_node(num, nid);
+ 
+ #ifdef CONFIG_KEXEC
+ 	if (!error)
+Index: linux-hpe4/include/linux/cpu.h
+===================================================================
+--- linux-hpe4.orig/include/linux/cpu.h	2010-11-17 09:00:59.772898926 +0800
++++ linux-hpe4/include/linux/cpu.h	2010-11-17 10:05:32.954085309 +0800
+@@ -30,7 +30,13 @@
+ 	struct sys_device sysdev;
+ };
+ 
+-extern int register_cpu(struct cpu *cpu, int num);
++extern int register_cpu_node(struct cpu *cpu, int num, int nid);
 +
-+	---help---
++static inline int register_cpu(struct cpu *cpu, int num)
++{
++	return register_cpu_node(cpu, num, cpu_to_node(num));
++}
 +
-+config NODE_HOTPLUG_EMU
-+	bool "Node hotplug emulation"
-+	depends on NUMA_HOTPLUG_EMU && MEMORY_HOTPLUG
-+	---help---
-+	  Enable Node hotplug emulation. The machine will be setup with
-+	  hidden virtual nodes when booted with "numa=hide=N*size", where
-+	  N is the number of hidden nodes, size is the memory size per
-+	  hidden node. This is only useful for debugging.
-+
- #
- # If we have space for more page flags then we can enable additional
- # optimizations and functionality.
+ extern struct sys_device *get_cpu_sysdev(unsigned cpu);
+ 
+ extern int cpu_add_sysdev_attr(struct sysdev_attribute *attr);
 
 -- 
 Thanks & Regards,
