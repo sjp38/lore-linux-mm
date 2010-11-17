@@ -1,67 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9E12D8D0080
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 03:33:09 -0500 (EST)
-Date: Wed, 17 Nov 2010 16:33:01 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 01/13] writeback: IO-less balance_dirty_pages()
-Message-ID: <20101117083301.GA25946@localhost>
-References: <20101117035905.525232375@intel.com>
- <20101117041926.GA14209@localhost>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 874716B00EC
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 04:05:08 -0500 (EST)
+Date: Wed, 17 Nov 2010 04:04:57 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: Propagating GFP_NOFS inside __vmalloc()
+Message-ID: <20101117090457.GA30543@infradead.org>
+References: <1289421759.11149.59.camel@oralap>
+ <20101111120643.22dcda5b.akpm@linux-foundation.org>
+ <1289512924.428.112.camel@oralap>
+ <20101111142511.c98c3808.akpm@linux-foundation.org>
+ <1289840500.13446.65.camel@oralap>
+ <alpine.DEB.2.00.1011151303130.8167@chino.kir.corp.google.com>
+ <20101116141130.b20a8a8d.akpm@linux-foundation.org>
+ <ED9181FA-6B0E-4A7B-AA2D-7B976A876557@oracle.com>
+ <alpine.DEB.2.00.1011162329570.13242@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101117041926.GA14209@localhost>
+In-Reply-To: <alpine.DEB.2.00.1011162329570.13242@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jens Axboe <axboe@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Hellwig <hch@lst.de>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andreas Dilger <andreas.dilger@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, "Ricardo M. Correia" <ricardo.correia@oracle.com>, linux-mm@kvack.org, Brian Behlendorf <behlendorf1@llnl.gov>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 17, 2010 at 12:19:26PM +0800, Wu Fengguang wrote:
-> > BEHAVIOR CHANGE
-> > ===============
-> > 
-> > Users will notice that the applications will get throttled once the
-> > crossing the global (background + dirty)/2=15% threshold. For a single
-> > "cp", it could be soft throttled at 2*bdi->write_bandwidth around 15%
-> 
-> s/2/8/
-> 
-> Sorry, the initial soft throttle bandwidth for "cp" is about 8 times
-> of bdi bandwidth when reaching 15% dirty pages.
+On Tue, Nov 16, 2010 at 11:37:39PM -0800, David Rientjes wrote:
+> If you _really_ need 1MB of physically contiguous memory, then you'll need 
+> to find a way to do it in a reclaimable context.  If we actually can 
+> remove the dependency that gfs2, ntfs, and ceph have in the kernel.org 
+> kernel, then this support may be pulled out from under you; the worst-case 
+> scenario for Lustre is that you'll have to modify the callchains like I 
+> suggested in my original email to pass the gfp mask all the way down to 
+> the pte allocators if you can't find a way to do it under GFP_KERNEL.
 
-Actually it's x8 for light dirtier and x6 for heavy dirtier. There are
-two control lines in the following code. The task control line is
-introduced in this patch, while the bdi control line is introduced in
-"[PATCH 11/13] writeback: scale down max throttle bandwidth on
-concurrent dirtiers".
-
-baseline
-                bw = bdi->write_bandwidth;
-
-bdi control line
-                bw = bw * (bdi_thresh - bdi_dirty);               
-                bw = bw / (bdi_thresh / BDI_SOFT_DIRTY_LIMIT + 1);
-        
-task control line
-                bw = bw * (task_thresh - bdi_dirty);
-                bw = bw / (bdi_thresh / TASK_SOFT_DIRTY_LIMIT + 1);
-
-These figures demonstrate how they work together:
-
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/heavy-dirtier-control-line.svg
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/light-dirtier-control-line.svg
-
-Thanks,
-Fengguang
-
-> > dirty pages, and be balanced at speed bdi->write_bandwidth around 17.5%
-> > dirty pages. Before patch, the behavior is to just throttle it at 17.5%
-> > dirty pages.
-> > 
-> > Since the task will be soft throttled earlier than before, it may be
-> > perceived by end users as performance "slow down" if his application
-> > happens to dirty more than ~15% memory.
+As Dave mentioned XFS also needs GFP_NOFS allocations in the low-level
+vmap machinery, which is shared with vmalloc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
