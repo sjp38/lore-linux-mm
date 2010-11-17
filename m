@@ -1,77 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A6ADF8D0080
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 03:17:00 -0500 (EST)
-Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
-	by smtp-out.google.com with ESMTP id oAH8GvOk020416
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 00:16:58 -0800
-Received: from iwn9 (iwn9.prod.google.com [10.241.68.73])
-	by hpaq7.eem.corp.google.com with ESMTP id oAH8Gta2031954
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 00:16:56 -0800
-Received: by iwn9 with SMTP id 9so1963337iwn.28
-        for <linux-mm@kvack.org>; Wed, 17 Nov 2010 00:16:55 -0800 (PST)
-Date: Wed, 17 Nov 2010 00:16:52 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [3/8,v3] NUMA Hotplug Emulator: Userland interface to hotplug-add
- fake offlined nodes.
-In-Reply-To: <20101117021000.638336620@intel.com>
-Message-ID: <alpine.DEB.2.00.1011170010430.17408@chino.kir.corp.google.com>
-References: <20101117020759.016741414@intel.com> <20101117021000.638336620@intel.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 9E12D8D0080
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 03:33:09 -0500 (EST)
+Date: Wed, 17 Nov 2010 16:33:01 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 01/13] writeback: IO-less balance_dirty_pages()
+Message-ID: <20101117083301.GA25946@localhost>
+References: <20101117035905.525232375@intel.com>
+ <20101117041926.GA14209@localhost>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101117041926.GA14209@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Shaohui Zheng <shaohui.zheng@intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Dave Hansen <haveblue@us.ibm.com>, Christoph Lameter <cl@linux-foundation.org>, Haicheng Li <haicheng.li@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jens Axboe <axboe@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Hellwig <hch@lst.de>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Nov 2010, shaohui.zheng@intel.com wrote:
-
-> From: Haicheng Li <haicheng.li@intel.com>
+On Wed, Nov 17, 2010 at 12:19:26PM +0800, Wu Fengguang wrote:
+> > BEHAVIOR CHANGE
+> > ===============
+> > 
+> > Users will notice that the applications will get throttled once the
+> > crossing the global (background + dirty)/2=15% threshold. For a single
+> > "cp", it could be soft throttled at 2*bdi->write_bandwidth around 15%
 > 
-> Add a sysfs entry "probe" under /sys/devices/system/node/:
+> s/2/8/
 > 
->  - to show all fake offlined nodes:
->     $ cat /sys/devices/system/node/probe
-> 
->  - to hotadd a fake offlined node, e.g. nodeid is N:
->     $ echo N > /sys/devices/system/node/probe
-> 
+> Sorry, the initial soft throttle bandwidth for "cp" is about 8 times
+> of bdi bandwidth when reaching 15% dirty pages.
 
-This would be much more powerful if we just reserved an amount of memory 
-at boot and then allowed users to hot-add a given amount with an 
-non-online node id.  Then we can test nodes of various sizes rather than 
-being statically committed at boot.
+Actually it's x8 for light dirtier and x6 for heavy dirtier. There are
+two control lines in the following code. The task control line is
+introduced in this patch, while the bdi control line is introduced in
+"[PATCH 11/13] writeback: scale down max throttle bandwidth on
+concurrent dirtiers".
 
-This should be fairly straight-forward by faking 
-ACPI_SRAT_MEM_HOT_PLUGGABLE entries, for example.
+baseline
+                bw = bdi->write_bandwidth;
 
-> Index: linux-hpe4/mm/Kconfig
-> ===================================================================
-> --- linux-hpe4.orig/mm/Kconfig	2010-11-15 17:13:02.443461606 +0800
-> +++ linux-hpe4/mm/Kconfig	2010-11-15 17:21:05.535335091 +0800
-> @@ -147,6 +147,21 @@
->  	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
->  	depends on MIGRATION
->  
-> +config NUMA_HOTPLUG_EMU
-> +	bool "NUMA hotplug emulator"
-> +	depends on X86_64 && NUMA && MEMORY_HOTPLUG
-> +
-> +	---help---
-> +
-> +config NODE_HOTPLUG_EMU
-> +	bool "Node hotplug emulation"
-> +	depends on NUMA_HOTPLUG_EMU && MEMORY_HOTPLUG
-> +	---help---
-> +	  Enable Node hotplug emulation. The machine will be setup with
-> +	  hidden virtual nodes when booted with "numa=hide=N*size", where
-> +	  N is the number of hidden nodes, size is the memory size per
-> +	  hidden node. This is only useful for debugging.
-> +
+bdi control line
+                bw = bw * (bdi_thresh - bdi_dirty);               
+                bw = bw / (bdi_thresh / BDI_SOFT_DIRTY_LIMIT + 1);
+        
+task control line
+                bw = bw * (task_thresh - bdi_dirty);
+                bw = bw / (bdi_thresh / TASK_SOFT_DIRTY_LIMIT + 1);
 
-That's clearly wrong, but I don't see why this needs to be a new Kconfig 
-option to begin with, can't we enable all of this functionality by default 
-under CONFIG_NUMA_EMU && CONFIG_MEMORY_HOTPLUG?
+These figures demonstrate how they work together:
+
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/heavy-dirtier-control-line.svg
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/light-dirtier-control-line.svg
+
+Thanks,
+Fengguang
+
+> > dirty pages, and be balanced at speed bdi->write_bandwidth around 17.5%
+> > dirty pages. Before patch, the behavior is to just throttle it at 17.5%
+> > dirty pages.
+> > 
+> > Since the task will be soft throttled earlier than before, it may be
+> > perceived by end users as performance "slow down" if his application
+> > happens to dirty more than ~15% memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
