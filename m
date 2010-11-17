@@ -1,88 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9C22B6B00C7
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 06:16:00 -0500 (EST)
-Received: by iwn5 with SMTP id 5so26079iwn.14
-        for <linux-mm@kvack.org>; Wed, 17 Nov 2010 03:15:58 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 170048D0002
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 06:43:46 -0500 (EST)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: Sluggishness on a GEM system due to SELinux's sidtab_search_context() as well as get_unmapped_area()
+References: <1289793125.12243.18.camel@localhost.localdomain>
+Date: Wed, 17 Nov 2010 12:43:41 +0100
+In-Reply-To: <1289793125.12243.18.camel@localhost.localdomain>
+	(rainy6144@gmail.com's message of "Mon, 15 Nov 2010 11:52:05 +0800")
+Message-ID: <87tyjgqioi.fsf@basil.nowhere.org>
 MIME-Version: 1.0
-In-Reply-To: <AANLkTi=6RtPDnZZa=jrcciB1zHQMiB3LnouBw3G2OyaK@mail.gmail.com>
-References: <20101109162525.BC87.A69D9226@jp.fujitsu.com>
-	<877hgmr72o.fsf@gmail.com>
-	<20101114140920.E013.A69D9226@jp.fujitsu.com>
-	<AANLkTim59Qx6TsvXnTBL5Lg6JorbGaqx3KsdBDWO04X9@mail.gmail.com>
-	<1289810825.2109.469.camel@laptop>
-	<AANLkTikibS1fDuk67RHk4SU14pJ9nPdodWba1T3Z_pWE@mail.gmail.com>
-	<4CE14848.2060805@redhat.com>
-	<AANLkTi=6RtPDnZZa=jrcciB1zHQMiB3LnouBw3G2OyaK@mail.gmail.com>
-Date: Wed, 17 Nov 2010 20:15:41 +0900
-Message-ID: <AANLkTimjfbMrNii-ps17QmEc0prBwnxwR1LYcid_ej+k@mail.gmail.com>
-Subject: Re: fadvise DONTNEED implementation (or lack thereof)
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ben Gamari <bgamari.foss@gmail.com>, linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
+To: r6144 <rainy6144@gmail.com>
+Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, sds@tycho.nsa.gov, linux-mm@kvack.org, jmorris@namei.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 17, 2010 at 7:16 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> On Mon, Nov 15, 2010 at 11:48 PM, Rik van Riel <riel@redhat.com> wrote:
->> On 11/15/2010 04:05 AM, Minchan Kim wrote:
->>>
->>> On Mon, Nov 15, 2010 at 5:47 PM, Peter Zijlstra<peterz@infradead.org>
->>> =A0wrote:
->>>>
->>>> On Mon, 2010-11-15 at 15:07 +0900, Minchan Kim wrote:
->>
->>>>> I wonder what's the problem in Peter's patch 'drop behind'.
->>>>> http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg179576.ht=
-ml
->>>>>
->>>>> Could anyone tell me why it can't accept upstream?
->>>>
->>>> Read the thread, its quite clear nobody got convinced it was a good id=
-ea
->>>> and wanted to fix the use-once policy, then Rik rewrote all of
->>>> page-reclaim.
->>>>
->>>
->>> Thanks for the information.
->>> I hope this is a chance to rethink about it.
->>> Rik, Could you give us to any comment about this idea?
->
->
-> Sorry for late reply, Rik.
->
->> At the time, there were all kinds of general problems
->> in page reclaim that all needed to be fixed. =A0Peter's
->> patch was mostly a band-aid for streaming IO.
->>
->> However, now that most of the other page reclaim problems
->> seem to have been resolved, it would be worthwhile to test
->> whether Peter's drop-behind approach gives an additional
->> improvement.
->
-> Okay. I will have a time to make the workload for testing.
->
->>
->> I could see it help by getting rid of already-read pages
->> earlier, leaving more space for read-ahead data.
->
-> Yes. Peter's logic breaks demotion if the page is in active list.
-> But I think if it's just active page like rsync's two touch, we have
-> to move tail of inactive although it's in active list.
-> I will look into this, too.
-
-Most important thing is how to know it's real working set or just
-trick by two touch.
-If it's very hard, recent Mandeep's patch can be a another solution.
-http://thread.gmane.org/gmane.linux.kernel.mm/54572
-I will try it, too.
+r6144 <rainy6144@gmail.com> writes:
 
 
---=20
-Kind regards,
-Minchan Kim
+> Hello,
+>
+> I'm noticing significant sluggishness when switching into a workspace
+> where Evolution is running.
+
+
+Interesting result. Adding some relevant ccs with full-quote.
+I guess graphics really should do less mmaps, but the underlying
+performance problems should be investigated too.
+
+-Andi
+
+>
+> My kernel is Fedora 12's 2.6.32.16-150.fc12.x86_64 (I know it is
+> old...), and the open source radeon (r600) driver is used.  Oprofile
+> shows the follows:
+>
+> CPU: Core 2, speed 2003 MHz (estimated)
+> Counted CPU_CLK_UNHALTED events (Clock cycles when not halted) with a
+> unit mask of 0x00 (Unhalted core cycles) count 100000
+> Counted INST_RETIRED_ANY_P events (number of instructions retired) with
+> a unit mask of 0x00 (No unit mask) count 100000
+> samples  %        samples  %        image name               app name
+> symbol name
+> 126807   31.2201  38744    28.3866  vmlinux                  Xorg
+> (deleted)           find_vma
+> 48661    11.9804  3474      2.5453  vmlinux                  Xorg
+> (deleted)           mls_compute_sid
+> 41806    10.2927  5700      4.1762  vmlinux                  Xorg
+> (deleted)           sidtab_search_context
+> 11888     2.9268  4234      3.1021  Xorg (deleted)           Xorg
+> (deleted)           /usr/bin/Xorg (deleted)
+> 8660      2.1321  1589      1.1642  drm                      Xorg
+> (deleted)           /drm
+> 6228      1.5333  6773      4.9624  radeon                   Xorg
+> (deleted)           /radeon
+> 6214      1.5299  1832      1.3423  libc-2.11.2.so (deleted) Xorg
+> (deleted)           /lib64/libc-2.11.2.so (deleted)
+> 5542      1.3644  4929      3.6113
+> libpixman-1.so.0.16.6.#prelink#.3I5wow (deleted) Xorg
+> (deleted)           /usr/lib64/libpixman-1.so.0.16.6.#prelink#.3I5wow
+> (deleted)
+> 4149      1.0215  1776      1.3012  libexa.so                Xorg
+> (deleted)           /usr/lib64/xorg/modules/libexa.so
+> 4140      1.0193  640       0.4689  vmlinux                  oprofiled
+> mls_compute_sid
+> 3183      0.7837  847       0.6206  vmlinux                  Xorg
+> (deleted)           arch_get_unmapped_area_topdown
+> ...
+>
+> Although I haven't looked into it, presumably Evolution is asking the X
+> server to create and map a lot of TTM objects (pixmaps?).  The creation
+> of each object uses shmem_file_setup() and thus necessitates SELinux
+> calls, and since the X process already has a lot of mappings (one
+> mapping for each XRender glyph it seems, with "wc -l /proc/`pgrep
+> Xorg`/maps" returning 6766), the mapping part could also be slow.
+>
+> I think the slowness of find_vma is related to
+> https://bugzilla.kernel.org/show_bug.cgi?id=17531 .  mls_compute_sid()
+> did a linear search over the range transition rules and was therefore
+> slow, but more recent kernels use a hash table so this problem has been
+> solved.  Another offender is sidtab_search_context() used to convert a
+> SELinux context back into an sid, which is also a linear search as there
+> is only a sid => context hash table, and I haven't seen any recent
+> changes in this area.
+>
+> Please CC me as I'm not subscribed.
+>
+> r6144
+>
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
