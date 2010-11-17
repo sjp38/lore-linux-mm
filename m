@@ -1,16 +1,16 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 08/13] writeback: quit throttling when bdi dirty pages dropped low
-Date: Wed, 17 Nov 2010 11:58:29 +0800
-Message-ID: <20101117035906.354946272@intel.com>
+Subject: [PATCH 11/13] writeback: scale down max throttle bandwidth on concurrent dirtiers
+Date: Wed, 17 Nov 2010 11:58:32 +0800
+Message-ID: <20101117035906.702620674@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PIZKF-0007me-Bo
-	for glkm-linux-mm-2@m.gmane.org; Wed, 17 Nov 2010 05:08:51 +0100
+	id 1PIZKJ-0007nm-Dw
+	for glkm-linux-mm-2@m.gmane.org; Wed, 17 Nov 2010 05:08:55 +0100
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0E2C48D00A3
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 23:08:11 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 5DB548D00A4
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 23:08:12 -0500 (EST)
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Theodore Ts'o <tytso@mit.edu>, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
@@ -18,71 +18,102 @@ List-Id: linux-mm.kvack.org
 
 Andrew,
 References: <20101117035821.000579293@intel.com>
-Content-Disposition: inline; filename=writeback-bdi-throttle-break.patch
+Content-Disposition: inline; filename=writeback-adaptive-throttle-bandwidth.patch
 
-Tests show that bdi_thresh may take minutes to ramp up on a typical
-desktop. The time should be improvable but cannot be eliminated totally.
-So when (background_thresh + dirty_thresh)/2 is reached and
-balance_dirty_pages() starts to throttle the task, it will suddenly find
-the (still low and ramping up) bdi_thresh is exceeded _excessively_. Here
-we definitely don't want to stall the task for one minute (when it's
-writing to USB stick). So introduce an alternative way to break out of
-the loop when the bdi dirty/write pages has dropped by a reasonable
-amount.
+This will noticeably reduce the fluctuaions of pause time when there are
+100+ concurrent dirtiers.
 
-When dirty_background_ratio is set close to dirty_ratio, bdi_thresh may
-also be constantly exceeded due to the task_dirty_limit() gap. This is
-addressed by another patch to lower the background threshold when
-necessary.
+The more parallel dirtiers (1 dirtier => 4 dirtiers), the smaller
+bandwidth each dirtier will share (bdi_bandwidth => bdi_bandwidth/4),
+the less gap to the dirty limit ((C-A) => (C-B)), the less stable the
+pause time will be (given the same fluctuation of bdi_dirty).
 
-It will take at least 100ms before trying to break out.
+For example, if A drifts to A', its pause time may drift from 5ms to
+6ms, while B to B' may drift from 50ms to 90ms.  It's much larger
+fluctuations in relative ratio as well as absolute time.
 
-Note that this opens the chance that during normal operation, a huge
-number of slow dirtiers writing to a really slow device might manage to
-outrun bdi_thresh. But the risk is pretty low. It takes at least one
-100ms sleep loop to break out, and the global limit is still enforced.
+Fig.1 before patch, gap (C-B) is too low to get smooth pause time
+
+throttle_bandwidth_A = bdi_bandwidth .........o
+                                              | o <= A'
+                                              |   o
+                                              |     o
+                                              |       o
+                                              |         o
+throttle_bandwidth_B = bdi_bandwidth / 4 .....|...........o
+                                              |           | o <= B'
+----------------------------------------------+-----------+---o
+                                              A           B   C
+
+The solution is to lower the slope of the throttle line accordingly,
+which makes B stabilize at some point more far away from C.
+
+Fig.2 after patch
+
+throttle_bandwidth_A = bdi_bandwidth .........o
+                                              | o <= A'
+                                              |   o
+                                              |     o
+    lowered max throttle bandwidth for B ===> *       o
+                                              |   *     o
+throttle_bandwidth_B = bdi_bandwidth / 4 .............*   o
+                                              |       |   * o
+----------------------------------------------+-------+-------o
+                                              A       B       C
+
+Note that C is actually different points for 1-dirty and 4-dirtiers
+cases, but for easy graphing, we move them together.
 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/page-writeback.c |   20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ mm/page-writeback.c |   16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
 
---- linux-next.orig/mm/page-writeback.c	2010-11-15 12:52:34.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-11-15 13:08:16.000000000 +0800
-@@ -526,6 +526,7 @@ static void balance_dirty_pages(struct a
- {
- 	long nr_reclaimable;
- 	long nr_dirty, bdi_dirty;  /* = file_dirty + writeback + unstable_nfs */
-+	long bdi_prev_dirty = 0;
+--- linux-next.orig/mm/page-writeback.c	2010-11-15 19:52:43.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-11-15 21:30:45.000000000 +0800
+@@ -537,6 +537,7 @@ static void balance_dirty_pages(struct a
  	unsigned long background_thresh;
  	unsigned long dirty_thresh;
  	unsigned long bdi_thresh;
-@@ -578,6 +579,25 @@ static void balance_dirty_pages(struct a
- 				    bdi_stat(bdi, BDI_WRITEBACK);
++	unsigned long task_thresh;
+ 	unsigned long bw;
+ 	unsigned long pause = 0;
+ 	bool dirty_exceeded = false;
+@@ -566,7 +567,7 @@ static void balance_dirty_pages(struct a
+ 			break;
+ 
+ 		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
+-		bdi_thresh = task_dirty_limit(current, bdi_thresh);
++		task_thresh = task_dirty_limit(current, bdi_thresh);
+ 
+ 		/*
+ 		 * In order to avoid the stacked BDI deadlock we need
+@@ -605,14 +606,23 @@ static void balance_dirty_pages(struct a
+ 			break;
+ 		bdi_prev_dirty = bdi_dirty;
+ 
+-		if (bdi_dirty >= bdi_thresh) {
++		if (bdi_dirty >= task_thresh) {
+ 			pause = HZ/10;
+ 			goto pause;
  		}
  
 +		/*
-+		 * bdi_thresh takes time to ramp up from the initial 0,
-+		 * especially for slow devices.
-+		 *
-+		 * It's possible that at the moment dirty throttling starts,
-+		 * 	bdi_dirty = nr_dirty
-+		 * 		  = (background_thresh + dirty_thresh) / 2
-+		 * 		  >> bdi_thresh
-+		 * Then the task could be blocked for a dozen second to flush
-+		 * all the exceeded (bdi_dirty - bdi_thresh) pages. So offer a
-+		 * complementary way to break out of the loop when 250ms worth
-+		 * of dirty pages have been cleaned during our pause time.
++		 * When bdi_dirty grows closer to bdi_thresh, it indicates more
++		 * concurrent dirtiers. Proportionally lower the max throttle
++		 * bandwidth. This will resist bdi_dirty from approaching to
++		 * close to task_thresh, and help reduce fluctuations of pause
++		 * time when there are lots of dirtiers.
 +		 */
-+		if (nr_dirty < dirty_thresh &&
-+		    bdi_prev_dirty - bdi_dirty >
-+		    bdi->write_bandwidth >> (PAGE_CACHE_SHIFT + 2))
-+			break;
-+		bdi_prev_dirty = bdi_dirty;
+ 		bw = bdi->write_bandwidth;
+-
+ 		bw = bw * (bdi_thresh - bdi_dirty);
++		bw = bw / (bdi_thresh / BDI_SOFT_DIRTY_LIMIT + 1);
 +
- 		if (bdi_dirty >= bdi_thresh) {
- 			pause = HZ/10;
- 			goto pause;
++		bw = bw * (task_thresh - bdi_dirty);
+ 		bw = bw / (bdi_thresh / TASK_SOFT_DIRTY_LIMIT + 1);
+ 
+ 		pause = HZ * (pages_dirtied << PAGE_CACHE_SHIFT) / (bw + 1);
 
 
 --
