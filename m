@@ -1,156 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B1E616B00A1
-	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 19:08:00 -0500 (EST)
-Date: Tue, 16 Nov 2010 16:07:20 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] set_pgdat_percpu_threshold() don't use
- for_each_online_cpu
-Message-Id: <20101116160720.5244ea22.akpm@linux-foundation.org>
-In-Reply-To: <20101114163727.BEE0.A69D9226@jp.fujitsu.com>
-References: <1288169256-7174-2-git-send-email-mel@csn.ul.ie>
-	<20101028100920.5d4ce413.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101114163727.BEE0.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id CBBD46B00A1
+	for <linux-mm@kvack.org>; Tue, 16 Nov 2010 19:17:08 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAH0H5bH031816
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 17 Nov 2010 09:17:05 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D53F45DE51
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 09:17:05 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 38A3845DE4F
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 09:17:05 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 13B84E08003
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 09:17:05 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A9C8E38003
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 09:17:04 +0900 (JST)
+Date: Wed, 17 Nov 2010 09:11:35 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX] memcg: avoid deadlock between move charge and
+ try_charge()
+Message-Id: <20101117091135.1d811e89.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20101116191748.d6645376.nishimura@mxp.nes.nec.co.jp>
+References: <20101116191748.d6645376.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Shaohua Li <shaohua.li@intel.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 14 Nov 2010 17:53:03 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Tue, 16 Nov 2010 19:17:48 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> > > @@ -159,6 +165,44 @@ static void refresh_zone_stat_thresholds(void)
-> > >  	}
-> > >  }
-> > >  
-> > > +void reduce_pgdat_percpu_threshold(pg_data_t *pgdat)
-> > > +{
-> > > +	struct zone *zone;
-> > > +	int cpu;
-> > > +	int threshold;
-> > > +	int i;
-> > > +
-> > 
-> > get_online_cpus();
+> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > 
+> __mem_cgroup_try_charge() can be called under down_write(&mmap_sem)(e.g.
+> mlock does it). This means it can cause deadlock if it races with move charge:
 > 
-> This caused following runtime warnings. but I don't think here is
-> real lock inversion. 
+> Ex.1)
+>                 move charge             |        try charge
+>   --------------------------------------+------------------------------
+>     mem_cgroup_can_attach()             |  down_write(&mmap_sem)
+>       mc.moving_task = current          |    ..
+>       mem_cgroup_precharge_mc()         |  __mem_cgroup_try_charge()
+>         mem_cgroup_count_precharge()    |    prepare_to_wait()
+>           down_read(&mmap_sem)          |    if (mc.moving_task)
+>           -> cannot aquire the lock     |    -> true
+>                                         |      schedule()
 > 
-> =================================
-> [ INFO: inconsistent lock state ]
-> 2.6.37-rc1-mm1+ #150
-> ---------------------------------
-> inconsistent {RECLAIM_FS-ON-W} -> {IN-RECLAIM_FS-W} usage.
-> kswapd0/419 [HC0[0]:SC0[0]:HE1:SE1] takes:
->  (cpu_hotplug.lock){+.+.?.}, at: [<ffffffff810520d1>] get_online_cpus+0x41/0x60
-> {RECLAIM_FS-ON-W} state was registered at:
->   [<ffffffff8108a1a3>] mark_held_locks+0x73/0xa0
->   [<ffffffff8108a296>] lockdep_trace_alloc+0xc6/0x100
->   [<ffffffff8113fba9>] kmem_cache_alloc+0x39/0x2b0
->   [<ffffffff812eea10>] idr_pre_get+0x60/0x90
->   [<ffffffff812ef5b7>] ida_pre_get+0x27/0xf0
->   [<ffffffff8106ebf5>] create_worker+0x55/0x190
->   [<ffffffff814fb4f4>] workqueue_cpu_callback+0xbc/0x235
->   [<ffffffff8151934c>] notifier_call_chain+0x8c/0xe0
->   [<ffffffff8107a34e>] __raw_notifier_call_chain+0xe/0x10
->   [<ffffffff81051f30>] __cpu_notify+0x20/0x40
->   [<ffffffff8150bff7>] _cpu_up+0x73/0x113
->   [<ffffffff8150c175>] cpu_up+0xde/0xf1
->   [<ffffffff81dcc81d>] kernel_init+0x21b/0x342
->   [<ffffffff81003724>] kernel_thread_helper+0x4/0x10
-> irq event stamp: 27
-> hardirqs last  enabled at (27): [<ffffffff815152c0>] _raw_spin_unlock_irqrestore+0x40/0x80
-> hardirqs last disabled at (26): [<ffffffff81514982>] _raw_spin_lock_irqsave+0x32/0xa0
-> softirqs last  enabled at (20): [<ffffffff810614c4>] del_timer_sync+0x54/0xa0
-> softirqs last disabled at (18): [<ffffffff8106148c>] del_timer_sync+0x1c/0xa0
+> Ex.2)
+>                 move charge             |        try charge
+>   --------------------------------------+------------------------------
+>     mem_cgroup_can_attach()             |
+>       mc.moving_task = current          |
+>       mem_cgroup_precharge_mc()         |
+>         mem_cgroup_count_precharge()    |
+>           down_read(&mmap_sem)          |
+>           ..                            |
+>           up_read(&mmap_sem)            |
+>                                         |  down_write(&mmap_sem)
+>     mem_cgroup_move_task()              |    ..
+>       mem_cgroup_move_charge()          |  __mem_cgroup_try_charge()
+>         down_read(&mmap_sem)            |    prepare_to_wait()
+>         -> cannot aquire the lock       |    if (mc.moving_task)
+>                                         |    -> true
+>                                         |      schedule()
 > 
-> other info that might help us debug this:
-> no locks held by kswapd0/419.
+> To avoid this deadlock, we do all the move charge works (both can_attach() and
+> attach()) under one mmap_sem section.
+> And after this patch, we set/clear mc.moving_task outside mc.lock, because we
+> use the lock only to check mc.from/to.
 > 
-> stack backtrace:
-> Pid: 419, comm: kswapd0 Not tainted 2.6.37-rc1-mm1+ #150
-> Call Trace:
->  [<ffffffff810890b1>] print_usage_bug+0x171/0x180
->  [<ffffffff8108a057>] mark_lock+0x377/0x450
->  [<ffffffff8108ab67>] __lock_acquire+0x267/0x15e0
->  [<ffffffff8107af0f>] ? local_clock+0x6f/0x80
->  [<ffffffff81086789>] ? trace_hardirqs_off_caller+0x29/0x150
->  [<ffffffff8108bf94>] lock_acquire+0xb4/0x150
->  [<ffffffff810520d1>] ? get_online_cpus+0x41/0x60
->  [<ffffffff81512cf4>] __mutex_lock_common+0x44/0x3f0
->  [<ffffffff810520d1>] ? get_online_cpus+0x41/0x60
->  [<ffffffff810744f0>] ? prepare_to_wait+0x60/0x90
->  [<ffffffff81086789>] ? trace_hardirqs_off_caller+0x29/0x150
->  [<ffffffff810520d1>] ? get_online_cpus+0x41/0x60
->  [<ffffffff810868bd>] ? trace_hardirqs_off+0xd/0x10
->  [<ffffffff8107af0f>] ? local_clock+0x6f/0x80
->  [<ffffffff815131a8>] mutex_lock_nested+0x48/0x60
->  [<ffffffff810520d1>] get_online_cpus+0x41/0x60
->  [<ffffffff811138b2>] set_pgdat_percpu_threshold+0x22/0xe0
->  [<ffffffff81113970>] ? calculate_normal_threshold+0x0/0x60
->  [<ffffffff8110b552>] kswapd+0x1f2/0x360
->  [<ffffffff81074180>] ? autoremove_wake_function+0x0/0x40
->  [<ffffffff8110b360>] ? kswapd+0x0/0x360
->  [<ffffffff81073ae6>] kthread+0xa6/0xb0
->  [<ffffffff81003724>] kernel_thread_helper+0x4/0x10
->  [<ffffffff81515710>] ? restore_args+0x0/0x30
->  [<ffffffff81073a40>] ? kthread+0x0/0xb0
->  [<ffffffff81003720>] ? kernel_thread_helper+0x0/0x10
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Cc: <stable@kernel.org>
 
-Well what's actually happening here?  Where is the alleged deadlock?
-
-In the kernel_init() case we have a GFP_KERNEL allocation inside
-get_online_cpus().  In the other case we simply have kswapd calling
-get_online_cpus(), yes?
-
-Does lockdep consider all kswapd actions to be "in reclaim context"? 
-If so, why?
-
-> 
-> I think we have two option 1) call lockdep_clear_current_reclaim_state()
-> every time 2) use for_each_possible_cpu instead for_each_online_cpu.
-> 
-> Following patch use (2) beucase removing get_online_cpus() makes good
-> side effect. It reduce potentially cpu-hotplug vs memory-shortage deadlock
-> risk. 
-
-Well.  Being able to run for_each_online_cpu() is a pretty low-level
-and fundamental thing.  It's something we're likely to want to do more
-and more of as time passes.  It seems a bad thing to tell ourselves
-that we cannot use it in reclaim context.  That blots out large chunks
-of filesystem and IO-layer code as well!
-
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -193,18 +193,16 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
->  	int threshold;
->  	int i;
->  
-> -	get_online_cpus();
->  	for (i = 0; i < pgdat->nr_zones; i++) {
->  		zone = &pgdat->node_zones[i];
->  		if (!zone->percpu_drift_mark)
->  			continue;
->  
->  		threshold = (*calculate_pressure)(zone);
-> -		for_each_online_cpu(cpu)
-> +		for_each_possible_cpu(cpu)
->  			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
->  							= threshold;
->  	}
-> -	put_online_cpus();
->  }
-
-That's a pretty sad change IMO, especially of num_possible_cpus is much
-larger than num_online_cpus.
-
-What do we need to do to make get_online_cpus() safe to use in reclaim
-context?  (And in kswapd context, if that's really equivalent to
-"reclaim context").
+Thanks,
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
