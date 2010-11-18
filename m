@@ -1,51 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A98D56B004A
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 12:29:27 -0500 (EST)
-Received: from mail-yw0-f41.google.com (mail-yw0-f41.google.com [209.85.213.41])
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 139016B0089
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 12:39:59 -0500 (EST)
+Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
 	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id oAIHSuFE029429
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id oAIHdOi3030672
 	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 09:28:56 -0800
-Received: by ywi6 with SMTP id 6so6404ywi.14
-        for <linux-mm@kvack.org>; Thu, 18 Nov 2010 09:28:51 -0800 (PST)
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 09:39:25 -0800
+Received: by iwn4 with SMTP id 4so1134393iwn.14
+        for <linux-mm@kvack.org>; Thu, 18 Nov 2010 09:39:24 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20101118114902.GJ8135@csn.ul.ie>
-References: <patchbomb.1288798055@v2.random> <fc2579c9bddbfcf78d72.1288798060@v2.random>
- <20101118114902.GJ8135@csn.ul.ie>
+In-Reply-To: <20101118125249.GN8135@csn.ul.ie>
+References: <patchbomb.1288798055@v2.random> <6022613f956ee326d9b6.1288798072@v2.random>
+ <20101118125249.GN8135@csn.ul.ie>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 18 Nov 2010 09:28:27 -0800
-Message-ID: <AANLkTik9U_r7tqdDYw24xwTgvp5c740Z9eMQeh8y4Hpi@mail.gmail.com>
-Subject: Re: [PATCH 05 of 66] compound_lock
+Date: Thu, 18 Nov 2010 09:32:36 -0800
+Message-ID: <AANLkTikhXS9ot27gS9OpRWbU9zjXns_D96DarZ1jOcR6@mail.gmail.com>
+Subject: Re: [PATCH 17 of 66] add pmd mangling generic functions
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 3:49 AM, Mel Gorman <mel@csn.ul.ie> wrote:
->> +
->> +static inline void compound_lock_irqsave(struct page *page,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0unsigned long *flagsp)
->> +{
->> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->> + =A0 =A0 unsigned long flags;
->> + =A0 =A0 local_irq_save(flags);
->> + =A0 =A0 compound_lock(page);
->> + =A0 =A0 *flagsp =3D flags;
->> +#endif
->> +}
->> +
+On Thu, Nov 18, 2010 at 4:52 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> On Wed, Nov 03, 2010 at 04:27:52PM +0100, Andrea Arcangeli wrote:
+>> From: Andrea Arcangeli <aarcange@redhat.com>
+>>
+>> Some are needed to build but not actually used on archs not supporting
+>> transparent hugepages. Others like pmdp_clear_flush are used by x86 too.
+>>
+>> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+>> Acked-by: Rik van Riel <riel@redhat.com>
 >
-> The pattern for spinlock irqsave passes in unsigned long, not unsigned
-> long *. It'd be nice if they matched.
+> Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-Indeed. Just make the thing return the flags the way the normal
-spin_lock_irqsave() function does.
+I dunno. Those macros are _way_ too big and heavy to be macros or
+inline functions. Why aren't pmdp_splitting_flush() etc just
+functions?
 
-                  Linus
+There is no performance advantage to inlining them - the TLB flush is
+going to be expensive enough that there's no point in avoiding a
+function call. And that header file really does end up being _really_
+ugly.
+
+                      Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
