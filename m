@@ -1,39 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0F7626B004A
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 01:24:55 -0500 (EST)
-Date: Thu, 18 Nov 2010 15:24:16 +0900
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id DFC9D6B0087
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 01:27:54 -0500 (EST)
+Date: Thu, 18 Nov 2010 15:27:15 +0900
 From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [7/8,v3] NUMA Hotplug Emulator: extend memory probe interface to support NUMA
-Message-ID: <20101118062416.GC17539@linux-sh.org>
-References: <20101117020759.016741414@intel.com> <20101117021000.916235444@intel.com> <1290019807.9173.3789.camel@nimitz> <alpine.DEB.2.00.1011171312590.10254@chino.kir.corp.google.com> <20101118044850.GC2408@shaohui>
+Subject: Re: [2/8,v3] NUMA Hotplug Emulator: infrastructure of NUMA hotplug emulation
+Message-ID: <20101118062715.GD17539@linux-sh.org>
+References: <20101117020759.016741414@intel.com> <20101117021000.568681101@intel.com> <alpine.DEB.2.00.1011162359160.17408@chino.kir.corp.google.com> <20101117075128.GA30254@shaohui> <alpine.DEB.2.00.1011171304060.10254@chino.kir.corp.google.com> <20101118041407.GA2408@shaohui>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101118044850.GC2408@shaohui>
+In-Reply-To: <20101118041407.GA2408@shaohui>
 Sender: owner-linux-mm@kvack.org
 To: Shaohui Zheng <shaohui.zheng@intel.com>
-Cc: David Rientjes <rientjes@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Haicheng Li <haicheng.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Greg KH <greg@kroah.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 12:48:50PM +0800, Shaohui Zheng wrote:
-> On Wed, Nov 17, 2010 at 01:18:50PM -0800, David Rientjes wrote:
-> > Then, export the amount of memory that is actually physically present in 
-> > the e820 but was truncated by mem= and allow users to hot-add the memory 
-> > via the probe interface.  Add a writeable 'node' file to offlined memory 
-> > section directories and allow it to be changed prior to online.
+On Thu, Nov 18, 2010 at 12:14:07PM +0800, Shaohui Zheng wrote:
+> On Wed, Nov 17, 2010 at 01:10:50PM -0800, David Rientjes wrote:
+> > The idea that I've proposed (and you've apparently thought about and even 
+> > implemented at one point) is much more powerful than that.  We need not 
+> > query the state of hidden nodes that we've setup at boot but can rather 
+> > use the amount of hidden memory to setup the nodes in any way that we want 
+> > at runtime (various sizes, interleaved node ids, etc).
 > 
-> for memory offlining, it is a known diffcult thing, and it is not supported 
-> well in current kernel, so I do not suggest to provide the offline interface
-> in the emulator, it just take more pains. We can consider to add it when
-> the memory offlining works well.
+> yes, if we select your proposal. we just mark all the nodes as POSSIBLE node.
+> there is no hidden nodes any more. the node will be created after add memory
+> to the node first time. 
 > 
-This is all stuff that the memblock API can deal with, I'm not sure why
-there seems to be an insistence on wedging all manner of unrelated bits
-in to e820. Many platforms using memblock today already offline large
-amounts of contiguous physical memory for use in drivers, if you were to
-follow this scheme and simply layer a node creation shim on top of that
-you would end up with something that is almost entirely generic.
+This is roughly what I had in mind in my N_HIDDEN review, so I quite
+favour this approach.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
