@@ -1,45 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id ECABC6B008A
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 05:24:37 -0500 (EST)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id oAIAOXhQ011125
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 02:24:33 -0800
-Received: from qwf7 (qwf7.prod.google.com [10.241.194.71])
-	by kpbe17.cbf.corp.google.com with ESMTP id oAIAOTcA024215
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 02:24:32 -0800
-Received: by qwf7 with SMTP id 7so63840qwf.33
-        for <linux-mm@kvack.org>; Thu, 18 Nov 2010 02:24:31 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id 948796B004A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 05:41:58 -0500 (EST)
+Date: Thu, 18 Nov 2010 17:20:52 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [1/8,v3] NUMA Hotplug Emulator: add function to hide memory
+ region via e820 table.
+Message-ID: <20101118092052.GE2408@shaohui>
+References: <20101117020759.016741414@intel.com>
+ <20101117021000.479272928@intel.com>
+ <alpine.DEB.2.00.1011162354390.16875@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20101118085921.GA11314@amd>
-References: <1290054891-6097-1-git-send-email-yinghan@google.com>
-	<20101118085921.GA11314@amd>
-Date: Thu, 18 Nov 2010 02:24:31 -0800
-Message-ID: <AANLkTi=+S25eBw5+-bcFAwRLOH-LPh--Tg72rohZJvzX@mail.gmail.com>
-Subject: Re: [PATCH] Pass priority to shrink_slab
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1011162354390.16875@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@kernel.dk>
-Cc: Ying Han <yinghan@google.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 12:59 AM, Nick Piggin <npiggin@kernel.dk> wrote:
-> FWIW, we can just add this to the new shrinker API, and convert over
-> the users who care about it, so it doesn't have to be done in a big
-> patch.
+On Wed, Nov 17, 2010 at 12:16:34AM -0800, David Rientjes wrote:
+> On Wed, 17 Nov 2010, shaohui.zheng@intel.com wrote:
+> 
+> > Index: linux-hpe4/arch/x86/kernel/e820.c
+> > ===================================================================
+> > --- linux-hpe4.orig/arch/x86/kernel/e820.c	2010-11-15 17:13:02.483461667 +0800
+> > +++ linux-hpe4/arch/x86/kernel/e820.c	2010-11-15 17:13:07.083461581 +0800
+> > @@ -971,6 +971,7 @@
+> >  }
+> >  
+> >  static int userdef __initdata;
+> > +static u64 max_mem_size __initdata = ULLONG_MAX;
+> >  
+> >  /* "mem=nopentium" disables the 4MB page tables. */
+> >  static int __init parse_memopt(char *p)
+> > @@ -989,12 +990,28 @@
+> >  
+> >  	userdef = 1;
+> >  	mem_size = memparse(p, &p);
+> > -	e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
+> > +	e820_remove_range(mem_size, max_mem_size - mem_size, E820_RAM, 1);
+> > +	max_mem_size = mem_size;
+> >  
+> >  	return 0;
+> >  }
+> 
+> This needs memmap= support as well, right?
+we did not do the testing after combine both memmap and numa=hide paramter, 
+I think that the result should similar with mem=XX, they both remove a memory
+region from the e820 table.
 
-I also don't like that adding a shrinker parameter requires trivial
-changes in every place that defines a shrinker.
+> 
+> >  early_param("mem", parse_memopt);
+> >  
+> > +#ifdef CONFIG_NODE_HOTPLUG_EMU
+> > +u64 __init e820_hide_mem(u64 mem_size)
+> > +{
+> > +	u64 start, end_pfn;
+> > +
+> > +	userdef = 1;
+> > +	end_pfn = e820_end_of_ram_pfn();
+> > +	start = (end_pfn << PAGE_SHIFT) - mem_size;
+> > +	e820_remove_range(start, max_mem_size - start, E820_RAM, 1);
+> > +	max_mem_size = start;
+> > +
+> > +	return start;
+> > +}
+> > +#endif
+> 
+> This doesn't have any sanity checking for whether e820_remove_range() will 
+> leave any significant amount of memory behind so the kernel will even boot 
+> (probably should have a guaranteed FAKE_NODE_MIN_SIZE left behind?).
 
-I was wondering, could we just add a new structure for shrinker
-parameters ? Your proposal of having parallel 'old' and 'new' APIs
-works if this is a one-time change, but seems awkward if we want to
-add additional parameters later on...
+it should not be checked here, it should be checked by the function who call
+ e820_hide_mem, and truncate the mem_size with FAKE_NODE_MIN_SIZE.
+
+> 
+> > +
+> >  static int __init parse_memmap_opt(char *p)
+> >  {
+> >  	char *oldp;
 
 -- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
