@@ -1,40 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 20B726B0087
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 08:13:59 -0500 (EST)
-Date: Thu, 18 Nov 2010 13:13:40 +0000
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BC866B0087
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 08:18:58 -0500 (EST)
+Date: Thu, 18 Nov 2010 13:18:39 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 23 of 66] add pmd_huge_pte to mm_struct
-Message-ID: <20101118131340.GQ8135@csn.ul.ie>
-References: <patchbomb.1288798055@v2.random> <8497eaf69975ceba0c79.1288798078@v2.random>
+Subject: Re: [PATCH 28 of 66] _GFP_NO_KSWAPD
+Message-ID: <20101118131839.GR8135@csn.ul.ie>
+References: <patchbomb.1288798055@v2.random> <b1b95be209a2927d21c7.1288798083@v2.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <8497eaf69975ceba0c79.1288798078@v2.random>
+In-Reply-To: <b1b95be209a2927d21c7.1288798083@v2.random>
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 03, 2010 at 04:27:58PM +0100, Andrea Arcangeli wrote:
+On Wed, Nov 03, 2010 at 04:28:03PM +0100, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> This increase the size of the mm struct a bit but it is needed to preallocate
-> one pte for each hugepage so that split_huge_page will not require a fail path.
-> Guarantee of success is a fundamental property of split_huge_page to avoid
-> decrasing swapping reliability and to avoid adding -ENOMEM fail paths that
-> would otherwise force the hugepage-unaware VM code to learn rolling back in the
-> middle of its pte mangling operations (if something we need it to learn
-> handling pmd_trans_huge natively rather being capable of rollback). When
-> split_huge_page runs a pte is needed to succeed the split, to map the newly
-> splitted regular pages with a regular pte.  This way all existing VM code
-> remains backwards compatible by just adding a split_huge_page* one liner. The
-> memory waste of those preallocated ptes is negligible and so it is worth it.
+> Transparent hugepage allocations must be allowed not to invoke kswapd or any
+> other kind of indirect reclaim (especially when the defrag sysfs is control
+> disabled). It's unacceptable to swap out anonymous pages (potentially
+> anonymous transparent hugepages) in order to create new transparent hugepages.
+> This is true for the MADV_HUGEPAGE areas too (swapping out a kvm virtual
+> machine and so having it suffer an unbearable slowdown, so another one with
+> guest physical memory marked MADV_HUGEPAGE can run 30% faster if it is running
+> memory intensive workloads, makes no sense). If a transparent hugepage
+> allocation fails the slowdown is minor and there is total fallback, so kswapd
+> should never be asked to swapout memory to allow the high order allocation to
+> succeed.
 > 
 > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 > Acked-by: Rik van Riel <riel@redhat.com>
+> ---
+> 
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -81,13 +81,15 @@ struct vm_area_struct;
+>  #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
+>  #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
+>  
+> +#define __GFP_NO_KSWAPD	((__force gfp_t)0x400000u)
+> +
+
+This is not an exact merge with what's currently in mm. Look at the top
+of gfp.h and see "Plain integer GFP bitmasks. Do not use this
+directly.". The 0x400000u definition needs to go there and this becomes
+
+#define __GFP_NO_KSWAPD		((__force_gfp_t)____0x400000u)
+
+What you have just generates sparse warnings (I believe) so it's
+harmless.
+
+>  /*
+>   * This may seem redundant, but it's a way of annotating false positives vs.
+>   * allocations that simply cannot be supported (e.g. page tables).
+>   */
+>  #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
+>  
+> -#define __GFP_BITS_SHIFT 22	/* Room for 22 __GFP_FOO bits */
+> +#define __GFP_BITS_SHIFT 23	/* Room for 23 __GFP_FOO bits */
+>  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+>  
+>  /* This equals 0, but use constants in case they ever change */
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1996,7 +1996,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, u
+>  		goto nopage;
+>  
+>  restart:
+> -	wake_all_kswapd(order, zonelist, high_zoneidx);
+> +	if (!(gfp_mask & __GFP_NO_KSWAPD))
+> +		wake_all_kswapd(order, zonelist, high_zoneidx);
+>  
+
+Other than needing to define ____GFP_NO_KSWAPD
 
 Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+>  	/*
+>  	 * OK, we're below the kswapd watermark and have kicked background
+> 
 
 -- 
 Mel Gorman
