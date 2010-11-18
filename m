@@ -1,58 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2796F6B004A
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 22:24:33 -0500 (EST)
-Date: Thu, 18 Nov 2010 10:03:21 +0800
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [0/8,v3] NUMA Hotplug Emulator - Introduction & Feedbacks
-Message-ID: <20101118020321.GA1980@shaohui>
-References: <20101117020759.016741414@intel.com>
- <AANLkTinp4A8U61rgODAKyQpauhgTbv4p55utaoVEQR0Q@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id DAA146B0087
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 22:25:14 -0500 (EST)
+Message-ID: <4CE49C8B.2050005@redhat.com>
+Date: Wed, 17 Nov 2010 22:24:59 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTinp4A8U61rgODAKyQpauhgTbv4p55utaoVEQR0Q@mail.gmail.com>
+Subject: Re: fadvise DONTNEED implementation (or lack thereof)
+References: <20101109162525.BC87.A69D9226@jp.fujitsu.com>	<877hgmr72o.fsf@gmail.com>	<20101114140920.E013.A69D9226@jp.fujitsu.com>	<AANLkTim59Qx6TsvXnTBL5Lg6JorbGaqx3KsdBDWO04X9@mail.gmail.com>	<1289810825.2109.469.camel@laptop>	<AANLkTikibS1fDuk67RHk4SU14pJ9nPdodWba1T3Z_pWE@mail.gmail.com>	<4CE14848.2060805@redhat.com>	<AANLkTi=6RtPDnZZa=jrcciB1zHQMiB3LnouBw3G2OyaK@mail.gmail.com>	<4CE40129.9060103@redhat.com> <AANLkTin2fXGOAdGNegDhijjo_kV7nOBJP_hagjgoYdtX@mail.gmail.com>
+In-Reply-To: <AANLkTin2fXGOAdGNegDhijjo_kV7nOBJP_hagjgoYdtX@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ben Gamari <bgamari.foss@gmail.com>, linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 17, 2010 at 01:26:59AM -0800, Yinghai Lu wrote:
-> On Tue, Nov 16, 2010 at 6:07 PM,  <shaohui.zheng@intel.com> wrote:
-> >
-> > * WHAT IS HOTPLUG EMULATOR
-> >
-> > NUMA hotplug emulator is collectively named for the hotplug emulation
-> > it is able to emulate NUMA Node Hotplug thru a pure software way. It
-> > intends to help people easily debug and test node/cpu/memory hotplug
-> > related stuff on a none-numa-hotplug-support machine, even an UMA machine.
-> >
-> > The emulator provides mechanism to emulate the process of physcial cpu/mem
-> > hotadd, it provides possibility to debug CPU and memory hotplug on the machines
-> > without NUMA support for kenrel developers. It offers an interface for cpu
-> > and memory hotplug test purpose.
-> >
-> > * WHY DO WE USE HOTPLUG EMULATOR
-> >
-> > We are focusing on the hotplug emualation for a few months. The emualor helps
-> >  team to reproduce all the major hotplug bugs. It plays an important role to
-> > the hotplug code quality assuirance. Because of the hotplug emulator, we already
-> > move most of the debug working to virtual evironment.
-> 
-> You should extend kvm to make it support NUMA hotplug guest.
-> instead of messing up linux numa code.
-Yinghai,
-	the purpose of hotplug emulator is for linux cpu/memory hotplug testing, so
-it should cover the most linux hotplug linux code path. That is why we select to work
-under linux kernel, and it was proved that it is helpful for hotplug debuging in linux
-kernel.
+On 11/17/2010 09:47 PM, Minchan Kim wrote:
+> On Thu, Nov 18, 2010 at 1:22 AM, Rik van Riel<riel@redhat.com>  wrote:
+>> On 11/17/2010 05:16 AM, Minchan Kim wrote:
+>>
+>>> Absolutely. But how about rsync's two touch?
+>>> It can evict working set.
+>>>
+>>> I need the time for investigation.
+>>> Thanks for the comment.
+>>
+>> Maybe we could exempt MADV_SEQUENTIAL and FADV_SEQUENTIAL
+>> touches from promoting the page to the active list?
+>>
+>
+> The problem is non-mapped file page.
+> non-mapped file page promotion happens by only mark_page_accessed.
+> But it doesn't enough information to prevent promotion(ex, vma or file)
 
-	for NUMA hotplug in kvm guest, it is another project.
+I believe we have enough information in filemap.c and can just
+pass that as a parameter to mark_page_accessed.
+
+> Here is another idea.
+> Current problem is following as.
+> User can use fadivse with FADV_DONTNEED.
+> But problem is that it can't affect when it meet dirty pages.
+> So user have to sync dirty page before calling fadvise with FADV_DONTNEED.
+> It would lose performance.
+>
+> Let's add some semantic of FADV_DONTNEED.
+> It invalidates only pages which are not dirty.
+> If it meets dirty page, let's move the page into inactive's tail or head.
+> If we move the page into tail, shrinker can move it into head again
+> for deferred write if it isn't written the backed device.
+
+That sounds like a good idea.
 
 -- 
-Thanks & Regards,
-Shaohui
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
