@@ -1,74 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E2EA76B004A
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 03:23:36 -0500 (EST)
-Date: Thu, 18 Nov 2010 09:23:32 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] Make swap accounting default behavior configurable
-Message-ID: <20101118082332.GB15928@tiehlicka.suse.cz>
-References: <20101116101726.GA21296@tiehlicka.suse.cz>
- <20101116124615.978ed940.akpm@linux-foundation.org>
- <20101117092339.1b7c2d6d.nishimura@mxp.nes.nec.co.jp>
- <20101116171225.274019cf.akpm@linux-foundation.org>
- <20101117122801.e9850acf.nishimura@mxp.nes.nec.co.jp>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id DF3C26B004A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 03:31:06 -0500 (EST)
+Date: Thu, 18 Nov 2010 08:30:50 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 01 of 66] disable lumpy when compaction is enabled
+Message-ID: <20101118083049.GC8135@csn.ul.ie>
+References: <patchbomb.1288798055@v2.random> <ca2fea6527833aad8adc.1288798056@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101117122801.e9850acf.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <ca2fea6527833aad8adc.1288798056@v2.random>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, stable@kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed 17-11-10 12:28:01, Daisuke Nishimura wrote:
-> On Tue, 16 Nov 2010 17:12:25 -0800
-> Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed, Nov 03, 2010 at 04:27:36PM +0100, Andrea Arcangeli wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> > On Wed, 17 Nov 2010 09:23:39 +0900 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> > > > > 
-> > > > > diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-> > > > > index ed45e98..14eafa5 100644
-> > > > > --- a/Documentation/kernel-parameters.txt
-> > > > > +++ b/Documentation/kernel-parameters.txt
-> > > > > @@ -2385,6 +2385,9 @@ and is between 256 and 4096 characters. It is defined in the file
-> > > > >  			improve throughput, but will also increase the
-> > > > >  			amount of memory reserved for use by the client.
-> > > > >  
-> > > > > +	swapaccount	[KNL] Enable accounting of swap in memory resource
-> > > > > +			controller. (See Documentation/cgroups/memory.txt)
-> > > > 
-> > > > So we have swapaccount and noswapaccount.  Ho hum, "swapaccount=[1|0]"
-> > > > would have been better.
-> > > > 
-> > > I suggested to keep "noswapaccount" for compatibility.
-> > > If you and other guys don't like having two parameters, I don't stick to
-> > > the old parameter.
-> > > 
-> > 
-> > Yes, we're stuck with the old one now.
-> > 
-> > But we should note that "foo=[0|1]" is superior to "foo" and "nofoo". 
-> > Even if we didn't initially intend to add "nofoo".
-> > 
-> I see.
+> Compaction is more reliable than lumpy, and lumpy makes the system unusable
+> when it runs.
 > 
-> Michal-san, could you update your patch to use "swapaccount=[1|0]" ?
 
-I have noticed that Andrew has already taken the last version of the
-patch for -mm tree. Should I still rework it to change swapaccount to
-swapaccount=0|1 resp. true|false?
+It took me a while but is "[PATCH 0/8] Use memory compaction instead of
+lumpy reclaim during high-order allocations" a suitable replacement for
+this patch?
 
-> 
-> Thanks,
-> Daisuke Nishimura.
 -- 
-Michal Hocko
-L3 team 
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
