@@ -1,34 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 42DED6B0085
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 11:07:06 -0500 (EST)
-Date: Fri, 19 Nov 2010 00:06:52 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] writeback: prevent bandwidth calculation overflow
-Message-ID: <20101118160652.GA19459@localhost>
-References: <20101118065725.GB8458@localhost>
- <4CE537BE.6090103@redhat.com>
- <20101118154408.GA18582@localhost>
- <1290096121.2109.1525.camel@laptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FB136B004A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 11:08:17 -0500 (EST)
+Date: Thu, 18 Nov 2010 16:08:01 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 45 of 66] remove PG_buddy
+Message-ID: <20101118160801.GA8135@csn.ul.ie>
+References: <patchbomb.1288798055@v2.random> <85c897773782cdde8b69.1288798100@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1290096121.2109.1525.camel@laptop>
+In-Reply-To: <85c897773782cdde8b69.1288798100@v2.random>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Li, Shaohua" <shaohua.li@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 19, 2010 at 12:02:01AM +0800, Peter Zijlstra wrote:
-> On Thu, 2010-11-18 at 23:44 +0800, Wu Fengguang wrote:
-> > +               pause = HZ * pages_dirtied / (bw + 1);
+On Wed, Nov 03, 2010 at 04:28:20PM +0100, Andrea Arcangeli wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> Shouldn't that be using something like div64_u64 ?
+> PG_buddy can be converted to _mapcount == -2. So the PG_compound_lock can be
+> added to page->flags without overflowing (because of the sparse section bits
+> increasing) with CONFIG_X86_PAE=y and CONFIG_X86_PAT=y. This also has to move
+> the memory hotplug code from _mapcount to lru.next to avoid any risk of
+> clashes. We can't use lru.next for PG_buddy removal, but memory hotplug can use
+> lru.next even more easily than the mapcount instead.
+> 
 
-OK, but a dumb question: gcc cannot handle this implicitly?
+Does this make much of a difference? I confess I didn't read the patch closely
+because I didn't get the motivation.
 
-Thanks,
-Fengguang
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
