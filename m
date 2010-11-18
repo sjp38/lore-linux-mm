@@ -1,41 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7B4296B0089
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 11:34:45 -0500 (EST)
-Date: Fri, 19 Nov 2010 00:34:39 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] writeback: prevent bandwidth calculation overflow
-Message-ID: <20101118163439.GA21318@localhost>
-References: <20101118065725.GB8458@localhost>
- <4CE537BE.6090103@redhat.com>
- <20101118154408.GA18582@localhost>
- <1290096121.2109.1525.camel@laptop>
- <20101118160652.GA19459@localhost>
- <1290097740.2109.1527.camel@laptop>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E66026B008A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 11:34:46 -0500 (EST)
+Date: Thu, 18 Nov 2010 16:34:24 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 62 of 66] disable transparent hugepages by default on
+	small systems
+Message-ID: <20101118163424.GH8135@csn.ul.ie>
+References: <patchbomb.1288798055@v2.random> <5791385d8111de4b5143.1288798117@v2.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1290097740.2109.1527.camel@laptop>
+In-Reply-To: <5791385d8111de4b5143.1288798117@v2.random>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Li, Shaohua" <shaohua.li@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 19, 2010 at 12:29:00AM +0800, Peter Zijlstra wrote:
-> On Fri, 2010-11-19 at 00:06 +0800, Wu Fengguang wrote:
-> > On Fri, Nov 19, 2010 at 12:02:01AM +0800, Peter Zijlstra wrote:
-> > > On Thu, 2010-11-18 at 23:44 +0800, Wu Fengguang wrote:
-> > > > +               pause = HZ * pages_dirtied / (bw + 1);
-> > > 
-> > > Shouldn't that be using something like div64_u64 ?
-> > 
-> > OK, but a dumb question: gcc cannot handle this implicitly?
+On Wed, Nov 03, 2010 at 04:28:37PM +0100, Andrea Arcangeli wrote:
+> From: Rik van Riel <riel@redhat.com>
 > 
-> it could, but we chose not to implement the symbol it emits for these
-> things so as to cause pain.. that was still assuming the world of 32bit
-> computing was relevant and 64bit divides were expensive ;-)
+> On small systems, the extra memory used by the anti-fragmentation
+> memory reserve and simply because huge pages are smaller than large
+> pages can easily outweigh the benefits of less TLB misses.
+> 
 
-Good to know that, thanks!  So let's avoid it totally :)
+A less obvious concern is if run on a NUMA machine with asymmetric node sizes
+and one of them is very small. The reserve could make the node unusable. I've
+only seen it happen once in practice (via hugeadm) but it was also a <1G
+machine with 4 nodes (don't ask me why).
+
+> In case of the crashdump kernel, OOMs have been observed due to
+> the anti-fragmentation memory reserve taking up a large fraction
+> of the crashdump image.
+> 
+> This patch disables transparent hugepages on systems with less
+> than 1GB of RAM, but the hugepage subsystem is fully initialized
+> so administrators can enable THP through /sys if desired.
+> 
+> v2: reduce the limit to 512MB
+> 
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> Acked-by: Avi Kiviti <avi@redhat.com>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
