@@ -1,204 +1,226 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E81D6B004A
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 20:35:54 -0500 (EST)
-Message-Id: <201011180135.oAI1Znl3017273@imap1.linux-foundation.org>
-Subject: mmotm 2010-11-17-17-03 uploaded
-From: akpm@linux-foundation.org
-Date: Wed, 17 Nov 2010 17:03:30 -0800
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0E6EC6B004A
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 20:41:06 -0500 (EST)
+Date: Thu, 18 Nov 2010 12:40:51 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 00/13] IO-less dirty throttling
+Message-ID: <20101118014051.GR22876@dastard>
+References: <20101117035821.000579293@intel.com>
+ <20101117072538.GO22876@dastard>
+ <20101117100655.GA26501@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101117100655.GA26501@localhost>
 Sender: owner-linux-mm@kvack.org
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-The mm-of-the-moment snapshot 2010-11-17-17-03 has been uploaded to
+On Wed, Nov 17, 2010 at 06:06:55PM +0800, Wu Fengguang wrote:
+> On Wed, Nov 17, 2010 at 03:25:38PM +0800, Dave Chinner wrote:
+> > On Wed, Nov 17, 2010 at 11:58:21AM +0800, Wu Fengguang wrote:
+> > > Andrew,
+> > >
+> > > This is a revised subset of "[RFC] soft and dynamic dirty throttling limits"
+> > > <http://thread.gmane.org/gmane.linux.kernel.mm/52966>.
+> > >
+> > > The basic idea is to introduce a small region under the bdi dirty threshold.
+> > > The task will be throttled gently when stepping into the bottom of region,
+> > > and get throttled more and more aggressively as bdi dirty+writeback pages
+> > > goes up closer to the top of region. At some point the application will be
+> > > throttled at the right bandwidth that balances with the device write bandwidth.
+> > > (the first patch and documentation has more details)
+> > >
+> > > Changes from initial RFC:
+> > >
+> > > - adaptive ratelimiting, to reduce overheads when under throttle threshold
+> > > - prevent overrunning dirty limit on lots of concurrent dirtiers
+> > > - add Documentation/filesystems/writeback-throttling-design.txt
+> > > - lower max pause time from 200ms to 100ms; min pause time from 10ms to 1jiffy
+> > > - don't drop the laptop mode code
+> > > - update and comment the trace event
+> > > - benchmarks on concurrent dd and fs_mark covering both large and tiny files
+> > > - bdi->write_bandwidth updates should be rate limited on concurrent dirtiers,
+> > >   otherwise it will drift fast and fluctuate
+> > > - don't call balance_dirty_pages_ratelimit() when writing to already dirtied
+> > >   pages, otherwise the task will be throttled too much
+> > >
+> > > The patches are based on 2.6.37-rc2 and Jan's sync livelock patches. For easier
+> > > access I put them in
+> > >
+> > > git://git.kernel.org/pub/scm/linux/kernel/git/wfg/writeback.git dirty-throttling-v2
+> > 
+> > Great - just pulled it down and I'll start running some tests.
+> > 
+> > The tree that I'm testing has the vfs inode lock breakup in it, the
+> > inode cache SLAB_DESTROY_BY_RCU series, a large bunch of XFS lock
+> > breakup patches and now the above branch in it. It's here:
+> > 
+> > git://git.kernel.org/pub/scm/linux/kernel/git/dgc/xfsdev.git working
+> > 
+> > > On a simple test of 100 dd, it reduces the CPU %system time from 30% to 3%, and
+> > > improves IO throughput from 38MB/s to 42MB/s.
+> > 
+> > Excellent - I suspect that the reduction in contention on the inode
+> > writeback locks is responsible for dropping the CPU usage right down.
+> > 
+> > I'm seeing throughput for a _single_ large dd (100GB) increase from ~650MB/s
+> > to 700MB/s with your series. For other numbers of dd's:
+> 
+> Great! I didn't expect it to improve _throughput_ of single dd case.
 
-   http://userweb.kernel.org/~akpm/mmotm/
+At 650MB/s without your series, the dd process is CPU bound. With
+your series the dd process now only consumes ~65% of the cpu, so I
+suspect that if I was running on a faster block device it'd go even
+faster. Removing the writeback path from the write() path certainly
+helps in this regard.
 
-and will soon be available at
+> > # dd processes          total throughput         total        per proc
+> >    1                      700MB/s                   400/s       100/s
+> >    2                      700MB/s                   500/s       100/s
+> >    4                      700MB/s                   700/s       100/s
+> >    8                      690MB/s                 1,100/s       100/s
+> >   16                      675MB/s                 2,000/s       110/s
+> >   32                      675MB/s                 5,000/s       150/s
+> >  100                      650MB/s                22,000/s       210/s
+> > 1000                      600MB/s               160,000/s       160/s
+> > 
+> > A couple of things I noticed - firstly, the number of context
+> > switches scales roughly with the number of writing processes - is
+> > there any reason for waking every writer 100-200 times a second? At
+> > the thousand writer mark, we reach a context switch rate of more
+> > than one per page we complete IO on. Any idea on whether this can be
+> > improved at all?
+> 
+> It's simple to have the pause time stabilize at larger values.  I can
+> even easily detect that there are lots of concurrent dirtiers, and in
+> such cases adaptively enlarge it to no more than 200ms. Does that
+> value sound reasonable?
 
-   git://zen-kernel.org/kernel/mmotm.git
+Certainly. I think that the more concurrent dirtiers, the less
+frequently each individual dirtier should be woken. There's no point
+waking a dirtier if all they can do is write a single page before
+they are throttled again - IO is most efficient when done in larger
+batches...
 
-It contains the following patches against 2.6.37-rc2:
+> Precisely controlling pause time is the major capability pursued by
+> this implementation (comparing to the earlier attempts to wait on
+> write completions).
+> 
+> > Also, the system CPU usage while throttling stayed quite low but not
+> > constant. The more writing processes, the lower the system CPU usage
+> > (despite the increase in context switches). Further, if the dd's
+> > didn't all start at the same time, then system CPU usage would
+> > roughly double when the first dd's complete and cpu usage stayed
+> > high until all the writers completed. So there's some trigger when
+> > writers finish/exit there that is changing throttle behaviour.
+> > Increasing the number of writers does not seem to have any adverse
+> > affects.
+> 
+> Depending on various conditions, the pause time will be stabilizing at
+> different point in the range [1 jiffy, 100 ms]. This is a very big
+> range and I made no attempt (although possible) to further control it.
+> 
+> The smaller pause time, the more overheads in context switches _as
+> well as_ global_page_state() costs (mainly cacheline bouncing) in
+> balance_dirty_pages().
 
-origin.patch
-hpet-factor-timer-allocate-from-open.patch
-leds-fix-bug-with-reading-nas-ss4200-dmi-code.patch
-include-linux-fsh-fix-userspace-build.patch
-nommu-yield-cpu-while-disposing-vm.patch
-linux-next.patch
-next-remove-localversion.patch
-i-need-old-gcc.patch
-aesni-nfg.patch
-arch-alpha-kernel-systblss-remove-debug-check.patch
-sgi-xpc-xpc-fails-to-discover-partitions-with-all-nasids-above-128.patch
-fuse-fix-attributes-after-openo_trunc.patch
-drivers-leds-leds-lp5521c-change-some-macros-to-functions.patch
-drivers-leds-leds-lp5523c-change-some-macros-to-functions.patch
-drivers-leds-leds-lp5521c-adjust-delays-and-add-comments-to-them.patch
-drivers-leds-leds-lp5523c-adjust-delays-and-add-comments-to-them.patch
-drivers-leds-leds-lp5521c-perform-sw-reset-before-detection.patch
-drivers-leds-leds-lp5523c-perform-sw-reset-before-detection.patch
-memcg-avoid-deadlock-between-move-charge-and-try_charge.patch
-cgroups-make-swap-accounting-default-behavior-configurable.patch
-mm-vmap-area-cache.patch
-arch-arm-plat-omap-iovmmc-fix-end-address-of-vm-area-comparation-in-alloc_iovm_area.patch
-backlight-fix-88pm860x_bl-macro-collision.patch
-cciss-fix-botched-tag-masking-for-scsi-tape-commands.patch
-arch-x86-kernel-entry_32s-work-around-gas-2161-glitch.patch
-arch-x86-kernel-entry_64s-fix-build-with-gas-2161.patch
-arch-x86-kernel-entry_32s-i386-too.patch
-arch-x86-include-asm-fixmaph-mark-__set_fixmap_offset-as-__always_inline.patch
-ibm_rtl-fix-printk-format-warning.patch
-acerhdf-add-support-for-aspire-1410-bios-v13314.patch
-arch-x86-kernel-apic-io_apicc-fix-warning.patch
-fs-btrfs-inodec-eliminate-memory-leak.patch
-btrfs-dont-dereference-extent_mapping-if-null.patch
-cifs-dont-overwrite-dentry-name-in-d_revalidate.patch
-cpufreq-fix-ondemand-governor-powersave_bias-execution-time-misuse.patch
-drivers-dma-use-the-ccflag-y-instead-of-extra_cflags.patch
-drivers-dma-ioat-use-the-ccflag-y-instead-of-extra_cflags.patch
-jfs-dont-overwrite-dentry-name-in-d_revalidate.patch
-powerpc-enable-arch_dma_addr_t_64bit-with-arch_phys_addr_t_64bit.patch
-debugfs-remove-module_exit.patch
-drivers-gpu-drm-radeon-atomc-fix-warning.patch
-drivers-media-video-gspca-cpia1c-fix-error-check.patch
-irq-use-per_cpu-kstat_irqs.patch
-irq-use-per_cpu-kstat_irqs-checkpatch-fixes.patch
-leds-route-kbd-leds-through-the-generic-leds-layer.patch
-mips-enable-arch_dma_addr_t_64bit-with-highmem-64bit_phys_addr-64bit.patch
-isdn-capi-unregister-capictr-notifier-after-init-failure.patch
-isdn-capi-make-kcapi-use-a-separate-workqueue.patch
-drivers-video-backlight-l4f00242t03c-full-implement-fb-power-states-for-this-lcd.patch
-btusb-patch-add_apple_macbookpro62.patch
-atmel_serial-fix-rts-high-after-initialization-in-rs485-mode.patch
-atmel_serial-fix-rts-high-after-initialization-in-rs485-mode-fix.patch
-drivers-message-fusion-mptsasc-fix-warning.patch
-hpsa-remove-incorrect-redefinition-of-pci_device_id_hp_cissf.patch
-drivers-block-makefile-replace-the-use-of-module-objs-with-module-y.patch
-drivers-block-aoe-makefile-replace-the-use-of-module-objs-with-module-y.patch
-vfs-remove-a-warning-on-open_fmode.patch
-vfs-add-__fmode_exec.patch
-n_hdlc-fix-read-and-write-locking.patch
-n_hdlc-fix-read-and-write-locking-update.patch
-mm.patch
-mm-page-allocator-adjust-the-per-cpu-counter-threshold-when-memory-is-low.patch
-mm-vmstat-use-a-single-setter-function-and-callback-for-adjusting-percpu-thresholds.patch
-mm-vmstat-use-a-single-setter-function-and-callback-for-adjusting-percpu-thresholds-fix.patch
-mm-vmstat-use-a-single-setter-function-and-callback-for-adjusting-percpu-thresholds-update.patch
-mm-mempolicyc-add-rcu-read-lock-to-protect-pid-structure.patch
-writeback-integrated-background-writeback-work.patch
-writeback-trace-wakeup-event-for-background-writeback.patch
-writeback-stop-background-kupdate-works-from-livelocking-other-works.patch
-writeback-stop-background-kupdate-works-from-livelocking-other-works-update.patch
-writeback-avoid-livelocking-wb_sync_all-writeback.patch
-writeback-avoid-livelocking-wb_sync_all-writeback-update.patch
-writeback-check-skipped-pages-on-wb_sync_all.patch
-writeback-check-skipped-pages-on-wb_sync_all-update.patch
-writeback-check-skipped-pages-on-wb_sync_all-update-fix.patch
-writeback-io-less-balance_dirty_pages.patch
-writeback-consolidate-variable-names-in-balance_dirty_pages.patch
-writeback-per-task-rate-limit-on-balance_dirty_pages.patch
-writeback-per-task-rate-limit-on-balance_dirty_pages-fix.patch
-writeback-prevent-duplicate-balance_dirty_pages_ratelimited-calls.patch
-writeback-account-per-bdi-accumulated-written-pages.patch
-writeback-bdi-write-bandwidth-estimation.patch
-writeback-show-bdi-write-bandwidth-in-debugfs.patch
-writeback-quit-throttling-when-bdi-dirty-pages-dropped-low.patch
-writeback-reduce-per-bdi-dirty-threshold-ramp-up-time.patch
-writeback-make-reasonable-gap-between-the-dirty-background-thresholds.patch
-writeback-scale-down-max-throttle-bandwidth-on-concurrent-dirtiers.patch
-writeback-add-trace-event-for-balance_dirty_pages.patch
-writeback-make-nr_to_write-a-per-file-limit.patch
-writeback-make-nr_to_write-a-per-file-limit-fix.patch
-sync_inode_metadata-fix-comment.patch
-mm-page-writebackc-fix-__set_page_dirty_no_writeback-return-value.patch
-vmscan-factor-out-kswapd-sleeping-logic-from-kswapd.patch
-mm-find_get_pages_contig-fixlet.patch
-fs-mpagec-consolidate-code.patch
-fs-mpagec-consolidate-code-checkpatch-fixes.patch
-mm-convert-sprintf_symbol-to-%ps.patch
-mm-smaps-export-mlock-information.patch
-define-madv_hugepage.patch
-frv-duplicate-output_buffer-of-e03.patch
-frv-duplicate-output_buffer-of-e03-checkpatch-fixes.patch
-kernel-power-changed-makefile-to-use-proper-ccflag-flag.patch
-um-mark-config_highmem-as-broken.patch
-kmsg_dump-constrain-mtdoops-and-ramoops-to-perform-their-actions-only-for-kmsg_dump_panic.patch
-kmsg_dump-add-kmsg_dump-calls-to-the-reboot-halt-poweroff-and-emergency_restart-paths.patch
-add-the-common-dma_addr_t-typedef-to-include-linux-typesh.patch
-scripts-get_maintainerpl-make-rolestats-the-default.patch
-scripts-get_maintainerpl-use-git-fallback-more-often.patch
-maintainers-intel-gfx-is-a-subscribers-only-mailing-list.patch
-lib-add-generic-exponentially-weighted-moving-average-ewma-function.patch
-lib-add-generic-exponentially-weighted-moving-average-ewma-function-fix.patch
-percpucounter-optimize-__percpu_counter_add-a-bit-through-the-use-of-this_cpu-operations.patch
-drivers-mmc-host-omapc-use-resource_size.patch
-drivers-mmc-host-omap_hsmmcc-use-resource_size.patch
-scripts-checkpatchpl-add-check-for-multiple-terminating-semicolons-and-casts-of-vmalloc.patch
-fs-select-fix-information-leak-to-userspace.patch
-fs-select-fix-information-leak-to-userspace-fix.patch
-epoll-convert-max_user_watches-to-long.patch
-binfmt_elf-cleanups.patch
-drivers-rtc-rtc-omapc-fix-a-memory-leak.patch
-rtc-add-real-time-clock-driver-for-nvidia-tegra.patch
-drivers-gpio-cs5535-gpioc-add-some-additional-cs5535-specific-gpio-functionality.patch
-drivers-staging-olpc_dcon-convert-to-new-cs5535-gpio-api.patch
-cyber2000fb-avoid-palette-corruption-at-higher-clocks.patch
-jbd-remove-dependency-on-__gfp_nofail.patch
-memcg-add-page_cgroup-flags-for-dirty-page-tracking.patch
-memcg-document-cgroup-dirty-memory-interfaces.patch
-memcg-document-cgroup-dirty-memory-interfaces-fix.patch
-memcg-create-extensible-page-stat-update-routines.patch
-memcg-add-lock-to-synchronize-page-accounting-and-migration.patch
-memcg-use-zalloc-rather-than-mallocmemset.patch
-fs-proc-basec-kernel-latencytopc-convert-sprintf_symbol-to-%ps.patch
-fs-proc-basec-kernel-latencytopc-convert-sprintf_symbol-to-%ps-checkpatch-fixes.patch
-exec_domain-establish-a-linux32-domain-on-config_compat-systems.patch
-rapidio-use-common-destid-storage-for-endpoints-and-switches.patch
-rapidio-integrate-rio_switch-into-rio_dev.patch
-fs-execc-provide-the-correct-process-pid-to-the-pipe-helper.patch
-nfc-driver-for-nxp-semiconductors-pn544-nfc-chip.patch
-nfc-driver-for-nxp-semiconductors-pn544-nfc-chip-update.patch
-remove-dma64_addr_t.patch
-pps-trivial-fixes.patch
-pps-declare-variables-where-they-are-used-in-switch.patch
-pps-fix-race-in-pps_fetch-handler.patch
-pps-unify-timestamp-gathering.patch
-pps-access-pps-device-by-direct-pointer.patch
-pps-convert-printk-pr_-to-dev_.patch
-pps-move-idr-stuff-to-ppsc.patch
-pps-add-async-pps-event-handler.patch
-pps-add-async-pps-event-handler-fix.patch
-pps-dont-disable-interrupts-when-using-spin-locks.patch
-pps-use-bug_on-for-kernel-api-safety-checks.patch
-pps-simplify-conditions-a-bit.patch
-ntp-add-hardpps-implementation.patch
-pps-capture-monotonic_raw-timestamps-as-well.patch
-pps-add-kernel-consumer-support.patch
-pps-add-parallel-port-pps-client.patch
-pps-add-parallel-port-pps-signal-generator.patch
-memstick-a-few-changes-to-core.patch
-memstick-add-support-for-legacy-memorysticks.patch
-memstick-add-driver-for-ricoh-r5c592-card-reader.patch
-memstick-add-driver-for-ricoh-r5c592-card-reader-fix.patch
-memstick-core-fix-device_register-error-handling.patch
-w1-ds2423-counter-driver-and-documentation.patch
-make-sure-nobodys-leaking-resources.patch
-journal_add_journal_head-debug.patch
-releasing-resources-with-children.patch
-make-frame_pointer-default=y.patch
-mutex-subsystem-synchro-test-module.patch
-mutex-subsystem-synchro-test-module-add-missing-header-file.patch
-slab-leaks3-default-y.patch
-put_bh-debug.patch
-add-debugging-aid-for-memory-initialisation-problems.patch
-workaround-for-a-pci-restoring-bug.patch
-prio_tree-debugging-patch.patch
-single_open-seq_release-leak-diagnostics.patch
-add-a-refcount-check-in-dput.patch
-getblk-handle-2tb-devices.patch
-memblock-add-input-size-checking-to-memblock_find_region.patch
-memblock-add-input-size-checking-to-memblock_find_region-fix.patch
+I didn't notice any change in context switches when the CPU usage
+changed, so perhaps it was more cacheline bouncing in
+global_page_state(). I think more investigation is needed, though.
+
+> I wonder whether or not the majority context switches indicate a
+> corresponding invocation of balance_dirty_pages()?
+
+/me needs to run with writeback tracing turned on
+
+> > FWIW, I'd consider the throughput (1200 files/s) to quite low for 12
+> > disks and a number of CPUs being active. I'm not sure how you
+> > configured the storage/filesystem, but you should configure the
+> > filesystem with at least 2x as many AGs as there are CPUs, and run
+> > one create thread per CPU rather than one per disk.  Also, making
+> > sure you have a largish log (512MB in this case) is helpful, too.
+> 
+> The test machine has 16 CPUs and 12 disks. I used plain simple mkfs
+> commands. I don't have access to the test box now (it's running LKP
+> for the just released -rc2). I'll checkout the xfs configuration and
+> recreate it with more AGs and log.
+
+Cool.
+
+> And yeah it's a good idea to
+> increase the number of threads, with "-t 16"?
+
+No, that just increases the number of threads working on a specific
+directory. creates are serialised by the directory i_mutex, so
+there's no point running multiple threads per directory.
+
+That's why I use multiple "-d <dir>" options - you get a thread per
+directory that way, and they don't serialise with each other given
+enough AGs...
+
+> btw, is it a must to run
+> the test for one whole day? If not, which optarg can be decreased?
+> "-L 64"?
+
+Yeah, -L controls the number of iterations (there's one line of
+output per iteration). Generally, for sanity checking, I'll just run
+a few iterations. I only ever run the full 50M inode runs when I've
+got something I want to compare. Mind you, it generally only takes
+an hour on my system, so that's not so bad...
+
+> > Ok, so throughput is also down by ~5% from ~23k files/s to ~22k
+> > files/s.
+> 
+> Hmm. The bad thing is I have no idea on how to avoid that. It's not
+> doing IO any more, so what can I do to influence the IO throughput? ;)
+
+That's now a problem of writeback optimisation - where it should be
+dealt with ;)
+
+> Maybe there are unnecessary sleep points in the writeout path? 
+
+It sleeps on congestion, but otherwise shouldn't be blocking
+anywhere.
+
+> Or even one flusher thread is not enough _now_?
+
+It hasn't been enough for XFS on really large systems doing high
+bandwidth IO for a long time. It's only since 2.6.35 and the
+introduction of the delaylog mount option that XFS has really been
+able to drive small file IO this hard.
+
+> Anyway that seems not
+> the flaw of _this_ patchset, but problems exposed and unfortunately
+> made more imminent by it.
+
+Agreed.
+
+> btw, do you have the total elapsed time before/after patch? As you
+> said it's the final criterion :)
+
+Yeah, sorry, should have posted them - I didn't because I snapped
+the numbers before the run had finished. Without series:
+
+373.19user 14940.49system 41:42.17elapsed 612%CPU (0avgtext+0avgdata 82560maxresident)k
+0inputs+0outputs (403major+2599763minor)pagefaults 0swaps
+
+With your series:
+
+359.64user 5559.32system 40:53.23elapsed 241%CPU (0avgtext+0avgdata 82496maxresident)k
+0inputs+0outputs (312major+2598798minor)pagefaults 0swaps
+
+So the wall time with your series is lower, and system CPU time is
+way down (as I've already noted) for this workload on XFS.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
