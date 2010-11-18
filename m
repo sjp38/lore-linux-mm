@@ -1,89 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2A7C66B004A
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 21:50:45 -0500 (EST)
-Date: Thu, 18 Nov 2010 10:50:39 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 00/13] IO-less dirty throttling
-Message-ID: <20101118025039.GA15479@localhost>
-References: <20101117035821.000579293@intel.com>
- <20101117072538.GO22876@dastard>
- <20101117100655.GA26501@localhost>
- <20101118014051.GR22876@dastard>
- <20101117175900.0d7878e5.akpm@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C9B746B004A
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 21:54:50 -0500 (EST)
+From: <b32542@freescale.com>
+Subject: [PATCH] slub: operate cache name memory same to slab and slob
+Date: Thu, 18 Nov 2010 11:00:59 +0800
+Message-ID: <1290049259-20108-1-git-send-email-b32542@freescale.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101117175900.0d7878e5.akpm@linux-foundation.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: cl@linux-foundation.org, penberg@cs.helsinki.fi, mpm@selenic.com, tytso@mit.edu, linux-kernel@vger.kernel.org, Zeng Zhaoming <zengzm.kernel@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 09:59:00AM +0800, Andrew Morton wrote:
-> On Thu, 18 Nov 2010 12:40:51 +1100 Dave Chinner <david@fromorbit.com> wrote:
-> 
-> > 
-> > There's no point
-> > waking a dirtier if all they can do is write a single page before
-> > they are throttled again - IO is most efficient when done in larger
-> > batches...
-> 
-> That assumes the process was about to do another write.  That's
-> reasonable on average, but a bit sad for interactive/rtprio tasks.  At
-> some stage those scheduler things should be brought into the equation.
+From: Zeng Zhaoming <zengzm.kernel@gmail.com>
 
-The interactive/rtprio tasks are given 1/4 bonus in
-global_dirty_limits(). So when there are lots of heavy dirtiers,
-the interactive/rtprio tasks will get soft throttled at
-(6~8)*bdi_bandwidth. We can increase that to (12~16)*bdi_bandwidth
-or whatever.
+Get a memory leak complaint about ext4:
+  comm "mount", pid 1159, jiffies 4294904647 (age 6077.804s)
+  hex dump (first 32 bytes):
+    65 78 74 34 5f 67 72 6f 75 70 69 6e 66 6f 5f 31  ext4_groupinfo_1
+    30 00 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5  0.kkkkkkkkkkkkk.
+  backtrace:
+    [<c068ade3>] kmemleak_alloc+0x93/0xd0
+    [<c024e54c>] __kmalloc_track_caller+0x30c/0x380
+    [<c02269d3>] kstrdup+0x33/0x60
+    [<c0318a70>] ext4_mb_init+0x4e0/0x550
+    [<c0304e0e>] ext4_fill_super+0x1e6e/0x2f60
+    [<c0261140>] mount_bdev+0x1c0/0x1f0
+    [<c02fc00f>] ext4_mount+0x1f/0x30
+    [<c02603d8>] vfs_kern_mount+0x78/0x250
+    [<c026060e>] do_kern_mount+0x3e/0x100
+    [<c027b4c2>] do_mount+0x2e2/0x780
+    [<c027ba04>] sys_mount+0xa4/0xd0
+    [<c010429f>] sysenter_do_call+0x12/0x38
+    [<ffffffff>] 0xffffffff
 
-> >
-> > ...
-> >
-> > Yeah, sorry, should have posted them - I didn't because I snapped
-> > the numbers before the run had finished. Without series:
-> > 
-> > 373.19user 14940.49system 41:42.17elapsed 612%CPU (0avgtext+0avgdata 82560maxresident)k
-> > 0inputs+0outputs (403major+2599763minor)pagefaults 0swaps
-> > 
-> > With your series:
-> > 
-> > 359.64user 5559.32system 40:53.23elapsed 241%CPU (0avgtext+0avgdata 82496maxresident)k
-> > 0inputs+0outputs (312major+2598798minor)pagefaults 0swaps
-> > 
-> > So the wall time with your series is lower, and system CPU time is
-> > way down (as I've already noted) for this workload on XFS.
-> 
-> How much of that benefit is an accounting artifact, moving work away
-> from the calling process's CPU and into kernel threads?
+It is cause by slub manage the cache name different from slab and slob.
+In slab and slob, only reference to name, alloc and reclaim the memory
+is the duty of the code that invoked kmem_cache_create().
 
-The elapsed time won't cheat, and it's going down from 41:42 to 40:53.
+In slub, cache name duplicated when create. This ambiguity will cause
+some memory leaks and double free if kmem_cache_create() pass a
+dynamic malloc cache name.
 
-For the CPU time, I have system wide numbers collected from iostat.
-Citing from the changelog of the first patch:
+Signed-off-by: Zeng Zhaoming <zengzm.kernel@gmail.com>
+---
+ mm/slub.c |   11 +----------
+ 1 files changed, 1 insertions(+), 10 deletions(-)
+ mode change 100644 => 100755 mm/slub.c
 
-- 1 dirtier case:    the same
-- 10 dirtiers case:  CPU system time is reduced to 50%
-- 100 dirtiers case: CPU system time is reduced to 10%, IO size and throughput increases by 10%
+diff --git a/mm/slub.c b/mm/slub.c
+old mode 100644
+new mode 100755
+index 981fb73..a223e08
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -209,7 +209,6 @@ static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
+ 							{ return 0; }
+ static inline void sysfs_slab_remove(struct kmem_cache *s)
+ {
+-	kfree(s->name);
+ 	kfree(s);
+ }
+ 
+@@ -3228,7 +3227,6 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+ 		size_t align, unsigned long flags, void (*ctor)(void *))
+ {
+ 	struct kmem_cache *s;
+-	char *n;
+ 
+ 	if (WARN_ON(!name))
+ 		return NULL;
+@@ -3252,25 +3250,19 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+ 		return s;
+ 	}
+ 
+-	n = kstrdup(name, GFP_KERNEL);
+-	if (!n)
+-		goto err;
+-
+ 	s = kmalloc(kmem_size, GFP_KERNEL);
+ 	if (s) {
+-		if (kmem_cache_open(s, n,
++		if (kmem_cache_open(s, name,
+ 				size, align, flags, ctor)) {
+ 			list_add(&s->list, &slab_caches);
+ 			if (sysfs_slab_add(s)) {
+ 				list_del(&s->list);
+-				kfree(n);
+ 				kfree(s);
+ 				goto err;
+ 			}
+ 			up_write(&slub_lock);
+ 			return s;
+ 		}
+-		kfree(n);
+ 		kfree(s);
+ 	}
+ err:
+@@ -4421,7 +4413,6 @@ static void kmem_cache_release(struct kobject *kobj)
+ {
+ 	struct kmem_cache *s = to_slab(kobj);
+ 
+-	kfree(s->name);
+ 	kfree(s);
+ }
+ 
+-- 
+1.7.0.4
 
-                        2.6.37-rc2                              2.6.37-rc1-next-20101115+
-        ----------------------------------------        ----------------------------------------
-        %system         wkB/s           avgrq-sz        %system         wkB/s           avgrq-sz
-100dd   30.916          37843.000       748.670         3.079           41654.853       822.322
-100dd   30.501          37227.521       735.754         3.744           41531.725       820.360
-
-10dd    39.442          47745.021       900.935         20.756          47951.702       901.006
-10dd    39.204          47484.616       899.330         20.550          47970.093       900.247
-
-1dd     13.046          57357.468       910.659         13.060          57632.715       909.212
-1dd     12.896          56433.152       909.861         12.467          56294.440       909.644
-
-Those are real CPU savings :)
-
-Thanks,
-Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
