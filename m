@@ -1,45 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 564076B0092
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 03:59:27 -0500 (EST)
-Date: Thu, 18 Nov 2010 19:59:21 +1100
-From: Nick Piggin <npiggin@kernel.dk>
-Subject: Re: [PATCH] Pass priority to shrink_slab
-Message-ID: <20101118085921.GA11314@amd>
-References: <1290054891-6097-1-git-send-email-yinghan@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1290054891-6097-1-git-send-email-yinghan@google.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id BD8F66B004A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 04:16:25 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAI9GM5c006646
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 18 Nov 2010 18:16:23 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 926EE45DE5D
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 18:16:22 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DD7E45DE4E
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 18:16:22 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4861BE08002
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 18:16:22 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 049041DB8038
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 18:16:22 +0900 (JST)
+Date: Thu, 18 Nov 2010 18:10:48 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 7/8] mm: compaction: Use the LRU to get a hint on where
+ compaction should start
+Message-Id: <20101118181048.7bdfbb38.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1290010969-26721-8-git-send-email-mel@csn.ul.ie>
+References: <1290010969-26721-1-git-send-email-mel@csn.ul.ie>
+	<1290010969-26721-8-git-send-email-mel@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ying Han <yinghan@google.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 17, 2010 at 08:34:51PM -0800, Ying Han wrote:
-> Pass the reclaim priority down to the shrink_slab() which passes to the
-> shrink_icache_memory() for inode cache. It helps the situation when
-> shrink_slab() is being too agressive, it removes the inode as well as all
-> the pages associated with the inode. Especially when single inode has lots
-> of pages points to it. The application encounters performance hit when
-> that happens.
-> 
-> The problem was observed on some workload we run, where it has small number
-> of large files. Page reclaim won't blow away the inode which is pinned by
-> dentry which in turn is pinned by open file descriptor. But if the application
-> is openning and closing the fds, it has the chance to trigger the issue.
-> 
-> I have a script which reproduce the issue. The test is creating 1500 empty
-> files and one big file in a cgroup. Then it starts adding memory pressure
-> in the cgroup. Both before/after the patch we see the slab drops (inode) in
-> slabinfo but the big file clean pages being preserves only after the change.
+On Wed, 17 Nov 2010 16:22:48 +0000
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-I was going to do this as a flag when nearing OOM. Is there a reason
-to have it priority based? That seems a little arbitrary to me...
+> The end of the LRU stores the oldest known page. Compaction on the other
+> hand always starts scanning from the start of the zone. This patch uses
+> the LRU to hint to compaction where it should start scanning from. This
+> means that compaction will at least start with some old pages reducing
+> the impact on running processes and reducing the amount of scanning. The
+> check it makes is racy as the LRU lock is not taken but it should be
+> harmless as we are not manipulating the lists without the lock.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-FWIW, we can just add this to the new shrinker API, and convert over
-the users who care about it, so it doesn't have to be done in a big
-patch.
+Hmm, does this patch make a noticable difference ?
+Isn't it better to start scan from the biggest free chunk in a zone ?
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
