@@ -1,59 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 99B406B0089
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 08:19:33 -0500 (EST)
-Date: Thu, 18 Nov 2010 13:19:17 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 29 of 66] don't alloc harder for gfp nomemalloc even if
-	nowait
-Message-ID: <20101118131917.GS8135@csn.ul.ie>
-References: <patchbomb.1288798055@v2.random> <ed6c78af29bc105fcee3.1288798084@v2.random>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 830C06B0089
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 08:26:26 -0500 (EST)
+Date: Thu, 18 Nov 2010 21:26:17 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 01/13] writeback: IO-less balance_dirty_pages()
+Message-ID: <20101118132617.GA9307@localhost>
+References: <20101117042720.033773013@intel.com>
+ <20101117042849.410279291@intel.com>
+ <1290085474.2109.1480.camel@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ed6c78af29bc105fcee3.1288798084@v2.random>
+In-Reply-To: <1290085474.2109.1480.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, tglx <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 03, 2010 at 04:28:04PM +0100, Andrea Arcangeli wrote:
-> From: Andrea Arcangeli <aarcange@redhat.com>
+On Thu, Nov 18, 2010 at 09:04:34PM +0800, Peter Zijlstra wrote:
+> On Wed, 2010-11-17 at 12:27 +0800, Wu Fengguang wrote:
+> > - avoid useless (eg. zero pause time) balance_dirty_pages() calls
+> > - avoid too small pause time (less than  10ms, which burns CPU power)
+> > - avoid too large pause time (more than 100ms, which hurts responsiveness)
+> > - avoid big fluctuations of pause times 
 > 
-> Not worth throwing away the precious reserved free memory pool for allocations
-> that can fail gracefully (either through mempool or because they're transhuge
-> allocations later falling back to 4k allocations).
+> If you feel like playing with sub-jiffies timeouts (a way to avoid that
+> HZ=>100 assumption), the below (totally untested) patch might be of
+> help..
+
+Assuming there are HZ=10 users.
+
+- when choosing such a coarse granularity, do they really care about
+  responsiveness? :)
+
+- will the use of hrtimer add a little code size and/or runtime
+  overheads, and hence hurt the majority HZ=100 users?
+
+Thanks,
+Fengguang
+
 > 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-
 > ---
+> Subject: hrtimer: Provide io_schedule_timeout*() functions
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1941,7 +1941,12 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
->  	alloc_flags |= (__force int) (gfp_mask & __GFP_HIGH);
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> ---
+>  include/linux/hrtimer.h |    7 +++++++
+>  kernel/hrtimer.c        |   15 +++++++++++++++
+>  kernel/sched.c          |   17 +++++++++++++++++
+>  3 files changed, 39 insertions(+), 0 deletions(-)
+> 
+> diff --git a/include/linux/hrtimer.h b/include/linux/hrtimer.h
+> index dd9954b..9e0f67e 100644
+> --- a/include/linux/hrtimer.h
+> +++ b/include/linux/hrtimer.h
+> @@ -419,6 +419,13 @@ extern long hrtimer_nanosleep_restart(struct restart_block *restart_block);
+>  extern void hrtimer_init_sleeper(struct hrtimer_sleeper *sl,
+>  				 struct task_struct *tsk);
 >  
->  	if (!wait) {
-> -		alloc_flags |= ALLOC_HARDER;
-> +		/*
-> +		 * Not worth trying to allocate harder for
-> +		 * __GFP_NOMEMALLOC even if it can't schedule.
-> +		 */
-> +		if  (!(gfp_mask & __GFP_NOMEMALLOC))
-> +			alloc_flags |= ALLOC_HARDER;
->  		/*
->  		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
->  		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+> +extern int io_schedule_hrtimeout_range(ktime_t *expires, unsigned long delta,
+> +						const enum hrtimer_mode mode);
+> +extern int io_schedule_hrtimeout_range_clock(ktime_t *expires,
+> +		unsigned long delta, const enum hrtimer_mode mode, int clock);
+> +extern int io_schedule_hrtimeout(ktime_t *expires, const enum hrtimer_mode mode);
+> +
+> +
+>  extern int schedule_hrtimeout_range(ktime_t *expires, unsigned long delta,
+>  						const enum hrtimer_mode mode);
+>  extern int schedule_hrtimeout_range_clock(ktime_t *expires,
+> diff --git a/kernel/hrtimer.c b/kernel/hrtimer.c
+> index 72206cf..ef2d93c 100644
+> --- a/kernel/hrtimer.c
+> +++ b/kernel/hrtimer.c
+> @@ -1838,6 +1838,14 @@ int __sched schedule_hrtimeout_range(ktime_t *expires, unsigned long delta,
+>  }
+>  EXPORT_SYMBOL_GPL(schedule_hrtimeout_range);
+>  
+> +int __sched io_schedule_hrtimeout_range(ktime_t *expires, unsigned long delta,
+> +				     const enum hrtimer_mode mode)
+> +{
+> +	return io_schedule_hrtimeout_range_clock(expires, delta, mode,
+> +					      CLOCK_MONOTONIC);
+> +}
+> +EXPORT_SYMBOL_GPL(io_schedule_hrtimeout_range);
+> +
+>  /**
+>   * schedule_hrtimeout - sleep until timeout
+>   * @expires:	timeout value (ktime_t)
+> @@ -1866,3 +1874,10 @@ int __sched schedule_hrtimeout(ktime_t *expires,
+>  	return schedule_hrtimeout_range(expires, 0, mode);
+>  }
+>  EXPORT_SYMBOL_GPL(schedule_hrtimeout);
+> +
+> +int __sched io_schedule_hrtimeout(ktime_t *expires,
+> +			       const enum hrtimer_mode mode)
+> +{
+> +	return io_schedule_hrtimeout_range(expires, 0, mode);
+> +}
+> +EXPORT_SYMBOL_GPL(io_schedule_hrtimeout);
+> diff --git a/kernel/sched.c b/kernel/sched.c
+> index d5564a8..ac84455 100644
+> --- a/kernel/sched.c
+> +++ b/kernel/sched.c
+> @@ -5303,6 +5303,23 @@ long __sched io_schedule_timeout(long timeout)
+>  	return ret;
+>  }
+>  
+> +int __sched
+> +io_schedule_hrtimeout_range_clock(ktime_t *expires, unsigned long delta,
+> +			       const enum hrtimer_mode mode, int clock)
+> +{
+> +	struct rq *rq = raw_rq();
+> +	long ret;
+> +
+> +	delayacct_blkio_start();
+> +	atomic_inc(&rq->nr_iowait);
+> +	current->in_iowait = 1;
+> +	ret = schedule_hrtimeout_range_clock(expires, delta, mode, clock);
+> +	current->in_iowait = 0;
+> +	atomic_dec(&rq->nr_iowait);
+> +	delayacct_blkio_end();
+> +	return ret;
+> +}
+> +
+>  /**
+>   * sys_sched_get_priority_max - return maximum RT priority.
+>   * @policy: scheduling class.
 > 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
