@@ -1,90 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C50EA6B004A
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 12:28:18 -0500 (EST)
-Date: Thu, 18 Nov 2010 17:27:39 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH v3] factor out kswapd sleeping logic from kswapd()
-Message-ID: <20101118172738.GN8135@csn.ul.ie>
-References: <20101114180505.BEE2.A69D9226@jp.fujitsu.com> <20101115094239.GH27362@csn.ul.ie> <20101116144709.BF26.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id A98D56B004A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 12:29:27 -0500 (EST)
+Received: from mail-yw0-f41.google.com (mail-yw0-f41.google.com [209.85.213.41])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id oAIHSuFE029429
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 09:28:56 -0800
+Received: by ywi6 with SMTP id 6so6404ywi.14
+        for <linux-mm@kvack.org>; Thu, 18 Nov 2010 09:28:51 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20101116144709.BF26.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20101118114902.GJ8135@csn.ul.ie>
+References: <patchbomb.1288798055@v2.random> <fc2579c9bddbfcf78d72.1288798060@v2.random>
+ <20101118114902.GJ8135@csn.ul.ie>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 18 Nov 2010 09:28:27 -0800
+Message-ID: <AANLkTik9U_r7tqdDYw24xwTgvp5c740Z9eMQeh8y4Hpi@mail.gmail.com>
+Subject: Re: [PATCH 05 of 66] compound_lock
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 16, 2010 at 03:07:22PM +0900, KOSAKI Motohiro wrote:
-> > > +void kswapd_try_to_sleep(pg_data_t *pgdat, int order)
-> > > +{
-> > 
-> > As pointed out elsewhere, this should be static.
-> 
-> Fixed.
-> 
-> 
-> > > +	long remaining = 0;
-> > > +	DEFINE_WAIT(wait);
-> > > +
-> > > +	if (freezing(current) || kthread_should_stop())
-> > > +		return;
-> > > +
-> > > +	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-> > > +
-> > > +	/* Try to sleep for a short interval */
-> > > +	if (!sleeping_prematurely(pgdat, order, remaining)) {
-> > > +		remaining = schedule_timeout(HZ/10);
-> > > +		finish_wait(&pgdat->kswapd_wait, &wait);
-> > > +		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-> > > +	}
-> > > +
-> > > +	/*
-> > > +	 * After a short sleep, check if it was a
-> > > +	 * premature sleep. If not, then go fully
-> > > +	 * to sleep until explicitly woken up
-> > > +	 */
-> > 
-> > Very minor but that comment should now fit on fewer lines.
-> 
-> Thanks, fixed.
-> 
-> 
-> > > +	if (!sleeping_prematurely(pgdat, order, remaining)) {
-> > > +		trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
-> > > +		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
-> > > +		schedule();
-> > > +		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
-> > 
-> > I posted a patch adding a comment on why set_pgdat_percpu_threshold() is
-> > called. I do not believe it has been picked up by Andrew but it if is,
-> > the patches will conflict. The resolution will be obvious but you may
-> > need to respin this patch if the comment patch gets picked up in mmotm.
-> > 
-> > Otherwise, I see no problems.
-> 
-> OK, I've rebased the patch on top your comment patch. 
-> 
-> 
-> 
-> From 1bd232713d55f033676f80cc7451ff83d4483884 Mon Sep 17 00:00:00 2001
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Date: Mon, 6 Dec 2010 20:44:27 +0900
-> Subject: [PATCH] factor out kswapd sleeping logic from kswapd()
-> 
-> Currently, kswapd() function has deeper nest and it slightly harder to
-> read. cleanup it.
-> 
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Thu, Nov 18, 2010 at 3:49 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+>> +
+>> +static inline void compound_lock_irqsave(struct page *page,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0unsigned long *flagsp)
+>> +{
+>> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> + =A0 =A0 unsigned long flags;
+>> + =A0 =A0 local_irq_save(flags);
+>> + =A0 =A0 compound_lock(page);
+>> + =A0 =A0 *flagsp =3D flags;
+>> +#endif
+>> +}
+>> +
+>
+> The pattern for spinlock irqsave passes in unsigned long, not unsigned
+> long *. It'd be nice if they matched.
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Indeed. Just make the thing return the flags the way the normal
+spin_lock_irqsave() function does.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
