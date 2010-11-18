@@ -1,50 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 139016B0089
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 12:39:59 -0500 (EST)
-Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id oAIHdOi3030672
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 09:39:25 -0800
-Received: by iwn4 with SMTP id 4so1134393iwn.14
-        for <linux-mm@kvack.org>; Thu, 18 Nov 2010 09:39:24 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 53BB46B0089
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 12:41:40 -0500 (EST)
+Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
+	by smtp-out.google.com with ESMTP id oAIHfXQ4028706
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 09:41:35 -0800
+Received: from qyk4 (qyk4.prod.google.com [10.241.83.132])
+	by kpbe11.cbf.corp.google.com with ESMTP id oAIHfUF8015336
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 09:41:32 -0800
+Received: by qyk4 with SMTP id 4so402069qyk.17
+        for <linux-mm@kvack.org>; Thu, 18 Nov 2010 09:41:32 -0800 (PST)
+Date: Thu, 18 Nov 2010 09:41:22 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 3/3] mlock: avoid dirtying pages and triggering
+ writeback
+In-Reply-To: <20101118133702.GA18834@infradead.org>
+Message-ID: <alpine.LSU.2.00.1011180934400.3210@tigran.mtv.corp.google.com>
+References: <1289996638-21439-1-git-send-email-walken@google.com> <1289996638-21439-4-git-send-email-walken@google.com> <20101117125756.GA5576@amd> <1290007734.2109.941.camel@laptop> <AANLkTim4tO_aKzXLXJm-N-iEQ9rNSa0=HGJVDAz33kY6@mail.gmail.com>
+ <20101117231143.GQ22876@dastard> <20101118133702.GA18834@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20101118125249.GN8135@csn.ul.ie>
-References: <patchbomb.1288798055@v2.random> <6022613f956ee326d9b6.1288798072@v2.random>
- <20101118125249.GN8135@csn.ul.ie>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 18 Nov 2010 09:32:36 -0800
-Message-ID: <AANLkTikhXS9ot27gS9OpRWbU9zjXns_D96DarZ1jOcR6@mail.gmail.com>
-Subject: Re: [PATCH 17 of 66] add pmd mangling generic functions
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Dave Chinner <david@fromorbit.com>, Michel Lespinasse <walken@google.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Theodore Tso <tytso@google.com>, Michael Rubin <mrubin@google.com>, Suleiman Souhlal <suleiman@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 4:52 AM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On Wed, Nov 03, 2010 at 04:27:52PM +0100, Andrea Arcangeli wrote:
->> From: Andrea Arcangeli <aarcange@redhat.com>
->>
->> Some are needed to build but not actually used on archs not supporting
->> transparent hugepages. Others like pmdp_clear_flush are used by x86 too.
->>
->> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
->> Acked-by: Rik van Riel <riel@redhat.com>
->
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
+On Thu, 18 Nov 2010, Christoph Hellwig wrote:
+> On Thu, Nov 18, 2010 at 10:11:43AM +1100, Dave Chinner wrote:
+> > Hence I think that avoiding ->page_mkwrite callouts is likely to
+> > break some filesystems in subtle, undetected ways.  IMO, regardless
+> > of what is done, it would be really good to start by writing a new
+> > regression test to exercise and encode the expected the mlock
+> > behaviour so we can detect regressions later on....
+> 
+> I think it would help if we could drink a bit of the test driven design
+> coolaid here. Michel, can you write some testcases where pages on a
+> shared mapping are mlocked, then dirtied and then munlocked, and then
+> written out using msync/fsync.  Anything that fails this test on
+> btrfs/ext4/gfs/xfs/etc obviously doesn't work.
 
-I dunno. Those macros are _way_ too big and heavy to be macros or
-inline functions. Why aren't pmdp_splitting_flush() etc just
-functions?
+Whilst it's hard to argue against a request for testing, Dave's worries
+just sprang from a misunderstanding of all the talk about "avoiding ->
+page_mkwrite".  There's nothing strange or risky about Michel's patch,
+it does not avoid ->page_mkwrite when there is a write: it just stops
+pretending that there was a write when locking down the shared area.
 
-There is no performance advantage to inlining them - the TLB flush is
-going to be expensive enough that there's no point in avoiding a
-function call. And that header file really does end up being _really_
-ugly.
-
-                      Linus
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
