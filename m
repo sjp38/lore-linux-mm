@@ -1,33 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 924146B004A
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 14:16:46 -0500 (EST)
-Date: Thu, 18 Nov 2010 20:15:40 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 64 of 66] scale nr_rotated to balance memory pressure
-Message-ID: <20101118191540.GG30376@random.random>
-References: <patchbomb.1288798055@v2.random>
- <54b5b2d012ff38e341ad.1288798119@v2.random>
- <20101109151605.BC78.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101109151605.BC78.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E3D36B004A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 14:50:41 -0500 (EST)
+Date: Thu, 18 Nov 2010 11:49:28 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/8] Use memory compaction instead of lumpy reclaim
+ during high-order allocations
+Message-Id: <20101118114928.ecb2d6b0.akpm@linux-foundation.org>
+In-Reply-To: <20101118092044.GE8135@csn.ul.ie>
+References: <1290010969-26721-1-git-send-email-mel@csn.ul.ie>
+	<20101117154641.51fd7ce5.akpm@linux-foundation.org>
+	<20101118081254.GB8135@csn.ul.ie>
+	<20101118172627.cf25b83a.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101118083828.GA24635@cmpxchg.org>
+	<20101118092044.GE8135@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 09, 2010 at 03:16:21PM +0900, KOSAKI Motohiro wrote:
-> I haven't seen this patch series carefully yet. So, probably
-> my question is dumb. Why don't we need to change ->recent_scanned[] too?
+On Thu, 18 Nov 2010 09:20:44 +0000
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-That one is taken care by the prev patch where it is increased by 512
-through nr_taken (after the previous patch the isolation methods now
-return in 4k units). What was left to update was the nr_rotated++
-which is why this patch isn't touching the recent_scanned.
+> > It's because migration depends on MMU.  But we should be able to make
+> > a NOMMU version of migration that just does page cache, which is all
+> > that is reclaimable on NOMMU anyway.
+> > 
+> 
+> Conceivably, but I see little problem leaving them with lumpy reclaim.
 
-Andrea
+I see a really big problem: we'll need to maintain lumpy reclaim for
+ever!
+
+We keep on piling in more and more stuff, we're getting less sure that
+the old stuff is still effective.  It's becoming more and more
+important to move some of our attention over to simplification, and
+to rejustification of earlier decisions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
