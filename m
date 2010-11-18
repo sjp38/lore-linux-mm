@@ -1,93 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DE3E16B004A
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 16:16:18 -0500 (EST)
-Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
-	by smtp-out.google.com with ESMTP id oAILGDHs017206
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 13:16:13 -0800
-Received: from gxk27 (gxk27.prod.google.com [10.202.11.27])
-	by wpaz24.hot.corp.google.com with ESMTP id oAILFEkx005891
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 13:16:12 -0800
-Received: by gxk27 with SMTP id 27so2372274gxk.31
-        for <linux-mm@kvack.org>; Thu, 18 Nov 2010 13:16:12 -0800 (PST)
-Date: Thu, 18 Nov 2010 13:16:07 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id E8A596B004A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 16:19:34 -0500 (EST)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id oAILJWfT009665
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 13:19:32 -0800
+Received: from yxm34 (yxm34.prod.google.com [10.190.4.34])
+	by wpaz37.hot.corp.google.com with ESMTP id oAILJVk4032183
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 13:19:31 -0800
+Received: by yxm34 with SMTP id 34so2571879yxm.2
+        for <linux-mm@kvack.org>; Thu, 18 Nov 2010 13:19:30 -0800 (PST)
+Date: Thu, 18 Nov 2010 13:19:27 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [1/8,v3] NUMA Hotplug Emulator: add function to hide memory
- region via e820 table.
-In-Reply-To: <20101118092052.GE2408@shaohui>
-Message-ID: <alpine.DEB.2.00.1011181313140.26680@chino.kir.corp.google.com>
-References: <20101117020759.016741414@intel.com> <20101117021000.479272928@intel.com> <alpine.DEB.2.00.1011162354390.16875@chino.kir.corp.google.com> <20101118092052.GE2408@shaohui>
+Subject: Re: [2/8,v3] NUMA Hotplug Emulator: infrastructure of NUMA hotplug
+ emulation
+In-Reply-To: <20101118041407.GA2408@shaohui>
+Message-ID: <alpine.DEB.2.00.1011181316290.26680@chino.kir.corp.google.com>
+References: <20101117020759.016741414@intel.com> <20101117021000.568681101@intel.com> <alpine.DEB.2.00.1011162359160.17408@chino.kir.corp.google.com> <20101117075128.GA30254@shaohui> <alpine.DEB.2.00.1011171304060.10254@chino.kir.corp.google.com>
+ <20101118041407.GA2408@shaohui>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Shaohui Zheng <shaohui.zheng@intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 18 Nov 2010, Shaohui Zheng wrote:
 
-> > > Index: linux-hpe4/arch/x86/kernel/e820.c
-> > > ===================================================================
-> > > --- linux-hpe4.orig/arch/x86/kernel/e820.c	2010-11-15 17:13:02.483461667 +0800
-> > > +++ linux-hpe4/arch/x86/kernel/e820.c	2010-11-15 17:13:07.083461581 +0800
-> > > @@ -971,6 +971,7 @@
-> > >  }
-> > >  
-> > >  static int userdef __initdata;
-> > > +static u64 max_mem_size __initdata = ULLONG_MAX;
-> > >  
-> > >  /* "mem=nopentium" disables the 4MB page tables. */
-> > >  static int __init parse_memopt(char *p)
-> > > @@ -989,12 +990,28 @@
-> > >  
-> > >  	userdef = 1;
-> > >  	mem_size = memparse(p, &p);
-> > > -	e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
-> > > +	e820_remove_range(mem_size, max_mem_size - mem_size, E820_RAM, 1);
-> > > +	max_mem_size = mem_size;
-> > >  
-> > >  	return 0;
-> > >  }
+> On Wed, Nov 17, 2010 at 01:10:50PM -0800, David Rientjes wrote:
+> > I don't understand why that's a requirement, NUMA emulation is a seperate 
+> > feature.  Although both are primarily used to test and instrument other VM 
+> > and kernel code, NUMA emulation is restricted to only being used at boot 
+> > to fake nodes on smaller machines and can be used to test things like the 
+> > slab allocator.  The NUMA hotplug emulator that you're developing here is 
+> > primarily used to test the hotplug callbacks; for that use-case, it seems 
+> > particularly helpful if nodes can be hotplugged of various sizes and node 
+> > ids rather than having static characteristics that cannot be changed with 
+> > a reboot.
 > > 
-> > This needs memmap= support as well, right?
-> we did not do the testing after combine both memmap and numa=hide paramter, 
-> I think that the result should similar with mem=XX, they both remove a memory
-> region from the e820 table.
+> I agree with you. the early emulator do the same thing as you said, but there 
+> is already NUMA emulation to create fake node, our emulator also creates 
+> fake nodes. We worried about that we will suffer the critiques from the community,
+> so we drop the original degsin.
+> 
+> I did not know whether other engineers have the same attitude with you. I think 
+> that I can publish both codes, and let the community to decide which one is prefered.
+> 
+> In my personal opinion, both methods are acceptable for me.
 > 
 
-You've modified the parser for mem= but not memmap= so the change needs 
-additional support for the latter.
-
-> > >  early_param("mem", parse_memopt);
-> > >  
-> > > +#ifdef CONFIG_NODE_HOTPLUG_EMU
-> > > +u64 __init e820_hide_mem(u64 mem_size)
-> > > +{
-> > > +	u64 start, end_pfn;
-> > > +
-> > > +	userdef = 1;
-> > > +	end_pfn = e820_end_of_ram_pfn();
-> > > +	start = (end_pfn << PAGE_SHIFT) - mem_size;
-> > > +	e820_remove_range(start, max_mem_size - start, E820_RAM, 1);
-> > > +	max_mem_size = start;
-> > > +
-> > > +	return start;
-> > > +}
-> > > +#endif
-> > 
-> > This doesn't have any sanity checking for whether e820_remove_range() will 
-> > leave any significant amount of memory behind so the kernel will even boot 
-> > (probably should have a guaranteed FAKE_NODE_MIN_SIZE left behind?).
-> 
-> it should not be checked here, it should be checked by the function who call
->  e820_hide_mem, and truncate the mem_size with FAKE_NODE_MIN_SIZE.
-> 
-
-Your patchset doesn't do that, I'm talking specifically about the amount 
-of memory left behind so that the kernel at least still boots.  That seems 
-to be a function of e820_hide_mem() to do some sanity checking so we 
-actually still get a kernel rather than the responsibility of the 
-command-line parser.
+The way that I've proposed it in my email to Dave was different: we use 
+the memory hotplug interface to add and online the memory only after an 
+interface has been added that will change the node mappings to 
+first_unset_node(node_online_map).  The memory hotplug interface may 
+create a new pgdat, so this is the node creation mechanism that should be 
+used as opposed to those in NUMA emulation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
