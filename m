@@ -1,133 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 830C06B0089
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 08:26:26 -0500 (EST)
-Date: Thu, 18 Nov 2010 21:26:17 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 01/13] writeback: IO-less balance_dirty_pages()
-Message-ID: <20101118132617.GA9307@localhost>
-References: <20101117042720.033773013@intel.com>
- <20101117042849.410279291@intel.com>
- <1290085474.2109.1480.camel@laptop>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DB0B6B004A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 08:37:17 -0500 (EST)
+Date: Thu, 18 Nov 2010 08:37:02 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 3/3] mlock: avoid dirtying pages and triggering writeback
+Message-ID: <20101118133702.GA18834@infradead.org>
+References: <1289996638-21439-1-git-send-email-walken@google.com>
+ <1289996638-21439-4-git-send-email-walken@google.com>
+ <20101117125756.GA5576@amd>
+ <1290007734.2109.941.camel@laptop>
+ <AANLkTim4tO_aKzXLXJm-N-iEQ9rNSa0=HGJVDAz33kY6@mail.gmail.com>
+ <20101117231143.GQ22876@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1290085474.2109.1480.camel@laptop>
+In-Reply-To: <20101117231143.GQ22876@dastard>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, tglx <tglx@linutronix.de>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Michel Lespinasse <walken@google.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Theodore Tso <tytso@google.com>, Michael Rubin <mrubin@google.com>, Suleiman Souhlal <suleiman@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 09:04:34PM +0800, Peter Zijlstra wrote:
-> On Wed, 2010-11-17 at 12:27 +0800, Wu Fengguang wrote:
-> > - avoid useless (eg. zero pause time) balance_dirty_pages() calls
-> > - avoid too small pause time (less than  10ms, which burns CPU power)
-> > - avoid too large pause time (more than 100ms, which hurts responsiveness)
-> > - avoid big fluctuations of pause times 
-> 
-> If you feel like playing with sub-jiffies timeouts (a way to avoid that
-> HZ=>100 assumption), the below (totally untested) patch might be of
-> help..
+On Thu, Nov 18, 2010 at 10:11:43AM +1100, Dave Chinner wrote:
+> Hence I think that avoiding ->page_mkwrite callouts is likely to
+> break some filesystems in subtle, undetected ways.  IMO, regardless
+> of what is done, it would be really good to start by writing a new
+> regression test to exercise and encode the expected the mlock
+> behaviour so we can detect regressions later on....
 
-Assuming there are HZ=10 users.
-
-- when choosing such a coarse granularity, do they really care about
-  responsiveness? :)
-
-- will the use of hrtimer add a little code size and/or runtime
-  overheads, and hence hurt the majority HZ=100 users?
-
-Thanks,
-Fengguang
-
-> 
-> ---
-> Subject: hrtimer: Provide io_schedule_timeout*() functions
-> 
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> ---
->  include/linux/hrtimer.h |    7 +++++++
->  kernel/hrtimer.c        |   15 +++++++++++++++
->  kernel/sched.c          |   17 +++++++++++++++++
->  3 files changed, 39 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/hrtimer.h b/include/linux/hrtimer.h
-> index dd9954b..9e0f67e 100644
-> --- a/include/linux/hrtimer.h
-> +++ b/include/linux/hrtimer.h
-> @@ -419,6 +419,13 @@ extern long hrtimer_nanosleep_restart(struct restart_block *restart_block);
->  extern void hrtimer_init_sleeper(struct hrtimer_sleeper *sl,
->  				 struct task_struct *tsk);
->  
-> +extern int io_schedule_hrtimeout_range(ktime_t *expires, unsigned long delta,
-> +						const enum hrtimer_mode mode);
-> +extern int io_schedule_hrtimeout_range_clock(ktime_t *expires,
-> +		unsigned long delta, const enum hrtimer_mode mode, int clock);
-> +extern int io_schedule_hrtimeout(ktime_t *expires, const enum hrtimer_mode mode);
-> +
-> +
->  extern int schedule_hrtimeout_range(ktime_t *expires, unsigned long delta,
->  						const enum hrtimer_mode mode);
->  extern int schedule_hrtimeout_range_clock(ktime_t *expires,
-> diff --git a/kernel/hrtimer.c b/kernel/hrtimer.c
-> index 72206cf..ef2d93c 100644
-> --- a/kernel/hrtimer.c
-> +++ b/kernel/hrtimer.c
-> @@ -1838,6 +1838,14 @@ int __sched schedule_hrtimeout_range(ktime_t *expires, unsigned long delta,
->  }
->  EXPORT_SYMBOL_GPL(schedule_hrtimeout_range);
->  
-> +int __sched io_schedule_hrtimeout_range(ktime_t *expires, unsigned long delta,
-> +				     const enum hrtimer_mode mode)
-> +{
-> +	return io_schedule_hrtimeout_range_clock(expires, delta, mode,
-> +					      CLOCK_MONOTONIC);
-> +}
-> +EXPORT_SYMBOL_GPL(io_schedule_hrtimeout_range);
-> +
->  /**
->   * schedule_hrtimeout - sleep until timeout
->   * @expires:	timeout value (ktime_t)
-> @@ -1866,3 +1874,10 @@ int __sched schedule_hrtimeout(ktime_t *expires,
->  	return schedule_hrtimeout_range(expires, 0, mode);
->  }
->  EXPORT_SYMBOL_GPL(schedule_hrtimeout);
-> +
-> +int __sched io_schedule_hrtimeout(ktime_t *expires,
-> +			       const enum hrtimer_mode mode)
-> +{
-> +	return io_schedule_hrtimeout_range(expires, 0, mode);
-> +}
-> +EXPORT_SYMBOL_GPL(io_schedule_hrtimeout);
-> diff --git a/kernel/sched.c b/kernel/sched.c
-> index d5564a8..ac84455 100644
-> --- a/kernel/sched.c
-> +++ b/kernel/sched.c
-> @@ -5303,6 +5303,23 @@ long __sched io_schedule_timeout(long timeout)
->  	return ret;
->  }
->  
-> +int __sched
-> +io_schedule_hrtimeout_range_clock(ktime_t *expires, unsigned long delta,
-> +			       const enum hrtimer_mode mode, int clock)
-> +{
-> +	struct rq *rq = raw_rq();
-> +	long ret;
-> +
-> +	delayacct_blkio_start();
-> +	atomic_inc(&rq->nr_iowait);
-> +	current->in_iowait = 1;
-> +	ret = schedule_hrtimeout_range_clock(expires, delta, mode, clock);
-> +	current->in_iowait = 0;
-> +	atomic_dec(&rq->nr_iowait);
-> +	delayacct_blkio_end();
-> +	return ret;
-> +}
-> +
->  /**
->   * sys_sched_get_priority_max - return maximum RT priority.
->   * @policy: scheduling class.
-> 
+I think it would help if we could drink a bit of the test driven design
+coolaid here. Michel, can you write some testcases where pages on a
+shared mapping are mlocked, then dirtied and then munlocked, and then
+written out using msync/fsync.  Anything that fails this test on
+btrfs/ext4/gfs/xfs/etc obviously doesn't work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
