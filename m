@@ -1,43 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6183E6B004A
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 21:04:16 -0500 (EST)
-Message-ID: <4CE4897F.4020107@redhat.com>
-Date: Wed, 17 Nov 2010 21:03:43 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 4ED6E6B004A
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 21:07:07 -0500 (EST)
+Date: Thu, 18 Nov 2010 13:06:40 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 00/13] IO-less dirty throttling v2
+Message-ID: <20101118020640.GS22876@dastard>
+References: <20101117042720.033773013@intel.com>
+ <20101117150330.139251f9.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/8] Use memory compaction instead of lumpy reclaim during
- high-order allocations
-References: <1290010969-26721-1-git-send-email-mel@csn.ul.ie> <20101117154641.51fd7ce5.akpm@linux-foundation.org>
-In-Reply-To: <20101117154641.51fd7ce5.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101117150330.139251f9.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 11/17/2010 06:46 PM, Andrew Morton wrote:
-> On Wed, 17 Nov 2010 16:22:41 +0000
-> Mel Gorman<mel@csn.ul.ie>  wrote:
+On Wed, Nov 17, 2010 at 03:03:30PM -0800, Andrew Morton wrote:
+> On Wed, 17 Nov 2010 12:27:20 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
+> 
+> > On a simple test of 100 dd, it reduces the CPU %system time from 30% to 3%, and
+> > improves IO throughput from 38MB/s to 42MB/s.
+> 
+> The changes in CPU consumption are remarkable.  I've looked through the
+> changelogs but cannot find mention of where all that time was being
+> spent?
 
->> I'm hoping that this series also removes the
->> necessity for the "delete lumpy reclaim" patch from the THP tree.
->
-> Now I'm sad.  I read all that and was thinking "oh goody, we get to
-> delete something for once".  But no :(
->
-> If you can get this stuff to work nicely, why can't we remove lumpy
-> reclaim?
+In the writeback path, mostly because every CPU is trying to run
+writeback at the same time and causing contention on locks and
+shared structures in the writeback path. That no longer happens
+because writeback is only happening from one thread instead of from
+all CPUs at once.
 
-I seem to remember there being some resistance against
-removing lumpy reclaim, but I do not remember from
-where or why.
+This is one of the reasons why I want this series to be sorted out
+before we start to consider scalability of the writeback lists and
+locking - controlling the level of writeback parallelism provides a
+major reduction in writeback lock contention and indicates that the
+next bottleneck we really need to solve is bdi-flusher thread
+parallelism...
 
-IMHO some code deletion would be nice :)
+> How well have these changes been tested with NFS?
 
+Next on my list (just doing some ext4 sanity testing).
+
+> The changes are complex and will probably do Bad Things for some
+> people.  Does the code implement sufficient
+> debug/reporting/instrumentation to enable you to diagnose, understand
+> and fix people's problems in the minimum possible time?  If not, please
+> add that stuff.  Just go nuts with it.  Put it in debugfs, add /*
+> DELETEME */ comments and we can pull it all out again in half a year or
+> so.
+> 
+> Or perhaps litter the code with temporary tracepoints, provided we can
+> come up with a way for our testers to trivially gather their output.
+
+I think tracepoints are the way to go - I've been asking XFS users
+to send me trace dumps for anyhting non-trivial recently. I've been
+able to understand the cause of their problems without having to
+reproduce the problem locally, which has been a big help....
+
+Cheers,
+
+Dave.
 -- 
-All rights reversed
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
