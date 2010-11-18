@@ -1,49 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C5C86B004A
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 21:13:33 -0500 (EST)
-Date: Wed, 17 Nov 2010 18:09:12 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 00/13] IO-less dirty throttling v2
-Message-Id: <20101117180912.38541ca4.akpm@linux-foundation.org>
-In-Reply-To: <20101118020640.GS22876@dastard>
-References: <20101117042720.033773013@intel.com>
-	<20101117150330.139251f9.akpm@linux-foundation.org>
-	<20101118020640.GS22876@dastard>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 39BBF6B004A
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2010 21:47:22 -0500 (EST)
+Received: by iwn4 with SMTP id 4so259701iwn.14
+        for <linux-mm@kvack.org>; Wed, 17 Nov 2010 18:47:20 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <4CE40129.9060103@redhat.com>
+References: <20101109162525.BC87.A69D9226@jp.fujitsu.com>
+	<877hgmr72o.fsf@gmail.com>
+	<20101114140920.E013.A69D9226@jp.fujitsu.com>
+	<AANLkTim59Qx6TsvXnTBL5Lg6JorbGaqx3KsdBDWO04X9@mail.gmail.com>
+	<1289810825.2109.469.camel@laptop>
+	<AANLkTikibS1fDuk67RHk4SU14pJ9nPdodWba1T3Z_pWE@mail.gmail.com>
+	<4CE14848.2060805@redhat.com>
+	<AANLkTi=6RtPDnZZa=jrcciB1zHQMiB3LnouBw3G2OyaK@mail.gmail.com>
+	<4CE40129.9060103@redhat.com>
+Date: Thu, 18 Nov 2010 11:47:17 +0900
+Message-ID: <AANLkTin2fXGOAdGNegDhijjo_kV7nOBJP_hagjgoYdtX@mail.gmail.com>
+Subject: Re: fadvise DONTNEED implementation (or lack thereof)
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ben Gamari <bgamari.foss@gmail.com>, linux-kernel@vger.kernel.org, rsync@lists.samba.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Nov 2010 13:06:40 +1100 Dave Chinner <david@fromorbit.com> wrote:
+On Thu, Nov 18, 2010 at 1:22 AM, Rik van Riel <riel@redhat.com> wrote:
+> On 11/17/2010 05:16 AM, Minchan Kim wrote:
+>
+>> Absolutely. But how about rsync's two touch?
+>> It can evict working set.
+>>
+>> I need the time for investigation.
+>> Thanks for the comment.
+>
+> Maybe we could exempt MADV_SEQUENTIAL and FADV_SEQUENTIAL
+> touches from promoting the page to the active list?
+>
 
-> On Wed, Nov 17, 2010 at 03:03:30PM -0800, Andrew Morton wrote:
-> > On Wed, 17 Nov 2010 12:27:20 +0800
-> > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > 
-> > > On a simple test of 100 dd, it reduces the CPU %system time from 30% to 3%, and
-> > > improves IO throughput from 38MB/s to 42MB/s.
-> > 
-> > The changes in CPU consumption are remarkable.  I've looked through the
-> > changelogs but cannot find mention of where all that time was being
-> > spent?
-> 
-> In the writeback path, mostly because every CPU is trying to run
-> writeback at the same time and causing contention on locks and
-> shared structures in the writeback path. That no longer happens
-> because writeback is only happening from one thread instead of from
-> all CPUs at once.
+The problem is non-mapped file page.
+non-mapped file page promotion happens by only mark_page_accessed.
+But it doesn't enough information to prevent promotion(ex, vma or file)
+Hmm.. Do other guys have any idea?
 
-It'd be nice to see this quantified.  Partly because handing things
-over to kernel threads uncurs extra overhead - scheduling cost and CPU
-cache footprint.
+Here is another idea.
+Current problem is following as.
+User can use fadivse with FADV_DONTNEED.
+But problem is that it can't affect when it meet dirty pages.
+So user have to sync dirty page before calling fadvise with FADV_DONTNEED.
+It would lose performance.
 
-But mainly because we're taking the work accounting away from the user
-who caused it and crediting it to the kernel thread instead, and that's
-an actively *bad* thing to do.
+Let's add some semantic of FADV_DONTNEED.
+It invalidates only pages which are not dirty.
+If it meets dirty page, let's move the page into inactive's tail or head.
+If we move the page into tail, shrinker can move it into head again
+for deferred write if it isn't written the backed device.
+
+
+> Then we just need to make sure rsync uses fadvise properly
+> to keep the working set protected from rsync.
+>
+> --
+> All rights reversed
+>
+
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
