@@ -1,55 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id BB6006B0089
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 01:49:00 -0500 (EST)
-Date: Thu, 18 Nov 2010 13:27:50 +0800
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [2/8,v3] NUMA Hotplug Emulator: infrastructure of NUMA hotplug
- emulation
-Message-ID: <20101118052750.GD2408@shaohui>
-References: <20101117020759.016741414@intel.com>
- <20101117021000.568681101@intel.com>
- <alpine.DEB.2.00.1011162359160.17408@chino.kir.corp.google.com>
- <20101117075128.GA30254@shaohui>
- <alpine.DEB.2.00.1011171304060.10254@chino.kir.corp.google.com>
- <20101118041407.GA2408@shaohui>
- <20101118062715.GD17539@linux-sh.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 907B86B0089
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 01:51:21 -0500 (EST)
+Date: Thu, 18 Nov 2010 14:51:12 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 06/13] writeback: bdi write bandwidth estimation
+Message-ID: <20101118065111.GA8458@localhost>
+References: <20101117042720.033773013@intel.com>
+ <20101117042850.002299964@intel.com>
+ <20101117150837.a18d56c1.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101118062715.GD17539@linux-sh.org>
+In-Reply-To: <20101117150837.a18d56c1.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, "Li, Shaohua" <shaohua.li@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 03:27:15PM +0900, Paul Mundt wrote:
-> On Thu, Nov 18, 2010 at 12:14:07PM +0800, Shaohui Zheng wrote:
-> > On Wed, Nov 17, 2010 at 01:10:50PM -0800, David Rientjes wrote:
-> > > The idea that I've proposed (and you've apparently thought about and even 
-> > > implemented at one point) is much more powerful than that.  We need not 
-> > > query the state of hidden nodes that we've setup at boot but can rather 
-> > > use the amount of hidden memory to setup the nodes in any way that we want 
-> > > at runtime (various sizes, interleaved node ids, etc).
-> > 
-> > yes, if we select your proposal. we just mark all the nodes as POSSIBLE node.
-> > there is no hidden nodes any more. the node will be created after add memory
-> > to the node first time. 
-> > 
-> This is roughly what I had in mind in my N_HIDDEN review, so I quite
-> favour this approach.
+On Thu, Nov 18, 2010 at 07:08:37AM +0800, Andrew Morton wrote:
+> On Wed, 17 Nov 2010 12:27:26 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
+> 
+> > +	w = min(elapsed / (HZ/100), 128UL);
+> 
+> I did try setting HZ=10 many years ago, and the kernel blew up.
+> 
+> I do recall hearing of people who set HZ very low, perhaps because
+> their huge machines were seeing performance prolems when the timer tick
+> went off.  Probably there's no need to do that any more.
+> 
+> But still, we shouldn't hard-wire the (HZ >= 100) assumption if we
+> don't absolutely need to, and I don't think it is absolutely needed
+> here.  
 
-Our testing shows that it is a feasible approach, and it works well.
-however, there is still a problem which we should worry about.
+Fair enough.  Here is the fix. The other (HZ/10) will be addressed by
+another patch that increase it to MAX_PAUSE=max(HZ/5, 1).
 
-in our draft patch, we re-setup nr_node_ids when CONFIG_ARCH_MEMORY_PROBE enabled 
-and mem=XXX was specified in grub. we set nr_node_ids as MAX_NUMNODES + 1, because
- we do not know how many nodes will be hot-added through memory/probe interface. 
- it might be a little wasting of memory.
+Thanks,
+Fengguang
+---
 
--- 
-Thanks & Regards,
-Shaohui
+Subject: writeback: prevent divide error on tiny HZ
+Date: Thu Nov 18 12:19:56 CST 2010
+
+As suggested by Andrew and Peter:
+
+I do recall hearing of people who set HZ very low, perhaps because their
+huge machines were seeing performance prolems when the timer tick went
+off.  Probably there's no need to do that any more.
+
+But still, we shouldn't hard-wire the (HZ >= 100) assumption if we don't
+absolutely need to, and I don't think it is absolutely needed here.
+
+People who do cpu bring-up on very slow FPGAs also lower HZ as far as
+possible.
+
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/page-writeback.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+--- linux-next.orig/mm/page-writeback.c	2010-11-18 12:35:18.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-11-18 12:35:38.000000000 +0800
+@@ -490,6 +490,7 @@ void bdi_update_write_bandwidth(struct b
+ 				unsigned long *bw_time,
+ 				s64 *bw_written)
+ {
++	const unsigned long unit_time = max(HZ/100, 1);
+ 	unsigned long written;
+ 	unsigned long elapsed;
+ 	unsigned long bw;
+@@ -499,7 +500,7 @@ void bdi_update_write_bandwidth(struct b
+ 		goto snapshot;
+ 
+ 	elapsed = jiffies - *bw_time;
+-	if (elapsed < HZ/100)
++	if (elapsed < unit_time)
+ 		return;
+ 
+ 	/*
+@@ -513,7 +514,7 @@ void bdi_update_write_bandwidth(struct b
+ 
+ 	written = percpu_counter_read(&bdi->bdi_stat[BDI_WRITTEN]) - *bw_written;
+ 	bw = (HZ * PAGE_CACHE_SIZE * written + elapsed/2) / elapsed;
+-	w = min(elapsed / (HZ/100), 128UL);
++	w = min(elapsed / unit_time, 128UL);
+ 	bdi->write_bandwidth = (bdi->write_bandwidth * (1024-w) + bw * w) >> 10;
+ 	bdi->write_bandwidth_update_time = jiffies;
+ snapshot:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
