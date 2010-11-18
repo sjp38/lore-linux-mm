@@ -1,125 +1,325 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 61C046B004A
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 08:04:49 -0500 (EST)
-Subject: Re: [PATCH 01/13] writeback: IO-less balance_dirty_pages()
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <20101117042849.410279291@intel.com>
-References: <20101117042720.033773013@intel.com>
-	 <20101117042849.410279291@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Thu, 18 Nov 2010 14:04:34 +0100
-Message-ID: <1290085474.2109.1480.camel@laptop>
-Mime-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 702856B0085
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 08:05:14 -0500 (EST)
+Date: Thu, 18 Nov 2010 13:04:46 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 18 of 66] add pmd mangling functions to x86
+Message-ID: <20101118130446.GO8135@csn.ul.ie>
+References: <patchbomb.1288798055@v2.random> <c681aaa016f2bd9ce393.1288798073@v2.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <c681aaa016f2bd9ce393.1288798073@v2.random>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, tglx <tglx@linutronix.de>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-11-17 at 12:27 +0800, Wu Fengguang wrote:
-> - avoid useless (eg. zero pause time) balance_dirty_pages() calls
-> - avoid too small pause time (less than  10ms, which burns CPU power)
-> - avoid too large pause time (more than 100ms, which hurts responsiveness=
-)
-> - avoid big fluctuations of pause times=20
+On Wed, Nov 03, 2010 at 04:27:53PM +0100, Andrea Arcangeli wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> 
+> Add needed pmd mangling functions with simmetry with their pte counterparts.
 
-If you feel like playing with sub-jiffies timeouts (a way to avoid that
-HZ=3D>100 assumption), the below (totally untested) patch might be of
-help..
+symmetry
 
+> pmdp_freeze_flush is the only exception only present on the pmd side and it's
+> needed to serialize the VM against split_huge_page, it simply atomically clears
+> the present bit in the same way pmdp_clear_flush_young atomically clears the
+> accessed bit (and both need to flush the tlb to make it effective, which is
+> mandatory to happen synchronously for pmdp_freeze_flush).
 
----
-Subject: hrtimer: Provide io_schedule_timeout*() functions
+I don't see a pmdp_freeze_flush defined in the patch. Did yu mean 
+pmdp_splitting_flush? Even if it is, it's the splitting bit you are
+dealing with which isn't the same as the present bit. I'm missing
+something.
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- include/linux/hrtimer.h |    7 +++++++
- kernel/hrtimer.c        |   15 +++++++++++++++
- kernel/sched.c          |   17 +++++++++++++++++
- 3 files changed, 39 insertions(+), 0 deletions(-)
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> ---
+> 
+> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+> --- a/arch/x86/include/asm/pgtable.h
+> +++ b/arch/x86/include/asm/pgtable.h
+> @@ -302,15 +302,15 @@ pmd_t *populate_extra_pmd(unsigned long 
+>  pte_t *populate_extra_pte(unsigned long vaddr);
+>  #endif	/* __ASSEMBLY__ */
+>  
+> +#ifndef __ASSEMBLY__
+> +#include <linux/mm_types.h>
+> +
+>  #ifdef CONFIG_X86_32
+>  # include "pgtable_32.h"
+>  #else
+>  # include "pgtable_64.h"
+>  #endif
+>  
+> -#ifndef __ASSEMBLY__
+> -#include <linux/mm_types.h>
+> -
 
-diff --git a/include/linux/hrtimer.h b/include/linux/hrtimer.h
-index dd9954b..9e0f67e 100644
---- a/include/linux/hrtimer.h
-+++ b/include/linux/hrtimer.h
-@@ -419,6 +419,13 @@ extern long hrtimer_nanosleep_restart(struct restart_b=
-lock *restart_block);
- extern void hrtimer_init_sleeper(struct hrtimer_sleeper *sl,
- 				 struct task_struct *tsk);
-=20
-+extern int io_schedule_hrtimeout_range(ktime_t *expires, unsigned long del=
-ta,
-+						const enum hrtimer_mode mode);
-+extern int io_schedule_hrtimeout_range_clock(ktime_t *expires,
-+		unsigned long delta, const enum hrtimer_mode mode, int clock);
-+extern int io_schedule_hrtimeout(ktime_t *expires, const enum hrtimer_mode=
- mode);
-+
-+
- extern int schedule_hrtimeout_range(ktime_t *expires, unsigned long delta,
- 						const enum hrtimer_mode mode);
- extern int schedule_hrtimeout_range_clock(ktime_t *expires,
-diff --git a/kernel/hrtimer.c b/kernel/hrtimer.c
-index 72206cf..ef2d93c 100644
---- a/kernel/hrtimer.c
-+++ b/kernel/hrtimer.c
-@@ -1838,6 +1838,14 @@ int __sched schedule_hrtimeout_range(ktime_t *expire=
-s, unsigned long delta,
- }
- EXPORT_SYMBOL_GPL(schedule_hrtimeout_range);
-=20
-+int __sched io_schedule_hrtimeout_range(ktime_t *expires, unsigned long de=
-lta,
-+				     const enum hrtimer_mode mode)
-+{
-+	return io_schedule_hrtimeout_range_clock(expires, delta, mode,
-+					      CLOCK_MONOTONIC);
-+}
-+EXPORT_SYMBOL_GPL(io_schedule_hrtimeout_range);
-+
- /**
-  * schedule_hrtimeout - sleep until timeout
-  * @expires:	timeout value (ktime_t)
-@@ -1866,3 +1874,10 @@ int __sched schedule_hrtimeout(ktime_t *expires,
- 	return schedule_hrtimeout_range(expires, 0, mode);
- }
- EXPORT_SYMBOL_GPL(schedule_hrtimeout);
-+
-+int __sched io_schedule_hrtimeout(ktime_t *expires,
-+			       const enum hrtimer_mode mode)
-+{
-+	return io_schedule_hrtimeout_range(expires, 0, mode);
-+}
-+EXPORT_SYMBOL_GPL(io_schedule_hrtimeout);
-diff --git a/kernel/sched.c b/kernel/sched.c
-index d5564a8..ac84455 100644
---- a/kernel/sched.c
-+++ b/kernel/sched.c
-@@ -5303,6 +5303,23 @@ long __sched io_schedule_timeout(long timeout)
- 	return ret;
- }
-=20
-+int __sched
-+io_schedule_hrtimeout_range_clock(ktime_t *expires, unsigned long delta,
-+			       const enum hrtimer_mode mode, int clock)
-+{
-+	struct rq *rq =3D raw_rq();
-+	long ret;
-+
-+	delayacct_blkio_start();
-+	atomic_inc(&rq->nr_iowait);
-+	current->in_iowait =3D 1;
-+	ret =3D schedule_hrtimeout_range_clock(expires, delta, mode, clock);
-+	current->in_iowait =3D 0;
-+	atomic_dec(&rq->nr_iowait);
-+	delayacct_blkio_end();
-+	return ret;
-+}
-+
- /**
-  * sys_sched_get_priority_max - return maximum RT priority.
-  * @policy: scheduling class.
+Stupid quetion: Why is this move necessary?
+
+>  static inline int pte_none(pte_t pte)
+>  {
+>  	return !pte.pte;
+> @@ -353,7 +353,7 @@ static inline unsigned long pmd_page_vad
+>   * Currently stuck as a macro due to indirect forward reference to
+>   * linux/mmzone.h's __section_mem_map_addr() definition:
+>   */
+> -#define pmd_page(pmd)	pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
+> +#define pmd_page(pmd)	pfn_to_page((pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT)
+>  
+
+Why is it now necessary to use PTE_PFN_MASK?
+
+>  /*
+>   * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
+> diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+> --- a/arch/x86/include/asm/pgtable_64.h
+> +++ b/arch/x86/include/asm/pgtable_64.h
+> @@ -59,6 +59,16 @@ static inline void native_set_pte_atomic
+>  	native_set_pte(ptep, pte);
+>  }
+>  
+> +static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
+> +{
+> +	*pmdp = pmd;
+> +}
+> +
+> +static inline void native_pmd_clear(pmd_t *pmd)
+> +{
+> +	native_set_pmd(pmd, native_make_pmd(0));
+> +}
+> +
+>  static inline pte_t native_ptep_get_and_clear(pte_t *xp)
+>  {
+>  #ifdef CONFIG_SMP
+> @@ -72,14 +82,17 @@ static inline pte_t native_ptep_get_and_
+>  #endif
+>  }
+>  
+> -static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
+> +static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
+>  {
+> -	*pmdp = pmd;
+> -}
+> -
+> -static inline void native_pmd_clear(pmd_t *pmd)
+> -{
+> -	native_set_pmd(pmd, native_make_pmd(0));
+> +#ifdef CONFIG_SMP
+> +	return native_make_pmd(xchg(&xp->pmd, 0));
+> +#else
+> +	/* native_local_pmdp_get_and_clear,
+> +	   but duplicated because of cyclic dependency */
+> +	pmd_t ret = *xp;
+> +	native_pmd_clear(xp);
+> +	return ret;
+> +#endif
+>  }
+>  
+>  static inline void native_set_pud(pud_t *pudp, pud_t pud)
+> @@ -181,6 +194,98 @@ static inline int pmd_trans_huge(pmd_t p
+>  }
+>  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+>  
+> +#define mk_pmd(page, pgprot)   pfn_pmd(page_to_pfn(page), (pgprot))
+> +
+> +#define  __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
+> +extern int pmdp_set_access_flags(struct vm_area_struct *vma,
+> +				 unsigned long address, pmd_t *pmdp,
+> +				 pmd_t entry, int dirty);
+> +
+> +#define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
+> +extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+> +				     unsigned long addr, pmd_t *pmdp);
+> +
+> +#define __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
+> +extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
+> +				  unsigned long address, pmd_t *pmdp);
+> +
+> +
+> +#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+> +extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+> +				 unsigned long addr, pmd_t *pmdp);
+> +
+> +#define __HAVE_ARCH_PMD_WRITE
+> +static inline int pmd_write(pmd_t pmd)
+> +{
+> +	return pmd_flags(pmd) & _PAGE_RW;
+> +}
+> +
+> +#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
+> +static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm, unsigned long addr,
+> +				       pmd_t *pmdp)
+> +{
+> +	pmd_t pmd = native_pmdp_get_and_clear(pmdp);
+> +	pmd_update(mm, addr, pmdp);
+> +	return pmd;
+> +}
+> +
+> +#define __HAVE_ARCH_PMDP_SET_WRPROTECT
+> +static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+> +				      unsigned long addr, pmd_t *pmdp)
+> +{
+> +	clear_bit(_PAGE_BIT_RW, (unsigned long *)&pmdp->pmd);
+> +	pmd_update(mm, addr, pmdp);
+> +}
+> +
+> +static inline int pmd_young(pmd_t pmd)
+> +{
+> +	return pmd_flags(pmd) & _PAGE_ACCESSED;
+> +}
+> +
+> +static inline pmd_t pmd_set_flags(pmd_t pmd, pmdval_t set)
+> +{
+> +	pmdval_t v = native_pmd_val(pmd);
+> +
+> +	return native_make_pmd(v | set);
+> +}
+> +
+> +static inline pmd_t pmd_clear_flags(pmd_t pmd, pmdval_t clear)
+> +{
+> +	pmdval_t v = native_pmd_val(pmd);
+> +
+> +	return native_make_pmd(v & ~clear);
+> +}
+> +
+> +static inline pmd_t pmd_mkold(pmd_t pmd)
+> +{
+> +	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
+> +}
+> +
+> +static inline pmd_t pmd_wrprotect(pmd_t pmd)
+> +{
+> +	return pmd_clear_flags(pmd, _PAGE_RW);
+> +}
+> +
+> +static inline pmd_t pmd_mkdirty(pmd_t pmd)
+> +{
+> +	return pmd_set_flags(pmd, _PAGE_DIRTY);
+> +}
+> +
+> +static inline pmd_t pmd_mkhuge(pmd_t pmd)
+> +{
+> +	return pmd_set_flags(pmd, _PAGE_PSE);
+> +}
+> +
+> +static inline pmd_t pmd_mkyoung(pmd_t pmd)
+> +{
+> +	return pmd_set_flags(pmd, _PAGE_ACCESSED);
+> +}
+> +
+> +static inline pmd_t pmd_mkwrite(pmd_t pmd)
+> +{
+> +	return pmd_set_flags(pmd, _PAGE_RW);
+> +}
+> +
+>  #endif /* !__ASSEMBLY__ */
+>  
+>  #endif /* _ASM_X86_PGTABLE_64_H */
+> diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+> --- a/arch/x86/mm/pgtable.c
+> +++ b/arch/x86/mm/pgtable.c
+> @@ -320,6 +320,25 @@ int ptep_set_access_flags(struct vm_area
+>  	return changed;
+>  }
+>  
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +int pmdp_set_access_flags(struct vm_area_struct *vma,
+> +			  unsigned long address, pmd_t *pmdp,
+> +			  pmd_t entry, int dirty)
+> +{
+> +	int changed = !pmd_same(*pmdp, entry);
+> +
+> +	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+> +
+> +	if (changed && dirty) {
+> +		*pmdp = entry;
+> +		pmd_update_defer(vma->vm_mm, address, pmdp);
+> +		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+> +	}
+> +
+> +	return changed;
+> +}
+> +#endif
+> +
+>  int ptep_test_and_clear_young(struct vm_area_struct *vma,
+>  			      unsigned long addr, pte_t *ptep)
+>  {
+> @@ -335,6 +354,23 @@ int ptep_test_and_clear_young(struct vm_
+>  	return ret;
+>  }
+>  
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+> +			      unsigned long addr, pmd_t *pmdp)
+> +{
+> +	int ret = 0;
+> +
+> +	if (pmd_young(*pmdp))
+> +		ret = test_and_clear_bit(_PAGE_BIT_ACCESSED,
+> +					 (unsigned long *) &pmdp->pmd);
+> +
+> +	if (ret)
+> +		pmd_update(vma->vm_mm, addr, pmdp);
+> +
+> +	return ret;
+> +}
+> +#endif
+> +
+>  int ptep_clear_flush_young(struct vm_area_struct *vma,
+>  			   unsigned long address, pte_t *ptep)
+>  {
+> @@ -347,6 +383,36 @@ int ptep_clear_flush_young(struct vm_are
+>  	return young;
+>  }
+>  
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +int pmdp_clear_flush_young(struct vm_area_struct *vma,
+> +			   unsigned long address, pmd_t *pmdp)
+> +{
+> +	int young;
+> +
+> +	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+> +
+> +	young = pmdp_test_and_clear_young(vma, address, pmdp);
+> +	if (young)
+> +		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+> +
+> +	return young;
+> +}
+> +
+> +void pmdp_splitting_flush(struct vm_area_struct *vma,
+> +			  unsigned long address, pmd_t *pmdp)
+> +{
+> +	int set;
+> +	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+> +	set = !test_and_set_bit(_PAGE_BIT_SPLITTING,
+> +				(unsigned long *)&pmdp->pmd);
+> +	if (set) {
+> +		pmd_update(vma->vm_mm, address, pmdp);
+> +		/* need tlb flush only to serialize against gup-fast */
+> +		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+> +	}
+> +}
+> +#endif
+> +
+
+The implementations look fine but I'm having trouble reconsiling what
+the leader says with the patch :(
+
+>  /**
+>   * reserve_top_address - reserves a hole in the top of kernel address space
+>   * @reserve - size of hole to reserve
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
