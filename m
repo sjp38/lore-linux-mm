@@ -1,103 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C6BD16B0089
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 05:23:54 -0500 (EST)
-Date: Thu, 18 Nov 2010 11:23:49 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] Make swap accounting default behavior configurable v4
-Message-ID: <20101118102349.GF15928@tiehlicka.suse.cz>
-References: <20101116101726.GA21296@tiehlicka.suse.cz>
- <20101116124615.978ed940.akpm@linux-foundation.org>
- <20101117092339.1b7c2d6d.nishimura@mxp.nes.nec.co.jp>
- <20101116171225.274019cf.akpm@linux-foundation.org>
- <20101117122801.e9850acf.nishimura@mxp.nes.nec.co.jp>
- <20101118082332.GB15928@tiehlicka.suse.cz>
- <20101118174654.8fa69aca.nishimura@mxp.nes.nec.co.jp>
- <20101118175334.be00c8f2.kamezawa.hiroyu@jp.fujitsu.com>
- <20101118095607.GD15928@tiehlicka.suse.cz>
- <20101118191427.fd86db5c.nishimura@mxp.nes.nec.co.jp>
+	by kanga.kvack.org (Postfix) with ESMTP id ECABC6B008A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 05:24:37 -0500 (EST)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id oAIAOXhQ011125
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 02:24:33 -0800
+Received: from qwf7 (qwf7.prod.google.com [10.241.194.71])
+	by kpbe17.cbf.corp.google.com with ESMTP id oAIAOTcA024215
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 02:24:32 -0800
+Received: by qwf7 with SMTP id 7so63840qwf.33
+        for <linux-mm@kvack.org>; Thu, 18 Nov 2010 02:24:31 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101118191427.fd86db5c.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20101118085921.GA11314@amd>
+References: <1290054891-6097-1-git-send-email-yinghan@google.com>
+	<20101118085921.GA11314@amd>
+Date: Thu, 18 Nov 2010 02:24:31 -0800
+Message-ID: <AANLkTi=+S25eBw5+-bcFAwRLOH-LPh--Tg72rohZJvzX@mail.gmail.com>
+Subject: Re: [PATCH] Pass priority to shrink_slab
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Nick Piggin <npiggin@kernel.dk>
+Cc: Ying Han <yinghan@google.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[I am removing stable from CC - to shield them off the discussion]
+On Thu, Nov 18, 2010 at 12:59 AM, Nick Piggin <npiggin@kernel.dk> wrote:
+> FWIW, we can just add this to the new shrinker API, and convert over
+> the users who care about it, so it doesn't have to be done in a big
+> patch.
 
-On Thu 18-11-10 19:14:27, Daisuke Nishimura wrote:
-> On Thu, 18 Nov 2010 10:56:07 +0100
-> Michal Hocko <mhocko@suse.cz> wrote:
-> 
-> > On Thu 18-11-10 17:53:34, KAMEZAWA Hiroyuki wrote:
-> > > On Thu, 18 Nov 2010 17:46:54 +0900
-> > > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > 
-> > > > On Thu, 18 Nov 2010 09:23:32 +0100
-> > > > Michal Hocko <mhocko@suse.cz> wrote:
-> > > > 
-> > > > > On Wed 17-11-10 12:28:01, Daisuke Nishimura wrote:
-> > > > > > On Tue, 16 Nov 2010 17:12:25 -0800
-> > > > > > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > [...]
-> > > > > > > Yes, we're stuck with the old one now.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+I also don't like that adding a shrinker parameter requires trivial
+changes in every place that defines a shrinker.
 
-> > > > > > > 
-> > > > > > > But we should note that "foo=[0|1]" is superior to "foo" and "nofoo". 
-> > > > > > > Even if we didn't initially intend to add "nofoo".
-> > > > > > > 
-> > > > > > I see.
-> > > > > > 
-> > > > > > Michal-san, could you update your patch to use "swapaccount=[1|0]" ?
-> > > > > 
-> > > > > I have noticed that Andrew has already taken the last version of the
-> > > > > patch for -mm tree. Should I still rework it to change swapaccount to
-> > > > > swapaccount=0|1 resp. true|false?
-> > > > > 
-> > > > It's usual to update a patch into more sophisticated one while it is in -mm tree.
-> > > > So, I think you'd better to do it(btw, I prefer 0|1 to true|false.
-> > > > Reading kernel-parameters.txt, 0|1 is more commonly used.).
-> > > > 
-> > > 
-> > > I vote for 0|1
-> > 
-> > Changes since v3:
-> > * add 0|1 parameter values handling
-> > 
-> > Changes since v2:
-> > * put the new parameter description to the proper (alphabetically
-> > * sorted)
-> >   place in Documentation/kernel-parameters.txt
-> >   
-> > Changes since v1:
-> > * do not remove noswapaccount parameter and add swapaccount parameter
-> > * instead
-> > * Documentation/kernel-parameters.txt updated)
-> > 
-> 
-> I'm sorry again and again, but I think removing "noswapaccount" completely
-> would be better, as Andrew said first:
-
-I read the above Andrew's statement that we really should stick with the
-old parameter.
-
-> > So we have swapaccount and noswapaccount.  Ho hum, "swapaccount=[1|0]"
-> > would have been better.
-> 
-> 
-> Thanks,
-> Daisuke Nishimura.
+I was wondering, could we just add a new structure for shrinker
+parameters ? Your proposal of having parallel 'old' and 'new' APIs
+works if this is a one-time change, but seems awkward if we want to
+add additional parameters later on...
 
 -- 
-Michal Hocko
-L3 team 
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
