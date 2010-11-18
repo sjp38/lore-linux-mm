@@ -1,41 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A763E6B004A
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 12:13:56 -0500 (EST)
-Date: Thu, 18 Nov 2010 17:13:39 +0000
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C50EA6B004A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 12:28:18 -0500 (EST)
+Date: Thu, 18 Nov 2010 17:27:39 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 02 of 66] mm, migration: Fix race between
-	shift_arg_pages and rmap_walk by guaranteeing rmap_walk finds PTEs
-	created within the temporary stack
-Message-ID: <20101118171339.GM8135@csn.ul.ie>
-References: <patchbomb.1288798055@v2.random> <ad7a334318ea379be733.1288798057@v2.random> <20101118111349.GG8135@csn.ul.ie>
+Subject: Re: [PATCH v3] factor out kswapd sleeping logic from kswapd()
+Message-ID: <20101118172738.GN8135@csn.ul.ie>
+References: <20101114180505.BEE2.A69D9226@jp.fujitsu.com> <20101115094239.GH27362@csn.ul.ie> <20101116144709.BF26.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101118111349.GG8135@csn.ul.ie>
+In-Reply-To: <20101116144709.BF26.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 11:13:49AM +0000, Mel Gorman wrote:
-> > This patch fixes the problem by using two VMAs - one which covers the temporary
-> > stack and the other which covers the new location. This guarantees that rmap
-> > can always find the migration PTE even if it is copied while rmap_walk is
-> > taking place.
+On Tue, Nov 16, 2010 at 03:07:22PM +0900, KOSAKI Motohiro wrote:
+> > > +void kswapd_try_to_sleep(pg_data_t *pgdat, int order)
+> > > +{
 > > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> > As pointed out elsewhere, this should be static.
 > 
-> This old chestnut. IIRC, this was the more complete solution to a fix that made
-> it into mainline. The patch still looks reasonable. It does add a kmalloc()
-> but I can't remember if we decided we were ok with it or not. Can you remind
-> me? More importantly, it appears to be surviving the original testcase that
-> this bug was about (20 minutes so far but will leave it a few hours). Assuming
-> the test does not crash;
+> Fixed.
 > 
+> 
+> > > +	long remaining = 0;
+> > > +	DEFINE_WAIT(wait);
+> > > +
+> > > +	if (freezing(current) || kthread_should_stop())
+> > > +		return;
+> > > +
+> > > +	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+> > > +
+> > > +	/* Try to sleep for a short interval */
+> > > +	if (!sleeping_prematurely(pgdat, order, remaining)) {
+> > > +		remaining = schedule_timeout(HZ/10);
+> > > +		finish_wait(&pgdat->kswapd_wait, &wait);
+> > > +		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+> > > +	}
+> > > +
+> > > +	/*
+> > > +	 * After a short sleep, check if it was a
+> > > +	 * premature sleep. If not, then go fully
+> > > +	 * to sleep until explicitly woken up
+> > > +	 */
+> > 
+> > Very minor but that comment should now fit on fewer lines.
+> 
+> Thanks, fixed.
+> 
+> 
+> > > +	if (!sleeping_prematurely(pgdat, order, remaining)) {
+> > > +		trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
+> > > +		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
+> > > +		schedule();
+> > > +		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
+> > 
+> > I posted a patch adding a comment on why set_pgdat_percpu_threshold() is
+> > called. I do not believe it has been picked up by Andrew but it if is,
+> > the patches will conflict. The resolution will be obvious but you may
+> > need to respin this patch if the comment patch gets picked up in mmotm.
+> > 
+> > Otherwise, I see no problems.
+> 
+> OK, I've rebased the patch on top your comment patch. 
+> 
+> 
+> 
+> From 1bd232713d55f033676f80cc7451ff83d4483884 Mon Sep 17 00:00:00 2001
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Date: Mon, 6 Dec 2010 20:44:27 +0900
+> Subject: [PATCH] factor out kswapd sleeping logic from kswapd()
+> 
+> Currently, kswapd() function has deeper nest and it slightly harder to
+> read. cleanup it.
+> 
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Incidentally, after 6.5 hours this still hasn't crashed. Previously a
-worst case reproduction scenario for the bug was around 35 minutes.
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
 -- 
 Mel Gorman
