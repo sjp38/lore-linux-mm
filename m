@@ -1,90 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 28A356B004A
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 03:22:47 -0500 (EST)
-Date: Thu, 18 Nov 2010 09:21:32 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E2EA76B004A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 03:23:36 -0500 (EST)
+Date: Thu, 18 Nov 2010 09:23:32 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [stable] [PATCH] Make swap accounting default behavior
- configurable
-Message-ID: <20101118082132.GA15928@tiehlicka.suse.cz>
+Subject: Re: [PATCH] Make swap accounting default behavior configurable
+Message-ID: <20101118082332.GB15928@tiehlicka.suse.cz>
 References: <20101116101726.GA21296@tiehlicka.suse.cz>
  <20101116124615.978ed940.akpm@linux-foundation.org>
- <20101116212157.GB9359@kroah.com>
+ <20101117092339.1b7c2d6d.nishimura@mxp.nes.nec.co.jp>
+ <20101116171225.274019cf.akpm@linux-foundation.org>
+ <20101117122801.e9850acf.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101116212157.GB9359@kroah.com>
+In-Reply-To: <20101117122801.e9850acf.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Greg KH <greg@kroah.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 16-11-10 13:21:57, Greg KH wrote:
-> On Tue, Nov 16, 2010 at 12:46:15PM -0800, Andrew Morton wrote:
-> > On Tue, 16 Nov 2010 11:17:26 +0100
-> > Michal Hocko <mhocko@suse.cz> wrote:
+On Wed 17-11-10 12:28:01, Daisuke Nishimura wrote:
+> On Tue, 16 Nov 2010 17:12:25 -0800
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+> > On Wed, 17 Nov 2010 09:23:39 +0900 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 > > 
-> > > Hi Andrew,
-> > > could you consider the following patch for the Linus tree, please?
-> > > The discussion took place in this email thread 
-> > > http://lkml.org/lkml/2010/11/10/114.
-> > > The patch is based on top of 151f52f09c572 commit in the Linus tree.
+> > > > > 
+> > > > > diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+> > > > > index ed45e98..14eafa5 100644
+> > > > > --- a/Documentation/kernel-parameters.txt
+> > > > > +++ b/Documentation/kernel-parameters.txt
+> > > > > @@ -2385,6 +2385,9 @@ and is between 256 and 4096 characters. It is defined in the file
+> > > > >  			improve throughput, but will also increase the
+> > > > >  			amount of memory reserved for use by the client.
+> > > > >  
+> > > > > +	swapaccount	[KNL] Enable accounting of swap in memory resource
+> > > > > +			controller. (See Documentation/cgroups/memory.txt)
+> > > > 
+> > > > So we have swapaccount and noswapaccount.  Ho hum, "swapaccount=[1|0]"
+> > > > would have been better.
+> > > > 
+> > > I suggested to keep "noswapaccount" for compatibility.
+> > > If you and other guys don't like having two parameters, I don't stick to
+> > > the old parameter.
 > > > 
-> > > Please let me know if there I should route this patch through somebody
-> > > else.
-> > > 
-> > > Thanks!
-> > > 
-> > > ---
-> > > >From 30238aaec758988493af793939f14b0ba83dc4b3 Mon Sep 17 00:00:00 2001
-> > > From: Michal Hocko <mhocko@suse.cz>
-> > > Date: Wed, 10 Nov 2010 13:30:04 +0100
-> > > Subject: [PATCH] Make swap accounting default behavior configurable
-> > > 
-> > > Swap accounting can be configured by CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-> > > configuration option and then it is turned on by default. There is
-> > > a boot option (noswapaccount) which can disable this feature.
-> > > 
-> > > This makes it hard for distributors to enable the configuration option
-> > > as this feature leads to a bigger memory consumption and this is a no-go
-> > > for general purpose distribution kernel. On the other hand swap
-> > > accounting may be very usuful for some workloads.
 > > 
-> > This patch is needed by distros, and distros use the -stable tree, I
-> > assume.  Do you see reasons why this patch should be backported into
-> > -stable, so distros don't need to patch it themselves?  If so, any
-> > particular kernel versions?  2.6.37?
+> > Yes, we're stuck with the old one now.
+> > 
+> > But we should note that "foo=[0|1]" is superior to "foo" and "nofoo". 
+> > Even if we didn't initially intend to add "nofoo".
+> > 
+> I see.
+> 
+> Michal-san, could you update your patch to use "swapaccount=[1|0]" ?
 
-I have suggested pushing to the stable in the original thread as well. 
-I was told that this is not a bug fix.
-
-I do not care much in which particular version to push this but I
-guess this doesn't qualify as "regression fix only Linus policy" so it
-is probably too late for .37.
-Nevertheless, if we reconsider -stable then .37 would be much really
-helpful to get it into stable ASAP.
+I have noticed that Andrew has already taken the last version of the
+patch for -mm tree. Should I still rework it to change swapaccount to
+swapaccount=0|1 resp. true|false?
 
 > 
-> Sorry, I really don't want to start backporting features to stable
-> kernels if at all possible.  Distros can pick them up on their own if
-> they determine it is needed.
-
-I really do agree with the part about features. But isn't this patch
-basically for distros (to help them to provide the swapaccounting feature
-without the cost of higher memory consumption in default configuration)?
-If this doesn't go to the stable then all (interested) of them would
-need to maintain the patch. Otherwise the change would come directly
-from the upstream.
-
-Moreover, it is not a new feature it just consolidates the default
-behavior of the already existing functionality.
-
-> 
-> thanks,
-> 
-> greg k-h
-
-Thanks
+> Thanks,
+> Daisuke Nishimura.
 -- 
 Michal Hocko
 L3 team 
