@@ -1,47 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B227A6B0089
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 01:30:01 -0500 (EST)
-Message-ID: <4CE4C7E4.50402@kernel.org>
-Date: Thu, 18 Nov 2010 07:29:56 +0100
-From: Tejun Heo <tj@kernel.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id BB6006B0089
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 01:49:00 -0500 (EST)
+Date: Thu, 18 Nov 2010 13:27:50 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [2/8,v3] NUMA Hotplug Emulator: infrastructure of NUMA hotplug
+ emulation
+Message-ID: <20101118052750.GD2408@shaohui>
+References: <20101117020759.016741414@intel.com>
+ <20101117021000.568681101@intel.com>
+ <alpine.DEB.2.00.1011162359160.17408@chino.kir.corp.google.com>
+ <20101117075128.GA30254@shaohui>
+ <alpine.DEB.2.00.1011171304060.10254@chino.kir.corp.google.com>
+ <20101118041407.GA2408@shaohui>
+ <20101118062715.GD17539@linux-sh.org>
 MIME-Version: 1.0
-Subject: Re: [patch 2/3] mm: remove gfp mask from pcpu_get_vm_areas
-References: <alpine.DEB.2.00.1011161935500.19230@chino.kir.corp.google.com> <alpine.DEB.2.00.1011161937380.19230@chino.kir.corp.google.com> <4CE39B89.8010908@kernel.org> <alpine.DEB.2.00.1011171229040.30790@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1011171229040.30790@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101118062715.GD17539@linux-sh.org>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Thu, Nov 18, 2010 at 03:27:15PM +0900, Paul Mundt wrote:
+> On Thu, Nov 18, 2010 at 12:14:07PM +0800, Shaohui Zheng wrote:
+> > On Wed, Nov 17, 2010 at 01:10:50PM -0800, David Rientjes wrote:
+> > > The idea that I've proposed (and you've apparently thought about and even 
+> > > implemented at one point) is much more powerful than that.  We need not 
+> > > query the state of hidden nodes that we've setup at boot but can rather 
+> > > use the amount of hidden memory to setup the nodes in any way that we want 
+> > > at runtime (various sizes, interleaved node ids, etc).
+> > 
+> > yes, if we select your proposal. we just mark all the nodes as POSSIBLE node.
+> > there is no hidden nodes any more. the node will be created after add memory
+> > to the node first time. 
+> > 
+> This is roughly what I had in mind in my N_HIDDEN review, so I quite
+> favour this approach.
 
-On 11/17/2010 09:32 PM, David Rientjes wrote:
-> A recent thread[*] shows a problem whereas gfp masks may be passed into 
-> the vmalloc interface that restrict reclaim behavior, yet the underlying 
-> pte allocator unconditionally uses GFP_KERNEL.  This is a first-pass at an 
-> effort to remove all gfp_t formals from the vmalloc interface (and can be 
-> completed once gfs2, ntfs, and ceph have converted) and require them to 
-> use GFP_KERNEL.
+Our testing shows that it is a feasible approach, and it works well.
+however, there is still a problem which we should worry about.
 
-I see.
-
-> Luckily for the per-cpu allocator, this was trivial since that happens to 
-> be the only use case already.
-
-per-cpu allocator intentionally only allowed GFP_KERNEL till now.
-There were some requests about allowing GFP_ATOMIC allocations and
-that's the reason why the @gfp is there for the vm function.  Anyways,
-this looks like the nail in that coffin.
-
- Acked-by: Tejun Heo <tj@kernel.org>
-
-Thanks.
+in our draft patch, we re-setup nr_node_ids when CONFIG_ARCH_MEMORY_PROBE enabled 
+and mem=XXX was specified in grub. we set nr_node_ids as MAX_NUMNODES + 1, because
+ we do not know how many nodes will be hot-added through memory/probe interface. 
+ it might be a little wasting of memory.
 
 -- 
-tejun
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
