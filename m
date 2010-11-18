@@ -1,39 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B07B56B0089
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 05:43:16 -0500 (EST)
-Subject: Re: [PATCH 3/3] mlock: avoid dirtying pages and triggering writeback
-Mime-Version: 1.0 (Apple Message framework v1082)
+	by kanga.kvack.org (Postfix) with ESMTP id C4FD66B0087
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 06:03:13 -0500 (EST)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id oAIB38qA007232
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 03:03:08 -0800
+Received: from ywa6 (ywa6.prod.google.com [10.192.1.6])
+	by wpaz9.hot.corp.google.com with ESMTP id oAIB37iA008059
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 03:03:07 -0800
+Received: by ywa6 with SMTP id 6so2379585ywa.40
+        for <linux-mm@kvack.org>; Thu, 18 Nov 2010 03:03:07 -0800 (PST)
+Date: Thu, 18 Nov 2010 03:03:01 -0800
+From: Michel Lespinasse <walken@google.com>
+Subject: Re: [PATCH 3/3] mlock: avoid dirtying pages and triggering
+ writeback
+Message-ID: <20101118110301.GA16625@google.com>
+References: <1289996638-21439-1-git-send-email-walken@google.com>
+ <1289996638-21439-4-git-send-email-walken@google.com>
+ <20101117125756.GA5576@amd>
+ <1290007734.2109.941.camel@laptop>
+ <AANLkTim4tO_aKzXLXJm-N-iEQ9rNSa0=HGJVDAz33kY6@mail.gmail.com>
+ <20101117231143.GQ22876@dastard>
+ <20101117235230.GL3290@thunk.org>
+ <20101117165309.fa859fd3.akpm@linux-foundation.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-From: Theodore Tso <tytso@MIT.EDU>
-In-Reply-To: <20101118054629.GA3339@amd>
-Date: Thu, 18 Nov 2010 05:43:06 -0500
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <2ADBEB7E-0EC8-4536-B556-0453A8E1D5FA@mit.edu>
-References: <1289996638-21439-1-git-send-email-walken@google.com> <1289996638-21439-4-git-send-email-walken@google.com> <20101117125756.GA5576@amd> <1290007734.2109.941.camel@laptop> <20101118054629.GA3339@amd>
+Content-Disposition: inline
+In-Reply-To: <20101117165309.fa859fd3.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@kernel.dk>
-Cc: Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Theodore Tso <tytso@google.com>, Michael Rubin <mrubin@google.com>, Suleiman Souhlal <suleiman@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ted Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Theodore Tso <tytso@google.com>, Michael Rubin <mrubin@google.com>, Suleiman Souhlal <suleiman@google.com>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Nov 17, 2010 at 04:53:09PM -0800, Andrew Morton wrote:
+> On Wed, 17 Nov 2010 18:52:30 -0500
+> "Ted Ts'o" <tytso@mit.edu> wrote:
+> 
+> > On Thu, Nov 18, 2010 at 10:11:43AM +1100, Dave Chinner wrote:
+> > > I don't think ->page_mkwrite can be worked around - we need that to
+> > > be called on the first write fault of any mmap()d page to ensure it
+> > > is set up correctly for writeback.  If we don't get write faults
+> > > after the page is mlock()d, then we need the ->page_mkwrite() call
+> > > during the mlock() call.
+> > 
+> > OK, so I'm not an mm hacker, so maybe I'm missing something.  Could
+> > part of this be fixed by simply sending the write faults for
+> > mlock()'ed pages, so page_mkwrite() gets called when the page is
+> > dirtied.  Seems like a real waste to have the file system pre-allocate
+> > all of the blocks for a mlock()'ed region.  Why does mlock() have to
+> > result in the write faults getting suppressed when the page is
+> > actually dirtied?
 
-On Nov 18, 2010, at 12:46 AM, Nick Piggin wrote:
+This is actually what the patch does - by having mlock() use a read fault,
+pages are loaded in memory and mlocked, but the ptes are not marked as
+writable so that a later write access will be caught as a write fault at
+that time (with all the usual dirtying and page_mkwrite() callbacks).
 
-> The right way to fix this would not be to introduce the new regression
-> but either/both: a specific syscall to mlock-for-read which does not =
-do
-> any reservations, fix filesystem hook to allow reservation without
-> implying dirtying. A simple flag to page_mkwrite will be enough (plus
-> the logic to call it from VM).
+> Yup, I don't think it would be too bad to take a minor fault each time
+> an mlocked page transitions from clean->dirty.
+> 
+> In fact we should already be doing that, after the mlocked page gets
+> written back by kupdate?  Hope so!
 
-Why is it at all important that mlock() force block allocation for =
-sparse blocks?    It's  not at all specified in the mlock() API =
-definition that it does that.
+Yes, handle_mm_fault() is careful to never create writable ptes pointing
+to clean file pages, so that a later write fault will correctly dirty
+the corresponding page.
 
-Are there really programs that assume that mlock() =3D=3D fallocate()?!?
-
--- Ted
-
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
