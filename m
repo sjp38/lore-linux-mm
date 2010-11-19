@@ -1,71 +1,377 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id ABCFA6B004A
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 19:40:24 -0500 (EST)
-From: David Sterba <dsterba@suse.cz>
-Subject: [PATCH] mm: remove call to find_vma in pagewalk for non-hugetlbfs
-Date: Fri, 19 Nov 2010 01:39:57 +0100
-Message-Id: <1290127197-20360-1-git-send-email-dsterba@suse.cz>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9ECA76B004A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 20:16:38 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAJ1GYW7024301
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 19 Nov 2010 10:16:35 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9647845DE4D
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:16:34 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A2C545DE52
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:16:34 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BD0B1DB8040
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:16:34 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B6CDB1DB803F
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:16:33 +0900 (JST)
+Date: Fri, 19 Nov 2010 10:10:41 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 36 of 66] memcg compound
+Message-Id: <20101119101041.ffe00712.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20101118152628.GY8135@csn.ul.ie>
+References: <patchbomb.1288798055@v2.random>
+	<495ffee2d60adab4d18b.1288798091@v2.random>
+	<20101118152628.GY8135@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, David Sterba <dsterba@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <ak@linux.intel.com>, Andy Whitcroft <apw@canonical.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-Commit d33b9f45 introduces a check if a vma is a hugetlbfs one and
-later in 5dc37642 is moved under #ifdef CONFIG_HUGETLB_PAGE but
-a needless find_vma call is left behind and it's result not used
-anywhere else in the function.
+On Thu, 18 Nov 2010 15:26:28 +0000
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-The sideefect of caching vma for @addr inside walk->mm is neither
-utilized in walk_page_range() nor in called functions.
+> On Wed, Nov 03, 2010 at 04:28:11PM +0100, Andrea Arcangeli wrote:
+> > From: Andrea Arcangeli <aarcange@redhat.com>
+> > 
+> > Teach memcg to charge/uncharge compound pages.
+> > 
+> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> > Acked-by: Rik van Riel <riel@redhat.com>
+> > ---
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -1019,6 +1019,10 @@ mem_cgroup_get_reclaim_stat_from_page(st
+> >  {
+> >  	struct page_cgroup *pc;
+> >  	struct mem_cgroup_per_zone *mz;
+> > +	int page_size = PAGE_SIZE;
+> > +
+> > +	if (PageTransHuge(page))
+> > +		page_size <<= compound_order(page);
+> >  
+> >  	if (mem_cgroup_disabled())
+> >  		return NULL;
+> > @@ -1879,12 +1883,14 @@ static int __mem_cgroup_do_charge(struct
+> >   * oom-killer can be invoked.
+> >   */
+> >  static int __mem_cgroup_try_charge(struct mm_struct *mm,
+> > -		gfp_t gfp_mask, struct mem_cgroup **memcg, bool oom)
+> > +				   gfp_t gfp_mask,
+> > +				   struct mem_cgroup **memcg, bool oom,
+> > +				   int page_size)
+> 
+> Any concerns about page_size overflowing int? ppc64 has 16G pages for example
+> although it will never be in this path. hmm, I see that charge size is already
+> int so maybe this is more of a memcg issue than it is THP but hugetlbfs
+> treats page sizes as unsigned long. For example see vma_kernel_pagesize()
+> 
 
-Signed-off-by: David Sterba <dsterba@suse.cz>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <ak@linux.intel.com>
-Cc: Andy Whitcroft <apw@canonical.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: Matt Mackall <mpm@selenic.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/pagewalk.c |    5 +++--
- 1 files changed, 3 insertions(+), 2 deletions(-)
+If there are requirements of big page > 4GB, unsigned long should be used.
 
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-index 8b1a2ce..38cc58b 100644
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -139,7 +139,6 @@ int walk_page_range(unsigned long addr, unsigned long end,
- 	pgd_t *pgd;
- 	unsigned long next;
- 	int err = 0;
--	struct vm_area_struct *vma;
- 
- 	if (addr >= end)
- 		return err;
-@@ -149,15 +148,17 @@ int walk_page_range(unsigned long addr, unsigned long end,
- 
- 	pgd = pgd_offset(walk->mm, addr);
- 	do {
-+		struct vm_area_struct *uninitialized_var(vma);
-+
- 		next = pgd_addr_end(addr, end);
- 
-+#ifdef CONFIG_HUGETLB_PAGE
- 		/*
- 		 * handle hugetlb vma individually because pagetable walk for
- 		 * the hugetlb page is dependent on the architecture and
- 		 * we can't handled it in the same manner as non-huge pages.
- 		 */
- 		vma = find_vma(walk->mm, addr);
--#ifdef CONFIG_HUGETLB_PAGE
- 		if (vma && is_vm_hugetlb_page(vma)) {
- 			if (vma->vm_end < next)
- 				next = vma->vm_end;
--- 
-1.7.1
+
+> 
+> >  {
+> >  	int nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> >  	struct mem_cgroup *mem = NULL;
+> >  	int ret;
+> > -	int csize = CHARGE_SIZE;
+> > +	int csize = max(CHARGE_SIZE, (unsigned long) page_size);
+> >  
+
+unsigned long here.
+
+
+> >  	/*
+> >  	 * Unlike gloval-vm's OOM-kill, we're not in memory shortage
+> > @@ -1909,7 +1915,7 @@ again:
+> >  		VM_BUG_ON(css_is_removed(&mem->css));
+> >  		if (mem_cgroup_is_root(mem))
+> >  			goto done;
+> > -		if (consume_stock(mem))
+> > +		if (page_size == PAGE_SIZE && consume_stock(mem))
+> >  			goto done;
+> >  		css_get(&mem->css);
+> >  	} else {
+> > @@ -1933,7 +1939,7 @@ again:
+> >  			rcu_read_unlock();
+> >  			goto done;
+> >  		}
+> > -		if (consume_stock(mem)) {
+> > +		if (page_size == PAGE_SIZE && consume_stock(mem)) {
+> >  			/*
+> >  			 * It seems dagerous to access memcg without css_get().
+> >  			 * But considering how consume_stok works, it's not
+> > @@ -1974,7 +1980,7 @@ again:
+> >  		case CHARGE_OK:
+> >  			break;
+> >  		case CHARGE_RETRY: /* not in OOM situation but retry */
+> > -			csize = PAGE_SIZE;
+> > +			csize = page_size;
+> >  			css_put(&mem->css);
+> >  			mem = NULL;
+> >  			goto again;
+> > @@ -1995,8 +2001,8 @@ again:
+> >  		}
+> >  	} while (ret != CHARGE_OK);
+> >  
+> > -	if (csize > PAGE_SIZE)
+> > -		refill_stock(mem, csize - PAGE_SIZE);
+> > +	if (csize > page_size)
+> > +		refill_stock(mem, csize - page_size);
+> >  	css_put(&mem->css);
+> >  done:
+> >  	*memcg = mem;
+> > @@ -2024,9 +2030,10 @@ static void __mem_cgroup_cancel_charge(s
+> >  	}
+> >  }
+> >  
+> > -static void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
+> > +static void mem_cgroup_cancel_charge(struct mem_cgroup *mem,
+> > +				     int page_size)
+> >  {
+> > -	__mem_cgroup_cancel_charge(mem, 1);
+> > +	__mem_cgroup_cancel_charge(mem, page_size >> PAGE_SHIFT);
+> >  }
+> >  
+> >  /*
+> > @@ -2082,8 +2089,9 @@ struct mem_cgroup *try_get_mem_cgroup_fr
+> >   */
+> >  
+> >  static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+> > -				     struct page_cgroup *pc,
+> > -				     enum charge_type ctype)
+> > +				       struct page_cgroup *pc,
+> > +				       enum charge_type ctype,
+> > +				       int page_size)
+> >  {
+> >  	/* try_charge() can return NULL to *memcg, taking care of it. */
+> >  	if (!mem)
+> > @@ -2092,7 +2100,7 @@ static void __mem_cgroup_commit_charge(s
+> >  	lock_page_cgroup(pc);
+> >  	if (unlikely(PageCgroupUsed(pc))) {
+> >  		unlock_page_cgroup(pc);
+> > -		mem_cgroup_cancel_charge(mem);
+> > +		mem_cgroup_cancel_charge(mem, page_size);
+> >  		return;
+> >  	}
+> >  
+> > @@ -2166,7 +2174,7 @@ static void __mem_cgroup_move_account(st
+> >  	mem_cgroup_charge_statistics(from, pc, false);
+> >  	if (uncharge)
+> >  		/* This is not "cancel", but cancel_charge does all we need. */
+> > -		mem_cgroup_cancel_charge(from);
+> > +		mem_cgroup_cancel_charge(from, PAGE_SIZE);
+> >  
+> >  	/* caller should have done css_get */
+> >  	pc->mem_cgroup = to;
+> > @@ -2227,13 +2235,14 @@ static int mem_cgroup_move_parent(struct
+> >  		goto put;
+> >  
+> >  	parent = mem_cgroup_from_cont(pcg);
+> > -	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false);
+> > +	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false,
+> > +				      PAGE_SIZE);
+> >  	if (ret || !parent)
+> >  		goto put_back;
+> >  
+> >  	ret = mem_cgroup_move_account(pc, child, parent, true);
+> >  	if (ret)
+> > -		mem_cgroup_cancel_charge(parent);
+> > +		mem_cgroup_cancel_charge(parent, PAGE_SIZE);
+> >  put_back:
+> >  	putback_lru_page(page);
+> >  put:
+> > @@ -2254,6 +2263,10 @@ static int mem_cgroup_charge_common(stru
+> >  	struct mem_cgroup *mem = NULL;
+> >  	struct page_cgroup *pc;
+> >  	int ret;
+> > +	int page_size = PAGE_SIZE;
+> > +
+> > +	if (PageTransHuge(page))
+> > +		page_size <<= compound_order(page);
+> >  
+> >  	pc = lookup_page_cgroup(page);
+> >  	/* can happen at boot */
+> > @@ -2261,11 +2274,11 @@ static int mem_cgroup_charge_common(stru
+> >  		return 0;
+> >  	prefetchw(pc);
+> >  
+> > -	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true);
+> > +	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true, page_size);
+> >  	if (ret || !mem)
+> >  		return ret;
+> >  
+> > -	__mem_cgroup_commit_charge(mem, pc, ctype);
+> > +	__mem_cgroup_commit_charge(mem, pc, ctype, page_size);
+> >  	return 0;
+> >  }
+> >  
+> > @@ -2274,8 +2287,6 @@ int mem_cgroup_newpage_charge(struct pag
+> >  {
+> >  	if (mem_cgroup_disabled())
+> >  		return 0;
+> > -	if (PageCompound(page))
+> > -		return 0;
+> >  	/*
+> >  	 * If already mapped, we don't have to account.
+> >  	 * If page cache, page->mapping has address_space.
+> > @@ -2381,13 +2392,13 @@ int mem_cgroup_try_charge_swapin(struct 
+> >  	if (!mem)
+> >  		goto charge_cur_mm;
+> >  	*ptr = mem;
+> > -	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true);
+> > +	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true, PAGE_SIZE);
+> >  	css_put(&mem->css);
+> >  	return ret;
+> >  charge_cur_mm:
+> >  	if (unlikely(!mm))
+> >  		mm = &init_mm;
+> > -	return __mem_cgroup_try_charge(mm, mask, ptr, true);
+> > +	return __mem_cgroup_try_charge(mm, mask, ptr, true, PAGE_SIZE);
+> >  }
+> >  
+> >  static void
+> > @@ -2403,7 +2414,7 @@ __mem_cgroup_commit_charge_swapin(struct
+> >  	cgroup_exclude_rmdir(&ptr->css);
+> >  	pc = lookup_page_cgroup(page);
+> >  	mem_cgroup_lru_del_before_commit_swapcache(page);
+> > -	__mem_cgroup_commit_charge(ptr, pc, ctype);
+> > +	__mem_cgroup_commit_charge(ptr, pc, ctype, PAGE_SIZE);
+> >  	mem_cgroup_lru_add_after_commit_swapcache(page);
+> >  	/*
+> >  	 * Now swap is on-memory. This means this page may be
+> > @@ -2452,11 +2463,12 @@ void mem_cgroup_cancel_charge_swapin(str
+> >  		return;
+> >  	if (!mem)
+> >  		return;
+> > -	mem_cgroup_cancel_charge(mem);
+> > +	mem_cgroup_cancel_charge(mem, PAGE_SIZE);
+> >  }
+> >  
+> >  static void
+> > -__do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype)
+> > +__do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype,
+> > +	      int page_size)
+> >  {
+> >  	struct memcg_batch_info *batch = NULL;
+> >  	bool uncharge_memsw = true;
+> > @@ -2491,14 +2503,14 @@ __do_uncharge(struct mem_cgroup *mem, co
+> >  	if (batch->memcg != mem)
+> >  		goto direct_uncharge;
+> >  	/* remember freed charge and uncharge it later */
+> > -	batch->bytes += PAGE_SIZE;
+> > +	batch->bytes += page_size;
+
+Hmm, isn't it simpler to avoid batched-uncharge when page_size > PAGE_SIZE ?
+
+
+
+> >  	if (uncharge_memsw)
+> > -		batch->memsw_bytes += PAGE_SIZE;
+> > +		batch->memsw_bytes += page_size;
+> >  	return;
+> >  direct_uncharge:
+> > -	res_counter_uncharge(&mem->res, PAGE_SIZE);
+> > +	res_counter_uncharge(&mem->res, page_size);
+> >  	if (uncharge_memsw)
+> > -		res_counter_uncharge(&mem->memsw, PAGE_SIZE);
+> > +		res_counter_uncharge(&mem->memsw, page_size);
+> >  	if (unlikely(batch->memcg != mem))
+> >  		memcg_oom_recover(mem);
+> >  	return;
+> > @@ -2512,6 +2524,7 @@ __mem_cgroup_uncharge_common(struct page
+> >  {
+> >  	struct page_cgroup *pc;
+> >  	struct mem_cgroup *mem = NULL;
+> > +	int page_size = PAGE_SIZE;
+> >  
+> >  	if (mem_cgroup_disabled())
+> >  		return NULL;
+> > @@ -2519,6 +2532,9 @@ __mem_cgroup_uncharge_common(struct page
+> >  	if (PageSwapCache(page))
+> >  		return NULL;
+> >  
+> > +	if (PageTransHuge(page))
+> > +		page_size <<= compound_order(page);
+> > +
+> >  	/*
+> >  	 * Check if our page_cgroup is valid
+> >  	 */
+> > @@ -2572,7 +2588,7 @@ __mem_cgroup_uncharge_common(struct page
+> >  		mem_cgroup_get(mem);
+> >  	}
+> >  	if (!mem_cgroup_is_root(mem))
+> > -		__do_uncharge(mem, ctype);
+> > +		__do_uncharge(mem, ctype, page_size);
+> >  
+> >  	return mem;
+> >  
+> > @@ -2767,6 +2783,7 @@ int mem_cgroup_prepare_migration(struct 
+> >  	enum charge_type ctype;
+> >  	int ret = 0;
+> >  
+> > +	VM_BUG_ON(PageTransHuge(page));
+> >  	if (mem_cgroup_disabled())
+> >  		return 0;
+> >  
+> > @@ -2816,7 +2833,7 @@ int mem_cgroup_prepare_migration(struct 
+> >  		return 0;
+> >  
+> >  	*ptr = mem;
+> > -	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
+> > +	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false, PAGE_SIZE);
+> >  	css_put(&mem->css);/* drop extra refcnt */
+> >  	if (ret || *ptr == NULL) {
+> >  		if (PageAnon(page)) {
+> > @@ -2843,7 +2860,7 @@ int mem_cgroup_prepare_migration(struct 
+> >  		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+> >  	else
+> >  		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+> > -	__mem_cgroup_commit_charge(mem, pc, ctype);
+> > +	__mem_cgroup_commit_charge(mem, pc, ctype, PAGE_SIZE);
+> >  	return ret;
+> >  }
+> >  
+> > @@ -4452,7 +4469,8 @@ one_by_one:
+> >  			batch_count = PRECHARGE_COUNT_AT_ONCE;
+> >  			cond_resched();
+> >  		}
+> > -		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false);
+> > +		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false,
+> > +					      PAGE_SIZE);
+> >  		if (ret || !mem)
+> >  			/* mem_cgroup_clear_mc() will do uncharge later */
+> >  			return -ENOMEM;
+> > @@ -4614,6 +4632,7 @@ static int mem_cgroup_count_precharge_pt
+> >  	pte_t *pte;
+> >  	spinlock_t *ptl;
+> >  
+> > +	VM_BUG_ON(pmd_trans_huge(*pmd));
+> >  	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> >  	for (; addr != end; pte++, addr += PAGE_SIZE)
+> >  		if (is_target_pte_for_mc(vma, addr, *pte, NULL))
+> > @@ -4765,6 +4784,7 @@ static int mem_cgroup_move_charge_pte_ra
+> >  	spinlock_t *ptl;
+> >  
+> >  retry:
+> > +	VM_BUG_ON(pmd_trans_huge(*pmd));
+> >  	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> >  	for (; addr != end; addr += PAGE_SIZE) {
+> >  		pte_t ptent = *(pte++);
+> > 
+> 
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
