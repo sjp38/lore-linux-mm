@@ -1,64 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 291416B0087
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 08:47:13 -0500 (EST)
-From: Johan MOSSBERG <johan.xx.mossberg@stericsson.com>
-Date: Fri, 19 Nov 2010 14:47:02 +0100
-Subject: RE: [PATCH 0/3] hwmem: Hardware memory driver
-Message-ID: <C832F8F5D375BD43BFA11E82E0FE9FE0081BEE26FD@EXDCVYMBSTM005.EQ1STM.local>
-References: <1289912882-23996-1-git-send-email-johan.xx.mossberg@stericsson.com>
- <op.vl9p52wp7p4s8u@pikus>
- <C832F8F5D375BD43BFA11E82E0FE9FE0081BE739A0@EXDCVYMBSTM005.EQ1STM.local>
- <op.vl9r6xld7p4s8u@pikus>
- <C832F8F5D375BD43BFA11E82E0FE9FE0081BE73A1D@EXDCVYMBSTM005.EQ1STM.local>
- <op.vl9xudve7p4s8u@pikus>
- <C832F8F5D375BD43BFA11E82E0FE9FE0081BE73D53@EXDCVYMBSTM005.EQ1STM.local>
- <op.vmeyr3fd7p4s8u@pikus>
-In-Reply-To: <op.vmeyr3fd7p4s8u@pikus>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E8D56B004A
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 09:05:49 -0500 (EST)
+Date: Fri, 19 Nov 2010 14:05:32 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/8] Use memory compaction instead of lumpy reclaim
+	during high-order allocations
+Message-ID: <20101119140532.GH28613@csn.ul.ie>
+References: <1290010969-26721-1-git-send-email-mel@csn.ul.ie> <20101117154641.51fd7ce5.akpm@linux-foundation.org> <20101118081254.GB8135@csn.ul.ie> <20101118172627.cf25b83a.kamezawa.hiroyu@jp.fujitsu.com> <20101118083828.GA24635@cmpxchg.org> <20101118092044.GE8135@csn.ul.ie> <20101118114928.ecb2d6b0.akpm@linux-foundation.org> <20101119104856.GB28613@csn.ul.ie> <4B8266CB-F658-4CC8-BCA3-677C22BAFAE0@mit.edu>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4B8266CB-F658-4CC8-BCA3-677C22BAFAE0@mit.edu>
 Sender: owner-linux-mm@kvack.org
-To: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Theodore Tso <tytso@MIT.EDU>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-TWljaGHFgiBOYXphcmV3aWN6IHdyb3RlOg0KPiA+PiBEbyB5b3Ugd2FudCB0byByZW1hcCB1c2Vy
-IHNwYWNlIG1hcHBpbmdzIHdoZW4gcGFnZSBpcyBtb3ZlZCBkdXJpbmcNCj4gPj4gZGVmcmFnbWVu
-dGF0aW9uPyBPciB3b3VsZCB1c2VyIG5lZWQgdG8gdW5tYXAgdGhlIHJlZ2lvbj8gIEllLiB3b3Vs
-ZA0KPiA+PiBtbWFwKCllZCBidWZmZXIgYmUgcGlubmVkPw0KPiA+DQo+ID4gUmVtYXAsIGkuZS4g
-bm90IHBpbm5lZC4gVGhhdCBtZWFucyB0aGF0IHRoZSBtYXBwZXIgbmVlZHMgdG8gYmUNCj4gPiBp
-bmZvcm1lZCBiZWZvcmUgYW5kIGFmdGVyIGEgYnVmZmVyIGlzIG1vdmVkLiBNYXliZSBhZGQgYSBm
-dW5jdGlvbg0KPiA+IHRvIENNQSB3aGVyZSB5b3UgY2FuIHJlZ2lzdGVyIGEgY2FsbGJhY2sgZnVu
-Y3Rpb24gdGhhdCBpcyBjYWxsZWQNCj4gPiBiZWZvcmUgYW5kIGFmdGVyIGEgYnVmZmVyIGlzIG1v
-dmVkPyBUaGUgY2FsbGJhY2sgZnVuY3Rpb24ncw0KPiA+IHBhcmFtZXRlcnMgd291bGQgYmUgYnVm
-ZmVyLCBuZXcgcG9zaXRpb24gYW5kIHdoZXRoZXIgaXQgd2lsbCBiZQ0KPiA+IG1vdmVkIG9yIGhh
-cyBiZWVuIG1vdmVkLiBDTUEgd291bGQgYWxzbyBuZWVkIHRoaXMgdHlwZSBvZg0KPiA+IGluZm9y
-bWF0aW9uIHRvIGJlIGFibGUgdG8gZXZpY3QgdGVtcG9yYXJ5IGRhdGEgZnJvbSB0aGUNCj4gPiBk
-ZXN0aW5hdGlvbi4NCj4gDQo+IFRoZSB3YXkgSSBpbWFnaW5lIHBpbm5pbmcgaXMgdGhhdCB0aGUg
-YWxsb2NhdG9yIHRlbGxzIENNQSB0aGF0IGl0IHdhbnQNCj4gdG8gdXNlIGdpdmVuIHJlZ2lvbiBv
-ZiBtZW1vcnkuICBUaGlzIHdvdWxkIG1ha2UgQ01BIHJlbW92ZSBhbnkga2luZCBvZg0KPiBkYXRh
-IHRoYXQgaXMgc3RvcmVkIHRoZXJlIChpbiB0aGUgdmVyc2lvbiBvZiBDTUEgSSdtIGFib3V0IHRv
-IHBvc3QgdGhhdA0KPiBiYXNpY2FsbHkgbWVhbnMgbWlncmF0aW5nIHBhZ2VzKS4NCg0KSSBkb24n
-dCB1bmRlcnN0YW5kIHdoYXQgeW91IG1lYW4gd2l0aCAicGlubmluZyIgYnV0IHllcyB3aGVuIHRo
-ZQ0KYWxsb2NhdG9yIG1vdmVzIGEgYnVmZmVyIGl0IHdpbGwgaGF2ZSB0byBpbmZvcm0gQ01BIGJv
-dGggd2hhdA0KbWVtb3J5IGl0IHdpbGwgdXNlIChzbyB0aGF0IGl0IGNhbiBiZSBldmljdGVkKSBh
-bmQgd2hhdCBtZW1vcnkgaXQNCndpbGwgbm8gbG9uZ2VyIHVzZSAoc28gdGhhdCBpdCBjYW4gYmUg
-dXNlZCBmb3Igb3RoZXIgc3R1ZmYpLg0KDQo+IEkgdGhpbmsgdGhlIHF1ZXN0aW9uIGF0IHRoaXMg
-bW9tZW50IGlzIHdoZXRoZXIgd2UgbmVlZCBzdWNoIGEgbWVjaGFuaXNtDQo+IHRvIGJlIGltcGxl
-bWVudGVkIGF0IHRoZSB0aGlzIHRpbWUuICBJIHdvdWxkIHJhdGhlciB3YWl0IHdpdGggdGhlDQo+
-IGNhbGxiYWNrIG1lY2hhbmlzbSB0aWxsIHRoZSByZXN0IG9mIHRoZSBmcmFtZXdvcmsgd29ya3Mg
-YW5kIHdlIGhhdmUNCj4gYW4gYWxnb3JpdGhtIHRoYXQgYWN0dWFsbHkgZG9lcyB0aGUgZGVmcmFn
-bWVudGF0aW9uLg0KDQpJIGFncmVlLiBTbyBsb25nIGFzIHdlIGtub3cgaXQgY2FuIGJlIGFkZGVk
-IHdpdGhvdXQgdG9vIG11Y2gNCnRyb3VibGUgaW4gdGhlIGZ1dHVyZSB0aGF0J2xsIGJlIGZpbmUu
-IEkgYWN0dWFsbHkgdGhpbmsgdGhlICJtYWtpbmcNCmdvb2QgdXNlIG9mIHRoZSBmcmVlIG1lbW9y
-eSBpbiByZWdpb25zIiBmZWF0dXJlIGlzIG1vcmUgaW1wb3J0YW50DQp0aGFuIGRlZnJhZ21lbnRh
-dGlvbi4gVGhlIHJlYXNvbiBJIHdhbnRlZCBhIGRpc2N1c3Npb24gYWJvdXQNCmRlZnJhZ21lbnRh
-dGlvbiB3YXMgdG8gbWFrZSBzdXJlIHRoZSBkb29yIHdhc24ndCBjbG9zZWQgb24gYWRkaW5nDQpz
-dXBwb3J0IGZvciBkZWZyYWdtZW50YXRpb24gaW4gdGhlIGZ1dHVyZSBhbmQgdG8gbWFrZSBzdXJl
-IGl0IGlzDQp0YWtlbiBpbnRvIGNvbnNpZGVyYXRpb24gd2hlbiBkZXNpZ25pbmcgYW5kIGltcGxl
-bWVudGluZyBDTUEuDQoNCi9Kb2hhbiBNb3NzYmVyZw0K
+On Fri, Nov 19, 2010 at 07:43:02AM -0500, Theodore Tso wrote:
+> 
+> On Nov 19, 2010, at 5:48 AM, Mel Gorman wrote:
+> 
+> > At least as long as !CONFIG_COMPACTION exists. That will be a while because
+> > bear in mind CONFIG_COMPACTION is disabled by default (although I believe
+> > some distros are enabling it at least). Maybe we should choose to deprecate
+> > it in 2.6.40 and delete it at the infamous time of 2.6.42? That would give
+> > ample time to iron out any issues that crop up with reclaim/compaction
+> > (what this series has turned into).
+> 
+> How about making the default before 2.6.40, as an initial step?
+> 
+
+It'd be a reasonable way of ensuring it's being tested everywhere
+and not by those that are interested or using distro kernel configs.
+I guess we'd set to "default y" in the same patch that adds the note to
+feature-removal-schedule.txt.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
