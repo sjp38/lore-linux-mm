@@ -1,50 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A87BC6B004A
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 06:35:20 -0500 (EST)
-Date: Fri, 19 Nov 2010 11:35:03 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mm: remove call to find_vma in pagewalk for
-	non-hugetlbfs
-Message-ID: <20101119113503.GF28613@csn.ul.ie>
-References: <1290127197-20360-1-git-send-email-dsterba@suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F9346B0085
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 06:39:30 -0500 (EST)
+Date: Fri, 19 Nov 2010 12:39:10 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 6/6] memcg: make mem_cgroup_page_stat() return value
+ unsigned
+Message-ID: <20101119113910.GD24635@cmpxchg.org>
+References: <1289294671-6865-1-git-send-email-gthelen@google.com>
+ <1289294671-6865-7-git-send-email-gthelen@google.com>
+ <20101112082921.GH9131@cmpxchg.org>
+ <xr937hgixok4.fsf@ninji.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1290127197-20360-1-git-send-email-dsterba@suse.cz>
+In-Reply-To: <xr937hgixok4.fsf@ninji.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: David Sterba <dsterba@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <ak@linux.intel.com>, Andy Whitcroft <apw@canonical.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Matt Mackall <mpm@selenic.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 19, 2010 at 01:39:57AM +0100, David Sterba wrote:
-> Commit d33b9f45 introduces a check if a vma is a hugetlbfs one and
-> later in 5dc37642 is moved under #ifdef CONFIG_HUGETLB_PAGE but
-> a needless find_vma call is left behind and it's result not used
-> anywhere else in the function.
+On Fri, Nov 12, 2010 at 12:41:15PM -0800, Greg Thelen wrote:
+> >> mem_cgroup_page_stat() has changed so it never returns
+> >> error so convert the return value to the traditional page
+> >> count type (unsigned long).
+> >
+> > This changelog feels a bit beside the point.
+> >
+> > What's really interesting is that we now don't consider negative sums
+> > to be invalid anymore, but just assume zero!  There is a real
+> > semantical change here.
 > 
-> The sideefect of caching vma for @addr inside walk->mm is neither
-> utilized in walk_page_range() nor in called functions.
+> Prior to this patch series mem_cgroup_page_stat() returned a negative
+> value (specifically -EINVAL) to indicate that the current task was in
+> the root_cgroup and thus the per-cgroup usage and limit counter were
+> invalid.  Callers treated all negative values as an indication of
+> root-cgroup message.
 > 
-> Signed-off-by: David Sterba <dsterba@suse.cz>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Andi Kleen <ak@linux.intel.com>
-> Cc: Andy Whitcroft <apw@canonical.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> Cc: Matt Mackall <mpm@selenic.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Unfortunately there was another way that mem_cgroup_page_stat() could
+> return a negative value even when current was not in the root cgroup.
+> Negative sums were a possibility due to summing of unsynchronized
+> per-cpu counters.  These occasional negative sums would fool callers
+> into thinking that the current task was in the root cgroup.
+> 
+> Would adding this description to the commit message address your
+> concerns?
 
-Well spotted.
+I'd just describe that summing per-cpu counters is racy, that we can
+end up with negative results, and the only sensible handling of that
+is to assume zero.
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+> > That the return type can then be changed to unsigned long is a nice
+> > follow-up cleanup that happens to be folded into this patch.
+> 
+> Good point.  I can separate the change into two sub-patches:
+> 1. use zero for a min-value (as described above)
+> 2. change return value to unsigned
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Sounds good.  You can just fold the previous patch (adjusting the
+callsites) into 2, which should take care of the ordering problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
