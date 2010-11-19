@@ -1,83 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 151A36B004A
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 22:11:27 -0500 (EST)
-Date: Fri, 19 Nov 2010 14:11:05 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 00/13] IO-less dirty throttling v2
-Message-ID: <20101119031105.GC13830@dastard>
-References: <20101117042720.033773013@intel.com>
- <20101117150330.139251f9.akpm@linux-foundation.org>
- <20101118020640.GS22876@dastard>
- <20101117180912.38541ca4.akpm@linux-foundation.org>
- <20101118032141.GP13830@dastard>
- <20101117193431.ec1f4547.akpm@linux-foundation.org>
- <20101118072706.GW13830@dastard>
- <20101117233350.321f9935.akpm@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 4CFFB6B004A
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 02:15:23 -0500 (EST)
+Date: Fri, 19 Nov 2010 13:54:14 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [0/8,v3] NUMA Hotplug Emulator - Introduction & Feedbacks
+Message-ID: <20101119055414.GC3327@shaohui>
+References: <20101117020759.016741414@intel.com>
+ <20101117052213.GA10671@linux-sh.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101117233350.321f9935.akpm@linux-foundation.org>
+In-Reply-To: <20101117052213.GA10671@linux-sh.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, ak@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 17, 2010 at 11:33:50PM -0800, Andrew Morton wrote:
-> On Thu, 18 Nov 2010 18:27:06 +1100 Dave Chinner <david@fromorbit.com> wrote:
-> 
-> > > > Indeed, nobody has
-> > > > realised (until now) just how inefficient it really is because of
-> > > > the fact that the overhead is mostly hidden in user process system
-> > > > time.
-> > > 
-> > > "hidden"?  You do "time dd" and look at the output!
-> > > 
-> > > _now_ it's hidden.  You do "time dd" and whee, no system time!
+On Wed, Nov 17, 2010 at 02:22:13PM +0900, Paul Mundt wrote:
+> On Wed, Nov 17, 2010 at 10:07:59AM +0800, shaohui.zheng@intel.com wrote:
+> > * PATCHSET INTRODUCTION
 > > 
-> > What I meant is that the cost of foreground writeback was hidden in
-> > the process system time. Now we have separated the two of them, we
-> > can see exactly how much it was costing us because it is no longer
-> > hidden inside the process system time.
+> > patch 1: Add function to hide memory region via e820 table. Then emulator will
+> > 	     use these memory regions to fake offlined numa nodes.
+> > patch 2: Infrastructure of NUMA hotplug emulation, introduce "hide node".
+> > patch 3: Provide an userland interface to hotplug-add fake offlined nodes.
+> > patch 4: Abstract cpu register functions, make these interface friend for cpu
+> > 		 hotplug emulation
+> > patch 5: Support cpu probe/release in x86, it provide a software method to hot
+> > 		 add/remove cpu with sysfs interface.
+> > patch 6: Fake CPU socket with logical CPU on x86, to prevent the scheduling
+> > 		 domain to build the incorrect hierarchy.
+> > patch 7: extend memory probe interface to support NUMA, we can add the memory to
+> > 		 a specified node with the interface.
+> > patch 8: Documentations
+> > 
+> > * FEEDBACKS & RESPONSES
+> > 
+> I had some comments on the other patches in the series that possibly got
+> missed because of the mail-followup-to confusion:
 > 
-> About a billion years ago I wrote the "cyclesoak" thingy which measures
-> CPU utilisation the other way around: run a lowest-priority process on
-> each CPU in the background, while running your workload, then find out
-> how much CPU time cyclesoak *didn't* consume.  That way you account for
-> everything: user time, system time, kernel threads, interrupts,
-> softirqs, etc.  It turned out to be pretty accurate, despite the
-> then-absence of SCHED_IDLE.
+> http://lkml.org/lkml/2010/11/15/11
+About memblock API, it is a good APIs list to manage memory region. If all the
+e820 wrapper function use memblock API, the code should be very clean. currently,
+no body use memblock in e820 wrapper, so we should still keep this status, unless
+we decide rewrite these e820 wrapper.
 
-Yeah, I just use PCP to tell me what the CPU usage is in a nice
-graph. The link below is an image of the "overview" monitoring tab I
-have - total CPU, IOPS, bandwidth, XFS directory ops and context
-switches. Here's the behaviour an increasing number of dd's with
-this series looks like:
+Anyway, we already select other way to hide memory, we will not add wrapper on
+e820 table anymore.
 
-http://userweb.kernel.org/~dgc/io-less-throttle-dd.png
+> http://lkml.org/lkml/2010/11/15/14
 
-Left to right, that 1 dd, 2, 4, 8, 16 and 32 dd's, then a gap, then
-the 8-way fs_mark workload running. These are all taken at a 5s
-sample period.
+I understand, the MACROs are not functions, it will not comsume memory after
+compile it. the IFDEF should be removed
 
-FWIW, on the 32 thread dd (the right most of the set of pillars),
-you can see the sudden increase in system CPU usage in the last few
-samples (which corresponds to the first few dd's completing and
-exiting) that I mentioned previously.
+> http://lkml.org/lkml/2010/11/15/15
+I think that you want to say ARCH_ENABLE_NUMA_HOTPLUG_EMU here, not
+ARCH_ENABLE_NUMA_EMU.  the option NUMA_HOTPLUG_EMU is a dummy item, it does not
+control any codes, it just try to maintain the node/memory/cpu hotplug
+emulation option together, it provides convenience when use want to enable them.
 
-Basically, I'm always looking at the total CPU usage of a workload,
-memory usage of caches, etc, in this manner.  Sure, I use stuff like
-time to get numbers to drop out of test scripts, but most of my
-behavioural analysis is done through observing differences between
-two charts and then looking deeper to work out what changed...
 
-Cheers,
-
-Dave.
+> 
+> The other one you've already dealt with.
 
 -- 
-Dave Chinner
-david@fromorbit.com
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
