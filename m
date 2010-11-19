@@ -1,56 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 760A66B0071
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:51:30 -0500 (EST)
-Received: by yxt3 with SMTP id 3so3014141yxt.14
-        for <linux-mm@kvack.org>; Fri, 19 Nov 2010 07:51:20 -0800 (PST)
-Subject: Re: percpu: Implement this_cpu_add,sub,dec,inc_return
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <alpine.DEB.2.00.1011190941380.32655@router.home>
-References: <alpine.DEB.2.00.1011091124490.9898@router.home>
-	 <alpine.DEB.2.00.1011100939530.23566@router.home>
-	 <1290018527.2687.108.camel@edumazet-laptop>
-	 <alpine.DEB.2.00.1011190941380.32655@router.home>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 19 Nov 2010 16:51:10 +0100
-Message-ID: <1290181870.3034.136.camel@edumazet-laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0A5476B0071
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:58:26 -0500 (EST)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: TEXT/PLAIN
+Received: from eu_spt1 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LC50077B31CGQ20@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 19 Nov 2010 15:58:24 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LC50012A31B14@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 19 Nov 2010 15:58:24 +0000 (GMT)
+Date: Fri, 19 Nov 2010 16:57:59 +0100
+From: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Subject: [RFCv6 01/13] lib: rbtree: rb_root_init() function added
+In-reply-to: <cover.1290172312.git.m.nazarewicz@samsung.com>
+Message-id: 
+ <e4b403b4d7ab381f1c7bc4ac6bbb6266115b7c88.1290172312.git.m.nazarewicz@samsung.com>
+References: <cover.1290172312.git.m.nazarewicz@samsung.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: mina86@mina86.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, Bryan Huntsman <bryanh@codeaurora.org>, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Johan Mossberg <johan.xx.mossberg@stericsson.com>, Jonathan Corbet <corbet@lwn.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Marcus LORENTZON <marcus.xm.lorentzon@stericsson.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Mel Gorman <mel@csn.ul.ie>, Pawel Osciak <pawel@osciak.com>, Russell King <linux@arm.linux.org.uk>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, dipankar@in.ibm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Le vendredi 19 novembre 2010 A  09:42 -0600, Christoph Lameter a A(C)crit :
-> On Wed, 17 Nov 2010, Eric Dumazet wrote:
-> 
-> > diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-> > index b676c58..bb5db26 100644
-> > --- a/include/linux/highmem.h
-> > +++ b/include/linux/highmem.h
-> > @@ -91,7 +91,7 @@ static inline int kmap_atomic_idx_push(void)
-> >
-> >  static inline int kmap_atomic_idx(void)
-> >  {
-> > -	return __get_cpu_var(__kmap_atomic_idx) - 1;
-> > +	return __this_cpu_read(__kmap_atomic_idx) - 1;
-> >  }
-> >
-> >  static inline int kmap_atomic_idx_pop(void)
-> 
-> This isnt a use case for this_cpu_dec right? Seems that your message was
-> cut off?
-> 
+Added a rb_root_init() function which initialises a rb_root
+structure as a red-black tree with at most one element.  The
+rationale is that using rb_root_init(root, node) is more
+straightforward and cleaner then first initialising and
+empty tree followed by an insert operation.
 
+Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+---
+ include/linux/rbtree.h |   11 +++++++++++
+ 1 files changed, 11 insertions(+), 0 deletions(-)
 
-I wanted to show you the file were it was possible to use this_cpu_{dec|
-inc}_return()
-
-
-My patch on kmap_atomic_idx() doesnt need your new functions ;)
-
-Thanks
-
+diff --git a/include/linux/rbtree.h b/include/linux/rbtree.h
+index 7066acb..5b6dc66 100644
+--- a/include/linux/rbtree.h
++++ b/include/linux/rbtree.h
+@@ -130,6 +130,17 @@ static inline void rb_set_color(struct rb_node *rb, int color)
+ }
+ 
+ #define RB_ROOT	(struct rb_root) { NULL, }
++
++static inline void rb_root_init(struct rb_root *root, struct rb_node *node)
++{
++	root->rb_node = node;
++	if (node) {
++		node->rb_parent_color = RB_BLACK; /* black, no parent */
++		node->rb_left  = NULL;
++		node->rb_right = NULL;
++	}
++}
++
+ #define	rb_entry(ptr, type, member) container_of(ptr, type, member)
+ 
+ #define RB_EMPTY_ROOT(root)	((root)->rb_node == NULL)
+-- 
+1.7.2.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
