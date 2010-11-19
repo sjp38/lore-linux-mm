@@ -1,102 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3CC476B004A
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 04:12:29 -0500 (EST)
-Date: Fri, 19 Nov 2010 15:51:19 +0800
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [7/8,v3] NUMA Hotplug Emulator: extend memory probe interface
- to support NUMA
-Message-ID: <20101119075119.GD3327@shaohui>
-References: <20101117020759.016741414@intel.com>
- <20101117021000.916235444@intel.com>
- <1290019807.9173.3789.camel@nimitz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1290019807.9173.3789.camel@nimitz>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BCF5E6B004A
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 04:22:42 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [BUGFIX][PATCH] pagemap: set pagemap walk limit to PMD boundary
+Date: Fri, 19 Nov 2010 18:07:45 +0900
+Message-Id: <1290157665-17215-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Haicheng Li <haicheng.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Greg KH <greg@kroah.com>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 17, 2010 at 10:50:07AM -0800, Dave Hansen wrote:
-> On Wed, 2010-11-17 at 10:08 +0800, shaohui.zheng@intel.com wrote:
-> > And more we make it friendly, it is possible to add memory to do
-> > 
-> >         echo 3g > memory/probe
-> >         echo 1024m,3 > memory/probe
-> > 
-> > It maintains backwards compatibility.
-> > 
-> > Another format suggested by Dave Hansen:
-> > 
-> >         echo physical_address=0x40000000 numa_node=3 > memory/probe
-> > 
-> > it is more explicit to show meaning of the parameters.
-> 
-> The other thing that Greg suggested was to use configfs.  Looking back
-> on it, that makes a lot of sense.  We can do better than these "probe"
-> files.
-> 
-> In your case, it might be useful to tell the kernel to be able to add
-> memory in a node and add the node all in one go.  That'll probably be
-> closer to what the hardware will do, and will exercise different code
-> paths that the separate "add node", "then add memory" steps that you're
-> using here.
-> 
-> For the emulator, I also have to wonder if using debugfs is the right
-> was since its ABI is a bit more, well, _flexible_ over time. :)
+Currently one pagemap_read() call walks in PAGEMAP_WALK_SIZE bytes
+(== 512 pages.)  But there is a corner case where walk_pmd_range()
+accidentally runs over a VMA associated with a hugetlbfs file.
 
-There will be a lot of problems which need to solve if we decide to use configfs or
-debugfs. I have no good method to solve these problems, so I want to listen some
-advices.
+For example, when a process has mappings to VMAs as shown below:
 
-1) How to design the probe interace 
-I can not find a good method with configfs to replace current memory/probe 
-interface.
+  # cat /proc/<pid>/maps
+  ...
+  3a58f6d000-3a58f72000 rw-p 00000000 00:00 0
+  7fbd51853000-7fbd51855000 rw-p 00000000 00:00 0
+  7fbd5186c000-7fbd5186e000 rw-p 00000000 00:00 0
+  7fbd51a00000-7fbd51c00000 rw-s 00000000 00:12 8614   /hugepages/test
 
-As we know, A configfs config_item is created via an explicit userspace
-operation mkdir. when we add a memory section, we need to convert it to an mkdir
-action. the following implementation is the possible solution.
+then pagemap_read() goes into walk_pmd_range() path and walks in the range
+0x7fbd51853000-0x7fbd51a53000, but the hugetlbfs VMA should be handled
+by walk_hugetlb_range(). Otherwise PMD for the hugepage is considered bad
+and cleared, which causes undesirable results.
 
-node/memory hotplug:
-/configfs/node
-when we hotadd node, we can create dir with command:
-	mkdir /configfs/node/nodeX
+This patch fixes it by separating pagemap walk range into one PMD.
 
-And export a probe interface
-/configfs/node/nodeX/probe, we can use this interface to hot-add memory section
-to this node.
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Matt Mackall <mpm@selenic.com>
+---
+ fs/proc/task_mmu.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
-after memory hot-add with the probe interface, there should be some memory
-entries for each memory section under this directories.
-
-cpu hotplug:
-/configfs/cpu/
-to hot-add a cpu
-	mkdir /configfs/cpu/cpuX
-to hot-remove a CPU
-	rmdir /configfs/cpu/cpuX
-
-I did not whether it is the expected interface on configfs.
-
-2) co-existence for sysfs and configfs
-
-If we keep both interfaces, thing becomes complicated. when we hot-add
-memory/cpu thru sysfs, we should create the sysfs entrie for it, and we should
-also create the configfs entries for it. Vice versa, when we hot-add/remove
-cpu/memory thru configfs, we should maintain the changes on sysfs, too.
-
-it becomes very complicated after we have both configfs & sysfs interface, and
-we should not get them together, we need to get it simple.
-
-the purpose of hotplug emulator is providing a possible solution for cpu/memory
-hotplug testing, the interface upgrading is not part of emulator. Let's forget
-configfs here.
-
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index da6b01d..c126c83 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -706,6 +706,7 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+  * skip over unmapped regions.
+  */
+ #define PAGEMAP_WALK_SIZE	(PMD_SIZE)
++#define PAGEMAP_WALK_MASK	(PMD_MASK)
+ static ssize_t pagemap_read(struct file *file, char __user *buf,
+ 			    size_t count, loff_t *ppos)
+ {
+@@ -776,7 +777,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+ 		unsigned long end;
+ 
+ 		pm.pos = 0;
+-		end = start_vaddr + PAGEMAP_WALK_SIZE;
++		end = (start_vaddr + PAGEMAP_WALK_SIZE) & PAGEMAP_WALK_MASK;
+ 		/* overflow ? */
+ 		if (end < start_vaddr || end > end_vaddr)
+ 			end = end_vaddr;
 -- 
-Thanks & Regards,
-Shaohui
+1.7.2.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
