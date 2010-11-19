@@ -1,64 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F9346B0085
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 06:39:30 -0500 (EST)
-Date: Fri, 19 Nov 2010 12:39:10 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 6/6] memcg: make mem_cgroup_page_stat() return value
- unsigned
-Message-ID: <20101119113910.GD24635@cmpxchg.org>
-References: <1289294671-6865-1-git-send-email-gthelen@google.com>
- <1289294671-6865-7-git-send-email-gthelen@google.com>
- <20101112082921.GH9131@cmpxchg.org>
- <xr937hgixok4.fsf@ninji.mtv.corp.google.com>
-MIME-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E98066B004A
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 07:43:12 -0500 (EST)
+Subject: Re: [PATCH 0/8] Use memory compaction instead of lumpy reclaim during high-order allocations
+Mime-Version: 1.0 (Apple Message framework v1082)
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <xr937hgixok4.fsf@ninji.mtv.corp.google.com>
+From: Theodore Tso <tytso@MIT.EDU>
+In-Reply-To: <20101119104856.GB28613@csn.ul.ie>
+Date: Fri, 19 Nov 2010 07:43:02 -0500
+Content-Transfer-Encoding: 7bit
+Message-Id: <4B8266CB-F658-4CC8-BCA3-677C22BAFAE0@mit.edu>
+References: <1290010969-26721-1-git-send-email-mel@csn.ul.ie> <20101117154641.51fd7ce5.akpm@linux-foundation.org> <20101118081254.GB8135@csn.ul.ie> <20101118172627.cf25b83a.kamezawa.hiroyu@jp.fujitsu.com> <20101118083828.GA24635@cmpxchg.org> <20101118092044.GE8135@csn.ul.ie> <20101118114928.ecb2d6b0.akpm@linux-foundation.org> <20101119104856.GB28613@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 12, 2010 at 12:41:15PM -0800, Greg Thelen wrote:
-> >> mem_cgroup_page_stat() has changed so it never returns
-> >> error so convert the return value to the traditional page
-> >> count type (unsigned long).
-> >
-> > This changelog feels a bit beside the point.
-> >
-> > What's really interesting is that we now don't consider negative sums
-> > to be invalid anymore, but just assume zero!  There is a real
-> > semantical change here.
-> 
-> Prior to this patch series mem_cgroup_page_stat() returned a negative
-> value (specifically -EINVAL) to indicate that the current task was in
-> the root_cgroup and thus the per-cgroup usage and limit counter were
-> invalid.  Callers treated all negative values as an indication of
-> root-cgroup message.
-> 
-> Unfortunately there was another way that mem_cgroup_page_stat() could
-> return a negative value even when current was not in the root cgroup.
-> Negative sums were a possibility due to summing of unsynchronized
-> per-cpu counters.  These occasional negative sums would fool callers
-> into thinking that the current task was in the root cgroup.
-> 
-> Would adding this description to the commit message address your
-> concerns?
 
-I'd just describe that summing per-cpu counters is racy, that we can
-end up with negative results, and the only sensible handling of that
-is to assume zero.
+On Nov 19, 2010, at 5:48 AM, Mel Gorman wrote:
 
-> > That the return type can then be changed to unsigned long is a nice
-> > follow-up cleanup that happens to be folded into this patch.
-> 
-> Good point.  I can separate the change into two sub-patches:
-> 1. use zero for a min-value (as described above)
-> 2. change return value to unsigned
+> At least as long as !CONFIG_COMPACTION exists. That will be a while because
+> bear in mind CONFIG_COMPACTION is disabled by default (although I believe
+> some distros are enabling it at least). Maybe we should choose to deprecate
+> it in 2.6.40 and delete it at the infamous time of 2.6.42? That would give
+> ample time to iron out any issues that crop up with reclaim/compaction
+> (what this series has turned into).
 
-Sounds good.  You can just fold the previous patch (adjusting the
-callsites) into 2, which should take care of the ordering problem.
+How about making the default before 2.6.40, as an initial step?
+
+-Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
