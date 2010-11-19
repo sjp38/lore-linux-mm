@@ -1,109 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0F98B6B0087
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 20:33:23 -0500 (EST)
-Date: Fri, 19 Nov 2010 08:12:18 +0800
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [1/8,v3] NUMA Hotplug Emulator: add function to hide memory
- region via e820 table.
-Message-ID: <20101119001218.GA3327@shaohui>
-References: <20101117020759.016741414@intel.com>
- <20101117021000.479272928@intel.com>
- <alpine.DEB.2.00.1011162354390.16875@chino.kir.corp.google.com>
- <20101118092052.GE2408@shaohui>
- <alpine.DEB.2.00.1011181313140.26680@chino.kir.corp.google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4A26F6B0087
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 20:47:16 -0500 (EST)
+Date: Fri, 19 Nov 2010 12:46:05 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 3/3] mlock: avoid dirtying pages and triggering
+ writeback
+Message-ID: <20101119014605.GA13830@dastard>
+References: <1289996638-21439-1-git-send-email-walken@google.com>
+ <1289996638-21439-4-git-send-email-walken@google.com>
+ <20101117125756.GA5576@amd>
+ <1290007734.2109.941.camel@laptop>
+ <AANLkTim4tO_aKzXLXJm-N-iEQ9rNSa0=HGJVDAz33kY6@mail.gmail.com>
+ <20101117231143.GQ22876@dastard>
+ <AANLkTimE1KecXQhcxsKLSLug-7XpmGbmvsfSmG7kWDNn@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1011181313140.26680@chino.kir.corp.google.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTimE1KecXQhcxsKLSLug-7XpmGbmvsfSmG7kWDNn@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Theodore Tso <tytso@google.com>, Michael Rubin <mrubin@google.com>, Suleiman Souhlal <suleiman@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 01:16:07PM -0800, David Rientjes wrote:
-> On Thu, 18 Nov 2010, Shaohui Zheng wrote:
+On Wed, Nov 17, 2010 at 03:31:37PM -0800, Michel Lespinasse wrote:
+> On Wed, Nov 17, 2010 at 3:11 PM, Dave Chinner <david@fromorbit.com> wrote:
+> >> Really, my understanding is that not pre-allocating filesystem blocks
+> >> is just fine. This is, after all, what happens with ext3 and it's
+> >> never been reported as a bug (that I know of).
+> >
+> > It's not ext3 you have to worry about - it's the filesystems that
+> > need special state set up on their pages/buffers for ->writepage to
+> > work correctly that are the problem. You need to call
+> > ->write_begin/->write_end to get the state set up properly.
+> >
+> > If this state is not set up properly, silent data loss will occur
+> > during mmap writes either by ENOSPC or failing to set up writes into
+> > unwritten extents correctly (i.e. we'll be back to where we were in
+> > 2.6.15).
+> >
+> > I don't think ->page_mkwrite can be worked around - we need that to
+> > be called on the first write fault of any mmap()d page to ensure it
+> > is set up correctly for writeback.  If we don't get write faults
+> > after the page is mlock()d, then we need the ->page_mkwrite() call
+> > during the mlock() call.
 > 
-> > > > Index: linux-hpe4/arch/x86/kernel/e820.c
-> > > > ===================================================================
-> > > > --- linux-hpe4.orig/arch/x86/kernel/e820.c	2010-11-15 17:13:02.483461667 +0800
-> > > > +++ linux-hpe4/arch/x86/kernel/e820.c	2010-11-15 17:13:07.083461581 +0800
-> > > > @@ -971,6 +971,7 @@
-> > > >  }
-> > > >  
-> > > >  static int userdef __initdata;
-> > > > +static u64 max_mem_size __initdata = ULLONG_MAX;
-> > > >  
-> > > >  /* "mem=nopentium" disables the 4MB page tables. */
-> > > >  static int __init parse_memopt(char *p)
-> > > > @@ -989,12 +990,28 @@
-> > > >  
-> > > >  	userdef = 1;
-> > > >  	mem_size = memparse(p, &p);
-> > > > -	e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
-> > > > +	e820_remove_range(mem_size, max_mem_size - mem_size, E820_RAM, 1);
-> > > > +	max_mem_size = mem_size;
-> > > >  
-> > > >  	return 0;
-> > > >  }
-> > > 
-> > > This needs memmap= support as well, right?
-> > we did not do the testing after combine both memmap and numa=hide paramter, 
-> > I think that the result should similar with mem=XX, they both remove a memory
-> > region from the e820 table.
-> > 
-> 
-> You've modified the parser for mem= but not memmap= so the change needs 
-> additional support for the latter.
-> 
+> Just to be clear - I'm proposing to skip the entire do_wp_page() call
+> by doing a read fault rather than a write fault. If the page wasn't
+> dirty already, it will stay clean and with a non-writable PTE until it
+> gets actually written to, at which point we'll get a write fault and
+> do_wp_page will be invoked as usual.
 
-the parser for mem= is not modified, the changed parser is numa=, I add a addtional
-option numa=hide=.
+I have no problem with that - I'm surprised that mlock didn't work
+that way in the first place.
 
->From current discussion, numa=hide= interface should be removed, we will use mem=
-to hide memory.
+> I am not proposing to skip the page_mkwrite() while upgrading the PTE
+> permissions, which I think is what you were arguing against ?
 
-> > > >  early_param("mem", parse_memopt);
-> > > >  
-> > > > +#ifdef CONFIG_NODE_HOTPLUG_EMU
-> > > > +u64 __init e820_hide_mem(u64 mem_size)
-> > > > +{
-> > > > +	u64 start, end_pfn;
-> > > > +
-> > > > +	userdef = 1;
-> > > > +	end_pfn = e820_end_of_ram_pfn();
-> > > > +	start = (end_pfn << PAGE_SHIFT) - mem_size;
-> > > > +	e820_remove_range(start, max_mem_size - start, E820_RAM, 1);
-> > > > +	max_mem_size = start;
-> > > > +
-> > > > +	return start;
-> > > > +}
-> > > > +#endif
-> > > 
-> > > This doesn't have any sanity checking for whether e820_remove_range() will 
-> > > leave any significant amount of memory behind so the kernel will even boot 
-> > > (probably should have a guaranteed FAKE_NODE_MIN_SIZE left behind?).
-> > 
-> > it should not be checked here, it should be checked by the function who call
-> >  e820_hide_mem, and truncate the mem_size with FAKE_NODE_MIN_SIZE.
-> > 
-> 
-> Your patchset doesn't do that, I'm talking specifically about the amount 
-> of memory left behind so that the kernel at least still boots.  That seems 
-> to be a function of e820_hide_mem() to do some sanity checking so we 
-> actually still get a kernel rather than the responsibility of the 
-> command-line parser.
+I wasn't arguing against anything, merely pointing out that the
+->page_mkwrite call is aboslutely necessary. You've made clarified
+that it still occurs, so I'm happy...
 
-How much memory is enough to make sure the kernel can still boot, it is very 
-hard to measure. it is almost impossible to get the exact data. I try to leave very 
-few memory to kernel(hide most memory with numa=hide), it cause a panic directly.
+FWIW, what I was responding to was the assumption that "this is
+alright for ext3, so it must be OK" extrapolation about
+->page_mkwrite behaviour. Especially as ext3 does not even implement
+the ->page_mkwrite operation (which means mmap writes into holes
+can't detect ENOSPC correctly)...
 
-I have no idea about it, do you have any suggestions?
+Cheers,
 
-Another example,  
-I try to add paramter "mem=1M", it compains "Select item can not fit into memory", 
-and I did not find where the error message comes from, I guess that it should 
-be printed by grub.
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
