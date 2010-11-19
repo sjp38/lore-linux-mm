@@ -1,46 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E009A6B0071
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 11:36:20 -0500 (EST)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id oAJGOsjf019755
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 09:24:54 -0700
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id oAJGaCOW240902
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 09:36:12 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oAJGaCrG032630
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 09:36:12 -0700
-Subject: Re: [7/8,v3] NUMA Hotplug Emulator: extend memory probe interface
- to support NUMA
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20101119075119.GD3327@shaohui>
-References: <20101117020759.016741414@intel.com>
-	 <20101117021000.916235444@intel.com> <1290019807.9173.3789.camel@nimitz>
-	 <20101119075119.GD3327@shaohui>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Fri, 19 Nov 2010 08:36:09 -0800
-Message-ID: <1290184569.32329.1986.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id E684B6B0071
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 12:09:43 -0500 (EST)
+Date: Fri, 19 Nov 2010 11:09:36 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: percpu: Implement this_cpu_add,sub,dec,inc_return
+In-Reply-To: <1290183158.3034.145.camel@edumazet-laptop>
+Message-ID: <alpine.DEB.2.00.1011191108240.3976@router.home>
+References: <alpine.DEB.2.00.1011091124490.9898@router.home>  <alpine.DEB.2.00.1011100939530.23566@router.home>  <1290018527.2687.108.camel@edumazet-laptop>  <alpine.DEB.2.00.1011190941380.32655@router.home>  <1290181870.3034.136.camel@edumazet-laptop>
+ <alpine.DEB.2.00.1011190958230.2360@router.home> <1290183158.3034.145.camel@edumazet-laptop>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Shaohui Zheng <shaohui.zheng@intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Haicheng Li <haicheng.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Greg KH <greg@kroah.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-11-19 at 15:51 +0800, Shaohui Zheng wrote:
-> the purpose of hotplug emulator is providing a possible solution for cpu/memory
-> hotplug testing, the interface upgrading is not part of emulator. Let's forget
-> configfs here. 
+On Fri, 19 Nov 2010, Eric Dumazet wrote:
 
-If it's just for testing, you're right, we probably shouldn't go to the
-trouble of making a new interface.  At the same time, we shouldn't put
-something in /sys or configfs that we're not committed to, long-term.
+> By the way, is your patch really ok ?
+>
+> xadd %0,foo   returns in %0 the previous value of the memory, not the
+> value _after_ the operation.
+>
+> This is why we do in arch/x86/include/asm/atomic.h :
+>
+> static inline int atomic_add_return(int i, atomic_t *v)
+> ...
+>
+>         __i = i;
+>         asm volatile(LOCK_PREFIX "xaddl %0, %1"
+>                      : "+r" (i), "+m" (v->counter)
+>                      : : "memory");
+>         return i + __i;
+> ...
 
-So, not to replace the memory probe file, but _only_ to drive the new
-debug-only node hot-add, I think its appropriate place is debugfs.
-
--- Dave
+Ok so rename the macros to this_cpu_return_inc/dec/add/sub?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
