@@ -1,72 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4CFFB6B004A
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 02:15:23 -0500 (EST)
-Date: Fri, 19 Nov 2010 13:54:14 +0800
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [0/8,v3] NUMA Hotplug Emulator - Introduction & Feedbacks
-Message-ID: <20101119055414.GC3327@shaohui>
-References: <20101117020759.016741414@intel.com>
- <20101117052213.GA10671@linux-sh.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 94A676B004A
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 02:23:37 -0500 (EST)
+Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
+	by smtp-out.google.com with ESMTP id oAJ7NYbw004099
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 23:23:34 -0800
+Received: from gwb10 (gwb10.prod.google.com [10.200.2.10])
+	by kpbe15.cbf.corp.google.com with ESMTP id oAJ7NWpj003585
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 23:23:33 -0800
+Received: by gwb10 with SMTP id 10so2457166gwb.1
+        for <linux-mm@kvack.org>; Thu, 18 Nov 2010 23:23:32 -0800 (PST)
+Date: Thu, 18 Nov 2010 23:23:16 -0800
+From: Michel Lespinasse <walken@google.com>
+Subject: Re: [PATCH 3/3] mlock: avoid dirtying pages and triggering
+ writeback
+Message-ID: <20101119072316.GA14388@google.com>
+References: <1289996638-21439-1-git-send-email-walken@google.com>
+ <1289996638-21439-4-git-send-email-walken@google.com>
+ <20101117125756.GA5576@amd>
+ <1290007734.2109.941.camel@laptop>
+ <AANLkTim4tO_aKzXLXJm-N-iEQ9rNSa0=HGJVDAz33kY6@mail.gmail.com>
+ <20101117231143.GQ22876@dastard>
+ <20101118133702.GA18834@infradead.org>
+ <alpine.LSU.2.00.1011180934400.3210@tigran.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101117052213.GA10671@linux-sh.org>
+In-Reply-To: <alpine.LSU.2.00.1011180934400.3210@tigran.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, ak@linux.intel.com, shaohui.zheng@linux.intel.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Theodore Tso <tytso@google.com>, Michael Rubin <mrubin@google.com>, Suleiman Souhlal <suleiman@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 17, 2010 at 02:22:13PM +0900, Paul Mundt wrote:
-> On Wed, Nov 17, 2010 at 10:07:59AM +0800, shaohui.zheng@intel.com wrote:
-> > * PATCHSET INTRODUCTION
+On Thu, Nov 18, 2010 at 09:41:22AM -0800, Hugh Dickins wrote:
+> On Thu, 18 Nov 2010, Christoph Hellwig wrote:
+> > On Thu, Nov 18, 2010 at 10:11:43AM +1100, Dave Chinner wrote:
+> > > Hence I think that avoiding ->page_mkwrite callouts is likely to
+> > > break some filesystems in subtle, undetected ways.  IMO, regardless
+> > > of what is done, it would be really good to start by writing a new
+> > > regression test to exercise and encode the expected the mlock
+> > > behaviour so we can detect regressions later on....
 > > 
-> > patch 1: Add function to hide memory region via e820 table. Then emulator will
-> > 	     use these memory regions to fake offlined numa nodes.
-> > patch 2: Infrastructure of NUMA hotplug emulation, introduce "hide node".
-> > patch 3: Provide an userland interface to hotplug-add fake offlined nodes.
-> > patch 4: Abstract cpu register functions, make these interface friend for cpu
-> > 		 hotplug emulation
-> > patch 5: Support cpu probe/release in x86, it provide a software method to hot
-> > 		 add/remove cpu with sysfs interface.
-> > patch 6: Fake CPU socket with logical CPU on x86, to prevent the scheduling
-> > 		 domain to build the incorrect hierarchy.
-> > patch 7: extend memory probe interface to support NUMA, we can add the memory to
-> > 		 a specified node with the interface.
-> > patch 8: Documentations
-> > 
-> > * FEEDBACKS & RESPONSES
-> > 
-> I had some comments on the other patches in the series that possibly got
-> missed because of the mail-followup-to confusion:
-> 
-> http://lkml.org/lkml/2010/11/15/11
-About memblock API, it is a good APIs list to manage memory region. If all the
-e820 wrapper function use memblock API, the code should be very clean. currently,
-no body use memblock in e820 wrapper, so we should still keep this status, unless
-we decide rewrite these e820 wrapper.
+> > I think it would help if we could drink a bit of the test driven design
+> > coolaid here. Michel, can you write some testcases where pages on a
+> > shared mapping are mlocked, then dirtied and then munlocked, and then
+> > written out using msync/fsync.  Anything that fails this test on
+> > btrfs/ext4/gfs/xfs/etc obviously doesn't work.
 
-Anyway, we already select other way to hide memory, we will not add wrapper on
-e820 table anymore.
+I think it's still under debate what's an acceptable result for this test
+(i.e. what's supposed to happen during mlock of a shared mapping of
+a sparsely allocated file - is a fallocate equivalent supposed to happen ?)
+But I agree discussing based on test results will make things more concrete.
 
-> http://lkml.org/lkml/2010/11/15/14
+> Whilst it's hard to argue against a request for testing, Dave's worries
+> just sprang from a misunderstanding of all the talk about "avoiding ->
+> page_mkwrite".  There's nothing strange or risky about Michel's patch,
+> it does not avoid ->page_mkwrite when there is a write: it just stops
+> pretending that there was a write when locking down the shared area.
 
-I understand, the MACROs are not functions, it will not comsume memory after
-compile it. the IFDEF should be removed
+So, I decided to test this using memtoy. /data is a separate partition
+where I had just 10GB free space, and /data/hole20G was created using
+dd if=/dev/zero of=/data/hole20G bs=1M seek=20480 count=0.
 
-> http://lkml.org/lkml/2010/11/15/15
-I think that you want to say ARCH_ENABLE_NUMA_HOTPLUG_EMU here, not
-ARCH_ENABLE_NUMA_EMU.  the option NUMA_HOTPLUG_EMU is a dummy item, it does not
-control any codes, it just try to maintain the node/memory/cpu hotplug
-emulation option together, it provides convenience when use want to enable them.
+memtoy>file /data/hole20G shared
+memtoy>map hole20G
+
+At this point the file is mapped using a writable, shared VMA.
+
+memtoy>touch hole20G
+memtoy:  touched 5242880 pages in 30.595 secs
+
+At this point memtoy's address space is populated with zeroed
+pages. The pages are distinct (meminfo does show 20G of allocated pages),
+are classified as file pages, not anon, and are associated with the
+struct address_space for /data/hole20G. That file still does not have
+blocks allocated, as can be seen with du /data/hole20G.
+
+memtoy>lock hole20G
+
+memtoy tries to mlock the hole20G VMA.
+This is where things get interesting.
+
+Using ext2, without my patch (ext3 should be similar):
+  - first, mlock does fast progress going though file pages, marking them
+    as dirty. Eventually, it hits the dirty limit and gets throttled.
+  - then, mlock does slow progress as it needs to wait for writeback.
+    writeback occurs and allocates blocks for the /data/hole20G.
+    Eventually, the /data partition gets full.
+  - then, mlock does no progress as it's at the dirty limit and nothing
+    gets written back.
+  - mlock never terminates.
+
+Using ext2, with my patch (ext3 should be similar):
+  - mlock goes through all pages in ~5 seconds, marking them as mlocked
+    (but still not dirty)
+  - mlock completes. /data/hole20G still does not have blocks allocated.
+  - if memtoy is then instructed to dirty all the pages
+    (using 'touch hole20G write'):
+    - first, memtoy does fast progress faulting through file pages, marking
+      them as dirty. Eventually, it hits the dirty limit and gets throttled.
+    - then, memtoy does slow progress as it needs to wait for writeback.
+      writeback occurs and allocates blocks for the /data/hole20G.
+      Eventually, the /data partition gets full.
+    - then, memtoy does no progress as it's at the dirty limit and nothing
+      gets written back. It gets stuck into a write fault that never
+      completes.
+  - i.e. this is essentially the same lockup as without my patch, except that
+    it occurs when the application tries to dirty the shared file rather than
+    during mlock itself.
+
+Using ext4, without my patch:
+  - first, mlock does fast progress going though file pages, marking them
+    as dirty. Eventually, it hits the dirty limit and gets throttled.
+  - then, mlock does slow progress as it needs to wait for writeback.
+    writeback occurs and allocates blocks for the /data/hole20G.
+    Eventually, the /data partition gets full.
+  - then, mlock returns an error.
+
+Using ext4, with my patch:
+  - mlock goes through all pages in ~5 seconds, marking them as mlocked
+    (but still not dirty)
+  - mlock completes. /data/hole20G still does not have blocks allocated.
+  - if memtoy is then instructed to dirty all the pages
+    (using 'touch hole20G write'):
+    - first, memtoy does fast progress faulting through file pages, marking
+      them as dirty. Eventually, it hits the dirty limit and gets throttled.
+    - then, memtoy does slow progress as it needs to wait for writeback.
+      writeback occurs and allocates blocks for the /data/hole20G.
+      Eventually, the /data partition gets full.
+    - at that point, memtoy dies of SIGBUS.
+  - i.e. for filesystems that define the page_mkwrite callback, the mlock
+    behavior when running out of space writing to sparse files is clearly
+    nicer without my patch than with it.
 
 
-> 
-> The other one you've already dealt with.
+Not 100% sure what to make of these results.
+
+Approaching the problem the other way - would there be any objection to
+adding code to do an fallocate() equivalent at the start of mlock ?
+This would be a no-op when the file is fully allocated on disk, and would
+allow mlock to return an error if the file can't get fully allocated
+(no idea what errno should be for such case, though).
 
 -- 
-Thanks & Regards,
-Shaohui
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
