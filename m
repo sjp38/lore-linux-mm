@@ -1,45 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E8D56B004A
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 09:05:49 -0500 (EST)
-Date: Fri, 19 Nov 2010 14:05:32 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/8] Use memory compaction instead of lumpy reclaim
-	during high-order allocations
-Message-ID: <20101119140532.GH28613@csn.ul.ie>
-References: <1290010969-26721-1-git-send-email-mel@csn.ul.ie> <20101117154641.51fd7ce5.akpm@linux-foundation.org> <20101118081254.GB8135@csn.ul.ie> <20101118172627.cf25b83a.kamezawa.hiroyu@jp.fujitsu.com> <20101118083828.GA24635@cmpxchg.org> <20101118092044.GE8135@csn.ul.ie> <20101118114928.ecb2d6b0.akpm@linux-foundation.org> <20101119104856.GB28613@csn.ul.ie> <4B8266CB-F658-4CC8-BCA3-677C22BAFAE0@mit.edu>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id BB3C26B0071
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 09:38:29 -0500 (EST)
+Received: by gxk7 with SMTP id 7so2951245gxk.14
+        for <linux-mm@kvack.org>; Fri, 19 Nov 2010 06:38:28 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4B8266CB-F658-4CC8-BCA3-677C22BAFAE0@mit.edu>
+In-Reply-To: <1290119265.26343.814.camel@calx>
+References: <1290049259-20108-1-git-send-email-b32542@freescale.com>
+	<1290114908.26343.721.camel@calx>
+	<alpine.DEB.2.00.1011181333160.26680@chino.kir.corp.google.com>
+	<1290119265.26343.814.camel@calx>
+Date: Fri, 19 Nov 2010 22:38:27 +0800
+Message-ID: <AANLkTikSw2X-n7mC0+Mxosn8w-AAuROkSV7V9G+8ZAVS@mail.gmail.com>
+Subject: Re: [PATCH] slub: operate cache name memory same to slab and slob
+From: Zeng Zhaoming <zengzm.kernel@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Theodore Tso <tytso@MIT.EDU>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matt Mackall <mpm@selenic.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cl@linux-foundation.org, penberg@cs.helsinki.fi, tytso@mit.edu, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 19, 2010 at 07:43:02AM -0500, Theodore Tso wrote:
-> 
-> On Nov 19, 2010, at 5:48 AM, Mel Gorman wrote:
-> 
-> > At least as long as !CONFIG_COMPACTION exists. That will be a while because
-> > bear in mind CONFIG_COMPACTION is disabled by default (although I believe
-> > some distros are enabling it at least). Maybe we should choose to deprecate
-> > it in 2.6.40 and delete it at the infamous time of 2.6.42? That would give
-> > ample time to iron out any issues that crop up with reclaim/compaction
-> > (what this series has turned into).
-> 
-> How about making the default before 2.6.40, as an initial step?
-> 
+> - eliminate dynamically-allocated names (mostly useless when we start
+> merging slabs!)
 
-It'd be a reasonable way of ensuring it's being tested everywhere
-and not by those that are interested or using distro kernel configs.
-I guess we'd set to "default y" in the same patch that adds the note to
-feature-removal-schedule.txt.
+not permit dynamically allocated name. I think this one is better, but
+as a rule, describe in header is not enough.
+It is helpful to print out some warning when someone break the rule.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> kmem_cache_name() is also a highly suspect function in a
+> post-merged-slabs kernel. As ext4 is the only user in the kernel, and it
+> got it wrong, perhaps it's time to rip it out.
+
+agree, kmem_cache_name() is ugly.
+
+---
+Best Regards
+    Zeng Zhaoming
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
