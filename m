@@ -1,88 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AF5B66B004A
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 06:22:32 -0500 (EST)
-Date: Fri, 19 Nov 2010 12:22:16 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 4/6] memcg: simplify mem_cgroup_page_stat()
-Message-ID: <20101119112216.GC24635@cmpxchg.org>
-References: <1289294671-6865-1-git-send-email-gthelen@google.com>
- <1289294671-6865-5-git-send-email-gthelen@google.com>
- <20101112081957.GF9131@cmpxchg.org>
- <xr93pquaxoll.fsf@ninji.mtv.corp.google.com>
+	by kanga.kvack.org (Postfix) with ESMTP id A87BC6B004A
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 06:35:20 -0500 (EST)
+Date: Fri, 19 Nov 2010 11:35:03 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] mm: remove call to find_vma in pagewalk for
+	non-hugetlbfs
+Message-ID: <20101119113503.GF28613@csn.ul.ie>
+References: <1290127197-20360-1-git-send-email-dsterba@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <xr93pquaxoll.fsf@ninji.mtv.corp.google.com>
+In-Reply-To: <1290127197-20360-1-git-send-email-dsterba@suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Sterba <dsterba@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <ak@linux.intel.com>, Andy Whitcroft <apw@canonical.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Matt Mackall <mpm@selenic.com>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 12, 2010 at 12:40:22PM -0800, Greg Thelen wrote:
-> Johannes Weiner <hannes@cmpxchg.org> writes:
+On Fri, Nov 19, 2010 at 01:39:57AM +0100, David Sterba wrote:
+> Commit d33b9f45 introduces a check if a vma is a hugetlbfs one and
+> later in 5dc37642 is moved under #ifdef CONFIG_HUGETLB_PAGE but
+> a needless find_vma call is left behind and it's result not used
+> anywhere else in the function.
 > 
-> > On Tue, Nov 09, 2010 at 01:24:29AM -0800, Greg Thelen wrote:
-> >> The cgroup given to mem_cgroup_page_stat() is no allowed to be
-> >> NULL or the root cgroup.  So there is no need to complicate the code
-> >> handling those cases.
-> >> 
-> >> Signed-off-by: Greg Thelen <gthelen@google.com>
-> >> ---
-> >>  mm/memcontrol.c |   48 ++++++++++++++++++++++--------------------------
-> >>  1 files changed, 22 insertions(+), 26 deletions(-)
-> >> 
-> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> >> index eb621ee..f8df350 100644
-> >> --- a/mm/memcontrol.c
-> >> +++ b/mm/memcontrol.c
-> >> @@ -1364,12 +1364,10 @@ memcg_hierarchical_free_pages(struct mem_cgroup *mem)
-> >>  
-> >>  /*
-> >>   * mem_cgroup_page_stat() - get memory cgroup file cache statistics
-> >> - * @mem:	optional memory cgroup to query.  If NULL, use current task's
-> >> - *		cgroup.
-> >> + * @mem:	memory cgroup to query
-> >>   * @item:	memory statistic item exported to the kernel
-> >>   *
-> >> - * Return the accounted statistic value or negative value if current task is
-> >> - * root cgroup.
-> >> + * Return the accounted statistic value.
-> >>   */
-> >>  long mem_cgroup_page_stat(struct mem_cgroup *mem,
-> >>  			  enum mem_cgroup_nr_pages_item item)
-> >> @@ -1377,29 +1375,27 @@ long mem_cgroup_page_stat(struct mem_cgroup *mem,
-> >>  	struct mem_cgroup *iter;
-> >>  	long value;
-> >>  
-> >> +	VM_BUG_ON(!mem);
-> >> +	VM_BUG_ON(mem_cgroup_is_root(mem));
-> >> +
-> >>  	get_online_cpus();
-> >> -	rcu_read_lock();
-> >> -	if (!mem)
-> >> -		mem = mem_cgroup_from_task(current);
-> >> -	if (__mem_cgroup_has_dirty_limit(mem)) {
-> >
-> > What about mem->use_hierarchy that is checked in
-> > __mem_cgroup_has_dirty_limit()?  Is it no longer needed?
+> The sideefect of caching vma for @addr inside walk->mm is neither
+> utilized in walk_page_range() nor in called functions.
 > 
-> It is no longer needed because the callers of mem_cgroup_page_stat()
-> call __mem_cgroup_has_dirty_limit().  In the current implementation, if
-> use_hierarchy=1 then the cgroup does not have dirty limits, so calls
-> into mem_cgroup_page_stat() are avoided.  Specifically the callers of
-> mem_cgroup_page_stat() are:
-> 
-> 1. mem_cgroup_dirty_info() which calls __mem_cgroup_has_dirty_limit()
->    and returns false if use_hierarchy=1.
-> 
-> 2. throttle_vm_writeout() which calls mem_dirty_info() ->
->    mem_cgroup_dirty_info() -> __mem_cgroup_has_dirty_limit() will fall
->    back to global limits if use_hierarchy=1.
+> Signed-off-by: David Sterba <dsterba@suse.cz>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Andi Kleen <ak@linux.intel.com>
+> Cc: Andy Whitcroft <apw@canonical.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
+> Cc: Matt Mackall <mpm@selenic.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
 
-Thanks for the clarification.
+Well spotted.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
