@@ -1,41 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id BB3C26B0071
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 09:38:29 -0500 (EST)
-Received: by gxk7 with SMTP id 7so2951245gxk.14
-        for <linux-mm@kvack.org>; Fri, 19 Nov 2010 06:38:28 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AD7866B0071
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:06:58 -0500 (EST)
+Date: Fri, 19 Nov 2010 10:06:41 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 3/3] mlock: avoid dirtying pages and triggering writeback
+Message-ID: <20101119150641.GA5302@infradead.org>
+References: <1289996638-21439-1-git-send-email-walken@google.com>
+ <1289996638-21439-4-git-send-email-walken@google.com>
+ <20101117125756.GA5576@amd>
+ <1290007734.2109.941.camel@laptop>
+ <AANLkTim4tO_aKzXLXJm-N-iEQ9rNSa0=HGJVDAz33kY6@mail.gmail.com>
+ <20101117231143.GQ22876@dastard>
+ <20101118133702.GA18834@infradead.org>
+ <alpine.LSU.2.00.1011180934400.3210@tigran.mtv.corp.google.com>
+ <20101119072316.GA14388@google.com>
+ <AANLkTinzhsvx=fx8dPpnJD_P70HKDRK+tWgFyYEN2_Zm@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1290119265.26343.814.camel@calx>
-References: <1290049259-20108-1-git-send-email-b32542@freescale.com>
-	<1290114908.26343.721.camel@calx>
-	<alpine.DEB.2.00.1011181333160.26680@chino.kir.corp.google.com>
-	<1290119265.26343.814.camel@calx>
-Date: Fri, 19 Nov 2010 22:38:27 +0800
-Message-ID: <AANLkTikSw2X-n7mC0+Mxosn8w-AAuROkSV7V9G+8ZAVS@mail.gmail.com>
-Subject: Re: [PATCH] slub: operate cache name memory same to slab and slob
-From: Zeng Zhaoming <zengzm.kernel@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTinzhsvx=fx8dPpnJD_P70HKDRK+tWgFyYEN2_Zm@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Matt Mackall <mpm@selenic.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cl@linux-foundation.org, penberg@cs.helsinki.fi, tytso@mit.edu, linux-kernel@vger.kernel.org
+To: Theodore Tso <tytso@google.com>
+Cc: Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michael Rubin <mrubin@google.com>, Suleiman Souhlal <suleiman@google.com>
 List-ID: <linux-mm.kvack.org>
 
-> - eliminate dynamically-allocated names (mostly useless when we start
-> merging slabs!)
+On Fri, Nov 19, 2010 at 08:42:05AM -0500, Theodore Tso wrote:
+> My vote would be against. ? If you if you mmap a sparse file and then
+> try writing to it willy-nilly, bad things will happen. ?This is true without
+> a mlock(). ? Where is it written that mlock() has anything to do with
+> improving this situation?
 
-not permit dynamically allocated name. I think this one is better, but
-as a rule, describe in header is not enough.
-It is helpful to print out some warning when someone break the rule.
+Exactly.  Allocating space has been a side-effect on a handfull
+filesystem for about 20 kernel releases.
 
-> kmem_cache_name() is also a highly suspect function in a
-> post-merged-slabs kernel. As ext4 is the only user in the kernel, and it
-> got it wrong, perhaps it's time to rip it out.
+> If userspace wants to call fallocate() before it calls mlock(), it should
+> do that. ?And in fact, in most cases, userspace should probably be
+> encouraged to do that. ? But having mlock() call fallocate() and
+> then return ENOSPC if there's no room?  Isn't it confusing that mlock()
+> call ENOSPC?  Doesn't that give you cognitive dissonance?  It should
+> because fundamentally mlock() has nothing to do with block allocation!!
+> Read the API spec!
 
-agree, kmem_cache_name() is ugly.
-
----
-Best Regards
-    Zeng Zhaoming
+Indeed.  There is no need to make mlock + flag a parallel-API to
+fallocate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
