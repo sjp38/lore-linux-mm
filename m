@@ -1,391 +1,692 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 4EB316B0087
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id B11376B0085
 	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:58:29 -0500 (EST)
 MIME-version: 1.0
 Content-transfer-encoding: 7BIT
 Content-type: TEXT/PLAIN
-Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
+Received: from spt2.w1.samsung.com ([210.118.77.13]) by mailout3.w1.samsung.com
  (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LC500JD531CUQ20@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 19 Nov 2010 15:58:24 +0000 (GMT)
+ with ESMTP id <0LC500IKW31DR120@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 19 Nov 2010 15:58:26 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LC500IP831B0K@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 19 Nov 2010 15:58:24 +0000 (GMT)
-Date: Fri, 19 Nov 2010 16:58:01 +0100
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LC500EK431CR0@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 19 Nov 2010 15:58:25 +0000 (GMT)
+Date: Fri, 19 Nov 2010 16:58:03 +0100
 From: Michal Nazarewicz <m.nazarewicz@samsung.com>
-Subject: [RFCv6 03/13] lib: genalloc: Generic allocator improvements
+Subject: [RFCv6 05/13] mm: cma: debugfs support added
 In-reply-to: <cover.1290172312.git.m.nazarewicz@samsung.com>
 Message-id: 
- <62a42a9c9aa0d25f766e94c2c1a12e90af3943f0.1290172312.git.m.nazarewicz@samsung.com>
+ <5b4b5dc196968bb3c4c28e3f91b0b9feab6a1c37.1290172312.git.m.nazarewicz@samsung.com>
 References: <cover.1290172312.git.m.nazarewicz@samsung.com>
 Sender: owner-linux-mm@kvack.org
 To: mina86@mina86.com
 Cc: Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, Bryan Huntsman <bryanh@codeaurora.org>, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Johan Mossberg <johan.xx.mossberg@stericsson.com>, Jonathan Corbet <corbet@lwn.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Marcus LORENTZON <marcus.xm.lorentzon@stericsson.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Mel Gorman <mel@csn.ul.ie>, Pawel Osciak <pawel@osciak.com>, Russell King <linux@arm.linux.org.uk>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, dipankar@in.ibm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This commit adds a gen_pool_alloc_aligned() function to the
-generic allocator API.  It allows specifying alignment for the
-allocated block.  This feature uses
-the bitmap_find_next_zero_area_off() function.
-
-It also fixes possible issue with bitmap's last element being
-not fully allocated (ie. space allocated for chunk->bits is
-not a multiple of sizeof(long)).
-
-It also makes some other smaller changes:
-- moves structure definitions out of the header file,
-- adds __must_check to functions returning value,
-- makes gen_pool_add() return -ENOMEM rater than -1 on error,
-- changes list_for_each to list_for_each_entry, and
-- makes use of bitmap_clear().
+The debugfs development interface lets one change the map attribute
+at run time as well as observe what regions have been reserved.
 
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- include/linux/genalloc.h |   46 ++++++------
- lib/genalloc.c           |  182 ++++++++++++++++++++++++++-------------------
- 2 files changed, 129 insertions(+), 99 deletions(-)
+ Documentation/contiguous-memory.txt |    4 +
+ include/linux/cma.h                 |   11 +
+ mm/Kconfig                          |   25 ++-
+ mm/cma.c                            |  501 ++++++++++++++++++++++++++++++++++-
+ 4 files changed, 537 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/genalloc.h b/include/linux/genalloc.h
-index 9869ef3..8ac7337 100644
---- a/include/linux/genalloc.h
-+++ b/include/linux/genalloc.h
-@@ -8,29 +8,31 @@
-  * Version 2.  See the file COPYING for more details.
-  */
+diff --git a/Documentation/contiguous-memory.txt b/Documentation/contiguous-memory.txt
+index f1715ba..ec09d8e 100644
+--- a/Documentation/contiguous-memory.txt
++++ b/Documentation/contiguous-memory.txt
+@@ -258,6 +258,10 @@
+      iff it matched in previous pattern.  If the second part is
+      omitted it will mach any type of memory requested by device.
  
-+struct gen_pool;
++     If debugfs support is enabled, this attribute is accessible via
++     debugfs and can be changed at run-time by writing to
++     contiguous/map.
++
+      Some examples (whitespace added for better readability):
  
--/*
-- *  General purpose special memory pool descriptor.
-- */
--struct gen_pool {
--	rwlock_t lock;
--	struct list_head chunks;	/* list of chunks in this pool */
--	int min_alloc_order;		/* minimum allocation order */
--};
-+struct gen_pool *__must_check gen_pool_create(unsigned order, int nid);
+          cma_map = foo/quaz = r1;
+diff --git a/include/linux/cma.h b/include/linux/cma.h
+index a6031a7..8437104 100644
+--- a/include/linux/cma.h
++++ b/include/linux/cma.h
+@@ -24,6 +24,7 @@
  
--/*
-- *  General purpose special memory pool chunk descriptor.
-+int __must_check gen_pool_add(struct gen_pool *pool, unsigned long addr,
-+			      size_t size, int nid);
+ struct device;
+ struct cma_info;
++struct dentry;
+ 
+ /**
+  * struct cma - an allocated contiguous chunk of memory.
+@@ -276,6 +277,11 @@ struct cma_region {
+ 	unsigned users;
+ 	struct list_head list;
+ 
++#if defined CONFIG_CMA_DEBUGFS
++	const char *to_alloc_link, *from_alloc_link;
++	struct dentry *dir, *to_alloc, *from_alloc;
++#endif
 +
-+void gen_pool_destroy(struct gen_pool *pool);
+ 	unsigned used:1;
+ 	unsigned registered:1;
+ 	unsigned reserved:1;
+@@ -382,6 +388,11 @@ struct cma_allocator {
+ 	void (*unpin)(struct cma *chunk);
+ 
+ 	struct list_head list;
 +
-+unsigned long __must_check
-+gen_pool_alloc_aligned(struct gen_pool *pool, size_t size,
-+		       unsigned alignment_order);
++#if defined CONFIG_CMA_DEBUGFS
++	const char *dir_name;
++	struct dentry *regs_dir;
++#endif
+ };
+ 
+ /**
+diff --git a/mm/Kconfig b/mm/Kconfig
+index c7eb1bc..a5480ea 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -351,16 +351,35 @@ config CMA
+ 	  For more information see <Documentation/contiguous-memory.txt>.
+ 	  If unsure, say "n".
+ 
+-config CMA_DEBUG
+-	bool "CMA debug messages (DEVELOPEMENT)"
++config CMA_DEVELOPEMENT
++	bool "Include CMA developement features"
+ 	depends on CMA
+ 	help
++	  This lets you enable some developement features of the CMA
++	  framework.  It does not add any code to the kernel.
 +
-+/**
-+ * gen_pool_alloc() - allocate special memory from the pool
-+ * @pool:	Pool to allocate from.
-+ * @size:	Number of bytes to allocate from the pool.
-+ *
-+ * Allocate the requested number of bytes from the specified pool.
-+ * Uses a first-fit algorithm.
-  */
--struct gen_pool_chunk {
--	spinlock_t lock;
--	struct list_head next_chunk;	/* next chunk in pool */
--	unsigned long start_addr;	/* starting address of memory chunk */
--	unsigned long end_addr;		/* ending address of memory chunk */
--	unsigned long bits[0];		/* bitmap for allocating memory chunk */
--};
-+static inline unsigned long __must_check
-+gen_pool_alloc(struct gen_pool *pool, size_t size)
++	  Those options are mostly usable during development and testing.
++	  If unsure, say "n".
++
++config CMA_DEBUG
++	bool "CMA debug messages"
++	depends on CMA_DEVELOPEMENT
++	help
+ 	  Turns on debug messages in CMA.  This produces KERN_DEBUG
+ 	  messages for every CMA call as well as various messages while
+ 	  processing calls such as cma_alloc().  This option does not
+ 	  affect warning and error messages.
+ 
+-	  This is mostly used during development.  If unsure, say "n".
++config CMA_DEBUGFS
++	bool "CMA debugfs interface support"
++	depends on CMA_DEVELOPEMENT && DEBUG_FS
++	help
++	  Enable support for debugfs interface.  It is available under the
++	  "contiguous" directory in the debugfs root directory.  Each
++	  region and allocator is represented there.
++
++	  For more information consult
++	  <Documentation/contiguous-memory.txt>.
+ 
+ config CMA_GENERIC_ALLOCATOR
+ 	bool "CMA generic allocator"
+diff --git a/mm/cma.c b/mm/cma.c
+index 17276b3..dfdeeb7 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -34,11 +34,16 @@
+ #include <linux/slab.h>        /* kmalloc() */
+ #include <linux/string.h>      /* str*() */
+ #include <linux/genalloc.h>    /* gen_pool_*() */
++#include <linux/debugfs.h>     /* debugfs stuff */
++#include <linux/uaccess.h>     /* copy_{to,from}_user */
+ 
+ #include <linux/cma.h>
+ 
+ 
+-/* Protects cma_regions, cma_allocators, cma_map and cma_map_length. */
++/*
++ * Protects cma_regions, cma_allocators, cma_map, cma_map_length,
++ * cma_dfs_regions and cma_dfs_allocators.
++ */
+ static DEFINE_MUTEX(cma_mutex);
+ 
+ 
+@@ -139,7 +144,13 @@ int __init __must_check cma_early_region_register(struct cma_region *reg)
+ 
+ /************************* Regions & Allocators *************************/
+ 
++static void __cma_dfs_region_add(struct cma_region *reg);
++static void __cma_dfs_region_alloc_update(struct cma_region *reg);
++static void __cma_dfs_allocator_add(struct cma_allocator *alloc);
++
+ static int __cma_region_attach_alloc(struct cma_region *reg);
++static void __maybe_unused __cma_region_detach_alloc(struct cma_region *reg);
++
+ 
+ /* List of all regions.  Named regions are kept before unnamed. */
+ static LIST_HEAD(cma_regions);
+@@ -222,6 +233,8 @@ int __must_check cma_region_register(struct cma_region *reg)
+ 	else
+ 		list_add_tail(&reg->list, &cma_regions);
+ 
++	__cma_dfs_region_add(reg);
++
+ done:
+ 	mutex_unlock(&cma_mutex);
+ 
+@@ -298,6 +311,8 @@ int cma_allocator_register(struct cma_allocator *alloc)
+ 		__cma_region_attach_alloc(reg);
+ 	}
+ 
++	__cma_dfs_allocator_add(alloc);
++
+ 	mutex_unlock(&cma_mutex);
+ 
+ 	pr_debug("%s: allocator registered\n", alloc->name ?: "(unnamed)");
+@@ -481,6 +496,476 @@ static int __init cma_init(void)
+ subsys_initcall(cma_init);
+ 
+ 
++/************************* Debugfs *************************/
++
++#if defined CONFIG_CMA_DEBUGFS
++
++static struct dentry *cma_dfs_regions, *cma_dfs_allocators;
++
++struct cma_dfs_file {
++	const char *name;
++	const struct file_operations *ops;
++};
++
++static struct dentry *
++cma_dfs_create_file(const char *name, struct dentry *parent,
++		    void *priv, const struct file_operations *ops)
 +{
-+	return gen_pool_alloc_aligned(pool, size, 0);
-+}
- 
--extern struct gen_pool *gen_pool_create(int, int);
--extern int gen_pool_add(struct gen_pool *, unsigned long, size_t, int);
--extern void gen_pool_destroy(struct gen_pool *);
--extern unsigned long gen_pool_alloc(struct gen_pool *, size_t);
--extern void gen_pool_free(struct gen_pool *, unsigned long, size_t);
-+void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size);
-diff --git a/lib/genalloc.c b/lib/genalloc.c
-index 1923f14..dc6d833 100644
---- a/lib/genalloc.c
-+++ b/lib/genalloc.c
-@@ -15,54 +15,81 @@
- #include <linux/bitmap.h>
- #include <linux/genalloc.h>
- 
-+/* General purpose special memory pool descriptor. */
-+struct gen_pool {
-+	rwlock_t lock;			/* protects chunks list */
-+	struct list_head chunks;	/* list of chunks in this pool */
-+	unsigned order;			/* minimum allocation order */
-+};
-+
-+/* General purpose special memory pool chunk descriptor. */
-+struct gen_pool_chunk {
-+	spinlock_t lock;		/* protects bits */
-+	struct list_head next_chunk;	/* next chunk in pool */
-+	unsigned long start;		/* start of memory chunk */
-+	unsigned long size;		/* number of bits */
-+	unsigned long bits[0];		/* bitmap for allocating memory chunk */
-+};
- 
- /**
-- * gen_pool_create - create a new special memory pool
-- * @min_alloc_order: log base 2 of number of bytes each bitmap bit represents
-- * @nid: node id of the node the pool structure should be allocated on, or -1
-+ * gen_pool_create() - create a new special memory pool
-+ * @order:	Log base 2 of number of bytes each bitmap bit
-+ *		represents.
-+ * @nid:	Node id of the node the pool structure should be allocated
-+ *		on, or -1.
-  *
-  * Create a new special memory pool that can be used to manage special purpose
-  * memory not managed by the regular kmalloc/kfree interface.
-  */
--struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
-+struct gen_pool *__must_check gen_pool_create(unsigned order, int nid)
- {
- 	struct gen_pool *pool;
- 
--	pool = kmalloc_node(sizeof(struct gen_pool), GFP_KERNEL, nid);
--	if (pool != NULL) {
-+	if (WARN_ON(order >= BITS_PER_LONG))
++	struct dentry *d;
++	d = debugfs_create_file(name, ops->write ? 0644 : 0444,
++				parent, priv, ops);
++	if (IS_ERR_OR_NULL(d)) {
++		pr_err("debugfs: %s: %s: unable to create\n",
++		       parent->d_iname, name);
 +		return NULL;
++	}
 +
-+	pool = kmalloc_node(sizeof *pool, GFP_KERNEL, nid);
-+	if (pool) {
- 		rwlock_init(&pool->lock);
- 		INIT_LIST_HEAD(&pool->chunks);
--		pool->min_alloc_order = min_alloc_order;
-+		pool->order = order;
- 	}
- 	return pool;
- }
- EXPORT_SYMBOL(gen_pool_create);
- 
- /**
-- * gen_pool_add - add a new chunk of special memory to the pool
-- * @pool: pool to add new memory chunk to
-- * @addr: starting address of memory chunk to add to pool
-- * @size: size in bytes of the memory chunk to add to pool
-- * @nid: node id of the node the chunk structure and bitmap should be
-- *       allocated on, or -1
-+ * gen_pool_add() - add a new chunk of special memory to the pool
-+ * @pool:	Pool to add new memory chunk to.
-+ * @addr:	Starting address of memory chunk to add to pool.
-+ * @size:	Size in bytes of the memory chunk to add to pool.
-+ * @nid:	Node id of the node the pool structure should be allocated
-+ *		on, or -1.
-  *
-  * Add a new chunk of special memory to the specified pool.
-  */
--int gen_pool_add(struct gen_pool *pool, unsigned long addr, size_t size,
--		 int nid)
-+int __must_check
-+gen_pool_add(struct gen_pool *pool, unsigned long addr, size_t size, int nid)
- {
- 	struct gen_pool_chunk *chunk;
--	int nbits = size >> pool->min_alloc_order;
--	int nbytes = sizeof(struct gen_pool_chunk) +
--				(nbits + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
-+	size_t nbytes;
++	return d;
++}
 +
-+	if (WARN_ON(!addr || addr + size < addr ||
-+		    (addr & ((1 << pool->order) - 1))))
-+		return -EINVAL;
- 
--	chunk = kmalloc_node(nbytes, GFP_KERNEL | __GFP_ZERO, nid);
--	if (unlikely(chunk == NULL))
--		return -1;
-+	size = size >> pool->order;
-+	if (WARN_ON(!size))
-+		return -EINVAL;
++static void cma_dfs_create_files(const struct cma_dfs_file *files,
++				 struct dentry *parent, void *priv)
++{
++	while (files->name
++	    && cma_dfs_create_file(files->name, parent, priv, files->ops))
++		++files;
++}
 +
-+	nbytes = sizeof *chunk + BITS_TO_LONGS(size) * sizeof *chunk->bits;
-+	chunk = kzalloc_node(nbytes, GFP_KERNEL, nid);
-+	if (!chunk)
-+		return -ENOMEM;
- 
- 	spin_lock_init(&chunk->lock);
--	chunk->start_addr = addr;
--	chunk->end_addr = addr + size;
-+	chunk->start = addr >> pool->order;
-+	chunk->size  = size;
- 
- 	write_lock(&pool->lock);
- 	list_add(&chunk->next_chunk, &pool->chunks);
-@@ -73,115 +100,116 @@ int gen_pool_add(struct gen_pool *pool, unsigned long addr, size_t size,
- EXPORT_SYMBOL(gen_pool_add);
- 
- /**
-- * gen_pool_destroy - destroy a special memory pool
-- * @pool: pool to destroy
-+ * gen_pool_destroy() - destroy a special memory pool
-+ * @pool:	Pool to destroy.
-  *
-  * Destroy the specified special memory pool. Verifies that there are no
-  * outstanding allocations.
-  */
- void gen_pool_destroy(struct gen_pool *pool)
- {
--	struct list_head *_chunk, *_next_chunk;
- 	struct gen_pool_chunk *chunk;
--	int order = pool->min_alloc_order;
--	int bit, end_bit;
--
-+	int bit;
- 
--	list_for_each_safe(_chunk, _next_chunk, &pool->chunks) {
--		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
-+	while (!list_empty(&pool->chunks)) {
-+		chunk = list_entry(pool->chunks.next, struct gen_pool_chunk,
-+				   next_chunk);
- 		list_del(&chunk->next_chunk);
- 
--		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
--		bit = find_next_bit(chunk->bits, end_bit, 0);
--		BUG_ON(bit < end_bit);
-+		bit = find_next_bit(chunk->bits, chunk->size, 0);
-+		BUG_ON(bit < chunk->size);
- 
- 		kfree(chunk);
- 	}
- 	kfree(pool);
--	return;
- }
- EXPORT_SYMBOL(gen_pool_destroy);
- 
- /**
-- * gen_pool_alloc - allocate special memory from the pool
-- * @pool: pool to allocate from
-- * @size: number of bytes to allocate from the pool
-+ * gen_pool_alloc_aligned() - allocate special memory from the pool
-+ * @pool:		Pool to allocate from.
-+ * @size:		Number of bytes to allocate from the pool.
-+ * @alignment_order:	Order the allocated space should be
-+ *			aligned to (eg. 20 means allocated space
-+ *			must be aligned to 1MiB).
-  *
-  * Allocate the requested number of bytes from the specified pool.
-  * Uses a first-fit algorithm.
-  */
--unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
-+unsigned long __must_check
-+gen_pool_alloc_aligned(struct gen_pool *pool, size_t size,
-+		       unsigned alignment_order)
- {
--	struct list_head *_chunk;
-+	unsigned long addr, align_mask = 0, flags, start;
- 	struct gen_pool_chunk *chunk;
--	unsigned long addr, flags;
--	int order = pool->min_alloc_order;
--	int nbits, start_bit, end_bit;
- 
- 	if (size == 0)
- 		return 0;
- 
--	nbits = (size + (1UL << order) - 1) >> order;
-+	if (alignment_order > pool->order)
-+		align_mask = (1 << (alignment_order - pool->order)) - 1;
- 
--	read_lock(&pool->lock);
--	list_for_each(_chunk, &pool->chunks) {
--		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
-+	size = (size + (1UL << pool->order) - 1) >> pool->order;
- 
--		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
-+	read_lock(&pool->lock);
-+	list_for_each_entry(chunk, &pool->chunks, next_chunk) {
-+		if (chunk->size < size)
-+			continue;
- 
- 		spin_lock_irqsave(&chunk->lock, flags);
--		start_bit = bitmap_find_next_zero_area(chunk->bits, end_bit, 0,
--						nbits, 0);
--		if (start_bit >= end_bit) {
-+		start = bitmap_find_next_zero_area_off(chunk->bits, chunk->size,
-+						       0, size, align_mask,
-+						       chunk->start);
-+		if (start >= chunk->size) {
- 			spin_unlock_irqrestore(&chunk->lock, flags);
- 			continue;
- 		}
- 
--		addr = chunk->start_addr + ((unsigned long)start_bit << order);
--
--		bitmap_set(chunk->bits, start_bit, nbits);
-+		bitmap_set(chunk->bits, start, size);
- 		spin_unlock_irqrestore(&chunk->lock, flags);
--		read_unlock(&pool->lock);
--		return addr;
-+		addr = (chunk->start + start) << pool->order;
++static struct dentry *
++cma_dfs_create_dir(const char *name, struct dentry *parent)
++{
++	struct dentry *d = debugfs_create_dir(name, parent);
++
++	if (IS_ERR_OR_NULL(d)) {
++		pr_err("debugfs: %s: %s: unable to create\n",
++		       parent ? (const char *)parent->d_iname : "<root>", name);
++		return NULL;
++	}
++
++	return d;
++}
++
++static struct dentry *
++cma_dfs_create_lnk(const char *name, struct dentry *parent, const char *target)
++{
++	struct dentry *d = debugfs_create_symlink(name, parent, target);
++
++	if (IS_ERR_OR_NULL(d)) {
++		pr_err("debugfs: %s: %s: unable to create\n",
++		       parent->d_iname, name);
++		return NULL;
++	}
++
++	return d;
++}
++
++static int cma_dfs_open(struct inode *inode, struct file *file)
++{
++	file->private_data = inode->i_private;
++	return 0;
++}
++
++static ssize_t cma_dfs_map_read(struct file *file, char __user *buf,
++				size_t size, loff_t *offp)
++{
++	ssize_t len;
++
++	if (!cma_map_length || *offp)
++		return 0;
++
++	mutex_lock(&cma_mutex);
++
++	/* may have changed */
++	len = cma_map_length;
++	if (!len)
 +		goto done;
- 	}
 +
-+	addr = 0;
++	len = min_t(size_t, size, len);
++	if (copy_to_user(buf, cma_map, len))
++		len = -EFAULT;
++	else if ((size_t)len < size && put_user('\n', buf + len++))
++		len = -EFAULT;
++
 +done:
- 	read_unlock(&pool->lock);
--	return 0;
-+	return addr;
- }
--EXPORT_SYMBOL(gen_pool_alloc);
-+EXPORT_SYMBOL(gen_pool_alloc_aligned);
- 
- /**
-- * gen_pool_free - free allocated special memory back to the pool
-- * @pool: pool to free to
-- * @addr: starting address of memory to free back to pool
-- * @size: size in bytes of memory to free
-+ * gen_pool_free() - free allocated special memory back to the pool
-+ * @pool:	Pool to free to.
-+ * @addr:	Starting address of memory to free back to pool.
-+ * @size:	Size in bytes of memory to free.
-  *
-  * Free previously allocated special memory back to the specified pool.
-  */
- void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
- {
--	struct list_head *_chunk;
- 	struct gen_pool_chunk *chunk;
- 	unsigned long flags;
--	int order = pool->min_alloc_order;
--	int bit, nbits;
- 
--	nbits = (size + (1UL << order) - 1) >> order;
-+	if (!size)
++	mutex_unlock(&cma_mutex);
++
++	if (len > 0)
++		*offp = len;
++
++	return len;
++}
++
++static ssize_t cma_dfs_map_write(struct file *file, const char __user *buf,
++				 size_t size, loff_t *offp)
++{
++	char *val, *v;
++	ssize_t len;
++
++	if (size >= PAGE_SIZE || *offp)
++		return -ENOSPC;
++
++	val = kmalloc(size + 1, GFP_KERNEL);
++	if (!val)
++		return -ENOMEM;
++
++	if (copy_from_user(val, buf, size)) {
++		len = -EFAULT;
++		goto done;
++	}
++	val[size] = '\0';
++
++	len = cma_map_validate(val);
++	if (len < 0)
++		goto done;
++	val[len] = '\0';
++
++	mutex_lock(&cma_mutex);
++	v = (char *)cma_map;
++	cma_map = val;
++	val = v;
++	cma_map_length = len;
++	mutex_unlock(&cma_mutex);
++
++done:
++	kfree(val);
++
++	if (len > 0)
++		*offp = len;
++
++	return len;
++}
++
++static int __init cma_dfs_init(void)
++{
++	static const struct file_operations map_ops = {
++		.read = cma_dfs_map_read,
++		.write = cma_dfs_map_write,
++	};
++
++	struct dentry *root, *a, *r;
++
++	root = cma_dfs_create_dir("contiguous", NULL);
++	if (!root)
++		return 0;
++
++	if (!cma_dfs_create_file("map", root, NULL, &map_ops))
++		goto error;
++
++	a = cma_dfs_create_dir("allocators", root);
++	if (!a)
++		goto error;
++
++	r = cma_dfs_create_dir("regions", root);
++	if (!r)
++		goto error;
++
++	mutex_lock(&cma_mutex);
++	{
++		struct cma_allocator *alloc;
++		cma_dfs_allocators = a;
++		cma_foreach_allocator(alloc)
++			__cma_dfs_allocator_add(alloc);
++	}
++
++	{
++		struct cma_region *reg;
++		cma_dfs_regions = r;
++		cma_foreach_region(reg)
++			__cma_dfs_region_add(reg);
++	}
++	mutex_unlock(&cma_mutex);
++
++	return 0;
++
++error:
++	debugfs_remove_recursive(root);
++	return 0;
++}
++device_initcall(cma_dfs_init);
++
++static ssize_t cma_dfs_region_name_read(struct file *file, char __user *buf,
++					size_t size, loff_t *offp)
++{
++	struct cma_region *reg = file->private_data;
++	size_t len;
++
++	if (!reg->name || *offp)
++		return 0;
++
++	len = min(strlen(reg->name), size);
++	if (copy_to_user(buf, reg->name, len))
++		return -EFAULT;
++	if (len < size && put_user('\n', buf + len++))
++		return -EFAULT;
++
++	*offp = len;
++	return len;
++}
++
++static ssize_t cma_dfs_region_info_read(struct file *file, char __user *buf,
++					size_t size, loff_t *offp)
++{
++	struct cma_region *reg = file->private_data;
++	char str[min((size_t)63, size) + 1];
++	int len;
++
++	if (*offp)
++		return 0;
++
++	len = snprintf(str, sizeof str, "%p %p %p\n",
++		       (void *)reg->start, (void *)reg->size,
++		       (void *)reg->free_space);
++
++	if (copy_to_user(buf, str, len))
++		return -EFAULT;
++
++	*offp = len;
++	return len;
++}
++
++static ssize_t cma_dfs_region_alloc_read(struct file *file, char __user *buf,
++					 size_t size, loff_t *offp)
++{
++	struct cma_region *reg = file->private_data;
++	char str[min((size_t)63, size) + 1];
++	const char *fmt;
++	const void *arg;
++	int len = 0;
++
++	if (*offp)
++		return 0;
++
++	mutex_lock(&cma_mutex);
++
++	if (reg->alloc) {
++		if (reg->alloc->name) {
++			fmt = "%s\n";
++			arg = reg->alloc->name;
++		} else {
++			fmt = "0x%p\n";
++			arg = (void *)reg->alloc;
++		}
++	} else if (reg->alloc_name) {
++		fmt = "[%s]\n";
++		arg = reg->alloc_name;
++	} else {
++		goto done;
++	}
++
++	len = snprintf(str, sizeof str, fmt, arg);
++
++done:
++	mutex_unlock(&cma_mutex);
++
++	if (len) {
++		if (copy_to_user(buf, str, len))
++			return -EFAULT;
++		*offp = len;
++	}
++	return len;
++}
++
++static ssize_t
++cma_dfs_region_alloc_write(struct file *file, const char __user *buf,
++			   size_t size, loff_t *offp)
++{
++	struct cma_region *reg = file->private_data;
++	ssize_t ret;
++	char *s, *t;
++
++	if (size > 64 || *offp)
++		return -ENOSPC;
++
++	if (reg->alloc && reg->users)
++		return -EBUSY;
++
++	s = kmalloc(size + 1, GFP_KERNEL);
++	if (!s)
++		return -ENOMEM;
++
++	if (copy_from_user(s, buf, size)) {
++		ret = -EFAULT;
++		goto done_free;
++	}
++
++	s[size] = '\0';
++	t = strchr(s, '\n');
++	if (t == s) {
++		kfree(s);
++		s = NULL;
++	}
++	if (t)
++		*t = '\0';
++
++	mutex_lock(&cma_mutex);
++
++	/* things may have changed while we were acquiring lock */
++	if (reg->alloc && reg->users) {
++		ret = -EBUSY;
++	} else {
++		if (reg->alloc)
++			__cma_region_detach_alloc(reg);
++
++		t = s;
++		s = reg->free_alloc_name ? (char *)reg->alloc_name : NULL;
++
++		reg->alloc_name = t;
++		reg->free_alloc_name = 1;
++
++		ret = size;
++	}
++
++	mutex_unlock(&cma_mutex);
++
++done_free:
++	kfree(s);
++
++	if (ret > 0)
++		*offp = ret;
++	return ret;
++}
++
++static const struct cma_dfs_file __cma_dfs_region_files[] = {
++	{
++		"name", &(const struct file_operations){
++			.open = cma_dfs_open,
++			.read = cma_dfs_region_name_read,
++		},
++	},
++	{
++		"info", &(const struct file_operations){
++			.open = cma_dfs_open,
++			.read = cma_dfs_region_info_read,
++		},
++	},
++	{
++		"alloc", &(const struct file_operations){
++			.open = cma_dfs_open,
++			.read = cma_dfs_region_alloc_read,
++			.write = cma_dfs_region_alloc_write,
++		},
++	},
++	{ }
++};
++
++static void __cma_dfs_region_add(struct cma_region *reg)
++{
++	struct dentry *d;
++
++	if (!cma_dfs_regions || reg->dir)
 +		return;
- 
--	read_lock(&pool->lock);
--	list_for_each(_chunk, &pool->chunks) {
--		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
-+	addr = addr >> pool->order;
-+	size = (size + (1UL << pool->order) - 1) >> pool->order;
- 
--		if (addr >= chunk->start_addr && addr < chunk->end_addr) {
--			BUG_ON(addr + size > chunk->end_addr);
-+	BUG_ON(addr + size < addr);
 +
-+	read_lock(&pool->lock);
-+	list_for_each_entry(chunk, &pool->chunks, next_chunk)
-+		if (addr >= chunk->start &&
-+		    addr + size <= chunk->start + chunk->size) {
- 			spin_lock_irqsave(&chunk->lock, flags);
--			bit = (addr - chunk->start_addr) >> order;
--			while (nbits--)
--				__clear_bit(bit++, chunk->bits);
-+			bitmap_clear(chunk->bits, addr - chunk->start, size);
- 			spin_unlock_irqrestore(&chunk->lock, flags);
--			break;
-+			goto done;
- 		}
--	}
--	BUG_ON(nbits > 0);
-+	BUG_ON(1);
-+done:
- 	read_unlock(&pool->lock);
++	/* Region's directory */
++	reg->from_alloc_link = kasprintf(GFP_KERNEL, "../../regions/0x%p",
++					 (void *)reg->start);
++	if (!reg->from_alloc_link)
++		return;
++
++	d = cma_dfs_create_dir(reg->from_alloc_link + 14, cma_dfs_regions);
++	if (!d) {
++		kfree(reg->from_alloc_link);
++		return;
++	}
++
++	if (reg->name)
++		cma_dfs_create_lnk(reg->name, cma_dfs_regions,
++				   reg->from_alloc_link + 14);
++
++	reg->dir = d;
++
++	/* Files */
++	cma_dfs_create_files(__cma_dfs_region_files, d, reg);
++
++	/* Link to allocator */
++	__cma_dfs_region_alloc_update(reg);
++}
++
++static void __cma_dfs_region_alloc_update(struct cma_region *reg)
++{
++	if (!cma_dfs_regions || !cma_dfs_allocators || !reg->dir)
++		return;
++
++	/* Remove stall links */
++	if (reg->to_alloc) {
++		debugfs_remove(reg->to_alloc);
++		reg->to_alloc = NULL;
++	}
++
++	if (reg->from_alloc) {
++		debugfs_remove(reg->from_alloc);
++		reg->from_alloc = NULL;
++	}
++
++	if (reg->to_alloc_link) {
++		kfree(reg->to_alloc_link);
++		reg->to_alloc_link = NULL;
++	}
++
++	if (!reg->alloc)
++		return;
++
++	/* Create new links */
++	if (reg->alloc->regs_dir)
++		reg->from_alloc =
++			cma_dfs_create_lnk(reg->from_alloc_link + 14,
++					   reg->alloc->regs_dir,
++					   reg->from_alloc_link);
++
++	if (!reg->alloc->dir_name)
++		return;
++
++	reg->to_alloc_link = kasprintf(GFP_KERNEL, "../allocators/%s",
++				       reg->alloc->dir_name);
++	if (reg->to_alloc_link &&
++	    !cma_dfs_create_lnk("allocator", reg->dir, reg->to_alloc_link)) {
++		kfree(reg->to_alloc_link);
++		reg->to_alloc_link = NULL;
++	}
++}
++
++static inline void __cma_dfs_allocator_add(struct cma_allocator *alloc)
++{
++	struct dentry *d;
++
++	if (!cma_dfs_allocators || alloc->dir_name)
++		return;
++
++	alloc->dir_name = alloc->name ?:
++		kasprintf(GFP_KERNEL, "0x%p", (void *)alloc);
++	if (!alloc->dir_name)
++		return;
++
++	d = cma_dfs_create_dir(alloc->dir_name, cma_dfs_allocators);
++	if (!d) {
++		if (!alloc->name)
++			kfree(alloc->dir_name);
++		alloc->dir_name = NULL;
++		return;
++	}
++
++	alloc->regs_dir = cma_dfs_create_dir("regions", d);
++}
++
++#else
++
++static inline void __cma_dfs_region_add(struct cma_region *reg)
++{
++	/* nop */
++}
++
++static inline void __cma_dfs_allocator_add(struct cma_allocator *alloc)
++{
++	/* nop */
++}
++
++static inline void __cma_dfs_region_alloc_update(struct cma_region *reg)
++{
++	/* nop */
++}
++
++#endif
++
++
+ /************************* The Device API *************************/
+ 
+ static const char *__must_check
+@@ -731,10 +1216,24 @@ static int __cma_region_attach_alloc(struct cma_region *reg)
+ 		reg->alloc = alloc;
+ 		pr_debug("init: %s: %s: initialised allocator\n",
+ 			 reg->name ?: "(private)", alloc->name ?: "(unnamed)");
++		__cma_dfs_region_alloc_update(reg);
+ 	}
+ 	return ret;
  }
- EXPORT_SYMBOL(gen_pool_free);
+ 
++static void __cma_region_detach_alloc(struct cma_region *reg)
++{
++	if (!reg->alloc)
++		return;
++
++	if (reg->alloc->cleanup)
++		reg->alloc->cleanup(reg);
++
++	reg->alloc = NULL;
++	reg->used = 1;
++	__cma_dfs_region_alloc_update(reg);
++}
++
+ 
+ /*
+  * s            ::= rules
 -- 
 1.7.2.3
 
