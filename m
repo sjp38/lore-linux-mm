@@ -1,79 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4A26F6B0087
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 20:47:16 -0500 (EST)
-Date: Fri, 19 Nov 2010 12:46:05 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 3/3] mlock: avoid dirtying pages and triggering
- writeback
-Message-ID: <20101119014605.GA13830@dastard>
-References: <1289996638-21439-1-git-send-email-walken@google.com>
- <1289996638-21439-4-git-send-email-walken@google.com>
- <20101117125756.GA5576@amd>
- <1290007734.2109.941.camel@laptop>
- <AANLkTim4tO_aKzXLXJm-N-iEQ9rNSa0=HGJVDAz33kY6@mail.gmail.com>
- <20101117231143.GQ22876@dastard>
- <AANLkTimE1KecXQhcxsKLSLug-7XpmGbmvsfSmG7kWDNn@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 103F86B004A
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 20:53:32 -0500 (EST)
+Date: Fri, 19 Nov 2010 08:32:25 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [2/8,v3] NUMA Hotplug Emulator: infrastructure of NUMA hotplug
+ emulation
+Message-ID: <20101119003225.GB3327@shaohui>
+References: <20101117020759.016741414@intel.com>
+ <20101117021000.568681101@intel.com>
+ <alpine.DEB.2.00.1011162359160.17408@chino.kir.corp.google.com>
+ <20101117075128.GA30254@shaohui>
+ <alpine.DEB.2.00.1011171304060.10254@chino.kir.corp.google.com>
+ <20101118041407.GA2408@shaohui>
+ <20101118062715.GD17539@linux-sh.org>
+ <20101118052750.GD2408@shaohui>
+ <alpine.DEB.2.00.1011181321470.26680@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTimE1KecXQhcxsKLSLug-7XpmGbmvsfSmG7kWDNn@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1011181321470.26680@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Michel Lespinasse <walken@google.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>, Theodore Tso <tytso@google.com>, Michael Rubin <mrubin@google.com>, Suleiman Souhlal <suleiman@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Paul Mundt <lethal@linux-sh.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 17, 2010 at 03:31:37PM -0800, Michel Lespinasse wrote:
-> On Wed, Nov 17, 2010 at 3:11 PM, Dave Chinner <david@fromorbit.com> wrote:
-> >> Really, my understanding is that not pre-allocating filesystem blocks
-> >> is just fine. This is, after all, what happens with ext3 and it's
-> >> never been reported as a bug (that I know of).
-> >
-> > It's not ext3 you have to worry about - it's the filesystems that
-> > need special state set up on their pages/buffers for ->writepage to
-> > work correctly that are the problem. You need to call
-> > ->write_begin/->write_end to get the state set up properly.
-> >
-> > If this state is not set up properly, silent data loss will occur
-> > during mmap writes either by ENOSPC or failing to set up writes into
-> > unwritten extents correctly (i.e. we'll be back to where we were in
-> > 2.6.15).
-> >
-> > I don't think ->page_mkwrite can be worked around - we need that to
-> > be called on the first write fault of any mmap()d page to ensure it
-> > is set up correctly for writeback.  If we don't get write faults
-> > after the page is mlock()d, then we need the ->page_mkwrite() call
-> > during the mlock() call.
+On Thu, Nov 18, 2010 at 01:24:52PM -0800, David Rientjes wrote:
+> On Thu, 18 Nov 2010, Shaohui Zheng wrote:
 > 
-> Just to be clear - I'm proposing to skip the entire do_wp_page() call
-> by doing a read fault rather than a write fault. If the page wasn't
-> dirty already, it will stay clean and with a non-writable PTE until it
-> gets actually written to, at which point we'll get a write fault and
-> do_wp_page will be invoked as usual.
+> > in our draft patch, we re-setup nr_node_ids when CONFIG_ARCH_MEMORY_PROBE enabled 
+> > and mem=XXX was specified in grub. we set nr_node_ids as MAX_NUMNODES + 1, because
+> >  we do not know how many nodes will be hot-added through memory/probe interface. 
+> >  it might be a little wasting of memory.
+> > 
+> 
+> nr_node_ids need not be set to anything different at boot, the 
+> MEM_GOING_ONLINE callback should be used for anything (like the slab 
+> allocators) where a new node is introduced and needs to be dealt with 
+> accordingly; this is how regular memory hotplug works, we need no 
+> additional code in this regard because it's emulated.  If a subsystem 
+> needs to change in response to a new node going online and doesn't as a 
+> result of using your emulator, that's a bug and either needs to be fixed 
+> or prohibited from use with CONFIG_MEMORY_HOTPLUG.
+> 
+> (See the MEM_GOING_ONLINE callback in mm/slub.c, for instance, which deals 
+> only with the case of node hotplug.)
 
-I have no problem with that - I'm surprised that mlock didn't work
-that way in the first place.
+nr_node_ids is the possible node number. when we do regular memory online,
+it is oline to a possible node, and it is already counted in to nr_node_ids.
 
-> I am not proposing to skip the page_mkwrite() while upgrading the PTE
-> permissions, which I think is what you were arguing against ?
+if you increment nr_node_ids dynamically when node online, it causes a lot of
+problems. Many data are initialized according to nr_node_ids. That is our
+experience when we debug the emulator.
 
-I wasn't arguing against anything, merely pointing out that the
-->page_mkwrite call is aboslutely necessary. You've made clarified
-that it still occurs, so I'm happy...
+mm/page_alloc.c:
+/*
+ * Figure out the number of possible node ids.
+ */
+static void __init setup_nr_node_ids(void)
+{
+	unsigned int node;
+	unsigned int highest = 0;
 
-FWIW, what I was responding to was the assumption that "this is
-alright for ext3, so it must be OK" extrapolation about
-->page_mkwrite behaviour. Especially as ext3 does not even implement
-the ->page_mkwrite operation (which means mmap writes into holes
-can't detect ENOSPC correctly)...
+	for_each_node_mask(node, node_possible_map)
+		highest = node;
+	nr_node_ids = highest + 1;
+}
 
-Cheers,
+There is no conflict between emulator and CONFIG_MEMORY_HOTPLUG. A real node can be
+ onlined because we already set it as _possible_; if emulator is enabled, all the 
+nodes were marked as _possbile_ node, the real ndoe is also included in.
 
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
