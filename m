@@ -1,59 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6734A6B0085
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 06:17:15 -0500 (EST)
-Date: Fri, 19 Nov 2010 12:16:52 +0100
+	by kanga.kvack.org (Postfix) with ESMTP id AF5B66B004A
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 06:22:32 -0500 (EST)
+Date: Fri, 19 Nov 2010 12:22:16 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3/6] memcg: make throttle_vm_writeout() memcg aware
-Message-ID: <20101119111652.GB24635@cmpxchg.org>
+Subject: Re: [PATCH 4/6] memcg: simplify mem_cgroup_page_stat()
+Message-ID: <20101119112216.GC24635@cmpxchg.org>
 References: <1289294671-6865-1-git-send-email-gthelen@google.com>
- <1289294671-6865-4-git-send-email-gthelen@google.com>
- <20101112081754.GE9131@cmpxchg.org>
- <xr93wroixomw.fsf@ninji.mtv.corp.google.com>
- <20101116125726.db42723c.kamezawa.hiroyu@jp.fujitsu.com>
+ <1289294671-6865-5-git-send-email-gthelen@google.com>
+ <20101112081957.GF9131@cmpxchg.org>
+ <xr93pquaxoll.fsf@ninji.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101116125726.db42723c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <xr93pquaxoll.fsf@ninji.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Fri, Nov 12, 2010 at 12:40:22PM -0800, Greg Thelen wrote:
+> Johannes Weiner <hannes@cmpxchg.org> writes:
+> 
+> > On Tue, Nov 09, 2010 at 01:24:29AM -0800, Greg Thelen wrote:
+> >> The cgroup given to mem_cgroup_page_stat() is no allowed to be
+> >> NULL or the root cgroup.  So there is no need to complicate the code
+> >> handling those cases.
+> >> 
+> >> Signed-off-by: Greg Thelen <gthelen@google.com>
+> >> ---
+> >>  mm/memcontrol.c |   48 ++++++++++++++++++++++--------------------------
+> >>  1 files changed, 22 insertions(+), 26 deletions(-)
+> >> 
+> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >> index eb621ee..f8df350 100644
+> >> --- a/mm/memcontrol.c
+> >> +++ b/mm/memcontrol.c
+> >> @@ -1364,12 +1364,10 @@ memcg_hierarchical_free_pages(struct mem_cgroup *mem)
+> >>  
+> >>  /*
+> >>   * mem_cgroup_page_stat() - get memory cgroup file cache statistics
+> >> - * @mem:	optional memory cgroup to query.  If NULL, use current task's
+> >> - *		cgroup.
+> >> + * @mem:	memory cgroup to query
+> >>   * @item:	memory statistic item exported to the kernel
+> >>   *
+> >> - * Return the accounted statistic value or negative value if current task is
+> >> - * root cgroup.
+> >> + * Return the accounted statistic value.
+> >>   */
+> >>  long mem_cgroup_page_stat(struct mem_cgroup *mem,
+> >>  			  enum mem_cgroup_nr_pages_item item)
+> >> @@ -1377,29 +1375,27 @@ long mem_cgroup_page_stat(struct mem_cgroup *mem,
+> >>  	struct mem_cgroup *iter;
+> >>  	long value;
+> >>  
+> >> +	VM_BUG_ON(!mem);
+> >> +	VM_BUG_ON(mem_cgroup_is_root(mem));
+> >> +
+> >>  	get_online_cpus();
+> >> -	rcu_read_lock();
+> >> -	if (!mem)
+> >> -		mem = mem_cgroup_from_task(current);
+> >> -	if (__mem_cgroup_has_dirty_limit(mem)) {
+> >
+> > What about mem->use_hierarchy that is checked in
+> > __mem_cgroup_has_dirty_limit()?  Is it no longer needed?
+> 
+> It is no longer needed because the callers of mem_cgroup_page_stat()
+> call __mem_cgroup_has_dirty_limit().  In the current implementation, if
+> use_hierarchy=1 then the cgroup does not have dirty limits, so calls
+> into mem_cgroup_page_stat() are avoided.  Specifically the callers of
+> mem_cgroup_page_stat() are:
+> 
+> 1. mem_cgroup_dirty_info() which calls __mem_cgroup_has_dirty_limit()
+>    and returns false if use_hierarchy=1.
+> 
+> 2. throttle_vm_writeout() which calls mem_dirty_info() ->
+>    mem_cgroup_dirty_info() -> __mem_cgroup_has_dirty_limit() will fall
+>    back to global limits if use_hierarchy=1.
 
-On Tue, Nov 16, 2010 at 12:57:26PM +0900, KAMEZAWA Hiroyuki wrote:
-> Hmm. I think this patch is troublesome.
-> 
-> This patch will make memcg's pageout routine _not_ throttoled even when the whole
-> system vmscan's pageout is throttoled.
-> 
-> So, one idea is....
-> 
-> Make this change 
-> ==
-> +++ b/mm/vmscan.c
-> @@ -1844,7 +1844,7 @@ static void shrink_zone(int priority, struct zone *zone,
->  	if (inactive_anon_is_low(zone, sc))
->  		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
->  
-> -	throttle_vm_writeout(sc->gfp_mask);
-> +	throttle_vm_writeout(sc->gfp_mask, sc->mem_cgroup);
->  }
-> ==
-> as
-> 
-> ==
-> 	
-> if (!sc->mem_cgroup || throttle_vm_writeout(sc->gfp_mask, sc->mem_cgroup) == not throttled)
-> 	throttole_vm_writeout(sc->gfp_mask, NULL);
-> 
-> Then, both of memcg and global dirty thresh will be checked.
+Thanks for the clarification.
 
-Good point, both limits should apply.
-
-I'd prefer to stuff it all into throttle_vm_writeout() and not encode
-memcg-specific behaviour into the caller, though.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
