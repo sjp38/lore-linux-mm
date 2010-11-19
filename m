@@ -1,68 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BCF5E6B004A
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 04:22:42 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [BUGFIX][PATCH] pagemap: set pagemap walk limit to PMD boundary
-Date: Fri, 19 Nov 2010 18:07:45 +0900
-Message-Id: <1290157665-17215-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 604E46B004A
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 05:44:21 -0500 (EST)
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Received: from eu_spt1 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LC4007OBOHT5C70@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 19 Nov 2010 10:44:17 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LC40052MOHTA2@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 19 Nov 2010 10:44:17 +0000 (GMT)
+Date: Fri, 19 Nov 2010 11:44:17 +0100
+From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Subject: Re: [PATCH 0/3] hwmem: Hardware memory driver
+In-reply-to: 
+ <C832F8F5D375BD43BFA11E82E0FE9FE0081BE73D53@EXDCVYMBSTM005.EQ1STM.local>
+Message-id: <op.vmeyr3fd7p4s8u@pikus>
+Content-transfer-encoding: Quoted-Printable
+References: 
+ <1289912882-23996-1-git-send-email-johan.xx.mossberg@stericsson.com>
+ <op.vl9p52wp7p4s8u@pikus>
+ <C832F8F5D375BD43BFA11E82E0FE9FE0081BE739A0@EXDCVYMBSTM005.EQ1STM.local>
+ <op.vl9r6xld7p4s8u@pikus>
+ <C832F8F5D375BD43BFA11E82E0FE9FE0081BE73A1D@EXDCVYMBSTM005.EQ1STM.local>
+ <op.vl9xudve7p4s8u@pikus>
+ <C832F8F5D375BD43BFA11E82E0FE9FE0081BE73D53@EXDCVYMBSTM005.EQ1STM.local>
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Matt Mackall <mpm@selenic.com>
+To: Johan MOSSBERG <johan.xx.mossberg@stericsson.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Currently one pagemap_read() call walks in PAGEMAP_WALK_SIZE bytes
-(== 512 pages.)  But there is a corner case where walk_pmd_range()
-accidentally runs over a VMA associated with a hugetlbfs file.
+On Wed, 17 Nov 2010 10:28:13 +0100, Johan MOSSBERG <johan.xx.mossberg@st=
+ericsson.com> wrote:
 
-For example, when a process has mappings to VMAs as shown below:
+> Micha=C5=82 Nazarewicz wrote:
+>> Do you want to remap user space mappings when page is moved during
+>> defragmentation? Or would user need to unmap the region?  Ie. would
+>> mmap()ed buffer be pinned?
+>
+> Remap, i.e. not pinned. That means that the mapper needs to be
+> informed before and after a buffer is moved. Maybe add a function
+> to CMA where you can register a callback function that is called
+> before and after a buffer is moved? The callback function's
+> parameters would be buffer, new position and whether it will be
+> moved or has been moved. CMA would also need this type of
+> information to be able to evict temporary data from the
+> destination.
 
-  # cat /proc/<pid>/maps
-  ...
-  3a58f6d000-3a58f72000 rw-p 00000000 00:00 0
-  7fbd51853000-7fbd51855000 rw-p 00000000 00:00 0
-  7fbd5186c000-7fbd5186e000 rw-p 00000000 00:00 0
-  7fbd51a00000-7fbd51c00000 rw-s 00000000 00:12 8614   /hugepages/test
+The way I imagine pinning is that the allocator tells CMA that it want
+to use given region of memory.  This would make CMA remove any kind of
+data that is stored there (in the version of CMA I'm about to post that
+basically means migrating pages).
 
-then pagemap_read() goes into walk_pmd_range() path and walks in the range
-0x7fbd51853000-0x7fbd51a53000, but the hugetlbfs VMA should be handled
-by walk_hugetlb_range(). Otherwise PMD for the hugepage is considered bad
-and cleared, which causes undesirable results.
+> I'm a little bit worried that this approach put constraints on the
+> defragmentation algorithm but I can't think of any scenario where
+> we would run into problems. If a defragmentation algorithm does
+> temporary moves, and knows it at the time of the move, we would
+> have to add a flag to the callback that indicates that the move is
+> temporary so that it is not unnecessarily mapped, but that can be
+> done when/if the problem occurs. Temporarily moving a buffer to
+> scattered memory is not supported either but I suppose that can be
+> solved by adding a flag that indicates that the new position is
+> scattered, also something that can be done when needed.
 
-This patch fixes it by separating pagemap walk range into one PMD.
+I think the question at this moment is whether we need such a mechanism
+to be implemented at the this time.  I would rather wait with the
+callback mechanism till the rest of the framework works and we have
+an algorithm that actually does the defragmentation.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Matt Mackall <mpm@selenic.com>
----
- fs/proc/task_mmu.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
+-- =
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index da6b01d..c126c83 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -706,6 +706,7 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
-  * skip over unmapped regions.
-  */
- #define PAGEMAP_WALK_SIZE	(PMD_SIZE)
-+#define PAGEMAP_WALK_MASK	(PMD_MASK)
- static ssize_t pagemap_read(struct file *file, char __user *buf,
- 			    size_t count, loff_t *ppos)
- {
-@@ -776,7 +777,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
- 		unsigned long end;
- 
- 		pm.pos = 0;
--		end = start_vaddr + PAGEMAP_WALK_SIZE;
-+		end = (start_vaddr + PAGEMAP_WALK_SIZE) & PAGEMAP_WALK_MASK;
- 		/* overflow ? */
- 		if (end < start_vaddr || end > end_vaddr)
- 			end = end_vaddr;
--- 
-1.7.2.3
+Best regards,                                        _     _
+| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
+| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
++----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
