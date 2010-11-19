@@ -1,82 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A7D426B008A
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 03:23:28 -0500 (EST)
-Date: Fri, 19 Nov 2010 17:15:58 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm: remove call to find_vma in pagewalk for non-hugetlbfs
-Message-ID: <20101119081558.GA11081@spritzera.linux.bs1.fc.nec.co.jp>
-References: <1290127197-20360-1-git-send-email-dsterba@suse.cz>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3CC476B004A
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 04:12:29 -0500 (EST)
+Date: Fri, 19 Nov 2010 15:51:19 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [7/8,v3] NUMA Hotplug Emulator: extend memory probe interface
+ to support NUMA
+Message-ID: <20101119075119.GD3327@shaohui>
+References: <20101117020759.016741414@intel.com>
+ <20101117021000.916235444@intel.com>
+ <1290019807.9173.3789.camel@nimitz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-2022-jp
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1290127197-20360-1-git-send-email-dsterba@suse.cz>
+In-Reply-To: <1290019807.9173.3789.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
-To: David Sterba <dsterba@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Andy Whitcroft <apw@canonical.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Haicheng Li <haicheng.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Greg KH <greg@kroah.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 19, 2010 at 01:39:57AM +0100, David Sterba wrote:
-> Commit d33b9f45 introduces a check if a vma is a hugetlbfs one and
-> later in 5dc37642 is moved under #ifdef CONFIG_HUGETLB_PAGE but
-> a needless find_vma call is left behind and it's result not used
-> anywhere else in the function.
+On Wed, Nov 17, 2010 at 10:50:07AM -0800, Dave Hansen wrote:
+> On Wed, 2010-11-17 at 10:08 +0800, shaohui.zheng@intel.com wrote:
+> > And more we make it friendly, it is possible to add memory to do
+> > 
+> >         echo 3g > memory/probe
+> >         echo 1024m,3 > memory/probe
+> > 
+> > It maintains backwards compatibility.
+> > 
+> > Another format suggested by Dave Hansen:
+> > 
+> >         echo physical_address=0x40000000 numa_node=3 > memory/probe
+> > 
+> > it is more explicit to show meaning of the parameters.
 > 
-> The sideefect of caching vma for @addr inside walk->mm is neither
-> utilized in walk_page_range() nor in called functions.
+> The other thing that Greg suggested was to use configfs.  Looking back
+> on it, that makes a lot of sense.  We can do better than these "probe"
+> files.
 > 
-> Signed-off-by: David Sterba <dsterba@suse.cz>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Andi Kleen <ak@linux.intel.com>
-> Cc: Andy Whitcroft <apw@canonical.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> Cc: Matt Mackall <mpm@selenic.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  mm/pagewalk.c |    5 +++--
->  1 files changed, 3 insertions(+), 2 deletions(-)
+> In your case, it might be useful to tell the kernel to be able to add
+> memory in a node and add the node all in one go.  That'll probably be
+> closer to what the hardware will do, and will exercise different code
+> paths that the separate "add node", "then add memory" steps that you're
+> using here.
 > 
-> diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-> index 8b1a2ce..38cc58b 100644
-> --- a/mm/pagewalk.c
-> +++ b/mm/pagewalk.c
-> @@ -139,7 +139,6 @@ int walk_page_range(unsigned long addr, unsigned long end,
->  	pgd_t *pgd;
->  	unsigned long next;
->  	int err = 0;
-> -	struct vm_area_struct *vma;
->  
->  	if (addr >= end)
->  		return err;
-> @@ -149,15 +148,17 @@ int walk_page_range(unsigned long addr, unsigned long end,
->  
->  	pgd = pgd_offset(walk->mm, addr);
->  	do {
-> +		struct vm_area_struct *uninitialized_var(vma);
-> +
->  		next = pgd_addr_end(addr, end);
->  
-> +#ifdef CONFIG_HUGETLB_PAGE
->  		/*
->  		 * handle hugetlb vma individually because pagetable walk for
->  		 * the hugetlb page is dependent on the architecture and
->  		 * we can't handled it in the same manner as non-huge pages.
->  		 */
->  		vma = find_vma(walk->mm, addr);
-> -#ifdef CONFIG_HUGETLB_PAGE
->  		if (vma && is_vm_hugetlb_page(vma)) {
->  			if (vma->vm_end < next)
->  				next = vma->vm_end;
+> For the emulator, I also have to wonder if using debugfs is the right
+> was since its ABI is a bit more, well, _flexible_ over time. :)
 
-Looks good to me.
+There will be a lot of problems which need to solve if we decide to use configfs or
+debugfs. I have no good method to solve these problems, so I want to listen some
+advices.
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+1) How to design the probe interace 
+I can not find a good method with configfs to replace current memory/probe 
+interface.
 
-Thanks,
-Naoya Horiguchi
+As we know, A configfs config_item is created via an explicit userspace
+operation mkdir. when we add a memory section, we need to convert it to an mkdir
+action. the following implementation is the possible solution.
+
+node/memory hotplug:
+/configfs/node
+when we hotadd node, we can create dir with command:
+	mkdir /configfs/node/nodeX
+
+And export a probe interface
+/configfs/node/nodeX/probe, we can use this interface to hot-add memory section
+to this node.
+
+after memory hot-add with the probe interface, there should be some memory
+entries for each memory section under this directories.
+
+cpu hotplug:
+/configfs/cpu/
+to hot-add a cpu
+	mkdir /configfs/cpu/cpuX
+to hot-remove a CPU
+	rmdir /configfs/cpu/cpuX
+
+I did not whether it is the expected interface on configfs.
+
+2) co-existence for sysfs and configfs
+
+If we keep both interfaces, thing becomes complicated. when we hot-add
+memory/cpu thru sysfs, we should create the sysfs entrie for it, and we should
+also create the configfs entries for it. Vice versa, when we hot-add/remove
+cpu/memory thru configfs, we should maintain the changes on sysfs, too.
+
+it becomes very complicated after we have both configfs & sysfs interface, and
+we should not get them together, we need to get it simple.
+
+the purpose of hotplug emulator is providing a possible solution for cpu/memory
+hotplug testing, the interface upgrading is not part of emulator. Let's forget
+configfs here.
+
+-- 
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
