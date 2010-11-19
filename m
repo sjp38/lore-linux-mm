@@ -1,198 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id BEC446B0095
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:58:33 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 9F59B6B0098
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:58:34 -0500 (EST)
 MIME-version: 1.0
 Content-transfer-encoding: 7BIT
 Content-type: TEXT/PLAIN
-Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
+Received: from spt2.w1.samsung.com ([210.118.77.14]) by mailout4.w1.samsung.com
  (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LC500JE631F4A20@mailout4.w1.samsung.com> for
+ with ESMTP id <0LC500JDI31FUQ20@mailout4.w1.samsung.com> for
  linux-mm@kvack.org; Fri, 19 Nov 2010 15:58:27 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LC500IPZ31E0K@spt1.w1.samsung.com> for
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LC500BOS31EOC@spt2.w1.samsung.com> for
  linux-mm@kvack.org; Fri, 19 Nov 2010 15:58:27 +0000 (GMT)
-Date: Fri, 19 Nov 2010 16:58:09 +0100
+Date: Fri, 19 Nov 2010 16:58:11 +0100
 From: Michal Nazarewicz <m.nazarewicz@samsung.com>
-Subject: [RFCv6 11/13] mm: MIGRATE_CMA isolation functions added
+Subject: [RFCv6 13/13] ARM: cma: Added CMA to Aquila,
+ Goni and c210 universal boards
 In-reply-to: <cover.1290172312.git.m.nazarewicz@samsung.com>
 Message-id: 
- <af6afb66dfbd7b8943b6b65bf2c0cebd63b2e4ef.1290172312.git.m.nazarewicz@samsung.com>
+ <c5e5580e35e1a8edf211228c4b5aea83830a7ee6.1290172312.git.m.nazarewicz@samsung.com>
 References: <cover.1290172312.git.m.nazarewicz@samsung.com>
 Sender: owner-linux-mm@kvack.org
 To: mina86@mina86.com
 Cc: Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, Bryan Huntsman <bryanh@codeaurora.org>, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Johan Mossberg <johan.xx.mossberg@stericsson.com>, Jonathan Corbet <corbet@lwn.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Marcus LORENTZON <marcus.xm.lorentzon@stericsson.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Mel Gorman <mel@csn.ul.ie>, Pawel Osciak <pawel@osciak.com>, Russell King <linux@arm.linux.org.uk>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, dipankar@in.ibm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This commit changes various functions that change pages and
-pageblocks migrate type between MIGRATE_ISOLATE and
-MIGRATE_MOVABLE in such a way as to allow to work with
-MIGRATE_CMA migrate type.
+This commit adds CMA memory reservation code to Aquila, Goni and c210
+universal boards.
 
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- include/linux/page-isolation.h |   39 ++++++++++++++++++++++++++-------------
- mm/page_alloc.c                |    6 +++---
- mm/page_isolation.c            |   15 ++++++++-------
- 3 files changed, 37 insertions(+), 23 deletions(-)
+ arch/arm/mach-s5pv210/mach-aquila.c         |   26 ++++++++++++++++++++++++++
+ arch/arm/mach-s5pv210/mach-goni.c           |   26 ++++++++++++++++++++++++++
+ arch/arm/mach-s5pv310/mach-universal_c210.c |   17 +++++++++++++++++
+ 3 files changed, 69 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-index f1417ed..56f0e13 100644
---- a/include/linux/page-isolation.h
-+++ b/include/linux/page-isolation.h
-@@ -3,35 +3,49 @@
+diff --git a/arch/arm/mach-s5pv210/mach-aquila.c b/arch/arm/mach-s5pv210/mach-aquila.c
+index 28677ca..f1feb73 100644
+--- a/arch/arm/mach-s5pv210/mach-aquila.c
++++ b/arch/arm/mach-s5pv210/mach-aquila.c
+@@ -21,6 +21,7 @@
+ #include <linux/gpio_keys.h>
+ #include <linux/input.h>
+ #include <linux/gpio.h>
++#include <linux/cma.h>
  
- /*
-  * Changes migrate type in [start_pfn, end_pfn) to be MIGRATE_ISOLATE.
-- * If specified range includes migrate types other than MOVABLE,
-+ * If specified range includes migrate types other than MOVABLE or CMA,
-  * this will fail with -EBUSY.
-  *
-  * For isolating all pages in the range finally, the caller have to
-  * free all pages in the range. test_page_isolated() can be used for
-  * test it.
-  */
--extern int
--start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn);
-+int __start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-+			       unsigned migratetype);
+ #include <asm/mach/arch.h>
+ #include <asm/mach/map.h>
+@@ -650,6 +651,30 @@ static void __init aquila_sound_init(void)
+ 	__raw_writel(__raw_readl(S5P_OTHERS) | (0x3 << 8), S5P_OTHERS);
+ }
+ 
++#ifdef CONFIG_CMA
 +
-+static inline int
-+start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
++static void __init aquila_reserve(void)
 +{
-+	return __start_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
++	static struct cma_region regions[] = {
++		CMA_REGION("fw",  1 << 20, 128 << 10, 0x32000000),
++		CMA_REGION("b1", 32 << 20,         0, 0x33000000),
++		CMA_REGION("b2", 16 << 20,         0, 0x44000000),
++		{ }
++	};
++
++	static const char map[] __initconst =
++		"s5p-mfc5/f=fw;s5p-mfc5/a=b1;s5p-mfc5/b=b2;*=b1,b2";
++
++	cma_set_defaults(regions, map);
++	cma_early_regions_reserve(NULL);
 +}
 +
-+int __undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-+			      unsigned migratetype);
++#else
++
++#define aquila_reserve NULL
++
++#endif
++
+ static void __init aquila_map_io(void)
+ {
+ 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
+@@ -690,4 +715,5 @@ MACHINE_START(AQUILA, "Aquila")
+ 	.map_io		= aquila_map_io,
+ 	.init_machine	= aquila_machine_init,
+ 	.timer		= &s3c24xx_timer,
++	.reserve	= aquila_reserve,
+ MACHINE_END
+diff --git a/arch/arm/mach-s5pv210/mach-goni.c b/arch/arm/mach-s5pv210/mach-goni.c
+index b1dcf96..0bda14f 100644
+--- a/arch/arm/mach-s5pv210/mach-goni.c
++++ b/arch/arm/mach-s5pv210/mach-goni.c
+@@ -25,6 +25,7 @@
+ #include <linux/gpio_keys.h>
+ #include <linux/input.h>
+ #include <linux/gpio.h>
++#include <linux/cma.h>
  
- /*
-  * Changes MIGRATE_ISOLATE to MIGRATE_MOVABLE.
-  * target range is [start_pfn, end_pfn)
-  */
--extern int
--undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn);
-+static inline int
-+undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
+ #include <asm/mach/arch.h>
+ #include <asm/mach/map.h>
+@@ -809,6 +810,30 @@ static void __init goni_sound_init(void)
+ 	__raw_writel(__raw_readl(S5P_OTHERS) | (0x3 << 8), S5P_OTHERS);
+ }
+ 
++#ifdef CONFIG_CMA
++
++static void __init goni_reserve(void)
 +{
-+	return __undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
++	static struct cma_region regions[] = {
++		CMA_REGION("fw",  1 << 20, 128 << 10, 0x32000000),
++		CMA_REGION("b1", 32 << 20,         0, 0x33000000),
++		CMA_REGION("b2", 16 << 20,         0, 0x44000000),
++		{ }
++	};
++
++	static const char map[] __initconst =
++		"s5p-mfc5/f=fw;s5p-mfc5/a=b1;s5p-mfc5/b=b2;*=b1,b2";
++
++	cma_set_defaults(regions, map);
++	cma_early_regions_reserve(NULL);
 +}
++
++#else
++
++#define goni_reserve NULL
++
++#endif
++
+ static void __init goni_map_io(void)
+ {
+ 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
+@@ -865,4 +890,5 @@ MACHINE_START(GONI, "GONI")
+ 	.map_io		= goni_map_io,
+ 	.init_machine	= goni_machine_init,
+ 	.timer		= &s3c24xx_timer,
++	.reserve	= goni_reserve,
+ MACHINE_END
+diff --git a/arch/arm/mach-s5pv310/mach-universal_c210.c b/arch/arm/mach-s5pv310/mach-universal_c210.c
+index 16d8fc0..90a2296 100644
+--- a/arch/arm/mach-s5pv310/mach-universal_c210.c
++++ b/arch/arm/mach-s5pv310/mach-universal_c210.c
+@@ -13,6 +13,7 @@
+ #include <linux/i2c.h>
+ #include <linux/gpio_keys.h>
+ #include <linux/gpio.h>
++#include <linux/cma.h>
  
- /*
-- * test all pages in [start_pfn, end_pfn)are isolated or not.
-+ * Test all pages in [start_pfn, end_pfn) are isolated or not.
-  */
--extern int
--test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
-+int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
+ #include <asm/mach/arch.h>
+ #include <asm/mach-types.h>
+@@ -138,6 +139,21 @@ static void __init universal_map_io(void)
+ 	s3c24xx_init_uarts(universal_uartcfgs, ARRAY_SIZE(universal_uartcfgs));
+ }
  
- /*
-- * Internal funcs.Changes pageblock's migrate type.
-- * Please use make_pagetype_isolated()/make_pagetype_movable().
-+ * Internal functions. Changes pageblock's migrate type.
-  */
--extern int set_migratetype_isolate(struct page *page);
--extern void unset_migratetype_isolate(struct page *page);
-+int set_migratetype_isolate(struct page *page);
-+void __unset_migratetype_isolate(struct page *page, unsigned migratetype);
-+static inline void unset_migratetype_isolate(struct page *page)
++static void __init universal_reserve(void)
 +{
-+	__unset_migratetype_isolate(page, MIGRATE_MOVABLE);
++	static struct cma_region regions[] = {
++		CMA_REGION("r" , 64 << 20, 0, 0),
++		CMA_REGION("fw",  1 << 20, 128 << 10),
++		{ }
++	};
++
++	static const char map[] __initconst =
++		"s3c-mfc5/f=fw;*=r";
++
++	cma_set_defaults(regions, map);
++	cma_early_regions_reserve(NULL);
 +}
- extern unsigned long alloc_contig_freed_pages(unsigned long start,
- 					      unsigned long end, gfp_t flag);
- extern void free_contig_pages(struct page *page, int nr_pages);
-@@ -39,7 +53,6 @@ extern void free_contig_pages(struct page *page, int nr_pages);
- /*
-  * For migration.
-  */
--
- int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn);
- unsigned long scan_lru_pages(unsigned long start, unsigned long end);
- int do_migrate_range(unsigned long start_pfn, unsigned long end_pfn);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 91daf22..a24193e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5463,7 +5463,7 @@ out:
- 	return ret;
- }
- 
--void unset_migratetype_isolate(struct page *page)
-+void __unset_migratetype_isolate(struct page *page, unsigned migratetype)
++
+ static void __init universal_machine_init(void)
  {
- 	struct zone *zone;
- 	unsigned long flags;
-@@ -5471,8 +5471,8 @@ void unset_migratetype_isolate(struct page *page)
- 	spin_lock_irqsave(&zone->lock, flags);
- 	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
- 		goto out;
--	set_pageblock_migratetype(page, MIGRATE_MOVABLE);
--	move_freepages_block(zone, page, MIGRATE_MOVABLE);
-+	set_pageblock_migratetype(page, migratetype);
-+	move_freepages_block(zone, page, migratetype);
- out:
- 	spin_unlock_irqrestore(&zone->lock, flags);
- }
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 077cf19..ea9781e 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -23,10 +23,11 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
- }
- 
- /*
-- * start_isolate_page_range() -- make page-allocation-type of range of pages
-+ * __start_isolate_page_range() -- make page-allocation-type of range of pages
-  * to be MIGRATE_ISOLATE.
-  * @start_pfn: The lower PFN of the range to be isolated.
-  * @end_pfn: The upper PFN of the range to be isolated.
-+ * @migratetype: migrate type to set in error recovery.
-  *
-  * Making page-allocation-type to be MIGRATE_ISOLATE means free pages in
-  * the range will never be allocated. Any free pages and pages freed in the
-@@ -35,8 +36,8 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
-  * start_pfn/end_pfn must be aligned to pageblock_order.
-  * Returns 0 on success and -EBUSY if any part of range cannot be isolated.
-  */
--int
--start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
-+int __start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-+			       unsigned migratetype)
- {
- 	unsigned long pfn;
- 	unsigned long undo_pfn;
-@@ -59,7 +60,7 @@ undo:
- 	for (pfn = start_pfn;
- 	     pfn < undo_pfn;
- 	     pfn += pageblock_nr_pages)
--		unset_migratetype_isolate(pfn_to_page(pfn));
-+		__unset_migratetype_isolate(pfn_to_page(pfn), migratetype);
- 
- 	return -EBUSY;
- }
-@@ -67,8 +68,8 @@ undo:
- /*
-  * Make isolated pages available again.
-  */
--int
--undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
-+int __undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-+			      unsigned migratetype)
- {
- 	unsigned long pfn;
- 	struct page *page;
-@@ -80,7 +81,7 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
- 		page = __first_valid_page(pfn, pageblock_nr_pages);
- 		if (!page || get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
- 			continue;
--		unset_migratetype_isolate(page);
-+		__unset_migratetype_isolate(page, migratetype);
- 	}
- 	return 0;
- }
+ 	i2c_register_board_info(0, i2c0_devs, ARRAY_SIZE(i2c0_devs));
+@@ -152,6 +168,7 @@ MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
+ 	.boot_params	= S5P_PA_SDRAM + 0x100,
+ 	.init_irq	= s5pv310_init_irq,
+ 	.map_io		= universal_map_io,
++	.reserve	= universal_reserve,
+ 	.init_machine	= universal_machine_init,
+ 	.timer		= &s5pv310_timer,
+ MACHINE_END
 -- 
 1.7.2.3
 
