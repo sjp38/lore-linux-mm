@@ -1,156 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 10C8F6B004A
-	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 20:25:25 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAJ1PN9w028313
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 19 Nov 2010 10:25:23 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 05A4545DE52
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:25:23 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D318045DE53
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:25:22 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id AA62C1DB8015
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:25:22 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C1451DB8014
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:25:22 +0900 (JST)
-Date: Fri, 19 Nov 2010 10:19:38 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 39 of 66] memcg huge memory
-Message-Id: <20101119101938.2edf889f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <877d2f205026b0463450.1288798094@v2.random>
-References: <patchbomb.1288798055@v2.random>
-	<877d2f205026b0463450.1288798094@v2.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0F98B6B0087
+	for <linux-mm@kvack.org>; Thu, 18 Nov 2010 20:33:23 -0500 (EST)
+Date: Fri, 19 Nov 2010 08:12:18 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [1/8,v3] NUMA Hotplug Emulator: add function to hide memory
+ region via e820 table.
+Message-ID: <20101119001218.GA3327@shaohui>
+References: <20101117020759.016741414@intel.com>
+ <20101117021000.479272928@intel.com>
+ <alpine.DEB.2.00.1011162354390.16875@chino.kir.corp.google.com>
+ <20101118092052.GE2408@shaohui>
+ <alpine.DEB.2.00.1011181313140.26680@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1011181313140.26680@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: David Rientjes <rientjes@google.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 03 Nov 2010 16:28:14 +0100
-Andrea Arcangeli <aarcange@redhat.com> wrote:
-
-> From: Andrea Arcangeli <aarcange@redhat.com>
+On Thu, Nov 18, 2010 at 01:16:07PM -0800, David Rientjes wrote:
+> On Thu, 18 Nov 2010, Shaohui Zheng wrote:
 > 
-> Add memcg charge/uncharge to hugepage faults in huge_memory.c.
+> > > > Index: linux-hpe4/arch/x86/kernel/e820.c
+> > > > ===================================================================
+> > > > --- linux-hpe4.orig/arch/x86/kernel/e820.c	2010-11-15 17:13:02.483461667 +0800
+> > > > +++ linux-hpe4/arch/x86/kernel/e820.c	2010-11-15 17:13:07.083461581 +0800
+> > > > @@ -971,6 +971,7 @@
+> > > >  }
+> > > >  
+> > > >  static int userdef __initdata;
+> > > > +static u64 max_mem_size __initdata = ULLONG_MAX;
+> > > >  
+> > > >  /* "mem=nopentium" disables the 4MB page tables. */
+> > > >  static int __init parse_memopt(char *p)
+> > > > @@ -989,12 +990,28 @@
+> > > >  
+> > > >  	userdef = 1;
+> > > >  	mem_size = memparse(p, &p);
+> > > > -	e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
+> > > > +	e820_remove_range(mem_size, max_mem_size - mem_size, E820_RAM, 1);
+> > > > +	max_mem_size = mem_size;
+> > > >  
+> > > >  	return 0;
+> > > >  }
+> > > 
+> > > This needs memmap= support as well, right?
+> > we did not do the testing after combine both memmap and numa=hide paramter, 
+> > I think that the result should similar with mem=XX, they both remove a memory
+> > region from the e820 table.
+> > 
 > 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> ---
+> You've modified the parser for mem= but not memmap= so the change needs 
+> additional support for the latter.
 > 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -233,6 +233,7 @@ static int __do_huge_pmd_anonymous_page(
->  	VM_BUG_ON(!PageCompound(page));
->  	pgtable = pte_alloc_one(mm, haddr);
->  	if (unlikely(!pgtable)) {
-> +		mem_cgroup_uncharge_page(page);
->  		put_page(page);
->  		return VM_FAULT_OOM;
->  	}
-> @@ -243,6 +244,7 @@ static int __do_huge_pmd_anonymous_page(
->  	spin_lock(&mm->page_table_lock);
->  	if (unlikely(!pmd_none(*pmd))) {
->  		spin_unlock(&mm->page_table_lock);
-> +		mem_cgroup_uncharge_page(page);
->  		put_page(page);
->  		pte_free(mm, pgtable);
->  	} else {
-> @@ -286,6 +288,10 @@ int do_huge_pmd_anonymous_page(struct mm
->  		page = alloc_hugepage(transparent_hugepage_defrag(vma));
->  		if (unlikely(!page))
->  			goto out;
-> +		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
-> +			put_page(page);
-> +			goto out;
-> +		}
->  
->  		return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page);
->  	}
-> @@ -402,9 +408,15 @@ static int do_huge_pmd_wp_page_fallback(
->  	for (i = 0; i < HPAGE_PMD_NR; i++) {
->  		pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
->  					  vma, address);
-> -		if (unlikely(!pages[i])) {
-> -			while (--i >= 0)
-> +		if (unlikely(!pages[i] ||
-> +			     mem_cgroup_newpage_charge(pages[i], mm,
-> +						       GFP_KERNEL))) {
-> +			if (pages[i])
->  				put_page(pages[i]);
-> +			while (--i >= 0) {
-> +				mem_cgroup_uncharge_page(pages[i]);
-> +				put_page(pages[i]);
-> +			}
 
-Maybe you can use batched-uncharge here.
-==
-mem_cgroup_uncharge_start()
-{
-	do loop;
-}
-mem_cgroup_uncharge_end();
-==
-Then, many atomic ops can be reduced.
+the parser for mem= is not modified, the changed parser is numa=, I add a addtional
+option numa=hide=.
 
+>From current discussion, numa=hide= interface should be removed, we will use mem=
+to hide memory.
 
->  			kfree(pages);
->  			ret |= VM_FAULT_OOM;
->  			goto out;
-> @@ -455,8 +467,10 @@ out:
->  
->  out_free_pages:
->  	spin_unlock(&mm->page_table_lock);
-> -	for (i = 0; i < HPAGE_PMD_NR; i++)
-> +	for (i = 0; i < HPAGE_PMD_NR; i++) {
-> +		mem_cgroup_uncharge_page(pages[i]);
->  		put_page(pages[i]);
-> +	}
+> > > >  early_param("mem", parse_memopt);
+> > > >  
+> > > > +#ifdef CONFIG_NODE_HOTPLUG_EMU
+> > > > +u64 __init e820_hide_mem(u64 mem_size)
+> > > > +{
+> > > > +	u64 start, end_pfn;
+> > > > +
+> > > > +	userdef = 1;
+> > > > +	end_pfn = e820_end_of_ram_pfn();
+> > > > +	start = (end_pfn << PAGE_SHIFT) - mem_size;
+> > > > +	e820_remove_range(start, max_mem_size - start, E820_RAM, 1);
+> > > > +	max_mem_size = start;
+> > > > +
+> > > > +	return start;
+> > > > +}
+> > > > +#endif
+> > > 
+> > > This doesn't have any sanity checking for whether e820_remove_range() will 
+> > > leave any significant amount of memory behind so the kernel will even boot 
+> > > (probably should have a guaranteed FAKE_NODE_MIN_SIZE left behind?).
+> > 
+> > it should not be checked here, it should be checked by the function who call
+> >  e820_hide_mem, and truncate the mem_size with FAKE_NODE_MIN_SIZE.
+> > 
+> 
+> Your patchset doesn't do that, I'm talking specifically about the amount 
+> of memory left behind so that the kernel at least still boots.  That seems 
+> to be a function of e820_hide_mem() to do some sanity checking so we 
+> actually still get a kernel rather than the responsibility of the 
+> command-line parser.
 
-here, too.
+How much memory is enough to make sure the kernel can still boot, it is very 
+hard to measure. it is almost impossible to get the exact data. I try to leave very 
+few memory to kernel(hide most memory with numa=hide), it cause a panic directly.
 
->  	kfree(pages);
->  	goto out;
->  }
-> @@ -501,14 +515,22 @@ int do_huge_pmd_wp_page(struct mm_struct
->  		goto out;
->  	}
->  
-> +	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
-> +		put_page(new_page);
-> +		put_page(page);
-> +		ret |= VM_FAULT_OOM;
-> +		goto out;
-> +	}
-> +
->  	copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
->  	__SetPageUptodate(new_page);
->  
->  	spin_lock(&mm->page_table_lock);
->  	put_page(page);
-> -	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-> +	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
-> +		mem_cgroup_uncharge_page(new_page);
->  		put_page(new_page);
-> -	else {
-> +	} else {
->  		pmd_t entry;
->  		VM_BUG_ON(!PageHead(page));
->  		entry = mk_pmd(new_page, vma->vm_page_prot);
+I have no idea about it, do you have any suggestions?
 
-
-Hmm...it seems there are no codes for move_account() hugepage in series.
-I think it needs some complicated work to walk page table.
-
-Thanks,
--Kame
+Another example,  
+I try to add paramter "mem=1M", it compains "Select item can not fit into memory", 
+and I did not find where the error message comes from, I guess that it should 
+be printed by grub.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
