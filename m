@@ -1,692 +1,463 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B11376B0085
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:58:29 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 312D46B008A
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 10:58:30 -0500 (EST)
 MIME-version: 1.0
 Content-transfer-encoding: 7BIT
 Content-type: TEXT/PLAIN
-Received: from spt2.w1.samsung.com ([210.118.77.13]) by mailout3.w1.samsung.com
+Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
  (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LC500IKW31DR120@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 19 Nov 2010 15:58:26 +0000 (GMT)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LC500EK431CR0@spt2.w1.samsung.com> for
+ with ESMTP id <0LC500JD931DUQ20@mailout4.w1.samsung.com> for
  linux-mm@kvack.org; Fri, 19 Nov 2010 15:58:25 +0000 (GMT)
-Date: Fri, 19 Nov 2010 16:58:03 +0100
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LC50012X31C14@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 19 Nov 2010 15:58:25 +0000 (GMT)
+Date: Fri, 19 Nov 2010 16:58:04 +0100
 From: Michal Nazarewicz <m.nazarewicz@samsung.com>
-Subject: [RFCv6 05/13] mm: cma: debugfs support added
+Subject: [RFCv6 06/13] mm: cma: Best-fit algorithm added
 In-reply-to: <cover.1290172312.git.m.nazarewicz@samsung.com>
 Message-id: 
- <5b4b5dc196968bb3c4c28e3f91b0b9feab6a1c37.1290172312.git.m.nazarewicz@samsung.com>
+ <b82ec382957f8846aedcb83f650aa1b48e5b87a8.1290172312.git.m.nazarewicz@samsung.com>
 References: <cover.1290172312.git.m.nazarewicz@samsung.com>
 Sender: owner-linux-mm@kvack.org
 To: mina86@mina86.com
 Cc: Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, Bryan Huntsman <bryanh@codeaurora.org>, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Johan Mossberg <johan.xx.mossberg@stericsson.com>, Jonathan Corbet <corbet@lwn.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Marcus LORENTZON <marcus.xm.lorentzon@stericsson.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Mel Gorman <mel@csn.ul.ie>, Pawel Osciak <pawel@osciak.com>, Russell King <linux@arm.linux.org.uk>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, dipankar@in.ibm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The debugfs development interface lets one change the map attribute
-at run time as well as observe what regions have been reserved.
+This commits adds a best-fit algorithm to the set of
+algorithms supported by the CMA.
 
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- Documentation/contiguous-memory.txt |    4 +
- include/linux/cma.h                 |   11 +
- mm/Kconfig                          |   25 ++-
- mm/cma.c                            |  501 ++++++++++++++++++++++++++++++++++-
- 4 files changed, 537 insertions(+), 4 deletions(-)
+ mm/Kconfig        |   16 ++-
+ mm/Makefile       |    1 +
+ mm/cma-best-fit.c |  372 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 388 insertions(+), 1 deletions(-)
+ create mode 100644 mm/cma-best-fit.c
 
-diff --git a/Documentation/contiguous-memory.txt b/Documentation/contiguous-memory.txt
-index f1715ba..ec09d8e 100644
---- a/Documentation/contiguous-memory.txt
-+++ b/Documentation/contiguous-memory.txt
-@@ -258,6 +258,10 @@
-      iff it matched in previous pattern.  If the second part is
-      omitted it will mach any type of memory requested by device.
- 
-+     If debugfs support is enabled, this attribute is accessible via
-+     debugfs and can be changed at run-time by writing to
-+     contiguous/map.
-+
-      Some examples (whitespace added for better readability):
- 
-          cma_map = foo/quaz = r1;
-diff --git a/include/linux/cma.h b/include/linux/cma.h
-index a6031a7..8437104 100644
---- a/include/linux/cma.h
-+++ b/include/linux/cma.h
-@@ -24,6 +24,7 @@
- 
- struct device;
- struct cma_info;
-+struct dentry;
- 
- /**
-  * struct cma - an allocated contiguous chunk of memory.
-@@ -276,6 +277,11 @@ struct cma_region {
- 	unsigned users;
- 	struct list_head list;
- 
-+#if defined CONFIG_CMA_DEBUGFS
-+	const char *to_alloc_link, *from_alloc_link;
-+	struct dentry *dir, *to_alloc, *from_alloc;
-+#endif
-+
- 	unsigned used:1;
- 	unsigned registered:1;
- 	unsigned reserved:1;
-@@ -382,6 +388,11 @@ struct cma_allocator {
- 	void (*unpin)(struct cma *chunk);
- 
- 	struct list_head list;
-+
-+#if defined CONFIG_CMA_DEBUGFS
-+	const char *dir_name;
-+	struct dentry *regs_dir;
-+#endif
- };
- 
- /**
 diff --git a/mm/Kconfig b/mm/Kconfig
-index c7eb1bc..a5480ea 100644
+index a5480ea..5ad2471 100644
 --- a/mm/Kconfig
 +++ b/mm/Kconfig
-@@ -351,16 +351,35 @@ config CMA
- 	  For more information see <Documentation/contiguous-memory.txt>.
- 	  If unsure, say "n".
+@@ -332,10 +332,13 @@ config CLEANCACHE
  
--config CMA_DEBUG
--	bool "CMA debug messages (DEVELOPEMENT)"
-+config CMA_DEVELOPEMENT
-+	bool "Include CMA developement features"
- 	depends on CMA
+ 	  If unsure, say Y to enable cleancache
+ 
++config CMA_HAS_ALLOCATOR
++	bool
++
+ config CMA
+ 	bool "Contiguous Memory Allocator framework"
+ 	# Currently there is only one allocator so force it on
+-	select CMA_GENERIC_ALLOCATOR
++	select CMA_GENERIC_ALLOCATOR if !CMA_HAS_ALLOCATOR
  	help
-+	  This lets you enable some developement features of the CMA
-+	  framework.  It does not add any code to the kernel.
+ 	  This enables the Contiguous Memory Allocator framework which
+ 	  allows drivers to allocate big physically-contiguous blocks of
+@@ -391,3 +394,14 @@ config CMA_GENERIC_ALLOCATOR
+ 	  implementations: the first-fit, bitmap-based algorithm or
+ 	  a best-fit, red-black tree-based algorithm.  The algorithm can
+ 	  be changed under "Library routines".
 +
-+	  Those options are mostly usable during development and testing.
-+	  If unsure, say "n".
-+
-+config CMA_DEBUG
-+	bool "CMA debug messages"
-+	depends on CMA_DEVELOPEMENT
++config CMA_BEST_FIT
++	bool "CMA best-fit allocator"
++	depends on CMA
++	select CMA_HAS_ALLOCATOR
 +	help
- 	  Turns on debug messages in CMA.  This produces KERN_DEBUG
- 	  messages for every CMA call as well as various messages while
- 	  processing calls such as cma_alloc().  This option does not
- 	  affect warning and error messages.
- 
--	  This is mostly used during development.  If unsure, say "n".
-+config CMA_DEBUGFS
-+	bool "CMA debugfs interface support"
-+	depends on CMA_DEVELOPEMENT && DEBUG_FS
-+	help
-+	  Enable support for debugfs interface.  It is available under the
-+	  "contiguous" directory in the debugfs root directory.  Each
-+	  region and allocator is represented there.
-+
-+	  For more information consult
-+	  <Documentation/contiguous-memory.txt>.
- 
- config CMA_GENERIC_ALLOCATOR
- 	bool "CMA generic allocator"
-diff --git a/mm/cma.c b/mm/cma.c
-index 17276b3..dfdeeb7 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -34,11 +34,16 @@
- #include <linux/slab.h>        /* kmalloc() */
- #include <linux/string.h>      /* str*() */
- #include <linux/genalloc.h>    /* gen_pool_*() */
-+#include <linux/debugfs.h>     /* debugfs stuff */
-+#include <linux/uaccess.h>     /* copy_{to,from}_user */
- 
- #include <linux/cma.h>
- 
- 
--/* Protects cma_regions, cma_allocators, cma_map and cma_map_length. */
++	  This is a best-fit algorithm running in O(n log n) time where
++	  n is the number of existing holes (which is never greater then
++	  the number of allocated regions and usually much smaller).  It
++	  allocates area from the smallest hole that is big enough for
++	  allocation in question.
+diff --git a/mm/Makefile b/mm/Makefile
+index c6a84f1..2cb2569 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -44,3 +44,4 @@ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+ obj-$(CONFIG_CLEANCACHE) += cleancache.o
+ obj-$(CONFIG_CMA) += cma.o
++obj-$(CONFIG_CMA_BEST_FIT) += cma-best-fit.o
+diff --git a/mm/cma-best-fit.c b/mm/cma-best-fit.c
+new file mode 100644
+index 0000000..5ed1168
+--- /dev/null
++++ b/mm/cma-best-fit.c
+@@ -0,0 +1,372 @@
 +/*
-+ * Protects cma_regions, cma_allocators, cma_map, cma_map_length,
-+ * cma_dfs_regions and cma_dfs_allocators.
++ * Contiguous Memory Allocator framework: Best Fit allocator
++ * Copyright (c) 2010 by Samsung Electronics.
++ * Written by Michal Nazarewicz (m.nazarewicz@samsung.com)
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License or (at your optional) any later version of the license.
 + */
- static DEFINE_MUTEX(cma_mutex);
- 
- 
-@@ -139,7 +144,13 @@ int __init __must_check cma_early_region_register(struct cma_region *reg)
- 
- /************************* Regions & Allocators *************************/
- 
-+static void __cma_dfs_region_add(struct cma_region *reg);
-+static void __cma_dfs_region_alloc_update(struct cma_region *reg);
-+static void __cma_dfs_allocator_add(struct cma_allocator *alloc);
 +
- static int __cma_region_attach_alloc(struct cma_region *reg);
-+static void __maybe_unused __cma_region_detach_alloc(struct cma_region *reg);
++#define pr_fmt(fmt) "cma: bf: " fmt
 +
- 
- /* List of all regions.  Named regions are kept before unnamed. */
- static LIST_HEAD(cma_regions);
-@@ -222,6 +233,8 @@ int __must_check cma_region_register(struct cma_region *reg)
- 	else
- 		list_add_tail(&reg->list, &cma_regions);
- 
-+	__cma_dfs_region_add(reg);
++#ifdef CONFIG_CMA_DEBUG
++#  define DEBUG
++#endif
 +
- done:
- 	mutex_unlock(&cma_mutex);
- 
-@@ -298,6 +311,8 @@ int cma_allocator_register(struct cma_allocator *alloc)
- 		__cma_region_attach_alloc(reg);
- 	}
- 
-+	__cma_dfs_allocator_add(alloc);
++#include <linux/errno.h>       /* Error numbers */
++#include <linux/slab.h>        /* kmalloc() */
 +
- 	mutex_unlock(&cma_mutex);
- 
- 	pr_debug("%s: allocator registered\n", alloc->name ?: "(unnamed)");
-@@ -481,6 +496,476 @@ static int __init cma_init(void)
- subsys_initcall(cma_init);
- 
- 
-+/************************* Debugfs *************************/
++#include <linux/cma.h>         /* CMA structures */
 +
-+#if defined CONFIG_CMA_DEBUGFS
 +
-+static struct dentry *cma_dfs_regions, *cma_dfs_allocators;
++/************************* Data Types *************************/
 +
-+struct cma_dfs_file {
-+	const char *name;
-+	const struct file_operations *ops;
++struct cma_bf_node {
++	unsigned long v;
++	struct rb_node n;
 +};
 +
-+static struct dentry *
-+cma_dfs_create_file(const char *name, struct dentry *parent,
-+		    void *priv, const struct file_operations *ops)
-+{
-+	struct dentry *d;
-+	d = debugfs_create_file(name, ops->write ? 0644 : 0444,
-+				parent, priv, ops);
-+	if (IS_ERR_OR_NULL(d)) {
-+		pr_err("debugfs: %s: %s: unable to create\n",
-+		       parent->d_iname, name);
-+		return NULL;
-+	}
-+
-+	return d;
-+}
-+
-+static void cma_dfs_create_files(const struct cma_dfs_file *files,
-+				 struct dentry *parent, void *priv)
-+{
-+	while (files->name
-+	    && cma_dfs_create_file(files->name, parent, priv, files->ops))
-+		++files;
-+}
-+
-+static struct dentry *
-+cma_dfs_create_dir(const char *name, struct dentry *parent)
-+{
-+	struct dentry *d = debugfs_create_dir(name, parent);
-+
-+	if (IS_ERR_OR_NULL(d)) {
-+		pr_err("debugfs: %s: %s: unable to create\n",
-+		       parent ? (const char *)parent->d_iname : "<root>", name);
-+		return NULL;
-+	}
-+
-+	return d;
-+}
-+
-+static struct dentry *
-+cma_dfs_create_lnk(const char *name, struct dentry *parent, const char *target)
-+{
-+	struct dentry *d = debugfs_create_symlink(name, parent, target);
-+
-+	if (IS_ERR_OR_NULL(d)) {
-+		pr_err("debugfs: %s: %s: unable to create\n",
-+		       parent->d_iname, name);
-+		return NULL;
-+	}
-+
-+	return d;
-+}
-+
-+static int cma_dfs_open(struct inode *inode, struct file *file)
-+{
-+	file->private_data = inode->i_private;
-+	return 0;
-+}
-+
-+static ssize_t cma_dfs_map_read(struct file *file, char __user *buf,
-+				size_t size, loff_t *offp)
-+{
-+	ssize_t len;
-+
-+	if (!cma_map_length || *offp)
-+		return 0;
-+
-+	mutex_lock(&cma_mutex);
-+
-+	/* may have changed */
-+	len = cma_map_length;
-+	if (!len)
-+		goto done;
-+
-+	len = min_t(size_t, size, len);
-+	if (copy_to_user(buf, cma_map, len))
-+		len = -EFAULT;
-+	else if ((size_t)len < size && put_user('\n', buf + len++))
-+		len = -EFAULT;
-+
-+done:
-+	mutex_unlock(&cma_mutex);
-+
-+	if (len > 0)
-+		*offp = len;
-+
-+	return len;
-+}
-+
-+static ssize_t cma_dfs_map_write(struct file *file, const char __user *buf,
-+				 size_t size, loff_t *offp)
-+{
-+	char *val, *v;
-+	ssize_t len;
-+
-+	if (size >= PAGE_SIZE || *offp)
-+		return -ENOSPC;
-+
-+	val = kmalloc(size + 1, GFP_KERNEL);
-+	if (!val)
-+		return -ENOMEM;
-+
-+	if (copy_from_user(val, buf, size)) {
-+		len = -EFAULT;
-+		goto done;
-+	}
-+	val[size] = '\0';
-+
-+	len = cma_map_validate(val);
-+	if (len < 0)
-+		goto done;
-+	val[len] = '\0';
-+
-+	mutex_lock(&cma_mutex);
-+	v = (char *)cma_map;
-+	cma_map = val;
-+	val = v;
-+	cma_map_length = len;
-+	mutex_unlock(&cma_mutex);
-+
-+done:
-+	kfree(val);
-+
-+	if (len > 0)
-+		*offp = len;
-+
-+	return len;
-+}
-+
-+static int __init cma_dfs_init(void)
-+{
-+	static const struct file_operations map_ops = {
-+		.read = cma_dfs_map_read,
-+		.write = cma_dfs_map_write,
++union cma_bf_item {
++	struct cma chunk;
++	struct {
++		struct cma_bf_node start, size;
 +	};
++};
 +
-+	struct dentry *root, *a, *r;
++struct cma_bf_private {
++	struct rb_root by_start_root;
++	struct rb_root by_size_root;
++	bool warned;
++};
 +
-+	root = cma_dfs_create_dir("contiguous", NULL);
-+	if (!root)
-+		return 0;
 +
-+	if (!cma_dfs_create_file("map", root, NULL, &map_ops))
-+		goto error;
++/************************* Basic Tree Manipulation *************************/
 +
-+	a = cma_dfs_create_dir("allocators", root);
-+	if (!a)
-+		goto error;
++static int  cma_bf_node_add(struct cma_bf_node *node, struct rb_root *root,
++			    bool unique)
++{
++	struct rb_node **link = &root->rb_node, *parent = NULL;
++	const unsigned long v = node->v;
 +
-+	r = cma_dfs_create_dir("regions", root);
-+	if (!r)
-+		goto error;
++	while (*link) {
++		struct cma_bf_node *n;
++		parent = *link;
++		n = rb_entry(parent, struct cma_bf_node, n);
 +
-+	mutex_lock(&cma_mutex);
-+	{
-+		struct cma_allocator *alloc;
-+		cma_dfs_allocators = a;
-+		cma_foreach_allocator(alloc)
-+			__cma_dfs_allocator_add(alloc);
++		if (unlikely(unique && v == n->v))
++			return -EBUSY;
++
++		link = v <= n->v ? &parent->rb_left : &parent->rb_right;
 +	}
 +
-+	{
-+		struct cma_region *reg;
-+		cma_dfs_regions = r;
-+		cma_foreach_region(reg)
-+			__cma_dfs_region_add(reg);
-+	}
-+	mutex_unlock(&cma_mutex);
++	rb_link_node(&node->n, parent, link);
++	rb_insert_color(&node->n, root);
 +
 +	return 0;
-+
-+error:
-+	debugfs_remove_recursive(root);
-+	return 0;
-+}
-+device_initcall(cma_dfs_init);
-+
-+static ssize_t cma_dfs_region_name_read(struct file *file, char __user *buf,
-+					size_t size, loff_t *offp)
-+{
-+	struct cma_region *reg = file->private_data;
-+	size_t len;
-+
-+	if (!reg->name || *offp)
-+		return 0;
-+
-+	len = min(strlen(reg->name), size);
-+	if (copy_to_user(buf, reg->name, len))
-+		return -EFAULT;
-+	if (len < size && put_user('\n', buf + len++))
-+		return -EFAULT;
-+
-+	*offp = len;
-+	return len;
 +}
 +
-+static ssize_t cma_dfs_region_info_read(struct file *file, char __user *buf,
-+					size_t size, loff_t *offp)
++static void cma_bf_node_del(struct cma_bf_node *node, struct rb_root *root)
 +{
-+	struct cma_region *reg = file->private_data;
-+	char str[min((size_t)63, size) + 1];
-+	int len;
-+
-+	if (*offp)
-+		return 0;
-+
-+	len = snprintf(str, sizeof str, "%p %p %p\n",
-+		       (void *)reg->start, (void *)reg->size,
-+		       (void *)reg->free_space);
-+
-+	if (copy_to_user(buf, str, len))
-+		return -EFAULT;
-+
-+	*offp = len;
-+	return len;
++	rb_erase(&node->n, root);
 +}
 +
-+static ssize_t cma_dfs_region_alloc_read(struct file *file, char __user *buf,
-+					 size_t size, loff_t *offp)
++static int  cma_bf_item_add_by_start(union cma_bf_item *item,
++				     struct cma_bf_private *prv)
 +{
-+	struct cma_region *reg = file->private_data;
-+	char str[min((size_t)63, size) + 1];
-+	const char *fmt;
-+	const void *arg;
-+	int len = 0;
-+
-+	if (*offp)
-+		return 0;
-+
-+	mutex_lock(&cma_mutex);
-+
-+	if (reg->alloc) {
-+		if (reg->alloc->name) {
-+			fmt = "%s\n";
-+			arg = reg->alloc->name;
-+		} else {
-+			fmt = "0x%p\n";
-+			arg = (void *)reg->alloc;
-+		}
-+	} else if (reg->alloc_name) {
-+		fmt = "[%s]\n";
-+		arg = reg->alloc_name;
-+	} else {
-+		goto done;
-+	}
-+
-+	len = snprintf(str, sizeof str, fmt, arg);
-+
-+done:
-+	mutex_unlock(&cma_mutex);
-+
-+	if (len) {
-+		if (copy_to_user(buf, str, len))
-+			return -EFAULT;
-+		*offp = len;
-+	}
-+	return len;
-+}
-+
-+static ssize_t
-+cma_dfs_region_alloc_write(struct file *file, const char __user *buf,
-+			   size_t size, loff_t *offp)
-+{
-+	struct cma_region *reg = file->private_data;
-+	ssize_t ret;
-+	char *s, *t;
-+
-+	if (size > 64 || *offp)
-+		return -ENOSPC;
-+
-+	if (reg->alloc && reg->users)
-+		return -EBUSY;
-+
-+	s = kmalloc(size + 1, GFP_KERNEL);
-+	if (!s)
-+		return -ENOMEM;
-+
-+	if (copy_from_user(s, buf, size)) {
-+		ret = -EFAULT;
-+		goto done_free;
-+	}
-+
-+	s[size] = '\0';
-+	t = strchr(s, '\n');
-+	if (t == s) {
-+		kfree(s);
-+		s = NULL;
-+	}
-+	if (t)
-+		*t = '\0';
-+
-+	mutex_lock(&cma_mutex);
-+
-+	/* things may have changed while we were acquiring lock */
-+	if (reg->alloc && reg->users) {
-+		ret = -EBUSY;
-+	} else {
-+		if (reg->alloc)
-+			__cma_region_detach_alloc(reg);
-+
-+		t = s;
-+		s = reg->free_alloc_name ? (char *)reg->alloc_name : NULL;
-+
-+		reg->alloc_name = t;
-+		reg->free_alloc_name = 1;
-+
-+		ret = size;
-+	}
-+
-+	mutex_unlock(&cma_mutex);
-+
-+done_free:
-+	kfree(s);
-+
-+	if (ret > 0)
-+		*offp = ret;
++	int ret = cma_bf_node_add(&item->start, &prv->by_start_root, true);
++	if (WARN_ON(ret && !prv->warned))
++		prv->warned = true;
 +	return ret;
 +}
 +
-+static const struct cma_dfs_file __cma_dfs_region_files[] = {
++static void cma_bf_item_del_by_start(union cma_bf_item *item,
++				     struct cma_bf_private *prv)
++{
++	cma_bf_node_del(&item->start, &prv->by_start_root);
++}
++
++static void cma_bf_item_add_by_size(union cma_bf_item *item,
++				    struct cma_bf_private *prv)
++{
++	cma_bf_node_add(&item->size, &prv->by_size_root, false);
++}
++
++static void cma_bf_item_del_by_size(union cma_bf_item *item,
++				    struct cma_bf_private *prv)
++{
++	cma_bf_node_del(&item->size, &prv->by_size_root);
++}
++
++
++/************************* Device API *************************/
++
++static int cma_bf_init(struct cma_region *reg)
++{
++	struct cma_bf_private *prv;
++	union cma_bf_item *item;
++
++	prv = kzalloc(sizeof *prv, GFP_KERNEL);
++	if (unlikely(!prv))
++		return -ENOMEM;
++
++	item = kzalloc(sizeof *item, GFP_KERNEL);
++	if (unlikely(!item)) {
++		kfree(prv);
++		return -ENOMEM;
++	}
++
++	item->start.v = reg->start;
++	item->size.v  = reg->size;
++
++	rb_root_init(&prv->by_start_root, &item->start.n);
++	rb_root_init(&prv->by_size_root, &item->size.n);
++	prv->warned = false;
++
++	reg->private_data = prv;
++	return 0;
++}
++
++static void cma_bf_cleanup(struct cma_region *reg)
++{
++	struct cma_bf_private *prv = reg->private_data;
++	union cma_bf_item *item =
++		rb_entry(prv->by_start_root.rb_node,
++			 union cma_bf_item, start.n);
++
++	/* There should be only one item. */
++	WARN_ON(!prv->warned &&
++		(!item ||
++		 item->start.n.rb_left || item->start.n.rb_right ||
++		 item->size.n.rb_left || item->size.n.rb_right));
++
++	kfree(item);
++	kfree(prv);
++}
++
++struct cma *cma_bf_alloc(struct cma_region *reg,
++			 size_t size, unsigned long alignment)
++{
++	struct cma_bf_private *prv = reg->private_data;
++	struct rb_node *node = prv->by_size_root.rb_node;
++	union cma_bf_item *hole = NULL, *item;
++	unsigned long start;
++	int ret;
++
++	/* First find hole that is large enough */
++	while (node) {
++		union cma_bf_item *item =
++			rb_entry(node, union cma_bf_item, size.n);
++
++		if (item->size.v < size) {
++			node = node->rb_right;
++		} else if (item->size.v >= size) {
++			node = node->rb_left;
++			hole = item;
++		}
++	}
++	if (!hole)
++		return ERR_PTR(-ENOMEM);
++
++	/* Now look for items which can satisfy alignment requirements */
++	for (;;) {
++		unsigned long end = hole->start.v + hole->size.v;
++		start = ALIGN(hole->start.v, alignment);
++		if (start < end && end - start >= size)
++			break;
++
++		node = rb_next(node);
++		if (!node)
++			return ERR_PTR(-ENOMEM);
++
++		hole = rb_entry(node, union cma_bf_item, size.n);
++	}
++
++	/* And finally, take part of the hole */
++
++	/*
++	 * There are three cases:
++	 * 1. the chunk takes the whole hole,
++	 * 2. the chunk is at the beginning or at the end of the hole, or
++	 * 3. the chunk is in the middle of the hole.
++	 */
++
++	/* Case 1, the whole hole */
++	if (size == hole->size.v) {
++		ret = __cma_grab(reg, start, size);
++		if (ret)
++			return ERR_PTR(ret);
++
++		cma_bf_item_del_by_start(hole, prv);
++		cma_bf_item_del_by_size(hole, prv);
++
++		hole->chunk.phys = start;
++		hole->chunk.size = size;
++		return &hole->chunk;
++	}
++
++	/* Allocate (so we can test early if ther's enough memory) */
++	item = kmalloc(sizeof *item, GFP_KERNEL);
++	if (unlikely(!item))
++		return ERR_PTR(-ENOMEM);
++
++	/* Case 3, in the middle */
++	if (start != hole->start.v &&
++	    start + size != hole->start.v + hole->size.v) {
++		union cma_bf_item *tail;
++
++		/*
++		 * Space between the end of the chunk and the end of
++		 * the region, ie. space left after the end of the
++		 * chunk.  If this is dividable by alignment we can
++		 * move the chunk to the end of the hole.
++		 */
++		unsigned long left =
++			hole->start.v + hole->size.v - (start + size);
++		if ((left & (alignment - 1)) == 0) {
++			start += left;
++			/* And so, we have reduced problem to case 2. */
++			goto case_2;
++		}
++
++		/*
++		 * We are going to add a hole at the end.  This way,
++		 * we will reduce the problem to case 2 -- the chunk
++		 * will be at the end of a reduced hole.
++		 */
++		tail = kmalloc(sizeof *tail, GFP_KERNEL);
++		if (unlikely(!tail)) {
++			kfree(item);
++			return ERR_PTR(-ENOMEM);
++		}
++
++		tail->start.v = start + size;
++		tail->size.v  =
++			hole->start.v + hole->size.v - tail->start.v;
++
++		if (cma_bf_item_add_by_start(tail, prv))
++			/*
++			 * Things are broken beyond repair...  Abort
++			 * inserting the hole but continue with the
++			 * item.  We will loose some memory but we're
++			 * screwed anyway.
++			 */
++			kfree(tail);
++		else
++			cma_bf_item_add_by_size(tail, prv);
++
++		/*
++		 * It's important that we first insert the new hole in
++		 * the tree sorted by size and later reduce the size
++		 * of the old hole.  We will update the position of
++		 * the old hole in the rb tree in code that handles
++		 * case 2.
++		 */
++		hole->size.v = tail->start.v - hole->start.v;
++
++		/* Go to case 2 */
++	}
++
++	/* Case 2, at the beginning or at the end */
++case_2:
++	/* No need to update the tree; order preserved. */
++	if (start == hole->start.v)
++		hole->start.v += size;
++
++	/* Alter hole's size */
++	hole->size.v -= size;
++	cma_bf_item_del_by_size(hole, prv);
++	cma_bf_item_add_by_size(hole, prv);
++
++	item->chunk.phys = start;
++	item->chunk.size = size;
++	return &item->chunk;
++}
++
++static void cma_bf_free(struct cma_chunk *chunk)
++{
++	struct cma_bf_private *prv = reg->private_data;
++	union cma_bf_item *prev;
++	struct rb_node *node;
++	int twice;
++
 +	{
-+		"name", &(const struct file_operations){
-+			.open = cma_dfs_open,
-+			.read = cma_dfs_region_name_read,
-+		},
-+	},
-+	{
-+		"info", &(const struct file_operations){
-+			.open = cma_dfs_open,
-+			.read = cma_dfs_region_info_read,
-+		},
-+	},
-+	{
-+		"alloc", &(const struct file_operations){
-+			.open = cma_dfs_open,
-+			.read = cma_dfs_region_alloc_read,
-+			.write = cma_dfs_region_alloc_write,
-+		},
-+	},
-+	{ }
-+};
++		unsigned long start = item->chunk.phys;
++		unsigned long size  = item->chunk.size;
++		item->start.v = start;
++		item->size.v = size;
++	}
 +
-+static void __cma_dfs_region_add(struct cma_region *reg)
-+{
-+	struct dentry *d;
-+
-+	if (!cma_dfs_regions || reg->dir)
-+		return;
-+
-+	/* Region's directory */
-+	reg->from_alloc_link = kasprintf(GFP_KERNEL, "../../regions/0x%p",
-+					 (void *)reg->start);
-+	if (!reg->from_alloc_link)
-+		return;
-+
-+	d = cma_dfs_create_dir(reg->from_alloc_link + 14, cma_dfs_regions);
-+	if (!d) {
-+		kfree(reg->from_alloc_link);
++	/* Add new hole */
++	if (cma_bf_item_add_by_start(item, prv)) {
++		/*
++		 * We're screwed...  Just free the item and forget
++		 * about it.  Things are broken beyond repair so no
++		 * sense in trying to recover.
++		 */
++		kfree(item);
 +		return;
 +	}
 +
-+	if (reg->name)
-+		cma_dfs_create_lnk(reg->name, cma_dfs_regions,
-+				   reg->from_alloc_link + 14);
++	cma_bf_item_add_by_size(item, prv);
 +
-+	reg->dir = d;
++	/* Merge with prev or next sibling */
++	twice = 2;
++	node = rb_prev(&item->start.n);
++	if (unlikely(!node))
++		goto next;
++	prev = rb_entry(node, union cma_bf_item, start.n);
 +
-+	/* Files */
-+	cma_dfs_create_files(__cma_dfs_region_files, d, reg);
++	for (;;) {
++		if (prev->start.v + prev->size.v == item->start.v) {
++			/* Remove previous hole from trees */
++			cma_bf_item_del_by_start(prev, prv);
++			cma_bf_item_del_by_size(prev, prv);
 +
-+	/* Link to allocator */
-+	__cma_dfs_region_alloc_update(reg);
-+}
++			/* Alter this hole */
++			item->start.v  = prev->start.v;
++			item->size.v += prev->size.v;
++			cma_bf_item_del_by_size(item, prv);
++			cma_bf_item_del_by_size(item, prv);
++			/*
++			 * No need to update the by start trees as we
++			 * do not break sequence order.
++			 */
 +
-+static void __cma_dfs_region_alloc_update(struct cma_region *reg)
-+{
-+	if (!cma_dfs_regions || !cma_dfs_allocators || !reg->dir)
-+		return;
++			/* Free prev hole */
++			kfree(prev);
++		}
 +
-+	/* Remove stall links */
-+	if (reg->to_alloc) {
-+		debugfs_remove(reg->to_alloc);
-+		reg->to_alloc = NULL;
-+	}
++next:
++		if (!--twice)
++			break;
 +
-+	if (reg->from_alloc) {
-+		debugfs_remove(reg->from_alloc);
-+		reg->from_alloc = NULL;
-+	}
-+
-+	if (reg->to_alloc_link) {
-+		kfree(reg->to_alloc_link);
-+		reg->to_alloc_link = NULL;
-+	}
-+
-+	if (!reg->alloc)
-+		return;
-+
-+	/* Create new links */
-+	if (reg->alloc->regs_dir)
-+		reg->from_alloc =
-+			cma_dfs_create_lnk(reg->from_alloc_link + 14,
-+					   reg->alloc->regs_dir,
-+					   reg->from_alloc_link);
-+
-+	if (!reg->alloc->dir_name)
-+		return;
-+
-+	reg->to_alloc_link = kasprintf(GFP_KERNEL, "../allocators/%s",
-+				       reg->alloc->dir_name);
-+	if (reg->to_alloc_link &&
-+	    !cma_dfs_create_lnk("allocator", reg->dir, reg->to_alloc_link)) {
-+		kfree(reg->to_alloc_link);
-+		reg->to_alloc_link = NULL;
++		node = rb_next(&item->start.n);
++		if (unlikely(!node))
++			break;
++		prev = item;
++		item = rb_entry(node, union cma_bf_item, start.n);
 +	}
 +}
 +
-+static inline void __cma_dfs_allocator_add(struct cma_allocator *alloc)
 +{
-+	struct dentry *d;
-+
-+	if (!cma_dfs_allocators || alloc->dir_name)
-+		return;
-+
-+	alloc->dir_name = alloc->name ?:
-+		kasprintf(GFP_KERNEL, "0x%p", (void *)alloc);
-+	if (!alloc->dir_name)
-+		return;
-+
-+	d = cma_dfs_create_dir(alloc->dir_name, cma_dfs_allocators);
-+	if (!d) {
-+		if (!alloc->name)
-+			kfree(alloc->dir_name);
-+		alloc->dir_name = NULL;
-+		return;
-+	}
-+
-+	alloc->regs_dir = cma_dfs_create_dir("regions", d);
++	__cma_ungrab(chunk->reg, chunk->phys, chunk->size);
++	__cma_bf_free(chunk->reg, 
++		      container_of(chunk, union cma_bf_item, chunk));
 +}
 +
-+#else
++/************************* Register *************************/
 +
-+static inline void __cma_dfs_region_add(struct cma_region *reg)
++static int cma_bf_module_init(void)
 +{
-+	/* nop */
++	static struct cma_allocator alloc = {
++		.name    = "bf",
++		.init    = cma_bf_init,
++		.cleanup = cma_bf_cleanup,
++		.alloc   = cma_bf_alloc,
++		.free    = cma_bf_free,
++	};
++	return cma_allocator_register(&alloc);
 +}
-+
-+static inline void __cma_dfs_allocator_add(struct cma_allocator *alloc)
-+{
-+	/* nop */
-+}
-+
-+static inline void __cma_dfs_region_alloc_update(struct cma_region *reg)
-+{
-+	/* nop */
-+}
-+
-+#endif
-+
-+
- /************************* The Device API *************************/
- 
- static const char *__must_check
-@@ -731,10 +1216,24 @@ static int __cma_region_attach_alloc(struct cma_region *reg)
- 		reg->alloc = alloc;
- 		pr_debug("init: %s: %s: initialised allocator\n",
- 			 reg->name ?: "(private)", alloc->name ?: "(unnamed)");
-+		__cma_dfs_region_alloc_update(reg);
- 	}
- 	return ret;
- }
- 
-+static void __cma_region_detach_alloc(struct cma_region *reg)
-+{
-+	if (!reg->alloc)
-+		return;
-+
-+	if (reg->alloc->cleanup)
-+		reg->alloc->cleanup(reg);
-+
-+	reg->alloc = NULL;
-+	reg->used = 1;
-+	__cma_dfs_region_alloc_update(reg);
-+}
-+
- 
- /*
-  * s            ::= rules
++module_init(cma_bf_module_init);
 -- 
 1.7.2.3
 
