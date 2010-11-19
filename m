@@ -1,60 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 37E636B0087
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 05:49:13 -0500 (EST)
-Date: Fri, 19 Nov 2010 10:48:56 +0000
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 645EB6B0089
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 06:08:25 -0500 (EST)
+Date: Fri, 19 Nov 2010 11:08:08 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/8] Use memory compaction instead of lumpy reclaim
-	during high-order allocations
-Message-ID: <20101119104856.GB28613@csn.ul.ie>
-References: <1290010969-26721-1-git-send-email-mel@csn.ul.ie> <20101117154641.51fd7ce5.akpm@linux-foundation.org> <20101118081254.GB8135@csn.ul.ie> <20101118172627.cf25b83a.kamezawa.hiroyu@jp.fujitsu.com> <20101118083828.GA24635@cmpxchg.org> <20101118092044.GE8135@csn.ul.ie> <20101118114928.ecb2d6b0.akpm@linux-foundation.org>
+Subject: Re: [PATCH 7/8] mm: compaction: Use the LRU to get a hint on where
+	compaction should start
+Message-ID: <20101119110808.GD28613@csn.ul.ie>
+References: <1290010969-26721-1-git-send-email-mel@csn.ul.ie> <1290010969-26721-8-git-send-email-mel@csn.ul.ie> <20101118184659.GD30376@random.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101118114928.ecb2d6b0.akpm@linux-foundation.org>
+In-Reply-To: <20101118184659.GD30376@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 11:49:28AM -0800, Andrew Morton wrote:
-> On Thu, 18 Nov 2010 09:20:44 +0000
-> Mel Gorman <mel@csn.ul.ie> wrote:
+On Thu, Nov 18, 2010 at 07:46:59PM +0100, Andrea Arcangeli wrote:
+> On Wed, Nov 17, 2010 at 04:22:48PM +0000, Mel Gorman wrote:
+> > +	if (!cc->migrate_pfn)
+> > +		cc->migrate_pfn = zone->zone_start_pfn;
 > 
-> > > It's because migration depends on MMU.  But we should be able to make
-> > > a NOMMU version of migration that just does page cache, which is all
-> > > that is reclaimable on NOMMU anyway.
-> > > 
-> > 
-> > Conceivably, but I see little problem leaving them with lumpy reclaim.
-> 
-> I see a really big problem: we'll need to maintain lumpy reclaim for
-> ever!
+> wouldn't it remove a branch if the caller always set migrate_pfn?
 > 
 
-At least as long as !CONFIG_COMPACTION exists. That will be a while because
-bear in mind CONFIG_COMPACTION is disabled by default (although I believe
-some distros are enabling it at least). Maybe we should choose to deprecate
-it in 2.6.40 and delete it at the infamous time of 2.6.42? That would give
-ample time to iron out any issues that crop up with reclaim/compaction
-(what this series has turned into).
+If try_to_compact_pages() used it, it would migrate old pages and then
+later enter direct reclaim where it reclaimed the pages it just
+migrated. It was double work. That said, I neglected to check if
+migration affects the age of pages. Offhand, I think it does so the
+problem wouldn't apply so it was flawed reasoning.
 
-Bear in mind that lumpy reclaim is heavily isolated these days. The logic
-is almost entirely contained in isolate_lru_pages() in the block starting
-with the comment "Attempt to take all pages in the order aligned region
-surrounding the tag page". As disruptive as lumpy reclaim is, it's basically
-just a linear scanner at the end of the day and there are a few examples of
-that in the kernel. If we break it, it'll be obvious.
-
-> We keep on piling in more and more stuff, we're getting less sure that
-> the old stuff is still effective. It's becoming more and more
-> important to move some of our attention over to simplification, and
-> to rejustification of earlier decisions.
+> > +	if (!cc->free_pfn) {
+> > +		cc->free_pfn = zone->zone_start_pfn + zone->spanned_pages;
+> > +		cc->free_pfn &= ~(pageblock_nr_pages-1);
+> > +	}
+> 
+> Who sets free_pfn to zero? Previously this was always initialized.
 > 
 
-I'm open to its ultimate deletion but think it's rash to do on day 1 of
-reclaim/compaction. I do recognise that I might be entirely on my own with
-this opinion though :)
+Initialised on stack.
+
+> > @@ -523,7 +539,23 @@ unsigned long reclaimcompact_zone_order(struct zone *zone,
+> >  	INIT_LIST_HEAD(&cc.freepages);
+> >  	INIT_LIST_HEAD(&cc.migratepages);
+> >  
+> > -	return compact_zone(zone, &cc);
+> > +	/* Get a hint on where to start compacting from the LRU */
+> > +	anon_page = lru_to_page(&zone->lru[LRU_BASE + LRU_INACTIVE_ANON].list);
+> > +	file_page = lru_to_page(&zone->lru[LRU_BASE + LRU_INACTIVE_FILE].list);
+> > +	cc.migrate_pfn = min(page_to_pfn(anon_page), page_to_pfn(file_page));
+> > +	cc.migrate_pfn = ALIGN(cc.migrate_pfn, pageblock_nr_pages);
+> > +	start_migrate_pfn = cc.migrate_pfn;
+> > +
+> > +	ret = compact_zone(zone, &cc);
+> > +
+> > +	/* Restart migration from the start of zone if the hint did not work */
+> > +	if (!zone_watermark_ok(zone, cc.order, low_wmark_pages(zone), 0, 0)) {
+> > +		cc.migrate_pfn = 0;
+> > +		cc.abort_migrate_pfn = start_migrate_pfn;
+> > +		ret = compact_zone(zone, &cc);
+> > +	}
+> > +
+> 
+> I doubt it works ok if the list is empty... Maybe it's safer to
+> validate the migrate_pfn against the zone pfn start/end before
+> setting it in the migrate_pfn.
+> 
+
+You're right, this could be unsafe.
+
+> Interesting this heuristic slowed down the benchmark, it should lead
+> to the exact opposite thanks to saving some cpu. So I guess maybe it's
+> not worth it. I see it increases the ratio of compaction of a tiny
+> bit, but if a tiny bit of better compaction comes at the expenses of
+> an increased runtime I don't like it and I'd drop it... It's not
+> making enough difference, further we could extend it to check the
+> "second" page in the list and so on... so we can just go blind. All it
+> matters is that we use a clock algorithm and I guess this screwes it
+> and this is why it leads to increased time.
+> 
+
+The variation was within the noise but yes, maybe this is not such a great
+idea and the figures are not very compelling. I'm going to drop it from the
+series.
+
+Thanks
 
 -- 
 Mel Gorman
