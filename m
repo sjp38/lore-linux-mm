@@ -1,77 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0293E6B004A
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 06:16:45 -0500 (EST)
-Date: Fri, 19 Nov 2010 11:16:30 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 6/8] mm: compaction: Perform a faster scan in
-	try_to_compact_pages()
-Message-ID: <20101119111629.GE28613@csn.ul.ie>
-References: <1290010969-26721-1-git-send-email-mel@csn.ul.ie> <1290010969-26721-7-git-send-email-mel@csn.ul.ie> <20101118183448.GC30376@random.random> <20101118185046.GQ8135@csn.ul.ie> <20101118190839.GF30376@random.random>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6734A6B0085
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 06:17:15 -0500 (EST)
+Date: Fri, 19 Nov 2010 12:16:52 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3/6] memcg: make throttle_vm_writeout() memcg aware
+Message-ID: <20101119111652.GB24635@cmpxchg.org>
+References: <1289294671-6865-1-git-send-email-gthelen@google.com>
+ <1289294671-6865-4-git-send-email-gthelen@google.com>
+ <20101112081754.GE9131@cmpxchg.org>
+ <xr93wroixomw.fsf@ninji.mtv.corp.google.com>
+ <20101116125726.db42723c.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101118190839.GF30376@random.random>
+In-Reply-To: <20101116125726.db42723c.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 08:08:39PM +0100, Andrea Arcangeli wrote:
-> On Thu, Nov 18, 2010 at 06:50:46PM +0000, Mel Gorman wrote:
-> > For THP in general, I think we can abuse __GFP_NO_KSWAPD. For other callers,
-> > I'm not sure it's fair to push the responsibility of async/sync to them. We
-> > don't do it for reclaim for example and I'd worry the wrong decisions would
-> > be made or that they'd always select async for "performance" and then bitch
-> > about an allocation failure.
+Hello,
+
+On Tue, Nov 16, 2010 at 12:57:26PM +0900, KAMEZAWA Hiroyuki wrote:
+> Hmm. I think this patch is troublesome.
 > 
-> Ok, let's leave the __GFP and let's stick to the simplest for now
-> without alloc_pages caller knowledge.
+> This patch will make memcg's pageout routine _not_ throttoled even when the whole
+> system vmscan's pageout is throttoled.
 > 
-
-Ok.
-
-> > My only whinge about the lack of reclaimcompact_zone_order is that it
-> > makes it harder to even contemplate lumpy compaction in the future but
-> > it could always be reintroduced if absolutely necessary.
+> So, one idea is....
 > 
-> Ok. I don't know the plan of lumpy compaction and that's probably why
-> I didn't appreciate it...
+> Make this change 
+> ==
+> +++ b/mm/vmscan.c
+> @@ -1844,7 +1844,7 @@ static void shrink_zone(int priority, struct zone *zone,
+>  	if (inactive_anon_is_low(zone, sc))
+>  		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
+>  
+> -	throttle_vm_writeout(sc->gfp_mask);
+> +	throttle_vm_writeout(sc->gfp_mask, sc->mem_cgroup);
+>  }
+> ==
+> as
 > 
-
-You're not a mind-reader :) . What it'd get should be a reduction in
-scanning rates but there are other means that should be considered too.
-
-> So my preference as usual would be to remove lumpy. BTW, everything up
-> to patch 3 included should work fine with THP and solve my problem
-> with lumpy, thanks!
+> ==
+> 	
+> if (!sc->mem_cgroup || throttle_vm_writeout(sc->gfp_mask, sc->mem_cgroup) == not throttled)
+> 	throttole_vm_writeout(sc->gfp_mask, NULL);
 > 
+> Then, both of memcg and global dirty thresh will be checked.
 
-Great. I'd still like to push the rest of the series if it can be shown the
-latencies decrease each time. It'll reduce the motivation for introducing
-GFP flags to avoid compaction overhead.
+Good point, both limits should apply.
 
-> > GFP flags would be my last preference. 
-> 
-> yep. I'm just probably too paranoid at being lowlatency in the
-> hugepage allocation because I know it's the only spot where THP may
-> actually introduce a regression for short lived tasks if we do too
-> much work to create the hugepage. OTOH even for short lived allocation
-> on my westmire a bzero(1g) runs 250% (not 50% faster like in the older
-> hardware I was using) faster just thanks to the page being huge and
-> I'm talking about super short lived allocation here (the troublesome
-> one if we spend too much time in compaction and reclaim before
-> failing). Plus it only makes a difference when hugepages are so spread
-> across the whole system and it's still doing purely short lived
-> allocations. So again let's worry about the GFP flag later if
-> something...
-
-Sounds like a plan.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+I'd prefer to stuff it all into throttle_vm_writeout() and not encode
+memcg-specific behaviour into the caller, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
