@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0F5436B004A
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 03:18:20 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAJ8IIUc008570
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 769A26B0087
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 03:19:57 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAJ8JsaC012675
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 19 Nov 2010 17:18:18 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BCB5845DE68
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 17:18:17 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 95FCA45DE51
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 17:18:17 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 00A501DB8042
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 17:18:17 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 94A571DB803E
-	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 17:18:16 +0900 (JST)
-Date: Fri, 19 Nov 2010 17:12:39 +0900
+	Fri, 19 Nov 2010 17:19:54 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4281F45DE57
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 17:19:54 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 178E945DE4F
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 17:19:54 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 51229E38001
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 17:19:53 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E52E7E18006
+	for <linux-mm@kvack.org>; Fri, 19 Nov 2010 17:19:52 +0900 (JST)
+Date: Fri, 19 Nov 2010 17:14:15 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 1/4] alloc_contig_pages() move some functions to
- page_isolation.c
-Message-Id: <20101119171239.7f544c7c.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 2/4] alloc_contig_pages() find appropriate physical memory
+ range
+Message-Id: <20101119171415.aa320cab.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20101119171033.a8d9dc8f.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20101119171033.a8d9dc8f.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -35,287 +35,190 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Memory hotplug is a logic for making pages unused in the specified range
-of pfn. So, some of core logics can be used for other purpose as
-allocating a very large contigous memory block.
+Unlike memory hotplug, at an allocation of contigous memory range, address
+may not be a problem. IOW, if a requester of memory wants to allocate 100M of
+of contigous memory, placement of allocated memory may not be a problem.
+So, "finding a range of memory which seems to be MOVABLE" is required.
 
-This patch moves some functions from mm/memory_hotplug.c to
-mm/page_isolation.c. This helps adding a function for large-alloc in
-page_isolation.c with memory-unplug technique.
+This patch adds a functon to isolate a length of memory within [start, end).
+This function returns a pfn which is 1st page of isolated contigous chunk
+of given length within [start, end).
 
-Changelog: 2010/10/26
- - adjusted to mmotm-1024 + Bob's 3 clean ups.
-Changelog: 2010/10/21
- - adjusted to mmotm-1020
+If no_search=true is passed as argument, start address is always same to
+the specified "base" addresss.
+
+After isolation, free memory within this area will never be allocated.
+But some pages will remain as "Used/LRU" pages. They should be dropped by
+page reclaim or migration.
+
+Changelog: 2010-11-17
+ - fixed some conding style (if-then-else)
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/page-isolation.h |    7 ++
- mm/memory_hotplug.c            |  108 ---------------------------------------
- mm/page_isolation.c            |  111 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 118 insertions(+), 108 deletions(-)
+ mm/page_isolation.c |  146 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 146 insertions(+)
 
-Index: mmotm-1117/include/linux/page-isolation.h
-===================================================================
---- mmotm-1117.orig/include/linux/page-isolation.h
-+++ mmotm-1117/include/linux/page-isolation.h
-@@ -33,5 +33,12 @@ test_pages_isolated(unsigned long start_
- extern int set_migratetype_isolate(struct page *page);
- extern void unset_migratetype_isolate(struct page *page);
- 
-+/*
-+ * For migration.
-+ */
-+
-+int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn);
-+unsigned long scan_lru_pages(unsigned long start, unsigned long end);
-+int do_migrate_range(unsigned long start_pfn, unsigned long end_pfn);
- 
- #endif
-Index: mmotm-1117/mm/memory_hotplug.c
-===================================================================
---- mmotm-1117.orig/mm/memory_hotplug.c
-+++ mmotm-1117/mm/memory_hotplug.c
-@@ -615,114 +615,6 @@ int is_mem_section_removable(unsigned lo
- }
- 
- /*
-- * Confirm all pages in a range [start, end) is belongs to the same zone.
-- */
--static int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
--{
--	unsigned long pfn;
--	struct zone *zone = NULL;
--	struct page *page;
--	int i;
--	for (pfn = start_pfn;
--	     pfn < end_pfn;
--	     pfn += MAX_ORDER_NR_PAGES) {
--		i = 0;
--		/* This is just a CONFIG_HOLES_IN_ZONE check.*/
--		while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + i))
--			i++;
--		if (i == MAX_ORDER_NR_PAGES)
--			continue;
--		page = pfn_to_page(pfn + i);
--		if (zone && page_zone(page) != zone)
--			return 0;
--		zone = page_zone(page);
--	}
--	return 1;
--}
--
--/*
-- * Scanning pfn is much easier than scanning lru list.
-- * Scan pfn from start to end and Find LRU page.
-- */
--static unsigned long scan_lru_pages(unsigned long start, unsigned long end)
--{
--	unsigned long pfn;
--	struct page *page;
--	for (pfn = start; pfn < end; pfn++) {
--		if (pfn_valid(pfn)) {
--			page = pfn_to_page(pfn);
--			if (PageLRU(page))
--				return pfn;
--		}
--	}
--	return 0;
--}
--
--static struct page *
--hotremove_migrate_alloc(struct page *page, unsigned long private, int **x)
--{
--	/* This should be improooooved!! */
--	return alloc_page(GFP_HIGHUSER_MOVABLE);
--}
--
--#define NR_OFFLINE_AT_ONCE_PAGES	(256)
--static int
--do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
--{
--	unsigned long pfn;
--	struct page *page;
--	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
--	int not_managed = 0;
--	int ret = 0;
--	LIST_HEAD(source);
--
--	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
--		if (!pfn_valid(pfn))
--			continue;
--		page = pfn_to_page(pfn);
--		if (!page_count(page))
--			continue;
--		/*
--		 * We can skip free pages. And we can only deal with pages on
--		 * LRU.
--		 */
--		ret = isolate_lru_page(page);
--		if (!ret) { /* Success */
--			list_add_tail(&page->lru, &source);
--			move_pages--;
--			inc_zone_page_state(page, NR_ISOLATED_ANON +
--					    page_is_file_cache(page));
--
--		} else {
--#ifdef CONFIG_DEBUG_VM
--			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
--			       pfn);
--			dump_page(page);
--#endif
--			/* Becasue we don't have big zone->lock. we should
--			   check this again here. */
--			if (page_count(page)) {
--				not_managed++;
--				ret = -EBUSY;
--				break;
--			}
--		}
--	}
--	if (!list_empty(&source)) {
--		if (not_managed) {
--			putback_lru_pages(&source);
--			goto out;
--		}
--		/* this function returns # of failed pages */
--		ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
--		if (ret)
--			putback_lru_pages(&source);
--	}
--out:
--	return ret;
--}
--
--/*
-  * remove from free_area[] and mark all as Reserved.
-  */
- static int
 Index: mmotm-1117/mm/page_isolation.c
 ===================================================================
 --- mmotm-1117.orig/mm/page_isolation.c
 +++ mmotm-1117/mm/page_isolation.c
-@@ -5,6 +5,9 @@
- #include <linux/mm.h>
- #include <linux/page-isolation.h>
+@@ -7,6 +7,7 @@
  #include <linux/pageblock-flags.h>
-+#include <linux/memcontrol.h>
-+#include <linux/migrate.h>
-+#include <linux/mm_inline.h>
+ #include <linux/memcontrol.h>
+ #include <linux/migrate.h>
++#include <linux/memory_hotplug.h>
+ #include <linux/mm_inline.h>
  #include "internal.h"
  
- static inline struct page *
-@@ -139,3 +142,111 @@ int test_pages_isolated(unsigned long st
- 	spin_unlock_irqrestore(&zone->lock, flags);
- 	return ret ? 0 : -EBUSY;
+@@ -250,3 +251,148 @@ int do_migrate_range(unsigned long start
+ out:
+ 	return ret;
  }
 +
-+
 +/*
-+ * Confirm all pages in a range [start, end) is belongs to the same zone.
++ * Functions for getting contiguous MOVABLE pages in a zone.
 + */
-+int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
-+{
-+	unsigned long pfn;
-+	struct zone *zone = NULL;
-+	struct page *page;
-+	int i;
-+	for (pfn = start_pfn;
-+	     pfn < end_pfn;
-+	     pfn += MAX_ORDER_NR_PAGES) {
-+		i = 0;
-+		/* This is just a CONFIG_HOLES_IN_ZONE check.*/
-+		while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + i))
-+			i++;
-+		if (i == MAX_ORDER_NR_PAGES)
-+			continue;
-+		page = pfn_to_page(pfn + i);
-+		if (zone && page_zone(page) != zone)
-+			return 0;
-+		zone = page_zone(page);
-+	}
-+	return 1;
-+}
++struct page_range {
++	unsigned long base; /* Base address of searching contigouous block */
++	unsigned long end;
++	unsigned long pages;/* Length of contiguous block */
++	int align_order;
++	unsigned long align_mask;
++};
 +
-+/*
-+ * Scanning pfn is much easier than scanning lru list.
-+ * Scan pfn from start to end and Find LRU page.
-+ */
-+unsigned long scan_lru_pages(unsigned long start, unsigned long end)
++int __get_contig_block(unsigned long pfn, unsigned long nr_pages, void *arg)
 +{
-+	unsigned long pfn;
-+	struct page *page;
-+	for (pfn = start; pfn < end; pfn++) {
-+		if (pfn_valid(pfn)) {
-+			page = pfn_to_page(pfn);
-+			if (PageLRU(page))
-+				return pfn;
-+		}
++	struct page_range *blockinfo = arg;
++	unsigned long end;
++
++	end = pfn + nr_pages;
++	pfn = ALIGN(pfn, 1 << blockinfo->align_order);
++	end = end & ~(MAX_ORDER_NR_PAGES - 1);
++
++	if (end < pfn)
++		return 0;
++	if (end - pfn >= blockinfo->pages) {
++		blockinfo->base = pfn;
++		blockinfo->end = end;
++		return 1;
 +	}
 +	return 0;
 +}
 +
-+struct page *
-+hotremove_migrate_alloc(struct page *page, unsigned long private, int **x)
-+{
-+	/* This should be improooooved!! */
-+	return alloc_page(GFP_HIGHUSER_MOVABLE);
-+}
-+
-+#define NR_OFFLINE_AT_ONCE_PAGES	(256)
-+int do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
++static void __trim_zone(struct zone *zone, struct page_range *range)
 +{
 +	unsigned long pfn;
-+	struct page *page;
-+	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
-+	int not_managed = 0;
-+	int ret = 0;
-+	LIST_HEAD(source);
-+
-+	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
-+		if (!pfn_valid(pfn))
-+			continue;
-+		page = pfn_to_page(pfn);
-+		if (!page_count(page))
-+			continue;
-+		/*
-+		 * We can skip free pages. And we can only deal with pages on
-+		 * LRU.
-+		 */
-+		ret = isolate_lru_page(page);
-+		if (!ret) { /* Success */
-+			list_add_tail(&page->lru, &source);
-+			move_pages--;
-+			inc_zone_page_state(page, NR_ISOLATED_ANON +
-+					    page_is_file_cache(page));
-+
-+		} else {
-+#ifdef CONFIG_DEBUG_VM
-+			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
-+			       pfn);
-+			dump_page(page);
-+#endif
-+			/* Because we don't have big zone->lock. we should
-+			   check this again here. */
-+			if (page_count(page)) {
-+				not_managed++;
-+				ret = -EBUSY;
++	/*
++ 	 * skip pages which dones'nt under the zone.
++ 	 * There are some archs which zones are not in linear layout.
++	 */
++	if (page_zone(pfn_to_page(range->base)) != zone) {
++		for (pfn = range->base;
++			pfn < range->end;
++			pfn += MAX_ORDER_NR_PAGES) {
++			if (page_zone(pfn_to_page(pfn)) == zone)
 +				break;
-+			}
++		}
++		range->base = min(pfn, range->end);
++	}
++	/* Here, range-> base is in the zone if range->base != range->end */
++	for (pfn = range->base;
++	     pfn < range->end;
++	     pfn += MAX_ORDER_NR_PAGES) {
++		if (zone != page_zone(pfn_to_page(pfn))) {
++			pfn = pfn - MAX_ORDER_NR_PAGES;
++			break;
 +		}
 +	}
-+	if (!list_empty(&source)) {
-+		if (not_managed) {
-+			putback_lru_pages(&source);
-+			goto out;
++	range->end = min(pfn, range->end);
++	return;
++}
++
++/*
++ * This function is for finding a contiguous memory block which has length
++ * of pages and MOVABLE. If it finds, make the range of pages as ISOLATED
++ * and return the first page's pfn.
++ * This checks all pages in the returned range is free of Pg_LRU. To reduce
++ * the risk of false-positive testing, lru_add_drain_all() should be called
++ * before this function to reduce pages on pagevec for zones.
++ */
++
++static unsigned long find_contig_block(unsigned long base,
++		unsigned long end, unsigned long pages,
++		int align_order, struct zone *zone)
++{
++	unsigned long pfn, pos;
++	struct page_range blockinfo;
++	int ret;
++
++	VM_BUG_ON(pages & (MAX_ORDER_NR_PAGES - 1));
++	VM_BUG_ON(base & ((1 << align_order) - 1));
++retry:
++	blockinfo.base = base;
++	blockinfo.end = end;
++	blockinfo.pages = pages;
++	blockinfo.align_order = align_order;
++	blockinfo.align_mask = (1 << align_order) - 1;
++	/*
++	 * At first, check physical page layout and skip memory holes.
++	 */
++	ret = walk_system_ram_range(base, end - base, &blockinfo,
++		__get_contig_block);
++	if (!ret)
++		return 0;
++	/* check contiguous pages in a zone */
++	__trim_zone(zone, &blockinfo);
++
++	/*
++	 * Ok, we found contiguous memory chunk of size. Isolate it.
++	 * We just search MAX_ORDER aligned range.
++	 */
++	for (pfn = blockinfo.base; pfn + pages <= blockinfo.end;
++	     pfn += (1 << align_order)) {
++		struct zone *z = page_zone(pfn_to_page(pfn));
++		if (z != zone)
++			continue;
++
++		spin_lock_irq(&z->lock);
++		pos = pfn;
++		/*
++		 * Check the range only contains free pages or LRU pages.
++		 */
++		while (pos < pfn + pages) {
++			struct page *p;
++
++			if (!pfn_valid_within(pos))
++				break;
++			p = pfn_to_page(pos);
++			if (PageReserved(p))
++				break;
++			if (!page_count(p)) {
++				if (!PageBuddy(p))
++					pos++;
++				else
++					pos += (1 << page_order(p));
++			} else if (PageLRU(p)) {
++				pos++;
++			} else
++				break;
 +		}
-+		/* this function returns # of failed pages */
-+		ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
-+		if (ret)
-+			putback_lru_pages(&source);
++		spin_unlock_irq(&z->lock);
++		if ((pos == pfn + pages)) {
++			if (!start_isolate_page_range(pfn, pfn + pages))
++				return pfn;
++		} else/* the chunk including "pos" should be skipped */
++			pfn = pos & ~((1 << align_order) - 1);
++		cond_resched();
 +	}
-+out:
-+	return ret;
++
++	/* failed */
++	if (blockinfo.end + pages <= end) {
++		/* Move base address and find the next block of RAM. */
++		base = blockinfo.end;
++		goto retry;
++	}
++	return 0;
 +}
 
 --
