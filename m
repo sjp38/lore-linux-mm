@@ -1,57 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A17BA6B0087
-	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 09:32:17 -0500 (EST)
-Received: by iwn33 with SMTP id 33so2193424iwn.14
-        for <linux-mm@kvack.org>; Sun, 21 Nov 2010 06:32:16 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id BE6C06B0087
+	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 09:38:21 -0500 (EST)
+Received: by pzk30 with SMTP id 30so1274196pzk.14
+        for <linux-mm@kvack.org>; Sun, 21 Nov 2010 06:38:20 -0800 (PST)
+Date: Sun, 21 Nov 2010 23:38:12 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH] vmscan: Make move_active_pages_to_lru more generic
-Date: Sun, 21 Nov 2010 23:24:56 +0900
-Message-Id: <1290349496-13297-1-git-send-email-minchan.kim@gmail.com>
+Subject: Re: [RFC 2/2] Prevent promotion of page in madvise_dontneed
+Message-ID: <20101121143812.GA13857@barrios-desktop>
+References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
+ <5d205f8a4df078b0da3681063bbf37382b02dd23.1290349672.git.minchan.kim@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5d205f8a4df078b0da3681063bbf37382b02dd23.1290349672.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-Now move_active_pages_to_lru can move pages into active or inactive.
-if it moves the pages into inactive, it itself can clear PG_acive.
-It makes the function more generic.
+On Sun, Nov 21, 2010 at 11:30:24PM +0900, Minchan Kim wrote:
+> If the page is sharred by other processes and it's real working set
 
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
+Please ignore this last sentense. It's my mistake. I will fix it v2 after
+some review. 
 
----
- mm/vmscan.c |    5 ++++-
- 1 files changed, 4 insertions(+), 1 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index aa4f1cb..bd408b3 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1457,6 +1457,10 @@ static void move_active_pages_to_lru(struct zone *zone,
- 		VM_BUG_ON(PageLRU(page));
- 		SetPageLRU(page);
- 
-+		/* we are de-activating */
-+		if (!is_active_lru(lru))
-+			ClearPageActive(page);
-+
- 		list_move(&page->lru, &zone->lru[lru].list);
- 		mem_cgroup_add_lru_list(page, lru);
- 		pgmoved++;
-@@ -1543,7 +1547,6 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
- 			}
- 		}
- 
--		ClearPageActive(page);  /* we are de-activating */
- 		list_add(&page->lru, &l_inactive);
- 	}
- 
 -- 
-1.7.0.4
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
