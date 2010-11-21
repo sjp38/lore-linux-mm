@@ -1,201 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 14B966B0087
-	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 09:30:46 -0500 (EST)
-Received: by pzk30 with SMTP id 30so1273339pzk.14
-        for <linux-mm@kvack.org>; Sun, 21 Nov 2010 06:30:45 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 97F4D6B0088
+	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 09:30:59 -0500 (EST)
+Received: by pwi6 with SMTP id 6so1268837pwi.14
+        for <linux-mm@kvack.org>; Sun, 21 Nov 2010 06:30:57 -0800 (PST)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [RFC 1/2] deactive invalidated pages
-Date: Sun, 21 Nov 2010 23:30:23 +0900
-Message-Id: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
+Subject: [RFC 2/2] Prevent promotion of page in madvise_dontneed
+Date: Sun, 21 Nov 2010 23:30:24 +0900
+Message-Id: <5d205f8a4df078b0da3681063bbf37382b02dd23.1290349672.git.minchan.kim@gmail.com>
+In-Reply-To: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
+References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
+In-Reply-To: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
+References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-Recently, there are reported problem about thrashing.
-(http://marc.info/?l=rsync&m=128885034930933&w=2)
-It happens by backup workloads(ex, nightly rsync).
-That's because the workload makes just use-once pages
-and touches pages twice. It promotes the page into
-active list so that it results in working set page eviction.
+Now zap_pte_range alwayas promotes pages which are pte_young &&
+!VM_SequentialReadHint(vma). But in case of calling MADV_DONTNEED,
+it's unnecessary since the page wouldn't use any more.
 
-Some app developer want to support POSIX_FADV_NOREUSE.
-But other OSes don't support it, either.
-(http://marc.info/?l=linux-mm&m=128928979512086&w=2)
+If the page is sharred by other processes and it's real working set
 
-By Other approach, app developer uses POSIX_FADV_DONTNEED.
-But it has a problem. If kernel meets page is writing
-during invalidate_mapping_pages, it can't work.
-It is very hard for application programmer to use it.
-Because they always have to sync data before calling
-fadivse(..POSIX_FADV_DONTNEED) to make sure the pages could
-be discardable. At last, they can't use deferred write of kernel
-so that they could see performance loss.
-(http://insights.oetiker.ch/linux/fadvise.html)
-
-In fact, invalidate is very big hint to reclaimer.
-It means we don't use the page any more. So let's move
-the writing page into inactive list's head.
-
-If it is real working set, it could have a enough time to
-activate the page since we always try to keep many pages in
-inactive list.
-
-I reuse lru_demote of Peter with some change.
-
-Reported-by: Ben Gamari <bgamari.foss@gmail.com>
 Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Nick Piggin <npiggin@kernel.dk>
-
-Ben, Remain thing is to modify rsync and use
-fadvise(POSIX_FADV_DONTNEED). Could you test it?
 ---
- include/linux/swap.h |    1 +
- mm/swap.c            |   61 ++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/truncate.c        |   11 +++++---
- 3 files changed, 69 insertions(+), 4 deletions(-)
+ include/linux/mm.h |    4 ++--
+ mm/madvise.c       |    4 ++--
+ mm/memory.c        |    9 ++++++---
+ mm/mmap.c          |    4 ++--
+ 4 files changed, 12 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index eba53e7..a3c9248 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -213,6 +213,7 @@ extern void mark_page_accessed(struct page *);
- extern void lru_add_drain(void);
- extern int lru_add_drain_all(void);
- extern void rotate_reclaimable_page(struct page *page);
-+extern void lru_deactive_page(struct page *page);
- extern void swap_setup(void);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 721f451..1555abe 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -778,11 +778,11 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+ int zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
+ 		unsigned long size);
+ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
+-		unsigned long size, struct zap_details *);
++		unsigned long size, struct zap_details *, int promote);
+ unsigned long unmap_vmas(struct mmu_gather **tlb,
+ 		struct vm_area_struct *start_vma, unsigned long start_addr,
+ 		unsigned long end_addr, unsigned long *nr_accounted,
+-		struct zap_details *);
++		struct zap_details *, int promote);
  
- extern void add_page_to_unevictable_list(struct page *page);
-diff --git a/mm/swap.c b/mm/swap.c
-index 3f48542..56fa298 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -39,6 +39,8 @@ int page_cluster;
- 
- static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
- static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
-+static DEFINE_PER_CPU(struct pagevec, lru_deactive_pvecs);
-+
- 
- /*
-  * This path almost never happens for VM activity - pages are normally
-@@ -266,6 +268,45 @@ void add_page_to_unevictable_list(struct page *page)
- 	spin_unlock_irq(&zone->lru_lock);
+ /**
+  * mm_walk - callbacks for walk_page_range
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 319528b..247e5fd 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -171,9 +171,9 @@ static long madvise_dontneed(struct vm_area_struct * vma,
+ 			.nonlinear_vma = vma,
+ 			.last_index = ULONG_MAX,
+ 		};
+-		zap_page_range(vma, start, end - start, &details);
++		zap_page_range(vma, start, end - start, &details, 0);
+ 	} else
+-		zap_page_range(vma, start, end - start, NULL);
++		zap_page_range(vma, start, end - start, NULL, 0);
+ 	return 0;
  }
  
-+static void __pagevec_lru_deactive(struct pagevec *pvec)
-+{
-+	int i, lru, file;
-+
-+	struct zone *zone = NULL;
-+
-+	for (i = 0; i < pagevec_count(pvec); i++) {
-+		struct page *page = pvec->pages[i];
-+		struct zone *pagezone = page_zone(page);
-+
-+		if (pagezone != zone) {
-+			if (zone)
-+				spin_unlock_irq(&zone->lru_lock);
-+			zone = pagezone;
-+			spin_lock_irq(&zone->lru_lock);
-+		}
-+
-+		if (PageLRU(page)) {
-+			if (PageActive(page)) {
-+				file = page_is_file_cache(page);
-+				lru = page_lru_base_type(page);
-+				del_page_from_lru_list(zone, page,
-+						lru + LRU_ACTIVE);
-+				ClearPageActive(page);
-+				ClearPageReferenced(page);
-+				add_page_to_lru_list(zone, page, lru);
-+				__count_vm_event(PGDEACTIVATE);
-+
-+				update_page_reclaim_stat(zone, page, file, 0);
-+			}
-+		}
-+	}
-+	if (zone)
-+		spin_unlock_irq(&zone->lru_lock);
-+
-+	release_pages(pvec->pages, pvec->nr, pvec->cold);
-+	pagevec_reinit(pvec);
-+}
-+
- /*
-  * Drain pages out of the cpu's pagevecs.
-  * Either "cpu" is the current CPU, and preemption has already been
-@@ -292,8 +333,28 @@ static void drain_cpu_pagevecs(int cpu)
- 		pagevec_move_tail(pvec);
- 		local_irq_restore(flags);
- 	}
-+
-+	pvec = &per_cpu(lru_deactive_pvecs, cpu);
-+	if (pagevec_count(pvec))
-+		__pagevec_lru_deactive(pvec);
-+}
-+
-+/*
-+ * Function used to forecefully demote a page to the head of the inactive
-+ * list.
-+ */
-+void lru_deactive_page(struct page *page)
-+{
-+	if (likely(get_page_unless_zero(page))) {
-+		struct pagevec *pvec = &get_cpu_var(lru_deactive_pvecs);
-+
-+		if (!pagevec_add(pvec, page))
-+			__pagevec_lru_deactive(pvec);
-+		put_cpu_var(lru_deactive_pvecs);
-+	}
- }
- 
-+
- void lru_add_drain(void)
+diff --git a/mm/memory.c b/mm/memory.c
+index 02e48aa..276abdb 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1075,6 +1075,7 @@ static unsigned long unmap_page_range(struct mmu_gather *tlb,
+  * @end_addr: virtual address at which to end unmapping
+  * @nr_accounted: Place number of unmapped pages in vm-accountable vma's here
+  * @details: details of nonlinear truncation or shared cache invalidation
++ * @promote: whether pages inclued vma would be promoted or not
+  *
+  * Returns the end address of the unmapping (restart addr if interrupted).
+  *
+@@ -1096,7 +1097,7 @@ static unsigned long unmap_page_range(struct mmu_gather *tlb,
+ unsigned long unmap_vmas(struct mmu_gather **tlbp,
+ 		struct vm_area_struct *vma, unsigned long start_addr,
+ 		unsigned long end_addr, unsigned long *nr_accounted,
+-		struct zap_details *details)
++		struct zap_details *details, int promote)
  {
- 	drain_cpu_pagevecs(get_cpu());
-diff --git a/mm/truncate.c b/mm/truncate.c
-index cd94607..c73fb19 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -332,7 +332,8 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 	long zap_work = ZAP_BLOCK_SIZE;
+ 	unsigned long tlb_start = 0;	/* For tlb_finish_mmu */
+@@ -1184,9 +1185,10 @@ out:
+  * @address: starting address of pages to zap
+  * @size: number of bytes to zap
+  * @details: details of nonlinear truncation or shared cache invalidation
++ * @promote: whether the page would be promoted or not
+  */
+ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
+-		unsigned long size, struct zap_details *details)
++		unsigned long size, struct zap_details *details, int promote)
  {
- 	struct pagevec pvec;
- 	pgoff_t next = start;
--	unsigned long ret = 0;
-+	unsigned long ret;
-+	unsigned long count = 0;
- 	int i;
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	struct mmu_gather *tlb;
+@@ -1196,7 +1198,8 @@ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
+ 	lru_add_drain();
+ 	tlb = tlb_gather_mmu(mm, 0);
+ 	update_hiwater_rss(mm);
+-	end = unmap_vmas(&tlb, vma, address, end, &nr_accounted, details);
++	end = unmap_vmas(&tlb, vma, address, end,
++			&nr_accounted, details, promote);
+ 	if (tlb)
+ 		tlb_finish_mmu(tlb, address, end);
+ 	return end;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index b179abb..0d42c08 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1904,7 +1904,7 @@ static void unmap_region(struct mm_struct *mm,
+ 	lru_add_drain();
+ 	tlb = tlb_gather_mmu(mm, 0);
+ 	update_hiwater_rss(mm);
+-	unmap_vmas(&tlb, vma, start, end, &nr_accounted, NULL);
++	unmap_vmas(&tlb, vma, start, end, &nr_accounted, NULL, 1);
+ 	vm_unacct_memory(nr_accounted);
+ 	free_pgtables(tlb, vma, prev? prev->vm_end: FIRST_USER_ADDRESS,
+ 				 next? next->vm_start: 0);
+@@ -2278,7 +2278,7 @@ void exit_mmap(struct mm_struct *mm)
+ 	tlb = tlb_gather_mmu(mm, 1);
+ 	/* update_hiwater_rss(mm) here? but nobody should be looking */
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+-	end = unmap_vmas(&tlb, vma, 0, -1, &nr_accounted, NULL);
++	end = unmap_vmas(&tlb, vma, 0, -1, &nr_accounted, NULL, 1);
+ 	vm_unacct_memory(nr_accounted);
  
- 	pagevec_init(&pvec, 0);
-@@ -359,8 +360,10 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
- 			if (lock_failed)
- 				continue;
- 
--			ret += invalidate_inode_page(page);
--
-+			ret = invalidate_inode_page(page);
-+			if (!ret)
-+				lru_deactive_page(page);
-+			count += ret;
- 			unlock_page(page);
- 			if (next > end)
- 				break;
-@@ -369,7 +372,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
- 		mem_cgroup_uncharge_end();
- 		cond_resched();
- 	}
--	return ret;
-+	return count;
- }
- EXPORT_SYMBOL(invalidate_mapping_pages);
- 
+ 	free_pgtables(tlb, vma, FIRST_USER_ADDRESS, 0);
 -- 
 1.7.0.4
 
