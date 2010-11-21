@@ -1,72 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 182B26B0071
-	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 08:57:49 -0500 (EST)
-Received: by pvc30 with SMTP id 30so1603159pvc.14
-        for <linux-mm@kvack.org>; Sun, 21 Nov 2010 05:57:48 -0800 (PST)
-Date: Sun, 21 Nov 2010 22:00:57 +0800
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0336A6B0071
+	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 09:23:11 -0500 (EST)
+Received: by pzk30 with SMTP id 30so1272441pzk.14
+        for <linux-mm@kvack.org>; Sun, 21 Nov 2010 06:23:09 -0800 (PST)
+Date: Sun, 21 Nov 2010 22:26:15 +0800
 From: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
-Subject: Re: [1/8,v3] NUMA Hotplug Emulator: add function to hide memory
-	region via e820 table.
-Message-ID: <20101121140057.GH9099@hack>
-References: <20101117020759.016741414@intel.com> <20101117021000.479272928@intel.com> <alpine.DEB.2.00.1011162354390.16875@chino.kir.corp.google.com> <20101118092052.GE2408@shaohui> <alpine.DEB.2.00.1011181313140.26680@chino.kir.corp.google.com> <20101119001218.GA3327@shaohui> <alpine.DEB.2.00.1011201642200.10618@chino.kir.corp.google.com>
+Subject: Re: [patch 1/2] x86: add numa=possible command line option
+Message-ID: <20101121142615.GI9099@hack>
+References: <alpine.DEB.2.00.1011162359160.17408@chino.kir.corp.google.com> <20101117075128.GA30254@shaohui> <alpine.DEB.2.00.1011171304060.10254@chino.kir.corp.google.com> <20101118041407.GA2408@shaohui> <20101118062715.GD17539@linux-sh.org> <20101118052750.GD2408@shaohui> <alpine.DEB.2.00.1011181321470.26680@chino.kir.corp.google.com> <20101119003225.GB3327@shaohui> <alpine.DEB.2.00.1011201645230.10618@chino.kir.corp.google.com> <alpine.DEB.2.00.1011201826140.12889@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1011201642200.10618@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1011201826140.12889@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
-Cc: Shaohui Zheng <shaohui.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, Andi Kleen <ak@linux.intel.com>, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Greg Kroah-Hartman <gregkh@suse.de>, Shaohui Zheng <shaohui.zheng@intel.com>, Paul Mundt <lethal@linux-sh.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Nov 20, 2010 at 04:45:06PM -0800, David Rientjes wrote:
->On Fri, 19 Nov 2010, Shaohui Zheng wrote:
+
+Hi, David
+
+On Sat, Nov 20, 2010 at 06:28:31PM -0800, David Rientjes wrote:
+>Adds a numa=possible=<N> command line option to set an additional N nodes
+>as being possible for memory hotplug.  This set of possible nodes
+>controls nr_node_ids and the sizes of several dynamically allocated node
+>arrays.
 >
->> > > > > Index: linux-hpe4/arch/x86/kernel/e820.c
->> > > > > ===================================================================
->> > > > > --- linux-hpe4.orig/arch/x86/kernel/e820.c	2010-11-15 17:13:02.483461667 +0800
->> > > > > +++ linux-hpe4/arch/x86/kernel/e820.c	2010-11-15 17:13:07.083461581 +0800
->> > > > > @@ -971,6 +971,7 @@
->> > > > >  }
->> > > > >  
->> > > > >  static int userdef __initdata;
->> > > > > +static u64 max_mem_size __initdata = ULLONG_MAX;
->> > > > >  
->> > > > >  /* "mem=nopentium" disables the 4MB page tables. */
->> > > > >  static int __init parse_memopt(char *p)
->> > > > > @@ -989,12 +990,28 @@
->> > > > >  
->> > > > >  	userdef = 1;
->> > > > >  	mem_size = memparse(p, &p);
->> > > > > -	e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
->> > > > > +	e820_remove_range(mem_size, max_mem_size - mem_size, E820_RAM, 1);
->> > > > > +	max_mem_size = mem_size;
->> > > > >  
->> > > > >  	return 0;
->> > > > >  }
->> > > > 
->> > > > This needs memmap= support as well, right?
->> > > we did not do the testing after combine both memmap and numa=hide paramter, 
->> > > I think that the result should similar with mem=XX, they both remove a memory
->> > > region from the e820 table.
->> > > 
->> > 
->> > You've modified the parser for mem= but not memmap= so the change needs 
->> > additional support for the latter.
->> > 
->> 
->> the parser for mem= is not modified, the changed parser is numa=, I add a addtional
->> option numa=hide=.
->> 
+>This allows memory hotplug to create new nodes for newly added memory
+>rather than binding it to existing nodes.
 >
->The above hunk is modifying the x86 parser for the mem= parameter.
+>The first use-case for this will be node hotplug emulation which will use
+>these possible nodes to create new nodes to test the memory hotplug
+>callbacks and surrounding memory hotplug code.
 >
 
-That is fine as long as "mem=" is parsed before "numa=".
 
-I think "mem=" should always be parsed before "numa=" no matter what
-order they are specified in cmdline, since we need know how much total
-memory we have at first.
+I am not sure how much value of making this dynamic,
+for CPU, we do this at compile time, i.e. NR_CPUS,
+so how about NR_NODES?
+
+Also, numa=possible= is not as clear as numa=max=, for me at least.
 
 Thanks.
 
