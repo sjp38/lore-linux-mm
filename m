@@ -1,60 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 112D36B0088
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 11:01:07 -0500 (EST)
-Received: by gyh3 with SMTP id 3so4617425gyh.14
-        for <linux-mm@kvack.org>; Mon, 22 Nov 2010 08:01:06 -0800 (PST)
-Date: Tue, 23 Nov 2010 00:04:12 +0800
-From: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
-Subject: Re: [8/8,v3] NUMA Hotplug Emulator: documentation
-Message-ID: <20101122160412.GE4137@hack>
-References: <20101117020759.016741414@intel.com> <20101117021000.985643862@intel.com> <20101121150344.GK9099@hack> <20101121233351.GA7626@shaohui>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 81AC06B0088
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 11:02:28 -0500 (EST)
+Date: Mon, 22 Nov 2010 17:01:56 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/7] Use memory compaction instead of lumpy reclaim
+ during high-order allocations V2
+Message-ID: <20101122160156.GE6118@random.random>
+References: <1290440635-30071-1-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20101121233351.GA7626@shaohui>
+In-Reply-To: <1290440635-30071-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Shaohui Zheng <shaohui.zheng@intel.com>
-Cc: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Haicheng Li <haicheng.li@intel.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 22, 2010 at 07:33:51AM +0800, Shaohui Zheng wrote:
->On Sun, Nov 21, 2010 at 11:03:45PM +0800, AmA(C)rico Wang wrote:
->> 
->> >From your documentation above, it looks like you are trying
->> to move one CPU between nodes?
->Yes, you are correct. With cpu probe/release interface, you can hot-remove a
->CPU from a node, and hot-add it to another node.
+Hi Mel,
 
+this looks great to me. I'll replace my patch 1/66 with this patchset
+to test with THP. It shall work fine.
 
-Can I also move the CPU to another node _after_ it is hot-added?
-Or I have to hot-remove it first and then hot-add it again?
-
->> 
->> >+	cpu_hpe=on/off
->> >+		Enable/disable cpu hotplug emulation with software method. when cpu_hpe=on,
->> >+		sysfs provides probe/release interface to hot add/remove cpu dynamically.
->> >+		this option is disabled in default.
->> >+			
->> 
->> Why not just a CONFIG? IOW, why do we need to make another boot
->> parameter for this?
->Only the developer or QA will use the emulator, we did not want to change the
->default action for common user who does not care the hotplug emulator, so we
->use a kernel parameter as a switch. The common user is not aware the existence
->of the emulator.
->
-
-I think it is also useful to other Linux users, e.g. after I
-boot with "maxcpus=1", I can still bring the rest 3 CPU's
-back without reboot.
-
-Thanks.
-
--- 
-Live like a child, think like the god.
- 
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
