@@ -1,53 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 243B46B0071
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 07:01:57 -0500 (EST)
-Received: by iwn33 with SMTP id 33so3332119iwn.14
-        for <linux-mm@kvack.org>; Mon, 22 Nov 2010 04:01:55 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 469186B0071
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 10:40:09 -0500 (EST)
+Received: by gxk7 with SMTP id 7so4608358gxk.14
+        for <linux-mm@kvack.org>; Mon, 22 Nov 2010 07:40:07 -0800 (PST)
+Date: Mon, 22 Nov 2010 23:43:17 +0800
+From: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
+Subject: Re: [patch 1/2] x86: add numa=possible command line option
+Message-ID: <20101122154317.GC4137@hack>
+References: <alpine.DEB.2.00.1011171304060.10254@chino.kir.corp.google.com> <20101118041407.GA2408@shaohui> <20101118062715.GD17539@linux-sh.org> <20101118052750.GD2408@shaohui> <alpine.DEB.2.00.1011181321470.26680@chino.kir.corp.google.com> <20101119003225.GB3327@shaohui> <alpine.DEB.2.00.1011201645230.10618@chino.kir.corp.google.com> <alpine.DEB.2.00.1011201826140.12889@chino.kir.corp.google.com> <20101121142615.GI9099@hack> <alpine.DEB.2.00.1011211343350.26304@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20101119171653.3c476064.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20101119171033.a8d9dc8f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101119171653.3c476064.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 22 Nov 2010 21:01:54 +0900
-Message-ID: <AANLkTikWeMH67nOSA-s3+OZqovyNRNoTw8wTr5_ecpOv@mail.gmail.com>
-Subject: Re: [PATCH 4/4] alloc_contig_pages() use better allocation function
- for migration
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.DEB.2.00.1011211343350.26304@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Bob Liu <lliubbo@gmail.com>, fujita.tomonori@lab.ntt.co.jp, m.nazarewicz@samsung.com, pawel@osciak.com, andi.kleen@intel.com, felipe.contreras@gmail.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Greg Kroah-Hartman <gregkh@suse.de>, Shaohui Zheng <shaohui.zheng@intel.com>, Paul Mundt <lethal@linux-sh.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 19, 2010 at 5:16 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Sun, Nov 21, 2010 at 01:46:07PM -0800, David Rientjes wrote:
+>On Sun, 21 Nov 2010, AmA(C)rico Wang wrote:
+>> Also, numa=possible= is not as clear as numa=max=, for me at least.
+>> 
 >
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>I like name, but it requires that you know how many nodes that system 
+>already has.  In other words, numa=possible=4 allows you to specify that 4 
+>additional nodes will be possible, but initially offline, for this or 
+>other purposes.  numa=max=4 would be no-op if the system actually had 4 
+>nodes.
 >
-> Old story.
-> Because we cannot assume which memory section will be offlined next,
-> hotremove_migrate_alloc() just uses alloc_page(). i.e. make no decision
-> where the page should be migrate into. Considering memory hotplug's
-> nature, the next memory section near to a section which is being removed
-> will be removed in the next. So, migrate pages to the same node of original
-> page doesn't make sense in many case, it just increases load.
-> Migration destination page is allocated from the node where offlining script
-> runs.
->
-> Now, contiguous-alloc uses do_migrate_range(). In this case, migration
-> destination node should be the same node of migration source page.
->
-> This patch modifies hotremove_migrate_alloc() and pass "nid" to it.
-> Memory hotremove will pass -1. So, if the page will be moved to
-> the node where offlining script runs....no behavior changes.
->
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+>I chose numa=possible over numa=additional because it is more clearly tied 
+>to node_possible_map, which is the only thing it modifies.
 
+Okay, I thought "possible" means "max", but "possible" means "addtional" here.
+It's clear for me now.
 
--- 
-Kind regards,
-Minchan Kim
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
