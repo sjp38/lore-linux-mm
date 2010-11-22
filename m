@@ -1,153 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DC3556B0089
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 10:46:27 -0500 (EST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 5/7] mm: migration: Cleanup migrate_pages API by matching types for offlining and sync
-Date: Mon, 22 Nov 2010 15:43:53 +0000
-Message-Id: <1290440635-30071-6-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1290440635-30071-1-git-send-email-mel@csn.ul.ie>
-References: <1290440635-30071-1-git-send-email-mel@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id CDD086B0089
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 10:48:45 -0500 (EST)
+Received: by gwj18 with SMTP id 18so1327668gwj.8
+        for <linux-mm@kvack.org>; Mon, 22 Nov 2010 07:48:41 -0800 (PST)
+Date: Mon, 22 Nov 2010 23:51:52 +0800
+From: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
+Subject: Re: [5/8,v3] NUMA Hotplug Emulator: support cpu probe/release in
+	x86
+Message-ID: <20101122155151.GD4137@hack>
+References: <20101117020759.016741414@intel.com> <20101117021000.776651300@intel.com> <20101121144511.GJ9099@hack> <20101122000104.GA7986@shaohui>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20101122000104.GA7986@shaohui>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Shaohui Zheng <shaohui.zheng@intel.com>
+Cc: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Ingo Molnar <mingo@elte.hu>, Len Brown <len.brown@intel.com>, Yinghai Lu <Yinghai.Lu@Sun.COM>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-With the introduction of the boolean sync parameter, the API looks a
-little inconsistent as offlining is still an int. Convert offlining to a
-bool for the sake of being tidy.
+On Mon, Nov 22, 2010 at 08:01:04AM +0800, Shaohui Zheng wrote:
+>On Sun, Nov 21, 2010 at 10:45:11PM +0800, AmA(C)rico Wang wrote:
+>> On Wed, Nov 17, 2010 at 10:08:04AM +0800, shaohui.zheng@intel.com wrote:
+>> >From: Shaohui Zheng <shaohui.zheng@intel.com>
+>> >
+>> >Add cpu interface probe/release under sysfs for x86. User can use this
+>> >interface to emulate the cpu hot-add process, it is for cpu hotplug 
+>> >test purpose. Add a kernel option CONFIG_ARCH_CPU_PROBE_RELEASE for this
+>> >feature.
+>> >
+>> >This interface provides a mechanism to emulate cpu hotplug with software
+>> > methods, it becomes possible to do cpu hotplug automation and stress
+>> >testing.
+>> >
+>> 
+>> Huh? We already have CPU online/offline...
+>> 
+>> Can you describe more about the difference?
+>> 
+>> Thanks.
+>
+>Again, we already try to discribe the difference between logcial cpu
+>online/offline and physical cpu online/offline many times.
+>
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- include/linux/migrate.h |    8 ++++----
- mm/compaction.c         |    2 +-
- mm/memory_hotplug.c     |    2 +-
- mm/mempolicy.c          |    6 ++++--
- mm/migrate.c            |    8 ++++----
- 5 files changed, 14 insertions(+), 12 deletions(-)
+I see, with "maxcpus=" we will only have the specified number
+of CPU's which can be online/offline, you are trying to bring
+the rest of CPU's hidden by "maxcpus=". :) Correct?
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index fa31902..e39aeec 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -13,10 +13,10 @@ extern void putback_lru_pages(struct list_head *l);
- extern int migrate_page(struct address_space *,
- 			struct page *, struct page *);
- extern int migrate_pages(struct list_head *l, new_page_t x,
--			unsigned long private, int offlining,
-+			unsigned long private, bool offlining,
- 			bool sync);
- extern int migrate_huge_pages(struct list_head *l, new_page_t x,
--			unsigned long private, int offlining,
-+			unsigned long private, bool offlining,
- 			bool sync);
- 
- extern int fail_migrate_page(struct address_space *,
-@@ -35,10 +35,10 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
- 
- static inline void putback_lru_pages(struct list_head *l) {}
- static inline int migrate_pages(struct list_head *l, new_page_t x,
--		unsigned long private, int offlining,
-+		unsigned long private, bool offlining,
- 		bool sync) { return -ENOSYS; }
- static inline int migrate_huge_pages(struct list_head *l, new_page_t x,
--		unsigned long private, int offlining,
-+		unsigned long private, bool offlining,
- 		bool sync) { return -ENOSYS; }
- 
- static inline int migrate_prep(void) { return -ENOSYS; }
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 03bd8f9..b6e589d 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -457,7 +457,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 
- 		nr_migrate = cc->nr_migratepages;
- 		migrate_pages(&cc->migratepages, compaction_alloc,
--				(unsigned long)cc, 0,
-+				(unsigned long)cc, false,
- 				cc->sync);
- 		update_nr_listpages(cc);
- 		nr_remaining = cc->nr_migratepages;
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 221178b..6178c80 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -717,7 +717,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 		}
- 		/* this function returns # of failed pages */
- 		ret = migrate_pages(&source, hotremove_migrate_alloc, 0,
--								1, true);
-+								true, true);
- 		if (ret)
- 			putback_lru_pages(&source);
- 	}
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 8b1a490..9beb008 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -935,7 +935,8 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
- 		return PTR_ERR(vma);
- 
- 	if (!list_empty(&pagelist)) {
--		err = migrate_pages(&pagelist, new_node_page, dest, 0, true);
-+		err = migrate_pages(&pagelist, new_node_page, dest,
-+								false, true);
- 		if (err)
- 			putback_lru_pages(&pagelist);
- 	}
-@@ -1155,7 +1156,8 @@ static long do_mbind(unsigned long start, unsigned long len,
- 
- 		if (!list_empty(&pagelist)) {
- 			nr_failed = migrate_pages(&pagelist, new_vma_page,
--						(unsigned long)vma, 0, true);
-+						(unsigned long)vma,
-+						false, true);
- 			if (nr_failed)
- 				putback_lru_pages(&pagelist);
- 		}
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 678a84a..2eb2243 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -612,7 +612,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
-  * to the newly allocated page in newpage.
-  */
- static int unmap_and_move(new_page_t get_new_page, unsigned long private,
--			struct page *page, int force, int offlining, bool sync)
-+			struct page *page, int force, bool offlining, bool sync)
- {
- 	int rc = 0;
- 	int *result = NULL;
-@@ -808,7 +808,7 @@ move_newpage:
-  */
- static int unmap_and_move_huge_page(new_page_t get_new_page,
- 				unsigned long private, struct page *hpage,
--				int force, int offlining, bool sync)
-+				int force, bool offlining, bool sync)
- {
- 	int rc = 0;
- 	int *result = NULL;
-@@ -890,7 +890,7 @@ out:
-  * Return: Number of pages not migrated or error code.
-  */
- int migrate_pages(struct list_head *from,
--		new_page_t get_new_page, unsigned long private, int offlining,
-+		new_page_t get_new_page, unsigned long private, bool offlining,
- 		bool sync)
- {
- 	int retry = 1;
-@@ -941,7 +941,7 @@ out:
- }
- 
- int migrate_huge_pages(struct list_head *from,
--		new_page_t get_new_page, unsigned long private, int offlining,
-+		new_page_t get_new_page, unsigned long private, bool offlining,
- 		bool sync)
- {
- 	int retry = 1;
+I think the idea is cool, but I think you need to improve
+the documetion, for people who don't follow the hardware
+concepts like me. ;)
+
+Thanks.
+
 -- 
-1.7.1
+Live like a child, think like the god.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
