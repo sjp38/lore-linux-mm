@@ -1,577 +1,243 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 567186B0071
-	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 20:58:59 -0500 (EST)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp02.au.ibm.com (8.14.4/8.13.1) with ESMTP id oAM1sCaj029654
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 12:54:12 +1100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oAM1wrFO1851508
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 12:58:53 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oAM1wq0H005098
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 12:58:53 +1100
-Date: Mon, 22 Nov 2010 12:28:47 +1030
-From: Christopher Yeoh <cyeoh@au1.ibm.com>
-Subject: [RFC][PATCH] Cross Memory Attach v2 (resend)
-Message-ID: <20101122122847.3585b447@lilo>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id EFFBC6B0071
+	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 21:02:13 -0500 (EST)
+Date: Mon, 22 Nov 2010 10:01:45 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 01/13] writeback: IO-less balance_dirty_pages()
+Message-ID: <20101122020145.GB10126@localhost>
+References: <20101117042720.033773013@intel.com>
+ <20101117042849.410279291@intel.com>
+ <AANLkTimV1Y5_6CSjz24dbLjYcoiVn6+6chPhpzHZm8LK@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTimV1Y5_6CSjz24dbLjYcoiVn6+6chPhpzHZm8LK@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, Brice Goglin <Brice.Goglin@inria.fr>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@lst.de>, Theodore Ts'o <tytso@mit.edu>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Resending just in case the previous mail was missed rather than ignored :-)
-I'd appreciate any comments....
+Hi Minchan,
 
-The basic idea behind cross memory attach is to allow MPI programs doing
-intra-node communication to do a single copy of the message rather than
-a double copy of the message via shared memory.
+On Wed, Nov 17, 2010 at 06:34:26PM +0800, Minchan Kim wrote:
+> Hi Wu,
+> 
+> As you know, I am not a expert in this area.
+> So I hope my review can help understanding other newbie like me and
+> make clear this document. :)
+> I didn't look into the code. before it, I would like to clear your concept.
 
-The following patch attempts to achieve this by allowing a
-destination process, given an address and size from a source process, to
-copy memory directly from the source process into its own address space
-via a system call. There is also a symmetrical ability to copy from 
-the current process's address space into a destination process's
-address space.
+Yeah, it's some big change of "concept" :)
 
-This is an updated version of the patch I posted a while ago. Changes since
-the last version:
+Sorry for the late reply, as I'm still tuning things and some details
+may change as a result. The biggest challenge now is the stability of
+the control algorithms. Everything is floating around and I'm trying
+to keep the fluctuations down by borrowing some equation from the
+optimal control theory.
 
-- Implementation is a bit more complicated now, but the syscall interface 
-  has been modified to provide an iovec one for 
-  both the source and destination. This allows for scattered read 
-  -> scattered write.
+> On Wed, Nov 17, 2010 at 1:27 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > As proposed by Chris, Dave and Jan, don't start foreground writeback IO
+> > inside balance_dirty_pages(). Instead, simply let it idle sleep for some
+> > time to throttle the dirtying task. In the mean while, kick off the
+> > per-bdi flusher thread to do background writeback IO.
+> >
+> > This patch introduces the basic framework, which will be further
+> > consolidated by the next patches.
+> >
+> > RATIONALS
+> > =========
+> >
+> > The current balance_dirty_pages() is rather IO inefficient.
+> >
+> > - concurrent writeback of multiple inodes (Dave Chinner)
+> >
+> > A If every thread doing writes and being throttled start foreground
+> > A writeback, it leads to N IO submitters from at least N different
+> > A inodes at the same time, end up with N different sets of IO being
+> > A issued with potentially zero locality to each other, resulting in
+> > A much lower elevator sort/merge efficiency and hence we seek the disk
+> > A all over the place to service the different sets of IO.
+> > A OTOH, if there is only one submission thread, it doesn't jump between
+> > A inodes in the same way when congestion clears - it keeps writing to
+> > A the same inode, resulting in large related chunks of sequential IOs
+> > A being issued to the disk. This is more efficient than the above
+> > A foreground writeback because the elevator works better and the disk
+> > A seeks less.
+> >
+> > - IO size too small for fast arrays and too large for slow USB sticks
+> >
+> > A The write_chunk used by current balance_dirty_pages() cannot be
+> > A directly set to some large value (eg. 128MB) for better IO efficiency.
+> > A Because it could lead to more than 1 second user perceivable stalls.
+> > A Even the current 4MB write size may be too large for slow USB sticks.
+> > A The fact that balance_dirty_pages() starts IO on itself couples the
+> > A IO size to wait time, which makes it hard to do suitable IO size while
+> > A keeping the wait time under control.
+> >
+> > For the above two reasons, it's much better to shift IO to the flusher
+> > threads and let balance_dirty_pages() just wait for enough time or progress.
+> >
+> > Jan Kara, Dave Chinner and me explored the scheme to let
+> > balance_dirty_pages() wait for enough writeback IO completions to
+> > safeguard the dirty limit. However it's found to have two problems:
+> >
+> > - in large NUMA systems, the per-cpu counters may have big accounting
+> > A errors, leading to big throttle wait time and jitters.
+> >
+> > - NFS may kill large amount of unstable pages with one single COMMIT.
+> > A Because NFS server serves COMMIT with expensive fsync() IOs, it is
+> > A desirable to delay and reduce the number of COMMITs. So it's not
+> > A likely to optimize away such kind of bursty IO completions, and the
+> > A resulted large (and tiny) stall times in IO completion based throttling.
+> >
+> > So here is a pause time oriented approach, which tries to control the
+> > pause time in each balance_dirty_pages() invocations, by controlling
+> > the number of pages dirtied before calling balance_dirty_pages(), for
+> > smooth and efficient dirty throttling:
+> >
+> > - avoid useless (eg. zero pause time) balance_dirty_pages() calls
+> > - avoid too small pause time (less than A 10ms, which burns CPU power)
+> > - avoid too large pause time (more than 100ms, which hurts responsiveness)
+> > - avoid big fluctuations of pause times
+> >
+> > For example, when doing a simple cp on ext4 with mem=4G HZ=250.
+> >
+> > before patch, the pause time fluctuates from 0 to 324ms
+> > (and the stall time may grow very large for slow devices)
+> >
+> > [ 1237.139962] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=56
+> > [ 1237.207489] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=0
+> > [ 1237.225190] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=0
+> > [ 1237.234488] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=0
+> > [ 1237.244692] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=0
+> > [ 1237.375231] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=31
+> > [ 1237.443035] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=15
+> > [ 1237.574630] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=31
+> > [ 1237.642394] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=15
+> > [ 1237.666320] balance_dirty_pages: write_chunk=1536 pages_written=57 pause=5
+> > [ 1237.973365] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=81
+> > [ 1238.212626] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=56
+> > [ 1238.280431] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=15
+> > [ 1238.412029] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=31
+> > [ 1238.412791] balance_dirty_pages: write_chunk=1536 pages_written=0 pause=0
+> >
+> > after patch, the pause time remains stable around 32ms
+> >
+> > cp-2687 A [002] A 1452.237012: balance_dirty_pages: weight=56% dirtied=128 pause=8
+> > cp-2687 A [002] A 1452.246157: balance_dirty_pages: weight=56% dirtied=128 pause=8
+> > cp-2687 A [006] A 1452.253043: balance_dirty_pages: weight=56% dirtied=128 pause=8
+> > cp-2687 A [006] A 1452.261899: balance_dirty_pages: weight=57% dirtied=128 pause=8
+> > cp-2687 A [006] A 1452.268939: balance_dirty_pages: weight=57% dirtied=128 pause=8
+> > cp-2687 A [002] A 1452.276932: balance_dirty_pages: weight=57% dirtied=128 pause=8
+> > cp-2687 A [002] A 1452.285889: balance_dirty_pages: weight=57% dirtied=128 pause=8
+> >
+> > CONTROL SYSTEM
+> > ==============
+> >
+> > The current task_dirty_limit() adjusts bdi_dirty_limit to get
+> > task_dirty_limit according to the dirty "weight" of the current task,
+> > which is the percent of pages recently dirtied by the task. If 100%
+> > pages are recently dirtied by the task, it will lower bdi_dirty_limit by
+> > 1/8. If only 1% pages are dirtied by the task, it will return almost
+> > unmodified bdi_dirty_limit. In this way, a heavy dirtier will get
+> > blocked at task_dirty_limit=(bdi_dirty_limit-bdi_dirty_limit/8) while
+> > allowing a light dirtier to progress (the latter won't be blocked
+> > because R << B in fig.1).
+> >
+> > Fig.1 before patch, a heavy dirtier and a light dirtier
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A R
+> > ----------------------------------------------+-o---------------------------*--|
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A L A A  A  A  A  A  A  A  A  A  A  A  A  A  B A T
+> > A T: bdi_dirty_limit, as returned by bdi_dirty_limit()
+> > A L: T - T/8
+> >
+> > A R: bdi_reclaimable + bdi_writeback
+> >
+> > A A: task_dirty_limit for a heavy dirtier ~= R ~= L
+> > A B: task_dirty_limit for a light dirtier ~= T
+> >
+> > Since each process has its own dirty limit, we reuse A/B for the tasks as
+> > well as their dirty limits.
+> >
+> > If B is a newly started heavy dirtier, then it will slowly gain weight
+> > and A will lose weight. A The task_dirty_limit for A and B will be
+> > approaching the center of region (L, T) and eventually stabilize there.
+> >
+> > Fig.2 before patch, two heavy dirtiers converging to the same threshold
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  R
+> > ----------------------------------------------+--------------o-*---------------|
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A L A  A  A  A  A  A  A A B A  A  A  A  A  A  A  T
+> 
+> Seems good until now.
+> So, What's the problem if two heavy dirtiers have a same threshold?
 
-- Rename of syscalls to process_vm_readv/process_vm_writev
+That's not a problem. It's the proper behavior to converge for two
+"dd"s.
 
-- Use of /proc/pid/mem has been considered, but there are issues with 
-  using it:
-  - Does not allow for specifying iovecs for both src and dest, assuming
-    preadv or pwritev was implemented either the area read from or written 
-    to would need to be contiguous. 
-  - Currently mem_read allows only processes who are currently ptrace'ing
-    the target and are still able to ptrace the target to read from the
-    target. This check could possibly be moved to the open call, but its not
-    clear exactly what race this restriction is stopping (reason appears to
-    have been lost)
-  - Having to send the fd of /proc/self/mem via SCM_RIGHTS on unix domain
-    socket is a bit ugly from a userspace point of view, especially when
-    you may have hundreds if not (eventually) thousands of processes that
-    all need to do this with each other
-  - Doesn't allow for some future use of the interface we would like to consider
-    adding in the future (see below)
-  - Interestingly reading from /proc/pid/mem currently actually involves two copies! (But
-    this could be fixed pretty easily)
+> > Fig.3 after patch, one heavy dirtier
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A |
+> > A  A throttle_bandwidth ~= bdi_bandwidth A => A  A  o
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A | o
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A | A  o
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A | A  A  o
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A | A  A  A  o
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A | A  A  A  A  o
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A La| A  A  A  A  A  o
+> > ----------------------------------------------+-+-------------o----------------|
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A R A  A  A  A  A  A  A A  A  A  A  A  A  A  A T
+> > A T: bdi_dirty_limit
+> > A A: task_dirty_limit A  A  A = T - Wa * T/16
+> > A La: task_throttle_thresh = A - A/16
+> >
+> > A R: bdi_dirty_pages = bdi_reclaimable + bdi_writeback ~= La
+> >
+> > Now for IO-less balance_dirty_pages(), let's do it in a "bandwidth control"
+> > way. In fig.3, a soft dirty limit region (La, A) is introduced. When R enters
+> > this region, the task may be throttled for J jiffies on every N pages it dirtied.
+> > Let's call (N/J) the "throttle bandwidth". It is computed by the following formula:
+> >
+> > A  A  A  A throttle_bandwidth = bdi_bandwidth * (A - R) / (A - La)
+> > where
+> > A  A  A  A A = T - Wa * T/16
+> > A  A  A  A La = A - A/16
+> > where Wa is task weight for A. It's 0 for very light dirtier and 1 for
+> > the one heavy dirtier (that consumes 100% bdi write bandwidth). A The
+> > task weight will be updated independently by task_dirty_inc() at
+> > set_page_dirty() time.
+> 
+> 
+> Dumb question.
+> 
+> I can't see the difference between old and new,
+> La depends on A.
+> A depends on Wa.
+> T is constant?
 
-- Fixed bug around using mm without correct locking
+T is the bdi's share of the global dirty limit. It's stable in normal,
+and here we use it as the reference point for per-bdi dirty throttling.
 
-- call set_page_dirty_lock only on pages we may have written to
+> Then, throttle_bandwidth depends on Wa.
 
-- Replaces custom security check with call to __ptrace_may_access
+Sure, each task will be throttled at different bandwidth if there
+"Wa" are different.
 
-As mentioned previously use of vmsplice instead was considered, 
-but has problems. Since you need the reader and writer working co-operatively
- if the pipe is not drained then you block. Which requires some wrapping to do non blocking
-on the send side or polling on the receive. In all to all communication
-it requires ordering otherwise you can deadlock. And in the example of
-many MPI tasks writing to one MPI task vmsplice serialises the
-copying.
+> Wa depends on the number of dirtied pages during some interval.
+> So if light dirtier become heavy, at last light dirtier and heavy
+> dirtier will have a same weight.
+> It means throttle_bandwidth is same. It's a same with old result.
 
-There are some cases of MPI collectives where even a single copy interface does
-not get us the performance gain we could. For example in an MPI_Reduce rather than
-copy the data from the source we would like to instead use it directly in a mathops
-(say the reduce is doing a sum) as this would save us doing a copy. 
-We don't need to keep a copy of the data from the
-source. I haven't implemented this, but I think this interface could in the future 
-do all this through the use of the flags - eg could specify the math operation and type
-and the kernel rather than just copying the data would apply the specified operation
-between the source and destination and store it in the destination. 
-
-Some benchmark data for those who missed the original thread (same as last time):
-
-HPCC results:
-=============
-
-MB/s			Num Processes	
-Naturally Ordered	4	8	16	32
-Base			1235	935	622	419
-CMA			4741	3769	1977	703
-
-			
-MB/s			Num Processes	
-Randomly Ordered	4	8	16	32
-Base			1227	947	638	412
-CMA			4666	3682	1978	710
-				
-MB/s			Num Processes	
-Max Ping Pong		4	8	16	32
-Base			2028	1938	1928	1882
-CMA			7424	7510	7598	7708
-
-
-NPB:
-====
-BT - 12% improvement
-FT - 15% improvement
-IS - 30% improvement
-SP - 34% improvement
-
-IMB:
-===
-		
-Ping Pong - ~30% improvement
-Ping Ping - ~120% improvement
-SendRecv - ~100% improvement
-Exchange - ~150% improvement
-Gather(v) - ~20% improvement
-Scatter(v) - ~20% improvement
-AlltoAll(v) - 30-50% improvement
-
-
-
-Chris
--- 
-cyeoh@au1.ibm.com
-
-Signed-off-by: Chris Yeoh <cyeoh@au1.ibm.com>
-diff --git a/arch/powerpc/include/asm/systbl.h b/arch/powerpc/include/asm/systbl.h
-index aa0f1eb..f55dbc7 100644
---- a/arch/powerpc/include/asm/systbl.h
-+++ b/arch/powerpc/include/asm/systbl.h
-@@ -348,3 +348,5 @@ COMPAT_SYS_SPU(sendmsg)
- COMPAT_SYS_SPU(recvmsg)
- COMPAT_SYS_SPU(recvmmsg)
- SYSCALL_SPU(accept4)
-+SYSCALL(process_vm_readv)
-+SYSCALL(process_vm_writev)
-diff --git a/arch/powerpc/include/asm/unistd.h b/arch/powerpc/include/asm/unistd.h
-index 6151937..9ce27ec 100644
---- a/arch/powerpc/include/asm/unistd.h
-+++ b/arch/powerpc/include/asm/unistd.h
-@@ -367,10 +367,12 @@
- #define __NR_recvmsg		342
- #define __NR_recvmmsg		343
- #define __NR_accept4		344
-+#define __NR_process_vm_readv	345
-+#define __NR_process_vm_writev	346
+Yeah. Wa and throttle_bandwidth is changing over time.
  
- #ifdef __KERNEL__
- 
--#define __NR_syscalls		345
-+#define __NR_syscalls		347
- 
- #define __NR__exit __NR_exit
- #define NR_syscalls	__NR_syscalls
-diff --git a/arch/powerpc/kernel/sys_ppc32.c b/arch/powerpc/kernel/sys_ppc32.c
-index b1b6043..7f6ed34 100644
---- a/arch/powerpc/kernel/sys_ppc32.c
-+++ b/arch/powerpc/kernel/sys_ppc32.c
-@@ -624,3 +624,4 @@ asmlinkage long compat_sys_fanotify_mark(int fanotify_fd, unsigned int flags,
- 	u64 mask = ((u64)mask_hi << 32) | mask_lo;
- 	return sys_fanotify_mark(fanotify_fd, flags, mask, dfd, pathname);
- }
-+
-diff --git a/arch/x86/include/asm/unistd_32.h b/arch/x86/include/asm/unistd_32.h
-index b766a5e..1446daa 100644
---- a/arch/x86/include/asm/unistd_32.h
-+++ b/arch/x86/include/asm/unistd_32.h
-@@ -346,10 +346,12 @@
- #define __NR_fanotify_init	338
- #define __NR_fanotify_mark	339
- #define __NR_prlimit64		340
-+#define __NR_process_vm_readv	341
-+#define __NR_process_vm_writev	342
- 
- #ifdef __KERNEL__
- 
--#define NR_syscalls 341
-+#define NR_syscalls 343
- 
- #define __ARCH_WANT_IPC_PARSE_VERSION
- #define __ARCH_WANT_OLD_READDIR
-diff --git a/arch/x86/kernel/syscall_table_32.S b/arch/x86/kernel/syscall_table_32.S
-index b35786d..f1ed82c 100644
---- a/arch/x86/kernel/syscall_table_32.S
-+++ b/arch/x86/kernel/syscall_table_32.S
-@@ -340,3 +340,5 @@ ENTRY(sys_call_table)
- 	.long sys_fanotify_init
- 	.long sys_fanotify_mark
- 	.long sys_prlimit64		/* 340 */
-+	.long sys_process_vm_readv
-+	.long sys_process_vm_writev
-diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-index e6319d1..a8b4f32 100644
---- a/include/linux/syscalls.h
-+++ b/include/linux/syscalls.h
-@@ -831,5 +831,17 @@ asmlinkage long sys_mmap_pgoff(unsigned long addr, unsigned long len,
- 			unsigned long prot, unsigned long flags,
- 			unsigned long fd, unsigned long pgoff);
- asmlinkage long sys_old_mmap(struct mmap_arg_struct __user *arg);
-+asmlinkage long sys_process_vm_readv(pid_t pid,
-+				     const struct iovec __user *lvec,
-+				     unsigned long liovcnt,
-+				     const struct iovec __user *rvec,
-+				     unsigned long riovcnt,
-+				     unsigned long flags);
-+asmlinkage long sys_process_vm_writev(pid_t pid,
-+				      const struct iovec __user *lvec,
-+				      unsigned long liovcnt,
-+				      const struct iovec __user *rvec,
-+				      unsigned long riovcnt,
-+				      unsigned long flags);
- 
- #endif
-diff --git a/mm/memory.c b/mm/memory.c
-index 98b58fe..956afbd 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -57,6 +57,8 @@
- #include <linux/swapops.h>
- #include <linux/elf.h>
- #include <linux/gfp.h>
-+#include <linux/syscalls.h>
-+#include <linux/ptrace.h>
- 
- #include <asm/io.h>
- #include <asm/pgalloc.h>
-@@ -3566,6 +3568,334 @@ void print_vma_addr(char *prefix, unsigned long ip)
- 	up_read(&current->mm->mmap_sem);
- }
- 
-+
-+/*
-+ * process_vm_rw_pages - read/write pages from task specified
-+ * @task: task to read/write from
-+ * @process_pages: struct pages area that can store at least
-+ *  nr_pages_to_copy struct page pointers
-+ * @pa: address of page in task to start copying from/to
-+ * @start_offset: offset in page to start copying from/to
-+ * @len: number of bytes to copy
-+ * @lvec: iovec array specifying where to copy to/from
-+ * @lvec_cnt: number of elements in iovec array
-+ * @lvec_current: index in iovec array we are up to
-+ * @lvec_offset: offset in bytes from current iovec iov_base we are up to
-+ * @vm_write: 0 means copy from, 1 means copy to
-+ * @nr_pages_to_copy: number of pages to copy
-+ */
-+
-+static int process_vm_rw_pages(struct task_struct *task,
-+			       struct page **process_pages,
-+			       unsigned long pa,
-+			       unsigned long start_offset,
-+			       unsigned long len,
-+			       struct iovec *lvec,
-+			       unsigned long lvec_cnt,
-+			       unsigned long *lvec_current,
-+			       size_t *lvec_offset,
-+			       int vm_write,
-+			       unsigned int nr_pages_to_copy)
-+{
-+	int pages_pinned;
-+	void *target_kaddr;
-+	int i = 0;
-+	int j;
-+	int ret;
-+	unsigned long bytes_to_copy;
-+	unsigned long bytes_copied = 0;
-+	int rc = -EFAULT;
-+
-+	/* Get the pages we're interested in */
-+	pages_pinned = get_user_pages(task, task->mm, pa,
-+				      nr_pages_to_copy,
-+				      vm_write, 0, process_pages, NULL);
-+
-+	if (pages_pinned != nr_pages_to_copy)
-+		goto end;
-+
-+	/* Do the copy for each page */
-+	for (i = 0; (i < nr_pages_to_copy) && (*lvec_current < lvec_cnt); i++) {
-+		/* Make sure we have a non zero length iovec */
-+		while (*lvec_current < lvec_cnt
-+		       && lvec[*lvec_current].iov_len == 0)
-+			(*lvec_current)++;
-+		if (*lvec_current == lvec_cnt)
-+			break;
-+
-+		/* Will copy smallest of:
-+		   - bytes remaining in page
-+		   - bytes remaining in destination iovec */
-+		bytes_to_copy = min(PAGE_SIZE - start_offset,
-+				    len - bytes_copied);
-+		bytes_to_copy = min((size_t)bytes_to_copy,
-+				    lvec[*lvec_current].iov_len - *lvec_offset);
-+
-+
-+		target_kaddr = kmap(process_pages[i]) + start_offset;
-+
-+		if (vm_write)
-+			ret = copy_from_user(target_kaddr,
-+					     lvec[*lvec_current].iov_base
-+					     + *lvec_offset,
-+					     bytes_to_copy);
-+		else
-+			ret = copy_to_user(lvec[*lvec_current].iov_base
-+					   + *lvec_offset,
-+					   target_kaddr, bytes_to_copy);
-+		kunmap(process_pages[i]);
-+		if (ret) {
-+			i++;
-+			goto end;
-+		}
-+		bytes_copied += bytes_to_copy;
-+		*lvec_offset += bytes_to_copy;
-+		if (*lvec_offset == lvec[*lvec_current].iov_len) {
-+			/* Need to copy remaining part of page into
-+			   the next iovec if there are any bytes left in page */
-+			(*lvec_current)++;
-+			*lvec_offset = 0;
-+			start_offset = (start_offset + bytes_to_copy)
-+				% PAGE_SIZE;
-+			if (start_offset)
-+				i--;
-+		} else {
-+			if (start_offset)
-+				start_offset = 0;
-+		}
-+	}
-+
-+	rc = bytes_copied;
-+
-+end:
-+	for (j = 0; j < pages_pinned; j++) {
-+		if (vm_write && j < i)
-+			set_page_dirty_lock(process_pages[j]);
-+		put_page(process_pages[j]);
-+	}
-+
-+	return rc;
-+}
-+
-+
-+
-+static int process_vm_rw(pid_t pid, unsigned long addr,
-+			 unsigned long len,
-+			 struct iovec *lvec,
-+			 unsigned long lvec_cnt,
-+			 unsigned long *lvec_current,
-+			 size_t *lvec_offset,
-+			 struct page **process_pages,
-+			 struct mm_struct *mm,
-+			 struct task_struct *task,
-+			 unsigned long flags, int vm_write)
-+{
-+	unsigned long pa = addr & PAGE_MASK;
-+	unsigned long start_offset = addr - pa;
-+	int nr_pages;
-+	unsigned long bytes_copied = 0;
-+	int rc;
-+	unsigned int nr_pages_copied = 0;
-+	unsigned int nr_pages_to_copy;
-+	unsigned int max_pages_per_loop = (PAGE_SIZE * 2)
-+		/ sizeof(struct pages *);
-+
-+
-+	/* Work out address and page range required */
-+	if (len == 0)
-+		return 0;
-+	nr_pages = (addr + len - 1) / PAGE_SIZE - addr / PAGE_SIZE + 1;
-+
-+
-+	down_read(&mm->mmap_sem);
-+	while ((nr_pages_copied < nr_pages) && (*lvec_current < lvec_cnt)) {
-+		nr_pages_to_copy = min(nr_pages - nr_pages_copied,
-+				       max_pages_per_loop);
-+
-+		rc = process_vm_rw_pages(task, process_pages, pa,
-+					 start_offset, len,
-+					 lvec, lvec_cnt,
-+					 lvec_current, lvec_offset,
-+					 vm_write, nr_pages_to_copy);
-+		start_offset = 0;
-+
-+		if (rc == -EFAULT)
-+			goto free_mem;
-+		else {
-+			bytes_copied += rc;
-+			len -= rc;
-+			nr_pages_copied += nr_pages_to_copy;
-+			pa += nr_pages_to_copy * PAGE_SIZE;
-+		}
-+	}
-+
-+	rc = bytes_copied;
-+
-+free_mem:
-+	up_read(&mm->mmap_sem);
-+
-+	return rc;
-+}
-+
-+static int process_vm_rw_v(pid_t pid, const struct iovec __user *lvec,
-+			   unsigned long liovcnt,
-+			   const struct iovec __user *rvec,
-+			   unsigned long riovcnt,
-+			   unsigned long flags, int vm_write)
-+{
-+	struct task_struct *task;
-+	struct page **process_pages = NULL;
-+	struct mm_struct *mm;
-+	int i;
-+	int rc;
-+	int bytes_copied;
-+	struct iovec iovstack_l[UIO_FASTIOV];
-+	struct iovec iovstack_r[UIO_FASTIOV];
-+	struct iovec *iov_l = iovstack_l;
-+	struct iovec *iov_r = iovstack_r;
-+	unsigned int nr_pages = 0;
-+	unsigned int nr_pages_iov;
-+	unsigned long iov_l_curr_idx = 0;
-+	size_t iov_l_curr_offset = 0;
-+	int iov_len_total = 0;
-+
-+	/* Get process information */
-+	rcu_read_lock();
-+	task = find_task_by_vpid(pid);
-+	if (task)
-+		get_task_struct(task);
-+	rcu_read_unlock();
-+	if (!task)
-+		return -ESRCH;
-+
-+	task_lock(task);
-+	if (__ptrace_may_access(task, PTRACE_MODE_ATTACH)) {
-+		task_unlock(task);
-+		rc = -EPERM;
-+		goto end;
-+	}
-+	mm = task->mm;
-+
-+	if (!mm) {
-+		rc = -EINVAL;
-+		goto end;
-+	}
-+
-+	atomic_inc(&mm->mm_users);
-+	task_unlock(task);
-+
-+
-+	if ((liovcnt > UIO_MAXIOV) || (riovcnt > UIO_MAXIOV)) {
-+		rc = -EINVAL;
-+		goto release_mm;
-+	}
-+
-+	if (liovcnt > UIO_FASTIOV)
-+		iov_l = kmalloc(liovcnt*sizeof(struct iovec), GFP_KERNEL);
-+
-+	if (riovcnt > UIO_FASTIOV)
-+		iov_r = kmalloc(riovcnt*sizeof(struct iovec), GFP_KERNEL);
-+
-+	if (iov_l == NULL || iov_r == NULL) {
-+		rc = -ENOMEM;
-+		goto free_iovecs;
-+	}
-+
-+	rc = copy_from_user(iov_l, lvec, liovcnt*sizeof(*lvec));
-+	if (rc) {
-+		rc = -EFAULT;
-+		goto free_iovecs;
-+	}
-+	rc = copy_from_user(iov_r, rvec, riovcnt*sizeof(*lvec));
-+	if (rc) {
-+		rc = -EFAULT;
-+		goto free_iovecs;
-+	}
-+
-+	/* Work out how many pages of struct pages we're going to need
-+	   when eventually calling get_user_pages */
-+	for (i = 0; i < riovcnt; i++) {
-+		if (iov_r[i].iov_len > 0) {
-+			nr_pages_iov = ((unsigned long)iov_r[i].iov_base
-+					+ iov_r[i].iov_len) /
-+				PAGE_SIZE - (unsigned long)iov_r[i].iov_base
-+				/ PAGE_SIZE + 1;
-+			nr_pages = max(nr_pages, nr_pages_iov);
-+			iov_len_total += iov_r[i].iov_len;
-+			if (iov_len_total < 0) {
-+				rc = -EINVAL;
-+				goto free_iovecs;
-+			}
-+		}
-+	}
-+
-+	if (nr_pages == 0)
-+		goto free_iovecs;
-+
-+	/* For reliability don't try to kmalloc more than 2 pages worth */
-+	process_pages = kmalloc(min((size_t)PAGE_SIZE * 2,
-+				    sizeof(struct pages *) * nr_pages),
-+				GFP_KERNEL);
-+
-+	if (!process_pages) {
-+		rc = -ENOMEM;
-+		goto free_iovecs;
-+	}
-+
-+	rc = 0;
-+	for (i = 0; i < riovcnt && iov_l_curr_idx < liovcnt; i++) {
-+		bytes_copied = process_vm_rw(pid,
-+					     (unsigned long)iov_r[i].iov_base,
-+					     iov_r[i].iov_len,
-+					     iov_l, liovcnt,
-+					     &iov_l_curr_idx,
-+					     &iov_l_curr_offset,
-+					     process_pages, mm,
-+					     task, flags, vm_write);
-+		if (bytes_copied < 0) {
-+			rc = bytes_copied;
-+			goto free_proc_pages;
-+		} else {
-+			rc += bytes_copied;
-+		}
-+	}
-+
-+
-+free_proc_pages:
-+	kfree(process_pages);
-+
-+free_iovecs:
-+	if (riovcnt > UIO_FASTIOV)
-+		kfree(iov_r);
-+	if (liovcnt > UIO_FASTIOV)
-+		kfree(iov_l);
-+
-+release_mm:
-+	mmput(mm);
-+
-+end:
-+	put_task_struct(task);
-+	return rc;
-+}
-+
-+
-+SYSCALL_DEFINE6(process_vm_readv, pid_t, pid, const struct iovec __user *, lvec,
-+		unsigned long, liovcnt, const struct iovec __user *, rvec,
-+		unsigned long, riovcnt,	unsigned long, flags)
-+{
-+	return process_vm_rw_v(pid, lvec, liovcnt, rvec, riovcnt, flags, 0);
-+}
-+
-+SYSCALL_DEFINE6(process_vm_writev, pid_t, pid,
-+		const struct iovec __user *, lvec,
-+		unsigned long, liovcnt, const struct iovec __user *, rvec,
-+		unsigned long, riovcnt,	unsigned long, flags)
-+{
-+	return process_vm_rw_v(pid, lvec, liovcnt, rvec, riovcnt, flags, 1);
-+}
-+
-+
-+
- #ifdef CONFIG_PROVE_LOCKING
- void might_fault(void)
- {
+> Please, open my eyes. :)
+
+You get the dynamics right :)
+
+> Thanks for the great work.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
