@@ -1,48 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B8F066B0071
-	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 23:11:00 -0500 (EST)
-Date: Mon, 22 Nov 2010 13:09:54 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [BUGFIX][PATCH] pagemap: set pagemap walk limit to PMD boundary
-Message-ID: <20101122040953.GB3017@spritzera.linux.bs1.fc.nec.co.jp>
-References: <1290157665-17215-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20101122120102.e0e76373.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A2066B0071
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 01:40:57 -0500 (EST)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id oAM6NaGZ005418
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 01:23:36 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oAM6enln166406
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 01:40:49 -0500
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oAM6emAa009421
+	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 23:40:49 -0700
+Date: Mon, 22 Nov 2010 12:10:43 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/6] memcg: add mem_cgroup parameter to
+ mem_cgroup_page_stat()
+Message-ID: <20101122064043.GI12043@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1289294671-6865-1-git-send-email-gthelen@google.com>
+ <1289294671-6865-2-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-2022-jp
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20101122120102.e0e76373.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1289294671-6865-2-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Matt Mackall <mpm@selenic.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > @@ -776,7 +777,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
-> >  		unsigned long end;
-> >
-> >  		pm.pos = 0;
-> > -		end = start_vaddr + PAGEMAP_WALK_SIZE;
-> > +		end = (start_vaddr + PAGEMAP_WALK_SIZE) & PAGEMAP_WALK_MASK;
-> >  		/* overflow ? */
-> >  		if (end < start_vaddr || end > end_vaddr)
-> >  			end = end_vaddr;
+* Greg Thelen <gthelen@google.com> [2010-11-09 01:24:26]:
+
+> This new parameter can be used to query dirty memory usage
+> from a given memcg rather than the current task's memcg.
+> 
+> Signed-off-by: Greg Thelen <gthelen@google.com>
 >
-> Ack.
->
-> But ALIGN() can't be used ?
 
-ALIGN() returns the same address as the input if it is already aligned,
-but what we need here is the next PMD boundary. So something like
+How is this useful, documenting that in the changelog would be nice. 
 
-                end = IS_ALIGNED(start_vaddr, PAGEMAP_WALK_SIZE) ?
-                        start_vaddr + PAGEMAP_WALK_SIZE :
-                        ALIGN(start_vaddr, PAGEMAP_WALK_SIZE)          
-
-keeps the semantics, but I don't like it because it's lengthy.
-
-Anyway, thanks for your comment.
-
-Naoya Horiguchi
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
