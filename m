@@ -1,55 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 05B406B0071
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 17:21:48 -0500 (EST)
-Date: Mon, 22 Nov 2010 14:21:09 -0800
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E66556B0071
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 18:07:48 -0500 (EST)
+Date: Mon, 22 Nov 2010 15:06:42 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC 2/2] Prevent promotion of page in madvise_dontneed
-Message-Id: <20101122142109.2f3e168c.akpm@linux-foundation.org>
-In-Reply-To: <5d205f8a4df078b0da3681063bbf37382b02dd23.1290349672.git.minchan.kim@gmail.com>
-References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
-	<5d205f8a4df078b0da3681063bbf37382b02dd23.1290349672.git.minchan.kim@gmail.com>
+Subject: Re: [PATCH] Pass priority to shrink_slab
+Message-Id: <20101122150642.eec5f776.akpm@linux-foundation.org>
+In-Reply-To: <AANLkTi=EnNqEDoWn6OiR04TaTBskNEZx4z8MOAYH8nK1@mail.gmail.com>
+References: <1290054891-6097-1-git-send-email-yinghan@google.com>
+	<20101118085921.GA11314@amd>
+	<20101119142552.df0e351c.akpm@linux-foundation.org>
+	<AANLkTi=EnNqEDoWn6OiR04TaTBskNEZx4z8MOAYH8nK1@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
+To: Ying Han <yinghan@google.com>
+Cc: Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@gmail.com>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 21 Nov 2010 23:30:24 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+On Fri, 19 Nov 2010 19:23:22 -0800
+Ying Han <yinghan@google.com> wrote:
 
-> Now zap_pte_range alwayas promotes pages which are pte_young &&
-> !VM_SequentialReadHint(vma). But in case of calling MADV_DONTNEED,
-> it's unnecessary since the page wouldn't use any more.
+> On Fri, Nov 19, 2010 at 2:25 PM, Andrew Morton <akpm@linux-foundation.org>wrote:
 > 
-> If the page is sharred by other processes and it's real working set
+> > On Thu, 18 Nov 2010 19:59:21 +1100
+> > Nick Piggin <npiggin@kernel.dk> wrote:
+> >
+> ...
+> > To satisfy a GFP_KERNEL or GFP_USER allocation request, we need to free
+> > up some of that lowmem.  But none of those inodes are reclaimable,
+> > because of their attached highmem pagecache.  So in this case we very
+> > much want to shoot down those inodes' pagecache within the icache
+> > shrinker, so we can get those inodes reclaimed.
+> >
+> 
+> 
+> With the proposed change, that reclaim won't be happening until vmscan
+> > has reached a higher priority.  Which means that the VM will instead go
+> > nuts reclaiming *other* lowmem objects.  That means all the other slabs
+> > which have shrinkers.  It also means lowmem pagecache: those inodes
+> > will cause all your filesystem metadata to get evicted.  It also means
+> > that anonymous memory which happened to land in lowmem will get swapped
+> > out, and program text which is in lowmem will be unmapped and evicted.
+> >
+> Thanks Andrew for your comments. The example makes sense to me although it
+> seems to
+> little bit rare.
 
-This patch doesn't actually do anything.  It passes variable `promote'
-all the way down to unmap_vmas(), but unmap_vmas() doesn't use that new
-variable.
+mmm, not really rare.  i386 boxes aren't exactly extinct, and
+many-small-files workloads are pretty common.
 
-Have a comment fixlet:
+The patch will change behaviour on 64-bit machines as well.  The kernel
+will reclaim less pages via shrink_icache() and presumably more via the
+LRU scans.  Hence pages will be reclaimed in different orders at least
+(hopefully in *better* order).
 
---- a/mm/memory.c~mm-prevent-promotion-of-page-in-madvise_dontneed-fix
-+++ a/mm/memory.c
-@@ -1075,7 +1075,7 @@ static unsigned long unmap_page_range(st
-  * @end_addr: virtual address at which to end unmapping
-  * @nr_accounted: Place number of unmapped pages in vm-accountable vma's here
-  * @details: details of nonlinear truncation or shared cache invalidation
-- * @promote: whether pages inclued vma would be promoted or not
-+ * @promote: whether pages included in the vma should be promoted or not
-  *
-  * Returns the end address of the unmapping (restart addr if interrupted).
-  *
-_
+And I suspect we'll end up changing the pagecache-vs-slab-object
+weighting, in the direction of "the kernel reclaims pages more than it
+used to, and slab objects less than it used to".
 
-Also, I'd suggest that we avoid introducing the term "promote".  It
-isn't a term which is presently used in Linux MM.  Probably "activate"
-has a better-known meaning.
+Also I suspect that more non-icache objects will be reclaimed via the
+slab shrinkers.
 
-And `activate' could be a bool if one is in the mood for that.
+Whether this change in behaviour on 64-bit is good, bad or undetectable
+I do not know!
+
+> On the page reclaim path, we always try the page lru first and then the
+> shrink slab since the latter one
+> has no guarantee of freeing page. If the lowmem has user pages on the lru
+> which could be reclaimed,
+> preserving the slabs might not be a bed idea? And if the page lru has hard
+> time to reclaim those pages,
+> it will raise up the priority and in turn will affect the shrinker after the
+> change.
+
+I don't know whether the change is a net improvement or a net
+deterioration.  But it _is_ a change, and we should find out.
+
+And the behavioural change on 64-bit machines should be understood and
+assessed as well.
+
+> > And yes, we need a struct shrinker_control so we can fiddle with the
+> > argument passing without having to edit lots of files each time.
+> >
+> 
+> Yes, and it would be much easier later to add a small feature (like this
+> one) w/o
+> touching so many files of the shrinkers. I am thinking if we can extend the
+> scan_control
+> from page reclaim and pass it down to the shrinker ?
+
+Yes, that might work.  All callers of shrink_slab() already have a
+scan_control on the stack, so passing all that extra info to the
+shrinkers (along with some extra fields if needed) is pretty cheap, and
+I don't see a great downside to exposing unneeded fields to the
+shrinkers, given they're already on the stack somewhere.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
