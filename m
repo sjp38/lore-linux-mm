@@ -1,165 +1,402 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AC0A6B008A
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3310B6B0089
 	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 10:44:03 -0500 (EST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 0/7] Use memory compaction instead of lumpy reclaim during high-order allocations V2
-Date: Mon, 22 Nov 2010 15:43:48 +0000
-Message-Id: <1290440635-30071-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 4/7] mm: migration: Allow migration to operate asynchronously and avoid synchronous compaction in the faster path
+Date: Mon, 22 Nov 2010 15:43:52 +0000
+Message-Id: <1290440635-30071-5-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1290440635-30071-1-git-send-email-mel@csn.ul.ie>
+References: <1290440635-30071-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Changelog since V1
-  o Drop patch that takes a scanning hint from LRU
-  o Loop in reclaim until it is known that enough pages are reclaimed for
-    compaction to make forward progress or that progress is no longer
-    possible
-  o Do not call compaction from within reclaim. Instead have the allocator
-    or kswapd call it as necessary
-  o Obeying sync in migration now means just avoiding wait_on_page_writeback
+Migration synchronously waits for writeback if the initial passes fails.
+Callers of memory compaction do not necessarily want this behaviour if the
+caller is latency sensitive or expects that synchronous migration is not
+going to have a significantly better success rate.
 
-Huge page allocations are not expected to be cheap but lumpy reclaim
-is still very disruptive. While it is far better than reclaiming random
-order-0 pages, it ignores the reference bit of pages near the reference
-page selected from the LRU. Memory compaction was merged in 2.6.35 to use
-less lumpy reclaim by moving pages around instead of reclaiming when there
-were enough pages free. It has been tested fairly heavily at this point.
-This is a prototype series to use compaction more aggressively.
+This patch adds a sync parameter to migrate_pages() allowing the caller to
+indicate if wait_on_page_writeback() is allowed within migration or not. For
+reclaim/compaction, try_to_compact_pages() is first called asynchronously,
+direct reclaim runs and then try_to_compact_pages() is called synchronously
+as there is a greater expectation that it'll succeed.
 
-When CONFIG_COMPACTION is set, lumpy reclaim is no longer used. Instead,
-a mechanism called reclaim/compaction is used where a number of order-0
-pages are reclaimed and later the caller uses compaction to satisfy the
-allocation. This keeps a larger number of active pages in memory at the cost
-of increased use of migration and compaction scanning. With the full series
-applied, latencies when allocating huge pages are significantly reduced. By
-the end of the series, hints are taken from the LRU on where the best place
-to start migrating from might be.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ include/linux/compaction.h |   10 ++++++----
+ include/linux/migrate.h    |   12 ++++++++----
+ mm/compaction.c            |   14 ++++++++++----
+ mm/memory-failure.c        |    3 ++-
+ mm/memory_hotplug.c        |    3 ++-
+ mm/mempolicy.c             |    4 ++--
+ mm/migrate.c               |   22 +++++++++++++---------
+ mm/page_alloc.c            |   21 +++++++++++++++------
+ mm/vmscan.c                |    2 +-
+ 9 files changed, 59 insertions(+), 32 deletions(-)
 
-Andrea, this version calls compaction from the callers instead of within
-reclaim. Your main concern before was that compaction was being called after
-a blind reclaim without checking if enough reclaim work had occurred. This
-version is better at checking if enough work has been done but the callers
-of compaction are a little awkward. I'm wondering if it really does make
-more sense to call compact_zone_order() if should_continue_reclaim() returns
-false and indications are that compaction would have a successful outcome.
-
-Four kernels are tested
-
-traceonly		This kernel is using compaction and has the
-			tracepoints applied.
-
-reclaimcompact		First three patches. A number of order-0 pages
-			are applied and then the zone is compacted. This
-			replaces lumpy reclaim but lumpy reclaim is still
-			available if compaction is unset.
-
-obeysync		First five patches. Migration will avoid the use
-			of wait_on_page_writeback() if requested by the
-			caller.
-
-fastscan		First six patches applied. try_to_compact_pages()
-			uses shortcuts in the faster compaction path to
-			reduce latency.
-
-The final patch is just a rename so it is not reported.  The target test was
-a high-order allocation stress test. Testing was based on kernel 2.6.37-rc2.
-The test machine was x86-64 with 3G of RAM.
-
-STRESS-HIGHALLOC
-                traceonly         reclaimcompact     obeysync         fastscan
-Pass 1          90.00 ( 0.00%)    80.00 (-10.00%)    84.00 (-6.00%)   82.00 (-8.00%)
-Pass 2          92.00 ( 0.00%)    82.00 (-10.00%)    86.00 (-6.00%)   86.00 (-6.00%)
-At Rest         94.00 ( 0.00%)    93.00 (-1.00%)     95.00 ( 1.00%)   93.00 (-1.00%)
-
-MMTests Statistics: duration
-User/Sys Time Running Test (seconds)       3359.07   3284.68    3299.3   3292.66
-Total Elapsed Time (seconds)               2120.23   1329.19   1314.64   1312.75
-
-
-Success rates are slightly down at the gain of faster completion times. This
-is related to the patches reducing the amount of latency and the work
-performed by reclaim. The success figures can be matched but the system
-gets hammered more. As the success rates are still very high, it's not
-worth the overhead. All in all, the test completes 15 minutes faster which
-is a pretty decent improvement.
-
-FTrace Reclaim Statistics: vmscan
-                                         traceonly reclaimcompact obeysync fastscan
-Direct reclaims                                403        704        757        648 
-Direct reclaim pages scanned                 62655     734125     718325     621864 
-Direct reclaim pages reclaimed               36445     186805     214376     187671 
-Direct reclaim write file async I/O           2090        748        517        561 
-Direct reclaim write anon async I/O           9850       8089       5704       4307 
-Direct reclaim write file sync I/O               1          0          0          0 
-Direct reclaim write anon sync I/O              70          1          1          0 
-Wake kswapd requests                           768       1061        890        979 
-Kswapd wakeups                                 581        439        451        423 
-Kswapd pages scanned                       4566808    2421272    2284775    2349758 
-Kswapd pages reclaimed                     2338283    1580849    1558239    1559380 
-Kswapd reclaim write file async I/O          48287        858        673        649 
-Kswapd reclaim write anon async I/O         755369       3327       3964       4037 
-Kswapd reclaim write file sync I/O               0          0          0          0 
-Kswapd reclaim write anon sync I/O               0          0          0          0 
-Time stalled direct reclaim (seconds)       104.13      41.53      71.18      53.77 
-Time kswapd awake (seconds)                 891.88     233.58     199.42     212.52 
-
-Total pages scanned                        4629463   3155397   3003100   2971622
-Total pages reclaimed                      2374728   1767654   1772615   1747051
-%age total pages scanned/reclaimed          51.30%    56.02%    59.03%    58.79%
-%age total pages scanned/written            17.62%     0.41%     0.36%     0.32%
-%age  file pages scanned/written             1.09%     0.05%     0.04%     0.04%
-Percentage Time Spent Direct Reclaim         3.01%     1.25%     2.11%     1.61%
-Percentage Time kswapd Awake                42.07%    17.57%    15.17%    16.19%
-
-These are the reclaim statistics. The time spent in direct reclaim and
-with kswapd is reduced as well as less overall reclaim activity (2.4G less
-worth of pages reclaimed). It looks like obeysync increases the stall time
-for direct reclaimers.  This could be reduced by having kswapd use sync
-compaction but the preceived ideal was that it is better for kswapd to
-continually make forward progress.
-
-FTrace Reclaim Statistics: compaction
-                                        traceonly reclaimcompact obeysync  fastscan
-Migrate Pages Scanned                     83190294 1277116960  955517979  927209597 
-Migrate Pages Isolated                      245208    4068555    3173644    3920101 
-Free    Pages Scanned                     25488658  597156637  668273710  927901903 
-Free    Pages Isolated                      335004    4575669    3597552    4408042 
-Migrated Pages                              241260    4018215    3123549    3865212 
-Migration Failures                            3948      50340      50095      54863 
-
-The patch series increases the amount of compaction activity but this is not
-surprising as there are more callers. Once reclaim/compaction is introduced,
-the remainder of the series reduces the work slightly. This work doesn't
-show up in the latency figures as such but it's trashing cache. Future work
-may look at reducing the amount of scanning that is performed by compaction.
-
-The raw figures are convincing enough in terms of the test completes faster
-but we really care about latencies so here are the average latencies when
-allocating huge pages.
-
-X86-64
-http://www.csn.ul.ie/~mel/postings/memorycompact-20101122/highalloc-interlatency-hydra-mean.ps
-http://www.csn.ul.ie/~mel/postings/memorycompact-20101122/highalloc-interlatency-hydra-stddev.ps
-
-The mean latencies are pushed *way* down implying that the amount of work
-to allocate each huge page is drastically reduced. 
-
- include/linux/compaction.h        |   20 ++++-
- include/linux/kernel.h            |    7 ++
- include/linux/migrate.h           |   12 ++-
- include/trace/events/compaction.h |   74 +++++++++++++++++
- include/trace/events/vmscan.h     |    6 +-
- mm/compaction.c                   |  132 ++++++++++++++++++++++---------
- mm/memory-failure.c               |    3 +-
- mm/memory_hotplug.c               |    3 +-
- mm/mempolicy.c                    |    6 +-
- mm/migrate.c                      |   22 +++--
- mm/page_alloc.c                   |   32 +++++++-
- mm/vmscan.c                       |  157 ++++++++++++++++++++++++++++---------
- 12 files changed, 371 insertions(+), 103 deletions(-)
- create mode 100644 include/trace/events/compaction.h
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index e082cf9..d0aeffd 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -21,10 +21,11 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
+ 
+ extern int fragmentation_index(struct zone *zone, unsigned int order);
+ extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
+-			int order, gfp_t gfp_mask, nodemask_t *mask);
++			int order, gfp_t gfp_mask, nodemask_t *mask,
++			bool sync);
+ extern unsigned long compaction_suitable(struct zone *zone, int order);
+ extern unsigned long compact_zone_order(struct zone *zone, int order,
+-						gfp_t gfp_mask);
++						gfp_t gfp_mask, bool sync);
+ 
+ /* Do not skip compaction more than 64 times */
+ #define COMPACT_MAX_DEFER_SHIFT 6
+@@ -57,7 +58,8 @@ static inline bool compaction_deferred(struct zone *zone)
+ 
+ #else
+ static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
+-			int order, gfp_t gfp_mask, nodemask_t *nodemask)
++			int order, gfp_t gfp_mask, nodemask_t *nodemask,
++			bool sync)
+ {
+ 	return COMPACT_CONTINUE;
+ }
+@@ -68,7 +70,7 @@ static inline unsigned long compaction_suitable(struct zone *zone, int order)
+ }
+ 
+ extern unsigned long compact_zone_order(struct zone *zone, int order,
+-						gfp_t gfp_mask)
++						gfp_t gfp_mask, bool sync)
+ {
+ 	return 0;
+ }
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index 085527f..fa31902 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -13,9 +13,11 @@ extern void putback_lru_pages(struct list_head *l);
+ extern int migrate_page(struct address_space *,
+ 			struct page *, struct page *);
+ extern int migrate_pages(struct list_head *l, new_page_t x,
+-			unsigned long private, int offlining);
++			unsigned long private, int offlining,
++			bool sync);
+ extern int migrate_huge_pages(struct list_head *l, new_page_t x,
+-			unsigned long private, int offlining);
++			unsigned long private, int offlining,
++			bool sync);
+ 
+ extern int fail_migrate_page(struct address_space *,
+ 			struct page *, struct page *);
+@@ -33,9 +35,11 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
+ 
+ static inline void putback_lru_pages(struct list_head *l) {}
+ static inline int migrate_pages(struct list_head *l, new_page_t x,
+-		unsigned long private, int offlining) { return -ENOSYS; }
++		unsigned long private, int offlining,
++		bool sync) { return -ENOSYS; }
+ static inline int migrate_huge_pages(struct list_head *l, new_page_t x,
+-		unsigned long private, int offlining) { return -ENOSYS; }
++		unsigned long private, int offlining,
++		bool sync) { return -ENOSYS; }
+ 
+ static inline int migrate_prep(void) { return -ENOSYS; }
+ static inline int migrate_prep_local(void) { return -ENOSYS; }
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 384fa71..03bd8f9 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -33,6 +33,7 @@ struct compact_control {
+ 	unsigned long nr_migratepages;	/* Number of pages to migrate */
+ 	unsigned long free_pfn;		/* isolate_freepages search base */
+ 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
++	bool sync;			/* Synchronous migration */
+ 
+ 	/* Account for isolated anon and file pages */
+ 	unsigned long nr_anon;
+@@ -456,7 +457,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 
+ 		nr_migrate = cc->nr_migratepages;
+ 		migrate_pages(&cc->migratepages, compaction_alloc,
+-						(unsigned long)cc, 0);
++				(unsigned long)cc, 0,
++				cc->sync);
+ 		update_nr_listpages(cc);
+ 		nr_remaining = cc->nr_migratepages;
+ 
+@@ -483,7 +485,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ }
+ 
+ unsigned long compact_zone_order(struct zone *zone,
+-						int order, gfp_t gfp_mask)
++						int order, gfp_t gfp_mask,
++						bool sync)
+ {
+ 	struct compact_control cc = {
+ 		.nr_freepages = 0,
+@@ -491,6 +494,7 @@ unsigned long compact_zone_order(struct zone *zone,
+ 		.order = order,
+ 		.migratetype = allocflags_to_migratetype(gfp_mask),
+ 		.zone = zone,
++		.sync = sync,
+ 	};
+ 	INIT_LIST_HEAD(&cc.freepages);
+ 	INIT_LIST_HEAD(&cc.migratepages);
+@@ -506,11 +510,13 @@ int sysctl_extfrag_threshold = 500;
+  * @order: The order of the current allocation
+  * @gfp_mask: The GFP mask of the current allocation
+  * @nodemask: The allowed nodes to allocate from
++ * @sync: Whether migration is synchronous or not
+  *
+  * This is the main entry point for direct page compaction.
+  */
+ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+-			int order, gfp_t gfp_mask, nodemask_t *nodemask)
++			int order, gfp_t gfp_mask, nodemask_t *nodemask,
++			bool sync)
+ {
+ 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+ 	int may_enter_fs = gfp_mask & __GFP_FS;
+@@ -534,7 +540,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 								nodemask) {
+ 		int status;
+ 
+-		status = compact_zone_order(zone, order, gfp_mask);
++		status = compact_zone_order(zone, order, gfp_mask, sync);
+ 		rc = max(status, rc);
+ 
+ 		/* If a normal allocation would succeed, stop compacting */
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 1243241..188294e 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1413,7 +1413,8 @@ int soft_offline_page(struct page *page, int flags)
+ 		LIST_HEAD(pagelist);
+ 
+ 		list_add(&page->lru, &pagelist);
+-		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0);
++		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
++								0, true);
+ 		if (ret) {
+ 			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+ 				pfn, ret, page->flags);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 9260314..221178b 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -716,7 +716,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 			goto out;
+ 		}
+ 		/* this function returns # of failed pages */
+-		ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
++		ret = migrate_pages(&source, hotremove_migrate_alloc, 0,
++								1, true);
+ 		if (ret)
+ 			putback_lru_pages(&source);
+ 	}
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 4a57f13..8b1a490 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -935,7 +935,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+ 		return PTR_ERR(vma);
+ 
+ 	if (!list_empty(&pagelist)) {
+-		err = migrate_pages(&pagelist, new_node_page, dest, 0);
++		err = migrate_pages(&pagelist, new_node_page, dest, 0, true);
+ 		if (err)
+ 			putback_lru_pages(&pagelist);
+ 	}
+@@ -1155,7 +1155,7 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 
+ 		if (!list_empty(&pagelist)) {
+ 			nr_failed = migrate_pages(&pagelist, new_vma_page,
+-						(unsigned long)vma, 0);
++						(unsigned long)vma, 0, true);
+ 			if (nr_failed)
+ 				putback_lru_pages(&pagelist);
+ 		}
+diff --git a/mm/migrate.c b/mm/migrate.c
+index fe5a3c6..678a84a 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -612,7 +612,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+  * to the newly allocated page in newpage.
+  */
+ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+-			struct page *page, int force, int offlining)
++			struct page *page, int force, int offlining, bool sync)
+ {
+ 	int rc = 0;
+ 	int *result = NULL;
+@@ -663,7 +663,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+ 	BUG_ON(charge);
+ 
+ 	if (PageWriteback(page)) {
+-		if (!force)
++		if (!force || !sync)
+ 			goto uncharge;
+ 		wait_on_page_writeback(page);
+ 	}
+@@ -808,7 +808,7 @@ move_newpage:
+  */
+ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ 				unsigned long private, struct page *hpage,
+-				int force, int offlining)
++				int force, int offlining, bool sync)
+ {
+ 	int rc = 0;
+ 	int *result = NULL;
+@@ -822,7 +822,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ 	rc = -EAGAIN;
+ 
+ 	if (!trylock_page(hpage)) {
+-		if (!force)
++		if (!force || !sync)
+ 			goto out;
+ 		lock_page(hpage);
+ 	}
+@@ -890,7 +890,8 @@ out:
+  * Return: Number of pages not migrated or error code.
+  */
+ int migrate_pages(struct list_head *from,
+-		new_page_t get_new_page, unsigned long private, int offlining)
++		new_page_t get_new_page, unsigned long private, int offlining,
++		bool sync)
+ {
+ 	int retry = 1;
+ 	int nr_failed = 0;
+@@ -910,7 +911,8 @@ int migrate_pages(struct list_head *from,
+ 			cond_resched();
+ 
+ 			rc = unmap_and_move(get_new_page, private,
+-						page, pass > 2, offlining);
++						page, pass > 2, offlining,
++						sync);
+ 
+ 			switch(rc) {
+ 			case -ENOMEM:
+@@ -939,7 +941,8 @@ out:
+ }
+ 
+ int migrate_huge_pages(struct list_head *from,
+-		new_page_t get_new_page, unsigned long private, int offlining)
++		new_page_t get_new_page, unsigned long private, int offlining,
++		bool sync)
+ {
+ 	int retry = 1;
+ 	int nr_failed = 0;
+@@ -955,7 +958,8 @@ int migrate_huge_pages(struct list_head *from,
+ 			cond_resched();
+ 
+ 			rc = unmap_and_move_huge_page(get_new_page,
+-					private, page, pass > 2, offlining);
++					private, page, pass > 2, offlining,
++					sync);
+ 
+ 			switch(rc) {
+ 			case -ENOMEM:
+@@ -1088,7 +1092,7 @@ set_status:
+ 	err = 0;
+ 	if (!list_empty(&pagelist)) {
+ 		err = migrate_pages(&pagelist, new_page_node,
+-				(unsigned long)pm, 0);
++				(unsigned long)pm, 0, true);
+ 		if (err)
+ 			putback_lru_pages(&pagelist);
+ 	}
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2c88655..c9e0fbe 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1788,7 +1788,8 @@ static struct page *
+ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 	struct zonelist *zonelist, enum zone_type high_zoneidx,
+ 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
+-	int migratetype, unsigned long *did_some_progress)
++	int migratetype, unsigned long *did_some_progress,
++	bool sync_migration)
+ {
+ 	struct page *page;
+ 
+@@ -1796,7 +1797,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 		return NULL;
+ 
+ 	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
+-								nodemask);
++						nodemask, sync_migration);
+ 	if (*did_some_progress != COMPACT_SKIPPED) {
+ 
+ 		/* Page migration frees to the PCP lists but we want merging */
+@@ -1832,7 +1833,8 @@ static inline struct page *
+ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 	struct zonelist *zonelist, enum zone_type high_zoneidx,
+ 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
+-	int migratetype, unsigned long *did_some_progress)
++	int migratetype, unsigned long *did_some_progress,
++	bool sync_migration)
+ {
+ 	return NULL;
+ }
+@@ -1974,6 +1976,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	unsigned long pages_reclaimed = 0;
+ 	unsigned long did_some_progress;
+ 	struct task_struct *p = current;
++	bool sync_migration = false;
+ 
+ 	/*
+ 	 * In the slowpath, we sanity check order to avoid ever trying to
+@@ -2036,14 +2039,19 @@ rebalance:
+ 	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+ 		goto nopage;
+ 
+-	/* Try direct compaction */
++	/*
++	 * Try direct compaction. The first pass is asynchronous. Subsequent
++	 * attempts after direct reclaim are synchronous
++	 */
+ 	page = __alloc_pages_direct_compact(gfp_mask, order,
+ 					zonelist, high_zoneidx,
+ 					nodemask,
+ 					alloc_flags, preferred_zone,
+-					migratetype, &did_some_progress);
++					migratetype, &did_some_progress,
++					sync_migration);
+ 	if (page)
+ 		goto got_pg;
++	sync_migration = true;
+ 
+ 	/* Try direct reclaim and then allocating */
+ 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
+@@ -2107,7 +2115,8 @@ rebalance:
+ 					zonelist, high_zoneidx,
+ 					nodemask,
+ 					alloc_flags, preferred_zone,
+-					migratetype, &did_some_progress);
++					migratetype, &did_some_progress,
++					sync_migration);
+ 		if (page)
+ 			goto got_pg;
+ 	}
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 3fb7a76..6a6aa7d 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2371,7 +2371,7 @@ loop_again:
+ 			 */
+ 			if (sc.order > PAGE_ALLOC_COSTLY_ORDER)
+ 				compact_zone_order(zone, sc.order,
+-						sc.gfp_mask);
++						sc.gfp_mask, false);
+ 
+ 			if (!zone_watermark_ok(zone, order,
+ 					high_wmark_pages(zone), end_zone, 0)) {
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
