@@ -1,186 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 090256B0071
-	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 18:08:31 -0500 (EST)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id oALN8QO0012873
-	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 15:08:28 -0800
-Received: from gxk7 (gxk7.prod.google.com [10.202.11.7])
-	by wpaz37.hot.corp.google.com with ESMTP id oALN8NEs003180
-	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 15:08:25 -0800
-Received: by gxk7 with SMTP id 7so4722621gxk.0
-        for <linux-mm@kvack.org>; Sun, 21 Nov 2010 15:08:23 -0800 (PST)
-Date: Sun, 21 Nov 2010 15:08:17 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch 2/2 v2] mm: add node hotplug emulation
-In-Reply-To: <alpine.DEB.2.00.1011211346160.26304@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1011211505440.30377@chino.kir.corp.google.com>
-References: <20101117075128.GA30254@shaohui> <alpine.DEB.2.00.1011171304060.10254@chino.kir.corp.google.com> <20101118041407.GA2408@shaohui> <20101118062715.GD17539@linux-sh.org> <20101118052750.GD2408@shaohui> <alpine.DEB.2.00.1011181321470.26680@chino.kir.corp.google.com>
- <20101119003225.GB3327@shaohui> <alpine.DEB.2.00.1011201645230.10618@chino.kir.corp.google.com> <alpine.DEB.2.00.1011201826140.12889@chino.kir.corp.google.com> <alpine.DEB.2.00.1011201827540.12889@chino.kir.corp.google.com> <20101121173438.GA3922@suse.de>
- <alpine.DEB.2.00.1011211346160.26304@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id 54C1E6B0071
+	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 19:10:18 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAM0AFOn011582
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 22 Nov 2010 09:10:15 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 51F4E45DE5A
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 09:10:15 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 220A945DE52
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 09:10:15 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id EDFBE1DB805B
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 09:10:14 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 955451DB803C
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 09:10:14 +0900 (JST)
+Date: Mon, 22 Nov 2010 09:04:31 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/4] big chunk memory allocator v4
+Message-Id: <20101122090431.4ff9c941.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20101119125653.16dd5452.akpm@linux-foundation.org>
+References: <20101119171033.a8d9dc8f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101119125653.16dd5452.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>
-Cc: Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Shaohui Zheng <shaohui.zheng@intel.com>, Paul Mundt <lethal@linux-sh.org>, Andi Kleen <ak@linux.intel.com>, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, minchan.kim@gmail.com, Bob Liu <lliubbo@gmail.com>, fujita.tomonori@lab.ntt.co.jp, m.nazarewicz@samsung.com, pawel@osciak.com, andi.kleen@intel.com, felipe.contreras@gmail.com, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Add an interface to allow new nodes to be added when performing memory
-hot-add.  This provides a convenient interface to test memory hotplug
-notifier callbacks and surrounding hotplug code when new nodes are
-onlined without actually having a machine with such hotpluggable SRAT
-entries.
+On Fri, 19 Nov 2010 12:56:53 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-This adds a new debugfs interface at /sys/kernel/debug/hotplug/add_node
-that behaves in a similar way to the memory hot-add "probe" interface.
-Its format is size@start, where "size" is the size of the new node to be
-added and "start" is the physical address of the new memory.
+> On Fri, 19 Nov 2010 17:10:33 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > Hi, this is an updated version. 
+> > 
+> > No major changes from the last one except for page allocation function.
+> > removed RFC.
+> > 
+> > Order of patches is
+> > 
+> > [1/4] move some functions from memory_hotplug.c to page_isolation.c
+> > [2/4] search physically contiguous range suitable for big chunk alloc.
+> > [3/4] allocate big chunk memory based on memory hotplug(migration) technique
+> > [4/4] modify page allocation function.
+> > 
+> > For what:
+> > 
+> >   I hear there is requirements to allocate a chunk of page which is larger than
+> >   MAX_ORDER. Now, some (embeded) device use a big memory chunk. To use memory,
+> >   they hide some memory range by boot option (mem=) and use hidden memory
+> >   for its own purpose. But this seems a lack of feature in memory management.
+> > 
+> >   This patch adds 
+> > 	alloc_contig_pages(start, end, nr_pages, gfp_mask)
+> >   to allocate a chunk of page whose length is nr_pages from [start, end)
+> >   phys address. This uses similar logic of memory-unplug, which tries to
+> >   offline [start, end) pages. By this, drivers can allocate 30M or 128M or
+> >   much bigger memory chunk on demand. (I allocated 1G chunk in my test).
+> > 
+> >   But yes, because of fragmentation, this cannot guarantee 100% alloc.
+> >   If alloc_contig_pages() is called in system boot up or movable_zone is used,
+> >   this allocation succeeds at high rate.
+> 
+> So this is an alternatve implementation for the functionality offered
+> by Michal's "The Contiguous Memory Allocator framework".
+> 
 
-The new node id is a currently offline, but possible, node.  The bit must
-be set in node_possible_map so that nr_node_ids is sized appropriately.
+Yes, this will be a backends for that kind of works.
 
-For emulation on x86, for example, it would be possible to set aside
-memory for hotplugged nodes (say, anything above 2G) and to add an
-additional four nodes as being possible on boot with
+I think there are two ways to allocate contiguous pages larger than MAX_ORDER.
 
-	mem=2G numa=possible=4
+1) hide some memory at boot and add an another memory allocator.
+2) support a range allocator as [start, end)
 
-and then creating a new 128M node at runtime:
+This is an trial from 2). I used memory-hotplug technique because I know some.
+This patch itself has no "map" and "management" function, so it should be
+developped in another patch (but maybe it will be not my work.)
 
-	# echo 128M@0x80000000 > /sys/kernel/debug/hotplug/add_node
-	On node 1 totalpages: 0
-	init_memory_mapping: 0000000080000000-0000000088000000
-	 0080000000 - 0088000000 page 2M
+> >   I tested this on x86-64, and it seems to work as expected. But feedback from
+> >   embeded guys are appreciated because I think they are main user of this
+> >   function.
+> 
+> From where I sit, feedback from the embedded guys is *vital*, because
+> they are indeed the main users.
+> 
+> Michal, I haven't made a note of all the people who are interested in
+> and who are potential users of this code.  Your patch series has a
+> billion cc's and is up to version 6.  Could I ask that you review and
+> test this code, and also hunt down other people (probably at other
+> organisations) who can do likewise for us?  Because until we hear from
+> those people that this work satisfies their needs, we can't really
+> proceed much further.
+> 
 
-Once the new node has been added, its memory can be onlined.  If this
-memory represents memory section 16, for example:
+yes. please.
 
-	# echo online > /sys/devices/system/memory/memory16/state
-	Built 2 zonelists in Node order, mobility grouping on.  Total pages: 514846
-	Policy zone: Normal
-
- [ The memory section(s) mapped to a particular node are visible via
-   /sys/devices/system/node/node1, in this example. ]
-
-The new node is now hotplugged and ready for testing.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- v2: moved to debugfs as suggested by Greg KH
-
- (patch 1/2: "x86: add numa=possible command line option" is still valid)
-
- Documentation/memory-hotplug.txt |   24 +++++++++++++++
- mm/memory_hotplug.c              |   59 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 83 insertions(+), 0 deletions(-)
-
-diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
---- a/Documentation/memory-hotplug.txt
-+++ b/Documentation/memory-hotplug.txt
-@@ -18,6 +18,7 @@ be changed often.
- 4. Physical memory hot-add phase
-   4.1 Hardware(Firmware) Support
-   4.2 Notify memory hot-add event by hand
-+  4.3 Node hotplug emulation
- 5. Logical Memory hot-add phase
-   5.1. State of memory
-   5.2. How to online memory
-@@ -215,6 +216,29 @@ current implementation). You'll have to online memory by yourself.
- Please see "How to online memory" in this text.
- 
- 
-+4.3 Node hotplug emulation
-+------------
-+With debugfs, it is possible to test node hotplug by assigning the newly
-+added memory to a new node id when using a different interface with a similar
-+behavior to "probe" described in section 4.2.  If a node id is possible
-+(there are bits in /sys/devices/system/memory/possible that are not online),
-+then it may be used to emulate a newly added node as the result of memory
-+hotplug by using the debugfs "add_node" interface.
-+
-+The add_node interface is located at "hotplug/add_node" at the debugfs mount
-+point.
-+
-+You can create a new node of a specified size starting at the physical
-+address of new memory by
-+
-+% echo size@start_address_of_new_memory > /sys/kernel/debug/hotplug/add_node
-+
-+Where "size" can be represented in megabytes or gigabytes (for example,
-+"128M" or "1G").  The minumum size is that of a memory section.
-+
-+Once the new node has been added, it is possible to online the memory by
-+toggling the "state" of its memory section(s) as described in section 5.1.
-+
- 
- ------------------------------
- 5. Logical Memory hot-add phase
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -910,3 +910,62 @@ int remove_memory(u64 start, u64 size)
- }
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- EXPORT_SYMBOL_GPL(remove_memory);
-+
-+#ifdef CONFIG_DEBUG_FS
-+#include <linux/debugfs.h>
-+
-+static struct dentry *hotplug_debug_root;
-+
-+static ssize_t add_node_store(struct file *file, const char __user *buf,
-+				size_t count, loff_t *ppos)
-+{
-+	nodemask_t mask;
-+	u64 start, size;
-+	char buffer[64];
-+	char *p;
-+	int nid;
-+	int ret;
-+
-+	memset(buffer, 0, sizeof(buffer));
-+	if (count > sizeof(buffer) - 1)
-+		count = sizeof(buffer) - 1;
-+	if (copy_from_user(buffer, buf, count))
-+		return -EFAULT;
-+
-+	size = memparse(buffer, &p);
-+	if (size < (PAGES_PER_SECTION << PAGE_SHIFT))
-+		return -EINVAL;
-+	if (*p != '@')
-+		return -EINVAL;
-+
-+	start = simple_strtoull(p + 1, NULL, 0);
-+
-+	nodes_andnot(mask, node_possible_map, node_online_map);
-+	nid = first_node(mask);
-+	if (nid == MAX_NUMNODES)
-+		return -ENOMEM;
-+
-+	ret = add_memory(nid, start, size);
-+	return ret ? ret : count;
-+}
-+
-+static const struct file_operations add_node_file_ops = {
-+	.write		= add_node_store,
-+	.llseek		= generic_file_llseek,
-+};
-+
-+static int __init hotplug_debug_init(void)
-+{
-+	hotplug_debug_root = debugfs_create_dir("hotplug", NULL);
-+	if (!hotplug_debug_root)
-+		return -ENOMEM;
-+
-+	if (!debugfs_create_file("add_node", S_IWUSR, hotplug_debug_root,
-+			NULL, &add_node_file_ops))
-+		return -ENOMEM;
-+
-+	return 0;
-+}
-+
-+module_init(hotplug_debug_init);
-+#endif /* CONFIG_DEBUG_FS */
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
