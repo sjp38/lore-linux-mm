@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AF296B0093
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 10:44:05 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DC3556B0089
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 10:46:27 -0500 (EST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 7/7] mm: vmscan: Rename lumpy_mode to reclaim_mode
-Date: Mon, 22 Nov 2010 15:43:55 +0000
-Message-Id: <1290440635-30071-8-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 5/7] mm: migration: Cleanup migrate_pages API by matching types for offlining and sync
+Date: Mon, 22 Nov 2010 15:43:53 +0000
+Message-Id: <1290440635-30071-6-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1290440635-30071-1-git-send-email-mel@csn.ul.ie>
 References: <1290440635-30071-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,248 +13,139 @@ To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-With compaction being used instead of lumpy reclaim, the name lumpy_mode
-and associated variables is a bit misleading. Rename lumpy_mode to
-reclaim_mode which is a better fit. There is no functional change.
+With the introduction of the boolean sync parameter, the API looks a
+little inconsistent as offlining is still an int. Convert offlining to a
+bool for the sake of being tidy.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- include/trace/events/vmscan.h |    6 ++--
- mm/vmscan.c                   |   70 ++++++++++++++++++++--------------------
- 2 files changed, 38 insertions(+), 38 deletions(-)
+ include/linux/migrate.h |    8 ++++----
+ mm/compaction.c         |    2 +-
+ mm/memory_hotplug.c     |    2 +-
+ mm/mempolicy.c          |    6 ++++--
+ mm/migrate.c            |    8 ++++----
+ 5 files changed, 14 insertions(+), 12 deletions(-)
 
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index be76429..ea422aa 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -25,13 +25,13 @@
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index fa31902..e39aeec 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -13,10 +13,10 @@ extern void putback_lru_pages(struct list_head *l);
+ extern int migrate_page(struct address_space *,
+ 			struct page *, struct page *);
+ extern int migrate_pages(struct list_head *l, new_page_t x,
+-			unsigned long private, int offlining,
++			unsigned long private, bool offlining,
+ 			bool sync);
+ extern int migrate_huge_pages(struct list_head *l, new_page_t x,
+-			unsigned long private, int offlining,
++			unsigned long private, bool offlining,
+ 			bool sync);
  
- #define trace_reclaim_flags(page, sync) ( \
- 	(page_is_file_cache(page) ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
--	(sync & LUMPY_MODE_SYNC ? RECLAIM_WB_SYNC : RECLAIM_WB_ASYNC)   \
-+	(sync & RECLAIM_MODE_SYNC ? RECLAIM_WB_SYNC : RECLAIM_WB_ASYNC)   \
- 	)
+ extern int fail_migrate_page(struct address_space *,
+@@ -35,10 +35,10 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
  
- #define trace_shrink_flags(file, sync) ( \
--	(sync & LUMPY_MODE_SYNC ? RECLAIM_WB_MIXED : \
-+	(sync & RECLAIM_MODE_SYNC ? RECLAIM_WB_MIXED : \
- 			(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON)) |  \
--	(sync & LUMPY_MODE_SYNC ? RECLAIM_WB_SYNC : RECLAIM_WB_ASYNC) \
-+	(sync & RECLAIM_MODE_SYNC ? RECLAIM_WB_SYNC : RECLAIM_WB_ASYNC) \
- 	)
+ static inline void putback_lru_pages(struct list_head *l) {}
+ static inline int migrate_pages(struct list_head *l, new_page_t x,
+-		unsigned long private, int offlining,
++		unsigned long private, bool offlining,
+ 		bool sync) { return -ENOSYS; }
+ static inline int migrate_huge_pages(struct list_head *l, new_page_t x,
+-		unsigned long private, int offlining,
++		unsigned long private, bool offlining,
+ 		bool sync) { return -ENOSYS; }
  
- TRACE_EVENT(mm_vmscan_kswapd_sleep,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 6a6aa7d..92af572 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -53,22 +53,22 @@
- #include <trace/events/vmscan.h>
+ static inline int migrate_prep(void) { return -ENOSYS; }
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 03bd8f9..b6e589d 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -457,7 +457,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
  
- /*
-- * lumpy_mode determines how the inactive list is shrunk
-- * LUMPY_MODE_SINGLE: Reclaim only order-0 pages
-- * LUMPY_MODE_ASYNC:  Do not block
-- * LUMPY_MODE_SYNC:   Allow blocking e.g. call wait_on_page_writeback
-- * LUMPY_MODE_CONTIGRECLAIM: For high-order allocations, take a reference
-+ * reclaim_mode determines how the inactive list is shrunk
-+ * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages
-+ * RECLAIM_MODE_ASYNC:  Do not block
-+ * RECLAIM_MODE_SYNC:   Allow blocking e.g. call wait_on_page_writeback
-+ * RECLAIM_MODE_LUMPYRECLAIM: For high-order allocations, take a reference
-  *			page from the LRU and reclaim all pages within a
-  *			naturally aligned range
-- * LUMPY_MODE_COMPACTION: For high-order allocations, reclaim a number of
-+ * RECLAIM_MODE_COMPACTION: For high-order allocations, reclaim a number of
-  *			order-0 pages and then compact the zone
-  */
--typedef unsigned __bitwise__ lumpy_mode;
--#define LUMPY_MODE_SINGLE		((__force lumpy_mode)0x01u)
--#define LUMPY_MODE_ASYNC		((__force lumpy_mode)0x02u)
--#define LUMPY_MODE_SYNC			((__force lumpy_mode)0x04u)
--#define LUMPY_MODE_CONTIGRECLAIM	((__force lumpy_mode)0x08u)
--#define LUMPY_MODE_COMPACTION		((__force lumpy_mode)0x10u)
-+typedef unsigned __bitwise__ reclaim_mode;
-+#define RECLAIM_MODE_SINGLE		((__force reclaim_mode)0x01u)
-+#define RECLAIM_MODE_ASYNC		((__force reclaim_mode)0x02u)
-+#define RECLAIM_MODE_SYNC		((__force reclaim_mode)0x04u)
-+#define RECLAIM_MODE_LUMPYRECLAIM	((__force reclaim_mode)0x08u)
-+#define RECLAIM_MODE_COMPACTION		((__force reclaim_mode)0x10u)
- 
- struct scan_control {
- 	/* Incremented by the number of inactive pages that were scanned */
-@@ -101,7 +101,7 @@ struct scan_control {
- 	 * Intend to reclaim enough continuous memory rather than reclaim
- 	 * enough amount of memory. i.e, mode for high order allocation.
- 	 */
--	lumpy_mode lumpy_reclaim_mode;
-+	reclaim_mode reclaim_mode;
- 
- 	/* Which cgroup do we reclaim from */
- 	struct mem_cgroup *mem_cgroup;
-@@ -284,10 +284,10 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
- 	return ret;
- }
- 
--static void set_lumpy_reclaim_mode(int priority, struct scan_control *sc,
-+static void set_reclaim_mode(int priority, struct scan_control *sc,
- 				   bool sync)
- {
--	lumpy_mode syncmode = sync ? LUMPY_MODE_SYNC : LUMPY_MODE_ASYNC;
-+	reclaim_mode syncmode = sync ? RECLAIM_MODE_SYNC : RECLAIM_MODE_ASYNC;
- 
- 	/*
- 	 * Initially assume we are entering either lumpy reclaim or
-@@ -295,9 +295,9 @@ static void set_lumpy_reclaim_mode(int priority, struct scan_control *sc,
- 	 * sync mode or just reclaim order-0 pages later.
- 	 */
- 	if (COMPACTION_BUILD)
--		sc->lumpy_reclaim_mode = LUMPY_MODE_COMPACTION;
-+		sc->reclaim_mode = RECLAIM_MODE_COMPACTION;
- 	else
--		sc->lumpy_reclaim_mode = LUMPY_MODE_CONTIGRECLAIM;
-+		sc->reclaim_mode = RECLAIM_MODE_LUMPYRECLAIM;
- 
- 	/*
- 	 * Avoid using lumpy reclaim or reclaim/compaction if possible by
-@@ -305,16 +305,16 @@ static void set_lumpy_reclaim_mode(int priority, struct scan_control *sc,
- 	 * under memory pressure
- 	 */
- 	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
--		sc->lumpy_reclaim_mode |= syncmode;
-+		sc->reclaim_mode |= syncmode;
- 	else if (sc->order && priority < DEF_PRIORITY - 2)
--		sc->lumpy_reclaim_mode |= syncmode;
-+		sc->reclaim_mode |= syncmode;
- 	else
--		sc->lumpy_reclaim_mode = LUMPY_MODE_SINGLE | LUMPY_MODE_ASYNC;
-+		sc->reclaim_mode = RECLAIM_MODE_SINGLE | RECLAIM_MODE_ASYNC;
- }
- 
--static void disable_lumpy_reclaim_mode(struct scan_control *sc)
-+static void reset_reclaim_mode(struct scan_control *sc)
- {
--	sc->lumpy_reclaim_mode = LUMPY_MODE_SINGLE | LUMPY_MODE_ASYNC;
-+	sc->reclaim_mode = RECLAIM_MODE_SINGLE | RECLAIM_MODE_ASYNC;
- }
- 
- static inline int is_page_cache_freeable(struct page *page)
-@@ -445,7 +445,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
- 		 * first attempt to free a range of pages fails.
- 		 */
- 		if (PageWriteback(page) &&
--		    (sc->lumpy_reclaim_mode & LUMPY_MODE_SYNC))
-+		    (sc->reclaim_mode & RECLAIM_MODE_SYNC))
- 			wait_on_page_writeback(page);
- 
- 		if (!PageWriteback(page)) {
-@@ -453,7 +453,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
- 			ClearPageReclaim(page);
+ 		nr_migrate = cc->nr_migratepages;
+ 		migrate_pages(&cc->migratepages, compaction_alloc,
+-				(unsigned long)cc, 0,
++				(unsigned long)cc, false,
+ 				cc->sync);
+ 		update_nr_listpages(cc);
+ 		nr_remaining = cc->nr_migratepages;
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 221178b..6178c80 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -717,7 +717,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
  		}
- 		trace_mm_vmscan_writepage(page,
--			trace_reclaim_flags(page, sc->lumpy_reclaim_mode));
-+			trace_reclaim_flags(page, sc->reclaim_mode));
- 		inc_zone_page_state(page, NR_VMSCAN_WRITE);
- 		return PAGE_SUCCESS;
+ 		/* this function returns # of failed pages */
+ 		ret = migrate_pages(&source, hotremove_migrate_alloc, 0,
+-								1, true);
++								true, true);
+ 		if (ret)
+ 			putback_lru_pages(&source);
  	}
-@@ -631,7 +631,7 @@ static enum page_references page_check_references(struct page *page,
- 	referenced_page = TestClearPageReferenced(page);
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 8b1a490..9beb008 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -935,7 +935,8 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+ 		return PTR_ERR(vma);
  
- 	/* Lumpy reclaim - ignore references */
--	if (sc->lumpy_reclaim_mode & LUMPY_MODE_CONTIGRECLAIM)
-+	if (sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM)
- 		return PAGEREF_RECLAIM;
- 
- 	/*
-@@ -748,7 +748,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			 * for any page for which writeback has already
- 			 * started.
- 			 */
--			if ((sc->lumpy_reclaim_mode & LUMPY_MODE_SYNC) &&
-+			if ((sc->reclaim_mode & RECLAIM_MODE_SYNC) &&
- 			    may_enter_fs)
- 				wait_on_page_writeback(page);
- 			else {
-@@ -904,7 +904,7 @@ cull_mlocked:
- 			try_to_free_swap(page);
- 		unlock_page(page);
- 		putback_lru_page(page);
--		disable_lumpy_reclaim_mode(sc);
-+		reset_reclaim_mode(sc);
- 		continue;
- 
- activate_locked:
-@@ -917,7 +917,7 @@ activate_locked:
- keep_locked:
- 		unlock_page(page);
- keep:
--		disable_lumpy_reclaim_mode(sc);
-+		reset_reclaim_mode(sc);
- keep_lumpy:
- 		list_add(&page->lru, &ret_pages);
- 		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
-@@ -1333,7 +1333,7 @@ static inline bool should_reclaim_stall(unsigned long nr_taken,
- 		return false;
- 
- 	/* Only stall on lumpy reclaim */
--	if (sc->lumpy_reclaim_mode & LUMPY_MODE_SINGLE)
-+	if (sc->reclaim_mode & RECLAIM_MODE_SINGLE)
- 		return false;
- 
- 	/* If we have relaimed everything on the isolated list, no stall */
-@@ -1377,14 +1377,14 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 			return SWAP_CLUSTER_MAX;
+ 	if (!list_empty(&pagelist)) {
+-		err = migrate_pages(&pagelist, new_node_page, dest, 0, true);
++		err = migrate_pages(&pagelist, new_node_page, dest,
++								false, true);
+ 		if (err)
+ 			putback_lru_pages(&pagelist);
  	}
+@@ -1155,7 +1156,8 @@ static long do_mbind(unsigned long start, unsigned long len,
  
--	set_lumpy_reclaim_mode(priority, sc, false);
-+	set_reclaim_mode(priority, sc, false);
- 	lru_add_drain();
- 	spin_lock_irq(&zone->lru_lock);
- 
- 	if (scanning_global_lru(sc)) {
- 		nr_taken = isolate_pages_global(nr_to_scan,
- 			&page_list, &nr_scanned, sc->order,
--			sc->lumpy_reclaim_mode & LUMPY_MODE_CONTIGRECLAIM ?
-+			sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM ?
- 					ISOLATE_BOTH : ISOLATE_INACTIVE,
- 			zone, 0, file);
- 		zone->pages_scanned += nr_scanned;
-@@ -1397,7 +1397,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 	} else {
- 		nr_taken = mem_cgroup_isolate_pages(nr_to_scan,
- 			&page_list, &nr_scanned, sc->order,
--			sc->lumpy_reclaim_mode & LUMPY_MODE_CONTIGRECLAIM ?
-+			sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM ?
- 					ISOLATE_BOTH : ISOLATE_INACTIVE,
- 			zone, sc->mem_cgroup,
- 			0, file);
-@@ -1420,7 +1420,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 
- 	/* Check if we should syncronously wait for writeback */
- 	if (should_reclaim_stall(nr_taken, nr_reclaimed, priority, sc)) {
--		set_lumpy_reclaim_mode(priority, sc, true);
-+		set_reclaim_mode(priority, sc, true);
- 		nr_reclaimed += shrink_page_list(&page_list, zone, sc);
- 	}
- 
-@@ -1435,7 +1435,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 		zone_idx(zone),
- 		nr_scanned, nr_reclaimed,
- 		priority,
--		trace_shrink_flags(file, sc->lumpy_reclaim_mode));
-+		trace_shrink_flags(file, sc->reclaim_mode));
- 	return nr_reclaimed;
+ 		if (!list_empty(&pagelist)) {
+ 			nr_failed = migrate_pages(&pagelist, new_vma_page,
+-						(unsigned long)vma, 0, true);
++						(unsigned long)vma,
++						false, true);
+ 			if (nr_failed)
+ 				putback_lru_pages(&pagelist);
+ 		}
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 678a84a..2eb2243 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -612,7 +612,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+  * to the newly allocated page in newpage.
+  */
+ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+-			struct page *page, int force, int offlining, bool sync)
++			struct page *page, int force, bool offlining, bool sync)
+ {
+ 	int rc = 0;
+ 	int *result = NULL;
+@@ -808,7 +808,7 @@ move_newpage:
+  */
+ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ 				unsigned long private, struct page *hpage,
+-				int force, int offlining, bool sync)
++				int force, bool offlining, bool sync)
+ {
+ 	int rc = 0;
+ 	int *result = NULL;
+@@ -890,7 +890,7 @@ out:
+  * Return: Number of pages not migrated or error code.
+  */
+ int migrate_pages(struct list_head *from,
+-		new_page_t get_new_page, unsigned long private, int offlining,
++		new_page_t get_new_page, unsigned long private, bool offlining,
+ 		bool sync)
+ {
+ 	int retry = 1;
+@@ -941,7 +941,7 @@ out:
  }
  
-@@ -1829,7 +1829,7 @@ static inline bool should_continue_reclaim(struct zone *zone,
- 	unsigned long inactive_lru_pages;
- 
- 	/* If not in reclaim/compaction mode, stop */
--	if (!(sc->lumpy_reclaim_mode & LUMPY_MODE_COMPACTION))
-+	if (!(sc->reclaim_mode & RECLAIM_MODE_COMPACTION))
- 		return false;
- 
- 	/*
+ int migrate_huge_pages(struct list_head *from,
+-		new_page_t get_new_page, unsigned long private, int offlining,
++		new_page_t get_new_page, unsigned long private, bool offlining,
+ 		bool sync)
+ {
+ 	int retry = 1;
 -- 
 1.7.1
 
