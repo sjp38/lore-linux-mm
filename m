@@ -1,60 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9DE006B0071
-	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 19:38:50 -0500 (EST)
-Received: by iwn33 with SMTP id 33so2694225iwn.14
-        for <linux-mm@kvack.org>; Sun, 21 Nov 2010 16:38:49 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id DC3E26B0071
+	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 19:49:33 -0500 (EST)
+Received: by iwn33 with SMTP id 33so2704459iwn.14
+        for <linux-mm@kvack.org>; Sun, 21 Nov 2010 16:49:32 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20101121173726.GG23423@thunk.org>
-References: <20101121112611.GB4267@deepthought.bhanu.net>
-	<20101121133024.GF23423@thunk.org>
-	<20101121153949.GD20947@barrios-desktop>
-	<20101121173726.GG23423@thunk.org>
-Date: Mon, 22 Nov 2010 09:38:49 +0900
-Message-ID: <AANLkTimeSWWo-TAJPPH81OO_h1zFzWAT1Gg=XSLyFftH@mail.gmail.com>
-Subject: Re: [BUG?] [Ext4] INFO: suspicious rcu_dereference_check() usage
+In-Reply-To: <4CE95FD7.1060805@redhat.com>
+References: <1290349496-13297-1-git-send-email-minchan.kim@gmail.com>
+	<4CE95FD7.1060805@redhat.com>
+Date: Mon, 22 Nov 2010 09:49:32 +0900
+Message-ID: <AANLkTimSE2j71uFPCZWBFdau4NE_hmTtTMvUOBWOdMhF@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: Make move_active_pages_to_lru more generic
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Ted Ts'o <tytso@mit.edu>, Minchan Kim <minchan.kim@gmail.com>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andreas Dilger <adilger.kernel@dilger.ca>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Eric Sandeen <sandeen@redhat.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 22, 2010 at 2:37 AM, Ted Ts'o <tytso@mit.edu> wrote:
-> On Mon, Nov 22, 2010 at 12:39:49AM +0900, Minchan Kim wrote:
+On Mon, Nov 22, 2010 at 3:07 AM, Rik van Riel <riel@redhat.com> wrote:
+> On 11/21/2010 09:24 AM, Minchan Kim wrote:
 >>
->> I think it's no problem.
+>> Now move_active_pages_to_lru can move pages into active or inactive.
+>> if it moves the pages into inactive, it itself can clear PG_acive.
+>> It makes the function more generic.
+>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index aa4f1cb..bd408b3 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -1457,6 +1457,10 @@ static void move_active_pages_to_lru(struct zone
+>> *zone,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0VM_BUG_ON(PageLRU(page));
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0SetPageLRU(page);
 >>
->> That's because migration always holds lock_page on the file page.
->> So the page couldn't remove from radix.
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* we are de-activating */
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!is_active_lru(lru))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ClearPageActive(page);
+>> +
 >
-> It may be "ok" in that it won't cause a race, but it still leaves an
-> unsightly warning if LOCKDEP is enabled, and LOCKDEP warnings will
-> cause /proc_lock_stat to be disabled. =A0So I think it still needs to be
-> fixed by adding rcu_read_lock()/rcu_read_unlock() to
-> migrate_page_move_mapping().
+> Does that mean we also want code to ensure that pages have
+> the PG_active bit set when we add them to an active list?
+
+Yes. the function name is move_"active"_pages_to_lru.
+So  caller have to make sure pages have PG_active.
+
 >
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 - Ted
+> --
+> All rights reversed
 >
 
-Yes. if it is really "ok" about race, we will add rcu_read_lock with
-below comment to prevent false positive.
-"suppress RCU lockdep false positives".
-But I am not sure it's good although rcu_read_lock is little cost.
-Whenever we find false positive, should we add rcu_read_lock to
-suppress although it's no problem in real product?
-Couldn't we provide following function? (or we might have already it
-but I missed it. )
-
-/*
- * Suppress RCU lockdep false positive.
- */
-#ifdef CONFIG_PROVE_RCU
-#define rcu_read_lock_suppress rcu_read_lock
-#else
-#define rcu_read_lock_suppress
-#endif
 
 
 --=20
