@@ -1,99 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A45816B0071
-	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 22:06:43 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAM36d7A016678
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 22 Nov 2010 12:06:39 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DCDBA45DE51
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 12:06:38 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B1E4C45DE4E
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 12:06:38 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A7FEE08001
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 12:06:38 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 572301DB803A
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 12:06:38 +0900 (JST)
-Date: Mon, 22 Nov 2010 12:01:02 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] pagemap: set pagemap walk limit to PMD boundary
-Message-Id: <20101122120102.e0e76373.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1290157665-17215-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1290157665-17215-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 41ACD6B0071
+	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 22:08:48 -0500 (EST)
+Date: Mon, 22 Nov 2010 09:47:06 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [patch 2/2] mm: add node hotplug emulation
+Message-ID: <20101122014706.GB9081@shaohui>
+References: <A24AE1FFE7AEC5489F83450EE98351BF28723FC4A7@shsmsx502.ccr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <A24AE1FFE7AEC5489F83450EE98351BF28723FC4A7@shsmsx502.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Matt Mackall <mpm@selenic.com>
+To: akpm@linux-foundation.org, gregkh@suse.de, rientjes@google.com
+Cc: mingo@redhat.com, hpa@zytor.com, tglx@linutronix.de, lethal@linux-sh.org, ak@linux.intel.com, yinghai@kernel.org, randy.dunlap@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, haicheng.li@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com, shaohui.zheng@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Nov 2010 18:07:45 +0900
-Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-
-> Currently one pagemap_read() call walks in PAGEMAP_WALK_SIZE bytes
-> (== 512 pages.)  But there is a corner case where walk_pmd_range()
-> accidentally runs over a VMA associated with a hugetlbfs file.
+On Mon, Nov 22, 2010 at 09:47:02AM +0800, Zheng, Shaohui wrote:
+> Add an interface to allow new nodes to be added when performing memory
+> hot-add.  This provides a convenient interface to test memory hotplug
+> notifier callbacks and surrounding hotplug code when new nodes are
+> onlined without actually having a machine with such hotpluggable SRAT
+> entries.
 > 
-> For example, when a process has mappings to VMAs as shown below:
+> This adds a new interface at /sys/devices/system/memory/add_node that
+> behaves in a similar way to the memory hot-add "probe" interface.  Its
+> format is size@start, where "size" is the size of the new node to be
+> added and "start" is the physical address of the new memory.
 > 
->   # cat /proc/<pid>/maps
->   ...
->   3a58f6d000-3a58f72000 rw-p 00000000 00:00 0
->   7fbd51853000-7fbd51855000 rw-p 00000000 00:00 0
->   7fbd5186c000-7fbd5186e000 rw-p 00000000 00:00 0
->   7fbd51a00000-7fbd51c00000 rw-s 00000000 00:12 8614   /hugepages/test
+> The new node id is a currently offline, but possible, node.  The bit must
+> be set in node_possible_map so that nr_node_ids is sized appropriately.
 > 
-> then pagemap_read() goes into walk_pmd_range() path and walks in the range
-> 0x7fbd51853000-0x7fbd51a53000, but the hugetlbfs VMA should be handled
-> by walk_hugetlb_range(). Otherwise PMD for the hugepage is considered bad
-> and cleared, which causes undesirable results.
+> For emulation on x86, for example, it would be possible to set aside
+> memory for hotplugged nodes (say, anything above 2G) and to add an
+> additional three nodes as being possible on boot with
 > 
-> This patch fixes it by separating pagemap walk range into one PMD.
+> 	mem=2G numa=possible=3
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Matt Mackall <mpm@selenic.com>
-> ---
->  fs/proc/task_mmu.c |    3 ++-
->  1 files changed, 2 insertions(+), 1 deletions(-)
+> and then creating a new 128M node at runtime:
 > 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index da6b01d..c126c83 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -706,6 +706,7 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
->   * skip over unmapped regions.
->   */
->  #define PAGEMAP_WALK_SIZE	(PMD_SIZE)
-> +#define PAGEMAP_WALK_MASK	(PMD_MASK)
->  static ssize_t pagemap_read(struct file *file, char __user *buf,
->  			    size_t count, loff_t *ppos)
->  {
-> @@ -776,7 +777,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
->  		unsigned long end;
->  
->  		pm.pos = 0;
-> -		end = start_vaddr + PAGEMAP_WALK_SIZE;
-> +		end = (start_vaddr + PAGEMAP_WALK_SIZE) & PAGEMAP_WALK_MASK;
->  		/* overflow ? */
->  		if (end < start_vaddr || end > end_vaddr)
->  			end = end_vaddr;
+> 	# echo 128M@0x80000000 > /sys/devices/system/memory/add_node
+> 	On node 1 totalpages: 0
+> 	init_memory_mapping: 0000000080000000-0000000088000000
+> 	 0080000000 - 0088000000 page 2M
 
-Ack. 
+For cpu/memory physical hotplug, we have the unique interface probe/release,
+it is the _standard_ interface, it is not only for x86, ppc use the the interface
+as well. For node hotplug, it should follow the rule.
 
-But ALIGN() can't be used ?
+You are creating a new interface /sys/devices/system/memory/add_node to add both
+memory and node, you are just trying to create DUPLICATED feature with the
+memory probe interface, it breaks the rule. 
 
-Thanks,
--Kame
+I did NOT see the feature difference with our emulator patch http://lkml.org/lkml/2010/11/16/740,
+you pick up a piece of feature from emulator, and create an other thread. You
+are trying to replace the interface with a new one, which is not recommended.
+the memory probe interface is already powerful and flexible enough after apply
+our patch. What's more important, it keeps the old directives, and it maintains
+backwards compatibility.
 
+Add a memory section(128M) to node 3(boots with mem=1024m)
 
+	echo 0x40000000,3 > memory/probe
+
+And more we make it friendly, it is possible to add memory to do
+
+	echo 3g > memory/probe
+	echo 1024m,3 > memory/probe
+
+It maintains backwards compatibility.
+
+Another format suggested by Dave Hansen:
+
+	echo physical_address=0x40000000 numa_node=3 > memory/probe
+
+we should not need duplicated interface /sys/devices/system/memory/add_node here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
