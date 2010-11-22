@@ -1,80 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A99946B0071
-	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 19:55:38 -0500 (EST)
-Date: Mon, 22 Nov 2010 07:33:51 +0800
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [8/8,v3] NUMA Hotplug Emulator: documentation
-Message-ID: <20101121233351.GA7626@shaohui>
-References: <20101117020759.016741414@intel.com>
- <20101117021000.985643862@intel.com>
- <20101121150344.GK9099@hack>
+	by kanga.kvack.org (Postfix) with SMTP id 145486B0071
+	for <linux-mm@kvack.org>; Sun, 21 Nov 2010 20:12:31 -0500 (EST)
+Date: Sun, 21 Nov 2010 16:56:58 -0800
+From: Greg KH <gregkh@suse.de>
+Subject: Re: [patch 2/2 v2] mm: add node hotplug emulation
+Message-ID: <20101122005658.GA6710@suse.de>
+References: <20101118062715.GD17539@linux-sh.org> <20101118052750.GD2408@shaohui> <alpine.DEB.2.00.1011181321470.26680@chino.kir.corp.google.com> <20101119003225.GB3327@shaohui> <alpine.DEB.2.00.1011201645230.10618@chino.kir.corp.google.com> <alpine.DEB.2.00.1011201826140.12889@chino.kir.corp.google.com> <alpine.DEB.2.00.1011201827540.12889@chino.kir.corp.google.com> <20101121173438.GA3922@suse.de> <alpine.DEB.2.00.1011211346160.26304@chino.kir.corp.google.com> <alpine.DEB.2.00.1011211505440.30377@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20101121150344.GK9099@hack>
+In-Reply-To: <alpine.DEB.2.00.1011211505440.30377@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: =?iso-8859-1?Q?Am=E9rico?= Wang <xiyou.wangcong@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Haicheng Li <haicheng.li@intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Shaohui Zheng <shaohui.zheng@intel.com>, Paul Mundt <lethal@linux-sh.org>, Andi Kleen <ak@linux.intel.com>, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Nov 21, 2010 at 11:03:45PM +0800, Americo Wang wrote:
-> On Wed, Nov 17, 2010 at 10:08:07AM +0800, shaohui.zheng@intel.com wrote:
-> >+2) CPU hotplug emulation:
-> >+
-> >+The emulator reserve CPUs throu grub parameter, the reserved CPUs can be
-> >+hot-add/hot-remove in software method, it emulates the process of physical
-> >+cpu hotplug.
-> >+
-> >+When hotplug a CPU with emulator, we are using a logical CPU to emulate the CPU
-> >+socket hotplug process. For the CPU supported SMT, some logical CPUs are in the
-> >+same socket, but it may located in different NUMA node after we have emulator.
-> >+We put the logical CPU into a fake CPU socket, and assign it an unique
-> >+phys_proc_id. For the fake socket, we put one logical CPU in only.
-> >+
-> >+ - to hide CPUs
-> >+	- Using boot option "maxcpus=N" hide CPUs
-> >+	  N is the number of initialize CPUs
-> >+	- Using boot option "cpu_hpe=on" to enable cpu hotplug emulation
-> >+      when cpu_hpe is enabled, the rest CPUs will not be initialized
-> >+
-> >+ - to hot-add CPU to node
-> >+	$ echo nid > cpu/probe
-> >+
-> >+ - to hot-remove CPU
-> >+	$ echo nid > cpu/release
-> >+
+On Sun, Nov 21, 2010 at 03:08:17PM -0800, David Rientjes wrote:
+> Add an interface to allow new nodes to be added when performing memory
+> hot-add.  This provides a convenient interface to test memory hotplug
+> notifier callbacks and surrounding hotplug code when new nodes are
+> onlined without actually having a machine with such hotpluggable SRAT
+> entries.
 > 
-> Again, we already have software CPU hotplug,
-> i.e. /sys/devices/system/cpu/cpuX/online.
-it is cpu online/offline in current kernel, not physical CPU hot-add or hot-remove.
-the emulator is a tool to emulate the process of physcial CPU hotplug.
-> 
-> You need to pick up another name for this.
-> 
-> >From your documentation above, it looks like you are trying
-> to move one CPU between nodes?
-Yes, you are correct. With cpu probe/release interface, you can hot-remove a
-CPU from a node, and hot-add it to another node.
-> 
-> >+	cpu_hpe=on/off
-> >+		Enable/disable cpu hotplug emulation with software method. when cpu_hpe=on,
-> >+		sysfs provides probe/release interface to hot add/remove cpu dynamically.
-> >+		this option is disabled in default.
-> >+			
-> 
-> Why not just a CONFIG? IOW, why do we need to make another boot
-> parameter for this?
-Only the developer or QA will use the emulator, we did not want to change the
-default action for common user who does not care the hotplug emulator, so we
-use a kernel parameter as a switch. The common user is not aware the existence
-of the emulator.
+> This adds a new debugfs interface at /sys/kernel/debug/hotplug/add_node
 
+The rule for debugfs is "there are no rules", but perhaps you might want
+to name "hotplug" a bit more specific for what you are doing?  "hotplug"
+means pretty much anything these days, so how about s/hotplug/node/
+instead as that is what you are controlling.
 
--- 
-Thanks & Regards,
-Shaohui
+Just a suggestion...
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
