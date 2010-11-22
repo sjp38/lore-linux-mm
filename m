@@ -1,143 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 03E066B0071
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 19:12:33 -0500 (EST)
-Date: Mon, 22 Nov 2010 16:11:58 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Sudden and massive page cache eviction
-Message-Id: <20101122161158.02699d10.akpm@linux-foundation.org>
-In-Reply-To: <AANLkTikg-sR97tkG=ST9kjZcHe6puYSvMGh-eA3cnH7X@mail.gmail.com>
-References: <AANLkTikg-sR97tkG=ST9kjZcHe6puYSvMGh-eA3cnH7X@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 70A7F6B0087
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 19:44:53 -0500 (EST)
+Date: Tue, 23 Nov 2010 07:23:02 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [8/8,v3] NUMA Hotplug Emulator: documentation
+Message-ID: <20101122232302.GA11727@shaohui>
+References: <20101117020759.016741414@intel.com>
+ <20101117021000.985643862@intel.com>
+ <20101121150344.GK9099@hack>
+ <20101121233351.GA7626@shaohui>
+ <20101122160412.GE4137@hack>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20101122160412.GE4137@hack>
 Sender: owner-linux-mm@kvack.org
-To: Peter =?ISO-8859-1?Q?Sch=FCller?= <scode@spotify.com>
-Cc: linux-kernel@vger.kernel.org, Mattias de Zalenski <zalenski@spotify.com>, linux-mm@kvack.org
+To: =?iso-8859-1?Q?Am=E9rico?= Wang <xiyou.wangcong@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-(cc linux-mm)
+On Tue, Nov 23, 2010 at 12:04:12AM +0800, Americo Wang wrote:
+> On Mon, Nov 22, 2010 at 07:33:51AM +0800, Shaohui Zheng wrote:
+> >On Sun, Nov 21, 2010 at 11:03:45PM +0800, Americo Wang wrote:
+> >> 
+> >> >From your documentation above, it looks like you are trying
+> >> to move one CPU between nodes?
+> >Yes, you are correct. With cpu probe/release interface, you can hot-remove a
+> >CPU from a node, and hot-add it to another node.
+> 
+> 
+> Can I also move the CPU to another node _after_ it is hot-added?
+> Or I have to hot-remove it first and then hot-add it again?
+of course you can. you can hot-remove it via cpu/release interface, and then hot-add 
+it by cpu/probe interface.
 
-On Fri, 12 Nov 2010 17:20:21 +0100
-Peter Sch__ller <scode@spotify.com> wrote:
+With the cpu probe/reelase interface, we can design some stress test cases to hot add/remove
+cpu by script.
+> 
+> >> 
+> >> >+	cpu_hpe=on/off
+> >> >+		Enable/disable cpu hotplug emulation with software method. when cpu_hpe=on,
+> >> >+		sysfs provides probe/release interface to hot add/remove cpu dynamically.
+> >> >+		this option is disabled in default.
+> >> >+			
+> >> 
+> >> Why not just a CONFIG? IOW, why do we need to make another boot
+> >> parameter for this?
+> >Only the developer or QA will use the emulator, we did not want to change the
+> >default action for common user who does not care the hotplug emulator, so we
+> >use a kernel parameter as a switch. The common user is not aware the existence
+> >of the emulator.
+> >
+> 
+> I think it is also useful to other Linux users, e.g. after I
+> boot with "maxcpus=1", I can still bring the rest 3 CPU's
+> back without reboot.
+You understand it very well. the probe/release on ppc is already implemented,
+but for x86, it is a feature missing, so we finished it with these patches.
 
-> Hello,
 > 
-> We have been seeing sudden and repeated evictions of huge amounts of
-> page cache on some of our servers for reasons that we cannot explain.
-> We are hoping that someone familiar with the vm subsystem may be able
-> to shed some light on the issue and perhaps confirm whether it is
-> plausibly a kernel bug or not. I will try to present the information
-> most-important-first, but this post will unavoidable be a bit long -
-> sorry.
+> Thanks.
 > 
-> First, here is a good example of the symptom (more graphs later on):
-> 
->    http://files.spotify.com/memcut/b_daily_allcut.png
-> 
-> After looking into this we have seen similar incidents on servers
-> running completely different software; but in this particular case
-> this machine is running a service which is heavily dependent on the
-> buffer cache to deal with incoming request load. The direct effects of
-> these is that we end up in complete I/O saturation (average queue
-> depth goes to 150-250 and stays there indefinitely or until we
-> actively tweak it (warm up caches etc)). Our interpretation of that is
-> that the eviction is not the result of something along the lines of a
-> large file being removed; given the effects on I/O load it is clear
-> that the data being evicted is in fact part of the active set used by
-> the service running on the machine.
-> 
-> The I/O load on these systems comes mainly from two things:
-> 
->   (1) Seek-bound I/O generated by lookups in a BDB (b-tree traversal).
->   (2) Seek-bound I/O generated by traversal of prefix directory trees
-> (i.e., 00/01/0001334234...., a poor man's b-tree on top of ext3).
->   (3) Seek-bound I/O reading small segments of small-to-medium sized
-> files contained in the prefix tree.
-> 
-> The prefix tree consist of 8*2^16 directory entries in total, with
-> individual files being in the tens of millions per server.
-> 
-> We initially ran 2.6.32-bpo.5-amd64 (Debian backports kernel) and have
-> subsequently upgraded some of them to 2.6.36-rc6-amd64 (Debian
-> experimental repo). While it initially looked like it was behaving
-> better, it slowly reverted to not making a difference (maybe as a
-> function of uptime, but we have not had the opportunity to test this
-> by re-booting some of them so it is an untested hypothesis).
-> 
-> Most of the activity on this system (ignoring the usual stuff like
-> ssh/cron/syslog/etc) is coming from Python processes that consume
-> non-trivial amounts of heap space, plus the disk activity and some
-> POSIX shared memory caching utilized by the BDB library.
-> 
-> We have correlated the incidence of these page eviction with higher
-> loads on the system; i.e., it tends to happen under high-load periods
-> and in addition we tend to see additional machines having problems as
-> a result of us "fixing" a machine that experienced an eviction (we
-> have some limited cascading effects that causes slightly higher load
-> on other servers in the cluster when we do that).
-> 
-> We believe the most plausible way an application bug could trigger
-> this behavior would require that (1) the application allocates the
-> memory, and (2) actually touches the pages. We believe this to be
-> unlikely in this case because:
-> 
->   (1) We see similar sudden evictions on various other servers, which
-> we noticed when we started looking for them.
->   (2) The fact that it tends to trigger correlated with load suggests
-> that it is not a functional bug in the service as such as higher load
-> is in this case unlikely to trigger any paths that does anything
-> unique with respect to memory allocation. In particular because the
-> domain logic is all Python, and none of it really deals with data
-> chunks.
->   (3) If we did manage to allocate something in the Python heap, we
-> would have to be "lucky" (or unlucky) if Python were consistently able
-> to munmap()/brk() down afterwards.
-> 
-> Some additional "sample" graphs showing a few incidences of the problem:
-> 
->    http://files.spotify.com/memcut/a_daily.png
->    http://files.spotify.com/memcut/a_weekly.png
->    http://files.spotify.com/memcut/b_daily_allcut.png
->    http://files.spotify.com/memcut/c_monthly.png
->    http://files.spotify.com/memcut/c_yearly.png
->    http://files.spotify.com/memcut/d_monthly.png
->    http://files.spotify.com/memcut/d_yearly.png
->    http://files.spotify.com/memcut/a_monthly.png
->    http://files.spotify.com/memcut/a_yearly.png
->    http://files.spotify.com/memcut/c_daily.png
->    http://files.spotify.com/memcut/c_weekly.png
->    http://files.spotify.com/memcut/d_daily.png
->    http://files.spotify.com/memcut/d_weekly.png
-> 
-> And here is an example from a server only running PostgreSQL (where
-> the sudden drop of gigabytes of page cache is unlikely because we are
-> not DROP:ing tables, nor do we have multi-gigabyte WAL archive sizes,
-> nor do we have a use-case which will imply ftruncate() on table
-> files):
-> 
->    http://files.spotify.com/memcut/postgresql_weekly.png
-> 
-> As you can see it's not as significant there, but it seems to, at
-> least visually, be the same "type" of effect. We've seen similar on
-> various machines, although depending on service running it may or may
-> not be explainable by regular file removal.
-> 
-> Further, we have observed the kernel's unwillingness to retain data in
-> page cache under interesting circumstances:
-> 
-> (1) page cache eviction happens
-> (2) we warm up our BDB files by cat:ing them (simple but effective)
-> (3) within a matter of minutes, while there is still several GB of
-> free (truly free, not page cached), these are evicted (as evidenced by
-> re-cat:ing them a little while later)
-> 
-> This latest observation we understand may be due to NUMA related
-> allocation issues, and we should probably try to use numactl to ask
-> for a more even allocation. We have not yet tried this. However, it is
-> not clear how any issues having to do with that would cause sudden
-> eviction of data already *in* the page cache (on whichever node).
-> 
+> -- 
+> Live like a child, think like the god.
+>  
+
+-- 
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
