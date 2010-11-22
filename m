@@ -1,29 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 81AC06B0088
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 11:02:28 -0500 (EST)
-Date: Mon, 22 Nov 2010 17:01:56 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 0/7] Use memory compaction instead of lumpy reclaim
- during high-order allocations V2
-Message-ID: <20101122160156.GE6118@random.random>
-References: <1290440635-30071-1-git-send-email-mel@csn.ul.ie>
+	by kanga.kvack.org (Postfix) with SMTP id B43FF6B0071
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 11:59:44 -0500 (EST)
+Received: by pxi12 with SMTP id 12so1889265pxi.14
+        for <linux-mm@kvack.org>; Mon, 22 Nov 2010 08:59:41 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1290440635-30071-1-git-send-email-mel@csn.ul.ie>
+Date: Mon, 22 Nov 2010 19:59:41 +0300
+Message-ID: <AANLkTingzd3Pqrip1izfkLm+HCE9jRQL777nu9s3RnLv@mail.gmail.com>
+Subject: Question about cgroup hierarchy and reducing memory limit
+From: Evgeniy Ivanov <lolkaantimat@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Mel,
+Hello,
 
-this looks great to me. I'll replace my patch 1/66 with this patchset
-to test with THP. It shall work fine.
+I have following cgroup hierarchy:
 
-Thanks,
-Andrea
+  Root
+  /   |
+A   B
+
+A and B have memory limits set so that it's 100% of limit set in Root.
+I want to add C to root:
+
+  Root
+  /   |  \
+A   B  C
+
+What is correct way to shrink limits for A and B? When they use all
+allowed memory and I try to write to their limit files I get error. It
+seems, that I can shrink their limits multiple times by 1Mb and it
+works, but looks ugly and like very dirty workaround.
+
+
+-- 
+Evgeniy Ivanov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
