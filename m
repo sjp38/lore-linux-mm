@@ -1,145 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E7FF46B0088
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 03:01:18 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAN81GFd009190
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 23 Nov 2010 17:01:16 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F2F645DE55
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 17:01:16 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DF02045DD75
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 17:01:15 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C0D271DB803C
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 17:01:15 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 750141DB803B
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 17:01:15 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC 1/2] deactive invalidated pages
-In-Reply-To: <AANLkTinZmv540r+EkjwUu6cd9c1u7qG9iR+pvp3YqZC1@mail.gmail.com>
-References: <20101122143817.E242.A69D9226@jp.fujitsu.com> <AANLkTinZmv540r+EkjwUu6cd9c1u7qG9iR+pvp3YqZC1@mail.gmail.com>
-Message-Id: <20101123165240.7BC2.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 77BCD6B0088
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 03:02:21 -0500 (EST)
+Received: by iwn10 with SMTP id 10so1041639iwn.14
+        for <linux-mm@kvack.org>; Tue, 23 Nov 2010 00:02:20 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
+In-Reply-To: <20101122235331.23552604.akpm@linux-foundation.org>
+References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
+	<20101122141449.9de58a2c.akpm@linux-foundation.org>
+	<AANLkTimk4JL7hDvLWuHjiXGNYxz8GJ_TypWFC=74Xt1Q@mail.gmail.com>
+	<20101122210132.be9962c7.akpm@linux-foundation.org>
+	<AANLkTin62R1=2P+Sh0YKJ3=KAa6RfLQLKJcn2VEtoZfG@mail.gmail.com>
+	<20101122212220.ae26d9a5.akpm@linux-foundation.org>
+	<AANLkTinTp2N3_uLEm7nf0=Xu2f9Rjqg9Mjjxw-3YVCcw@mail.gmail.com>
+	<20101122214814.36c209a6.akpm@linux-foundation.org>
+	<AANLkTimpfZuKW-hXjXknn3ESKP81AN3BaXO=qG81Lrae@mail.gmail.com>
+	<20101122231558.57b6e04c.akpm@linux-foundation.org>
+	<AANLkTin9AFFDu1ShVNn2SDyTTOMczURuyZVGSjOxPq7E@mail.gmail.com>
+	<20101122235331.23552604.akpm@linux-foundation.org>
+Date: Tue, 23 Nov 2010 17:02:19 +0900
+Message-ID: <AANLkTinWmrDQ-88M0HJ724vN2qDQSQuN+mK24ChahF0+@mail.gmail.com>
+Subject: Re: [RFC 1/2] deactive invalidated pages
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
-Date: Tue, 23 Nov 2010 17:01:14 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-> Hi KOSAKI,
->=20
-> 2010/11/23 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>:
-> >> By Other approach, app developer uses POSIX_FADV_DONTNEED.
-> >> But it has a problem. If kernel meets page is writing
-> >> during invalidate_mapping_pages, it can't work.
-> >> It is very hard for application programmer to use it.
-> >> Because they always have to sync data before calling
-> >> fadivse(..POSIX_FADV_DONTNEED) to make sure the pages could
-> >> be discardable. At last, they can't use deferred write of kernel
-> >> so that they could see performance loss.
-> >> (http://insights.oetiker.ch/linux/fadvise.html)
-> >
-> > If rsync use the above url patch, we don't need your patch.
-> > fdatasync() + POSIX_FADV_DONTNEED should work fine.
->=20
-> It works well. But it needs always fdatasync before calling fadvise.
-> For small file, it hurt performance since we can't use the deferred write.
-
-I doubt rsync need to call fdatasync. Why?
-
-If rsync continue to do following loop, some POSIX_FADV_DONTNEED
-may not drop some dirty pages. But they can be dropped at next loop's
-POSIX_FADV_DONTNEED. Then, It doesn't make serious issue.
-
-1) read
-2) write
-3) POSIX_FADV_DONTNEED
-4) goto 1
-
-
-Am I missing anything?
-
-
-> > So, I think the core worth of previous PeterZ's patch is in readahead
-> > based heuristics. I'm curious why you drop it.
-> >
->=20
-> In previous peter's patch, it couldn't move active page into inactive lis=
-t.
-> So it's not what i want and I think invalidation is stronger hint than
-> the readahead heuristic.
-> But if we need it, I will add it in my series. It can help reclaiming
-> unnecessary inactive page asap.
-> but before that, I hope we make sure fadvise works well enough.
-
-I've got it.Yeah, 1) implement manual  oepration 2) add automatic heuristic=
-=20
-is right order. I think. we can easily test your one.
-
-
-
-> >> In fact, invalidate is very big hint to reclaimer.
-> >> It means we don't use the page any more. So let's move
-> >> the writing page into inactive list's head.
-> >
-> > But, I agree this.
->=20
-> Thank you.
+On Tue, Nov 23, 2010 at 4:53 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Tue, 23 Nov 2010 16:44:50 +0900 Minchan Kim <minchan.kim@gmail.com> wr=
+ote:
 >
-> >> +static void __pagevec_lru_deactive(struct pagevec *pvec)
-> >> +{
-> >> + =A0 =A0 int i, lru, file;
-> >> +
-> >> + =A0 =A0 struct zone *zone =3D NULL;
-> >> +
-> >> + =A0 =A0 for (i =3D 0; i < pagevec_count(pvec); i++) {
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 struct page *page =3D pvec->pages[i];
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 struct zone *pagezone =3D page_zone(page);
-> >> +
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 if (pagezone !=3D zone) {
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (zone)
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock_=
-irq(&zone->lru_lock);
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 zone =3D pagezone;
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock_irq(&zone->lru_loc=
-k);
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 }
-> >> +
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 if (PageLRU(page)) {
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (PageActive(page)) {
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 file =3D pag=
-e_is_file_cache(page);
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 lru =3D page=
-_lru_base_type(page);
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 del_page_fro=
-m_lru_list(zone, page,
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 lru + LRU_ACTIVE);
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ClearPageAct=
-ive(page);
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ClearPageRef=
-erenced(page);
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 add_page_to_=
-lru_list(zone, page, lru);
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __count_vm_e=
-vent(PGDEACTIVATE);
-> >> +
-> >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 update_page_=
-reclaim_stat(zone, page, file, 0);
-> >
-> > When PageActive is unset, we need to change cgroup lru too.
->=20
-> Doesn't add_page_to_lru_list/del_page_from_lru_list do it?
+>> On Tue, Nov 23, 2010 at 4:15 PM, Andrew Morton
+>> <akpm@linux-foundation.org> wrote:
+>> > On Tue, 23 Nov 2010 15:05:39 +0900 Minchan Kim <minchan.kim@gmail.com>=
+ wrote:
+>> >
+>> >> On Tue, Nov 23, 2010 at 2:48 PM, Andrew Morton
+>> >> >> > move it to the head of the LRU anyway. __But given that the user=
+ has
+>> >> >>
+>> >> >> Why does it move into head of LRU?
+>> >> >> If the page which isn't mapped doesn't have PG_referenced, it woul=
+d be
+>> >> >> reclaimed.
+>> >> >
+>> >> > If it's dirty or under writeback it can't be reclaimed!
+>> >>
+>> >> I see your point. And it's why I add it to head of inactive list.
+>> >
+>> > But that *guarantees* that the page will get a full trip around the
+>> > inactive list. __And this will guarantee that potentially useful pages
+>> > are reclaimed before the pages which we *know* the user doesn't want!
+>> > Bad!
+>> >
+>> > Whereas if we queue it to the tail, it will only get that full trip if
+>> > reclaim happens to run before the page is cleaned. __And we just agree=
+d
+>> > that reclaim isn't likely to run immediately, because pages are being
+>> > freed.
+>> >
+>> > So we face a choice between guaranteed eviction of potentially-useful
+>> > pages (which are very expensive to reestablish) versus a *possible*
+>> > need to move an unreclaimable page to the head of the LRU, which is
+>> > cheap.
+>>
+>> How about flagging SetPageReclaim when we add it to head of inactive?
+>> If page write is complete, end_page_writeback would move it to tail of
+>> inactive.
+>
+> ooh, that sounds clever. =A0We'd want to do that for both PageDirty() and
+> for PageWriteback() pages.
+>
+> But if we do it for PageDirty() pages, we'd need to clear PageReclaim()
+> if someone reuses the page for some reason. =A0We'll end up with pages
+> all over the place which have PageReclaim set. =A0I guess we could clear
+> PageReclaim() in mark_page_accessed(), but that's hardly going to give
+> us full coverage.
+>
+> hmm. =A0Maybe just do it for PageWriteback pages. =A0Then userspace can d=
+o
+>
+> =A0 =A0 =A0 =A0sync_file_range(SYNC_FILE_RANGE_WRITE);
+> =A0 =A0 =A0 =A0fadvise(DONTNEED);
+>
+> and all those pages which now have PageWriteback set will also get
+> PageReclaim set.
+>
+> But we'd need to avoid races against end_io when setting PageReclaim
+> against the PageWriteback pages - if the interrupt happens while we're
+> setting PageReclaim, it will end up being incorrectly set.
+>
 
-Grr, my fault. I've forgot to we changed add_page_to_lru_list.=20
+Okay. I will see it and resend new version.
+Thanks for good comment, Andrew.
 
 
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
