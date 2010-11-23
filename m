@@ -1,112 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AEF696B0071
-	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 18:47:58 -0500 (EST)
-Date: Mon, 22 Nov 2010 15:47:54 -0800
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 03E066B0071
+	for <linux-mm@kvack.org>; Mon, 22 Nov 2010 19:12:33 -0500 (EST)
+Date: Mon, 22 Nov 2010 16:11:58 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: kernel BUG at /build/buildd/linux-2.6.35/mm/filemap.c:128!
-Message-Id: <20101122154754.e022d935.akpm@linux-foundation.org>
-In-Reply-To: <AANLkTinbqG7sXxf82wc516snLoae1DtCWjo+VtsPx2P3@mail.gmail.com>
-References: <AANLkTinbqG7sXxf82wc516snLoae1DtCWjo+VtsPx2P3@mail.gmail.com>
+Subject: Re: Sudden and massive page cache eviction
+Message-Id: <20101122161158.02699d10.akpm@linux-foundation.org>
+In-Reply-To: <AANLkTikg-sR97tkG=ST9kjZcHe6puYSvMGh-eA3cnH7X@mail.gmail.com>
+References: <AANLkTikg-sR97tkG=ST9kjZcHe6puYSvMGh-eA3cnH7X@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Robert =?UTF-8?Q?=C5=9Awi=C4=99cki?= <robert@swiecki.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter =?ISO-8859-1?Q?Sch=FCller?= <scode@spotify.com>
+Cc: linux-kernel@vger.kernel.org, Mattias de Zalenski <zalenski@spotify.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 (cc linux-mm)
 
-On Mon, 15 Nov 2010 15:45:42 +0100
-Robert __wi__cki <robert@swiecki.net> wrote:
+On Fri, 12 Nov 2010 17:20:21 +0100
+Peter Sch__ller <scode@spotify.com> wrote:
 
-> Hi,
+> Hello,
 > 
-> I was doing some fuzzing with http://code.google.com/p/iknowthis/ and
-> my system pretty quickly crashes with the BUG() below.
-
-So it is a repeatable crash?
-
-> - Even if it's just BUG() it renders my system unusable (I'm able to
-> type a few characters on the virtual terminal at most)
-> - Judging from the stacktrace it's sys_madvise(..., ..., MADV_REMOVE)
-> - I'm testing with ubuntu's 2.6.35-22-server#35 but I got similar
-> results with 2.6.32 some time ago
-
-It is.
-
-> - I'm posting this cause diving into linux mm spaghetti code might be
-> not a trivial task, but if nobody can see anything obvious in a day or
-> so, I'll try to debug it mysel
-> - I'm unable to provide a testcase by now, nor any usable state of the
-> crashing process, cause the system becomes unusable
-> - It crashes both linux-kernel working on a physical machine as well
-> as on the VirtualBox emulator
-> - I'm usually waiting from 0.5h to 12h for this crash to appear, I
-> think it could be speed up greatly by disabling any irrelevant
-> syscalls in the fuzzer
+> We have been seeing sudden and repeated evictions of huge amounts of
+> page cache on some of our servers for reasons that we cannot explain.
+> We are hoping that someone familiar with the vm subsystem may be able
+> to shed some light on the issue and perhaps confirm whether it is
+> plausibly a kernel bug or not. I will try to present the information
+> most-important-first, but this post will unavoidable be a bit long -
+> sorry.
 > 
-> [25142.286531] kernel BUG at /build/buildd/linux-2.6.35/mm/filemap.c:128!
-
-That's
-
-	BUG_ON(page_mapped(page));
-
-in __remove_from_page_cache().  That state is worth a BUG().
-
-> [25142.290627] invalid opcode: 0000 [#2] SMP
-> [25142.290627] last sysfs file: /sys/fs/ext4/sda1/lifetime_write_kbytes
-> [25142.301039] CPU 1
-> [25142.301039] Modules linked in: dccp_ipv6 decnet llc2 x25 pppoe
-> pppox irda crc_ccitt dccp_ipv4 dccp ipx p8023 rds af_key netrom econet
-> can atm l2cap bluetooth appletalk rose ax25 nouveau snd_hda_codec_idt
-> ttm snd_hda_intel drm_kms_helper snd_hda_codec led_class drm psmouse
-> snd_hwdep ppdev snd_pcm snd_timer i2c_algo_bit serio_raw i82975x_edac
-> snd parport_pc lp soundcore edac_core snd_page_alloc parport dcdbas
-> floppy ahci firewire_ohci firewire_core crc_itu_t tg3 libahci
-> [25142.301039]
-> [25142.301039] Pid: 22612, comm: iknowthis Tainted: G      D W
-> 2.6.35-22-server #35-Ubuntu 0GH911/Precision WorkStation 390
-> [25142.301039] RIP: 0010:[<ffffffff81101645>]  [<ffffffff81101645>]
-> __remove_from_page_cache+0xd5/0xe0
-> [25142.367617] RSP: 0000:ffff8800cb8a3cf8  EFLAGS: 00010002
-> [25142.367617] RAX: 0100000000100029 RBX: ffffea0002159670 RCX: 0000000000000000
-> [25142.367617] RDX: 0000000000000001 RSI: 0000000000000016 RDI: ffff880100000700
-> [25142.367617] RBP: ffff8800cb8a3d08 R08: 0000000000000018 R09: 0000000000000000
-> [25142.367617] R10: ffffea0002159678 R11: 0000000000000000 R12: ffff8800cb865188
-> [25142.367617] R13: ffff8800cb865188 R14: ffff8800cb8a3d88 R15: 0000000000000000
-> [25142.367617] FS:  0000000000000000(0000) GS:ffff880001e40000(0063)
-> knlGS:00000000f75276c0
-> [25142.367617] CS:  0010 DS: 002b ES: 002b CR0: 000000008005003b
-> [25142.367617] CR2: 00000000080ba1fc CR3: 000000012091d000 CR4: 00000000000006e0
-> [25142.367617] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> [25142.367617] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> [25142.367617] Process iknowthis (pid: 22612, threadinfo
-> ffff8800cb8a2000, task ffff8800cb9516e0)
-> [25142.367617] Stack:
-> [25142.367617]  ffffea0002159670 ffff8800cb8651a0 ffff8800cb8a3d28
-> ffffffff81101686
-> [25142.367617] <0> ffffea0002159670 ffff8800cb865188 ffff8800cb8a3d48
-> ffffffff8110c6d9
-> [25142.367617] <0> 0000000000000001 0000000000000008 ffff8800cb8a3e38
-> ffffffff8110cce0
-> [25142.367617] Call Trace:
-> [25142.367617]  [<ffffffff81101686>] remove_from_page_cache+0x36/0x60
-> [25142.367617]  [<ffffffff8110c6d9>] truncate_inode_page+0x79/0xb0
-> [25142.367617]  [<ffffffff8110cce0>] truncate_inode_pages_range+0x160/0x460
-> [25142.367617]  [<ffffffff81121250>] ? unmap_mapping_range+0xb0/0x160
-> [25142.367617]  [<ffffffff81121398>] vmtruncate_range+0x98/0x100
-> [25142.367617]  [<ffffffff8111ae5a>] madvise_vma+0x17a/0x210
-> [25142.367617]  [<ffffffff8111b055>] sys_madvise+0x165/0x290
-> [25142.367617]  [<ffffffff810467c3>] ia32_sysret+0x0/0x5
-> [25142.367617] Code: 00 00 e8 1f 8a 1c 00 48 89 df 57 9d 0f 1f 44 00
-> 00 5b 41 5c c9 c3 be 16 00 00 00 48 89 df e8 a3 68 01 00 48 8b 03 e9
-> 71 ff ff ff <0f> 0b eb fe eb 05 90 90 90 90 90 55 48 89 e5 48 83 ec 10
-> 48 89
-> [25142.367617] RIP  [<ffffffff81101645>] __remove_from_page_cache+0xd5/0xe0
-> [25142.367617]  RSP <ffff8800cb8a3cf8>
-> [25142.367617] ---[ end trace a262aa785b417723 ]---
+> First, here is a good example of the symptom (more graphs later on):
+> 
+>    http://files.spotify.com/memcut/b_daily_allcut.png
+> 
+> After looking into this we have seen similar incidents on servers
+> running completely different software; but in this particular case
+> this machine is running a service which is heavily dependent on the
+> buffer cache to deal with incoming request load. The direct effects of
+> these is that we end up in complete I/O saturation (average queue
+> depth goes to 150-250 and stays there indefinitely or until we
+> actively tweak it (warm up caches etc)). Our interpretation of that is
+> that the eviction is not the result of something along the lines of a
+> large file being removed; given the effects on I/O load it is clear
+> that the data being evicted is in fact part of the active set used by
+> the service running on the machine.
+> 
+> The I/O load on these systems comes mainly from two things:
+> 
+>   (1) Seek-bound I/O generated by lookups in a BDB (b-tree traversal).
+>   (2) Seek-bound I/O generated by traversal of prefix directory trees
+> (i.e., 00/01/0001334234...., a poor man's b-tree on top of ext3).
+>   (3) Seek-bound I/O reading small segments of small-to-medium sized
+> files contained in the prefix tree.
+> 
+> The prefix tree consist of 8*2^16 directory entries in total, with
+> individual files being in the tens of millions per server.
+> 
+> We initially ran 2.6.32-bpo.5-amd64 (Debian backports kernel) and have
+> subsequently upgraded some of them to 2.6.36-rc6-amd64 (Debian
+> experimental repo). While it initially looked like it was behaving
+> better, it slowly reverted to not making a difference (maybe as a
+> function of uptime, but we have not had the opportunity to test this
+> by re-booting some of them so it is an untested hypothesis).
+> 
+> Most of the activity on this system (ignoring the usual stuff like
+> ssh/cron/syslog/etc) is coming from Python processes that consume
+> non-trivial amounts of heap space, plus the disk activity and some
+> POSIX shared memory caching utilized by the BDB library.
+> 
+> We have correlated the incidence of these page eviction with higher
+> loads on the system; i.e., it tends to happen under high-load periods
+> and in addition we tend to see additional machines having problems as
+> a result of us "fixing" a machine that experienced an eviction (we
+> have some limited cascading effects that causes slightly higher load
+> on other servers in the cluster when we do that).
+> 
+> We believe the most plausible way an application bug could trigger
+> this behavior would require that (1) the application allocates the
+> memory, and (2) actually touches the pages. We believe this to be
+> unlikely in this case because:
+> 
+>   (1) We see similar sudden evictions on various other servers, which
+> we noticed when we started looking for them.
+>   (2) The fact that it tends to trigger correlated with load suggests
+> that it is not a functional bug in the service as such as higher load
+> is in this case unlikely to trigger any paths that does anything
+> unique with respect to memory allocation. In particular because the
+> domain logic is all Python, and none of it really deals with data
+> chunks.
+>   (3) If we did manage to allocate something in the Python heap, we
+> would have to be "lucky" (or unlucky) if Python were consistently able
+> to munmap()/brk() down afterwards.
+> 
+> Some additional "sample" graphs showing a few incidences of the problem:
+> 
+>    http://files.spotify.com/memcut/a_daily.png
+>    http://files.spotify.com/memcut/a_weekly.png
+>    http://files.spotify.com/memcut/b_daily_allcut.png
+>    http://files.spotify.com/memcut/c_monthly.png
+>    http://files.spotify.com/memcut/c_yearly.png
+>    http://files.spotify.com/memcut/d_monthly.png
+>    http://files.spotify.com/memcut/d_yearly.png
+>    http://files.spotify.com/memcut/a_monthly.png
+>    http://files.spotify.com/memcut/a_yearly.png
+>    http://files.spotify.com/memcut/c_daily.png
+>    http://files.spotify.com/memcut/c_weekly.png
+>    http://files.spotify.com/memcut/d_daily.png
+>    http://files.spotify.com/memcut/d_weekly.png
+> 
+> And here is an example from a server only running PostgreSQL (where
+> the sudden drop of gigabytes of page cache is unlikely because we are
+> not DROP:ing tables, nor do we have multi-gigabyte WAL archive sizes,
+> nor do we have a use-case which will imply ftruncate() on table
+> files):
+> 
+>    http://files.spotify.com/memcut/postgresql_weekly.png
+> 
+> As you can see it's not as significant there, but it seems to, at
+> least visually, be the same "type" of effect. We've seen similar on
+> various machines, although depending on service running it may or may
+> not be explainable by regular file removal.
+> 
+> Further, we have observed the kernel's unwillingness to retain data in
+> page cache under interesting circumstances:
+> 
+> (1) page cache eviction happens
+> (2) we warm up our BDB files by cat:ing them (simple but effective)
+> (3) within a matter of minutes, while there is still several GB of
+> free (truly free, not page cached), these are evicted (as evidenced by
+> re-cat:ing them a little while later)
+> 
+> This latest observation we understand may be due to NUMA related
+> allocation issues, and we should probably try to use numactl to ask
+> for a more even allocation. We have not yet tried this. However, it is
+> not clear how any issues having to do with that would cause sudden
+> eviction of data already *in* the page cache (on whichever node).
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
