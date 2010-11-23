@@ -1,58 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D9A456B0085
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 02:47:50 -0500 (EST)
-Date: Mon, 22 Nov 2010 23:42:57 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC 1/2] deactive invalidated pages
-Message-Id: <20101122234257.f14bad44.akpm@linux-foundation.org>
-In-Reply-To: <AANLkTinZmv540r+EkjwUu6cd9c1u7qG9iR+pvp3YqZC1@mail.gmail.com>
-References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
-	<20101122143817.E242.A69D9226@jp.fujitsu.com>
-	<AANLkTinZmv540r+EkjwUu6cd9c1u7qG9iR+pvp3YqZC1@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D397B6B0088
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 02:49:56 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAN7nsQa004539
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 23 Nov 2010 16:49:54 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B65645DE60
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:49:54 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D3D7145DE70
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:49:53 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C003F1DB803E
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:49:53 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DF2A1DB803B
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:49:50 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC] mlock: release mmap_sem every 256 faulted pages
+In-Reply-To: <20101122215746.e847742d.akpm@linux-foundation.org>
+References: <20101123050052.GA24039@google.com> <20101122215746.e847742d.akpm@linux-foundation.org>
+Message-Id: <20101123164107.7BBC.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 23 Nov 2010 16:49:49 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@kernel.dk>, Rik van Riel <riel@redhat.com>, Michael Rubin <mrubin@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Nov 2010 16:40:03 +0900 Minchan Kim <minchan.kim@gmail.com> wrote:
-
-> Hi KOSAKI,
+> On Mon, 22 Nov 2010 21:00:52 -0800 Michel Lespinasse <walken@google.com> wrote:
 > 
-> 2010/11/23 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>:
-> >> By Other approach, app developer uses POSIX_FADV_DONTNEED.
-> >> But it has a problem. If kernel meets page is writing
-> >> during invalidate_mapping_pages, it can't work.
-> >> It is very hard for application programmer to use it.
-> >> Because they always have to sync data before calling
-> >> fadivse(..POSIX_FADV_DONTNEED) to make sure the pages could
-> >> be discardable. At last, they can't use deferred write of kernel
-> >> so that they could see performance loss.
-> >> (http://insights.oetiker.ch/linux/fadvise.html)
-> >
-> > If rsync use the above url patch, we don't need your patch.
-> > fdatasync() + POSIX_FADV_DONTNEED should work fine.
+> > Hi,
+> > 
+> > I'd like to sollicit comments on this proposal:
+> > 
+> > Currently mlock() holds mmap_sem in exclusive mode while the pages get
+> > faulted in. In the case of a large mlock, this can potentially take a
+> > very long time.
 > 
-> It works well. But it needs always fdatasync before calling fadvise.
-> For small file, it hurt performance since we can't use the deferred write.
+> A more compelling description of why this problem needs addressing
+> would help things along.
 
-fdatasync() is (much) better than nothing, but a userspace application
-which is carefully managing its IO scheduling should use
-sync_file_range(SYNC_FILE_RANGE_WRITE) to push data at the disk and
-should then run fadvise(DONTNEED) against the same data a few seconds
-later, after the IO has completed.
+Michel, as far as I know, now Michael Rubin (now I'm ccing him) are trying
+to make automatic MM test suit. So if possible, can you please make
+test case which reproduce your workload?
 
-That way, the application won't block against the write I/O at all,
-unless of course someone else is thrashing the disk as well, etc.
+http://code.google.com/p/samplergrapher/
 
-If the app is doing a lot of file I/O (eg, rsync) then this shouldn't
-be too hard to arrange.  Although the payback will be pretty small
-unless the IO-intensive process is also compute-intensive at times. 
-And such applications are a) fairly rare and b) poorly designed:
-shouldn't be doing heavy IO and heavy compute in the same thread!
+
+I hope to join to solve your issue. and I also hope you help to understand
+and reproduce your issue. 
+
+Thanks.
+
+> 
+> > +		/*
+> > +		 * Limit batch size to 256 pages in order to reduce
+> > +		 * mmap_sem hold time.
+> > +		 */
+> > +		nfault = nstart + 256 * PAGE_SIZE;
+> 
+> It would be nicer if there was an rwsem API to ask if anyone is
+> currently blocked in down_read() or down_write().  That wouldn't be too
+> hard to do.  It wouldn't detect people polling down_read_trylock() or
+> down_write_trylock() though.
+
+Andrew, yes it is certinally optimal. But I doubt it improve mlock
+performance a lot. because mlock is _very_ slooooooow syscall.
+lock regrabing may be cheap than it. So, _IF_ you can allow, I hope
+we take a simple method at first. personally I think Michel move 
+forwarding right way. then I don't hope to make a hardest hurdle.
+
+Thanks.
 
 
 --
