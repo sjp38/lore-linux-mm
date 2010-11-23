@@ -1,48 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 61A786B0089
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 01:02:31 -0500 (EST)
-Date: Mon, 22 Nov 2010 21:57:46 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC] mlock: release mmap_sem every 256 faulted pages
-Message-Id: <20101122215746.e847742d.akpm@linux-foundation.org>
-In-Reply-To: <20101123050052.GA24039@google.com>
-References: <20101123050052.GA24039@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5B27B6B008C
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 01:05:42 -0500 (EST)
+Received: by iwn10 with SMTP id 10so938367iwn.14
+        for <linux-mm@kvack.org>; Mon, 22 Nov 2010 22:05:39 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20101122214814.36c209a6.akpm@linux-foundation.org>
+References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
+	<20101122141449.9de58a2c.akpm@linux-foundation.org>
+	<AANLkTimk4JL7hDvLWuHjiXGNYxz8GJ_TypWFC=74Xt1Q@mail.gmail.com>
+	<20101122210132.be9962c7.akpm@linux-foundation.org>
+	<AANLkTin62R1=2P+Sh0YKJ3=KAa6RfLQLKJcn2VEtoZfG@mail.gmail.com>
+	<20101122212220.ae26d9a5.akpm@linux-foundation.org>
+	<AANLkTinTp2N3_uLEm7nf0=Xu2f9Rjqg9Mjjxw-3YVCcw@mail.gmail.com>
+	<20101122214814.36c209a6.akpm@linux-foundation.org>
+Date: Tue, 23 Nov 2010 15:05:39 +0900
+Message-ID: <AANLkTimpfZuKW-hXjXknn3ESKP81AN3BaXO=qG81Lrae@mail.gmail.com>
+Subject: Re: [RFC 1/2] deactive invalidated pages
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@kernel.dk>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 22 Nov 2010 21:00:52 -0800 Michel Lespinasse <walken@google.com> wrote:
-
-> Hi,
-> 
-> I'd like to sollicit comments on this proposal:
-> 
-> Currently mlock() holds mmap_sem in exclusive mode while the pages get
-> faulted in. In the case of a large mlock, this can potentially take a
-> very long time.
-
-A more compelling description of why this problem needs addressing
-would help things along.
-
-> +		/*
-> +		 * Limit batch size to 256 pages in order to reduce
-> +		 * mmap_sem hold time.
-> +		 */
-> +		nfault = nstart + 256 * PAGE_SIZE;
-
-It would be nicer if there was an rwsem API to ask if anyone is
-currently blocked in down_read() or down_write().  That wouldn't be too
-hard to do.  It wouldn't detect people polling down_read_trylock() or
-down_write_trylock() though.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+On Tue, Nov 23, 2010 at 2:48 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Tue, 23 Nov 2010 14:45:15 +0900 Minchan Kim <minchan.kim@gmail.com> wr=
+ote:
+>
+>> On Tue, Nov 23, 2010 at 2:22 PM, Andrew Morton
+>> <akpm@linux-foundation.org> wrote:
+>> > On Tue, 23 Nov 2010 14:23:33 +0900 Minchan Kim <minchan.kim@gmail.com>=
+ wrote:
+>> >
+>> >> On Tue, Nov 23, 2010 at 2:01 PM, Andrew Morton
+>> >> <akpm@linux-foundation.org> wrote:
+>> >> > On Tue, 23 Nov 2010 13:52:05 +0900 Minchan Kim <minchan.kim@gmail.c=
+om> wrote:
+>> >> >
+>> >> >> >> +/*
+>> >> >> >> + * Function used to forecefully demote a page to the head of t=
+he inactive
+>> >> >> >> + * list.
+>> >> >> >> + */
+>> >> >> >
+>> >> >> > This comment is wrong? __The page gets moved to the _tail_ of th=
+e
+>> >> >> > inactive list?
+>> >> >>
+>> >> >> No. I add it in _head_ of the inactive list intentionally.
+>> >> >> Why I don't add it to _tail_ is that I don't want to be aggressive=
