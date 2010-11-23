@@ -1,84 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id EB3F66B0087
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 18:49:51 -0500 (EST)
-Received: by gyg10 with SMTP id 10so457353gyg.14
-        for <linux-mm@kvack.org>; Tue, 23 Nov 2010 15:49:50 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 37F806B0071
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 18:58:02 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oANNvwDw002034
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 24 Nov 2010 08:57:58 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DF4745DE52
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 08:57:58 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4847D45DE51
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 08:57:58 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 12C981DB8040
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 08:57:58 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id BD3881DB8038
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 08:57:57 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC] mlock: release mmap_sem every 256 faulted pages
+In-Reply-To: <AANLkTi=dK9wQaHm=tXOCqN2BDw5jEtH5qfs9zRHbE0qT@mail.gmail.com>
+References: <20101122215746.e847742d.akpm@linux-foundation.org> <AANLkTi=dK9wQaHm=tXOCqN2BDw5jEtH5qfs9zRHbE0qT@mail.gmail.com>
+Message-Id: <20101124085451.7BE5.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20101123095053.GG19571@csn.ul.ie>
-References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
-	<5d205f8a4df078b0da3681063bbf37382b02dd23.1290349672.git.minchan.kim@gmail.com>
-	<20101122142109.2f3e168c.akpm@linux-foundation.org>
-	<20101123095053.GG19571@csn.ul.ie>
-Date: Wed, 24 Nov 2010 08:49:49 +0900
-Message-ID: <AANLkTikBJbyd3Kzw0Mip9NkBbBDqf8kes-Z9XvidF1GY@mail.gmail.com>
-Subject: Re: [RFC 2/2] Prevent promotion of page in madvise_dontneed
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 24 Nov 2010 08:57:56 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
+To: Michel Lespinasse <walken@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@kernel.dk>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 23, 2010 at 6:50 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On Mon, Nov 22, 2010 at 02:21:09PM -0800, Andrew Morton wrote:
->> On Sun, 21 Nov 2010 23:30:24 +0900
->> Minchan Kim <minchan.kim@gmail.com> wrote:
->>
->> > Now zap_pte_range alwayas promotes pages which are pte_young &&
->> > !VM_SequentialReadHint(vma). But in case of calling MADV_DONTNEED,
->> > it's unnecessary since the page wouldn't use any more.
->> >
->> > If the page is sharred by other processes and it's real working set
->>
->> This patch doesn't actually do anything. =A0It passes variable `promote'
->> all the way down to unmap_vmas(), but unmap_vmas() doesn't use that new
->> variable.
->>
->> Have a comment fixlet:
->>
->> --- a/mm/memory.c~mm-prevent-promotion-of-page-in-madvise_dontneed-fix
->> +++ a/mm/memory.c
->> @@ -1075,7 +1075,7 @@ static unsigned long unmap_page_range(st
->> =A0 * @end_addr: virtual address at which to end unmapping
->> =A0 * @nr_accounted: Place number of unmapped pages in vm-accountable vm=
-a's here
->> =A0 * @details: details of nonlinear truncation or shared cache invalida=
-tion
->> - * @promote: whether pages inclued vma would be promoted or not
->> + * @promote: whether pages included in the vma should be promoted or no=
-t
->> =A0 *
->> =A0 * Returns the end address of the unmapping (restart addr if interrup=
-ted).
->> =A0 *
->> _
->>
->> Also, I'd suggest that we avoid introducing the term "promote".
->
-> Promote also has special meaning for huge pages. Demoting or promoting a
-> page refers to changing its size. The same applies to the other patch -
-> s/demote/deactive/ s/promote/activate/ . Currently this is no confusion
-> within the VM but when Andrea's THP patches are merged, it'll become an
-> issue.
+> > A more compelling description of why this problem needs addressing
+> > would help things along.
+> 
+> Oh my. It's probably not too useful for desktops, where such large
+> mlocks are hopefully uncommon.
+> 
+> At google we have many applications that serve data from memory and
+> don't want to allow for disk latencies. Some of the simpler ones use
+> mlock (though there are other ways - anon memory running with swap
+> disabled is a surprisingly popular choice).
+> 
+> Kosaki is also showing interest in mlock, though I'm not sure what his
+> use case is.
 
-Thanks for the information.
-
->
-> --
-> Mel Gorman
-> Part-time Phd Student =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
-Linux Technology Center
-> University of Limerick =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 IB=
-M Dublin Software Lab
->
+I don't have any solid use case. Usually server app only do mlock anonymous memory.
+But, I haven't found any negative effect in your proposal, therefore I hope to help
+your effort as I always do when the proposal don't have negative impact.
 
 
-
---=20
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
