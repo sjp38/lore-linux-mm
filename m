@@ -1,32 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C3A846B0071
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 15:16:11 -0500 (EST)
-Date: Tue, 23 Nov 2010 12:16:06 -0800
+	by kanga.kvack.org (Postfix) with ESMTP id 1D0F56B0071
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 15:36:19 -0500 (EST)
+Date: Tue, 23 Nov 2010 12:35:35 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] [BUG] memcg: fix false positive VM_BUG on non-SMP
-Message-Id: <20101123121606.c07197e5.akpm@linux-foundation.org>
-In-Reply-To: <1290520130-9990-1-git-send-email-kirill@shutemov.name>
-References: <1290520130-9990-1-git-send-email-kirill@shutemov.name>
+Subject: Re: [RFC 1/2] deactive invalidated pages
+Message-Id: <20101123123535.438e9750.akpm@linux-foundation.org>
+In-Reply-To: <20101123145856.GQ19571@csn.ul.ie>
+References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
+	<20101122141449.9de58a2c.akpm@linux-foundation.org>
+	<AANLkTimk4JL7hDvLWuHjiXGNYxz8GJ_TypWFC=74Xt1Q@mail.gmail.com>
+	<20101122210132.be9962c7.akpm@linux-foundation.org>
+	<20101123093859.GE19571@csn.ul.ie>
+	<87k4k49jii.fsf@gmail.com>
+	<20101123145856.GQ19571@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutsemov" <kirill@shutemov.name>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Ben Gamari <bgamari@gmail.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Nov 2010 15:48:50 +0200
-"Kirill A. Shutsemov" <kirill@shutemov.name> wrote:
+On Tue, 23 Nov 2010 14:58:56 +0000
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-> ------------[ cut here ]------------
-> kernel BUG at mm/memcontrol.c:2155!
+> On Tue, Nov 23, 2010 at 09:55:49AM -0500, Ben Gamari wrote:
+> > On Tue, 23 Nov 2010 09:38:59 +0000, Mel Gorman <mel@csn.ul.ie> wrote:
+> > > > If it's mapped pagecache then the user was being a bit silly (or didn't
+> > > > know that some other process had mapped the file).  In which case we
+> > > > need to decide what to do - leave the page alone, deactivate it, or
+> > > > half-deactivate it as this patch does.
+> > > > 
+> > > 
+> > > What are the odds of an fadvise() user having used mincore() in advance
+> > > to determine if the page was in use by another process? I would guess
+> > > "low" so this half-deactivate gives a chance for the page to be promoted
+> > > again as well as a chance for the flusher threads to clean the page if
+> > > it really is to be reclaimed.
+> > > 
+> > Do we really want to make the user jump through such hoops as using
+> > mincore() just to get the kernel to handle use-once pages properly?
+> 
+> I would think "no" which is why I support half-deactivating pages so they won't
+> have to.
 
-This bug has been there for a year, from which I conclude people don't
-run memcg on uniprocessor machines a lot.
+If the page is page_mapped() then we can assume that some other process
+is using it and we leave it alone *altogether*.
 
-Which is a bit sad, really.  Small machines need resource control too,
-perhaps more than large ones..
+If the page is dirty or under writeback (and !page_mapped()) then we
+should assume that we should free it asap.  The PageReclaim() trick
+might help with that.
+
+I just don't see any argument for moving the page to the head of the
+inactive LRU as a matter of policy.  We can park it there because we
+can't think of anythnig else to do with it, but it's the wrong place
+for it.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
