@@ -1,95 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id DF1BF6B0087
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 09:41:11 -0500 (EST)
-Date: Tue, 23 Nov 2010 15:34:27 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [resend][PATCH 4/4] oom: don't ignore rss in nascent mm
-Message-ID: <20101123143427.GA30941@redhat.com>
-References: <20101025122538.9167.A69D9226@jp.fujitsu.com> <20101025122914.9173.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101025122914.9173.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B528F6B0071
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 09:50:14 -0500 (EST)
+Received: by qyk10 with SMTP id 10so1621267qyk.14
+        for <linux-mm@kvack.org>; Tue, 23 Nov 2010 06:50:13 -0800 (PST)
+From: Ben Gamari <bgamari.foss@gmail.com>
+Subject: [RFC PATCH] fadvise support in rsync
+Date: Tue, 23 Nov 2010 09:49:49 -0500
+Message-Id: <1290523792-6170-1-git-send-email-bgamari.foss@gmail.com>
+In-Reply-To: <20101122103756.E236.A69D9226@jp.fujitsu.com>
+References: <20101122103756.E236.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, rsync@lists.samba.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On 10/25, KOSAKI Motohiro wrote:
->
-> Because execve() makes new mm struct and setup stack and
-> copy argv. It mean the task have two mm while execve() temporary.
-> Unfortunately this nascent mm is not pointed any tasks, then
-> OOM-killer can't detect this memory usage. therefore OOM-killer
-> may kill incorrect task.
->
-> Thus, this patch added signal->in_exec_mm member and track
-> nascent mm usage.
 
-Stupid question.
+Warning for kernel folks: I'm not much of an mm person; let me know if I got
+anything horribly wrong.
 
-Can't we just account these allocations in the old -mm temporary?
+Many folks use rsync in their nightly backup jobs. In these applications, speed
+is of minimal concern and should be sacrificed in order to minimize the effect
+of rsync on the rest of the machine. When rsync is working on a large directory
+it can quickly fill the page cache with written data, displacing the rest of
+the system's working set. The solution for this is to inform the kernel that
+our written pages will no longer be needed and should be expelled to disk. The
+POSIX interface for this, posix_fadvise, has existed for some time, but there
+has been no useable implementation in any of the major operating systems.
 
-IOW. Please look at the "patch" below. It is of course incomplete
-and wrong (to the point inc_mm_counter() is not safe without
-SPLIT_RSS_COUNTING), and copy_strings/flush_old_exec are not the
-best places to play with mm-counters, just to explain what I mean.
+Attempts have been made in the past[1] to use the fadvise interface, but kernel
+limitations have made this quite messy. In particular, the kernel supports
+FADV_DONTNEED as a single-shot hint; i.e. if the page is clean when the hint is
+given it will be freed, otherwise the hint is ignored. For this reason it is
+necessary to fdatasync() against dirtied pages before giving the hint. This,
+however, requires that rsync do some accounting, calling fdatasync() and
+fadvise() only after giving the kernel an opportunity to flush the data itself.
 
-It is very simple. copy_strings() increments MM_ANONPAGES every
-time we add a new page into bprm->vma. This makes this memory
-visible to select_bad_process().
+Moreover, fadvise(DONTNEED) frees pages regardless of whether the hinting
+process is the only referrer. For this reason, the previous fadvise patch also
+used mincore to identify which pages are needed by other processes. Altogether,
+this makes using fadvise very expensive from a complexity standpoint. This is
+very unfortunately since the interface could be quite usable with a few minor
+changes.
 
-When exec changes ->mm (or if it fails), we change MM_ANONPAGES
-counter back.
+I recently asked about this on the LKML[2], where Minchan Kim was nice enough
+to put together a patch improving support for the FADV_DONTNEED hint. His patch
+adds invalidated flagged pages to the inactive list. This obviates the need for
+fdatasync() since the page will be reclaimed by the kernel in the standard
+inactive reclaim path. Moreover, by adding hinted pages to the head of the
+inactive list, other processes are given ample time to call the pages back to
+the active list, eliminating the need for the previous mincore() hack.
 
-Most probably I missed something, but what do you think?
+Here is my attempt at adding fadvise support to rsync (against v3.0.7). I do
+this in both the sender (hinting after match_sums()) and the receiver (hinting
+after receive_data()). In principle we could get better granularity if this was
+hooked up within match_sums() (or even the map_ptr() interface) and the receive
+loop in receive_data(), but I wanted to keep things simple at first (any
+comments on these ideas?) . At the moment is for little more than testing.
+Considering the potential negative effects of using FADV_DONTNEED on older
+kernels, it is likely we will want this functionality off by default with a
+command line flag to enable.
 
-Oleg.
+Cheers,
 
---- x/include/linux/binfmts.h
-+++ x/include/linux/binfmts.h
-@@ -29,6 +29,7 @@ struct linux_binprm{
- 	char buf[BINPRM_BUF_SIZE];
- #ifdef CONFIG_MMU
- 	struct vm_area_struct *vma;
-+	unsigned long mm_anonpages;
- #else
- # define MAX_ARG_PAGES	32
- 	struct page *page[MAX_ARG_PAGES];
---- x/fs/exec.c
-+++ x/fs/exec.c
-@@ -457,6 +457,9 @@ static int copy_strings(int argc, const 
- 					goto out;
- 				}
- 
-+				bmrp->mm_anonpages--;
-+				inc_mm_counter(current->mm, MM_ANONPAGES);
-+
- 				if (kmapped_page) {
- 					flush_kernel_dcache_page(kmapped_page);
- 					kunmap(kmapped_page);
-@@ -1003,6 +1006,7 @@ int flush_old_exec(struct linux_binprm *
- 	/*
- 	 * Release all of the old mmap stuff
- 	 */
-+	add_mm_counter(current->mm, bprm->mm_anonpages);
- 	retval = exec_mmap(bprm->mm);
- 	if (retval)
- 		goto out;
-@@ -1426,8 +1430,10 @@ int do_execve(const char * filename,
- 	return retval;
- 
- out:
--	if (bprm->mm)
--		mmput (bprm->mm);
-+	if (bprm->mm) {
-+		add_mm_counter(current->mm, bprm->mm_anonpages);
-+		mmput(bprm->mm);
-+	}
- 
- out_file:
- 	if (bprm->file) {
+- Ben
+
+
+[1] http://insights.oetiker.ch/linux/fadvise.html
+[2] http://lkml.org/lkml/2010/11/21/59
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
