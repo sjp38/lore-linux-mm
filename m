@@ -1,82 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D397B6B0088
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 02:49:56 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAN7nsQa004539
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 23 Nov 2010 16:49:54 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B65645DE60
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:49:54 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D3D7145DE70
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:49:53 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C003F1DB803E
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:49:53 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DF2A1DB803B
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:49:50 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC] mlock: release mmap_sem every 256 faulted pages
-In-Reply-To: <20101122215746.e847742d.akpm@linux-foundation.org>
-References: <20101123050052.GA24039@google.com> <20101122215746.e847742d.akpm@linux-foundation.org>
-Message-Id: <20101123164107.7BBC.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 40AB86B0088
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 02:58:17 -0500 (EST)
+Date: Mon, 22 Nov 2010 23:53:31 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC 1/2] deactive invalidated pages
+Message-Id: <20101122235331.23552604.akpm@linux-foundation.org>
+In-Reply-To: <AANLkTin9AFFDu1ShVNn2SDyTTOMczURuyZVGSjOxPq7E@mail.gmail.com>
+References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
+	<20101122141449.9de58a2c.akpm@linux-foundation.org>
+	<AANLkTimk4JL7hDvLWuHjiXGNYxz8GJ_TypWFC=74Xt1Q@mail.gmail.com>
+	<20101122210132.be9962c7.akpm@linux-foundation.org>
+	<AANLkTin62R1=2P+Sh0YKJ3=KAa6RfLQLKJcn2VEtoZfG@mail.gmail.com>
+	<20101122212220.ae26d9a5.akpm@linux-foundation.org>
+	<AANLkTinTp2N3_uLEm7nf0=Xu2f9Rjqg9Mjjxw-3YVCcw@mail.gmail.com>
+	<20101122214814.36c209a6.akpm@linux-foundation.org>
+	<AANLkTimpfZuKW-hXjXknn3ESKP81AN3BaXO=qG81Lrae@mail.gmail.com>
+	<20101122231558.57b6e04c.akpm@linux-foundation.org>
+	<AANLkTin9AFFDu1ShVNn2SDyTTOMczURuyZVGSjOxPq7E@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Tue, 23 Nov 2010 16:49:49 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@kernel.dk>, Rik van Riel <riel@redhat.com>, Michael Rubin <mrubin@google.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-> On Mon, 22 Nov 2010 21:00:52 -0800 Michel Lespinasse <walken@google.com> wrote:
+On Tue, 23 Nov 2010 16:44:50 +0900 Minchan Kim <minchan.kim@gmail.com> wrote:
+
+> On Tue, Nov 23, 2010 at 4:15 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+> > On Tue, 23 Nov 2010 15:05:39 +0900 Minchan Kim <minchan.kim@gmail.com> wrote:
+> >
+> >> On Tue, Nov 23, 2010 at 2:48 PM, Andrew Morton
+> >> >> > move it to the head of the LRU anyway. __But given that the user has
+> >> >>
+> >> >> Why does it move into head of LRU?
+> >> >> If the page which isn't mapped doesn't have PG_referenced, it would be
+> >> >> reclaimed.
+> >> >
+> >> > If it's dirty or under writeback it can't be reclaimed!
+> >>
+> >> I see your point. And it's why I add it to head of inactive list.
+> >
+> > But that *guarantees* that the page will get a full trip around the
+> > inactive list. __And this will guarantee that potentially useful pages
+> > are reclaimed before the pages which we *know* the user doesn't want!
+> > Bad!
+> >
+> > Whereas if we queue it to the tail, it will only get that full trip if
+> > reclaim happens to run before the page is cleaned. __And we just agreed
+> > that reclaim isn't likely to run immediately, because pages are being
+> > freed.
+> >
+> > So we face a choice between guaranteed eviction of potentially-useful
+> > pages (which are very expensive to reestablish) versus a *possible*
+> > need to move an unreclaimable page to the head of the LRU, which is
+> > cheap.
 > 
-> > Hi,
-> > 
-> > I'd like to sollicit comments on this proposal:
-> > 
-> > Currently mlock() holds mmap_sem in exclusive mode while the pages get
-> > faulted in. In the case of a large mlock, this can potentially take a
-> > very long time.
-> 
-> A more compelling description of why this problem needs addressing
-> would help things along.
+> How about flagging SetPageReclaim when we add it to head of inactive?
+> If page write is complete, end_page_writeback would move it to tail of
+> inactive.
 
-Michel, as far as I know, now Michael Rubin (now I'm ccing him) are trying
-to make automatic MM test suit. So if possible, can you please make
-test case which reproduce your workload?
+ooh, that sounds clever.  We'd want to do that for both PageDirty() and
+for PageWriteback() pages.
 
-http://code.google.com/p/samplergrapher/
+But if we do it for PageDirty() pages, we'd need to clear PageReclaim()
+if someone reuses the page for some reason.  We'll end up with pages
+all over the place which have PageReclaim set.  I guess we could clear
+PageReclaim() in mark_page_accessed(), but that's hardly going to give
+us full coverage.
 
+hmm.  Maybe just do it for PageWriteback pages.  Then userspace can do
 
-I hope to join to solve your issue. and I also hope you help to understand
-and reproduce your issue. 
+	sync_file_range(SYNC_FILE_RANGE_WRITE);
+	fadvise(DONTNEED);
 
-Thanks.
+and all those pages which now have PageWriteback set will also get
+PageReclaim set.
 
-> 
-> > +		/*
-> > +		 * Limit batch size to 256 pages in order to reduce
-> > +		 * mmap_sem hold time.
-> > +		 */
-> > +		nfault = nstart + 256 * PAGE_SIZE;
-> 
-> It would be nicer if there was an rwsem API to ask if anyone is
-> currently blocked in down_read() or down_write().  That wouldn't be too
-> hard to do.  It wouldn't detect people polling down_read_trylock() or
-> down_write_trylock() though.
-
-Andrew, yes it is certinally optimal. But I doubt it improve mlock
-performance a lot. because mlock is _very_ slooooooow syscall.
-lock regrabing may be cheap than it. So, _IF_ you can allow, I hope
-we take a simple method at first. personally I think Michel move 
-forwarding right way. then I don't hope to make a hardest hurdle.
-
-Thanks.
-
+But we'd need to avoid races against end_io when setting PageReclaim
+against the PageWriteback pages - if the interrupt happens while we're
+setting PageReclaim, it will end up being incorrectly set.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
