@@ -1,57 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 576AF6B0071
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 04:51:10 -0500 (EST)
-Date: Tue, 23 Nov 2010 09:50:53 +0000
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E00DB6B0071
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 05:04:21 -0500 (EST)
+Date: Tue, 23 Nov 2010 10:04:03 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC 2/2] Prevent promotion of page in madvise_dontneed
-Message-ID: <20101123095053.GG19571@csn.ul.ie>
-References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com> <5d205f8a4df078b0da3681063bbf37382b02dd23.1290349672.git.minchan.kim@gmail.com> <20101122142109.2f3e168c.akpm@linux-foundation.org>
+Subject: Re: Free memory never fully used, swapping
+Message-ID: <20101123100402.GH19571@csn.ul.ie>
+References: <20101115195246.GB17387@hostway.ca> <20101122154419.ee0e09d2.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101122142109.2f3e168c.akpm@linux-foundation.org>
+In-Reply-To: <20101122154419.ee0e09d2.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
+Cc: Simon Kirby <sim@hostway.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 22, 2010 at 02:21:09PM -0800, Andrew Morton wrote:
-> On Sun, 21 Nov 2010 23:30:24 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
+On Mon, Nov 22, 2010 at 03:44:19PM -0800, Andrew Morton wrote:
+> On Mon, 15 Nov 2010 11:52:46 -0800
+> Simon Kirby <sim@hostway.ca> wrote:
 > 
-> > Now zap_pte_range alwayas promotes pages which are pte_young &&
-> > !VM_SequentialReadHint(vma). But in case of calling MADV_DONTNEED,
-> > it's unnecessary since the page wouldn't use any more.
+> > I noticed that CONFIG_NUMA seems to enable some more complicated
+> > reclaiming bits and figured it might help since most stock kernels seem
+> > to ship with it now.  This seems to have helped, but it may just be
+> > wishful thinking.  We still see this happening, though maybe to a lesser
+> > degree.  (The following observations are with CONFIG_NUMA enabled.)
 > > 
-> > If the page is sharred by other processes and it's real working set
-> 
-> This patch doesn't actually do anything.  It passes variable `promote'
-> all the way down to unmap_vmas(), but unmap_vmas() doesn't use that new
-> variable.
-> 
-> Have a comment fixlet:
-> 
-> --- a/mm/memory.c~mm-prevent-promotion-of-page-in-madvise_dontneed-fix
-> +++ a/mm/memory.c
-> @@ -1075,7 +1075,7 @@ static unsigned long unmap_page_range(st
->   * @end_addr: virtual address at which to end unmapping
->   * @nr_accounted: Place number of unmapped pages in vm-accountable vma's here
->   * @details: details of nonlinear truncation or shared cache invalidation
-> - * @promote: whether pages inclued vma would be promoted or not
-> + * @promote: whether pages included in the vma should be promoted or not
->   *
->   * Returns the end address of the unmapping (restart addr if interrupted).
->   *
-> _
-> 
-> Also, I'd suggest that we avoid introducing the term "promote". 
 
-Promote also has special meaning for huge pages. Demoting or promoting a
-page refers to changing its size. The same applies to the other patch -
-s/demote/deactive/ s/promote/activate/ . Currently this is no confusion
-within the VM but when Andrea's THP patches are merged, it'll become an
-issue.
+Hi,
+
+As this is a NUMA machine, what is the value of
+/proc/sys/vm/zone_reclaim_mode ? When enabled, this reclaims memory
+local to the node in preference to using remote nodes. For certain
+workloads this performs better but for users that expect all of memory
+to be used, it has surprising results.
+
+If set to 1, try testing with it set to 0 and see if it makes a
+difference. Thanks
 
 -- 
 Mel Gorman
