@@ -1,108 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 77BCD6B0088
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 03:02:21 -0500 (EST)
-Received: by iwn10 with SMTP id 10so1041639iwn.14
-        for <linux-mm@kvack.org>; Tue, 23 Nov 2010 00:02:20 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id F12396B0071
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 03:22:32 -0500 (EST)
+Date: Tue, 23 Nov 2010 08:22:15 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] scripts: Fix gfp-translate for recent changes to gfp.h
+Message-ID: <20101123082215.GC19571@csn.ul.ie>
+References: <20101122120002.GB1890@csn.ul.ie> <20101123043710.GA5187@cr0.nay.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20101122235331.23552604.akpm@linux-foundation.org>
-References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
-	<20101122141449.9de58a2c.akpm@linux-foundation.org>
-	<AANLkTimk4JL7hDvLWuHjiXGNYxz8GJ_TypWFC=74Xt1Q@mail.gmail.com>
-	<20101122210132.be9962c7.akpm@linux-foundation.org>
-	<AANLkTin62R1=2P+Sh0YKJ3=KAa6RfLQLKJcn2VEtoZfG@mail.gmail.com>
-	<20101122212220.ae26d9a5.akpm@linux-foundation.org>
-	<AANLkTinTp2N3_uLEm7nf0=Xu2f9Rjqg9Mjjxw-3YVCcw@mail.gmail.com>
-	<20101122214814.36c209a6.akpm@linux-foundation.org>
-	<AANLkTimpfZuKW-hXjXknn3ESKP81AN3BaXO=qG81Lrae@mail.gmail.com>
-	<20101122231558.57b6e04c.akpm@linux-foundation.org>
-	<AANLkTin9AFFDu1ShVNn2SDyTTOMczURuyZVGSjOxPq7E@mail.gmail.com>
-	<20101122235331.23552604.akpm@linux-foundation.org>
-Date: Tue, 23 Nov 2010 17:02:19 +0900
-Message-ID: <AANLkTinWmrDQ-88M0HJ724vN2qDQSQuN+mK24ChahF0+@mail.gmail.com>
-Subject: Re: [RFC 1/2] deactive invalidated pages
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20101123043710.GA5187@cr0.nay.redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
+To: Am?rico Wang <xiyou.wangcong@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Namhyung Kim <namhyung@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 23, 2010 at 4:53 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 23 Nov 2010 16:44:50 +0900 Minchan Kim <minchan.kim@gmail.com> wr=
-ote:
->
->> On Tue, Nov 23, 2010 at 4:15 PM, Andrew Morton
->> <akpm@linux-foundation.org> wrote:
->> > On Tue, 23 Nov 2010 15:05:39 +0900 Minchan Kim <minchan.kim@gmail.com>=
- wrote:
->> >
->> >> On Tue, Nov 23, 2010 at 2:48 PM, Andrew Morton
->> >> >> > move it to the head of the LRU anyway. __But given that the user=
- has
->> >> >>
->> >> >> Why does it move into head of LRU?
->> >> >> If the page which isn't mapped doesn't have PG_referenced, it woul=
-d be
->> >> >> reclaimed.
->> >> >
->> >> > If it's dirty or under writeback it can't be reclaimed!
->> >>
->> >> I see your point. And it's why I add it to head of inactive list.
->> >
->> > But that *guarantees* that the page will get a full trip around the
->> > inactive list. __And this will guarantee that potentially useful pages
->> > are reclaimed before the pages which we *know* the user doesn't want!
->> > Bad!
->> >
->> > Whereas if we queue it to the tail, it will only get that full trip if
->> > reclaim happens to run before the page is cleaned. __And we just agree=
-d
->> > that reclaim isn't likely to run immediately, because pages are being
->> > freed.
->> >
->> > So we face a choice between guaranteed eviction of potentially-useful
->> > pages (which are very expensive to reestablish) versus a *possible*
->> > need to move an unreclaimable page to the head of the LRU, which is
->> > cheap.
->>
->> How about flagging SetPageReclaim when we add it to head of inactive?
->> If page write is complete, end_page_writeback would move it to tail of
->> inactive.
->
-> ooh, that sounds clever. =A0We'd want to do that for both PageDirty() and
-> for PageWriteback() pages.
->
-> But if we do it for PageDirty() pages, we'd need to clear PageReclaim()
-> if someone reuses the page for some reason. =A0We'll end up with pages
-> all over the place which have PageReclaim set. =A0I guess we could clear
-> PageReclaim() in mark_page_accessed(), but that's hardly going to give
-> us full coverage.
->
-> hmm. =A0Maybe just do it for PageWriteback pages. =A0Then userspace can d=
-o
->
-> =A0 =A0 =A0 =A0sync_file_range(SYNC_FILE_RANGE_WRITE);
-> =A0 =A0 =A0 =A0fadvise(DONTNEED);
->
-> and all those pages which now have PageWriteback set will also get
-> PageReclaim set.
->
-> But we'd need to avoid races against end_io when setting PageReclaim
-> against the PageWriteback pages - if the interrupt happens while we're
-> setting PageReclaim, it will end up being incorrectly set.
->
+On Tue, Nov 23, 2010 at 12:37:10PM +0800, Am?rico Wang wrote:
+> On Mon, Nov 22, 2010 at 12:00:02PM +0000, Mel Gorman wrote:
+> >The recent changes to gfp.h to satisfy sparse broke
+> >scripts/gfp-translate. This patch fixes it up to work with old and new
+> >versions of gfp.h .
+> >
+> >Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> >---
+> > scripts/gfp-translate |    7 ++++++-
+> > 1 files changed, 6 insertions(+), 1 deletions(-)
+> >
+> >diff --git a/scripts/gfp-translate b/scripts/gfp-translate
+> >index d81b968..128937e 100644
+> >--- a/scripts/gfp-translate
+> >+++ b/scripts/gfp-translate
+> >@@ -63,7 +63,12 @@ fi
+> > 
+> > # Extract GFP flags from the kernel source
+> > TMPFILE=`mktemp -t gfptranslate-XXXXXX` || exit 1
+> >-grep "^#define __GFP" $SOURCE/include/linux/gfp.h | sed -e 's/(__force gfp_t)//' | sed -e 's/u)/)/' | grep -v GFP_BITS | sed -e 's/)\//) \//' > $TMPFILE
+> >+grep ___GFP $SOURCE/include/linux/gfp.h > /dev/null
+> 
+> You might want 'grep -q'. :)
+> 
 
-Okay. I will see it and resend new version.
-Thanks for good comment, Andrew.
+I *do* want grep -q :) . Andrew has already applied a relevant fix, thanks
+Andrew.
 
+> 
+> >+if [ $? -eq 0 ]; then
+> >+	grep "^#define ___GFP" $SOURCE/include/linux/gfp.h | sed -e 's/u$//' | grep -v GFP_BITS > $TMPFILE
+> >+else
+> >+	grep "^#define __GFP" $SOURCE/include/linux/gfp.h | sed -e 's/(__force gfp_t)//' | sed -e 's/u)/)/' | grep -v GFP_BITS | sed -e 's/)\//) \//' > $TMPFILE
+> >+fi
+> > 
+> > # Parse the flags
+> > IFS="
+> 
+> Other than that, this patch looks fine for me.
+> 
+> Reviewed-by: WANG Cong <xiyou.wangcong@gmail.com>
+> 
 
+Cheers.
 
---=20
-Kind regards,
-Minchan Kim
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
