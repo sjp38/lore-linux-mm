@@ -1,54 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5B27B6B008C
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 01:05:42 -0500 (EST)
-Received: by iwn10 with SMTP id 10so938367iwn.14
-        for <linux-mm@kvack.org>; Mon, 22 Nov 2010 22:05:39 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id BA6556B0085
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 02:16:59 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAN7Gu1E018386
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 23 Nov 2010 16:16:56 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F18445DE70
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:16:56 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0467245DE6F
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:16:56 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C61881DB803F
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:16:55 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8126E1DB803E
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:16:55 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH][V2] nommu: yield CPU while disposing VM
+In-Reply-To: <1289912805-4143-1-git-send-email-steve@digidescorp.com>
+References: <1289912805-4143-1-git-send-email-steve@digidescorp.com>
+Message-Id: <20101122100830.E22A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20101122214814.36c209a6.akpm@linux-foundation.org>
-References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
-	<20101122141449.9de58a2c.akpm@linux-foundation.org>
-	<AANLkTimk4JL7hDvLWuHjiXGNYxz8GJ_TypWFC=74Xt1Q@mail.gmail.com>
-	<20101122210132.be9962c7.akpm@linux-foundation.org>
-	<AANLkTin62R1=2P+Sh0YKJ3=KAa6RfLQLKJcn2VEtoZfG@mail.gmail.com>
-	<20101122212220.ae26d9a5.akpm@linux-foundation.org>
-	<AANLkTinTp2N3_uLEm7nf0=Xu2f9Rjqg9Mjjxw-3YVCcw@mail.gmail.com>
-	<20101122214814.36c209a6.akpm@linux-foundation.org>
-Date: Tue, 23 Nov 2010 15:05:39 +0900
-Message-ID: <AANLkTimpfZuKW-hXjXknn3ESKP81AN3BaXO=qG81Lrae@mail.gmail.com>
-Subject: Re: [RFC 1/2] deactive invalidated pages
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 23 Nov 2010 16:16:54 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
+To: "Steven J. Magnani" <steve@digidescorp.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, stable@kernel.org, linux-kernel@vger.kernel.org, gerg@snapgear.com, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 23, 2010 at 2:48 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 23 Nov 2010 14:45:15 +0900 Minchan Kim <minchan.kim@gmail.com> wr=
-ote:
->
->> On Tue, Nov 23, 2010 at 2:22 PM, Andrew Morton
->> <akpm@linux-foundation.org> wrote:
->> > On Tue, 23 Nov 2010 14:23:33 +0900 Minchan Kim <minchan.kim@gmail.com>=
- wrote:
->> >
->> >> On Tue, Nov 23, 2010 at 2:01 PM, Andrew Morton
->> >> <akpm@linux-foundation.org> wrote:
->> >> > On Tue, 23 Nov 2010 13:52:05 +0900 Minchan Kim <minchan.kim@gmail.c=
-om> wrote:
->> >> >
->> >> >> >> +/*
->> >> >> >> + * Function used to forecefully demote a page to the head of t=
-he inactive
->> >> >> >> + * list.
->> >> >> >> + */
->> >> >> >
->> >> >> > This comment is wrong? __The page gets moved to the _tail_ of th=
-e
->> >> >> > inactive list?
->> >> >>
->> >> >> No. I add it in _head_ of the inactive list intentionally.
->> >> >> Why I don't add it to _tail_ is that I don't want to be aggressive=
+> Depending on processor speed, page size, and the amount of memory a process
+> is allowed to amass, cleanup of a large VM may freeze the system for many
+> seconds. This can result in a watchdog timeout.
+> 
+> Make sure other tasks receive some service when cleaning up large VMs.
+> 
+> Signed-off-by: Steven J. Magnani <steve@digidescorp.com>
+> ---
+> diff -uprN a/mm/nommu.c b/mm/nommu.c
+> --- a/mm/nommu.c	2010-11-15 07:53:45.000000000 -0600
+> +++ b/mm/nommu.c	2010-11-15 07:57:13.000000000 -0600
+> @@ -1668,6 +1668,7 @@ void exit_mmap(struct mm_struct *mm)
+>  		mm->mmap = vma->vm_next;
+>  		delete_vma_from_mm(vma);
+>  		delete_vma(mm, vma);
+> +		cond_resched();
+>  	}
+>  
+>  	kleave("");
+> 
+
+Looks good to me.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
