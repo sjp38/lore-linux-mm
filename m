@@ -1,103 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9C33C6B0088
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 02:21:58 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAN7LuHh025961
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 23 Nov 2010 16:21:56 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1344645DE7A
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:21:56 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D5AD245DE6E
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:21:55 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BCB3B1DB803E
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:21:55 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 712DE1DB803F
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:21:55 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch] mm: vmscan implement per-zone shrinkers
-In-Reply-To: <20101116074717.GB3460@amd>
-References: <20101115092452.BEF1.A69D9226@jp.fujitsu.com> <20101116074717.GB3460@amd>
-Message-Id: <20101123162027.7BB0.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 70D656B0087
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 02:28:17 -0500 (EST)
+Date: Mon, 22 Nov 2010 23:15:58 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC 1/2] deactive invalidated pages
+Message-Id: <20101122231558.57b6e04c.akpm@linux-foundation.org>
+In-Reply-To: <AANLkTimpfZuKW-hXjXknn3ESKP81AN3BaXO=qG81Lrae@mail.gmail.com>
+References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
+	<20101122141449.9de58a2c.akpm@linux-foundation.org>
+	<AANLkTimk4JL7hDvLWuHjiXGNYxz8GJ_TypWFC=74Xt1Q@mail.gmail.com>
+	<20101122210132.be9962c7.akpm@linux-foundation.org>
+	<AANLkTin62R1=2P+Sh0YKJ3=KAa6RfLQLKJcn2VEtoZfG@mail.gmail.com>
+	<20101122212220.ae26d9a5.akpm@linux-foundation.org>
+	<AANLkTinTp2N3_uLEm7nf0=Xu2f9Rjqg9Mjjxw-3YVCcw@mail.gmail.com>
+	<20101122214814.36c209a6.akpm@linux-foundation.org>
+	<AANLkTimpfZuKW-hXjXknn3ESKP81AN3BaXO=qG81Lrae@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Tue, 23 Nov 2010 16:21:54 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@kernel.dk>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 23 Nov 2010 15:05:39 +0900 Minchan Kim <minchan.kim@gmail.com> wrote:
 
-Sorry for the delay. Recently I have no time at all ;)
-
-
-> On Mon, Nov 15, 2010 at 09:50:36AM +0900, KOSAKI Motohiro wrote:
-> > > > @@ -1835,8 +1978,6 @@ static void shrink_zone(int priority, st
-> > > >  			break;
-> > > >  	}
-> > > >  
-> > > > -	sc->nr_reclaimed = nr_reclaimed;
-> > > > -
-> > > >  	/*
-> > > >  	 * Even if we did not try to evict anon pages at all, we want to
-> > > >  	 * rebalance the anon lru active/inactive ratio.
-> > > > @@ -1844,6 +1985,23 @@ static void shrink_zone(int priority, st
-> > > >  	if (inactive_anon_is_low(zone, sc))
-> > > >  		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
-> > > >  
-> > > > +	/*
-> > > > +	 * Don't shrink slabs when reclaiming memory from
-> > > > +	 * over limit cgroups
-> > > > +	 */
-> > > > +	if (sc->may_reclaim_slab) {
-> > > > +		struct reclaim_state *reclaim_state = current->reclaim_state;
-> > > > +
-> > > > +		shrink_slab(zone, sc->nr_scanned - nr_scanned,
-> > > 
-> > > Doubtful calculation. What mean "sc->nr_scanned - nr_scanned"?
-> > > I think nr_scanned simply keep old slab balancing behavior.
-> > 
-> > And per-zone reclaim can lead to new issue. On 32bit highmem system,
-> > theorically the system has following memory usage.
-> > 
-> > ZONE_HIGHMEM: 100% used for page cache
-> > ZONE_NORMAL:  100% used for slab
-> > 
-> > So, traditional page-cache/slab balancing may not work. I think following
+> On Tue, Nov 23, 2010 at 2:48 PM, Andrew Morton
+> >> > move it to the head of the LRU anyway. __But given that the user has
+> >>
+> >> Why does it move into head of LRU?
+> >> If the page which isn't mapped doesn't have PG_referenced, it would be
+> >> reclaimed.
+> >
+> > If it's dirty or under writeback it can't be reclaimed!
 > 
-> Yes, in theory you are right. I guess in theory the same hole exists
-> if we have 0% page cache reclaimable globally, but this may be slightly
-> more likely to hit.
+> I see your point. And it's why I add it to head of inactive list.
 
-I'm not worry about so much "0% page cache reclaimable globally" case
-because I doubt it can be happen in real.
+But that *guarantees* that the page will get a full trip around the
+inactive list.  And this will guarantee that potentially useful pages
+are reclaimed before the pages which we *know* the user doesn't want! 
+Bad!
 
+Whereas if we queue it to the tail, it will only get that full trip if
+reclaim happens to run before the page is cleaned.  And we just agreed
+that reclaim isn't likely to run immediately, because pages are being
+freed.
 
-> > new calculation or somethinhg else is necessary.
-> > 
-> > 	if (zone_reclaimable_pages() > NR_SLAB_RECLAIMABLE) {
-> > 		using current calculation
-> > 	} else {
-> > 		shrink number of "objects >> reclaim-priority" objects
-> > 		(as page cache scanning calculation)
-> > 	}
-> > 
-> > However, it can be separate this patch, perhaps.
-> 
-> I agree. In fact, perhaps the new calculation would work well in all
-> cases anyway, so maybe we should move away from making slab reclaim a
-> slave to pagecache reclaim.
-> 
-> Can we approach that in subsequent patches?
+So we face a choice between guaranteed eviction of potentially-useful
+pages (which are very expensive to reestablish) versus a *possible*
+need to move an unreclaimable page to the head of the LRU, which is
+cheap.
 
-OK!
+So we need to decide if
+
+	(certain * possibly-expensive) is less than (possible * cheap).
+
+So no, it's not obvious to me that this was the correct decision.
 
 
+One way to help with this guess would be to instrument those pages
+(would require adding a special page flag to identify them, I expect)
+and see how many of these pages get immediately reclaimed off the LRU
+versus how many get recycled.  And then run a batch of "typical
+workloads" under that instrumentation.
+
+Only there aren't any "typical workloads" for fadvise(DONTNEED) :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
