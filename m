@@ -1,80 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id B1C5E6B0087
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 18:48:51 -0500 (EST)
-Received: by iwn35 with SMTP id 35so135057iwn.14
-        for <linux-mm@kvack.org>; Tue, 23 Nov 2010 15:48:50 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id EB3F66B0087
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 18:49:51 -0500 (EST)
+Received: by gyg10 with SMTP id 10so457353gyg.14
+        for <linux-mm@kvack.org>; Tue, 23 Nov 2010 15:49:50 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <87mxp09mm2.fsf@gmail.com>
+In-Reply-To: <20101123095053.GG19571@csn.ul.ie>
 References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
-	<874obawvlt.fsf@gmail.com>
-	<20101122103756.E236.A69D9226@jp.fujitsu.com>
-	<87mxp09mm2.fsf@gmail.com>
-Date: Wed, 24 Nov 2010 08:48:49 +0900
-Message-ID: <AANLkTikhmSZ=oa7ebNqopdV++HgA6wCPnHbHQvwN8eyp@mail.gmail.com>
-Subject: Re: [RFC 1/2] deactive invalidated pages
+	<5d205f8a4df078b0da3681063bbf37382b02dd23.1290349672.git.minchan.kim@gmail.com>
+	<20101122142109.2f3e168c.akpm@linux-foundation.org>
+	<20101123095053.GG19571@csn.ul.ie>
+Date: Wed, 24 Nov 2010 08:49:49 +0900
+Message-ID: <AANLkTikBJbyd3Kzw0Mip9NkBbBDqf8kes-Z9XvidF1GY@mail.gmail.com>
+Subject: Re: [RFC 2/2] Prevent promotion of page in madvise_dontneed
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Ben Gamari <bgamari@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 23, 2010 at 10:48 PM, Ben Gamari <bgamari@gmail.com> wrote:
-> On Tue, 23 Nov 2010 16:16:55 +0900 (JST), KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
->> > On Sun, 21 Nov 2010 23:30:23 +0900, Minchan Kim <minchan.kim@gmail.com> wrote:
->> > >
->> > > Ben, Remain thing is to modify rsync and use
->> > > fadvise(POSIX_FADV_DONTNEED). Could you test it?
+On Tue, Nov 23, 2010 at 6:50 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> On Mon, Nov 22, 2010 at 02:21:09PM -0800, Andrew Morton wrote:
+>> On Sun, 21 Nov 2010 23:30:24 +0900
+>> Minchan Kim <minchan.kim@gmail.com> wrote:
+>>
+>> > Now zap_pte_range alwayas promotes pages which are pte_young &&
+>> > !VM_SequentialReadHint(vma). But in case of calling MADV_DONTNEED,
+>> > it's unnecessary since the page wouldn't use any more.
 >> >
->> > Thanks a ton for the patch. Looks good. Testing as we speak.
+>> > If the page is sharred by other processes and it's real working set
 >>
-> For the record, this was a little premature. As I spoke the kernel was
-> building but I still haven't had a chance to take any data. Any
-> suggestions for how to determine the effect (or hopefully lack thereof)
-> of rsync on the system's working set?
->
->> If possible, can you please post your rsync patch and your testcase
->> (or your rsync option + system memory size info + data size info)?
+>> This patch doesn't actually do anything. =A0It passes variable `promote'
+>> all the way down to unmap_vmas(), but unmap_vmas() doesn't use that new
+>> variable.
 >>
-> Patch coming right up.
+>> Have a comment fixlet:
+>>
+>> --- a/mm/memory.c~mm-prevent-promotion-of-page-in-madvise_dontneed-fix
+>> +++ a/mm/memory.c
+>> @@ -1075,7 +1075,7 @@ static unsigned long unmap_page_range(st
+>> =A0 * @end_addr: virtual address at which to end unmapping
+>> =A0 * @nr_accounted: Place number of unmapped pages in vm-accountable vm=
+a's here
+>> =A0 * @details: details of nonlinear truncation or shared cache invalida=
+tion
+>> - * @promote: whether pages inclued vma would be promoted or not
+>> + * @promote: whether pages included in the vma should be promoted or no=
+t
+>> =A0 *
+>> =A0 * Returns the end address of the unmapping (restart addr if interrup=
+ted).
+>> =A0 *
+>> _
+>>
+>> Also, I'd suggest that we avoid introducing the term "promote".
 >
-> The original test case is a backup script for my home directory. rsync
-> is invoked with,
->
-> rsync --archive --update --progress --delete --delete-excluded
-> --exclude-from=~/.backup/exclude --log-file=~/.backup/rsync.log -e ssh
-> /home/ben ben@myserver:/mnt/backup/current
->
-> My home directory is 120 GB with typical delta sizes of tens of
-> megabytes between backups (although sometimes deltas can be gigabytes,
-> after which the server has severe interactivity issues). The server is
-> unfortunately quite memory constrained with only 1.5GB of memory (old
-> inherited hardware). Given the size of my typical deltas, I'm worried
-> that even simply walking the directory hierarchy might be enough to push
-> out my working set.
->
-> Looking at the rsync access pattern with strace it seems that it does
-> a very good job of avoid duplicate reads which is good news for these
-> patches.
+> Promote also has special meaning for huge pages. Demoting or promoting a
+> page refers to changing its size. The same applies to the other patch -
+> s/demote/deactive/ s/promote/activate/ . Currently this is no confusion
+> within the VM but when Andrea's THP patches are merged, it'll become an
+> issue.
 
-Thanks for the notice. Ben.
-FYI, we have a plan to change the policy as you look this thread.
-Maybe It would be good than my current policy in the page.
-
-Please recognize it. :)
+Thanks for the information.
 
 >
-> Cheers,
->
-> - Ben
->
->
+> --
+> Mel Gorman
+> Part-time Phd Student =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+Linux Technology Center
+> University of Limerick =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 IB=
+M Dublin Software Lab
 >
 
 
 
--- 
+--=20
 Kind regards,
 Minchan Kim
 
