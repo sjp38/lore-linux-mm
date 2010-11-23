@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 1DCA76B0087
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 09:50:22 -0500 (EST)
-Received: by qwj8 with SMTP id 8so52264qwj.14
-        for <linux-mm@kvack.org>; Tue, 23 Nov 2010 06:50:20 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2496D6B0088
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 09:50:23 -0500 (EST)
+Received: by vws10 with SMTP id 10so4191279vws.14
+        for <linux-mm@kvack.org>; Tue, 23 Nov 2010 06:50:18 -0800 (PST)
 From: Ben Gamari <bgamari.foss@gmail.com>
-Subject: [PATCH 2/3] Inform kernel of FADV_DONTNEED hint in sender
-Date: Tue, 23 Nov 2010 09:49:51 -0500
-Message-Id: <1290523792-6170-3-git-send-email-bgamari.foss@gmail.com>
+Subject: [PATCH 1/3] Add fadvise interface wrapper
+Date: Tue, 23 Nov 2010 09:49:50 -0500
+Message-Id: <1290523792-6170-2-git-send-email-bgamari.foss@gmail.com>
 In-Reply-To: <20101122103756.E236.A69D9226@jp.fujitsu.com>
 References: <20101122103756.E236.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,29 +15,42 @@ To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@g
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Ben Gamari <bgamari.foss@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Use the FADV_DONTNEED fadvise hint after finishing reading an origin fd
-in the sender.
----
- sender.c |    6 ++++++
- 1 files changed, 6 insertions(+), 0 deletions(-)
+With recent discussion on the LKML[1], it seems likely that Linux will
+finally support posix_fadvise in a useful way with the FADV_DONTNEED
+flag. This should allow us to minimize the effect of rsync on the
+system's working set. Add the necessary wrapper to syscall.c.
 
-diff --git a/sender.c b/sender.c
-index 59dae7d..a934bfe 100644
---- a/sender.c
-+++ b/sender.c
-@@ -338,6 +338,12 @@ void send_files(int f_in, int f_out)
- 		if (do_progress)
- 			end_progress(st.st_size);
+[1] http://lkml.org/lkml/2010/11/21/59
+---
+ syscall.c |   11 +++++++++++
+ 1 files changed, 11 insertions(+), 0 deletions(-)
+
+diff --git a/syscall.c b/syscall.c
+index cfabc3e..9f5b1c3 100644
+--- a/syscall.c
++++ b/syscall.c
+@@ -28,6 +28,7 @@
+ #ifdef HAVE_SYS_ATTR_H
+ #include <sys/attr.h>
+ #endif
++#include <fcntl.h>
  
-+                if (do_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED) != 0) {
-+                        rsyserr(FERROR_XFER, errno,
-+                                "fadvise failed in sending %s",
-+                                full_fname(fname));
-+                }
+ extern int dry_run;
+ extern int am_root;
+@@ -282,3 +283,13 @@ OFF_T do_lseek(int fd, OFF_T offset, int whence)
+ 	return lseek(fd, offset, whence);
+ #endif
+ }
 +
- 		log_item(log_code, file, &initial_stats, iflags, NULL);
- 
- 		if (mbuf) {
++#if _XOPEN_SOURCE >= 600
++int do_fadvise(int fd, OFF_T offset, OFF_T len, int advise)
++{
++        return posix_fadvise(fd, offset, len, advise);
++}
++#else
++#define do_fadvise() 
++#endif
++
 -- 
 1.7.1
 
