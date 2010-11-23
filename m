@@ -1,238 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 89EEE6B0087
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id ECAFF6B0087
 	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 02:17:00 -0500 (EST)
 Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAN7Gv4d028347
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAN7GwRM028365
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 23 Nov 2010 16:16:57 +0900
+	Tue, 23 Nov 2010 16:16:59 +0900
 Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id F1F7845DE4F
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:16:56 +0900 (JST)
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id A4AF545DE4C
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:16:58 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D0E2645DE4C
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:16:56 +0900 (JST)
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E10B45DE4F
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:16:58 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A69A51DB8012
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:16:56 +0900 (JST)
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B8C61DB8015
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:16:58 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 51B7F1DB8014
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:16:56 +0900 (JST)
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id CA87A1DB8017
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 16:16:57 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC 1/2] deactive invalidated pages
-In-Reply-To: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
-References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com>
-Message-Id: <20101122143817.E242.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH v2]mm/oom-kill: direct hardware access processes should get bonus
+In-Reply-To: <alpine.DEB.2.00.1011150159330.2986@chino.kir.corp.google.com>
+References: <20101115095446.BF00.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011150159330.2986@chino.kir.corp.google.com>
+Message-Id: <20101123154843.7B8D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 23 Nov 2010 16:16:55 +0900 (JST)
+Date: Tue, 23 Nov 2010 16:16:57 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, "Figo.zhang" <figo1802@gmail.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> By Other approach, app developer uses POSIX_FADV_DONTNEED.
-> But it has a problem. If kernel meets page is writing
-> during invalidate_mapping_pages, it can't work.
-> It is very hard for application programmer to use it.
-> Because they always have to sync data before calling
-> fadivse(..POSIX_FADV_DONTNEED) to make sure the pages could
-> be discardable. At last, they can't use deferred write of kernel
-> so that they could see performance loss.
-> (http://insights.oetiker.ch/linux/fadvise.html)
-
-If rsync use the above url patch, we don't need your patch. 
-fdatasync() + POSIX_FADV_DONTNEED should work fine.
-
-So, I think the core worth of previous PeterZ's patch is in readahead
-based heuristics. I'm curious why you drop it.
-
-
-> In fact, invalidate is very big hint to reclaimer.
-> It means we don't use the page any more. So let's move
-> the writing page into inactive list's head.
-
-But, I agree this.
-
-
+> On Mon, 15 Nov 2010, KOSAKI Motohiro wrote:
 > 
-> If it is real working set, it could have a enough time to
-> activate the page since we always try to keep many pages in
-> inactive list.
+> > > I think in cases of heuristics like this where we obviously want to give 
+> > > some bonus to CAP_SYS_ADMIN that there is consistency with other bonuses 
+> > > given elsewhere in the kernel.
+> > 
+> > Keep comparision apple to apple. vm_enough_memory() account _virtual_ memory.
+> > oom-killer try to free _physical_ memory. It's unrelated.
+> > 
 > 
-> I reuse lru_demote of Peter with some change.
+> It's not unrelated, the LSM function gives an arbitrary 3% bonus to 
+> CAP_SYS_ADMIN.  
+
+Unrelated. LSM _is_ security module. and It only account virtual memory.
+
+
+> Such threads should also be preferred in the oom killer 
+> over other threads since they tend to be more important but not an overly 
+> drastic bias such that they don't get killed when using an egregious 
+> amount of memory.  So in selecting a small percentage of memory that tends 
+> to be a significant bias but not overwhelming, I went with the 3% found 
+> elsewhere in the kernel.  __vm_enough_memory() doesn't have that 
+> preference for any scientifically calculated reason, it's a heuristic just 
+> like oom_badness().
+
+__vm_enough_memory() only gurard to memory overcommiting. And it doesn't
+have any recover way. We expect admin should recover their HAND. In the
+other hand, oom-killer _is_ automatic recover way. It's no need admin's 
+hand. That's the reason why CAP_ADMIN is important or not.
+
+
+
+
+> > > > CAP_SYS_RAWIO mean the process has a direct hardware access privilege
+> > > > (eg X.org, RDB). and then, killing it might makes system crash.
+> > > > 
+> > > 
+> > > Then you would want to explicitly filter these tasks from oom kill just as 
+> > > OOM_SCORE_ADJ_MIN works rather than giving them a memory quantity bonus.
+> > 
+> > No. Why does userland recover your mistake?
+> > 
 > 
-> Reported-by: Ben Gamari <bgamari.foss@gmail.com>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> Signed-off-by: Peter Zijlstra <peterz@infradead.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Nick Piggin <npiggin@kernel.dk>
-> 
-> Ben, Remain thing is to modify rsync and use
-> fadvise(POSIX_FADV_DONTNEED). Could you test it?
-> ---
->  include/linux/swap.h |    1 +
->  mm/swap.c            |   61 ++++++++++++++++++++++++++++++++++++++++++++++++++
->  mm/truncate.c        |   11 +++++---
->  3 files changed, 69 insertions(+), 4 deletions(-)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index eba53e7..a3c9248 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -213,6 +213,7 @@ extern void mark_page_accessed(struct page *);
->  extern void lru_add_drain(void);
->  extern int lru_add_drain_all(void);
->  extern void rotate_reclaimable_page(struct page *page);
-> +extern void lru_deactive_page(struct page *page);
->  extern void swap_setup(void);
->  
->  extern void add_page_to_unevictable_list(struct page *page);
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 3f48542..56fa298 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -39,6 +39,8 @@ int page_cluster;
->  
->  static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
->  static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
-> +static DEFINE_PER_CPU(struct pagevec, lru_deactive_pvecs);
-> +
->  
->  /*
->   * This path almost never happens for VM activity - pages are normally
-> @@ -266,6 +268,45 @@ void add_page_to_unevictable_list(struct page *page)
->  	spin_unlock_irq(&zone->lru_lock);
->  }
->  
-> +static void __pagevec_lru_deactive(struct pagevec *pvec)
-> +{
-> +	int i, lru, file;
-> +
-> +	struct zone *zone = NULL;
-> +
-> +	for (i = 0; i < pagevec_count(pvec); i++) {
-> +		struct page *page = pvec->pages[i];
-> +		struct zone *pagezone = page_zone(page);
-> +
-> +		if (pagezone != zone) {
-> +			if (zone)
-> +				spin_unlock_irq(&zone->lru_lock);
-> +			zone = pagezone;
-> +			spin_lock_irq(&zone->lru_lock);
-> +		}
-> +
-> +		if (PageLRU(page)) {
-> +			if (PageActive(page)) {
-> +				file = page_is_file_cache(page);
-> +				lru = page_lru_base_type(page);
-> +				del_page_from_lru_list(zone, page,
-> +						lru + LRU_ACTIVE);
-> +				ClearPageActive(page);
-> +				ClearPageReferenced(page);
-> +				add_page_to_lru_list(zone, page, lru);
-> +				__count_vm_event(PGDEACTIVATE);
-> +
-> +				update_page_reclaim_stat(zone, page, file, 0);
+> You just said killing any CAP_SYS_RAWIO task may make the system crash, so 
+> presuming that you don't want the system to crash, you are suggesting we 
+> should make these threads completely immune?  That's never been the case 
+> (and isn't for oom_kill_allocating_task, either), so there's no history 
+> you can draw from to support your argument.
 
-When PageActive is unset, we need to change cgroup lru too.
-
-
-> +			}
-> +		}
-> +	}
-> +	if (zone)
-> +		spin_unlock_irq(&zone->lru_lock);
-> +
-> +	release_pages(pvec->pages, pvec->nr, pvec->cold);
-> +	pagevec_reinit(pvec);
-> +}
-> +
->  /*
->   * Drain pages out of the cpu's pagevecs.
->   * Either "cpu" is the current CPU, and preemption has already been
-> @@ -292,8 +333,28 @@ static void drain_cpu_pagevecs(int cpu)
->  		pagevec_move_tail(pvec);
->  		local_irq_restore(flags);
->  	}
-> +
-> +	pvec = &per_cpu(lru_deactive_pvecs, cpu);
-> +	if (pagevec_count(pvec))
-> +		__pagevec_lru_deactive(pvec);
-> +}
-> +
-> +/*
-> + * Function used to forecefully demote a page to the head of the inactive
-> + * list.
-> + */
-> +void lru_deactive_page(struct page *page)
-> +{
-> +	if (likely(get_page_unless_zero(page))) {
-
-Probably, we can check PageLRU and PageActive here too. It help to avoid
-unnecessary batching and may slightly increase performance.
-
-
-
-> +		struct pagevec *pvec = &get_cpu_var(lru_deactive_pvecs);
-> +
-> +		if (!pagevec_add(pvec, page))
-> +			__pagevec_lru_deactive(pvec);
-> +		put_cpu_var(lru_deactive_pvecs);
-> +	}
->  }
->  
-> +
->  void lru_add_drain(void)
->  {
->  	drain_cpu_pagevecs(get_cpu());
-> diff --git a/mm/truncate.c b/mm/truncate.c
-> index cd94607..c73fb19 100644
-> --- a/mm/truncate.c
-> +++ b/mm/truncate.c
-> @@ -332,7 +332,8 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
->  {
->  	struct pagevec pvec;
->  	pgoff_t next = start;
-> -	unsigned long ret = 0;
-> +	unsigned long ret;
-> +	unsigned long count = 0;
->  	int i;
->  
->  	pagevec_init(&pvec, 0);
-> @@ -359,8 +360,10 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
->  			if (lock_failed)
->  				continue;
->  
-> -			ret += invalidate_inode_page(page);
-> -
-> +			ret = invalidate_inode_page(page);
-> +			if (!ret)
-> +				lru_deactive_page(page);
-> +			count += ret;
->  			unlock_page(page);
->  			if (next > end)
->  				break;
-> @@ -369,7 +372,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
->  		mem_cgroup_uncharge_end();
->  		cond_resched();
->  	}
-> -	return ret;
-> +	return count;
->  }
->  EXPORT_SYMBOL(invalidate_mapping_pages);
->  
-> -- 
-> 1.7.0.4
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+No. I only require YOU have to investigate userland usecase BEFORE making
+change.
 
 
 
