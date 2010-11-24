@@ -1,55 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 37F806B0071
-	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 18:58:02 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 83DA16B0071
+	for <linux-mm@kvack.org>; Tue, 23 Nov 2010 19:13:56 -0500 (EST)
 Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oANNvwDw002034
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAO0DsSA017983
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 24 Nov 2010 08:57:58 +0900
+	Wed, 24 Nov 2010 09:13:54 +0900
 Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DF4745DE52
-	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 08:57:58 +0900 (JST)
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D37B445DE5C
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 09:13:53 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4847D45DE51
-	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 08:57:58 +0900 (JST)
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 84E6645DE56
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 09:13:53 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 12C981DB8040
-	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 08:57:58 +0900 (JST)
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4FD2DE08001
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 09:13:53 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id BD3881DB8038
-	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 08:57:57 +0900 (JST)
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id CE4811DB805F
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 09:13:52 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC] mlock: release mmap_sem every 256 faulted pages
-In-Reply-To: <AANLkTi=dK9wQaHm=tXOCqN2BDw5jEtH5qfs9zRHbE0qT@mail.gmail.com>
-References: <20101122215746.e847742d.akpm@linux-foundation.org> <AANLkTi=dK9wQaHm=tXOCqN2BDw5jEtH5qfs9zRHbE0qT@mail.gmail.com>
-Message-Id: <20101124085451.7BE5.A69D9226@jp.fujitsu.com>
+Subject: Re: [RFC 1/2] deactive invalidated pages
+In-Reply-To: <87hbf89jfk.fsf@gmail.com>
+References: <20101122143817.E242.A69D9226@jp.fujitsu.com> <87hbf89jfk.fsf@gmail.com>
+Message-Id: <20101124091249.7BEB.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Wed, 24 Nov 2010 08:57:56 +0900 (JST)
+Date: Wed, 24 Nov 2010 09:13:51 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Michel Lespinasse <walken@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@kernel.dk>, Rik van Riel <riel@redhat.com>
+To: Ben Gamari <bgamari@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-> > A more compelling description of why this problem needs addressing
-> > would help things along.
-> 
-> Oh my. It's probably not too useful for desktops, where such large
-> mlocks are hopefully uncommon.
-> 
-> At google we have many applications that serve data from memory and
-> don't want to allow for disk latencies. Some of the simpler ones use
-> mlock (though there are other ways - anon memory running with swap
-> disabled is a surprisingly popular choice).
-> 
-> Kosaki is also showing interest in mlock, though I'm not sure what his
-> use case is.
+> On Tue, 23 Nov 2010 16:16:55 +0900 (JST), KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > > By Other approach, app developer uses POSIX_FADV_DONTNEED.
+> > > But it has a problem. If kernel meets page is writing
+> > > during invalidate_mapping_pages, it can't work.
+> > > It is very hard for application programmer to use it.
+> > > Because they always have to sync data before calling
+> > > fadivse(..POSIX_FADV_DONTNEED) to make sure the pages could
+> > > be discardable. At last, they can't use deferred write of kernel
+> > > so that they could see performance loss.
+> > > (http://insights.oetiker.ch/linux/fadvise.html)
+> > 
+> > If rsync use the above url patch, we don't need your patch. 
+> > fdatasync() + POSIX_FADV_DONTNEED should work fine.
+> > 
+> This is quite true, but the patch itself is fairly invasive and
+> unnecessarily so which makes it unsuitable for merging in the eyes of
+> the rsync maintainers (not that I can blame them). This is by no fault
+> of its author; using fadvise is just far harder than it should be.
 
-I don't have any solid use case. Usually server app only do mlock anonymous memory.
-But, I haven't found any negative effect in your proposal, therefore I hope to help
-your effort as I always do when the proposal don't have negative impact.
+Yeah. I agree with this patch don't have negative impact. I was only
+curious why Minchan drop autodetect logic.
 
+Please don't think I'm against your effort.
+
+Thanks.
 
 
 --
