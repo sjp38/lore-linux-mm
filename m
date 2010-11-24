@@ -1,52 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B5A376B0071
-	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 10:32:42 -0500 (EST)
-Received: by gyg10 with SMTP id 10so879729gyg.14
-        for <linux-mm@kvack.org>; Wed, 24 Nov 2010 07:32:41 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTimo1BR=mSJ6wPQwrL4FDNv=_TfanPPTT7uWx7hQ@mail.gmail.com>
-References: <AANLkTikg-sR97tkG=ST9kjZcHe6puYSvMGh-eA3cnH7X@mail.gmail.com>
-	<20101122161158.02699d10.akpm@linux-foundation.org>
-	<1290501502.2390.7029.camel@nimitz>
-	<AANLkTik2Fn-ynUap2fPcRxRdKA=5ZRYG0LJTmqf80y+q@mail.gmail.com>
-	<1290529171.2390.7994.camel@nimitz>
-	<AANLkTikCn-YvORocXSJ1Z+ovYNMhKF7TaX=BHWKwrQup@mail.gmail.com>
-	<AANLkTi=mgTHPEYFsryDYnxPa78f-Nr+H7i4+0KPZbxh3@mail.gmail.com>
-	<AANLkTimo1BR=mSJ6wPQwrL4FDNv=_TfanPPTT7uWx7hQ@mail.gmail.com>
-Date: Wed, 24 Nov 2010 16:32:39 +0100
-Message-ID: <AANLkTi=yV02oY5AmNAYr+ZF0RUgVv8gkeP+D9_CcOfLi@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 18FE56B0071
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 12:32:20 -0500 (EST)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id oAOHKn0t005869
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 10:20:49 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id oAOHWCNS254040
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 10:32:12 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oAOHWBJ0007637
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 10:32:11 -0700
 Subject: Re: Sudden and massive page cache eviction
-From: =?UTF-8?Q?Peter_Sch=C3=BCller?= <scode@spotify.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <AANLkTi=mgTHPEYFsryDYnxPa78f-Nr+H7i4+0KPZbxh3@mail.gmail.com>
+References: <AANLkTikg-sR97tkG=ST9kjZcHe6puYSvMGh-eA3cnH7X@mail.gmail.com>
+	 <20101122161158.02699d10.akpm@linux-foundation.org>
+	 <1290501502.2390.7029.camel@nimitz>
+	 <AANLkTik2Fn-ynUap2fPcRxRdKA=5ZRYG0LJTmqf80y+q@mail.gmail.com>
+	 <1290529171.2390.7994.camel@nimitz>
+	 <AANLkTikCn-YvORocXSJ1Z+ovYNMhKF7TaX=BHWKwrQup@mail.gmail.com>
+	 <AANLkTi=mgTHPEYFsryDYnxPa78f-Nr+H7i4+0KPZbxh3@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Wed, 24 Nov 2010 09:32:09 -0800
+Message-ID: <1290619929.10586.6.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Mattias de Zalenski <zalenski@spotify.com>, linux-mm@kvack.org
+To: Peter =?ISO-8859-1?Q?Sch=FCller?= <scode@spotify.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Mattias de Zalenski <zalenski@spotify.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> I forgot to address the second part of this question: How would I best
->> inspect whether the kernel is doing that?
->
-> You can, for example, record
->
-> =C2=A0cat /proc/meminfo | grep Huge
->
-> for large page allocations.
+On Wed, 2010-11-24 at 15:14 +0100, Peter Schuller wrote:
+> >> Do you have any large page (hugetlbfs) or other multi-order (> 1 page)
+> >> allocations happening in the kernel?
+> 
+> I forgot to address the second part of this question: How would I best
+> inspect whether the kernel is doing that? 
 
-Those show zero a per my other post. However I got the impression Dave
-was asking about regular but larger-than-one-page allocations internal
-to the kernel, while the Huge* lines in /proc/meminfo refers to
-allocations specifically done by userland applications doing huge page
-allocation on a system with huge pages enabled - or am I confused?
+I found out yesterday how to do it with tracing, but it's not a horribly
+simple thing to do in any case.  You can watch the entries in slabinfo
+and see if any of the ones with sizes over 4096 bytes are getting used
+often.  You can also watch /proc/buddyinfo and see how often columns
+other than the first couple are moving around.
 
-> The "pagesperslab" column of /proc/slabinfo tells you how many pages
-> slab allocates from the page allocator.
+Jumbo ethernet frames would be the most common reason to see these
+allocations.  It's _probably_ not an issue in your case.
 
-Seems to be what vmstat -m reports.
-
---=20
-/ Peter Schuller aka scode
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
