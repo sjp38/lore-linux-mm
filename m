@@ -1,91 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 51F596B0071
-	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 07:10:52 -0500 (EST)
-Date: Wed, 24 Nov 2010 20:10:46 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 06/13] writeback: bdi write bandwidth estimation
-Message-ID: <20101124121046.GA8333@localhost>
-References: <20101117042720.033773013@intel.com>
- <20101117042850.002299964@intel.com>
- <1290596732.2072.450.camel@laptop>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 31E176B0071
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 07:17:41 -0500 (EST)
+Received: by iwn35 with SMTP id 35so750800iwn.14
+        for <linux-mm@kvack.org>; Wed, 24 Nov 2010 04:17:39 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1290596732.2072.450.camel@laptop>
+In-Reply-To: <20101124094736.3c4ba760.kamezawa.hiroyu@jp.fujitsu.com>
+References: <AANLkTingzd3Pqrip1izfkLm+HCE9jRQL777nu9s3RnLv@mail.gmail.com>
+	<20101124094736.3c4ba760.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 24 Nov 2010 15:17:38 +0300
+Message-ID: <AANLkTimSRJ6GC3=bddNMfnVE3LmMx-9xSY2GX_XNvzCA@mail.gmail.com>
+Subject: Re: Question about cgroup hierarchy and reducing memory limit
+From: Evgeniy Ivanov <lolkaantimat@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Li, Shaohua" <shaohua.li@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 24, 2010 at 07:05:32PM +0800, Peter Zijlstra wrote:
-> On Wed, 2010-11-17 at 12:27 +0800, Wu Fengguang wrote:
-> > +void bdi_update_write_bandwidth(struct backing_dev_info *bdi,
-> > +                               unsigned long *bw_time,
-> > +                               s64 *bw_written)
-> > +{
-> > +       unsigned long written;
-> > +       unsigned long elapsed;
-> > +       unsigned long bw;
-> > +       unsigned long w;
-> > +
-> > +       if (*bw_written == 0)
-> > +               goto snapshot;
-> > +
-> > +       elapsed = jiffies - *bw_time;
-> > +       if (elapsed < HZ/100)
-> > +               return;
-> > +
-> > +       /*
-> > +        * When there lots of tasks throttled in balance_dirty_pages(), they
-> > +        * will each try to update the bandwidth for the same period, making
-> > +        * the bandwidth drift much faster than the desired rate (as in the
-> > +        * single dirtier case). So do some rate limiting.
-> > +        */
-> > +       if (jiffies - bdi->write_bandwidth_update_time < elapsed)
-> > +               goto snapshot;
+On Wed, Nov 24, 2010 at 3:47 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 22 Nov 2010 19:59:41 +0300
+> Evgeniy Ivanov <lolkaantimat@gmail.com> wrote:
 >
-> Why this goto snapshot and not simply return? This is the second call
-> (bdi_update_bandwidth equivalent).
-
-Good question. The loop inside balance_dirty_pages() normally run only
-once, however wb_writeback() may loop over and over again. If we just
-return here, the condition
-
-        (jiffies - bdi->write_bandwidth_update_time < elapsed)
-
-cannot be reset, then future bdi_update_bandwidth() calls in the same
-wb_writeback() loop will never find it OK to update the bandwidth.
-
-It does assume no races between CPUs.. We may need some per-cpu based
-estimation.
-
-> If you were to leave the old bw_written/bw_time in place the next loop
-> around in wb_writeback() would see a larger delta..
+>> Hello,
+>>
+> Hi,
 >
-> I guess this funny loop in wb_writeback() is also the reason you've got
-> a single function and not the get/update like separation
+>> I have following cgroup hierarchy:
+>>
+>> =A0 Root
+>> =A0 / =A0 |
+>> A =A0 B
+>>
+>> A and B have memory limits set so that it's 100% of limit set in Root.
+>> I want to add C to root:
+>>
+>> =A0 Root
+>> =A0 / =A0 | =A0\
+>> A =A0 B =A0C
+>>
+>> What is correct way to shrink limits for A and B? When they use all
+>> allowed memory and I try to write to their limit files I get error.
+>
+> What kinds of error ? Do you have swap ? What is the kerenel version ?
 
-I do the single function mainly for wb_writeback(), where it
-continuously updates bandwidth inside the loop. The function can be
-called in such way:
+Kernel is 2.6.31-5 from SLES-SP1 (my build, but without extra patches).
+I have 2 Gb swap and just 40 Mb used. Machine has 3 Gb RAM and no load
+(neither mem or CPU).
 
-loop {
-        take snapshot on first call
+Error is "-bash: echo: write error: Device or resource busy", when I
+write to memory.limit_in_bytes.
 
-        no action if recalled within 10ms
-        ...
-        no action if recalled within 10ms
-        ...
+> It's designed to allow "shrink at once" but that means release memory
+> and do forced-writeback. To release memory, it may have to write back
+> to swap. If tasks in "A" and "B" are too busy and tocuhes tons of memory
+> while shrinking, it may fail.
 
-        update bandwidth and prepare for next update by taking the snapshot
+Well, in test I have a process which uses 30M of memory and in loop
+dirties all pages (just single byte) then sleeps 5 seconds before next
+iteration.
 
-        no action if recalled within 10ms
-        ...
-}
+> It may be a regression. Kernel version is important.
+>
+> Could you show memory.stat file when you shrink "A" and "B" ?
+> And what happnes
+> # sync
+> # sync
+> # sync
+> # reduce memory A
+> # reduce memory B
 
-Thanks,
-Fengguang
+Sync doesn't help. Here is log just for memory.stat for group I tried to sh=
+rink:
+
+ivanoe:/cgroups/root# cat C/memory.stat
+cache 0
+rss 90222592
+mapped_file 0
+pgpgin 1212770
+pgpgout 1190743
+inactive_anon 45338624
+active_anon 44883968
+inactive_file 0
+active_file 0
+unevictable 0
+hierarchical_memory_limit 94371840
+hierarchical_memsw_limit 9223372036854775807
+total_cache 0
+total_rss 90222592
+total_mapped_file 0
+total_pgpgin 1212770
+total_pgpgout 1190743
+total_inactive_anon 45338624
+total_active_anon 44883968
+total_inactive_file 0
+total_active_file 0
+total_unevictable 0
+ivanoe:/cgroups/root# echo 30M > C/memory.limit_in_bytes
+-bash: echo: write error: Device or resource busy
+ivanoe:/cgroups/root# echo 30M > C/memory.limit_in_bytes
+-bash: echo: write error: Device or resource busy
+ivanoe:/cgroups/root# echo 30M > C/memory.limit_in_bytes
+-bash: echo: write error: Device or resource busy
+ivanoe:/cgroups/root# echo 30M > C/memory.limit_in_bytes
+ivanoe:/cgroups/root# cat memory.limit_in_bytes
+125829120
+ivanoe:/cgroups/root# cat B/memory.limit_in_bytes
+62914560
+ivanoe:/cgroups/root# cat A/memory.limit_in_bytes
+20971520
+
+
+
+--=20
+Evgeniy Ivanov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
