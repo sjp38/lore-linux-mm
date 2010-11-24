@@ -1,64 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BBDC26B0071
-	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 12:46:30 -0500 (EST)
-Received: by yxl31 with SMTP id 31so3149047yxl.14
-        for <linux-mm@kvack.org>; Wed, 24 Nov 2010 09:46:29 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C21576B0071
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 13:01:40 -0500 (EST)
+Date: Wed, 24 Nov 2010 18:01:22 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC 1/2] deactive invalidated pages
+Message-ID: <20101124180122.GC19571@csn.ul.ie>
+References: <bdd6628e81c06f6871983c971d91160fca3f8b5e.1290349672.git.minchan.kim@gmail.com> <20101122141449.9de58a2c.akpm@linux-foundation.org> <AANLkTimk4JL7hDvLWuHjiXGNYxz8GJ_TypWFC=74Xt1Q@mail.gmail.com> <20101122210132.be9962c7.akpm@linux-foundation.org> <20101123093859.GE19571@csn.ul.ie> <87k4k49jii.fsf@gmail.com> <20101123145856.GQ19571@csn.ul.ie> <20101123123535.438e9750.akpm@linux-foundation.org> <20101123221049.GR19571@csn.ul.ie> <AANLkTikvsEpQM4=fGj5sH7rS74-KfPL5nq0v18v59MOb@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <AANLkTi=yV02oY5AmNAYr+ZF0RUgVv8gkeP+D9_CcOfLi@mail.gmail.com>
-References: <AANLkTikg-sR97tkG=ST9kjZcHe6puYSvMGh-eA3cnH7X@mail.gmail.com>
-	<20101122161158.02699d10.akpm@linux-foundation.org>
-	<1290501502.2390.7029.camel@nimitz>
-	<AANLkTik2Fn-ynUap2fPcRxRdKA=5ZRYG0LJTmqf80y+q@mail.gmail.com>
-	<1290529171.2390.7994.camel@nimitz>
-	<AANLkTikCn-YvORocXSJ1Z+ovYNMhKF7TaX=BHWKwrQup@mail.gmail.com>
-	<AANLkTi=mgTHPEYFsryDYnxPa78f-Nr+H7i4+0KPZbxh3@mail.gmail.com>
-	<AANLkTimo1BR=mSJ6wPQwrL4FDNv=_TfanPPTT7uWx7hQ@mail.gmail.com>
-	<AANLkTi=yV02oY5AmNAYr+ZF0RUgVv8gkeP+D9_CcOfLi@mail.gmail.com>
-Date: Wed, 24 Nov 2010 19:46:28 +0200
-Message-ID: <AANLkTi=PXoMA0gv53_7h16u1259sh1uOxg2cSXYSXThv@mail.gmail.com>
-Subject: Re: Sudden and massive page cache eviction
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTikvsEpQM4=fGj5sH7rS74-KfPL5nq0v18v59MOb@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: =?ISO-8859-1?Q?Peter_Sch=FCller?= <scode@spotify.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Mattias de Zalenski <zalenski@spotify.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ben Gamari <bgamari@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-Hi Peter,
+On Wed, Nov 24, 2010 at 08:45:20AM +0900, Minchan Kim wrote:
+> >
+> >> I just don't see any argument for moving the page to the head of the
+> >> inactive LRU as a matter of policy.  We can park it there because we
+> >> can't think of anythnig else to do with it, but it's the wrong place
+> >> for it.
+> >>
+> >
+> > Is there a better alternative? One thing that springs to mind is that we are
+> > not exactly tracking very well what effect these policy changes have. The
+> > analysis scripts I have do a reasonable job on tracking reclaim activity
+> > (although only as part of the mmtests tarball, I should split them out as
+> > a standalone tool) but not the impact - namely minor and major faults. I
+> > should sort that out so we can put better reclaim analysis in place.
+> 
+> It can help very much. :)
+> 
+> Also, I need time since I am so busy.
+> 
 
-2010/11/24 Peter Sch=FCller <scode@spotify.com>:
->>> I forgot to address the second part of this question: How would I best
->>> inspect whether the kernel is doing that?
->>
->> You can, for example, record
->>
->> =A0cat /proc/meminfo | grep Huge
->>
->> for large page allocations.
->
-> Those show zero a per my other post. However I got the impression Dave
-> was asking about regular but larger-than-one-page allocations internal
-> to the kernel, while the Huge* lines in /proc/meminfo refers to
-> allocations specifically done by userland applications doing huge page
-> allocation on a system with huge pages enabled - or am I confused?
+No worries, I had a framework in place that made it easy enough to
+collect. The necessary information is available in /proc/vmstat in this
+case so a tester just needs to record vmstat before and after the target
+workload runs. For the reclaim/compaction series, a partial run of the
+series and the subsequent report looks like;
 
-He was asking about both (large page allocations and higher order allocatio=
-ns).
+proc vmstat: Faults
+                                       traceonly reclaimcompact obeysync
+Major Faults                                 84102      6724      7298
+Minor Faults                             139704394 138778777 138777304
+Page ins                                   4966564   3621280   3569508
+Page outs                                 11283328   7980576   7959352
+Swap ins                                     85800      5647      7062
+Swap outs                                   828488      8799     10565
 
->> The "pagesperslab" column of /proc/slabinfo tells you how many pages
->> slab allocates from the page allocator.
->
-> Seems to be what vmstat -m reports.
+Series acted as expected - major faults were reduced. Minor faults on on the
+high side which I didn't analyse further. Main thing that it's possible to
+collect the information on what reclaim is doing and how it affects processes.
+I don't have anything in place to evaluate this series unfortunately as
+I haven't automated a workload that depends on the behaviour of fadvise.
 
-No, "vmstat -m" reports _total number_ of pages allocated. We're
-interested in how many pages slab allocator whenever it needs to
-allocate memory for a new slab. That's represented by the
-"pagesperslab" column of /proc/slabinfo from which you can deduce the
-page allocation order.
-
-                        Pekka
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
