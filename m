@@ -1,43 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 924EF6B0071
-	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 03:49:25 -0500 (EST)
-Date: Wed, 24 Nov 2010 17:48:36 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [PATCH] mm: make ioremap_prot() take a pgprot.
-Message-ID: <20101124084836.GH2212@linux-sh.org>
-References: <20101102203102.GA12723@linux-sh.org> <20101108063403.GA12790@linux-sh.org> <1289225899.2147.1363.camel@pasglop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 68B0A6B0071
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 03:58:09 -0500 (EST)
+From: =?UTF-8?q?Uwe=20Kleine-K=C3=B6nig?= <u.kleine-koenig@pengutronix.de>
+Subject: [PATCH 5/6] mm: add some KERN_CONT markers to continuation lines
+Date: Wed, 24 Nov 2010 09:57:49 +0100
+Message-Id: <1290589070-854-5-git-send-email-u.kleine-koenig@pengutronix.de>
+In-Reply-To: <20101124085645.GW4693@pengutronix.de>
+References: <20101124085645.GW4693@pengutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1289225899.2147.1363.camel@pasglop>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, Chris Metcalf <cmetcalf@tilera.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, kernel@pengutronix.de, Arjan van de Ven <arjan@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 09, 2010 at 01:18:19AM +1100, Benjamin Herrenschmidt wrote:
-> On Mon, 2010-11-08 at 15:34 +0900, Paul Mundt wrote:
-> > On Wed, Nov 03, 2010 at 05:31:03AM +0900, Paul Mundt wrote:
-> > > The current definition of ioremap_prot() takes an unsigned long for the
-> > > page flags and then converts to/from a pgprot as necessary. This is
-> > > unfortunately not sufficient for the SH-X2 TLB case which has a 64-bit
-> > > pgprot and a 32-bit unsigned long.
-> > > 
-> > > An inspection of the tree shows that tile and cris also have their
-> > > own equivalent routines that are using the pgprot_t but do not set
-> > > HAVE_IOREMAP_PROT, both of which could trivially be adapted.
-> > > 
-> > > After cris/tile are updated there would also be enough critical mass to
-> > > move the powerpc devm_ioremap_prot() in to the generic lib/devres.c.
-> > > 
-> > > Signed-off-by: Paul Mundt <lethal@linux-sh.org>
-> > > 
-> > Any takers?
-> 
-> Haven't had a chance to play with it yet, still travelling.
-> 
-Ping.
+Cc: linux-mm@kvack.org
+Signed-off-by: Uwe Kleine-KA?nig <u.kleine-koenig@pengutronix.de>
+---
+ mm/percpu.c |   12 ++++++------
+ 1 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/mm/percpu.c b/mm/percpu.c
+index efe8168..3356646 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1117,20 +1117,20 @@ static void pcpu_dump_alloc_info(const char *lvl,
+ 		for (alloc_end += gi->nr_units / upa;
+ 		     alloc < alloc_end; alloc++) {
+ 			if (!(alloc % apl)) {
+-				printk("\n");
+-				printk("%spcpu-alloc: ", lvl);
++				printk(KERN_CONT "\n");
++				printk("%spcpu-alloc:", lvl);
+ 			}
+-			printk("[%0*d] ", group_width, group);
++			printk(KERN_CONT " [%0*d]", group_width, group);
+ 
+ 			for (unit_end += upa; unit < unit_end; unit++)
+ 				if (gi->cpu_map[unit] != NR_CPUS)
+-					printk("%0*d ", cpu_width,
++					printk(KERN_CONT " %0*d", cpu_width,
+ 					       gi->cpu_map[unit]);
+ 				else
+-					printk("%s ", empty_str);
++					printk(KERN_CONT " %s", empty_str);
+ 		}
+ 	}
+-	printk("\n");
++	printk(KERN_CONT "\n");
+ }
+ 
+ /**
+-- 
+1.7.2.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
