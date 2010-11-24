@@ -1,67 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 67E036B0071
-	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 09:38:24 -0500 (EST)
-Date: Wed, 24 Nov 2010 22:38:18 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 06/13] writeback: bdi write bandwidth estimation
-Message-ID: <20101124143818.GB14502@localhost>
-References: <1290596732.2072.450.camel@laptop>
- <20101124121046.GA8333@localhost>
- <1290603047.2072.465.camel@laptop>
- <20101124131437.GE10413@localhost>
- <20101124132012.GA12117@localhost>
- <1290606129.2072.467.camel@laptop>
- <20101124134641.GA12987@localhost>
- <1290607953.2072.472.camel@laptop>
- <20101124142142.GA14123@localhost>
- <1290609117.2072.474.camel@laptop>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B5A376B0071
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 10:32:42 -0500 (EST)
+Received: by gyg10 with SMTP id 10so879729gyg.14
+        for <linux-mm@kvack.org>; Wed, 24 Nov 2010 07:32:41 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1290609117.2072.474.camel@laptop>
+In-Reply-To: <AANLkTimo1BR=mSJ6wPQwrL4FDNv=_TfanPPTT7uWx7hQ@mail.gmail.com>
+References: <AANLkTikg-sR97tkG=ST9kjZcHe6puYSvMGh-eA3cnH7X@mail.gmail.com>
+	<20101122161158.02699d10.akpm@linux-foundation.org>
+	<1290501502.2390.7029.camel@nimitz>
+	<AANLkTik2Fn-ynUap2fPcRxRdKA=5ZRYG0LJTmqf80y+q@mail.gmail.com>
+	<1290529171.2390.7994.camel@nimitz>
+	<AANLkTikCn-YvORocXSJ1Z+ovYNMhKF7TaX=BHWKwrQup@mail.gmail.com>
+	<AANLkTi=mgTHPEYFsryDYnxPa78f-Nr+H7i4+0KPZbxh3@mail.gmail.com>
+	<AANLkTimo1BR=mSJ6wPQwrL4FDNv=_TfanPPTT7uWx7hQ@mail.gmail.com>
+Date: Wed, 24 Nov 2010 16:32:39 +0100
+Message-ID: <AANLkTi=yV02oY5AmNAYr+ZF0RUgVv8gkeP+D9_CcOfLi@mail.gmail.com>
+Subject: Re: Sudden and massive page cache eviction
+From: =?UTF-8?Q?Peter_Sch=C3=BCller?= <scode@spotify.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Li, Shaohua" <shaohua.li@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Mattias de Zalenski <zalenski@spotify.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 24, 2010 at 10:31:57PM +0800, Peter Zijlstra wrote:
-> On Wed, 2010-11-24 at 22:21 +0800, Wu Fengguang wrote:
-> > 
-> > Hmm, but why not avoid locking at all?  With per-cpu bandwidth vars,
-> > each CPU will see slightly different bandwidth, but that should be
-> > close enough and not a big problem.
-> 
-> I don't think so, on a large enough machine some cpus might hardly ever
-> use a particular BDI and hence get very stale data.
+>> I forgot to address the second part of this question: How would I best
+>> inspect whether the kernel is doing that?
+>
+> You can, for example, record
+>
+> =C2=A0cat /proc/meminfo | grep Huge
+>
+> for large page allocations.
 
-Good point!
+Those show zero a per my other post. However I got the impression Dave
+was asking about regular but larger-than-one-page allocations internal
+to the kernel, while the Huge* lines in /proc/meminfo refers to
+allocations specifically done by userland applications doing huge page
+allocation on a system with huge pages enabled - or am I confused?
 
-> Also, it increases the memory footprint of the whole solution.
+> The "pagesperslab" column of /proc/slabinfo tells you how many pages
+> slab allocates from the page allocator.
 
-Yeah, maybe not a good trade off.
+Seems to be what vmstat -m reports.
 
-> > > +void bdi_update_write_bandwidth(struct backing_dev_info *bdi)
-> > > +{
-> > > +     unsigned long time_now, write_now;
-> > > +     long time_delta, write_delta;
-> > > +     long bw;
-> > > +
-> > > +     if (!spin_try_lock(&bdi->bw_lock))
-> > > +             return;
-> > 
-> > spin_try_lock is good, however is still global state and risks
-> > cacheline bouncing.. 
-> 
-> If there are many concurrent writers to the BDI I don't think this is
-> going to be the top sore spot, once it is we can think of something
-> else.
-
-When there are lots of concurrent writers, we'll target at ~100ms
-pause time, hence the update frequency will be lowered accordingly.
-
-Thanks,
-Fengguang
+--=20
+/ Peter Schuller aka scode
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
