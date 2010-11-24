@@ -1,89 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id BE8BD6B0071
-	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 14:17:53 -0500 (EST)
-Date: Wed, 24 Nov 2010 11:17:49 -0800
-From: Simon Kirby <sim@hostway.ca>
-Subject: Re: Free memory never fully used, swapping
-Message-ID: <20101124191749.GA29511@hostway.ca>
-References: <20101115195246.GB17387@hostway.ca> <20101122154419.ee0e09d2.akpm@linux-foundation.org> <20101123100402.GH19571@csn.ul.ie> <20101124064329.GB25170@hostway.ca> <20101124092753.GS19571@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101124092753.GS19571@csn.ul.ie>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 10ACB6B0071
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 14:42:10 -0500 (EST)
+Date: Wed, 24 Nov 2010 11:41:09 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: [PATCH -mmotm/-next] media: fix timblogiw kconfig & build error
+Message-Id: <20101124114109.c78df4e1.randy.dunlap@oracle.com>
+In-Reply-To: <201011240045.oAO0jYQ5016010@imap1.linux-foundation.org>
+References: <201011240045.oAO0jYQ5016010@imap1.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: akpm@linux-foundation.org, Pelagicore AB <info@pelagicore.com>, linux-media@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Zimny Lech <napohybelskurwysynom2010@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 24, 2010 at 09:27:53AM +0000, Mel Gorman wrote:
+From: Randy Dunlap <randy.dunlap@oracle.com>
 
-> On Tue, Nov 23, 2010 at 10:43:29PM -0800, Simon Kirby wrote:
-> > On Tue, Nov 23, 2010 at 10:04:03AM +0000, Mel Gorman wrote:
-> > 
-> > > On Mon, Nov 22, 2010 at 03:44:19PM -0800, Andrew Morton wrote:
-> > > > On Mon, 15 Nov 2010 11:52:46 -0800
-> > > > Simon Kirby <sim@hostway.ca> wrote:
-> > > > 
-> > > > > I noticed that CONFIG_NUMA seems to enable some more complicated
-> > > > > reclaiming bits and figured it might help since most stock kernels seem
-> > > > > to ship with it now.  This seems to have helped, but it may just be
-> > > > > wishful thinking.  We still see this happening, though maybe to a lesser
-> > > > > degree.  (The following observations are with CONFIG_NUMA enabled.)
-> > > > > 
-> > > 
-> > > Hi,
-> > > 
-> > > As this is a NUMA machine, what is the value of
-> > > /proc/sys/vm/zone_reclaim_mode ? When enabled, this reclaims memory
-> > > local to the node in preference to using remote nodes. For certain
-> > > workloads this performs better but for users that expect all of memory
-> > > to be used, it has surprising results.
-> > > 
-> > > If set to 1, try testing with it set to 0 and see if it makes a
-> > > difference. Thanks
-> > 
-> > Hi Mel,
-> > 
-> > It is set to 0.  It's an Intel EM64T...I only enabled CONFIG_NUMA since
-> > it seemed to enable some more complicated handling, and I figured it
-> > might help, but it didn't seem to.  It's also required for
-> > CONFIG_COMPACTION, but that is still marked experimental.
-> > 
-> 
-> I'm surprised a little that you are bringing compaction up because unless
-> there are high-order involved, it wouldn't make a difference. Is there
-> a constant source of high-order allocations in the system e.g. a network
-> card configured to use jumbo frames? A possible consequence of that is that
-> reclaim is kicking in early to free order-[2-4] pages that would prevent 100%
-> of memory being used.
+timblogiw uses dma() interfaces and it selects TIMB_DMA for that
+support.  However, drivers/dma/ is not built unless
+CONFIG_DMA_ENGINE is enabled, so select/enable that symbol also.
 
-We /were/ using jumbo frames, but only over a local cross-over connection
-to another node (for DRBD), so I disabled jumbo frames on this interface
-and reconnected DRBD.  Even with MTUs set to 1500, we saw GFP_ATOMIC
-order=3 allocations coming from __alloc_skb:
+drivers/built-in.o: In function `timblogiw_close':
+timblogiw.c:(.text+0x4419fe): undefined reference to `dma_release_channel'
+drivers/built-in.o: In function `buffer_release':
+timblogiw.c:(.text+0x441a8d): undefined reference to `dma_sync_wait'
+drivers/built-in.o: In function `timblogiw_open':
+timblogiw.c:(.text+0x44212b): undefined reference to `__dma_request_channel'
 
-perf record --event kmem:mm_page_alloc --filter 'order>=3' -a --call-graph sleep 10
-perf trace
+Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
+---
+ drivers/media/video/Kconfig |    1 +
+ 1 file changed, 1 insertion(+)
 
-	imap-20599 [002] 1287672.803567: mm_page_alloc: page=0xffffea00004536c0 pfn=4536000 order=3 migratetype=0 gfp_flags=GFP_ATOMIC|GFP_NOWARN|GFP_NORETRY|GFP_COMP
-
-perf report shows:
-
-__alloc_pages_nodemask
-alloc_pages_current
-new_slab
-__slab_alloc
-__kmalloc_node_track_caller
-__alloc_skb
-__netdev_alloc_skb
-bnx2_poll_work
-
-Dave was seeing these on his laptop with an Intel NIC as well.  Ralf
-noted that the slab cache grows in higher order blocks, so this is
-normal.  The GFP_ATOMIC bubbles up from *alloc_skb, I guess.
-
-Simon-
+--- mmotm-2010-1123-1612.orig/drivers/media/video/Kconfig
++++ mmotm-2010-1123-1612/drivers/media/video/Kconfig
+@@ -669,6 +669,7 @@ config VIDEO_HEXIUM_GEMINI
+ config VIDEO_TIMBERDALE
+ 	tristate "Support for timberdale Video In/LogiWIN"
+ 	depends on VIDEO_V4L2 && I2C
++	select DMA_ENGINE
+ 	select TIMB_DMA
+ 	select VIDEO_ADV7180
+ 	select VIDEOBUF_DMA_CONTIG
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
