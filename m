@@ -1,78 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 27DA56B0071
-	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 06:15:50 -0500 (EST)
-Date: Wed, 24 Nov 2010 12:09:15 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [resend][PATCH 4/4] oom: don't ignore rss in nascent mm
-Message-ID: <20101124110915.GA20452@redhat.com>
-References: <20101025122914.9173.A69D9226@jp.fujitsu.com> <20101123143427.GA30941@redhat.com> <20101124085022.7BDF.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101124085022.7BDF.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A709E6B0071
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 06:18:38 -0500 (EST)
+Subject: Re: [PATCH 10/13] writeback: make reasonable gap between the
+ dirty/background thresholds
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20101117042850.482907860@intel.com>
+References: <20101117042720.033773013@intel.com>
+	 <20101117042850.482907860@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Wed, 24 Nov 2010 12:18:18 +0100
+Message-ID: <1290597498.2072.458.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 11/24, KOSAKI Motohiro wrote:
->
-> Hi
->
-> > On 10/25, KOSAKI Motohiro wrote:
-> > >
-> > > Because execve() makes new mm struct and setup stack and
-> > > copy argv. It mean the task have two mm while execve() temporary.
-> > > Unfortunately this nascent mm is not pointed any tasks, then
-> > > OOM-killer can't detect this memory usage. therefore OOM-killer
-> > > may kill incorrect task.
-> > >
-> > > Thus, this patch added signal->in_exec_mm member and track
-> > > nascent mm usage.
-> >
-> > Stupid question.
-> >
-> > Can't we just account these allocations in the old -mm temporary?
-> >
-> > IOW. Please look at the "patch" below. It is of course incomplete
-> > and wrong (to the point inc_mm_counter() is not safe without
-> > SPLIT_RSS_COUNTING), and copy_strings/flush_old_exec are not the
-> > best places to play with mm-counters, just to explain what I mean.
-> >
-> > It is very simple. copy_strings() increments MM_ANONPAGES every
-> > time we add a new page into bprm->vma. This makes this memory
-> > visible to select_bad_process().
-> >
-> > When exec changes ->mm (or if it fails), we change MM_ANONPAGES
-> > counter back.
-> >
-> > Most probably I missed something, but what do you think?
->
-> Because, If the pages of argv is swapping out when processing execve,
-> This accouing doesn't work.
-
-Why?
-
-If copy_strings() inserts the new page into bprm->vma and then
-this page is swapped out, inc_mm_counter(current->mm, MM_ANONPAGES)
-becomes incorrect, yes. And we can't turn it into MM_SWAPENTS.
-
-But does this really matter? oom_badness() counts MM_ANONPAGES +
-MM_SWAPENTS, and result is the same.
-
-> Is this enough explanation? Please don't hesitate say "no". If people
-> don't like my approach, I don't hesitate change my thinking.
-
-Well, certainly I can't say no ;)
-
-But it would be nice to find a more simple fix (if it can work,
-of course).
+On Wed, 2010-11-17 at 12:27 +0800, Wu Fengguang wrote:
+> plain text document attachment
+> (writeback-fix-oversize-background-thresh.patch)
+> The change is virtually a no-op for the majority users that use the
+> default 10/20 background/dirty ratios. For others don't know why they
+> are setting background ratio close enough to dirty ratio. Someone must
+> set background ratio equal to dirty ratio, but no one seems to notice or
+> complain that it's then silently halved under the hood..
+>=20
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  mm/page-writeback.c |   11 +++++++++--
+>  1 file changed, 9 insertions(+), 2 deletions(-)
+>=20
+> --- linux-next.orig/mm/page-writeback.c	2010-11-15 13:12:50.000000000 +08=
+00
+> +++ linux-next/mm/page-writeback.c	2010-11-15 13:13:42.000000000 +0800
+> @@ -403,8 +403,15 @@ void global_dirty_limits(unsigned long *
+>  	else
+>  		background =3D (dirty_background_ratio * available_memory) / 100;
+> =20
+> -	if (background >=3D dirty)
+> -		background =3D dirty / 2;
+> +	/*
+> +	 * Ensure at least 1/4 gap between background and dirty thresholds, so
+> +	 * that when dirty throttling starts at (background + dirty)/2, it's at
+> +	 * the entrance of bdi soft throttle threshold, so as to avoid being
+> +	 * hard throttled.
+> +	 */
+> +	if (background > dirty - dirty * 2 / BDI_SOFT_DIRTY_LIMIT)
+> +		background =3D dirty - dirty * 2 / BDI_SOFT_DIRTY_LIMIT;
+> +
+>  	tsk =3D current;
+>  	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
+>  		background +=3D background / 4;
 
 
-And. I need a simple solution for the older kernels.
+Hrm,.. the alternative is to return -ERANGE or somesuch when people try
+to write nonsensical values.
 
-Oleg.
+I'm not sure what's best, guessing at what the user did mean to do or
+forcing him to actually think.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
