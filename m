@@ -1,7 +1,7 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E76C6B0071
-	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 05:58:10 -0500 (EST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D29806B0087
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 06:05:28 -0500 (EST)
 Subject: Re: [PATCH 06/13] writeback: bdi write bandwidth estimation
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 In-Reply-To: <20101117042850.002299964@intel.com>
@@ -9,8 +9,8 @@ References: <20101117042720.033773013@intel.com>
 	 <20101117042850.002299964@intel.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Date: Wed, 24 Nov 2010 11:58:22 +0100
-Message-ID: <1290596302.2072.445.camel@laptop>
+Date: Wed, 24 Nov 2010 12:05:32 +0100
+Message-ID: <1290596732.2072.450.camel@laptop>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
@@ -18,29 +18,54 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Li Shaoh
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 2010-11-17 at 12:27 +0800, Wu Fengguang wrote:
+> +void bdi_update_write_bandwidth(struct backing_dev_info *bdi,
+> +                               unsigned long *bw_time,
+> +                               s64 *bw_written)
+> +{
+> +       unsigned long written;
+> +       unsigned long elapsed;
+> +       unsigned long bw;
+> +       unsigned long w;
+> +
+> +       if (*bw_written =3D=3D 0)
+> +               goto snapshot;
+> +
+> +       elapsed =3D jiffies - *bw_time;
+> +       if (elapsed < HZ/100)
+> +               return;
+> +
+> +       /*
+> +        * When there lots of tasks throttled in balance_dirty_pages(), t=
+hey
+> +        * will each try to update the bandwidth for the same period, mak=
+ing
+> +        * the bandwidth drift much faster than the desired rate (as in t=
+he
+> +        * single dirtier case). So do some rate limiting.
+> +        */
+> +       if (jiffies - bdi->write_bandwidth_update_time < elapsed)
+> +               goto snapshot;
 
-> @@ -555,8 +592,10 @@ static void balance_dirty_pages(struct a
->  		pause =3D clamp_val(pause, 1, HZ/10);
-> =20
->  pause:
-> +		bdi_update_write_bandwidth(bdi, &bw_time, &bw_written);
->  		__set_current_state(TASK_INTERRUPTIBLE);
->  		io_schedule_timeout(pause);
-> +		bdi_update_write_bandwidth(bdi, &bw_time, &bw_written);
-> =20
->  		/*
->  		 * The bdi thresh is somehow "soft" limit derived from the
+Why this goto snapshot and not simply return? This is the second call
+(bdi_update_bandwidth equivalent).
 
-So its really a two part bandwidth calculation, the first call is:
+If you were to leave the old bw_written/bw_time in place the next loop
+around in wb_writeback() would see a larger delta..
 
-  bdi_get_bandwidth()
+I guess this funny loop in wb_writeback() is also the reason you've got
+a single function and not the get/update like separation
 
-and the second call is:
-
-  bdi_update_bandwidth()
-
-Would it make sense to actually implement it with two functions instead
-of overloading the functionality of the one function?
+> +       written =3D percpu_counter_read(&bdi->bdi_stat[BDI_WRITTEN]) - *b=
+w_written;
+> +       bw =3D (HZ * PAGE_CACHE_SIZE * written + elapsed/2) / elapsed;
+> +       w =3D min(elapsed / (HZ/100), 128UL);
+> +       bdi->write_bandwidth =3D (bdi->write_bandwidth * (1024-w) + bw * =
+w) >> 10;
+> +       bdi->write_bandwidth_update_time =3D jiffies;
+> +snapshot:
+> +       *bw_written =3D percpu_counter_read(&bdi->bdi_stat[BDI_WRITTEN]);
+> +       *bw_time =3D jiffies;
+> +}=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
