@@ -1,96 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E43BD6B004A
-	for <linux-mm@kvack.org>; Thu, 25 Nov 2010 11:15:41 -0500 (EST)
-Date: Thu, 25 Nov 2010 16:15:25 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: Free memory never fully used, swapping
-Message-ID: <20101125161524.GE26037@csn.ul.ie>
-References: <1290647274.12777.3.camel@sli10-conroe> <20101125090328.GB14180@hostway.ca> <20101125180959.F462.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3DE6B6B004A
+	for <linux-mm@kvack.org>; Thu, 25 Nov 2010 11:23:01 -0500 (EST)
+Date: Thu, 25 Nov 2010 17:21:58 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 05 of 66] compound_lock
+Message-ID: <20101125162158.GO6118@random.random>
+References: <patchbomb.1288798055@v2.random>
+ <fc2579c9bddbfcf78d72.1288798060@v2.random>
+ <20101118114902.GJ8135@csn.ul.ie>
+ <AANLkTik9U_r7tqdDYw24xwTgvp5c740Z9eMQeh8y4Hpi@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20101125180959.F462.A69D9226@jp.fujitsu.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTik9U_r7tqdDYw24xwTgvp5c740Z9eMQeh8y4Hpi@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Simon Kirby <sim@hostway.ca>, Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 25, 2010 at 07:51:44PM +0900, KOSAKI Motohiro wrote:
-> > kswapd is throwing out many times what is needed for the order 3
-> > watermark to be met.  It seems to be not as bad now, but look at these
-> > pages being reclaimed (200ms intervals, whitespace-packed buddyinfo
-> > followed by nr_pages_free calculation and final order-3 watermark test,
-> > kswapd woken after the second sample):
-> > 
-> > Normal zone at the same time (shown separately for clarity):
+On Thu, Nov 18, 2010 at 09:28:27AM -0800, Linus Torvalds wrote:
+> On Thu, Nov 18, 2010 at 3:49 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> >> +
+> >> +static inline void compound_lock_irqsave(struct page *page,
+> >> +                                      unsigned long *flagsp)
+> >> +{
+> >> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> >> +     unsigned long flags;
+> >> +     local_irq_save(flags);
+> >> +     compound_lock(page);
+> >> +     *flagsp = flags;
+> >> +#endif
+> >> +}
+> >> +
 > >
-> >   Zone order:0      1     2     3    4   5  6 7 8 9 A nr_free or3-low-chk
-> > 
-> > Normal     452      1     0     0    0   0  0 0 0 0 0     454 -5 <= 238
-> > Normal     452      1     0     0    0   0  0 0 0 0 0     454 -5 <= 238
-> > (kswapd wakes)
-> > Normal    7618     76     0     0    0   0  0 0 0 0 0    7770 145 <= 238
-> > Normal    8860     73     1     0    0   0  0 0 0 0 0    9010 143 <= 238
-> > Normal    8929     25     0     0    0   0  0 0 0 0 0    8979 43 <= 238
-> > Normal    8917      0     0     0    0   0  0 0 0 0 0    8917 -7 <= 238
-> > Normal    8978     16     0     0    0   0  0 0 0 0 0    9010 25 <= 238
-> > Normal    9064      4     0     0    0   0  0 0 0 0 0    9072 1 <= 238
-> > Normal    9068      2     0     0    0   0  0 0 0 0 0    9072 -3 <= 238
-> > Normal    8992      9     0     0    0   0  0 0 0 0 0    9010 11 <= 238
-> > Normal    9060      6     0     0    0   0  0 0 0 0 0    9072 5 <= 238
-> > Normal    9010      0     0     0    0   0  0 0 0 0 0    9010 -7 <= 238
-> > Normal    8907      5     0     0    0   0  0 0 0 0 0    8917 3 <= 238
-> > Normal    8576      0     0     0    0   0  0 0 0 0 0    8576 -7 <= 238
-> > Normal    8018      0     0     0    0   0  0 0 0 0 0    8018 -7 <= 238
-> > Normal    6778      0     0     0    0   0  0 0 0 0 0    6778 -7 <= 238
-> > Normal    6189      0     0     0    0   0  0 0 0 0 0    6189 -7 <= 238
-> > Normal    6220      0     0     0    0   0  0 0 0 0 0    6220 -7 <= 238
-> > Normal    6096      0     0     0    0   0  0 0 0 0 0    6096 -7 <= 238
-> > Normal    6251      0     0     0    0   0  0 0 0 0 0    6251 -7 <= 238
-> > Normal    6127      0     0     0    0   0  0 0 0 0 0    6127 -7 <= 238
-> > Normal    6218      1     0     0    0   0  0 0 0 0 0    6220 -5 <= 238
-> > Normal    6034      0     0     0    0   0  0 0 0 0 0    6034 -7 <= 238
-> > Normal    6065      0     0     0    0   0  0 0 0 0 0    6065 -7 <= 238
-> > Normal    6189      0     0     0    0   0  0 0 0 0 0    6189 -7 <= 238
-> > Normal    6189      0     0     0    0   0  0 0 0 0 0    6189 -7 <= 238
-> > Normal    6096      0     0     0    0   0  0 0 0 0 0    6096 -7 <= 238
-> > Normal    6127      0     0     0    0   0  0 0 0 0 0    6127 -7 <= 238
-> > Normal    6158      0     0     0    0   0  0 0 0 0 0    6158 -7 <= 238
-> > Normal    6127      0     0     0    0   0  0 0 0 0 0    6127 -7 <= 238
-> > (kswapd sleeps -- maybe too much turkey)
-> > 
-> > DMA32 get so much reclaimed that the watermark test succeeded long ago.
-> > Meanwhile, Normal is being reclaimed as well, but because it's fighting
-> > with allocations, it tries for a while and eventually succeeds (I think),
-> > but the 200ms samples didn't catch it.
-> > 
-> > KOSAKI Motohiro, I'm interested in your commit 73ce02e9.  This seems
-> > to be similar to this problem, but your change is not working here. 
-> > We're seeing kswapd run without sleeping, KSWAPD_SKIP_CONGESTION_WAIT
-> > is increasing (so has_under_min_watermark_zone is true), and pageoutrun
-> > increasing all the time.  This means that balance_pgdat() keeps being
-> > called, but sleeping_prematurely() is returning true, so kswapd() just
-> > keeps re-calling balance_pgdat().  If your approach is correct to stop
-> > kswapd here, the problem seems to be that balance_pgdat's copy of order
-> > and sc.order is being set to 0, but not pgdat->kswapd_max_order, so
-> > kswapd never really sleeps.  How is this supposed to work?
+> > The pattern for spinlock irqsave passes in unsigned long, not unsigned
+> > long *. It'd be nice if they matched.
 > 
-> Um. this seems regression since commit f50de2d381 (vmscan: have kswapd sleep 
-> for a short interval and double check it should be asleep)
-> 
+> Indeed. Just make the thing return the flags the way the normal
+> spin_lock_irqsave() function does.
 
-I wrote my own patch before I saw this but for one of the issues we are doing
-something similar. You are checking if enough pages got reclaimed where as
-my patch considers any zone being balanced for high-orders being sufficient
-for kswapd to go to sleep. I think mine is a little stronger because
-it's checking what state the zones are in for a given order regardless
-of what has been reclaimed. Lets see what testing has to say.
+Done.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -320,15 +320,14 @@ static inline void compound_unlock(struc
+ #endif
+ }
+ 
+-static inline void compound_lock_irqsave(struct page *page,
+-					 unsigned long *flagsp)
++static inline unsigned long compound_lock_irqsave(struct page *page)
+ {
++	unsigned long uninitialized_var(flags);
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	unsigned long flags;
+ 	local_irq_save(flags);
+ 	compound_lock(page);
+-	*flagsp = flags;
+ #endif
++	return flags;
+ }
+ 
+ static inline void compound_unlock_irqrestore(struct page *page,
+
+
+diff --git a/mm/swap.c b/mm/swap.c
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -94,7 +94,7 @@ static void put_compound_page(struct pag
+ 			 */
+ 			smp_mb();
+ 			/* page_head wasn't a dangling pointer */
+-			compound_lock_irqsave(page_head, &flags);
++			flags = compound_lock_irqsave(page_head);
+ 			if (unlikely(!PageTail(page))) {
+ 				/* __split_huge_page_refcount run before us */
+ 				compound_unlock_irqrestore(page_head, flags);
+
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
