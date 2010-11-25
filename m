@@ -1,64 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4C1CB6B0089
-	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 20:17:30 -0500 (EST)
-Subject: Re: [RFC][PATCH 2/2] [PATCH 2/2] tracing/slub: Move kmalloc
- tracepoint out of inline code
-From: Steven Rostedt <rostedt@goodmis.org>
-In-Reply-To: <4CEDB53E.5000203@cn.fujitsu.com>
-References: <20101124212333.808256210@goodmis.org>
-	 <20101124212717.468748477@goodmis.org>  <4CEDB53E.5000203@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Date: Wed, 24 Nov 2010 20:17:26 -0500
-Message-ID: <1290647846.30543.707.camel@gandalf.stny.rr.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id A62396B0089
+	for <linux-mm@kvack.org>; Wed, 24 Nov 2010 20:18:53 -0500 (EST)
+Date: Wed, 24 Nov 2010 17:18:48 -0800
+From: Simon Kirby <sim@hostway.ca>
+Subject: Re: Sudden and massive page cache eviction
+Message-ID: <20101125011848.GB29511@hostway.ca>
+References: <AANLkTikg-sR97tkG=ST9kjZcHe6puYSvMGh-eA3cnH7X@mail.gmail.com> <20101122161158.02699d10.akpm@linux-foundation.org> <1290501502.2390.7029.camel@nimitz> <AANLkTik2Fn-ynUap2fPcRxRdKA=5ZRYG0LJTmqf80y+q@mail.gmail.com> <1290529171.2390.7994.camel@nimitz> <AANLkTikCn-YvORocXSJ1Z+ovYNMhKF7TaX=BHWKwrQup@mail.gmail.com> <AANLkTi=mgTHPEYFsryDYnxPa78f-Nr+H7i4+0KPZbxh3@mail.gmail.com> <AANLkTimo1BR=mSJ6wPQwrL4FDNv=_TfanPPTT7uWx7hQ@mail.gmail.com> <AANLkTi=yV02oY5AmNAYr+ZF0RUgVv8gkeP+D9_CcOfLi@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTi=yV02oY5AmNAYr+ZF0RUgVv8gkeP+D9_CcOfLi@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Richard Kennedy <richard@rsk.demon.co.uk>
+To: Peter Sch??ller <scode@spotify.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Mattias de Zalenski <zalenski@spotify.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-11-25 at 09:00 +0800, Li Zefan wrote:
-> Cc: Richard Kennedy <richard@rsk.demon.co.uk>
+On Wed, Nov 24, 2010 at 04:32:39PM +0100, Peter Sch??ller wrote:
+
+> >> I forgot to address the second part of this question: How would I best
+> >> inspect whether the kernel is doing that?
+> >
+> > You can, for example, record
+> >
+> > ??cat /proc/meminfo | grep Huge
+> >
+> > for large page allocations.
 > 
-> Steven Rostedt wrote:
-> > From: Steven Rostedt <srostedt@redhat.com>
-> > 
-> > The tracepoint for kmalloc is in the slub inlined code which causes
-> > every instance of kmalloc to have the tracepoint.
-> > 
-> > This patch moves the tracepoint out of the inline code to the
-> > slub C file (and to page_alloc), which removes a large number of
-> > inlined trace points.
-> > 
-> >   objdump -dr vmlinux.slub| grep 'jmpq.*<trace_kmalloc' |wc -l
-> > 375
-> >   objdump -dr vmlinux.slub.patched| grep 'jmpq.*<trace_kmalloc' |wc -l
-> > 2
-> > 
-> > This also has a nice impact on size.
-> >    text	   data	    bss	    dec	    hex	filename
-> > 7050424	1961068	2482688	11494180	 af6324	vmlinux.slub
-> > 6979599	1944620	2482688	11406907	 ae0e3b	vmlinux.slub.patched
-> > 
-> > Siged-off-by: Steven Rostedt <rostedt@goodmis.org>
-> 
-> See this patch from Richard: :)
-> 
-> http://marc.info/?l=linux-kernel&m=128765337729262&w=2
-> 
-> But he only touched slub.
+> Those show zero a per my other post. However I got the impression Dave
+> was asking about regular but larger-than-one-page allocations internal
+> to the kernel, while the Huge* lines in /proc/meminfo refers to
+> allocations specifically done by userland applications doing huge page
+> allocation on a system with huge pages enabled - or am I confused?
 
-Hehe, and I forgot about it ;-) I notice the large number of kmalloc
-tracepoints while analyzing the jump label code, and wanted to do
-something about it.
+Your page cache dents don't seem quite as big, so it may be something
+else, but if it's the same problem we're seeing here, it seems to have to
+do with when an order=3 new_slab allocation comes in to grows the kmalloc
+slab cache for an __alloc_skb (network packet).  This is normal even
+without jumbo frames now.  When there are no zones with order=3
+zone_watermark_ok(), kswapd is woken, which frees things all over the
+place to try to get zone_watermark_ok(order=3) to be happy.
 
-I also see that Pekka replied saying that he applied it.
+We're seeing this throw out a huge number of pages, and we're seeing it
+happen even with lots of memory free in the zone.  CONFIG_COMPACTION also
+currently does not help because try_to_compact_pages() returns early with
+COMPACT_SKIPPED if order <= PAGE_ALLOC_COSTLY_ORDER, and, you guessed it,
+PAGE_ALLOC_COSTLY_ORDER is set to 3.
 
-Pekka, want to take my first patch?
+I reimplemented zone_pages_ok(order=3) in userspace, and I can see it
+happen:
 
--- Steve
+Code here: http://0x.ca/sim/ref/2.6.36/buddyinfo_scroll
 
+  Zone order:0      1     2     3    4 5 6 7 8 9 A nr_free state
+
+ DMA32   19026  33652  4897    13    5 1 2 0 0 0 0  106262 337 <= 256
+Normal     450      0     0     0    0 0 0 0 0 0 0     450 -7 <= 238
+ DMA32   19301  33869  4665    12    5 1 2 0 0 0 0  106035 329 <= 256
+Normal     450      0     0     0    0 0 0 0 0 0 0     450 -7 <= 238
+ DMA32   19332  33931  4603     9    5 1 2 0 0 0 0  105918 305 <= 256
+Normal     450      0     0     0    0 0 0 0 0 0 0     450 -7 <= 238
+ DMA32   19467  34057  4468     6    5 1 2 0 0 0 0  105741 281 <= 256
+Normal     450      0     0     0    0 0 0 0 0 0 0     450 -7 <= 238
+ DMA32   19591  34181  4344     5    5 1 2 0 0 0 0  105609 273 <= 256
+Normal     450      0     0     0    0 0 0 0 0 0 0     450 -7 <= 238
+ DMA32   19856  34348  4109     2    5 1 2 0 0 0 0  105244 249 <= 256 !!!
+Normal     450      0     0     0    0 0 0 0 0 0 0     450 -7 <= 238
+ DMA32   24088  36476  5437   144    5 1 2 0 0 0 0  120180 1385 <= 256
+Normal    1024      1     0     0    0 0 0 0 0 0 0    1026 -5 <= 238
+ DMA32   26453  37440  6676   623   53 1 2 0 0 0 0  134029 5985 <= 256
+Normal    8700    100     0     0    0 0 0 0 0 0 0    8900 193 <= 238
+ DMA32   48881  38161  7142   966   81 1 2 0 0 0 0  162955 9177 <= 256
+Normal    8936    102     0     1    0 0 0 0 0 0 0    9148 205 <= 238
+ DMA32   66046  40051  7871  1409  135 2 2 0 0 0 0  191256 13617 <= 256
+Normal    9019     18     0     0    0 0 0 0 0 0 0    9055 29 <= 238
+ DMA32   67133  48671  8231  1578  143 2 2 0 0 0 0  212503 15097 <= 256
+
+So, kswapd was woken up at the line that ends in "!!!" there, because
+free_pages(249) <= min(256), and so zone_watermark_ok() returned 0, when
+an order=3 allocation came in.
+
+Maybe try out that script and see if you see something similar.
+
+Simon-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
