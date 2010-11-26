@@ -1,106 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C1A318D0001
-	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 03:42:00 -0500 (EST)
-Date: Fri, 26 Nov 2010 09:41:49 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC][PATCH] Cross Memory Attach v2 (resend)
-Message-ID: <20101126084149.GB26764@elte.hu>
-References: <20101122122847.3585b447@lilo>
- <20101122130527.c13c99d3.akpm@linux-foundation.org>
- <20101126080624.GA26764@elte.hu>
- <20101126000903.df846d3e.akpm@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B17368D0001
+	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 04:18:28 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAQ9IPNO007066
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 26 Nov 2010 18:18:26 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 977AC45DE4E
+	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 18:18:25 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 672E345DE4C
+	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 18:18:25 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E7801DB8012
+	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 18:18:25 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DB8D71DB8014
+	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 18:18:21 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: Free memory never fully used, swapping
+In-Reply-To: <1290739243.12777.17.camel@sli10-conroe>
+References: <20101126110244.B6DC.A69D9226@jp.fujitsu.com> <1290739243.12777.17.camel@sli10-conroe>
+Message-Id: <20101126181604.B6E4.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101126000903.df846d3e.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Fri, 26 Nov 2010 18:18:21 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christopher Yeoh <cyeoh@au1.ibm.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Brice Goglin <Brice.Goglin@inria.fr>, "H. Peter Anvin" <hpa@zytor.com>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Simon Kirby <sim@hostway.ca>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-
-* Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Fri, 26 Nov 2010 09:06:24 +0100 Ingo Molnar <mingo@elte.hu> wrote:
+> On Fri, 2010-11-26 at 10:31 +0800, KOSAKI Motohiro wrote:
+> > > record the order seems not sufficient. in balance_pgdat(), the for look
+> > > exit only when:
+> > > priority <0 or sc.nr_reclaimed >= SWAP_CLUSTER_MAX.
+> > > but we do if (sc.nr_reclaimed < SWAP_CLUSTER_MAX)
+> > >                         order = sc.order = 0;
+> > > this means before we set order to 0, we already reclaimed a lot of
+> > > pages, so I thought we need set order to 0 earlier before there are
+> > > enough free pages. below is a debug patch.
+> > > 
+> > > 
+> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > index d31d7ce..ee5d2ed 100644
+> > > --- a/mm/vmscan.c
+> > > +++ b/mm/vmscan.c
+> > > @@ -2117,6 +2117,26 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+> > >  }
+> > >  #endif
+> > >  
+> > > +static int all_zone_enough_free_pages(pg_data_t *pgdat)
+> > > +{
+> > > +	int i;
+> > > +
+> > > +	for (i = 0; i < pgdat->nr_zones; i++) {
+> > > +		struct zone *zone = pgdat->node_zones + i;
+> > > +
+> > > +		if (!populated_zone(zone))
+> > > +			continue;
+> > > +
+> > > +		if (zone->all_unreclaimable)
+> > > +			continue;
+> > > +
+> > > +		if (!zone_watermark_ok(zone, 0, high_wmark_pages(zone) * 8,
+> > > +								0, 0))
+> > > +			return 0;
+> > > +	}
+> > > +	return 1;
+> > > +}
+> > > +
+> > >  /* is kswapd sleeping prematurely? */
+> > >  static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
+> > >  {
+> > > @@ -2355,7 +2375,8 @@ out:
+> > >  		 * back to sleep. High-order users can still perform direct
+> > >  		 * reclaim if they wish.
+> > >  		 */
+> > > -		if (sc.nr_reclaimed < SWAP_CLUSTER_MAX)
+> > > +		if (sc.nr_reclaimed < SWAP_CLUSTER_MAX ||
+> > > +		    (order > 0 && all_zone_enough_free_pages(pgdat)))
+> > >  			order = sc.order = 0;
+> > 
+> > Ummm. this doesn't work. this place is processed every 32 pages reclaimed.
+> > (see below code and comment). Theresore your patch break high order reclaim
+> > logic.
+> Yes, this will break high order reclaim, but we need a compromise.
+> wrongly reclaim pages is more worse. could increase the watermark in
+> all_zone_enough_free_pages() better?
 > 
-> > 
-> > * Andrew Morton <akpm@linux-foundation.org> wrote:
-> > 
-> > > On Mon, 22 Nov 2010 12:28:47 +1030
-> > > Christopher Yeoh <cyeoh@au1.ibm.com> wrote:
-> > > 
-> > > > Resending just in case the previous mail was missed rather than ignored :-)
-> > > > I'd appreciate any comments....
-> > > 
-> > > Fear, uncertainty, doubt and resistance!
-> > > 
-> > > We have a bit of a track record of adding cool-looking syscalls and
-> > > then regretting it a few years later.  Few people use them, and maybe
-> > > they weren't so cool after all, and we have to maintain them for ever. 
-> > 
-> > They are often cut off at the libc level and never get into apps.
-> > 
-> > If we had tools/libc/ (mapped by the kernel automagically via the vDSO), where 
-> > people could add new syscall usage to actual, existing, real-life libc functions, 
-> > where the improvements could thus propagate into thousands of apps immediately, 
-> > without requiring any rebuild of apps or even any touching of the user-space 
-> > installation, we'd probably have _much_ more lively development in this area.
-> > 
-> > Right now it's slow and painful, and few new syscalls can break through the 
-> > brick wall of implementation latency, app adoption disinterest due to backwards 
-> > compatibility limitations and the resulting inevitable lack of testing and lack 
-> > of tangible utility.
-> 
-> Can't people use libc's syscall(2)?
 
-To get a new syscall enhancement used by existing libc functions, to say speed up 
-Firefox?
+Hmm..
+I guess I haven't catch your mention. you wrote 
 
-How exactly?
+> > > but we do if (sc.nr_reclaimed < SWAP_CLUSTER_MAX)
+> > >                         order = sc.order = 0;
+> > > this means before we set order to 0, we already reclaimed a lot of
+> > > pages
 
-syscall(2) is sporadically used by niche projects that only target a few CPU 
-architectures (we dont have arch independent syscall numbers), and only if they are 
-willing to complicate their code with various ugly backwards compatibility wrappers, 
-so that it works on older kernels as well.
+and I wrote it's not a lot. So, I don't understand why you are talking
+about watermark increasing now. Personally you seems to talk unrelated
+topic. Can you please elablate your point more?
 
-libc functionality is much wider - it's thousands of functions, used by tens of 
-thousands of apps - the chance that the kernel can transparently help in small 
-details (and with not so small features) here and there is much higher than what
-we can do within the syscall ABI sandbox alone.
 
-Some examples:
 
- - We could make use of Linux-only kernel features in libc functions with no 
-   compatibility problems. Apps themselves are reluctant to use Linux-only syscalls 
-   as it's a hassle to port.
 
- - The whole futex mess would be much less painful.
 
- - We could add various bits of instrumentation functionality.
-
- - We could even have done much bigger (and more controversial) things - for example 
-   the existing posix AIO functions of libc, while being crap, could have served as 
-   a seed to get at least _some_ apps use kernel accelerated AIO - or at least find 
-   some threaded implementation that works best. We could have tried and pitted 
-   various implementations against each other much more quickly and with much more
-   tangible results.
-
- - I bet some graphics stuff could be exposed in such a way as well. libdrm and
-   the drm ioctls are joined at the hip anyway.
-
- - etc. etc.
-
-There's a lot of useful functionality that needs a 'single project' mentality and a 
-single project workflow from kernel and libc.
-
-And key to that is that 99.9% of apps link against libc. That's a _huge_ vector of 
-quick prototyping and quick deployment. Apple and Google/Android understands that 
-single-project mentality helps big time. We dont yet.
-
-Thanks,
-
-	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
