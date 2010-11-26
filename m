@@ -1,47 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 297C38D0001
-	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 11:07:02 -0500 (EST)
-Date: Fri, 26 Nov 2010 11:06:19 -0500
-From: Kyle McMartin <kyle@mcmartin.ca>
-Subject: Re: [PATCH 1/2] mm: page allocator: Adjust the per-cpu counter
- threshold when memory is low
-Message-ID: <20101126160619.GP22651@bombadil.infradead.org>
-References: <1288169256-7174-1-git-send-email-mel@csn.ul.ie>
- <1288169256-7174-2-git-send-email-mel@csn.ul.ie>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 02FE98D0001
+	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 11:46:40 -0500 (EST)
+Received: by ywa8 with SMTP id 8so501896ywa.14
+        for <linux-mm@kvack.org>; Fri, 26 Nov 2010 08:46:38 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1288169256-7174-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <20101124105126.8248fc1f.randy.dunlap@oracle.com>
+References: <201011240045.oAO0jYQ5016010@imap1.linux-foundation.org>
+	<20101124105126.8248fc1f.randy.dunlap@oracle.com>
+Date: Fri, 26 Nov 2010 16:46:38 +0000
+Message-ID: <AANLkTik8G7ZQ5Dujcf0rKsctMLqsJUPPQQ+wMJ1Wxbon@mail.gmail.com>
+Subject: Re: mmotm 2010-11-23-16-12 uploaded (olpc)
+From: Daniel Drake <dsd@laptop.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: akpm@linux-foundation.org, Andres Salomon <dilinger@debian.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 27, 2010 at 09:47:35AM +0100, Mel Gorman wrote:
-><snip>
-> To ensure that kswapd wakes up, a safe version of zone_watermark_ok()
-> is introduced that takes a more accurate reading of NR_FREE_PAGES when
-> called from wakeup_kswapd, when deciding whether it is really safe to go
-> back to sleep in sleeping_prematurely() and when deciding if a zone is
-> really balanced or not in balance_pgdat(). We are still using an expensive
-> function but limiting how often it is called.
-><snip>
-> Reported-by: Shaohua Li <shaohua.li@intel.com>
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+On 24 November 2010 18:51, Randy Dunlap <randy.dunlap@oracle.com> wrote:
+> make[4]: *** No rule to make target `arch/x86/platform/olpc/olpc-xo1-wakeup.c', needed by `arch/x86/platform/olpc/olpc-xo1-wakeup.o'.
+>
+>
+> It's olpc-xo1-wakeup.S, so I guess it needs a special makefile rule ??
 
-Hi Mel,
+Works if you build it in, but fails as above as a module.
 
-I notice these aren't flagged for stable, should they be? (They fairly
-trivially apply and compile on 2.6.36 barring the trace_ points which
-changed.) I've got a few bug reports against .36/.37 where kswapd has
-been sleeping for 60s+.
+And it looks like making it work as a module is not as easy as we
+thought. I'll discuss this with Andres and get a new patch submitted
+soon.
 
-I built them some kernels with these patches, but haven't heard back yet
-as to whether it fixes things for them.
-
-Thanks for any insight,
-	Kyle
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
