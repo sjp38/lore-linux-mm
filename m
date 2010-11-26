@@ -1,86 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1F4E38D0001
-	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 07:31:48 -0500 (EST)
-Received: by fxm13 with SMTP id 13so490970fxm.14
-        for <linux-mm@kvack.org>; Fri, 26 Nov 2010 04:31:45 -0800 (PST)
-Message-ID: <4CEFA8AE.2090804@petalogix.com>
-Date: Fri, 26 Nov 2010 13:31:42 +0100
-From: Michal Simek <michal.simek@petalogix.com>
-Reply-To: michal.simek@petalogix.com
-MIME-Version: 1.0
-Subject: Flushing whole page instead of work for ptrace
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C84378D0001
+	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 10:01:12 -0500 (EST)
+Message-Id: <20101126145410.435240588@chello.nl>
+Date: Fri, 26 Nov 2010 15:38:46 +0100
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [PATCH 03/21] mm: Improve page_lock_anon_vma() comment
+References: <20101126143843.801484792@chello.nl>
+Content-Disposition: inline; filename=mm-page_lock_anon_vma-comment.patch
 Sender: owner-linux-mm@kvack.org
-To: Oleg Nesterov <oleg@redhat.com>, Roland McGrath <roland@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, John Williams <john.williams@petalogix.com>, "Edgar E. Iglesias" <edgar.iglesias@gmail.com>
+To: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+A slightly more verbose comment to go along with the trickery in
+page_lock_anon_vma().
 
-I have found one problem when I debug multithread application on 
-Microblaze. Let me describe what I discovered.
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+LKML-Reference: <1271158226.4807.1107.camel@twins>
+---
+ mm/rmap.c |   18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)
 
-GDB has internal timeout which is setup to value 3. Which should mean if 
-GDB sends packet and doesn't receive answer for it then after 3 internal 
-timeouts GDB announces "Ignoring packet error, continuing..." and then 
-fail. (communication is done over TCP).
+Index: linux-2.6/mm/rmap.c
+===================================================================
+--- linux-2.6.orig/mm/rmap.c
++++ linux-2.6/mm/rmap.c
+@@ -311,8 +311,22 @@ void __init anon_vma_init(void)
+ }
+ 
+ /*
+- * Getting a lock on a stable anon_vma from a page off the LRU is
+- * tricky: page_lock_anon_vma rely on RCU to guard against the races.
++ * Getting a lock on a stable anon_vma from a page off the LRU is tricky!
++ *
++ * Since there is no serialization what so ever against page_remove_rmap()
++ * the best this function can do is return a locked anon_vma that might
++ * have been relevant to this page.
++ *
++ * The page might have been remapped to a different anon_vma or the anon_vma
++ * returned may already be freed (and even reused).
++ *
++ * All users of this function must be very careful when walking the anon_vma
++ * chain and verify that the page in question is indeed mapped in it
++ * [ something equivalent to page_mapped_in_vma() ].
++ *
++ * Since anon_vma's slab is DESTROY_BY_RCU and we know from page_remove_rmap()
++ * that the anon_vma pointer from page->mapping is valid if there is a
++ * mapcount, we can dereference the anon_vma after observing those.
+  */
+ struct anon_vma *page_lock_anon_vma(struct page *page)
+ {
 
-In any older version we could debug multithread application that's why
-I bisected all new patches which I have added to the kernel and I 
-identify that the problem is caused by my patch.
-
-microblaze: Implement flush_dcache_page macro
-sha1(79e87830faf22ca636b1a1d8f4deb430ea6e1c8b)
-
-I had to implemented flush_dcache_page macro for new systems with 
-write-back(WB) cache which is important for several components (for 
-example jffs2 rootfs) to get it work on WB.
-BTW: For systems with write-through(WT) caches I don't need to implement 
-this macro because flushing is done automatically.
-
-Then I replaced macro on WT by udelay loop to find out if the problem is 
-time dependent. I tested it on two hw designs(on the same HZ and cache 
-size) with two different network IPs/drivers (one with DMA and second 
-without) and I found that system with dma network driver can spend more 
-time on dcache flushing before GDB timeout happens because TCP 
-communication is faster. Which means that the problem also depends on 
-cpu speed and cache configuration - size, cache line length.
-
-Then I traced kernel part and I was focused why this macro is causing 
-this problem.
-
-GDB sends symbol-lookup command (qSymbol) and I see a lot of kernel 
-ptrace PEEKTEXT requests. I parse it and here is calling sequence.
-
-(kernel/ptrace.c) sys_ptrace -> 
-(arch/microblaze/kernel/ptrace.c)arch_ptrace -> 
-(kernel/ptrace.c)ptrace_request -> generic_ptrace_peek/poke data/text -> 
-(mm/memory.c) access_process_vm -> get_user_pages -> __get_user_pages -> 
-flush_dcache_page
-
-Function access_process_vm calls __get_user_pages which doesn't work 
-with buffer len (which is for PEEK/POKE TEXT/DATA just 32 bit - for 
-32bit Microblaze) but only with start and PAGE size. There is also 
-called flush_dcache_page macro which takes more time than in past, 
-because was empty. Macro flushes whole page but it is necessary, for 
-this case, just flush one address if is called from ptrace.
-
-What is the best way how to ensure that there will be flush only address 
-instead of whole page for ptrace requests?
-I think that there shouldn't be a reason to flush whole page for ptraces.
-
-Please correct me if I am wrong somewhere.
-
-Thanks,
-Michal
-
-
--- 
-Michal Simek, Ing. (M.Eng)
-PetaLogix - Linux Solutions for a Reconfigurable World
-w: www.petalogix.com p: +61-7-30090663,+42-0-721842854 f: +61-7-30090663
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
