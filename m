@@ -1,245 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id EAB4C8D0003
-	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 01:21:16 -0500 (EST)
-Message-Id: <20101126043551.059296527@intel.com>
-References: <20101126041958.708215617@intel.com>
-Date: Fri, 26 Nov 2010 12:20:01 +0800
-From: shaohui.zheng@intel.com
-Subject: [3/3, v4] CPU Hotplug Emulator: Fake CPU socket with logical CPU on x86
-Content-Disposition: inline; filename=006-hotplug-emulator-fake_socket_with_logic_cpu_on_x86.patch
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 57E0C8D0001
+	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 03:03:05 -0500 (EST)
+Date: Fri, 26 Nov 2010 16:48:25 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [stable][BUGFIX] memcg: avoid deadlock between move charge and
+ try_charge()
+Message-Id: <20101126164825.24e684ca.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20101117092401.61c2117a.nishimura@mxp.nes.nec.co.jp>
+References: <20101116191748.d6645376.nishimura@mxp.nes.nec.co.jp>
+	<20101116124117.64608b66.akpm@linux-foundation.org>
+	<20101117092401.61c2117a.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, gregkh@suse.de, linux-mm@kvack.org
-Cc: haicheng.li@linux.intel.com, xiyou.wangcong@gmail.com, shaohui.zheng@intel.com, rientjes@google.com, Sam Ravnborg <sam@ravnborg.org>, Haicheng Li <haicheng.li@intel.com>
+To: stable@kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-From: Shaohui Zheng <shaohui.zheng@intel.com>
+> > > Cc: <stable@kernel.org>
+> > 
+> > The patch doesn't apply well to 2.6.36 so if we do want it backported
+> > then please prepare a tested backport for the -stable guys?
+> > 
+> O.K.
+> I'll test a backported patch for 2.6.36.y and send it after this is merged into mainline.
+> 
+Done.
 
-When hotplug a CPU with emulator, we are using a logical CPU to emulate the
-CPU hotplug process. For the CPU supported SMT, some logical CPUs are in the
-same socket, but it may located in different NUMA node after we have emulator.
-it misleads the scheduling domain to build the incorrect hierarchy, and it
-causes the following call trace when rebalance the scheduling domain:
+I've tested this backported patch on 2.6.36 and it works properly.
+There is no change in mm/memcontrol.c from v2.6.36 to v2.6.36.1, so
+this can be applied to 2.6.36.1 too.
 
-divide error: 0000 [#1] SMP 
-last sysfs file: /sys/devices/system/cpu/cpu8/online
-CPU 0 
-Modules linked in: fbcon tileblit font bitblit softcursor radeon ttm drm_kms_helper e1000e usbhid via_rhine mii drm i2c_algo_bit igb dca
-Pid: 0, comm: swapper Not tainted 2.6.32hpe #78 X8DTN
-RIP: 0010:[<ffffffff81051da5>]  [<ffffffff81051da5>] find_busiest_group+0x6c5/0xa10
-RSP: 0018:ffff880028203c30  EFLAGS: 00010246
-RAX: 0000000000000000 RBX: 0000000000015ac0 RCX: 0000000000000000
-RDX: 0000000000000000 RSI: ffff880277e8cfa0 RDI: 0000000000000000
-RBP: ffff880028203dc0 R08: ffff880277e8cfa0 R09: 0000000000000040
-R10: 0000000000000000 R11: 0000000000000001 R12: 0000000000000000
-R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
-FS:  0000000000000000(0000) GS:ffff880028200000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0018 ES: 0018 CR0: 000000008005003b
-CR2: 00007f16cfc85770 CR3: 0000000001001000 CR4: 00000000000006f0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-Process swapper (pid: 0, threadinfo ffffffff81822000, task ffffffff8184a600)
-Stack:
- ffff880028203d60 ffff880028203cd0 ffff8801c204ff08 ffff880028203e38
-<0> 0101ffff81018c59 ffff880028203e44 00000001810806bd ffff8801c204fe00
-<0> 0000000528200000 ffffffff00000000 0000000000000018 0000000000015ac0
-Call Trace:
- <IRQ> 
- [<ffffffff81088ee0>] ? tick_dev_program_event+0x40/0xd0
- [<ffffffff81053b2c>] rebalance_domains+0x17c/0x570
- [<ffffffff81018c89>] ? read_tsc+0x9/0x20
- [<ffffffff81088ee0>] ? tick_dev_program_event+0x40/0xd0
- [<ffffffff810569ed>] run_rebalance_domains+0xbd/0xf0
- [<ffffffff8106471f>] __do_softirq+0xaf/0x1e0
- [<ffffffff810b7d18>] ? handle_IRQ_event+0x58/0x160
- [<ffffffff810130ac>] call_softirq+0x1c/0x30
- [<ffffffff81014a85>] do_softirq+0x65/0xa0
- [<ffffffff810645cd>] irq_exit+0x7d/0x90
- [<ffffffff81013ff0>] do_IRQ+0x70/0xe0
- [<ffffffff810128d3>] ret_from_intr+0x0/0x11
- <EOI> 
- [<ffffffff8133387f>] ? acpi_idle_enter_bm+0x281/0x2b5
- [<ffffffff81333878>] ? acpi_idle_enter_bm+0x27a/0x2b5
- [<ffffffff8145dc8f>] ? cpuidle_idle_call+0x9f/0x130
- [<ffffffff81010e2b>] ? cpu_idle+0xab/0x100
- [<ffffffff8158aee6>] ? rest_init+0x66/0x70
- [<ffffffff81905d90>] ? start_kernel+0x3e3/0x3ef
- [<ffffffff8190533a>] ? x86_64_start_reservations+0x125/0x129
- [<ffffffff81905438>] ? x86_64_start_kernel+0xfa/0x109
-Code: 00 00 e9 4c fb ff ff 0f 1f 80 00 00 00 00 48 8b b5 d8 fe ff ff 48 8b 45 a8 4d 29 ef 8b 56 08 48 c1 e0 0a 49 89 f0 48 89 d7 31 d2 <48> f7 f7 31 d2 48 89 45 a0 8b 76 08 4c 89 f0 48 c1 e0 0a 48 f7 
-RIP  [<ffffffff81051da5>] find_busiest_group+0x6c5/0xa10
- RSP <ffff880028203c30>
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Solution:
+commit b1dd693e5b9348bd68a80e679e03cf9c0973b01b upstream.
 
-We put the logical CPU into a fake CPU socket, and assign it an unique
- phys_proc_id. For the fake socket, we put one logical CPU in only. This
-method fixes the above bug.
+__mem_cgroup_try_charge() can be called under down_write(&mmap_sem)(e.g.
+mlock does it). This means it can cause deadlock if it races with move charge:
 
-CC: Sam Ravnborg <sam@ravnborg.org>
-Signed-off-by: Haicheng Li <haicheng.li@intel.com>
-Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
+Ex.1)
+                move charge             |        try charge
+  --------------------------------------+------------------------------
+    mem_cgroup_can_attach()             |  down_write(&mmap_sem)
+      mc.moving_task = current          |    ..
+      mem_cgroup_precharge_mc()         |  __mem_cgroup_try_charge()
+        mem_cgroup_count_precharge()    |    prepare_to_wait()
+          down_read(&mmap_sem)          |    if (mc.moving_task)
+          -> cannot aquire the lock     |    -> true
+                                        |      schedule()
+
+Ex.2)
+                move charge             |        try charge
+  --------------------------------------+------------------------------
+    mem_cgroup_can_attach()             |
+      mc.moving_task = current          |
+      mem_cgroup_precharge_mc()         |
+        mem_cgroup_count_precharge()    |
+          down_read(&mmap_sem)          |
+          ..                            |
+          up_read(&mmap_sem)            |
+                                        |  down_write(&mmap_sem)
+    mem_cgroup_move_task()              |    ..
+      mem_cgroup_move_charge()          |  __mem_cgroup_try_charge()
+        down_read(&mmap_sem)            |    prepare_to_wait()
+        -> cannot aquire the lock       |    if (mc.moving_task)
+                                        |    -> true
+                                        |      schedule()
+
+To avoid this deadlock, we do all the move charge works (both can_attach() and
+attach()) under one mmap_sem section.
+And after this patch, we set/clear mc.moving_task outside mc.lock, because we
+use the lock only to check mc.from/to.
+
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: <stable@kernel.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 ---
-Index: linux-hpe4/arch/x86/include/asm/processor.h
-===================================================================
---- linux-hpe4.orig/arch/x86/include/asm/processor.h	2010-11-17 09:00:51.354100239 +0800
-+++ linux-hpe4/arch/x86/include/asm/processor.h	2010-11-17 09:01:10.222837594 +0800
-@@ -113,6 +113,15 @@
- 	/* Index into per_cpu list: */
- 	u16			cpu_index;
- #endif
-+
-+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-+	/*
-+	 * Use a logic cpu to emulate a physical cpu's hotplug. We put the
-+	 * logical cpu into a fake socket, assign a fake physical id to it,
-+	 * and create a fake core.
-+	 */
-+	__u8		cpu_probe_on; /* A flag to enable cpu probe/release */
-+#endif
- } __attribute__((__aligned__(SMP_CACHE_BYTES)));
- 
- #define X86_VENDOR_INTEL	0
-Index: linux-hpe4/arch/x86/kernel/smpboot.c
-===================================================================
---- linux-hpe4.orig/arch/x86/kernel/smpboot.c	2010-11-17 09:01:10.202837209 +0800
-+++ linux-hpe4/arch/x86/kernel/smpboot.c	2010-11-17 09:01:10.222837594 +0800
-@@ -97,6 +97,7 @@
-  */
- static DEFINE_MUTEX(x86_cpu_hotplug_driver_mutex);
- 
-+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
- void cpu_hotplug_driver_lock()
- {
-         mutex_lock(&x86_cpu_hotplug_driver_mutex);
-@@ -106,6 +107,7 @@
- {
-         mutex_unlock(&x86_cpu_hotplug_driver_mutex);
- }
-+#endif
- 
- #else
- static struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
-@@ -198,6 +200,8 @@
- {
- 	int cpuid, phys_id;
- 	unsigned long timeout;
-+	u8 cpu_probe_on = 0;
-+	struct cpuinfo_x86 *c;
- 
- 	/*
- 	 * If waken up by an INIT in an 82489DX configuration
-@@ -277,7 +281,20 @@
- 	/*
- 	 * Save our processor parameters
- 	 */
-+	c = &cpu_data(cpuid);
-+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-+	cpu_probe_on = c->cpu_probe_on;
-+	phys_id = c->phys_proc_id;
-+#endif
-+
- 	smp_store_cpu_info(cpuid);
-+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-+	if (cpu_probe_on) {
-+		c->phys_proc_id = phys_id; /* restore the fake phys_proc_id */
-+		c->cpu_core_id = 0; /* force the logical cpu to core 0 */
-+		c->cpu_probe_on = cpu_probe_on;
-+	}
-+#endif
- 
- 	notify_cpu_starting(cpuid);
- 
-@@ -400,6 +417,11 @@
- {
- 	int i;
- 	struct cpuinfo_x86 *c = &cpu_data(cpu);
-+	int cpu_probe_on = 0;
-+
-+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-+	cpu_probe_on = c->cpu_probe_on;
-+#endif
- 
- 	cpumask_set_cpu(cpu, cpu_sibling_setup_mask);
- 
-@@ -431,7 +453,8 @@
- 
- 	for_each_cpu(i, cpu_sibling_setup_mask) {
- 		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
--		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
-+		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i) &&
-+			cpu_probe_on == 0) {
- 			cpumask_set_cpu(i, c->llc_shared_map);
- 			cpumask_set_cpu(cpu, cpu_data(i).llc_shared_map);
- 		}
-Index: linux-hpe4/arch/x86/kernel/topology.c
-===================================================================
---- linux-hpe4.orig/arch/x86/kernel/topology.c	2010-11-17 09:01:10.202837209 +0800
-+++ linux-hpe4/arch/x86/kernel/topology.c	2010-11-17 09:01:10.222837594 +0800
-@@ -70,6 +70,36 @@
- }
- EXPORT_SYMBOL(arch_unregister_cpu);
- 
-+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-+/*
-+ * Put the logical cpu into a new sokect, and encapsule it into core 0.
-+ */
-+static void fake_cpu_socket_info(int cpu)
-+{
-+	struct cpuinfo_x86 *c = &cpu_data(cpu);
-+	int i, phys_id = 0;
-+
-+	/* calculate the max phys_id */
-+	for_each_present_cpu(i) {
-+		struct cpuinfo_x86 *c = &cpu_data(i);
-+		if (phys_id < c->phys_proc_id)
-+			phys_id = c->phys_proc_id;
-+	}
-+
-+	c->phys_proc_id = phys_id + 1; /* pick up a unused phys_proc_id */
-+	c->cpu_core_id = 0; /* always put the logical cpu to core 0 */
-+	c->cpu_probe_on = 1;
-+}
-+
-+static void clear_cpu_socket_info(int cpu)
-+{
-+	struct cpuinfo_x86 *c = &cpu_data(cpu);
-+	c->phys_proc_id = 0;
-+	c->cpu_core_id = 0;
-+	c->cpu_probe_on = 0;
-+}
-+
-+
- ssize_t arch_cpu_probe(const char *buf, size_t count)
- {
- 	int nid = 0;
-@@ -109,6 +139,7 @@
- 	/* register cpu */
- 	arch_register_cpu_node(selected, nid);
- 	acpi_map_lsapic_emu(selected, nid);
-+	fake_cpu_socket_info(selected);
- 
- 	return count;
- }
-@@ -132,10 +163,13 @@
- 
- 	arch_unregister_cpu(cpu);
- 	acpi_unmap_lsapic(cpu);
-+	clear_cpu_socket_info(cpu);
-+	set_cpu_present(cpu, true);
- 
- 	return count;
- }
- EXPORT_SYMBOL(arch_cpu_release);
-+#endif CONFIG_ARCH_CPU_PROBE_RELEASE
- 
- #else /* CONFIG_HOTPLUG_CPU */
- 
+ mm/memcontrol.c |   43 ++++++++++++++++++++++++++-----------------
+ 1 files changed, 26 insertions(+), 17 deletions(-)
 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 9be3cf8..e6aadd6 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -269,13 +269,14 @@ enum move_type {
+ 
+ /* "mc" and its members are protected by cgroup_mutex */
+ static struct move_charge_struct {
+-	spinlock_t	  lock; /* for from, to, moving_task */
++	spinlock_t	  lock; /* for from, to */
+ 	struct mem_cgroup *from;
+ 	struct mem_cgroup *to;
+ 	unsigned long precharge;
+ 	unsigned long moved_charge;
+ 	unsigned long moved_swap;
+ 	struct task_struct *moving_task;	/* a task moving charges */
++	struct mm_struct *mm;
+ 	wait_queue_head_t waitq;		/* a waitq for other context */
+ } mc = {
+ 	.lock = __SPIN_LOCK_UNLOCKED(mc.lock),
+@@ -4445,7 +4446,7 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
+ 	unsigned long precharge;
+ 	struct vm_area_struct *vma;
+ 
+-	down_read(&mm->mmap_sem);
++	/* We've already held the mmap_sem */
+ 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 		struct mm_walk mem_cgroup_count_precharge_walk = {
+ 			.pmd_entry = mem_cgroup_count_precharge_pte_range,
+@@ -4457,7 +4458,6 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
+ 		walk_page_range(vma->vm_start, vma->vm_end,
+ 					&mem_cgroup_count_precharge_walk);
+ 	}
+-	up_read(&mm->mmap_sem);
+ 
+ 	precharge = mc.precharge;
+ 	mc.precharge = 0;
+@@ -4508,11 +4508,16 @@ static void mem_cgroup_clear_mc(void)
+ 
+ 		mc.moved_swap = 0;
+ 	}
++	if (mc.mm) {
++		up_read(&mc.mm->mmap_sem);
++		mmput(mc.mm);
++	}
+ 	spin_lock(&mc.lock);
+ 	mc.from = NULL;
+ 	mc.to = NULL;
+-	mc.moving_task = NULL;
+ 	spin_unlock(&mc.lock);
++	mc.moving_task = NULL;
++	mc.mm = NULL;
+ 	memcg_oom_recover(from);
+ 	memcg_oom_recover(to);
+ 	wake_up_all(&mc.waitq);
+@@ -4537,26 +4542,37 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
+ 			return 0;
+ 		/* We move charges only when we move a owner of the mm */
+ 		if (mm->owner == p) {
++			/*
++			 * We do all the move charge works under one mmap_sem to
++			 * avoid deadlock with down_write(&mmap_sem)
++			 * -> try_charge() -> if (mc.moving_task) -> sleep.
++			 */
++			down_read(&mm->mmap_sem);
++
+ 			VM_BUG_ON(mc.from);
+ 			VM_BUG_ON(mc.to);
+ 			VM_BUG_ON(mc.precharge);
+ 			VM_BUG_ON(mc.moved_charge);
+ 			VM_BUG_ON(mc.moved_swap);
+ 			VM_BUG_ON(mc.moving_task);
++			VM_BUG_ON(mc.mm);
++
+ 			spin_lock(&mc.lock);
+ 			mc.from = from;
+ 			mc.to = mem;
+ 			mc.precharge = 0;
+ 			mc.moved_charge = 0;
+ 			mc.moved_swap = 0;
+-			mc.moving_task = current;
+ 			spin_unlock(&mc.lock);
++			mc.moving_task = current;
++			mc.mm = mm;
+ 
+ 			ret = mem_cgroup_precharge_mc(mm);
+ 			if (ret)
+ 				mem_cgroup_clear_mc();
+-		}
+-		mmput(mm);
++			/* We call up_read() and mmput() in clear_mc(). */
++		} else
++			mmput(mm);
+ 	}
+ 	return ret;
+ }
+@@ -4644,7 +4660,7 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
+ 	struct vm_area_struct *vma;
+ 
+ 	lru_add_drain_all();
+-	down_read(&mm->mmap_sem);
++	/* We've already held the mmap_sem */
+ 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 		int ret;
+ 		struct mm_walk mem_cgroup_move_charge_walk = {
+@@ -4663,7 +4679,6 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
+ 			 */
+ 			break;
+ 	}
+-	up_read(&mm->mmap_sem);
+ }
+ 
+ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
+@@ -4672,17 +4687,11 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
+ 				struct task_struct *p,
+ 				bool threadgroup)
+ {
+-	struct mm_struct *mm;
+-
+-	if (!mc.to)
++	if (!mc.mm)
+ 		/* no need to move charge */
+ 		return;
+ 
+-	mm = get_task_mm(p);
+-	if (mm) {
+-		mem_cgroup_move_charge(mm);
+-		mmput(mm);
+-	}
++	mem_cgroup_move_charge(mc.mm);
+ 	mem_cgroup_clear_mc();
+ }
+ #else	/* !CONFIG_MMU */
 -- 
-Thanks & Regards,
-Shaohui
-
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
