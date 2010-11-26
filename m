@@ -1,58 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C84378D0001
-	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 10:01:12 -0500 (EST)
-Message-Id: <20101126145410.435240588@chello.nl>
-Date: Fri, 26 Nov 2010 15:38:46 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FFE78D0001
+	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 10:01:13 -0500 (EST)
+Message-Id: <20101126145410.315243256@chello.nl>
+Date: Fri, 26 Nov 2010 15:38:44 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 03/21] mm: Improve page_lock_anon_vma() comment
+Subject: [PATCH 01/21] mm: Revert page_lock_anon_vma() lock annotation
 References: <20101126143843.801484792@chello.nl>
-Content-Disposition: inline; filename=mm-page_lock_anon_vma-comment.patch
+Content-Disposition: inline; filename=revert-rmap-annotate_lock_context_change_on_page_unlock_anon_vma.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Namhyung Kim <namhyung@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-A slightly more verbose comment to go along with the trickery in
-page_lock_anon_vma().
+Its beyond ugly and gets in the way.
 
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Cc: Namhyung Kim <namhyung@gmail.com>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-LKML-Reference: <1271158226.4807.1107.camel@twins>
 ---
- mm/rmap.c |   18 ++++++++++++++++--
- 1 file changed, 16 insertions(+), 2 deletions(-)
-
+Index: linux-2.6/include/linux/rmap.h
+===================================================================
+--- linux-2.6.orig/include/linux/rmap.h
++++ linux-2.6/include/linux/rmap.h
+@@ -241,20 +241,7 @@ int try_to_munlock(struct page *);
+ /*
+  * Called by memory-failure.c to kill processes.
+  */
+-struct anon_vma *__page_lock_anon_vma(struct page *page);
+-
+-static inline struct anon_vma *page_lock_anon_vma(struct page *page)
+-{
+-	struct anon_vma *anon_vma;
+-
+-	__cond_lock(RCU, anon_vma = __page_lock_anon_vma(page));
+-
+-	/* (void) is needed to make gcc happy */
+-	(void) __cond_lock(&anon_vma->root->lock, anon_vma);
+-
+-	return anon_vma;
+-}
+-
++struct anon_vma *page_lock_anon_vma(struct page *page);
+ void page_unlock_anon_vma(struct anon_vma *anon_vma);
+ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma);
+ 
 Index: linux-2.6/mm/rmap.c
 ===================================================================
 --- linux-2.6.orig/mm/rmap.c
 +++ linux-2.6/mm/rmap.c
-@@ -311,8 +311,22 @@ void __init anon_vma_init(void)
+@@ -314,7 +314,7 @@ void __init anon_vma_init(void)
+  * Getting a lock on a stable anon_vma from a page off the LRU is
+  * tricky: page_lock_anon_vma rely on RCU to guard against the races.
+  */
+-struct anon_vma *__page_lock_anon_vma(struct page *page)
++struct anon_vma *page_lock_anon_vma(struct page *page)
+ {
+ 	struct anon_vma *anon_vma, *root_anon_vma;
+ 	unsigned long anon_mapping;
+@@ -348,8 +348,6 @@ struct anon_vma *__page_lock_anon_vma(st
  }
  
- /*
-- * Getting a lock on a stable anon_vma from a page off the LRU is
-- * tricky: page_lock_anon_vma rely on RCU to guard against the races.
-+ * Getting a lock on a stable anon_vma from a page off the LRU is tricky!
-+ *
-+ * Since there is no serialization what so ever against page_remove_rmap()
-+ * the best this function can do is return a locked anon_vma that might
-+ * have been relevant to this page.
-+ *
-+ * The page might have been remapped to a different anon_vma or the anon_vma
-+ * returned may already be freed (and even reused).
-+ *
-+ * All users of this function must be very careful when walking the anon_vma
-+ * chain and verify that the page in question is indeed mapped in it
-+ * [ something equivalent to page_mapped_in_vma() ].
-+ *
-+ * Since anon_vma's slab is DESTROY_BY_RCU and we know from page_remove_rmap()
-+ * that the anon_vma pointer from page->mapping is valid if there is a
-+ * mapcount, we can dereference the anon_vma after observing those.
-  */
- struct anon_vma *page_lock_anon_vma(struct page *page)
+ void page_unlock_anon_vma(struct anon_vma *anon_vma)
+-	__releases(&anon_vma->root->lock)
+-	__releases(RCU)
  {
+ 	anon_vma_unlock(anon_vma);
+ 	rcu_read_unlock();
 
 
 --
