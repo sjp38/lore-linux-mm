@@ -1,111 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E81828D000A
-	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 10:01:24 -0500 (EST)
-Message-Id: <20101126145410.881573395@chello.nl>
-Date: Fri, 26 Nov 2010 15:38:54 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AA318D000A
+	for <linux-mm@kvack.org>; Fri, 26 Nov 2010 10:01:26 -0500 (EST)
+Message-Id: <20101126145410.373743450@chello.nl>
+Date: Fri, 26 Nov 2010 15:38:45 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 11/21] s390: preemptible mmu_gather
+Subject: [PATCH 02/21] powerpc: Use call_rcu_sched() for pagetables
 References: <20101126143843.801484792@chello.nl>
-Content-Disposition: inline; filename=martin-mm-preempt-tlb-gather-s390.patch
+Content-Disposition: inline; filename=powerpc-pgtable-call_rcu_sched.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+PowerPC relies on IRQ-disable to guard against RCU quiecent states,
+use the appropriate RCU call version.
 
-Adapt the stand-alone s390 mmu_gather implementation to the new
-preemptible mmu_gather interface.
-
-Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Nick Piggin <npiggin@suse.de>
+Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Acked-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
- arch/s390/include/asm/tlb.h |   43 +++++++++++++++++++++++++------------------
- 1 file changed, 25 insertions(+), 18 deletions(-)
+ arch/powerpc/mm/pgtable.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: linux-2.6/arch/s390/include/asm/tlb.h
+Index: linux-2.6/arch/powerpc/mm/pgtable.c
 ===================================================================
---- linux-2.6.orig/arch/s390/include/asm/tlb.h
-+++ linux-2.6/arch/s390/include/asm/tlb.h
-@@ -28,44 +28,50 @@
- #include <asm/smp.h>
- #include <asm/tlbflush.h>
+--- linux-2.6.orig/arch/powerpc/mm/pgtable.c
++++ linux-2.6/arch/powerpc/mm/pgtable.c
+@@ -92,7 +92,7 @@ static void pte_free_rcu_callback(struct
  
--#ifndef CONFIG_SMP
--#define TLB_NR_PTRS	1
--#else
--#define TLB_NR_PTRS	508
--#endif
--
- struct mmu_gather {
- 	struct mm_struct *mm;
- 	unsigned int fullmm;
- 	unsigned int nr_ptes;
- 	unsigned int nr_pxds;
--	void *array[TLB_NR_PTRS];
-+	unsigned int max;
-+	void **array;
-+	void *local[8];
- };
- 
--DECLARE_PER_CPU(struct mmu_gather, mmu_gathers);
--
--static inline struct mmu_gather *tlb_gather_mmu(struct mm_struct *mm,
--						unsigned int full_mm_flush)
-+static inline void __tlb_alloc_pages(struct mmu_gather *tlb)
+ static void pte_free_submit(struct pte_freelist_batch *batch)
  {
--	struct mmu_gather *tlb = &get_cpu_var(mmu_gathers);
-+	unsigned long addr = __get_free_pages(GFP_ATOMIC, 0);
-+
-+	if (addr) {
-+		tlb->array = (void *) addr;
-+		tlb->max = PAGE_SIZE / sizeof(void *);
-+	}
-+}
- 
-+static inline void tlb_gather_mmu(struct mmu_gather *tlb,
-+				  struct mm_struct *mm,
-+				  unsigned int full_mm_flush)
-+{
- 	tlb->mm = mm;
-+	tlb->max = ARRAY_SIZE(tlb->local);
-+	tlb->array = tlb->local;
- 	tlb->fullmm = full_mm_flush;
--	tlb->nr_ptes = 0;
--	tlb->nr_pxds = TLB_NR_PTRS;
- 	if (tlb->fullmm)
- 		__tlb_flush_mm(mm);
--	return tlb;
-+	else
-+		__tlb_alloc_pages(tlb);
-+	tlb->nr_ptes = 0;
-+	tlb->nr_pxds = tlb->max;
+-	call_rcu(&batch->rcu, pte_free_rcu_callback);
++	call_rcu_sched(&batch->rcu, pte_free_rcu_callback);
  }
  
- static inline void tlb_flush_mmu(struct mmu_gather *tlb,
- 				 unsigned long start, unsigned long end)
- {
--	if (!tlb->fullmm && (tlb->nr_ptes > 0 || tlb->nr_pxds < TLB_NR_PTRS))
-+	if (!tlb->fullmm && (tlb->nr_ptes > 0 || tlb->nr_pxds < tlb->max))
- 		__tlb_flush_mm(tlb->mm);
- 	while (tlb->nr_ptes > 0)
- 		page_table_free_rcu(tlb->mm, tlb->array[--tlb->nr_ptes]);
--	while (tlb->nr_pxds < TLB_NR_PTRS)
-+	while (tlb->nr_pxds < tlb->max)
- 		crst_table_free_rcu(tlb->mm, tlb->array[tlb->nr_pxds++]);
- }
- 
-@@ -79,7 +85,8 @@ static inline void tlb_finish_mmu(struct
- 	/* keep the page table cache within bounds */
- 	check_pgt_cache();
- 
--	put_cpu_var(mmu_gathers);
-+	if (tlb->array != tlb->local)
-+		free_pages((unsigned long) tlb->array, 0);
- }
- 
- /*
+ void pgtable_free_tlb(struct mmu_gather *tlb, void *table, unsigned shift)
 
 
 --
