@@ -1,47 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 563F18D0001
-	for <linux-mm@kvack.org>; Sat, 27 Nov 2010 21:04:08 -0500 (EST)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id oAS246LA004157
-	for <linux-mm@kvack.org>; Sat, 27 Nov 2010 18:04:06 -0800
-Received: from pxi17 (pxi17.prod.google.com [10.243.27.17])
-	by hpaq12.eem.corp.google.com with ESMTP id oAS243QJ008100
-	for <linux-mm@kvack.org>; Sat, 27 Nov 2010 18:04:04 -0800
-Received: by pxi17 with SMTP id 17so617929pxi.34
-        for <linux-mm@kvack.org>; Sat, 27 Nov 2010 18:04:03 -0800 (PST)
-Date: Sat, 27 Nov 2010 18:03:58 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] x86: add numa=possible command line option
-In-Reply-To: <20101122022411.GC9081@shaohui>
-Message-ID: <alpine.DEB.2.00.1011271802210.3764@chino.kir.corp.google.com>
-References: <A24AE1FFE7AEC5489F83450EE98351BF28723FC48C@shsmsx502.ccr.corp.intel.com> <20101122022411.GC9081@shaohui>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 82AB48D0001
+	for <linux-mm@kvack.org>; Sun, 28 Nov 2010 00:17:30 -0500 (EST)
+Date: Sat, 27 Nov 2010 21:17:49 -0800
+From: Greg KH <gregkh@suse.de>
+Subject: Re: [patch 2/2 v2] mm: add node hotplug emulation
+Message-ID: <20101128051749.GA11474@suse.de>
+References: <alpine.DEB.2.00.1011181321470.26680@chino.kir.corp.google.com>
+ <20101119003225.GB3327@shaohui>
+ <alpine.DEB.2.00.1011201645230.10618@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1011201826140.12889@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1011201827540.12889@chino.kir.corp.google.com>
+ <20101121173438.GA3922@suse.de>
+ <alpine.DEB.2.00.1011211346160.26304@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1011211505440.30377@chino.kir.corp.google.com>
+ <20101122005658.GA6710@suse.de>
+ <alpine.DEB.2.00.1011271750140.3764@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1011271750140.3764@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Shaohui Zheng <shaohui.zheng@intel.com>
-Cc: akpm@linux-foundation.org, gregkh@suse.de, mingo@redhat.com, hpa@zytor.com, tglx@linutronix.de, lethal@linux-sh.org, ak@linux.intel.com, yinghai@kernel.org, randy.dunlap@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, haicheng.li@intel.com, haicheng.li@linux.intel.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Shaohui Zheng <shaohui.zheng@intel.com>, Paul Mundt <lethal@linux-sh.org>, Andi Kleen <ak@linux.intel.com>, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 22 Nov 2010, Shaohui Zheng wrote:
-
-> It is the improved solution from thread http://lkml.org/lkml/2010/11/18/3,
-> our draft patch set all the nodes as possbile node, it wastes a lot of memory,
-> the command line numa=possible=<N> seems to be an acceptable, and it is a optimization
-> for our patch.
+On Sat, Nov 27, 2010 at 05:52:03PM -0800, David Rientjes wrote:
+> On Sun, 21 Nov 2010, Greg KH wrote:
 > 
-
-node_possible_map is a generic nodemask used throughout the kernel, but 
-its handling is highly dependent on the arch.  This patch enables the 
-support for x86, I'd encourage anyone else interested in other archs to 
-look into adding the support for it as well (perhaps you can do it for 
-powerpc?).
-
-> I like your active work attitude for the patch reviewing, it is real helpful to 
-> improve the patch quality.
+> > > Add an interface to allow new nodes to be added when performing memory
+> > > hot-add.  This provides a convenient interface to test memory hotplug
+> > > notifier callbacks and surrounding hotplug code when new nodes are
+> > > onlined without actually having a machine with such hotpluggable SRAT
+> > > entries.
+> > > 
+> > > This adds a new debugfs interface at /sys/kernel/debug/hotplug/add_node
+> > 
+> > The rule for debugfs is "there are no rules", but perhaps you might want
+> > to name "hotplug" a bit more specific for what you are doing?  "hotplug"
+> > means pretty much anything these days, so how about s/hotplug/node/
+> > instead as that is what you are controlling.
+> > 
+> > Just a suggestion...
+> > 
 > 
+> Hmm, how strongly do you feel about that?  There's nothing node specific 
+> in the memory hotplug code where this lives, so we'd probably have to 
+> define the dentry elsewhere and even then it would only needed for 
+> CONFIG_MEMORY_HOTPLUG.
+> 
+> I personally don't see this as a node debugging but rather memory hotplug 
+> callback debugging.
 
-Thanks, I'm happy to be involved!
+Then name it as such, not the generic "hotplug" like you just did.
+"mem_hotplug" would make sense, right?
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
