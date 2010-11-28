@@ -1,58 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 85CEB8D0001
-	for <linux-mm@kvack.org>; Sat, 27 Nov 2010 20:42:06 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 282FB8D0001
+	for <linux-mm@kvack.org>; Sat, 27 Nov 2010 20:52:13 -0500 (EST)
 Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id oAS1g44Q010644
-	for <linux-mm@kvack.org>; Sat, 27 Nov 2010 17:42:04 -0800
-Received: from pvg12 (pvg12.prod.google.com [10.241.210.140])
-	by wpaz1.hot.corp.google.com with ESMTP id oAS1g2Cx007325
-	for <linux-mm@kvack.org>; Sat, 27 Nov 2010 17:42:03 -0800
-Received: by pvg12 with SMTP id 12so957106pvg.26
-        for <linux-mm@kvack.org>; Sat, 27 Nov 2010 17:42:02 -0800 (PST)
-Date: Sat, 27 Nov 2010 17:41:58 -0800 (PST)
+	by smtp-out.google.com with ESMTP id oAS1q8kX026136
+	for <linux-mm@kvack.org>; Sat, 27 Nov 2010 17:52:09 -0800
+Received: from pwj4 (pwj4.prod.google.com [10.241.219.68])
+	by wpaz1.hot.corp.google.com with ESMTP id oAS1q73K015271
+	for <linux-mm@kvack.org>; Sat, 27 Nov 2010 17:52:07 -0800
+Received: by pwj4 with SMTP id 4so759086pwj.38
+        for <linux-mm@kvack.org>; Sat, 27 Nov 2010 17:52:06 -0800 (PST)
+Date: Sat, 27 Nov 2010 17:52:03 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [resend][PATCH 2/4] Revert "oom: deprecate oom_adj tunable"
-In-Reply-To: <20101123160259.7B9C.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1011271737110.3764@chino.kir.corp.google.com>
-References: <20101114135323.E00D.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011141333330.22262@chino.kir.corp.google.com> <20101123160259.7B9C.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch 2/2 v2] mm: add node hotplug emulation
+In-Reply-To: <20101122005658.GA6710@suse.de>
+Message-ID: <alpine.DEB.2.00.1011271750140.3764@chino.kir.corp.google.com>
+References: <20101118062715.GD17539@linux-sh.org> <20101118052750.GD2408@shaohui> <alpine.DEB.2.00.1011181321470.26680@chino.kir.corp.google.com> <20101119003225.GB3327@shaohui> <alpine.DEB.2.00.1011201645230.10618@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1011201826140.12889@chino.kir.corp.google.com> <alpine.DEB.2.00.1011201827540.12889@chino.kir.corp.google.com> <20101121173438.GA3922@suse.de> <alpine.DEB.2.00.1011211346160.26304@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1011211505440.30377@chino.kir.corp.google.com> <20101122005658.GA6710@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Greg KH <gregkh@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Shaohui Zheng <shaohui.zheng@intel.com>, Paul Mundt <lethal@linux-sh.org>, Andi Kleen <ak@linux.intel.com>, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Nov 2010, KOSAKI Motohiro wrote:
+On Sun, 21 Nov 2010, Greg KH wrote:
 
-> > > No irrelevant. Your patch break their environment even though
-> > > they don't use oom_adj explicitly. because their application are using it.
-> > > 
+> > Add an interface to allow new nodes to be added when performing memory
+> > hot-add.  This provides a convenient interface to test memory hotplug
+> > notifier callbacks and surrounding hotplug code when new nodes are
+> > onlined without actually having a machine with such hotpluggable SRAT
+> > entries.
 > > 
-> > The _only_ difference too oom_adj since the rewrite is that it is now 
-> > mapped on a linear scale rather than an exponential scale.  
+> > This adds a new debugfs interface at /sys/kernel/debug/hotplug/add_node
 > 
-> _only_ mean don't ZERO different. Why do userland application need to rewrite?
+> The rule for debugfs is "there are no rules", but perhaps you might want
+> to name "hotplug" a bit more specific for what you are doing?  "hotplug"
+> means pretty much anything these days, so how about s/hotplug/node/
+> instead as that is what you are controlling.
 > 
-
-Because NOTHING breaks with the new mapping.  Eight months later since 
-this was initially proposed on linux-mm, you still cannot show a single 
-example that depended on the exponential mapping of oom_adj.  I'm not 
-going to continue responding to your criticism about this point since your 
-argument is completely and utterly baseless.
-
-> Again, IF you need to [0 .. 1000] range, you can calculate it by your
-> application. current oom score can be get from /proc/pid/oom_score and
-> total memory can be get from /proc/meminfo. You shouldn't have break
-> anything.
+> Just a suggestion...
 > 
 
-That would require the userspace tunable to be adjusted anytime a task's 
-mempolicy changes, its nodemask changes, it's cpuset attachment changes, 
-its mems change, a memcg limit changes, etc.  The only constant is the 
-task's priority, and the current oom_score_adj implementation preserves 
-that unless explicitly changed later by the user.  I completely understand 
-that you may not have a use for this.
+Hmm, how strongly do you feel about that?  There's nothing node specific 
+in the memory hotplug code where this lives, so we'd probably have to 
+define the dentry elsewhere and even then it would only needed for 
+CONFIG_MEMORY_HOTPLUG.
+
+I personally don't see this as a node debugging but rather memory hotplug 
+callback debugging.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
