@@ -1,191 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 4231A6B009C
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 05:45:31 -0500 (EST)
-Message-Id: <20101129091936.116394523@intel.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 740BD6B009C
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 05:45:32 -0500 (EST)
+Message-Id: <20101129091936.219153586@intel.com>
 References: <20101129091750.950277284@intel.com>
-Date: Mon, 29 Nov 2010 17:17:56 +0800
+Date: Mon, 29 Nov 2010 17:17:57 +0800
 From: shaohui.zheng@intel.com
-Subject: [6/8, v5] From: Shaohui Zheng <shaohui.zheng@intel.com>
-Content-Disposition: inline; filename=006-hotplug-emulator-extend-memory-probe-interface-to-support-numa.patch
+Subject: [7/8, v5] NUMA Hotplug Emulator: implement debugfs interface for memory probe
+Content-Disposition: inline; filename=007-hotplug-emulator-implement-memory-probe-debugfs-interface.patch
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Shaohui Zheng <shaohui.zheng@intel.com>, Haicheng Li <haicheng.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>
+Cc: linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Shaohui Zheng <shaohui.zheng@intel.com>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Subject: [6/8, v5] NUMA Hotplug Emulator: extend memory probe interface to support NUMA
+From: Shaohui Zheng <shaohui.zheng@intel.com>
 
-Extend memory probe interface to support an extra paramter nid,
-the reserved memory can be added into this node if node exists.
+Implement a debugfs inteface /sys/kernel/debug/memory/probe for meomory hotplug
+emulation.  it accepts the same parameters like
+/sys/devices/system/memory/probe.
 
-Add a memory section(128M) to node 3(boots with mem=1024m)
+Document the interface usage to file Documentation/memory-hotplug.txt.
 
-	echo 0x40000000,3 > memory/probe
-
-And more we make it friendly, it is possible to add memory to do
-
-	echo 3g > memory/probe
-	echo 1024m,3 > memory/probe
-
-It maintains backwards compatibility.
-
-Another format suggested by Dave Hansen:
-
-	echo physical_address=0x40000000 numa_node=3 > memory/probe
-
-it is more explicit to show meaning of the parameters.
-
+CC: Dave Hansen <dave@linux.vnet.ibm.com>
 Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
 Signed-off-by: Haicheng Li <haicheng.li@intel.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
-Index: linux-hpe4/arch/x86/Kconfig
+--
+Index: linux-hpe4/mm/memory_hotplug.c
 ===================================================================
---- linux-hpe4.orig/arch/x86/Kconfig	2010-11-29 14:43:51.529065999 +0800
-+++ linux-hpe4/arch/x86/Kconfig	2010-11-29 14:43:54.569066000 +0800
-@@ -1276,10 +1276,6 @@
- 	def_bool y
- 	depends on ARCH_SPARSEMEM_ENABLE
- 
--config ARCH_MEMORY_PROBE
--	def_bool X86_64
--	depends on MEMORY_HOTPLUG
--
- config ILLEGAL_POINTER_VALUE
-        hex
-        default 0 if X86_32
-Index: linux-hpe4/drivers/base/memory.c
-===================================================================
---- linux-hpe4.orig/drivers/base/memory.c	2010-11-29 14:43:51.539066000 +0800
-+++ linux-hpe4/drivers/base/memory.c	2010-11-29 14:43:54.569066000 +0800
-@@ -329,27 +329,76 @@
-  * will not need to do it from userspace.  The fake hot-add code
-  * as well as ppc64 will do all of their discovery in userspace
-  * and will require this interface.
-+ *
-+ * Parameter format 1: physical_address,numa_node
-+ * Parameter format 2: physical_address=0x40000000 numa_node=3
-  */
- #ifdef CONFIG_ARCH_MEMORY_PROBE
--static ssize_t
--memory_probe_store(struct class *class, struct class_attribute *attr,
--		   const char *buf, size_t count)
-+ssize_t parse_memory_probe_store(const char *buf, size_t count)
- {
--	u64 phys_addr;
--	int nid;
-+	u64 phys_addr = 0;
-+	int nid = 0;
- 	int ret;
-+	char *p = NULL, *q = NULL;
-+	/* format: physical_address=0x40000000 numa_node=3 */
-+	p = strchr(buf, '=');
-+	if (p != NULL) {
-+		*p = '\0';
-+		q = strchr(buf, ' ');
-+		if (q == NULL) {
-+			if (strcmp(buf, "physical_address") != 0)
-+				ret = -EPERM;
-+			else
-+				phys_addr = memparse(p+1, NULL);
-+		} else {
-+			*q++ = '\0';
-+			p = strchr(q, '=');
-+			if (strcmp(buf, "physical_address") == 0)
-+				phys_addr = memparse(p+1, NULL);
-+			if (strcmp(buf, "numa_node") == 0)
-+				nid = simple_strtoul(p+1, NULL, 0);
-+			if (strcmp(q, "physical_address") == 0)
-+				phys_addr = memparse(p+1, NULL);
-+			if (strcmp(q, "numa_node") == 0)
-+				nid = simple_strtoul(p+1, NULL, 0);
-+		}
-+	} else { /* physical_address,numa_node */
-+		p = strchr(buf, ',');
-+		if (p != NULL && strlen(p+1) > 0) {
-+			/* nid specified */
-+			*p++ = '\0';
-+			nid = simple_strtoul(p, NULL, 0);
-+			phys_addr = memparse(buf, NULL);
-+		} else {
-+			phys_addr = memparse(buf, NULL);
-+			nid = memory_add_physaddr_to_nid(phys_addr);
-+		}
-+	}
- 
--	phys_addr = simple_strtoull(buf, NULL, 0);
--
--	nid = memory_add_physaddr_to_nid(phys_addr);
--	ret = add_memory(nid, phys_addr, PAGES_PER_SECTION << PAGE_SHIFT);
-+	if (nid < 0 || nid > nr_node_ids - 1) {
-+		printk(KERN_ERR "Invalid node id %d(0<=nid<%d).\n", nid, nr_node_ids);
-+		ret = -EPERM;
-+	} else {
-+		printk(KERN_INFO "Add a memory section to node: %d.\n", nid);
-+		ret = add_memory(nid, phys_addr, PAGES_PER_SECTION << PAGE_SHIFT);
-+		if (ret)
-+			count = ret;
-+	}
- 
- 	if (ret)
- 		count = ret;
- 
- 	return count;
+--- linux-hpe4.orig/mm/memory_hotplug.c	2010-11-29 15:15:53.209066001 +0800
++++ linux-hpe4/mm/memory_hotplug.c	2010-11-29 15:16:00.059065999 +0800
+@@ -982,4 +982,35 @@
  }
--static CLASS_ATTR(probe, S_IWUSR, NULL, memory_probe_store);
-+EXPORT_SYMBOL(parse_memory_probe_store);
+ 
+ module_init(node_debug_init);
 +
-+static ssize_t
-+memory_probe_store(struct class *class, struct class_attribute *attr,
-+		   const char *buf, size_t count)
++#ifdef CONFIG_ARCH_MEMORY_PROBE
++static struct dentry *memory_debug_root;
++
++static ssize_t debug_memory_probe_store(struct file *file, const char __user *buf,
++				size_t count, loff_t *ppos)
 +{
 +	return parse_memory_probe_store(buf, count);
 +}
 +
- 
- static int memory_probe_init(void)
- {
-Index: linux-hpe4/mm/Kconfig
-===================================================================
---- linux-hpe4.orig/mm/Kconfig	2010-11-29 14:43:51.549066001 +0800
-+++ linux-hpe4/mm/Kconfig	2010-11-29 14:43:54.569066000 +0800
-@@ -174,6 +174,17 @@
- 	default "999999" if DEBUG_SPINLOCK || DEBUG_LOCK_ALLOC
- 	default "4"
- 
-+config ARCH_MEMORY_PROBE
-+	def_bool y
-+	bool "Memory hotplug emulation"
-+	depends on MEMORY_HOTPLUG
-+	---help---
-+	  Enable memory hotplug emulation. Reserve memory with grub parameter
-+	  "mem=N"(such as mem=1024M), where N is the initial memory size, the
-+	  rest physical memory will be removed from e820 table; the memory probe
-+	  interface is for memory hot-add to specified node in software method.
-+	  This is for debuging and testing purpose
++static const struct file_operations memory_probe_file_ops = {
++	.write		= debug_memory_probe_store,
++	.llseek		= generic_file_llseek,
++};
 +
- #
- # support for memory compaction
- config COMPACTION
-Index: linux-hpe4/include/linux/memory_hotplug.h
-===================================================================
---- linux-hpe4.orig/include/linux/memory_hotplug.h	2010-11-29 14:43:51.559066001 +0800
-+++ linux-hpe4/include/linux/memory_hotplug.h	2010-11-29 14:43:54.569066000 +0800
-@@ -211,6 +211,14 @@
- extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
- extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
- 					  unsigned long pnum);
-+#ifdef CONFIG_ARCH_MEMORY_PROBE
-+extern ssize_t parse_memory_probe_store(const char *buf, size_t count);
-+#else
-+static inline ssize_t parse_memory_probe_store(const char *buf, size_t count)
++static int __init memory_debug_init(void)
 +{
++	memory_debug_root = debugfs_create_dir("memory", NULL);
++	if (!memory_debug_root)
++		return -ENOMEM;
++
++	if (!debugfs_create_file("probe", S_IWUSR, memory_debug_root,
++			NULL, &memory_probe_file_ops))
++		return -ENOMEM;
++
 +	return 0;
 +}
-+#endif  /* CONFIG_ARCH_MEMORY_PROBE */
++
++module_init(memory_debug_init);
++
++#endif /* CONFIG_ARCH_MEMORY_PROBE */
+ #endif /* CONFIG_DEBUG_FS */
+Index: linux-hpe4/Documentation/memory-hotplug.txt
+===================================================================
+--- linux-hpe4.orig/Documentation/memory-hotplug.txt	2010-11-29 15:16:53.739066001 +0800
++++ linux-hpe4/Documentation/memory-hotplug.txt	2010-11-29 15:39:23.209066001 +0800
+@@ -198,23 +198,39 @@
+ In some environments, especially virtualized environment, firmware will not
+ notify memory hotplug event to the kernel. For such environment, "probe"
+ interface is supported. This interface depends on CONFIG_ARCH_MEMORY_PROBE.
++It can be also used for physical memory hotplug emulation.
  
- #ifdef CONFIG_ARCH_MEMORY_PROBE
- extern ssize_t parse_memory_probe_store(const char *buf, size_t count);
+-Now, CONFIG_ARCH_MEMORY_PROBE is supported only by powerpc but it does not
+-contain highly architecture codes. Please add config if you need "probe"
++Now, CONFIG_ARCH_MEMORY_PROBE is supported by powerpc and x86_64, but it does
++not contain highly architecture codes. Please add config if you need "probe"
+ interface.
+ 
+-Probe interface is located at
+-/sys/devices/system/memory/probe
++We have both sysfs and debugfs interface for memory probe. They are located at
++/sys/devices/system/memory/probe (sysfs) and /sys/kernel/debug/memory/probe
++(debugfs), We can try any of them, they accpet the same parameters.
+ 
+ You can tell the physical address of new memory to the kernel by
+ 
+-% echo start_address_of_new_memory > /sys/devices/system/memory/probe
++% echo start_address_of_new_memory > memory/probe
+ 
+ Then, [start_address_of_new_memory, start_address_of_new_memory + section_size)
+ memory range is hot-added. In this case, hotplug script is not called (in
+ current implementation). You'll have to online memory by yourself.
+ Please see "How to online memory" in this text.
+ 
++memory/probe interface accepts more flexible parameters, for example:
++
++Add a memory section(128M) to node 3(boots with mem=1024m)
++
++	echo 0x40000000,3 > memory/probe
++
++And more we make it friendly, it is possible to add memory to do
++
++	echo 3g > memory/probe
++	echo 1024m,3 > memory/probe
++
++Another format suggested by Dave Hansen:
++
++	echo physical_address=0x40000000 numa_node=3 > memory/probe
+ 
+ 4.3 Node hotplug emulation
+ ------------
 
 -- 
 Thanks & Regards,
