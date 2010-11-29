@@ -1,52 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9D8388D0013
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 12:00:39 -0500 (EST)
-Date: Mon, 29 Nov 2010 17:59:25 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 18 of 66] add pmd mangling functions to x86
-Message-ID: <20101129165925.GF24474@random.random>
-References: <patchbomb.1288798055@v2.random>
- <c681aaa016f2bd9ce393.1288798073@v2.random>
- <20101118130446.GO8135@csn.ul.ie>
- <20101126175751.GY6118@random.random>
- <20101129102310.GC13268@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101129102310.GC13268@csn.ul.ie>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 258CE8D0013
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 13:19:25 -0500 (EST)
+Subject: Re: [8/8, v5] NUMA Hotplug Emulator: documentation
+In-Reply-To: Your message of "Mon, 29 Nov 2010 17:17:58 +0800."
+             <20101129091936.322099405@intel.com>
+From: Valdis.Kletnieks@vt.edu
+References: <20101129091750.950277284@intel.com>
+            <20101129091936.322099405@intel.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1291054756_5346P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 29 Nov 2010 13:19:16 -0500
+Message-ID: <14037.1291054756@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: shaohui.zheng@intel.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 29, 2010 at 10:23:11AM +0000, Mel Gorman wrote:
-> > > > @@ -353,7 +353,7 @@ static inline unsigned long pmd_page_vad
-> > > >   * Currently stuck as a macro due to indirect forward reference to
-> > > >   * linux/mmzone.h's __section_mem_map_addr() definition:
-> > > >   */
-> > > > -#define pmd_page(pmd)	pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
-> > > > +#define pmd_page(pmd)	pfn_to_page((pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT)
-> > > >  
-> > > 
-> > > Why is it now necessary to use PTE_PFN_MASK?
-> > 
-> > Just for the NX bit, that couldn't be set before the pmd could be
-> > marked PSE.
-> > 
-> 
-> Sorry, I still am missing something. PTE_PFN_MASK is this
-> 
-> #define PTE_PFN_MASK            ((pteval_t)PHYSICAL_PAGE_MASK)
-> #define PHYSICAL_PAGE_MASK      (((signed long)PAGE_MASK) & __PHYSICAL_MASK)
-> 
-> I'm not seeing how PTE_PFN_MASK affects the NX bit (bit 63).
+--==_Exmh_1291054756_5346P
+Content-Type: text/plain; charset=us-ascii
 
-It simply clears it by doing & 0000... otherwise bit 51 would remain
-erroneously set on the pfn passed to pfn_to_page.
+On Mon, 29 Nov 2010 17:17:58 +0800, shaohui.zheng@intel.com said:
+> From: Shaohui Zheng <shaohui.zheng@intel.com>
+> 
+> add a text file Documentation/x86/x86_64/numa_hotplug_emulator.txt
+> to explain the usage for the hotplug emulator.
 
-Clearing bit 63 wasn't needed before because bit 63 couldn't be set on
-a not huge pmd.
+Can you renumber this to 1/8 if you resubmit it?  It helps code review if you
+already know what it's *intended* to do beforehand.  It also helps drinking
+from the lkml firehose if you can read 0/N and 1/N and know if it's something
+you want to review, otherwise you read 0/N, have to go find N/N, read that,
+then go back and delete 1/N through N-1/N.
+
+(Sometimes, the 0/N cover isn't enough - reading the documentation actually
+fills in enough blanks to make you go "Wow, this *is* applicable to something
+I'm working on...")
+
+--==_Exmh_1291054756_5346P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFM8+6kcC3lWbTT17ARAj6WAJ4tCPKF3cl+pr8CIqbYqnnZcZJdXQCgud75
+3VeADOnX9iF0goAKVzEvMac=
+=JOyu
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1291054756_5346P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
