@@ -1,47 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 322126B004A
-	for <linux-mm@kvack.org>; Sun, 28 Nov 2010 21:25:19 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAT2PFuv024984
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 29 Nov 2010 11:25:15 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DB8F45DE58
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 11:25:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 012E545DE59
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 11:25:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E886B1DB8049
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 11:25:14 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A0B151DB804B
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 11:25:14 +0900 (JST)
-Date: Mon, 29 Nov 2010 11:19:34 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 05/21] mm: Move anon_vma ref out from under CONFIG_KSM
-Message-Id: <20101129111934.e5f206ce.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101126145410.544741923@chello.nl>
-References: <20101126143843.801484792@chello.nl>
-	<20101126145410.544741923@chello.nl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2A5706B004A
+	for <linux-mm@kvack.org>; Sun, 28 Nov 2010 21:26:21 -0500 (EST)
+Received: by vws10 with SMTP id 10so1076125vws.14
+        for <linux-mm@kvack.org>; Sun, 28 Nov 2010 18:26:19 -0800 (PST)
+From: Ben Gamari <bgamari.foss@gmail.com>
+Subject: Re: [PATCH v2 1/3] deactivate invalidated pages
+In-Reply-To: <20101129110848.82A8.A69D9226@jp.fujitsu.com>
+References: <20101129090514.829C.A69D9226@jp.fujitsu.com> <87pqto3n77.fsf@gmail.com> <20101129110848.82A8.A69D9226@jp.fujitsu.com>
+Date: Sun, 28 Nov 2010 21:26:15 -0500
+Message-ID: <8739qk3lx4.fsf@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Nov 2010 15:38:48 +0100
-Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-
-> We need an anon_vma refcount for preemptible anon_vma->lock.
+On Mon, 29 Nov 2010 11:13:53 +0900 (JST), KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> I'm not againt DONT_NEED feature. I only said PG_reclaim trick is not
+> so effective. Every feature has their own pros/cons. I think the cons
+> is too big. Also, nobody have mesured PG_reclaim performance gain. Did you?
 > 
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Not yet. Finally back from vacation here in the States. I'll try sitting
+down to put together a test tonight.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+- Ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
