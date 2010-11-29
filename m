@@ -1,85 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 531DB6B00AA
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 06:40:57 -0500 (EST)
-Date: Mon, 29 Nov 2010 12:33:57 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [resend][PATCH 4/4] oom: don't ignore rss in nascent mm
-Message-ID: <20101129113357.GA30657@redhat.com>
-References: <20101125140253.GA29371@redhat.com> <20101125193659.GA14510@redhat.com> <20101129093803.829F.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101129093803.829F.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 984588D0007
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 06:42:08 -0500 (EST)
+Subject: Re: [PATCH 00/21] mm: Preemptibility -v6
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <1291021220.32570.295.camel@pasglop>
+References: <20101126143843.801484792@chello.nl>
+	 <1291021220.32570.295.camel@pasglop>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 29 Nov 2010 12:41:56 +0100
+Message-ID: <1291030916.32004.7.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 List-ID: <linux-mm.kvack.org>
 
-On 11/29, KOSAKI Motohiro wrote:
->
-> > The patch is not complete, compat_copy_strings() needs changes.
-> > But, shouldn't it use get_arg_page() too? Otherwise, where do
-> > we check RLIMIT_STACK?
->
-> Because NOMMU doesn't have variable length argv. Instead it is still
-> using MAX_ARG_STRLEN as old MMU code.
->
-> 32 pages hard coded argv limitation naturally prevent this nascent mm
-> issue.
+On Mon, 2010-11-29 at 20:00 +1100, Benjamin Herrenschmidt wrote:
+> > Linus seems to want this to get some serious review and be pushed throu=
+gh
+> > Andrew (well, anybody but me actually, but since Andrew is mm master...=
+)
+> >=20
+> > Ben, Thomas, Andrew, can I trick you guys into looking at this stuff?
+>=20
+> It's on my hot todo list this week :-)
+>=20
+> I'd like to take out the rcu fix for ppc page table freeing tho and send
+> it to Linus now if you're ok with that.
 
-Ah, I didn't mean NOMMU. I meant compat_execve()->compat_copy_strings().
-If a 32bit process execs we seem to miss the RLIMIT_STACK check, no?
-
-> > The patch asks for the cleanups. In particular, I think exec_mmap()
-> > should accept bprm, not mm. But I'd prefer to do this later.
-> >
-> > Oleg.
->
-> General request. Please consider to keep Brad's reported-by tag.
-
-Yes, yes, sure.
-
-> > +static void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
-
-OK.
-
-> Please move this function into #ifdef CONFIG_MMU. nommu code doesn't use it.
-
-Well it does, to revert the MM_ANONPAGES counter. I'll add the empty
-function for NOMMU.
-
-> > +{
-> > +	struct mm_struct *mm = current->mm;
-> > +	long diff = pages - bprm->vma_pages;
->
-> I prefer to cast signed before assignment. It's safer more.
-
-OK.
-
-> > @@ -1003,6 +1024,7 @@ int flush_old_exec(struct linux_binprm *
-> >  	/*
-> >  	 * Release all of the old mmap stuff
-> >  	 */
-> > +	acct_arg_size(bprm, 0);
->
-> Why do we need this unacct here? I mean 1) if exec_mmap() is success,
-> we don't need unaccount at all
-
-Yes, we already killed all sub-threads. But this doesn't mean nobody
-else can use current->mm, think about CLONE_VM. The simplest example
-is vfork().
-
-> 2) if exec_mmap() is failure, an epilogue of
-> do_execve() does unaccount thing.
-
-Yes.
-
-Thanks Kosaki!
-
-I'll resend v2 today. I am still not sure about compat_copy_strings()...
-
-Oleg.
+Sure, and thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
