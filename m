@@ -1,65 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 762076B0087
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 14:04:06 -0500 (EST)
-Date: Mon, 29 Nov 2010 20:03:13 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 28 of 66] _GFP_NO_KSWAPD
-Message-ID: <20101129190313.GA6118@random.random>
-References: <patchbomb.1288798055@v2.random>
- <b1b95be209a2927d21c7.1288798083@v2.random>
- <20101118131839.GR8135@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 166056B004A
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 15:32:21 -0500 (EST)
+Message-ID: <4CF40DCB.5010007@goop.org>
+Date: Mon, 29 Nov 2010 12:32:11 -0800
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101118131839.GR8135@csn.ul.ie>
+Subject: [PATCH RFC] vmalloc: eagerly clear ptes on vunmap
+References: <4CEF6B8B.8080206@goop.org> <20101127103656.GA6884@amd>
+In-Reply-To: <20101127103656.GA6884@amd>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Nick Piggin <npiggin@kernel.dk>
+Cc: "Xen-devel@lists.xensource.com" <Xen-devel@lists.xensource.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Trond Myklebust <Trond.Myklebust@netapp.com>, Bryan Schumaker <bjschuma@netapp.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 01:18:39PM +0000, Mel Gorman wrote:
-> This is not an exact merge with what's currently in mm. Look at the top
-> of gfp.h and see "Plain integer GFP bitmasks. Do not use this
-> directly.". The 0x400000u definition needs to go there and this becomes
-> 
-> #define __GFP_NO_KSWAPD		((__force_gfp_t)____0x400000u)
-> 
-> What you have just generates sparse warnings (I believe) so it's
-> harmless.
+When unmapping a region in the vmalloc space, clear the ptes immediately.
+There's no point in deferring this because there's no amortization
+benefit.
 
-Agreed.
+The TLBs are left dirty, and they are flushed lazily to amortize the
+cost of the IPIs.
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -34,6 +34,7 @@ struct vm_area_struct;
- #else
- #define ___GFP_NOTRACK		0
- #endif
-+#define ___GFP_NO_KSWAPD	0x400000u
+This specific motivation for this patch is a regression since 2.6.36 when
+using NFS under Xen, triggered by the NFS client's use of vm_map_ram()
+introduced in 56e4ebf877b6043c289bda32a5a7385b80c17dee.  XFS also uses
+vm_map_ram() and could cause similar problems.
+
+Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
+Cc: Nick Piggin <npiggin@kernel.dk>
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index a3d66b3..9960644 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -566,7 +566,6 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 			if (va->va_end > *end)
+ 				*end = va->va_end;
+ 			nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
+-			unmap_vmap_area(va);
+ 			list_add_tail(&va->purge_list, &valist);
+ 			va->flags |= VM_LAZY_FREEING;
+ 			va->flags &= ~VM_LAZY_FREE;
+@@ -616,6 +615,8 @@ static void purge_vmap_area_lazy(void)
+  */
+ static void free_unmap_vmap_area_noflush(struct vmap_area *va)
+ {
++	unmap_vmap_area(va);
++
+ 	va->flags |= VM_LAZY_FREE;
+ 	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
+ 	if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
+@@ -944,8 +945,10 @@ static void vb_free(const void *addr, unsigned long size)
+ 		BUG_ON(vb->free);
+ 		spin_unlock(&vb->lock);
+ 		free_vmap_block(vb);
+-	} else
++	} else {
+ 		spin_unlock(&vb->lock);
++		vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
++	}
+ }
  
- /*
-  * GFP bitmasks..
-@@ -81,7 +82,7 @@ struct vm_area_struct;
- #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
- #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
+ /**
+@@ -988,7 +991,6 @@ void vm_unmap_aliases(void)
  
--#define __GFP_NO_KSWAPD	((__force gfp_t)0x400000u)
-+#define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
+ 				s = vb->va->va_start + (i << PAGE_SHIFT);
+ 				e = vb->va->va_start + (j << PAGE_SHIFT);
+-				vunmap_page_range(s, e);
+ 				flush = 1;
  
- /*
-  * This may seem redundant, but it's a way of annotating false positives vs.
+ 				if (s < start)
 
-
-> Other than needing to define ____GFP_NO_KSWAPD
-
-3 underscores.
-
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-
-Added, thanks!
-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
