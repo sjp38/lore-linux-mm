@@ -1,133 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 153366B0093
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 05:23:29 -0500 (EST)
-Date: Mon, 29 Nov 2010 10:23:11 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 18 of 66] add pmd mangling functions to x86
-Message-ID: <20101129102310.GC13268@csn.ul.ie>
-References: <patchbomb.1288798055@v2.random> <c681aaa016f2bd9ce393.1288798073@v2.random> <20101118130446.GO8135@csn.ul.ie> <20101126175751.GY6118@random.random>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9E55E6B0096
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 05:38:49 -0500 (EST)
+Date: Mon, 29 Nov 2010 18:38:45 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [BUGFIX] vmstat: fix dirty threshold ordering
+Message-ID: <20101129103845.GA1195@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101126175751.GY6118@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michael Rubin <mrubin@google.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 26, 2010 at 06:57:51PM +0100, Andrea Arcangeli wrote:
-> On Thu, Nov 18, 2010 at 01:04:46PM +0000, Mel Gorman wrote:
-> > On Wed, Nov 03, 2010 at 04:27:53PM +0100, Andrea Arcangeli wrote:
-> > > From: Andrea Arcangeli <aarcange@redhat.com>
-> > > 
-> > > Add needed pmd mangling functions with simmetry with their pte counterparts.
-> > 
-> > symmetry
-> 
-> Fixed.
-> 
-> > 
-> > > pmdp_freeze_flush is the only exception only present on the pmd side and it's
-> > > needed to serialize the VM against split_huge_page, it simply atomically clears
-> > > the present bit in the same way pmdp_clear_flush_young atomically clears the
-> > > accessed bit (and both need to flush the tlb to make it effective, which is
-> > > mandatory to happen synchronously for pmdp_freeze_flush).
-> > 
-> > I don't see a pmdp_freeze_flush defined in the patch. Did yu mean 
-> > pmdp_splitting_flush? Even if it is, it's the splitting bit you are
-> > dealing with which isn't the same as the present bit. I'm missing
-> > something.
-> 
-> Well the comment went out of sync with the code sorry. I updated it:
-> 
-> =======
-> Add needed pmd mangling functions with symmetry with their pte counterparts.
-> pmdp_splitting_flush() is the only new addition on the pmd_ methods and it's
-> needed to serialize the VM against split_huge_page. It simply atomically sets
-> the splitting bit in a similar way pmdp_clear_flush_young atomically clears the
-> accessed bit. pmdp_splitting_flush() also has to flush the tlb to make it
-> effective against gup_fast, but it wouldn't really require to flush the tlb
-> too. Just the tlb flush is the simplest operation we can invoke to serialize
-> pmdp_splitting_flush() against gup_fast.
-> =======
-> 
+The nr_dirty_[background_]threshold fields are misplaced before the
+numa_* fields, and users will read strange values.
 
-Much clearer, thanks.
+This is the right order. Before patch, nr_dirty_background_threshold
+will read as 0 (the value from numa_miss).
 
-> > > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > > Acked-by: Rik van Riel <riel@redhat.com>
-> > > ---
-> > > 
-> > > diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-> > > --- a/arch/x86/include/asm/pgtable.h
-> > > +++ b/arch/x86/include/asm/pgtable.h
-> > > @@ -302,15 +302,15 @@ pmd_t *populate_extra_pmd(unsigned long 
-> > >  pte_t *populate_extra_pte(unsigned long vaddr);
-> > >  #endif	/* __ASSEMBLY__ */
-> > >  
-> > > +#ifndef __ASSEMBLY__
-> > > +#include <linux/mm_types.h>
-> > > +
-> > >  #ifdef CONFIG_X86_32
-> > >  # include "pgtable_32.h"
-> > >  #else
-> > >  # include "pgtable_64.h"
-> > >  #endif
-> > >  
-> > > -#ifndef __ASSEMBLY__
-> > > -#include <linux/mm_types.h>
-> > > -
-> > 
-> > Stupid quetion: Why is this move necessary?
-> 
-> That's not a stupid question, it seems to build in all configurations
-> even with this part backed out. I'll try to reverse this one in the
-> hope that it won't break build. I suppose some earlier version of the
-> patchset required this to build (I would never make a gratuitous
-> change like this if it wasn't needed at some point) but it seems not
-> be required anymore according to my build tests. If I'm wrong and some
-> build breaks I'll reintroduce it later.
-> 
+	numa_hit 128501
+	numa_miss 0
+	numa_foreign 0
+	numa_interleave 7388
+	numa_local 128501
+	numa_other 0
+	nr_dirty_threshold 144291
+	nr_dirty_background_threshold 72145
 
-Ok.
+Cc: Michael Rubin <mrubin@google.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/vmstat.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-> > >  static inline int pte_none(pte_t pte)
-> > >  {
-> > >  	return !pte.pte;
-> > > @@ -353,7 +353,7 @@ static inline unsigned long pmd_page_vad
-> > >   * Currently stuck as a macro due to indirect forward reference to
-> > >   * linux/mmzone.h's __section_mem_map_addr() definition:
-> > >   */
-> > > -#define pmd_page(pmd)	pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
-> > > +#define pmd_page(pmd)	pfn_to_page((pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT)
-> > >  
-> > 
-> > Why is it now necessary to use PTE_PFN_MASK?
-> 
-> Just for the NX bit, that couldn't be set before the pmd could be
-> marked PSE.
-> 
-
-Sorry, I still am missing something. PTE_PFN_MASK is this
-
-#define PTE_PFN_MASK            ((pteval_t)PHYSICAL_PAGE_MASK)
-#define PHYSICAL_PAGE_MASK      (((signed long)PAGE_MASK) & __PHYSICAL_MASK)
-
-I'm not seeing how PTE_PFN_MASK affects the NX bit (bit 63).
-
-> > The implementations look fine but I'm having trouble reconsiling what
-> > the leader says with the patch :(
-> 
-> Yes because it was out of sync, the new version is above.
-> 
-
-Thanks
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+--- linux-next.orig/mm/vmstat.c	2010-11-28 16:02:12.000000000 +0800
++++ linux-next/mm/vmstat.c	2010-11-28 16:02:24.000000000 +0800
+@@ -750,8 +750,6 @@ static const char * const vmstat_text[] 
+ 	"nr_shmem",
+ 	"nr_dirtied",
+ 	"nr_written",
+-	"nr_dirty_threshold",
+-	"nr_dirty_background_threshold",
+ 
+ #ifdef CONFIG_NUMA
+ 	"numa_hit",
+@@ -761,6 +759,8 @@ static const char * const vmstat_text[] 
+ 	"numa_local",
+ 	"numa_other",
+ #endif
++	"nr_dirty_threshold",
++	"nr_dirty_background_threshold",
+ 
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+ 	"pgpgin",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
