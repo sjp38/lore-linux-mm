@@ -1,113 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 49FEF8D0001
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 335476B0089
 	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 03:45:08 -0500 (EST)
-Message-Id: <20101130071437.046902915@intel.com>
+Message-Id: <20101130071436.732999291@intel.com>
 References: <20101130071324.908098411@intel.com>
-Date: Tue, 30 Nov 2010 15:13:28 +0800
+Date: Tue, 30 Nov 2010 15:13:25 +0800
 From: shaohui.zheng@intel.com
-Subject: [4/8, v6] NUMA Hotplug Emulation: Abstract cpu register functions
-Content-Disposition: inline; filename=004-hotplug-emulator-x86-abstract-cpu-register-functions.patch
+Subject: [1/8, v6] NUMA Hotplug Emulator: documentation
+Content-Disposition: inline; filename=001-hotplug-emulator-doc-x86_64-of-numa-hotplug-emulator.patch
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Shaohui Zheng <shaohui.zheng@intel.com>
+Cc: linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>, Shaohui Zheng <shaohui.zheng@intel.com>
 List-ID: <linux-mm.kvack.org>
 
 From: Shaohui Zheng <shaohui.zheng@intel.com>
 
-Abstract cpu register functions, provide a more flexible interface
-register_cpu_node, the new interface provides convenience to add cpu
-to a specified node, we can use it to add a cpu to a fake node.
+add a text file Documentation/x86/x86_64/numa_hotplug_emulator.txt
+to explain the usage for the hotplug emulator.
 
-Signed-off-by: Paul Mundt <lethal@linux-sh.org>
+Reviewed-By: Randy Dunlap <randy.dunlap@oracle.com>
+Signed-off-by: Haicheng Li <haicheng.li@intel.com>
 Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
 ---
-Index: linux-hpe4/arch/x86/include/asm/cpu.h
+Index: linux-hpe4/Documentation/x86/x86_64/numa_hotplug_emulator.txt
 ===================================================================
---- linux-hpe4.orig/arch/x86/include/asm/cpu.h	2010-11-17 09:00:59.742608402 +0800
-+++ linux-hpe4/arch/x86/include/asm/cpu.h	2010-11-17 09:01:10.192838977 +0800
-@@ -27,6 +27,7 @@
- 
- #ifdef CONFIG_HOTPLUG_CPU
- extern int arch_register_cpu(int num);
-+extern int arch_register_cpu_node(int num, int nid);
- extern void arch_unregister_cpu(int);
- #endif
- 
-Index: linux-hpe4/arch/x86/kernel/topology.c
-===================================================================
---- linux-hpe4.orig/arch/x86/kernel/topology.c	2010-11-17 09:01:01.053461766 +0800
-+++ linux-hpe4/arch/x86/kernel/topology.c	2010-11-17 10:05:32.934085248 +0800
-@@ -52,6 +52,15 @@
- }
- EXPORT_SYMBOL(arch_register_cpu);
- 
-+int __ref arch_register_cpu_node(int num, int nid)
-+{
-+	if (num)
-+		per_cpu(cpu_devices, num).cpu.hotpluggable = 1;
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-hpe4/Documentation/x86/x86_64/numa_hotplug_emulator.txt	2010-11-30 09:48:52.257622002 +0800
+@@ -0,0 +1,104 @@
++NUMA Hotplug Emulator for x86_64
++---------------------------------------------------
 +
-+	return register_cpu_node(&per_cpu(cpu_devices, num).cpu, num, nid);
-+}
-+EXPORT_SYMBOL(arch_register_cpu_node);
++NUMA hotplug emulator is able to emulate NUMA Node Hotplug
++thru a pure software way. It intends to help people easily debug
++and test node/CPU/memory hotplug related stuff on a
++none-NUMA-hotplug-support machine, even a UMA machine and virtual
++environment.
 +
- void arch_unregister_cpu(int num)
- {
- 	unregister_cpu(&per_cpu(cpu_devices, num).cpu);
-Index: linux-hpe4/drivers/base/cpu.c
-===================================================================
---- linux-hpe4.orig/drivers/base/cpu.c	2010-11-17 09:01:01.053461766 +0800
-+++ linux-hpe4/drivers/base/cpu.c	2010-11-17 10:05:32.943465010 +0800
-@@ -208,17 +208,18 @@
- static SYSDEV_CLASS_ATTR(offline, 0444, print_cpus_offline, NULL);
- 
- /*
-- * register_cpu - Setup a sysfs device for a CPU.
-+ * register_cpu_node - Setup a sysfs device for a CPU.
-  * @cpu - cpu->hotpluggable field set to 1 will generate a control file in
-  *	  sysfs for this CPU.
-  * @num - CPU number to use when creating the device.
-+ * @nid - Node ID to use, if any.
-  *
-  * Initialize and register the CPU device.
-  */
--int __cpuinit register_cpu(struct cpu *cpu, int num)
-+int __cpuinit register_cpu_node(struct cpu *cpu, int num, int nid)
- {
- 	int error;
--	cpu->node_id = cpu_to_node(num);
-+	cpu->node_id = nid;
- 	cpu->sysdev.id = num;
- 	cpu->sysdev.cls = &cpu_sysdev_class;
- 
-@@ -229,7 +230,7 @@
- 	if (!error)
- 		per_cpu(cpu_sys_devices, num) = &cpu->sysdev;
- 	if (!error)
--		register_cpu_under_node(num, cpu_to_node(num));
-+		register_cpu_under_node(num, nid);
- 
- #ifdef CONFIG_KEXEC
- 	if (!error)
-Index: linux-hpe4/include/linux/cpu.h
-===================================================================
---- linux-hpe4.orig/include/linux/cpu.h	2010-11-17 09:00:59.772898926 +0800
-+++ linux-hpe4/include/linux/cpu.h	2010-11-17 10:05:32.954085309 +0800
-@@ -30,7 +30,13 @@
- 	struct sys_device sysdev;
- };
- 
--extern int register_cpu(struct cpu *cpu, int num);
-+extern int register_cpu_node(struct cpu *cpu, int num, int nid);
++1) Node hotplug emulation:
 +
-+static inline int register_cpu(struct cpu *cpu, int num)
-+{
-+	return register_cpu_node(cpu, num, cpu_to_node(num));
-+}
++Adds a numa=possible=<N> command line option to set an additional N nodes
++as being possible for memory hotplug.  This set of possible nodes
++control nr_node_ids and the sizes of several dynamically allocated node
++arrays.
 +
- extern struct sys_device *get_cpu_sysdev(unsigned cpu);
- 
- extern int cpu_add_sysdev_attr(struct sysdev_attribute *attr);
++This allows memory hotplug to create new nodes for newly added memory
++rather than binding it to existing nodes.
++
++For emulation on x86, it would be possible to set aside memory for hotplugged
++nodes (say, anything above 2G) and to add an additional four nodes as being
++possible on boot with
++
++	mem=2G numa=possible=4
++
++and then creating a new 128M node at runtime:
++
++	# echo 128M@0x80000000 > /sys/kernel/debug/node/add_node
++	On node 1 totalpages: 0
++	init_memory_mapping: 0000000080000000-0000000088000000
++	 0080000000 - 0088000000 page 2M
++
++Once the new node has been added, its memory can be onlined.  If this
++memory represents memory section 16, for example:
++
++	# echo online > /sys/devices/system/memory/memory16/state
++	Built 2 zonelists in Node order, mobility grouping on.  Total pages: 514846
++	Policy zone: Normal
++ [ The memory section(s) mapped to a particular node are visible via
++   /sys/devices/system/node/node1, in this example. ]
++
++2) CPU hotplug emulation:
++
++The emulator reserve CPUs throu grub parameter, the reserved CPUs can be
++hot-add/hot-remove in software method, it emulates the process of physical
++cpu hotplug.
++
++When hotplugging a CPU with emulator, we are using a logical CPU to emulate the CPU
++socket hotplug process. For the CPU supported SMT, some logical CPUs are in the
++same socket, but it may located in different NUMA node after we have emulator.
++We put the logical CPU into a fake CPU socket, and assign it a unique
++phys_proc_id. For the fake socket, we put one logical CPU in only.
++
++ - to hide CPUs
++	- Using boot option "maxcpus=N" hide CPUs
++	  N is the number of CPUs to initialize; the reset will be hidden.
++	- Using boot option "cpu_hpe=on" to enable CPU hotplug emulation
++      when cpu_hpe is enabled, the rest CPUs will not be initialized
++
++ - to hot-add CPU to node
++	$ echo nid > cpu/probe
++
++ - to hot-remove CPU
++	$ echo nid > cpu/release
++
++3) Memory hotplug emulation:
++
++The emulator reserves memory before OS boots, the reserved memory region is
++removed from e820 table, and they can be hot-added via the probe interface.
++this interface was extended to support adding memory to the specified node. It
++maintains backwards compatibility.
++
++The difficulty of Memory Release is well-known, we have no plan for it until now.
++
++ - reserve memory thru a kernel boot paramter
++ 	mem=1024m
++
++ - add a memory section to node 3
++    $ echo 0x40000000,3 > memory/probe
++	OR
++    $ echo 1024m,3 > memory/probe
++	OR
++    $ echo "physical_address=0x40000000 numa_node=3" > memory/probe
++
++4) Script for hotplug testing
++
++These scripts provides convenience when we hot-add memory/cpu in batch.
++
++- Online all memory sections:
++for m in /sys/devices/system/memory/memory*;
++do
++	echo online > $m/state;
++done
++
++- CPU Online:
++for c in /sys/devices/system/cpu/cpu*;
++do
++	echo 1 > $c/online;
++done
++
++- David Rientjes <rientjes@google.com>
++- Haicheng Li <haicheng.li@intel.com>
++- Shaohui Zheng <shaohui.zheng@intel.com>
++  Nov 2010
 
 -- 
 Thanks & Regards,
