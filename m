@@ -1,135 +1,100 @@
 From: Christoph Lameter <cl@linux.com>
-Subject: [thisops uV3 13/18] drivers: Replace __get_cpu_var with __this_cpu_read if not used for an address.
-Date: Tue, 30 Nov 2010 13:07:20 -0600
-Message-ID: <20101130190848.707716729@linux.com>
+Subject: [thisops uV3 11/18] x86: Use this_cpu_ops for current_cpu_data accesses
+Date: Tue, 30 Nov 2010 13:07:18 -0600
+Message-ID: <20101130190847.543945676@linux.com>
 References: <20101130190707.457099608@linux.com>
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by lo.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PNVa3-0000jE-GS
-	for glkm-linux-mm-2@m.gmane.org; Tue, 30 Nov 2010 20:09:35 +0100
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7EBA08D0001
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 14:09:16 -0500 (EST)
-Content-Disposition: inline; filename=this_cpu_drivers
-Sender: owner-linux-mm@kvack.org
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Content-Disposition: inline; filename=x86_current_cpu_data
+Sender: linux-kernel-owner@vger.kernel.org
 To: akpm@linux-foundation.org
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Neil Horman <nhorman@tuxdriver.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, Eric Dumazet <eric.dumazet@gmail.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Yinghai Lu <yinghai@kernel.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Eric Dumazet <eric.dumazet@gmail.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-__get_cpu_var() can be replaced with this_cpu_read and will then use a single
-read instruction with implied address calculation to access the correct per cpu
-instance.
+Current_cpu_data accesses are per cpu accesses. We can also use
+this_cpu_ops if a scalar is retrieved.
 
-However, the address of a per cpu variable passed to __this_cpu_read() cannot be
-determed (since its an implied address conversion through segment prefixes).
-Therefore apply this only to uses of __get_cpu_var where the addres of the
-variable is not used.
-
-Cc: Neil Horman <nhorman@tuxdriver.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Yinghai Lu <yinghai@kernel.org>
+Cc: Ingo Molnar <mingo@elte.hu>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- drivers/acpi/processor_idle.c     |    6 +++---
- drivers/char/random.c             |    2 +-
- drivers/cpuidle/cpuidle.c         |    2 +-
- drivers/s390/cio/cio.c            |    2 +-
- drivers/staging/speakup/fakekey.c |    4 ++--
- 5 files changed, 8 insertions(+), 8 deletions(-)
+ arch/x86/kernel/cpu/cpufreq/powernow-k8.c |    2 +-
+ arch/x86/kernel/cpu/intel_cacheinfo.c     |    4 ++--
+ arch/x86/kernel/smpboot.c                 |   10 +++++-----
+ 3 files changed, 8 insertions(+), 8 deletions(-)
 
-Index: linux-2.6/drivers/acpi/processor_idle.c
+Index: linux-2.6/arch/x86/kernel/smpboot.c
 ===================================================================
---- linux-2.6.orig/drivers/acpi/processor_idle.c	2010-11-30 12:40:22.000000000 -0600
-+++ linux-2.6/drivers/acpi/processor_idle.c	2010-11-30 12:40:47.000000000 -0600
-@@ -746,7 +746,7 @@ static int acpi_idle_enter_c1(struct cpu
- 	struct acpi_processor *pr;
- 	struct acpi_processor_cx *cx = cpuidle_get_statedata(state);
+--- linux-2.6.orig/arch/x86/kernel/smpboot.c	2010-11-30 11:53:03.000000000 -0600
++++ linux-2.6/arch/x86/kernel/smpboot.c	2010-11-30 11:57:02.000000000 -0600
+@@ -430,7 +430,7 @@ void __cpuinit set_cpu_sibling_map(int c
  
--	pr = __get_cpu_var(processors);
-+	pr = __this_cpu_read(processors);
+ 	cpumask_set_cpu(cpu, c->llc_shared_map);
  
- 	if (unlikely(!pr))
- 		return 0;
-@@ -787,7 +787,7 @@ static int acpi_idle_enter_simple(struct
- 	s64 idle_time_ns;
- 	s64 idle_time;
+-	if (current_cpu_data.x86_max_cores == 1) {
++	if (__this_cpu_read(cpu_info.x86_max_cores) == 1) {
+ 		cpumask_copy(cpu_core_mask(cpu), cpu_sibling_mask(cpu));
+ 		c->booted_cores = 1;
+ 		return;
+@@ -1377,7 +1377,7 @@ void play_dead_common(void)
  
--	pr = __get_cpu_var(processors);
-+	pr = __this_cpu_read(processors);
+ 	mb();
+ 	/* Ack it */
+-	__get_cpu_var(cpu_state) = CPU_DEAD;
++	__this_cpu_write(cpu_state, CPU_DEAD);
  
- 	if (unlikely(!pr))
- 		return 0;
-@@ -864,7 +864,7 @@ static int acpi_idle_enter_bm(struct cpu
- 	s64 idle_time;
+ 	/*
+ 	 * With physical CPU hotplug, we should halt the cpu
+@@ -1401,7 +1401,7 @@ static inline void mwait_play_dead(void)
+ 		return;
+ 	if (!cpu_has(&current_cpu_data, X86_FEATURE_CLFLSH))
+ 		return;
+-	if (current_cpu_data.cpuid_level < CPUID_MWAIT_LEAF)
++	if (__this_cpu_read(cpu_info.cpuid_level) < CPUID_MWAIT_LEAF)
+ 		return;
  
+ 	eax = CPUID_MWAIT_LEAF;
+@@ -1452,7 +1452,7 @@ static inline void mwait_play_dead(void)
  
--	pr = __get_cpu_var(processors);
-+	pr = __this_cpu_read(processors);
- 
- 	if (unlikely(!pr))
- 		return 0;
-Index: linux-2.6/drivers/char/random.c
-===================================================================
---- linux-2.6.orig/drivers/char/random.c	2010-11-30 12:40:22.000000000 -0600
-+++ linux-2.6/drivers/char/random.c	2010-11-30 12:40:47.000000000 -0600
-@@ -626,7 +626,7 @@ static void add_timer_randomness(struct
- 	preempt_disable();
- 	/* if over the trickle threshold, use only 1 in 4096 samples */
- 	if (input_pool.entropy_count > trickle_thresh &&
--	    (__get_cpu_var(trickle_count)++ & 0xfff))
-+	    (__this_cpu_inc_return(trickle_count) & 0xfff))
- 		goto out;
- 
- 	sample.jiffies = jiffies;
-Index: linux-2.6/drivers/cpuidle/cpuidle.c
-===================================================================
---- linux-2.6.orig/drivers/cpuidle/cpuidle.c	2010-11-30 12:40:22.000000000 -0600
-+++ linux-2.6/drivers/cpuidle/cpuidle.c	2010-11-30 12:40:47.000000000 -0600
-@@ -49,7 +49,7 @@ static int __cpuidle_register_device(str
-  */
- static void cpuidle_idle_call(void)
+ static inline void hlt_play_dead(void)
  {
--	struct cpuidle_device *dev = __get_cpu_var(cpuidle_devices);
-+	struct cpuidle_device *dev = __this_cpu_read(cpuidle_devices);
- 	struct cpuidle_state *target_state;
- 	int next_state;
+-	if (current_cpu_data.x86 >= 4)
++	if (__this_cpu_read(cpu_info.x86) >= 4)
+ 		wbinvd();
  
-Index: linux-2.6/drivers/s390/cio/cio.c
+ 	while (1) {
+Index: linux-2.6/arch/x86/kernel/cpu/cpufreq/powernow-k8.c
 ===================================================================
---- linux-2.6.orig/drivers/s390/cio/cio.c	2010-11-30 12:40:22.000000000 -0600
-+++ linux-2.6/drivers/s390/cio/cio.c	2010-11-30 12:40:47.000000000 -0600
-@@ -619,7 +619,7 @@ void __irq_entry do_IRQ(struct pt_regs *
- 	s390_idle_check(regs, S390_lowcore.int_clock,
- 			S390_lowcore.async_enter_timer);
- 	irq_enter();
--	__get_cpu_var(s390_idle).nohz_delay = 1;
-+	__this_cpu_write(s390_idle.nohz_delay, 1);
- 	if (S390_lowcore.int_clock >= S390_lowcore.clock_comparator)
- 		/* Serve timer interrupts first. */
- 		clock_comparator_work();
-Index: linux-2.6/drivers/staging/speakup/fakekey.c
+--- linux-2.6.orig/arch/x86/kernel/cpu/cpufreq/powernow-k8.c	2010-11-30 11:53:03.000000000 -0600
++++ linux-2.6/arch/x86/kernel/cpu/cpufreq/powernow-k8.c	2010-11-30 11:53:33.000000000 -0600
+@@ -521,7 +521,7 @@ static void check_supported_cpu(void *_r
+ 
+ 	*rc = -ENODEV;
+ 
+-	if (current_cpu_data.x86_vendor != X86_VENDOR_AMD)
++	if (__this_cpu_read(cpu_info.x86_vendor) != X86_VENDOR_AMD)
+ 		return;
+ 
+ 	eax = cpuid_eax(CPUID_PROCESSOR_SIGNATURE);
+Index: linux-2.6/arch/x86/kernel/cpu/intel_cacheinfo.c
 ===================================================================
---- linux-2.6.orig/drivers/staging/speakup/fakekey.c	2010-11-30 12:40:22.000000000 -0600
-+++ linux-2.6/drivers/staging/speakup/fakekey.c	2010-11-30 12:40:47.000000000 -0600
-@@ -79,10 +79,10 @@ void speakup_fake_down_arrow(void)
- 	/* don't change CPU */
- 	preempt_disable();
+--- linux-2.6.orig/arch/x86/kernel/cpu/intel_cacheinfo.c	2010-11-30 11:53:03.000000000 -0600
++++ linux-2.6/arch/x86/kernel/cpu/intel_cacheinfo.c	2010-11-30 11:53:33.000000000 -0600
+@@ -266,7 +266,7 @@ amd_cpuid4(int leaf, union _cpuid4_leaf_
+ 		line_size = l2.line_size;
+ 		lines_per_tag = l2.lines_per_tag;
+ 		/* cpu_data has errata corrections for K7 applied */
+-		size_in_kb = current_cpu_data.x86_cache_size;
++		size_in_kb = __this_cpu_read(cpu_info.x86_cache_size);
+ 		break;
+ 	case 3:
+ 		if (!l3.val)
+@@ -288,7 +288,7 @@ amd_cpuid4(int leaf, union _cpuid4_leaf_
+ 	eax->split.type = types[leaf];
+ 	eax->split.level = levels[leaf];
+ 	eax->split.num_threads_sharing = 0;
+-	eax->split.num_cores_on_die = current_cpu_data.x86_max_cores - 1;
++	eax->split.num_cores_on_die = __this_cpu_read(cpu_info.x86_max_cores) - 1;
  
--	__get_cpu_var(reporting_keystroke) = true;
-+	__this_cpu_write(reporting_keystroke), true);
- 	input_report_key(virt_keyboard, KEY_DOWN, PRESSED);
- 	input_report_key(virt_keyboard, KEY_DOWN, RELEASED);
--	__get_cpu_var(reporting_keystroke) = false;
-+	__this_cpu_write(reporting_keystroke, false);
  
- 	/* reenable preemption */
- 	preempt_enable();
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+ 	if (assoc == 0xffff)
