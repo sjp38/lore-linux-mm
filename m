@@ -1,72 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 245D86B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 03:32:58 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAU8WtMW003303
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 30 Nov 2010 17:32:55 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 58A6245DE7A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 17:32:55 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3046B45DE70
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 17:32:55 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 12E7DE38004
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 17:32:55 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B644C1DB803F
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 17:32:54 +0900 (JST)
-Date: Tue, 30 Nov 2010 17:27:10 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/4] Add kswapd descriptor.
-Message-Id: <20101130172710.38de418b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <AANLkTikXzSx3Sjqb1NYZB-EJ76N-UbmiwTo=eOtSOnaP@mail.gmail.com>
-References: <1291099785-5433-1-git-send-email-yinghan@google.com>
-	<1291099785-5433-2-git-send-email-yinghan@google.com>
-	<20101130160838.4c66febf.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTikXzSx3Sjqb1NYZB-EJ76N-UbmiwTo=eOtSOnaP@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 071026B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 03:45:05 -0500 (EST)
+Message-Id: <20101130071436.836186525@intel.com>
+References: <20101130071324.908098411@intel.com>
+Date: Tue, 30 Nov 2010 15:13:26 +0800
+From: shaohui.zheng@intel.com
+Subject: [2/8, v6] NUMA Hotplug Emulator: Add numa=possible option
+Content-Disposition: inline; filename=002-add-node-possible-option.patch
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Ying Han <yinghan@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Shaohui Zheng <shaohui.zheng@intel.com>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Nov 2010 17:15:37 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+From:  David Rientjes <rientjes@google.com>
 
-> Ideally, I hope we unify global and memcg of kswapd for easy
-> maintainance if it's not a big problem.
-> When we make patches about lru pages, we always have to consider what
-> I should do for memcg.
-> And when we review patches, we also should consider what the patch is
-> missing for memcg.
-> It makes maintainance cost big. Of course, if memcg maintainers is
-> involved with all patches, it's no problem as it is.
-> 
-I know it's not. But thread control of kswapd will not have much merging point.
-And balance_pgdat() is fully replaced in patch/3. The effort for merging seems
-not big.
+Adds a numa=possible=<N> command line option to set an additional N nodes
+as being possible for memory hotplug.  This set of possible nodes
+controls nr_node_ids and the sizes of several dynamically allocated node
+arrays.
 
-> If it is impossible due to current kswapd's spaghetti, we can clean up
-> it first. I am not sure whether my suggestion make sense or not.
+This allows memory hotplug to create new nodes for newly added memory
+rather than binding it to existing nodes.
 
-make sense.
+The first use-case for this will be node hotplug emulation which will use
+these possible nodes to create new nodes to test the memory hotplug
+callbacks and surrounding memory hotplug code.
 
-> Kame can know it much rather than me. But please consider such the voice.
+CC: Shaohui Zheng <shaohui.zheng@intel.com>
+CC: Haicheng Li <haicheng.li@intel.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ Documentation/x86/x86_64/boot-options.txt |    4 ++++
+ arch/x86/mm/numa_64.c                     |   18 +++++++++++++++---
+ 2 files changed, 19 insertions(+), 3 deletions(-)
 
-Unifying is ok in general but this patch seems uglier than imagined.
-Implementing a simple memcg one and considering how-to-merge is a way.
-But it's a long way.
+diff --git a/Documentation/x86/x86_64/boot-options.txt b/Documentation/x86/x86_64/boot-options.txt
+--- a/Documentation/x86/x86_64/boot-options.txt
++++ b/Documentation/x86/x86_64/boot-options.txt
+@@ -174,6 +174,10 @@ NUMA
+ 		If given as an integer, fills all system RAM with N fake nodes
+ 		interleaved over physical nodes.
+ 
++  numa=possible=<N>
++		Sets an additional N nodes as being possible for memory
++		hotplug.
++
+ ACPI
+ 
+   acpi=off	Don't enable ACPI
+diff --git a/arch/x86/mm/numa_64.c b/arch/x86/mm/numa_64.c
+--- a/arch/x86/mm/numa_64.c
++++ b/arch/x86/mm/numa_64.c
+@@ -33,6 +33,7 @@ s16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
+ int numa_off __initdata;
+ static unsigned long __initdata nodemap_addr;
+ static unsigned long __initdata nodemap_size;
++static unsigned long __initdata numa_possible_nodes;
+ 
+ /*
+  * Map cpu index to node index
+@@ -611,7 +612,7 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
+ 
+ #ifdef CONFIG_NUMA_EMU
+ 	if (cmdline && !numa_emulation(start_pfn, last_pfn, acpi, k8))
+-		return;
++		goto out;
+ 	nodes_clear(node_possible_map);
+ 	nodes_clear(node_online_map);
+ #endif
+@@ -619,14 +620,14 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
+ #ifdef CONFIG_ACPI_NUMA
+ 	if (!numa_off && acpi && !acpi_scan_nodes(start_pfn << PAGE_SHIFT,
+ 						  last_pfn << PAGE_SHIFT))
+-		return;
++		goto out;
+ 	nodes_clear(node_possible_map);
+ 	nodes_clear(node_online_map);
+ #endif
+ 
+ #ifdef CONFIG_K8_NUMA
+ 	if (!numa_off && k8 && !k8_scan_nodes())
+-		return;
++		goto out;
+ 	nodes_clear(node_possible_map);
+ 	nodes_clear(node_online_map);
+ #endif
+@@ -646,6 +647,15 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
+ 		numa_set_node(i, 0);
+ 	memblock_x86_register_active_regions(0, start_pfn, last_pfn);
+ 	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT);
++out: __maybe_unused
++	for (i = 0; i < numa_possible_nodes; i++) {
++		int nid;
++
++		nid = first_unset_node(node_possible_map);
++		if (nid == MAX_NUMNODES)
++			break;
++		node_set(nid, node_possible_map);
++	}
+ }
+ 
+ unsigned long __init numa_free_all_bootmem(void)
+@@ -675,6 +685,8 @@ static __init int numa_setup(char *opt)
+ 	if (!strncmp(opt, "noacpi", 6))
+ 		acpi_numa = -1;
+ #endif
++	if (!strncmp(opt, "possible=", 9))
++		numa_possible_nodes = simple_strtoul(opt + 9, NULL, 0);
+ 	return 0;
+ }
+ early_param("numa", numa_setup);
 
-For now. we have to check the design/function of patch before how beautiful it
-is.
+-- 
+Thanks & Regards,
+Shaohui
 
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
