@@ -1,42 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E243D6B0085
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 19:04:54 -0500 (EST)
-Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
-	by smtp-out.google.com with ESMTP id oAU04ov5029220
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:04:51 -0800
-Received: from pwj4 (pwj4.prod.google.com [10.241.219.68])
-	by wpaz17.hot.corp.google.com with ESMTP id oAU04kI3018382
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:04:49 -0800
-Received: by pwj4 with SMTP id 4so1227165pwj.24
-        for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:04:48 -0800 (PST)
-Date: Mon, 29 Nov 2010 16:04:45 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 2/2 v2] mm: add node hotplug emulation
-In-Reply-To: <20101128051749.GA11474@suse.de>
-Message-ID: <alpine.DEB.2.00.1011291602560.21653@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1011181321470.26680@chino.kir.corp.google.com> <20101119003225.GB3327@shaohui> <alpine.DEB.2.00.1011201645230.10618@chino.kir.corp.google.com> <alpine.DEB.2.00.1011201826140.12889@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1011201827540.12889@chino.kir.corp.google.com> <20101121173438.GA3922@suse.de> <alpine.DEB.2.00.1011211346160.26304@chino.kir.corp.google.com> <alpine.DEB.2.00.1011211505440.30377@chino.kir.corp.google.com> <20101122005658.GA6710@suse.de>
- <alpine.DEB.2.00.1011271750140.3764@chino.kir.corp.google.com> <20101128051749.GA11474@suse.de>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EEFF86B0085
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 19:06:44 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAU06gwp029209
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 30 Nov 2010 09:06:42 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id F270645DE5C
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 09:06:41 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id C0A4E45DE59
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 09:06:41 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A9C951DB803C
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 09:06:41 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 560641DB8043
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 09:06:41 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [resend][PATCH 4/4] oom: don't ignore rss in nascent mm
+In-Reply-To: <20101129113357.GA30657@redhat.com>
+References: <20101129093803.829F.A69D9226@jp.fujitsu.com> <20101129113357.GA30657@redhat.com>
+Message-Id: <20101130085254.82CF.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 30 Nov 2010 09:06:32 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Greg KH <gregkh@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Shaohui Zheng <shaohui.zheng@intel.com>, Paul Mundt <lethal@linux-sh.org>, Andi Kleen <ak@linux.intel.com>, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 27 Nov 2010, Greg KH wrote:
+> On 11/29, KOSAKI Motohiro wrote:
+> >
+> > > The patch is not complete, compat_copy_strings() needs changes.
+> > > But, shouldn't it use get_arg_page() too? Otherwise, where do
+> > > we check RLIMIT_STACK?
+> >
+> > Because NOMMU doesn't have variable length argv. Instead it is still
+> > using MAX_ARG_STRLEN as old MMU code.
+> >
+> > 32 pages hard coded argv limitation naturally prevent this nascent mm
+> > issue.
+> 
+> Ah, I didn't mean NOMMU. I meant compat_execve()->compat_copy_strings().
+> If a 32bit process execs we seem to miss the RLIMIT_STACK check, no?
 
-> Then name it as such, not the generic "hotplug" like you just did.
-> "mem_hotplug" would make sense, right?
+Ah, yes. that's bug. You have found more serious issue ;)
+
+
+
+> > > The patch asks for the cleanups. In particular, I think exec_mmap()
+> > > should accept bprm, not mm. But I'd prefer to do this later.
+> > >
+> > > Oleg.
+> >
+> > General request. Please consider to keep Brad's reported-by tag.
+> 
+> Yes, yes, sure.
+> 
+> > > +static void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
+> 
+> OK.
+> 
+> > Please move this function into #ifdef CONFIG_MMU. nommu code doesn't use it.
+> 
+> Well it does, to revert the MM_ANONPAGES counter. I'll add the empty
+> function for NOMMU.
+> 
+> > > +{
+> > > +	struct mm_struct *mm = current->mm;
+> > > +	long diff = pages - bprm->vma_pages;
+> >
+> > I prefer to cast signed before assignment. It's safer more.
+> 
+> OK.
+> 
+> > > @@ -1003,6 +1024,7 @@ int flush_old_exec(struct linux_binprm *
+> > >  	/*
+> > >  	 * Release all of the old mmap stuff
+> > >  	 */
+> > > +	acct_arg_size(bprm, 0);
+> >
+> > Why do we need this unacct here? I mean 1) if exec_mmap() is success,
+> > we don't need unaccount at all
+> 
+> Yes, we already killed all sub-threads. But this doesn't mean nobody
+> else can use current->mm, think about CLONE_VM. The simplest example
+> is vfork().
+
+Right you are.
+
+
+> > 2) if exec_mmap() is failure, an epilogue of
+> > do_execve() does unaccount thing.
+> 
+> Yes.
+> 
+> Thanks Kosaki!
+> 
+> I'll resend v2 today. I am still not sure about compat_copy_strings()...
+> 
+> Oleg.
 > 
 
-Ok, Shaohui has taken my patches to post as part of the larger series and 
-I requested that the interface be changed from s/hotplug/mem_hotplug as 
-you suggested (and you should be cc'd).  I agree it's a better name to 
-isolate memory hotplug debugging triggers from others.
 
-Thanks Greg!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
