@@ -1,151 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DD606B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 05:41:55 -0500 (EST)
-Date: Tue, 30 Nov 2010 10:41:36 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: Free memory never fully used, swapping
-Message-ID: <20101130104136.GK13268@csn.ul.ie>
-References: <20101126195118.B6E7.A69D9226@jp.fujitsu.com> <20101126111122.GK26037@csn.ul.ie> <20101130152002.8307.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7C7866B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 06:07:24 -0500 (EST)
+Received: by fxm13 with SMTP id 13so3371748fxm.14
+        for <linux-mm@kvack.org>; Tue, 30 Nov 2010 03:07:22 -0800 (PST)
+Message-ID: <4CF4DAE7.1040107@monstr.eu>
+Date: Tue, 30 Nov 2010 12:07:19 +0100
+From: Michal Simek <monstr@monstr.eu>
+Reply-To: monstr@monstr.eu
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20101130152002.8307.A69D9226@jp.fujitsu.com>
+Subject: Re: Flushing whole page instead of exact address for ptrace
+References: <4CEFA8AE.2090804@petalogix.com>
+In-Reply-To: <4CEFA8AE.2090804@petalogix.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Simon Kirby <sim@hostway.ca>, Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: michal.simek@petalogix.com
+Cc: Oleg Nesterov <oleg@redhat.com>, Roland McGrath <roland@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, John Williams <john.williams@petalogix.com>, "Edgar E. Iglesias" <edgar.iglesias@gmail.com>, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 30, 2010 at 03:31:03PM +0900, KOSAKI Motohiro wrote:
-> Hi
-> > On Fri, Nov 26, 2010 at 08:03:04PM +0900, KOSAKI Motohiro wrote:
-> > > Two points.
-> > > 
-> > > > @@ -2310,10 +2324,12 @@ loop_again:
-> > > >  				 * spectulatively avoid congestion waits
-> > > >  				 */
-> > > >  				zone_clear_flag(zone, ZONE_CONGESTED);
-> > > > +				if (i <= pgdat->high_zoneidx)
-> > > > +					any_zone_ok = 1;
-> > > >  			}
-> > > >  
-> > > >  		}
-> > > > -		if (all_zones_ok)
-> > > > +		if (all_zones_ok || (order && any_zone_ok))
-> > > >  			break;		/* kswapd: all done */
-> > > >  		/*
-> > > >  		 * OK, kswapd is getting into trouble.  Take a nap, then take
-> > > > @@ -2336,7 +2352,7 @@ loop_again:
-> > > >  			break;
-> > > >  	}
-> > > >  out:
-> > > > -	if (!all_zones_ok) {
-> > > > +	if (!(all_zones_ok || (order && any_zone_ok))) {
-> > > 
-> > > This doesn't work ;)
-> > > kswapd have to clear ZONE_CONGESTED flag before enter sleeping.
-> > > otherwise nobody can clear it.
-> > > 
-> > 
-> > Does it not do it earlier in balance_pgdat() here
-> > 
-> >                                 /*
-> >                                  * If a zone reaches its high watermark,
-> >                                  * consider it to be no longer congested. It's
-> >                                  * possible there are dirty pages backed by
-> >                                  * congested BDIs but as pressure is
-> >                                  * relieved, spectulatively avoid congestion waits
-> >                                  */
-> >                                 zone_clear_flag(zone, ZONE_CONGESTED);
-> >                                 if (i <= pgdat->high_zoneidx)
-> >                                         any_zone_ok = 1;
-> 
-> zone_clear_flag(zone, ZONE_CONGESTED) only clear one zone status. other
-> zone remain old status.
-> 
+Hi,
 
-Ah now I get you. kswapd does not necessarily balance all zones so it needs
-to unconditionally clear them all before it goes to sleep in case. At
-some time in the future, the tagging of ZONE_CONGESTED needs more
-thinking about.
+Michal Simek wrote:
+> Hi,
+> 
+> I have found one problem when I debug multithread application on 
+> Microblaze. Let me describe what I discovered.
+> 
+> GDB has internal timeout which is setup to value 3. Which should mean if 
+> GDB sends packet and doesn't receive answer for it then after 3 internal 
+> timeouts GDB announces "Ignoring packet error, continuing..." and then 
+> fail. (communication is done over TCP).
+> 
+> In any older version we could debug multithread application that's why
+> I bisected all new patches which I have added to the kernel and I 
+> identify that the problem is caused by my patch.
+> 
+> microblaze: Implement flush_dcache_page macro
+> sha1(79e87830faf22ca636b1a1d8f4deb430ea6e1c8b)
+> 
+> I had to implemented flush_dcache_page macro for new systems with 
+> write-back(WB) cache which is important for several components (for 
+> example jffs2 rootfs) to get it work on WB.
+> BTW: For systems with write-through(WT) caches I don't need to implement 
+> this macro because flushing is done automatically.
+> 
+> Then I replaced macro on WT by udelay loop to find out if the problem is 
+> time dependent. I tested it on two hw designs(on the same HZ and cache 
+> size) with two different network IPs/drivers (one with DMA and second 
+> without) and I found that system with dma network driver can spend more 
+> time on dcache flushing before GDB timeout happens because TCP 
+> communication is faster. Which means that the problem also depends on 
+> cpu speed and cache configuration - size, cache line length.
+> 
+> Then I traced kernel part and I was focused why this macro is causing 
+> this problem.
+> 
+> GDB sends symbol-lookup command (qSymbol) and I see a lot of kernel 
+> ptrace PEEKTEXT requests. I parse it and here is calling sequence.
+> 
+> (kernel/ptrace.c) sys_ptrace -> 
+> (arch/microblaze/kernel/ptrace.c)arch_ptrace -> 
+> (kernel/ptrace.c)ptrace_request -> generic_ptrace_peek/poke data/text -> 
+> (mm/memory.c) access_process_vm -> get_user_pages -> __get_user_pages -> 
+> flush_dcache_page
+> 
+> Function access_process_vm calls __get_user_pages which doesn't work 
+> with buffer len (which is for PEEK/POKE TEXT/DATA just 32 bit - for 
+> 32bit Microblaze) but only with start and PAGE size. There is also 
+> called flush_dcache_page macro which takes more time than in past, 
+> because was empty. Macro flushes whole page but it is necessary, for 
+> this case, just flush one address if is called from ptrace.
+> 
+> What is the best way how to ensure that there will be flush only address 
+> instead of whole page for ptrace requests?
+> I think that there shouldn't be a reason to flush whole page for ptraces.
+> 
+> Please correct me if I am wrong somewhere.
 
-> > > Say, we have to fill below condition.
-> > >  - All zone are successing zone_watermark_ok(order-0)
-> > 
-> > We should loop around at least once with order == 0 where all_zones_ok
-> > is checked.
-> 
-> But no gurantee. IOW kswapd early stopping increase GFP_ATOMIC allocation
-> failure risk, I think.
-> 
+Any suggestions?
+Michal
 
-Force all zones to be balanced for order-0?
 
-> 
-> > >  - At least one zone are successing zone_watermark_ok(high-order)
-> > 
-> > This is preferable but it's possible for kswapd to go to sleep without
-> > this condition being satisified.
-> 
-> Yes.
-> 
-> > 
-> > > 
-> > > 
-> > > > @@ -2417,6 +2439,7 @@ static int kswapd(void *p)
-> > > >  		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-> > > >  		new_order = pgdat->kswapd_max_order;
-> > > >  		pgdat->kswapd_max_order = 0;
-> > > > +		pgdat->high_zoneidx = MAX_ORDER;
-> > > 
-> > > I don't think MAX_ORDER is correct ;)
-> > > 
-> > >         high_zoneidx = pgdat->high_zoneidx;
-> > >         pgdat->high_zoneidx = pgdat->nr_zones - 1;
-> > > 
-> > > ?
-> > > 
-> > 
-> > Bah. It should have been MAX_NR_ZONES. This happens to still work because
-> > MAX_ORDER will always be higher than MAX_NR_ZONES but it's wrong.
-> 
-> Well, no. balance_pgdat() shuldn't read pgdat->high_zoneidx. please remember why
-> balance balance_pgdat() don't read pgdat->kswapd_max_order directly. wakeup_kswapd()
-> change pgdat->kswapd_max_order and pgdat->high_zoneidx without any lock. so, 
-> we need to afraid following bad scenario.
-> 
-> 
-> T1: wakeup_kswapd(order=0, HIGHMEM)
-> T2: enter balance_kswapd()
-> T1: wakeup_kswapd(order=1, DMA32)
-> T2: exit balance_kswapd()
->       kswapd() erase pgdat->high_zoneidx and decide to don't sleep (because
->       old-order=0, new-order=1). So now we will start unnecessary HIGHMEM
->       reclaim.
-> 
-
-Correct. I'll fix this up.
-
-> > > And, we have another kswapd_max_order reading place. (after kswapd_try_to_sleep)
-> > > We need it too.
-> > > 
-> > 
-> > I'm not quite sure what you mean here. kswapd_max_order is read again
-> > after kswapd tries to sleep (or wakes for that matter) but it'll be in
-> > response to another caller having tried to wake kswapd indicating that
-> > those high orders really are needed.
-> 
-> My expected bad scenario was written above. 
-> 
-> Thanks.
-> 
-> 
-> 
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Michal Simek, Ing. (M.Eng)
+w: www.monstr.eu p: +42-0-721842854
+Maintainer of Linux kernel 2.6 Microblaze Linux - http://www.monstr.eu/fdt/
+Microblaze U-BOOT custodian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
