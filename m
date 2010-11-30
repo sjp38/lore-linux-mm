@@ -1,36 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id F077C6B0085
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 19:02:48 -0500 (EST)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id oAU02iFk008131
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:02:45 -0800
-Received: from pvd12 (pvd12.prod.google.com [10.241.209.204])
-	by kpbe17.cbf.corp.google.com with ESMTP id oAU024h2013612
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:02:43 -0800
-Received: by pvd12 with SMTP id 12so928861pvd.34
-        for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:02:43 -0800 (PST)
-Date: Mon, 29 Nov 2010 16:02:40 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E243D6B0085
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 19:04:54 -0500 (EST)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id oAU04ov5029220
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:04:51 -0800
+Received: from pwj4 (pwj4.prod.google.com [10.241.219.68])
+	by wpaz17.hot.corp.google.com with ESMTP id oAU04kI3018382
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:04:49 -0800
+Received: by pwj4 with SMTP id 4so1227165pwj.24
+        for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:04:48 -0800 (PST)
+Date: Mon, 29 Nov 2010 16:04:45 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [8/8, v5] NUMA Hotplug Emulator: documentation
-In-Reply-To: <20101129091936.322099405@intel.com>
-Message-ID: <alpine.DEB.2.00.1011291602190.21653@chino.kir.corp.google.com>
-References: <20101129091750.950277284@intel.com> <20101129091936.322099405@intel.com>
+Subject: Re: [patch 2/2 v2] mm: add node hotplug emulation
+In-Reply-To: <20101128051749.GA11474@suse.de>
+Message-ID: <alpine.DEB.2.00.1011291602560.21653@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1011181321470.26680@chino.kir.corp.google.com> <20101119003225.GB3327@shaohui> <alpine.DEB.2.00.1011201645230.10618@chino.kir.corp.google.com> <alpine.DEB.2.00.1011201826140.12889@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1011201827540.12889@chino.kir.corp.google.com> <20101121173438.GA3922@suse.de> <alpine.DEB.2.00.1011211346160.26304@chino.kir.corp.google.com> <alpine.DEB.2.00.1011211505440.30377@chino.kir.corp.google.com> <20101122005658.GA6710@suse.de>
+ <alpine.DEB.2.00.1011271750140.3764@chino.kir.corp.google.com> <20101128051749.GA11474@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Shaohui Zheng <shaohui.zheng@intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>
+To: Greg KH <gregkh@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Shaohui Zheng <shaohui.zheng@intel.com>, Paul Mundt <lethal@linux-sh.org>, Andi Kleen <ak@linux.intel.com>, Yinghai Lu <yinghai@kernel.org>, Haicheng Li <haicheng.li@intel.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Nov 2010, shaohui.zheng@intel.com wrote:
+On Sat, 27 Nov 2010, Greg KH wrote:
 
-> +- Haicheng Li <haicheng.li@intel.com>
-> +- Shaohui Zheng <shaohui.zheng@intel.com>
-> +  Nov 2010
+> Then name it as such, not the generic "hotplug" like you just did.
+> "mem_hotplug" would make sense, right?
 > 
 
-Didn't I write half of this document?
+Ok, Shaohui has taken my patches to post as part of the larger series and 
+I requested that the interface be changed from s/hotplug/mem_hotplug as 
+you suggested (and you should be cc'd).  I agree it's a better name to 
+isolate memory hotplug debugging triggers from others.
+
+Thanks Greg!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
