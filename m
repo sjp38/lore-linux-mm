@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BC95B6B004A
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 19:01:25 -0500 (EST)
-Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
-	by smtp-out.google.com with ESMTP id oAU01MLj017921
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:01:22 -0800
-Received: from pvc21 (pvc21.prod.google.com [10.241.209.149])
-	by hpaq5.eem.corp.google.com with ESMTP id oAU00WsD015754
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:01:20 -0800
-Received: by pvc21 with SMTP id 21so1102563pvc.31
-        for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:01:20 -0800 (PST)
-Date: Mon, 29 Nov 2010 16:01:18 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id F077C6B0085
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 19:02:48 -0500 (EST)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id oAU02iFk008131
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:02:45 -0800
+Received: from pvd12 (pvd12.prod.google.com [10.241.209.204])
+	by kpbe17.cbf.corp.google.com with ESMTP id oAU024h2013612
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:02:43 -0800
+Received: by pvd12 with SMTP id 12so928861pvd.34
+        for <linux-mm@kvack.org>; Mon, 29 Nov 2010 16:02:43 -0800 (PST)
+Date: Mon, 29 Nov 2010 16:02:40 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [2/8, v5] NUMA Hotplug Emulator: Add node hotplug emulation
-In-Reply-To: <20101129091935.703824659@intel.com>
-Message-ID: <alpine.DEB.2.00.1011291600020.21653@chino.kir.corp.google.com>
-References: <20101129091750.950277284@intel.com> <20101129091935.703824659@intel.com>
+Subject: Re: [8/8, v5] NUMA Hotplug Emulator: documentation
+In-Reply-To: <20101129091936.322099405@intel.com>
+Message-ID: <alpine.DEB.2.00.1011291602190.21653@chino.kir.corp.google.com>
+References: <20101129091750.950277284@intel.com> <20101129091936.322099405@intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,28 +25,12 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, 29 Nov 2010, shaohui.zheng@intel.com wrote:
 
-> From: David Rientjes <rientjes@google.com>
-> 
-> Add an interface to allow new nodes to be added when performing memory
-> hot-add.  This provides a convenient interface to test memory hotplug
-> notifier callbacks and surrounding hotplug code when new nodes are
-> onlined without actually having a machine with such hotpluggable SRAT
-> entries.
-> 
-> This adds a new debugfs interface at /sys/kernel/debug/hotplug/add_node
-> that behaves in a similar way to the memory hot-add "probe" interface.
-> Its format is size@start, where "size" is the size of the new node to be
-> added and "start" is the physical address of the new memory.
+> +- Haicheng Li <haicheng.li@intel.com>
+> +- Shaohui Zheng <shaohui.zheng@intel.com>
+> +  Nov 2010
 > 
 
-Looks like you've changed some of the references in my changlog to 
-node/add_node, but not others, such as the above.  I'd actually much 
-rather prefer to take Greg's latest suggestion of doing 
-s/hotplug/mem_hotplug instead.
-
-Would it be possible to repost the patch with that change?
-
-Thanks!
+Didn't I write half of this document?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
