@@ -1,93 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7C7866B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 06:07:24 -0500 (EST)
-Received: by fxm13 with SMTP id 13so3371748fxm.14
-        for <linux-mm@kvack.org>; Tue, 30 Nov 2010 03:07:22 -0800 (PST)
-Message-ID: <4CF4DAE7.1040107@monstr.eu>
-Date: Tue, 30 Nov 2010 12:07:19 +0100
-From: Michal Simek <monstr@monstr.eu>
-Reply-To: monstr@monstr.eu
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 41D346B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 06:19:32 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAUBJTpF014755
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 30 Nov 2010 20:19:29 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AE6F45DE56
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 20:19:29 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4484445DE53
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 20:19:29 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3880D1DB8048
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 20:19:29 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0557B1DB8047
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 20:19:29 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: Free memory never fully used, swapping
+In-Reply-To: <20101130104136.GK13268@csn.ul.ie>
+References: <20101130152002.8307.A69D9226@jp.fujitsu.com> <20101130104136.GK13268@csn.ul.ie>
+Message-Id: <20101130201821.8319.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: Flushing whole page instead of exact address for ptrace
-References: <4CEFA8AE.2090804@petalogix.com>
-In-Reply-To: <4CEFA8AE.2090804@petalogix.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 30 Nov 2010 20:19:28 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: michal.simek@petalogix.com
-Cc: Oleg Nesterov <oleg@redhat.com>, Roland McGrath <roland@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, John Williams <john.williams@petalogix.com>, "Edgar E. Iglesias" <edgar.iglesias@gmail.com>, Arnd Bergmann <arnd@arndb.de>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Simon Kirby <sim@hostway.ca>, Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi
 
-Michal Simek wrote:
-> Hi,
+> > > > >  out:
+> > > > > -	if (!all_zones_ok) {
+> > > > > +	if (!(all_zones_ok || (order && any_zone_ok))) {
+> > > > 
+> > > > This doesn't work ;)
+> > > > kswapd have to clear ZONE_CONGESTED flag before enter sleeping.
+> > > > otherwise nobody can clear it.
+> > > > 
+> > > 
+> > > Does it not do it earlier in balance_pgdat() here
+> > > 
+> > >                                 /*
+> > >                                  * If a zone reaches its high watermark,
+> > >                                  * consider it to be no longer congested. It's
+> > >                                  * possible there are dirty pages backed by
+> > >                                  * congested BDIs but as pressure is
+> > >                                  * relieved, spectulatively avoid congestion waits
+> > >                                  */
+> > >                                 zone_clear_flag(zone, ZONE_CONGESTED);
+> > >                                 if (i <= pgdat->high_zoneidx)
+> > >                                         any_zone_ok = 1;
+> > 
+> > zone_clear_flag(zone, ZONE_CONGESTED) only clear one zone status. other
+> > zone remain old status.
+> > 
 > 
-> I have found one problem when I debug multithread application on 
-> Microblaze. Let me describe what I discovered.
-> 
-> GDB has internal timeout which is setup to value 3. Which should mean if 
-> GDB sends packet and doesn't receive answer for it then after 3 internal 
-> timeouts GDB announces "Ignoring packet error, continuing..." and then 
-> fail. (communication is done over TCP).
-> 
-> In any older version we could debug multithread application that's why
-> I bisected all new patches which I have added to the kernel and I 
-> identify that the problem is caused by my patch.
-> 
-> microblaze: Implement flush_dcache_page macro
-> sha1(79e87830faf22ca636b1a1d8f4deb430ea6e1c8b)
-> 
-> I had to implemented flush_dcache_page macro for new systems with 
-> write-back(WB) cache which is important for several components (for 
-> example jffs2 rootfs) to get it work on WB.
-> BTW: For systems with write-through(WT) caches I don't need to implement 
-> this macro because flushing is done automatically.
-> 
-> Then I replaced macro on WT by udelay loop to find out if the problem is 
-> time dependent. I tested it on two hw designs(on the same HZ and cache 
-> size) with two different network IPs/drivers (one with DMA and second 
-> without) and I found that system with dma network driver can spend more 
-> time on dcache flushing before GDB timeout happens because TCP 
-> communication is faster. Which means that the problem also depends on 
-> cpu speed and cache configuration - size, cache line length.
-> 
-> Then I traced kernel part and I was focused why this macro is causing 
-> this problem.
-> 
-> GDB sends symbol-lookup command (qSymbol) and I see a lot of kernel 
-> ptrace PEEKTEXT requests. I parse it and here is calling sequence.
-> 
-> (kernel/ptrace.c) sys_ptrace -> 
-> (arch/microblaze/kernel/ptrace.c)arch_ptrace -> 
-> (kernel/ptrace.c)ptrace_request -> generic_ptrace_peek/poke data/text -> 
-> (mm/memory.c) access_process_vm -> get_user_pages -> __get_user_pages -> 
-> flush_dcache_page
-> 
-> Function access_process_vm calls __get_user_pages which doesn't work 
-> with buffer len (which is for PEEK/POKE TEXT/DATA just 32 bit - for 
-> 32bit Microblaze) but only with start and PAGE size. There is also 
-> called flush_dcache_page macro which takes more time than in past, 
-> because was empty. Macro flushes whole page but it is necessary, for 
-> this case, just flush one address if is called from ptrace.
-> 
-> What is the best way how to ensure that there will be flush only address 
-> instead of whole page for ptrace requests?
-> I think that there shouldn't be a reason to flush whole page for ptraces.
-> 
-> Please correct me if I am wrong somewhere.
+> Ah now I get you. kswapd does not necessarily balance all zones so it needs
+> to unconditionally clear them all before it goes to sleep in case. At
+> some time in the future, the tagging of ZONE_CONGESTED needs more
+> thinking about.
+>
 
-Any suggestions?
-Michal
+This is a option.
 
 
+> > > > Say, we have to fill below condition.
+> > > >  - All zone are successing zone_watermark_ok(order-0)
+> > > 
+> > > We should loop around at least once with order == 0 where all_zones_ok
+> > > is checked.
+> > 
+> > But no gurantee. IOW kswapd early stopping increase GFP_ATOMIC allocation
+> > failure risk, I think.
+> > 
+> 
+> Force all zones to be balanced for order-0?
 
--- 
-Michal Simek, Ing. (M.Eng)
-w: www.monstr.eu p: +42-0-721842854
-Maintainer of Linux kernel 2.6 Microblaze Linux - http://www.monstr.eu/fdt/
-Microblaze U-BOOT custodian
+Yes.
+
+I think following change does.
+
+	if (i <= pgdat->high_zoneidx)
+- 		 any_zone_ok = 1;
++		order = sc.order = 0;
+
+
+This is more conservative.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
