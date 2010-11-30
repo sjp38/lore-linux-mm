@@ -1,227 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D3DA6B0089
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 12:15:44 -0500 (EST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 1/3] mm: kswapd: Stop high-order balancing when any suitable zone is balanced
-Date: Tue, 30 Nov 2010 17:15:37 +0000
-Message-Id: <1291137339-6323-2-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1291137339-6323-1-git-send-email-mel@csn.ul.ie>
-References: <1291137339-6323-1-git-send-email-mel@csn.ul.ie>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 717716B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 12:45:53 -0500 (EST)
+Message-ID: <4CF5384B.8000203@goop.org>
+Date: Tue, 30 Nov 2010 09:45:47 -0800
+From: Jeremy Fitzhardinge <jeremy@goop.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH RFC] vmalloc: eagerly clear ptes on vunmap
+References: <4CEF6B8B.8080206@goop.org> <20101127103656.GA6884@amd> <4CF40DCB.5010007@goop.org> <20101130124249.GB15778@amd>
+In-Reply-To: <20101130124249.GB15778@amd>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Simon Kirby <sim@hostway.ca>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
+To: Nick Piggin <npiggin@kernel.dk>
+Cc: "Xen-devel@lists.xensource.com" <Xen-devel@lists.xensource.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Trond Myklebust <Trond.Myklebust@netapp.com>, Bryan Schumaker <bjschuma@netapp.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-When the allocator enters its slow path, kswapd is woken up to balance the
-node. It continues working until all zones within the node are balanced. For
-order-0 allocations, this makes perfect sense but for higher orders it can
-have unintended side-effects. If the zone sizes are imbalanced, kswapd
-may reclaim heavily on a smaller zone discarding an excessive number of
-pages. The user-visible behaviour is that kswapd is awake and reclaiming
-even though plenty of pages are free from a suitable zone.
+On 11/30/2010 04:42 AM, Nick Piggin wrote:
+> On Mon, Nov 29, 2010 at 12:32:11PM -0800, Jeremy Fitzhardinge wrote:
+>> When unmapping a region in the vmalloc space, clear the ptes immediately.
+>> There's no point in deferring this because there's no amortization
+>> benefit.
+>>
+>> The TLBs are left dirty, and they are flushed lazily to amortize the
+>> cost of the IPIs.
+>>
+>> This specific motivation for this patch is a regression since 2.6.36 when
+>> using NFS under Xen, triggered by the NFS client's use of vm_map_ram()
+>> introduced in 56e4ebf877b6043c289bda32a5a7385b80c17dee.  XFS also uses
+>> vm_map_ram() and could cause similar problems.
+> I do wonder whether there are cache benefits from batching page table
+> updates, especially the batched per cpu maps
 
-This patch alters the "balance" logic to stop kswapd if any suitable zone
-becomes balanced to reduce the number of pages it reclaims from other zones.
+Perhaps.  But perhaps there are cache benefits in clearing early because
+the ptes are still in cache from when they were set?
+>  (and in your version they
+> get double-cleared as well).
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- include/linux/mmzone.h |    3 ++-
- mm/page_alloc.c        |    2 +-
- mm/vmscan.c            |   48 +++++++++++++++++++++++++++++++++++++++---------
- 3 files changed, 42 insertions(+), 11 deletions(-)
+I thought I'd avoided that.  Oh, right, in both vb_free(), and again -
+eventually - in free_vmap_block->free_unmap_vmap_area_noflush.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 39c24eb..25fe08d 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -645,6 +645,7 @@ typedef struct pglist_data {
- 	wait_queue_head_t kswapd_wait;
- 	struct task_struct *kswapd;
- 	int kswapd_max_order;
-+	enum zone_type high_zoneidx;
- } pg_data_t;
- 
- #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
-@@ -660,7 +661,7 @@ typedef struct pglist_data {
- 
- extern struct mutex zonelists_mutex;
- void build_all_zonelists(void *data);
--void wakeup_kswapd(struct zone *zone, int order);
-+void wakeup_kswapd(struct zone *zone, int order, enum zone_type high_zoneidx);
- int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
- 		int classzone_idx, int alloc_flags);
- enum memmap_context {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 07a6544..344b597 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1921,7 +1921,7 @@ void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
- 	struct zone *zone;
- 
- 	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
--		wakeup_kswapd(zone, order);
-+		wakeup_kswapd(zone, order, high_zoneidx);
+Delta patch below.
+
+>   I think this patch is good, but I think
+> perhaps making it configurable would be nice.
+
+I'd rather not unless there's a strong reason to do so.
+
+It occurs to me that once you remove the lazily mapped ptes, then all
+that code is doing is keeping track of ranges of addresses with dirty
+tlb entries.  But on x86 at least, any kernel tlb flush is a global one,
+so keeping track of fine-grain address information is overkill.  I
+wonder if the overall code can be simplified as a result?
+
+On a more concrete level, vmap_page_range_noflush() and
+vunmap_page_range() could be implemented with apply_to_page_range()
+which removes a chunk of boilerplate code (however, it would result in a
+callback per pte rather than one per pte page - but I'll fix that now).
+
+> So... main question, does it allow Xen to use lazy flushing and avoid
+> vm_unmap_aliases() calls?
+
+Yes, it seems to.
+
+Thanks,
+    J
+
+Subject: [PATCH] vmalloc: avoid double-unmapping percpu blocks
+
+The area has always been unmapped by the time free_vmap_block() is
+called, so there's no need to unmap it again.
+
+Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 9551316..ade3302 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -520,13 +520,12 @@ static void purge_vmap_area_lazy(void)
  }
  
- static inline int
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d31d7ce..67e4283 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2165,11 +2165,14 @@ static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
-  * interoperates with the page allocator fallback scheme to ensure that aging
-  * of pages is balanced across the zones.
-  */
--static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
-+static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
-+							int high_zoneidx)
- {
- 	int all_zones_ok;
-+	int any_zone_ok;
- 	int priority;
- 	int i;
-+	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
- 	unsigned long total_scanned;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	struct scan_control sc = {
-@@ -2192,7 +2195,6 @@ loop_again:
- 	count_vm_event(PAGEOUTRUN);
- 
- 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
--		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
- 		unsigned long lru_pages = 0;
- 		int has_under_min_watermark_zone = 0;
- 
-@@ -2201,6 +2203,7 @@ loop_again:
- 			disable_swap_token();
- 
- 		all_zones_ok = 1;
-+		any_zone_ok = 0;
- 
- 		/*
- 		 * Scan in the highmem->dma direction for the highest
-@@ -2310,10 +2313,12 @@ loop_again:
- 				 * spectulatively avoid congestion waits
- 				 */
- 				zone_clear_flag(zone, ZONE_CONGESTED);
-+				if (i <= high_zoneidx)
-+					any_zone_ok = 1;
- 			}
- 
- 		}
--		if (all_zones_ok)
-+		if (all_zones_ok || (order && any_zone_ok))
- 			break;		/* kswapd: all done */
- 		/*
- 		 * OK, kswapd is getting into trouble.  Take a nap, then take
-@@ -2336,7 +2341,7 @@ loop_again:
- 			break;
- 	}
- out:
--	if (!all_zones_ok) {
-+	if (!(all_zones_ok || (order && any_zone_ok))) {
- 		cond_resched();
- 
- 		try_to_freeze();
-@@ -2361,6 +2366,22 @@ out:
- 		goto loop_again;
- 	}
- 
-+	/* kswapd should always balance all zones for order-0 */
-+	if (order && !all_zones_ok) {
-+		order = sc.order = 0;
-+		goto loop_again;
-+	}
-+
-+	/*
-+	 * As kswapd could be going to sleep, unconditionally mark all
-+	 * zones as uncongested as kswapd is the only mechanism which
-+	 * clears congestion flags
-+	 */
-+	for (i = 0; i <= end_zone; i++) {
-+		struct zone *zone = pgdat->node_zones + i;
-+		zone_clear_flag(zone, ZONE_CONGESTED);
-+	}
-+
- 	return sc.nr_reclaimed;
- }
- 
-@@ -2380,6 +2401,7 @@ out:
- static int kswapd(void *p)
- {
- 	unsigned long order;
-+	int zone_highidx;
- 	pg_data_t *pgdat = (pg_data_t*)p;
- 	struct task_struct *tsk = current;
- 	DEFINE_WAIT(wait);
-@@ -2410,19 +2432,24 @@ static int kswapd(void *p)
- 	set_freezable();
- 
- 	order = 0;
-+	zone_highidx = MAX_NR_ZONES;
- 	for ( ; ; ) {
- 		unsigned long new_order;
-+		int new_zone_highidx;
- 		int ret;
- 
- 		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
- 		new_order = pgdat->kswapd_max_order;
-+		new_zone_highidx = pgdat->high_zoneidx;
- 		pgdat->kswapd_max_order = 0;
--		if (order < new_order) {
-+		pgdat->high_zoneidx = MAX_NR_ZONES;
-+		if (order < new_order || new_zone_highidx < zone_highidx) {
- 			/*
- 			 * Don't sleep if someone wants a larger 'order'
--			 * allocation
-+			 * allocation or an order at a higher zone
- 			 */
- 			order = new_order;
-+			zone_highidx = new_zone_highidx;
- 		} else {
- 			if (!freezing(current) && !kthread_should_stop()) {
- 				long remaining = 0;
-@@ -2451,6 +2478,7 @@ static int kswapd(void *p)
- 			}
- 
- 			order = pgdat->kswapd_max_order;
-+			zone_highidx = pgdat->high_zoneidx;
- 		}
- 		finish_wait(&pgdat->kswapd_wait, &wait);
- 
-@@ -2464,7 +2492,7 @@ static int kswapd(void *p)
- 		 */
- 		if (!ret) {
- 			trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
--			balance_pgdat(pgdat, order);
-+			balance_pgdat(pgdat, order, zone_highidx);
- 		}
- 	}
- 	return 0;
-@@ -2473,7 +2501,7 @@ static int kswapd(void *p)
  /*
-  * A zone is low on free memory, so wake its kswapd task to service it.
+- * Free and unmap a vmap area, caller ensuring flush_cache_vunmap had been
+- * called for the correct range previously.
++ * Free a vmap area, caller ensuring that the area has been unmapped
++ * and flush_cache_vunmap had been called for the correct range
++ * previously.
   */
--void wakeup_kswapd(struct zone *zone, int order)
-+void wakeup_kswapd(struct zone *zone, int order, enum zone_type high_zoneidx)
+-static void free_unmap_vmap_area_noflush(struct vmap_area *va)
++static void free_vmap_area_noflush(struct vmap_area *va)
  {
- 	pg_data_t *pgdat;
+-	unmap_vmap_area(va);
+-
+ 	va->flags |= VM_LAZY_FREE;
+ 	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
+ 	if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
+@@ -534,6 +533,16 @@ static void free_unmap_vmap_area_noflush(struct vmap_area *va)
+ }
  
-@@ -2483,8 +2511,10 @@ void wakeup_kswapd(struct zone *zone, int order)
- 	pgdat = zone->zone_pgdat;
- 	if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0, 0))
- 		return;
--	if (pgdat->kswapd_max_order < order)
-+	if (pgdat->kswapd_max_order < order) {
- 		pgdat->kswapd_max_order = order;
-+		pgdat->high_zoneidx = min(pgdat->high_zoneidx, high_zoneidx);
-+	}
- 	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
- 	if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
- 		return;
--- 
-1.7.1
+ /*
++ * Free and unmap a vmap area, caller ensuring flush_cache_vunmap had been
++ * called for the correct range previously.
++ */
++static void free_unmap_vmap_area_noflush(struct vmap_area *va)
++{
++	unmap_vmap_area(va);
++	free_vmap_area_noflush(va);
++}
++
++/*
+  * Free and unmap a vmap area
+  */
+ static void free_unmap_vmap_area(struct vmap_area *va)
+@@ -709,7 +718,7 @@ static void free_vmap_block(struct vmap_block *vb)
+ 	spin_unlock(&vmap_block_tree_lock);
+ 	BUG_ON(tmp != vb);
+ 
+-	free_unmap_vmap_area_noflush(vb->va);
++	free_vmap_area_noflush(vb->va);
+ 	call_rcu(&vb->rcu_head, rcu_free_vb);
+ }
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
