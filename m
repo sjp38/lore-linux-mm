@@ -1,60 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CC5E56B004A
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 21:45:20 -0500 (EST)
-Date: Tue, 30 Nov 2010 09:22:05 +0800
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6024C6B004A
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 21:54:36 -0500 (EST)
+Date: Tue, 30 Nov 2010 09:31:21 +0800
 From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [2/8, v5] NUMA Hotplug Emulator: Add node hotplug emulation
-Message-ID: <20101130012205.GB3021@shaohui>
+Subject: Re: [8/8, v5] NUMA Hotplug Emulator: documentation
+Message-ID: <20101130013121.GC3021@shaohui>
 References: <20101129091750.950277284@intel.com>
- <20101129091935.703824659@intel.com>
- <alpine.DEB.2.00.1011291600020.21653@chino.kir.corp.google.com>
+ <20101129091936.322099405@intel.com>
+ <14037.1291054756@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1011291600020.21653@chino.kir.corp.google.com>
+In-Reply-To: <14037.1291054756@localhost>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>
+To: Valdis.Kletnieks@vt.edu
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 29, 2010 at 04:01:18PM -0800, David Rientjes wrote:
-> On Mon, 29 Nov 2010, shaohui.zheng@intel.com wrote:
-> 
-> > From: David Rientjes <rientjes@google.com>
+On Mon, Nov 29, 2010 at 01:19:16PM -0500, Valdis.Kletnieks@vt.edu wrote:
+> On Mon, 29 Nov 2010 17:17:58 +0800, shaohui.zheng@intel.com said:
+> > From: Shaohui Zheng <shaohui.zheng@intel.com>
 > > 
-> > Add an interface to allow new nodes to be added when performing memory
-> > hot-add.  This provides a convenient interface to test memory hotplug
-> > notifier callbacks and surrounding hotplug code when new nodes are
-> > onlined without actually having a machine with such hotpluggable SRAT
-> > entries.
-> > 
-> > This adds a new debugfs interface at /sys/kernel/debug/hotplug/add_node
-> > that behaves in a similar way to the memory hot-add "probe" interface.
-> > Its format is size@start, where "size" is the size of the new node to be
-> > added and "start" is the physical address of the new memory.
-> > 
+> > add a text file Documentation/x86/x86_64/numa_hotplug_emulator.txt
+> > to explain the usage for the hotplug emulator.
 > 
-> Looks like you've changed some of the references in my changlog to 
-> node/add_node, but not others, such as the above.  I'd actually much 
-> rather prefer to take Greg's latest suggestion of doing 
-> s/hotplug/mem_hotplug instead.
+> Can you renumber this to 1/8 if you resubmit it?  It helps code review if you
+> already know what it's *intended* to do beforehand.  It also helps drinking
+> from the lkml firehose if you can read 0/N and 1/N and know if it's something
+> you want to review, otherwise you read 0/N, have to go find N/N, read that,
+> then go back and delete 1/N through N-1/N.
 > 
-> Would it be possible to repost the patch with that change?
-> 
-> Thanks!
+> (Sometimes, the 0/N cover isn't enough - reading the documentation actually
+> fills in enough blanks to make you go "Wow, this *is* applicable to something
+> I'm working on...")
 
-We have two memory hotplug interfaces here:
-add_node: add a new NUMA node
-probe: add memory section
+When I send the previous version, I always add the full documentation in 0/N 
+patches. The feedbacks, suggestions, and modifications are all included in 0/N 
+patch. it makes it as a very long text, so I decide to remove the full documentation
+from 0/N since we already send these docs in early version, it get the 0/N patch
+ much smaller.
 
-so puting add_node to node/add_node and puting probe to memory/probe should make sense. 
-it is similar with sysfs hierarchy.
+I will still keep the full documentation in 0/N, and renumber 8/8 to 1/8. Thanks
+ for the remind.
 
-if we want to move the add_node to mem_hotplug/add_node, I'd prefer to put the probe
-interface to mem_hotplug/probe since they are also related to memory hotplug.
-
-I will include this change in next patchset.
 
 -- 
 Thanks & Regards,
