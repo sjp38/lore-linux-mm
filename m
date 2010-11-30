@@ -1,78 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B3C5A6B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 15:08:25 -0500 (EST)
-Date: Tue, 30 Nov 2010 21:01:52 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH 4/4] exec: unexport acct_arg_size() and get_arg_page()
-Message-ID: <20101130200152.GH11905@redhat.com>
-References: <20101125140253.GA29371@redhat.com> <20101125193659.GA14510@redhat.com> <20101129093803.829F.A69D9226@jp.fujitsu.com> <20101129113357.GA30657@redhat.com> <20101129182332.GA21470@redhat.com> <20101130195456.GA11905@redhat.com> <20101130200016.GD11905@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 215906B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 15:10:46 -0500 (EST)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id oAUKAOcb029097
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 12:10:25 -0800
+Received: from pwi10 (pwi10.prod.google.com [10.241.219.10])
+	by kpbe17.cbf.corp.google.com with ESMTP id oAUKABch008029
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 12:10:18 -0800
+Received: by pwi10 with SMTP id 10so1195553pwi.13
+        for <linux-mm@kvack.org>; Tue, 30 Nov 2010 12:10:11 -0800 (PST)
+Date: Tue, 30 Nov 2010 12:10:09 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [2/8, v5] NUMA Hotplug Emulator: Add node hotplug emulation
+In-Reply-To: <20101130012205.GB3021@shaohui>
+Message-ID: <alpine.DEB.2.00.1011301208060.12979@chino.kir.corp.google.com>
+References: <20101129091750.950277284@intel.com> <20101129091935.703824659@intel.com> <alpine.DEB.2.00.1011291600020.21653@chino.kir.corp.google.com> <20101130012205.GB3021@shaohui>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101130200016.GD11905@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>
+To: Shaohui Zheng <shaohui.zheng@intel.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Unexport acct_arg_size() and get_arg_page(), fs/compat.c doesn't
-need them any longer.
+On Tue, 30 Nov 2010, Shaohui Zheng wrote:
 
-Signed-off-by: Oleg Nesterov <oleg@redhat.com>
----
+> We have two memory hotplug interfaces here:
+> add_node: add a new NUMA node
+> probe: add memory section
+> 
+> so puting add_node to node/add_node and puting probe to memory/probe should make sense. 
+> it is similar with sysfs hierarchy.
+> 
+> if we want to move the add_node to mem_hotplug/add_node, I'd prefer to put the probe
+> interface to mem_hotplug/probe since they are also related to memory hotplug.
+> 
+> I will include this change in next patchset.
+> 
 
- include/linux/binfmts.h |    4 ----
- fs/exec.c               |    8 ++++----
- 2 files changed, 4 insertions(+), 8 deletions(-)
-
---- K/include/linux/binfmts.h~4_unexport_arg_helpers	2010-11-30 18:30:45.000000000 +0100
-+++ K/include/linux/binfmts.h	2010-11-30 20:38:13.000000000 +0100
-@@ -60,10 +60,6 @@ struct linux_binprm{
- 	unsigned long loader, exec;
- };
- 
--extern void acct_arg_size(struct linux_binprm *bprm, unsigned long pages);
--extern struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
--					int write);
--
- #define BINPRM_FLAGS_ENFORCE_NONDUMP_BIT 0
- #define BINPRM_FLAGS_ENFORCE_NONDUMP (1 << BINPRM_FLAGS_ENFORCE_NONDUMP_BIT)
- 
---- K/fs/exec.c~4_unexport_arg_helpers	2010-11-30 20:15:11.000000000 +0100
-+++ K/fs/exec.c	2010-11-30 20:38:13.000000000 +0100
-@@ -165,7 +165,7 @@ out:
- 
- #ifdef CONFIG_MMU
- 
--void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
-+static void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
- {
- 	struct mm_struct *mm = current->mm;
- 	long diff = (long)(pages - bprm->vma_pages);
-@@ -184,7 +184,7 @@ void acct_arg_size(struct linux_binprm *
- #endif
- }
- 
--struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
-+static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
- 		int write)
- {
- 	struct page *page;
-@@ -298,11 +298,11 @@ static bool valid_arg_len(struct linux_b
- 
- #else
- 
--void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
-+static inline void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
- {
- }
- 
--struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
-+static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
- 		int write)
- {
- 	struct page *page;
+No, please don't move the 'probe' trigger to debugfs; hotadding memory 
+should not depend on CONFIG_DEBUG_FS.  Node hotplug emulation _is_ a 
+debugging function and can therefore be defined in debugfs as I did but 
+with a s/hotplug/mem_hotplug change that Greg suggested.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
