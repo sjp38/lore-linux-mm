@@ -1,64 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 28CA36B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 13:35:03 -0500 (EST)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id oAUIYwZh022690
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:34:58 -0800
-Received: from pxi19 (pxi19.prod.google.com [10.243.27.19])
-	by wpaz5.hot.corp.google.com with ESMTP id oAUIYccr024016
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:34:57 -0800
-Received: by pxi19 with SMTP id 19so1166307pxi.29
-        for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:34:57 -0800 (PST)
-Date: Tue, 30 Nov 2010 10:34:41 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v3 3/3] Prevent activation of page in madvise_dontneed
-In-Reply-To: <a0f2905bb64ce33909d7dd74146bfea826fec21a.1291043274.git.minchan.kim@gmail.com>
-Message-ID: <alpine.LSU.2.00.1011301025010.7450@tigran.mtv.corp.google.com>
-References: <cover.1291043273.git.minchan.kim@gmail.com> <a0f2905bb64ce33909d7dd74146bfea826fec21a.1291043274.git.minchan.kim@gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id B4DF56B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 14:02:59 -0500 (EST)
+Date: Tue, 30 Nov 2010 20:01:59 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 53 of 66] add numa awareness to hugepage allocations
+Message-ID: <20101130190159.GJ30389@random.random>
+References: <patchbomb.1288798055@v2.random>
+ <223ee926614158fc1353.1288798108@v2.random>
+ <20101129143801.abef5228.nishimura@mxp.nes.nec.co.jp>
+ <20101129161103.GE24474@random.random>
+ <20101130093804.23f8c355.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101130093804.23f8c355.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ben Gamari <bgamari.foss@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Nov 2010, Minchan Kim wrote:
+On Tue, Nov 30, 2010 at 09:38:04AM +0900, Daisuke Nishimura wrote:
+> I'm sorry if I miss something, "new_page" will be reused in !CONFIG_NUMA case
+> as you say, but, in CONFIG_NUMA case, it is allocated in this function
+> (collapse_huge_page()) by alloc_hugepage_vma(), and is not freed when memcg's
+> charge failed.
+> Actually, we do in collapse_huge_page():
+> 	if (unlikely(!isolated)) {
+> 		...
+> #ifdef CONFIG_NUMA
+> 		put_page(new_page);
+> #endif
+> 		goto out;
+> 	}
+> later. I think we need a similar logic in memcg's failure path too.
 
-> Now zap_pte_range alwayas activates pages which are pte_young &&
-> !VM_SequentialReadHint(vma). But in case of calling MADV_DONTNEED,
-> it's unnecessary since the page wouldn't use any more.
-> 
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Nick Piggin <npiggin@kernel.dk>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
-> 
-> Changelog since v2:
->  - remove unnecessary description
-> Changelog since v1: 
->  - change word from promote to activate
->  - add activate argument to zap_pte_range and family function
-> 
-> ---
->  include/linux/mm.h |    4 ++--
->  mm/madvise.c       |    4 ++--
->  mm/memory.c        |   38 +++++++++++++++++++++++---------------
->  mm/mmap.c          |    4 ++--
->  4 files changed, 29 insertions(+), 21 deletions(-)
+Apologies, you really found a minor memleak in case of memcg
+accounting failure.
 
-Everyone else seems pretty happy with this, and I've not checked
-at all whether it achieves your purpose; but personally I'd much
-prefer a smaller patch which adds your "activate" or "ignore_references"
-flag to struct zap_details, instead of passing this exceptional arg
-down lots of levels.  That's precisely the purpose of zap_details,
-to gather together a few things that aren't needed in the common case
-(though I admit the NULL details defaulting may be ugly).
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1726,7 +1726,7 @@ static void collapse_huge_page(struct mm
+ 	}
+ #endif
+ 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL)))
+-		goto out;
++		goto out_put_page;
+ 
+ 	anon_vma_lock(vma->anon_vma);
+ 
+@@ -1755,10 +1755,7 @@ static void collapse_huge_page(struct mm
+ 		spin_unlock(&mm->page_table_lock);
+ 		anon_vma_unlock(vma->anon_vma);
+ 		mem_cgroup_uncharge_page(new_page);
+-#ifdef CONFIG_NUMA
+-		put_page(new_page);
+-#endif
+-		goto out;
++		goto out_put_page;
+ 	}
+ 
+ 	/*
+@@ -1799,6 +1796,13 @@ static void collapse_huge_page(struct mm
+ 	khugepaged_pages_collapsed++;
+ out:
+ 	up_write(&mm->mmap_sem);
++	return;
++
++out_put_page:
++#ifdef CONFIG_NUMA
++	put_page(new_page);
++#endif
++	goto out;
+ }
+ 
+ static int khugepaged_scan_pmd(struct mm_struct *mm,
 
-Hugh
+
+
+I was too optimistic that there wasn't really a bug, I thought it was
+some confusion about the hpage usage that differs with numa and not
+numa.
+
+On a side note, the CONFIG_NUMA case will later change further to move
+the allocation out of the mmap_sem write mode to make the fs
+submitting I/O from userland and doing memory allocations in the I/O
+paths happier.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
