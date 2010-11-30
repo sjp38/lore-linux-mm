@@ -1,79 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3D9806B0085
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 08:03:48 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAUD3ijT026818
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 30 Nov 2010 22:03:44 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AC77645DE55
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:03:44 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 92C5C45DD74
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:03:44 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 865951DB803A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:03:44 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 517561DB803B
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:03:44 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [resend][PATCH 2/4] Revert "oom: deprecate oom_adj tunable"
-In-Reply-To: <alpine.DEB.2.00.1011271737110.3764@chino.kir.corp.google.com>
-References: <20101123160259.7B9C.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011271737110.3764@chino.kir.corp.google.com>
-Message-Id: <20101130220221.832B.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id A2EFF6B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 09:03:50 -0500 (EST)
+Received: by ywg4 with SMTP id 4so487150ywg.14
+        for <linux-mm@kvack.org>; Tue, 30 Nov 2010 06:03:48 -0800 (PST)
+Date: Tue, 30 Nov 2010 23:03:33 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 2/3] Reclaim invalidated page ASAP
+Message-ID: <20101130140333.GB1528@barrios-desktop>
+References: <cover.1291043273.git.minchan.kim@gmail.com>
+ <053e6a3308160a8992af5a47fb4163796d033b08.1291043274.git.minchan.kim@gmail.com>
+ <20101129165706.GH13268@csn.ul.ie>
+ <20101129224130.GA1989@barrios-desktop>
+ <20101130112041.GC15564@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 30 Nov 2010 22:03:43 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101130112041.GC15564@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ben Gamari <bgamari.foss@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 23 Nov 2010, KOSAKI Motohiro wrote:
+On Tue, Nov 30, 2010 at 12:20:41PM +0100, Johannes Weiner wrote:
+> On Tue, Nov 30, 2010 at 07:41:30AM +0900, Minchan Kim wrote:
 > 
-> > > > No irrelevant. Your patch break their environment even though
-> > > > they don't use oom_adj explicitly. because their application are using it.
-> > > > 
-> > > 
-> > > The _only_ difference too oom_adj since the rewrite is that it is now 
-> > > mapped on a linear scale rather than an exponential scale.  
-> > 
-> > _only_ mean don't ZERO different. Why do userland application need to rewrite?
-> > 
+> > diff --git a/mm/swap.c b/mm/swap.c
+> > index 19e0812..1f1f435 100644
+> > --- a/mm/swap.c
+> > +++ b/mm/swap.c
+> > @@ -275,28 +275,51 @@ void add_page_to_unevictable_list(struct page *page)
+> >   * into inative list's head. Because the VM expects the page would
+> >   * be writeout by flusher. The flusher's writeout is much effective
+> >   * than reclaimer's random writeout.
+> > + *
+> > + * If the page isn't page_mapped and dirty/writeback, the page
+> > + * could reclaim asap using PG_reclaim.
+> > + *
+> > + * 1. active, mapped page -> none
+> > + * 2. active, dirty/writeback page -> inactive, head, PG_reclaim
+> > + * 3. inactive, mapped page -> none
+> > + * 4. inactive, dirty/writeback page -> inactive, head, PG_reclaim
+> > + * 5. Others -> none
+> > + *
+> > + * In 4, why it moves inactive's head, the VM expects the page would
+> > + * be writeout by flusher. The flusher's writeout is much effective than
+> > + * reclaimer's random writeout.
+> >   */
+> >  static void __lru_deactivate(struct page *page, struct zone *zone)
+> >  {
+> >  	int lru, file;
+> > -	unsigned long vm_flags;
+> > +	int active = 0;
 > 
-> Because NOTHING breaks with the new mapping.  Eight months later since 
-> this was initially proposed on linux-mm, you still cannot show a single 
-> example that depended on the exponential mapping of oom_adj.  I'm not 
-> going to continue responding to your criticism about this point since your 
-> argument is completely and utterly baseless.
+> vm_flags is never used in this series.
 
-No regression mean no break. Not single nor multiple. see?
-
+It's garbage in my old version which is used page_referenced.
 
 > 
-> > Again, IF you need to [0 .. 1000] range, you can calculate it by your
-> > application. current oom score can be get from /proc/pid/oom_score and
-> > total memory can be get from /proc/meminfo. You shouldn't have break
-> > anything.
-> > 
+> > -	if (!PageLRU(page) || !PageActive(page))
+> > +	if (!PageLRU(page))
+> >  		return;
+> > -
+> >  	/* Some processes are using the page */
+> >  	if (page_mapped(page))
+> >  		return;
+> > -
+> > -	file = page_is_file_cache(page);
+> > -	lru = page_lru_base_type(page);
+> > -	del_page_from_lru_list(zone, page, lru + LRU_ACTIVE);
+> > -	ClearPageActive(page);
+> > -	ClearPageReferenced(page);
+> > -	add_page_to_lru_list(zone, page, lru);
+> > -	__count_vm_event(PGDEACTIVATE);
+> > -
+> > -	update_page_reclaim_stat(zone, page, file, 0);
+> > +	if (PageActive(page))
+> > +		active = 1;
 > 
-> That would require the userspace tunable to be adjusted anytime a task's 
-> mempolicy changes, its nodemask changes, it's cpuset attachment changes, 
+> 	active = PageActive(page)
 
-All situation can be calculated on userland. User process can be know
-their bindings.
+Will fix. 
 
+> 
+> > +	if (PageWriteback(page) || PageDirty(page)) {
+> > +		/*
+> > +		 * PG_reclaim could be raced with end_page_writeback
+> > +		 * It can make readahead confusing.  But race window
+> > +		 * is _really_ small and  it's non-critical problem.
+> > +		 */
+> > +		SetPageReclaim(page);
+> > +
+> > +		file = page_is_file_cache(page);
+> > +		lru = page_lru_base_type(page);
+> > +		del_page_from_lru_list(zone, page, lru + active);
+> > +		ClearPageActive(page);
+> > +		ClearPageReferenced(page);
+> > +		add_page_to_lru_list(zone, page, lru);
+> > +		if (active)
+> > +			__count_vm_event(PGDEACTIVATE);
+> > +		update_page_reclaim_stat(zone, page, file, 0);
+> > +	}
+> 
+> If we lose the race with writeback, the completion handler won't see
+> PG_reclaim, won't move the page, and we have an unwanted clean cache
+> page on the active list.  Given the pagevec caching of those pages it
+> could be rather likely that IO completes before the above executes.
+> 
+> Shouldn't this be
+> 
+> 	if (PageWriteback() || PageDirty()) {
+> 		SetPageReclaim()
+> 		move_to_inactive_head()
+> 	} else {
+> 		move_to_inactive_tail()
+> 	}
+> 
+> instead?
 
+Fair enough.
 
-> its mems change, a memcg limit changes, etc.  The only constant is the 
-> task's priority, and the current oom_score_adj implementation preserves 
-> that unless explicitly changed later by the user.  I completely understand 
-> that you may not have a use for this.
+Thanks, Hannes.
+> 
+> 	Hannes
 
-
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
