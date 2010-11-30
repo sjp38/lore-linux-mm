@@ -1,56 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 554EE6B004A
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 19:48:09 -0500 (EST)
-Date: Tue, 30 Nov 2010 09:38:04 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH 53 of 66] add numa awareness to hugepage allocations
-Message-Id: <20101130093804.23f8c355.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20101129161103.GE24474@random.random>
-References: <patchbomb.1288798055@v2.random>
-	<223ee926614158fc1353.1288798108@v2.random>
-	<20101129143801.abef5228.nishimura@mxp.nes.nec.co.jp>
-	<20101129161103.GE24474@random.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 930816B004A
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 20:01:40 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAU11b0Z008598
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 30 Nov 2010 10:01:38 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FDBD45DE4F
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:01:37 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 340B445DE52
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:01:37 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F9641DB8060
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:01:37 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8ADF21DB803F
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:01:36 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH v3 1/3] deactivate invalidated pages
+In-Reply-To: <6e01d81a4b575dcaaacc6b3782c505103e024085.1291043274.git.minchan.kim@gmail.com>
+References: <cover.1291043273.git.minchan.kim@gmail.com> <6e01d81a4b575dcaaacc6b3782c505103e024085.1291043274.git.minchan.kim@gmail.com>
+Message-Id: <20101130100134.82E3.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 30 Nov 2010 10:01:35 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ben Gamari <bgamari.foss@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Nov 2010 17:11:03 +0100
-Andrea Arcangeli <aarcange@redhat.com> wrote:
-
-> On Mon, Nov 29, 2010 at 02:38:01PM +0900, Daisuke Nishimura wrote:
-> > I think this should be:
-> > 
-> > 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
-> > #ifdef CONFIG_NUMA
-> > 		put_page(new_page);
-> > #endif
-> > 		goto out;
-> > 	}
+> Recently, there are reported problem about thrashing.
+> (http://marc.info/?l=rsync&m=128885034930933&w=2)
+> It happens by backup workloads(ex, nightly rsync).
+> That's because the workload makes just use-once pages
+> and touches pages twice. It promotes the page into
+> active list so that it results in working set page eviction.
 > 
-> Hmm no, the change you suggest would generate memory corruption with
-> use after free.
+> Some app developer want to support POSIX_FADV_NOREUSE.
+> But other OSes don't support it, either.
+> (http://marc.info/?l=linux-mm&m=128928979512086&w=2)
+> 
+> By other approach, app developers use POSIX_FADV_DONTNEED.
+> But it has a problem. If kernel meets page is writing
+> during invalidate_mapping_pages, it can't work.
+> It is very hard for application programmer to use it.
+> Because they always have to sync data before calling
+> fadivse(..POSIX_FADV_DONTNEED) to make sure the pages could
+> be discardable. At last, they can't use deferred write of kernel
+> so that they could see performance loss.
+> (http://insights.oetiker.ch/linux/fadvise.html)
+> 
+> In fact, invalidation is very big hint to reclaimer.
+> It means we don't use the page any more. So let's move
+> the writing page into inactive list's head.
+> 
+> Why I need the page to head, Dirty/Writeback page would be flushed
+> sooner or later. It can prevent writeout of pageout which is less
+> effective than flusher's writeout.
+> 
+> Originally, I reused lru_demote of Peter with some change so added
+> his Signed-off-by.
+> 
+> Reported-by: Ben Gamari <bgamari.foss@gmail.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Nick Piggin <npiggin@kernel.dk>
+> Cc: Mel Gorman <mel@csn.ul.ie>
 
-I'm sorry if I miss something, "new_page" will be reused in !CONFIG_NUMA case
-as you say, but, in CONFIG_NUMA case, it is allocated in this function
-(collapse_huge_page()) by alloc_hugepage_vma(), and is not freed when memcg's
-charge failed.
-Actually, we do in collapse_huge_page():
-	if (unlikely(!isolated)) {
-		...
-#ifdef CONFIG_NUMA
-		put_page(new_page);
-#endif
-		goto out;
-	}
-later. I think we need a similar logic in memcg's failure path too.
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Thanks,
-Daisuke Nishimura.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
