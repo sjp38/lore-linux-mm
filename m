@@ -1,91 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 17B7E6B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 07:43:04 -0500 (EST)
-Date: Tue, 30 Nov 2010 23:42:49 +1100
-From: Nick Piggin <npiggin@kernel.dk>
-Subject: Re: [PATCH RFC] vmalloc: eagerly clear ptes on vunmap
-Message-ID: <20101130124249.GB15778@amd>
-References: <4CEF6B8B.8080206@goop.org>
- <20101127103656.GA6884@amd>
- <4CF40DCB.5010007@goop.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E6AF06B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 08:00:52 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAUD0ndT014905
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 30 Nov 2010 22:00:50 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 88F0445DE56
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:00:49 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 720D445DE4D
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:00:49 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 65BC5E08001
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:00:49 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 31F751DB8037
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:00:49 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH v2]mm/oom-kill: direct hardware access processes should get bonus
+In-Reply-To: <alpine.DEB.2.00.1011271733460.3764@chino.kir.corp.google.com>
+References: <20101123154843.7B8D.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1011271733460.3764@chino.kir.corp.google.com>
+Message-Id: <20101130220107.8328.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4CF40DCB.5010007@goop.org>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 30 Nov 2010 22:00:48 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Nick Piggin <npiggin@kernel.dk>, "Xen-devel@lists.xensource.com" <Xen-devel@lists.xensource.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Trond Myklebust <Trond.Myklebust@netapp.com>, Bryan Schumaker <bjschuma@netapp.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, "Figo.zhang" <figo1802@gmail.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 29, 2010 at 12:32:11PM -0800, Jeremy Fitzhardinge wrote:
-> When unmapping a region in the vmalloc space, clear the ptes immediately.
-> There's no point in deferring this because there's no amortization
-> benefit.
+> On Tue, 23 Nov 2010, KOSAKI Motohiro wrote:
 > 
-> The TLBs are left dirty, and they are flushed lazily to amortize the
-> cost of the IPIs.
+> > > > > I think in cases of heuristics like this where we obviously want to give 
+> > > > > some bonus to CAP_SYS_ADMIN that there is consistency with other bonuses 
+> > > > > given elsewhere in the kernel.
+> > > > 
+> > > > Keep comparision apple to apple. vm_enough_memory() account _virtual_ memory.
+> > > > oom-killer try to free _physical_ memory. It's unrelated.
+> > > > 
+> > > 
+> > > It's not unrelated, the LSM function gives an arbitrary 3% bonus to 
+> > > CAP_SYS_ADMIN.  
+> > 
+> > Unrelated. LSM _is_ security module. and It only account virtual memory.
+> > 
 > 
-> This specific motivation for this patch is a regression since 2.6.36 when
-> using NFS under Xen, triggered by the NFS client's use of vm_map_ram()
-> introduced in 56e4ebf877b6043c289bda32a5a7385b80c17dee.  XFS also uses
-> vm_map_ram() and could cause similar problems.
+> I needed a small bias for CAP_SYS_ADMIN tasks so I chose 3% since it's the 
+> same proportion used elsewhere in the kernel and works nicely since the 
+> badness score is now a proportion.  
 
-I do wonder whether there are cache benefits from batching page table
-updates, especially the batched per cpu maps (and in your version they
-get double-cleared as well).  I think this patch is good, but I think
-perhaps making it configurable would be nice.
+Why? Is this important than X?
 
-So... main question, does it allow Xen to use lazy flushing and avoid
-vm_unmap_aliases() calls?
+> If you'd like to propose a different 
+> percentage or suggest removing the bias for root tasks altogether, feel 
+> free to propose a patch.  Thanks!
+
+I only need to revert bad change.
 
 
-> 
-> Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
-> Cc: Nick Piggin <npiggin@kernel.dk>
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index a3d66b3..9960644 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -566,7 +566,6 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
->  			if (va->va_end > *end)
->  				*end = va->va_end;
->  			nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
-> -			unmap_vmap_area(va);
->  			list_add_tail(&va->purge_list, &valist);
->  			va->flags |= VM_LAZY_FREEING;
->  			va->flags &= ~VM_LAZY_FREE;
-> @@ -616,6 +615,8 @@ static void purge_vmap_area_lazy(void)
->   */
->  static void free_unmap_vmap_area_noflush(struct vmap_area *va)
->  {
-> +	unmap_vmap_area(va);
-> +
->  	va->flags |= VM_LAZY_FREE;
->  	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
->  	if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
-> @@ -944,8 +945,10 @@ static void vb_free(const void *addr, unsigned long size)
->  		BUG_ON(vb->free);
->  		spin_unlock(&vb->lock);
->  		free_vmap_block(vb);
-> -	} else
-> +	} else {
->  		spin_unlock(&vb->lock);
-> +		vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
-> +	}
->  }
->  
->  /**
-> @@ -988,7 +991,6 @@ void vm_unmap_aliases(void)
->  
->  				s = vb->va->va_start + (i << PAGE_SHIFT);
->  				e = vb->va->va_start + (j << PAGE_SHIFT);
-> -				vunmap_page_range(s, e);
->  				flush = 1;
->  
->  				if (s < start)
-> 
+Thanks.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
