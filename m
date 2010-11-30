@@ -1,70 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CE3A26B004A
-	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 20:10:25 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAU1ANvh025768
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2E9C06B004A
+	for <linux-mm@kvack.org>; Mon, 29 Nov 2010 20:19:17 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oAU1JDU5029874
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 30 Nov 2010 10:10:23 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1184F45DE4E
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:10:23 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id ED41845DD74
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:10:22 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E000E1DB803A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:10:22 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AD71C1DB8038
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:10:22 +0900 (JST)
+	Tue, 30 Nov 2010 10:19:13 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id ACE0145DE53
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:19:13 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C82445DE59
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:19:13 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BE931DB804F
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:19:13 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 371E41DB804D
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 10:19:13 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/3] Reclaim invalidated page ASAP
-In-Reply-To: <053e6a3308160a8992af5a47fb4163796d033b08.1291043274.git.minchan.kim@gmail.com>
-References: <cover.1291043273.git.minchan.kim@gmail.com> <053e6a3308160a8992af5a47fb4163796d033b08.1291043274.git.minchan.kim@gmail.com>
-Message-Id: <20101130100933.82E9.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 01/21] mm: Revert page_lock_anon_vma() lock annotation
+In-Reply-To: <20101126145410.315243256@chello.nl>
+References: <20101126143843.801484792@chello.nl> <20101126145410.315243256@chello.nl>
+Message-Id: <20101130101931.82EC.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 30 Nov 2010 10:10:20 +0900 (JST)
+Date: Tue, 30 Nov 2010 10:19:11 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ben Gamari <bgamari.foss@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Namhyung Kim <namhyung@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-> invalidate_mapping_pages is very big hint to reclaimer.
-> It means user doesn't want to use the page any more.
-> So in order to prevent working set page eviction, this patch
-> move the page into tail of inactive list by PG_reclaim.
+> Its beyond ugly and gets in the way.
 > 
-> Please, remember that pages in inactive list are working set
-> as well as active list. If we don't move pages into inactive list's
-> tail, pages near by tail of inactive list can be evicted although
-> we have a big clue about useless pages. It's totally bad.
-> 
-> Now PG_readahead/PG_reclaim is shared.
-> fe3cba17 added ClearPageReclaim into clear_page_dirty_for_io for
-> preventing fast reclaiming readahead marker page.
-> 
-> In this series, PG_reclaim is used by invalidated page, too.
-> If VM find the page is invalidated and it's dirty, it sets PG_reclaim
-> to reclaim asap. Then, when the dirty page will be writeback,
-> clear_page_dirty_for_io will clear PG_reclaim unconditionally.
-> It disturbs this serie's goal.
-> 
-> I think it's okay to clear PG_readahead when the page is dirty, not
-> writeback time. So this patch moves ClearPageReadahead.
-> 
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Nick Piggin <npiggin@kernel.dk>
-> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Namhyung Kim <namhyung@gmail.com>
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-I still dislike this one. I doubt this trick makes much benefit in real
-world workload.
++1
+
+/me run away.
+
 
 
 
