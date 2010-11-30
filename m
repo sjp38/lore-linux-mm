@@ -1,198 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 247716B0085
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 05:16:43 -0500 (EST)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp01.in.ibm.com (8.14.4/8.13.1) with ESMTP id oAUAGZ2g023892
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 15:46:35 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oAUAGZ4r3301508
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 15:46:35 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oAUAGZt5023386
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 21:16:35 +1100
-Subject: [PATCH 3/3] Provide control over unmapped pages
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Tue, 30 Nov 2010 15:46:31 +0530
-Message-ID: <20101130101602.17475.32611.stgit@localhost6.localdomain6>
-In-Reply-To: <20101130101126.17475.18729.stgit@localhost6.localdomain6>
-References: <20101130101126.17475.18729.stgit@localhost6.localdomain6>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DD606B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 05:41:55 -0500 (EST)
+Date: Tue, 30 Nov 2010 10:41:36 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: Free memory never fully used, swapping
+Message-ID: <20101130104136.GK13268@csn.ul.ie>
+References: <20101126195118.B6E7.A69D9226@jp.fujitsu.com> <20101126111122.GK26037@csn.ul.ie> <20101130152002.8307.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20101130152002.8307.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kvm <kvm@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Simon Kirby <sim@hostway.ca>, Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Provide control using zone_reclaim() and a boot parameter. The
-code reuses functionality from zone_reclaim() to isolate unmapped
-pages and reclaim them as a priority, ahead of other mapped pages.
+On Tue, Nov 30, 2010 at 03:31:03PM +0900, KOSAKI Motohiro wrote:
+> Hi
+> > On Fri, Nov 26, 2010 at 08:03:04PM +0900, KOSAKI Motohiro wrote:
+> > > Two points.
+> > > 
+> > > > @@ -2310,10 +2324,12 @@ loop_again:
+> > > >  				 * spectulatively avoid congestion waits
+> > > >  				 */
+> > > >  				zone_clear_flag(zone, ZONE_CONGESTED);
+> > > > +				if (i <= pgdat->high_zoneidx)
+> > > > +					any_zone_ok = 1;
+> > > >  			}
+> > > >  
+> > > >  		}
+> > > > -		if (all_zones_ok)
+> > > > +		if (all_zones_ok || (order && any_zone_ok))
+> > > >  			break;		/* kswapd: all done */
+> > > >  		/*
+> > > >  		 * OK, kswapd is getting into trouble.  Take a nap, then take
+> > > > @@ -2336,7 +2352,7 @@ loop_again:
+> > > >  			break;
+> > > >  	}
+> > > >  out:
+> > > > -	if (!all_zones_ok) {
+> > > > +	if (!(all_zones_ok || (order && any_zone_ok))) {
+> > > 
+> > > This doesn't work ;)
+> > > kswapd have to clear ZONE_CONGESTED flag before enter sleeping.
+> > > otherwise nobody can clear it.
+> > > 
+> > 
+> > Does it not do it earlier in balance_pgdat() here
+> > 
+> >                                 /*
+> >                                  * If a zone reaches its high watermark,
+> >                                  * consider it to be no longer congested. It's
+> >                                  * possible there are dirty pages backed by
+> >                                  * congested BDIs but as pressure is
+> >                                  * relieved, spectulatively avoid congestion waits
+> >                                  */
+> >                                 zone_clear_flag(zone, ZONE_CONGESTED);
+> >                                 if (i <= pgdat->high_zoneidx)
+> >                                         any_zone_ok = 1;
+> 
+> zone_clear_flag(zone, ZONE_CONGESTED) only clear one zone status. other
+> zone remain old status.
+> 
 
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
- include/linux/swap.h |    5 ++-
- mm/page_alloc.c      |    7 +++--
- mm/vmscan.c          |   72 +++++++++++++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 79 insertions(+), 5 deletions(-)
+Ah now I get you. kswapd does not necessarily balance all zones so it needs
+to unconditionally clear them all before it goes to sleep in case. At
+some time in the future, the tagging of ZONE_CONGESTED needs more
+thinking about.
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index eba53e7..78b0830 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -252,11 +252,12 @@ extern int vm_swappiness;
- extern int remove_mapping(struct address_space *mapping, struct page *page);
- extern long vm_total_pages;
- 
--#ifdef CONFIG_NUMA
--extern int zone_reclaim_mode;
- extern int sysctl_min_unmapped_ratio;
- extern int sysctl_min_slab_ratio;
- extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
-+extern bool should_balance_unmapped_pages(struct zone *zone);
-+#ifdef CONFIG_NUMA
-+extern int zone_reclaim_mode;
- #else
- #define zone_reclaim_mode 0
- static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 62b7280..4228da3 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1662,6 +1662,9 @@ zonelist_scan:
- 			unsigned long mark;
- 			int ret;
- 
-+			if (should_balance_unmapped_pages(zone))
-+				wakeup_kswapd(zone, order);
-+
- 			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
- 			if (zone_watermark_ok(zone, order, mark,
- 				    classzone_idx, alloc_flags))
-@@ -4136,10 +4139,10 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 
- 		zone->spanned_pages = size;
- 		zone->present_pages = realsize;
--#ifdef CONFIG_NUMA
--		zone->node = nid;
- 		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
- 						/ 100;
-+#ifdef CONFIG_NUMA
-+		zone->node = nid;
- 		zone->min_slab_pages = (realsize * sysctl_min_slab_ratio) / 100;
- #endif
- 		zone->name = zone_names[j];
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 0ac444f..98950f4 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -145,6 +145,21 @@ static DECLARE_RWSEM(shrinker_rwsem);
- #define scanning_global_lru(sc)	(1)
- #endif
- 
-+static unsigned long balance_unmapped_pages(int priority, struct zone *zone,
-+						struct scan_control *sc);
-+static int unmapped_page_control __read_mostly;
-+
-+static int __init unmapped_page_control_parm(char *str)
-+{
-+	unmapped_page_control = 1;
-+	/*
-+	 * XXX: Should we tweak swappiness here?
-+	 */
-+	return 1;
-+}
-+__setup("unmapped_page_control", unmapped_page_control_parm);
-+
-+
- static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
- 						  struct scan_control *sc)
- {
-@@ -2223,6 +2238,12 @@ loop_again:
- 				shrink_active_list(SWAP_CLUSTER_MAX, zone,
- 							&sc, priority, 0);
- 
-+			/*
-+			 * We do unmapped page balancing once here and once
-+			 * below, so that we don't lose out
-+			 */
-+			balance_unmapped_pages(priority, zone, &sc);
-+
- 			if (!zone_watermark_ok_safe(zone, order,
- 					high_wmark_pages(zone), 0, 0)) {
- 				end_zone = i;
-@@ -2258,6 +2279,11 @@ loop_again:
- 				continue;
- 
- 			sc.nr_scanned = 0;
-+			/*
-+			 * Balance unmapped pages upfront, this should be
-+			 * really cheap
-+			 */
-+			balance_unmapped_pages(priority, zone, &sc);
- 
- 			/*
- 			 * Call soft limit reclaim before calling shrink_zone.
-@@ -2491,7 +2517,8 @@ void wakeup_kswapd(struct zone *zone, int order)
- 		pgdat->kswapd_max_order = order;
- 	if (!waitqueue_active(&pgdat->kswapd_wait))
- 		return;
--	if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zone), 0, 0))
-+	if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zone), 0, 0) &&
-+		!should_balance_unmapped_pages(zone))
- 		return;
- 
- 	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
-@@ -2740,6 +2767,49 @@ zone_reclaim_unmapped_pages(struct zone *zone, struct scan_control *sc,
- }
- 
- /*
-+ * Routine to balance unmapped pages, inspired from the code under
-+ * CONFIG_NUMA that does unmapped page and slab page control by keeping
-+ * min_unmapped_pages in the zone. We currently reclaim just unmapped
-+ * pages, slab control will come in soon, at which point this routine
-+ * should be called balance cached pages
-+ */
-+static unsigned long balance_unmapped_pages(int priority, struct zone *zone,
-+						struct scan_control *sc)
-+{
-+	if (unmapped_page_control &&
-+		(zone_unmapped_file_pages(zone) > zone->min_unmapped_pages)) {
-+		struct scan_control nsc;
-+		unsigned long nr_pages;
-+
-+		nsc = *sc;
-+
-+		nsc.swappiness = 0;
-+		nsc.may_writepage = 0;
-+		nsc.may_unmap = 0;
-+		nsc.nr_reclaimed = 0;
-+
-+		nr_pages = zone_unmapped_file_pages(zone) -
-+				zone->min_unmapped_pages;
-+		/* Magically try to reclaim eighth the unmapped cache pages */
-+		nr_pages >>= 3;
-+
-+		zone_reclaim_unmapped_pages(zone, &nsc, nr_pages);
-+		return nsc.nr_reclaimed;
-+	}
-+	return 0;
-+}
-+
-+#define UNMAPPED_PAGE_RATIO 16
-+bool should_balance_unmapped_pages(struct zone *zone)
-+{
-+	if (unmapped_page_control &&
-+		(zone_unmapped_file_pages(zone) >
-+			UNMAPPED_PAGE_RATIO * zone->min_unmapped_pages))
-+		return true;
-+	return false;
-+}
-+
-+/*
-  * Try to free up some pages from this zone through reclaim.
-  */
- static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+> > > Say, we have to fill below condition.
+> > >  - All zone are successing zone_watermark_ok(order-0)
+> > 
+> > We should loop around at least once with order == 0 where all_zones_ok
+> > is checked.
+> 
+> But no gurantee. IOW kswapd early stopping increase GFP_ATOMIC allocation
+> failure risk, I think.
+> 
+
+Force all zones to be balanced for order-0?
+
+> 
+> > >  - At least one zone are successing zone_watermark_ok(high-order)
+> > 
+> > This is preferable but it's possible for kswapd to go to sleep without
+> > this condition being satisified.
+> 
+> Yes.
+> 
+> > 
+> > > 
+> > > 
+> > > > @@ -2417,6 +2439,7 @@ static int kswapd(void *p)
+> > > >  		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+> > > >  		new_order = pgdat->kswapd_max_order;
+> > > >  		pgdat->kswapd_max_order = 0;
+> > > > +		pgdat->high_zoneidx = MAX_ORDER;
+> > > 
+> > > I don't think MAX_ORDER is correct ;)
+> > > 
+> > >         high_zoneidx = pgdat->high_zoneidx;
+> > >         pgdat->high_zoneidx = pgdat->nr_zones - 1;
+> > > 
+> > > ?
+> > > 
+> > 
+> > Bah. It should have been MAX_NR_ZONES. This happens to still work because
+> > MAX_ORDER will always be higher than MAX_NR_ZONES but it's wrong.
+> 
+> Well, no. balance_pgdat() shuldn't read pgdat->high_zoneidx. please remember why
+> balance balance_pgdat() don't read pgdat->kswapd_max_order directly. wakeup_kswapd()
+> change pgdat->kswapd_max_order and pgdat->high_zoneidx without any lock. so, 
+> we need to afraid following bad scenario.
+> 
+> 
+> T1: wakeup_kswapd(order=0, HIGHMEM)
+> T2: enter balance_kswapd()
+> T1: wakeup_kswapd(order=1, DMA32)
+> T2: exit balance_kswapd()
+>       kswapd() erase pgdat->high_zoneidx and decide to don't sleep (because
+>       old-order=0, new-order=1). So now we will start unnecessary HIGHMEM
+>       reclaim.
+> 
+
+Correct. I'll fix this up.
+
+> > > And, we have another kswapd_max_order reading place. (after kswapd_try_to_sleep)
+> > > We need it too.
+> > > 
+> > 
+> > I'm not quite sure what you mean here. kswapd_max_order is read again
+> > after kswapd tries to sleep (or wakes for that matter) but it'll be in
+> > response to another caller having tried to wake kswapd indicating that
+> > those high orders really are needed.
+> 
+> My expected bad scenario was written above. 
+> 
+> Thanks.
+> 
+> 
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
