@@ -1,136 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 335476B0089
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 03:45:08 -0500 (EST)
-Message-Id: <20101130071436.732999291@intel.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 64D8D6B0089
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 03:45:13 -0500 (EST)
+Message-Id: <20101130071437.461969179@intel.com>
 References: <20101130071324.908098411@intel.com>
-Date: Tue, 30 Nov 2010 15:13:25 +0800
+Date: Tue, 30 Nov 2010 15:13:32 +0800
 From: shaohui.zheng@intel.com
-Subject: [1/8, v6] NUMA Hotplug Emulator: documentation
-Content-Disposition: inline; filename=001-hotplug-emulator-doc-x86_64-of-numa-hotplug-emulator.patch
+Subject: [8/8, v6] NUMA Hotplug Emulator: implement debugfs interface for memory probe
+Content-Disposition: inline; filename=008-hotplug-emulator-implement-memory-probe-debugfs-interface.patch
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>, Shaohui Zheng <shaohui.zheng@intel.com>
+Cc: linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Shaohui Zheng <shaohui.zheng@intel.com>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
 From: Shaohui Zheng <shaohui.zheng@intel.com>
 
-add a text file Documentation/x86/x86_64/numa_hotplug_emulator.txt
-to explain the usage for the hotplug emulator.
+Implement a debugfs inteface /sys/kernel/debug/mem_hotplug/probe for meomory hotplug
+emulation.  it accepts the same parameters like
+/sys/devices/system/memory/probe.
 
-Reviewed-By: Randy Dunlap <randy.dunlap@oracle.com>
-Signed-off-by: Haicheng Li <haicheng.li@intel.com>
+Document the interface usage to file Documentation/memory-hotplug.txt.
+
+CC: Dave Hansen <dave@linux.vnet.ibm.com>
 Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
----
-Index: linux-hpe4/Documentation/x86/x86_64/numa_hotplug_emulator.txt
+Signed-off-by: Haicheng Li <haicheng.li@intel.com>
+--
+Index: linux-hpe4/mm/memory_hotplug.c
 ===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-hpe4/Documentation/x86/x86_64/numa_hotplug_emulator.txt	2010-11-30 09:48:52.257622002 +0800
-@@ -0,0 +1,104 @@
-+NUMA Hotplug Emulator for x86_64
-+---------------------------------------------------
+--- linux-hpe4.orig/mm/memory_hotplug.c	2010-11-30 14:15:23.587622002 +0800
++++ linux-hpe4/mm/memory_hotplug.c	2010-11-30 14:16:45.447622001 +0800
+@@ -983,4 +983,35 @@
+ }
+ 
+ module_init(node_debug_init);
 +
-+NUMA hotplug emulator is able to emulate NUMA Node Hotplug
-+thru a pure software way. It intends to help people easily debug
-+and test node/CPU/memory hotplug related stuff on a
-+none-NUMA-hotplug-support machine, even a UMA machine and virtual
-+environment.
++#ifdef CONFIG_ARCH_MEMORY_PROBE
 +
-+1) Node hotplug emulation:
++static ssize_t debug_memory_probe_store(struct file *file, const char __user *buf,
++				size_t count, loff_t *ppos)
++{
++	return parse_memory_probe_store(buf, count);
++}
 +
-+Adds a numa=possible=<N> command line option to set an additional N nodes
-+as being possible for memory hotplug.  This set of possible nodes
-+control nr_node_ids and the sizes of several dynamically allocated node
-+arrays.
++static const struct file_operations memory_probe_file_ops = {
++	.write		= debug_memory_probe_store,
++	.llseek		= generic_file_llseek,
++};
 +
-+This allows memory hotplug to create new nodes for newly added memory
-+rather than binding it to existing nodes.
++static int __init memory_debug_init(void)
++{
++	if (!memhp_debug_root)
++		memhp_debug_root = debugfs_create_dir("mem_hotplug", NULL);
++	if (!memhp_debug_root)
++		return -ENOMEM;
 +
-+For emulation on x86, it would be possible to set aside memory for hotplugged
-+nodes (say, anything above 2G) and to add an additional four nodes as being
-+possible on boot with
++	if (!debugfs_create_file("probe", S_IWUSR, memhp_debug_root,
++			NULL, &memory_probe_file_ops))
++		return -ENOMEM;
 +
-+	mem=2G numa=possible=4
++	return 0;
++}
 +
-+and then creating a new 128M node at runtime:
++module_init(memory_debug_init);
 +
-+	# echo 128M@0x80000000 > /sys/kernel/debug/node/add_node
-+	On node 1 totalpages: 0
-+	init_memory_mapping: 0000000080000000-0000000088000000
-+	 0080000000 - 0088000000 page 2M
++#endif /* CONFIG_ARCH_MEMORY_PROBE */
+ #endif /* CONFIG_DEBUG_FS */
+Index: linux-hpe4/Documentation/memory-hotplug.txt
+===================================================================
+--- linux-hpe4.orig/Documentation/memory-hotplug.txt	2010-11-30 14:15:23.587622002 +0800
++++ linux-hpe4/Documentation/memory-hotplug.txt	2010-11-30 14:40:27.267622000 +0800
+@@ -198,23 +198,41 @@
+ In some environments, especially virtualized environment, firmware will not
+ notify memory hotplug event to the kernel. For such environment, "probe"
+ interface is supported. This interface depends on CONFIG_ARCH_MEMORY_PROBE.
++It can be also used for physical memory hotplug emulation.
+ 
+-Now, CONFIG_ARCH_MEMORY_PROBE is supported only by powerpc but it does not
+-contain highly architecture codes. Please add config if you need "probe"
++Now, CONFIG_ARCH_MEMORY_PROBE is supported by powerpc and x86_64, but it does
++not contain highly architecture codes. Please add config if you need "probe"
+ interface.
+ 
+-Probe interface is located at
+-/sys/devices/system/memory/probe
++We have both sysfs and debugfs interface for memory probe. They are located at
++/sys/devices/system/memory/probe (sysfs) and /sys/kernel/debug/mem_hotplug/probe
++(debugfs), We can try any of them, they accpet the same parameters.
+ 
+ You can tell the physical address of new memory to the kernel by
+ 
+-% echo start_address_of_new_memory > /sys/devices/system/memory/probe
++% echo start_address_of_new_memory > memory/probe
+ 
+ Then, [start_address_of_new_memory, start_address_of_new_memory + section_size)
+ memory range is hot-added. In this case, hotplug script is not called (in
+ current implementation). You'll have to online memory by yourself.
+ Please see "How to online memory" in this text.
+ 
++The probe interface can accept flexible parameters, for example:
 +
-+Once the new node has been added, its memory can be onlined.  If this
-+memory represents memory section 16, for example:
++Add a memory section(128M) to node 3(boots with mem=1024m)
 +
-+	# echo online > /sys/devices/system/memory/memory16/state
-+	Built 2 zonelists in Node order, mobility grouping on.  Total pages: 514846
-+	Policy zone: Normal
-+ [ The memory section(s) mapped to a particular node are visible via
-+   /sys/devices/system/node/node1, in this example. ]
++	echo 0x40000000,3 > memory/probe
 +
-+2) CPU hotplug emulation:
++And more we make it friendly, it is possible to add memory to do
 +
-+The emulator reserve CPUs throu grub parameter, the reserved CPUs can be
-+hot-add/hot-remove in software method, it emulates the process of physical
-+cpu hotplug.
++	echo 3g > memory/probe
++	echo 1024m,3 > memory/probe
 +
-+When hotplugging a CPU with emulator, we are using a logical CPU to emulate the CPU
-+socket hotplug process. For the CPU supported SMT, some logical CPUs are in the
-+same socket, but it may located in different NUMA node after we have emulator.
-+We put the logical CPU into a fake CPU socket, and assign it a unique
-+phys_proc_id. For the fake socket, we put one logical CPU in only.
++Another format suggested by Dave Hansen:
 +
-+ - to hide CPUs
-+	- Using boot option "maxcpus=N" hide CPUs
-+	  N is the number of CPUs to initialize; the reset will be hidden.
-+	- Using boot option "cpu_hpe=on" to enable CPU hotplug emulation
-+      when cpu_hpe is enabled, the rest CPUs will not be initialized
++	echo physical_address=0x40000000 numa_node=3 > memory/probe
 +
-+ - to hot-add CPU to node
-+	$ echo nid > cpu/probe
-+
-+ - to hot-remove CPU
-+	$ echo nid > cpu/release
-+
-+3) Memory hotplug emulation:
-+
-+The emulator reserves memory before OS boots, the reserved memory region is
-+removed from e820 table, and they can be hot-added via the probe interface.
-+this interface was extended to support adding memory to the specified node. It
-+maintains backwards compatibility.
-+
-+The difficulty of Memory Release is well-known, we have no plan for it until now.
-+
-+ - reserve memory thru a kernel boot paramter
-+ 	mem=1024m
-+
-+ - add a memory section to node 3
-+    $ echo 0x40000000,3 > memory/probe
-+	OR
-+    $ echo 1024m,3 > memory/probe
-+	OR
-+    $ echo "physical_address=0x40000000 numa_node=3" > memory/probe
-+
-+4) Script for hotplug testing
-+
-+These scripts provides convenience when we hot-add memory/cpu in batch.
-+
-+- Online all memory sections:
-+for m in /sys/devices/system/memory/memory*;
-+do
-+	echo online > $m/state;
-+done
-+
-+- CPU Online:
-+for c in /sys/devices/system/cpu/cpu*;
-+do
-+	echo 1 > $c/online;
-+done
-+
-+- David Rientjes <rientjes@google.com>
-+- Haicheng Li <haicheng.li@intel.com>
-+- Shaohui Zheng <shaohui.zheng@intel.com>
-+  Nov 2010
++You can also use mem_hotplug/probe(debugfs) interface in the above examples.
+ 
+ 4.3 Node hotplug emulation
+ ------------
 
 -- 
 Thanks & Regards,
