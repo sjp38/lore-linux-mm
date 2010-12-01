@@ -1,178 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C53516B0071
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 04:15:41 -0500 (EST)
-Date: Wed, 1 Dec 2010 01:15:35 -0800
-From: Simon Kirby <sim@hostway.ca>
-Subject: Re: Sudden and massive page cache eviction
-Message-ID: <20101201091535.GD31793@hostway.ca>
-References: <AANLkTikg-sR97tkG=ST9kjZcHe6puYSvMGh-eA3cnH7X@mail.gmail.com> <20101122161158.02699d10.akpm@linux-foundation.org> <1290501502.2390.7029.camel@nimitz> <AANLkTik2Fn-ynUap2fPcRxRdKA=5ZRYG0LJTmqf80y+q@mail.gmail.com> <1290529171.2390.7994.camel@nimitz> <AANLkTikCn-YvORocXSJ1Z+ovYNMhKF7TaX=BHWKwrQup@mail.gmail.com> <AANLkTi=mgTHPEYFsryDYnxPa78f-Nr+H7i4+0KPZbxh3@mail.gmail.com> <1290619929.10586.6.camel@nimitz> <AANLkTikT-svqverRLr7Mf6s-17VrOcP_BpyXFpDV=_7s@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E984E6B004A
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 04:44:34 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB19iVAm025025
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 1 Dec 2010 18:44:31 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4694045DE55
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 18:44:31 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 21A8745DE69
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 18:44:31 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 12B941DB803A
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 18:44:31 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C4713E18005
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 18:44:30 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch]vmscan: make kswapd use a correct order
+In-Reply-To: <1291172911.12777.58.camel@sli10-conroe>
+References: <1291172911.12777.58.camel@sli10-conroe>
+Message-Id: <20101201132730.ABC2.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTikT-svqverRLr7Mf6s-17VrOcP_BpyXFpDV=_7s@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Wed,  1 Dec 2010 18:44:27 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Peter Sch??ller <scode@spotify.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Mattias de Zalenski <zalenski@spotify.com>, linux-mm@kvack.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 25, 2010 at 04:33:01PM +0100, Peter Sch??ller wrote:
+> T0: Task1 wakeup_kswapd(order=3D3)
+> T1: kswapd enters balance_pgdat
+> T2: Task2 wakeup_kswapd(order=3D2), because pages reclaimed by kswapd are=
+ used
+> quickly
+> T3: kswapd exits balance_pgdat. kswapd will do check. Now new order=3D2,
+> pgdat->kswapd_max_order will become 0, but order=3D3, if sleeping_prematu=
+rely,
+> then order will become pgdat->kswapd_max_order(0), while at this time the
+> order should 2
+> This isn't a big deal, but we do have a small window the order is wrong.
+>=20
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+>=20
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index d31d7ce..15cd0d2 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2450,7 +2450,7 @@ static int kswapd(void *p)
+>  				}
+>  			}
+> =20
+> -			order =3D pgdat->kswapd_max_order;
+> +			order =3D max_t(unsigned long, new_order, pgdat->kswapd_max_order);
+>  		}
+>  		finish_wait(&pgdat->kswapd_wait, &wait);
 
-> > simple thing to do in any case. ??You can watch the entries in slabinfo
-> > and see if any of the ones with sizes over 4096 bytes are getting used
-> > often. ??You can also watch /proc/buddyinfo and see how often columns
-> > other than the first couple are moving around.
-> 
-> I collected some information from
-> /proc/{buddyinfo,meminfo,slabinfo,vmstat} and let it sit, polling
-> approximately once per minute. I have some results correlated with
-> another page eviction in graphs. The graph is here:
-> 
->    http://files.spotify.com/memcut/memgraph-20101124.png
-> 
-> The last sudden eviction there occurred somewhere between 22:30 and
-> 22:45. Some URL:s that can be compared for those periods:
-> 
->    Before:
->    http://files.spotify.com/memcut/memstat-20101124/2010-11-24T22:39:30/vmstat
->    http://files.spotify.com/memcut/memstat-20101124/2010-11-24T22:39:30/buddyinfo
->    http://files.spotify.com/memcut/memstat-20101124/2010-11-24T22:39:30/meminfo
->    http://files.spotify.com/memcut/memstat-20101124/2010-11-24T22:39:30/slabinfo
-> 
->    After:
->    http://files.spotify.com/memcut/memstat-20101124/2010-11-24T22:45:31/vmstat
->    http://files.spotify.com/memcut/memstat-20101124/2010-11-24T22:45:31/buddyinfo
->    http://files.spotify.com/memcut/memstat-20101124/2010-11-24T22:45:31/meminfo
->    http://files.spotify.com/memcut/memstat-20101124/2010-11-24T22:45:31/slabinfo
+Good catch!
 
-Disclaimer: I have no idea what I'm doing. :)
+But unfortunatelly, the code is not correct. At least, don't fit corrent
+design.
 
-Your buddyinfo looks to be pretty low for order 3 and above, before and
-after the sudden eviction, so my guess is that it's probably related to
-the issues I'm seeing with fragmentation, but maybe not fighting between
-zones, since you seem to have a larger Normal zone than DMA32.  (Not
-sure, you didn't post /proc/zoneinfo).  Also, you seem to be on an
-actual NUMA system, so other things are happening there, too.
+1) if "order < new_order" condition is false, we already decided to don't
+   use new_order. So, we shouldn't use new_order after kswapd_try_to_sleep(=
+)
+2) if sleeping_prematurely() return false, it probably mean
+   zone_watermark_ok_safe(zone, order, high_wmark) return false.
+   therefore, we have to retry reclaim by using old 'order' parameter.
 
-If you have munin installed (it looks like you do), try enabling the
-buddyinfo plugin available since munin 1.4.4.  It graphs the buddyinfo
-data, so it could be lined up with the memory graphs (thanks Erik).
 
-[snip]
+new patch is here.
 
-> kmalloc increases:
-> 
-> -kmalloc-4096         301    328   4096    8    8 : tunables    0    0
->    0 : slabdata     41     41      0
-> +kmalloc-4096         637    680   4096    8    8 : tunables    0    0
->    0 : slabdata     85     85      0
-> -kmalloc-2048       18215  19696   2048   16    8 : tunables    0    0
->    0 : slabdata   1231   1231      0
-> +kmalloc-2048       41908  51792   2048   16    8 : tunables    0    0
->    0 : slabdata   3237   3237      0
-> -kmalloc-1024       85444  97280   1024   32    8 : tunables    0    0
->    0 : slabdata   3040   3040      0
-> +kmalloc-1024      267031 327104   1024   32    8 : tunables    0    0
->    0 : slabdata  10222  10222      0
 
-Note that all of the above are actually attempting order-3 allocations
-first; see /sys/kernel/slab/kmalloc-1024/order, for instance.  The "8" is
-means "8 pages per slab", which means order 3 is the attempted allocation
-size.
 
-I did the following on a system to test, but the free memory did not
-actually improve.  It seems that even only order 1 allocations are enough
-to reclaim too much order 0.  Even a "while true; sleep .01; done" caused
-free memory to start increasing due to order 1 (task_struct allocation)
-watermarks waking kswapd, while our other usual VM activity is happening.
+=46rom 8f436224219a1da01985fd9644e1307e7c4cb8c3 Mon Sep 17 00:00:00 2001
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Sun, 26 Dec 2010 21:10:55 +0900
+Subject: [PATCH] vmscan: make kswapd use a correct order
 
-#!/bin/bash
+If sleeping_prematurely() return false, It's a sign of retrying reclaim.
+So, we don't have to drop old order value.
 
-for i in /sys/kernel/slab/*/; do
-        if [ `cat $i/object_size` -le 4096 ]; then
-                echo 0 > $i/order
-        else
-                echo 1 > $i/order
-        fi
-done
+Reported-by: Shaohua Li <shaohua.li@intel.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/vmscan.c |   11 +++++++----
+ 1 files changed, 7 insertions(+), 4 deletions(-)
 
-But this is on another machine, without Mel's patch, and with 8 GB
-memory, so a bigger Normal zone.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 1fcadaf..f052a1a 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2364,13 +2364,13 @@ out:
+ 	return sc.nr_reclaimed;
+ }
+=20
+-static void kswapd_try_to_sleep(pg_data_t *pgdat, int order)
++static int kswapd_try_to_sleep(pg_data_t *pgdat, int order)
+ {
+ 	long remaining =3D 0;
+ 	DEFINE_WAIT(wait);
+=20
+ 	if (freezing(current) || kthread_should_stop())
+-		return;
++		return 0;
+=20
+ 	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+=20
+@@ -2399,13 +2399,17 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, i=
+nt order)
+ 		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
+ 		schedule();
+ 		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
++		order =3D pgdat->kswapd_max_order;
+ 	} else {
+ 		if (remaining)
+ 			count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
+ 		else
+ 			count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
++		order =3D max(order, pgdat->kswapd_max_order);
+ 	}
+ 	finish_wait(&pgdat->kswapd_wait, &wait);
++
++	return order;
+ }
+=20
+ /*
+@@ -2467,8 +2471,7 @@ static int kswapd(void *p)
+ 			 */
+ 			order =3D new_order;
+ 		} else {
+-			kswapd_try_to_sleep(pgdat, order);
+-			order =3D pgdat->kswapd_max_order;
++			order =3D kswapd_try_to_sleep(pgdat, order);
+ 		}
+=20
+ 		ret =3D try_to_freeze();
+--=20
+1.6.5.2
 
-[snip]
 
-> If my interpretation and understanding is correct, this indicates that
-> for example, ~3000 to ~10000 3-order allocations resulting from 1 kb
-> kmalloc():s. Meaning about 0.2 gig ( 7000*4*8*1024/1024/1024). Add the
-> other ones and we get some more, but only a few hundred megs in total.
-> 
-> Going by the hypothesis that we are seeing the same thing as reported
-> by Simon Kirby (I'll respond to that E-Mail separately), the total
-> amount is (as far as I understand) not the important part, but the
-> fact that we saw a non-trivial increase in 3-order allocations would
-> perhaps be a consistent observation in that frequent 3-order
-> allocations might be more likely to trigger the behavior Simon
-> reports.
-
-Try installing the "perf" tool.  It can be built from the kernel tree in
-tools/perf, and then you usually can just copy the binary around.  You
-can use it to trace the points which cause kswapd to wake up, which will
-show which processes are doing it, the order, flags, etc.
-
-Just before the eviction is about to happen (or whenever), try this:
-
-perf record --event vmscan:mm_vmscan_wakeup_kswapd --filter 'order>=3' \
-	--call-graph -a sleep 30
-
-Then view the recorded events with "perf trace", which should spit out
-something like this:
-
-    lmtp-3531  [003] 432339.243851: mm_vmscan_wakeup_kswapd: nid=0 zid=2 order=3
-    lmtp-3531  [003] 432339.243856: mm_vmscan_wakeup_kswapd: nid=0 zid=1 order=3
-
-The process which woke kswapd may not be directly responsible for the
-allocation as a network interrrupt or something could have happened on
-top of it.  See "perf report", which is a bit dodgy at least for me, to
-see the stack traces, which might make things clearer.  For example, my
-traces show that even kswapd wakes kswapd sometimes, but it's because of
-a trace like this:
-
-    -      9.09%  kswapd0  [kernel.kallsyms]  [k] wakeup_kswapd
-         wakeup_kswapd
-         __alloc_pages_nodemask
-         alloc_pages_current
-         new_slab
-         __slab_alloc
-         __kmalloc_node_track_caller
-         __alloc_skb
-         __netdev_alloc_skb
-         bnx2_poll_work
-         bnx2_poll
-         net_rx_action
-         __do_softirq
-         call_softirq
-         do_softirq
-         irq_exit
-         do_IRQ
-         ret_from_intr
-         truncate_inode_pages
-         proc_evict_inode
-         evict
-         iput
-         dentry_iput
-         d_kill
-         __shrink_dcache_sb
-         shrink_dcache_memory
-         shrink_slab
-         kswapd
-
-Anyway, maybe you'll see some interesting traces.  If kswapd isn't waking
-very often, you can also trace "kmem:mm_page_alloc" or similar (see "perf
-list"), or try a smaller order or a longer sleep.
-
-Cheers,
-
-Simon-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
