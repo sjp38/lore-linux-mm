@@ -1,78 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id EBC986B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:28:54 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB13Sqen029515
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 1 Dec 2010 12:28:52 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E97C145DE54
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:28:51 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C845945DE55
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:28:51 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BA362E38002
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:28:51 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 792D3E08002
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:28:51 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3] mm: kswapd: Stop high-order balancing when any suitable zone is balanced
-In-Reply-To: <1291173628.12777.65.camel@sli10-conroe>
-References: <20101201115401.ABB1.A69D9226@jp.fujitsu.com> <1291173628.12777.65.camel@sli10-conroe>
-Message-Id: <20101201122638.ABBF.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F5A66B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 23:21:10 -0500 (EST)
+Received: by qyk10 with SMTP id 10so6941121qyk.14
+        for <linux-mm@kvack.org>; Tue, 30 Nov 2010 20:21:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Wed,  1 Dec 2010 12:28:50 +0900 (JST)
+In-Reply-To: <1291172911.12777.58.camel@sli10-conroe>
+References: <1291172911.12777.58.camel@sli10-conroe>
+Date: Wed, 1 Dec 2010 13:21:07 +0900
+Message-ID: <AANLkTi=whw86_7T0tVi5S8xmwS+Z3PDE_AbXEJSQFqR4@mail.gmail.com>
+Subject: Re: [patch]vmscan: make kswapd use a correct order
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: Shaohua Li <shaohua.li@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Simon Kirby <sim@hostway.ca>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 2010-12-01 at 10:59 +0800, KOSAKI Motohiro wrote:
-> > > On Wed, 2010-12-01 at 10:23 +0800, KOSAKI Motohiro wrote:
-> > > > > On Wed, 2010-12-01 at 01:15 +0800, Mel Gorman wrote:
-> > > > > > When the allocator enters its slow path, kswapd is woken up to balance the
-> > > > > > node. It continues working until all zones within the node are balanced. For
-> > > > > > order-0 allocations, this makes perfect sense but for higher orders it can
-> > > > > > have unintended side-effects. If the zone sizes are imbalanced, kswapd
-> > > > > > may reclaim heavily on a smaller zone discarding an excessive number of
-> > > > > > pages. The user-visible behaviour is that kswapd is awake and reclaiming
-> > > > > > even though plenty of pages are free from a suitable zone.
-> > > > > > 
-> > > > > > This patch alters the "balance" logic to stop kswapd if any suitable zone
-> > > > > > becomes balanced to reduce the number of pages it reclaims from other zones.
-> > > > > from my understanding, the patch will break reclaim high zone if a low
-> > > > > zone meets the high order allocation, even the high zone doesn't meet
-> > > > > the high order allocation. This, for example, will make a high order
-> > > > > allocation from a high zone fallback to low zone and quickly exhaust low
-> > > > > zone, for example DMA. This will break some drivers.
-> > > > 
-> > > > Have you seen patch [3/3]? I think it migigate your pointed issue.
-> > > yes, it improves a lot, but still possible for small systems.
-> > 
-> > Ok, I got you. so please define your "small systems" word? 
-> an embedded system with less memory memory, obviously
+On Wed, Dec 1, 2010 at 12:08 PM, Shaohua Li <shaohua.li@intel.com> wrote:
+> T0: Task1 wakeup_kswapd(order=3D3)
+> T1: kswapd enters balance_pgdat
+> T2: Task2 wakeup_kswapd(order=3D2), because pages reclaimed by kswapd are=
+ used
+> quickly
+> T3: kswapd exits balance_pgdat. kswapd will do check. Now new order=3D2,
+> pgdat->kswapd_max_order will become 0, but order=3D3, if sleeping_prematu=
+rely,
+> then order will become pgdat->kswapd_max_order(0), while at this time the
+> order should 2
+> This isn't a big deal, but we do have a small window the order is wrong.
+>
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmai.com>
 
-Typical embedded system don't have multiple zone. It's not obvious.
+But you need the description more easily.
+
+I try it.
+
+T0 : Task 1 wakes up kswapd with order-3
+T1 : So, kswapd starts to reclaim pages using balance_pgdat
+T2:  Task 2 wakes up kswapd with order-2 because pages reclaimed by T1
+are consumed quickly.
+T3: kswapd exits balance_pgdat and will recheck remained work
+T4-1 : In beginning of kswapd's loop, pgdat->kswapd_max_order will be
+reset with zero.
+T4-2: If previous balance_pgdat can't meet requirement of order-3 free
+pages by high watermark, it can start reclaiming again.
+T4-3 :Unfortunately, balance_pgdat's argument _order_ is
+pgdat->kswapd_max_order which was zero.  It should have been 2.
+
+Regardless of my suggestion, I will add my Reviewed-by.
+
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index d31d7ce..15cd0d2 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2450,7 +2450,7 @@ static int kswapd(void *p)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
+>
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 order =3D pgdat->kswapd_max=
+_order;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 order =3D max_t(unsigned lo=
+ng, new_order, pgdat->kswapd_max_order);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0finish_wait(&pgdat->kswapd_wait, &wait);
+>
+>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 
-> > we can't make
-> > perfect VM heuristics obviously, then we need to compare pros/cons.
-> if you don't care about small system, let's consider a NORMAL i386
-> system with 896m normal zone, and 896M*3 high zone. normal zone will
-> quickly exhaust by high order high zone allocation, leave a latter
-> allocation which does need normal zone fail.
 
-Not happen. slab don't allocate from highmem and page cache allocation
-is always using order-0. When happen high order high zone allocation?
-
-
-
-
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
