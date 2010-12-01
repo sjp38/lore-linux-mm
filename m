@@ -1,37 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B43816B0093
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:22:56 -0500 (EST)
-In-reply-to: <20101201124528.6809c539@xenia.leun.net> (message from Michael
-	Leun on Wed, 1 Dec 2010 12:45:28 +0100)
-Subject: Re: kernel BUG at mm/truncate.c:475!
-References: <20101130194945.58962c44@xenia.leun.net>
-	<alpine.LSU.2.00.1011301453090.12516@tigran.mtv.corp.google.com>
-	<E1PNjsI-0005Bk-NB@pomaz-ex.szeredi.hu> <20101201124528.6809c539@xenia.leun.net>
-Message-Id: <E1PNqO1-0005px-9h@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 01 Dec 2010 18:22:33 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E1F886B0096
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:38:34 -0500 (EST)
+From: Milton Miller <miltonm@bga.com>
+Message-Id: <compat-not-unlikely@mdm.bga.com>
+In-Reply-To: <20101130200129.GG11905@redhat.com>
+References: <20101130200129.GG11905@redhat.com>
+Date: Wed, 01 Dec 2010 11:37:58 -0600
+Subject: (No subject header)
 Sender: owner-linux-mm@kvack.org
-To: Michael Leun <lkml20101129@newton.leun.net>
-Cc: miklos@szeredi.hu, hughd@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 1 Dec 2010, Michael Leun wrote:
-> At the moment I've downgraded to 2.6.36 - I cannot remember to have
-> seen this there - which does not need to mean anything, because
-> workload has changed (several unshared mount/network namespaces chrooted
-> into unionfs-fuse mounted roots - cool stuff...).
-> 
-> Would you suspect to make 2.6.36 <> 2.6.36.1 a difference here?
+On Tue, 30 Nov 2010 about 20:01:29 -0000, Oleg Nesterov wrote:
+> Teach get_arg_ptr() to handle compat = T case correctly.
 
-No, that's unlikely.
+>  #include <asm/uaccess.h>
+>  #include <asm/mmu_context.h>
+> @@ -395,6 +396,18 @@ get_arg_ptr(const char __user * const __
+>  {
+>  	const char __user *ptr;
+>  
+> +#ifdef CONFIG_COMPAT
+> +	if (unlikely(compat)) {
 
-> Later, when I've results from the test with 2.6.36 of course I'll try
-> the quick test you suggested.
+This should not be marked unlikely.  Unlikely tells gcc the path
+with over 99% confidence and disables branch predictors on some
+architectures.  If called from a compat processes this will result
+in a mispredicted branch every iteration.  Just use if (compat)
+and let the hardware branch predictors do their job.
 
-Okay, thanks.
+> +		compat_uptr_t __user *a = (void __user*)argv;
+> +		compat_uptr_t p;
+> +
+> +		if (get_user(p, a + argc))
+> +			return ERR_PTR(-EFAULT);
+> +
+> +		return compat_ptr(p);
+> +	}
+> +#endif
+> +
+>  	if (get_user(ptr, argv + argc))
+>  		return ERR_PTR(-EFAULT);
+>  
+> @@ -1501,6 +1514,18 @@ int do_execve(const char *filename,
+>  	return do_execve_common(filename, argv, envp, regs, false);
+>  }
+>  
+> +#ifdef CONFIG_COMPAT
+> +int compat_do_execve(char * filename,
+> +	compat_uptr_t __user *argv,
+> +	compat_uptr_t __user *envp,
+> +	struct pt_regs * regs)
+> +{
+> +	return do_execve_common(filename,
+> +				(void __user*)argv, (void __user*)envp,
 
-Miklos
+Shouldn't these be compat_ptr(argv)?  (makes a difference on s390)
+
+> +				regs, true);
+> +}
+> +#endif
+> +
+>  void set_binfmt(struct linux_binfmt *new)
+>  {
+>  	struct mm_struct *mm = current->mm;
+
+Thanks,
+milton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
