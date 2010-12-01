@@ -1,90 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C84EF6B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 20:38:32 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB11cUPW014264
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 1 Dec 2010 10:38:30 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D0BF45DE50
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 10:38:30 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 19B5345DE4E
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 10:38:30 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EE1C1E78003
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 10:38:29 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C7341DB8012
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 10:38:29 +0900 (JST)
-Date: Wed, 1 Dec 2010 10:32:54 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] Provide control over unmapped pages
-Message-Id: <20101201103254.b823eae0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101130101602.17475.32611.stgit@localhost6.localdomain6>
-References: <20101130101126.17475.18729.stgit@localhost6.localdomain6>
-	<20101130101602.17475.32611.stgit@localhost6.localdomain6>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 295F06B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 20:59:38 -0500 (EST)
+Date: Wed, 1 Dec 2010 08:36:10 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [1/8, v6] NUMA Hotplug Emulator: documentation
+Message-ID: <20101201003610.GA9453@shaohui>
+References: <20101130071324.908098411@intel.com>
+ <20101130071436.732999291@intel.com>
+ <alpine.DEB.2.00.1011301618440.18341@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1011301618440.18341@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kvm <kvm@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Nov 2010 15:46:31 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Tue, Nov 30, 2010 at 04:19:00PM -0800, David Rientjes wrote:
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-> Provide control using zone_reclaim() and a boot parameter. The
-> code reuses functionality from zone_reclaim() to isolate unmapped
-> pages and reclaim them as a priority, ahead of other mapped pages.
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
->  include/linux/swap.h |    5 ++-
->  mm/page_alloc.c      |    7 +++--
->  mm/vmscan.c          |   72 +++++++++++++++++++++++++++++++++++++++++++++++++-
->  3 files changed, 79 insertions(+), 5 deletions(-)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index eba53e7..78b0830 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -252,11 +252,12 @@ extern int vm_swappiness;
->  extern int remove_mapping(struct address_space *mapping, struct page *page);
->  extern long vm_total_pages;
->  
-> -#ifdef CONFIG_NUMA
-> -extern int zone_reclaim_mode;
->  extern int sysctl_min_unmapped_ratio;
->  extern int sysctl_min_slab_ratio;
->  extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
-> +extern bool should_balance_unmapped_pages(struct zone *zone);
-> +#ifdef CONFIG_NUMA
-> +extern int zone_reclaim_mode;
->  #else
->  #define zone_reclaim_mode 0
->  static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 62b7280..4228da3 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1662,6 +1662,9 @@ zonelist_scan:
->  			unsigned long mark;
->  			int ret;
->  
-> +			if (should_balance_unmapped_pages(zone))
-> +				wakeup_kswapd(zone, order);
-> +
+Resend this patch after adding David's sign-off.
 
-Hm, I'm not sure the final vision of this feature. Does this reclaiming feature
-can't be called directly via balloon driver just before alloc_page() ?
+Subject: NUMA Hotplug Emulator: documentation
 
-Do you need to keep page caches small even when there are free memory on host ?
+From: Shaohui Zheng <shaohui.zheng@intel.com>
 
-Thanks,
--Kame
+add a text file Documentation/x86/x86_64/numa_hotplug_emulator.txt
+to explain the usage for the hotplug emulator.
+
+Reviewed-By: Randy Dunlap <randy.dunlap@oracle.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+Signed-off-by: Haicheng Li <haicheng.li@intel.com>
+Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
+---
+Index: linux-hpe4/Documentation/x86/x86_64/numa_hotplug_emulator.txt
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-hpe4/Documentation/x86/x86_64/numa_hotplug_emulator.txt	2010-11-30 09:48:52.257622002 +0800
+@@ -0,0 +1,104 @@
++NUMA Hotplug Emulator for x86_64
++---------------------------------------------------
++
++NUMA hotplug emulator is able to emulate NUMA Node Hotplug
++thru a pure software way. It intends to help people easily debug
++and test node/CPU/memory hotplug related stuff on a
++none-NUMA-hotplug-support machine, even a UMA machine and virtual
++environment.
++
++1) Node hotplug emulation:
++
++Adds a numa=possible=<N> command line option to set an additional N nodes
++as being possible for memory hotplug.  This set of possible nodes
++control nr_node_ids and the sizes of several dynamically allocated node
++arrays.
++
++This allows memory hotplug to create new nodes for newly added memory
++rather than binding it to existing nodes.
++
++For emulation on x86, it would be possible to set aside memory for hotplugged
++nodes (say, anything above 2G) and to add an additional four nodes as being
++possible on boot with
++
++	mem=2G numa=possible=4
++
++and then creating a new 128M node at runtime:
++
++	# echo 128M@0x80000000 > /sys/kernel/debug/node/add_node
++	On node 1 totalpages: 0
++	init_memory_mapping: 0000000080000000-0000000088000000
++	 0080000000 - 0088000000 page 2M
++
++Once the new node has been added, its memory can be onlined.  If this
++memory represents memory section 16, for example:
++
++	# echo online > /sys/devices/system/memory/memory16/state
++	Built 2 zonelists in Node order, mobility grouping on.  Total pages: 514846
++	Policy zone: Normal
++ [ The memory section(s) mapped to a particular node are visible via
++   /sys/devices/system/node/node1, in this example. ]
++
++2) CPU hotplug emulation:
++
++The emulator reserve CPUs throu grub parameter, the reserved CPUs can be
++hot-add/hot-remove in software method, it emulates the process of physical
++cpu hotplug.
++
++When hotplugging a CPU with emulator, we are using a logical CPU to emulate the CPU
++socket hotplug process. For the CPU supported SMT, some logical CPUs are in the
++same socket, but it may located in different NUMA node after we have emulator.
++We put the logical CPU into a fake CPU socket, and assign it a unique
++phys_proc_id. For the fake socket, we put one logical CPU in only.
++
++ - to hide CPUs
++	- Using boot option "maxcpus=N" hide CPUs
++	  N is the number of CPUs to initialize; the reset will be hidden.
++	- Using boot option "cpu_hpe=on" to enable CPU hotplug emulation
++      when cpu_hpe is enabled, the rest CPUs will not be initialized
++
++ - to hot-add CPU to node
++	$ echo nid > cpu/probe
++
++ - to hot-remove CPU
++	$ echo nid > cpu/release
++
++3) Memory hotplug emulation:
++
++The emulator reserves memory before OS boots, the reserved memory region is
++removed from e820 table, and they can be hot-added via the probe interface.
++this interface was extended to support adding memory to the specified node. It
++maintains backwards compatibility.
++
++The difficulty of Memory Release is well-known, we have no plan for it until now.
++
++ - reserve memory thru a kernel boot paramter
++ 	mem=1024m
++
++ - add a memory section to node 3
++    $ echo 0x40000000,3 > memory/probe
++	OR
++    $ echo 1024m,3 > memory/probe
++	OR
++    $ echo "physical_address=0x40000000 numa_node=3" > memory/probe
++
++4) Script for hotplug testing
++
++These scripts provides convenience when we hot-add memory/cpu in batch.
++
++- Online all memory sections:
++for m in /sys/devices/system/memory/memory*;
++do
++	echo online > $m/state;
++done
++
++- CPU Online:
++for c in /sys/devices/system/cpu/cpu*;
++do
++	echo 1 > $c/online;
++done
++
++- David Rientjes <rientjes@google.com>
++- Haicheng Li <haicheng.li@intel.com>
++- Shaohui Zheng <shaohui.zheng@intel.com>
++  Nov 2010
+
+-- 
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
