@@ -1,78 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 02B756B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 21:21:59 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB12LvW2032256
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 1 Dec 2010 11:21:57 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 43F4C45DE59
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 11:21:57 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 22F5545DE5B
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 11:21:57 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 09F6CE08001
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 11:21:57 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C392BE38005
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 11:21:56 +0900 (JST)
-Date: Wed, 1 Dec 2010 11:16:15 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/4] Per cgroup background reclaim.
-Message-Id: <20101201111615.12ca97cd.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101201111428.ABA5.A69D9226@jp.fujitsu.com>
-References: <1291099785-5433-1-git-send-email-yinghan@google.com>
-	<1291099785-5433-4-git-send-email-yinghan@google.com>
-	<20101201111428.ABA5.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id BFF436B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 21:23:15 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB12NDB4000617
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 1 Dec 2010 11:23:13 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E8E0745DE4F
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 11:23:12 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CC64945DE4C
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 11:23:12 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B146E1DB8014
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 11:23:12 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 31A6E1DB8015
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 11:23:12 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/3] mm: kswapd: Stop high-order balancing when any suitable zone is balanced
+In-Reply-To: <1291169636.12777.43.camel@sli10-conroe>
+References: <1291137339-6323-2-git-send-email-mel@csn.ul.ie> <1291169636.12777.43.camel@sli10-conroe>
+Message-Id: <20101201112354.ABA8.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Wed,  1 Dec 2010 11:23:11 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Ying Han <yinghan@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Simon Kirby <sim@hostway.ca>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed,  1 Dec 2010 11:18:45 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> On Wed, 2010-12-01 at 01:15 +0800, Mel Gorman wrote:
+> > When the allocator enters its slow path, kswapd is woken up to balance the
+> > node. It continues working until all zones within the node are balanced. For
+> > order-0 allocations, this makes perfect sense but for higher orders it can
+> > have unintended side-effects. If the zone sizes are imbalanced, kswapd
+> > may reclaim heavily on a smaller zone discarding an excessive number of
+> > pages. The user-visible behaviour is that kswapd is awake and reclaiming
+> > even though plenty of pages are free from a suitable zone.
+> > 
+> > This patch alters the "balance" logic to stop kswapd if any suitable zone
+> > becomes balanced to reduce the number of pages it reclaims from other zones.
+> from my understanding, the patch will break reclaim high zone if a low
+> zone meets the high order allocation, even the high zone doesn't meet
+> the high order allocation. This, for example, will make a high order
+> allocation from a high zone fallback to low zone and quickly exhaust low
+> zone, for example DMA. This will break some drivers.
 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index a15bc1c..dc61f2a 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -615,6 +615,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
-> >  
-> >  		do {
-> >  			page = list_entry(list->prev, struct page, lru);
-> > +			mem_cgroup_clear_unreclaimable(page, zone);
-> >  			/* must delete as __free_one_page list manipulates */
-> >  			list_del(&page->lru);
-> >  			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
-> > @@ -632,6 +633,7 @@ static void free_one_page(struct zone *zone, struct page *page, int order,
-> >  	spin_lock(&zone->lock);
-> >  	zone->all_unreclaimable = 0;
-> >  	zone->pages_scanned = 0;
-> > +	mem_cgroup_clear_unreclaimable(page, zone);
-> >  
-> >  	__free_one_page(page, zone, order, migratetype);
-> >  	__mod_zone_page_state(zone, NR_FREE_PAGES, 1 << order);
-> 
-> Please don't do that. free page is one of fast path. We don't want to add
-> additonal overhead here.
-> 
-> So I would like to explain why we clear zone->all_unreclaimable in free 
-> page path at first. Look, zone free pages are maintained by NR_FREE_PAGES
-> and free_one_page modify it.
-> 
-> But, free_one_page() is unrelated to memory cgroup uncharge thing. If nobody
-> does memcg uncharge, reclaim retrying is pointless. no? I think we have
-> better place than here.
-> 
-I agree. Should be done in uncharge or event counter.
+Have you seen patch [3/3]? I think it migigate your pointed issue.
 
-Thanks,
--Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
