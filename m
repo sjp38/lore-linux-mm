@@ -1,37 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 550686B009D
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 13:13:50 -0500 (EST)
-Date: Wed, 1 Dec 2010 12:13:44 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [thisops uV3 08/18] Taskstats: Use this_cpu_ops
-In-Reply-To: <1291226786.2898.22.camel@holzheu-laptop>
-Message-ID: <alpine.DEB.2.00.1012011212490.3774@router.home>
-References: <20101130190707.457099608@linux.com>  <20101130190845.819605614@linux.com> <1291226786.2898.22.camel@holzheu-laptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id A7A406B009F
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 13:14:34 -0500 (EST)
+Date: Wed, 1 Dec 2010 19:07:53 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 1/2] exec: make argv/envp memory visible to oom-killer
+Message-ID: <20101201180753.GA6143@redhat.com>
+References: <20101130195456.GA11905@redhat.com> <20101130195534.GB11905@redhat.com> <20101201090350.ABA2.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101201090350.ABA2.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Michael Holzheu <holzheu@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, Eric Dumazet <eric.dumazet@gmail.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 1 Dec 2010, Michael Holzheu wrote:
-
-> >  		return -ENOMEM;
-> >
-> >  	if (!info) {
-> > -		int seq = get_cpu_var(taskstats_seqnum)++;
-> > -		put_cpu_var(taskstats_seqnum);
-> > +		int seq = this_cpu_inc_return(taskstats_seqnum);
+On 12/01, KOSAKI Motohiro wrote:
 >
-> Hmmm, wouldn't seq now always be one more than before?
+> > +static void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
 >
-> I think that "seq = get_cpu_var(taskstats_seqnum)++" first assigns
-> taskstats_seqnum to seq and then increases the value in contrast to
-> this_cpu_inc_return() that returns the already increased value, correct?
+> One minor request.
+>
+> I guess this function can easily makes confusing to a code reader. So I
+> hope you write small function comments. describe to
+>  - What is oom nascent issue
+>  - Why we think inaccurate account is ok
 
-Correct. We need to subtract one from that (which will eliminate the minus
--1 that the inline this_cpu_inc_return creates).
+Agreed, this needs a comment.
+
+The patch was already applied, I'll send a separate one on top
+of the next "unify exec/compat" series. Or, I'll add the comments
+into this series, depending on review.
+
+Thanks,
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
