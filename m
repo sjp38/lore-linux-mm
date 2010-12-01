@@ -1,47 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0F5EF6B0089
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 03:18:53 -0500 (EST)
-Received: by iwn42 with SMTP id 42so2413391iwn.14
-        for <linux-mm@kvack.org>; Wed, 01 Dec 2010 00:18:52 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20101201052232.GL2746@balbir.in.ibm.com>
-References: <20101130101126.17475.18729.stgit@localhost6.localdomain6>
-	<20101130101602.17475.32611.stgit@localhost6.localdomain6>
-	<20101130142509.4f49d452.akpm@linux-foundation.org>
-	<20101201045421.GG2746@balbir.in.ibm.com>
-	<20101201052232.GL2746@balbir.in.ibm.com>
-Date: Wed, 1 Dec 2010 17:18:52 +0900
-Message-ID: <AANLkTine=1YW6RHDOwYR5Kq_6ENimf=OUbOgeo1pd8uZ@mail.gmail.com>
-Subject: Re: [PATCH 3/3] Provide control over unmapped pages
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9C06F6B0089
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 03:24:29 -0500 (EST)
+Subject: Re: [PATCH 1/3] mm: kswapd: Stop high-order balancing when any
+ suitable zone is balanced
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20101201164647.ABD7.A69D9226@jp.fujitsu.com>
+References: <20101201122638.ABBF.A69D9226@jp.fujitsu.com>
+	 <1291189227.12777.79.camel@sli10-conroe>
+	 <20101201164647.ABD7.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 01 Dec 2010 16:24:26 +0800
+Message-ID: <1291191866.12777.82.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, kvm <kvm@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Simon Kirby <sim@hostway.ca>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 1, 2010 at 2:22 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> * Balbir Singh <balbir@linux.vnet.ibm.com> [2010-12-01 10:24:21]:
->
->> * Andrew Morton <akpm@linux-foundation.org> [2010-11-30 14:25:09]:
->> > So you're OK with shoving all this flotsam into 100,000,000 cellphones?
->> > This was a pretty outrageous patchset!
->>
->> I'll do a better one, BTW, a lot of embedded folks are interested in
->> page cache control outside of cgroup behaviour.
-
-Yes. Embedded people(at least, me) want it. That's because they don't
-have any swap device so they could reclaim only page cache page.
-And many page cache pages are mapped at address space of
-application(ex, android uses java model so many pages are mapped by
-application's address space). It means it's hard to reclaim them
-without lagging.
-So I have a interest in this patch.
-
--- 
-Kind regards,
-Minchan Kim
+On Wed, 2010-12-01 at 15:52 +0800, KOSAKI Motohiro wrote:
+> > > > > we can't make
+> > > > > perfect VM heuristics obviously, then we need to compare pros/cons.
+> > > > if you don't care about small system, let's consider a NORMAL i386
+> > > > system with 896m normal zone, and 896M*3 high zone. normal zone will
+> > > > quickly exhaust by high order high zone allocation, leave a latter
+> > > > allocation which does need normal zone fail.
+> > > 
+> > > Not happen. slab don't allocate from highmem and page cache allocation
+> > > is always using order-0. When happen high order high zone allocation?
+> > ok, thanks, I missed this. then how about a x86_64 box with 896M DMA32
+> > and 896*3M NORMAL? some pci devices can only dma to DMA32 zone.
+> 
+> First, DMA32 is 4GB. Second, modern high end system don't use 32bit PCI
+> device. Third, while we are thinking desktop users, 4GB is not small
+> room. nowadays, typical desktop have only 2GB or 4GB memory.
+DMA32 isn't 4G, because there is hole under 4G for PCI bars. I don't
+think 32 bit PCI device is rare too. But anyway, if you insist this
+isn't a big issue, I'm ok.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
