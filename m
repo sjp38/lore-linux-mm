@@ -1,61 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 330586B004A
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 06:07:46 -0500 (EST)
-Date: Wed, 1 Dec 2010 11:07:28 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/3] mm: kswapd: Stop high-order balancing when any
-	suitable zone is balanced
-Message-ID: <20101201110728.GN13268@csn.ul.ie>
-References: <1291137339-6323-1-git-send-email-mel@csn.ul.ie> <1291137339-6323-2-git-send-email-mel@csn.ul.ie> <1291169636.12777.43.camel@sli10-conroe>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id BCDBE6B004A
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 06:21:46 -0500 (EST)
+Date: Wed, 1 Dec 2010 12:21:16 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 2/7] mm: vmscan: Convert lumpy_mode into a bitmask
+Message-ID: <20101201112116.GR15564@cmpxchg.org>
+References: <1290440635-30071-1-git-send-email-mel@csn.ul.ie>
+ <1290440635-30071-3-git-send-email-mel@csn.ul.ie>
+ <20101201102732.GK15564@cmpxchg.org>
+ <20101201105029.GL13268@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1291169636.12777.43.camel@sli10-conroe>
+In-Reply-To: <20101201105029.GL13268@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 01, 2010 at 10:13:56AM +0800, Shaohua Li wrote:
-> On Wed, 2010-12-01 at 01:15 +0800, Mel Gorman wrote:
-> > When the allocator enters its slow path, kswapd is woken up to balance the
-> > node. It continues working until all zones within the node are balanced. For
-> > order-0 allocations, this makes perfect sense but for higher orders it can
-> > have unintended side-effects. If the zone sizes are imbalanced, kswapd
-> > may reclaim heavily on a smaller zone discarding an excessive number of
-> > pages. The user-visible behaviour is that kswapd is awake and reclaiming
-> > even though plenty of pages are free from a suitable zone.
+On Wed, Dec 01, 2010 at 10:50:29AM +0000, Mel Gorman wrote:
+> On Wed, Dec 01, 2010 at 11:27:32AM +0100, Johannes Weiner wrote:
+> > On Mon, Nov 22, 2010 at 03:43:50PM +0000, Mel Gorman wrote:
+> > > --- a/mm/vmscan.c
+> > > +++ b/mm/vmscan.c
+> > > @@ -51,11 +51,20 @@
+> > >  #define CREATE_TRACE_POINTS
+> > >  #include <trace/events/vmscan.h>
+> > >  
+> > > -enum lumpy_mode {
+> > > -	LUMPY_MODE_NONE,
+> > > -	LUMPY_MODE_ASYNC,
+> > > -	LUMPY_MODE_SYNC,
+> > > -};
+> > > +/*
+> > > + * lumpy_mode determines how the inactive list is shrunk
+> > > + * LUMPY_MODE_SINGLE: Reclaim only order-0 pages
+> > > + * LUMPY_MODE_ASYNC:  Do not block
+> > > + * LUMPY_MODE_SYNC:   Allow blocking e.g. call wait_on_page_writeback
+> > > + * LUMPY_MODE_CONTIGRECLAIM: For high-order allocations, take a reference
+> > > + *			page from the LRU and reclaim all pages within a
+> > > + *			naturally aligned range
 > > 
-> > This patch alters the "balance" logic to stop kswapd if any suitable zone
-> > becomes balanced to reduce the number of pages it reclaims from other zones.
->
-> from my understanding, the patch will break reclaim high zone if a low
-> zone meets the high order allocation, even the high zone doesn't meet
-> the high order allocation.
-
-Indeed this is possible and it's a situation confirmed by Simon. Patch 3
-should cover it because replacing "are any zones ok?" with "are zones
-representing at least 25% of the node balanced?"
-
-> This, for example, will make a high order
-> allocation from a high zone fallback to low zone and quickly exhaust low
-> zone, for example DMA. This will break some drivers.
+> > I find those names terribly undescriptive.  It also strikes me as an
+> > odd set of flags.  Can't this be represented with less?
+> > 
+> > 	LUMPY_MODE_ENABLED
+> > 	LUMPY_MODE_SYNC
+> > 
+> > or, after the rename,
+> > 
+> > 	RECLAIM_MODE_HIGHER	= 1
+> > 	RECLAIM_MODE_SYNC	= 2
+> > 	RECLAIM_MODE_LUMPY	= 4
+> > 
 > 
+> My problem with that is you have to infer what the behaviour is from what the
+> flags "are not" as opposed to what they are. For example, !LUMPY_MODE_SYNC
+> implies LUMPY_MODE_ASYNC instead of specifying LUMPY_MODE_ASYNC.
 
-The lowmem reserve would prevent that happening so the drivers would be
-fine. The real impact is that kswapd would stop when DMA was balanced
-even though it was really DMA32 or Normal needed to be balanced for
-proper behaviour.
+Sounds like a boolean value to me.  And it shows: you never actually
+check for RECLAIM_MODE_ASYNC in the code, you just always set it to
+the opposite of RECLAIM_MODE_SYNC - the flag which is actually read.
 
-On lowmem reserves though, there is another buglet in
-sleeping_prematurely. The classzone_idx it uses means that the wrong
-lowmem_reserve is used for the majority of allocation requests.
+> It also looks very odd when trying to distinguish between order-0
+> standard reclaim, lumpy reclaim and reclaim/compaction.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+That is true, because this is still an actual tristate.  It's probably
+better to defer until lumpy reclaim is gone and there is only one flag
+for higher-order reclaim left.
+
+> > > +typedef unsigned __bitwise__ lumpy_mode;
+> > 
+> > lumpy_mode_t / reclaim_mode_t?
+> > 
+> 
+> It can't hurt!
+
+Thanks :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
