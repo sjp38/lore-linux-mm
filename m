@@ -1,108 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id F08506B0071
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:09:47 -0500 (EST)
-Message-ID: <4CF5BC77.8090400@goop.org>
-Date: Tue, 30 Nov 2010 19:09:43 -0800
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id CBFB66B0085
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:09:50 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB139mcf022275
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 1 Dec 2010 12:09:48 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0806C45DE79
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:09:48 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D938D45DE6E
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:09:47 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BAA331DB8037
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:09:47 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 60A56E38001
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:09:47 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 0/4] exec: unify compat/non-compat code
+In-Reply-To: <20101130200016.GD11905@redhat.com>
+References: <20101130195456.GA11905@redhat.com> <20101130200016.GD11905@redhat.com>
+Message-Id: <20101201120806.ABB9.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC] vmalloc: eagerly clear ptes on vunmap
-References: <4CEF6B8B.8080206@goop.org>	<20101127103656.GA6884@amd>	<4CF40DCB.5010007@goop.org> <20101130162938.8a6b0df4.akpm@linux-foundation.org>
-In-Reply-To: <20101130162938.8a6b0df4.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed,  1 Dec 2010 12:09:46 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@kernel.dk>, "Xen-devel@lists.xensource.com" <Xen-devel@lists.xensource.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Trond Myklebust <Trond.Myklebust@netapp.com>, Bryan Schumaker <bjschuma@netapp.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 11/30/2010 04:29 PM, Andrew Morton wrote:
-> On Mon, 29 Nov 2010 12:32:11 -0800
-> Jeremy Fitzhardinge <jeremy@goop.org> wrote:
->
->> When unmapping a region in the vmalloc space, clear the ptes immediately.
->> There's no point in deferring this because there's no amortization
->> benefit.
->>
->> The TLBs are left dirty, and they are flushed lazily to amortize the
->> cost of the IPIs.
->>
->> This specific motivation for this patch is a regression since 2.6.36 when
->> using NFS under Xen, triggered by the NFS client's use of vm_map_ram()
->> introduced in 56e4ebf877b6043c289bda32a5a7385b80c17dee.  XFS also uses
->> vm_map_ram() and could cause similar problems.
->>
-> Do we have any quantitative info on that regression?
+> (remove stable)
+> 
+> On 11/30, Oleg Nesterov wrote:
+> >
+> > I'll send the cleanups which unify compat/non-compat code on
+> > top of these fixes, this is not stable material.
+> 
+> On top of
+> 
+> 	[PATCH 1/2] exec: make argv/envp memory visible to oom-killer
+> 	[PATCH 2/2] exec: copy-and-paste the fixes into compat_do_execve() paths
+> 
+> Imho, execve code in fs/compat.c must die. It is very hard to
+> maintain this copy-and-paste horror.
 
-It's pretty easy to reproduce - you get oopses very quickly while using
-NFS.  I haven't got any lying around right now, but I could easily
-generate one if you want to decorate the changelog a bit.
+I strongly like this series. (yes, I made fault to forgot to change compat.c
+multiple times ;)
 
->   The patch fixed
-> it, I assume?
+Unfortunatelly, this is a bit large and I have no time now. I expect I
+can review this at this or next weekend.....
+Hopefully, anyoneelse will review this and ignore me....
 
-Yes, the patch fixes it, and I think it is just luck that xfs doesn't
-also trigger the same problem.  Here's a followup patch to disable the
-previous hack.
-
-    J
-
-Subject: [PATCH] vmalloc: remove vmap_lazy_unmap flag
-
-Now that vmunmap no longer leaves stray ptes lying around, we don't need
-the vmap_lazy_unmap flag any more.
-
-Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
-
-diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
-index 21ed8d7..0e4ecac 100644
---- a/arch/x86/xen/mmu.c
-+++ b/arch/x86/xen/mmu.c
-@@ -2358,8 +2358,6 @@ void __init xen_init_mmu_ops(void)
- 	x86_init.paging.pagetable_setup_done = xen_pagetable_setup_done;
- 	pv_mmu_ops = xen_mmu_ops;
- 
--	vmap_lazy_unmap = false;
--
- 	memset(dummy_mapping, 0xff, PAGE_SIZE);
- }
- 
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index a03dcf6..44b54f6 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -7,8 +7,6 @@
- 
- struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
- 
--extern bool vmap_lazy_unmap;
--
- /* bits in flags of vmalloc's vm_struct below */
- #define VM_IOREMAP	0x00000001	/* ioremap() and friends */
- #define VM_ALLOC	0x00000002	/* vmalloc() */
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index ffefe70..828d95e 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -31,8 +31,6 @@
- #include <asm/tlbflush.h>
- #include <asm/shmparam.h>
- 
--bool vmap_lazy_unmap __read_mostly = true;
--
- /*** Page table manipulation functions ***/
- 
- static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end)
-@@ -503,9 +501,6 @@ static unsigned long lazy_max_pages(void)
- {
- 	unsigned int log;
- 
--	if (!vmap_lazy_unmap)
--		return 0;
--
- 	log = fls(num_online_cpus());
- 
- 	return log * (32UL * 1024 * 1024 / PAGE_SIZE);
 
 
 --
