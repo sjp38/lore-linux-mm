@@ -1,60 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CBFB66B0085
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:09:50 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB139mcf022275
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 1 Dec 2010 12:09:48 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0806C45DE79
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:09:48 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D938D45DE6E
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:09:47 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BAA331DB8037
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:09:47 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 60A56E38001
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:09:47 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/4] exec: unify compat/non-compat code
-In-Reply-To: <20101130200016.GD11905@redhat.com>
-References: <20101130195456.GA11905@redhat.com> <20101130200016.GD11905@redhat.com>
-Message-Id: <20101201120806.ABB9.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 209A96B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:20:31 -0500 (EST)
+Subject: Re: [PATCH 1/3] mm: kswapd: Stop high-order balancing when any
+ suitable zone is balanced
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20101201115401.ABB1.A69D9226@jp.fujitsu.com>
+References: <20101201112354.ABA8.A69D9226@jp.fujitsu.com>
+	 <1291171667.12777.51.camel@sli10-conroe>
+	 <20101201115401.ABB1.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 01 Dec 2010 11:20:28 +0800
+Message-ID: <1291173628.12777.65.camel@sli10-conroe>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Date: Wed,  1 Dec 2010 12:09:46 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Simon Kirby <sim@hostway.ca>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> (remove stable)
+On Wed, 2010-12-01 at 10:59 +0800, KOSAKI Motohiro wrote:
+> > On Wed, 2010-12-01 at 10:23 +0800, KOSAKI Motohiro wrote:
+> > > > On Wed, 2010-12-01 at 01:15 +0800, Mel Gorman wrote:
+> > > > > When the allocator enters its slow path, kswapd is woken up to balance the
+> > > > > node. It continues working until all zones within the node are balanced. For
+> > > > > order-0 allocations, this makes perfect sense but for higher orders it can
+> > > > > have unintended side-effects. If the zone sizes are imbalanced, kswapd
+> > > > > may reclaim heavily on a smaller zone discarding an excessive number of
+> > > > > pages. The user-visible behaviour is that kswapd is awake and reclaiming
+> > > > > even though plenty of pages are free from a suitable zone.
+> > > > > 
+> > > > > This patch alters the "balance" logic to stop kswapd if any suitable zone
+> > > > > becomes balanced to reduce the number of pages it reclaims from other zones.
+> > > > from my understanding, the patch will break reclaim high zone if a low
+> > > > zone meets the high order allocation, even the high zone doesn't meet
+> > > > the high order allocation. This, for example, will make a high order
+> > > > allocation from a high zone fallback to low zone and quickly exhaust low
+> > > > zone, for example DMA. This will break some drivers.
+> > > 
+> > > Have you seen patch [3/3]? I think it migigate your pointed issue.
+> > yes, it improves a lot, but still possible for small systems.
 > 
-> On 11/30, Oleg Nesterov wrote:
-> >
-> > I'll send the cleanups which unify compat/non-compat code on
-> > top of these fixes, this is not stable material.
-> 
-> On top of
-> 
-> 	[PATCH 1/2] exec: make argv/envp memory visible to oom-killer
-> 	[PATCH 2/2] exec: copy-and-paste the fixes into compat_do_execve() paths
-> 
-> Imho, execve code in fs/compat.c must die. It is very hard to
-> maintain this copy-and-paste horror.
+> Ok, I got you. so please define your "small systems" word? 
+an embedded system with less memory memory, obviously
 
-I strongly like this series. (yes, I made fault to forgot to change compat.c
-multiple times ;)
-
-Unfortunatelly, this is a bit large and I have no time now. I expect I
-can review this at this or next weekend.....
-Hopefully, anyoneelse will review this and ignore me....
-
-
+> we can't make
+> perfect VM heuristics obviously, then we need to compare pros/cons.
+if you don't care about small system, let's consider a NORMAL i386
+system with 896m normal zone, and 896M*3 high zone. normal zone will
+quickly exhaust by high order high zone allocation, leave a latter
+allocation which does need normal zone fail.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
