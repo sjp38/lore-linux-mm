@@ -1,31 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 228A36B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 21:45:01 -0500 (EST)
-Received: from mail06.corp.redhat.com (zmail06.collab.prod.int.phx2.redhat.com [10.5.5.45])
-	by mx4-phx2.redhat.com (8.13.8/8.13.8) with ESMTP id oB12ixeg023016
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 21:44:59 -0500
-Date: Tue, 30 Nov 2010 21:44:59 -0500 (EST)
-From: CAI Qian <caiqian@redhat.com>
-Message-ID: <919384632.877731291171499343.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Subject: oom is broken in mmotm 2010-11-09-15-31 tree?
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id CCEAA6B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 21:47:50 -0500 (EST)
+Subject: Re: [PATCH 1/3] mm: kswapd: Stop high-order balancing when any
+ suitable zone is balanced
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20101201112354.ABA8.A69D9226@jp.fujitsu.com>
+References: <1291137339-6323-2-git-send-email-mel@csn.ul.ie>
+	 <1291169636.12777.43.camel@sli10-conroe>
+	 <20101201112354.ABA8.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 01 Dec 2010 10:47:47 +0800
+Message-ID: <1291171667.12777.51.camel@sli10-conroe>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Simon Kirby <sim@hostway.ca>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, just a head-up. When testing oom for this tree, my workstation is immediately having no response to ssh, Desktop actions and so on apart from ping. I am trying to bisect but looks like git public server is having problem.
-
-# git pull
-fatal: read error: Connection reset by peer
-
-# git clone git://zen-kernel.org/kernel/mmotm.git
-Cloning into mmotm...
-fatal: read error: Connection reset by peer
-
-CAI Qian
+On Wed, 2010-12-01 at 10:23 +0800, KOSAKI Motohiro wrote:
+> > On Wed, 2010-12-01 at 01:15 +0800, Mel Gorman wrote:
+> > > When the allocator enters its slow path, kswapd is woken up to balance the
+> > > node. It continues working until all zones within the node are balanced. For
+> > > order-0 allocations, this makes perfect sense but for higher orders it can
+> > > have unintended side-effects. If the zone sizes are imbalanced, kswapd
+> > > may reclaim heavily on a smaller zone discarding an excessive number of
+> > > pages. The user-visible behaviour is that kswapd is awake and reclaiming
+> > > even though plenty of pages are free from a suitable zone.
+> > > 
+> > > This patch alters the "balance" logic to stop kswapd if any suitable zone
+> > > becomes balanced to reduce the number of pages it reclaims from other zones.
+> > from my understanding, the patch will break reclaim high zone if a low
+> > zone meets the high order allocation, even the high zone doesn't meet
+> > the high order allocation. This, for example, will make a high order
+> > allocation from a high zone fallback to low zone and quickly exhaust low
+> > zone, for example DMA. This will break some drivers.
+> 
+> Have you seen patch [3/3]? I think it migigate your pointed issue.
+yes, it improves a lot, but still possible for small systems.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
