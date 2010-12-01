@@ -1,72 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C8518D0002
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 16:40:53 -0500 (EST)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id oB1LemCb022689
-	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 13:40:49 -0800
-Received: from vws6 (vws6.prod.google.com [10.241.21.134])
-	by kpbe20.cbf.corp.google.com with ESMTP id oB1LeFer032582
-	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 13:40:47 -0800
-Received: by vws6 with SMTP id 6so2888630vws.6
-        for <linux-mm@kvack.org>; Wed, 01 Dec 2010 13:40:43 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTi=tfDQhcNwhDeLz9jM5QHjDR_8WL+v6AWU3SJpZ@mail.gmail.com>
-References: <919384632.877731291171499343.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-	<1330724443.975931291231775834.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-	<AANLkTi=tfDQhcNwhDeLz9jM5QHjDR_8WL+v6AWU3SJpZ@mail.gmail.com>
-Date: Wed, 1 Dec 2010 13:40:43 -0800
-Message-ID: <AANLkTike8iofk0QQxOeRpBwVf3K1gJLBDhSKXMDaDCA4@mail.gmail.com>
-Subject: Re: oom is broken in mmotm 2010-11-09-15-31 tree?
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F6156B00AD
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 18:04:54 -0500 (EST)
+Date: Wed, 1 Dec 2010 15:03:33 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 01/13] writeback: IO-less balance_dirty_pages()
+Message-Id: <20101201150333.fa4b8955.akpm@linux-foundation.org>
+In-Reply-To: <20101201133818.GA13377@localhost>
+References: <20101117042720.033773013@intel.com>
+	<20101117042849.410279291@intel.com>
+	<1290085474.2109.1480.camel@laptop>
+	<20101129151719.GA30590@localhost>
+	<1291064013.32004.393.camel@laptop>
+	<20101130043735.GA22947@localhost>
+	<1291156522.32004.1359.camel@laptop>
+	<1291156765.32004.1365.camel@laptop>
+	<20101201133818.GA13377@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: CAI Qian <caiqian@redhat.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Hellwig <hch@lst.de>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 1, 2010 at 12:15 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Wed, Dec 1, 2010 at 11:29 AM, CAI Qian <caiqian@redhat.com> wrote:
->>>
->>> Hi, just a head-up. When testing oom for this tree, my workstation is
->>> immediately having no response to ssh, Desktop actions and so on apart
->>> from ping. I am trying to bisect but looks like git public server is
->>> having problem.
->>
->> This turned out that it was introduced by,
->>
->> =A0d065bd810b6deb67d4897a14bfe21f8eb526ba99
->> =A0mm: retry page fault when blocking on disk transfer
->>
->> It was reproduced by:
->> 1) ssh to the test box.
->> 2) try to trigger oom a few times using a malloc program there.
->
-> Interesting. That commit is not supposed to make any semantic
-> difference at all. And even if we do end up in the retry path, the
-> arch/x86/mm/fault.c code is very explicitly designed so that it
-> retries only _once_.
->
-> Michel, any ideas? I could see problems with the mmap_sem if
-> VM_FAULT_OOM is set at the same time as VM_FAULT_RETRY, but I can't
-> see how that could ever happen.
->
-> Anybody?
->
-> CAI, can you get any output from sysrq-W when this happens?
+On Wed, 1 Dec 2010 21:38:18 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-Things are known to be broken between
-d065bd810b6deb67d4897a14bfe21f8eb526ba99 and
-d88c0922fa0e2c021a028b310a641126c6d4b7dc. CAI, do you have that in
-your tree ? Also, can you test at
-d065bd810b6deb67d4897a14bfe21f8eb526ba99 with
-d88c0922fa0e2c021a028b310a641126c6d4b7dc cherry-picked on ?
+> It shows that
+> 
+> 1) io_schedule_timeout(200ms) always return immediately for iostat,
+>    forming a busy loop.  How can this happen? When iostat received
+>    some signal? Then we may have to break out of the loop on catching
+>    signals. Note that I already have
+>                 if (fatal_signal_pending(current))
+>                         break;
+>    in the balance_dirty_pages() loop. Obviously that's not enough.
 
---=20
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Presumably the calling task has singal_pending().
+
+Using TASK_INTERRUPTIBLE in balance_dirty_pages() seems wrong.  If it's
+going to do that then it must break out if signal_pending(), otherwise
+it's pretty much guaranteed to degenerate into a busywait loop.  Plus
+we *do* want these processes to appear in D state and to contribute to
+load average.
+
+So it should be TASK_UNINTERRUPTIBLE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
