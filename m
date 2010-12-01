@@ -1,41 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F3966B0071
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 00:22:45 -0500 (EST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C743F6B0085
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 00:22:58 -0500 (EST)
 Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp08.au.ibm.com (8.14.4/8.13.1) with ESMTP id oB15Mb8I002469
-	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 16:22:37 +1100
+	by e23smtp08.au.ibm.com (8.14.4/8.13.1) with ESMTP id oB15MsVq002547
+	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 16:22:54 +1100
 Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oB15MbrV1384596
-	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 16:22:37 +1100
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oB15MsPF1642590
+	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 16:22:54 +1100
 Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oB15MbNj008321
-	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 16:22:37 +1100
-Date: Wed, 1 Dec 2010 10:52:32 +0530
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oB15MrkE008878
+	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 16:22:53 +1100
+Date: Wed, 1 Dec 2010 10:52:48 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [PATCH 3/3] Provide control over unmapped pages
-Message-ID: <20101201052232.GL2746@balbir.in.ibm.com>
+Message-ID: <20101201052248.GM2746@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 References: <20101130101126.17475.18729.stgit@localhost6.localdomain6>
  <20101130101602.17475.32611.stgit@localhost6.localdomain6>
- <20101130142509.4f49d452.akpm@linux-foundation.org>
- <20101201045421.GG2746@balbir.in.ibm.com>
+ <20101130204532.8322.A69D9226@jp.fujitsu.com>
+ <20101201051632.GH2746@balbir.in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20101201045421.GG2746@balbir.in.ibm.com>
+In-Reply-To: <20101201051632.GH2746@balbir.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, kvm <kvm@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kvm <kvm@vger.kernel.org>, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-* Balbir Singh <balbir@linux.vnet.ibm.com> [2010-12-01 10:24:21]:
+* Balbir Singh <balbir@linux.vnet.ibm.com> [2010-12-01 10:46:32]:
 
-> * Andrew Morton <akpm@linux-foundation.org> [2010-11-30 14:25:09]:
+> * KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2010-12-01 09:14:13]:
 > 
-> > On Tue, 30 Nov 2010 15:46:31 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 
 > > > Provide control using zone_reclaim() and a boot parameter. The
 > > > code reuses functionality from zone_reclaim() to isolate unmapped
 > > > pages and reclaim them as a priority, ahead of other mapped pages.
@@ -59,12 +56,6 @@ List-ID: <linux-mm.kvack.org>
 > > > -extern int zone_reclaim_mode;
 > > >  extern int sysctl_min_unmapped_ratio;
 > > >  extern int sysctl_min_slab_ratio;
-> > 
-> > This change will need to be moved into the first patch.
-> > 
-> 
-> OK, will do, thanks for pointing it out
-> 
 > > >  extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
 > > > +extern bool should_balance_unmapped_pages(struct zone *zone);
 > > > +#ifdef CONFIG_NUMA
@@ -82,22 +73,29 @@ List-ID: <linux-mm.kvack.org>
 > > >  
 > > > +			if (should_balance_unmapped_pages(zone))
 > > > +				wakeup_kswapd(zone, order);
+> > > +
 > > 
-> > gack, this is on the page allocator fastpath, isn't it?  So
-> > 99.99999999% of the world's machines end up doing a pointless call to a
-> > pointless function which pointlessly tests a pointless global and
-> > pointlessly returns?  All because of some whacky KSM thing?
+> > You don't have to add extra branch into fast path.
 > > 
-> > The speed and space overhead of this code should be *zero* if
-> > !CONFIG_UNMAPPED_PAGECACHE_CONTROL and should be minimal if
-> > CONFIG_UNMAPPED_PAGECACHE_CONTROL=y.  The way to do the latter is to
-> > inline the test of unmapped_page_control into callers and only if it is
-> > true (and use unlikely(), please) do we call into the KSM gunk.
-> >
-> 
-> Will do, should_balance_unmapped_pages() will be a made a no-op in the
-> absence of CONFIG_UNMAPPED_PAGECACHE_CONTROL
->  
+> > 
+> > >  			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
+> > >  			if (zone_watermark_ok(zone, order, mark,
+> > >  				    classzone_idx, alloc_flags))
+> > > @@ -4136,10 +4139,10 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+> > >  
+> > >  		zone->spanned_pages = size;
+> > >  		zone->present_pages = realsize;
+> > > -#ifdef CONFIG_NUMA
+> > > -		zone->node = nid;
+> > >  		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
+> > >  						/ 100;
+> > > +#ifdef CONFIG_NUMA
+> > > +		zone->node = nid;
+> > >  		zone->min_slab_pages = (realsize * sysctl_min_slab_ratio) / 100;
+> > >  #endif
+> > >  		zone->name = zone_names[j];
+> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > index 0ac444f..98950f4 100644
 > > > --- a/mm/vmscan.c
 > > > +++ b/mm/vmscan.c
 > > > @@ -145,6 +145,21 @@ static DECLARE_RWSEM(shrinker_rwsem);
@@ -117,13 +115,8 @@ List-ID: <linux-mm.kvack.org>
 > > > +	return 1;
 > > > +}
 > > > +__setup("unmapped_page_control", unmapped_page_control_parm);
-> > 
-> > aw c'mon guys, everybody knows that when you add a kernel parameter you
-> > document it in Documentation/kernel-parameters.txt.
-> 
-> Will do - feeling silly on missing it out, that is where reviews help.
-> 
-> > 
+> > > +
+> > > +
 > > >  static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
 > > >  						  struct scan_control *sc)
 > > >  {
@@ -136,6 +129,14 @@ List-ID: <linux-mm.kvack.org>
 > > > +			 * below, so that we don't lose out
 > > > +			 */
 > > > +			balance_unmapped_pages(priority, zone, &sc);
+> > 
+> > You can't invoke any reclaim from here. It is in zone balancing detection
+> > phase. It mean your code reclaim pages from zones which has lots free pages too.
+> 
+> The goal is to check not only for zone_watermark_ok, but also to see
+> if unmapped pages are way higher than expected values.
+> 
+> > 
 > > > +
 > > >  			if (!zone_watermark_ok_safe(zone, order,
 > > >  					high_wmark_pages(zone), 0, 0)) {
@@ -150,11 +151,22 @@ List-ID: <linux-mm.kvack.org>
 > > > +			 */
 > > > +			balance_unmapped_pages(priority, zone, &sc);
 > > 
-> > More unjustifiable overhead on a commonly-executed codepath.
+> > 
+> > This code break page-cache/slab balancing logic. And this is conflict
+> > against Nick's per-zone slab effort.
 > >
 > 
-> Will refactor with a CONFIG suggested above.
+> OK, cc'ing Nick for comments.
 >  
+> > Plus, high-order + priority=5 reclaim Simon's case. (see "Free memory never 
+> > fully used, swapping" threads)
+> >
+> 
+> OK, this path should not add to swapping activity, if that is your
+> concern.
+> 
+>  
+> > >  
 > > >  			/*
 > > >  			 * Call soft limit reclaim before calling shrink_zone.
 > > > @@ -2491,7 +2517,8 @@ void wakeup_kswapd(struct zone *zone, int order)
@@ -177,19 +189,6 @@ List-ID: <linux-mm.kvack.org>
 > > > + * pages, slab control will come in soon, at which point this routine
 > > > + * should be called balance cached pages
 > > > + */
-> > 
-> > The problem I have with this comment is that it uses the term "balance"
-> > without ever defining it.  Plus "balance" is already a term which is used
-> > in memory reclaim.
-> > 
-> > So if you can think up a unique noun then that's good but whether or
-> > not that is done, please describe with great care what that term
-> > actually means in this context.
-> 
-> I used balance as a not a 1:1 balance, but to balance the proportion
-> of unmapped page cache based on a sysctl/tunable.
-> 
-> > 
 > > > +static unsigned long balance_unmapped_pages(int priority, struct zone *zone,
 > > > +						struct scan_control *sc)
 > > > +{
@@ -205,16 +204,23 @@ List-ID: <linux-mm.kvack.org>
 > > > +		nsc.may_unmap = 0;
 > > > +		nsc.nr_reclaimed = 0;
 > > 
-> > Doing a clone-and-own of a scan_control is novel.  What's going on here?
-> 
-> This code overwrites the swappiness, may_* and nr_reclaimed for
-> correct stats. The idea is to vary the reclaim behaviour/bias it.
-> 
+> > Don't you need to fill nsc.nr_to_reclaim field?
 > > 
+> 
+> Yes, since the relcaim code looks at nr_reclaimed, it needs to be 0 at
+> every iteration - did I miss something?
+> 
+> > > +
 > > > +		nr_pages = zone_unmapped_file_pages(zone) -
 > > > +				zone->min_unmapped_pages;
 > > > +		/* Magically try to reclaim eighth the unmapped cache pages */
 > > > +		nr_pages >>= 3;
+> > 
+> > Please don't make magic.
+> >
+>  
+> OK, it is a hueristic, how do I use it?
+> 
 > > > +
 > > > +		zone_reclaim_unmapped_pages(zone, &nsc, nr_pages);
 > > > +		return nsc.nr_reclaimed;
@@ -224,14 +230,9 @@ List-ID: <linux-mm.kvack.org>
 > > > +
 > > > +#define UNMAPPED_PAGE_RATIO 16
 > > 
-> > Well.  Giving 16 a name didn't really clarify anything.  Attentive
-> > readers will want to know what this does, why 16 was chosen and what
-> > the effects of changing it will be.
+> > Please don't make magic ratio.
 > 
-> Sorry, I documented that in the changelog of the first patchset. I'll
-> document it here as well. The reason for choosing 16 is based on
-> heuristics and test, the tradeoff being overenthusiastic reclaim
-> versus size of cache/performance.
+> OK, it is a hueristic, how do I use heuristics - sysctl?
 > 
 > > 
 > > > +bool should_balance_unmapped_pages(struct zone *zone)
@@ -242,17 +243,22 @@ List-ID: <linux-mm.kvack.org>
 > > > +		return true;
 > > > +	return false;
 > > > +}
+> > > +
+> > > +/*
+> > >   * Try to free up some pages from this zone through reclaim.
+> > >   */
+> > >  static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 > > 
 > > 
-> > > Reviewed-by: Christoph Lameter <cl@linux.com>
+> > Hmm....
 > > 
-> > So you're OK with shoving all this flotsam into 100,000,000 cellphones? 
-> > This was a pretty outrageous patchset!
+> > As far as I reviewed, I can't find any reason why this patch works as expected.
+> > So, I think cleancache looks promising more than this idea. Have you seen Dan's
+> > patch? I would suggested discuss him.
 > 
-> I'll do a better one, BTW, a lot of embedded folks are interested in
-> page cache control outside of cgroup behaviour.
-> 
-> Thanks for the detailed review!
+> Please try the patch, I've been using it and it works exactly as
+> expected for me. kswapd does the balancing and works well. I've posted
+> some data as well.
 >
 
 My local MTA failed to deliver the message, trying again. 
