@@ -1,72 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 734E36B0085
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 05:57:07 -0500 (EST)
-Date: Wed, 1 Dec 2010 10:56:49 +0000
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 330586B004A
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 06:07:46 -0500 (EST)
+Date: Wed, 1 Dec 2010 11:07:28 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/7] mm: vmscan: Reclaim order-0 and use compaction
-	instead of lumpy reclaim
-Message-ID: <20101201105648.GM13268@csn.ul.ie>
-References: <1290440635-30071-1-git-send-email-mel@csn.ul.ie> <1290440635-30071-4-git-send-email-mel@csn.ul.ie> <20101201102745.GL15564@cmpxchg.org>
+Subject: Re: [PATCH 1/3] mm: kswapd: Stop high-order balancing when any
+	suitable zone is balanced
+Message-ID: <20101201110728.GN13268@csn.ul.ie>
+References: <1291137339-6323-1-git-send-email-mel@csn.ul.ie> <1291137339-6323-2-git-send-email-mel@csn.ul.ie> <1291169636.12777.43.camel@sli10-conroe>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101201102745.GL15564@cmpxchg.org>
+In-Reply-To: <1291169636.12777.43.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 01, 2010 at 11:27:45AM +0100, Johannes Weiner wrote:
-> On Mon, Nov 22, 2010 at 03:43:51PM +0000, Mel Gorman wrote:
-> > Lumpy reclaim is disruptive. It reclaims a large number of pages and ignores
-> > the age of the pages it reclaims. This can incur significant stalls and
-> > potentially increase the number of major faults.
+On Wed, Dec 01, 2010 at 10:13:56AM +0800, Shaohua Li wrote:
+> On Wed, 2010-12-01 at 01:15 +0800, Mel Gorman wrote:
+> > When the allocator enters its slow path, kswapd is woken up to balance the
+> > node. It continues working until all zones within the node are balanced. For
+> > order-0 allocations, this makes perfect sense but for higher orders it can
+> > have unintended side-effects. If the zone sizes are imbalanced, kswapd
+> > may reclaim heavily on a smaller zone discarding an excessive number of
+> > pages. The user-visible behaviour is that kswapd is awake and reclaiming
+> > even though plenty of pages are free from a suitable zone.
 > > 
-> > Compaction has reached the point where it is considered reasonably stable
-> > (meaning it has passed a lot of testing) and is a potential candidate for
-> > displacing lumpy reclaim. This patch introduces an alternative to lumpy
-> > reclaim whe compaction is available called reclaim/compaction. The basic
-> > operation is very simple - instead of selecting a contiguous range of pages
-> > to reclaim, a number of order-0 pages are reclaimed and then compaction is
-> > later by either kswapd (compact_zone_order()) or direct compaction
-> > (__alloc_pages_direct_compact()).
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> 
-> > @@ -286,18 +290,20 @@ static void set_lumpy_reclaim_mode(int priority, struct scan_control *sc,
-> >  	lumpy_mode syncmode = sync ? LUMPY_MODE_SYNC : LUMPY_MODE_ASYNC;
-> >  
-> >  	/*
-> > -	 * Some reclaim have alredy been failed. No worth to try synchronous
-> > -	 * lumpy reclaim.
-> > +	 * Initially assume we are entering either lumpy reclaim or
-> > +	 * reclaim/compaction.Depending on the order, we will either set the
-> > +	 * sync mode or just reclaim order-0 pages later.
-> >  	 */
-> > -	if (sync && sc->lumpy_reclaim_mode & LUMPY_MODE_SINGLE)
-> > -		return;
-> > +	if (COMPACTION_BUILD)
-> > +		sc->lumpy_reclaim_mode = LUMPY_MODE_COMPACTION;
-> > +	else
-> > +		sc->lumpy_reclaim_mode = LUMPY_MODE_CONTIGRECLAIM;
-> 
-> Isn't this a regression for !COMPACTION_BUILD in that earlier kernels
-> would not do sync lumpy reclaim when somebody disabled it during the
-> async run?
+> > This patch alters the "balance" logic to stop kswapd if any suitable zone
+> > becomes balanced to reduce the number of pages it reclaims from other zones.
+>
+> from my understanding, the patch will break reclaim high zone if a low
+> zone meets the high order allocation, even the high zone doesn't meet
+> the high order allocation.
+
+Indeed this is possible and it's a situation confirmed by Simon. Patch 3
+should cover it because replacing "are any zones ok?" with "are zones
+representing at least 25% of the node balanced?"
+
+> This, for example, will make a high order
+> allocation from a high zone fallback to low zone and quickly exhaust low
+> zone, for example DMA. This will break some drivers.
 > 
 
-You'll need to clarify your question I'm afraid. In 2.6.36 for example,
-if lumpy reclaim gets disabled then sync reclaim does not happen at all.
-This was due to large stalls being observed when copying large amounts
-of data to slow storage such as a USB external drive.
+The lowmem reserve would prevent that happening so the drivers would be
+fine. The real impact is that kswapd would stop when DMA was balanced
+even though it was really DMA32 or Normal needed to be balanced for
+proper behaviour.
 
-> If so, it should be trivial to fix.  Aside from that
-> 
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-
-Thanks
+On lowmem reserves though, there is another buglet in
+sleeping_prematurely. The classzone_idx it uses means that the wrong
+lowmem_reserve is used for the majority of allocation requests.
 
 -- 
 Mel Gorman
