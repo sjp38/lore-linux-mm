@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D80816B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 20:34:15 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB11T6vN008991
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C84EF6B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 20:38:32 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB11cUPW014264
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 1 Dec 2010 10:29:06 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E7F1C45DE56
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 10:29:05 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B599045DE51
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 10:29:05 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 98C251DB8043
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 10:29:05 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C4331DB8038
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 10:29:05 +0900 (JST)
-Date: Wed, 1 Dec 2010 10:23:29 +0900
+	Wed, 1 Dec 2010 10:38:30 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D0BF45DE50
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 10:38:30 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 19B5345DE4E
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 10:38:30 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EE1C1E78003
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 10:38:29 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C7341DB8012
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 10:38:29 +0900 (JST)
+Date: Wed, 1 Dec 2010 10:32:54 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/3] Refactor zone_reclaim
-Message-Id: <20101201102329.89b96c54.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101130101520.17475.79978.stgit@localhost6.localdomain6>
+Subject: Re: [PATCH 3/3] Provide control over unmapped pages
+Message-Id: <20101201103254.b823eae0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20101130101602.17475.32611.stgit@localhost6.localdomain6>
 References: <20101130101126.17475.18729.stgit@localhost6.localdomain6>
-	<20101130101520.17475.79978.stgit@localhost6.localdomain6>
+	<20101130101602.17475.32611.stgit@localhost6.localdomain6>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -33,16 +33,55 @@ To: Balbir Singh <balbir@linux.vnet.ibm.com>
 Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kvm <kvm@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Nov 2010 15:45:55 +0530
+On Tue, 30 Nov 2010 15:46:31 +0530
 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> Refactor zone_reclaim, move reusable functionality outside
-> of zone_reclaim. Make zone_reclaim_unmapped_pages modular
+> Provide control using zone_reclaim() and a boot parameter. The
+> code reuses functionality from zone_reclaim() to isolate unmapped
+> pages and reclaim them as a priority, ahead of other mapped pages.
 > 
 > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+>  include/linux/swap.h |    5 ++-
+>  mm/page_alloc.c      |    7 +++--
+>  mm/vmscan.c          |   72 +++++++++++++++++++++++++++++++++++++++++++++++++-
+>  3 files changed, 79 insertions(+), 5 deletions(-)
+> 
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index eba53e7..78b0830 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -252,11 +252,12 @@ extern int vm_swappiness;
+>  extern int remove_mapping(struct address_space *mapping, struct page *page);
+>  extern long vm_total_pages;
+>  
+> -#ifdef CONFIG_NUMA
+> -extern int zone_reclaim_mode;
+>  extern int sysctl_min_unmapped_ratio;
+>  extern int sysctl_min_slab_ratio;
+>  extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
+> +extern bool should_balance_unmapped_pages(struct zone *zone);
+> +#ifdef CONFIG_NUMA
+> +extern int zone_reclaim_mode;
+>  #else
+>  #define zone_reclaim_mode 0
+>  static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 62b7280..4228da3 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1662,6 +1662,9 @@ zonelist_scan:
+>  			unsigned long mark;
+>  			int ret;
+>  
+> +			if (should_balance_unmapped_pages(zone))
+> +				wakeup_kswapd(zone, order);
+> +
 
-Why is this min_mapped_pages based on zone (IOW, per-zone) ?
+Hm, I'm not sure the final vision of this feature. Does this reclaiming feature
+can't be called directly via balloon driver just before alloc_page() ?
 
+Do you need to keep page caches small even when there are free memory on host ?
 
 Thanks,
 -Kame
