@@ -1,84 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C7EED6B004A
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 02:30:26 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB17UNqY004002
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 1 Dec 2010 16:30:24 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D39E45DE62
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 16:30:23 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 41E4D45DE59
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 16:30:23 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 308B0E18006
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 16:30:23 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E57C01DB803B
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 16:30:22 +0900 (JST)
-Date: Wed, 1 Dec 2010 16:24:44 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] Provide control over unmapped pages
-Message-Id: <20101201162444.5c7b1616.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101201064043.GO2746@balbir.in.ibm.com>
-References: <20101130101126.17475.18729.stgit@localhost6.localdomain6>
-	<20101130101602.17475.32611.stgit@localhost6.localdomain6>
-	<20101201103254.b823eae0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101201051816.GI2746@balbir.in.ibm.com>
-	<20101201052259.GN2746@balbir.in.ibm.com>
-	<20101201143550.0b652916.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101201064043.GO2746@balbir.in.ibm.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id D9F206B0085
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 02:40:30 -0500 (EST)
+Subject: Re: [PATCH 1/3] mm: kswapd: Stop high-order balancing when any
+ suitable zone is balanced
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20101201122638.ABBF.A69D9226@jp.fujitsu.com>
+References: <20101201115401.ABB1.A69D9226@jp.fujitsu.com>
+	 <1291173628.12777.65.camel@sli10-conroe>
+	 <20101201122638.ABBF.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 01 Dec 2010 15:40:27 +0800
+Message-ID: <1291189227.12777.79.camel@sli10-conroe>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kvm <kvm@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Simon Kirby <sim@hostway.ca>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 1 Dec 2010 12:10:43 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> > That's a point. Then, why the guest has to do _extra_ work for host even when
-> > the host says nothing ? I think trigger this by guests themselves is not very good.
+On Wed, 2010-12-01 at 11:28 +0800, KOSAKI Motohiro wrote:
+> > On Wed, 2010-12-01 at 10:59 +0800, KOSAKI Motohiro wrote:
+> > > > On Wed, 2010-12-01 at 10:23 +0800, KOSAKI Motohiro wrote:
+> > > > > > On Wed, 2010-12-01 at 01:15 +0800, Mel Gorman wrote:
+> > > > > > > When the allocator enters its slow path, kswapd is woken up to balance the
+> > > > > > > node. It continues working until all zones within the node are balanced. For
+> > > > > > > order-0 allocations, this makes perfect sense but for higher orders it can
+> > > > > > > have unintended side-effects. If the zone sizes are imbalanced, kswapd
+> > > > > > > may reclaim heavily on a smaller zone discarding an excessive number of
+> > > > > > > pages. The user-visible behaviour is that kswapd is awake and reclaiming
+> > > > > > > even though plenty of pages are free from a suitable zone.
+> > > > > > > 
+> > > > > > > This patch alters the "balance" logic to stop kswapd if any suitable zone
+> > > > > > > becomes balanced to reduce the number of pages it reclaims from other zones.
+> > > > > > from my understanding, the patch will break reclaim high zone if a low
+> > > > > > zone meets the high order allocation, even the high zone doesn't meet
+> > > > > > the high order allocation. This, for example, will make a high order
+> > > > > > allocation from a high zone fallback to low zone and quickly exhaust low
+> > > > > > zone, for example DMA. This will break some drivers.
+> > > > > 
+> > > > > Have you seen patch [3/3]? I think it migigate your pointed issue.
+> > > > yes, it improves a lot, but still possible for small systems.
+> > > 
+> > > Ok, I got you. so please define your "small systems" word? 
+> > an embedded system with less memory memory, obviously
 > 
-> I've mentioned it before, the guest keeping free memory without a
-> large performance hit, helps, the balloon driver is able to quickly
-> retrieve this memory if required or the guest can use this memory for
-> some other application/task. 
-
-
-> The cached data is mostly already present in the host page cache.
-
-Why ? Are there parameters/stats which shows this is _true_ ? How we can
-guarantee/show it to users ?
-Please add an interface to show "shared rate between guest/host" If not,
-any admin will not turn this on because "file cache status on host" is a
-black box for guest admins. I think this patch skips something important steps.
-
-2nd point is maybe for reducing total host memory usage and for increasing
-the number of guests on a host. For that, this feature is useful only when all guests
-on a host are friendly and devoted to the health of host memory management because
-all setting must be done in the guest. This can be passed as even by qemu's command line
-argument. And _no_ benefit for the guests who reduce it's resource to help
-host management because there is no guarantee dropped caches are on host memory.
-
-
-So, for both claim, I want to see an interface to show the number of shared pages
-between hosts and guests rather than imagine it.
-
-BTW, I don't like this kind of "please give us your victim, please please please"
-logic. The host should be able to "steal" what it wants in force.
-Then, I think there should be no On/Off visible interfaces. The vm firmware
-should tell to turn on this if administrator of the host wants.
-
-BTW2, please test with some other benchmarks (which read file caches.)
-I don't think kernel make is good test for this.
-
-Thanks,
--Kame
+> Typical embedded system don't have multiple zone. It's not obvious.
+IIRC, ARM supports highmem. But you are right, slub doen't allocate from
+highmem.
+> > > we can't make
+> > > perfect VM heuristics obviously, then we need to compare pros/cons.
+> > if you don't care about small system, let's consider a NORMAL i386
+> > system with 896m normal zone, and 896M*3 high zone. normal zone will
+> > quickly exhaust by high order high zone allocation, leave a latter
+> > allocation which does need normal zone fail.
+> 
+> Not happen. slab don't allocate from highmem and page cache allocation
+> is always using order-0. When happen high order high zone allocation?
+ok, thanks, I missed this. then how about a x86_64 box with 896M DMA32
+and 896*3M NORMAL? some pci devices can only dma to DMA32 zone.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
