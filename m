@@ -1,76 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A1DE86B0088
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 00:42:07 -0500 (EST)
-Subject: Re: [patch]vmscan: make kswapd use a correct order
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <AANLkTi=whw86_7T0tVi5S8xmwS+Z3PDE_AbXEJSQFqR4@mail.gmail.com>
-References: <1291172911.12777.58.camel@sli10-conroe>
-	 <AANLkTi=whw86_7T0tVi5S8xmwS+Z3PDE_AbXEJSQFqR4@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 01 Dec 2010 13:42:05 +0800
-Message-ID: <1291182125.12777.69.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 3C4756B004A
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 01:36:55 -0500 (EST)
+Date: Tue, 30 Nov 2010 22:36:48 -0800
+From: Simon Kirby <sim@hostway.ca>
+Subject: Re: Sudden and massive page cache eviction
+Message-ID: <20101201063648.GA31793@hostway.ca>
+References: <20101122161158.02699d10.akpm@linux-foundation.org> <1290501502.2390.7029.camel@nimitz> <AANLkTik2Fn-ynUap2fPcRxRdKA=5ZRYG0LJTmqf80y+q@mail.gmail.com> <1290529171.2390.7994.camel@nimitz> <AANLkTikCn-YvORocXSJ1Z+ovYNMhKF7TaX=BHWKwrQup@mail.gmail.com> <AANLkTi=mgTHPEYFsryDYnxPa78f-Nr+H7i4+0KPZbxh3@mail.gmail.com> <AANLkTimo1BR=mSJ6wPQwrL4FDNv=_TfanPPTT7uWx7hQ@mail.gmail.com> <AANLkTi=yV02oY5AmNAYr+ZF0RUgVv8gkeP+D9_CcOfLi@mail.gmail.com> <20101125011848.GB29511@hostway.ca> <AANLkTi=V55NMaTejNnnmY8KCfWDmMvJ-rh-wJ_8ixNnf@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTi=V55NMaTejNnnmY8KCfWDmMvJ-rh-wJ_8ixNnf@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Peter Sch??ller <scode@spotify.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Mattias de Zalenski <zalenski@spotify.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-12-01 at 12:21 +0800, Minchan Kim wrote:
-> On Wed, Dec 1, 2010 at 12:08 PM, Shaohua Li <shaohua.li@intel.com> wrote:
-> > T0: Task1 wakeup_kswapd(order=3)
-> > T1: kswapd enters balance_pgdat
-> > T2: Task2 wakeup_kswapd(order=2), because pages reclaimed by kswapd are used
-> > quickly
-> > T3: kswapd exits balance_pgdat. kswapd will do check. Now new order=2,
-> > pgdat->kswapd_max_order will become 0, but order=3, if sleeping_prematurely,
-> > then order will become pgdat->kswapd_max_order(0), while at this time the
-> > order should 2
-> > This isn't a big deal, but we do have a small window the order is wrong.
+Hello!  Sorry, I didn't see your email until now.
+
+On Thu, Nov 25, 2010 at 04:59:25PM +0100, Peter Sch??ller wrote:
+
+> > Your page cache dents don't seem quite as big, so it may be something
+> > else, but if it's the same problem we're seeing here, it seems to have to
+> > do with when an order=3 new_slab allocation comes in to grows the kmalloc
+> > slab cache for an __alloc_skb (network packet). ??This is normal even
+> > without jumbo frames now. ??When there are no zones with order=3
+> > zone_watermark_ok(), kswapd is woken, which frees things all over the
+> > place to try to get zone_watermark_ok(order=3) to be happy.
+> > We're seeing this throw out a huge number of pages, and we're seeing it
+> > happen even with lots of memory free in the zone.
+> 
+> Is there some way to observe this directly (the amount evicted for low
+> watermark reasons)?
+> 
+> If not, is logging/summing the return value of balance_pgdat() in
+> kswapd() (mm/vmscan.c) be the way to accomplish this?
+
+The way I could "see" it was with http://0x.ca/sim/ref/2.6.36/vmstat_dump
+, which updates fast enough (if your terminal doesn't suck) to actually
+see the 10 Hz wakeups and similar patterns.  pageoutrun goes up each time
+balance_pgdat() passes the "loop_again" label.
+
+Watching http://0x.ca/sim/ref/2.6.36/buddyinfo_dump at the same time
+shows that while pageoutrun is increasing, Normal pages are being
+allocated and freed all very quickly but not reaching the watermark,
+and the other kswapd-related counters seem to show this.
+
+> My understanding (and I am saying it just so that people can tell my
+> if I'm wrong) is that what you're saying implies that kswapd keeps
+> getting woken up in wakeup_kswapd() due to zone_watermark_ok(), but
+> kswapd()'s invocation of balance_pgdat() is unable to bring levels
+> above the low water mark but but evicted large amounts of data while
+> trying?
+
+Yes, though there are a couple of issues here.  See the "Free memory
+never fully used, swapping" thread and Mel Gorman's comments/patches. 
+
+His patches fix kswapd fighting the allocator for me, but I'm still
+running into problems with what seems to be fragmentation making it
+difficult for kswapd to meet the higher order watermarks after a few
+days.  Even with everything in slub set order 0 except order 1 where
+absolutely required is still seeming to result in lots of free memory
+after a week or so of normal load.
+
+> (For the ML record/others: I believe that was meant to be
+> zone_watermark_ok(), not zone_pages_ok(). It's in mm/page_alloc.c)
+
+Yes :)
+
+> > Code here: http://0x.ca/sim/ref/2.6.36/buddyinfo_scroll
+> 
+> [snip output]
+> 
+> > So, kswapd was woken up at the line that ends in "!!!" there, because
+> > free_pages(249) <= min(256), and so zone_watermark_ok() returned 0, when
+> > an order=3 allocation came in.
 > >
-> > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> Reviewed-by: Minchan Kim <minchan.kim@gmai.com>
+> > Maybe try out that script and see if you see something similar.
 > 
-> But you need the description more easily.
+> Thanks! That looks great. I'll try to set up data collection where
+> this can be observed and then correlated with a graph and the
+> vmstat/slabinfo that I just posted, the next time we see an eviction.
 > 
-> I try it.
-Thanks, changed the description.
+> (For the record it triggers constantly on my desktop, but that is with
+> 2.6.32 and I'm assuming it is due to differences in that kernel, so
+> I'm not bothering investigating. It's not triggering constantly on the
+> 2.6.26-rc6 kernel on the production system, and hopefully we can see
+> it trigger during the evictions.)
 
+Well, nothing seems to care about higher order watermarks unless
+something atually tries to allocate from them, so if you don't have
+any order-3 allocations, it's unlikely that it will be met after
+you've filled free memory.  This isn't immediately obvious, because
+zone_watermark_ok() works by subtracting free pages in _lower_ orders
+from the total free pages in a zone.  So, it's the free blocks in the
+specified order and _bigger_ that matter in buddyinfo.  Also,
+min_free_kbytes and lowmem_reserve_ratio prevent all of the buddies
+from being split even if _only_ order 0 allocations have ever occurred.
 
-T0: Task 1 wakes up kswapd with order-3
-T1: So, kswapd starts to reclaim pages using balance_pgdat
-T2: Task 2 wakes up kswapd with order-2 because pages reclaimed by T1
-are consumed quickly.
-T3: kswapd exits balance_pgdat and will do following:
-T4-1: In beginning of kswapd's loop, pgdat->kswapd_max_order will be
-reset with zero.
-T4-2: order will be set to pgdat->kswapd_max_order(0), since it enters the
-false branch of 'if (order (3) < new_order (2))'
-T4-3: If previous balance_pgdat can't meet requirement of order-2 free
-pages by high watermark, it will start reclaiming again. So balance_pgdat will
-use order-0 to do reclaim, while at this time it really should use order-2
+Anyway, how did it go?  Did you find anything interesting? :)
 
-This isn't a big deal, but we do have a small window the order is wrong.
-
-Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d31d7ce..c630349 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2450,7 +2450,8 @@ static int kswapd(void *p)
- 				}
- 			}
- 
--			order = pgdat->kswapd_max_order;
-+			order = max_t(unsigned long, new_order,
-+				pgdat->kswapd_max_order);
- 		}
- 		finish_wait(&pgdat->kswapd_wait, &wait);
- 
-
+Simon-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
