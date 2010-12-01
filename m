@@ -1,39 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A7A406B009F
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 13:14:34 -0500 (EST)
-Date: Wed, 1 Dec 2010 19:07:53 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 07F516B00A1
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 13:34:29 -0500 (EST)
+Date: Wed, 1 Dec 2010 19:27:47 +0100
 From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 1/2] exec: make argv/envp memory visible to oom-killer
-Message-ID: <20101201180753.GA6143@redhat.com>
-References: <20101130195456.GA11905@redhat.com> <20101130195534.GB11905@redhat.com> <20101201090350.ABA2.A69D9226@jp.fujitsu.com>
+Subject: Re: (No subject header)
+Message-ID: <20101201182747.GB6143@redhat.com>
+References: <20101130200129.GG11905@redhat.com> <compat-not-unlikely@mdm.bga.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101201090350.ABA2.A69D9226@jp.fujitsu.com>
+In-Reply-To: <compat-not-unlikely@mdm.bga.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>, stable@kernel.org
+To: Milton Miller <miltonm@bga.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 12/01, KOSAKI Motohiro wrote:
+On 12/01, Milton Miller wrote:
 >
-> > +static void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
+> On Tue, 30 Nov 2010 about 20:01:29 -0000, Oleg Nesterov wrote:
+> > Teach get_arg_ptr() to handle compat = T case correctly.
 >
-> One minor request.
+> >  #include <asm/uaccess.h>
+> >  #include <asm/mmu_context.h>
+> > @@ -395,6 +396,18 @@ get_arg_ptr(const char __user * const __
+> >  {
+> >  	const char __user *ptr;
+> >
+> > +#ifdef CONFIG_COMPAT
+> > +	if (unlikely(compat)) {
 >
-> I guess this function can easily makes confusing to a code reader. So I
-> hope you write small function comments. describe to
->  - What is oom nascent issue
->  - Why we think inaccurate account is ok
+> This should not be marked unlikely.  Unlikely tells gcc the path
+> with over 99% confidence and disables branch predictors on some
+> architectures.  If called from a compat processes this will result
+> in a mispredicted branch every iteration.  Just use if (compat)
+> and let the hardware branch predictors do their job.
 
-Agreed, this needs a comment.
+This applies to almost every likely/unlikely, and I think that compat
+processes should fall into "unlikely category". But I don't really mind,
+I can remove this hint, I added it mostly as documentation.
 
-The patch was already applied, I'll send a separate one on top
-of the next "unify exec/compat" series. Or, I'll add the comments
-into this series, depending on review.
+> > +#ifdef CONFIG_COMPAT
+> > +int compat_do_execve(char * filename,
+> > +	compat_uptr_t __user *argv,
+> > +	compat_uptr_t __user *envp,
+> > +	struct pt_regs * regs)
+> > +{
+> > +	return do_execve_common(filename,
+> > +				(void __user*)argv, (void __user*)envp,
+>
+> Shouldn't these be compat_ptr(argv)?  (makes a difference on s390)
 
-Thanks,
+I'll recheck, but I don't think so. Please note that compat_ptr()
+accepts "compat_uptr_t", not "compat_uptr_t *".
+
+argv should be correct as a pointer to user-space, otherwise the
+current code is buggy. For example, compat_do_execve() passes
+argv to compat_count() which does get_user(argv) without any
+conversion.
+
+IOW, even if this should be fixed, I think this have nothing to
+do with this patch. But I'll recheck, thanks.
 
 Oleg.
 
