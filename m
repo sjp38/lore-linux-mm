@@ -1,114 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 73E656B0071
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 19:18:37 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB10IZuH010502
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 1 Dec 2010 09:18:35 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id ED11145DE51
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 09:18:34 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CB9DB45DE50
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 09:18:34 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A340D1DB8012
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 09:18:34 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 56F991DB8017
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 09:18:34 +0900 (JST)
-Date: Wed, 1 Dec 2010 09:12:55 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/4] Add kswapd descriptor.
-Message-Id: <20101201091255.7099d6bd.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <AANLkTinWqyMrLdw9bBuog03vy3pLz9NVu3s8QBfTMrL3@mail.gmail.com>
-References: <1291099785-5433-1-git-send-email-yinghan@google.com>
-	<1291099785-5433-2-git-send-email-yinghan@google.com>
-	<20101130160838.4c66febf.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTinWqyMrLdw9bBuog03vy3pLz9NVu3s8QBfTMrL3@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 31BD46B0088
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 19:19:12 -0500 (EST)
+Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
+	by smtp-out.google.com with ESMTP id oB10J8TA030063
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 16:19:08 -0800
+Received: from pwj9 (pwj9.prod.google.com [10.241.219.73])
+	by hpaq1.eem.corp.google.com with ESMTP id oB10J5KB030170
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 16:19:07 -0800
+Received: by pwj9 with SMTP id 9so1160284pwj.21
+        for <linux-mm@kvack.org>; Tue, 30 Nov 2010 16:19:05 -0800 (PST)
+Date: Tue, 30 Nov 2010 16:19:00 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [1/8, v6] NUMA Hotplug Emulator: documentation
+In-Reply-To: <20101130071436.732999291@intel.com>
+Message-ID: <alpine.DEB.2.00.1011301618440.18341@chino.kir.corp.google.com>
+References: <20101130071324.908098411@intel.com> <20101130071436.732999291@intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Ying Han <yinghan@google.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: Shaohui Zheng <shaohui.zheng@intel.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Nov 2010 12:17:33 -0800
-Ying Han <yinghan@google.com> wrote:
+On Tue, 30 Nov 2010, shaohui.zheng@intel.com wrote:
 
-> > At the 1st look, this just seem to increase the size of changes....
-> >
-> > IMHO, implementing background-reclaim-for-memcg is cleaner than reusing kswapd..
-> > kswapd has tons of unnecessary checks.
+> From: Shaohui Zheng <shaohui.zheng@intel.com>
 > 
-> Sorry I am not aware of "background-reclaim-for-memcg", can you
-> specify little bit more? Also,
-> the unnecessary checks here refers to the kswapd() or balance_pgdat()?
-> If the latter one, the
-> logic is not being shared at all included in patch/3.
+> add a text file Documentation/x86/x86_64/numa_hotplug_emulator.txt
+> to explain the usage for the hotplug emulator.
 > 
-Yes, now I read patch/3 and I'm sorry to say that.
+> Reviewed-By: Randy Dunlap <randy.dunlap@oracle.com>
+> Signed-off-by: Haicheng Li <haicheng.li@intel.com>
+> Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
 
-
-Some nits.
-
-At 1st. I just coudln't undestand idea of array of kswapd descriptor.
-Hmm, dynamic allocation isn't possible ? as
-
-==
-struct kswapd_param {
-	pg_data_t	*pgdat;
-	struct mem_cgroup *memcg;
-	struct wait_queue *waitq;
-};
-
-
-int kswapd_run(int nid, struct mem_cgroup *memcg)
-{
-	struct kswapd_param *param;
-
-	param = kzalloc(); /* freed by kswapd */
-
-	if (!memcg) { /* per-node kswapd */
-		param->pgdat = NODE_DATA(nid);
-		if (param->pgdat->kswapd)
-			return;
-		pgdat->kswapd = kthread_run(param);
-		..../* fatal error check */
-		return;
-	}
-		
-	/* per-memcg kswapd */
-	kthread_run(param);
-}
-==
-
-Secondaly, I think some macro is necessary.
-
-How about
-==
-#define is_node_kswapd(param)	(!param->memcg)
-
-int kswapd(void *p)
-{
-	struct kswapd_param *param = p;
-
-	if (is_node_kswapd(param))
-		param->waitq = &param->pgdat->kswapd_wait;
-	else
-		param->waitq = mem_cgroup_get_kswapd_waitq(param->memcg);
-		/* Here, we can notify the memcg which thread is for yours. */
-
-
-or some ?
-
-I think a macro like scanning_global_lru() is necessary.
-
-
-Thanks,
--Kame
+Signed-off-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
