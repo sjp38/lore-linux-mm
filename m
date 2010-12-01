@@ -1,30 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B0B706B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 19:50:02 -0500 (EST)
-Received: by iwn42 with SMTP id 42so1984686iwn.14
-        for <linux-mm@kvack.org>; Tue, 30 Nov 2010 16:49:57 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B0EDB6B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 19:50:51 -0500 (EST)
+Received: by gwj22 with SMTP id 22so1175931gwj.14
+        for <linux-mm@kvack.org>; Tue, 30 Nov 2010 16:50:49 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1011301025010.7450@tigran.mtv.corp.google.com>
+In-Reply-To: <20101130113540.GD15564@cmpxchg.org>
 References: <cover.1291043273.git.minchan.kim@gmail.com>
 	<a0f2905bb64ce33909d7dd74146bfea826fec21a.1291043274.git.minchan.kim@gmail.com>
-	<alpine.LSU.2.00.1011301025010.7450@tigran.mtv.corp.google.com>
-Date: Wed, 1 Dec 2010 09:49:17 +0900
-Message-ID: <AANLkTin-BoUQNw+NfQeku0=K8mK0trt5=J9tMXNvrs9i@mail.gmail.com>
+	<20101130113540.GD15564@cmpxchg.org>
+Date: Wed, 1 Dec 2010 09:50:49 +0900
+Message-ID: <AANLkTi=SPop0yXgVA=gdkgC2TUOp2v3W3_iL4px1OaQR@mail.gmail.com>
 Subject: Re: [PATCH v3 3/3] Prevent activation of page in madvise_dontneed
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ben Gamari <bgamari.foss@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ben Gamari <bgamari.foss@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Hugh,
-
-On Wed, Dec 1, 2010 at 3:34 AM, Hugh Dickins <hughd@google.com> wrote:
-> On Tue, 30 Nov 2010, Minchan Kim wrote:
->
+On Tue, Nov 30, 2010 at 8:35 PM, Johannes Weiner <hannes@cmpxchg.org> wrote=
+:
+> On Tue, Nov 30, 2010 at 12:23:21AM +0900, Minchan Kim wrote:
 >> Now zap_pte_range alwayas activates pages which are pte_young &&
 >> !VM_SequentialReadHint(vma). But in case of calling MADV_DONTNEED,
 >> it's unnecessary since the page wouldn't use any more.
@@ -50,24 +48,35 @@ On Wed, Dec 1, 2010 at 3:34 AM, Hugh Dickins <hughd@google.com> wrote:
 -----
 >> =A0mm/mmap.c =A0 =A0 =A0 =A0 =A0| =A0 =A04 ++--
 >> =A04 files changed, 29 insertions(+), 21 deletions(-)
+>>
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index e097df6..6032881 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -779,11 +779,11 @@ struct page *vm_normal_page(struct vm_area_struct =
+*vma, unsigned long addr,
+>> =A0int zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long size);
+>> =A0unsigned long zap_page_range(struct vm_area_struct *vma, unsigned lon=
+g address,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 unsigned long size, struct zap_details *);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 unsigned long size, struct zap_details *, bool=
+ activate);
 >
-> Everyone else seems pretty happy with this, and I've not checked
-> at all whether it achieves your purpose; but personally I'd much
-> prefer a smaller patch which adds your "activate" or "ignore_references"
-> flag to struct zap_details, instead of passing this exceptional arg
-> down lots of levels. =A0That's precisely the purpose of zap_details,
-> to gather together a few things that aren't needed in the common case
-> (though I admit the NULL details defaulting may be ugly).
+> I would prefer naming the parameter 'ignore_references' or something
+> similar, so that it reflects the immediate effect on the zappers'
+> behaviour, not what mark_page_accessed() might end up doing.
+>
+> Other than that, the patch looks good to me.
 
-Before I sent RFC, I tried it and suffered from NULL detail as you said.
-But it's valuable to look on it, again.
-Since other guys don't opposed this patch's goal, I will have a time
-for unifying it into zap_details.
+Fair enough.
+Will fix.
+Maybe it would take a long time until sending next version.
 
-Thanks, Hugh.
+Thanks, Hannes.
 
-
-> Hugh
+>
+> =A0 =A0 =A0 =A0Hannes
 >
 
 
