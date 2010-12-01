@@ -1,74 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id E1F886B0096
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:38:34 -0500 (EST)
-From: Milton Miller <miltonm@bga.com>
-Message-Id: <compat-not-unlikely@mdm.bga.com>
-In-Reply-To: <20101130200129.GG11905@redhat.com>
-References: <20101130200129.GG11905@redhat.com>
-Date: Wed, 01 Dec 2010 11:37:58 -0600
-Subject: (No subject header)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 49D906B0099
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:56:58 -0500 (EST)
+Date: Wed, 01 Dec 2010 09:57:23 -0800 (PST)
+Message-Id: <20101201.095723.193718753.davem@davemloft.net>
+Subject: Re: Flushing whole page instead of work for ptrace
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <4CF68174.10301@petalogix.com>
+References: <4CEFA8AE.2090804@petalogix.com>
+	<20101130233250.35603401C8@magilla.sf.frob.com>
+	<4CF68174.10301@petalogix.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>
+To: michal.simek@petalogix.com
+Cc: roland@redhat.com, oleg@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, john.williams@petalogix.com, edgar.iglesias@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Nov 2010 about 20:01:29 -0000, Oleg Nesterov wrote:
-> Teach get_arg_ptr() to handle compat = T case correctly.
+From: Michal Simek <michal.simek@petalogix.com>
+Date: Wed, 01 Dec 2010 18:10:12 +0100
 
->  #include <asm/uaccess.h>
->  #include <asm/mmu_context.h>
-> @@ -395,6 +396,18 @@ get_arg_ptr(const char __user * const __
->  {
->  	const char __user *ptr;
->  
-> +#ifdef CONFIG_COMPAT
-> +	if (unlikely(compat)) {
+> Roland McGrath wrote:
+>> This is a VM question more than a ptrace question.  I can't give you
+>> any authoritative answers about the VM issues.
+>> Documentation/cachetlb.txt says:
+>> 	Any time the kernel writes to a page cache page, _OR_
+>> 	the kernel is about to read from a page cache page and
+>> 	user space shared/writable mappings of this page potentially
+>> 	exist, this routine is called.
+>> In your case, the kernel is only reading (write=0 passed to
+>> access_process_vm and get_user_pages).  In normal situations,
+>> the page in question will have only a private and read-only
+>> mapping in user space.  So the call should not be required in
+>> these cases--if the code can tell that's so.
+>> Perhaps something like the following would be safe.
+>> But you really need some VM folks to tell you for sure.
+>> diff --git a/mm/memory.c b/mm/memory.c
+>> index 02e48aa..2864ee7 100644
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -1484,7 +1484,8 @@ int __get_user_pages(struct task_struct *tsk,
+>> struct mm_struct *mm,
+>>  				pages[i] = page;
+>>   				flush_anon_page(vma, page, start);
+>> -				flush_dcache_page(page);
+>> + if ((vm_flags & VM_WRITE) || (vma->vm_flags & VM_SHARED)
+>> +					flush_dcache_page(page);
+>>  			}
+>>  			if (vmas)
+>>  				vmas[i] = vma;
+>> Thanks,
+>> Roland
+> 
+> Andrew any comment?
 
-This should not be marked unlikely.  Unlikely tells gcc the path
-with over 99% confidence and disables branch predictors on some
-architectures.  If called from a compat processes this will result
-in a mispredicted branch every iteration.  Just use if (compat)
-and let the hardware branch predictors do their job.
+I don't have any comments on this specific patch but I will note
+that special care is needed _after_ the access to kick out aliases
+so that other future accesses to this page, which are oblivious to
+what ptrace did, don't see illegal D-cache aliases.
 
-> +		compat_uptr_t __user *a = (void __user*)argv;
-> +		compat_uptr_t p;
-> +
-> +		if (get_user(p, a + argc))
-> +			return ERR_PTR(-EFAULT);
-> +
-> +		return compat_ptr(p);
-> +	}
-> +#endif
-> +
->  	if (get_user(ptr, argv + argc))
->  		return ERR_PTR(-EFAULT);
->  
-> @@ -1501,6 +1514,18 @@ int do_execve(const char *filename,
->  	return do_execve_common(filename, argv, envp, regs, false);
->  }
->  
-> +#ifdef CONFIG_COMPAT
-> +int compat_do_execve(char * filename,
-> +	compat_uptr_t __user *argv,
-> +	compat_uptr_t __user *envp,
-> +	struct pt_regs * regs)
-> +{
-> +	return do_execve_common(filename,
-> +				(void __user*)argv, (void __user*)envp,
+Have a look at arch/sparc/kernel/ptrace_64.c:flush_ptrace_access().
 
-Shouldn't these be compat_ptr(argv)?  (makes a difference on s390)
+Also, another issue is that much of the time ptrace() is just fetching
+very small chunks (perhaps, a stack frame, or some variable in the
+program image), so doing an entire page flush when we only copy
+a few bytes out of the page is overkill.
 
-> +				regs, true);
-> +}
-> +#endif
-> +
->  void set_binfmt(struct linux_binfmt *new)
->  {
->  	struct mm_struct *mm = current->mm;
-
-Thanks,
-milton
+Sparc64's flush_ptrace_access() tries to address this as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
