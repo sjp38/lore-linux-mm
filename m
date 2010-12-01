@@ -1,62 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 319216B0085
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 02:52:23 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB17qKNX016941
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 1 Dec 2010 16:52:20 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 376D845DE5D
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 16:52:20 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1255045DE54
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 16:52:20 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F1567E08004
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 16:52:19 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B9BC2E38003
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 16:52:19 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3] mm: kswapd: Stop high-order balancing when any suitable zone is balanced
-In-Reply-To: <1291189227.12777.79.camel@sli10-conroe>
-References: <20101201122638.ABBF.A69D9226@jp.fujitsu.com> <1291189227.12777.79.camel@sli10-conroe>
-Message-Id: <20101201164647.ABD7.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2BEF16B0085
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 02:54:10 -0500 (EST)
+Received: by iwn42 with SMTP id 42so2389440iwn.14
+        for <linux-mm@kvack.org>; Tue, 30 Nov 2010 23:54:08 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Wed,  1 Dec 2010 16:52:18 +0900 (JST)
+In-Reply-To: <20101130101520.17475.79978.stgit@localhost6.localdomain6>
+References: <20101130101126.17475.18729.stgit@localhost6.localdomain6>
+	<20101130101520.17475.79978.stgit@localhost6.localdomain6>
+Date: Wed, 1 Dec 2010 16:54:08 +0900
+Message-ID: <AANLkTik59zL97EqpPSNiy122YFwXqWyRqAkMJDjRtfRE@mail.gmail.com>
+Subject: Re: [PATCH 2/3] Refactor zone_reclaim
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Simon Kirby <sim@hostway.ca>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kvm <kvm@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> > > > we can't make
-> > > > perfect VM heuristics obviously, then we need to compare pros/cons.
-> > > if you don't care about small system, let's consider a NORMAL i386
-> > > system with 896m normal zone, and 896M*3 high zone. normal zone will
-> > > quickly exhaust by high order high zone allocation, leave a latter
-> > > allocation which does need normal zone fail.
-> > 
-> > Not happen. slab don't allocate from highmem and page cache allocation
-> > is always using order-0. When happen high order high zone allocation?
-> ok, thanks, I missed this. then how about a x86_64 box with 896M DMA32
-> and 896*3M NORMAL? some pci devices can only dma to DMA32 zone.
+Hi Balbir,
 
-First, DMA32 is 4GB. Second, modern high end system don't use 32bit PCI
-device. Third, while we are thinking desktop users, 4GB is not small
-room. nowadays, typical desktop have only 2GB or 4GB memory.
+On Tue, Nov 30, 2010 at 7:15 PM, Balbir Singh <balbir@linux.vnet.ibm.com> w=
+rote:
+> Refactor zone_reclaim, move reusable functionality outside
+> of zone_reclaim. Make zone_reclaim_unmapped_pages modular
+>
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+> =A0mm/vmscan.c | =A0 35 +++++++++++++++++++++++------------
+> =A01 files changed, 23 insertions(+), 12 deletions(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 325443a..0ac444f 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2719,6 +2719,27 @@ static long zone_pagecache_reclaimable(struct zone=
+ *zone)
+> =A0}
+>
+> =A0/*
+> + * Helper function to reclaim unmapped pages, we might add something
+> + * similar to this for slab cache as well. Currently this function
+> + * is shared with __zone_reclaim()
+> + */
+> +static inline void
+> +zone_reclaim_unmapped_pages(struct zone *zone, struct scan_control *sc,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned lo=
+ng nr_pages)
+> +{
+> + =A0 =A0 =A0 int priority;
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* Free memory by calling shrink zone with increasing
+> + =A0 =A0 =A0 =A0* priorities until we have enough memory freed.
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 priority =3D ZONE_RECLAIM_PRIORITY;
+> + =A0 =A0 =A0 do {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrink_zone(priority, zone, sc);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 priority--;
+> + =A0 =A0 =A0 } while (priority >=3D 0 && sc->nr_reclaimed < nr_pages);
+> +}
+> +
 
-In other word, I agree your pointed issue is exist _potentially_. but
-I don't think it is frequently than Simon's case.
+I don't see any specific logic about naming
+"zone_reclaim_unmapped_pages" in your function.
+Maybe, caller of this function have to handle sc->may_unmap. So, this
+function's naming
+is not good.
+As I see your logic, the function name would be just "zone_reclaim_pages"
+If you want to name it with zone_reclaim_unmapped_pages, it could be
+better with setting sc->may_unmap in this function.
 
-In other word, when deciding heuristics, we can't avoid to think issue
-frequency. It's very important.
 
-
-Of cource, if you have better idea, I don't oppose it.
-
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
