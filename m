@@ -1,88 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F5A66B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 23:21:10 -0500 (EST)
-Received: by qyk10 with SMTP id 10so6941121qyk.14
-        for <linux-mm@kvack.org>; Tue, 30 Nov 2010 20:21:07 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id CC7286B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 23:42:12 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB14g97w026633
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 1 Dec 2010 13:42:09 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EF67E45DE5C
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 13:42:08 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C2AC045DE57
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 13:42:08 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B57F8E18005
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 13:42:08 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E643E18002
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 13:42:08 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC] mlock: release mmap_sem every 256 faulted pages
+In-Reply-To: <20101123050052.GA24039@google.com>
+References: <20101123050052.GA24039@google.com>
+Message-Id: <20101201134020.ABC8.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1291172911.12777.58.camel@sli10-conroe>
-References: <1291172911.12777.58.camel@sli10-conroe>
-Date: Wed, 1 Dec 2010 13:21:07 +0900
-Message-ID: <AANLkTi=whw86_7T0tVi5S8xmwS+Z3PDE_AbXEJSQFqR4@mail.gmail.com>
-Subject: Re: [patch]vmscan: make kswapd use a correct order
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed,  1 Dec 2010 13:42:07 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@kernel.dk>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 1, 2010 at 12:08 PM, Shaohua Li <shaohua.li@intel.com> wrote:
-> T0: Task1 wakeup_kswapd(order=3D3)
-> T1: kswapd enters balance_pgdat
-> T2: Task2 wakeup_kswapd(order=3D2), because pages reclaimed by kswapd are=
- used
-> quickly
-> T3: kswapd exits balance_pgdat. kswapd will do check. Now new order=3D2,
-> pgdat->kswapd_max_order will become 0, but order=3D3, if sleeping_prematu=
-rely,
-> then order will become pgdat->kswapd_max_order(0), while at this time the
-> order should 2
-> This isn't a big deal, but we do have a small window the order is wrong.
->
-> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmai.com>
 
-But you need the description more easily.
+minor additionl comments.
 
-I try it.
+> +		/*
+> +		 * Limit batch size to 256 pages in order to reduce
+> +		 * mmap_sem hold time.
+> +		 */
+> +		nfault = nstart + 256 * PAGE_SIZE;
 
-T0 : Task 1 wakes up kswapd with order-3
-T1 : So, kswapd starts to reclaim pages using balance_pgdat
-T2:  Task 2 wakes up kswapd with order-2 because pages reclaimed by T1
-are consumed quickly.
-T3: kswapd exits balance_pgdat and will recheck remained work
-T4-1 : In beginning of kswapd's loop, pgdat->kswapd_max_order will be
-reset with zero.
-T4-2: If previous balance_pgdat can't meet requirement of order-3 free
-pages by high watermark, it can start reclaiming again.
-T4-3 :Unfortunately, balance_pgdat's argument _order_ is
-pgdat->kswapd_max_order which was zero.  It should have been 2.
+You made 256 pages batch and __mlock_vma_pages_range() has 16 pages 
+another batch.
+Can we unify this two batch?
 
-Regardless of my suggestion, I will add my Reviewed-by.
+Plus, PeterZ implemeted mutex contention detect method (see "[PATCH 18/21] 
+mutex: Provide mutex_is_contended"). now you can easily implemnt akpm proposed
+efficient batching.
 
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index d31d7ce..15cd0d2 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2450,7 +2450,7 @@ static int kswapd(void *p)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
->
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 order =3D pgdat->kswapd_max=
-_order;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 order =3D max_t(unsigned lo=
-ng, new_order, pgdat->kswapd_max_order);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0finish_wait(&pgdat->kswapd_wait, &wait);
->
->
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+Thanks.
 
 
+> +
+> +		/*
+> +		 * Now fault in a batch of pages. We need to check the vma
+> +		 * flags again, as we've not been holding mmap_sem.
+> +		 */
+> +		if ((vma->vm_flags & (VM_DONTEXPAND | VM_RESERVED)) ||
+> +		    is_vm_hugetlb_page(vma) || vma == get_gate_vma(current)) {
+> +			if (nfault < nend)
+> +				nend = nfault;
+> +			make_pages_present(nstart, nend);
+> +		} else if (vma->vm_flags & VM_LOCKED) {
+> +			if (nfault < nend)
+> +				nend = nfault;
+> +			error = __mlock_vma_pages_range(vma, nstart, nend);
+> +		}
+> +	up:
+> +		up_read(&mm->mmap_sem);
+> +		if (error)
+> +			return __mlock_posix_error_return(error);
+> +	}
+> +	return 0;
+> +}
 
---=20
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
