@@ -1,62 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id CED776B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 21:59:16 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1A17B6B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 22:04:38 -0500 (EST)
 Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB12xEod017905
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB134Zms020155
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 1 Dec 2010 11:59:14 +0900
+	Wed, 1 Dec 2010 12:04:35 +0900
 Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2993745DE53
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 11:59:14 +0900 (JST)
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 581FC45DE55
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:04:35 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 051EE45DE51
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 11:59:14 +0900 (JST)
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 337FB45DE53
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:04:35 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id DE0931DB805D
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 11:59:13 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9983A1DB8040
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 11:59:13 +0900 (JST)
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 07EC11DB8043
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:04:35 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id AF0041DB803C
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 12:04:34 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3] mm: kswapd: Stop high-order balancing when any suitable zone is balanced
-In-Reply-To: <1291171667.12777.51.camel@sli10-conroe>
-References: <20101201112354.ABA8.A69D9226@jp.fujitsu.com> <1291171667.12777.51.camel@sli10-conroe>
-Message-Id: <20101201115401.ABB1.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 2/2] exec: copy-and-paste the fixes into compat_do_execve() paths
+In-Reply-To: <20101130195602.GC11905@redhat.com>
+References: <20101130195456.GA11905@redhat.com> <20101130195602.GC11905@redhat.com>
+Message-Id: <20101201120530.ABB6.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Wed,  1 Dec 2010 11:59:12 +0900 (JST)
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed,  1 Dec 2010 12:04:33 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Simon Kirby <sim@hostway.ca>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 2010-12-01 at 10:23 +0800, KOSAKI Motohiro wrote:
-> > > On Wed, 2010-12-01 at 01:15 +0800, Mel Gorman wrote:
-> > > > When the allocator enters its slow path, kswapd is woken up to balance the
-> > > > node. It continues working until all zones within the node are balanced. For
-> > > > order-0 allocations, this makes perfect sense but for higher orders it can
-> > > > have unintended side-effects. If the zone sizes are imbalanced, kswapd
-> > > > may reclaim heavily on a smaller zone discarding an excessive number of
-> > > > pages. The user-visible behaviour is that kswapd is awake and reclaiming
-> > > > even though plenty of pages are free from a suitable zone.
-> > > > 
-> > > > This patch alters the "balance" logic to stop kswapd if any suitable zone
-> > > > becomes balanced to reduce the number of pages it reclaims from other zones.
-> > > from my understanding, the patch will break reclaim high zone if a low
-> > > zone meets the high order allocation, even the high zone doesn't meet
-> > > the high order allocation. This, for example, will make a high order
-> > > allocation from a high zone fallback to low zone and quickly exhaust low
-> > > zone, for example DMA. This will break some drivers.
-> > 
-> > Have you seen patch [3/3]? I think it migigate your pointed issue.
-> yes, it improves a lot, but still possible for small systems.
+> Note: this patch targets 2.6.37 and tries to be as simple as possible.
+> That is why it adds more copy-and-paste horror into fs/compat.c and
+> uglifies fs/exec.c, this will be cleanuped later.
+> 
+> compat_copy_strings() plays with bprm->vma/mm directly and thus has
+> two problems: it lacks the RLIMIT_STACK check and argv/envp memory
+> is not visible to oom killer.
+> 
+> Export acct_arg_size() and get_arg_page(), change compat_copy_strings()
+> to use get_arg_page(), change compat_do_execve() to do acct_arg_size(0)
+> as do_execve() does.
+> 
+> Add the fatal_signal_pending/cond_resched checks into compat_count() and
+> compat_copy_strings(), this matches the code in fs/exec.c and certainly
+> makes sense.
+> 
+> Signed-off-by: Oleg Nesterov <oleg@redhat.com>
 
-Ok, I got you. so please define your "small systems" word? we can't make
-perfect VM heuristics obviously, then we need to compare pros/cons.
-
-Of cource, I'm glad if you have better idea and show it.
+Looks good to me.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 
 
