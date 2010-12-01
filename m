@@ -1,153 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 295F06B004A
-	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 20:59:38 -0500 (EST)
-Date: Wed, 1 Dec 2010 08:36:10 +0800
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [1/8, v6] NUMA Hotplug Emulator: documentation
-Message-ID: <20101201003610.GA9453@shaohui>
-References: <20101130071324.908098411@intel.com>
- <20101130071436.732999291@intel.com>
- <alpine.DEB.2.00.1011301618440.18341@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1011301618440.18341@chino.kir.corp.google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B98E76B004A
+	for <linux-mm@kvack.org>; Tue, 30 Nov 2010 21:13:59 -0500 (EST)
+Subject: Re: [PATCH 1/3] mm: kswapd: Stop high-order balancing when any
+ suitable zone is balanced
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <1291137339-6323-2-git-send-email-mel@csn.ul.ie>
+References: <1291137339-6323-1-git-send-email-mel@csn.ul.ie>
+	 <1291137339-6323-2-git-send-email-mel@csn.ul.ie>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 01 Dec 2010 10:13:56 +0800
+Message-ID: <1291169636.12777.43.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 30, 2010 at 04:19:00PM -0800, David Rientjes wrote:
-> Signed-off-by: David Rientjes <rientjes@google.com>
-
-Resend this patch after adding David's sign-off.
-
-Subject: NUMA Hotplug Emulator: documentation
-
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-
-add a text file Documentation/x86/x86_64/numa_hotplug_emulator.txt
-to explain the usage for the hotplug emulator.
-
-Reviewed-By: Randy Dunlap <randy.dunlap@oracle.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
-Signed-off-by: Haicheng Li <haicheng.li@intel.com>
-Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
----
-Index: linux-hpe4/Documentation/x86/x86_64/numa_hotplug_emulator.txt
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-hpe4/Documentation/x86/x86_64/numa_hotplug_emulator.txt	2010-11-30 09:48:52.257622002 +0800
-@@ -0,0 +1,104 @@
-+NUMA Hotplug Emulator for x86_64
-+---------------------------------------------------
-+
-+NUMA hotplug emulator is able to emulate NUMA Node Hotplug
-+thru a pure software way. It intends to help people easily debug
-+and test node/CPU/memory hotplug related stuff on a
-+none-NUMA-hotplug-support machine, even a UMA machine and virtual
-+environment.
-+
-+1) Node hotplug emulation:
-+
-+Adds a numa=possible=<N> command line option to set an additional N nodes
-+as being possible for memory hotplug.  This set of possible nodes
-+control nr_node_ids and the sizes of several dynamically allocated node
-+arrays.
-+
-+This allows memory hotplug to create new nodes for newly added memory
-+rather than binding it to existing nodes.
-+
-+For emulation on x86, it would be possible to set aside memory for hotplugged
-+nodes (say, anything above 2G) and to add an additional four nodes as being
-+possible on boot with
-+
-+	mem=2G numa=possible=4
-+
-+and then creating a new 128M node at runtime:
-+
-+	# echo 128M@0x80000000 > /sys/kernel/debug/node/add_node
-+	On node 1 totalpages: 0
-+	init_memory_mapping: 0000000080000000-0000000088000000
-+	 0080000000 - 0088000000 page 2M
-+
-+Once the new node has been added, its memory can be onlined.  If this
-+memory represents memory section 16, for example:
-+
-+	# echo online > /sys/devices/system/memory/memory16/state
-+	Built 2 zonelists in Node order, mobility grouping on.  Total pages: 514846
-+	Policy zone: Normal
-+ [ The memory section(s) mapped to a particular node are visible via
-+   /sys/devices/system/node/node1, in this example. ]
-+
-+2) CPU hotplug emulation:
-+
-+The emulator reserve CPUs throu grub parameter, the reserved CPUs can be
-+hot-add/hot-remove in software method, it emulates the process of physical
-+cpu hotplug.
-+
-+When hotplugging a CPU with emulator, we are using a logical CPU to emulate the CPU
-+socket hotplug process. For the CPU supported SMT, some logical CPUs are in the
-+same socket, but it may located in different NUMA node after we have emulator.
-+We put the logical CPU into a fake CPU socket, and assign it a unique
-+phys_proc_id. For the fake socket, we put one logical CPU in only.
-+
-+ - to hide CPUs
-+	- Using boot option "maxcpus=N" hide CPUs
-+	  N is the number of CPUs to initialize; the reset will be hidden.
-+	- Using boot option "cpu_hpe=on" to enable CPU hotplug emulation
-+      when cpu_hpe is enabled, the rest CPUs will not be initialized
-+
-+ - to hot-add CPU to node
-+	$ echo nid > cpu/probe
-+
-+ - to hot-remove CPU
-+	$ echo nid > cpu/release
-+
-+3) Memory hotplug emulation:
-+
-+The emulator reserves memory before OS boots, the reserved memory region is
-+removed from e820 table, and they can be hot-added via the probe interface.
-+this interface was extended to support adding memory to the specified node. It
-+maintains backwards compatibility.
-+
-+The difficulty of Memory Release is well-known, we have no plan for it until now.
-+
-+ - reserve memory thru a kernel boot paramter
-+ 	mem=1024m
-+
-+ - add a memory section to node 3
-+    $ echo 0x40000000,3 > memory/probe
-+	OR
-+    $ echo 1024m,3 > memory/probe
-+	OR
-+    $ echo "physical_address=0x40000000 numa_node=3" > memory/probe
-+
-+4) Script for hotplug testing
-+
-+These scripts provides convenience when we hot-add memory/cpu in batch.
-+
-+- Online all memory sections:
-+for m in /sys/devices/system/memory/memory*;
-+do
-+	echo online > $m/state;
-+done
-+
-+- CPU Online:
-+for c in /sys/devices/system/cpu/cpu*;
-+do
-+	echo 1 > $c/online;
-+done
-+
-+- David Rientjes <rientjes@google.com>
-+- Haicheng Li <haicheng.li@intel.com>
-+- Shaohui Zheng <shaohui.zheng@intel.com>
-+  Nov 2010
-
--- 
-Thanks & Regards,
-Shaohui
+On Wed, 2010-12-01 at 01:15 +0800, Mel Gorman wrote:
+> When the allocator enters its slow path, kswapd is woken up to balance the
+> node. It continues working until all zones within the node are balanced. For
+> order-0 allocations, this makes perfect sense but for higher orders it can
+> have unintended side-effects. If the zone sizes are imbalanced, kswapd
+> may reclaim heavily on a smaller zone discarding an excessive number of
+> pages. The user-visible behaviour is that kswapd is awake and reclaiming
+> even though plenty of pages are free from a suitable zone.
+> 
+> This patch alters the "balance" logic to stop kswapd if any suitable zone
+> becomes balanced to reduce the number of pages it reclaims from other zones.
+from my understanding, the patch will break reclaim high zone if a low
+zone meets the high order allocation, even the high zone doesn't meet
+the high order allocation. This, for example, will make a high order
+allocation from a high zone fallback to low zone and quickly exhaust low
+zone, for example DMA. This will break some drivers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
