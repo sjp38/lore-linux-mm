@@ -1,39 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D8218D0002
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 19:57:51 -0500 (EST)
-Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
-	by smtp-out.google.com with ESMTP id oB20vfLe013628
-	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 16:57:41 -0800
-Received: from pxi7 (pxi7.prod.google.com [10.243.27.7])
-	by hpaq14.eem.corp.google.com with ESMTP id oB20vdgg031375
-	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 16:57:39 -0800
-Received: by pxi7 with SMTP id 7so1998542pxi.22
-        for <linux-mm@kvack.org>; Wed, 01 Dec 2010 16:57:38 -0800 (PST)
-Date: Wed, 1 Dec 2010 16:57:35 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [8/8, v6] NUMA Hotplug Emulator: implement debugfs interface
- for memory probe
-In-Reply-To: <20101130071437.461969179@intel.com>
-Message-ID: <alpine.DEB.2.00.1012011656590.1896@chino.kir.corp.google.com>
-References: <20101130071324.908098411@intel.com> <20101130071437.461969179@intel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 011F18D0002
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 19:58:19 -0500 (EST)
+Received: by iwn41 with SMTP id 41so654717iwn.14
+        for <linux-mm@kvack.org>; Wed, 01 Dec 2010 16:58:18 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20101202092921.1570.A69D9226@jp.fujitsu.com>
+References: <20101201155854.GA3372@barrios-desktop>
+	<20101202090952.1567.A69D9226@jp.fujitsu.com>
+	<20101202092921.1570.A69D9226@jp.fujitsu.com>
+Date: Thu, 2 Dec 2010 09:58:18 +0900
+Message-ID: <AANLkTik5HW6XgTNwGk2_Q36T0RpGMaCouZcTT2L5nfCd@mail.gmail.com>
+Subject: Re: [patch]vmscan: make kswapd use a correct order
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Shaohui Zheng <shaohui.zheng@intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Nov 2010, shaohui.zheng@intel.com wrote:
+On Thu, Dec 2, 2010 at 9:29 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> > It might work well. but I don't like such a coding that kswapd_try_to_=
+sleep's
+>> > eturn value is order. It doesn't look good to me and even no comment. =
+Hmm..
+>> >
+>> > How about this?
+>> > If you want it, feel free to use it.
+>> > If you insist on your coding style, I don't have any objection.
+>> > Then add My Reviewed-by.
+>> >
+>> > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+>>
+>> I'm ok this.
+>>
+>> =A0 =A0 =A0 Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com=
+>
+>>
+>>
+>> Thanks.
+>>
+>
+> Please consider rensend a patch with full patch description. Of cource,
+> you need to rebase this on top Mel's patch.
+>
+> Plus, please don't remove Shaohua's reported-by tag. It's important line
+> than my code. Please respect good bug finder.
 
-> From: Shaohui Zheng <shaohui.zheng@intel.com>
-> 
-> Implement a debugfs inteface /sys/kernel/debug/mem_hotplug/probe for meomory hotplug
-> emulation.  it accepts the same parameters like
-> /sys/devices/system/memory/probe.
-> 
+I don't have a thought to intercept Shaohua and Your's credit.
+Just a review so I hoped you send the patch with adding my signed-off
+or reviewed-by.
 
-NACK, we don't need two interfaces to do the same thing.  
+Okay. I will resend it with full-description and you guys's signed-off.
+But before that, We have to discuss Shaohua's argue about _safety_.
+
+> Thanks.
+>
+>
+>
+>
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
