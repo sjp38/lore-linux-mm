@@ -1,175 +1,360 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B74646B00DD
-	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 01:37:18 -0500 (EST)
-Message-Id: <20101202050737.238536896@intel.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id C8C9F6B00DD
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 01:37:20 -0500 (EST)
+Message-Id: <20101202050737.445096707@intel.com>
 References: <20101202050518.819599911@intel.com>
-Date: Thu, 02 Dec 2010 13:05:21 +0800
+Date: Thu, 02 Dec 2010 13:05:23 +0800
 From: shaohui.zheng@intel.com
-Subject: [patch 3/7, v7] NUMA Hotplug Emulator: Add node hotplug emulation
-Content-Disposition: inline; filename=003-node-hotpluge-emulation.patch
+Subject: [patch 5/7, v7] NUMA Hotplug Emulator: Support cpu probe/release in x86_64
+Content-Disposition: inline; filename=005-hotplug-emulator-x86-support-cpu-probe-release-in-x86.patch
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>, Shaohui Zheng <shaohui.zheng@intel.com>
+Cc: linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Ingo Molnar <mingo@elte.hu>, Len Brown <len.brown@intel.com>, Yinghai Lu <Yinghai.Lu@Sun.COM>, Shaohui Zheng <shaohui.zheng@intel.com>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-From: David Rientjes <rientjes@google.com>
+From: Shaohui Zheng <shaohui.zheng@intel.com>
 
-Add an interface to allow new nodes to be added when performing memory
-hot-add.  This provides a convenient interface to test memory hotplug
-notifier callbacks and surrounding hotplug code when new nodes are
-onlined without actually having a machine with such hotpluggable SRAT
-entries.
+CPU physical hot-add/hot-remove are supported on some hardwares, and it 
+was already supported in current linux kernel. NUMA Hotplug Emulator provides
+a mechanism to emulate the process with software method. It can be used for
+testing or debuging purpose.
 
-This adds a new debugfs interface at /sys/kernel/debug/mem_hotplug/add_node
-that behaves in a similar way to the memory hot-add "probe" interface.
-Its format is size@start, where "size" is the size of the new node to be
-added and "start" is the physical address of the new memory.
+CPU physical hotplug is different with logical CPU online/offline. Logical
+online/offline is controled by interface /sys/device/cpu/cpuX/online. CPU
+hotplug emulator uses probe/release interface. It becomes possible to do cpu
+hotplug automation and stress
 
-The new node id is a currently offline, but possible, node.  The bit must
-be set in node_possible_map so that nr_node_ids is sized appropriately.
+Add cpu interface probe/release under sysfs for x86_64. User can use this
+interface to emulate the cpu hot-add and hot-remove process.
 
-For emulation on x86, for example, it would be possible to set aside
-memory for hotplugged nodes (say, anything above 2G) and to add an
-additional four nodes as being possible on boot with
+Directive:
+*) Reserve CPU thru grub parameter like:
+	maxcpus=4
 
-	mem=2G numa=possible=4
+the rest CPUs will not be initiliazed. 
 
-and then creating a new 128M node at runtime:
+*) Probe CPU
+we can use the probe interface to hot-add new CPUs:
+	echo nid > /sys/devices/system/cpu/probe
 
-	# echo 128M@0x80000000 > /sys/kernel/debug/mem_hotplug/add_node
-	On node 1 totalpages: 0
-	init_memory_mapping: 0000000080000000-0000000088000000
-	 0080000000 - 0088000000 page 2M
-Once the new node has been added, its memory can be onlined.  If this
-memory represents memory section 16, for example:
+*) Release a CPU
+	echo cpu > /sys/devices/system/cpu/release
 
-	# echo online > /sys/devices/system/memory/memory16/state
-	Built 2 zonelists in Node order, mobility grouping on.  Total pages: 514846
-	Policy zone: Normal
- [ The memory section(s) mapped to a particular node are visible via
-   /sys/devices/system/node/node1, in this example. ]
+A reserved CPU will be hot-added to the specified node.
+1) nid == 0, the CPU will be added to the real node which the CPU
+should be in
+2) nid != 0, add the CPU to node nid even through it is a fake node.
 
-The new node is now hotplugged and ready for testing.
-
-CC: Haicheng Li <haicheng.li@intel.com>
-CC: Greg KH <gregkh@suse.de>
-Signed-off-by: David Rientjes <rientjes@google.com>
+CC: Ingo Molnar <mingo@elte.hu>
+CC: Len Brown <len.brown@intel.com>
+CC: Yinghai Lu <Yinghai.Lu@Sun.COM>
 Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
+Signed-off-by: Haicheng Li <haicheng.li@intel.com>
 ---
- Documentation/memory-hotplug.txt |   24 +++++++++++++++
- mm/memory_hotplug.c              |   59 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 83 insertions(+), 0 deletions(-)
-Index: linux-hpe4/Documentation/memory-hotplug.txt
+Index: linux-hpe4/arch/x86/kernel/acpi/boot.c
 ===================================================================
---- linux-hpe4.orig/Documentation/memory-hotplug.txt	2010-11-30 12:40:43.527622001 +0800
-+++ linux-hpe4/Documentation/memory-hotplug.txt	2010-11-30 14:11:11.827622000 +0800
-@@ -18,6 +18,7 @@
- 4. Physical memory hot-add phase
-   4.1 Hardware(Firmware) Support
-   4.2 Notify memory hot-add event by hand
-+  4.3 Node hotplug emulation
- 5. Logical Memory hot-add phase
-   5.1. State of memory
-   5.2. How to online memory
-@@ -215,6 +216,29 @@
- Please see "How to online memory" in this text.
- 
- 
-+4.3 Node hotplug emulation
-+------------
-+With debugfs, it is possible to test node hotplug by assigning the newly
-+added memory to a new node id when using a different interface with a similar
-+behavior to "probe" described in section 4.2.  If a node id is possible
-+(there are bits in /sys/devices/system/memory/possible that are not online),
-+then it may be used to emulate a newly added node as the result of memory
-+hotplug by using the debugfs "add_node" interface.
-+
-+The add_node interface is located at "mem_hotplug/add_node" at the debugfs
-+mount point.
-+
-+You can create a new node of a specified size starting at the physical
-+address of new memory by
-+
-+% echo size@start_address_of_new_memory > /sys/kernel/debug/mem_hotplug/add_node
-+
-+Where "size" can be represented in megabytes or gigabytes (for example,
-+"128M" or "1G").  The minumum size is that of a memory section.
-+
-+Once the new node has been added, it is possible to online the memory by
-+toggling the "state" of its memory section(s) as described in section 5.1.
-+
- 
- ------------------------------
- 5. Logical Memory hot-add phase
-Index: linux-hpe4/mm/memory_hotplug.c
-===================================================================
---- linux-hpe4.orig/mm/memory_hotplug.c	2010-11-30 12:40:43.757622001 +0800
-+++ linux-hpe4/mm/memory_hotplug.c	2010-11-30 14:02:33.877622002 +0800
-@@ -924,3 +924,63 @@
+--- linux-hpe4.orig/arch/x86/kernel/acpi/boot.c	2010-11-26 09:24:40.287725018 +0800
++++ linux-hpe4/arch/x86/kernel/acpi/boot.c	2010-11-26 09:24:53.277724996 +0800
+@@ -647,8 +647,44 @@
  }
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- EXPORT_SYMBOL_GPL(remove_memory);
-+
-+#ifdef CONFIG_DEBUG_FS
-+#include <linux/debugfs.h>
-+
-+static struct dentry *memhp_debug_root;
-+
-+static ssize_t add_node_store(struct file *file, const char __user *buf,
-+				size_t count, loff_t *ppos)
+ EXPORT_SYMBOL(acpi_map_lsapic);
+ 
++#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
++static void acpi_map_cpu2node_emu(int cpu, int physid, int nid)
 +{
-+	nodemask_t mask;
-+	u64 start, size;
-+	char buffer[64];
-+	char *p;
-+	int nid;
-+	int ret;
-+
-+	memset(buffer, 0, sizeof(buffer));
-+	if (count > sizeof(buffer) - 1)
-+		count = sizeof(buffer) - 1;
-+	if (copy_from_user(buffer, buf, count))
-+		return -EFAULT;
-+
-+	size = memparse(buffer, &p);
-+	if (size < (PAGES_PER_SECTION << PAGE_SHIFT))
-+		return -EINVAL;
-+	if (*p != '@')
-+		return -EINVAL;
-+
-+	start = simple_strtoull(p + 1, NULL, 0);
-+
-+	nodes_andnot(mask, node_possible_map, node_online_map);
-+	nid = first_node(mask);
-+	if (nid == MAX_NUMNODES)
-+		return -ENOMEM;
-+
-+	ret = add_memory(nid, start, size);
-+	return ret ? ret : count;
++#ifdef CONFIG_ACPI_NUMA
++#ifdef CONFIG_X86_64
++	apicid_to_node[physid] = nid;
++	numa_set_node(cpu, nid);
++#else /* CONFIG_X86_32 */
++	apicid_2_node[physid] = nid;
++	cpu_to_node_map[cpu] = nid;
++#endif
++#endif
 +}
 +
-+static const struct file_operations add_node_file_ops = {
-+	.write		= add_node_store,
-+	.llseek		= generic_file_llseek,
-+};
-+
-+static int __init node_debug_init(void)
++static u16 cpu_to_apicid_saved[CONFIG_NR_CPUS];
++int __ref acpi_map_lsapic_emu(int pcpu, int nid)
 +{
-+	if (!memhp_debug_root)
-+		memhp_debug_root = debugfs_create_dir("mem_hotplug", NULL);
-+	if (!memhp_debug_root)
-+		return -ENOMEM;
++	/* backup cpu apicid to array cpu_to_apicid_saved */
++	if (cpu_to_apicid_saved[pcpu] == 0 &&
++		per_cpu(x86_cpu_to_apicid, pcpu) != BAD_APICID)
++		cpu_to_apicid_saved[pcpu] = per_cpu(x86_cpu_to_apicid, pcpu);
 +
-+	if (!debugfs_create_file("add_node", S_IWUSR, memhp_debug_root,
-+			NULL, &add_node_file_ops))
-+		return -ENOMEM;
++	per_cpu(x86_cpu_to_apicid, pcpu) = cpu_to_apicid_saved[pcpu];
++	acpi_map_cpu2node_emu(pcpu, per_cpu(x86_cpu_to_apicid, pcpu), nid);
++
++	return pcpu;
++}
++EXPORT_SYMBOL(acpi_map_lsapic_emu);
++#endif
++
+ int acpi_unmap_lsapic(int cpu)
+ {
++#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
++	/* backup cpu apicid to array cpu_to_apicid_saved */
++	if (cpu_to_apicid_saved[cpu] == 0 &&
++		per_cpu(x86_cpu_to_apicid, cpu) != BAD_APICID)
++		cpu_to_apicid_saved[cpu] = per_cpu(x86_cpu_to_apicid, cpu);
++#endif
+ 	per_cpu(x86_cpu_to_apicid, cpu) = -1;
+ 	set_cpu_present(cpu, false);
+ 	num_processors--;
+Index: linux-hpe4/arch/x86/kernel/smpboot.c
+===================================================================
+--- linux-hpe4.orig/arch/x86/kernel/smpboot.c	2010-11-26 09:24:40.297724969 +0800
++++ linux-hpe4/arch/x86/kernel/smpboot.c	2010-11-26 12:48:58.977725001 +0800
+@@ -107,8 +107,6 @@
+         mutex_unlock(&x86_cpu_hotplug_driver_mutex);
+ }
+ 
+-ssize_t arch_cpu_probe(const char *buf, size_t count) { return -1; }
+-ssize_t arch_cpu_release(const char *buf, size_t count) { return -1; }
+ #else
+ static struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
+ #define get_idle_for_cpu(x)      (idle_thread_array[(x)])
+Index: linux-hpe4/arch/x86/kernel/topology.c
+===================================================================
+--- linux-hpe4.orig/arch/x86/kernel/topology.c	2010-11-26 09:24:52.477725000 +0800
++++ linux-hpe4/arch/x86/kernel/topology.c	2010-11-26 12:48:58.987725001 +0800
+@@ -30,6 +30,9 @@
+ #include <linux/init.h>
+ #include <linux/smp.h>
+ #include <asm/cpu.h>
++#include <linux/cpu.h>
++#include <linux/topology.h>
++#include <linux/acpi.h>
+ 
+ static DEFINE_PER_CPU(struct x86_cpu, cpu_devices);
+ 
+@@ -66,6 +69,74 @@
+ 	unregister_cpu(&per_cpu(cpu_devices, num).cpu);
+ }
+ EXPORT_SYMBOL(arch_unregister_cpu);
++
++ssize_t arch_cpu_probe(const char *buf, size_t count)
++{
++	int nid = 0;
++	int num = 0, selected = 0;
++
++	/* check parameters */
++	if (!buf || count < 2)
++		return -EPERM;
++
++	nid = simple_strtoul(buf, NULL, 0);
++	printk(KERN_DEBUG "Add a cpu to node : %d\n", nid);
++
++	if (nid < 0 || nid > nr_node_ids - 1) {
++		printk(KERN_ERR "Invalid NUMA node id: %d (0 <= nid < %d).\n",
++			nid, nr_node_ids);
++		return -EPERM;
++	}
++
++	if (!node_online(nid)) {
++		printk(KERN_ERR "NUMA node %d is not online, give up.\n", nid);
++		return -EPERM;
++	}
++
++	/* find first uninitialized cpu */
++	for_each_present_cpu(num) {
++		if (per_cpu(cpu_sys_devices, num) == NULL) {
++			selected = num;
++			break;
++		}
++	}
++
++	if (selected >= num_possible_cpus()) {
++		printk(KERN_ERR "No free cpu, give up cpu probing.\n");
++		return -EPERM;
++	}
++
++	/* register cpu */
++	arch_register_cpu_node(selected, nid);
++	acpi_map_lsapic_emu(selected, nid);
++
++	return count;
++}
++EXPORT_SYMBOL(arch_cpu_probe);
++
++ssize_t arch_cpu_release(const char *buf, size_t count)
++{
++	int cpu = 0;
++
++	cpu =  simple_strtoul(buf, NULL, 0);
++	/* cpu 0 is not hotplugable */
++	if (cpu == 0) {
++		printk(KERN_ERR "can not release cpu 0.\n");
++		return -EPERM;
++	}
++
++	if (cpu_online(cpu)) {
++		printk(KERN_DEBUG "offline cpu %d.\n", cpu);
++		cpu_down(cpu);
++	}
++
++	arch_unregister_cpu(cpu);
++	acpi_unmap_lsapic(cpu);
++
++	return count;
++}
++EXPORT_SYMBOL(arch_cpu_release);
++
+ #else /* CONFIG_HOTPLUG_CPU */
+ 
+ static int __init arch_register_cpu(int num)
+@@ -83,8 +154,14 @@
+ 		register_one_node(i);
+ #endif
+ 
+-	for_each_present_cpu(i)
+-		arch_register_cpu(i);
++	/*
++	 * when cpu hotplug emulation enabled, register the online cpu only,
++	 * the rests are reserved for cpu probe.
++	 */
++	for_each_present_cpu(i) {
++		if ((cpu_hpe_on && cpu_online(i)) || !cpu_hpe_on)
++			arch_register_cpu(i);
++	}
+ 
+ 	return 0;
+ }
+Index: linux-hpe4/arch/x86/mm/numa_64.c
+===================================================================
+--- linux-hpe4.orig/arch/x86/mm/numa_64.c	2010-11-26 09:24:40.317724965 +0800
++++ linux-hpe4/arch/x86/mm/numa_64.c	2010-11-26 09:24:53.297725001 +0800
+@@ -12,6 +12,7 @@
+ #include <linux/module.h>
+ #include <linux/nodemask.h>
+ #include <linux/sched.h>
++#include <linux/cpu.h>
+ 
+ #include <asm/e820.h>
+ #include <asm/proto.h>
+@@ -785,6 +786,19 @@
+ }
+ #endif
+ 
++#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
++static __init int cpu_hpe_setup(char *opt)
++{
++	if (!opt)
++		return -EINVAL;
++
++	if (!strncmp(opt, "on", 2) || !strncmp(opt, "1", 1))
++		cpu_hpe_on = 1;
 +
 +	return 0;
 +}
++early_param("cpu_hpe", cpu_hpe_setup);
++#endif  /* CONFIG_ARCH_CPU_PROBE_RELEASE */
+ 
+ void __cpuinit numa_set_node(int cpu, int node)
+ {
+Index: linux-hpe4/drivers/acpi/processor_driver.c
+===================================================================
+--- linux-hpe4.orig/drivers/acpi/processor_driver.c	2010-11-26 09:24:40.327725004 +0800
++++ linux-hpe4/drivers/acpi/processor_driver.c	2010-11-26 09:24:53.297725001 +0800
+@@ -530,6 +530,14 @@
+ 		goto err_free_cpumask;
+ 
+ 	sysdev = get_cpu_sysdev(pr->id);
++	/*
++	 * Reserve cpu for hotplug emulation, the reserved cpu can be hot-added
++	 * throu the cpu probe interface. Return directly.
++	 */
++	if (sysdev == NULL) {
++		goto out;
++	}
 +
-+module_init(node_debug_init);
-+#endif /* CONFIG_DEBUG_FS */
+ 	if (sysfs_create_link(&device->dev.kobj, &sysdev->kobj, "sysdev")) {
+ 		result = -EFAULT;
+ 		goto err_remove_fs;
+@@ -570,6 +578,7 @@
+ 		goto err_remove_sysfs;
+ 	}
+ 
++out:
+ 	return 0;
+ 
+ err_remove_sysfs:
+Index: linux-hpe4/drivers/base/cpu.c
+===================================================================
+--- linux-hpe4.orig/drivers/base/cpu.c	2010-11-26 09:24:52.477725000 +0800
++++ linux-hpe4/drivers/base/cpu.c	2010-11-26 09:24:53.297725001 +0800
+@@ -22,9 +22,15 @@
+ };
+ EXPORT_SYMBOL(cpu_sysdev_class);
+ 
+-static DEFINE_PER_CPU(struct sys_device *, cpu_sys_devices);
++DEFINE_PER_CPU(struct sys_device *, cpu_sys_devices);
+ 
+ #ifdef CONFIG_HOTPLUG_CPU
++/*
++ * cpu_hpe_on is a switch to enable/disable cpu hotplug emulation. it is
++ * disabled in default, we can enable it throu grub parameter cpu_hpe=on
++ */
++int cpu_hpe_on;
++
+ static ssize_t show_online(struct sys_device *dev, struct sysdev_attribute *attr,
+ 			   char *buf)
+ {
+Index: linux-hpe4/include/linux/acpi.h
+===================================================================
+--- linux-hpe4.orig/include/linux/acpi.h	2010-11-26 09:24:40.347725041 +0800
++++ linux-hpe4/include/linux/acpi.h	2010-11-26 09:24:53.297725001 +0800
+@@ -102,6 +102,7 @@
+ #ifdef CONFIG_ACPI_HOTPLUG_CPU
+ /* Arch dependent functions for cpu hotplug support */
+ int acpi_map_lsapic(acpi_handle handle, int *pcpu);
++int acpi_map_lsapic_emu(int pcpu, int nid);
+ int acpi_unmap_lsapic(int cpu);
+ #endif /* CONFIG_ACPI_HOTPLUG_CPU */
+ 
+Index: linux-hpe4/include/linux/cpu.h
+===================================================================
+--- linux-hpe4.orig/include/linux/cpu.h	2010-11-26 09:24:52.477725000 +0800
++++ linux-hpe4/include/linux/cpu.h	2010-11-26 09:24:53.297725001 +0800
+@@ -30,6 +30,8 @@
+ 	struct sys_device sysdev;
+ };
+ 
++DECLARE_PER_CPU(struct sys_device *, cpu_sys_devices);
++
+ extern int register_cpu_node(struct cpu *cpu, int num, int nid);
+ 
+ static inline int register_cpu(struct cpu *cpu, int num)
+@@ -149,6 +151,7 @@
+ #define register_hotcpu_notifier(nb)	register_cpu_notifier(nb)
+ #define unregister_hotcpu_notifier(nb)	unregister_cpu_notifier(nb)
+ int cpu_down(unsigned int cpu);
++extern int cpu_hpe_on;
+ 
+ #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
+ extern void cpu_hotplug_driver_lock(void);
+@@ -171,6 +174,7 @@
+ /* These aren't inline functions due to a GCC bug. */
+ #define register_hotcpu_notifier(nb)	({ (void)(nb); 0; })
+ #define unregister_hotcpu_notifier(nb)	({ (void)(nb); })
++static int cpu_hpe_on;
+ #endif		/* CONFIG_HOTPLUG_CPU */
+ 
+ #ifdef CONFIG_PM_SLEEP_SMP
+Index: linux-hpe4/Documentation/x86/x86_64/boot-options.txt
+===================================================================
+--- linux-hpe4.orig/Documentation/x86/x86_64/boot-options.txt	2010-11-26 12:49:44.847725099 +0800
++++ linux-hpe4/Documentation/x86/x86_64/boot-options.txt	2010-11-26 12:55:50.527724999 +0800
+@@ -316,3 +316,9 @@
+ 		Do not use GB pages for kernel direct mappings.
+ 	gbpages
+ 		Use GB pages for kernel direct mappings.
++	cpu_hpe=on/off
++		Enable/disable CPU hotplug emulation with software method. When cpu_hpe=on,
++		sysfs provides probe/release interface to hot add/remove CPUs dynamically.
++		We can use maxcpus=<N> to reserve CPUs.
++		This option is disabled by default.
++			
 
 -- 
 Thanks & Regards,
