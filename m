@@ -1,90 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2D56A8D0002
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 20:05:40 -0500 (EST)
-Subject: Re: [patch]vmscan: make kswapd use a correct order
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <AANLkTi=p9s=2pRNw5fT7Lw_hYbi7GM-hrnQ-X+ETVhNZ@mail.gmail.com>
-References: <1291172911.12777.58.camel@sli10-conroe>
-	 <20101201132730.ABC2.A69D9226@jp.fujitsu.com>
-	 <20101201155854.GA3372@barrios-desktop>
-	 <1291249749.12777.86.camel@sli10-conroe>
-	 <AANLkTi=p9s=2pRNw5fT7Lw_hYbi7GM-hrnQ-X+ETVhNZ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 02 Dec 2010 09:05:08 +0800
-Message-ID: <1291251908.12777.94.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 46B3C8D0002
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 20:06:35 -0500 (EST)
+Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
+	by smtp-out.google.com with ESMTP id oB2168ji012225
+	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 17:06:08 -0800
+Received: from pzk26 (pzk26.prod.google.com [10.243.19.154])
+	by kpbe20.cbf.corp.google.com with ESMTP id oB2167BF017705
+	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 17:06:07 -0800
+Received: by pzk26 with SMTP id 26so1339998pzk.21
+        for <linux-mm@kvack.org>; Wed, 01 Dec 2010 17:06:07 -0800 (PST)
+Date: Wed, 1 Dec 2010 17:06:02 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [2/8, v6] NUMA Hotplug Emulator: Add numa=possible option
+In-Reply-To: <20101130071436.836186525@intel.com>
+Message-ID: <alpine.DEB.2.00.1012011705280.6088@chino.kir.corp.google.com>
+References: <20101130071324.908098411@intel.com> <20101130071436.836186525@intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+To: Shaohui Zheng <shaohui.zheng@intel.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-12-02 at 08:54 +0800, Minchan Kim wrote:
-> On Thu, Dec 2, 2010 at 9:29 AM, Shaohua Li <shaohua.li@intel.com> wrote:
-> > On Wed, 2010-12-01 at 23:58 +0800, Minchan Kim wrote:
-> >> On Wed, Dec 01, 2010 at 06:44:27PM +0900, KOSAKI Motohiro wrote:
-> >> > > T0: Task1 wakeup_kswapd(order=3)
-> >> > > T1: kswapd enters balance_pgdat
-> >> > > T2: Task2 wakeup_kswapd(order=2), because pages reclaimed by kswapd are used
-> >> > > quickly
-> >> > > T3: kswapd exits balance_pgdat. kswapd will do check. Now new order=2,
-> >> > > pgdat->kswapd_max_order will become 0, but order=3, if sleeping_prematurely,
-> >> > > then order will become pgdat->kswapd_max_order(0), while at this time the
-> >> > > order should 2
-> >> > > This isn't a big deal, but we do have a small window the order is wrong.
-> >> > >
-> >> > > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> >> > >
-> >> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >> > > index d31d7ce..15cd0d2 100644
-> >> > > --- a/mm/vmscan.c
-> >> > > +++ b/mm/vmscan.c
-> >> > > @@ -2450,7 +2450,7 @@ static int kswapd(void *p)
-> >> > >                           }
-> >> > >                   }
-> >> > >
-> >> > > -                 order = pgdat->kswapd_max_order;
-> >> > > +                 order = max_t(unsigned long, new_order, pgdat->kswapd_max_order);
-> >> > >           }
-> >> > >           finish_wait(&pgdat->kswapd_wait, &wait);
-> >> >
-> >> > Good catch!
-> >> >
-> >> > But unfortunatelly, the code is not correct. At least, don't fit corrent
-> >> > design.
-> >> >
-> >> > 1) if "order < new_order" condition is false, we already decided to don't
-> >> >    use new_order. So, we shouldn't use new_order after kswapd_try_to_sleep()
-> >> > 2) if sleeping_prematurely() return false, it probably mean
-> >> >    zone_watermark_ok_safe(zone, order, high_wmark) return false.
-> >> >    therefore, we have to retry reclaim by using old 'order' parameter.
-> >>
-> >> Good catch, too.
-> >>
-> >> In Shaohua's scenario, if Task1 gets the order-3 page after kswapd's reclaiming,
-> >> it's no problem.
-> >> But if Task1 doesn't get the order-3 page and others used the order-3 page for Task1,
-> >> Kswapd have to reclaim order-3 for Task1, again.
-> > why? it's just a possibility. Task1 might get its pages too. If Task1
-> > doesn't get its pages, it will wakeup kswapd too with its order.
-> >
-> >> In addtion, new order is always less than old order in that context.
-> >> so big order page reclaim makes much safe for low order pages.
-> > big order page reclaim makes we have more chances to reclaim useful
-> > pages by lumpy, why it's safe?
-> 
-> For example, It assume tat Task1 continues to fail get the order-3
-> page of GFP_ATOMIC since other tasks continues to allocate order-2
-> pages so that they steal pages. 
-but even you reclaim order-3, you can't guarantee task1 can get the
-pages too. order-3 page can be steal by order-2 allocation
+On Tue, 30 Nov 2010, shaohui.zheng@intel.com wrote:
 
-> Then, your patch makes continue to
-> reclaim order-2 page in this scenario. Task1 never get the order-3
-> pages if it doesn't have a merge luck.
-Task1 will wakeup kswapd again for order-3, so kswapd will reclaim
-order-3 very soon after the order-2 reclaim.
+> From:  David Rientjes <rientjes@google.com>
+> 
+> Adds a numa=possible=<N> command line option to set an additional N nodes
+> as being possible for memory hotplug.  This set of possible nodes
+> controls nr_node_ids and the sizes of several dynamically allocated node
+> arrays.
+> 
+> This allows memory hotplug to create new nodes for newly added memory
+> rather than binding it to existing nodes.
+> 
+> The first use-case for this will be node hotplug emulation which will use
+> these possible nodes to create new nodes to test the memory hotplug
+> callbacks and surrounding memory hotplug code.
+> 
+> CC: Shaohui Zheng <shaohui.zheng@intel.com>
+> CC: Haicheng Li <haicheng.li@intel.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+
+You're going to need to add your Signed-off-by line immediately after mine 
+if you're pushing these to a maintainer, you're along the submission 
+chain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
