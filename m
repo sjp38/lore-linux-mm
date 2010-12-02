@@ -1,65 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 3767D8D000E
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 20:26:21 -0500 (EST)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id oB21LrSX017077
-	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 17:21:53 -0800
-Received: from pxi17 (pxi17.prod.google.com [10.243.27.17])
-	by hpaq12.eem.corp.google.com with ESMTP id oB21Lp98021976
-	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 17:21:51 -0800
-Received: by pxi17 with SMTP id 17so1473021pxi.20
-        for <linux-mm@kvack.org>; Wed, 01 Dec 2010 17:21:50 -0800 (PST)
-Date: Wed, 1 Dec 2010 17:21:48 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [8/8, v6] NUMA Hotplug Emulator: implement debugfs interface
- for memory probe
-In-Reply-To: <20101201234514.GA13509@shaohui>
-Message-ID: <alpine.DEB.2.00.1012011716550.22420@chino.kir.corp.google.com>
-References: <20101130071324.908098411@intel.com> <20101130071437.461969179@intel.com> <alpine.DEB.2.00.1012011656590.1896@chino.kir.corp.google.com> <20101201234514.GA13509@shaohui>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 96A348D000E
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 20:28:53 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB21SoM6025763
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 2 Dec 2010 10:28:51 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 662E945DE55
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 10:28:50 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 49DBB45DE5C
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 10:28:50 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C8F7E38001
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 10:28:50 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D7C6BE38005
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 10:28:49 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch]vmscan: make kswapd use a correct order
+In-Reply-To: <1291249749.12777.86.camel@sli10-conroe>
+References: <20101201155854.GA3372@barrios-desktop> <1291249749.12777.86.camel@sli10-conroe>
+Message-Id: <20101202101555.157C.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Thu,  2 Dec 2010 10:28:49 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Shaohui Zheng <shaohui.zheng@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lethal@linux-sh.org, Andi Kleen <ak@linux.intel.com>, dave@linux.vnet.ibm.com, Greg KH <gregkh@suse.de>, Haicheng Li <haicheng.li@intel.com>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Dec 2010, Shaohui Zheng wrote:
+> > In addtion, new order is always less than old order in that context. 
+> > so big order page reclaim makes much safe for low order pages.
+> big order page reclaim makes we have more chances to reclaim useful
+> pages by lumpy, why it's safe?
 
-> > > From: Shaohui Zheng <shaohui.zheng@intel.com>
-> > > 
-> > > Implement a debugfs inteface /sys/kernel/debug/mem_hotplug/probe for meomory hotplug
-> > > emulation.  it accepts the same parameters like
-> > > /sys/devices/system/memory/probe.
-> > > 
-> > 
-> > NACK, we don't need two interfaces to do the same thing.  
-> 
-> You may not know the background, the sysfs memory/probe interface is a general
-> interface.  Even through we have a debugfs interface, we should still keep it.
-> 
-> For test purpose, the sysfs is enough, according to the comments from Greg & Dave,
-> we create the debugfs interface.
-> 
+Because some crappy driver try high order GFP_ATOMIC allocation and
+they often don't have enough failure handling.
 
-I doubt either Greg or Dave suggested adding duplicate interfaces for the 
-same functionality.
+Even though they have good allocation failure handling, network packet
+loss (wireless drivers are one of most big high order GFP_ATOMIC user) is
+usually big impact than page cache drop/re-readings.
 
-The difference is that we needed to add the add_node interface in a new 
-mem_hotplug debugfs directory because it's only useful for debugging 
-kernel code and, thus, doesn't really have an appropriate place in sysfs.  
-Nobody is going to use add_node unless they lack hotpluggable memory 
-sections in their SRAT and want to debug the memory hotplug callers.  For 
-example, I already wrote all of this node hotplug emulation stuff when I 
-wrote the node hotplug support for SLAB.
+Thanks.
 
-Memory hotplug, however, does serve a non-debugging function and is 
-appropriate in sysfs since this is how people hotplug memory.  It's an ABI 
-that we can't simply remove without deprecation over a substantial period 
-of time and in this case it doesn't seem to have a clear advantage.  We 
-need not add special emulation support for something that is already 
-possible for real systems, so adding a duplicate interface in debugfs is 
-inappropriate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
