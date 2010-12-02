@@ -1,67 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0133C6B0071
-	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 18:19:17 -0500 (EST)
-Date: Thu, 2 Dec 2010 15:19:01 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: make ioremap_prot() take a pgprot.
-Message-Id: <20101202151901.e34e4e62.akpm@linux-foundation.org>
-In-Reply-To: <20101102203102.GA12723@linux-sh.org>
-References: <20101102203102.GA12723@linux-sh.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 10BB86B0071
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 18:34:09 -0500 (EST)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id oB2NY6se013222
+	for <linux-mm@kvack.org>; Thu, 2 Dec 2010 15:34:06 -0800
+Received: from pzk5 (pzk5.prod.google.com [10.243.19.133])
+	by wpaz21.hot.corp.google.com with ESMTP id oB2NY4W4020440
+	for <linux-mm@kvack.org>; Thu, 2 Dec 2010 15:34:05 -0800
+Received: by pzk5 with SMTP id 5so1373081pzk.3
+        for <linux-mm@kvack.org>; Thu, 02 Dec 2010 15:34:04 -0800 (PST)
+Date: Thu, 2 Dec 2010 15:34:01 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: RE: [8/8, v6] NUMA Hotplug Emulator: implement debugfs interface
+ for memory probe
+In-Reply-To: <A24AE1FFE7AEC5489F83450EE98351BF288D88D2B8@shsmsx502.ccr.corp.intel.com>
+Message-ID: <alpine.DEB.2.00.1012021528170.6878@chino.kir.corp.google.com>
+References: <A24AE1FFE7AEC5489F83450EE98351BF288D88D224@shsmsx502.ccr.corp.intel.com> <20101202002716.GA13693@shaohui> <alpine.DEB.2.00.1012011807190.13942@chino.kir.corp.google.com> <A24AE1FFE7AEC5489F83450EE98351BF288D88D2B8@shsmsx502.ccr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, Chris Metcalf <cmetcalf@tilera.com>, Tejun Heo <tj@kernel.org>
+To: "Zheng, Shaohui" <shaohui.zheng@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lethal@linux-sh.org" <lethal@linux-sh.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Greg KH <gregkh@suse.de>, "Li, Haicheng" <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Nov 2010 05:31:03 +0900
-Paul Mundt <lethal@linux-sh.org> wrote:
+On Thu, 2 Dec 2010, Zheng, Shaohui wrote:
 
-> The current definition of ioremap_prot() takes an unsigned long for the
-> page flags and then converts to/from a pgprot as necessary. This is
-> unfortunately not sufficient for the SH-X2 TLB case which has a 64-bit
-> pgprot and a 32-bit unsigned long.
+> Why should we add so many interfaces for memory hotplug emulation?
+
+Because they are functionally different from real memory hotplug and we 
+want to support different configurations such as mapping memory to a 
+different node id or onlining physical nodes that don't exist.
+
+They are in debugfs because the emulation, unlike real memory hotplug, is 
+used only for testing and debugging.
+
+> If so, we should create both sysfs and debugfs 
+> entries for an online node, we are trying to add redundant code logic.
 > 
-> An inspection of the tree shows that tile and cris also have their
-> own equivalent routines that are using the pgprot_t but do not set
-> HAVE_IOREMAP_PROT, both of which could trivially be adapted.
+
+We do not need sysfs triggers for onlining a node, that already happens 
+automatically if the memory that is being onlined has a hotpluggable node 
+entry in the SRAT that has an offline node id.
+
+> We need not make a simple thing such complicated, Simple is beautiful, I'd prefer to rename the mem_hotplug/probe 
+> interface as mem_hotplug/add_memory.
 > 
-> After cris/tile are updated there would also be enough critical mass to
-> move the powerpc devm_ioremap_prot() in to the generic lib/devres.c.
+> 	/sys/kernel/debug/mem_hotplug/add_node (already exists)
+> 	/sys/kernel/debug/mem_hotplug/add_memory (rename probe as add_memory)
+> 
 
-In file included from sound/drivers/mpu401/mpu401_uart.c:31:
-arch/x86/include/asm/io.h:199: error: syntax error before 'pgprot_t'
-arch/x86/include/asm/io.h:199: warning: function declaration isn't a prototype
+No, add_memory would then require these bizarre lines that you've been 
+parsing like
 
-because asm/io.h now needs asm/pgtable.h for pgprot_t.
+	echo 'physical_addr=0x80000000 node_id=3' > /sys/kernel/debug/mem_hotplug/add_memory
 
-I tried that:
+which is unnecessary if you introduce my proposal for per-node debugfs 
+directories similar to that under /sys/devices/system/node that is 
+extendable later if we add additional per-node triggers under 
+CONFIG_DEBUG_FS.
 
---- a/arch/powerpc/include/asm/io.h~mm-make-ioremap_prot-take-a-pgprot-fix
-+++ a/arch/powerpc/include/asm/io.h
-@@ -27,6 +27,7 @@ extern int check_legacy_ioport(unsigned 
- #include <asm/synch.h>
- #include <asm/delay.h>
- #include <asm/mmu.h>
-+#include <asm/pgtable.h>
- 
- #include <asm-generic/iomap.h>
- 
---- a/arch/x86/include/asm/io.h~mm-make-ioremap_prot-take-a-pgprot-fix
-+++ a/arch/x86/include/asm/io.h
-@@ -40,6 +40,7 @@
- #include <linux/compiler.h>
- #include <asm-generic/int-ll64.h>
- #include <asm/page.h>
-+#include <asm/pgtable.h>
- 
- #include <xen/xen.h>
- 
-and it blew up because pgtable.h needs spinlock.h for spinlock_t.
-
-Gave up.
+Adding /sys/kernel/debug/mem_hotplug/node2/add_memory that you write a 
+physical address to is a much more robust, simple, and extendable 
+interface.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
