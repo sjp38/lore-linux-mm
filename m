@@ -1,72 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 011F18D0002
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 19:58:19 -0500 (EST)
-Received: by iwn41 with SMTP id 41so654717iwn.14
-        for <linux-mm@kvack.org>; Wed, 01 Dec 2010 16:58:18 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D61B8D0002
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 19:59:29 -0500 (EST)
+Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
+	by smtp-out.google.com with ESMTP id oB20xRq7013118
+	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 16:59:27 -0800
+Received: from pxi9 (pxi9.prod.google.com [10.243.27.9])
+	by wpaz33.hot.corp.google.com with ESMTP id oB20xP4A015043
+	for <linux-mm@kvack.org>; Wed, 1 Dec 2010 16:59:26 -0800
+Received: by pxi9 with SMTP id 9so1936435pxi.37
+        for <linux-mm@kvack.org>; Wed, 01 Dec 2010 16:59:25 -0800 (PST)
+Date: Wed, 1 Dec 2010 16:59:22 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [2/8, v5] NUMA Hotplug Emulator: Add node hotplug emulation
+In-Reply-To: <20101130231613.GA9117@shaohui>
+Message-ID: <alpine.DEB.2.00.1012011658540.1896@chino.kir.corp.google.com>
+References: <20101129091750.950277284@intel.com> <20101129091935.703824659@intel.com> <alpine.DEB.2.00.1011291600020.21653@chino.kir.corp.google.com> <20101130012205.GB3021@shaohui> <alpine.DEB.2.00.1011301208060.12979@chino.kir.corp.google.com>
+ <20101130231613.GA9117@shaohui>
 MIME-Version: 1.0
-In-Reply-To: <20101202092921.1570.A69D9226@jp.fujitsu.com>
-References: <20101201155854.GA3372@barrios-desktop>
-	<20101202090952.1567.A69D9226@jp.fujitsu.com>
-	<20101202092921.1570.A69D9226@jp.fujitsu.com>
-Date: Thu, 2 Dec 2010 09:58:18 +0900
-Message-ID: <AANLkTik5HW6XgTNwGk2_Q36T0RpGMaCouZcTT2L5nfCd@mail.gmail.com>
-Subject: Re: [patch]vmscan: make kswapd use a correct order
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+To: Shaohui Zheng <shaohui.zheng@intel.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 2, 2010 at 9:29 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> > It might work well. but I don't like such a coding that kswapd_try_to_=
-sleep's
->> > eturn value is order. It doesn't look good to me and even no comment. =
-Hmm..
->> >
->> > How about this?
->> > If you want it, feel free to use it.
->> > If you insist on your coding style, I don't have any objection.
->> > Then add My Reviewed-by.
->> >
->> > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->>
->> I'm ok this.
->>
->> =A0 =A0 =A0 Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com=
->
->>
->>
->> Thanks.
->>
->
-> Please consider rensend a patch with full patch description. Of cource,
-> you need to rebase this on top Mel's patch.
->
-> Plus, please don't remove Shaohua's reported-by tag. It's important line
-> than my code. Please respect good bug finder.
+On Wed, 1 Dec 2010, Shaohui Zheng wrote:
 
-I don't have a thought to intercept Shaohua and Your's credit.
-Just a review so I hoped you send the patch with adding my signed-off
-or reviewed-by.
+> David,
+> 	we provide both debugfs and sysfs interface for memory probe, the sysfs 
+> interface is always available. For debugfs interface, it depends on CONFIG_DEBUG_FS.
+> 	we can also think that memory hotplug emulation _is_ a debuging function,
+> so we accept Dave's suggestion to provide debugfs interface.
+> 
 
-Okay. I will resend it with full-description and you guys's signed-off.
-But before that, We have to discuss Shaohua's argue about _safety_.
-
-> Thanks.
->
->
->
->
-
-
-
---=20
-Kind regards,
-Minchan Kim
+We don't need two different interfaces, one in sysfs and one in debugfs, 
+to hotplug memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
