@@ -1,107 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B9F8C6B00B1
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 21:39:12 -0500 (EST)
-Subject: Re: [patch]vmscan: make kswapd use a correct order
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <AANLkTinE-b41jedk7GRXvwLu7Qvis7+CJVQPJBsEAWLD@mail.gmail.com>
-References: <1291172911.12777.58.camel@sli10-conroe>
-	 <20101201132730.ABC2.A69D9226@jp.fujitsu.com>
-	 <20101201155854.GA3372@barrios-desktop>
-	 <1291249749.12777.86.camel@sli10-conroe>
-	 <AANLkTi=p9s=2pRNw5fT7Lw_hYbi7GM-hrnQ-X+ETVhNZ@mail.gmail.com>
-	 <1291251908.12777.94.camel@sli10-conroe>
-	 <AANLkTinE-b41jedk7GRXvwLu7Qvis7+CJVQPJBsEAWLD@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 02 Dec 2010 10:39:09 +0800
-Message-ID: <1291257549.12777.121.camel@sli10-conroe>
-Mime-Version: 1.0
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E1E046B00B4
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 21:45:35 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB22it5o026129
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 2 Dec 2010 11:44:55 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D4F245DD75
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 11:44:55 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E9B045DE4D
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 11:44:55 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 72154E08002
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 11:44:55 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D4D11DB8038
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 11:44:55 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: Free memory never fully used, swapping
+In-Reply-To: <alpine.DEB.2.00.1012010910450.2989@router.home>
+References: <20101201114226.ABAB.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1012010910450.2989@router.home>
+Message-Id: <20101202093337.1573.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu,  2 Dec 2010 11:44:54 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+To: Christoph Lameter <cl@linux.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Simon Kirby <sim@hostway.ca>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-12-02 at 09:23 +0800, Minchan Kim wrote:
-> On Thu, Dec 2, 2010 at 10:05 AM, Shaohua Li <shaohua.li@intel.com> wrote:
-> > On Thu, 2010-12-02 at 08:54 +0800, Minchan Kim wrote:
-> >> On Thu, Dec 2, 2010 at 9:29 AM, Shaohua Li <shaohua.li@intel.com> wrote:
-> >> > On Wed, 2010-12-01 at 23:58 +0800, Minchan Kim wrote:
-> >> >> On Wed, Dec 01, 2010 at 06:44:27PM +0900, KOSAKI Motohiro wrote:
-> >> >> > > T0: Task1 wakeup_kswapd(order=3)
-> >> >> > > T1: kswapd enters balance_pgdat
-> >> >> > > T2: Task2 wakeup_kswapd(order=2), because pages reclaimed by kswapd are used
-> >> >> > > quickly
-> >> >> > > T3: kswapd exits balance_pgdat. kswapd will do check. Now new order=2,
-> >> >> > > pgdat->kswapd_max_order will become 0, but order=3, if sleeping_prematurely,
-> >> >> > > then order will become pgdat->kswapd_max_order(0), while at this time the
-> >> >> > > order should 2
-> >> >> > > This isn't a big deal, but we do have a small window the order is wrong.
-> >> >> > >
-> >> >> > > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> >> >> > >
-> >> >> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >> >> > > index d31d7ce..15cd0d2 100644
-> >> >> > > --- a/mm/vmscan.c
-> >> >> > > +++ b/mm/vmscan.c
-> >> >> > > @@ -2450,7 +2450,7 @@ static int kswapd(void *p)
-> >> >> > >                           }
-> >> >> > >                   }
-> >> >> > >
-> >> >> > > -                 order = pgdat->kswapd_max_order;
-> >> >> > > +                 order = max_t(unsigned long, new_order, pgdat->kswapd_max_order);
-> >> >> > >           }
-> >> >> > >           finish_wait(&pgdat->kswapd_wait, &wait);
-> >> >> >
-> >> >> > Good catch!
-> >> >> >
-> >> >> > But unfortunatelly, the code is not correct. At least, don't fit corrent
-> >> >> > design.
-> >> >> >
-> >> >> > 1) if "order < new_order" condition is false, we already decided to don't
-> >> >> >    use new_order. So, we shouldn't use new_order after kswapd_try_to_sleep()
-> >> >> > 2) if sleeping_prematurely() return false, it probably mean
-> >> >> >    zone_watermark_ok_safe(zone, order, high_wmark) return false.
-> >> >> >    therefore, we have to retry reclaim by using old 'order' parameter.
-> >> >>
-> >> >> Good catch, too.
-> >> >>
-> >> >> In Shaohua's scenario, if Task1 gets the order-3 page after kswapd's reclaiming,
-> >> >> it's no problem.
-> >> >> But if Task1 doesn't get the order-3 page and others used the order-3 page for Task1,
-> >> >> Kswapd have to reclaim order-3 for Task1, again.
-> >> > why? it's just a possibility. Task1 might get its pages too. If Task1
-> >> > doesn't get its pages, it will wakeup kswapd too with its order.
-> >> >
-> >> >> In addtion, new order is always less than old order in that context.
-> >> >> so big order page reclaim makes much safe for low order pages.
-> >> > big order page reclaim makes we have more chances to reclaim useful
-> >> > pages by lumpy, why it's safe?
-> >>
-> >> For example, It assume tat Task1 continues to fail get the order-3
-> >> page of GFP_ATOMIC since other tasks continues to allocate order-2
-> >> pages so that they steal pages.
-> > but even you reclaim order-3, you can't guarantee task1 can get the
-> > pages too. order-3 page can be steal by order-2 allocation
+> On Wed, 1 Dec 2010, KOSAKI Motohiro wrote:
 > 
-> But at least, it has a high possibility to allocate order-3 page than
-> reclaim order-2 pages.
-> 
+> > > Specifying a parameter to temporarily override to see if this has the
+> > > effect is ok. But this has worked for years now. There must be something
+> > > else going with with reclaim that causes these issues now.
 > >
-> >> Then, your patch makes continue to
-> >> reclaim order-2 page in this scenario. Task1 never get the order-3
-> >> pages if it doesn't have a merge luck.
-> > Task1 will wakeup kswapd again for order-3, so kswapd will reclaim
-> > order-3 very soon after the order-2 reclaim.
+> > I don't think this has worked. Simon have found the corner case recently,
+> > but it is not new.
 > 
-> GFP_ATOMIC case doesn't wakeup kswapd.
-> When kswapd wakeup by order-3 depends on caller's retry.
-> And this situation can be repeated in next turn.
+> What has worked? If the reduction of the maximum allocation order did not
+> have the expected effect of fixing things here then the issue is not
+> related to the higher allocations from slub.
 > 
-> We can't guarantee 100% Task-1's order-3 pages so I hope we should go
-> way to reduce the problem as possible as we can.
-ok, I have no objection now.
-Reviewed-by: Shaohua Li <shaohua.li@intel.com>
+> Higher order allocations are not only a slub issue but a general issue for
+> various subsystem that require higher order pages. This ranges from jumbo
+> frames, to particular needs for certain device drivers, to huge pages.
+
+Sure yes. However One big difference is there. Other user certinally need
+such high order, but slub are using high order for only performance. but its
+stragegy often shoot our own foot. It often makes worse than low order. IOW,
+slub isn't always win against slab. 
+
+
+> > So I hope you realize that high order allocation is no free lunch. __GFP_NORETRY
+> > makes no sense really. Even though we have compaction, high order reclaim is still
+> > costly operation.
+> 
+> Sure. There is a tradeoff between reclaim effort and the benefit of higher
+> allocations. The costliness of reclaim may have increased with the recent
+> changes to the reclaim logic. In fact reclaim gets more and more complex
+> over time and there may be subtle bugs in there given the recent flurry of
+> changes.
+
+I can't insist reclaim is really complex. So maybe one of problem is now
+reclaim can't know the request is must necessary or optimistic try. And,
+allocation failure often makes disaster then we were working on fixint it.
+But increasing high order allocation successful ratio sadly can makes slub
+unhappy. umm..
+
+So I think we have multiple option
+
+1) reduce slub_max_order and slub only use safely order
+2) slub don't invoke reclaim when high order tryal allocation 
+   (ie turn off GFP_WAIT and turn on GFP_NOKSWAPD)
+3) slub pass new hint to reclaim and reclaim don't work so aggressively if
+   such hint is passwd.
+
+
+So I have one question. I thought (2) is most nature. but now slub doesn't.
+Why don't you do that? As far as I know, reclaim haven't been lighweight 
+operation since linux was born. I'm curious your assumed cost threshold for
+slub high order allocation.
+
+
+
+> > I don't think SLUB's high order allocation trying is bad idea. but now It
+> > does more costly trying. that's bad. Also I'm worry about SLUB assume too
+> > higher end machine. Now Both SLES and RHEL decided to don't use SLUB,
+> > instead use SLAB. Now linux community is fragmented. If you are still
+> > interesting SL*B unification, can you please consider to join corner
+> > case smashing activity?
+> 
+> The problems with higher order reclaim get more difficult with small
+> memory sizes yes. We could reduce the maximum order automatically if memory
+> is too tight. There is nothing hindering us from tuning the max order
+> behavior of slub in a similar way that we now tune the thresholds of the
+> vm statistics.
+
+Sound like really good idea. :)
+
+
+
+> But for that to be done we first need to have some feedback if the changes
+> to max order have indeed the desired effect in this corner case.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
