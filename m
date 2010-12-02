@@ -1,85 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 55D1A6B0085
-	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 15:53:50 -0500 (EST)
-Date: Thu, 2 Dec 2010 12:53:42 -0800
-From: Simon Kirby <sim@hostway.ca>
-Subject: Re: [patch]vmscan: make kswapd use a correct order
-Message-ID: <20101202205342.GB1892@hostway.ca>
-References: <1291172911.12777.58.camel@sli10-conroe> <20101201132730.ABC2.A69D9226@jp.fujitsu.com> <20101201155854.GA3372@barrios-desktop> <20101202101234.GR13268@csn.ul.ie> <20101202153526.GB1735@barrios-desktop> <20101202154235.GY13268@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101202154235.GY13268@csn.ul.ie>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0133C6B0071
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 18:19:17 -0500 (EST)
+Date: Thu, 2 Dec 2010 15:19:01 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: make ioremap_prot() take a pgprot.
+Message-Id: <20101202151901.e34e4e62.akpm@linux-foundation.org>
+In-Reply-To: <20101102203102.GA12723@linux-sh.org>
+References: <20101102203102.GA12723@linux-sh.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, Chris Metcalf <cmetcalf@tilera.com>, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 02, 2010 at 03:42:35PM +0000, Mel Gorman wrote:
+On Wed, 3 Nov 2010 05:31:03 +0900
+Paul Mundt <lethal@linux-sh.org> wrote:
 
-> On Fri, Dec 03, 2010 at 12:35:26AM +0900, Minchan Kim wrote:
-> > > > @@ -2550,8 +2558,13 @@ static int kswapd(void *p)
-> > > >  			 */
-> > > >  			order = new_order;
-> > > >  		} else {
-> > > > -			kswapd_try_to_sleep(pgdat, order);
-> > > > -			order = pgdat->kswapd_max_order;
-> > > > +			/*
-> > > > +			 * If we wake up after enough sleeping, let's
-> > > > +			 * start new order. Otherwise, it was a premature
-> > > > +			 * sleep so we keep going on.
-> > > > +			 */
-> > > > +			if (kswapd_try_to_sleep(pgdat, order))
-> > > > +				order = pgdat->kswapd_max_order;
-> > > 
-> > > Ok, we lose the old order if we slept enough. That is fine because if we
-> > > slept enough it implies that reclaiming at that order was no longer
-> > > necessary.
-> > > 
-> > > This needs a repost with a full changelog explaining why order has to be
-> > > preserved if kswapd fails to go to sleep. There will be merge difficulties
-> > > with the series aimed at fixing Simon's problem but it's unavoidable.
-> > > Rebasing on top of my series isn't an option as I'm still patching
-> > > against mainline until that issue is resolved.
-> > 
-> > So what's your point?
+> The current definition of ioremap_prot() takes an unsigned long for the
+> page flags and then converts to/from a pgprot as necessary. This is
+> unfortunately not sufficient for the SH-X2 TLB case which has a 64-bit
+> pgprot and a 32-bit unsigned long.
 > 
-> Only point was to comment "I think this part of the patch is fine".
+> An inspection of the tree shows that tile and cris also have their
+> own equivalent routines that are using the pgprot_t but do not set
+> HAVE_IOREMAP_PROT, both of which could trivially be adapted.
 > 
-> > Do you want me to send this patch alone
-> > regardless of your series for Simon's problem?
-> > 
-> 
-> Yes, because I do not believe the problems are directly related. When/if
-> I get something working with Simon, I'll backport your patch on top of it
-> for testing by him just in case but I don't think it'll affect him.
+> After cris/tile are updated there would also be enough critical mass to
+> move the powerpc devm_ioremap_prot() in to the generic lib/devres.c.
 
-We could test this and your patch together, no?  Your patch definitely
-fixed the case for us where kswapd would just run all day long, throwing
-out everything while trying to reach the order-3 watermark in zone Normal
-while order-0 page cache allocations were splitting it back out again.
+In file included from sound/drivers/mpu401/mpu401_uart.c:31:
+arch/x86/include/asm/io.h:199: error: syntax error before 'pgprot_t'
+arch/x86/include/asm/io.h:199: warning: function declaration isn't a prototype
 
-However, the subject of my original post was to do with too much free
-memory and swap, which is still occurring:
+because asm/io.h now needs asm/pgtable.h for pgprot_t.
 
-	http://0x.ca/sim/ref/2.6.36/memory_mel_patch_week.png
+I tried that:
 
-But this is still occurring even if I tell slub to use only order-0 and
-order-1, and disable jumbo frames (which I did on another box, not this
-one).  It may not be quite as bad, but I think the increase in free
-memory is just based on fragmentation that builds up over time.  I don't
-have any long-running graphs of this yet, but I can see that pretty much
-all of the free memory always is order-0, and even a "while true; do
-sleep .01; done" is enough to make it throw out more order-0 while trying
-to make room for order-1 task_struct allocations.
+--- a/arch/powerpc/include/asm/io.h~mm-make-ioremap_prot-take-a-pgprot-fix
++++ a/arch/powerpc/include/asm/io.h
+@@ -27,6 +27,7 @@ extern int check_legacy_ioport(unsigned 
+ #include <asm/synch.h>
+ #include <asm/delay.h>
+ #include <asm/mmu.h>
++#include <asm/pgtable.h>
+ 
+ #include <asm-generic/iomap.h>
+ 
+--- a/arch/x86/include/asm/io.h~mm-make-ioremap_prot-take-a-pgprot-fix
++++ a/arch/x86/include/asm/io.h
+@@ -40,6 +40,7 @@
+ #include <linux/compiler.h>
+ #include <asm-generic/int-ll64.h>
+ #include <asm/page.h>
++#include <asm/pgtable.h>
+ 
+ #include <xen/xen.h>
+ 
+and it blew up because pgtable.h needs spinlock.h for spinlock_t.
 
-Maybe some pattern in the way that pages are reclaimed while they are
-being allocated is resulting in increasing fragmentation?  All the boxes
-I see this on start out fine, but after a day or week they end up in swap
-and with lots of free memory.
-
-Simon-
+Gave up.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
