@@ -1,71 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 053FC8D000E
-	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 21:35:34 -0500 (EST)
-From: "Zheng, Shaohui" <shaohui.zheng@intel.com>
-Date: Thu, 2 Dec 2010 10:35:00 +0800
-Subject: RE: [8/8, v6] NUMA Hotplug Emulator: implement debugfs interface
- for memory probe
-Message-ID: <A24AE1FFE7AEC5489F83450EE98351BF288D88D2B8@shsmsx502.ccr.corp.intel.com>
-References: <A24AE1FFE7AEC5489F83450EE98351BF288D88D224@shsmsx502.ccr.corp.intel.com>
- <20101202002716.GA13693@shaohui>
- <alpine.DEB.2.00.1012011807190.13942@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1012011807190.13942@chino.kir.corp.google.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id B9F8C6B00B1
+	for <linux-mm@kvack.org>; Wed,  1 Dec 2010 21:39:12 -0500 (EST)
+Subject: Re: [patch]vmscan: make kswapd use a correct order
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <AANLkTinE-b41jedk7GRXvwLu7Qvis7+CJVQPJBsEAWLD@mail.gmail.com>
+References: <1291172911.12777.58.camel@sli10-conroe>
+	 <20101201132730.ABC2.A69D9226@jp.fujitsu.com>
+	 <20101201155854.GA3372@barrios-desktop>
+	 <1291249749.12777.86.camel@sli10-conroe>
+	 <AANLkTi=p9s=2pRNw5fT7Lw_hYbi7GM-hrnQ-X+ETVhNZ@mail.gmail.com>
+	 <1291251908.12777.94.camel@sli10-conroe>
+	 <AANLkTinE-b41jedk7GRXvwLu7Qvis7+CJVQPJBsEAWLD@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 02 Dec 2010 10:39:09 +0800
+Message-ID: <1291257549.12777.121.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lethal@linux-sh.org" <lethal@linux-sh.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Greg KH <gregkh@suse.de>, "Li, Haicheng" <haicheng.li@intel.com>, "shaohui.zheng@linux.intel.com" <shaohui.zheng@linux.intel.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Why should we add so many interfaces for memory hotplug emulation? If so, w=
-e should create both sysfs and debugfs=20
-entries for an online node, we are trying to add redundant code logic.
-
-We need not make a simple thing such complicated, Simple is beautiful, I'd =
-prefer to rename the mem_hotplug/probe=20
-interface as mem_hotplug/add_memory.
-
-	/sys/kernel/debug/mem_hotplug/add_node (already exists)
-	/sys/kernel/debug/mem_hotplug/add_memory (rename probe as add_memory)
-
-Thanks & Regards,
-Shaohui
-
-
------Original Message-----
-From: David Rientjes [mailto:rientjes@google.com]=20
-Sent: Thursday, December 02, 2010 10:13 AM
-To: Zheng, Shaohui
-Cc: Andrew Morton; linux-mm@kvack.org; linux-kernel@vger.kernel.org; lethal=
-@linux-sh.org; Andi Kleen; Dave Hansen; Greg KH; Li, Haicheng
-Subject: Re: [8/8, v6] NUMA Hotplug Emulator: implement debugfs interface f=
-or memory probe
-
-On Thu, 2 Dec 2010, Shaohui Zheng wrote:
-
-> so we should still keep the sysfs memory/probe interface without any modi=
-fications,
-> but for the debugfs mem_hotplug/probe interface, we can add the memory re=
-gion=20
-> to a desired node.
-
-This feature would be distinct from the add_node interface already=20
-provided: instead of hotplugging a new node to test the memory hotplug=20
-callbacks, this new interface would only be hotadding new memory to a node=
-=20
-other than the one it has physical affinity with.  For that support, I'd=20
-suggest new probe files in debugfs for each online node:
-
-	/sys/kernel/debug/mem_hotplug/add_node (already exists)
-	/sys/kernel/debug/mem_hotplug/node0/add_memory
-	/sys/kernel/debug/mem_hotplug/node1/add_memory
-	...
-
-and then you can offline and remove that memory with the existing hotplug=20
-support (CONFIG_MEMORY_HOTPLUG and CONFIG_MEMORY_HOTREMOVE, respectively).
+On Thu, 2010-12-02 at 09:23 +0800, Minchan Kim wrote:
+> On Thu, Dec 2, 2010 at 10:05 AM, Shaohua Li <shaohua.li@intel.com> wrote:
+> > On Thu, 2010-12-02 at 08:54 +0800, Minchan Kim wrote:
+> >> On Thu, Dec 2, 2010 at 9:29 AM, Shaohua Li <shaohua.li@intel.com> wrote:
+> >> > On Wed, 2010-12-01 at 23:58 +0800, Minchan Kim wrote:
+> >> >> On Wed, Dec 01, 2010 at 06:44:27PM +0900, KOSAKI Motohiro wrote:
+> >> >> > > T0: Task1 wakeup_kswapd(order=3)
+> >> >> > > T1: kswapd enters balance_pgdat
+> >> >> > > T2: Task2 wakeup_kswapd(order=2), because pages reclaimed by kswapd are used
+> >> >> > > quickly
+> >> >> > > T3: kswapd exits balance_pgdat. kswapd will do check. Now new order=2,
+> >> >> > > pgdat->kswapd_max_order will become 0, but order=3, if sleeping_prematurely,
+> >> >> > > then order will become pgdat->kswapd_max_order(0), while at this time the
+> >> >> > > order should 2
+> >> >> > > This isn't a big deal, but we do have a small window the order is wrong.
+> >> >> > >
+> >> >> > > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+> >> >> > >
+> >> >> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >> >> > > index d31d7ce..15cd0d2 100644
+> >> >> > > --- a/mm/vmscan.c
+> >> >> > > +++ b/mm/vmscan.c
+> >> >> > > @@ -2450,7 +2450,7 @@ static int kswapd(void *p)
+> >> >> > >                           }
+> >> >> > >                   }
+> >> >> > >
+> >> >> > > -                 order = pgdat->kswapd_max_order;
+> >> >> > > +                 order = max_t(unsigned long, new_order, pgdat->kswapd_max_order);
+> >> >> > >           }
+> >> >> > >           finish_wait(&pgdat->kswapd_wait, &wait);
+> >> >> >
+> >> >> > Good catch!
+> >> >> >
+> >> >> > But unfortunatelly, the code is not correct. At least, don't fit corrent
+> >> >> > design.
+> >> >> >
+> >> >> > 1) if "order < new_order" condition is false, we already decided to don't
+> >> >> >    use new_order. So, we shouldn't use new_order after kswapd_try_to_sleep()
+> >> >> > 2) if sleeping_prematurely() return false, it probably mean
+> >> >> >    zone_watermark_ok_safe(zone, order, high_wmark) return false.
+> >> >> >    therefore, we have to retry reclaim by using old 'order' parameter.
+> >> >>
+> >> >> Good catch, too.
+> >> >>
+> >> >> In Shaohua's scenario, if Task1 gets the order-3 page after kswapd's reclaiming,
+> >> >> it's no problem.
+> >> >> But if Task1 doesn't get the order-3 page and others used the order-3 page for Task1,
+> >> >> Kswapd have to reclaim order-3 for Task1, again.
+> >> > why? it's just a possibility. Task1 might get its pages too. If Task1
+> >> > doesn't get its pages, it will wakeup kswapd too with its order.
+> >> >
+> >> >> In addtion, new order is always less than old order in that context.
+> >> >> so big order page reclaim makes much safe for low order pages.
+> >> > big order page reclaim makes we have more chances to reclaim useful
+> >> > pages by lumpy, why it's safe?
+> >>
+> >> For example, It assume tat Task1 continues to fail get the order-3
+> >> page of GFP_ATOMIC since other tasks continues to allocate order-2
+> >> pages so that they steal pages.
+> > but even you reclaim order-3, you can't guarantee task1 can get the
+> > pages too. order-3 page can be steal by order-2 allocation
+> 
+> But at least, it has a high possibility to allocate order-3 page than
+> reclaim order-2 pages.
+> 
+> >
+> >> Then, your patch makes continue to
+> >> reclaim order-2 page in this scenario. Task1 never get the order-3
+> >> pages if it doesn't have a merge luck.
+> > Task1 will wakeup kswapd again for order-3, so kswapd will reclaim
+> > order-3 very soon after the order-2 reclaim.
+> 
+> GFP_ATOMIC case doesn't wakeup kswapd.
+> When kswapd wakeup by order-3 depends on caller's retry.
+> And this situation can be repeated in next turn.
+> 
+> We can't guarantee 100% Task-1's order-3 pages so I hope we should go
+> way to reduce the problem as possible as we can.
+ok, I have no objection now.
+Reviewed-by: Shaohua Li <shaohua.li@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
