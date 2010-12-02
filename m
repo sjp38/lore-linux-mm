@@ -1,64 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id F15DE6B0085
-	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 06:04:31 -0500 (EST)
-Date: Thu, 2 Dec 2010 12:04:04 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/7] mm: vmscan: Convert lumpy_mode into a bitmask
-Message-ID: <20101202110404.GW15564@cmpxchg.org>
-References: <1290440635-30071-1-git-send-email-mel@csn.ul.ie>
- <1290440635-30071-3-git-send-email-mel@csn.ul.ie>
- <20101201102732.GK15564@cmpxchg.org>
- <20101201105029.GL13268@csn.ul.ie>
- <20101201112116.GR15564@cmpxchg.org>
- <20101201115633.GO13268@csn.ul.ie>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C3236B0071
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 07:04:07 -0500 (EST)
+Date: Thu, 2 Dec 2010 12:03:47 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH] mm: vmscan: Rename lumpy_mode to reclaim_mode fix
+Message-ID: <20101202120347.GS13268@csn.ul.ie>
+References: <1290440635-30071-1-git-send-email-mel@csn.ul.ie> <1290440635-30071-3-git-send-email-mel@csn.ul.ie> <20101201102732.GK15564@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101201115633.GO13268@csn.ul.ie>
+In-Reply-To: <20101201102732.GK15564@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 01, 2010 at 11:56:33AM +0000, Mel Gorman wrote:
-> On Wed, Dec 01, 2010 at 12:21:16PM +0100, Johannes Weiner wrote:
-> > On Wed, Dec 01, 2010 at 10:50:29AM +0000, Mel Gorman wrote:
-> > > On Wed, Dec 01, 2010 at 11:27:32AM +0100, Johannes Weiner wrote:
-> > > > On Mon, Nov 22, 2010 at 03:43:50PM +0000, Mel Gorman wrote:
-> > > > > + * lumpy_mode determines how the inactive list is shrunk
-> > > > > + * LUMPY_MODE_SINGLE: Reclaim only order-0 pages
-> > > > > + * LUMPY_MODE_ASYNC:  Do not block
-> > > > > + * LUMPY_MODE_SYNC:   Allow blocking e.g. call wait_on_page_writeback
-> > > > > + * LUMPY_MODE_CONTIGRECLAIM: For high-order allocations, take a reference
-> > > > > + *			page from the LRU and reclaim all pages within a
-> > > > > + *			naturally aligned range
-> > > > 
-> > > > I find those names terribly undescriptive.  It also strikes me as an
-> > > > odd set of flags.  Can't this be represented with less?
-> > > > 
-> > > > 	LUMPY_MODE_ENABLED
-> > > > 	LUMPY_MODE_SYNC
-> > > > 
-> > > > or, after the rename,
-> > > > 
-> > > > 	RECLAIM_MODE_HIGHER	= 1
-> > > > 	RECLAIM_MODE_SYNC	= 2
-> > > > 	RECLAIM_MODE_LUMPY	= 4
-> > > 
-> > > My problem with that is you have to infer what the behaviour is from what the
-> > > flags "are not" as opposed to what they are. For example, !LUMPY_MODE_SYNC
-> > > implies LUMPY_MODE_ASYNC instead of specifying LUMPY_MODE_ASYNC.
-> > 
-> > Sounds like a boolean value to me.  And it shows: you never actually
-> > check for RECLAIM_MODE_ASYNC in the code, you just always set it to
-> > the opposite of RECLAIM_MODE_SYNC - the flag which is actually read.
-> 
-> If you insist, the ASYNC flag can be dropped. I found it easier to flag
-> what behaviour was expected than infer it.
+As suggested by Johannes, rename reclaim_mode to reclaim_mode_t. This is
+a fix to the mmotm patch
+broken-out/mm-vmscan-rename-lumpy_mode-to-reclaim_mode.patch.
 
-It seems to be a matter of taste and nobody else seems to care, so I
-am not insisting.  Let's just keep it as it is.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ mm/vmscan.c |   16 ++++++++--------
+ 1 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 42a4859..a9390fd 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -63,12 +63,12 @@
+  * RECLAIM_MODE_COMPACTION: For high-order allocations, reclaim a number of
+  *			order-0 pages and then compact the zone
+  */
+-typedef unsigned __bitwise__ reclaim_mode;
+-#define RECLAIM_MODE_SINGLE		((__force reclaim_mode)0x01u)
+-#define RECLAIM_MODE_ASYNC		((__force reclaim_mode)0x02u)
+-#define RECLAIM_MODE_SYNC		((__force reclaim_mode)0x04u)
+-#define RECLAIM_MODE_LUMPYRECLAIM	((__force reclaim_mode)0x08u)
+-#define RECLAIM_MODE_COMPACTION		((__force reclaim_mode)0x10u)
++typedef unsigned __bitwise__ reclaim_mode_t;
++#define RECLAIM_MODE_SINGLE		((__force reclaim_mode_t)0x01u)
++#define RECLAIM_MODE_ASYNC		((__force reclaim_mode_t)0x02u)
++#define RECLAIM_MODE_SYNC		((__force reclaim_mode_t)0x04u)
++#define RECLAIM_MODE_LUMPYRECLAIM	((__force reclaim_mode_t)0x08u)
++#define RECLAIM_MODE_COMPACTION		((__force reclaim_mode_t)0x10u)
+ 
+ struct scan_control {
+ 	/* Incremented by the number of inactive pages that were scanned */
+@@ -101,7 +101,7 @@ struct scan_control {
+ 	 * Intend to reclaim enough continuous memory rather than reclaim
+ 	 * enough amount of memory. i.e, mode for high order allocation.
+ 	 */
+-	reclaim_mode reclaim_mode;
++	reclaim_mode_t reclaim_mode;
+ 
+ 	/* Which cgroup do we reclaim from */
+ 	struct mem_cgroup *mem_cgroup;
+@@ -287,7 +287,7 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+ static void set_reclaim_mode(int priority, struct scan_control *sc,
+ 				   bool sync)
+ {
+-	reclaim_mode syncmode = sync ? RECLAIM_MODE_SYNC : RECLAIM_MODE_ASYNC;
++	reclaim_mode_t syncmode = sync ? RECLAIM_MODE_SYNC : RECLAIM_MODE_ASYNC;
+ 
+ 	/*
+ 	 * Initially assume we are entering either lumpy reclaim or
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
