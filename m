@@ -1,245 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 306526B0071
-	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 05:12:53 -0500 (EST)
-Date: Thu, 2 Dec 2010 10:12:34 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [patch]vmscan: make kswapd use a correct order
-Message-ID: <20101202101234.GR13268@csn.ul.ie>
-References: <1291172911.12777.58.camel@sli10-conroe> <20101201132730.ABC2.A69D9226@jp.fujitsu.com> <20101201155854.GA3372@barrios-desktop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20101201155854.GA3372@barrios-desktop>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A8D186B0071
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 06:03:15 -0500 (EST)
+Date: Thu, 2 Dec 2010 11:57:22 +0100
+From: Michael Leun <lkml20101129@newton.leun.net>
+Subject: Re: kernel BUG at mm/truncate.c:475!
+Message-ID: <20101202115722.1c00afd5@xenia.leun.net>
+In-Reply-To: <E1PO5gh-00079U-Ma@pomaz-ex.szeredi.hu>
+References: <20101130194945.58962c44@xenia.leun.net>
+	<alpine.LSU.2.00.1011301453090.12516@tigran.mtv.corp.google.com>
+	<E1PNjsI-0005Bk-NB@pomaz-ex.szeredi.hu>
+	<20101201124528.6809c539@xenia.leun.net>
+	<E1PNqO1-0005px-9h@pomaz-ex.szeredi.hu>
+	<20101202084159.6bff7355@xenia.leun.net>
+	<20101202091552.4a63f717@xenia.leun.net>
+	<E1PO5gh-00079U-Ma@pomaz-ex.szeredi.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: hughd@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 02, 2010 at 12:58:54AM +0900, Minchan Kim wrote:
-> On Wed, Dec 01, 2010 at 06:44:27PM +0900, KOSAKI Motohiro wrote:
-> > > T0: Task1 wakeup_kswapd(order=3)
-> > > T1: kswapd enters balance_pgdat
-> > > T2: Task2 wakeup_kswapd(order=2), because pages reclaimed by kswapd are used
-> > > quickly
-> > > T3: kswapd exits balance_pgdat. kswapd will do check. Now new order=2,
-> > > pgdat->kswapd_max_order will become 0, but order=3, if sleeping_prematurely,
-> > > then order will become pgdat->kswapd_max_order(0), while at this time the
-> > > order should 2
-> > > This isn't a big deal, but we do have a small window the order is wrong.
-> > > 
-> > > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> > > 
-> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > index d31d7ce..15cd0d2 100644
-> > > --- a/mm/vmscan.c
-> > > +++ b/mm/vmscan.c
-> > > @@ -2450,7 +2450,7 @@ static int kswapd(void *p)
-> > >  				}
-> > >  			}
-> > >  
-> > > -			order = pgdat->kswapd_max_order;
-> > > +			order = max_t(unsigned long, new_order, pgdat->kswapd_max_order);
-> > >  		}
-> > >  		finish_wait(&pgdat->kswapd_wait, &wait);
-> > 
-> > Good catch!
-> > 
-> > But unfortunatelly, the code is not correct. At least, don't fit corrent
-> > design.
-> > 
-> > 1) if "order < new_order" condition is false, we already decided to don't
-> >    use new_order. So, we shouldn't use new_order after kswapd_try_to_sleep()
-> > 2) if sleeping_prematurely() return false, it probably mean
-> >    zone_watermark_ok_safe(zone, order, high_wmark) return false.
-> >    therefore, we have to retry reclaim by using old 'order' parameter.
-> 
-> Good catch, too.
-> 
-> In Shaohua's scenario, if Task1 gets the order-3 page after kswapd's reclaiming,
-> it's no problem.
-> But if Task1 doesn't get the order-3 page and others used the order-3 page for Task1,
-> Kswapd have to reclaim order-3 for Task1, again.
-> In addtion, new order is always less than old order in that context. 
-> so big order page reclaim makes much safe for low order pages.
-> 
-> > 
-> > new patch is here.
-> > 
-> > 
-> > 
-> > From 8f436224219a1da01985fd9644e1307e7c4cb8c3 Mon Sep 17 00:00:00 2001
-> > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > Date: Sun, 26 Dec 2010 21:10:55 +0900
-> > Subject: [PATCH] vmscan: make kswapd use a correct order
-> > 
-> > If sleeping_prematurely() return false, It's a sign of retrying reclaim.
-> > So, we don't have to drop old order value.
-> 
-> I think this description isn't enough.
-> 
-> > 
-> > Reported-by: Shaohua Li <shaohua.li@intel.com>
-> > Cc: Minchan Kim <minchan.kim@gmail.com>
-> > Cc: Mel Gorman <mel@csn.ul.ie>
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> 
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> But could you see my below suggestion?
-> 
-> > ---
-> >  mm/vmscan.c |   11 +++++++----
-> >  1 files changed, 7 insertions(+), 4 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 1fcadaf..f052a1a 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2364,13 +2364,13 @@ out:
-> >  	return sc.nr_reclaimed;
-> >  }
-> >  
-> > -static void kswapd_try_to_sleep(pg_data_t *pgdat, int order)
-> > +static int kswapd_try_to_sleep(pg_data_t *pgdat, int order)
-> >  {
-> >  	long remaining = 0;
-> >  	DEFINE_WAIT(wait);
-> >  
-> >  	if (freezing(current) || kthread_should_stop())
-> > -		return;
-> > +		return 0;
-> >  
-> >  	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-> >  
-> > @@ -2399,13 +2399,17 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order)
-> >  		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
-> >  		schedule();
-> >  		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
-> > +		order = pgdat->kswapd_max_order;
-> >  	} else {
-> >  		if (remaining)
-> >  			count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
-> >  		else
-> >  			count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
-> > +		order = max(order, pgdat->kswapd_max_order);
-> >  	}
-> >  	finish_wait(&pgdat->kswapd_wait, &wait);
-> > +
-> > +	return order;
-> >  }
-> >  
-> >  /*
-> > @@ -2467,8 +2471,7 @@ static int kswapd(void *p)
-> >  			 */
-> >  			order = new_order;
-> >  		} else {
-> > -			kswapd_try_to_sleep(pgdat, order);
-> > -			order = pgdat->kswapd_max_order;
-> > +			order = kswapd_try_to_sleep(pgdat, order);
-> >  		}
-> >  
-> >  		ret = try_to_freeze();
-> > -- 
-> > 1.6.5.2
-> > 
-> > 
-> 
-> It might work well. but I don't like such a coding that kswapd_try_to_sleep's
-> eturn value is order. It doesn't look good to me and even no comment. Hmm..
-> 
-> How about this?
-> If you want it, feel free to use it.
-> If you insist on your coding style, I don't have any objection.
-> Then add My Reviewed-by.
-> 
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> ---
->  mm/vmscan.c |   21 +++++++++++++++++----
->  1 files changed, 17 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 42a4859..e48a612 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2447,13 +2447,18 @@ out:
->  	return sc.nr_reclaimed;
->  }
->  
-> -static void kswapd_try_to_sleep(pg_data_t *pgdat, int order)
-> +/*
-> + * Return true if we sleep enough. Othrewise, return false
-> + */
+On Thu, 02 Dec 2010 10:42:51 +0100
+Miklos Szeredi <miklos@szeredi.hu> wrote:
 
-s/Othrewise/Otherwise/
+> On Thu, 2 Dec 2010, Michael Leun wrote:
+> > > Kernel compile 2.6.36.1 with that .page_mkwrite commented out
+> > > running now, will reboot really soon now (TM).
+> > 
+> > OK - that happened very fast again in 2.6.36.1.
+> > 
+> > Sorry for that tainted kernel, but cannot afford to additionally
+> > have graphics lockups all the time - I've shown that it happens with
+> > untainted kernel also (long run without fault yesterday also was
+> > with nvidia.ko driver).
+> > 
+> > Until I've another suggestion what to try I'll swich back to 2.6.36
+> > to see if it really happens less frequent there.
+> 
+> Can you please describe in detail the workload that's causing this to
+> happen?
 
-Maybe
+Thats rather complicated, but I'll try. Basically it boils down to:
 
-> +static bool kswapd_try_to_sleep(pg_data_t *pgdat, int order)
->  {
->  	long remaining = 0;
-> +	bool sleep = 0;
-> +
+unshare -n -m /bin/bash
+unionfs -o cow,suid,allow_other,max_files=65536 /home/netenv/user1-union=RW:/=RO /home/netenv/user1
+mount -n -t proc none /home/netenv/user1/proc
+mount -n -t sysfs none /home/netenv/user1/sys
+mount -n -t devtmpfs devtmpfs /home/netenv/user1/dev
+mount -n -t devpts devpts /home/netenv/user1/dev/pts
+chroot /home/netenv/user1 /bin/su - user1
 
-sleep is a boolean, it's true or false, not 0 or !0
+Then run some shell-scripts in this shell running as user1.
 
-The term "sleep" implies present or future tense - i.e. I am going to sleep or
-will go to sleep in the future.  The event this variable cares about in the
-past so "slept" or finished_sleeping might be a more appropriate term. Sorry
-to be picky about the English but there is an important distinction here.
+Of course there is some more stuff as getting network connectivity in
+this new namespace and so on, but I guess thats not important for the
+fuse problem.
 
->  	DEFINE_WAIT(wait);
->  
->  	if (freezing(current) || kthread_should_stop())
-> -		return;
-> +		return sleep;
->  
->  	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
->  
-> @@ -2482,6 +2487,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order)
->  		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
->  		schedule();
->  		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
-> +		sleep = 1;
->  	} else {
->  		if (remaining)
->  			count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
-> @@ -2489,6 +2495,8 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order)
->  			count_vm_event(KSWAPD_HIGH_WMARK_HIT_QUICKLY);
->  	}
->  	finish_wait(&pgdat->kswapd_wait, &wait);
-> +
-> +	return sleep;
->  }
->  
->  /*
-> @@ -2550,8 +2558,13 @@ static int kswapd(void *p)
->  			 */
->  			order = new_order;
->  		} else {
-> -			kswapd_try_to_sleep(pgdat, order);
-> -			order = pgdat->kswapd_max_order;
-> +			/*
-> +			 * If we wake up after enough sleeping, let's
-> +			 * start new order. Otherwise, it was a premature
-> +			 * sleep so we keep going on.
-> +			 */
-> +			if (kswapd_try_to_sleep(pgdat, order))
-> +				order = pgdat->kswapd_max_order;
+Then there are some (up to 6 at the moment) more setups like the above
+one with different users (user2, user3 and so on) running concurrent.
 
-Ok, we lose the old order if we slept enough. That is fine because if we
-slept enough it implies that reclaiming at that order was no longer
-necessary.
+In some of this setups two or more environments share the same writable
+branch, so the files in this environments changed against real root of
+the machine are the same, e.g.:
 
-This needs a repost with a full changelog explaining why order has to be
-preserved if kswapd fails to go to sleep. There will be merge difficulties
-with the series aimed at fixing Simon's problem but it's unavoidable.
-Rebasing on top of my series isn't an option as I'm still patching
-against mainline until that issue is resolved.
+[...]
+unionfs -o cow,suid,allow_other,max_files=65536 /home/netenv/commondir=RW:/=RO /home/netenv/user1
+[...]
+
+and another one
+
+[...]
+unionfs -o cow,suid,allow_other,max_files=65536 /home/netenv/commondir=RW:/=RO /home/netenv/user2
+[...]
+
+I observed that unionfs process takes much more cpu power than usual
+before fault happens.
+
+ elektra:~ # unionfs --version
+unionfs-fuse version: 0.24
+FUSE library version: 2.8.5
+fusermount version: 2.8.5
+using FUSE kernel interface version 7.12
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+MfG,
+
+Michael Leun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
