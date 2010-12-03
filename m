@@ -1,152 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B2836B0096
-	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 19:17:30 -0500 (EST)
-Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
-	by smtp-out.google.com with ESMTP id oB30HQgl017076
-	for <linux-mm@kvack.org>; Thu, 2 Dec 2010 16:17:26 -0800
-Received: from pxi7 (pxi7.prod.google.com [10.243.27.7])
-	by kpbe13.cbf.corp.google.com with ESMTP id oB30HPSX021152
-	for <linux-mm@kvack.org>; Thu, 2 Dec 2010 16:17:25 -0800
-Received: by pxi7 with SMTP id 7so2289948pxi.22
-        for <linux-mm@kvack.org>; Thu, 02 Dec 2010 16:17:25 -0800 (PST)
-From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH 6/6] x86 rwsem: more precise rwsem_is_contended() implementation
-Date: Thu,  2 Dec 2010 16:16:52 -0800
-Message-Id: <1291335412-16231-7-git-send-email-walken@google.com>
-In-Reply-To: <1291335412-16231-1-git-send-email-walken@google.com>
-References: <1291335412-16231-1-git-send-email-walken@google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 73FA76B0087
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 20:07:39 -0500 (EST)
+Message-Id: <201012030107.oB317ZSW019223@imap1.linux-foundation.org>
+Subject: mmotm 2010-12-02-16-34 uploaded
+From: akpm@linux-foundation.org
+Date: Thu, 02 Dec 2010 16:34:54 -0800
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-We would like rwsem_is_contended() to return true only once a contending
-writer has had a chance to insert itself onto the rwsem wait queue.
-To that end, we need to differenciate between active and queued writers.
+The mm-of-the-moment snapshot 2010-12-02-16-34 has been uploaded to
 
-A new property is introduced: RWSEM_ACTIVE_WRITE_BIAS is set to be
-'more negative' than RWSEM_WAITING_BIAS. RWSEM_WAITING_MASK designates
-a bit in the rwsem count that will be set only when RWSEM_WAITING_BIAS
-is in effect.
+   http://userweb.kernel.org/~akpm/mmotm/
 
-The basic properties that have been true so far also still hold:
-- RWSEM_ACTIVE_READ_BIAS  & RWSEM_ACTIVE_MASK == 1
-- RWSEM_ACTIVE_WRITE_BIAS & RWSEM_ACTIVE_MASK == 1
-- RWSEM_WAITING_BIAS      & RWSEM_ACTIVE_MASK == 0
-- RWSEM_ACTIVE_WRITE_BIAS < 0 and RWSEM_WAITING_BIAS < 0
+and will soon be available at
 
-In addition, the rwsem count will be < RWSEM_WAITING_BIAS only if there
-are any active writers (though we don't make use of this property so far).
+   git://zen-kernel.org/kernel/mmotm.git
 
-Signed-off-by: Michel Lespinasse <walken@google.com>
----
- arch/x86/include/asm/rwsem.h |   32 +++++++++++++++++++-------------
- arch/x86/lib/rwsem_64.S      |    4 ++--
- arch/x86/lib/semaphore_32.S  |    4 ++--
- 3 files changed, 23 insertions(+), 17 deletions(-)
+It contains the following patches against 2.6.37-rc4:
 
-diff --git a/arch/x86/include/asm/rwsem.h b/arch/x86/include/asm/rwsem.h
-index a35521e..1ce7759 100644
---- a/arch/x86/include/asm/rwsem.h
-+++ b/arch/x86/include/asm/rwsem.h
-@@ -16,11 +16,10 @@
-  * if there are writers (and maybe) readers waiting (in which case it goes to
-  * sleep).
-  *
-- * The value of WAITING_BIAS supports up to 32766 waiting processes. This can
-- * be extended to 65534 by manually checking the whole MSW rather than relying
-- * on the S flag.
-+ * The WRITE_BIAS value supports up to 32767 processes simultaneously
-+ * trying to acquire a write lock.
-  *
-- * The value of ACTIVE_BIAS supports up to 65535 active processes.
-+ * The value of ACTIVE_MASK supports up to 32767 active processes.
-  *
-  * This should be totally fair - if anything is waiting, a process that wants a
-  * lock will go to the back of the queue. When the currently active lock is
-@@ -62,17 +61,23 @@ extern asmregparm struct rw_semaphore *
-  * for 64 bits.
-  */
- 
-+
- #ifdef CONFIG_X86_64
--# define RWSEM_ACTIVE_MASK		0xffffffffL
-+# define RWSEM_UNLOCKED_VALUE		0x0000000000000000L
-+# define RWSEM_ACTIVE_MASK		0x000000007fffffffL
-+# define RWSEM_ACTIVE_READ_BIAS		0x0000000000000001L
-+# define RWSEM_ACTIVE_WRITE_BIAS	0xffffffff00000001L
-+# define RWSEM_WAITING_BIAS		0xffffffff80000000L
-+# define RWSEM_WAITING_MASK		0x0000000080000000L
- #else
--# define RWSEM_ACTIVE_MASK		0x0000ffffL
-+# define RWSEM_UNLOCKED_VALUE		0x00000000L
-+# define RWSEM_ACTIVE_MASK		0x00007fffL
-+# define RWSEM_ACTIVE_READ_BIAS		0x00000001L
-+# define RWSEM_ACTIVE_WRITE_BIAS	0xffff0001L
-+# define RWSEM_WAITING_BIAS		0xffff8000L
-+# define RWSEM_WAITING_MASK		0x00008000L
- #endif
- 
--#define RWSEM_UNLOCKED_VALUE		0x00000000L
--#define RWSEM_ACTIVE_BIAS		0x00000001L
--#define RWSEM_WAITING_BIAS		(-RWSEM_ACTIVE_MASK-1)
--#define RWSEM_ACTIVE_READ_BIAS		RWSEM_ACTIVE_BIAS
--#define RWSEM_ACTIVE_WRITE_BIAS		(RWSEM_WAITING_BIAS + RWSEM_ACTIVE_BIAS)
- 
- typedef signed long rwsem_count_t;
- 
-@@ -240,7 +245,8 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
- 		     "1:\n\t"
- 		     "# ending __downgrade_write\n"
- 		     : "+m" (sem->count)
--		     : "a" (sem), "er" (-RWSEM_WAITING_BIAS)
-+		     : "a" (sem),
-+		       "er" (RWSEM_ACTIVE_READ_BIAS - RWSEM_ACTIVE_WRITE_BIAS)
- 		     : "memory", "cc");
- }
- 
-@@ -277,7 +283,7 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
- 
- static inline int rwsem_is_contended(struct rw_semaphore *sem)
- {
--	return (sem->count < 0);
-+	return (sem->count & RWSEM_WAITING_MASK) != 0;
- }
- 
- #endif /* __KERNEL__ */
-diff --git a/arch/x86/lib/rwsem_64.S b/arch/x86/lib/rwsem_64.S
-index 41fcf00..35b797e 100644
---- a/arch/x86/lib/rwsem_64.S
-+++ b/arch/x86/lib/rwsem_64.S
-@@ -60,8 +60,8 @@ ENTRY(call_rwsem_down_write_failed)
- 	ENDPROC(call_rwsem_down_write_failed)
- 
- ENTRY(call_rwsem_wake)
--	decl %edx	/* do nothing if still outstanding active readers */
--	jnz 1f
-+	cmpl $0x80000001, %edx
-+	jne 1f	/* do nothing unless there are waiters and no active threads */
- 	save_common_regs
- 	movq %rax,%rdi
- 	call rwsem_wake
-diff --git a/arch/x86/lib/semaphore_32.S b/arch/x86/lib/semaphore_32.S
-index 648fe47..256fa7d 100644
---- a/arch/x86/lib/semaphore_32.S
-+++ b/arch/x86/lib/semaphore_32.S
-@@ -103,8 +103,8 @@ ENTRY(call_rwsem_down_write_failed)
- 
- ENTRY(call_rwsem_wake)
- 	CFI_STARTPROC
--	decw %dx    /* do nothing if still outstanding active readers */
--	jnz 1f
-+	cmpw $0x8001, %dx
-+	jne 1f	/* do nothing unless there are waiters and no active threads */
- 	push %ecx
- 	CFI_ADJUST_CFA_OFFSET 4
- 	CFI_REL_OFFSET ecx,0
--- 
-1.7.3.1
+origin.patch
+mm-hugetlbc-avoid-double-unlock_page-in-hugetlb_fault.patch
+mm-mempolicyc-add-rcu-read-lock-to-protect-pid-structure.patch
+vmstat-fix-dirty-threshold-ordering.patch
+leds-fix-up-dependencies.patch
+reiserfs-dont-acquire-lock-recursively-in-reiserfs_acl_chmod.patch
+cs5535-gpio-apply-cs5536-errata-workaround-for-gpios.patch
+vmalloc-eagerly-clear-ptes-on-vunmap.patch
+documentation-filesystems-vfstxt-fix-repeasepage-description.patch
+mem-hotplug-introduce-unlock_memory_hotplug.patch
+ksm-annotate-ksm_thread_mutex-is-no-deadlock-source.patch
+do_exit-make-sure-we-run-with-get_fs-==-user_ds.patch
+linux-next.patch
+linux-next-git-rejects.patch
+next-remove-localversion.patch
+i-need-old-gcc.patch
+aesni-nfg.patch
+arch-alpha-kernel-systblss-remove-debug-check.patch
+memblock-fix-memblock_is_region_memory.patch
+mm-vmap-area-cache.patch
+arch-arm-plat-omap-iovmmc-fix-end-address-of-vm-area-comparation-in-alloc_iovm_area.patch
+backlight-fix-88pm860x_bl-macro-collision.patch
+cciss-fix-botched-tag-masking-for-scsi-tape-commands.patch
+hpsa-fix-redefinition-of-pci_device_id_cissf.patch
+acerhdf-add-support-for-aspire-1410-bios-v13314.patch
+arch-x86-kernel-apic-io_apicc-fix-warning.patch
+x86-olpc-add-xo-1-suspend-resume-support.patch
+x86-olpc-add-xo-1-suspend-resume-support-fix.patch
+arch-arm-mach-tegra-timerc-separate-clocksource-and-sched_clock.patch
+fs-btrfs-inodec-eliminate-memory-leak.patch
+btrfs-dont-dereference-extent_mapping-if-null.patch
+cifs-dont-overwrite-dentry-name-in-d_revalidate.patch
+cpufreq-fix-ondemand-governor-powersave_bias-execution-time-misuse.patch
+drivers-dma-use-the-ccflag-y-instead-of-extra_cflags.patch
+drivers-dma-ioat-use-the-ccflag-y-instead-of-extra_cflags.patch
+jfs-dont-overwrite-dentry-name-in-d_revalidate.patch
+debugfs-remove-module_exit.patch
+drivers-gpu-drm-radeon-atomc-fix-warning.patch
+irq-use-per_cpu-kstat_irqs.patch
+irq-use-per_cpu-kstat_irqs-checkpatch-fixes.patch
+timers-use-this_cpu_read.patch
+headers_check-better-search-for-functions-in-headers.patch
+headers_check-better-search-for-functions-in-headers-fix.patch
+headers_check-better-search-for-functions-in-headers-fix-checkpatch-fixes.patch
+drivers-leds-leds-lp5521c-fix-potential-buffer-overflow.patch
+leds-route-kbd-leds-through-the-generic-leds-layer.patch
+mips-enable-arch_dma_addr_t_64bit-with-highmem-64bit_phys_addr-64bit.patch
+isdn-capi-unregister-capictr-notifier-after-init-failure.patch
+isdn-capi-make-kcapi-use-a-separate-workqueue.patch
+drivers-video-backlight-l4f00242t03c-make-1-bit-signed-field-unsigned.patch
+drivers-video-backlight-l4f00242t03c-full-implement-fb-power-states-for-this-lcd.patch
+drivers-video-backlight-l4f00242t03c-prevent-unbalanced-calls-to-regulator-enable-disable.patch
+btusb-patch-add_apple_macbookpro62.patch
+atmel_serial-fix-rts-high-after-initialization-in-rs485-mode.patch
+atmel_serial-fix-rts-high-after-initialization-in-rs485-mode-fix.patch
+drivers-message-fusion-mptsasc-fix-warning.patch
+scsi-fix-a-header-to-include-linux-typesh.patch
+drivers-block-makefile-replace-the-use-of-module-objs-with-module-y.patch
+drivers-block-aoe-makefile-replace-the-use-of-module-objs-with-module-y.patch
+vfs-remove-a-warning-on-open_fmode.patch
+vfs-add-__fmode_exec.patch
+n_hdlc-fix-read-and-write-locking.patch
+n_hdlc-fix-read-and-write-locking-update.patch
+mm.patch
+mm-page-allocator-adjust-the-per-cpu-counter-threshold-when-memory-is-low.patch
+mm-vmstat-use-a-single-setter-function-and-callback-for-adjusting-percpu-thresholds.patch
+mm-vmstat-use-a-single-setter-function-and-callback-for-adjusting-percpu-thresholds-fix.patch
+mm-vmstat-use-a-single-setter-function-and-callback-for-adjusting-percpu-thresholds-update.patch
+mm-vmstat-use-a-single-setter-function-and-callback-for-adjusting-percpu-thresholds-fix-set_pgdat_percpu_threshold-dont-use-for_each_online_cpu.patch
+writeback-integrated-background-writeback-work.patch
+writeback-trace-wakeup-event-for-background-writeback.patch
+writeback-stop-background-kupdate-works-from-livelocking-other-works.patch
+writeback-stop-background-kupdate-works-from-livelocking-other-works-update.patch
+writeback-avoid-livelocking-wb_sync_all-writeback.patch
+writeback-avoid-livelocking-wb_sync_all-writeback-update.patch
+writeback-check-skipped-pages-on-wb_sync_all.patch
+writeback-check-skipped-pages-on-wb_sync_all-update.patch
+writeback-check-skipped-pages-on-wb_sync_all-update-fix.patch
+writeback-io-less-balance_dirty_pages.patch
+writeback-consolidate-variable-names-in-balance_dirty_pages.patch
+writeback-per-task-rate-limit-on-balance_dirty_pages.patch
+writeback-per-task-rate-limit-on-balance_dirty_pages-fix.patch
+writeback-prevent-duplicate-balance_dirty_pages_ratelimited-calls.patch
+writeback-account-per-bdi-accumulated-written-pages.patch
+writeback-bdi-write-bandwidth-estimation.patch
+writeback-bdi-write-bandwidth-estimation-fix.patch
+writeback-show-bdi-write-bandwidth-in-debugfs.patch
+writeback-quit-throttling-when-bdi-dirty-pages-dropped-low.patch
+writeback-reduce-per-bdi-dirty-threshold-ramp-up-time.patch
+writeback-make-reasonable-gap-between-the-dirty-background-thresholds.patch
+writeback-scale-down-max-throttle-bandwidth-on-concurrent-dirtiers.patch
+writeback-add-trace-event-for-balance_dirty_pages.patch
+writeback-make-nr_to_write-a-per-file-limit.patch
+writeback-make-nr_to_write-a-per-file-limit-fix.patch
+sync_inode_metadata-fix-comment.patch
+mm-page-writebackc-fix-__set_page_dirty_no_writeback-return-value.patch
+vmscan-factor-out-kswapd-sleeping-logic-from-kswapd.patch
+mm-find_get_pages_contig-fixlet.patch
+fs-mpagec-consolidate-code.patch
+fs-mpagec-consolidate-code-checkpatch-fixes.patch
+mm-convert-sprintf_symbol-to-%ps.patch
+mm-smaps-export-mlock-information.patch
+mm-compaction-add-trace-events-for-memory-compaction-activity.patch
+mm-vmscan-convert-lumpy_mode-into-a-bitmask.patch
+mm-vmscan-reclaim-order-0-and-use-compaction-instead-of-lumpy-reclaim.patch
+mm-vmscan-reclaim-order-0-and-use-compaction-instead-of-lumpy-reclaim-fix.patch
+mm-migration-allow-migration-to-operate-asynchronously-and-avoid-synchronous-compaction-in-the-faster-path.patch
+mm-migration-allow-migration-to-operate-asynchronously-and-avoid-synchronous-compaction-in-the-faster-path-fix.patch
+mm-migration-cleanup-migrate_pages-api-by-matching-types-for-offlining-and-sync.patch
+mm-compaction-perform-a-faster-migration-scan-when-migrating-asynchronously.patch
+mm-vmscan-rename-lumpy_mode-to-reclaim_mode.patch
+mm-deactivate-invalidated-pages.patch
+mm-deactivate-invalidated-pages-fix.patch
+mm-remove-unused-get_vm_area_node.patch
+mm-remove-gfp-mask-from-pcpu_get_vm_areas.patch
+mm-unify-module_alloc-code-for-vmalloc.patch
+oom-allow-a-non-cap_sys_resource-proces-to-oom_score_adj-down.patch
+mm-clear-pageerror-bit-in-msync-fsync.patch
+do_wp_page-remove-the-reuse-flag.patch
+do_wp_page-clarify-dirty_page-handling.patch
+mlock-avoid-dirtying-pages-and-triggering-writeback.patch
+frv-duplicate-output_buffer-of-e03.patch
+frv-duplicate-output_buffer-of-e03-checkpatch-fixes.patch
+hpet-factor-timer-allocate-from-open.patch
+um-mark-config_highmem-as-broken.patch
+arch-um-drivers-linec-safely-iterate-over-list-of-winch-handlers.patch
+kmsg_dump-constrain-mtdoops-and-ramoops-to-perform-their-actions-only-for-kmsg_dump_panic.patch
+kmsg_dump-add-kmsg_dump-calls-to-the-reboot-halt-poweroff-and-emergency_restart-paths.patch
+set_rtc_mmss-show-warning-message-only-once.patch
+include-linux-kernelh-abs-fix-handling-of-32-bit-unsigneds-on-64-bit.patch
+include-linux-kernelh-abs-fix-handling-of-32-bit-unsigneds-on-64-bit-fix.patch
+add-the-common-dma_addr_t-typedef-to-include-linux-typesh.patch
+toshibah-hide-a-function-prototypes-behind-__kernel__-macro.patch
+dca-remove-unneeded-null-check.patch
+printk-use-rcu-to-prevent-potential-lock-contention-in-kmsg_dump.patch
+scripts-get_maintainerpl-make-rolestats-the-default.patch
+scripts-get_maintainerpl-use-git-fallback-more-often.patch
+percpucounter-optimize-__percpu_counter_add-a-bit-through-the-use-of-this_cpu-operations.patch
+drivers-mmc-host-omapc-use-resource_size.patch
+drivers-mmc-host-omap_hsmmcc-use-resource_size.patch
+scripts-checkpatchpl-add-check-for-multiple-terminating-semicolons-and-casts-of-vmalloc.patch
+checkpatchpl-fix-cast-detection.patch
+fs-select-fix-information-leak-to-userspace.patch
+fs-select-fix-information-leak-to-userspace-fix.patch
+epoll-convert-max_user_watches-to-long.patch
+binfmt_elf-cleanups.patch
+drivers-rtc-rtc-omapc-fix-a-memory-leak.patch
+rtc-add-real-time-clock-driver-for-nvidia-tegra.patch
+drivers-gpio-cs5535-gpioc-add-some-additional-cs5535-specific-gpio-functionality.patch
+drivers-staging-olpc_dcon-convert-to-new-cs5535-gpio-api.patch
+cyber2000fb-avoid-palette-corruption-at-higher-clocks.patch
+jbd-remove-dependency-on-__gfp_nofail.patch
+memcg-add-page_cgroup-flags-for-dirty-page-tracking.patch
+memcg-document-cgroup-dirty-memory-interfaces.patch
+memcg-document-cgroup-dirty-memory-interfaces-fix.patch
+memcg-create-extensible-page-stat-update-routines.patch
+memcg-add-lock-to-synchronize-page-accounting-and-migration.patch
+memcg-fix-unit-mismatch-in-memcg-oom-limit-calculation.patch
+memcg-use-zalloc-rather-than-mallocmemset.patch
+fs-proc-basec-kernel-latencytopc-convert-sprintf_symbol-to-%ps.patch
+fs-proc-basec-kernel-latencytopc-convert-sprintf_symbol-to-%ps-checkpatch-fixes.patch
+proc-use-unsigned-long-inside-proc-statm.patch
+proc-use-seq_puts-seq_putc-where-possible.patch
+exec_domain-establish-a-linux32-domain-on-config_compat-systems.patch
+rapidio-use-common-destid-storage-for-endpoints-and-switches.patch
+rapidio-integrate-rio_switch-into-rio_dev.patch
+fs-execc-provide-the-correct-process-pid-to-the-pipe-helper.patch
+nfc-driver-for-nxp-semiconductors-pn544-nfc-chip.patch
+nfc-driver-for-nxp-semiconductors-pn544-nfc-chip-update.patch
+remove-dma64_addr_t.patch
+pps-trivial-fixes.patch
+pps-declare-variables-where-they-are-used-in-switch.patch
+pps-fix-race-in-pps_fetch-handler.patch
+pps-unify-timestamp-gathering.patch
+pps-access-pps-device-by-direct-pointer.patch
+pps-convert-printk-pr_-to-dev_.patch
+pps-move-idr-stuff-to-ppsc.patch
+pps-add-async-pps-event-handler.patch
+pps-add-async-pps-event-handler-fix.patch
+pps-dont-disable-interrupts-when-using-spin-locks.patch
+pps-use-bug_on-for-kernel-api-safety-checks.patch
+pps-simplify-conditions-a-bit.patch
+ntp-add-hardpps-implementation.patch
+pps-capture-monotonic_raw-timestamps-as-well.patch
+pps-add-kernel-consumer-support.patch
+pps-add-parallel-port-pps-client.patch
+pps-add-parallel-port-pps-signal-generator.patch
+memstick-a-few-changes-to-core.patch
+memstick-add-support-for-legacy-memorysticks.patch
+memstick-add-driver-for-ricoh-r5c592-card-reader.patch
+memstick-add-driver-for-ricoh-r5c592-card-reader-fix.patch
+memstick-core-fix-device_register-error-handling.patch
+w1-ds2423-counter-driver-and-documentation.patch
+w1-ds2423-counter-driver-and-documentation-fix.patch
+cramfs-hide-function-prototypes-behind-__kernel__-macro.patch
+romfs-have-romfs_fsh-pull-in-necessary-headers.patch
+decompressors-add-missing-init-ie-__init.patch
+decompressors-get-rid-of-set_error_fn-macro.patch
+decompressors-include-linux-slabh-in-linux-decompress-mmh.patch
+decompressors-remove-unused-function-from-lib-decompress_unlzmac.patch
+decompressors-fix-header-validation-in-decompress_unlzmac.patch
+decompressors-check-for-read-errors-in-decompress_unlzmac.patch
+decompressors-check-for-write-errors-in-decompress_unlzmac.patch
+decompressors-validate-match-distance-in-decompress_unlzmac.patch
+decompressors-check-for-write-errors-in-decompress_unlzoc.patch
+decompressors-check-input-size-in-decompress_unlzoc.patch
+decompressors-fix-callback-to-callback-mode-in-decompress_unlzoc.patch
+bitops-merge-little-and-big-endian-definisions-in-asm-generic-bitops-leh.patch
+bitops-rename-generic-little-endian-bitops-functions.patch
+s390-introduce-little-endian-bitops.patch
+arm-introduce-little-endian-bitops.patch
+m68k-introduce-little-endian-bitops.patch
+bitops-introduce-config_generic_find_le_bit.patch
+m68knommu-introduce-little-endian-bitops.patch
+m68knommu-introduce-little-endian-bitops-build-fix.patch
+bitops-introduce-little-endian-bitops-for-most-architectures.patch
+rds-stop-including-asm-generic-bitops-leh.patch
+kvm-stop-including-asm-generic-bitops-leh.patch
+asm-generic-use-little-endian-bitops.patch
+ext3-use-little-endian-bitops.patch
+ext4-use-little-endian-bitops.patch
+ocfs2-use-little-endian-bitops.patch
+nilfs2-use-little-endian-bitops.patch
+reiserfs-use-little-endian-bitops.patch
+udf-use-little-endian-bitops.patch
+ufs-use-little-endian-bitops.patch
+md-use-little-endian-bit-operations.patch
+dm-use-little-endian-bit-operations.patch
+bitops-remove-ext2-non-atomic-bitops-from-asm-bitopsh.patch
+m68k-remove-inline-asm-from-minix_find_first_zero_bit.patch
+bitops-remove-minix-bitops-from-asm-bitopsh.patch
+bitops-use-find_first_zero_bit-instead-of-find_next_zero_bitaddr-size-0.patch
+make-sure-nobodys-leaking-resources.patch
+journal_add_journal_head-debug.patch
+releasing-resources-with-children.patch
+make-frame_pointer-default=y.patch
+mutex-subsystem-synchro-test-module.patch
+mutex-subsystem-synchro-test-module-add-missing-header-file.patch
+slab-leaks3-default-y.patch
+put_bh-debug.patch
+add-debugging-aid-for-memory-initialisation-problems.patch
+workaround-for-a-pci-restoring-bug.patch
+prio_tree-debugging-patch.patch
+single_open-seq_release-leak-diagnostics.patch
+add-a-refcount-check-in-dput.patch
+getblk-handle-2tb-devices.patch
+memblock-add-input-size-checking-to-memblock_find_region.patch
+memblock-add-input-size-checking-to-memblock_find_region-fix.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
