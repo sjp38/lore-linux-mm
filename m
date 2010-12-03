@@ -1,68 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AE0F26B0087
-	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 18:37:12 -0500 (EST)
-Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
-	by smtp-out.google.com with ESMTP id oB2Nb85P005971
-	for <linux-mm@kvack.org>; Thu, 2 Dec 2010 15:37:08 -0800
-Received: from pvg12 (pvg12.prod.google.com [10.241.210.140])
-	by wpaz17.hot.corp.google.com with ESMTP id oB2NaowC021419
-	for <linux-mm@kvack.org>; Thu, 2 Dec 2010 15:37:07 -0800
-Received: by pvg12 with SMTP id 12so1758196pvg.12
-        for <linux-mm@kvack.org>; Thu, 02 Dec 2010 15:37:06 -0800 (PST)
-Date: Thu, 2 Dec 2010 15:37:03 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 7/7, v7] NUMA Hotplug Emulator: Implement mem_hotplug/add_memory
- debugfs interface
-In-Reply-To: <20101202050737.651398415@intel.com>
-Message-ID: <alpine.DEB.2.00.1012021534140.6878@chino.kir.corp.google.com>
-References: <20101202050518.819599911@intel.com> <20101202050737.651398415@intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 71DFA6B0071
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 19:17:16 -0500 (EST)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id oB30HDXn018126
+	for <linux-mm@kvack.org>; Thu, 2 Dec 2010 16:17:14 -0800
+Received: from pvg6 (pvg6.prod.google.com [10.241.210.134])
+	by hpaq7.eem.corp.google.com with ESMTP id oB30HBiQ003358
+	for <linux-mm@kvack.org>; Thu, 2 Dec 2010 16:17:12 -0800
+Received: by pvg6 with SMTP id 6so1627184pvg.23
+        for <linux-mm@kvack.org>; Thu, 02 Dec 2010 16:17:11 -0800 (PST)
+From: Michel Lespinasse <walken@google.com>
+Subject: [PATCH 0/6] mlock: do not hold mmap_sem for extended periods of time
+Date: Thu,  2 Dec 2010 16:16:46 -0800
+Message-Id: <1291335412-16231-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Shaohui Zheng <shaohui.zheng@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, dave@linux.vnet.ibm.com, Greg Kroah-Hartman <gregkh@suse.de>, Haicheng Li <haicheng.li@intel.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Dec 2010, shaohui.zheng@intel.com wrote:
+Currently mlock() holds mmap_sem in exclusive mode while the pages get
+faulted in. In the case of a large mlock, this can potentially take a
+very long time, during which various commands such as 'ps auxw' will
+block. This makes sysadmins unhappy:
 
-> From:  Shaohui Zheng <shaohui.zheng@intel.com>
-> 
-> Add mem_hotplug/add_memory interface to support to memory hotplug emulation.
-> the reserved memory can be added into desired node with this interface.
-> 
-> Add a memory section(128M) to node 3(boots with mem=1024m)
-> 
-> 	echo 0x40000000,3 > mem_hotplug/add_memory
-> 
-> And more we make it friendly, it is possible to add memory to do
-> 
-> 	echo 3g > mem_hotplug/add_memory
-> 	echo 1024m,3 > mem_hotplug/add_memory
-> 
-> Another format suggested by Dave Hansen:
-> 
-> 	echo physical_address=0x40000000 numa_node=3 > mem_hotplug/add_memory
-> 
-> it is more explicit to show meaning of the parameters.
-> 
+real    14m36.232s
+user    0m0.003s
+sys     0m0.015s
+(output from 'time ps auxw' while a 20GB file was being mlocked without
+being previously preloaded into page cache)
 
-NACK, we don't need such convoluted definitions if debugfs were extended 
-with per-node triggers to add_memory as I suggested in v6 of your 
-proposal:
+I propose that mlock() could release mmap_sem after the VM_LOCKED bits
+have been set in all appropriate VMAs. Then a second pass could be done
+to actually mlock the pages, in small batches, releasing mmap_sem when
+we block on disk access or when we detect some contention.
 
-	/sys/kernel/debug/mem_hotplug/add_node (already exists)
-	/sys/kernel/debug/mem_hotplug/node0/add_memory
-	/sys/kernel/debug/mem_hotplug/node1/add_memory
-	...
+Patches are against v2.6.37-rc4 plus my patches to avoid mlock dirtying
+(presently queued in -mm).
 
-You can then write a physical starting address to the add_memory files to 
-hotadd memory to a node other than the one to which it has physical 
-affinity.  This is much more extendable if we add additional per-node 
-triggers later.
+Michel Lespinasse (6):
+  mlock: only hold mmap_sem in shared mode when faulting in pages
+  mm: add FOLL_MLOCK follow_page flag.
+  mm: move VM_LOCKED check to __mlock_vma_pages_range()
+  rwsem: implement rwsem_is_contended()
+  mlock: do not hold mmap_sem for extended periods of time
+  x86 rwsem: more precise rwsem_is_contended() implementation
 
-It would also be helpful if you were to reach consensus on the matters 
-under discussion before posting a new version of your patchset everyday.
+ arch/alpha/include/asm/rwsem.h   |    5 +
+ arch/ia64/include/asm/rwsem.h    |    5 +
+ arch/powerpc/include/asm/rwsem.h |    5 +
+ arch/s390/include/asm/rwsem.h    |    5 +
+ arch/sh/include/asm/rwsem.h      |    5 +
+ arch/sparc/include/asm/rwsem.h   |    5 +
+ arch/x86/include/asm/rwsem.h     |   35 ++++++---
+ arch/x86/lib/rwsem_64.S          |    4 +-
+ arch/x86/lib/semaphore_32.S      |    4 +-
+ arch/xtensa/include/asm/rwsem.h  |    5 +
+ include/linux/mm.h               |    1 +
+ include/linux/rwsem-spinlock.h   |    1 +
+ lib/rwsem-spinlock.c             |   12 +++
+ mm/internal.h                    |    3 +-
+ mm/memory.c                      |   54 ++++++++++++--
+ mm/mlock.c                       |  150 ++++++++++++++++++--------------------
+ mm/nommu.c                       |    6 +-
+ 17 files changed, 201 insertions(+), 104 deletions(-)
+
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
