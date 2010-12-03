@@ -1,55 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DA5E36B0096
-	for <linux-mm@kvack.org>; Fri,  3 Dec 2010 07:12:17 -0500 (EST)
-Date: Fri, 3 Dec 2010 12:11:53 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] vmscan: make kswapd use a correct order
-Message-ID: <20101203121153.GB13268@csn.ul.ie>
-References: <1291305649-2405-1-git-send-email-minchan.kim@gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id CC4C66B004A
+	for <linux-mm@kvack.org>; Fri,  3 Dec 2010 10:06:59 -0500 (EST)
+Date: Fri, 3 Dec 2010 16:00:21 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: Flushing whole page instead of work for ptrace
+Message-ID: <20101203150021.GA11114@redhat.com>
+References: <4CEFA8AE.2090804@petalogix.com> <20101130233250.35603401C8@magilla.sf.frob.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1291305649-2405-1-git-send-email-minchan.kim@gmail.com>
+In-Reply-To: <20101130233250.35603401C8@magilla.sf.frob.com>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Roland McGrath <roland@redhat.com>
+Cc: michal.simek@petalogix.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, John Williams <john.williams@petalogix.com>, "Edgar E. Iglesias" <edgar.iglesias@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 03, 2010 at 01:00:49AM +0900, Minchan Kim wrote:
-> If we wake up prematurely, it means we should keep going on
-> reclaiming not new order page but at old order page.
-> Sometime new order can be smaller than old order by below
-> race so it could make failure of old order page reclaiming.
-> 
-> T0: Task 1 wakes up kswapd with order-3
-> T1: So, kswapd starts to reclaim pages using balance_pgdat
-> T2: Task 2 wakes up kswapd with order-2 because pages reclaimed
-> 	by T1 are consumed quickly.
-> T3: kswapd exits balance_pgdat and will do following:
-> T4-1: In beginning of kswapd's loop, pgdat->kswapd_max_order will
-> 	be reset with zero.
-> T4-2: 'order' will be set to pgdat->kswapd_max_order(0), since it
->         enters the false branch of 'if (order (3) < new_order (2))'
-> T4-3: If previous balance_pgdat can't meet requirement of order-2
-> 	free pages by high watermark, it will start reclaiming again.
->         So balance_pgdat will use order-0 to do reclaim while it
-> 	really should use order-2 at the moment.
-> T4-4: At last, Task 1 can't get the any page if it wanted with
-> 	GFP_ATOMIC.
-> 
-> Reported-by: Shaohua Li <shaohua.li@intel.com>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Reviewed-by: Shaohua Li <shaohua.li@intel.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
+On 11/30, Roland McGrath wrote:
+>
+> Documentation/cachetlb.txt says:
+>
+> 	Any time the kernel writes to a page cache page, _OR_
+> 	the kernel is about to read from a page cache page and
+> 	user space shared/writable mappings of this page potentially
+> 	exist, this routine is called.
+>
+> In your case, the kernel is only reading (write=0 passed to
+> access_process_vm and get_user_pages).  In normal situations,
+> the page in question will have only a private and read-only
+> mapping in user space.  So the call should not be required in
+> these cases--if the code can tell that's so.
+>
+> Perhaps something like the following would be safe.
+> But you really need some VM folks to tell you for sure.
+>
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 02e48aa..2864ee7 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1484,7 +1484,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  				pages[i] = page;
+>
+>  				flush_anon_page(vma, page, start);
+> -				flush_dcache_page(page);
+> +				if ((vm_flags & VM_WRITE) || (vma->vm_flags & VM_SHARED)
+> +					flush_dcache_page(page);
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+First of all, I know absolutely nothing about D-cache aliasing.
+My poor understanding of flush_dcache_page() is: synchronize the
+kernel/user vision of this memory, in the case when either side
+can change it.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+If this is true, then this change doesn't look right in general.
+
+Even if (vma->vm_flags & VM_SHARED) == 0, it is possible that
+tsk can write to this memory, this mapping can be writable and
+private.
+
+Even if we ensure that this mapping is readonly/private, another
+user-space process can write to this page via shared/writable
+mapping.
+
+
+I'd like to know if my understanding is correct, I am just curious.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
