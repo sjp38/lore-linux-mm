@@ -1,65 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 284B36B008C
-	for <linux-mm@kvack.org>; Fri,  3 Dec 2010 16:43:28 -0500 (EST)
-Received: by qwk4 with SMTP id 4so240125qwk.14
-        for <linux-mm@kvack.org>; Fri, 03 Dec 2010 13:43:25 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <201012030107.oB317ZSW019223@imap1.linux-foundation.org>
-References: <201012030107.oB317ZSW019223@imap1.linux-foundation.org>
-Date: Fri, 3 Dec 2010 22:43:25 +0100
-Message-ID: <AANLkTik3uaOV5U8H30p9AyFsa_HzVMsyqdhxhGBFhxMP@mail.gmail.com>
-Subject: Re: mmotm 2010-12-02-16-34 uploaded
-From: Zimny Lech <napohybelskurwysynom2010@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-2
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A7D96B0093
+	for <linux-mm@kvack.org>; Fri,  3 Dec 2010 17:40:55 -0500 (EST)
+Subject: Re: [PATCH 6/6] x86 rwsem: more precise rwsem_is_contended()
+ implementation
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1291335412-16231-7-git-send-email-walken@google.com>
+References: <1291335412-16231-1-git-send-email-walken@google.com>
+	 <1291335412-16231-7-git-send-email-walken@google.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
+Date: Fri, 03 Dec 2010 23:41:10 +0100
+Message-ID: <1291416070.2032.92.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Ave,
+On Thu, 2010-12-02 at 16:16 -0800, Michel Lespinasse wrote:
+> We would like rwsem_is_contended() to return true only once a contending
+> writer has had a chance to insert itself onto the rwsem wait queue.
+> To that end, we need to differenciate between active and queued writers.
 
-2010/12/3  <akpm@linux-foundation.org>:
-> The mm-of-the-moment snapshot 2010-12-02-16-34 has been uploaded to
->
+So you're only considering writer-writer contention? Not writer-reader
+and reader-writer contention?
 
-23 builds, and only known problems, nothing new
+I'd argue rwsem_is_contended() should return true if there is _any_
+blocked task, be it a read or a writer.
 
-arch/x86/built-in.o: In function `kvm_smp_prepare_boot_cpu':
-kvm.c:(.init.text+0xdb49): undefined reference to `kvm_register_clock'
-make[1]: *** [.tmp_vmlinux1] Error 1
-make: *** [sub-make] Error 2
+If you want something else call it something else, like
+rwsem_is_write_contended() (there's a pending writer), or
+rwsem_is_read_contended() (there's a pending reader).
 
-drivers/built-in.o: In function `pch_uart_shutdown':
-pch_uart.c:(.text+0x1a9921): undefined reference to `dma_release_channel'
-pch_uart.c:(.text+0x1a9939): undefined reference to `dma_release_channel'
-drivers/built-in.o: In function `pch_uart_startup':
-pch_uart.c:(.text+0x1a9bdd): undefined reference to `__dma_request_channel'
-pch_uart.c:(.text+0x1a9c3e): undefined reference to `__dma_request_channel'
-pch_uart.c:(.text+0x1a9e38): undefined reference to `dma_release_channel'
-make[1]: *** [.tmp_vmlinux1] Error 1
-make: *** [sub-make] Error 2
-
-make[4]: *** No rule to make target
-`drivers/scsi/aic7xxx/aicasm/*.[chyl]', needed by
-`drivers/scsi/aic7xxx/aicasm/aicasm'.  Stop.
-make[3]: *** [drivers/scsi/aic7xxx] Error 2
-make[2]: *** [drivers/scsi] Error 2
-make[1]: *** [drivers] Error 2
-make: *** [sub-make] Error 2
-
-
-
-
---=20
-Slawa!
-Zimny "Spie dziadu!" Lech z Wawelu
-
-Piekielny strach zagrzmia=B3
-Patrz=EA na sufit
-Krew tam
-Strz=EApy g=B3=F3w w b=F3lach j=EAcz=B1 co=B6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
