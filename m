@@ -1,129 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 22C276B008A
-	for <linux-mm@kvack.org>; Fri,  3 Dec 2010 06:45:39 -0500 (EST)
+	by kanga.kvack.org (Postfix) with ESMTP id 06AB16B004A
+	for <linux-mm@kvack.org>; Fri,  3 Dec 2010 07:01:12 -0500 (EST)
+Date: Fri, 3 Dec 2010 12:00:54 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 5/5] mm: kswapd: Keep kswapd awake for high-order allocations until a percentage of the node is balanced
-Date: Fri,  3 Dec 2010 11:45:34 +0000
-Message-Id: <1291376734-30202-6-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1291376734-30202-1-git-send-email-mel@csn.ul.ie>
-References: <1291376734-30202-1-git-send-email-mel@csn.ul.ie>
+Subject: Re: [patch]vmscan: make kswapd use a correct order
+Message-ID: <20101203120053.GA13268@csn.ul.ie>
+References: <1291172911.12777.58.camel@sli10-conroe> <20101201132730.ABC2.A69D9226@jp.fujitsu.com> <20101201155854.GA3372@barrios-desktop> <20101202101234.GR13268@csn.ul.ie> <20101202153526.GB1735@barrios-desktop> <20101202154235.GY13268@csn.ul.ie> <20101202205342.GB1892@hostway.ca>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20101202205342.GB1892@hostway.ca>
 Sender: owner-linux-mm@kvack.org
 To: Simon Kirby <sim@hostway.ca>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-When reclaiming for high-orders, kswapd is responsible for balancing a
-node but it should not reclaim excessively. It avoids excessive reclaim
-by considering if any zone in a node is balanced then the node is
-balanced. In the cases where there are imbalanced zone sizes (e.g.
-ZONE_DMA with both ZONE_DMA32 and ZONE_NORMAL), kswapd can go to sleep
-prematurely as just one small zone was balanced.
+On Thu, Dec 02, 2010 at 12:53:42PM -0800, Simon Kirby wrote:
+> On Thu, Dec 02, 2010 at 03:42:35PM +0000, Mel Gorman wrote:
+> 
+> > On Fri, Dec 03, 2010 at 12:35:26AM +0900, Minchan Kim wrote:
+> > > > > @@ -2550,8 +2558,13 @@ static int kswapd(void *p)
+> > > > >  			 */
+> > > > >  			order = new_order;
+> > > > >  		} else {
+> > > > > -			kswapd_try_to_sleep(pgdat, order);
+> > > > > -			order = pgdat->kswapd_max_order;
+> > > > > +			/*
+> > > > > +			 * If we wake up after enough sleeping, let's
+> > > > > +			 * start new order. Otherwise, it was a premature
+> > > > > +			 * sleep so we keep going on.
+> > > > > +			 */
+> > > > > +			if (kswapd_try_to_sleep(pgdat, order))
+> > > > > +				order = pgdat->kswapd_max_order;
+> > > > 
+> > > > Ok, we lose the old order if we slept enough. That is fine because if we
+> > > > slept enough it implies that reclaiming at that order was no longer
+> > > > necessary.
+> > > > 
+> > > > This needs a repost with a full changelog explaining why order has to be
+> > > > preserved if kswapd fails to go to sleep. There will be merge difficulties
+> > > > with the series aimed at fixing Simon's problem but it's unavoidable.
+> > > > Rebasing on top of my series isn't an option as I'm still patching
+> > > > against mainline until that issue is resolved.
+> > > 
+> > > So what's your point?
+> > 
+> > Only point was to comment "I think this part of the patch is fine".
+> > 
+> > > Do you want me to send this patch alone
+> > > regardless of your series for Simon's problem?
+> > > 
+> > 
+> > Yes, because I do not believe the problems are directly related. When/if
+> > I get something working with Simon, I'll backport your patch on top of it
+> > for testing by him just in case but I don't think it'll affect him.
+> 
+> We could test this and your patch together, no? 
+> Your patch definitely
+> fixed the case for us where kswapd would just run all day long, throwing
+> out everything while trying to reach the order-3 watermark in zone Normal
+> while order-0 page cache allocations were splitting it back out again.
+> 
 
-This alters the sleep logic of kswapd slightly. It counts the number of pages
-that make up the balanced zones. If the total number of balanced pages is
-more than a quarter of the zone, kswapd will go back to sleep.  This should
-keep a node balanced without reclaiming an excessive number of pages.
+Ideally they would ultimately be tested together, but I'd really like to
+hear if the 5 patch series I posted still prevents kswapd going crazy
+and if the "too much free memory" problem is affected. Minimally, fixing
+kswapd being awake is worthwhile.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/vmscan.c |   30 ++++++++++++++++++++++--------
- 1 files changed, 22 insertions(+), 8 deletions(-)
+> However, the subject of my original post was to do with too much free
+> memory and swap, which is still occurring:
+> 
+> 	http://0x.ca/sim/ref/2.6.36/memory_mel_patch_week.png
+> 
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8295c50..5680595 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2117,13 +2117,27 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
- }
- #endif
- 
-+/*
-+ * pgdat_balanced is used when checking if a node is balanced for high-order
-+ * allocations. Only zones that meet watermarks make up "balanced".
-+ * The total of balanced pages must be at least 25% of the node for the
-+ * node to be considered balanced. Forcing all zones to be balanced for high
-+ * orders can cause excessive reclaim when there are imbalanced zones.
-+ * Similarly, we do not want kswapd to go to sleep because ZONE_DMA happens
-+ * to be balanced when ZONE_DMA32 is huge in comparison and unbalanced
-+ */
-+static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced)
-+{
-+	return balanced > pgdat->node_present_pages / 4;
-+}
-+
- /* is kswapd sleeping prematurely? */
- static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
- 					int classzone_idx)
- {
- 	int i;
-+	unsigned long balanced = 0;
- 	bool all_zones_ok = true;
--	bool any_zone_ok = false;
- 
- 	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
- 	if (remaining)
-@@ -2143,7 +2157,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
- 							classzone_idx, 0))
- 			all_zones_ok = false;
- 		else
--			any_zone_ok = true;
-+			balanced += zone->present_pages;
- 	}
- 
- 	/*
-@@ -2151,7 +2165,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
- 	 * kswapd to sleep. For order-0, all zones must be balanced
- 	 */
- 	if (order)
--		return !any_zone_ok;
-+		return pgdat_balanced(pgdat, balanced);
- 	else
- 		return !all_zones_ok;
- }
-@@ -2181,7 +2195,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
- 							int *classzone_idx)
- {
- 	int all_zones_ok;
--	int any_zone_ok;
-+	unsigned long balanced;
- 	int priority;
- 	int i;
- 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
-@@ -2215,7 +2229,7 @@ loop_again:
- 			disable_swap_token();
- 
- 		all_zones_ok = 1;
--		any_zone_ok = 0;
-+		balanced = 0;
- 
- 		/*
- 		 * Scan in the highmem->dma direction for the highest
-@@ -2327,11 +2341,11 @@ loop_again:
- 				 */
- 				zone_clear_flag(zone, ZONE_CONGESTED);
- 				if (i <= *classzone_idx)
--					any_zone_ok = 1;
-+					balanced += zone->present_pages;
- 			}
- 
- 		}
--		if (all_zones_ok || (order && any_zone_ok))
-+		if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced)))
- 			break;		/* kswapd: all done */
- 		/*
- 		 * OK, kswapd is getting into trouble.  Take a nap, then take
-@@ -2354,7 +2368,7 @@ loop_again:
- 			break;
- 	}
- out:
--	if (!(all_zones_ok || (order && any_zone_ok))) {
-+	if (!(all_zones_ok || (order && pgdat_balanced(pgdat, balanced)))) {
- 		cond_resched();
- 
- 		try_to_freeze();
+Ok, we had been working on the assumption that kswapd staying awake was
+responsible for too much memory being free. If after the series is applied and
+working there is still too much free memory, we know there is an additional
+part to the problem.
+
+> But this is still occurring even if I tell slub to use only order-0 and
+> order-1, and disable jumbo frames (which I did on another box, not this
+> one).  It may not be quite as bad, but I think the increase in free
+> memory is just based on fragmentation that builds up over time. 
+
+Before you said SLUB was using only order-0 and order-1, I would have
+suspected lumpy reclaim. Without high-order allocations, fragmentation
+is not a problem and shouldn't be triggering a mass freeing of memory.
+can you confirm with perf that there is no other constant source of
+high-order allocations?
+
+> I don't
+> have any long-running graphs of this yet, but I can see that pretty much
+> all of the free memory always is order-0, and even a "while true; do
+> sleep .01; done" is enough to make it throw out more order-0 while trying
+> to make room for order-1 task_struct allocations.
+> 
+
+It would be semi-normal to throw out a few pages for order-1 task_struct
+allocations. Is your server fork-heavy? I would have guessed "no" as you
+are forcing a large number of forks with the while loop.
+
+> Maybe some pattern in the way that pages are reclaimed while they are
+> being allocated is resulting in increasing fragmentation?  All the boxes
+> I see this on start out fine, but after a day or week they end up in swap
+> and with lots of free memory.
+> 
+
+Is there something like a big weekly backup task running that would be
+responsible for pushing a large amount of memory to swap that is never
+faulted back in again because it's unused?
+
 -- 
-1.7.1
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
