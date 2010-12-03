@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B4D836B0092
-	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 19:17:24 -0500 (EST)
-Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
-	by smtp-out.google.com with ESMTP id oB30HMta017540
-	for <linux-mm@kvack.org>; Thu, 2 Dec 2010 16:17:22 -0800
-Received: from pxi2 (pxi2.prod.google.com [10.243.27.2])
-	by hpaq14.eem.corp.google.com with ESMTP id oB30GusH021717
-	for <linux-mm@kvack.org>; Thu, 2 Dec 2010 16:17:21 -0800
-Received: by pxi2 with SMTP id 2so4418085pxi.40
-        for <linux-mm@kvack.org>; Thu, 02 Dec 2010 16:17:20 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 96CE86B0093
+	for <linux-mm@kvack.org>; Thu,  2 Dec 2010 19:17:29 -0500 (EST)
+Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
+	by smtp-out.google.com with ESMTP id oB30HOdX017006
+	for <linux-mm@kvack.org>; Thu, 2 Dec 2010 16:17:25 -0800
+Received: from pwi7 (pwi7.prod.google.com [10.241.219.7])
+	by wpaz33.hot.corp.google.com with ESMTP id oB30HNwY030803
+	for <linux-mm@kvack.org>; Thu, 2 Dec 2010 16:17:23 -0800
+Received: by pwi7 with SMTP id 7so1347188pwi.3
+        for <linux-mm@kvack.org>; Thu, 02 Dec 2010 16:17:23 -0800 (PST)
 From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH 4/6] rwsem: implement rwsem_is_contended()
-Date: Thu,  2 Dec 2010 16:16:50 -0800
-Message-Id: <1291335412-16231-5-git-send-email-walken@google.com>
+Subject: [PATCH 5/6] mlock: do not hold mmap_sem for extended periods of time
+Date: Thu,  2 Dec 2010 16:16:51 -0800
+Message-Id: <1291335412-16231-6-git-send-email-walken@google.com>
 In-Reply-To: <1291335412-16231-1-git-send-email-walken@google.com>
 References: <1291335412-16231-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,176 +21,227 @@ To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins 
 Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Trivial implementations for rwsem_is_contended()
+__get_user_pages gets a new 'nonblocking' parameter to signal that the
+caller is prepared to re-acquire mmap_sem and retry the operation if needed.
+This is used to split off long operations if they are going to block on
+a disk transfer, or when we detect contention on the mmap_sem.
 
 Signed-off-by: Michel Lespinasse <walken@google.com>
 ---
- arch/alpha/include/asm/rwsem.h   |    5 +++++
- arch/ia64/include/asm/rwsem.h    |    5 +++++
- arch/powerpc/include/asm/rwsem.h |    5 +++++
- arch/s390/include/asm/rwsem.h    |    5 +++++
- arch/sh/include/asm/rwsem.h      |    5 +++++
- arch/sparc/include/asm/rwsem.h   |    5 +++++
- arch/x86/include/asm/rwsem.h     |    5 +++++
- arch/xtensa/include/asm/rwsem.h  |    5 +++++
- include/linux/rwsem-spinlock.h   |    1 +
- lib/rwsem-spinlock.c             |   12 ++++++++++++
- 10 files changed, 53 insertions(+), 0 deletions(-)
+ mm/internal.h |    3 ++-
+ mm/memory.c   |   27 ++++++++++++++++++++++-----
+ mm/mlock.c    |   34 ++++++++++++++++++++--------------
+ mm/nommu.c    |    6 ++++--
+ 4 files changed, 48 insertions(+), 22 deletions(-)
 
-diff --git a/arch/alpha/include/asm/rwsem.h b/arch/alpha/include/asm/rwsem.h
-index 1570c0b..6183eec 100644
---- a/arch/alpha/include/asm/rwsem.h
-+++ b/arch/alpha/include/asm/rwsem.h
-@@ -255,5 +255,10 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
- 	return (sem->count != 0);
+diff --git a/mm/internal.h b/mm/internal.h
+index dedb0af..bd4f581 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -243,7 +243,8 @@ static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
+ 
+ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		     unsigned long start, int len, unsigned int foll_flags,
+-		     struct page **pages, struct vm_area_struct **vmas);
++		     struct page **pages, struct vm_area_struct **vmas,
++		     int *nonblocking);
+ 
+ #define ZONE_RECLAIM_NOSCAN	-2
+ #define ZONE_RECLAIM_FULL	-1
+diff --git a/mm/memory.c b/mm/memory.c
+index f3a9242..85e56dc 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1366,7 +1366,8 @@ no_page_table:
+ 
+ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		     unsigned long start, int nr_pages, unsigned int gup_flags,
+-		     struct page **pages, struct vm_area_struct **vmas)
++		     struct page **pages, struct vm_area_struct **vmas,
++		     int *nonblocking)
+ {
+ 	int i;
+ 	unsigned long vm_flags;
+@@ -1465,11 +1466,15 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 
+ 			cond_resched();
+ 			while (!(page = follow_page(vma, start, foll_flags))) {
++				int fault_flags = 0;
+ 				int ret;
+ 
++				if (foll_flags & FOLL_WRITE)
++					fault_flags |= FAULT_FLAG_WRITE;
++				if (nonblocking)
++					fault_flags |= FAULT_FLAG_ALLOW_RETRY;
+ 				ret = handle_mm_fault(mm, vma, start,
+-					(foll_flags & FOLL_WRITE) ?
+-					FAULT_FLAG_WRITE : 0);
++						      fault_flags);
+ 
+ 				if (ret & VM_FAULT_ERROR) {
+ 					if (ret & VM_FAULT_OOM)
+@@ -1485,6 +1490,11 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 				else
+ 					tsk->min_flt++;
+ 
++				if (ret & VM_FAULT_RETRY) {
++					*nonblocking = 0;
++					return i;
++				}
++
+ 				/*
+ 				 * The VM_FAULT_WRITE bit tells us that
+ 				 * do_wp_page has broken COW when necessary,
+@@ -1516,6 +1526,11 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			i++;
+ 			start += PAGE_SIZE;
+ 			nr_pages--;
++			if (nonblocking && rwsem_is_contended(&mm->mmap_sem)) {
++				up_read(&mm->mmap_sem);
++				*nonblocking = 0;
++				return i;
++			}
+ 		} while (nr_pages && start < vma->vm_end);
+ 	} while (nr_pages);
+ 	return i;
+@@ -1584,7 +1599,8 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 	if (force)
+ 		flags |= FOLL_FORCE;
+ 
+-	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
++	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas,
++				NULL);
  }
+ EXPORT_SYMBOL(get_user_pages);
  
-+static inline int rwsem_is_contended(struct rw_semaphore *sem)
-+{
-+        return (sem->count < 0);
-+}
-+
- #endif /* __KERNEL__ */
- #endif /* _ALPHA_RWSEM_H */
-diff --git a/arch/ia64/include/asm/rwsem.h b/arch/ia64/include/asm/rwsem.h
-index 215d545..e965b7a 100644
---- a/arch/ia64/include/asm/rwsem.h
-+++ b/arch/ia64/include/asm/rwsem.h
-@@ -179,4 +179,9 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
- 	return (sem->count != 0);
- }
+@@ -1609,7 +1625,8 @@ struct page *get_dump_page(unsigned long addr)
+ 	struct page *page;
  
-+static inline int rwsem_is_contended(struct rw_semaphore *sem)
-+{
-+        return (sem->count < 0);
-+}
-+
- #endif /* _ASM_IA64_RWSEM_H */
-diff --git a/arch/powerpc/include/asm/rwsem.h b/arch/powerpc/include/asm/rwsem.h
-index 8447d89..69f5d13 100644
---- a/arch/powerpc/include/asm/rwsem.h
-+++ b/arch/powerpc/include/asm/rwsem.h
-@@ -179,5 +179,10 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
- 	return sem->count != 0;
- }
- 
-+static inline int rwsem_is_contended(struct rw_semaphore *sem)
-+{
-+        return sem->count < 0;
-+}
-+
- #endif	/* __KERNEL__ */
- #endif	/* _ASM_POWERPC_RWSEM_H */
-diff --git a/arch/s390/include/asm/rwsem.h b/arch/s390/include/asm/rwsem.h
-index 423fdda..7d36f68 100644
---- a/arch/s390/include/asm/rwsem.h
-+++ b/arch/s390/include/asm/rwsem.h
-@@ -382,5 +382,10 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
- 	return (sem->count != 0);
- }
- 
-+static inline int rwsem_is_contended(struct rw_semaphore *sem)
-+{
-+        return (sem->count < 0);
-+}
-+
- #endif /* __KERNEL__ */
- #endif /* _S390_RWSEM_H */
-diff --git a/arch/sh/include/asm/rwsem.h b/arch/sh/include/asm/rwsem.h
-index 06e2251..1f59516 100644
---- a/arch/sh/include/asm/rwsem.h
-+++ b/arch/sh/include/asm/rwsem.h
-@@ -184,5 +184,10 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
- 	return (sem->count != 0);
- }
- 
-+static inline int rwsem_is_contended(struct rw_semaphore *sem)
-+{
-+        return (sem->count < 0);
-+}
-+
- #endif /* __KERNEL__ */
- #endif /* _ASM_SH_RWSEM_H */
-diff --git a/arch/sparc/include/asm/rwsem.h b/arch/sparc/include/asm/rwsem.h
-index a2b4302..88242e6 100644
---- a/arch/sparc/include/asm/rwsem.h
-+++ b/arch/sparc/include/asm/rwsem.h
-@@ -165,6 +165,11 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
- 	return (sem->count != 0);
- }
- 
-+static inline int rwsem_is_contended(struct rw_semaphore *sem)
-+{
-+        return (sem->count < 0);
-+}
-+
- #endif /* __KERNEL__ */
- 
- #endif /* _SPARC64_RWSEM_H */
-diff --git a/arch/x86/include/asm/rwsem.h b/arch/x86/include/asm/rwsem.h
-index d1e41b0..a35521e 100644
---- a/arch/x86/include/asm/rwsem.h
-+++ b/arch/x86/include/asm/rwsem.h
-@@ -275,5 +275,10 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
- 	return (sem->count != 0);
- }
- 
-+static inline int rwsem_is_contended(struct rw_semaphore *sem)
-+{
-+	return (sem->count < 0);
-+}
-+
- #endif /* __KERNEL__ */
- #endif /* _ASM_X86_RWSEM_H */
-diff --git a/arch/xtensa/include/asm/rwsem.h b/arch/xtensa/include/asm/rwsem.h
-index e39edf5..6c658cb 100644
---- a/arch/xtensa/include/asm/rwsem.h
-+++ b/arch/xtensa/include/asm/rwsem.h
-@@ -165,4 +165,9 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
- 	return (sem->count != 0);
- }
- 
-+static inline int rwsem_is_contended(struct rw_semaphore *sem)
-+{
-+        return (sem->count < 0);
-+}
-+
- #endif	/* _XTENSA_RWSEM_H */
-diff --git a/include/linux/rwsem-spinlock.h b/include/linux/rwsem-spinlock.h
-index bdfcc25..430de5b 100644
---- a/include/linux/rwsem-spinlock.h
-+++ b/include/linux/rwsem-spinlock.h
-@@ -69,6 +69,7 @@ extern void __up_read(struct rw_semaphore *sem);
- extern void __up_write(struct rw_semaphore *sem);
- extern void __downgrade_write(struct rw_semaphore *sem);
- extern int rwsem_is_locked(struct rw_semaphore *sem);
-+extern int rwsem_is_contended(struct rw_semaphore *sem);
- 
- #endif /* __KERNEL__ */
- #endif /* _LINUX_RWSEM_SPINLOCK_H */
-diff --git a/lib/rwsem-spinlock.c b/lib/rwsem-spinlock.c
-index ffc9fc7..783753d 100644
---- a/lib/rwsem-spinlock.c
-+++ b/lib/rwsem-spinlock.c
-@@ -30,6 +30,18 @@ int rwsem_is_locked(struct rw_semaphore *sem)
- }
- EXPORT_SYMBOL(rwsem_is_locked);
- 
-+int rwsem_is_contended(struct rw_semaphore *sem)
-+{
-+	int ret = 0;
-+	unsigned long flags;
-+
-+	if (spin_trylock_irqsave(&sem->wait_lock, flags)) {
-+		ret = !list_empty(&sem->wait_list);
-+		spin_unlock_irqrestore(&sem->wait_lock, flags);
-+	}
-+	return ret;
-+}
-+
- /*
-  * initialise the semaphore
+ 	if (__get_user_pages(current, current->mm, addr, 1,
+-			FOLL_FORCE | FOLL_DUMP | FOLL_GET, &page, &vma) < 1)
++			     FOLL_FORCE | FOLL_DUMP | FOLL_GET, &page, &vma,
++			     NULL) < 1)
+ 		return NULL;
+ 	flush_cache_page(vma, addr, page_to_pfn(page));
+ 	return page;
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 241a5d2..569ae6a 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -155,13 +155,13 @@ static inline int stack_guard_page(struct vm_area_struct *vma, unsigned long add
+  * vma->vm_mm->mmap_sem must be held for at least read.
   */
+ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
+-				    unsigned long start, unsigned long end)
++				    unsigned long start, unsigned long end,
++				    int *nonblocking)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	unsigned long addr = start;
+ 	int nr_pages = (end - start) / PAGE_SIZE;
+ 	int gup_flags;
+-	int ret;
+ 
+ 	VM_BUG_ON(start & ~PAGE_MASK);
+ 	VM_BUG_ON(end   & ~PAGE_MASK);
+@@ -187,9 +187,8 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
+ 		nr_pages--;
+ 	}
+ 
+-	ret = __get_user_pages(current, mm, addr, nr_pages, gup_flags,
+-			       NULL, NULL);
+-	return max(ret, 0);	/* 0 or negative error code */
++	return __get_user_pages(current, mm, addr, nr_pages, gup_flags,
++				NULL, NULL, nonblocking);
+ }
+ 
+ /*
+@@ -233,7 +232,7 @@ long mlock_vma_pages_range(struct vm_area_struct *vma,
+ 			is_vm_hugetlb_page(vma) ||
+ 			vma == get_gate_vma(current))) {
+ 
+-		__mlock_vma_pages_range(vma, start, end);
++		__mlock_vma_pages_range(vma, start, end, NULL);
+ 
+ 		/* Hide errors from mmap() and other callers */
+ 		return 0;
+@@ -429,21 +428,23 @@ static int do_mlock_pages(unsigned long start, size_t len)
+ 	struct mm_struct *mm = current->mm;
+ 	unsigned long end, nstart, nend;
+ 	struct vm_area_struct *vma = NULL;
++	int locked = 0;
+ 	int ret = 0;
+ 
+ 	VM_BUG_ON(start & ~PAGE_MASK);
+ 	VM_BUG_ON(len != PAGE_ALIGN(len));
+ 	end = start + len;
+ 
+-	down_read(&mm->mmap_sem);
+ 	for (nstart = start; nstart < end; nstart = nend) {
+ 		/*
+ 		 * We want to fault in pages for [nstart; end) address range.
+ 		 * Find first corresponding VMA.
+ 		 */
+-		if (!vma)
++		if (!locked) {
++			locked = 1;
++			down_read(&mm->mmap_sem);
+ 			vma = find_vma(mm, nstart);
+-		else
++		} else if (nstart >= vma->vm_end)
+ 			vma = vma->vm_next;
+ 		if (!vma || vma->vm_start >= end)
+ 			break;
+@@ -456,16 +457,21 @@ static int do_mlock_pages(unsigned long start, size_t len)
+ 			continue;
+ 		if (nstart < vma->vm_start)
+ 			nstart = vma->vm_start;
+ 		/*
+-		 * Now fault in a range of pages within the first VMA.
++		 * Now fault in a range of pages. __mlock_vma_pages_range()
++		 * double checks the vma flags, so that it won't mlock pages
++		 * if the vma was already munlocked.
+ 		 */
+-		ret = __mlock_vma_pages_range(vma, nstart, nend);
+-		if (ret) {
++		ret = __mlock_vma_pages_range(vma, nstart, nend, &locked);
++		if (ret < 0) {
+ 			ret = __mlock_posix_error_return(ret);
+ 			break;
+ 		}
++		nend = nstart + ret * PAGE_SIZE;
++		ret = 0;
+ 	}
+-	up_read(&mm->mmap_sem);
++	if (locked)
++		up_read(&mm->mmap_sem);
+ 	return ret;	/* 0 or negative error code */
+ }
+ 
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 27a9ac5..c8b8a7e 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -127,7 +127,8 @@ unsigned int kobjsize(const void *objp)
+ 
+ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		     unsigned long start, int nr_pages, unsigned int foll_flags,
+-		     struct page **pages, struct vm_area_struct **vmas)
++		     struct page **pages, struct vm_area_struct **vmas,
++		     int *retry)
+ {
+ 	struct vm_area_struct *vma;
+ 	unsigned long vm_flags;
+@@ -185,7 +186,8 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 	if (force)
+ 		flags |= FOLL_FORCE;
+ 
+-	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
++	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas,
++				NULL);
+ }
+ EXPORT_SYMBOL(get_user_pages);
+ 
 -- 
 1.7.3.1
 
