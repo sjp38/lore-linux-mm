@@ -1,96 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9065E6B009D
-	for <linux-mm@kvack.org>; Sat,  4 Dec 2010 01:48:14 -0500 (EST)
-Date: Sat, 4 Dec 2010 01:48:10 -0500 (EST)
-From: caiqian@redhat.com
-Message-ID: <1072296184.6551291445290387.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-In-Reply-To: <1879358423.6531291445002308.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Subject: mmotm-2010-11-23 panic at __init_waitqueue_head+0xd/0x1d
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A38C96B009F
+	for <linux-mm@kvack.org>; Sat,  4 Dec 2010 01:55:42 -0500 (EST)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id oB46tbwd022673
+	for <linux-mm@kvack.org>; Fri, 3 Dec 2010 22:55:37 -0800
+Received: from pvg6 (pvg6.prod.google.com [10.241.210.134])
+	by hpaq12.eem.corp.google.com with ESMTP id oB46tR3e023231
+	for <linux-mm@kvack.org>; Fri, 3 Dec 2010 22:55:36 -0800
+Received: by pvg6 with SMTP id 6so2502670pvg.37
+        for <linux-mm@kvack.org>; Fri, 03 Dec 2010 22:55:35 -0800 (PST)
+Date: Fri, 3 Dec 2010 22:55:30 -0800
+From: Michel Lespinasse <walken@google.com>
+Subject: Re: [PATCH 2/6] mm: add FOLL_MLOCK follow_page flag.
+Message-ID: <20101204065530.GA27895@google.com>
+References: <1291335412-16231-1-git-send-email-walken@google.com>
+ <1291335412-16231-3-git-send-email-walken@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1291335412-16231-3-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
-Cc: james toy <toyj@union.edu>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-I have actually met a NULL pointer dereference at init_waitqueue_head, and bisected to 33f46f26c6fe6e06f808c160e33106bc97e45914.
+I did not realize that previously, but it turns out to be possible to
+manipulate LRU lists under control of the pte lock, rather than having
+to get/put the page. This allows the FOLL_MLOCK follow_page flag
+implementation to look much nicer than it did in initial proposal.
 
-commit 33f46f26c6fe6e06f808c160e33106bc97e45914
-Author: james toy <toyj@union.edu>
-Date:   Tue Nov 23 23:19:22 2010 +0100
+Please consider the following as a replacement for the initial
+patch 2/6 proposal...
 
-    GIT c239aa98a4d58c79abbd975e846a4f2497b6a942 git+ssh://master.kernel.org/pub/scm/linux/kernel/git/sfr/linux-next.git
+--------------------------------- 8< --------------------------------------
 
-However, I could not find a way to bisect further in mmtom as this was a giant huge single commit there. I have also tried to test the latest linux-next and use that commit as the HEAD, and there were no such problem. It looks like some integration problem only reproducible with mmtom and linux-tree trees merged.
+Move the code to mlock pages from __mlock_vma_pages_range()
+to follow_page().
 
-[    3.994848] BUG: unable to handle kernel NULL pointer dereference at 0000000000000330
-[    3.995824] IP: [<ffffffff81069bdd>] __init_waitqueue_head+0xd/0x1d
-[    3.995824] PGD 0 
-[    3.995824] Oops: 0002 [#1] SMP 
-[    3.995824] last sysfs file: 
-[    3.995824] CPU 3 
-[    3.995824] Modules linked in:
-[    3.995824] 
-[    3.995824] Pid: 1, comm: swapper Not tainted 2.6.37-rc3-next-20101123+ #35 0M860N/OptiPlex 760                 
-[    3.995824] RIP: 0010:[<ffffffff81069bdd>]  [<ffffffff81069bdd>] __init_waitqueue_head+0xd/0x1d
-[    4.068250] RSP: 0018:ffff88022b4e1e60  EFLAGS: 00010246
-[    4.068250] RAX: 0000000000000338 RBX: 0000000000000000 RCX: 0000000000003973
-[    4.068250] RDX: ffff88022b753f60 RSI: ffffffff81d9c8b0 RDI: 0000000000000330
-[    4.068250] RBP: ffff88022b4e1e60 R08: 0000000000000100 R09: ffff88022b71a3a8
-[    4.068250] R10: ffff88022b753e10 R11: 0000000000000000 R12: 0000000000000000
-[    4.068250] R13: 0000000000000000 R14: 0000000000000100 R15: 0000000000000000
-[    4.068250] FS:  0000000000000000(0000) GS:ffff8800bfac0000(0000) knlGS:0000000000000000
-[    4.068250] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[    4.068250] CR2: 0000000000000330 CR3: 0000000001a03000 CR4: 00000000000406e0
-[    4.068250] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[    4.068250] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[    4.068250] Process swapper (pid: 1, threadinfo ffff88022b4e0000, task ffff88022b4d8000)
-[    4.068250] Stack:
-[    4.068250]  ffff88022b4e1ea0 ffffffff81b8f002 0000000000000000 ffffffff81c1b3d0
-[    4.068250]  ffffffff81b8ef96 0000000000000000 0000000000000100 0000000000000000
-[    4.068250]  ffff88022b4e1ed0 ffffffff8100219b ffffffff81c1b3d0 ffffffff81b356a0
-[    4.068250] Call Trace:
-[    4.068250]  [<ffffffff81b8f002>] sep_init+0x6c/0x3a5
-[    4.068250]  [<ffffffff81b8ef96>] ? sep_init+0x0/0x3a5
-[    4.068250]  [<ffffffff8100219b>] do_one_initcall+0x7f/0x138
-[    4.068250]  [<ffffffff81b53db9>] kernel_init+0x17d/0x20b
-[    4.068250]  [<ffffffff8100aa64>] kernel_thread_helper+0x4/0x10
-[    4.068250]  [<ffffffff81b53c3c>] ? kernel_init+0x0/0x20b
-[    4.068250]  [<ffffffff8100aa60>] ? kernel_thread_helper+0x0/0x10
-[    4.068250] Code: 8b 2d e8 fa 9a 00 49 81 fd a0 96 a1 81 75 96 66 ff 05 28 f0 c2 00 e9 58 ff ff ff 90 90 90 55 48 89 e5 0f 1f 44 00 00 48 8d 47 08 <c7> 0 
-[    4.068250] RIP  [<ffffffff81069bdd>] __init_waitqueue_head+0xd/0x1d
-[    4.068250]  RSP <ffff88022b4e1e60>
-[    4.068250] CR2: 0000000000000330
-[    4.272399] ---[ end trace 6233ae78c1aa3f59 ]---
-[    4.277115] Kernel panic - not syncing: Attempted to kill init!
-[    4.283124] Pid: 1, comm: swapper Tainted: G      D     2.6.37-rc3-next-20101123+ #35
-[    4.291113] Call Trace:
-[    4.372943]  [<ffffffff81461637>] panic+0x91/0x19f
-[    4.382552]  [<ffffffff810ce579>] ? perf_event_exit_task+0xb8/0x1c7
-[    4.435526]  [<ffffffff81052407>] do_exit+0x7a/0x70a
-[    4.440582]  [<ffffffff814635bf>] ? _raw_spin_unlock_irqrestore+0x17/0x19
-[    4.447455]  [<ffffffff810505a7>] ? kmsg_dump+0x123/0x140
-[    4.452942]  [<ffffffff8146496c>] oops_end+0xbf/0xc7
-[    4.458021]  [<ffffffff81033288>] no_context+0x1f9/0x208
-[    4.463422]  [<ffffffff81033429>] __bad_area_nosemaphore+0x192/0x1b5
-[    4.469861]  [<ffffffff8103345f>] bad_area_nosemaphore+0x13/0x15
-[    4.475956]  [<ffffffff81466b3b>] do_page_fault+0x187/0x35a
-[    4.481631]  [<ffffffff8121b091>] ? ida_get_new_above+0xf9/0x19e
-[    4.487728]  [<ffffffff8103dab8>] ? should_resched+0xe/0x2e
-[    4.500350]  [<ffffffff8110ae6e>] ? kmem_cache_alloc+0x73/0xe3
-[    4.506275]  [<ffffffff81170370>] ? sysfs_find_dirent+0x3f/0x58
-[    4.512287]  [<ffffffff81170269>] ? sysfs_addrm_finish+0x2f/0xb9
-[    4.518380]  [<ffffffff81463dd5>] page_fault+0x25/0x30
-[    4.523607]  [<ffffffff81069bdd>] ? __init_waitqueue_head+0xd/0x1d
-[    4.529875]  [<ffffffff81b8f002>] sep_init+0x6c/0x3a5
-[    4.535022]  [<ffffffff81b8ef96>] ? sep_init+0x0/0x3a5
-[    4.540250]  [<ffffffff8100219b>] do_one_initcall+0x7f/0x138
-[    4.545997]  [<ffffffff81b53db9>] kernel_init+0x17d/0x20b
-[    4.551498]  [<ffffffff8100aa64>] kernel_thread_helper+0x4/0x10
-[    4.557505]  [<ffffffff81b53c3c>] ? kernel_init+0x0/0x20b
-[    4.564887]  [<ffffffff8100aa60>] ? kernel_thread_helper+0x0/0x10
+This allows __mlock_vma_pages_range() to not have to break down work
+into 16-page batches.
+
+An additional motivation for doing this within the present patch series
+is that it'll make it easier for a later chagne to drop mmap_sem when
+blocking on disk (we'd like to be able to resume at the page that was
+read from disk instead of at the start of a 16-page batch).
+
+Signed-off-by: Michel Lespinasse <walken@google.com>
+---
+ include/linux/mm.h |    1 +
+ mm/memory.c        |   22 +++++++++++++++++
+ mm/mlock.c         |   65 ++++------------------------------------------------
+ 3 files changed, 28 insertions(+), 60 deletions(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 721f451..cebbb0d 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1415,6 +1415,7 @@ struct page *follow_page(struct vm_area_struct *, unsigned long address,
+ #define FOLL_GET	0x04	/* do get_page on page */
+ #define FOLL_DUMP	0x08	/* give error on hole if it would be zero */
+ #define FOLL_FORCE	0x10	/* get_user_pages read/write w/o permission */
++#define FOLL_MLOCK	0x20	/* mark page as mlocked */
+ 
+ typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+ 			void *data);
+diff --git a/mm/memory.c b/mm/memory.c
+index b8f97b8..15e1f19 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1310,6 +1310,28 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+ 		 */
+ 		mark_page_accessed(page);
+ 	}
++	if (flags & FOLL_MLOCK) {
++		/*
++		 * The preliminary mapping check is mainly to avoid the
++		 * pointless overhead of lock_page on the ZERO_PAGE
++		 * which might bounce very badly if there is contention.
++		 *
++		 * If the page is already locked, we don't need to
++		 * handle it now - vmscan will handle it later if and
++		 * when it attempts to reclaim the page.
++		 */
++		if (page->mapping && trylock_page(page)) {
++			lru_add_drain();  /* push cached pages to LRU */
++			/*
++			 * Because we lock page here and migration is
++			 * blocked by the pte's page reference, we need
++			 * only check for file-cache page truncation.
++			 */
++			if (page->mapping)
++				mlock_vma_page(page);
++			unlock_page(page);
++		}
++	}
+ unlock:
+ 	pte_unmap_unlock(ptep, ptl);
+ out:
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 71db83e..573bd2c 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -159,10 +159,9 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	unsigned long addr = start;
+-	struct page *pages[16]; /* 16 gives a reasonable batch */
+ 	int nr_pages = (end - start) / PAGE_SIZE;
+-	int ret = 0;
+ 	int gup_flags;
++	int ret;
+ 
+ 	VM_BUG_ON(start & ~PAGE_MASK);
+ 	VM_BUG_ON(end   & ~PAGE_MASK);
+@@ -170,7 +169,7 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
+ 	VM_BUG_ON(end   > vma->vm_end);
+ 	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
+ 
+-	gup_flags = FOLL_TOUCH | FOLL_GET;
++	gup_flags = FOLL_TOUCH | FOLL_MLOCK;
+ 	/*
+ 	 * We want to touch writable mappings with a write fault in order
+ 	 * to break COW, except for shared mappings because these don't COW
+@@ -185,63 +184,9 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
+ 		nr_pages--;
+ 	}
+ 
+-	while (nr_pages > 0) {
+-		int i;
+-
+-		cond_resched();
+-
+-		/*
+-		 * get_user_pages makes pages present if we are
+-		 * setting mlock. and this extra reference count will
+-		 * disable migration of this page.  However, page may
+-		 * still be truncated out from under us.
+-		 */
+-		ret = __get_user_pages(current, mm, addr,
+-				min_t(int, nr_pages, ARRAY_SIZE(pages)),
+-				gup_flags, pages, NULL);
+-		/*
+-		 * This can happen for, e.g., VM_NONLINEAR regions before
+-		 * a page has been allocated and mapped at a given offset,
+-		 * or for addresses that map beyond end of a file.
+-		 * We'll mlock the pages if/when they get faulted in.
+-		 */
+-		if (ret < 0)
+-			break;
+-
+-		lru_add_drain();	/* push cached pages to LRU */
+-
+-		for (i = 0; i < ret; i++) {
+-			struct page *page = pages[i];
+-
+-			if (page->mapping) {
+-				/*
+-				 * That preliminary check is mainly to avoid
+-				 * the pointless overhead of lock_page on the
+-				 * ZERO_PAGE: which might bounce very badly if
+-				 * there is contention.  However, we're still
+-				 * dirtying its cacheline with get/put_page:
+-				 * we'll add another __get_user_pages flag to
+-				 * avoid it if that case turns out to matter.
+-				 */
+-				lock_page(page);
+-				/*
+-				 * Because we lock page here and migration is
+-				 * blocked by the elevated reference, we need
+-				 * only check for file-cache page truncation.
+-				 */
+-				if (page->mapping)
+-					mlock_vma_page(page);
+-				unlock_page(page);
+-			}
+-			put_page(page);	/* ref from get_user_pages() */
+-		}
+-
+-		addr += ret * PAGE_SIZE;
+-		nr_pages -= ret;
+-		ret = 0;
+-	}
+-
+-	return ret;	/* 0 or negative error code */
++	ret = __get_user_pages(current, mm, addr, nr_pages, gup_flags,
++			       NULL, NULL);
++	return max(ret, 0);	/* 0 or negative error code */
+ }
+ 
+ /*
+-- 
+1.7.3.1
+
+
+
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
