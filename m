@@ -1,161 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 610456B00A4
-	for <linux-mm@kvack.org>; Sat,  4 Dec 2010 07:07:31 -0500 (EST)
-Date: Sat, 4 Dec 2010 04:07:26 -0800
-From: Simon Kirby <sim@hostway.ca>
-Subject: Re: [patch]vmscan: make kswapd use a correct order
-Message-ID: <20101204120726.GA4502@hostway.ca>
-References: <1291172911.12777.58.camel@sli10-conroe> <20101201132730.ABC2.A69D9226@jp.fujitsu.com> <20101201155854.GA3372@barrios-desktop> <20101202101234.GR13268@csn.ul.ie> <20101202153526.GB1735@barrios-desktop> <20101202154235.GY13268@csn.ul.ie> <20101202205342.GB1892@hostway.ca> <20101203120053.GA13268@csn.ul.ie>
+	by kanga.kvack.org (Postfix) with SMTP id E5DDA6B00A6
+	for <linux-mm@kvack.org>; Sat,  4 Dec 2010 09:57:51 -0500 (EST)
+Received: by pzk27 with SMTP id 27so2141215pzk.14
+        for <linux-mm@kvack.org>; Sat, 04 Dec 2010 06:57:50 -0800 (PST)
+Date: Sat, 4 Dec 2010 23:57:40 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: Flushing whole page instead of work for ptrace
+Message-ID: <20101204145740.GA1725@barrios-desktop>
+References: <4CEFA8AE.2090804@petalogix.com>
+ <20101130233250.35603401C8@magilla.sf.frob.com>
+ <20101203150021.GA11114@redhat.com>
+ <20101203162817.GA21438@barrios-desktop>
+ <20101203170712.GA16642@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101203120053.GA13268@csn.ul.ie>
+In-Reply-To: <20101203170712.GA16642@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Roland McGrath <roland@redhat.com>, michal.simek@petalogix.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, John Williams <john.williams@petalogix.com>, "Edgar E. Iglesias" <edgar.iglesias@gmail.com>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 03, 2010 at 12:00:54PM +0000, Mel Gorman wrote:
-
-> On Thu, Dec 02, 2010 at 12:53:42PM -0800, Simon Kirby wrote:
-> > On Thu, Dec 02, 2010 at 03:42:35PM +0000, Mel Gorman wrote:
-> > 
-> > > On Fri, Dec 03, 2010 at 12:35:26AM +0900, Minchan Kim wrote:
-> > > 
-> > > Only point was to comment "I think this part of the patch is fine".
-> > > 
-> > > > Do you want me to send this patch alone
-> > > > regardless of your series for Simon's problem?
-> > > 
-> > > Yes, because I do not believe the problems are directly related. When/if
-> > > I get something working with Simon, I'll backport your patch on top of it
-> > > for testing by him just in case but I don't think it'll affect him.
-> > 
-> > We could test this and your patch together, no? 
-> > Your patch definitely
-> > fixed the case for us where kswapd would just run all day long, throwing
-> > out everything while trying to reach the order-3 watermark in zone Normal
-> > while order-0 page cache allocations were splitting it back out again.
-> > 
+On Fri, Dec 03, 2010 at 06:07:12PM +0100, Oleg Nesterov wrote:
+> On 12/04, Minchan Kim wrote:
+> >
+> > On Fri, Dec 03, 2010 at 04:00:21PM +0100, Oleg Nesterov wrote:
+> > > On 11/30, Roland McGrath wrote:
+> > > >
+> > > > Documentation/cachetlb.txt says:
+> > > >
+> > > > 	Any time the kernel writes to a page cache page, _OR_
+> > > > 	the kernel is about to read from a page cache page and
+> > > > 	user space shared/writable mappings of this page potentially
+> > > > 	exist, this routine is called.
+> > > >
+> > > > In your case, the kernel is only reading (write=0 passed to
+> > > > access_process_vm and get_user_pages).  In normal situations,
+> > > > the page in question will have only a private and read-only
+> > > > mapping in user space.  So the call should not be required in
+> > > > these cases--if the code can tell that's so.
+> > > >
+> > > > Perhaps something like the following would be safe.
+> > > > But you really need some VM folks to tell you for sure.
+> > > >
+> > > > diff --git a/mm/memory.c b/mm/memory.c
+> > > > index 02e48aa..2864ee7 100644
+> > > > --- a/mm/memory.c
+> > > > +++ b/mm/memory.c
+> > > > @@ -1484,7 +1484,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+> > > >  				pages[i] = page;
+> > > >
+> > > >  				flush_anon_page(vma, page, start);
+> > > > -				flush_dcache_page(page);
+> > > > +				if ((vm_flags & VM_WRITE) || (vma->vm_flags & VM_SHARED)
+> > > > +					flush_dcache_page(page);
+> > >
+> > > First of all, I know absolutely nothing about D-cache aliasing.
+> > > My poor understanding of flush_dcache_page() is: synchronize the
+> > > kernel/user vision of this memory, in the case when either side
+> > > can change it.
+> > >
+> > > If this is true, then this change doesn't look right in general.
+> > >
+> > > Even if (vma->vm_flags & VM_SHARED) == 0, it is possible that
+> > > tsk can write to this memory, this mapping can be writable and
+> > > private.
+> > >
+> > > Even if we ensure that this mapping is readonly/private, another
+> > > user-space process can write to this page via shared/writable
+> > > mapping.
+> > >
+> >
+> > I think you're right. It has a portential that other processes have
+> > a such mapping.
+> >
+> > >
+> > > I'd like to know if my understanding is correct, I am just curious.
+> > >
+> > > Oleg.
+> >
+> > How about this?
+> > Maybe this patch would mitigate the overhead.
+> > But I am not sure this patch. Cced GUP experts.
+> >
+> > From 8fb3d84c7bb32c4ba9c4a0063198ce7cfcca6b37 Mon Sep 17 00:00:00 2001
+> > From: Minchan Kim <minchan.kim@gmail.com>
+> > Date: Sat, 4 Dec 2010 01:19:43 +0900
+> > Subject: [PATCH] Remove redundant flush_dcache_page in GUP
+> >
+> > If we get the page with handle_mm_fault, it already handled
+> > page flush. So GUP's flush_dcache_page call is redundant.
 > 
-> Ideally they would ultimately be tested together, but I'd really like to
-> hear if the 5 patch series I posted still prevents kswapd going crazy
-> and if the "too much free memory" problem is affected. Minimally, fixing
-> kswapd being awake is worthwhile.
+> Oh, I am not sure. Say, do_wp_page() can only clear !pte_write(),
+> but let me remind I do not understand this magic.
 
-Ok, we will try this version of your patches and see if anything changes.
-The previous version did stop kswapd from running continuously during
-daytime load, and made our SSD server useful, so I definitely like it. :)
+You're right. I missed that.
+In dirty/young bit emulation arch, it doesn't call flush_dcache_page.
 
-> > However, the subject of my original post was to do with too much free
-> > memory and swap, which is still occurring:
-> > 
-> > 	http://0x.ca/sim/ref/2.6.36/memory_mel_patch_week.png
 > 
-> Ok, we had been working on the assumption that kswapd staying awake was
-> responsible for too much memory being free. If after the series is applied and
-> working there is still too much free memory, we know there is an additional
-> part to the problem.
+> However, evem if this change is correct, I am not sure it can solve
+> the original problem. Debugger issues a lot of short reads, I don't
+> think follow_page() fails that often.
 
-This was part of the problem.  kswapd was throwing so much out while
-trying to meet the watermark in zone Normal that the daemons had to keep
-being read back in from /dev/sda (non-ssd), and this ended up causing
-degraded performance.
+Absolutely. I was in a hurry.
+Anyway, It's a interesting. I agree whole page flush for just short
+some bytes is overkill. But in concept of VM, page flush of GUP is right.
 
-> > But this is still occurring even if I tell slub to use only order-0 and
-> > order-1, and disable jumbo frames (which I did on another box, not this
-> > one).  It may not be quite as bad, but I think the increase in free
-> > memory is just based on fragmentation that builds up over time. 
-> 
-> Before you said SLUB was using only order-0 and order-1, I would have
-> suspected lumpy reclaim. Without high-order allocations, fragmentation
-> is not a problem and shouldn't be triggering a mass freeing of memory.
-> can you confirm with perf that there is no other constant source of
-> high-order allocations?
+Do we really need new interface for this problem?
+It avoids page flush and just returns the page which includes data for ptrace.
+Then, arch_ptrace have to flush the data(page or bytes) before some operation(ex, copy)
 
-Let me clarify: On _another_ box, with 2.6.36 but without your patches
-and without as much load or SSD devices, I forced slub to use order-0
-except where order-1 was absolutely necessary (objects > 4096 bytes),
-just to see what impact this had on free memory.  There was a change,
-but still lots of memory left free.  I was trying to avoid confusion by
-posting graphs from different machines, but here is that one just as a
-reference: http://0x.ca/sim/ref/2.6.36/memory_stor25r_week.png
-(I made the slub order adjustment on Tuesday, November 30th.)
-The spikes are actually from mail nightly expunge/purge runs.  It seems
-that minimizing the slub orders did remove the large free spike that
-was happening during mailbox compaction runs (nightly), and overall there
-was a bit more memory used on average, but it definitely didn't "fix" it. 
+It makes ptrace code very ugly.
+Hmm.. Sorry, I don't have no idea.
 
-The original server I was posting graphs for has had no other vm tweaks,
-and so slub is still doing order-3 GFP_ATOMIC allocations from skb
-allocations.
-
-By the way, I noticed slub seems to choose different maximum orders based
-on the memory size.  You may be able to get your test box to issue the
-same GFP_ATOMIC order-3 allocations from skb allocations by making your
-sysfs files match these values:
-
-[/sys/kernel/slab]# grep . kmalloc-??{,?,??}/order
-kmalloc-16/order:0
-kmalloc-32/order:0
-kmalloc-64/order:0
-kmalloc-96/order:0
-kmalloc-128/order:0
-kmalloc-192/order:0
-kmalloc-256/order:1
-kmalloc-512/order:2
-kmalloc-1024/order:3
-kmalloc-2048/order:3
-kmalloc-4096/order:3
-kmalloc-8192/order:3
-
-I suspect your kmalloc-1024 and kmalloc-2048 orders are less than 3 now?
-
-> > I don't
-> > have any long-running graphs of this yet, but I can see that pretty much
-> > all of the free memory always is order-0, and even a "while true; do
-> > sleep .01; done" is enough to make it throw out more order-0 while trying
-> > to make room for order-1 task_struct allocations.
-> > 
-> 
-> It would be semi-normal to throw out a few pages for order-1 task_struct
-> allocations. Is your server fork-heavy? I would have guessed "no" as you
-> are forcing a large number of forks with the while loop.
-
-No, the only things that cause forks on these servers usually are monitoring
-processes.  According to munin, it averages under 3 forks per second.
-
-> > Maybe some pattern in the way that pages are reclaimed while they are
-> > being allocated is resulting in increasing fragmentation?  All the boxes
-> > I see this on start out fine, but after a day or week they end up in swap
-> > and with lots of free memory.
-> 
-> Is there something like a big weekly backup task running that would be
-> responsible for pushing a large amount of memory to swap that is never
-> faulted back in again because it's unused?
-
-There are definitely pages that are leaking from dovecot or similar which
-can be swapped out and not swapped in again (you can see "apps" growing),
-but there are no tasks I can think of that would ever cause the system to
-be starved.  The calls to pageout() seem to happen if sc.may_writepage is
-set, which seems to happen when it thinks it has scanned enough without
-making enough progress.  Could this happen just from too much
-fragmentation?
-
-The swapping seems to be at a slow but constant rate, so maybe it's
-happening just due to the way the types of allocations are biasing to
-Normal instead of DMA32, or vice-versa.  Check out the latest memory
-graphs for the server running your original patch:
-
-http://0x.ca/sim/ref/2.6.36/memory_mel_patch_dec4.png
-http://0x.ca/sim/ref/2.6.36/zoneinfo_mel_patch_dec4
-http://0x.ca/sim/ref/2.6.36/pagetypeinfo_mel_patch_dec4
-
-Hmm, pagetypeinfo shows none or only a few of the pages in Normal are
-considered reclaimable...
-
-Simon-
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
