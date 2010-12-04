@@ -1,68 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1156F6B0095
-	for <linux-mm@kvack.org>; Fri,  3 Dec 2010 18:02:39 -0500 (EST)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id oB3N2ZPv025019
-	for <linux-mm@kvack.org>; Fri, 3 Dec 2010 15:02:36 -0800
-Received: from qyk34 (qyk34.prod.google.com [10.241.83.162])
-	by kpbe20.cbf.corp.google.com with ESMTP id oB3N28iN013369
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 3 Dec 2010 15:02:33 -0800
-Received: by qyk34 with SMTP id 34so1394028qyk.3
-        for <linux-mm@kvack.org>; Fri, 03 Dec 2010 15:02:33 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1291335412-16231-1-git-send-email-walken@google.com>
-References: <1291335412-16231-1-git-send-email-walken@google.com>
-Date: Fri, 3 Dec 2010 15:02:33 -0800
-Message-ID: <AANLkTi=3VJRa4g4UcDM+Z_vYHAuCwwHM=DyOOPD41MPe@mail.gmail.com>
-Subject: Re: [PATCH 0/6] mlock: do not hold mmap_sem for extended periods of time
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id C524C6B009B
+	for <linux-mm@kvack.org>; Fri,  3 Dec 2010 19:39:33 -0500 (EST)
+Date: Sat, 4 Dec 2010 11:39:20 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: mmotm 2010-12-02-16-34 uploaded
+Message-Id: <20101204113920.9af9b561.sfr@canb.auug.org.au>
+In-Reply-To: <201012030107.oB317ZSW019223@imap1.linux-foundation.org>
+References: <201012030107.oB317ZSW019223@imap1.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA1";
+ boundary="Signature=_Sat__4_Dec_2010_11_39_20_+1100_8X5m3+zilYGHT9rg"
 Sender: owner-linux-mm@kvack.org
-To: David Howells <dhowells@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi David,
+--Signature=_Sat__4_Dec_2010_11_39_20_+1100_8X5m3+zilYGHT9rg
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-I forgot to add you on the original submission, but I think you'd be
-best qualified to look at the two patches implementing
-rwsem_is_contended()...
+Hi Andrew,
 
-On Thu, Dec 2, 2010 at 4:16 PM, Michel Lespinasse <walken@google.com> wrote=
-:
-> Currently mlock() holds mmap_sem in exclusive mode while the pages get
-> faulted in. In the case of a large mlock, this can potentially take a
-> very long time, during which various commands such as 'ps auxw' will
-> block. This makes sysadmins unhappy:
+On Thu, 02 Dec 2010 16:34:54 -0800 akpm@linux-foundation.org wrote:
 >
-> real =A0 =A014m36.232s
-> user =A0 =A00m0.003s
-> sys =A0 =A0 0m0.015s
-> (output from 'time ps auxw' while a 20GB file was being mlocked without
-> being previously preloaded into page cache)
->
-> I propose that mlock() could release mmap_sem after the VM_LOCKED bits
-> have been set in all appropriate VMAs. Then a second pass could be done
-> to actually mlock the pages, in small batches, releasing mmap_sem when
-> we block on disk access or when we detect some contention.
->
-> Patches are against v2.6.37-rc4 plus my patches to avoid mlock dirtying
-> (presently queued in -mm).
->
-> Michel Lespinasse (6):
-> =A0mlock: only hold mmap_sem in shared mode when faulting in pages
-> =A0mm: add FOLL_MLOCK follow_page flag.
-> =A0mm: move VM_LOCKED check to __mlock_vma_pages_range()
-> =A0rwsem: implement rwsem_is_contended()
-> =A0mlock: do not hold mmap_sem for extended periods of time
-> =A0x86 rwsem: more precise rwsem_is_contended() implementation
+> The mm-of-the-moment snapshot 2010-12-02-16-34 has been uploaded to
+>=20
+>    http://userweb.kernel.org/~akpm/mmotm/
 
+Build results here (as they get done): http://kisskb.ellerman.id.au/kisskb/=
+head/3514/
 --=20
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
+
+P.S. hungry, yet?
+
+--Signature=_Sat__4_Dec_2010_11_39_20_+1100_8X5m3+zilYGHT9rg
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iQEcBAEBAgAGBQJM+Y24AAoJEDMEi1NhKgbsom0H/1GSpQl7wdY+POZ3k4WVoDmd
+ksj5jmG6zN9dxDtKvpKOFzw8dL6QWGzubCDw/1G1xC4mZLS9/XWrDdQZrCVrJfkq
+BVIok6ltnAQ2DyhR7kks/szJC3HvMdB27x6FbzFGDxXPoBMGmV8hDBjBqHLx5Qio
+/qwNCTKEWfVhqauc9/D565d/WCdM2PHm1OqX5tPv55CKAofGMKPDjqYqgrQeyuKP
+IklLST0gAhu7TaWCZviK5yKmVdErOM1L6n1F/ZcaLN+6896ymqxaJC2AdJiFxLUA
+8t7k/mQefY9NANYCH+KSO1acrNq/NEWocWs4Nx9jNqhkZUn4Q5bTHRSj3JFsh7I=
+=ga7c
+-----END PGP SIGNATURE-----
+
+--Signature=_Sat__4_Dec_2010_11_39_20_+1100_8X5m3+zilYGHT9rg--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
