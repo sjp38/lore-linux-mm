@@ -1,203 +1,244 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A38C96B009F
-	for <linux-mm@kvack.org>; Sat,  4 Dec 2010 01:55:42 -0500 (EST)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id oB46tbwd022673
-	for <linux-mm@kvack.org>; Fri, 3 Dec 2010 22:55:37 -0800
-Received: from pvg6 (pvg6.prod.google.com [10.241.210.134])
-	by hpaq12.eem.corp.google.com with ESMTP id oB46tR3e023231
-	for <linux-mm@kvack.org>; Fri, 3 Dec 2010 22:55:36 -0800
-Received: by pvg6 with SMTP id 6so2502670pvg.37
-        for <linux-mm@kvack.org>; Fri, 03 Dec 2010 22:55:35 -0800 (PST)
-Date: Fri, 3 Dec 2010 22:55:30 -0800
-From: Michel Lespinasse <walken@google.com>
-Subject: Re: [PATCH 2/6] mm: add FOLL_MLOCK follow_page flag.
-Message-ID: <20101204065530.GA27895@google.com>
-References: <1291335412-16231-1-git-send-email-walken@google.com>
- <1291335412-16231-3-git-send-email-walken@google.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 4EC1F6B00A0
+	for <linux-mm@kvack.org>; Sat,  4 Dec 2010 02:30:57 -0500 (EST)
+Received: from mail06.corp.redhat.com (zmail06.collab.prod.int.phx2.redhat.com [10.5.5.45])
+	by mx3-phx2.redhat.com (8.13.8/8.13.8) with ESMTP id oB47UtDm007496
+	for <linux-mm@kvack.org>; Sat, 4 Dec 2010 02:30:55 -0500
+Date: Sat, 4 Dec 2010 02:30:55 -0500 (EST)
+From: caiqian@redhat.com
+Message-ID: <1527296193.8541291447855619.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <254859941.6601291447527808.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Subject: continuous oom caused system deadlock
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1291335412-16231-3-git-send-email-walken@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-I did not realize that previously, but it turns out to be possible to
-manipulate LRU lists under control of the pte lock, rather than having
-to get/put the page. This allows the FOLL_MLOCK follow_page flag
-implementation to look much nicer than it did in initial proposal.
+Running this LTP test a few times for mmotm tree caused system hung hard,
+http://people.redhat.com/qcai/oom01.c
 
-Please consider the following as a replacement for the initial
-patch 2/6 proposal...
+I tried to bisect but only found it was also present in the tree a few months back as well.
 
---------------------------------- 8< --------------------------------------
+SysRq-W output indicated that kswapd0 might stuck,
+[  373.943002] kswapd0       R  running task        0    34      2 0x00000000
+[  373.943002]  ffff88022abdbc80 ffffffff8146e4ce ffff88022abdbcb0 ffffffff81232698
+[  373.943002]  0000000000000001 ffffffff81a248f0 0000000000000000 0000000000000000
+[  373.943002]  ffff88022abdbcc0 ffffffff8112d59d ffff88022abdbcd0 ffffffff8146e4ce
+[  373.943002] Call Trace:
+[  373.943002]  [<ffffffff8146e4ce>] ? _raw_spin_lock+0xe/0x10
+[  373.943002]  [<ffffffff81232698>] ? __percpu_counter_sum+0x4d/0x63
+[  373.943002]  [<ffffffff8112d59d>] ? get_nr_inodes_unused+0x15/0x23
+[  373.943002]  [<ffffffff8146e4ce>] ? _raw_spin_lock+0xe/0x10
+[  373.943002]  [<ffffffff8146ea0e>] ? common_interrupt+0xe/0x13
+[  373.943002]  [<ffffffff810e2add>] ? balance_pgdat+0x29b/0x417
+[  373.943002]  [<ffffffff810e2e83>] ? kswapd+0x22a/0x240
+[  373.943002]  [<ffffffff8106af63>] ? autoremove_wake_function+0x0/0x39
+[  373.943002]  [<ffffffff810e2c59>] ? kswapd+0x0/0x240
+[  373.943002]  [<ffffffff8106aaae>] ? kthread+0x82/0x8a
+[  373.943002]  [<ffffffff8100bae4>] ? kernel_thread_helper+0x4/0x10
+[  373.943002]  [<ffffffff8106aa2c>] ? kthread+0x0/0x8a
+[  373.943002]  [<ffffffff8100bae0>] ? kernel_thread_helper+0x0/0x10
 
-Move the code to mlock pages from __mlock_vma_pages_range()
-to follow_page().
-
-This allows __mlock_vma_pages_range() to not have to break down work
-into 16-page batches.
-
-An additional motivation for doing this within the present patch series
-is that it'll make it easier for a later chagne to drop mmap_sem when
-blocking on disk (we'd like to be able to resume at the page that was
-read from disk instead of at the start of a 16-page batch).
-
-Signed-off-by: Michel Lespinasse <walken@google.com>
----
- include/linux/mm.h |    1 +
- mm/memory.c        |   22 +++++++++++++++++
- mm/mlock.c         |   65 ++++------------------------------------------------
- 3 files changed, 28 insertions(+), 60 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 721f451..cebbb0d 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1415,6 +1415,7 @@ struct page *follow_page(struct vm_area_struct *, unsigned long address,
- #define FOLL_GET	0x04	/* do get_page on page */
- #define FOLL_DUMP	0x08	/* give error on hole if it would be zero */
- #define FOLL_FORCE	0x10	/* get_user_pages read/write w/o permission */
-+#define FOLL_MLOCK	0x20	/* mark page as mlocked */
- 
- typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
- 			void *data);
-diff --git a/mm/memory.c b/mm/memory.c
-index b8f97b8..15e1f19 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1310,6 +1310,28 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
- 		 */
- 		mark_page_accessed(page);
- 	}
-+	if (flags & FOLL_MLOCK) {
-+		/*
-+		 * The preliminary mapping check is mainly to avoid the
-+		 * pointless overhead of lock_page on the ZERO_PAGE
-+		 * which might bounce very badly if there is contention.
-+		 *
-+		 * If the page is already locked, we don't need to
-+		 * handle it now - vmscan will handle it later if and
-+		 * when it attempts to reclaim the page.
-+		 */
-+		if (page->mapping && trylock_page(page)) {
-+			lru_add_drain();  /* push cached pages to LRU */
-+			/*
-+			 * Because we lock page here and migration is
-+			 * blocked by the pte's page reference, we need
-+			 * only check for file-cache page truncation.
-+			 */
-+			if (page->mapping)
-+				mlock_vma_page(page);
-+			unlock_page(page);
-+		}
-+	}
- unlock:
- 	pte_unmap_unlock(ptep, ptl);
- out:
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 71db83e..573bd2c 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -159,10 +159,9 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long addr = start;
--	struct page *pages[16]; /* 16 gives a reasonable batch */
- 	int nr_pages = (end - start) / PAGE_SIZE;
--	int ret = 0;
- 	int gup_flags;
-+	int ret;
- 
- 	VM_BUG_ON(start & ~PAGE_MASK);
- 	VM_BUG_ON(end   & ~PAGE_MASK);
-@@ -170,7 +169,7 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
- 	VM_BUG_ON(end   > vma->vm_end);
- 	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
- 
--	gup_flags = FOLL_TOUCH | FOLL_GET;
-+	gup_flags = FOLL_TOUCH | FOLL_MLOCK;
- 	/*
- 	 * We want to touch writable mappings with a write fault in order
- 	 * to break COW, except for shared mappings because these don't COW
-@@ -185,63 +184,9 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
- 		nr_pages--;
- 	}
- 
--	while (nr_pages > 0) {
--		int i;
--
--		cond_resched();
--
--		/*
--		 * get_user_pages makes pages present if we are
--		 * setting mlock. and this extra reference count will
--		 * disable migration of this page.  However, page may
--		 * still be truncated out from under us.
--		 */
--		ret = __get_user_pages(current, mm, addr,
--				min_t(int, nr_pages, ARRAY_SIZE(pages)),
--				gup_flags, pages, NULL);
--		/*
--		 * This can happen for, e.g., VM_NONLINEAR regions before
--		 * a page has been allocated and mapped at a given offset,
--		 * or for addresses that map beyond end of a file.
--		 * We'll mlock the pages if/when they get faulted in.
--		 */
--		if (ret < 0)
--			break;
--
--		lru_add_drain();	/* push cached pages to LRU */
--
--		for (i = 0; i < ret; i++) {
--			struct page *page = pages[i];
--
--			if (page->mapping) {
--				/*
--				 * That preliminary check is mainly to avoid
--				 * the pointless overhead of lock_page on the
--				 * ZERO_PAGE: which might bounce very badly if
--				 * there is contention.  However, we're still
--				 * dirtying its cacheline with get/put_page:
--				 * we'll add another __get_user_pages flag to
--				 * avoid it if that case turns out to matter.
--				 */
--				lock_page(page);
--				/*
--				 * Because we lock page here and migration is
--				 * blocked by the elevated reference, we need
--				 * only check for file-cache page truncation.
--				 */
--				if (page->mapping)
--					mlock_vma_page(page);
--				unlock_page(page);
--			}
--			put_page(page);	/* ref from get_user_pages() */
--		}
--
--		addr += ret * PAGE_SIZE;
--		nr_pages -= ret;
--		ret = 0;
--	}
--
--	return ret;	/* 0 or negative error code */
-+	ret = __get_user_pages(current, mm, addr, nr_pages, gup_flags,
-+			       NULL, NULL);
-+	return max(ret, 0);	/* 0 or negative error code */
- }
- 
- /*
--- 
-1.7.3.1
-
-
-
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+full SysRq-W output:
+[  373.943002] Sched Debug Version: v0.09, 2.6.37-rc3+ #1
+[  373.943002] now at 381511.273166 msecs
+[  373.943002]   .jiffies                                 : 4295041238
+[  373.943002]   .sysctl_sched_latency                    : 18.000000
+[  373.943002]   .sysctl_sched_min_granularity            : 2.250000
+[  373.943002]   .sysctl_sched_wakeup_granularity         : 3.000000
+[  373.943002]   .sysctl_sched_child_runs_first           : 0
+[  373.943002]   .sysctl_sched_features                   : 31855
+[  373.943002]   .sysctl_sched_tunable_scaling            : 1 (logaritmic)
+[  373.943002] 
+[  373.943002] cpu#0, 2826.236 MHz
+[  373.943002]   .nr_running                    : 1
+[  373.943002]   .load                          : 1024
+[  373.943002]   .nr_switches                   : 69769
+[  373.943002]   .nr_load_updates               : 115459
+[  373.943002]   .nr_uninterruptible            : 0
+[  373.943002]   .next_balance                  : 4295.041289
+[  373.943002]   .curr->pid                     : 34
+[  373.943002]   .clock                         : 373942.002254
+[  373.943002]   .cpu_load[0]                   : 1024
+[  373.943002]   .cpu_load[1]                   : 1024
+[  373.943002]   .cpu_load[2]                   : 1024
+[  373.943002]   .cpu_load[3]                   : 1024
+[  373.943002]   .cpu_load[4]                   : 1024
+[  373.943002]   .yld_count                     : 100
+[  373.943002]   .sched_switch                  : 0
+[  373.943002]   .sched_count                   : 82123
+[  373.943002]   .sched_goidle                  : 26687
+[  373.943002]   .avg_idle                      : 1000000
+[  373.943002]   .ttwu_count                    : 30804
+[  373.943002]   .ttwu_local                    : 8525
+[  373.943002]   .bkl_count                     : 0
+[  373.943002] 
+[  373.943002] cfs_rq[0]:/
+[  373.943002]   .exec_clock                    : 107322.196661
+[  373.943002]   .MIN_vruntime                  : 0.000001
+[  373.943002]   .min_vruntime                  : 55990.920524
+[  373.943002]   .max_vruntime                  : 0.000001
+[  373.943002]   .spread                        : 0.000000
+[  373.943002]   .spread0                       : 0.000000
+[  373.943002]   .nr_running                    : 1
+[  373.943002]   .load                          : 1024
+[  373.943002]   .nr_spread_over                : 9
+[  373.943002]   .shares                        : 0
+[  373.943002] 
+[  373.943002] rt_rq[0]:/
+[  373.943002]   .rt_nr_running                 : 0
+[  373.943002]   .rt_throttled                  : 0
+[  373.943002]   .rt_time                       : 0.000000
+[  373.943002]   .rt_runtime                    : 1000.000000
+[  373.943002] 
+[  373.943002] runnable tasks:
+[  373.943002]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
+[  373.943002] ----------------------------------------------------------------------------------------------------------
+[  373.943002] R        kswapd0    34     55990.920524     43568   120     55990.920524     38575.283576    287944.752314 /
+[  373.943002] 
+[  373.943002] cpu#1, 2826.236 MHz
+[  373.943002]   .nr_running                    : 2
+[  373.943002]   .load                          : 2048
+[  373.943002]   .nr_switches                   : 80939
+[  373.943002]   .nr_load_updates               : 141862
+[  373.943002]   .nr_uninterruptible            : 1
+[  373.943002]   .next_balance                  : 4295.041423
+[  373.943002]   .curr->pid                     : 925
+[  373.943002]   .clock                         : 382530.001465
+[  373.943002]   .cpu_load[0]                   : 2048
+[  373.943002]   .cpu_load[1]                   : 1920
+[  373.943002]   .cpu_load[2]                   : 1806
+[  373.943002]   .cpu_load[3]                   : 1743
+[  373.943002]   .cpu_load[4]                   : 1716
+[  373.943002]   .yld_count                     : 127
+[  373.943002]   .sched_switch                  : 0
+[  373.943002]   .sched_count                   : 87429
+[  373.943002]   .sched_goidle                  : 29877
+[  373.943002]   .avg_idle                      : 1000000
+[  373.943002]   .ttwu_count                    : 33588
+[  373.943002]   .ttwu_local                    : 9295
+[  373.943002]   .bkl_count                     : 0
+[  373.943002] 
+[  373.943002] cfs_rq[1]:/
+[  373.943002]   .exec_clock                    : 132931.075561
+[  373.943002]   .MIN_vruntime                  : 66573.481283
+[  373.943002]   .min_vruntime                  : 66573.481283
+[  373.943002]   .max_vruntime                  : 66573.481283
+[  373.943002]   .spread                        : 0.000000
+[  373.943002]   .spread0                       : 10582.560759
+[  373.943002]   .nr_running                    : 2
+[  373.943002]   .load                          : 2048
+[  373.943002]   .nr_spread_over                : 10
+[  373.943002]   .shares                        : 0
+[  373.943002] 
+[  373.943002] rt_rq[1]:/
+[  373.943002]   .rt_nr_running                 : 0
+[  373.943002]   .rt_throttled                  : 0
+[  373.943002]   .rt_time                       : 0.000000
+[  373.943002]   .rt_runtime                    : 850.000000
+[  373.943002] 
+[  373.943002] runnable tasks:
+[  373.943002]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
+[  373.943002] ----------------------------------------------------------------------------------------------------------
+[  373.943002] R        rpcbind   925     75167.155023      3118   120     75167.155023     33682.358086    277604.838691 /
+[  373.943002]  console-kit-dae  1328     66573.481283       716   120     66573.481283      2306.020280    277814.482610 /
+[  373.943002] 
+[  373.943002] cpu#2, 2826.236 MHz
+[  373.943002]   .nr_running                    : 1
+[  373.943002]   .load                          : 1024
+[  373.943002]   .nr_switches                   : 25657
+[  373.943002]   .nr_load_updates               : 133265
+[  373.943002]   .nr_uninterruptible            : 6
+[  373.943002]   .next_balance                  : 4295.041381
+[  373.943002]   .curr->pid                     : 1473
+[  373.943002]   .clock                         : 382530.001959
+[  373.943002]   .cpu_load[0]                   : 1024
+[  373.943002]   .cpu_load[1]                   : 732
+[  373.943002]   .cpu_load[2]                   : 703
+[  373.943002]   .cpu_load[3]                   : 726
+[  373.943002]   .cpu_load[4]                   : 777
+[  373.943002]   .yld_count                     : 143
+[  373.943002]   .sched_switch                  : 0
+[  373.943002]   .sched_count                   : 33466
+[  373.943002]   .sched_goidle                  : 5814
+[  373.943002]   .avg_idle                      : 1000000
+[  373.943002]   .ttwu_count                    : 9228
+[  373.943002]   .ttwu_local                    : 6942
+[  373.943002]   .bkl_count                     : 0
+[  373.943002] 
+[  373.943002] cfs_rq[2]:/
+[  373.943002]   .exec_clock                    : 125235.081389
+[  373.943002]   .MIN_vruntime                  : 0.000001
+[  373.943002]   .min_vruntime                  : 64653.378538
+[  373.943002]   .max_vruntime                  : 0.000001
+[  373.943002]   .spread                        : 0.000000
+[  373.943002]   .spread0                       : 8662.458014
+[  373.943002]   .nr_running                    : 1
+[  373.943002]   .load                          : 1024
+[  373.943002]   .nr_spread_over                : 28
+[  373.943002]   .shares                        : 0
+[  373.943002] 
+[  373.943002] rt_rq[2]:/
+[  373.943002]   .rt_nr_running                 : 0
+[  373.943002]   .rt_throttled                  : 0
+[  373.943002]   .rt_time                       : 0.000000
+[  373.943002]   .rt_runtime                    : 1000.000000
+[  373.943002] 
+[  373.943002] runnable tasks:
+[  373.943002]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
+[  373.943002] ----------------------------------------------------------------------------------------------------------
+[  373.943002] R          oom01  1473     64653.378538      3405   120     64653.378538     44153.912865      3897.833338 /
+[  373.943002] 
+[  373.943002] cpu#3, 2826.236 MHz
+[  373.943002]   .nr_running                    : 2
+[  373.943002]   .load                          : 2048
+[  373.943002]   .nr_switches                   : 27316
+[  373.943002]   .nr_load_updates               : 137905
+[  373.943002]   .nr_uninterruptible            : 5
+[  373.943002]   .next_balance                  : 4295.041253
+[  373.943002]   .curr->pid                     : 1336
+[  373.943002]   .clock                         : 382530.002311
+[  373.943002]   .cpu_load[0]                   : 2048
+[  373.943002]   .cpu_load[1]                   : 1980
+[  373.943002]   .cpu_load[2]                   : 1820
+[  373.943002]   .cpu_load[3]                   : 1754
+[  373.943002]   .cpu_load[4]                   : 1790
+[  373.943002]   .yld_count                     : 9
+[  373.943002]   .sched_switch                  : 0
+[  373.943002]   .sched_count                   : 36031
+[  373.943002]   .sched_goidle                  : 6309
+[  373.943002]   .avg_idle                      : 1000000
+[  373.943002]   .ttwu_count                    : 9803
+[  373.943002]   .ttwu_local                    : 7501
+[  373.943002]   .bkl_count                     : 0
+[  373.943002] 
+[  373.943002] cfs_rq[3]:/
+[  373.943002]   .exec_clock                    : 131690.185382
+[  373.943002]   .MIN_vruntime                  : 72546.296158
+[  373.943002]   .min_vruntime                  : 72546.296158
+[  373.943002]   .max_vruntime                  : 72546.296158
+[  373.943002]   .spread                        : 0.000000
+[  373.943002]   .spread0                       : 16555.375634
+[  373.943002]   .nr_running                    : 2
+[  373.943002]   .load                          : 2048
+[  373.943002]   .nr_spread_over                : 4
+[  373.943002]   .shares                        : 0
+[  373.943002] 
+[  373.943002] rt_rq[3]:/
+[  373.943002]   .rt_nr_running                 : 0
+[  373.943002]   .rt_throttled                  : 0
+[  373.943002]   .rt_time                       : 0.000000
+[  373.943002]   .rt_runtime                    : 950.000000
+[  373.943002] 
+[  373.943002] runnable tasks:
+[  373.943002]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
+[  373.943002] ----------------------------------------------------------------------------------------------------------
+[  373.943002]       irqbalance   908     72546.296158      5882   120     72546.296158     30782.122083    264942.728048 /
+[  373.943002] R           bash  1336     81138.830657       744   120     81138.830657     10827.322162    278614.352123 /
+[  373.943002] 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
