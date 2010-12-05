@@ -1,129 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C94056B0096
-	for <linux-mm@kvack.org>; Sun,  5 Dec 2010 12:30:31 -0500 (EST)
-Received: by pvc30 with SMTP id 30so2307222pvc.14
-        for <linux-mm@kvack.org>; Sun, 05 Dec 2010 09:30:26 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id 87A396B0087
+	for <linux-mm@kvack.org>; Sun,  5 Dec 2010 18:35:20 -0500 (EST)
+Received: by iwn33 with SMTP id 33so2404725iwn.14
+        for <linux-mm@kvack.org>; Sun, 05 Dec 2010 15:35:19 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1291376734-30202-2-git-send-email-mel@csn.ul.ie>
+References: <1291376734-30202-1-git-send-email-mel@csn.ul.ie>
+	<1291376734-30202-2-git-send-email-mel@csn.ul.ie>
+Date: Mon, 6 Dec 2010 08:35:18 +0900
+Message-ID: <AANLkTi=ZXBXS2m0WCTNWT1t6EFi=Vji5t-yQG=fTJQgs@mail.gmail.com>
+Subject: Re: [PATCH 1/5] mm: kswapd: Stop high-order balancing when any
+ suitable zone is balanced
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v4 7/7] Prevent activation of page in madvise_dontneed
-Date: Mon,  6 Dec 2010 02:29:15 +0900
-Message-Id: <ca25c4e33beceeb3a96e8437671e5e0a188602fa.1291568905.git.minchan.kim@gmail.com>
-In-Reply-To: <cover.1291568905.git.minchan.kim@gmail.com>
-References: <cover.1291568905.git.minchan.kim@gmail.com>
-In-Reply-To: <cover.1291568905.git.minchan.kim@gmail.com>
-References: <cover.1291568905.git.minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Hugh Dickins <hughd@google.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Now zap_pte_range alwayas activates pages which are pte_young &&
-!VM_SequentialReadHint(vma). But in case of calling MADV_DONTNEED,
-it's unnecessary since the page wouldn't use any more.
+Hi Mel,
 
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Nick Piggin <npiggin@kernel.dk>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Hugh Dickins <hughd@google.com>
+On Fri, Dec 3, 2010 at 8:45 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> When the allocator enters its slow path, kswapd is woken up to balance th=
+e
+> node. It continues working until all zones within the node are balanced. =
+For
+> order-0 allocations, this makes perfect sense but for higher orders it ca=
+n
+> have unintended side-effects. If the zone sizes are imbalanced, kswapd ma=
+y
+> reclaim heavily within a smaller zone discarding an excessive number of
+> pages. The user-visible behaviour is that kswapd is awake and reclaiming
+> even though plenty of pages are free from a suitable zone.
+>
+> This patch alters the "balance" logic for high-order reclaim allowing ksw=
+apd
+> to stop if any suitable zone becomes balanced to reduce the number of pag=
+es
+> it reclaims from other zones. kswapd still tries to ensure that order-0
+> watermarks for all zones are met before sleeping.
+>
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-Changelog since v3:
- - Change variable name - suggested by Johannes
- - Union ignore_references with zap_details - suggested by Hugh
+<snip>
 
-Changelog since v2:
- - remove unnecessary description
+> - =A0 =A0 =A0 if (!all_zones_ok) {
+> + =A0 =A0 =A0 if (!(all_zones_ok || (order && any_zone_ok))) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0cond_resched();
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0try_to_freeze();
+> @@ -2361,6 +2366,31 @@ out:
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto loop_again;
+> =A0 =A0 =A0 =A0}
+>
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* If kswapd was reclaiming at a higher order, it has the=
+ option of
+> + =A0 =A0 =A0 =A0* sleeping without all zones being balanced. Before it d=
+oes, it must
+> + =A0 =A0 =A0 =A0* ensure that the watermarks for order-0 on *all* zones =
+are met and
+> + =A0 =A0 =A0 =A0* that the congestion flags are cleared
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 if (order) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 for (i =3D 0; i <=3D end_zone; i++) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct zone *zone =3D pgdat=
+->node_zones + i;
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!populated_zone(zone))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (zone->all_unreclaimable=
+ && priority !=3D DEF_PRIORITY)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 zone_clear_flag(zone, ZONE_=
+CONGESTED);
 
-Changelog since v1:
- - change word from promote to activate
- - add activate argument to zap_pte_range and family function
----
- include/linux/mm.h |    4 +++-
- mm/madvise.c       |    6 +++---
- mm/memory.c        |    5 ++++-
- 3 files changed, 10 insertions(+), 5 deletions(-)
+Why clear ZONE_CONGESTED?
+If you have a cause, please, write down the comment.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 6522ae4..e57190f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -771,12 +771,14 @@ struct zap_details {
- 	pgoff_t last_index;			/* Highest page->index to unmap */
- 	spinlock_t *i_mmap_lock;		/* For unmap_mapping_range: */
- 	unsigned long truncate_count;		/* Compare vm_truncate_count */
-+	bool ignore_references;			/* For page activation */
- };
- 
- #define __ZAP_DETAILS_INITIALIZER(name) \
-                 { .nonlinear_vma = NULL \
- 		, .check_mapping = NULL \
--		, .i_mmap_lock = NULL }
-+		, .i_mmap_lock = NULL	\
-+		, .ignore_references = false }
- 
- #define DEFINE_ZAP_DETAILS(name)		\
- 	struct zap_details name = __ZAP_DETAILS_INITIALIZER(name)
-diff --git a/mm/madvise.c b/mm/madvise.c
-index bfa17aa..8e7aba3 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -163,6 +163,7 @@ static long madvise_dontneed(struct vm_area_struct * vma,
- 			     unsigned long start, unsigned long end)
- {
- 	DEFINE_ZAP_DETAILS(details);
-+	details.ignore_references = true;
- 
- 	*prev = vma;
- 	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
-@@ -173,10 +174,9 @@ static long madvise_dontneed(struct vm_area_struct * vma,
- 		details.last_index = ULONG_MAX;
- 
- 		zap_page_range(vma, start, end - start, &details);
--	} else {
--
-+	} else
- 		zap_page_range(vma, start, end - start, &details);
--	}
-+
- 	return 0;
- }
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index c0879bb..44d87e1 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -897,6 +897,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 	pte_t *pte;
- 	spinlock_t *ptl;
- 	int rss[NR_MM_COUNTERS];
-+	bool ignore_references = details->ignore_references;
- 
- 	init_rss_vec(rss);
- 
-@@ -952,7 +953,8 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 				if (pte_dirty(ptent))
- 					set_page_dirty(page);
- 				if (pte_young(ptent) &&
--				    likely(!VM_SequentialReadHint(vma)))
-+				    likely(!VM_SequentialReadHint(vma)) &&
-+					!ignore_references)
- 					mark_page_accessed(page);
- 				rss[MM_FILEPAGES]--;
- 			}
-@@ -1218,6 +1220,7 @@ int zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
- 		unsigned long size)
- {
- 	DEFINE_ZAP_DETAILS(details);
-+	details.ignore_references = true;
- 	if (address < vma->vm_start || address + size > vma->vm_end ||
- 	    		!(vma->vm_flags & VM_PFNMAP))
- 		return -1;
--- 
-1.7.0.4
+<snip>
+
+First impression on this patch is that it changes scanning behavior as
+well as reclaiming on high order reclaim.
+I can't say old behavior is right but we can't say this behavior is
+right, too although this patch solves the problem. At least, we might
+need some data that shows this patch doesn't have a regression. It's
+not easy but I believe you can do very well as like having done until
+now. I didn't see whole series so I might miss something.
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
