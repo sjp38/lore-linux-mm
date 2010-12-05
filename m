@@ -1,112 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E5EB06B009E
-	for <linux-mm@kvack.org>; Sun,  5 Dec 2010 00:14:21 -0500 (EST)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp06.in.ibm.com (8.14.4/8.13.1) with ESMTP id oB55EGgv011776
-	for <linux-mm@kvack.org>; Sun, 5 Dec 2010 10:44:16 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oB55EFJA4087998
-	for <linux-mm@kvack.org>; Sun, 5 Dec 2010 10:44:16 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oB55EE7R022888
-	for <linux-mm@kvack.org>; Sun, 5 Dec 2010 10:44:15 +0530
-Date: Thu, 2 Dec 2010 20:11:32 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH 0/4] memcg: per cgroup background reclaim
-Message-ID: <20101202144132.GR2746@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1291099785-5433-1-git-send-email-yinghan@google.com>
- <20101130155327.8313.A69D9226@jp.fujitsu.com>
- <AANLkTi=idNjuptkQuiaOF+GiUDjBaBC9kW370u-041sT@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 33EC16B00AC
+	for <linux-mm@kvack.org>; Sun,  5 Dec 2010 01:44:36 -0500 (EST)
+Date: Sun, 5 Dec 2010 14:44:30 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH] writeback: enabling-gate for light dirtied bdi
+Message-ID: <20101205064430.GA15027@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <AANLkTi=idNjuptkQuiaOF+GiUDjBaBC9kW370u-041sT@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Hellwig <hch@lst.de>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-* Ying Han <yinghan@google.com> [2010-11-29 23:03:31]:
+I noticed that my NFSROOT test system goes slow responding when there
+is heavy dd to a local disk. Traces show that the NFSROOT's bdi_limit
+is near 0 and many tasks in the system are repeatedly stuck in
+balance_dirty_pages().
 
-> On Mon, Nov 29, 2010 at 10:54 PM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
-> >> The current implementation of memcg only supports direct reclaim and this
-> >> patchset adds the support for background reclaim. Per cgroup background
-> >> reclaim is needed which spreads out the memory pressure over longer period
-> >> of time and smoothes out the system performance.
-> >>
-> >> The current implementation is not a stable version, and it crashes sometimes
-> >> on my NUMA machine. Before going further for debugging, I would like to start
-> >> the discussion and hear the feedbacks of the initial design.
-> >
-> > I haven't read your code at all. However I agree your claim that memcg
-> > also need background reclaim.
-> 
-> Thanks for your comment.
-> >
-> > So if you post high level design memo, I'm happy.
-> 
-> My high level design is kind of spreading out into each patch, and
-> here is the consolidated one. This is nothing more but cluing all the
-> commits' messages for the following patches.
-> 
-> "
-> The current implementation of memcg only supports direct reclaim and this
-> patchset adds the support for background reclaim. Per cgroup background
-> reclaim is needed which spreads out the memory pressure over longer period
-> of time and smoothes out the system performance.
-> 
-> There is a kswapd kernel thread for each memory node. We add a different kswapd
-> for each cgroup. The kswapd is sleeping in the wait queue headed at kswapd_wait
-> field of a kswapd descriptor. The kswapd descriptor stores information of node
-> or cgroup and it allows the global and per cgroup background reclaim to share
-> common reclaim algorithms. The per cgroup kswapd is invoked at mem_cgroup_charge
-> when the cgroup's memory usage above a threshold--low_wmark. Then the kswapd
-> thread starts to reclaim pages in a priority loop similar to global algorithm.
-> The kswapd is done if the usage below a threshold--high_wmark.
->
+There are two related problems:
 
-So the logic is per-node/per-zone/per-cgroup right?
+- light dirtiers at one device (more often than not the rootfs) get
+  heavily impacted by heavy dirtiers on another independent device
+
+- the light dirtied device does heavy throttling because bdi_limit=0,
+  and the heavy throttling may in turn withhold its bdi_limit in 0 as
+  it cannot dirty fast enough to grow up the bdi's proportional weight.
+
+Fix it by introducing some "low pass" gate, which is a small (<=8MB)
+value reserved by others and can be safely "stole" from the current
+global dirty margin.  It does not need to be big to help the bdi gain
+its initial weight.
+
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+
+Peter, I suspect this will do good for 2.6.37. Please help review, thanks!
+
+ include/linux/writeback.h |    3 ++-
+ mm/backing-dev.c          |    2 +-
+ mm/page-writeback.c       |   23 +++++++++++++++++++++--
+ 3 files changed, 24 insertions(+), 4 deletions(-)
+
+--- linux-next.orig/mm/page-writeback.c	2010-12-05 14:29:24.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-12-05 14:31:39.000000000 +0800
+@@ -444,7 +444,9 @@ void global_dirty_limits(unsigned long *
+  * The bdi's share of dirty limit will be adapting to its throughput and
+  * bounded by the bdi->min_ratio and/or bdi->max_ratio parameters, if set.
+  */
+-unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
++unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
++			      unsigned long dirty,
++			      unsigned long dirty_pages)
+ {
+ 	u64 bdi_dirty;
+ 	long numerator, denominator;
+@@ -459,6 +461,22 @@ unsigned long bdi_dirty_limit(struct bac
+ 	do_div(bdi_dirty, denominator);
  
-> The per cgroup background reclaim is based on the per cgroup LRU and also adds
-> per cgroup watermarks. There are two watermarks including "low_wmark" and
-> "high_wmark", and they are calculated based on the limit_in_bytes(hard_limit)
-> for each cgroup. Each time the hard_limit is change, the corresponding wmarks
-> are re-calculated. Since memory controller charges only user pages, there is
-
-What about memsw limits, do they impact anything, I presume not.
-
-> no need for a "min_wmark". The current calculation of wmarks is a function of
-> "memory.min_free_kbytes" which could be adjusted by writing different values
-> into the new api. This is added mainly for debugging purpose.
-
-When you say debugging, can you elaborate?
-
-> 
-> The kswapd() function now is shared between global and per cgroup kswapd thread.
-> It is passed in with the kswapd descriptor which contains the information of
-> either node or cgroup. Then the new function balance_mem_cgroup_pgdat is invoked
-> if it is per cgroup kswapd thread. The balance_mem_cgroup_pgdat performs a
-> priority loop similar to global reclaim. In each iteration it invokes
-> balance_pgdat_node for all nodes on the system, which is a new function performs
-> background reclaim per node. After reclaiming each node, it checks
-> mem_cgroup_watermark_ok() and breaks the priority loop if returns true. A per
-> memcg zone will be marked as "unreclaimable" if the scanning rate is much
-> greater than the reclaiming rate on the per cgroup LRU. The bit is cleared when
-> there is a page charged to the cgroup being freed. Kswapd breaks the priority
-> loop if all the zones are marked as "unreclaimable".
-> "
-> 
-> Also, I am happy to add more descriptions if anything not clear :)
->
-
-Thanks for explaining this in detail, it makes the review easier. 
-
--- 
-	Three Cheers,
-	Balbir
+ 	bdi_dirty += (dirty * bdi->min_ratio) / 100;
++
++	/*
++	 * There is a chicken and egg problem: when bdi A (eg. /pub) is heavy
++	 * dirtied and bdi B (eg. /) is light dirtied hence has 0 dirty limit,
++	 * tasks writing to B always get heavily throttled and bdi B's dirty
++	 * limit may never be able to grow up from 0.
++	 *
++	 * So if we can dirty N more pages globally, honour N/2 to the bdi that
++	 * runs low. To provide such a global margin, we slightly decrease all
++	 * heavy dirtied bdi's limit.
++	 */
++	if (bdi_dirty < (dirty - dirty_pages) / 2 && dirty > dirty_pages)
++		bdi_dirty = (dirty - dirty_pages) / 2;
++	else
++		bdi_dirty -= min(bdi_dirty / 128, 8192ULL >> (PAGE_SHIFT-10));
++
+ 	if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
+ 		bdi_dirty = dirty * bdi->max_ratio / 100;
+ 
+@@ -508,7 +526,8 @@ static void balance_dirty_pages(struct a
+ 				(background_thresh + dirty_thresh) / 2)
+ 			break;
+ 
+-		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
++		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh,
++					     nr_reclaimable + nr_writeback);
+ 		bdi_thresh = task_dirty_limit(current, bdi_thresh);
+ 
+ 		/*
+--- linux-next.orig/mm/backing-dev.c	2010-12-05 14:29:23.000000000 +0800
++++ linux-next/mm/backing-dev.c	2010-12-05 14:30:00.000000000 +0800
+@@ -83,7 +83,7 @@ static int bdi_debug_stats_show(struct s
+ 	spin_unlock(&inode_lock);
+ 
+ 	global_dirty_limits(&background_thresh, &dirty_thresh);
+-	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
++	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh, dirty_thresh);
+ 
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
+ 	seq_printf(m,
+--- linux-next.orig/include/linux/writeback.h	2010-12-05 14:29:24.000000000 +0800
++++ linux-next/include/linux/writeback.h	2010-12-05 14:30:00.000000000 +0800
+@@ -126,7 +126,8 @@ int dirty_writeback_centisecs_handler(st
+ 
+ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
+ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
+-			       unsigned long dirty);
++			       unsigned long dirty,
++			       unsigned long dirty_pages);
+ 
+ void page_writeback_init(void);
+ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
