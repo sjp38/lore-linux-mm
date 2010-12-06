@@ -1,33 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 8574D6B0087
-	for <linux-mm@kvack.org>; Sun,  5 Dec 2010 20:48:02 -0500 (EST)
-Message-ID: <4CFC40CB.8090301@redhat.com>
-Date: Sun, 05 Dec 2010 20:47:55 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v4 1/7] Fix checkpatch's report in swap.c
-References: <cover.1291568905.git.minchan.kim@gmail.com> <f4bc70172f1e6c7357480af503b7a01cd96ccadd.1291568905.git.minchan.kim@gmail.com>
-In-Reply-To: <f4bc70172f1e6c7357480af503b7a01cd96ccadd.1291568905.git.minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A5CEA6B0087
+	for <linux-mm@kvack.org>; Sun,  5 Dec 2010 21:41:27 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB62fN47022845
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 6 Dec 2010 11:41:24 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B258045DE5B
+	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 11:41:23 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 99ADF45DE56
+	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 11:41:23 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 852B3E18001
+	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 11:41:23 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 37EDEE08006
+	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 11:41:23 +0900 (JST)
+Date: Mon, 6 Dec 2010 11:35:41 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/5] mm: kswapd: Stop high-order balancing when any
+ suitable zone is balanced
+Message-Id: <20101206113541.dda0a794.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1291376734-30202-2-git-send-email-mel@csn.ul.ie>
+References: <1291376734-30202-1-git-send-email-mel@csn.ul.ie>
+	<1291376734-30202-2-git-send-email-mel@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 12/05/2010 12:29 PM, Minchan Kim wrote:
-> checkpatch reports following problems.
-> It's a very annoying. This patch fixes it.
+On Fri,  3 Dec 2010 11:45:30 +0000
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-> total: 1 errors, 8 warnings, 517 lines checked
->
-> Signed-off-by: Minchan Kim<minchan.kim@gmail.com>
+> When the allocator enters its slow path, kswapd is woken up to balance the
+> node. It continues working until all zones within the node are balanced. For
+> order-0 allocations, this makes perfect sense but for higher orders it can
+> have unintended side-effects. If the zone sizes are imbalanced, kswapd may
+> reclaim heavily within a smaller zone discarding an excessive number of
+> pages. The user-visible behaviour is that kswapd is awake and reclaiming
+> even though plenty of pages are free from a suitable zone.
+> 
+> This patch alters the "balance" logic for high-order reclaim allowing kswapd
+> to stop if any suitable zone becomes balanced to reduce the number of pages
+> it reclaims from other zones. kswapd still tries to ensure that order-0
+> watermarks for all zones are met before sleeping.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+a nitpick.
 
--- 
-All rights reversed
+> ---
+>  include/linux/mmzone.h |    3 +-
+>  mm/page_alloc.c        |    8 ++++--
+>  mm/vmscan.c            |   55 +++++++++++++++++++++++++++++++++++++++++-------
+>  3 files changed, 54 insertions(+), 12 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 39c24eb..7177f51 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -645,6 +645,7 @@ typedef struct pglist_data {
+>  	wait_queue_head_t kswapd_wait;
+>  	struct task_struct *kswapd;
+>  	int kswapd_max_order;
+> +	enum zone_type classzone_idx;
+>  } pg_data_t;
+>  
+>  #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
+> @@ -660,7 +661,7 @@ typedef struct pglist_data {
+>  
+>  extern struct mutex zonelists_mutex;
+>  void build_all_zonelists(void *data);
+> -void wakeup_kswapd(struct zone *zone, int order);
+> +void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx);
+>  int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+>  		int classzone_idx, int alloc_flags);
+>  enum memmap_context {
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index e409270..82e3499 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1915,13 +1915,14 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
+>  
+>  static inline
+>  void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
+> -						enum zone_type high_zoneidx)
+> +						enum zone_type high_zoneidx,
+> +						enum zone_type classzone_idx)
+>  {
+>  	struct zoneref *z;
+>  	struct zone *zone;
+>  
+>  	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
+> -		wakeup_kswapd(zone, order);
+> +		wakeup_kswapd(zone, order, classzone_idx);
+>  }
+>  
+>  static inline int
+> @@ -1998,7 +1999,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  		goto nopage;
+>  
+>  restart:
+> -	wake_all_kswapd(order, zonelist, high_zoneidx);
+> +	wake_all_kswapd(order, zonelist, high_zoneidx,
+> +						zone_idx(preferred_zone));
+>  
+>  	/*
+>  	 * OK, we're below the kswapd watermark and have kicked background
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index d31d7ce..d070d19 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2165,11 +2165,14 @@ static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
+>   * interoperates with the page allocator fallback scheme to ensure that aging
+>   * of pages is balanced across the zones.
+>   */
+> -static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
+> +static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+> +							int classzone_idx)
+>  {
+>  	int all_zones_ok;
+> +	int any_zone_ok;
+>  	int priority;
+>  	int i;
+> +	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+>  	unsigned long total_scanned;
+>  	struct reclaim_state *reclaim_state = current->reclaim_state;
+>  	struct scan_control sc = {
+> @@ -2192,7 +2195,6 @@ loop_again:
+>  	count_vm_event(PAGEOUTRUN);
+>  
+>  	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+> -		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+>  		unsigned long lru_pages = 0;
+>  		int has_under_min_watermark_zone = 0;
+>  
+> @@ -2201,6 +2203,7 @@ loop_again:
+>  			disable_swap_token();
+>  
+>  		all_zones_ok = 1;
+> +		any_zone_ok = 0;
+>  
+>  		/*
+>  		 * Scan in the highmem->dma direction for the highest
+> @@ -2310,10 +2313,12 @@ loop_again:
+>  				 * spectulatively avoid congestion waits
+>  				 */
+>  				zone_clear_flag(zone, ZONE_CONGESTED);
+> +				if (i <= classzone_idx)
+> +					any_zone_ok = 1;
+>  			}
+>  
+>  		}
+> -		if (all_zones_ok)
+> +		if (all_zones_ok || (order && any_zone_ok))
+>  			break;		/* kswapd: all done */
+>  		/*
+>  		 * OK, kswapd is getting into trouble.  Take a nap, then take
+> @@ -2336,7 +2341,7 @@ loop_again:
+>  			break;
+>  	}
+>  out:
+> -	if (!all_zones_ok) {
+> +	if (!(all_zones_ok || (order && any_zone_ok))) {
+
+Could you add a comment ?
+
+And this means...
+
+	all_zones_ok .... all_zone_balanced
+	any_zones_ok .... fallback_allocation_ok
+?
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
