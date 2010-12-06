@@ -1,27 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 541DE6B0087
-	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 05:56:20 -0500 (EST)
-Date: Mon, 6 Dec 2010 10:55:58 +0000
+	by kanga.kvack.org (Postfix) with ESMTP id BECFA6B0087
+	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 06:32:29 -0500 (EST)
+Date: Mon, 6 Dec 2010 11:32:09 +0000
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH 1/5] mm: kswapd: Stop high-order balancing when any
 	suitable zone is balanced
-Message-ID: <20101206105558.GA21406@csn.ul.ie>
-References: <1291376734-30202-1-git-send-email-mel@csn.ul.ie> <1291376734-30202-2-git-send-email-mel@csn.ul.ie> <AANLkTi=ZXBXS2m0WCTNWT1t6EFi=Vji5t-yQG=fTJQgs@mail.gmail.com>
+Message-ID: <20101206113209.GB21406@csn.ul.ie>
+References: <1291376734-30202-1-git-send-email-mel@csn.ul.ie> <1291376734-30202-2-git-send-email-mel@csn.ul.ie> <20101206113541.dda0a794.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTi=ZXBXS2m0WCTNWT1t6EFi=Vji5t-yQG=fTJQgs@mail.gmail.com>
+In-Reply-To: <20101206113541.dda0a794.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 06, 2010 at 08:35:18AM +0900, Minchan Kim wrote:
-> Hi Mel,
+On Mon, Dec 06, 2010 at 11:35:41AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Fri,  3 Dec 2010 11:45:30 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> On Fri, Dec 3, 2010 at 8:45 PM, Mel Gorman <mel@csn.ul.ie> wrote:
 > > When the allocator enters its slow path, kswapd is woken up to balance the
 > > node. It continues working until all zones within the node are balanced. For
 > > order-0 allocations, this makes perfect sense but for higher orders it can
@@ -29,151 +28,148 @@ On Mon, Dec 06, 2010 at 08:35:18AM +0900, Minchan Kim wrote:
 > > reclaim heavily within a smaller zone discarding an excessive number of
 > > pages. The user-visible behaviour is that kswapd is awake and reclaiming
 > > even though plenty of pages are free from a suitable zone.
-> >
+> > 
 > > This patch alters the "balance" logic for high-order reclaim allowing kswapd
 > > to stop if any suitable zone becomes balanced to reduce the number of pages
 > > it reclaims from other zones. kswapd still tries to ensure that order-0
 > > watermarks for all zones are met before sleeping.
-> >
+> > 
 > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 > 
-> <snip>
+> a nitpick.
 > 
-> > -       if (!all_zones_ok) {
-> > +       if (!(all_zones_ok || (order && any_zone_ok))) {
-> >                cond_resched();
-> >
-> >                try_to_freeze();
-> > @@ -2361,6 +2366,31 @@ out:
-> >                goto loop_again;
-> >        }
-> >
-> > +       /*
-> > +        * If kswapd was reclaiming at a higher order, it has the option of
-> > +        * sleeping without all zones being balanced. Before it does, it must
-> > +        * ensure that the watermarks for order-0 on *all* zones are met and
-> > +        * that the congestion flags are cleared
-> > +        */
-> > +       if (order) {
-> > +               for (i = 0; i <= end_zone; i++) {
-> > +                       struct zone *zone = pgdat->node_zones + i;
-> > +
-> > +                       if (!populated_zone(zone))
-> > +                               continue;
-> > +
-> > +                       if (zone->all_unreclaimable && priority != DEF_PRIORITY)
-> > +                               continue;
-> > +
-> > +                       zone_clear_flag(zone, ZONE_CONGESTED);
+> > ---
+> >  include/linux/mmzone.h |    3 +-
+> >  mm/page_alloc.c        |    8 ++++--
+> >  mm/vmscan.c            |   55 +++++++++++++++++++++++++++++++++++++++++-------
+> >  3 files changed, 54 insertions(+), 12 deletions(-)
+> > 
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index 39c24eb..7177f51 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -645,6 +645,7 @@ typedef struct pglist_data {
+> >  	wait_queue_head_t kswapd_wait;
+> >  	struct task_struct *kswapd;
+> >  	int kswapd_max_order;
+> > +	enum zone_type classzone_idx;
+> >  } pg_data_t;
+> >  
+> >  #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
+> > @@ -660,7 +661,7 @@ typedef struct pglist_data {
+> >  
+> >  extern struct mutex zonelists_mutex;
+> >  void build_all_zonelists(void *data);
+> > -void wakeup_kswapd(struct zone *zone, int order);
+> > +void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx);
+> >  int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+> >  		int classzone_idx, int alloc_flags);
+> >  enum memmap_context {
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index e409270..82e3499 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1915,13 +1915,14 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
+> >  
+> >  static inline
+> >  void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
+> > -						enum zone_type high_zoneidx)
+> > +						enum zone_type high_zoneidx,
+> > +						enum zone_type classzone_idx)
+> >  {
+> >  	struct zoneref *z;
+> >  	struct zone *zone;
+> >  
+> >  	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
+> > -		wakeup_kswapd(zone, order);
+> > +		wakeup_kswapd(zone, order, classzone_idx);
+> >  }
+> >  
+> >  static inline int
+> > @@ -1998,7 +1999,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> >  		goto nopage;
+> >  
+> >  restart:
+> > -	wake_all_kswapd(order, zonelist, high_zoneidx);
+> > +	wake_all_kswapd(order, zonelist, high_zoneidx,
+> > +						zone_idx(preferred_zone));
+> >  
+> >  	/*
+> >  	 * OK, we're below the kswapd watermark and have kicked background
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index d31d7ce..d070d19 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2165,11 +2165,14 @@ static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
+> >   * interoperates with the page allocator fallback scheme to ensure that aging
+> >   * of pages is balanced across the zones.
+> >   */
+> > -static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
+> > +static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+> > +							int classzone_idx)
+> >  {
+> >  	int all_zones_ok;
+> > +	int any_zone_ok;
+> >  	int priority;
+> >  	int i;
+> > +	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+> >  	unsigned long total_scanned;
+> >  	struct reclaim_state *reclaim_state = current->reclaim_state;
+> >  	struct scan_control sc = {
+> > @@ -2192,7 +2195,6 @@ loop_again:
+> >  	count_vm_event(PAGEOUTRUN);
+> >  
+> >  	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+> > -		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+> >  		unsigned long lru_pages = 0;
+> >  		int has_under_min_watermark_zone = 0;
+> >  
+> > @@ -2201,6 +2203,7 @@ loop_again:
+> >  			disable_swap_token();
+> >  
+> >  		all_zones_ok = 1;
+> > +		any_zone_ok = 0;
+> >  
+> >  		/*
+> >  		 * Scan in the highmem->dma direction for the highest
+> > @@ -2310,10 +2313,12 @@ loop_again:
+> >  				 * spectulatively avoid congestion waits
+> >  				 */
+> >  				zone_clear_flag(zone, ZONE_CONGESTED);
+> > +				if (i <= classzone_idx)
+> > +					any_zone_ok = 1;
+> >  			}
+> >  
+> >  		}
+> > -		if (all_zones_ok)
+> > +		if (all_zones_ok || (order && any_zone_ok))
+> >  			break;		/* kswapd: all done */
+> >  		/*
+> >  		 * OK, kswapd is getting into trouble.  Take a nap, then take
+> > @@ -2336,7 +2341,7 @@ loop_again:
+> >  			break;
+> >  	}
+> >  out:
+> > -	if (!all_zones_ok) {
+> > +	if (!(all_zones_ok || (order && any_zone_ok))) {
 > 
-> Why clear ZONE_CONGESTED?
-> If you have a cause, please, write down the comment.
+> Could you add a comment ?
+> 
+> And this means...
+> 
+> 	all_zones_ok .... all_zone_balanced
+> 	any_zones_ok .... fallback_allocation_ok
+> ?
 > 
 
-It's because kswapd is the only mechanism that clears the congestion
-flag. If it's not cleared and kswapd goes to sleep, the flag could be
-left set causing hard-to-diagnose stalls. I'll add a comment.
++
++       /*
++        * order-0: All zones must meet high watermark for a balanced node
++        * high-order: Any zone below pgdats classzone_idx must meet the high
++        *      watermark for a balanced node
++        */
 
-> <snip>
-> 
-> First impression on this patch is that it changes scanning behavior as
-> well as reclaiming on high order reclaim.
-
-It does affect scanning behaviour for high-order reclaim. Specifically,
-it may stop scanning once a zone is balanced within the node. Previously
-it would continue scanning until all zones were balanced. Is this what
-you are thinking of or something else?
-
-> I can't say old behavior is right but we can't say this behavior is
-> right, too although this patch solves the problem. At least, we might
-> need some data that shows this patch doesn't have a regression.
-
-How do you suggest it be tested and this data be gathered? I tested a number of
-workloads that keep kswapd awake but found no differences of major significant
-even though it was using high-order allocations. The  problem with identifying
-small regressions for high-order allocations is that the state of the system
-when lumpy reclaim starts is very important as it determines how much work
-has to be done. I did not find major regressions in performance.
-
-For the tests I did run;
-
-fsmark showed nothing useful. iozone showed nothing useful either as it didn't
-even wake kswapd. sysbench showed minor performance gains and losses but it
-is not useful as it typically does not wake kswapd unless the database is
-badly configured.
-
-I ran postmark because it was the closest benchmark to a mail simulator I
-had access to. This sucks because it's no longer representative of a mail
-server and is more like a crappy filesystem benchmark. To get it closer to a
-real server, there was also a program running in the background that mapped
-a large anonymous segment and scanned it in blocks.
-
-POSTMARK
-            postmark-traceonly-v3r1-postmarkpostmark-kanyzone-v2r6-postmark
-                traceonly-v3r1     kanyzone-v2r6
-Transactions per second:                2.00 ( 0.00%)     2.00 ( 0.00%)
-Data megabytes read per second:         8.14 ( 0.00%)     8.59 ( 5.24%)
-Data megabytes written per second:     18.94 ( 0.00%)    19.98 ( 5.21%)
-Files created alone per second:         4.00 ( 0.00%)     4.00 ( 0.00%)
-Files create/transact per second:       1.00 ( 0.00%)     1.00 ( 0.00%)
-Files deleted alone per second:        34.00 ( 0.00%)    30.00 (-13.33%)
-Files delete/transact per second:       1.00 ( 0.00%)     1.00 ( 0.00%)
-
-MMTests Statistics: duration
-User/Sys Time Running Test (seconds)         152.4    152.92
-Total Elapsed Time (seconds)               5110.96   4847.22
-
-FTrace Reclaim Statistics: vmscan
-            postmark-traceonly-v3r1-postmarkpostmark-kanyzone-v2r6-postmark
-                traceonly-v3r1     kanyzone-v2r6
-Direct reclaims                                  0          0 
-Direct reclaim pages scanned                     0          0 
-Direct reclaim pages reclaimed                   0          0 
-Direct reclaim write file async I/O              0          0 
-Direct reclaim write anon async I/O              0          0 
-Direct reclaim write file sync I/O               0          0 
-Direct reclaim write anon sync I/O               0          0 
-Wake kswapd requests                             0          0 
-Kswapd wakeups                                2177       2174 
-Kswapd pages scanned                      34690766   34691473 
-Kswapd pages reclaimed                    34511965   34513478 
-Kswapd reclaim write file async I/O             32          0 
-Kswapd reclaim write anon async I/O           2357       2561 
-Kswapd reclaim write file sync I/O               0          0 
-Kswapd reclaim write anon sync I/O               0          0 
-Time stalled direct reclaim (seconds)         0.00       0.00 
-Time kswapd awake (seconds)                 632.10     683.34 
-
-Total pages scanned                       34690766  34691473
-Total pages reclaimed                     34511965  34513478
-%age total pages scanned/reclaimed          99.48%    99.49%
-%age total pages scanned/written             0.01%     0.01%
-%age  file pages scanned/written             0.00%     0.00%
-Percentage Time Spent Direct Reclaim         0.00%     0.00%
-Percentage Time kswapd Awake                12.37%    14.10%
-
-proc vmstat: Faults
-            postmark-traceonly-v3r1-postmarkpostmark-kanyzone-v2r6-postmark
-                traceonly-v3r1     kanyzone-v2r6
-Major Faults                                  1979      1741
-Minor Faults                              13660834  13587939
-Page ins                                     89060     74704
-Page outs                                    69800     58884
-Swap ins                                      1193      1499
-Swap outs                                     2403      2562
-
-Still, IO performance was improved (higher rates of read/write) and the test
-completed significantly faster with this patch series applied.  kswapd was
-awake for longer and reclaimed marginally more pages with more swap-ins and
-swap-outs which is unfortunate but it's somewhat balanced by fewer faults
-and fewer page-ins. Basically, in terms of reclaim the figures are so close
-that it is within the performance variations lumpy reclaim has depending on
-the exact state of the system when reclaim starts.
-
-> It's
-> not easy but I believe you can do very well as like having done until
-> now. I didn't see whole series so I might miss something.
-> 
+?
 
 -- 
 Mel Gorman
