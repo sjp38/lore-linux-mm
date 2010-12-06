@@ -1,175 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BECFA6B0087
-	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 06:32:29 -0500 (EST)
-Date: Mon, 6 Dec 2010 11:32:09 +0000
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4073F6B0087
+	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 07:04:03 -0500 (EST)
+Date: Mon, 6 Dec 2010 12:03:42 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/5] mm: kswapd: Stop high-order balancing when any
-	suitable zone is balanced
-Message-ID: <20101206113209.GB21406@csn.ul.ie>
-References: <1291376734-30202-1-git-send-email-mel@csn.ul.ie> <1291376734-30202-2-git-send-email-mel@csn.ul.ie> <20101206113541.dda0a794.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch]vmscan: make kswapd use a correct order
+Message-ID: <20101206120342.GD21406@csn.ul.ie>
+References: <1291172911.12777.58.camel@sli10-conroe> <20101201132730.ABC2.A69D9226@jp.fujitsu.com> <20101201155854.GA3372@barrios-desktop> <20101202101234.GR13268@csn.ul.ie> <20101202153526.GB1735@barrios-desktop> <20101202154235.GY13268@csn.ul.ie> <20101202205342.GB1892@hostway.ca> <20101203120053.GA13268@csn.ul.ie> <20101204120726.GA4502@hostway.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101206113541.dda0a794.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20101204120726.GA4502@hostway.ca>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Simon Kirby <sim@hostway.ca>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 06, 2010 at 11:35:41AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Fri,  3 Dec 2010 11:45:30 +0000
-> Mel Gorman <mel@csn.ul.ie> wrote:
+On Sat, Dec 04, 2010 at 04:07:26AM -0800, Simon Kirby wrote:
+> On Fri, Dec 03, 2010 at 12:00:54PM +0000, Mel Gorman wrote:
 > 
-> > When the allocator enters its slow path, kswapd is woken up to balance the
-> > node. It continues working until all zones within the node are balanced. For
-> > order-0 allocations, this makes perfect sense but for higher orders it can
-> > have unintended side-effects. If the zone sizes are imbalanced, kswapd may
-> > reclaim heavily within a smaller zone discarding an excessive number of
-> > pages. The user-visible behaviour is that kswapd is awake and reclaiming
-> > even though plenty of pages are free from a suitable zone.
+> > On Thu, Dec 02, 2010 at 12:53:42PM -0800, Simon Kirby wrote:
+> > > On Thu, Dec 02, 2010 at 03:42:35PM +0000, Mel Gorman wrote:
+> > > 
+> > > > On Fri, Dec 03, 2010 at 12:35:26AM +0900, Minchan Kim wrote:
+> > > > 
+> > > > Only point was to comment "I think this part of the patch is fine".
+> > > > 
+> > > > > Do you want me to send this patch alone
+> > > > > regardless of your series for Simon's problem?
+> > > > 
+> > > > Yes, because I do not believe the problems are directly related. When/if
+> > > > I get something working with Simon, I'll backport your patch on top of it
+> > > > for testing by him just in case but I don't think it'll affect him.
+> > > 
+> > > We could test this and your patch together, no? 
+> > > Your patch definitely
+> > > fixed the case for us where kswapd would just run all day long, throwing
+> > > out everything while trying to reach the order-3 watermark in zone Normal
+> > > while order-0 page cache allocations were splitting it back out again.
+> > > 
 > > 
-> > This patch alters the "balance" logic for high-order reclaim allowing kswapd
-> > to stop if any suitable zone becomes balanced to reduce the number of pages
-> > it reclaims from other zones. kswapd still tries to ensure that order-0
-> > watermarks for all zones are met before sleeping.
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > Ideally they would ultimately be tested together, but I'd really like to
+> > hear if the 5 patch series I posted still prevents kswapd going crazy
+> > and if the "too much free memory" problem is affected. Minimally, fixing
+> > kswapd being awake is worthwhile.
 > 
-> a nitpick.
-> 
-> > ---
-> >  include/linux/mmzone.h |    3 +-
-> >  mm/page_alloc.c        |    8 ++++--
-> >  mm/vmscan.c            |   55 +++++++++++++++++++++++++++++++++++++++++-------
-> >  3 files changed, 54 insertions(+), 12 deletions(-)
-> > 
-> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > index 39c24eb..7177f51 100644
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -645,6 +645,7 @@ typedef struct pglist_data {
-> >  	wait_queue_head_t kswapd_wait;
-> >  	struct task_struct *kswapd;
-> >  	int kswapd_max_order;
-> > +	enum zone_type classzone_idx;
-> >  } pg_data_t;
-> >  
-> >  #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
-> > @@ -660,7 +661,7 @@ typedef struct pglist_data {
-> >  
-> >  extern struct mutex zonelists_mutex;
-> >  void build_all_zonelists(void *data);
-> > -void wakeup_kswapd(struct zone *zone, int order);
-> > +void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx);
-> >  int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-> >  		int classzone_idx, int alloc_flags);
-> >  enum memmap_context {
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index e409270..82e3499 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1915,13 +1915,14 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
-> >  
-> >  static inline
-> >  void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
-> > -						enum zone_type high_zoneidx)
-> > +						enum zone_type high_zoneidx,
-> > +						enum zone_type classzone_idx)
-> >  {
-> >  	struct zoneref *z;
-> >  	struct zone *zone;
-> >  
-> >  	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
-> > -		wakeup_kswapd(zone, order);
-> > +		wakeup_kswapd(zone, order, classzone_idx);
-> >  }
-> >  
-> >  static inline int
-> > @@ -1998,7 +1999,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> >  		goto nopage;
-> >  
-> >  restart:
-> > -	wake_all_kswapd(order, zonelist, high_zoneidx);
-> > +	wake_all_kswapd(order, zonelist, high_zoneidx,
-> > +						zone_idx(preferred_zone));
-> >  
-> >  	/*
-> >  	 * OK, we're below the kswapd watermark and have kicked background
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index d31d7ce..d070d19 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2165,11 +2165,14 @@ static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
-> >   * interoperates with the page allocator fallback scheme to ensure that aging
-> >   * of pages is balanced across the zones.
-> >   */
-> > -static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
-> > +static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
-> > +							int classzone_idx)
-> >  {
-> >  	int all_zones_ok;
-> > +	int any_zone_ok;
-> >  	int priority;
-> >  	int i;
-> > +	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
-> >  	unsigned long total_scanned;
-> >  	struct reclaim_state *reclaim_state = current->reclaim_state;
-> >  	struct scan_control sc = {
-> > @@ -2192,7 +2195,6 @@ loop_again:
-> >  	count_vm_event(PAGEOUTRUN);
-> >  
-> >  	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-> > -		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
-> >  		unsigned long lru_pages = 0;
-> >  		int has_under_min_watermark_zone = 0;
-> >  
-> > @@ -2201,6 +2203,7 @@ loop_again:
-> >  			disable_swap_token();
-> >  
-> >  		all_zones_ok = 1;
-> > +		any_zone_ok = 0;
-> >  
-> >  		/*
-> >  		 * Scan in the highmem->dma direction for the highest
-> > @@ -2310,10 +2313,12 @@ loop_again:
-> >  				 * spectulatively avoid congestion waits
-> >  				 */
-> >  				zone_clear_flag(zone, ZONE_CONGESTED);
-> > +				if (i <= classzone_idx)
-> > +					any_zone_ok = 1;
-> >  			}
-> >  
-> >  		}
-> > -		if (all_zones_ok)
-> > +		if (all_zones_ok || (order && any_zone_ok))
-> >  			break;		/* kswapd: all done */
-> >  		/*
-> >  		 * OK, kswapd is getting into trouble.  Take a nap, then take
-> > @@ -2336,7 +2341,7 @@ loop_again:
-> >  			break;
-> >  	}
-> >  out:
-> > -	if (!all_zones_ok) {
-> > +	if (!(all_zones_ok || (order && any_zone_ok))) {
-> 
-> Could you add a comment ?
-> 
-> And this means...
-> 
-> 	all_zones_ok .... all_zone_balanced
-> 	any_zones_ok .... fallback_allocation_ok
-> ?
+> Ok, we will try this version of your patches and see if anything changes.
+> The previous version did stop kswapd from running continuously during
+> daytime load, and made our SSD server useful, so I definitely like it. :)
 > 
 
-+
-+       /*
-+        * order-0: All zones must meet high watermark for a balanced node
-+        * high-order: Any zone below pgdats classzone_idx must meet the high
-+        *      watermark for a balanced node
-+        */
+Good.
 
-?
+> > > However, the subject of my original post was to do with too much free
+> > > memory and swap, which is still occurring:
+> > > 
+> > > 	http://0x.ca/sim/ref/2.6.36/memory_mel_patch_week.png
+> > 
+> > Ok, we had been working on the assumption that kswapd staying awake was
+> > responsible for too much memory being free. If after the series is applied and
+> > working there is still too much free memory, we know there is an additional
+> > part to the problem.
+> 
+> This was part of the problem.  kswapd was throwing so much out while
+> trying to meet the watermark in zone Normal that the daemons had to keep
+> being read back in from /dev/sda (non-ssd), and this ended up causing
+> degraded performance.
+> 
+
+But there is still potentially two problems here. The first was kswapd
+throwing out everything in zone normal. Even when fixed, there is
+potentially still too many pages being thrown out. The situation might
+be improved but not repaired.
+
+> > > But this is still occurring even if I tell slub to use only order-0 and
+> > > order-1, and disable jumbo frames (which I did on another box, not this
+> > > one).  It may not be quite as bad, but I think the increase in free
+> > > memory is just based on fragmentation that builds up over time. 
+> > 
+> > Before you said SLUB was using only order-0 and order-1, I would have
+> > suspected lumpy reclaim. Without high-order allocations, fragmentation
+> > is not a problem and shouldn't be triggering a mass freeing of memory.
+> > can you confirm with perf that there is no other constant source of
+> > high-order allocations?
+> 
+> Let me clarify: On _another_ box, with 2.6.36 but without your patches
+> and without as much load or SSD devices, I forced slub to use order-0
+> except where order-1 was absolutely necessary (objects > 4096 bytes),
+> just to see what impact this had on free memory.  There was a change,
+> but still lots of memory left free.  I was trying to avoid confusion by
+> posting graphs from different machines, but here is that one just as a
+> reference: http://0x.ca/sim/ref/2.6.36/memory_stor25r_week.png
+> (I made the slub order adjustment on Tuesday, November 30th.)
+> The spikes are actually from mail nightly expunge/purge runs.  It seems
+> that minimizing the slub orders did remove the large free spike that
+> was happening during mailbox compaction runs (nightly), and overall there
+> was a bit more memory used on average, but it definitely didn't "fix" it. 
+> 
+
+Ok, but it's still evidence that lumpy reclaim is still the problem here. This
+should be "fixed" by reclaim/compaction which has less impact and frees
+fewer pages than lumpy reclaim. If necessary, I can backport this to 2.6.36
+for you to verify. There is little chance the series would be accepted into
+-stable but you'd at least know that 2.6.37 or 2.6.38 would behave as expected.
+
+> The original server I was posting graphs for has had no other vm tweaks,
+> and so slub is still doing order-3 GFP_ATOMIC allocations from skb
+> allocations.
+> 
+> By the way, I noticed slub seems to choose different maximum orders based
+> on the memory size.  You may be able to get your test box to issue the
+> same GFP_ATOMIC order-3 allocations from skb allocations by making your
+> sysfs files match these values:
+> 
+> [/sys/kernel/slab]# grep . kmalloc-??{,?,??}/order
+> kmalloc-16/order:0
+> kmalloc-32/order:0
+> kmalloc-64/order:0
+> kmalloc-96/order:0
+> kmalloc-128/order:0
+> kmalloc-192/order:0
+> kmalloc-256/order:1
+> kmalloc-512/order:2
+> kmalloc-1024/order:3
+> kmalloc-2048/order:3
+> kmalloc-4096/order:3
+> kmalloc-8192/order:3
+> 
+> I suspect your kmalloc-1024 and kmalloc-2048 orders are less than 3 now?
+> 
+
+I'm using slub_min_order=3 to force the larger allocations.
+
+> > > I don't
+> > > have any long-running graphs of this yet, but I can see that pretty much
+> > > all of the free memory always is order-0, and even a "while true; do
+> > > sleep .01; done" is enough to make it throw out more order-0 while trying
+> > > to make room for order-1 task_struct allocations.
+> > > 
+> > 
+> > It would be semi-normal to throw out a few pages for order-1 task_struct
+> > allocations. Is your server fork-heavy? I would have guessed "no" as you
+> > are forcing a large number of forks with the while loop.
+> 
+> No, the only things that cause forks on these servers usually are monitoring
+> processes.  According to munin, it averages under 3 forks per second.
+> 
+
+Ok.
+
+> > > Maybe some pattern in the way that pages are reclaimed while they are
+> > > being allocated is resulting in increasing fragmentation?  All the boxes
+> > > I see this on start out fine, but after a day or week they end up in swap
+> > > and with lots of free memory.
+> > 
+> > Is there something like a big weekly backup task running that would be
+> > responsible for pushing a large amount of memory to swap that is never
+> > faulted back in again because it's unused?
+> 
+> There are definitely pages that are leaking from dovecot or similar which
+> can be swapped out and not swapped in again (you can see "apps" growing),
+> but there are no tasks I can think of that would ever cause the system to
+> be starved. 
+
+So dovecot has a memory leak? As you say, this shouldn't starve the system
+but it's inevitable that swap usage will grow over time.
+
+> The calls to pageout() seem to happen if sc.may_writepage is
+> set, which seems to happen when it thinks it has scanned enough without
+> making enough progress.  Could this happen just from too much
+> fragmentation?
+> 
+
+Not on its own but if too many pages have to be scanned due to
+fragmentation, it can get set.
+
+> The swapping seems to be at a slow but constant rate, so maybe it's
+
+I assume you mean swap usage is growing at a slow but constant rate?
+
+> happening just due to the way the types of allocations are biasing to
+> Normal instead of DMA32, or vice-versa. 
+> Check out the latest memory
+> graphs for the server running your original patch:
+> 
+> http://0x.ca/sim/ref/2.6.36/memory_mel_patch_dec4.png
+
+Do you think the growth in swap usage is due to dovecot leaking?
+
+> http://0x.ca/sim/ref/2.6.36/zoneinfo_mel_patch_dec4
+> http://0x.ca/sim/ref/2.6.36/pagetypeinfo_mel_patch_dec4
+> 
+> Hmm, pagetypeinfo shows none or only a few of the pages in Normal are
+> considered reclaimable...
+> 
+
+Reclaimable in the context of pagetypeinfo means slab-reclaimable. The
+results imply that very few slab allocations are being satisified from
+the Normal zone or at least very few have been released recently.
 
 -- 
 Mel Gorman
