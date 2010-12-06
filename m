@@ -1,79 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DF226B0087
-	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 11:41:39 -0500 (EST)
-Message-Id: <4CFD20370200007800026269@vpn.id2.novell.com>
-Date: Mon, 06 Dec 2010 16:41:11 +0000
-From: "Jan Beulich" <JBeulich@novell.com>
-Subject: [PATCH] use total_highpages when calculating lowmem-only
-	 allocation sizes (core)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id ABF6E6B0087
+	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 12:13:28 -0500 (EST)
+Date: Mon, 6 Dec 2010 09:11:37 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: mmotm 2010-12-02-16-34 uploaded
+Message-Id: <20101206091137.7dc9fa92.randy.dunlap@oracle.com>
+In-Reply-To: <20101204113920.9af9b561.sfr@canb.auug.org.au>
+References: <201012030107.oB317ZSW019223@imap1.linux-foundation.org>
+	<20101204113920.9af9b561.sfr@canb.auug.org.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-For those (large) table allocations that come only from lowmem, the
-total amount of memory shouldn't really matter.
+On Sat, 4 Dec 2010 11:39:20 +1100 Stephen Rothwell wrote:
 
-For vfs_caches_init(), in the same spirit also replace the use of
-nr_free_pages() by nr_free_buffer_pages().
+> Hi Andrew,
+> 
+> On Thu, 02 Dec 2010 16:34:54 -0800 akpm@linux-foundation.org wrote:
+> >
+> > The mm-of-the-moment snapshot 2010-12-02-16-34 has been uploaded to
+> > 
+> >    http://userweb.kernel.org/~akpm/mmotm/
+> 
+> Build results here (as they get done): http://kisskb.ellerman.id.au/kisskb/head/3514/
+> -- 
 
-Signed-off-by: Jan Beulich <jbeulich@novell.com>
+Lots of the errors seem to be toolchain related.
 
 ---
- fs/dcache.c                       |    4 ++--
- init/main.c                       |    5 +++--
- 2 files changed, 5 insertions(+), 4 deletions(-)
-
---- linux-2.6.37-rc4/fs/dcache.c
-+++ 2.6.37-rc4-use-totalhigh_pages/fs/dcache.c
-@@ -2474,10 +2474,10 @@ void __init vfs_caches_init(unsigned lon
- {
- 	unsigned long reserve;
-=20
--	/* Base hash sizes on available memory, with a reserve equal to
-+	/* Base hash sizes on available lowmem memory, with a reserve =
-equal to
-            150% of current kernel size */
-=20
--	reserve =3D min((mempages - nr_free_pages()) * 3/2, mempages - 1);
-+	reserve =3D min((mempages - nr_free_buffer_pages()) * 3/2, =
-mempages - 1);
- 	mempages -=3D reserve;
-=20
- 	names_cachep =3D kmem_cache_create("names_cache", PATH_MAX, 0,
---- linux-2.6.37-rc4/init/main.c
-+++ 2.6.37-rc4-use-totalhigh_pages/init/main.c
-@@ -22,6 +22,7 @@
- #include <linux/init.h>
- #include <linux/initrd.h>
- #include <linux/bootmem.h>
-+#include <linux/highmem.h>
- #include <linux/acpi.h>
- #include <linux/tty.h>
- #include <linux/percpu.h>
-@@ -673,13 +674,13 @@ asmlinkage void __init start_kernel(void
- #endif
- 	thread_info_cache_init();
- 	cred_init();
--	fork_init(totalram_pages);
-+	fork_init(totalram_pages - totalhigh_pages);
- 	proc_caches_init();
- 	buffer_init();
- 	key_init();
- 	security_init();
- 	dbg_late_init();
--	vfs_caches_init(totalram_pages);
-+	vfs_caches_init(totalram_pages - totalhigh_pages);
- 	signals_init();
- 	/* rootfs populating might need page-writeback */
- 	page_writeback_init();
-
-
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
