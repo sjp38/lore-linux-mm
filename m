@@ -1,54 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 03FC36B0087
-	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 07:36:04 -0500 (EST)
-Date: Mon, 6 Dec 2010 07:34:48 -0500
-From: Ted Ts'o <tytso@mit.edu>
-Subject: Re: [PATCH 01/13] writeback: IO-less balance_dirty_pages()
-Message-ID: <20101206123448.GI4273@thunk.org>
-References: <1290085474.2109.1480.camel@laptop>
- <20101129151719.GA30590@localhost>
- <1291064013.32004.393.camel@laptop>
- <20101130043735.GA22947@localhost>
- <1291156522.32004.1359.camel@laptop>
- <1291156765.32004.1365.camel@laptop>
- <20101201133818.GA13377@localhost>
- <20101205161435.GA1421@localhost>
- <20101206024231.GG4273@thunk.org>
- <87d3pf6xey.fsf@dmon-lap.sw.ru>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87d3pf6xey.fsf@dmon-lap.sw.ru>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A03456B0089
+	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 07:36:46 -0500 (EST)
+In-reply-to: <20101203085350.55f94057@xenia.leun.net> (message from Michael
+	Leun on Fri, 3 Dec 2010 08:53:50 +0100)
+Subject: Re: kernel BUG at mm/truncate.c:475!
+References: <20101130194945.58962c44@xenia.leun.net>
+	<alpine.LSU.2.00.1011301453090.12516@tigran.mtv.corp.google.com>
+	<E1PNjsI-0005Bk-NB@pomaz-ex.szeredi.hu>
+	<20101201124528.6809c539@xenia.leun.net>
+	<E1PNqO1-0005px-9h@pomaz-ex.szeredi.hu>
+	<20101202084159.6bff7355@xenia.leun.net>
+	<20101202091552.4a63f717@xenia.leun.net>
+	<E1PO5gh-00079U-Ma@pomaz-ex.szeredi.hu>
+	<20101202115722.1c00afd5@xenia.leun.net> <20101203085350.55f94057@xenia.leun.net>
+Message-Id: <E1PPaIw-0004pW-Mk@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Mon, 06 Dec 2010 13:36:30 +0100
 Sender: owner-linux-mm@kvack.org
-To: Dmitry <dmonakhov@openvz.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Hellwig <hch@lst.de>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "Tang, Feng" <feng.tang@intel.com>, linux-ext4@vger.kernel.org
+To: Michael Leun <lkml20101129@newton.leun.net>
+Cc: miklos@szeredi.hu, hughd@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 06, 2010 at 12:52:21PM +0300, Dmitry wrote:
-> May be it is reasonable to introduce new mount option which control
-> dynamic delalloc on/off behavior for example like this:
-> 0) -odelalloc=off : analog of nodelalloc
-> 1) -odelalloc=normal : Default mode (disable delalloc if close to full fs)
-> 2) -odelalloc=force  : delalloc mode always enabled, so we have to do
->                      writeback more aggressive in case of ENOSPC.
+On Fri, 3 Dec 2010, Michael Leun wrote:
+> On Thu, 2 Dec 2010 11:57:22 +0100
+> Michael Leun <lkml20101129@newton.leun.net> wrote:
 > 
-> So one can force delalloc and can safely use this writeback mode in 
-> multi-user environment. Openvz already has this. I'll prepare the patch
-> if you are interesting in that feature?
+> > > Can you please describe in detail the workload that's causing this
+> > > to happen?
+> > 
+> > Thats rather complicated, but I'll try. Basically it boils down to:
+> > 
+> > unshare -n -m /bin/bash
+> > unionfs -o
+> > cow,suid,allow_other,max_files=65536 /home/netenv/user1-union=RW:/=RO /home/netenv/user1
+> > mount -n -t proc none /home/netenv/user1/proc mount -n -t sysfs
+> > none /home/netenv/user1/sys mount -n -t devtmpfs
+> > devtmpfs /home/netenv/user1/dev mount -n -t devpts
+> > devpts /home/netenv/user1/dev/pts chroot /home/netenv/user1 /bin/su -
+> > user1
+> [...]
+> > In some of this setups two or more environments share the same
+> > writable branch, so the files in this environments changed against
+> > real root of the machine are the same, e.g.:
+> > 
+> > [...]
+> > unionfs -o
+> > cow,suid,allow_other,max_files=65536 /home/netenv/commondir=RW:/=RO /home/netenv/user1
+> > [...]
+> > 
+> > and another one
+> > 
+> > [...]
+> > unionfs -o
+> > cow,suid,allow_other,max_files=65536 /home/netenv/commondir=RW:/=RO /home/netenv/user2
+> > [...]
+> 
+> Additional note: Happens also WITHOUT that "two unionfs mounts use the
+> same branch dir" stuff.
 
-Yeah, I'd really rather not do that.  There are significant downsides
-with your proposed odelalloc=force mode.  One of which is that we
-could run out of space and not notice.  If the application doesn't
-call fsync() and check the return value, and simply closes()'s the
-file and then exits, when the writeback threads do get around to
-writing the file, the block allocation could fail, and oops, data gets
-lost.  There's a _reason_ why we disable delalloc when we're close to
-a full fs.  The only alternative is to super conservative when doing
-your block reservation calculations, and in that case, you end up
-returning ENOSPC far too soon.
+Thanks.
 
-						- Ted
+For you the workaround would be to use the "kernel_cache" option which
+disables cache invalidation on open.
+
+I'll try to reproduce the BUG on my machine, and if I don't succeed
+I'll need som more help from you.
+
+Also could you please send me your kernel .config
+
+> 
+> Really seems to happen much more often in 2.6.36.1 than in 2.6.36.
+
+Probably just coincidence.  Sometimes the frequency a bug shows up
+depends on code layout (and hence cache layout) differences, which can
+vary from compile to compile and even from one boot to the next.
+
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
