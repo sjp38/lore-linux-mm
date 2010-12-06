@@ -1,78 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 1EFBE6B0087
-	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 04:52:32 -0500 (EST)
-Received: by eydd26 with SMTP id d26so6486879eyd.14
-        for <linux-mm@kvack.org>; Mon, 06 Dec 2010 01:52:26 -0800 (PST)
-From: Dmitry <dmonakhov@openvz.org>
-Subject: Re: [PATCH 01/13] writeback: IO-less balance_dirty_pages()
-In-Reply-To: <20101206024231.GG4273@thunk.org>
-References: <20101117042720.033773013@intel.com> <20101117042849.410279291@intel.com> <1290085474.2109.1480.camel@laptop> <20101129151719.GA30590@localhost> <1291064013.32004.393.camel@laptop> <20101130043735.GA22947@localhost> <1291156522.32004.1359.camel@laptop> <1291156765.32004.1365.camel@laptop> <20101201133818.GA13377@localhost> <20101205161435.GA1421@localhost> <20101206024231.GG4273@thunk.org>
-Date: Mon, 06 Dec 2010 12:52:21 +0300
-Message-ID: <87d3pf6xey.fsf@dmon-lap.sw.ru>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 541DE6B0087
+	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 05:56:20 -0500 (EST)
+Date: Mon, 6 Dec 2010 10:55:58 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/5] mm: kswapd: Stop high-order balancing when any
+	suitable zone is balanced
+Message-ID: <20101206105558.GA21406@csn.ul.ie>
+References: <1291376734-30202-1-git-send-email-mel@csn.ul.ie> <1291376734-30202-2-git-send-email-mel@csn.ul.ie> <AANLkTi=ZXBXS2m0WCTNWT1t6EFi=Vji5t-yQG=fTJQgs@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTi=ZXBXS2m0WCTNWT1t6EFi=Vji5t-yQG=fTJQgs@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Ted Ts'o <tytso@mit.edu>, Wu Fengguang <fengguang.wu@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Hellwig <hch@lst.de>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "Tang, Feng" <feng.tang@intel.com>, linux-ext4@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 5 Dec 2010 21:42:31 -0500, Ted Ts'o <tytso@mit.edu> wrote:
-> On Mon, Dec 06, 2010 at 12:14:35AM +0800, Wu Fengguang wrote:
-> > 
-> > Ah I seem to find the root cause. See the attached graphs. Ext4 should
-> > be calling redirty_page_for_writepage() to redirty ~300MB pages on
-> > every ~10s. The redirties happen in big bursts, so not surprisingly
-> > the dd task's dirty weight will suddenly drop to 0.
-> > 
-> > It should be the same ext4 issue discussed here:
-> > 
-> >         http://www.spinics.net/lists/linux-fsdevel/msg39555.html
+On Mon, Dec 06, 2010 at 08:35:18AM +0900, Minchan Kim wrote:
+> Hi Mel,
 > 
-> Yeah, unfortunately the fix suggested isn't the right one.
+> On Fri, Dec 3, 2010 at 8:45 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> > When the allocator enters its slow path, kswapd is woken up to balance the
+> > node. It continues working until all zones within the node are balanced. For
+> > order-0 allocations, this makes perfect sense but for higher orders it can
+> > have unintended side-effects. If the zone sizes are imbalanced, kswapd may
+> > reclaim heavily within a smaller zone discarding an excessive number of
+> > pages. The user-visible behaviour is that kswapd is awake and reclaiming
+> > even though plenty of pages are free from a suitable zone.
+> >
+> > This patch alters the "balance" logic for high-order reclaim allowing kswapd
+> > to stop if any suitable zone becomes balanced to reduce the number of pages
+> > it reclaims from other zones. kswapd still tries to ensure that order-0
+> > watermarks for all zones are met before sleeping.
+> >
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 > 
-> The right fix is going to involve making much more radical changes to
-> the ext4 write submission path, which is on my todo queue.  For now,
-> if people don't like these nasty writeback dynamics, my suggestion for
-> now is to mount the filesystem data=writeback.
+> <snip>
 > 
-> This is basically the clean equivalent of the patch suggested by Feng
-> Tang in his e-mail referenced above.  Given that ext4 uses delayed
-> allocation, most of the time unwritten blocks are not allocated, and
-> so stale data isn't exposed.
-May be it is reasonable to introduce new mount option which control
-dynamic delalloc on/off behavior for example like this:
-0) -odelalloc=off : analog of nodelalloc
-1) -odelalloc=normal : Default mode (disable delalloc if close to full fs)
-2) -odelalloc=force  : delalloc mode always enabled, so we have to do
-                     writeback more aggressive in case of ENOSPC.
+> > -       if (!all_zones_ok) {
+> > +       if (!(all_zones_ok || (order && any_zone_ok))) {
+> >                cond_resched();
+> >
+> >                try_to_freeze();
+> > @@ -2361,6 +2366,31 @@ out:
+> >                goto loop_again;
+> >        }
+> >
+> > +       /*
+> > +        * If kswapd was reclaiming at a higher order, it has the option of
+> > +        * sleeping without all zones being balanced. Before it does, it must
+> > +        * ensure that the watermarks for order-0 on *all* zones are met and
+> > +        * that the congestion flags are cleared
+> > +        */
+> > +       if (order) {
+> > +               for (i = 0; i <= end_zone; i++) {
+> > +                       struct zone *zone = pgdat->node_zones + i;
+> > +
+> > +                       if (!populated_zone(zone))
+> > +                               continue;
+> > +
+> > +                       if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+> > +                               continue;
+> > +
+> > +                       zone_clear_flag(zone, ZONE_CONGESTED);
+> 
+> Why clear ZONE_CONGESTED?
+> If you have a cause, please, write down the comment.
+> 
 
-So one can force delalloc and can safely use this writeback mode in 
-multi-user environment. Openvz already has this. I'll prepare the patch
-if you are interesting in that feature?
+It's because kswapd is the only mechanism that clears the congestion
+flag. If it's not cleared and kswapd goes to sleep, the flag could be
+left set causing hard-to-diagnose stalls. I'll add a comment.
+
+> <snip>
 > 
-> The case which you're seeing here is where both the jbd2 data=order
-> forced writeback is colliding with the writeback thread, and
-> unfortunately, the forced writeback in the jbd2 layer is done in an
-> extremely inefficient manner.  So data=writeback is the workaround,
-> and unlike ext3, it's not a serious security leak.  It is possible for
-> some stale data to get exposed if you get unlucky when you crash,
-> though, so there is a potential for some security exposure.
+> First impression on this patch is that it changes scanning behavior as
+> well as reclaiming on high order reclaim.
+
+It does affect scanning behaviour for high-order reclaim. Specifically,
+it may stop scanning once a zone is balanced within the node. Previously
+it would continue scanning until all zones were balanced. Is this what
+you are thinking of or something else?
+
+> I can't say old behavior is right but we can't say this behavior is
+> right, too although this patch solves the problem. At least, we might
+> need some data that shows this patch doesn't have a regression.
+
+How do you suggest it be tested and this data be gathered? I tested a number of
+workloads that keep kswapd awake but found no differences of major significant
+even though it was using high-order allocations. The  problem with identifying
+small regressions for high-order allocations is that the state of the system
+when lumpy reclaim starts is very important as it determines how much work
+has to be done. I did not find major regressions in performance.
+
+For the tests I did run;
+
+fsmark showed nothing useful. iozone showed nothing useful either as it didn't
+even wake kswapd. sysbench showed minor performance gains and losses but it
+is not useful as it typically does not wake kswapd unless the database is
+badly configured.
+
+I ran postmark because it was the closest benchmark to a mail simulator I
+had access to. This sucks because it's no longer representative of a mail
+server and is more like a crappy filesystem benchmark. To get it closer to a
+real server, there was also a program running in the background that mapped
+a large anonymous segment and scanned it in blocks.
+
+POSTMARK
+            postmark-traceonly-v3r1-postmarkpostmark-kanyzone-v2r6-postmark
+                traceonly-v3r1     kanyzone-v2r6
+Transactions per second:                2.00 ( 0.00%)     2.00 ( 0.00%)
+Data megabytes read per second:         8.14 ( 0.00%)     8.59 ( 5.24%)
+Data megabytes written per second:     18.94 ( 0.00%)    19.98 ( 5.21%)
+Files created alone per second:         4.00 ( 0.00%)     4.00 ( 0.00%)
+Files create/transact per second:       1.00 ( 0.00%)     1.00 ( 0.00%)
+Files deleted alone per second:        34.00 ( 0.00%)    30.00 (-13.33%)
+Files delete/transact per second:       1.00 ( 0.00%)     1.00 ( 0.00%)
+
+MMTests Statistics: duration
+User/Sys Time Running Test (seconds)         152.4    152.92
+Total Elapsed Time (seconds)               5110.96   4847.22
+
+FTrace Reclaim Statistics: vmscan
+            postmark-traceonly-v3r1-postmarkpostmark-kanyzone-v2r6-postmark
+                traceonly-v3r1     kanyzone-v2r6
+Direct reclaims                                  0          0 
+Direct reclaim pages scanned                     0          0 
+Direct reclaim pages reclaimed                   0          0 
+Direct reclaim write file async I/O              0          0 
+Direct reclaim write anon async I/O              0          0 
+Direct reclaim write file sync I/O               0          0 
+Direct reclaim write anon sync I/O               0          0 
+Wake kswapd requests                             0          0 
+Kswapd wakeups                                2177       2174 
+Kswapd pages scanned                      34690766   34691473 
+Kswapd pages reclaimed                    34511965   34513478 
+Kswapd reclaim write file async I/O             32          0 
+Kswapd reclaim write anon async I/O           2357       2561 
+Kswapd reclaim write file sync I/O               0          0 
+Kswapd reclaim write anon sync I/O               0          0 
+Time stalled direct reclaim (seconds)         0.00       0.00 
+Time kswapd awake (seconds)                 632.10     683.34 
+
+Total pages scanned                       34690766  34691473
+Total pages reclaimed                     34511965  34513478
+%age total pages scanned/reclaimed          99.48%    99.49%
+%age total pages scanned/written             0.01%     0.01%
+%age  file pages scanned/written             0.00%     0.00%
+Percentage Time Spent Direct Reclaim         0.00%     0.00%
+Percentage Time kswapd Awake                12.37%    14.10%
+
+proc vmstat: Faults
+            postmark-traceonly-v3r1-postmarkpostmark-kanyzone-v2r6-postmark
+                traceonly-v3r1     kanyzone-v2r6
+Major Faults                                  1979      1741
+Minor Faults                              13660834  13587939
+Page ins                                     89060     74704
+Page outs                                    69800     58884
+Swap ins                                      1193      1499
+Swap outs                                     2403      2562
+
+Still, IO performance was improved (higher rates of read/write) and the test
+completed significantly faster with this patch series applied.  kswapd was
+awake for longer and reclaimed marginally more pages with more swap-ins and
+swap-outs which is unfortunate but it's somewhat balanced by fewer faults
+and fewer page-ins. Basically, in terms of reclaim the figures are so close
+that it is within the performance variations lumpy reclaim has depending on
+the exact state of the system when reclaim starts.
+
+> It's
+> not easy but I believe you can do very well as like having done until
+> now. I didn't see whole series so I might miss something.
 > 
-> The long-term solution to this problem is to rework the ext4 writeback
-> path so that we write the data blocks when they are newly allocated,
-> and then only update fs metadata once they are written.  As I said,
-> it's on my queue.  Until then, the only suggestion I can give folks is
-> data=writeback.
-> 
-> 						- Ted
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
