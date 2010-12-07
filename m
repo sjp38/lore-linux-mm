@@ -1,50 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id CE5DE6B0087
-	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 21:26:03 -0500 (EST)
-Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
-	by smtp-out.google.com with ESMTP id oB72Pvff004430
-	for <linux-mm@kvack.org>; Mon, 6 Dec 2010 18:25:57 -0800
-Received: from qyk29 (qyk29.prod.google.com [10.241.83.157])
-	by hpaq6.eem.corp.google.com with ESMTP id oB72PQmd023214
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 6 Dec 2010 18:25:56 -0800
-Received: by qyk29 with SMTP id 29so13194932qyk.11
-        for <linux-mm@kvack.org>; Mon, 06 Dec 2010 18:25:55 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 188086B0089
+	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 21:30:08 -0500 (EST)
+Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
+	by smtp-out.google.com with ESMTP id oB72U6VH018977
+	for <linux-mm@kvack.org>; Mon, 6 Dec 2010 18:30:06 -0800
+Received: from qwd6 (qwd6.prod.google.com [10.241.193.198])
+	by kpbe14.cbf.corp.google.com with ESMTP id oB72Tdce001774
+	for <linux-mm@kvack.org>; Mon, 6 Dec 2010 18:29:42 -0800
+Received: by qwd6 with SMTP id 6so1955070qwd.9
+        for <linux-mm@kvack.org>; Mon, 06 Dec 2010 18:29:40 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20101130165142.bff427b0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20101202144132.GR2746@balbir.in.ibm.com>
 References: <1291099785-5433-1-git-send-email-yinghan@google.com>
-	<1291099785-5433-4-git-send-email-yinghan@google.com>
-	<20101130165142.bff427b0.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 6 Dec 2010 18:25:55 -0800
-Message-ID: <AANLkTimm1NrMJ2owLnKbeRe2=p-dHQpJGd7j+A2Sixap@mail.gmail.com>
-Subject: Re: [PATCH 3/4] Per cgroup background reclaim.
+	<20101130155327.8313.A69D9226@jp.fujitsu.com>
+	<AANLkTi=idNjuptkQuiaOF+GiUDjBaBC9kW370u-041sT@mail.gmail.com>
+	<20101202144132.GR2746@balbir.in.ibm.com>
+Date: Mon, 6 Dec 2010 18:29:39 -0800
+Message-ID: <AANLkTikGTDZMsDBX-YJ+oUzZFA1bLS2eM8UR7ahHdkiQ@mail.gmail.com>
+Subject: Re: [RFC][PATCH 0/4] memcg: per cgroup background reclaim
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 29, 2010 at 11:51 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Mon, 29 Nov 2010 22:49:44 -0800
-> Ying Han <yinghan@google.com> wrote:
+On Thu, Dec 2, 2010 at 6:41 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wr=
+ote:
+> * Ying Han <yinghan@google.com> [2010-11-29 23:03:31]:
 >
+>> On Mon, Nov 29, 2010 at 10:54 PM, KOSAKI Motohiro
+>> <kosaki.motohiro@jp.fujitsu.com> wrote:
+>> >> The current implementation of memcg only supports direct reclaim and =
+this
+>> >> patchset adds the support for background reclaim. Per cgroup backgrou=
+nd
+>> >> reclaim is needed which spreads out the memory pressure over longer p=
+eriod
+>> >> of time and smoothes out the system performance.
+>> >>
+>> >> The current implementation is not a stable version, and it crashes so=
+metimes
+>> >> on my NUMA machine. Before going further for debugging, I would like =
+to start
+>> >> the discussion and hear the feedbacks of the initial design.
+>> >
+>> > I haven't read your code at all. However I agree your claim that memcg
+>> > also need background reclaim.
+>>
+>> Thanks for your comment.
+>> >
+>> > So if you post high level design memo, I'm happy.
+>>
+>> My high level design is kind of spreading out into each patch, and
+>> here is the consolidated one. This is nothing more but cluing all the
+>> commits' messages for the following patches.
+>>
+>> "
 >> The current implementation of memcg only supports direct reclaim and thi=
 s
->> patch adds the support for background reclaim. Per cgroup background rec=
-laim
->> is needed which spreads out the memory pressure over longer period of ti=
-me
->> and smoothes out the system performance.
+>> patchset adds the support for background reclaim. Per cgroup background
+>> reclaim is needed which spreads out the memory pressure over longer peri=
+od
+>> of time and smoothes out the system performance.
 >>
 >> There is a kswapd kernel thread for each memory node. We add a different=
  kswapd
 >> for each cgroup. The kswapd is sleeping in the wait queue headed at kswa=
 pd_wait
->> field of a kswapd descriptor.
+>> field of a kswapd descriptor. The kswapd descriptor stores information o=
+f node
+>> or cgroup and it allows the global and per cgroup background reclaim to =
+share
+>> common reclaim algorithms. The per cgroup kswapd is invoked at mem_cgrou=
+p_charge
+>> when the cgroup's memory usage above a threshold--low_wmark. Then the ks=
+wapd
+>> thread starts to reclaim pages in a priority loop similar to global algo=
+rithm.
+>> The kswapd is done if the usage below a threshold--high_wmark.
+>>
+>
+> So the logic is per-node/per-zone/per-cgroup right?
+
+Thanks Balbir for your comments:
+
+
+The kswapd thread is per-cgroup, and the scanning is on per-node and
+per-zone. The watermarks is calculated based on the per-cgroup
+limit_in_bytes, and kswapd is done whenever the usage_in_bytes is
+under the watermarks.
+>
+>> The per cgroup background reclaim is based on the per cgroup LRU and als=
+o adds
+>> per cgroup watermarks. There are two watermarks including "low_wmark" an=
+d
+>> "high_wmark", and they are calculated based on the limit_in_bytes(hard_l=
+imit)
+>> for each cgroup. Each time the hard_limit is change, the corresponding w=
+marks
+>> are re-calculated. Since memory controller charges only user pages, ther=
+e is
+>
+> What about memsw limits, do they impact anything, I presume not.
+>
+>> no need for a "min_wmark". The current calculation of wmarks is a functi=
+on of
+>> "memory.min_free_kbytes" which could be adjusted by writing different va=
+lues
+>> into the new api. This is added mainly for debugging purpose.
+>
+> When you say debugging, can you elaborate?
+
+I am not sure if we would like to keep the memory.min_free_kbytes for
+the final version, which is used
+to adjust the calculation of per-cgroup wmarks. For now, I am adding
+it for performance testing purpose.
+
+>
 >>
 >> The kswapd() function now is shared between global and per cgroup kswapd=
  thread.
@@ -67,409 +142,25 @@ ed when
 >> there is a page charged to the cgroup being freed. Kswapd breaks the pri=
 ority
 >> loop if all the zones are marked as "unreclaimable".
+>> "
 >>
->> Signed-off-by: Ying Han <yinghan@google.com>
->> ---
->> =A0include/linux/memcontrol.h | =A0 30 +++++++
->> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0| =A0182 +++++++++++++++++++++=
-+++++++++++++++++-
->> =A0mm/page_alloc.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A02 +
->> =A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0205 +++++++++++++++++=
-++++++++++++++++++++++++++-
->> =A04 files changed, 416 insertions(+), 3 deletions(-)
->>
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index 90fe7fe..dbed45d 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -127,6 +127,12 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct =
-zone *zone, int order,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 gfp_t gfp_mask);
->> =A0u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
->>
->> +void mem_cgroup_clear_unreclaimable(struct page *page, struct zone *zon=
-e);
->> +bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem, int nid, int z=
-id);
->> +bool mem_cgroup_mz_unreclaimable(struct mem_cgroup *mem, struct zone *z=
-one);
->> +void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *mem, struct zon=
-e *zone);
->> +void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem, struct zone* z=
-one,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 unsigned long nr_scanned);
->> =A0#else /* CONFIG_CGROUP_MEM_RES_CTLR */
->> =A0struct mem_cgroup;
->>
->> @@ -299,6 +305,25 @@ static inline void mem_cgroup_update_file_mapped(st=
-ruct page *page,
->> =A0{
->> =A0}
->>
->> +static inline void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 struct zone *zone,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 unsigned long nr_scanned)
->> +{
->> +}
->> +
->> +static inline void mem_cgroup_clear_unreclaimable(struct page *page,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct zone *zone)
->> +{
->> +}
->> +static inline void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *m=
-em,
->> + =A0 =A0 =A0 =A0 =A0 =A0 struct zone *zone)
->> +{
->> +}
->> +static inline bool mem_cgroup_mz_unreclaimable(struct mem_cgroup *mem,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 struct zone *zone)
->> +{
->> +}
->> +
->> =A0static inline
->> =A0unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int or=
-der,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 gfp_t gfp_mask)
->> @@ -312,6 +337,11 @@ u64 mem_cgroup_get_limit(struct mem_cgroup *mem)
->> =A0 =A0 =A0 return 0;
->> =A0}
->>
->> +static inline bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem, =
-int nid,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 int zid)
->> +{
->> + =A0 =A0 return false;
->> +}
->> =A0#endif /* CONFIG_CGROUP_MEM_CONT */
->>
->> =A0#endif /* _LINUX_MEMCONTROL_H */
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index a0c6ed9..1d39b65 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -48,6 +48,8 @@
->> =A0#include <linux/page_cgroup.h>
->> =A0#include <linux/cpu.h>
->> =A0#include <linux/oom.h>
->> +#include <linux/kthread.h>
->> +
->> =A0#include "internal.h"
->>
->> =A0#include <asm/uaccess.h>
->> @@ -118,7 +120,10 @@ struct mem_cgroup_per_zone {
->> =A0 =A0 =A0 bool =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0on_tree;
->> =A0 =A0 =A0 struct mem_cgroup =A0 =A0 =A0 *mem; =A0 =A0 =A0 =A0 =A0 /* B=
-ack pointer, we cannot */
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 /* use container_of =A0 =A0 =A0 =A0*/
->> + =A0 =A0 unsigned long =A0 =A0 =A0 =A0 =A0 pages_scanned; =A0/* since l=
-ast reclaim */
->> + =A0 =A0 int =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 all_unreclaimable;=
- =A0 =A0 =A0/* All pages pinned */
->> =A0};
->> +
->> =A0/* Macro for accessing counter */
->> =A0#define MEM_CGROUP_ZSTAT(mz, idx) =A0 =A0((mz)->count[(idx)])
->>
->> @@ -372,6 +377,7 @@ static void mem_cgroup_put(struct mem_cgroup *mem);
->> =A0static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
->> =A0static void drain_all_stock_async(void);
->> =A0static unsigned long get_min_free_kbytes(struct mem_cgroup *mem);
->> +static inline void wake_memcg_kswapd(struct mem_cgroup *mem);
->>
->> =A0static struct mem_cgroup_per_zone *
->> =A0mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
->> @@ -1086,6 +1092,106 @@ mem_cgroup_get_reclaim_stat_from_page(struct pag=
-e *page)
->> =A0 =A0 =A0 return &mz->reclaim_stat;
->> =A0}
->>
->> +unsigned long mem_cgroup_zone_reclaimable_pages(
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 struct mem_cgroup_per_zone *mz)
->> +{
->> + =A0 =A0 int nr;
->> + =A0 =A0 nr =3D MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_FILE) +
->> + =A0 =A0 =A0 =A0 =A0 =A0 MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_FILE);
->> +
->> + =A0 =A0 if (nr_swap_pages > 0)
->> + =A0 =A0 =A0 =A0 =A0 =A0 nr +=3D MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_ANON) =
-+
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 MEM_CGROUP_ZSTAT(mz, LRU_INACT=
-IVE_ANON);
->> +
->> + =A0 =A0 return nr;
->> +}
->> +
->> +void mem_cgroup_mz_pages_scanned(struct mem_cgroup *mem, struct zone* z=
-one,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 unsigned long nr_scanned)
->> +{
->> + =A0 =A0 struct mem_cgroup_per_zone *mz =3D NULL;
->> + =A0 =A0 int nid =3D zone_to_nid(zone);
->> + =A0 =A0 int zid =3D zone_idx(zone);
->> +
->> + =A0 =A0 if (!mem)
->> + =A0 =A0 =A0 =A0 =A0 =A0 return;
->> +
->> + =A0 =A0 mz =3D mem_cgroup_zoneinfo(mem, nid, zid);
->> + =A0 =A0 if (mz)
->> + =A0 =A0 =A0 =A0 =A0 =A0 mz->pages_scanned +=3D nr_scanned;
->> +}
->> +
->> +bool mem_cgroup_zone_reclaimable(struct mem_cgroup *mem, int nid, int z=
-id)
->> +{
->> + =A0 =A0 struct mem_cgroup_per_zone *mz =3D NULL;
->> +
->> + =A0 =A0 if (!mem)
->> + =A0 =A0 =A0 =A0 =A0 =A0 return 0;
->> +
->> + =A0 =A0 mz =3D mem_cgroup_zoneinfo(mem, nid, zid);
->> + =A0 =A0 if (mz)
->> + =A0 =A0 =A0 =A0 =A0 =A0 return mz->pages_scanned <
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_zon=
-e_reclaimable_pages(mz) * 6;
->> + =A0 =A0 return 0;
->> +}
->> +
->> +bool mem_cgroup_mz_unreclaimable(struct mem_cgroup *mem, struct zone *z=
-one)
->> +{
->> + =A0 =A0 struct mem_cgroup_per_zone *mz =3D NULL;
->> + =A0 =A0 int nid =3D zone_to_nid(zone);
->> + =A0 =A0 int zid =3D zone_idx(zone);
->> +
->> + =A0 =A0 if (!mem)
->> + =A0 =A0 =A0 =A0 =A0 =A0 return 0;
->> +
->> + =A0 =A0 mz =3D mem_cgroup_zoneinfo(mem, nid, zid);
->> + =A0 =A0 if (mz)
->> + =A0 =A0 =A0 =A0 =A0 =A0 return mz->all_unreclaimable;
->> +
->> + =A0 =A0 return 0;
->> +}
->> +
->> +void mem_cgroup_mz_set_unreclaimable(struct mem_cgroup *mem, struct zon=
-e *zone)
->> +{
->> + =A0 =A0 struct mem_cgroup_per_zone *mz =3D NULL;
->> + =A0 =A0 int nid =3D zone_to_nid(zone);
->> + =A0 =A0 int zid =3D zone_idx(zone);
->> +
->> + =A0 =A0 if (!mem)
->> + =A0 =A0 =A0 =A0 =A0 =A0 return;
->> +
->> + =A0 =A0 mz =3D mem_cgroup_zoneinfo(mem, nid, zid);
->> + =A0 =A0 if (mz)
->> + =A0 =A0 =A0 =A0 =A0 =A0 mz->all_unreclaimable =3D 1;
->> +}
->> +
->> +void mem_cgroup_clear_unreclaimable(struct page *page, struct zone *zon=
-e)
->> +{
->> + =A0 =A0 struct mem_cgroup_per_zone *mz =3D NULL;
->> + =A0 =A0 struct mem_cgroup *mem =3D NULL;
->> + =A0 =A0 int nid =3D zone_to_nid(zone);
->> + =A0 =A0 int zid =3D zone_idx(zone);
->> + =A0 =A0 struct page_cgroup *pc =3D lookup_page_cgroup(page);
->> +
->> + =A0 =A0 if (unlikely(!pc))
->> + =A0 =A0 =A0 =A0 =A0 =A0 return;
->> +
->> + =A0 =A0 rcu_read_lock();
->> + =A0 =A0 mem =3D pc->mem_cgroup;
->
-> This is incorrect. you have to do css_tryget(&mem->css) before rcu_read_u=
-nlock.
->
->> + =A0 =A0 rcu_read_unlock();
->> +
->> + =A0 =A0 if (!mem)
->> + =A0 =A0 =A0 =A0 =A0 =A0 return;
->> +
->> + =A0 =A0 mz =3D mem_cgroup_zoneinfo(mem, nid, zid);
->> + =A0 =A0 if (mz) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 mz->pages_scanned =3D 0;
->> + =A0 =A0 =A0 =A0 =A0 =A0 mz->all_unreclaimable =3D 0;
->> + =A0 =A0 }
->> +
->> + =A0 =A0 return;
->> +}
->> +
->> =A0unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 struct list_head *dst,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 unsigned long *scanned, int order,
->> @@ -1887,6 +1993,20 @@ static int __mem_cgroup_do_charge(struct mem_cgro=
-up *mem, gfp_t gfp_mask,
->> =A0 =A0 =A0 struct res_counter *fail_res;
->> =A0 =A0 =A0 unsigned long flags =3D 0;
->> =A0 =A0 =A0 int ret;
->> + =A0 =A0 unsigned long min_free_kbytes =3D 0;
->> +
->> + =A0 =A0 min_free_kbytes =3D get_min_free_kbytes(mem);
->> + =A0 =A0 if (min_free_kbytes) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 ret =3D res_counter_charge(&mem->res, csize, C=
-HARGE_WMARK_LOW,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 &fail_res);
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (likely(!ret)) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return CHARGE_OK;
->> + =A0 =A0 =A0 =A0 =A0 =A0 } else {
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_over_limit =3D mem_cgroup_=
-from_res_counter(fail_res,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 res);
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 wake_memcg_kswapd(mem_over_lim=
-it);
->> + =A0 =A0 =A0 =A0 =A0 =A0 }
->> + =A0 =A0 }
->
-> I think this check can be moved out to periodic-check as threshould notif=
-iers.
+>> Also, I am happy to add more descriptions if anything not clear :)
 
-Yes. This will be changed in V2.
-
->
->
->
->>
->> =A0 =A0 =A0 ret =3D res_counter_charge(&mem->res, csize, CHARGE_WMARK_MI=
-N, &fail_res);
->>
->> @@ -3037,6 +3157,7 @@ static int mem_cgroup_resize_limit(struct mem_cgro=
-up *memcg,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 else
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg->memsw=
-_is_minimum =3D false;
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->> + =A0 =A0 =A0 =A0 =A0 =A0 setup_per_memcg_wmarks(memcg);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 mutex_unlock(&set_limit_mutex);
->>
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!ret)
->> @@ -3046,7 +3167,7 @@ static int mem_cgroup_resize_limit(struct mem_cgro=
-up *memcg,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 MEM_CGROUP_RECLAIM_SHRINK);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 curusage =3D res_counter_read_u64(&memcg->re=
-s, RES_USAGE);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* Usage is reduced ? */
->> - =A0 =A0 =A0 =A0 =A0 =A0 if (curusage >=3D oldusage)
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (curusage >=3D oldusage)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 retry_count--;
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 else
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 oldusage =3D curusage;
->
-> What's changed here ?
->
->> @@ -3096,6 +3217,7 @@ static int mem_cgroup_resize_memsw_limit(struct me=
-m_cgroup *memcg,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 else
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg->memsw=
-_is_minimum =3D false;
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->> + =A0 =A0 =A0 =A0 =A0 =A0 setup_per_memcg_wmarks(memcg);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 mutex_unlock(&set_limit_mutex);
->>
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!ret)
->> @@ -4352,6 +4474,8 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
->> =A0static void __mem_cgroup_free(struct mem_cgroup *mem)
->> =A0{
->> =A0 =A0 =A0 int node;
->> + =A0 =A0 struct kswapd *kswapd_p;
->> + =A0 =A0 wait_queue_head_t *wait;
->>
->> =A0 =A0 =A0 mem_cgroup_remove_from_trees(mem);
->> =A0 =A0 =A0 free_css_id(&mem_cgroup_subsys, &mem->css);
->> @@ -4360,6 +4484,15 @@ static void __mem_cgroup_free(struct mem_cgroup *=
-mem)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 free_mem_cgroup_per_zone_info(mem, node);
->>
->> =A0 =A0 =A0 free_percpu(mem->stat);
->> +
->> + =A0 =A0 wait =3D mem->kswapd_wait;
->> + =A0 =A0 kswapd_p =3D container_of(wait, struct kswapd, kswapd_wait);
->> + =A0 =A0 if (kswapd_p) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (kswapd_p->kswapd_task)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kthread_stop(kswapd_p->kswapd_=
-task);
->> + =A0 =A0 =A0 =A0 =A0 =A0 kfree(kswapd_p);
->> + =A0 =A0 }
->> +
->> =A0 =A0 =A0 if (sizeof(struct mem_cgroup) < PAGE_SIZE)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(mem);
->> =A0 =A0 =A0 else
->> @@ -4421,6 +4554,39 @@ int mem_cgroup_watermark_ok(struct mem_cgroup *me=
-m,
->> =A0 =A0 =A0 return ret;
->> =A0}
->>
->> +static inline
->> +void wake_memcg_kswapd(struct mem_cgroup *mem)
->> +{
->> + =A0 =A0 wait_queue_head_t *wait;
->> + =A0 =A0 struct kswapd *kswapd_p;
->> + =A0 =A0 struct task_struct *thr;
->> + =A0 =A0 static char memcg_name[PATH_MAX];
->> +
->> + =A0 =A0 if (!mem)
->> + =A0 =A0 =A0 =A0 =A0 =A0 return;
->> +
->> + =A0 =A0 wait =3D mem->kswapd_wait;
->> + =A0 =A0 kswapd_p =3D container_of(wait, struct kswapd, kswapd_wait);
->> + =A0 =A0 if (!kswapd_p->kswapd_task) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (mem->css.cgroup)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cgroup_path(mem->css.cgroup, m=
-emcg_name, PATH_MAX);
->> + =A0 =A0 =A0 =A0 =A0 =A0 else
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 sprintf(memcg_name, "no_name")=
-;
->> +
->> + =A0 =A0 =A0 =A0 =A0 =A0 thr =3D kthread_run(kswapd, kswapd_p, "kswapd%=
-s", memcg_name);
->
-> I don't think reusing the name of "kswapd" isn't good. and this name cann=
-ot
-> be long as PATH_MAX...IIUC, this name is for comm[] field which is 16byte=
-s long.
->
-> So, how about naming this as
->
-> =A0"memcg%d", mem->css.id ?
->
-> Exporing css.id will be okay if necessary.
-
-I am not if that is working since the mem->css hasn't been initialized
-during mem_cgroup_create(). So that is one of the reasons that I put
-the kswapd creation at triggering wmarks instead of creating cgroup,
-since I have all that information ready by the time.
-
-However, I agree that adding into the cgroup creation is better for
-performance perspective since we won't add the overhead for the page
-allocation. ( Although only the first wmark triggering ). Any
-suggestion?
+Sure. :)
 
 --Ying
+>>
 >
+> Thanks for explaining this in detail, it makes the review easier.
 >
+> --
+> =A0 =A0 =A0 =A0Three Cheers,
+> =A0 =A0 =A0 =A0Balbir
 >
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (IS_ERR(thr))
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 printk(KERN_INFO "Failed to st=
-art kswapd on memcg %d\n",
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 0);
->> + =A0 =A0 =A0 =A0 =A0 =A0 else
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kswapd_p->kswapd_task =3D thr;
->> + =A0 =A0 }
->
-> Hmm, ok, then, kswapd-for-memcg is created when someone go over watermark=
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
