@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 54A566B008A
-	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 13:08:00 -0500 (EST)
-Date: Tue, 7 Dec 2010 10:07:24 -0800
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B7B46B0087
+	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 13:08:18 -0500 (EST)
+Date: Tue, 7 Dec 2010 10:07:54 -0800
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V0 2/4] kztmem: in-kernel transcendent memory code
-Message-ID: <20101207180724.GA28154@ca-server1.us.oracle.com>
+Subject: [PATCH V0 3/4] Kztmem: tmem host services and PAM services
+Message-ID: <20101207180754.GA28170@ca-server1.us.oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -13,87 +13,66 @@ Sender: owner-linux-mm@kvack.org
 To: chris.mason@oracle.com, akpm@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, kurt.hackel@oracle.com, npiggin@kernel.dk, riel@redhat.com, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, mel@csn.ul.ie, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-[PATCH V0 2/4] kztmem: in-kernel transcendent memory code
+[PATCH V0 3/4] Kztmem: tmem host services and PAM services
 
-Transcendent memory ("tmem") is a clean API/ABI that provides
-for an efficient address translation and a set of highly
-concurrent access methods to copy data between a page-oriented
-data source (e.g. cleancache or frontswap) and a page-addressable
-memory ("PAM") data store.
-
-To be functional, two sets of "ops" must be registered, one
-to provide "host services" (memory allocation and "client"
-information) and one to provide page-addressable memory
-("PAM") hooks.
-
-Further, the basic access methods (e.g. put, get, flush, etc)
-are normally called from data sources via other sets of
-ops.  A shim is included for the two known existing data
-sources: cleancache and frontswap; other data sources may
-be provided in the future.
-
-Tmem supports one or more "clients", each which can provide
-a set of "pools" to partition pages.  Each pool contains
-a set of "objects"; each object holds pointers to some number
-of PAM page descriptors ("pampd"), indexed by an "index" number.
-This triple <pool id, object id, index> is sometimes referred
-to as a "handle".  Tmem's primary function is to essentially
-provide address translation of handles into pampds.
-
-As an example, for cleancache, a pool maps to a filesystem,
-an object maps to a file, and the index is the page offset
-into the file.  And in this patch, each PAM descriptor points
-to a compressed page of data.
-
-Tmem supports two kinds of pages: "ephemeral" and "persistent".
-Ephemeral pages may be asynchronously reclaimed "bottoms up"
-so the data structures and concurrency model must allow for
-this.  For example, each pampd must retain an up-pointer to
-its containing object so that, on reclaim, all tmem data
-structures can be made consistent.
+Kztmem provides host services (initialization, memory
+allocation, and single-client pool callback) and two
+different page-addressable memory implemenations using
+lzo1x compression.  The first, "compression buddies" ("zbud")
+compresses pairs of pages and supplies a shrinker interface
+that allows entire pages to be reclaimed.  The second is
+a shim to xvMalloc which is more space-efficient but
+less receptive to page reclamation.  The first is used
+for ephemeral pools and the second for persistent pools.
+All ephemeral pools share the same memory, that is, even
+pages from different pools can share the same page.
 
 Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
 ---
 
 Diffstat:
- drivers/staging/kztmem/tmem.c            | 1375 +++++++++++++++++++++
- drivers/staging/kztmem/tmem.h            |  135 ++
- 2 files changed, 1510 insertions(+)
---- linux-2.6.36/drivers/staging/kztmem/tmem.c	1969-12-31 17:00:00.000000000 -0700
-+++ linux-2.6.36-kztmem/drivers/staging/kztmem/tmem.c	2010-12-07 10:11:38.000000000 -0700
-@@ -0,0 +1,1375 @@
+ drivers/staging/kztmem/kztmem.c          | 1318 +++++++++++++++++++++
+ 1 file changed, 1318 insertions(+)
+
+--- linux-2.6.36/drivers/staging/kztmem/kztmem.c	1969-12-31 17:00:00.000000000 -0700
++++ linux-2.6.36-kztmem/drivers/staging/kztmem/kztmem.c	2010-12-07 10:15:04.000000000 -0700
+@@ -0,0 +1,1318 @@
 +/*
-+ * In-kernel transcendent memory (generic implementation)
++ * kztmem.c
 + *
-+ * Copyright (c) 2009-2010, Dan Magenheimer, Oracle Corp.
++ * Copyright (c) 2010, Dan Magenheimer, Oracle Corp.
 + *
-+ * Transcendent memory must support potentially millions of pages and
-+ * must be able to insert, find, and delete these pages at a potential
-+ * frequency of thousands per second concurrently across many CPUs,
-+ * and, if used with KVM, across many vcpus across many guests.
-+ * Tmem is tracked with a hierarchy of data structures, organized by
-+ * the elements in a handle-tuple: pool_id, object_id, and page index.
-+ * One or more "clients" (e.g. guests) each provide one or more tmem_pools.
-+ * Each pool, contains a hash table of rb_trees of tmem_objs.  Each tmem_obj
-+ * contains a simplified radix tree ("sadix tree") of pointers.  Each of
-+ * these pointers is a page-accessible-memory (PAM) page descriptor
-+ * ("pampd") which is an abstract datatype, accessible only through
-+ * a set of ops provided by the PAM implementation (see tmem_pamops).
-+ * Tmem does all memory allocation via calls to a set of ops provided
-+ * by the tmem host implementation (e.g. see tmem_hostops).
++ * Kztmem provides an in-kernel "host implementation" for transcendent memory
++ * and, thus indirectly, for cleancache and frontswap.  Kztmem includes two
++ * page-accessible memory [1] interfaces, both utilizing lzo1x compression:
++ * 1) "compression buddies" ("zbud") is used for ephemeral pages
++ * 2) xvmalloc is used for persistent pages.
++ * Xvmalloc (based on the TLSF allocator) has very low fragmentation
++ * so maximizes space efficiency, while zbud allows pairs (and potentially,
++ * in the future, more than a pair of) compressed pages to be closely linked
++ * so that reclaiming can be done via the kernel's physical-page-oriented
++ * "shrinker" interface.
 + *
-+ * Also in this file, a generic shim for interfacing the in-kernel
-+ * API's for cleancache and frontswap and functions to register them.
++ * [1] For a definition of page-accessible memory (aka PAM), see:
++ *   http://marc.info/?l=linux-mm&m=127811271605009 
 + */
 +
++#include <linux/types.h>
 +#include <linux/list.h>
++#include <linux/lzo.h>
++#include <linux/highmem.h>
++#include <linux/cpu.h>
++#include <linux/slab.h>
 +#include <linux/spinlock.h>
-+#include <linux/hash.h>
 +#include <asm/atomic.h>
 +
++#include "../zram/xvmalloc.h"
 +#include "tmem.h"
 +
++#if (!defined(CONFIG_CLEANCACHE) && !defined(CONFIG_FRONTSWAP))
++#error "kztmem is useless without CONFIG_CLEANCACHE or CONFIG_FRONTSWAP"
++#endif
 +#ifdef CONFIG_CLEANCACHE
 +#include <linux/cleancache.h>
 +#endif
@@ -101,68 +80,13 @@ Diffstat:
 +#include <linux/frontswap.h>
 +#endif
 +
-+/*
-+ * "WEIRD_BUG", best I can tell, seems to be a compiler bug in gcc 4.1.2
-+ * It seems a local variable gets partially overwritten during/after an
-+ * indirect function call.  Since the variable is a pointer, weird
-+ * results happen.  To work around this, that local variable is saved
-+ * in a per_cpu var and restored after it gets trashed.  The symptoms
-+ * seem to dance around a bit, so I've left a lot of ifdefs lying about
-+ * for this one, in case it is reproducible and someone wants a go at it.
-+ */
-+#define WEIRD_BUG
-+#ifdef WEIRD_BUG
-+#define BAD_OBJ(_obj) \
-+	(!((unsigned long)_obj & 0x00000000ffffffff) || \
-+				_obj->sentinel != OBJ_SENTINEL)
-+#endif
-+
-+/*
-+ * Defining TMEM_GLOBAL_LOCK eliminates concurrency in tmem.  It should
-+ * not be needed, but it's implemented to rule out races as the cause of
-+ * the other bugs.
-+ */
-+#define TMEM_GLOBAL_LOCK
-+
-+/*
-+ * This define is clearly broken and will cause poor performance when
-+ * many objects are in existence, but seems to work around some
-+ * yet-to-be discovered bug in the rbtree code.  See tmem_oid_compare.
-+ */
-+#define BROKEN_OID_COMPARE
-+
-+/*
-+ * Way too verbose unless debugging a very early problem
-+ */
-+#undef TMEM_TRACE
-+
-+static inline void tmem_trace(int op, uint32_t pool_id, struct tmem_oid *oidp,
-+				uint32_t index)
-+{
-+#ifdef TMEM_TRACE
-+	uint64_t oid = oidp->oid[0];
-+
-+	if (oidp->oid[1] || oidp->oid[2])
-+		oid = -1ULL;
-+	pr_err("tmem_trace:%d %d %llx %d\n", op, (int)pool_id,
-+		(long long)oid, (int)index);
-+#endif
-+}
-+
-+/*
-+ * Useful for verifying locking expectations.
-+ */
++/* for debugging */
 +#define ASSERT(_x) WARN_ON(unlikely(!(_x)))	/* CHANGE TO BUG_ON LATER */
-+
-+#define ASSERT_SPINLOCK(_l) ASSERT(tmem_rwlock_held || spin_is_locked(_l))
-+
-+#define ASSERT_WRITELOCK(_l) ASSERT(tmem_rwlock_held || \
-+			(_raw_read_trylock(_l) ? (_raw_read_unlock(_l), 0) : 1))
++#define ASSERT_SPINLOCK(_l)	ASSERT(shrinking || spin_is_locked(_l))
 +
 +/*
 + * sentinels have proven very useful for debugging but can be removed
-+ * or disabled before final merge.  SENTINELS should be #define'd
-+ * or #undef'd in tmem.h
++ * or disabled before final merge
 + */
 +#ifdef SENTINELS
 +#define SET_SENTINEL(_x, _y) (_x->sentinel = _y##_SENTINEL)
@@ -177,158 +101,859 @@ Diffstat:
 +
 +/* OK, the real code finally starts here */
 +
-+static struct tmem_hostops tmem_hostops;
-+static struct tmem_pamops tmem_pamops;
-+
-+/* bookkeeping and debugging routines */
-+
-+static unsigned long tmem_stats[TMEM_STAT_NSTATS];
-+
-+unsigned long tmem_stat_get(int stat)
-+{
-+	ASSERT(stat < TMEM_STAT_NSTATS);
-+	return tmem_stats[stat];
-+}
-+
-+static inline void tmem_stat_inc(int stat)
-+{
-+	tmem_stats[stat]++;
-+}
-+
 +/**********
-+ * tmem_rwlock is held for reading during any tmem activity and held
-+ * for writing for: (1) pool creation and flushing and (2) bulk ephemeral
-+ * memory reclamation (e.g. by a "shrinker").  When held for the latter,
-+ * "tmem_rwlock_held" is also set to avoid unnecessary locking when shrinking
-+ * walks and prunes various data structures.
-+ */
-+static DEFINE_RWLOCK(tmem_rwlock);
-+#ifdef TMEM_GLOBAL_LOCK
-+static bool tmem_rwlock_held = 1;
-+#define tmem_write_or_read_lock(_lock) write_lock(_lock)
-+#define tmem_write_or_read_unlock(_lock) write_unlock(_lock)
-+#else
-+static bool tmem_rwlock_held; /* circumvent all other locks */
-+#define tmem_write_or_read_lock(_lock) read_lock(_lock)
-+#define tmem_write_or_read_unlock(_lock) read_unlock(_lock)
-+#endif
-+
-+void tmem_shrink_lock(void)
-+{
-+	write_lock(&tmem_rwlock);
-+#ifdef TMEM_GLOBAL_LOCK
-+	tmem_rwlock_held = 1;
-+#endif
-+}
-+
-+int tmem_shrink_trylock(void)
-+{
-+	int locked = write_trylock(&tmem_rwlock);
-+#ifdef TMEM_GLOBAL_LOCK
-+	tmem_rwlock_held = locked;
-+#endif
-+	return locked;
-+}
-+
-+void tmem_shrink_unlock(void)
-+{
-+#ifdef TMEM_GLOBAL_LOCK
-+	tmem_rwlock_held = 0;
-+#endif
-+	write_unlock(&tmem_rwlock);
-+}
-+
-+static inline void tmem_spin_lock(spinlock_t *lock)
-+{
-+	if (!tmem_rwlock_held)
-+		spin_lock(lock);
-+}
-+
-+static inline void tmem_spin_unlock(spinlock_t *lock)
-+{
-+	if (!tmem_rwlock_held)
-+		spin_unlock(lock);
-+}
-+
-+static inline bool tmem_spin_trylock(spinlock_t *lock)
-+{
-+	return tmem_rwlock_held ? 1 : spin_trylock(lock);
-+}
-+
-+static inline void tmem_read_lock(rwlock_t *lock)
-+{
-+	if (!tmem_rwlock_held)
-+		read_lock(lock);
-+}
-+
-+static inline void tmem_read_unlock(rwlock_t *lock)
-+{
-+	if (!tmem_rwlock_held)
-+		read_unlock(lock);
-+}
-+
-+static inline void tmem_write_lock(rwlock_t *lock)
-+{
-+	if (!tmem_rwlock_held)
-+		write_lock(lock);
-+}
-+
-+static inline void tmem_write_unlock(rwlock_t *lock)
-+{
-+	if (!tmem_rwlock_held)
-+		write_unlock(lock);
-+}
-+
-+static inline bool tmem_read_trylock(rwlock_t *lock)
-+{
-+	return tmem_rwlock_held ? 1 : read_trylock(lock);
-+}
-+
-+static inline bool tmem_write_trylock(rwlock_t *lock)
-+{
-+	return tmem_rwlock_held ? 1 : write_trylock(lock);
-+}
-+
-+/**********
-+ * The primary purpose of tmem is to map object-oriented "handles"
-+ * (triples containing a pool id, and object id, and an index), to
-+ * pages in a page-accessible memory (PAM).  Tmem references the
-+ * PAM pages via an abstract "pampd" (PAM page-descriptor), which
-+ * can be operated on by a set of functions (pamops).  Each pampd
-+ * contains an index, an "up pointer" to the tmem_obj which points
-+ * to it, and some representation of PAGE_SIZE bytes worth of data.
-+ * The index, tmem_obj pointer, and the data are only accessible
-+ * through pamops.
++ * Compression buddies ("zbud") provides for packing two (or, possibly
++ * in the future, more) compressed ephemeral pages into a single "raw"
++ * (physical) page and tracking them with data structures so that 
++ * the raw pages can be easily reclaimed.
 + *
-+ * The following functions manage pampds and call the pamops.
-+ * Note that any pampd access requires the parent tmem_obj's
-+ * obj_spinlock to be held (thus obviating the need for the RCU
-+ * locking in a standard kernel radix tree).
++ * A zbud page ("zbpg") is an aligned page containing a list_head,
++ * a lock, and two "zbud headers".  The remainder of the physical
++ * page is divided up into aligned 64-byte "chunks" which contain
++ * the compressed data for zero, one, or two zbuds.  Each zbpg
++ * resides on: (1) an "unused list" if it has no zbuds; (2) a
++ * "buddied" list if it is fully populated  with two zbuds; or
++ * (3) one of PAGE_SIZE/64 "unbuddied" lists indexed by how many chunks
++ * the one unbuddied zbud uses.
 + */
++
++#define ZBH_SENTINEL  0x43214321
++#define ZBPG_SENTINEL  0xdeadbeef
++
++#define ZBUD_MAX_BUDS 2
++
++struct zbud_hdr {
++	void *obj;
++	uint32_t index;
++	uint16_t size; /* compressed size in bytes, zero means unused */
++	DECL_SENTINEL
++};
++
++struct zbud_page {
++	struct list_head bud_list;
++	spinlock_t lock;
++	struct zbud_hdr buddy[ZBUD_MAX_BUDS];
++	DECL_SENTINEL
++	/* followed by NUM_CHUNK aligned CHUNK_SIZE-byte chunks */
++};
++
++#define CHUNK_SHIFT	6
++#define CHUNK_SIZE	(1 << CHUNK_SHIFT)
++#define CHUNK_MASK	(~(CHUNK_SIZE-1))
++#define NCHUNKS		(((PAGE_SIZE - sizeof(struct zbud_page)) & \
++				CHUNK_MASK) >> CHUNK_SHIFT)
++#define MAX_CHUNK	(NCHUNKS-1)
++
++static struct {
++	struct list_head list;
++	unsigned count;
++} zbud_unbuddied[NCHUNKS];
++/* list N contains pages with N chunks USED and NCHUNKS-N unused */
++/* element 0 is never used but optimizing that isn't worth it */
++static unsigned long zbud_cumul_chunk_counts[NCHUNKS];
++
++struct list_head zbud_buddied_list;
++static unsigned long kztmem_zbud_buddied_count;
++
++static DEFINE_SPINLOCK(zbud_budlists_spinlock);
++
++static DEFINE_SPINLOCK(zbpg_unused_list_spinlock);
++static LIST_HEAD(zbpg_unused_list);
++static unsigned long kztmem_zbpg_unused_list_count;
++
++static atomic_t kztmem_zbud_curr_raw_pages;
++static atomic_t kztmem_zbud_curr_zpages;
++static unsigned long kztmem_zbud_curr_zbytes;
++static unsigned long kztmem_zbud_cumul_zpages;
++static unsigned long kztmem_zbud_cumul_zbytes;
++static unsigned long kztmem_compress_poor;
++
++/* forward references */
++static void *kztmem_get_free_page(void);
++static void kztmem_free_page(void *p);
++
++static int shrinking;
 +
 +/*
-+ * allocate a pampd, fill it with data from the passed page,
-+ * and associate it with the passed object and index
++ * zbud helper functions
 + */
-+static void *tmem_pampd_create(struct tmem_obj *obj, uint32_t index,
-+				 struct page *page)
-+{
-+	void *pampd = NULL;
-+	struct tmem_pool *pool;
 +
-+	ASSERT(obj != NULL);
-+	pool = obj->pool;
-+	ASSERT(obj->pool != NULL);
-+	pampd = (*tmem_pamops.create)(obj, index, page, obj->pool);
-+#ifdef WEIRD_BUG
-+	if (BAD_OBJ(obj)) {
-+		static int cnt;
-+		cnt++;
-+		if (!(cnt&(cnt-1)))
-+			pr_err("DJM wacko in tmem_pampd_create, now %p, "
-+				"cnt=%d\n",obj,cnt);
++static unsigned zbud_max_buddy_size(void)
++{
++	return MAX_CHUNK << CHUNK_SHIFT;
++}
++
++static inline unsigned zbud_size_to_chunks(unsigned size)
++{
++	ASSERT(size > 0 && size <= zbud_max_buddy_size());
++	return (size + CHUNK_SIZE - 1) >> CHUNK_SHIFT;
++}
++
++static inline int zbud_budnum(struct zbud_hdr *zh)
++{
++	unsigned offset = (unsigned long)zh & (PAGE_SIZE - 1);
++	struct zbud_page *zbpg = NULL;
++	unsigned budnum = -1U;
++	int i;
++
++	for (i = 0; i < ZBUD_MAX_BUDS; i++)
++		if (offset == offsetof(typeof(*zbpg), buddy[i])) {
++			budnum = i;
++			break;
++		}
++	ASSERT(budnum != -1U);
++	return budnum;
++}
++
++static char *zbud_data(struct zbud_hdr *zh, unsigned size)
++{
++	struct zbud_page *zbpg;
++	char *p;
++	unsigned budnum;
++
++	ASSERT_SENTINEL(zh, ZBH);
++	budnum = zbud_budnum(zh);
++	ASSERT(size > 0 && size <= zbud_max_buddy_size());
++	zbpg = container_of(zh, struct zbud_page, buddy[budnum]);
++	ASSERT_SPINLOCK(&zbpg->lock);
++	p = (char *)zbpg;
++	if (budnum == 0)
++		p += ((sizeof(struct zbud_page) + CHUNK_SIZE - 1) &
++							CHUNK_MASK);
++	else if (budnum == 1)
++		p += PAGE_SIZE - ((size + CHUNK_SIZE - 1) & CHUNK_MASK);
++	ASSERT(((((unsigned long)p) & (CHUNK_SIZE-1)) == 0) &&
++		(p >= (char *)zbpg + CHUNK_SIZE) &&
++		(p + size <= (char *)zbpg + PAGE_SIZE));
++	ASSERT(((unsigned long)p & PAGE_MASK) ==
++		((unsigned long)(p + size - 1) & PAGE_MASK));
++	return p;
++}
++
++/*
++ * zbud locking
++ */
++
++static void zbpg_lock(struct zbud_page *zbpg)
++{
++	if (!shrinking)
++		while (!spin_trylock(&zbpg->lock))
++			ASSERT_SENTINEL(zbpg, ZBPG);
++}
++
++static void zbpg_unlock(struct zbud_page *zbpg)
++{
++	ASSERT_SENTINEL(zbpg, ZBPG);
++	if (!shrinking)
++		spin_unlock(&zbpg->lock);
++}
++
++static void zbpg_unlock_free(struct zbud_page *zbpg)
++{
++	ASSERT(zbpg->sentinel == ~ZBPG_SENTINEL);
++	if (!shrinking)
++		spin_unlock(&zbpg->lock);
++}
++
++static int zbpg_trylock(struct zbud_page *zbpg)
++{
++	ASSERT_SENTINEL(zbpg, ZBPG);
++	return shrinking ? 1 : spin_trylock(&zbpg->lock);
++}
++
++static void zbud_budlists_lock(void)
++{
++	if (!shrinking)
++		spin_lock(&zbud_budlists_spinlock);
++}
++
++static void zbud_budlists_unlock(void)
++{
++	if (!shrinking)
++		spin_unlock(&zbud_budlists_spinlock);
++}
++
++static void zbpg_unused_list_lock(void)
++{
++	if (!shrinking)
++		spin_lock(&zbpg_unused_list_spinlock);
++}
++
++static void zbpg_unused_list_unlock(void)
++{
++	if (!shrinking)
++		spin_unlock(&zbpg_unused_list_spinlock);
++}
++
++/*
++ * zbud raw page management
++ */
++
++static struct zbud_page *zbud_alloc_raw_page(void)
++{
++	struct zbud_page *zbpg = NULL;
++	struct zbud_hdr *zh0, *zh1;
++	bool recycled = 0;
++
++	/* if any pages on the zbpg list, use one */
++	zbpg_unused_list_lock();
++	if (!list_empty(&zbpg_unused_list)) {
++		zbpg = list_entry((&zbpg_unused_list)->next,
++				struct zbud_page, bud_list);
++		list_del_init(&zbpg->bud_list);
++		kztmem_zbpg_unused_list_count--;
++		recycled = 1;
 +	}
++	zbpg_unused_list_unlock();
++	if (zbpg == NULL)
++		/* none on zbpg list, try to get a kernel page */
++		zbpg = kztmem_get_free_page();
++	if (likely(zbpg != NULL)) {
++		INIT_LIST_HEAD(&zbpg->bud_list);
++		zh0 = &zbpg->buddy[0]; zh1 = &zbpg->buddy[1];
++		spin_lock_init(&zbpg->lock);
++		if (recycled) {
++			ASSERT_INVERTED_SENTINEL(zbpg, ZBPG);
++			SET_SENTINEL(zbpg, ZBPG);
++			ASSERT(zh0->size == 0 && zh0->obj == NULL);
++			ASSERT(zh1->size == 0 && zh1->obj == NULL);
++		} else {
++			atomic_inc(&kztmem_zbud_curr_raw_pages);
++			INIT_LIST_HEAD(&zbpg->bud_list);
++			SET_SENTINEL(zbpg, ZBPG);
++			zh0->size = 0; zh1->size = 0;
++		}
++	}
++	return zbpg;
++}
++
++static void zbud_free_raw_page(struct zbud_page *zbpg)
++{
++	struct zbud_hdr *zh0 = &zbpg->buddy[0], *zh1 = &zbpg->buddy[1];
++
++	ASSERT_SENTINEL(zbpg, ZBPG);
++	ASSERT(list_empty(&zbpg->bud_list));
++	ASSERT_SPINLOCK(&zbpg->lock);
++	ASSERT(zh0->size == 0 && zh0->obj == NULL);
++	ASSERT(zh1->size == 0 && zh1->obj == NULL);
++	INVERT_SENTINEL(zbpg, ZBPG);
++	zbpg_unlock_free(zbpg);
++	zbpg_unused_list_lock();
++	list_add(&zbpg->bud_list, &zbpg_unused_list);
++	kztmem_zbpg_unused_list_count++;
++	zbpg_unused_list_unlock();
++}
++
++/*
++ * core zbud handling routines
++ */
++
++static unsigned zbud_free(struct zbud_hdr *zh)
++{
++	unsigned size;
++
++	ASSERT_SENTINEL(zh, ZBH);
++	ASSERT(zh->obj != NULL);
++	size = zh->size;
++	ASSERT(zh->size > 0 && zh->size <= zbud_max_buddy_size());
++	zh->size = 0;
++	zh->obj = NULL;
++	INVERT_SENTINEL(zh, ZBH);
++	kztmem_zbud_curr_zbytes -= size;
++	atomic_dec(&kztmem_zbud_curr_zpages);
++	return size;
++}
++
++static void zbud_free_and_delist(struct zbud_hdr *zh)
++{
++	unsigned chunks;
++	struct zbud_hdr *zh_other;
++	unsigned budnum = zbud_budnum(zh), size;
++	struct zbud_page *zbpg =
++		container_of(zh, struct zbud_page, buddy[budnum]);
++
++	zbpg_lock(zbpg);
++	size = zbud_free(zh);
++	ASSERT_SPINLOCK(&zbpg->lock);
++	zh_other = &zbpg->buddy[(budnum == 0) ? 1 : 0];
++	if (zh_other->size == 0) { /* was unbuddied: unlist and free */
++		chunks = zbud_size_to_chunks(size) ;
++		zbud_budlists_lock();
++		ASSERT(!list_empty(&zbud_unbuddied[chunks].list));
++		list_del_init(&zbpg->bud_list);
++		zbud_unbuddied[chunks].count--;
++		zbud_budlists_unlock();
++		zbud_free_raw_page(zbpg);
++	} else { /* was buddied: move remaining buddy to unbuddied list */
++		chunks = zbud_size_to_chunks(zh_other->size) ;
++		zbud_budlists_lock();
++		list_del_init(&zbpg->bud_list);
++		kztmem_zbud_buddied_count--;
++		list_add_tail(&zbpg->bud_list, &zbud_unbuddied[chunks].list);
++		zbud_unbuddied[chunks].count++;
++		zbud_budlists_unlock();
++		zbpg_unlock(zbpg);
++	}
++}
++
++static struct zbud_hdr *zbud_create(uint32_t index, void *obj,
++					struct page *page, void *cdata,
++					unsigned size)
++{
++	struct zbud_hdr *zh0, *zh1, *zh = NULL;
++	struct zbud_page *zbpg = NULL, *ztmp;
++	unsigned nchunks;
++	char *to;
++	int i, found_good_buddy = 0;
++
++	nchunks = zbud_size_to_chunks(size) ;
++	for (i = MAX_CHUNK - nchunks + 1; i > 0; i--) {
++		ASSERT(i > 0 && i < NCHUNKS);
++		zbud_budlists_lock();
++		if (!list_empty(&zbud_unbuddied[i].list)) {
++			ASSERT(zbud_unbuddied[i].count > 0);
++			list_for_each_entry_safe(zbpg, ztmp,
++				    &zbud_unbuddied[i].list, bud_list) {
++				if (zbpg_trylock(zbpg)) {
++					found_good_buddy = i;
++					goto found_unbuddied;
++				}
++			}
++		}
++		zbud_budlists_unlock();
++	}
++	/* didn't find a good buddy, try allocating a new page */
++	zbpg = zbud_alloc_raw_page();
++	if (unlikely(zbpg == NULL))
++		goto out;
++	/* ok, have a page, now compress the data before taking locks */
++	zbpg_lock(zbpg);
++	zbud_budlists_lock();
++	list_add_tail(&zbpg->bud_list, &zbud_unbuddied[nchunks].list);
++	zbud_unbuddied[nchunks].count++;
++	zh = &zbpg->buddy[0];
++	ASSERT(found_good_buddy == 0);
++	goto init_zh;
++
++found_unbuddied:
++	ASSERT(found_good_buddy > 0 && found_good_buddy < NCHUNKS);
++	ASSERT_SPINLOCK(&zbpg->lock);
++	zh0 = &zbpg->buddy[0]; zh1 = &zbpg->buddy[1];
++	ASSERT((zh0->size == 0) ^ (zh1->size == 0));
++	if (zh0->size != 0) { /* buddy0 in use, buddy1 is vacant */
++		ASSERT_SENTINEL(zh0, ZBH);
++		zh = zh1;
++	} else if (zh1->size != 0) { /* buddy1 in use, buddy0 is vacant */
++		ASSERT_SENTINEL(zh1, ZBH);
++		zh = zh0;
++	} else
++		BUG();
++	list_del_init(&zbpg->bud_list);
++	zbud_unbuddied[found_good_buddy].count--;
++	list_add_tail(&zbpg->bud_list, &zbud_buddied_list);
++	kztmem_zbud_buddied_count++;
++
++init_zh:
++	SET_SENTINEL(zh, ZBH);
++	zh->size = size;
++	zh->index = index;
++	zh->obj = obj;
++	/* can wait to copy the data until the list locks are dropped */
++	zbud_budlists_unlock();
++
++	to = zbud_data(zh, size);
++	memcpy(to, cdata, size);
++	zbpg_unlock(zbpg);
++	zbud_cumul_chunk_counts[nchunks]++;
++	atomic_inc(&kztmem_zbud_curr_zpages);
++	kztmem_zbud_cumul_zpages++;
++	kztmem_zbud_curr_zbytes += size;
++	kztmem_zbud_cumul_zbytes += size;
++out:
++	return zh;
++}
++
++static void zbud_decompress(struct page *page, struct zbud_hdr *zh)
++{
++	struct zbud_page *zbpg;
++	unsigned budnum = zbud_budnum(zh);
++	size_t out_len = PAGE_SIZE;
++	char *to_va, *from_va;
++	unsigned size;
++	int ret;
++
++	zbpg = container_of(zh, struct zbud_page, buddy[budnum]);
++	zbpg_lock(zbpg);
++	ASSERT_SENTINEL(zh, ZBH);
++	ASSERT(zh->size > 0 && zh->size <= zbud_max_buddy_size());
++	to_va = kmap_atomic(page, KM_USER0);
++	size = zh->size;
++	from_va = zbud_data(zh, size);
++	ret = lzo1x_decompress_safe(from_va, size, to_va, &out_len);
++	ASSERT(ret == LZO_E_OK);
++	ASSERT(out_len == PAGE_SIZE);
++	kunmap_atomic(to_va, KM_USER0);
++	zbpg_unlock(zbpg);
++}
++
++static unsigned long evicted_pgs;
++
++/*
++ * First free the pageframes of anything in the zbpg list.  Then
++ * walk through all ephemeral pampd's (starting with least efficiently
++ * stored), prune them from all tmem data structures, and free the
++ * pageframes.  Should only be called when all tmem and zbud operations
++ * are locked out (ie. when the tmem_rwlock is held for writing)
++ */
++static void zbud_evict_pages(int nr)
++{
++	struct zbud_page *zbpg, *ztmp;
++	int i, j;
++
++	if (list_empty(&zbpg_unused_list)) {
++		list_for_each_entry_safe(zbpg, ztmp, &zbpg_unused_list,
++						bud_list) {
++			list_del_init(&zbpg->bud_list);
++			kztmem_zbpg_unused_list_count--;
++			atomic_dec(&kztmem_zbud_curr_raw_pages);
++			kztmem_free_page(zbpg);
++			if (--nr <= 0)
++				break;
++		}
++	}
++	if (nr <= 0)
++		goto out;
++	for (i = 0; i < MAX_CHUNK; i++) {
++		if (list_empty(&zbud_unbuddied[i].list))
++			continue;
++		list_for_each_entry_safe(zbpg, ztmp,
++				&zbud_unbuddied[i].list, bud_list) {
++			for (j = 0; j < ZBUD_MAX_BUDS; j++)
++				if (zbpg->buddy[j].size)
++					tmem_pampd_prune(&zbpg->buddy[j]);
++			list_del_init(&zbpg->bud_list);
++			ASSERT_SENTINEL(zbpg, ZBPG);
++			zbud_free_raw_page(zbpg);
++			evicted_pgs++;
++			zbud_unbuddied[i].count--;
++			if (--nr <= 0)
++				goto out;
++		}
++	}
++	if (nr > 0 && !list_empty(&zbud_buddied_list)) {
++		list_for_each_entry_safe(zbpg, ztmp,
++				&zbud_buddied_list, bud_list) {
++			for (j = 0; j < ZBUD_MAX_BUDS; j++) {
++				ASSERT(zbpg->buddy[j].size);
++				tmem_pampd_prune(&zbpg->buddy[j]);
++			}
++			list_del_init(&zbpg->bud_list);
++			ASSERT_SENTINEL(zbpg, ZBPG);
++			zbud_free_raw_page(zbpg);
++			evicted_pgs++;
++			kztmem_zbud_buddied_count--;
++			if (--nr <= 0)
++				goto out;
++		}
++	}
++out:
++	return;
++}
++
++#ifdef CONFIG_SYSFS
++static int zbud_show_unbuddied_list_counts(char *buf)
++{
++	int i;
++	char *p = buf;
++
++	for (i = 0; i < NCHUNKS - 1; i++)
++		p += sprintf(p, "%u ", zbud_unbuddied[i].count);
++	p += sprintf(p, "%d\n", zbud_unbuddied[i].count);
++	return p - buf;
++}
++
++static int zbud_show_cumul_chunk_counts(char *buf)
++{
++	unsigned long i, chunks = 0, total_chunks = 0, sum_total_chunks = 0;
++	unsigned long total_chunks_lte_21 = 0, total_chunks_lte_32 = 0;
++	unsigned long total_chunks_lte_42 = 0;
++	char *p = buf;
++
++	for (i = 0; i < NCHUNKS; i++) {
++		p += sprintf(p, "%lu ", zbud_cumul_chunk_counts[i]);
++		chunks += zbud_cumul_chunk_counts[i];
++		total_chunks += zbud_cumul_chunk_counts[i];
++		sum_total_chunks += i * zbud_cumul_chunk_counts[i];
++		if (i == 21)
++			total_chunks_lte_21 = total_chunks;
++		if (i == 32)
++			total_chunks_lte_32 = total_chunks;
++		if (i == 42)
++			total_chunks_lte_42 = total_chunks;
++	}
++	p += sprintf(p, "<=21:%lu <=32:%lu <=42:%lu, mean:%lu\n",
++		total_chunks_lte_21, total_chunks_lte_32, total_chunks_lte_42,
++		chunks == 0 ? 0 : sum_total_chunks / chunks);
++	return p - buf;
++}
 +#endif
++
++static void zbud_init(void)
++{
++	int i;
++
++	INIT_LIST_HEAD(&zbud_buddied_list);
++	kztmem_zbud_buddied_count = 0;
++	for (i = 0; i < NCHUNKS; i++) {
++		INIT_LIST_HEAD(&zbud_unbuddied[i].list);
++		zbud_unbuddied[i].count = 0;
++	}
++	pr_info("kztmem: zbud: NCHUNKS=%d, MAX_CHUNK=%d, max_buddy_size=%d\n",
++		(int)NCHUNKS, (int)MAX_CHUNK, (int)zbud_max_buddy_size());
++}
++
++/**********
++ * This "zv" PAM implementation combines the TLSF-based xvMalloc
++ * with lzo1x compression to maximize the amount of data that can
++ * be packed into a physical page.
++ *
++ * Zv represents a PAM page with the index and object (plus a "size" value
++ * necessary for decompression) immediately preceding the compressed data.
++ */
++
++#define ZVH_SENTINEL  0x43214321
++
++struct zv_hdr {
++	void *obj;
++	uint32_t index;
++	DECL_SENTINEL
++};
++
++static const int zv_max_page_size = (PAGE_SIZE / 8) * 7;
++
++static struct zv_hdr *zv_create(struct xv_pool *xvpool, uint32_t index,
++				void *obj, void *cdata, unsigned clen)
++{
++	struct page *page;
++	unsigned long flags;
++	struct zv_hdr *zv = NULL;
++	uint32_t offset;
++	int ret;
++
++	local_irq_save(flags);
++	ret = xv_malloc(xvpool, clen + sizeof(struct zv_hdr),
++			&page, &offset, GFP_NOWAIT);
++	local_irq_restore(flags);
++	if (unlikely(ret))
++		goto out;
++	zv = kmap_atomic(page, KM_USER0) + offset;
++	zv->index = index;
++	zv->obj = obj;
++	SET_SENTINEL(zv, ZVH);
++	memcpy((char *)zv + sizeof(struct zv_hdr), cdata, clen);
++	kunmap_atomic(zv, KM_USER0);
++out:
++	return zv;
++}
++
++static void zv_free(struct xv_pool *xvpool, struct zv_hdr *zv)
++{
++	unsigned long flags;
++	struct page *page;
++	uint32_t offset;
++	uint16_t size;
++
++	ASSERT_SENTINEL(zv, ZVH);
++	ASSERT(zv->obj != NULL);
++	size = xv_get_object_size(zv) - sizeof(*zv);
++	ASSERT(size > 0 && size <= zv_max_page_size);
++	zv->obj = NULL;
++	INVERT_SENTINEL(zv, ZVH);
++	page = virt_to_page(zv);
++	offset = (unsigned long)zv & ~PAGE_MASK;
++	local_irq_save(flags);
++	xv_free(xvpool, page, offset);
++	local_irq_restore(flags);
++}
++
++static void zv_decompress(struct page *page, struct zv_hdr *zv)
++{
++	size_t clen = PAGE_SIZE;
++	char *to_va;
++	unsigned size;
++	int ret;
++
++	ASSERT_SENTINEL(zv, ZVH);
++	size = xv_get_object_size(zv) - sizeof(*zv);
++	ASSERT(size > 0 && size <= zv_max_page_size);
++	to_va = kmap_atomic(page, KM_USER0);
++	ret = lzo1x_decompress_safe((char *)zv + sizeof(*zv),
++					size, to_va, &clen);
++	kunmap_atomic(to_va, KM_USER0);
++	ASSERT(ret == LZO_E_OK);
++	ASSERT(clen == PAGE_SIZE);
++}
++
++/*
++ * kztmem implementation for tmem host ops
++ */
++
++#define MAX_POOLS_PER_CLIENT 16
++
++static struct {
++	struct tmem_pool *tmem_pools[MAX_POOLS_PER_CLIENT];
++	struct xv_pool *xvpool;
++} kztmem_client;
++
++/*
++ * Tmem operations assume the poolid refers to the invoking client.
++ * Kztmem only has one client (the kernel itself), so translate
++ * the poolid into the tmem_pool allocated for it
++ */
++static struct tmem_pool *kztmem_get_pool_by_id(uint32_t poolid)
++{
++	struct tmem_pool *pool = NULL;
++
++	if (poolid >= 0) {
++		pool = kztmem_client.tmem_pools[poolid];
++		if (!pool->is_valid)
++			pool = NULL;
++	}
++	return pool;
++}
++
++/*
++ * Ensure that memory allocation requests in kztmem don't result
++ * in direct reclaim requests via the shrinker, which would cause
++ * an infinite loop.  Maybe a GFP flag would be better?
++ */
++static DEFINE_SPINLOCK(kztmem_direct_reclaim_lock);
++
++/*
++ * for now, used named slabs so can easily track usage; later can
++ * probably just use kmalloc
++ */
++static struct kmem_cache *kztmem_objnode_cache;
++static struct kmem_cache *kztmem_obj_cache;
++static atomic_t kztmem_curr_obj_count = ATOMIC_INIT(0);
++static unsigned long kztmem_curr_obj_count_max;
++static atomic_t kztmem_curr_objnode_count = ATOMIC_INIT(0);
++static unsigned long kztmem_curr_objnode_count_max;
++
++static void *kztmem_get_free_page(void)
++{
++	void *page = NULL;
++
++	if (spin_trylock(&kztmem_direct_reclaim_lock)) {
++		page = (void *)__get_free_page(
++				GFP_KERNEL | __GFP_ZERO | __GFP_NORETRY);
++		spin_unlock(&kztmem_direct_reclaim_lock);
++	}
++	return page;
++}
++
++static void kztmem_free_page(void *p)
++{
++	free_page((unsigned long)p);
++}
++
++static struct tmem_objnode *kztmem_objnode_alloc(struct tmem_pool *pool)
++{
++	struct tmem_objnode *objnode = NULL;
++	unsigned long count;
++
++	if (unlikely(kztmem_objnode_cache == NULL)) {
++		kztmem_objnode_cache =
++			kmem_cache_create("kztmem_objnode",
++				sizeof(struct tmem_objnode), 0, 0, NULL);
++		if (unlikely(kztmem_objnode_cache == NULL))
++			goto out;
++	}
++	if (spin_trylock(&kztmem_direct_reclaim_lock)) {
++		objnode = kmem_cache_alloc(kztmem_objnode_cache,
++					GFP_KERNEL | __GFP_NORETRY);
++		count = atomic_inc_return(&kztmem_curr_objnode_count);
++		if (count > kztmem_curr_objnode_count_max)
++			kztmem_curr_objnode_count_max = count;
++		spin_unlock(&kztmem_direct_reclaim_lock);
++	}
++out:
++	return objnode;
++}
++
++static void kztmem_objnode_free(struct tmem_objnode *objnode,
++					struct tmem_pool *pool)
++{
++	atomic_dec(&kztmem_curr_objnode_count);
++	ASSERT(atomic_read(&kztmem_curr_objnode_count) >= 0);
++	kmem_cache_free(kztmem_objnode_cache, objnode);
++}
++
++static struct tmem_obj *kztmem_obj_alloc(struct tmem_pool *pool)
++{
++	struct tmem_obj *obj = NULL;
++	unsigned long count;
++
++	if (unlikely(kztmem_obj_cache == NULL)) {
++		kztmem_obj_cache = kmem_cache_create("kztmem_obj",
++					sizeof(struct tmem_obj), 0, 0, NULL);
++		if (unlikely(kztmem_obj_cache == NULL))
++			goto out;
++	}
++	if (spin_trylock(&kztmem_direct_reclaim_lock)) {
++		obj = kmem_cache_alloc(kztmem_obj_cache,
++					GFP_KERNEL | __GFP_NORETRY);
++		spin_unlock(&kztmem_direct_reclaim_lock);
++		count = atomic_inc_return(&kztmem_curr_obj_count);
++		if (count > kztmem_curr_obj_count_max)
++			kztmem_curr_obj_count_max = count;
++	}
++out:
++	return obj;
++}
++
++static void kztmem_obj_free(struct tmem_obj *obj, struct tmem_pool *pool)
++{
++	atomic_dec(&kztmem_curr_obj_count);
++	ASSERT(atomic_read(&kztmem_curr_obj_count) >= 0);
++	kmem_cache_free(kztmem_obj_cache, obj);
++}
++
++static struct tmem_pool *kztmem_pool_alloc(uint32_t flags, uint32_t *ppoolid)
++{
++	int persistent = flags & TMEM_POOL_PERSIST;
++	int pagebits = (flags >> TMEM_POOL_PAGESIZE_SHIFT)
++		& TMEM_POOL_PAGESIZE_MASK;
++	struct tmem_pool *pool = NULL;
++	int shared = 0;
++	uint32_t poolid;
++
++	pr_info("tmem: allocating %s-%s tmem pool...",
++		persistent ? "persistent" : "ephemeral" ,
++		shared ? "shared" : "private");
++	pool = (struct tmem_pool *)kmalloc(sizeof(struct tmem_pool),
++						GFP_KERNEL);
++	if (pool == NULL) {
++		pr_info("failed... out of memory\n");
++		goto out;
++	}
++	if (pagebits != (PAGE_SHIFT - 12)) {
++		pr_info("failed... unsupported pagesize %d\n",
++			1<<(pagebits+12));
++		goto fail;
++	}
++	if (flags & TMEM_POOL_PRECOMPRESSED) {
++		pr_info("failed... precompression flag set "
++			"but unsupported\n");
++		goto fail;
++	}
++	if (flags & TMEM_POOL_RESERVED_BITS) {
++		pr_info("failed... reserved bits must be zero\n");
++		goto fail;
++	}
++
++	for (poolid = 0; poolid < MAX_POOLS_PER_CLIENT; poolid++)
++		if (kztmem_client.tmem_pools[poolid] == NULL)
++			break;
++	if (poolid >= MAX_POOLS_PER_CLIENT) {
++		pr_info("failed no more pool slots available\n");
++		goto fail;
++	}
++	pool->is_valid = 0; /* avoid races */
++	kztmem_client.tmem_pools[poolid] = pool;
++	pool->client = &kztmem_client;
++	*ppoolid = poolid;
++	pr_info("pool_id=%d\n", poolid);
++	goto out;
++fail:
++	kfree(pool);
++	pool = NULL;
++out:
++	return pool;
++}
++
++static void kztmem_pool_free(struct tmem_pool *pool)
++{
++	kztmem_client.tmem_pools[pool->pool_id] = NULL;
++	kfree(pool);
++}
++
++static struct tmem_hostops kztmem_hostops = {
++	.get_pool_by_id = kztmem_get_pool_by_id,
++	.obj_alloc = kztmem_obj_alloc,
++	.obj_free = kztmem_obj_free,
++	.objnode_alloc = kztmem_objnode_alloc,
++	.objnode_free = kztmem_objnode_free,
++	.pool_alloc = kztmem_pool_alloc,
++	.pool_free = kztmem_pool_free
++};
++
++/*
++ * kztmem implementations for PAM page descriptor ops
++ */
++
++static atomic_t kztmem_curr_eph_pampd_count = ATOMIC_INIT(0);
++static unsigned long kztmem_curr_eph_pampd_count_max;
++static atomic_t kztmem_curr_pers_pampd_count = ATOMIC_INIT(0);
++static unsigned long kztmem_curr_pers_pampd_count_max;
++
++/* forward reference */
++static int kztmem_compress(struct page *from, void **out_va, unsigned *out_len);
++
++static void *kztmem_pampd_create(void *obj, uint32_t index,
++				struct page *page, void *vpool)
++{
++	void *pampd = NULL, *cdata;
++	unsigned clen;
++	int ret;
++	struct tmem_pool *pool = (struct tmem_pool *)vpool;
++	bool ephemeral = is_ephemeral(pool);
++	unsigned long count;
++
++	if (ephemeral) {
++		preempt_disable(); /* compressed data is per-cpu */
++		ret = kztmem_compress(page, &cdata, &clen);
++		if (ret == 0)
++
++			goto enable_out;
++		if (clen == 0 || clen > zbud_max_buddy_size())
++			goto bad_compress;
++		pampd = (void *)zbud_create(index, obj, page, cdata, clen);
++		if (pampd != NULL) {
++			count = atomic_inc_return(&kztmem_curr_eph_pampd_count);
++			if (count > kztmem_curr_eph_pampd_count_max)
++				kztmem_curr_eph_pampd_count_max = count;
++		}
++	} else {
++		/*
++		 * FIXME: This is all the "policy" there is for now.
++		 * 3/4 totpages should allow ~37% of RAM to be filled with
++		 * compressed frontswap pages
++		 */
++		if (atomic_read(&kztmem_curr_pers_pampd_count) >
++							3 * totalram_pages / 4)
++			goto out;
++		preempt_disable(); /* compressed data is per-cpu */
++		ret = kztmem_compress(page, &cdata, &clen);
++		if (ret == 0)
++			goto enable_out;
++		if (clen > zv_max_page_size)
++			goto bad_compress;
++		pampd = (void *)zv_create(kztmem_client.xvpool, index, obj,
++						cdata, clen);
++		if (pampd != NULL) {
++			count = atomic_inc_return(&kztmem_curr_pers_pampd_count);
++			if (count > kztmem_curr_pers_pampd_count_max)
++				kztmem_curr_pers_pampd_count_max = count;
++		}
++	}
++	goto enable_out;
++
++bad_compress:
++	kztmem_compress_poor++;
++enable_out:
++	preempt_enable_no_resched();
++out:
 +	return pampd;
 +}
 +
@@ -336,1246 +961,401 @@ Diffstat:
 + * fill the pageframe corresponding to the struct page with the data
 + * from the passed pampd
 + */
-+static void tmem_pampd_get_data(struct page *page, void *pampd,
-+					struct tmem_pool *pool)
++static void kztmem_pampd_get_data(struct page *page, void *pampd, void *vpool)
 +{
-+	(*tmem_pamops.get_data)(page, pampd, pool);
-+}
++	struct tmem_pool *pool = (struct tmem_pool *)vpool;
 +
-+/*
-+ * lookup index in object and return associated pampd
-+ */
-+static void *tmem_pampd_lookup_in_obj(struct tmem_obj *obj, uint32_t index)
-+{
-+	void *pampd;
-+
-+	ASSERT(obj != NULL);
-+	ASSERT_SPINLOCK(&obj->obj_spinlock);
-+	ASSERT_SENTINEL(obj, OBJ);
-+	ASSERT(obj->pool != NULL);
-+	ASSERT_SENTINEL(obj->pool, POOL);
-+	pampd = sadix_tree_lookup(&obj->tree_root, index);
-+	return pampd;
-+}
-+
-+/*
-+ * remove page from lists (already gone from parent object) and free it 
-+ */
-+static void tmem_pampd_delete(void *pampd, void *pool)
-+{
-+	struct tmem_obj *obj;
-+	uint32_t index;
-+
-+	ASSERT(pampd != NULL);
-+	obj = (*tmem_pamops.get_obj)(pampd, pool);
-+	ASSERT(obj != NULL);
-+	ASSERT_SENTINEL(obj, OBJ);
-+	ASSERT(obj->pool != NULL);
-+	ASSERT_SENTINEL(obj->pool, POOL);
-+	index = (*tmem_pamops.get_index)(pampd, pool);
-+	ASSERT(tmem_pampd_lookup_in_obj(obj, index) == NULL);
-+	(*tmem_pamops.free)(pampd, pool);
-+}
-+
-+/*
-+ * called only indirectly by sadix_tree_destroy when an entire object
-+ * and all of its associated pampd's are being destroyed
-+ */
-+static void tmem_pampd_destroy(void *pampd, void *pool)
-+{
-+	struct tmem_obj *obj;
-+
-+	ASSERT(pampd != NULL);
-+	obj = (*tmem_pamops.get_obj)(pampd, pool);
-+	ASSERT(obj != NULL);
-+	ASSERT_SPINLOCK(&obj->obj_spinlock);
-+	ASSERT_SENTINEL(obj, OBJ);
-+	ASSERT(obj->pool != NULL);
-+	ASSERT_SENTINEL(obj->pool, POOL);
-+	obj->pampd_count--;
-+	ASSERT(obj->pampd_count >= 0);
-+	(*tmem_pamops.free)(pampd, pool);
-+}
-+
-+static void tmem_obj_free(struct tmem_obj *);
-+static void *tmem_pampd_delete_from_obj(struct tmem_obj *, uint32_t);
-+
-+/**********
-+ * called by PAM-implementation memory shrinker/reclamation functions,
-+ * removes the passed pampd from all tmem data structures and then
-+ * calls back into the PAM-implemenatation (via pampops.prune) to free
-+ * the space associated with the pampd. Should only be called when all
-+ * tmem operations are locked out (ie. when the tmem_rwlock is held
-+ * for writing).
-+ */
-+#ifdef WEIRD_BUG
-+static DEFINE_PER_CPU(struct tmem_obj *, pampd_prune_saved_obj);
-+#endif
-+void tmem_pampd_prune(void *pampd)
-+{
-+	struct tmem_obj *obj;
-+	void *pampd_del;
-+	uint32_t index;
-+
-+#ifndef TMEM_GLOBAL_LOCK
-+	ASSERT(!write_trylock(&tmem_rwlock));
-+#endif
-+	ASSERT(pampd != NULL);
-+	obj = (*tmem_pamops.get_obj)(pampd, NULL);
-+	ASSERT(obj != NULL);
-+	ASSERT_SENTINEL(obj, OBJ);
-+	ASSERT_SPINLOCK(&obj->obj_spinlock);
-+	ASSERT_SENTINEL(obj->pool, POOL);
-+	ASSERT(is_ephemeral(obj->pool));
-+	index = (*tmem_pamops.get_index)(pampd, NULL);
-+	pampd_del = tmem_pampd_delete_from_obj(obj, index);
-+	ASSERT(pampd_del == pampd);
-+#ifdef WEIRD_BUG
-+	BUG_ON(BAD_OBJ(obj));
-+	per_cpu(pampd_prune_saved_obj, smp_processor_id()) = obj;	
-+	/* the local variable obj somehow gets overwritten between here */
-+	(*tmem_pamops.prune)(pampd);
-+	/* and here so reset it to a previously saved per-cpu value */
-+	if (BAD_OBJ(obj)) {
-+		static int cnt;
-+		cnt++;
-+		if (!(cnt&(cnt-1)))
-+			pr_err("DJM obj fixing wacko obj 5, cnt=%d\n",cnt);
-+		obj = get_cpu_var(pampd_prune_saved_obj);
-+		BUG_ON(BAD_OBJ(obj));
-+	}
-+#else
-+	(*tmem_pamops.prune)(pampd);
-+#endif
-+	if (obj->pampd_count == 0)
-+		tmem_obj_free(obj);
-+}
-+
-+/* forward references to actor functions, see comments below */
-+static struct sadix_tree_node *tmem_stn_alloc(void *arg);
-+static void tmem_stn_free(struct sadix_tree_node *tmem_stn);
-+
-+static int tmem_pampd_add_to_obj(struct tmem_obj *obj, uint32_t index,
-+					void *pampd)
-+{
-+	int ret;
-+
-+	ASSERT_SPINLOCK(&obj->obj_spinlock);
-+	ret = sadix_tree_insert(&obj->tree_root, index,
-+				pampd, tmem_stn_alloc, obj);
-+	if (!ret)
-+		obj->pampd_count++;
-+	ASSERT(ret == 0 || ret == -ENOMEM);
-+	return ret;
-+}
-+
-+static void *tmem_pampd_delete_from_obj(struct tmem_obj *obj, uint32_t index)
-+{
-+	void *pampd;
-+
-+	ASSERT(obj != NULL);
-+	ASSERT_SPINLOCK(&obj->obj_spinlock);
-+	ASSERT_SENTINEL(obj, OBJ);
-+	ASSERT(obj->pool != NULL);
-+	ASSERT_SENTINEL(obj->pool, POOL);
-+	pampd = sadix_tree_delete(&obj->tree_root, index, tmem_stn_free);
-+	if (pampd != NULL)
-+		obj->pampd_count--;
-+	ASSERT(obj->pampd_count >= 0);
-+	return pampd;
-+}
-+
-+/**********
-+ * A tmem_obj is a simplified radix tree ("sadix tree"), which has intermediate
-+ * nodes, called tmem_objnodes.  Each of these tmem_objnodes contains a set
-+ * of pampds.  When sadix tree manipulation requires a tmem_objnode to
-+ * be created or destroyed, the sadix tree implementation calls back to
-+ * the two routines below.  Note that any access to the tmem_obj's sadix
-+ * tree requires the tmem_obj's obj_spinlock to be held.
-+ *
-+ * NB: The host must call sadix_tree_init() before sadix trees are used.
-+ */
-+
-+/* called only indirectly from sadix_tree_insert */
-+static struct sadix_tree_node *tmem_stn_alloc(void *arg)
-+{
-+	struct tmem_objnode *objnode;
-+	struct tmem_obj *obj = (struct tmem_obj *)arg;
-+	struct sadix_tree_node *stn = NULL;
-+
-+	ASSERT_SENTINEL(obj, OBJ);
-+	ASSERT(obj->pool != NULL);
-+	ASSERT_SENTINEL(obj->pool, POOL);
-+	objnode = (*tmem_hostops.objnode_alloc)(obj->pool);
-+	if (unlikely(objnode == NULL))
-+		goto out;
-+	objnode->obj = obj;
-+	SET_SENTINEL(objnode, OBJNODE);
-+	memset(&objnode->tmem_stn, 0, sizeof(struct sadix_tree_node));
-+	obj->objnode_count++;
-+	stn = &objnode->tmem_stn;
-+out:
-+	return stn;
-+}
-+
-+/* called only indirectly from sadix_tree_delete/destroy */
-+static void tmem_stn_free(struct sadix_tree_node *tmem_stn)
-+{
-+	struct tmem_pool *pool;
-+	struct tmem_objnode *objnode;
-+	int i;
-+
-+	ASSERT(tmem_stn != NULL);
-+	for (i = 0; i < SADIX_TREE_MAP_SIZE; i++)
-+		ASSERT(tmem_stn->slots[i] == NULL);
-+	objnode = container_of(tmem_stn, struct tmem_objnode, tmem_stn);
-+	ASSERT_SENTINEL(objnode, OBJNODE);
-+	INVERT_SENTINEL(objnode, OBJNODE);
-+	ASSERT(objnode->obj != NULL);
-+	ASSERT_SPINLOCK(&objnode->obj->obj_spinlock);
-+	ASSERT_SENTINEL(objnode->obj, OBJ);
-+	pool = objnode->obj->pool;
-+	ASSERT(pool != NULL);
-+	ASSERT_SENTINEL(pool, POOL);
-+	objnode->obj->objnode_count--;
-+	objnode->obj = NULL;
-+	(*tmem_hostops.objnode_free)(objnode, pool);
-+}
-+
-+/**********
-+ * An object id ("oid") is large: 192-bits (to ensure, for example, files
-+ * in a modern filesystem can be uniquely identified).  The following set
-+ * of inlined oid helper functions simplify handling of oids.
-+ */
-+
-+static inline int tmem_oid_compare(struct tmem_oid *left,
-+					struct tmem_oid *right)
-+{
-+#ifdef BROKEN_OID_COMPARE
-+#define WRONG left
-+	/*
-+	 * note left < left in three places, instead of left < right
-+	 * results in -1 never getting returned.  This is clearly
-+	 * wrong, but somehow three WRONGs make a right
-+	 */
-+#else
-+#define WRONG right
-+#endif
-+	int ret;
-+
-+	if (left->oid[2] == right->oid[2]) {
-+		if (left->oid[1] == right->oid[1]) {
-+			if (left->oid[0] == right->oid[0])
-+				ret = 0;
-+			else if (left->oid[0] < WRONG->oid[0])
-+				ret = -1;
-+			else
-+				return 1;
-+		} else if (left->oid[1] < WRONG->oid[1])
-+			ret = -1;
-+		else
-+			ret = 1;
-+	} else if (left->oid[2] < WRONG->oid[2])
-+		ret = -1;
++	if (is_ephemeral(pool))
++		zbud_decompress(page, pampd);
 +	else
-+		ret = 1;
++		zv_decompress(page, pampd);
++}
++
++/* return the pampd's index */
++static uint32_t kztmem_pampd_get_index(void *pampd, void *vpool)
++{
++	struct tmem_pool *pool = (struct tmem_pool *)vpool;
++	uint32_t ret = -1;
++
++	if (pool == NULL || is_ephemeral(pool)) {
++		struct zbud_hdr *zh = (struct zbud_hdr *)pampd;
++
++		if (zh == NULL)
++			goto out;
++		ASSERT_SENTINEL(zh, ZBH);
++		ret = zh->index;
++	} else {
++		struct zv_hdr *zv = (struct zv_hdr *)pampd;
++		if (zv == NULL)
++			goto out;
++		ASSERT_SENTINEL(zv, ZVH);
++		ret = zv->index;
++	}
++out:
 +	return ret;
 +}
 +
-+static inline void tmem_oid_set_invalid(struct tmem_oid *oidp)
++/* return the pampd's object */
++static struct tmem_obj *kztmem_pampd_get_obj(void *pampd, void *vpool)
 +{
-+	oidp->oid[0] = oidp->oid[1] = oidp->oid[2] = -1UL;
-+}
++	struct tmem_pool *pool = (struct tmem_pool *)vpool;
++	struct tmem_obj *obj = NULL;
 +
-+static inline unsigned tmem_oid_hash(struct tmem_oid *oidp)
-+{
-+	return hash_long(oidp->oid[0] ^ oidp->oid[1] ^ oidp->oid[2],
-+			BITS_PER_LONG) & OBJ_HASH_BUCKETS_MASK;
-+}
++	if (pool == NULL || is_ephemeral(pool)) {
++		struct zbud_hdr *zh = (struct zbud_hdr *)pampd;
 +
-+/**********
-+ * Oid's are potentially very sparse and tmem_objs may have an indeterminately
-+ * short life, being added and deleted at a relatively high frequency.
-+ * So an rb_tree is an ideal data structure to manage tmem_objs.  But because
-+ * of the potentially huge number of tmem_objs, each pool manages a hashtable
-+ * of rb_trees to reduce search, insert, delete, and rebalancing time
-+ * The following routines manage tmem_objs.  When any rb_tree is being
-+ * accessed, the parent tmem_pool's rwlock must be held for reading, and
-+ * if any rb_tree changes might occur, that rwlock must be held fro writing.
-+ */
-+
-+/* searches for object==oid in pool, returns locked object if found */
-+static struct tmem_obj *tmem_obj_find(struct tmem_pool *pool,
-+					struct tmem_oid *oidp)
-+{
-+	struct rb_node *node;
-+	struct tmem_obj *obj;
-+
-+restart_find:
-+	tmem_read_lock(&pool->pool_rwlock);
-+	node = pool->obj_rb_root[tmem_oid_hash(oidp)].rb_node;
-+	while (node) {
-+		ASSERT(!RB_EMPTY_NODE(node));
-+		obj = rb_entry(node, struct tmem_obj, rb_tree_node);
-+#ifdef WEIRD_BUG
-+		WARN_ON(BAD_OBJ(obj));
-+#endif
-+		switch (tmem_oid_compare(&obj->oid, oidp)) {
-+		case 0: /* equal */
-+			if (!tmem_spin_trylock(&obj->obj_spinlock)) {
-+#ifdef WEIRD_BUG
-+				static int retries;
-+				if (retries++ >= 10000000) {
-+					pr_err("DJM broke out of obj_find\n");
-+					tmem_read_unlock(&pool->pool_rwlock);
-+					retries = 0;
-+					goto out;
-+				}
-+#endif
-+				tmem_read_unlock(&pool->pool_rwlock);
-+				goto restart_find;
-+			}
-+			tmem_read_unlock(&pool->pool_rwlock);
++		if (zh == NULL)
 +			goto out;
-+		case -1:
-+			node = node->rb_left;
-+			break;
-+		case 1:
-+			node = node->rb_right;
-+			break;
-+		}
++		ASSERT_SENTINEL(zh, ZBH);
++		obj = zh->obj;
++	} else {
++		struct zv_hdr *zv = (struct zv_hdr *)pampd;
++
++		if (zv == NULL)
++			goto out;
++		ASSERT_SENTINEL(zv, ZVH);
++		obj = (struct tmem_obj *)zv->obj;
 +	}
-+	tmem_read_unlock(&pool->pool_rwlock);
-+	obj = NULL;
 +out:
 +	return obj;
 +}
 +
-+/* free an object that has no more pampds in it */
-+static void tmem_obj_free(struct tmem_obj *obj)
++/*
++ * free the pampd and remove it from any kztmem lists
++ * pampd must no longer be pointed to from any tmem data structures!
++ */
++static void kztmem_pampd_free(void *pampd, struct tmem_pool *pool)
 +{
-+	struct tmem_pool *pool;
-+	struct tmem_oid old_oid;
-+
-+	ASSERT_SPINLOCK(&obj->obj_spinlock);
-+	ASSERT(obj != NULL);
-+	ASSERT_SENTINEL(obj, OBJ);
-+	ASSERT(obj->pampd_count == 0);
-+	pool = obj->pool;
-+	ASSERT(pool != NULL);
-+	ASSERT_WRITELOCK(&pool->pool_rwlock);
-+	if (obj->tree_root.rnode != NULL) /* may be a "stump" with no leaves */
-+		sadix_tree_destroy(&obj->tree_root, tmem_pampd_destroy,
-+					tmem_stn_free, (void *)pool);
-+#ifdef WEIRD_BUG
-+	BUG_ON(BAD_OBJ(obj));
-+#endif
-+	ASSERT((long)obj->objnode_count == 0);
-+	ASSERT(obj->tree_root.rnode == NULL);
-+	pool->obj_count--;
-+	ASSERT(pool->obj_count >= 0);
-+	INVERT_SENTINEL(obj, OBJ);
-+	obj->pool = NULL;
-+	old_oid = obj->oid;
-+	tmem_oid_set_invalid(&obj->oid);
-+	rb_erase(&obj->rb_tree_node,
-+			  &pool->obj_rb_root[tmem_oid_hash(&old_oid)]);
-+	(*tmem_hostops.obj_free)(obj, obj->pool);
++	if (is_ephemeral(pool)) {
++		zbud_free_and_delist((struct zbud_hdr *)pampd);
++		atomic_dec(&kztmem_curr_eph_pampd_count);
++		ASSERT(atomic_read(&kztmem_curr_eph_pampd_count) >= 0);
++	} else {
++		zv_free(kztmem_client.xvpool, (struct zv_hdr *)pampd);
++		atomic_dec(&kztmem_curr_pers_pampd_count);
++		ASSERT(atomic_read(&kztmem_curr_pers_pampd_count) >= 0);
++	}
 +}
 +
-+static int tmem_obj_rb_insert(struct rb_root *root, struct tmem_obj *obj)
++/*
++ * free the pampd... delisting is done later by caller. Should only be
++ * called when all zbud operations are locked out (ie. when the tmem_rwlock
++ * is held for writing).  prune can only be used on ephemeral pampds.
++ */
++static void kztmem_pampd_prune(void *pampd)
 +{
-+	struct rb_node **new, *parent = NULL;
-+	struct tmem_obj *this;
-+	int ret = 0;
++	zbud_free((struct zbud_hdr *)pampd);
++	atomic_dec(&kztmem_curr_eph_pampd_count);
++	ASSERT(atomic_read(&kztmem_curr_eph_pampd_count) >= 0);
++}
 +
-+	new = &(root->rb_node);
-+	while (*new) {
-+		ASSERT(!RB_EMPTY_NODE(*new));
-+		this = rb_entry(*new, struct tmem_obj, rb_tree_node);
-+#ifdef WEIRD_BUG
-+		WARN_ON(BAD_OBJ(this));
-+#endif
-+		parent = *new;
-+		switch (tmem_oid_compare(&obj->oid, &this->oid)) {
-+		case 0:
-+#ifndef BROKEN_OID_COMPARE
-+			{
-+			static int cnt;
-+			cnt++;
-+			if (!(cnt&(cnt-1)))
-+				pr_err("DJM tmem_obj_rb_insert dup, "
-+					"cnt=%d, oid=%lx.%lx.%lx\n", cnt,
-+					(unsigned long)obj->oid.oid[0],
-+					(unsigned long)obj->oid.oid[1],
-+					(unsigned long)obj->oid.oid[2]);
-+			}
-+#else
-+			WARN_ON(1);
-+#endif
-+			goto out;
-+		case -1:
-+			new = &((*new)->rb_left);
-+			break;
-+		case 1:
-+			new = &((*new)->rb_right);
-+			break;
-+		}
-+	}
-+#ifdef WEIRD_BUG
-+	WARN_ON(BAD_OBJ(obj));
-+#endif
-+	rb_link_node(&obj->rb_tree_node, parent, new);
-+	rb_insert_color(&obj->rb_tree_node, root);
++static struct tmem_pamops kztmem_pamops = {
++	.get_data = kztmem_pampd_get_data,
++	.get_index = kztmem_pampd_get_index,
++	.get_obj = kztmem_pampd_get_obj,
++	.free = kztmem_pampd_free,
++	.prune = kztmem_pampd_prune,
++	.create = kztmem_pampd_create
++};
++
++/*
++ * kztmem compression/decompression and related per-cpu stuff
++ */
++
++#define LZO_WORKMEM_BYTES LZO1X_1_MEM_COMPRESS
++#define LZO_DSTMEM_PAGE_ORDER 1
++static DEFINE_PER_CPU(unsigned char *, kztmem_workmem);
++static DEFINE_PER_CPU(unsigned char *, kztmem_dstmem);
++
++static int kztmem_compress(struct page *from, void **out_va,
++				  unsigned *out_len)
++{
++	int ret = 0;
++	unsigned char *dmem = __get_cpu_var(kztmem_dstmem);
++	unsigned char *wmem = __get_cpu_var(kztmem_workmem);
++	char *from_va;
++
++	if (unlikely(dmem == NULL || wmem == NULL))
++		goto out;  /* no buffer, so can't compress */
++	from_va = kmap_atomic(from, KM_USER0);
++	mb();
++	ret = lzo1x_1_compress(from_va, PAGE_SIZE, dmem,
++				(size_t *)out_len, wmem);
++	ASSERT(ret == LZO_E_OK);
++	*out_va = dmem;
++	kunmap_atomic(from_va, KM_USER0);
 +	ret = 1;
 +out:
 +	return ret;
 +}
 +
-+/*
-+ * allocate, initialize, and insert an tmem_object_root
-+ * (should be called only if find failed)
-+ */
-+static struct tmem_obj *tmem_obj_new(struct tmem_pool *pool,
-+					struct tmem_oid *oidp)
++
++static int kztmem_cpu_notifier(struct notifier_block *nb,
++				unsigned long action, void *pcpu)
 +{
-+	struct tmem_obj *obj = NULL;
++	int cpu = (long)pcpu;
 +
-+	ASSERT(pool != NULL);
-+	ASSERT_WRITELOCK(&pool->pool_rwlock);
-+	obj = (*tmem_hostops.obj_alloc)(pool);
-+	if (unlikely(obj == NULL))
-+		goto out;
-+	pool->obj_count++;
-+	INIT_SADIX_TREE(&obj->tree_root, 0);
-+	spin_lock_init(&obj->obj_spinlock);
-+	obj->pool = pool;
-+	obj->oid = *oidp;
-+	obj->objnode_count = 0;
-+	obj->pampd_count = 0;
-+	SET_SENTINEL(obj, OBJ);
-+	tmem_spin_lock(&obj->obj_spinlock);
-+	tmem_obj_rb_insert(&pool->obj_rb_root[tmem_oid_hash(oidp)], obj);
-+	ASSERT_SPINLOCK(&obj->obj_spinlock);
-+out:
-+	return obj;
-+}
-+
-+/* free an object after destroying any pampds in it */
-+static void tmem_obj_destroy(struct tmem_obj *obj)
-+{
-+	ASSERT_WRITELOCK(&obj->pool->pool_rwlock);
-+	sadix_tree_destroy(&obj->tree_root, tmem_pampd_destroy,
-+				tmem_stn_free, (void *)obj->pool);
-+	tmem_obj_free(obj);
-+}
-+
-+/* destroys all objs in a pool */
-+static void tmem_pool_destroy_objs(struct tmem_pool *pool)
-+{
-+	struct rb_node *node;
-+	struct tmem_obj *obj;
-+	int i;
-+
-+	tmem_write_lock(&pool->pool_rwlock);
-+	pool->is_valid = 0;
-+	for (i = 0; i < OBJ_HASH_BUCKETS; i++) {
-+		node = rb_first(&pool->obj_rb_root[i]);
-+		while (node != NULL) {
-+			obj = rb_entry(node, struct tmem_obj, rb_tree_node);
-+			tmem_spin_lock(&obj->obj_spinlock);
-+			node = rb_next(node);
-+			tmem_obj_destroy(obj);
-+		}
++	switch (action) {
++	case CPU_UP_PREPARE:
++		per_cpu(kztmem_dstmem, cpu) = (void *)__get_free_pages(
++			GFP_KERNEL | __GFP_ZERO | __GFP_REPEAT,
++			LZO_DSTMEM_PAGE_ORDER),
++		per_cpu(kztmem_workmem, cpu) =
++			kzalloc(LZO1X_MEM_COMPRESS,
++				GFP_KERNEL | __GFP_REPEAT);
++		break;
++	case CPU_DEAD:
++	case CPU_UP_CANCELED:
++		free_pages((unsigned long)per_cpu(kztmem_dstmem, cpu),
++				LZO_DSTMEM_PAGE_ORDER);
++		per_cpu(kztmem_dstmem, cpu) = NULL;
++		kfree(per_cpu(kztmem_workmem, cpu));
++		per_cpu(kztmem_workmem, cpu) = NULL;
++		break;
++	default:
++		break;
 +	}
-+	tmem_write_unlock(&pool->pool_rwlock);
++	return NOTIFY_OK;
 +}
 +
-+/**********
-+ * Tmem is managed as a set of tmem_pools with certain attributes, such as
-+ * "ephemeral" vs "persistent".  These attributes apply to all tmem_objs
-+ * and all pampds that belong to a tmem_pool.  A tmem_pool is created
-+ * or deleted relatively rarely (for example, when a filesystem is
-+ * mounted or unmounted.
-+ */
++static struct notifier_block kztmem_cpu_notifier_block = {
++	.notifier_call = kztmem_cpu_notifier
++};
 +
-+static struct tmem_pool *tmem_pool_alloc(uint32_t flags, uint32_t *ppoolid)
-+{
-+	struct tmem_pool *pool;
-+	int i;
++#ifdef CONFIG_SYSFS
++#define KZTMEM_SYSFS_RO(_name) \
++	static ssize_t kztmem_##_name##_show(struct kobject *kobj, \
++				struct kobj_attribute *attr, char *buf) \
++	{ \
++		return sprintf(buf, "%lu\n", kztmem_##_name); \
++	} \
++	static struct kobj_attribute kztmem_##_name##_attr = { \
++		.attr = { .name = __stringify(_name), .mode = 0444 }, \
++		.show = kztmem_##_name##_show, \
++	}
 +
-+	pool = (*tmem_hostops.pool_alloc)(flags, ppoolid);
-+	if (unlikely(pool == NULL))
-+		goto out;
-+	for (i = 0; i < OBJ_HASH_BUCKETS; i++)
-+		pool->obj_rb_root[i] = RB_ROOT;
-+	INIT_LIST_HEAD(&pool->pool_list);
-+	rwlock_init(&pool->pool_rwlock);
-+	pool->obj_count = 0;
-+	SET_SENTINEL(pool, POOL);
-+out:
-+	return pool;
-+}
++#define KZTMEM_SYSFS_TMEM_STAT_RO(_name) \
++	static ssize_t kztmem_##_name##_show(struct kobject *kobj, \
++				struct kobj_attribute *attr, char *buf) \
++	{ \
++		return sprintf(buf, "%lu\n", \
++				tmem_stat_get(TMEM_STAT_##_name)); \
++	} \
++	static struct kobj_attribute kztmem_##_name##_attr = { \
++		.attr = { .name = __stringify(_name), .mode = 0444 }, \
++		.show = kztmem_##_name##_show, \
++	}
 +
-+static void tmem_pool_free(struct tmem_pool *pool)
-+{
-+	ASSERT_SENTINEL(pool, POOL);
-+	INVERT_SENTINEL(pool, POOL);
-+	list_del(&pool->pool_list);
-+	(*tmem_hostops.pool_free)(pool);
-+}
++#define KZTMEM_SYSFS_RO_ATOMIC(_name) \
++	static ssize_t kztmem_##_name##_show(struct kobject *kobj, \
++				struct kobj_attribute *attr, char *buf) \
++	{ \
++	    return sprintf(buf, "%d\n", atomic_read(&kztmem_##_name)); \
++	} \
++	static struct kobj_attribute kztmem_##_name##_attr = { \
++		.attr = { .name = __stringify(_name), .mode = 0444 }, \
++		.show = kztmem_##_name##_show, \
++	}
 +
-+/* flush all data from a pool and, optionally, free it */
-+static void tmem_pool_flush(struct tmem_pool *pool, bool destroy)
-+{
-+	ASSERT(pool != NULL);
-+	pr_info("%s %s tmem pool ",
-+		destroy ? "destroying" : "flushing",
-+		is_persistent(pool) ? "persistent" : "ephemeral");
-+	pr_info("pool_id=%d\n", pool->pool_id);
-+	tmem_pool_destroy_objs(pool);
-+	if (destroy)
-+		tmem_pool_free(pool);
-+}
++#define KZTMEM_SYSFS_RO_CUSTOM(_name, _func) \
++	static ssize_t kztmem_##_name##_show(struct kobject *kobj, \
++				struct kobj_attribute *attr, char *buf) \
++	{ \
++	    return _func(buf); \
++	} \
++	static struct kobj_attribute kztmem_##_name##_attr = { \
++		.attr = { .name = __stringify(_name), .mode = 0444 }, \
++		.show = kztmem_##_name##_show, \
++	}
 +
-+/**********
-+ * tmem_freeze guarantees that no additional pages are stored in tmem.
-+ * (Ideally, this would also guarantee that no additional memory
-+ * allocations occur.  However, I think a get or flush which causes a
-+ * tree rebalance may result in one or more tmem_objnode allocations.)
-+ * While tmem_freeze is not currently used, it might be used in the future
-+ * to "shut off" tmem when memory is known NOT to be under pressure.
-+ * Note that disabling tmem simply by stopping all puts/gets may
-+ * result in incoherency if any pages are retained in a tmem pool
-+ * and tmem is later enabled.
-+ */
-+static bool tmem_freeze_val;
++KZTMEM_SYSFS_RO_ATOMIC(curr_obj_count);
++KZTMEM_SYSFS_RO(curr_obj_count_max);
++KZTMEM_SYSFS_RO_ATOMIC(curr_objnode_count);
++KZTMEM_SYSFS_RO(curr_objnode_count_max);
++KZTMEM_SYSFS_TMEM_STAT_RO(flush_total);
++KZTMEM_SYSFS_TMEM_STAT_RO(flush_found);
++KZTMEM_SYSFS_TMEM_STAT_RO(flobj_total);
++KZTMEM_SYSFS_TMEM_STAT_RO(flobj_found);
++KZTMEM_SYSFS_RO_ATOMIC(zbud_curr_raw_pages);
++KZTMEM_SYSFS_RO_ATOMIC(zbud_curr_zpages);
++KZTMEM_SYSFS_RO(zbud_curr_zbytes);
++KZTMEM_SYSFS_RO(zbud_cumul_zpages);
++KZTMEM_SYSFS_RO(zbud_cumul_zbytes);
++KZTMEM_SYSFS_RO(zbud_buddied_count);
++KZTMEM_SYSFS_RO(zbpg_unused_list_count);
++KZTMEM_SYSFS_RO(compress_poor);
++KZTMEM_SYSFS_RO_CUSTOM(zbud_unbuddied_list_counts,
++			zbud_show_unbuddied_list_counts);
++KZTMEM_SYSFS_RO_CUSTOM(zbud_cumul_chunk_counts,
++			zbud_show_cumul_chunk_counts);
 +
-+bool tmem_freeze(bool freeze)
-+{
-+	int old_tmem_freeze_val = tmem_freeze_val;
++static struct attribute *kztmem_attrs[] = {
++	&kztmem_curr_obj_count_attr.attr,
++	&kztmem_curr_obj_count_max_attr.attr,
++	&kztmem_curr_objnode_count_attr.attr,
++	&kztmem_curr_objnode_count_max_attr.attr,
++	&kztmem_flush_total_attr.attr,
++	&kztmem_flobj_total_attr.attr,
++	&kztmem_flush_found_attr.attr,
++	&kztmem_flobj_found_attr.attr,
++	&kztmem_compress_poor_attr.attr,
++	&kztmem_zbud_curr_raw_pages_attr.attr,
++	&kztmem_zbud_curr_zpages_attr.attr,
++	&kztmem_zbud_curr_zbytes_attr.attr,
++	&kztmem_zbud_cumul_zpages_attr.attr,
++	&kztmem_zbud_cumul_zbytes_attr.attr,
++	&kztmem_zbud_buddied_count_attr.attr,
++	&kztmem_zbpg_unused_list_count_attr.attr,
++	&kztmem_zbud_unbuddied_list_counts_attr.attr,
++	&kztmem_zbud_cumul_chunk_counts_attr.attr,
++	NULL,
++};
 +
-+	tmem_freeze_val = freeze;
-+	return old_tmem_freeze_val;
-+}
++static struct attribute_group kztmem_attr_group = {
++	.attrs = kztmem_attrs,
++	.name = "kztmem",
++};
 +
-+/**********
-+ * Tmem is operated on by a set of well-defined actions:
-+ * "put", "get", "flush", "flush_object", "new pool" and "destroy pool".
-+ * (The tmem ABI allows for subpages and exchanges but these operations
-+ * are not included in this implementation.)
-+ *
-+ * These "tmem core" operations are implemented in the following functions.
-+ */
++#endif /* CONFIG_SYSFS */
 +
 +/*
-+ * "Put" a page, e.g. copy a page from the kernel into newly allocated
-+ * PAM space (if such space is available).  Tmem_put is complicated by
-+ * a corner case: What if a page with matching handle already exists in
-+ * tmem?  To guarantee coherency, one of two actions is necessary: Either
-+ * the data for the page must be overwritten, or the page must be
-+ * "flushed" so that the data is not accessible to a subsequent "get".
-+ * Since these "duplicate puts" are relatively rare, this implementation
-+ * always flushes for simplicity.
++ * kztmem shrinker interface (only useful for ephemeral pages, so zbud only)
 + */
-+#ifdef WEIRD_BUG
-+static DEFINE_PER_CPU(struct tmem_obj *, tmem_put_saved_obj);
++#include <linux/version.h>
++#if LINUX_VERSION_CODE == KERNEL_VERSION(2,6,27)
++static int shrink_kztmem_memory(int nr, gfp_t gfp_mask)
++#else
++static int shrink_kztmem_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
 +#endif
-+static int do_tmem_put(struct tmem_pool *pool,struct tmem_oid *oidp,
-+				uint32_t index, struct page *page)
 +{
-+	struct tmem_obj *obj = NULL, *objfound = NULL, *objnew = NULL;
-+	void *pampd = NULL, *pampd_del = NULL;
-+	int ret = -ENOMEM;
-+	bool ephemeral;
++	int ret = -1;
 +
-+	ASSERT(pool != NULL);
-+	tmem_trace(TMEM_PUT_PAGE, pool->pool_id, oidp, index);
-+	ephemeral = is_ephemeral(pool);
-+	if (tmem_freeze_val) {
-+		/* if frozen, all puts turn into flushes, return failure */
-+		ret = -1;
-+		obj = tmem_obj_find(pool, oidp);
-+		if (obj == NULL)
++	if (nr) {
++		if (!(gfp_mask & __GFP_FS))  /* is this appropriate here?
++						see shrink_icache_memory() */
 +			goto out;
-+		pampd = tmem_pampd_delete_from_obj(obj, index);
-+		if (pampd == NULL) {
-+			tmem_spin_unlock(&obj->obj_spinlock);
-+			goto out;
-+		}
-+		tmem_pampd_delete(pampd, pool);
-+		if (obj->pampd_count == 0) {
-+			tmem_write_lock(&pool->pool_rwlock);
-+			tmem_obj_free(obj);
-+			tmem_write_unlock(&pool->pool_rwlock);
-+		} else
-+			tmem_spin_unlock(&obj->obj_spinlock);
-+		goto out;
-+	}
-+	obj = objfound = tmem_obj_find(pool, oidp);
-+	if (obj != NULL) {
-+		ASSERT_SPINLOCK(&objfound->obj_spinlock);
-+		pampd = tmem_pampd_lookup_in_obj(objfound, index);
-+		if (pampd != NULL) {
-+			/* if found, is a dup put, flush the old one */
-+			pampd_del = tmem_pampd_delete_from_obj(obj, index);
-+			ASSERT(pampd_del == pampd);
-+			tmem_pampd_delete(pampd, pool);
-+			if (obj->pampd_count == 0) {
-+				objnew = obj;
-+				objfound = NULL;
++		ASSERT(nr >= 0);
++		if (spin_trylock(&kztmem_direct_reclaim_lock)) {
++			preempt_disable();
++			if (tmem_shrink_trylock()) {
++				shrinking = 1;
++				zbud_evict_pages(nr);
++				shrinking = 0;
++				tmem_shrink_unlock();
 +			}
-+			pampd = NULL;
++			preempt_enable_no_resched();
++			spin_unlock(&kztmem_direct_reclaim_lock);
 +		}
-+	} else {
-+		tmem_write_lock(&pool->pool_rwlock);
-+		obj = objnew = tmem_obj_new(pool, oidp);
-+		if (unlikely(obj == NULL)) {
-+			tmem_write_unlock(&pool->pool_rwlock);
-+			ret = -ENOMEM;
++	}
++	ret = (int)atomic_read(&kztmem_zbud_curr_raw_pages);
++out:
++	return ret;
++}
++
++static struct shrinker kztmem_shrinker = {
++	.shrink = shrink_kztmem_memory,
++	.seeks = DEFAULT_SEEKS,
++};
++
++/*
++ * kztmem initialization
++ * NOTE FOR NOW kztmem MUST BE PROVIDED AS A KERNEL BOOT PARAMETER OR
++ * NOTHING HAPPENS!
++ */
++
++static int kztmem_enabled;
++
++static int __init enable_kztmem(char *s)
++{
++	kztmem_enabled = 1;
++	return 1;
++}
++__setup("kztmem", enable_kztmem);
++
++static int use_cleancache = 1;
++
++static int __init no_cleancache(char *s)
++{
++	use_cleancache = 0;
++	return 1;
++}
++
++__setup("nocleancache", no_cleancache);
++
++static int use_frontswap = 1;
++
++static int __init no_frontswap(char *s)
++{
++	use_frontswap = 0;
++	return 1;
++}
++
++__setup("nofrontswap", no_frontswap);
++
++static int __init kztmem_init(void)
++{
++#ifdef CONFIG_SYSFS
++	int ret = 0;
++
++	ret = sysfs_create_group(mm_kobj, &kztmem_attr_group);
++	if (ret) {
++		pr_err("kztmem: can't create sysfs\n");
++		goto out;
++	}
++#endif /* CONFIG_SYSFS */
++#if defined(CONFIG_CLEANCACHE) || defined(CONFIG_FRONTSWAP)
++	if (kztmem_enabled) {
++		unsigned int cpu;
++
++		tmem_register_hostops(&kztmem_hostops);
++		tmem_register_pamops(&kztmem_pamops);
++		sadix_tree_init();
++		ret = register_cpu_notifier(&kztmem_cpu_notifier_block);
++		if (ret) {
++			pr_err("kztmem: can't register cpu notifier\n");
 +			goto out;
 +		}
-+		ASSERT_SPINLOCK(&objnew->obj_spinlock);
-+		tmem_write_unlock(&pool->pool_rwlock);
-+	}
-+	ASSERT(obj != NULL);
-+	ASSERT(((objnew == obj) || (objfound == obj)) &&
-+		(objnew != objfound));
-+	ASSERT_SPINLOCK(&obj->obj_spinlock);
-+#ifdef WEIRD_BUG
-+	BUG_ON(BAD_OBJ(obj));
-+	per_cpu(tmem_put_saved_obj, smp_processor_id()) = obj;	
-+	/* the local variable obj somehow gets overwritten between here */
-+	pampd = tmem_pampd_create(obj, index, page);
-+	/* and here so reset it to a previously saved per-cpu value */
-+	if (BAD_OBJ(obj)) {
-+		static int cnt;
-+		cnt++;
-+		if (!(cnt&(cnt-1)))
-+			pr_err("DJM obj fixing wacko obj 1, cnt=%d\n",cnt);
-+		obj = get_cpu_var(tmem_put_saved_obj);
-+		BUG_ON(BAD_OBJ(obj));
-+	}
-+	if (unlikely(pampd == NULL))
-+		goto free;
-+	if (BAD_OBJ(obj)) {
-+		static int cnt;
-+		cnt++;
-+		if (!(cnt&(cnt-1)))
-+			pr_err("DJM obj fixing wacko obj 2, cnt=%d\n",cnt);
-+		obj = get_cpu_var(tmem_put_saved_obj);
-+		BUG_ON(BAD_OBJ(obj));
-+	}
-+	ret = tmem_pampd_add_to_obj(obj, index, pampd);
-+	if (BAD_OBJ(obj)) {
-+		static int cnt;
-+		cnt++;
-+		if (!(cnt&(cnt-1)))
-+			pr_err("DJM obj fixing wacko obj 3, cnt=%d\n",cnt);
-+		obj = get_cpu_var(tmem_put_saved_obj);
-+		BUG_ON(BAD_OBJ(obj));
-+	}
-+	if (unlikely(ret == -ENOMEM))
-+		/* warning may result in partially built sadix tree ("stump") */
-+		goto delete_and_free;
-+	/* for WEIRD_BUG, don't ASSERT objnew == obj etc */
-+#else
-+	pampd = tmem_pampd_create(obj, index, page);
-+	if (unlikely(pampd == NULL))
-+		goto free;
-+	ret = tmem_pampd_add_to_obj(obj, index, pampd);
-+	if (unlikely(ret == -ENOMEM))
-+		/* warning may result in partially built sadix tree ("stump") */
-+		goto delete_and_free;
-+	ASSERT(((objnew == obj) || (objfound == obj)) &&
-+			(objnew != objfound));
-+#endif
-+	tmem_spin_unlock(&obj->obj_spinlock);
-+	ASSERT(ret == 0);
-+	goto out;
-+
-+delete_and_free:
-+	ASSERT((obj != NULL) && (pampd != NULL));
-+	(void)tmem_pampd_delete_from_obj(obj, index);
-+free:
-+	if (pampd)
-+		tmem_pampd_delete(pampd, pool);
-+	if (objfound)
-+		tmem_spin_unlock(&objfound->obj_spinlock);
-+	if (objnew) {
-+		tmem_write_lock(&pool->pool_rwlock);
-+		tmem_obj_free(objnew);
-+		tmem_write_unlock(&pool->pool_rwlock);
-+	}
-+	ASSERT(ret != -EEXIST);
-+out:
-+	return ret;
-+}
-+
-+/*
-+ * "Get" a page, e.g. if one can be found, copy the tmem page with the
-+ * matching handle from PAM space to the kernel.  By tmem definition,
-+ * when a "get" is successful on an ephemeral page, the page is "flushed",
-+ * and when a "get" is successful on a persistent page, the page is retained
-+ * in tmem.  Note that to preserve
-+ * coherency, "get" can never be skipped if tmem contains the data.
-+ * That is, if a get is done with a certain handle and fails, any
-+ * subsequent "get" must also fail (unless of course there is a
-+ * "put" done with the same handle).
-+
-+ */
-+static int do_tmem_get(struct tmem_pool *pool, struct tmem_oid *oidp,
-+				uint32_t index, struct page *page)
-+{
-+	struct tmem_obj *obj;
-+	void *pampd;
-+	bool ephemeral = is_ephemeral(pool);
-+	uint32_t ret = -1;
-+
-+	tmem_trace(TMEM_GET_PAGE, pool->pool_id, oidp, index);
-+	obj = tmem_obj_find(pool, oidp);
-+	if (obj == NULL)
-+		goto out;
-+	ASSERT_SPINLOCK(&obj->obj_spinlock);
-+	ephemeral = is_ephemeral(pool);
-+	if (ephemeral)
-+		pampd = tmem_pampd_delete_from_obj(obj, index);
-+	else
-+		pampd = tmem_pampd_lookup_in_obj(obj, index);
-+	if (pampd == NULL) {
-+		tmem_spin_unlock(&obj->obj_spinlock);
-+		goto out;
-+	}
-+	tmem_pampd_get_data(page, pampd, pool);
-+	if (ephemeral) {
-+		tmem_pampd_delete(pampd, pool);
-+		if (obj->pampd_count == 0) {
-+			tmem_write_lock(&pool->pool_rwlock);
-+			tmem_obj_free(obj);
-+			obj = NULL;
-+			tmem_write_unlock(&pool->pool_rwlock);
++		for_each_online_cpu(cpu) {
++			void *pcpu = (void *)(long)cpu;
++			kztmem_cpu_notifier(&kztmem_cpu_notifier_block,
++				CPU_UP_PREPARE, pcpu);
 +		}
 +	}
-+	if (obj != NULL)
-+		tmem_spin_unlock(&obj->obj_spinlock);
-+	ret = 0;
-+out:
-+	return ret;
-+}
-+
-+/*
-+ * If a page in tmem matches the handle, "flush" this page from tmem such
-+ * that any subsequent "get" does not succeed (unless, of course, there
-+ * was another "put" with the same handle).
-+ */
-+static int do_tmem_flush_page(struct tmem_pool *pool,
-+				struct tmem_oid *oidp, uint32_t index)
-+{
-+	struct tmem_obj *obj;
-+	void *pampd;
-+	int ret = -1;
-+
-+	tmem_trace(TMEM_FLUSH_PAGE, pool->pool_id, oidp, index);
-+	tmem_stat_inc(TMEM_STAT_flush_total);
-+	obj = tmem_obj_find(pool, oidp);
-+	if (obj == NULL)
-+		goto out;
-+	pampd = tmem_pampd_delete_from_obj(obj, index);
-+	if (pampd == NULL) {
-+		tmem_spin_unlock(&obj->obj_spinlock);
-+		goto out;
-+	}
-+	tmem_pampd_delete(pampd, pool);
-+	if (obj->pampd_count == 0) {
-+		tmem_write_lock(&pool->pool_rwlock);
-+		tmem_obj_free(obj);
-+		tmem_write_unlock(&pool->pool_rwlock);
-+	} else {
-+		tmem_spin_unlock(&obj->obj_spinlock);
-+	}
-+	tmem_stat_inc(TMEM_STAT_flush_found);
-+	ret = 0;
-+
-+out:
-+	return ret;
-+}
-+
-+/*
-+ * "Flush" all pages in tmem matching this oid.
-+ */
-+static int do_tmem_flush_object(struct tmem_pool *pool,
-+					struct tmem_oid *oidp)
-+{
-+	struct tmem_obj *obj;
-+	int ret = -1;
-+
-+	tmem_trace(TMEM_FLUSH_OBJECT, pool->pool_id, oidp, 0);
-+	tmem_stat_inc(TMEM_STAT_flobj_total);
-+	obj = tmem_obj_find(pool, oidp);
-+	if (obj == NULL)
-+		goto out;
-+	tmem_write_lock(&pool->pool_rwlock);
-+	tmem_obj_destroy(obj);
-+	tmem_stat_inc(TMEM_STAT_flobj_found);
-+	tmem_write_unlock(&pool->pool_rwlock);
-+	ret = 0;
-+
-+out:
-+	return ret;
-+}
-+
-+/*
-+ * "Flush" all pages (and tmem_objs) from this tmem_pool and disable
-+ * all subsequent access to this tmem_pool.
-+ */
-+static int do_tmem_destroy_pool(uint32_t pool_id)
-+{
-+	struct tmem_pool *pool = (*tmem_hostops.get_pool_by_id)(pool_id);
-+	int ret = -1;
-+
-+	if (pool == NULL)
-+		goto out;
-+	tmem_pool_flush(pool, 1);
-+	ret = 0;
-+out:
-+	return ret;
-+}
-+
-+/*
-+ * Create a new tmem_pool with the provided flag and return
-+ * a pool id provided by the tmem host implementation.
-+ */
-+static int do_tmem_new_pool(uint32_t flags)
-+{
-+	struct tmem_pool *pool;
-+	int persistent = flags & TMEM_POOL_PERSIST;
-+	int poolid = -ENOMEM;
-+
-+	pool = tmem_pool_alloc(flags, &poolid);
-+	if (unlikely(pool == NULL))
-+		goto out;
-+	list_add_tail(&pool->pool_list, &tmem_global_pool_list);
-+	pool->pool_id = poolid;
-+	pool->persistent = persistent;
-+	pool->is_valid = 1;
-+out:
-+	return poolid;
-+}
-+
-+/*
-+ * A tmem host implementation must use this function to register callbacks
-+ * for "host services" (memory allocation/free and pool id translation).
-+ * NB: The host must call sadix_tree_init() before registering hostops!
-+ */
-+
-+void tmem_register_hostops(struct tmem_hostops *m)
-+{
-+	tmem_hostops = *m;
-+}
-+
-+/*
-+ * A "tmem host implementation" must use this function to register
-+ * callbacks for a page-accessible memory (PAM) implementation
-+ */
-+void tmem_register_pamops(struct tmem_pamops *m)
-+{
-+	tmem_pamops = *m;
-+}
-+
-+/**********
-+ * Two kernel functionalities currently can be layered on top of tmem.
-+ * These are "cleancache" which is used as a second-chance cache for clean
-+ * page cache pages; and "frontswap" which is used for swap pages
-+ * to avoid writes to disk.  A generic "shim" is provided here for each
-+ * to translate in-kernel semantics to tmem semantics.  A tmem host
-+ * implementation could provide its own shim(s) or can use these
-+ * defaults simply by calling tmem_cleancache/frontswap_register_ops.
-+ */
-+
++#endif
 +#ifdef CONFIG_CLEANCACHE
-+static void tmem_cleancache_put_page(int pool_id,
-+					struct cleancache_filekey key,
-+					pgoff_t index, struct page *page)
-+{
-+	u32 ind = (u32) index;
-+	struct tmem_oid oid = *(struct tmem_oid *)&key;
-+	struct tmem_pool *pool;
++	if (kztmem_enabled && use_cleancache) {
++		struct cleancache_ops old_ops;
 +
-+	tmem_write_or_read_lock(&tmem_rwlock);
-+	pool = (*tmem_hostops.get_pool_by_id)(pool_id);
-+	if (unlikely(pool == NULL || ind != index))
-+		goto out;
-+	(void)do_tmem_put(pool, &oid, index, page);
-+out:
-+	tmem_write_or_read_unlock(&tmem_rwlock);
-+}
-+
-+static int tmem_cleancache_get_page(int pool_id,
-+					struct cleancache_filekey key,
-+					pgoff_t index, struct page *page)
-+{
-+	u32 ind = (u32) index;
-+	struct tmem_oid oid = *(struct tmem_oid *)&key;
-+	struct tmem_pool *pool;
-+	int ret = -1;
-+
-+	tmem_write_or_read_lock(&tmem_rwlock);
-+	pool = (*tmem_hostops.get_pool_by_id)(pool_id);
-+	if (unlikely(pool == NULL || ind != index))
-+		goto out;
-+	ret = do_tmem_get(pool, &oid, index, page);
-+out:
-+	tmem_write_or_read_unlock(&tmem_rwlock);
-+	return ret;
-+}
-+
-+static void tmem_cleancache_flush_page(int pool_id,
-+					struct cleancache_filekey key,
-+					pgoff_t index)
-+{
-+	u32 ind = (u32) index;
-+	struct tmem_oid oid = *(struct tmem_oid *)&key;
-+	struct tmem_pool *pool;
-+
-+	tmem_write_or_read_lock(&tmem_rwlock);
-+	pool = (*tmem_hostops.get_pool_by_id)(pool_id);
-+	if (unlikely(pool == NULL || ind != index))
-+		goto out;
-+	(void)do_tmem_flush_page(pool, &oid, ind);
-+out:
-+	tmem_write_or_read_unlock(&tmem_rwlock);
-+}
-+
-+static void tmem_cleancache_flush_inode(int pool_id,
-+					struct cleancache_filekey key)
-+{
-+	struct tmem_oid oid = *(struct tmem_oid *)&key;
-+	struct tmem_pool *pool;
-+
-+	tmem_write_or_read_lock(&tmem_rwlock);
-+	pool = (*tmem_hostops.get_pool_by_id)(pool_id);
-+	if (unlikely(pool == NULL))
-+		goto out;
-+	(void)do_tmem_flush_object(pool, &oid);
-+out:
-+	tmem_write_or_read_unlock(&tmem_rwlock);
-+}
-+
-+static void tmem_cleancache_flush_fs(int pool_id)
-+{
-+	if (pool_id < 0)
-+		return;
-+	write_lock(&tmem_rwlock);
-+	(void)do_tmem_destroy_pool(pool_id);
-+	write_unlock(&tmem_rwlock);
-+}
-+
-+static int tmem_cleancache_init_fs(size_t pagesize)
-+{
-+	int poolid;
-+
-+	BUG_ON(sizeof(struct cleancache_filekey) !=
-+				sizeof(struct tmem_oid));
-+	BUG_ON(pagesize != PAGE_SIZE);
-+	write_lock(&tmem_rwlock);
-+	poolid = do_tmem_new_pool(0);
-+	write_unlock(&tmem_rwlock);
-+	return poolid;
-+}
-+
-+static int tmem_cleancache_init_shared_fs(char *uuid, size_t pagesize)
-+{
-+	int poolid;
-+
-+	/* shared pools are unsupported and map to private */
-+	BUG_ON(sizeof(struct cleancache_filekey) !=
-+				sizeof(struct tmem_oid));
-+	BUG_ON(pagesize != PAGE_SIZE);
-+	write_lock(&tmem_rwlock);
-+	poolid = do_tmem_new_pool(0);
-+	write_unlock(&tmem_rwlock);
-+	return poolid;
-+}
-+
-+static struct cleancache_ops tmem_cleancache_ops = {
-+	.put_page = tmem_cleancache_put_page,
-+	.get_page = tmem_cleancache_get_page,
-+	.flush_page = tmem_cleancache_flush_page,
-+	.flush_inode = tmem_cleancache_flush_inode,
-+	.flush_fs = tmem_cleancache_flush_fs,
-+	.init_shared_fs = tmem_cleancache_init_shared_fs,
-+	.init_fs = tmem_cleancache_init_fs
-+};
-+
-+struct cleancache_ops tmem_cleancache_register_ops(void)
-+{
-+	struct cleancache_ops old_ops =
-+		cleancache_register_ops(&tmem_cleancache_ops);
-+
-+	return old_ops;
-+}
-+#endif
-+
-+#ifdef CONFIG_FRONTSWAP
-+/* a single tmem poolid is used for all frontswap "types" (swapfiles) */
-+static int tmem_frontswap_poolid = -1;
-+
-+/*
-+ * Swizzling increases objects per swaptype, increasing tmem concurrency
-+ * for heavy swaploads.  Later, larger nr_cpus -> larger SWIZ_BITS
-+ */
-+#define SWIZ_BITS		4
-+#define SWIZ_MASK		((1 << SWIZ_BITS) - 1)
-+#define _oswiz(_type, _ind)	((_type << SWIZ_BITS) | (_ind & SWIZ_MASK))
-+#define iswiz(_ind)		(_ind >> SWIZ_BITS)
-+
-+static inline struct tmem_oid oswiz(unsigned type, u32 ind)
-+{
-+	struct tmem_oid oid = { .oid = { 0 } };
-+	oid.oid[0] = _oswiz(type, ind);
-+	return oid;
-+}
-+
-+/* returns 0 if the page was successfully put into frontswap, -1 if not */
-+static int tmem_frontswap_put_page(unsigned type, pgoff_t offset,
-+				   struct page *page)
-+{
-+	u64 ind64 = (u64)offset;
-+	u32 ind = (u32)offset;
-+	struct tmem_oid oid = oswiz(type, ind);
-+	struct tmem_pool *pool;
-+	int ret = -1;
-+
-+	tmem_write_or_read_lock(&tmem_rwlock);
-+	pool = (*tmem_hostops.get_pool_by_id)(tmem_frontswap_poolid);
-+	if (unlikely(pool == NULL || ind64 != ind))
-+		goto out;
-+	ret = do_tmem_put(pool, &oid, iswiz(ind), page);
-+out:
-+	tmem_write_or_read_unlock(&tmem_rwlock);
-+	return ret;
-+}
-+
-+/* returns 0 if the page was successfully gotten from frontswap, -1 if
-+ * was not present (should never happen!) */
-+static int tmem_frontswap_get_page(unsigned type, pgoff_t offset,
-+				   struct page *page)
-+{
-+	u64 ind64 = (u64)offset;
-+	u32 ind = (u32)offset;
-+	struct tmem_oid oid = oswiz(type, ind);
-+	struct tmem_pool *pool;
-+	int ret = -1;
-+
-+	tmem_write_or_read_lock(&tmem_rwlock);
-+	pool = (*tmem_hostops.get_pool_by_id)(tmem_frontswap_poolid);
-+	if (unlikely(pool == NULL || ind64 != ind))
-+		goto out;
-+	ret = do_tmem_get(pool, &oid, iswiz(ind), page);
-+out:
-+	tmem_write_or_read_unlock(&tmem_rwlock);
-+	return ret;
-+}
-+
-+/* flush a single page from frontswap */
-+static void tmem_frontswap_flush_page(unsigned type, pgoff_t offset)
-+{
-+	u64 ind64 = (u64)offset;
-+	u32 ind = (u32)offset;
-+	struct tmem_oid oid = oswiz(type, ind);
-+	struct tmem_pool *pool;
-+
-+	tmem_write_or_read_lock(&tmem_rwlock);
-+	pool = (*tmem_hostops.get_pool_by_id)(tmem_frontswap_poolid);
-+	if (unlikely(pool == NULL || ind64 != ind))
-+		goto out;
-+	(void)do_tmem_flush_page(pool, &oid, iswiz(ind));
-+out:
-+	tmem_write_or_read_unlock(&tmem_rwlock);
-+}
-+
-+/* flush all pages from the passed swaptype */
-+static void tmem_frontswap_flush_area(unsigned type)
-+{
-+	struct tmem_oid oid;
-+	struct tmem_pool *pool;
-+	int ind;
-+
-+	pool = (*tmem_hostops.get_pool_by_id)(tmem_frontswap_poolid);
-+	tmem_write_or_read_lock(&tmem_rwlock);
-+	if (unlikely(pool == NULL))
-+		goto out;
-+	for (ind = SWIZ_MASK; ind >= 0; ind--) {
-+		oid = oswiz(type, ind);
-+		(void)do_tmem_flush_object(pool, &oid);
++		zbud_init();
++		register_shrinker(&kztmem_shrinker);
++		old_ops = tmem_cleancache_register_ops();
++		pr_info("kztmem: cleancache enabled using kernel "
++			"transcendent memory and compression buddies\n");
++		if (old_ops.init_fs != NULL)
++			pr_warning("kztmem: cleancache_ops overridden");
 +	}
++#endif
++#ifdef CONFIG_FRONTSWAP
++	if (kztmem_enabled && use_frontswap) {
++		struct frontswap_ops old_ops;
++
++		kztmem_client.xvpool = xv_create_pool();
++		if (kztmem_client.xvpool == NULL) {
++			pr_err("kztmem: can't create xvpool\n");
++			goto out;
++		}
++		old_ops = tmem_frontswap_register_ops();
++		pr_info("kztmem: frontswap enabled using kernel "
++			"transcendent memory and xvmalloc\n");
++		if (old_ops.init != NULL)
++			pr_warning("ktmem: frontswap_ops overridden");
++	}
++#endif
 +out:
-+	tmem_write_or_read_unlock(&tmem_rwlock);
++	return ret;
 +}
 +
-+static void tmem_frontswap_init(unsigned ignored)
-+{
-+	/* a single tmem poolid is used for all frontswap "types" (swapfiles) */
-+	write_lock(&tmem_rwlock);
-+	if (tmem_frontswap_poolid < 0)
-+		tmem_frontswap_poolid = do_tmem_new_pool(TMEM_POOL_PERSIST);
-+	write_unlock(&tmem_rwlock);
-+}
-+
-+static struct frontswap_ops tmem_frontswap_ops = {
-+	.put_page = tmem_frontswap_put_page,
-+	.get_page = tmem_frontswap_get_page,
-+	.flush_page = tmem_frontswap_flush_page,
-+	.flush_area = tmem_frontswap_flush_area,
-+	.init = tmem_frontswap_init
-+};
-+
-+struct frontswap_ops tmem_frontswap_register_ops(void)
-+{
-+	struct frontswap_ops old_ops =
-+		frontswap_register_ops(&tmem_frontswap_ops);
-+
-+	return old_ops;
-+}
-+#endif
---- linux-2.6.36/drivers/staging/kztmem/tmem.h	1969-12-31 17:00:00.000000000 -0700
-+++ linux-2.6.36-kztmem/drivers/staging/kztmem/tmem.h	2010-12-07 10:06:43.000000000 -0700
-@@ -0,0 +1,135 @@
-+/*
-+ * tmem.h
-+ *
-+ * Copyright (c) 2010, Dan Magenheimer, Oracle Corp.
-+ */
-+
-+#ifndef _TMEM_H_
-+#define _TMEM_H_
-+
-+#include <linux/types.h>
-+#include <linux/highmem.h>
-+#include "sadix-tree.h"
-+
-+#define SENTINELS
-+#ifdef SENTINELS
-+#define DECL_SENTINEL uint32_t sentinel;
-+#define SET_SENTINEL(_x, _y) (_x->sentinel = _y##_SENTINEL)
-+#define INVERT_SENTINEL(_x, _y) (_x->sentinel = ~_y##_SENTINEL)
-+#define ASSERT_SENTINEL(_x, _y) ASSERT(_x->sentinel == _y##_SENTINEL)
-+#define ASSERT_INVERTED_SENTINEL(_x, _y) ASSERT(_x->sentinel == ~_y##_SENTINEL)
-+#else
-+#define DECL_SENTINEL
-+#define SET_SENTINEL(_x, _y) do { } while (0)
-+#define ASSERT_SENTINEL(_x, _y) do { } while (0)
-+#define INVERT_SENTINEL(_x, _y) do { } while (0)
-+#endif
-+
-+/*
-+ * These are pre-defined by the Xen<->Linux ABI
-+ */
-+#define TMEM_PUT_PAGE			4
-+#define TMEM_GET_PAGE			5
-+#define TMEM_FLUSH_PAGE			6
-+#define TMEM_FLUSH_OBJECT		7
-+#define TMEM_POOL_PERSIST		1
-+#define TMEM_POOL_PRECOMPRESSED		4
-+#define TMEM_POOL_PAGESIZE_SHIFT	4
-+#define TMEM_POOL_PAGESIZE_MASK		0xf
-+#define TMEM_POOL_RESERVED_BITS		0x00ffff00
-+
-+struct tmem_pool;
-+struct tmem_obj;
-+struct tmem_objnode;
-+
-+struct tmem_pamops {
-+	void (*get_data)(struct page *, void *, void *);
-+	uint32_t (*get_index)(void *, void *);
-+	struct tmem_obj *(*get_obj)(void *, void *);
-+	void (*free)(void *, struct tmem_pool *);
-+	void (*prune)(void *);
-+	void *(*create)(void *, uint32_t, struct page *, void *);
-+};
-+
-+struct tmem_hostops {
-+	struct tmem_pool *(*get_pool_by_id)(uint32_t);
-+	struct tmem_obj *(*obj_alloc)(struct tmem_pool *);
-+	void (*obj_free)(struct tmem_obj *, struct tmem_pool *);
-+	struct tmem_objnode *(*objnode_alloc)(struct tmem_pool *);
-+	void (*objnode_free)(struct tmem_objnode *, struct tmem_pool *);
-+	struct tmem_pool *(*pool_alloc)(uint32_t, uint32_t *);
-+	void (*pool_free)(struct tmem_pool *);
-+};
-+
-+#define OBJ_HASH_BUCKETS 256 /* must be power of two */
-+#define OBJ_HASH_BUCKETS_MASK (OBJ_HASH_BUCKETS-1)
-+
-+#define SENTINELS
-+#ifdef SENTINELS
-+#define DECL_SENTINEL uint32_t sentinel;
-+#else
-+#define DECL_SENTINEL
-+#endif
-+
-+#define POOL_SENTINEL 0x87658765
-+#define OBJ_SENTINEL 0x12345678
-+#define OBJNODE_SENTINEL 0xfedcba09
-+
-+struct tmem_pool {
-+	bool persistent;
-+	bool is_valid;
-+	void *client; /* "up" for some clients, avoids table lookup */
-+	struct list_head pool_list;
-+	uint32_t pool_id;
-+	rwlock_t pool_rwlock;
-+	struct rb_root
-+	  obj_rb_root[OBJ_HASH_BUCKETS]; /* protected by pool_rwlock */
-+	long obj_count;  /* atomicity: pool_rwlock held for write */
-+	DECL_SENTINEL
-+};
-+static LIST_HEAD(tmem_global_pool_list);
-+
-+#define is_persistent(_p)  (_p->persistent)
-+#define is_ephemeral(_p)   (!(_p->persistent))
-+
-+struct tmem_oid {
-+	uint64_t oid[3];
-+};
-+
-+struct tmem_obj {
-+	DECL_SENTINEL
-+	struct tmem_oid oid;
-+	struct rb_node rb_tree_node; /* protected by pool->pool_rwlock */
-+	unsigned long objnode_count; /* atomicity depends on obj_spinlock */
-+	long pampd_count; /* atomicity depends on obj_spinlock */
-+	struct sadix_tree_root tree_root; /* tree of pages within object */
-+	struct tmem_pool *pool;
-+	spinlock_t obj_spinlock;
-+};
-+
-+struct tmem_objnode {
-+	struct tmem_obj *obj;
-+	DECL_SENTINEL
-+	struct sadix_tree_node tmem_stn;
-+};
-+
-+extern void tmem_register_hostops(struct tmem_hostops *m);
-+extern void tmem_register_pamops(struct tmem_pamops *m);
-+extern struct frontswap_ops tmem_frontswap_register_ops(void);
-+extern struct cleancache_ops tmem_cleancache_register_ops(void);
-+extern void tmem_pampd_prune(void *);
-+extern void tmem_shrink_lock(void);
-+extern int tmem_shrink_trylock(void);
-+extern void tmem_shrink_unlock(void);
-+extern bool tmem_freeze(bool);
-+
-+/* bookkeeping */
-+#define TMEM_STAT_flush_total		0
-+#define TMEM_STAT_flush_found		1
-+#define TMEM_STAT_flobj_total		2
-+#define TMEM_STAT_flobj_found		3
-+#define TMEM_STAT_MAX_STAT		3
-+#define TMEM_STAT_NSTATS		(TMEM_STAT_MAX_STAT+1)
-+extern unsigned long tmem_stat_get(int);
-+
-+#endif /* _TMEM_H */
++module_init(kztmem_init)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
