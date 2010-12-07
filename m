@@ -1,12 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DF0A06B0087
-	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 13:07:01 -0500 (EST)
-Date: Tue, 7 Dec 2010 10:06:23 -0800
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 94E8F6B0088
+	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 13:07:59 -0500 (EST)
+Date: Tue, 7 Dec 2010 10:06:53 -0800
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V0 0/4] kztmem: page cache/swap compression via in-kernel
-	transcendent memory and page-accessible memory
-Message-ID: <20101207180623.GA28097@ca-server1.us.oracle.com>
+Subject: [PATCH V0 1/4] kztmem: simplified radix tree data structure support
+Message-ID: <20101207180653.GA28115@ca-server1.us.oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -14,165 +13,501 @@ Sender: owner-linux-mm@kvack.org
 To: chris.mason@oracle.com, akpm@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, kurt.hackel@oracle.com, npiggin@kernel.dk, riel@redhat.com, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, mel@csn.ul.ie, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-[PATCH V0 0/4] kztmem: page cache/swap compression via in-kernel transcendent memory and page-accessible memory
+[PATCH V0 1/4] kztmem: simplified radix tree data structure support
 
-(Several people have asked about the status of this so I decided
-to post it in its (sadly) unfinished state.  It is beyond the RFC stage
-but I have no illusion that it is fully ready yet, so have compromised
-by posting it as a "version 0" patch.  Note that if you want
-to try it for yourself and help get it into a final state, you need
-the cleanache and/or frontswap patch to drive data to it. --djm)
+The radix-tree code in lib has become increasingly specialized
+largely because it is very critical to kernel mm operations.
+Tmem does not need some of the features of radix-tree and
+does need some additional features.  So, at the risk of
+getting a code reuse lecture from akpm, I forked the code,
+made it somewhat more "s"imple and more generic
+and created a separate "sadix-tree.[ch]".  This isnt
+laziness (at least not ALL laziness); the different code
+is serving very different objectives.  Ideally there would
+be one very generic data structure library (like rbtree)
+that both radix-tree and sadix-tree share, but it wasn't
+immediately obvious how to move radix-tree to sit on
+top of that and I, a mere mortal, am *definitely* not
+qualified to babysit the bug tail that would likely result.
 
-MOTIVATION AND OVERVIEW
+Anyway, there's probably a dozen places in the kernel
+where a measly couple of hundreds of lines are duplicated
+to implement a similar but not-quite-identical algorithm.
+While we clearly would like to avoid that and you would
+love to flame over my choice... move along, these are not
+the droids you are looking for.
 
-The objective of all of this code (including previously posted
-cleancache and frontswap patches) is to provide a mechanism
-by which the kernel can store a potentially huge amount of
-certain kinds of page-oriented data so that it (the kernel)
-can be more flexible, dynamic, and/or efficient in the amount
-of directly-addressable RAM that it uses with little or no loss
-(and even possibly some increase) of performance.
+But seriously, if you have ideas on how current radix-tree
+code can easily be used with little or no loss of performance
+and space, please let me know.
 
-The data store for this page-oriented data, called "page-
-addressable memory", or "PAM", is assumed to be 
-cheaper, slower, more plentiful, and/or more idiosyncratic
-than RAM, but faster, more-expensive, and/or scarcer than disk.
-Data in this store is page-addressable only, not byte-addressable,
-which increases flexibility for the methods by which the
-data can be stored, for example allowing for compression and
-efficient deduplication.  Further, the number of pages that
-can be stored is entirely dynamic, which allows for multiple
-independent data sources to share PAM resources effectively
-and securely.
+And, if you are akpm, I surrender: Insert code reuse lecture here.
 
-Cleancache and frontswap are data sources for two types of this
-page-oriented data: "ephemeral pages" such as clean page cache
-pages that can be recovered elsewhere if necessary (e.g. from
-disk); and "persistent" pages which are dirty pages that need
-a short-term home to survive a brief RAM utilization spike but
-need not be permanently saved to survive a reboot (e.g. swap).
-The data source "puts" and "gets" pages and is also responsible
-for directing coherency, via explicit "flushes" of pages.
+The differences:
 
-Transcendent memory, or "tmem", is a clean API/ABI that provides
-for an efficient address translation layer and a set of highly
-concurrent access methods to copy data between the data source
-and the PAM data store.  The first tmem implementation is in Xen.
-This second tmem implementation is in-kernel and is designed to
-be easily extensible for KVM or possibly for cgroups.
+o Don't want or need RCU.  There may be a huge number of
+  objects with a low probability that any one object will be
+  accessed concurrently, so locking is done at the object
+  level not at the page level.  So this version rolls back
+  to a pre-RCU 2.6.18 base.
+o Don't want or need tags for each entry.  Waste of space
+  and complexity for tmem, so they're gone.
+o The whole point of tmem is to manage memory more efficiently.
+  That's hard when libraries allocate memory willy-nilly.
+  So this version uses callbacks for allocating nodes so
+  the caller can do bookkeeping.
+o There was no way to efficiently destroy an entire radix-tree,
+  so I added a sadix_tree_destroy (including a recursive helper
+  function).
+o The init function must be called explicitly.
+o Some routines are not needed by tmem so I tossed em.
 
-A PAM data store must be fast enough to be accessed synchronously
-since, when a put/get/flush is invoked by a data source, the
-data transfer or invalidation is assumed to be complete.
-The first PAM is implemented as a pool of Xen hypervisor memory
-to allow highly-dynamic memory load balancing between guests.
-This second PAM implementation uses in-kernel compression to roughly
-halve RAM requirements for some workloads.  Future proposed PAM
-possibilities include:  fast NVRAM, memory blades, far-far NUMA.
-
-THIS PATCHSET
-
-(NOTE: build/use requires cleancache and/or frontswap patches!)
-
-This patchset provides an in-kernel implementation for transcendent
-memory ("tmem") [1] and a PAM implementation where pages are compressed
-and kept in kernel space (i.e. no virtualization, neither Xen nor KVM,
-is required).
-
-This first draft works, but will require some tuning and some
-"policy" implementation.  It demonstrates an in-kernel user for
-the cleancache and frontswap patches [2,3] and, in many ways,
-supplements/replaces the zram/zcache patches [4,5] with a more
-dynamic mechanism.  Though some or all of this code may eventually
-belong in mm or lib, this patch places it with staging drivers.
-
-The in-kernel transcendent memory implementation (see tmem.c)
-conforms to the same ABI as the Xen tmem shim [6] but also provides
-a generic interface to be used by one or more page-addressable
-memory ("PAM") [7] implementations.  This generic tmem code is
-also designed to support multiple "clients", so should be easily
-adaptable for KVM or possibly cgroups, allowing multiple guests
-to more efficiently "timeshare" physical memory.
-
-Kztmem (see kztmem.c) provides both "host" services (setup and
-core memory allocation) for a single client for the generic tmem
-code plus two different PAM implementations:
-
-A. "compression buddies" ("zbud") which mates compression with a
-   shrinker interface to store ephemeral pages so they can be
-   easily reclaimed; compressed pages are paired and stored in
-   a physical page, resulting in higher internal fragmentation
-B. a shim to xvMalloc [8] which is more space-efficient but
-   less receptive to page reclamation, so is fine for persistent
-   pages
-
-Both of these use lzo1x compression (see lib/lzo/*.*).
-
-IMHO, it should be relatively easy to plug in other PAM implementations,
-such as: PRAM [9], disaggregated memory [10], or far-far NUMA.
-
-References:
-[1] http://oss.oracle.com/projects/tmem 
-[2] http://lkml.org/lkml/2010/9/3/383 
-[3] https://lkml.org/lkml/2010/9/22/337 
-[4] http://lkml.org/lkml/2010/8/9/226 
-[5] http://lkml.org/lkml/2010/7/16/161 
-[6] http://lkml.org/lkml/2010/9/3/405 
-[7] http://marc.info/?l=linux-mm&m=127811271605009 
-[8] http://code.google.com/p/compcache/wiki/xvMalloc 
-[9] http://www.linuxsymposium.org/2010/view_abstract.php?content_kty=35
-[10] http://www.eecs.umich.edu/~tnm/trev_test/dissertationsPDF/kevinL.pdf
-
-Known flame-attractants:
-1. The tmem implementation relies on a simplified version of the
-   radix tree code in lib.  Though this risks a lecture from akpm
-   on code reuse, IMHO the existing radix tree code has become over-
-   specialized, so to avoid interminable discussion on how to genericize
-   radix-tree.c and the probable resultant bug tail, tmem uses its
-   own version, called sadix-tree.c.  A high-level diff list is
-   included in that file.
-2. The tmem code is designed for high concurrency, but shrinking
-   interactions cause a severe challenge for locking.  After fighting
-   with this for a long time, I fell back to a solution where
-   the shrinking code locks out all other processors trying to do
-   tmem accesses.  This is a bit ugly, but works, and since
-   shrinker calls are relatively infrequent, may be a fine solution.
-3. Extensive debugging code and sysfs entries have been left in place
-   for this draft as it is still a work-in-progress and I welcome
-   other developers to play with it.
-4. Little policy is in place (yet) to limit kztmem from eventually
-   absorbing all free memory for compressed frontswap pages or
-   (if the shrinker isn't "fast enough") compressed cleancache
-   pages.  On some workloads and some memory sizes, this eventually
-   results in OOMs.  I'd appreciate feedback on or patches that try
-   out some policies.
-5. Cleancache works best when the "clean working set" is larger
-   than the active file cache, but smaller than the memory available
-   for cleancache store.  This scenario can be difficult to duplicate
-   in a kernel with fixed RAM size. For best results, kztmem may require
-   tuning changes to file cache parameters.
-6. I've had trouble tracking down a one or more remaining heisenbugs where
-   some data (even local variables!) seem to get randomly trashed, resulting
-   in crashes.  I'm suspecting a compiler bug (gcc 4.1.2), but have managed
-   to sometimes get around it with "-fno-inline-functions-called-once"
-   *IF YOUR* kztmem-enabled kernel fails to boot, try adding this parameter
-   to the KBUILD_CFLAGS in your kernel Makefile.  If you see this
-   and your debugging skills are better than mine (likely), I've left some
-   debug markers (c.f. ifdef WEIRD_BUG) that might help.  There is a possibly
-   related bug involving rbtrees marked with BROKEN_OID_COMPARE.
-   
 Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
- drivers/staging/Kconfig             |    2 
- drivers/staging/Makefile            |    1 
- drivers/staging/kztmem/Kconfig      |    8 
- drivers/staging/kztmem/Makefile     |    1 
- drivers/staging/kztmem/kztmem.c     | 1318 ++++++++++++++++++++++++++++++++++
- drivers/staging/kztmem/sadix-tree.c |  349 +++++++++
- drivers/staging/kztmem/sadix-tree.h |   82 ++
- drivers/staging/kztmem/tmem.c       | 1375 ++++++++++++++++++++++++++++++++++++
- drivers/staging/kztmem/tmem.h       |  135 +++
- 9 files changed, 3271 insertions(+)
+---
+
+Diffstat:
+ drivers/staging/kztmem/sadix-tree.c      |  349 +++++++++++++++++++++
+ drivers/staging/kztmem/sadix-tree.h      |   82 ++++
+ 2 files changed, 431 insertions(+)
+
+--- linux-2.6.36/drivers/staging/kztmem/sadix-tree.c	1969-12-31 17:00:00.000000000 -0700
++++ linux-2.6.36-kztmem/drivers/staging/kztmem/sadix-tree.c	2010-12-02 12:02:19.000000000 -0700
+@@ -0,0 +1,349 @@
++/*
++ * Copyright (C) 2001 Momchil Velikov
++ * Portions Copyright (C) 2001 Christoph Hellwig
++ * Copyright (C) 2005 SGI, Christoph Lameter <clameter@sgi.com>
++ * Copyright (C) 2009-2010 simplified/adapted for transcendent memory ("tmem")
++ *      by Dan Magenheimer <dan.magenheimer@oracle.com>, as follows:
++ *
++ * o Linux 2.6.18 source used (prior to read-copy-update addition)
++ * o constants and data structures moved out to sadix-tree.h header
++ * o tagging code removed
++ * o sadix_tree_insert has func parameter for dynamic data struct allocation
++ * o sadix_tree_destroy added (including recursive helper function)
++ * o __init functions must be called explicitly
++ * o sadix_tree_lookup_slot, __lookup and sadix_tree_gang_lookup unused/removed
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2, or (at
++ * your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++ */
++
++#include <linux/module.h>
++#include <linux/errno.h>
++#include <linux/init.h>
++#include "sadix-tree.h"
++
++static unsigned long height_to_maxindex[SADIX_TREE_MAX_PATH + 1];
++
++/*
++ * Return the maximum key which can be store into a
++ * radix tree with height HEIGHT.
++ */
++static inline unsigned long sadix_tree_maxindex(unsigned int height)
++{
++	return height_to_maxindex[height];
++}
++
++/*
++ * Extend a radix tree so it can store key @index.
++ */
++static int sadix_tree_extend(struct sadix_tree_root *root, unsigned long index,
++				struct sadix_tree_node *(*node_alloc)(void *),
++				void *arg)
++{
++	struct sadix_tree_node *node;
++	unsigned int height;
++
++	/* Figure out what the height should be.  */
++	height = root->height + 1;
++	if (index > sadix_tree_maxindex(height))
++		while (index > sadix_tree_maxindex(height))
++			height++;
++
++	if (root->rnode == NULL) {
++		root->height = height;
++		goto out;
++	}
++
++	do {
++		node = node_alloc(arg);
++		if (!node)
++			return -ENOMEM;
++
++		/* Increase the height.  */
++		node->slots[0] = root->rnode;
++
++		node->count = 1;
++		root->rnode = node;
++		root->height++;
++	} while (height > root->height);
++out:
++	return 0;
++}
++
++/**
++ * sadix_tree_insert    -    insert into a radix tree
++ * @root:  radix tree root
++ * @index:  index key
++ * @item:  item to insert
++ *
++ * Insert an item into the radix tree at position @index.
++ */
++int sadix_tree_insert(struct sadix_tree_root *root, unsigned long index,
++			void *item,
++			struct sadix_tree_node *(*node_alloc)(void *),
++			void *arg)
++{
++	struct sadix_tree_node *node = NULL, *slot;
++	unsigned int height, shift;
++	int offset;
++	int error;
++
++	/* Make sure the tree is high enough.  */
++	if (index > sadix_tree_maxindex(root->height)) {
++		error = sadix_tree_extend(root, index, node_alloc, arg);
++		if (error)
++			return error;
++	}
++
++	slot = root->rnode;
++	height = root->height;
++	shift = (height-1) * SADIX_TREE_MAP_SHIFT;
++
++	offset = 0;   /* uninitialised var warning */
++	while (height > 0) {
++		if (slot == NULL) {
++			/* Have to add a child node.  */
++			slot = node_alloc(arg);
++			if (!slot)
++				return -ENOMEM;
++			if (node) {
++
++				node->slots[offset] = slot;
++				node->count++;
++			} else
++				root->rnode = slot;
++		}
++
++		/* Go a level down */
++		offset = (index >> shift) & SADIX_TREE_MAP_MASK;
++		node = slot;
++		slot = node->slots[offset];
++		shift -= SADIX_TREE_MAP_SHIFT;
++		height--;
++	}
++
++	if (slot != NULL)
++		return -EEXIST;
++
++	if (node) {
++		node->count++;
++		node->slots[offset] = item;
++	} else {
++		root->rnode = item;
++	}
++
++	return 0;
++}
++EXPORT_SYMBOL(sadix_tree_insert);
++
++static inline void **__lookup_slot(struct sadix_tree_root *root,
++					unsigned long index)
++{
++	unsigned int height, shift;
++	struct sadix_tree_node **slot;
++
++	height = root->height;
++
++	if (index > sadix_tree_maxindex(height))
++		return NULL;
++
++	if (height == 0 && root->rnode)
++		return (void **)&root->rnode;
++
++	shift = (height-1) * SADIX_TREE_MAP_SHIFT;
++	slot = &root->rnode;
++
++	while (height > 0) {
++		if (*slot == NULL)
++			return NULL;
++
++		slot = (struct sadix_tree_node **)
++			((*slot)->slots +
++			 ((index >> shift) & SADIX_TREE_MAP_MASK));
++		shift -= SADIX_TREE_MAP_SHIFT;
++		height--;
++	}
++
++	return (void **)slot;
++}
++
++/**
++ * sadix_tree_lookup    -    perform lookup operation on a radix tree
++ * @root:  radix tree root
++ * @index:  index key
++ *
++ * Lookup the item at the position @index in the radix tree @root.
++ */
++void *sadix_tree_lookup(struct sadix_tree_root *root, unsigned long index)
++{
++	void **slot;
++
++	slot = __lookup_slot(root, index);
++	return slot != NULL ? *slot : NULL;
++}
++EXPORT_SYMBOL(sadix_tree_lookup);
++
++/**
++ * sadix_tree_shrink    -    shrink height of a radix tree to minimal
++ * @root  radix tree root
++ */
++static inline void sadix_tree_shrink(struct sadix_tree_root *root,
++				void (*node_free)(struct sadix_tree_node *))
++{
++	/* try to shrink tree height */
++	while (root->height > 0 &&
++		   root->rnode->count == 1 &&
++		   root->rnode->slots[0]) {
++		struct sadix_tree_node *to_free = root->rnode;
++
++		root->rnode = to_free->slots[0];
++		root->height--;
++		to_free->slots[0] = NULL;
++		to_free->count = 0;
++		node_free(to_free);
++	}
++}
++
++/**
++ * sadix_tree_delete    -    delete an item from a radix tree
++ * @root:  radix tree root
++ * @index:  index key
++ *
++ * Remove the item at @index from the radix tree rooted at @root.
++ *
++ * Returns the address of the deleted item, or NULL if it was not present.
++ */
++void *sadix_tree_delete(struct sadix_tree_root *root, unsigned long index,
++			void(*node_free)(struct sadix_tree_node *))
++{
++	struct sadix_tree_path path[SADIX_TREE_MAX_PATH + 1], *pathp = path;
++	struct sadix_tree_node *slot = NULL;
++	unsigned int height, shift;
++	int offset;
++
++	height = root->height;
++	if (index > sadix_tree_maxindex(height))
++		goto out;
++
++	slot = root->rnode;
++	if (height == 0 && root->rnode) {
++		root->rnode = NULL;
++		goto out;
++	}
++
++	shift = (height - 1) * SADIX_TREE_MAP_SHIFT;
++	pathp->node = NULL;
++
++	do {
++		if (slot == NULL)
++			goto out;
++
++		pathp++;
++		offset = (index >> shift) & SADIX_TREE_MAP_MASK;
++		pathp->offset = offset;
++		pathp->node = slot;
++		slot = slot->slots[offset];
++		shift -= SADIX_TREE_MAP_SHIFT;
++		height--;
++	} while (height > 0);
++
++	if (slot == NULL)
++		goto out;
++
++	/* Now free the nodes we do not need anymore */
++	while (pathp->node) {
++		pathp->node->slots[pathp->offset] = NULL;
++		pathp->node->count--;
++
++		if (pathp->node->count) {
++			if (pathp->node == root->rnode)
++				sadix_tree_shrink(root, node_free);
++			goto out;
++		}
++
++		/* Node with zero slots in use so free it */
++		node_free(pathp->node);
++
++		pathp--;
++	}
++	root->height = 0;
++	root->rnode = NULL;
++
++out:
++	return slot;
++}
++EXPORT_SYMBOL(sadix_tree_delete);
++
++static void
++sadix_tree_node_destroy(struct sadix_tree_node *node, unsigned int height,
++			void (*slot_free)(void *, void *),
++			void (*node_free)(struct sadix_tree_node *),
++			void *slot_extra)
++{
++	int i;
++
++	if (height == 0)
++		return;
++	for (i = 0; i < SADIX_TREE_MAP_SIZE; i++) {
++		if (node->slots[i]) {
++			if (height == 1) {
++				slot_free(node->slots[i], slot_extra);
++				node->slots[i] = NULL;
++				continue;
++			}
++			sadix_tree_node_destroy(node->slots[i], height-1,
++				slot_free, node_free, slot_extra);
++			node_free(node->slots[i]);
++			node->slots[i] = NULL;
++		}
++	}
++}
++
++void sadix_tree_destroy(struct sadix_tree_root *root,
++			void (*slot_free)(void *, void *),
++			void (*node_free)(struct sadix_tree_node *),
++			void *slot_extra)
++{
++	if (root->rnode == NULL)
++		return;
++	if (root->height == 0)
++		slot_free(root->rnode, slot_extra);
++	else {
++		sadix_tree_node_destroy(root->rnode, root->height,
++				slot_free, node_free, slot_extra);
++		node_free(root->rnode);
++		root->height = 0;
++	}
++	root->rnode = NULL;
++	/* caller must delete root if desired */
++}
++EXPORT_SYMBOL(sadix_tree_destroy);
++
++static unsigned long __init __maxindex(unsigned int height)
++{
++	unsigned int tmp = height * SADIX_TREE_MAP_SHIFT;
++	unsigned long index = (~0UL >> (SADIX_TREE_INDEX_BITS - tmp - 1)) >> 1;
++
++	if (tmp >= SADIX_TREE_INDEX_BITS)
++		index = ~0UL;
++	return index;
++}
++
++void __init sadix_tree_init(void)
++{
++	unsigned int i;
++
++	for (i = 0; i < ARRAY_SIZE(height_to_maxindex); i++)
++		height_to_maxindex[i] = __maxindex(i);
++}
+--- linux-2.6.36/drivers/staging/kztmem/sadix-tree.h	1969-12-31 17:00:00.000000000 -0700
++++ linux-2.6.36-kztmem/drivers/staging/kztmem/sadix-tree.h	2010-12-02 12:02:44.000000000 -0700
+@@ -0,0 +1,82 @@
++/*
++ * Copyright (C) 2001 Momchil Velikov
++ * Portions Copyright (C) 2001 Christoph Hellwig
++ * Copyright (C) 2009-2010 simplified/adapted for transcendent memory ("tmem")
++ *      by Dan Magenheimer <dan.magenheimer@oracle.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2, or (at
++ * your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++ */
++#ifndef _LINUX_SADIX_TREE_H
++#define _LINUX_SADIX_TREE_H
++
++#include <linux/types.h>
++#include <linux/kernel.h>
++
++/* root tags are stored in gfp_mask, shifted by __GFP_BITS_SHIFT */
++struct sadix_tree_root {
++	unsigned int height;
++	struct sadix_tree_node *rnode;
++};
++
++#define SADIX_TREE_MAP_SHIFT 6
++
++#define SADIX_TREE_MAP_SIZE (1UL << SADIX_TREE_MAP_SHIFT)
++#define SADIX_TREE_MAP_MASK (SADIX_TREE_MAP_SIZE-1)
++
++#define SADIX_TREE_TAG_LONGS \
++	((SADIX_TREE_MAP_SIZE + BITS_PER_LONG - 1) / BITS_PER_LONG)
++
++struct sadix_tree_node {
++	unsigned int count;
++	void *slots[SADIX_TREE_MAP_SIZE];
++};
++
++struct sadix_tree_path {
++	struct sadix_tree_node *node;
++	int offset;
++};
++
++#define SADIX_TREE_INDEX_BITS (8 /* CHAR_BIT */ * sizeof(unsigned long))
++#define SADIX_TREE_MAX_PATH (SADIX_TREE_INDEX_BITS/SADIX_TREE_MAP_SHIFT + 2)
++
++
++#define SADIX_TREE_INIT(mask) \
++	{	 \
++		.height = 0, \
++		.rnode = NULL, \
++	}
++
++#define SADIX_TREE(name, mask) \
++	struct sadix_tree_root name = SADIX_TREE_INIT(mask)
++
++#define INIT_SADIX_TREE(root, mask) \
++	do { \
++		(root)->height = 0; \
++		(root)->rnode = NULL; \
++	} while (0)
++
++int sadix_tree_insert(struct sadix_tree_root *root, unsigned long index,
++			void *item,
++			struct sadix_tree_node *(*node_alloc)(void *),
++			void *arg);
++void *sadix_tree_lookup(struct sadix_tree_root *, unsigned long);
++void sadix_tree_destroy(struct sadix_tree_root *root,
++			void (*slot_free)(void *, void *),
++			void (*node_free)(struct sadix_tree_node *), void *);
++void *sadix_tree_delete(struct sadix_tree_root *root, unsigned long index,
++			void(*node_free)(struct sadix_tree_node *));
++void sadix_tree_init(void);
++
++#endif /* _LINUX_SADIX_TREE_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
