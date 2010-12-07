@@ -1,39 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D8ED56B0092
-	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 10:09:59 -0500 (EST)
-Received: by pwi6 with SMTP id 6so20398pwi.14
-        for <linux-mm@kvack.org>; Tue, 07 Dec 2010 07:09:54 -0800 (PST)
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH] memcg: Remove unnecessary return
-Date: Wed,  8 Dec 2010 00:09:40 +0900
-Message-Id: <1291734580-19515-1-git-send-email-minchan.kim@gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D9686B008C
+	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 10:20:07 -0500 (EST)
+Date: Tue, 7 Dec 2010 16:19:39 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v4 2/7] deactivate invalidated pages
+Message-ID: <20101207151939.GF2356@cmpxchg.org>
+References: <cover.1291568905.git.minchan.kim@gmail.com>
+ <d57730effe4b48012d31ceca07938ed3eb401aba.1291568905.git.minchan.kim@gmail.com>
+ <20101207144923.GB2356@cmpxchg.org>
+ <20101207150710.GA26613@barrios-desktop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101207150710.GA26613@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- mm/memcontrol.c |    1 -
- 1 files changed, 0 insertions(+), 1 deletions(-)
+On Wed, Dec 08, 2010 at 12:07:10AM +0900, Minchan Kim wrote:
+> On Tue, Dec 07, 2010 at 03:49:24PM +0100, Johannes Weiner wrote:
+> > On Mon, Dec 06, 2010 at 02:29:10AM +0900, Minchan Kim wrote:
+> > > Changelog since v3:
+> > >  - Change function comments - suggested by Johannes
+> > >  - Change function name - suggested by Johannes
+> > >  - add only dirty/writeback pages to deactive pagevec
+> > 
+> > Why the extra check?
+> > 
+> > > @@ -359,8 +360,16 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+> > >  			if (lock_failed)
+> > >  				continue;
+> > >  
+> > > -			ret += invalidate_inode_page(page);
+> > > -
+> > > +			ret = invalidate_inode_page(page);
+> > > +			/*
+> > > +			 * If the page is dirty or under writeback, we can not
+> > > +			 * invalidate it now.  But we assume that attempted
+> > > +			 * invalidation is a hint that the page is no longer
+> > > +			 * of interest and try to speed up its reclaim.
+> > > +			 */
+> > > +			if (!ret && (PageDirty(page) || PageWriteback(page)))
+> > > +				deactivate_page(page);
+> > 
+> > The writeback completion handler does not take the page lock, so you
+> > can still miss pages that finish writeback before this test, no?
+> 
+> Yes. but I think it's rare and even though it happens, it's not critical.
+> > 
+> > Can you explain why you felt the need to add these checks?
+> 
+> invalidate_inode_page can return 0 although the pages is !{dirty|writeback}.
+> Look invalidate_complete_page. As easiest example, if the page has buffer and
+> try_to_release_page can't release the buffer, it could return 0.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f9435be..55f57e3 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -821,7 +821,6 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
- 		return;
- 	VM_BUG_ON(list_empty(&pc->lru));
- 	list_del_init(&pc->lru);
--	return;
- }
- 
- void mem_cgroup_del_lru(struct page *page)
--- 
-1.7.0.4
+Ok, but somebody still tried to truncate the page, so why shouldn't we
+try to reclaim it?  The reason for deactivating at this location is
+that truncation is a strong hint for reclaim, not that it failed due
+to dirty/writeback pages.
+
+What's the problem with deactivating pages where try_to_release_page()
+failed?
+
+I don't think we should add more logic than necessary.  If there is a
+good reason for it, it needs to get a code comment at least.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
