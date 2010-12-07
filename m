@@ -1,57 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ADFB6B0087
-	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 13:51:05 -0500 (EST)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id oB7Ip1mk007249
-	for <linux-mm@kvack.org>; Tue, 7 Dec 2010 10:51:01 -0800
-Received: from qyk7 (qyk7.prod.google.com [10.241.83.135])
-	by kpbe17.cbf.corp.google.com with ESMTP id oB7Iodj5008680
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 93DD06B0087
+	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 14:21:11 -0500 (EST)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id oB7JL8Hw016523
+	for <linux-mm@kvack.org>; Tue, 7 Dec 2010 11:21:08 -0800
+Received: from qyk36 (qyk36.prod.google.com [10.241.83.164])
+	by wpaz37.hot.corp.google.com with ESMTP id oB7JKrbm030980
 	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 7 Dec 2010 10:51:00 -0800
-Received: by qyk7 with SMTP id 7so5051330qyk.0
-        for <linux-mm@kvack.org>; Tue, 07 Dec 2010 10:51:00 -0800 (PST)
+	for <linux-mm@kvack.org>; Tue, 7 Dec 2010 11:21:07 -0800
+Received: by qyk36 with SMTP id 36so263336qyk.6
+        for <linux-mm@kvack.org>; Tue, 07 Dec 2010 11:21:03 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20101207123308.GD5422@csn.ul.ie>
+In-Reply-To: <20101207065242.GI3158@balbir.in.ibm.com>
 References: <1291099785-5433-1-git-send-email-yinghan@google.com>
 	<1291099785-5433-2-git-send-email-yinghan@google.com>
-	<20101207123308.GD5422@csn.ul.ie>
-Date: Tue, 7 Dec 2010 10:50:59 -0800
-Message-ID: <AANLkTik6sz2vjWD7QwdBrGskm+5a7SNnfoW8k9Kqb3tf@mail.gmail.com>
+	<20101207065242.GI3158@balbir.in.ibm.com>
+Date: Tue, 7 Dec 2010 11:21:01 -0800
+Message-ID: <AANLkTikJbePBKiHeo5ALqRn9V7+RCe0LO+K5F=Rq4pYC@mail.gmail.com>
 Subject: Re: [PATCH 1/4] Add kswapd descriptor.
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 7, 2010 at 4:33 AM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On Mon, Nov 29, 2010 at 10:49:42PM -0800, Ying Han wrote:
+On Mon, Dec 6, 2010 at 10:52 PM, Balbir Singh <balbir@linux.vnet.ibm.com> w=
+rote:
+> * Ying Han <yinghan@google.com> [2010-11-29 22:49:42]:
+>
 >> There is a kswapd kernel thread for each memory node. We add a different=
  kswapd
 >> for each cgroup.
 >
-> What is considered a normal number of cgroups in production? 10, 50, 1000=
-0? If
-> it's a really large number and all the cgroups kswapds wake at the same t=
-ime,
-> the zone LRU lock will be very heavily contended. =A0Potentially there wi=
-ll
-> also be a very large number of new IO sources. I confess I haven't read t=
-he
-> thread yet so maybe this has already been thought of but it might make se=
-nse
-> to have a 1:N relationship between kswapd and memcgroups and cycle betwee=
-n
-> containers. The difficulty will be a latency between when kswapd wakes up
-> and when a particular container is scanned. The closer the ratio is to 1:=
-1,
-> the less the latency will be but the higher the contenion on the LRU lock
-> and IO will be.
+> Could you please elaborate on this, what is adding? creating a thread?
+
+Ok, better descriptor on the V2.
+
 >
->> The kswapd is sleeping in the wait queue headed at kswapd_wait
+> The kswapd is sleeping in the wait queue headed at kswapd_wait
 >> field of a kswapd descriptor. The kswapd descriptor stores information o=
 f node
 >> or cgroup and it allows the global and per cgroup background reclaim to =
@@ -64,6 +53,17 @@ to the
 >>
 >> Signed-off-by: Ying Han <yinghan@google.com>
 >> ---
+>
+> The performance data you posted earlier is helpful, do you have any
+> additional insights on the the CPU overheads if any?
+
+I haven't measured the kswapd cputime overhead, numbers will be posted
+on the next patch.
+
+>
+> My general overall comment is that this patch needs to be refactored
+> to bring out the change the patch makes.
+>
 >> =A0include/linux/mmzone.h | =A0 =A03 +-
 >> =A0include/linux/swap.h =A0 | =A0 10 +++++
 >> =A0mm/memcontrol.c =A0 =A0 =A0 =A0| =A0 =A02 +
@@ -101,25 +101,17 @@ page
 >> + =A0 =A0 struct task_struct *kswapd_task;
 >> + =A0 =A0 wait_queue_head_t kswapd_wait;
 >> + =A0 =A0 struct mem_cgroup *kswapd_mem;
+>
+> Is this field being used anywhere in this patch?
+
+will move this to the patch3.
+
+>
 >> + =A0 =A0 pg_data_t *kswapd_pgdat;
 >> +};
 >> +
 >> +#define MAX_KSWAPDS MAX_NUMNODES
 >> +extern struct kswapd kswapds[MAX_KSWAPDS];
->
-> This is potentially very large for a static structure. Can they not be
-> dynamically allocated and kept on a list? Yes, there will be a list walk
-> involved if yonu need a particular structure but that looks like it's a
-> rare operation at this point.
-
-This has been changed to dynamic allocation on the V2 I am working on. The
-kswapd descriptor is dynamic allocated at kswapd_run for both per-node and
-per-cgroup kswapd, and there is no list walking since it could be identifie=
-d by
-container_of(wait, struct kswapd, kswapd_wait);
-
---Ying
->
 >> +int kswapd(void *p);
 >> =A0/*
 >> =A0 * MAX_SWAPFILES defines the maximum number of swaptypes: things whic=
@@ -166,6 +158,12 @@ uct pglist_data *pgdat,
 >> =A0 =A0 =A0 unsigned long zone_start_pfn =3D pgdat->node_start_pfn;
 >> =A0 =A0 =A0 int ret;
 >> + =A0 =A0 struct kswapd *kswapd_p;
+>
+> _p is sort of ugly, do we really need it?
+
+will change.
+
+>
 >>
 >> =A0 =A0 =A0 pgdat_resize_init(pgdat);
 >> =A0 =A0 =A0 pgdat->nr_zones =3D 0;
@@ -173,6 +171,13 @@ uct pglist_data *pgdat,
 >> =A0 =A0 =A0 pgdat->kswapd_max_order =3D 0;
 >> =A0 =A0 =A0 pgdat_page_cgroup_init(pgdat);
 >> -
+>
+> Thanks for the whitspace cleanup, but I don't know if that should be
+> done here.
+
+done.
+
+>
 >> +
 >> + =A0 =A0 kswapd_p =3D &kswapds[nid];
 >> + =A0 =A0 init_waitqueue_head(&kswapd_p->kswapd_wait);
@@ -194,9 +199,6 @@ t mem_cgroup *mem_cont,
 >> +
 >> =A0#endif
 >>
->
-> Unnecessary whitespace there.
->
 >> +DEFINE_SPINLOCK(kswapds_spinlock);
 >> +struct kswapd kswapds[MAX_KSWAPDS];
 >> +
@@ -210,12 +212,6 @@ ning)
 >> =A0 =A0 =A0 int i;
 >> + =A0 =A0 pg_data_t *pgdat =3D kswapd->kswapd_pgdat;
 >>
->
-> This will behave strangely. You are using information from a *node* to
-> determine if the kswapd belonging to a cgroup should sleep or not. The
-> risk is that a cgroup kswapd never goes to sleep because even when all
-> of its pages are discarded, the node itself is still not balanced.
->
 >> =A0 =A0 =A0 /* If a direct reclaimer woke kswapd within HZ/10, it's prem=
 ature */
 >> =A0 =A0 =A0 if (remaining)
@@ -231,7 +227,15 @@ ature */
 >> + =A0 =A0 struct kswapd *kswapd_p =3D (struct kswapd *)p;
 >> + =A0 =A0 pg_data_t *pgdat =3D kswapd_p->kswapd_pgdat;
 >> + =A0 =A0 struct mem_cgroup *mem =3D kswapd_p->kswapd_mem;
+>
+> Do we use mem anywhere?
+
+move to patch3.
+>
 >> + =A0 =A0 wait_queue_head_t *wait_h =3D &kswapd_p->kswapd_wait;
+>
+> _p, _h almost look like hungarian notation in reverse :)
+>
 >> =A0 =A0 =A0 struct task_struct *tsk =3D current;
 >> =A0 =A0 =A0 DEFINE_WAIT(wait);
 >> =A0 =A0 =A0 struct reclaim_state reclaim_state =3D {
@@ -300,13 +304,6 @@ prematurely(kswapd_p, order,
 =A0 prepare_to_wait(wait_h, &wait,
 >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 TASK_INTERRUPTIBLE);
->
-> It would be nice if patch 1 did nothing but move the wait queue outside o=
-f
-> the node structure without any other functional change. It'll be then be
-> far easier to review a patch that introduces background reclaim for conta=
-iners.
->
 >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
 >>
 >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
@@ -349,6 +346,11 @@ prematurely(kswapd_p, order,
 =A0 =A0 =A0 =A0 =A0 count_vm_event(
 >> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
 =A0 =A0 =A0 =A0 =A0 KSWAPD_HIGH_WMARK_HIT_QUICKLY);
+>
+> Sorry, but the coding style hits me here do we really need to change
+> this?
+done.
+>
 >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
 >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
 >> -
@@ -412,6 +414,10 @@ r_block *nfb,
 >> =A0{
 >> - =A0 =A0 pg_data_t *pgdat =3D NODE_DATA(nid);
 >> + =A0 =A0 struct task_struct *thr;
+>
+> thr is an ugly name for task_struct instance
+
+>
 >> =A0 =A0 =A0 int ret =3D 0;
 >>
 >> - =A0 =A0 if (pgdat->kswapd)
@@ -427,6 +433,11 @@ r_block *nfb,
 >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 printk("Failed to start kswapd on node %d\n"=
 ,nid);
 >> =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -1;
+>
+> What happens to the threads started?
+
+Can you elaborate this little bit more?
+>
 >> =A0 =A0 =A0 }
 >> + =A0 =A0 kswapds[nid].kswapd_task =3D thr;
 >> =A0 =A0 =A0 return ret;
@@ -447,6 +458,10 @@ r_block *nfb,
 >> + =A0 =A0 wait =3D pgdat->kswapd_wait;
 >> + =A0 =A0 kswapd_p =3D container_of(wait, struct kswapd, kswapd_wait);
 >> + =A0 =A0 thr =3D kswapd_p->kswapd_task;
+>
+> Sorry, but thr is just an ugly name to use.
+
+>
 >> + =A0 =A0 spin_unlock(&kswapds_spinlock);
 >>
 >> - =A0 =A0 if (kswapd)
@@ -459,13 +474,16 @@ r_block *nfb,
 >> --
 >> 1.7.3.1
 >>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+>> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 >
 > --
-> Mel Gorman
-> Part-time Phd Student =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
-Linux Technology Center
-> University of Limerick =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 IB=
-M Dublin Software Lab
+> =A0 =A0 =A0 =A0Three Cheers,
+> =A0 =A0 =A0 =A0Balbir
 >
 
 --
