@@ -1,116 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 598A66B0092
-	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 21:30:42 -0500 (EST)
-Message-Id: <20101207010139.783646056@intel.com>
+	by kanga.kvack.org (Postfix) with SMTP id 0F7016B0093
+	for <linux-mm@kvack.org>; Mon,  6 Dec 2010 21:30:43 -0500 (EST)
+Message-Id: <20101207010139.886344927@intel.com>
 References: <20101207010033.280301752@intel.com>
-Date: Tue, 07 Dec 2010 09:00:35 +0800
+Date: Tue, 07 Dec 2010 09:00:36 +0800
 From: shaohui.zheng@intel.com
-Subject: [2/7,v8] NUMA Hotplug Emulator: Add numa=possible option
-Content-Disposition: inline; filename=002-add-node-possible-option.patch
+Subject: [3/7,v8] NUMA Hotplug Emulator: Add node hotplug emulation
+Content-Disposition: inline; filename=003-node-hotpluge-emulation.patch
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>, Shaohui Zheng <shaohui.zheng@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-From:  David Rientjes <rientjes@google.com>
+From: David Rientjes <rientjes@google.com>
 
-Adds a numa=possible=<N> command line option to set an additional N nodes
-as being possible for memory hotplug.  This set of possible nodes
-controls nr_node_ids and the sizes of several dynamically allocated node
-arrays.
+Add an interface to allow new nodes to be added when performing memory
+hot-add.  This provides a convenient interface to test memory hotplug
+notifier callbacks and surrounding hotplug code when new nodes are
+onlined without actually having a machine with such hotpluggable SRAT
+entries.
 
-This allows memory hotplug to create new nodes for newly added memory
-rather than binding it to existing nodes.
+This adds a new debugfs interface at /sys/kernel/debug/mem_hotplug/add_node
+that behaves in a similar way to the memory hot-add "probe" interface.
+Its format is size@start, where "size" is the size of the new node to be
+added and "start" is the physical address of the new memory.
 
-The first use-case for this will be node hotplug emulation which will use
-these possible nodes to create new nodes to test the memory hotplug
-callbacks and surrounding memory hotplug code.
+The new node id is a currently offline, but possible, node.  The bit must
+be set in node_possible_map so that nr_node_ids is sized appropriately.
+
+For emulation on x86, for example, it would be possible to set aside
+memory for hotplugged nodes (say, anything above 2G) and to add an
+additional four nodes as being possible on boot with
+
+	mem=2G numa=possible=4
+
+and then creating a new 128M node at runtime:
+
+	# echo 128M@0x80000000 > /sys/kernel/debug/mem_hotplug/add_node
+	On node 1 totalpages: 0
+	init_memory_mapping: 0000000080000000-0000000088000000
+	 0080000000 - 0088000000 page 2M
+Once the new node has been added, its memory can be onlined.  If this
+memory represents memory section 16, for example:
+
+	# echo online > /sys/devices/system/memory/memory16/state
+	Built 2 zonelists in Node order, mobility grouping on.  Total pages: 514846
+	Policy zone: Normal
+ [ The memory section(s) mapped to a particular node are visible via
+   /sys/devices/system/node/node1, in this example. ]
+
+The new node is now hotplugged and ready for testing.
 
 CC: Haicheng Li <haicheng.li@intel.com>
+CC: Greg KH <gregkh@suse.de>
 Signed-off-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
 ---
- Documentation/x86/x86_64/boot-options.txt |    4 ++++
- arch/x86/mm/numa_64.c                     |   18 +++++++++++++++---
- 2 files changed, 19 insertions(+), 3 deletions(-)
-
-diff --git a/Documentation/x86/x86_64/boot-options.txt b/Documentation/x86/x86_64/boot-options.txt
---- a/Documentation/x86/x86_64/boot-options.txt
-+++ b/Documentation/x86/x86_64/boot-options.txt
-@@ -174,6 +174,10 @@ NUMA
- 		If given as an integer, fills all system RAM with N fake nodes
- 		interleaved over physical nodes.
+ Documentation/memory-hotplug.txt |   24 +++++++++++++++
+ mm/memory_hotplug.c              |   59 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+), 0 deletions(-)
+Index: linux-hpe4/Documentation/memory-hotplug.txt
+===================================================================
+--- linux-hpe4.orig/Documentation/memory-hotplug.txt	2010-11-30 12:40:43.527622001 +0800
++++ linux-hpe4/Documentation/memory-hotplug.txt	2010-11-30 14:11:11.827622000 +0800
+@@ -18,6 +18,7 @@
+ 4. Physical memory hot-add phase
+   4.1 Hardware(Firmware) Support
+   4.2 Notify memory hot-add event by hand
++  4.3 Node hotplug emulation
+ 5. Logical Memory hot-add phase
+   5.1. State of memory
+   5.2. How to online memory
+@@ -215,6 +216,29 @@
+ Please see "How to online memory" in this text.
  
-+  numa=possible=<N>
-+		Sets an additional N nodes as being possible for memory
-+		hotplug.
+ 
++4.3 Node hotplug emulation
++------------
++With debugfs, it is possible to test node hotplug by assigning the newly
++added memory to a new node id when using a different interface with a similar
++behavior to "probe" described in section 4.2.  If a node id is possible
++(there are bits in /sys/devices/system/memory/possible that are not online),
++then it may be used to emulate a newly added node as the result of memory
++hotplug by using the debugfs "add_node" interface.
 +
- ACPI
- 
-   acpi=off	Don't enable ACPI
-diff --git a/arch/x86/mm/numa_64.c b/arch/x86/mm/numa_64.c
---- a/arch/x86/mm/numa_64.c
-+++ b/arch/x86/mm/numa_64.c
-@@ -33,6 +33,7 @@ s16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
- int numa_off __initdata;
- static unsigned long __initdata nodemap_addr;
- static unsigned long __initdata nodemap_size;
-+static unsigned long __initdata numa_possible_nodes;
- 
- /*
-  * Map cpu index to node index
-@@ -611,7 +612,7 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
- 
- #ifdef CONFIG_NUMA_EMU
- 	if (cmdline && !numa_emulation(start_pfn, last_pfn, acpi, k8))
--		return;
-+		goto out;
- 	nodes_clear(node_possible_map);
- 	nodes_clear(node_online_map);
- #endif
-@@ -619,14 +620,14 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
- #ifdef CONFIG_ACPI_NUMA
- 	if (!numa_off && acpi && !acpi_scan_nodes(start_pfn << PAGE_SHIFT,
- 						  last_pfn << PAGE_SHIFT))
--		return;
-+		goto out;
- 	nodes_clear(node_possible_map);
- 	nodes_clear(node_online_map);
- #endif
- 
- #ifdef CONFIG_K8_NUMA
- 	if (!numa_off && k8 && !k8_scan_nodes())
--		return;
-+		goto out;
- 	nodes_clear(node_possible_map);
- 	nodes_clear(node_online_map);
- #endif
-@@ -646,6 +647,15 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
- 		numa_set_node(i, 0);
- 	memblock_x86_register_active_regions(0, start_pfn, last_pfn);
- 	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT);
-+out: __maybe_unused
-+	for (i = 0; i < numa_possible_nodes; i++) {
-+		int nid;
++The add_node interface is located at "mem_hotplug/add_node" at the debugfs
++mount point.
 +
-+		nid = first_unset_node(node_possible_map);
-+		if (nid == MAX_NUMNODES)
-+			break;
-+		node_set(nid, node_possible_map);
-+	}
- }
++You can create a new node of a specified size starting at the physical
++address of new memory by
++
++% echo size@start_address_of_new_memory > /sys/kernel/debug/mem_hotplug/add_node
++
++Where "size" can be represented in megabytes or gigabytes (for example,
++"128M" or "1G").  The minumum size is that of a memory section.
++
++Once the new node has been added, it is possible to online the memory by
++toggling the "state" of its memory section(s) as described in section 5.1.
++
  
- unsigned long __init numa_free_all_bootmem(void)
-@@ -675,6 +685,8 @@ static __init int numa_setup(char *opt)
- 	if (!strncmp(opt, "noacpi", 6))
- 		acpi_numa = -1;
- #endif
-+	if (!strncmp(opt, "possible=", 9))
-+		numa_possible_nodes = simple_strtoul(opt + 9, NULL, 0);
- 	return 0;
+ ------------------------------
+ 5. Logical Memory hot-add phase
+Index: linux-hpe4/mm/memory_hotplug.c
+===================================================================
+--- linux-hpe4.orig/mm/memory_hotplug.c	2010-11-30 12:40:43.757622001 +0800
++++ linux-hpe4/mm/memory_hotplug.c	2010-11-30 14:02:33.877622002 +0800
+@@ -924,3 +924,63 @@
  }
- early_param("numa", numa_setup);
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ EXPORT_SYMBOL_GPL(remove_memory);
++
++#ifdef CONFIG_DEBUG_FS
++#include <linux/debugfs.h>
++
++static struct dentry *memhp_debug_root;
++
++static ssize_t add_node_store(struct file *file, const char __user *buf,
++				size_t count, loff_t *ppos)
++{
++	nodemask_t mask;
++	u64 start, size;
++	char buffer[64];
++	char *p;
++	int nid;
++	int ret;
++
++	memset(buffer, 0, sizeof(buffer));
++	if (count > sizeof(buffer) - 1)
++		count = sizeof(buffer) - 1;
++	if (copy_from_user(buffer, buf, count))
++		return -EFAULT;
++
++	size = memparse(buffer, &p);
++	if (size < (PAGES_PER_SECTION << PAGE_SHIFT))
++		return -EINVAL;
++	if (*p != '@')
++		return -EINVAL;
++
++	start = simple_strtoull(p + 1, NULL, 0);
++
++	nodes_andnot(mask, node_possible_map, node_online_map);
++	nid = first_node(mask);
++	if (nid == MAX_NUMNODES)
++		return -ENOMEM;
++
++	ret = add_memory(nid, start, size);
++	return ret ? ret : count;
++}
++
++static const struct file_operations add_node_file_ops = {
++	.write		= add_node_store,
++	.llseek		= generic_file_llseek,
++};
++
++static int __init node_debug_init(void)
++{
++	if (!memhp_debug_root)
++		memhp_debug_root = debugfs_create_dir("mem_hotplug", NULL);
++	if (!memhp_debug_root)
++		return -ENOMEM;
++
++	if (!debugfs_create_file("add_node", S_IWUSR, memhp_debug_root,
++			NULL, &add_node_file_ops))
++		return -ENOMEM;
++
++	return 0;
++}
++
++module_init(node_debug_init);
++#endif /* CONFIG_DEBUG_FS */
 
 -- 
 Thanks & Regards,
