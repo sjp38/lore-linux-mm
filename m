@@ -1,59 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id A95926B0087
-	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 09:37:55 -0500 (EST)
-Date: Tue, 7 Dec 2010 15:37:38 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v4 1/7] Fix checkpatch's report in swap.c
-Message-ID: <20101207143738.GA2356@cmpxchg.org>
-References: <cover.1291568905.git.minchan.kim@gmail.com>
- <f4bc70172f1e6c7357480af503b7a01cd96ccadd.1291568905.git.minchan.kim@gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id DCA7D6B0089
+	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 09:39:14 -0500 (EST)
+Date: Tue, 7 Dec 2010 08:39:06 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [thisops uV3 08/18] Taskstats: Use this_cpu_ops
+In-Reply-To: <20101206143256.GE3158@balbir.in.ibm.com>
+Message-ID: <alpine.DEB.2.00.1012070838020.25976@router.home>
+References: <20101130190707.457099608@linux.com> <20101130190845.819605614@linux.com> <1291226786.2898.22.camel@holzheu-laptop> <alpine.DEB.2.00.1012011212490.3774@router.home> <20101206143256.GE3158@balbir.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f4bc70172f1e6c7357480af503b7a01cd96ccadd.1291568905.git.minchan.kim@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Michael Holzheu <holzheu@linux.vnet.ibm.com>, akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, Eric Dumazet <eric.dumazet@gmail.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 06, 2010 at 02:29:09AM +0900, Minchan Kim wrote:
-> checkpatch reports following problems.
-> It's a very annoying. This patch fixes it.
->
-> barrios@barrios-desktop:~/linux-2.6$ ./scripts/checkpatch.pl -f mm/swap.c
-> WARNING: line over 80 characters
-> +		if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
-> 
-> WARNING: EXPORT_SYMBOL(foo); should immediately follow its function/variable
-> +EXPORT_SYMBOL(mark_page_accessed);
-> 
-> ERROR: code indent should use tabs where possible
-> +  ^I^I}$
-> 
-> WARNING: please, no space before tabs
-> +  ^I^I}$
-> 
-> WARNING: please, no spaces at the start of a line
-> +  ^I^I}$
-> 
-> WARNING: EXPORT_SYMBOL(foo); should immediately follow its function/variable
-> +EXPORT_SYMBOL(__pagevec_release);
-> 
-> WARNING: EXPORT_SYMBOL(foo); should immediately follow its function/variable
-> +EXPORT_SYMBOL(____pagevec_lru_add);
-> 
-> WARNING: EXPORT_SYMBOL(foo); should immediately follow its function/variable
-> +EXPORT_SYMBOL(pagevec_lookup);
-> 
-> WARNING: EXPORT_SYMBOL(foo); should immediately follow its function/variable
-> +EXPORT_SYMBOL(pagevec_lookup_tag);
-> 
-> total: 1 errors, 8 warnings, 517 lines checked
-> 
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+On Mon, 6 Dec 2010, Balbir Singh wrote:
 
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+> > Correct. We need to subtract one from that (which will eliminate the minus
+> > -1 that the inline this_cpu_inc_return creates).
+> >
+>
+> But that breaks current behaviour, we should probably initialize all
+> of the array to -1?
+
+Not necessary. This_cpu_inc() uses an xadd instruction which retrieves
+the value and then increments the memory location. Then it adds 1. The -1
+eliminates that add.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
