@@ -1,57 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E2B406B0087
-	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 00:58:25 -0500 (EST)
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by e28smtp04.in.ibm.com (8.14.4/8.13.1) with ESMTP id oB75wKrU026779
-	for <linux-mm@kvack.org>; Tue, 7 Dec 2010 11:28:20 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oB75wKas2768918
-	for <linux-mm@kvack.org>; Tue, 7 Dec 2010 11:28:20 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oB75wJtx008476
-	for <linux-mm@kvack.org>; Tue, 7 Dec 2010 16:58:20 +1100
-Date: Mon, 6 Dec 2010 20:02:56 +0530
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5084A6B0089
+	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 01:15:10 -0500 (EST)
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
+	by e23smtp08.au.ibm.com (8.14.4/8.13.1) with ESMTP id oB76F61w026837
+	for <linux-mm@kvack.org>; Tue, 7 Dec 2010 17:15:06 +1100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oB76F5lB1732850
+	for <linux-mm@kvack.org>; Tue, 7 Dec 2010 17:15:05 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oB76F4KJ006839
+	for <linux-mm@kvack.org>; Tue, 7 Dec 2010 17:15:05 +1100
+Date: Tue, 7 Dec 2010 11:45:03 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [thisops uV3 08/18] Taskstats: Use this_cpu_ops
-Message-ID: <20101206143256.GE3158@balbir.in.ibm.com>
+Subject: Re: [PATCH 1/4] Add kswapd descriptor.
+Message-ID: <20101207061503.GH3158@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
-References: <20101130190707.457099608@linux.com>
- <20101130190845.819605614@linux.com>
- <1291226786.2898.22.camel@holzheu-laptop>
- <alpine.DEB.2.00.1012011212490.3774@router.home>
+References: <1291099785-5433-1-git-send-email-yinghan@google.com>
+ <1291099785-5433-2-git-send-email-yinghan@google.com>
+ <20101130160838.4c66febf.kamezawa.hiroyu@jp.fujitsu.com>
+ <AANLkTikXzSx3Sjqb1NYZB-EJ76N-UbmiwTo=eOtSOnaP@mail.gmail.com>
+ <20101130172710.38de418b.kamezawa.hiroyu@jp.fujitsu.com>
+ <20101130175443.f01f4d09.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1012011212490.3774@router.home>
+In-Reply-To: <20101130175443.f01f4d09.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Michael Holzheu <holzheu@linux.vnet.ibm.com>, akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, Eric Dumazet <eric.dumazet@gmail.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Ying Han <yinghan@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Christoph Lameter <cl@linux.com> [2010-12-01 12:13:44]:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-11-30 17:54:43]:
 
-> On Wed, 1 Dec 2010, Michael Holzheu wrote:
+> On Tue, 30 Nov 2010 17:27:10 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> > >  		return -ENOMEM;
-> > >
-> > >  	if (!info) {
-> > > -		int seq = get_cpu_var(taskstats_seqnum)++;
-> > > -		put_cpu_var(taskstats_seqnum);
-> > > +		int seq = this_cpu_inc_return(taskstats_seqnum);
-> >
-> > Hmmm, wouldn't seq now always be one more than before?
-> >
-> > I think that "seq = get_cpu_var(taskstats_seqnum)++" first assigns
-> > taskstats_seqnum to seq and then increases the value in contrast to
-> > this_cpu_inc_return() that returns the already increased value, correct?
+> > On Tue, 30 Nov 2010 17:15:37 +0900
+> > Minchan Kim <minchan.kim@gmail.com> wrote:
+> > 
+> > > Ideally, I hope we unify global and memcg of kswapd for easy
+> > > maintainance if it's not a big problem.
+> > > When we make patches about lru pages, we always have to consider what
+> > > I should do for memcg.
+> > > And when we review patches, we also should consider what the patch is
+> > > missing for memcg.
+> > > It makes maintainance cost big. Of course, if memcg maintainers is
+> > > involved with all patches, it's no problem as it is.
+> > > 
+> > I know it's not. But thread control of kswapd will not have much merging point.
+> > And balance_pgdat() is fully replaced in patch/3. The effort for merging seems
+> > not big.
+> > 
 > 
-> Correct. We need to subtract one from that (which will eliminate the minus
-> -1 that the inline this_cpu_inc_return creates).
+> kswapd's balance_pgdat() is for following
+>   - reclaim pages within a node.
+>   - balancing zones in a pgdat.
+> 
+> memcg's background reclaim needs followings.
+>   - reclaim pages within a memcg
+>   - reclaim pages from arbitrary zones, if it's fair, it's good.
+>     But it's not important from which zone the pages are reclaimed from. 
+>     (I'm not sure we can select "the oldest" pages from divided LRU.)
 >
 
-But that breaks current behaviour, we should probably initialize all
-of the array to -1? 
+Yes, if it is fair, then we don't break what kswapd tries to do, so
+fairness is quite important, in that we don't leaves zones unbalanced
+(at least by very much) as we try to do background reclaim. But
+sometimes it cannot be helped, specially if there are policies that
+bias the allocation.
+ 
+> Then, merging will put 2 _very_ different functionalities into 1 function.
+> 
+> So, I thought it's simpler to implement
+> 
+>  1. a victim node selector (This algorithm will never be in kswapd.)
+
+A victim node selector per memcg? Could you clarify the context of
+node here?
+
+>  2. call _existing_ try_to_free_pages_mem_cgroup() with node local zonelist.
+>  Sharing is enough.
+> 
+> kswapd stop/go routine may be able to be shared. But this patch itself seems not
+> very good to me.
+> 
+> Thanks,
+> -Kame
+> 
 
 -- 
 	Three Cheers,
