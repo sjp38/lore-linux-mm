@@ -1,167 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id BA7326B0087
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 10:17:12 -0500 (EST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] mm: skip rebalance of hopeless zones
-Date: Wed,  8 Dec 2010 16:16:59 +0100
-Message-Id: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D95826B0087
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 10:31:51 -0500 (EST)
+Date: Wed, 8 Dec 2010 23:31:45 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH v2] writeback: enabling-gate for light dirtied bdi
+Message-ID: <20101208153145.GA19218@localhost>
+References: <20101205064430.GA15027@localhost>
+ <20101207165111.d79735c1.akpm@linux-foundation.org>
+ <20101208043004.GB15322@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20101208043004.GB15322@localhost>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+Cc: Peter Zijlstra <peterz@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Hellwig <hch@lst.de>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Kswapd tries to rebalance zones persistently until their high
-watermarks are restored.
+> +	 * Provide a global safety margin of ~1%, or up to 32MB for a 20GB box.
+> +	 */
+> +	dirty -= min(dirty / 128, 32768ULL >> (PAGE_SHIFT-10));
 
-If the amount of unreclaimable pages in a zone makes this impossible
-for reclaim, though, kswapd will end up in a busy loop without a
-chance of reaching its goal.
+/home/wfg/cc/linux-next/mm/page-writeback.c: In function a??bdi_dirty_limita??:
+/home/wfg/cc/linux-next/mm/page-writeback.c:464:133: warning: comparison of distinct pointer types lacks a cast
 
-This behaviour was observed on a virtual machine with a tiny
-Normal-zone that filled up with unreclaimable slab objects.
+Sorry, here is the fixed version.
 
-This patch makes kswapd skip rebalancing on such 'hopeless' zones and
-leaves them to direct reclaim.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/mmzone.h |    2 ++
- mm/page_alloc.c        |    4 ++--
- mm/vmscan.c            |   36 ++++++++++++++++++++++++++++--------
- 3 files changed, 32 insertions(+), 10 deletions(-)
+Subject: writeback: enabling gate limit for light dirtied bdi
+Date: Wed Dec 01 20:22:15 CST 2010
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 4890662..0cc1d63 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -655,6 +655,8 @@ typedef struct pglist_data {
- extern struct mutex zonelists_mutex;
- void build_all_zonelists(void *data);
- void wakeup_kswapd(struct zone *zone, int order);
-+bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-+			 int classzone_idx, int alloc_flags, long free_pages);
- bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
- 		int classzone_idx, int alloc_flags);
- bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1845a97..c7d2b28 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1458,8 +1458,8 @@ static inline int should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
-  * Return true if free pages are above 'mark'. This takes into account the order
-  * of the allocation.
-  */
--static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
--		      int classzone_idx, int alloc_flags, long free_pages)
-+bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-+			 int classzone_idx, int alloc_flags, long free_pages)
+I noticed that my NFSROOT test system goes slow responding when there
+is heavy dd to a local disk. Traces show that the NFSROOT's bdi limit
+is near 0 and many tasks in the system are repeatedly stuck in
+balance_dirty_pages().
+
+There are two generic problems:
+
+- light dirtiers at one device (more often than not the rootfs) get
+  heavily impacted by heavy dirtiers on another independent device
+
+- the light dirtied device does heavy throttling because bdi limit=0,
+  and the heavy throttling may in turn withhold its bdi limit in 0 as
+  it cannot dirty fast enough to grow up the bdi's proportional weight.
+
+Fix it by introducing some "low pass" gate, which is a small (<=32MB)
+value reserved by others and can be safely "stole" from the current
+global dirty margin.  It does not need to be big to help the bdi gain
+its initial weight.
+
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/linux/writeback.h |    3 ++-
+ mm/backing-dev.c          |    2 +-
+ mm/page-writeback.c       |   29 ++++++++++++++++++++++++++---
+ 3 files changed, 29 insertions(+), 5 deletions(-)
+
+--- linux-next.orig/mm/page-writeback.c	2010-12-08 23:28:19.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-12-08 23:30:45.000000000 +0800
+@@ -443,13 +443,26 @@ void global_dirty_limits(unsigned long *
+  *
+  * The bdi's share of dirty limit will be adapting to its throughput and
+  * bounded by the bdi->min_ratio and/or bdi->max_ratio parameters, if set.
+- */
+-unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
++ *
++ * There is a chicken and egg problem: when bdi A (eg. /pub) is heavy dirtied
++ * and bdi B (eg. /) is light dirtied hence has 0 dirty limit, tasks writing to
++ * B always get heavily throttled and bdi B's dirty limit might never be able
++ * to grow up from 0. So we do tricks to reserve some global margin and honour
++ * it to the bdi's that run low.
++ */
++unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
++			      unsigned long dirty,
++			      unsigned long dirty_pages)
  {
- 	/* free_pages my go negative - that's OK */
- 	long min = mark;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 42a4859..5623f36 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2191,6 +2191,25 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
- }
- #endif
+ 	u64 bdi_dirty;
+ 	long numerator, denominator;
  
-+static bool zone_needs_scan(struct zone *zone, int order,
-+			    unsigned long goal, int classzone_idx)
-+{
-+	unsigned long free, prospect;
-+
-+	free = zone_page_state(zone, NR_FREE_PAGES);
-+	if (zone->percpu_drift_mark && free < zone->percpu_drift_mark)
-+		free = zone_page_state_snapshot(zone, NR_FREE_PAGES);
-+
-+	if (__zone_watermark_ok(zone, order, goal, classzone_idx, 0, free))
-+		return false;
-+	/*
-+	 * Ensure that the watermark is at all restorable through
-+	 * reclaim.  Otherwise, leave the zone to direct reclaim.
+ 	/*
++	 * Provide a global safety margin of ~1%, or up to 32MB for a 20GB box.
 +	 */
-+	prospect = free + zone_reclaimable_pages(zone);
-+	return prospect >= goal;
-+}
++	dirty -= min(dirty / 128, 32768UL >> (PAGE_SHIFT-10));
 +
- /* is kswapd sleeping prematurely? */
- static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
- {
-@@ -2210,8 +2229,7 @@ static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
- 		if (zone->all_unreclaimable)
- 			continue;
++	/*
+ 	 * Calculate this BDI's share of the dirty ratio.
+ 	 */
+ 	bdi_writeout_fraction(bdi, &numerator, &denominator);
+@@ -459,6 +472,15 @@ unsigned long bdi_dirty_limit(struct bac
+ 	do_div(bdi_dirty, denominator);
  
--		if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone),
--								0, 0))
-+		if (zone_needs_scan(zone, order, high_wmark_pages(zone), 0))
- 			return 1;
- 	}
+ 	bdi_dirty += (dirty * bdi->min_ratio) / 100;
++
++	/*
++	 * If we can dirty N more pages globally, honour N/2 to the bdi that
++	 * runs low, so as to help it ramp up.
++	 */
++	if (unlikely(bdi_dirty < (dirty - dirty_pages) / 2 &&
++		     dirty > dirty_pages))
++		bdi_dirty = (dirty - dirty_pages) / 2;
++
+ 	if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
+ 		bdi_dirty = dirty * bdi->max_ratio / 100;
  
-@@ -2282,6 +2300,7 @@ loop_again:
- 		 */
- 		for (i = pgdat->nr_zones - 1; i >= 0; i--) {
- 			struct zone *zone = pgdat->node_zones + i;
-+			unsigned long goal;
+@@ -508,7 +530,8 @@ static void balance_dirty_pages(struct a
+ 				(background_thresh + dirty_thresh) / 2)
+ 			break;
  
- 			if (!populated_zone(zone))
- 				continue;
-@@ -2297,8 +2316,8 @@ loop_again:
- 				shrink_active_list(SWAP_CLUSTER_MAX, zone,
- 							&sc, priority, 0);
+-		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
++		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh,
++					     nr_reclaimable + nr_writeback);
+ 		bdi_thresh = task_dirty_limit(current, bdi_thresh);
  
--			if (!zone_watermark_ok_safe(zone, order,
--					high_wmark_pages(zone), 0, 0)) {
-+			goal = high_wmark_pages(zone);
-+			if (zone_needs_scan(zone, order, goal, 0)) {
- 				end_zone = i;
- 				break;
- 			}
-@@ -2323,6 +2342,7 @@ loop_again:
- 		 */
- 		for (i = 0; i <= end_zone; i++) {
- 			struct zone *zone = pgdat->node_zones + i;
-+			unsigned long goal;
- 			int nr_slab;
+ 		/*
+--- linux-next.orig/mm/backing-dev.c	2010-12-08 23:28:19.000000000 +0800
++++ linux-next/mm/backing-dev.c	2010-12-08 23:28:43.000000000 +0800
+@@ -83,7 +83,7 @@ static int bdi_debug_stats_show(struct s
+ 	spin_unlock(&inode_lock);
  
- 			if (!populated_zone(zone))
-@@ -2339,12 +2359,13 @@ loop_again:
- 			 */
- 			mem_cgroup_soft_limit_reclaim(zone, order, sc.gfp_mask);
+ 	global_dirty_limits(&background_thresh, &dirty_thresh);
+-	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
++	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh, dirty_thresh);
  
-+			goal = high_wmark_pages(zone);
- 			/*
- 			 * We put equal pressure on every zone, unless one
- 			 * zone has way too many pages free already.
- 			 */
- 			if (!zone_watermark_ok_safe(zone, order,
--					8*high_wmark_pages(zone), end_zone, 0))
-+						    8 * goal, end_zone, 0))
- 				shrink_zone(priority, zone, &sc);
- 			reclaim_state->reclaimed_slab = 0;
- 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
-@@ -2373,8 +2394,7 @@ loop_again:
- 				compact_zone_order(zone, sc.order, sc.gfp_mask,
- 							false);
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
+ 	seq_printf(m,
+--- linux-next.orig/include/linux/writeback.h	2010-12-08 23:28:19.000000000 +0800
++++ linux-next/include/linux/writeback.h	2010-12-08 23:28:43.000000000 +0800
+@@ -126,7 +126,8 @@ int dirty_writeback_centisecs_handler(st
  
--			if (!zone_watermark_ok_safe(zone, order,
--					high_wmark_pages(zone), end_zone, 0)) {
-+			if (zone_needs_scan(zone, order, goal, end_zone)) {
- 				all_zones_ok = 0;
- 				/*
- 				 * We are still under min water mark.  This
-@@ -2587,7 +2607,7 @@ void wakeup_kswapd(struct zone *zone, int order)
- 		pgdat->kswapd_max_order = order;
- 	if (!waitqueue_active(&pgdat->kswapd_wait))
- 		return;
--	if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zone), 0, 0))
-+	if (!zone_needs_scan(zone, order, low_wmark_pages(zone), 0))
- 		return;
+ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
+ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
+-			       unsigned long dirty);
++			       unsigned long dirty,
++			       unsigned long dirty_pages);
  
- 	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
--- 
-1.7.3.2
+ void page_writeback_init(void);
+ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
