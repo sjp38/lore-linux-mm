@@ -1,101 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C782E6B0089
-	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 21:02:24 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB822LRa004376
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 8 Dec 2010 11:02:21 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 800D245DE56
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 11:02:21 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5879445DE5F
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 11:02:21 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C6E2E18001
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 11:02:21 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 104B31DB8038
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 11:02:21 +0900 (JST)
-Date: Wed, 8 Dec 2010 10:56:37 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v4 2/7] deactivate invalidated pages
-Message-Id: <20101208105637.5103de75.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <AANLkTimtkb7Nczhads4u3r21RJauZvviLFkXjaL1ErDb@mail.gmail.com>
-References: <cover.1291568905.git.minchan.kim@gmail.com>
-	<d57730effe4b48012d31ceca07938ed3eb401aba.1291568905.git.minchan.kim@gmail.com>
-	<20101207144923.GB2356@cmpxchg.org>
-	<20101207150710.GA26613@barrios-desktop>
-	<20101207151939.GF2356@cmpxchg.org>
-	<20101207152625.GB608@barrios-desktop>
-	<20101207155645.GG2356@cmpxchg.org>
-	<AANLkTi=iNGT_p_VfW9GxdaKXLt2xBHM2jdwmCbF_u8uh@mail.gmail.com>
-	<20101208095642.8128ab33.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTimtkb7Nczhads4u3r21RJauZvviLFkXjaL1ErDb@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 04D436B008C
+	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 21:10:16 -0500 (EST)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id oB82ACea021082
+	for <linux-mm@kvack.org>; Tue, 7 Dec 2010 18:10:12 -0800
+Received: from yxt33 (yxt33.prod.google.com [10.190.5.225])
+	by hpaq11.eem.corp.google.com with ESMTP id oB829u9Y013839
+	for <linux-mm@kvack.org>; Tue, 7 Dec 2010 18:10:11 -0800
+Received: by yxt33 with SMTP id 33so429104yxt.17
+        for <linux-mm@kvack.org>; Tue, 07 Dec 2010 18:10:11 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20101208102812.5b93c1bc.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1291099785-5433-1-git-send-email-yinghan@google.com>
+	<1291099785-5433-2-git-send-email-yinghan@google.com>
+	<20101207123308.GD5422@csn.ul.ie>
+	<AANLkTimzL_CwLruzPspgmOk4OJU8M7dXycUyHmhW2s9O@mail.gmail.com>
+	<20101208093948.1b3b64c5.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTin+p5WnLjMkr8Qntkt4fR1+fdY=t6hkvV6G8Mok@mail.gmail.com>
+	<20101208102812.5b93c1bc.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 7 Dec 2010 18:10:11 -0800
+Message-ID: <AANLkTikXO1YxzX2PJyKobeb=Cg_EhTVW9-pBFnPE9dYh@mail.gmail.com>
+Subject: Re: [PATCH 1/4] Add kswapd descriptor.
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Dec 2010 10:43:08 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
-
-> Hi Kame,
-> 
-Hi,
-
-> > I wonder ...how about adding "victim" list for "Reclaim" pages ? Then, we don't need
-> > extra LRU rotation.
-> 
-> It can make the code clean.
-> As far as I think, victim list does following as.
-> 
-> 1. select victim pages by strong hint
-> 2. move the page from LRU to victim
-> 3. reclaimer always peeks victim list before diving into LRU list.
-> 4-1. If the victim pages is used by others or dirty, it can be moved
-> into LRU, again or remain the page in victim list.
-> If the page is remained victim, when do we move it into LRU again if
-> the reclaimer continues to fail the page?
-When sometone touches it.
-
-> We have to put the new rule.
-> 4-2. If the victim pages isn't used by others and clean, we can
-> reclaim the page asap.
-> 
-> AFAIK, strong hints are just two(invalidation, readahead max window heuristic).
-> I am not sure it's valuable to add new hierarchy(ie, LRU, victim,
-> unevictable) for cleaning the minor codes.
-> In addition, we have to put the new rule so it would make the LRU code
-> complicated.
-> I remember how unevictable feature merge is hard.
-> 
-yes, it was hard.
-
-> But I am not against if we have more usecases. In this case, it's
-> valuable to implement it although it's not easy.
-> 
-
-I wonder "victim list" can be used for something like Cleancache, when
-we have very-low-latency backend devices.
-And we may able to have page-cache-limit, which Balbir proposed as.
-
-  - kvictimed? will move unmappedd page caches to victim list
-This may work like a InactiveClean list which we had before and make
-sizing easy.
-
-Thanks,
--Kame
-
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+On Tue, Dec 7, 2010 at 5:28 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 7 Dec 2010 17:24:12 -0800
+> Ying Han <yinghan@google.com> wrote:
+>
+>> On Tue, Dec 7, 2010 at 4:39 PM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> > On Tue, 7 Dec 2010 09:28:01 -0800
+>> > Ying Han <yinghan@google.com> wrote:
+>> >
+>> >> On Tue, Dec 7, 2010 at 4:33 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+>> >
+>> >> Potentially there will
+>> >> > also be a very large number of new IO sources. I confess I haven't =
+read the
+>> >> > thread yet so maybe this has already been thought of but it might m=
+ake sense
+>> >> > to have a 1:N relationship between kswapd and memcgroups and cycle =
+between
+>> >> > containers. The difficulty will be a latency between when kswapd wa=
+kes up
+>> >> > and when a particular container is scanned. The closer the ratio is=
+ to 1:1,
+>> >> > the less the latency will be but the higher the contenion on the LR=
+U lock
+>> >> > and IO will be.
+>> >>
+>> >> No, we weren't talked about the mapping anywhere in the thread. Havin=
+g
+>> >> many kswapd threads
+>> >> at the same time isn't a problem as long as no locking contention (
+>> >> ext, 1k kswapd threads on
+>> >> 1k fake numa node system). So breaking the zone->lru_lock should work=
