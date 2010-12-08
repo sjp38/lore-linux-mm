@@ -1,55 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AC6316B008C
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 16:48:31 -0500 (EST)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id oB8LmRfh010372
-	for <linux-mm@kvack.org>; Wed, 8 Dec 2010 13:48:28 -0800
-Received: from pwj10 (pwj10.prod.google.com [10.241.219.74])
-	by kpbe12.cbf.corp.google.com with ESMTP id oB8LlsqZ007721
-	for <linux-mm@kvack.org>; Wed, 8 Dec 2010 13:48:26 -0800
-Received: by pwj10 with SMTP id 10so525198pwj.2
-        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 13:48:24 -0800 (PST)
-Date: Wed, 8 Dec 2010 13:48:20 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: continuous oom caused system deadlock
-In-Reply-To: <1334413603.521181291831873850.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Message-ID: <alpine.DEB.2.00.1012081344490.15658@chino.kir.corp.google.com>
-References: <1334413603.521181291831873850.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id E571B6B0087
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 17:21:09 -0500 (EST)
+Date: Wed, 8 Dec 2010 14:19:09 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm: skip rebalance of hopeless zones
+Message-Id: <20101208141909.5c9c60e8.akpm@linux-foundation.org>
+In-Reply-To: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
+References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: CAI Qian <caiqian@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Dec 2010, CAI Qian wrote:
+On Wed,  8 Dec 2010 16:16:59 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> Bisect indicated that this is the first bad commit,
+> Kswapd tries to rebalance zones persistently until their high
+> watermarks are restored.
 > 
-> commit 696d3cd5fb318c070dc757fe109e04e398138172
-> Author: David Rientjes <rientjes@google.com>
-> Date:   Fri Jun 11 22:45:17 2010 +0200
+> If the amount of unreclaimable pages in a zone makes this impossible
+> for reclaim, though, kswapd will end up in a busy loop without a
+> chance of reaching its goal.
 > 
->     __out_of_memory() only has a single caller, so fold it into
->     out_of_memory() and add a comment about locking for its call to
->     oom_kill_process().
->     
->     Signed-off-by: David Rientjes <rientjes@google.com>
->     Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->     Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> 
+> This behaviour was observed on a virtual machine with a tiny
+> Normal-zone that filled up with unreclaimable slab objects.
 
-This commit dropped the releasing of tasklist_lock when the oom killer 
-chooses not to act because it finds another task that has already been 
-killed but has yet to exit.  That's fixed by b52723c5, so this bisect 
-isn't the source of your problem.
+Doesn't this mean that vmscan is incorrectly handling its
+zone->all_unreclaimable logic?
 
-You didn't report the specific mmotm kernel that this was happening on, so 
-trying to diagnose or reproduce it is diffcult.  Could you try 2.6.37-rc5 
-with your test case?  If it works fine, could you try 
-mmotm-2010-12-02-16-34?
+> This patch makes kswapd skip rebalancing on such 'hopeless' zones and
+> leaves them to direct reclaim.
+> 
+> ...
+>
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2191,6 +2191,25 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+>  }
+>  #endif
+>  
+> +static bool zone_needs_scan(struct zone *zone, int order,
+> +			    unsigned long goal, int classzone_idx)
+> +{
+> +	unsigned long free, prospect;
+> +
+> +	free = zone_page_state(zone, NR_FREE_PAGES);
+> +	if (zone->percpu_drift_mark && free < zone->percpu_drift_mark)
+> +		free = zone_page_state_snapshot(zone, NR_FREE_PAGES);
+> +
+> +	if (__zone_watermark_ok(zone, order, goal, classzone_idx, 0, free))
+> +		return false;
+> +	/*
+> +	 * Ensure that the watermark is at all restorable through
+> +	 * reclaim.  Otherwise, leave the zone to direct reclaim.
+> +	 */
+> +	prospect = free + zone_reclaimable_pages(zone);
+> +	return prospect >= goal;
+> +}
+
+presumably in certain cases that's a bit more efficient than doing the
+scan and using ->all_unreclaimable.  But the scanner shouldn't have got
+stuck!  That's a regresion which got added, and I don't think that new
+code of this nature was needed to fix that regression.
+
+Did this zone end up with ->all_unreclaimable set?  If so, why was
+kswapd stuck in a loop scanning an all-unreclaimable zone?
+
+
+Also, if I'm understanding the new logic then if the "goal" is 100
+pages and zone_reclaimable_pages() says "50 pages potentially
+reclaimable" then kswapd won't reclaim *any* pages.  If so, is that
+good behaviour?  Should we instead attempt to reclaim some of those 50
+pages and then give up?  That sounds like a better strategy if we want
+to keep (say) network Rx happening in a tight memory situation.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
