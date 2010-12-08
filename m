@@ -1,51 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4E0666B008C
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 03:08:43 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB888ekM027547
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 8 Dec 2010 17:08:41 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F66F45DE6F
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 17:08:41 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E28BE45DE88
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 17:08:40 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D688F1DB803C
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 17:08:40 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 610CC1DB803B
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 17:08:40 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH v4 3/7] move memcg reclaimable page into tail of inactive list
-In-Reply-To: <a11d438e09af9808ac0cb0aba3e74c8a8deb4076.1291568905.git.minchan.kim@gmail.com>
-References: <cover.1291568905.git.minchan.kim@gmail.com> <a11d438e09af9808ac0cb0aba3e74c8a8deb4076.1291568905.git.minchan.kim@gmail.com>
-Message-Id: <20101208170933.1753.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 94A436B0093
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 03:13:37 -0500 (EST)
+Received: by iwn1 with SMTP id 1so1306042iwn.37
+        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 00:13:36 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed,  8 Dec 2010 17:08:39 +0900 (JST)
+In-Reply-To: <20101208165944.174D.A69D9226@jp.fujitsu.com>
+References: <cover.1291568905.git.minchan.kim@gmail.com>
+	<dff7a42e5877b23a3cc3355743da4b7ef37299f8.1291568905.git.minchan.kim@gmail.com>
+	<20101208165944.174D.A69D9226@jp.fujitsu.com>
+Date: Wed, 8 Dec 2010 17:13:35 +0900
+Message-ID: <AANLkTik4mtr8T6PddQopi4cwWGRmJ+-utykgjywGoxj+@mail.gmail.com>
+Subject: Re: [PATCH v4 5/7] add profile information for invalidated page reclaim
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-> Golbal page reclaim moves reclaimalbe pages into inactive list
-> to reclaim asap. This patch apply the rule in memcg.
-> It can help to prevent unnecessary working page eviction of memcg.
-> 
-> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+Hi KOSAKI,
 
-Good catch!
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Wed, Dec 8, 2010 at 5:02 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> This patch adds profile information about invalidated page reclaim.
+>> It's just for profiling for test so it would be discard when the series
+>> are merged.
+>>
+>> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+>> Cc: Rik van Riel <riel@redhat.com>
+>> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> Cc: Wu Fengguang <fengguang.wu@intel.com>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Cc: Nick Piggin <npiggin@kernel.dk>
+>> Cc: Mel Gorman <mel@csn.ul.ie>
+>> ---
+>> =A0include/linux/vmstat.h | =A0 =A04 ++--
+>> =A0mm/swap.c =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A03 +++
+>> =A0mm/vmstat.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A03 +++
+>> =A03 files changed, 8 insertions(+), 2 deletions(-)
+>
+> Today, we have tracepoint. tracepoint has no overhead if it's unused.
+> but vmstat has a overhead even if unused.
+>
+> Then, all new vmstat proposal should be described why you think it is
+> frequently used from administrators.
 
+It's just for easy gathering the data when Ben will test.
+I never want to merge it in upstream and even mmtom.
 
+If you don't like it for just testing, I am happy to change it with tracepo=
+int.
+
+Thanks.
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
