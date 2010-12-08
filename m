@@ -1,39 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BBA386B0087
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 16:16:20 -0500 (EST)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id oB8LGIua031000
-	for <linux-mm@kvack.org>; Wed, 8 Dec 2010 13:16:18 -0800
-Received: from pvc30 (pvc30.prod.google.com [10.241.209.158])
-	by wpaz21.hot.corp.google.com with ESMTP id oB8LGElD023117
-	for <linux-mm@kvack.org>; Wed, 8 Dec 2010 13:16:17 -0800
-Received: by pvc30 with SMTP id 30so515242pvc.0
-        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 13:16:14 -0800 (PST)
-Date: Wed, 8 Dec 2010 13:16:10 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 10E3B6B0087
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 16:21:08 -0500 (EST)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id oB8LI9ZB018448
+	for <linux-mm@kvack.org>; Wed, 8 Dec 2010 13:18:09 -0800
+Received: from pxi4 (pxi4.prod.google.com [10.243.27.4])
+	by hpaq3.eem.corp.google.com with ESMTP id oB8LHUA0020916
+	for <linux-mm@kvack.org>; Wed, 8 Dec 2010 13:18:07 -0800
+Received: by pxi4 with SMTP id 4so616596pxi.30
+        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 13:18:07 -0800 (PST)
+Date: Wed, 8 Dec 2010 13:18:02 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: [1/7,v8] NUMA Hotplug Emulator: documentation
-In-Reply-To: <20101208181644.GA2152@mgebm.net>
-Message-ID: <alpine.DEB.2.00.1012081315040.15658@chino.kir.corp.google.com>
-References: <20101207010033.280301752@intel.com> <20101207010139.681125359@intel.com> <20101207182420.GA2038@mgebm.net> <20101207232000.GA5353@shaohui> <20101208181644.GA2152@mgebm.net>
+In-Reply-To: <20101207232000.GA5353@shaohui>
+Message-ID: <alpine.DEB.2.00.1012081316530.15658@chino.kir.corp.google.com>
+References: <20101207010033.280301752@intel.com> <20101207010139.681125359@intel.com> <20101207182420.GA2038@mgebm.net> <20101207232000.GA5353@shaohui>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Eric B Munson <emunson@mgebm.net>
-Cc: Shaohui Zheng <shaohui.zheng@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, Andi Kleen <ak@linux.intel.com>, dave@linux.vnet.ibm.com, Greg Kroah-Hartman <gregkh@suse.de>, Haicheng Li <haicheng.li@intel.com>
+To: Shaohui Zheng <shaohui.zheng@linux.intel.com>
+Cc: Eric B Munson <emunson@mgebm.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, Andi Kleen <ak@linux.intel.com>, dave@linux.vnet.ibm.com, Greg Kroah-Hartman <gregkh@suse.de>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Dec 2010, Eric B Munson wrote:
+On Wed, 8 Dec 2010, Shaohui Zheng wrote:
 
-> Shaohui,
-> 
-> I was able to online a cpu to node 0 successfully.  My problem was that I did
-> not take the cpu offline before I released it.  Everything looks to be working
-> for me.
+> Eric,
+> 	the major change on the patchset is on the interface, for the v8 emulator,
+> we accept David's per-node debugfs add_memory interface, we already included
+> in the documentation patch. the change is very small, so it is not obvious.
 > 
 
-I think it should fail more gracefully than triggering WARN_ON()s because 
-of duplicate sysfs dentries though, right?
+It's still stale as Eric mentioned: for instance, the reference to 
+/sys/kernel/debug/node/add_node which is now under mem_hotplug.  There may 
+be other examples as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
