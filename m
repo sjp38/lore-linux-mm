@@ -1,111 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id AF24F6B0087
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 07:20:13 -0500 (EST)
-Date: Wed, 8 Dec 2010 12:19:51 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/4] Add kswapd descriptor.
-Message-ID: <20101208121951.GK5422@csn.ul.ie>
-References: <1291099785-5433-1-git-send-email-yinghan@google.com> <1291099785-5433-2-git-send-email-yinghan@google.com> <20101207123308.GD5422@csn.ul.ie> <AANLkTimzL_CwLruzPspgmOk4OJU8M7dXycUyHmhW2s9O@mail.gmail.com> <20101208093948.1b3b64c5.kamezawa.hiroyu@jp.fujitsu.com> <AANLkTin+p5WnLjMkr8Qntkt4fR1+fdY=t6hkvV6G8Mok@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id A3B536B0087
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 08:01:36 -0500 (EST)
+Received: by vws10 with SMTP id 10so939573vws.14
+        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 05:01:27 -0800 (PST)
+From: Ben Gamari <bgamari.foss@gmail.com>
+Subject: Re: [PATCH v4 4/7] Reclaim invalidated page ASAP
+In-Reply-To: <AANLkTikG1EAMm8yPvBVUXjFz1Bu9m+vfwH3TRPDzS9mq@mail.gmail.com>
+References: <cover.1291568905.git.minchan.kim@gmail.com> <0724024711222476a0c8deadb5b366265b8e5824.1291568905.git.minchan.kim@gmail.com> <20101208170504.1750.A69D9226@jp.fujitsu.com> <AANLkTikG1EAMm8yPvBVUXjFz1Bu9m+vfwH3TRPDzS9mq@mail.gmail.com>
+Date: Wed, 08 Dec 2010 08:01:24 -0500
+Message-ID: <87oc8wa063.fsf@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTin+p5WnLjMkr8Qntkt4fR1+fdY=t6hkvV6G8Mok@mail.gmail.com>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 07, 2010 at 05:24:12PM -0800, Ying Han wrote:
-> On Tue, Dec 7, 2010 at 4:39 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Tue, 7 Dec 2010 09:28:01 -0800
-> > Ying Han <yinghan@google.com> wrote:
-> >
-> >> On Tue, Dec 7, 2010 at 4:33 AM, Mel Gorman <mel@csn.ul.ie> wrote:
-> >
-> >> Potentially there will
-> >> > also be a very large number of new IO sources. I confess I haven't read the
-> >> > thread yet so maybe this has already been thought of but it might make sense
-> >> > to have a 1:N relationship between kswapd and memcgroups and cycle between
-> >> > containers. The difficulty will be a latency between when kswapd wakes up
-> >> > and when a particular container is scanned. The closer the ratio is to 1:1,
-> >> > the less the latency will be but the higher the contenion on the LRU lock
-> >> > and IO will be.
-> >>
-> >> No, we weren't talked about the mapping anywhere in the thread. Having
-> >> many kswapd threads
-> >> at the same time isn't a problem as long as no locking contention (
-> >> ext, 1k kswapd threads on
-> >> 1k fake numa node system). So breaking the zone->lru_lock should work.
-> >>
-> >
-> > That's me who make zone->lru_lock be shared. And per-memcg lock will makes
-> > the maintainance of memcg very bad. That will add many races.
-> > Or we need to make memcg's LRU not synchronized with zone's LRU, IOW, we need
-> > to have completely independent LRU.
-> >
-> > I'd like to limit the number of kswapd-for-memcg if zone->lru lock contention
-> > is problematic. memcg _can_ work without background reclaim.
-> 
-> >
-> > How about adding per-node kswapd-for-memcg it will reclaim pages by a memcg's
-> > request ? as
-> >
-> >        memcg_wake_kswapd(struct mem_cgroup *mem)
-> >        {
-> >                do {
-> >                        nid = select_victim_node(mem);
-> >                        /* ask kswapd to reclaim memcg's memory */
-> >                        ret = memcg_kswapd_queue_work(nid, mem); /* may return -EBUSY if very busy*/
-> >                } while()
-> >        }
-> >
-> > This will make lock contention minimum. Anyway, using too much cpu for this
-> > unnecessary_but_good_for_performance_function is bad. Throttoling is required.
-> 
-> I don't see the problem of one-kswapd-per-cgroup here since there will
-> be no performance cost if they are not running.
-> 
+> Make sense to me. If Ben is busy, I will measure it and send the result.
 
-*If* they are not running. There is potentially a massive cost here.
+I've done measurements on the patched kernel. All that remains is to do
+measurements on the baseline unpached case. To summarize the results
+thusfar,
 
-> I haven't measured the lock contention and cputime for each kswapd
-> running. Theoretically it would be a problem
-> if thousands of cgroups are configured on the the host and all of them
-> are under memory pressure.
-> 
+Times:
+=======
+                       user    sys     %cpu    inputs           outputs
+Patched, drop          142     64      46      13557744         14052744
+Patched, nodrop        55      57      33      13557936         13556680
 
-It's not just the locking. If all of these kswapds are running and each
-container has a small number of dirty pages, we potentially have tens or
-hundreds of kswapd each queueing a small number of pages for IO.  Granted,
-if we reach the point where these IO sources are delegated to flusher threads
-it would be less of a problem but it's not how things currently behave.
+vmstat:
+========
+                        free_pages      inact_anon      act_anon        inact_file      act_file        dirtied      written  reclaim
+Patched, drop, pre      306043          37541           185463          276266          153955          3689674      3604959  1550641
+Patched, drop, post     13233           38462           175252          536346          178792          5527564      5371563  3169155
 
-> We can either optimize the locking or make each kswapd smarter (hold
-> the lock less time).
+Patched, nodrop, pre    475211          38602           175242          81979           178820          5527592      5371554  3169155
+Patched, nodrop, post   7697            38959           176986          547984          180855          7324836      7132158  3169155
 
-Holding the lock less time might allow other kswapd instances to make small
-amounts of progress but they'll still be wasting a lot of CPU spinning on
-the lock. It's not a simple issue which is why I think we need either a)
-a means of telling kswapd which containers it should be reclaiming from
-or b) a 1:N mapping of kswapd instances to containers from the outset.
-Otherwise users with large numbers of containers will see severe slowdowns
-under memory pressure where as previously they would have experienced stalls
-in individual containers.
+Altogether, it seems that something is horribly wrong, most likely with
+my test (or rsync patch). I'll do the baseline benchmarks today.
 
-> My current plan is to have the
-> one-kswapd-per-cgroup on the V2 patch w/ select_victim_node, and the
-> optimization for this comes as following patchset.
-> 
+Thoughts?
 
-Will read when they come out :)
+Thanks,
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+- Ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
