@@ -1,121 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BF15A6B0088
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 02:45:51 -0500 (EST)
-Message-Id: <4CFF45BB0200007800026A63@vpn.id2.novell.com>
-Date: Wed, 08 Dec 2010 07:45:47 +0000
-From: "Jan Beulich" <JBeulich@novell.com>
-Subject: Re: [PATCH] use total_highpages when calculating lowmem-only
-	 allocation sizes (core)
-References: <4CFD20370200007800026269@vpn.id2.novell.com>
- <20101207151054.32542836.akpm@linux-foundation.org>
-In-Reply-To: <20101207151054.32542836.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 10DA16B008C
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 02:55:12 -0500 (EST)
+Received: by iwn1 with SMTP id 1so1280993iwn.37
+        for <linux-mm@kvack.org>; Tue, 07 Dec 2010 23:55:11 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <alpine.LSU.2.00.1012072258420.5260@sister.anvils>
+References: <cover.1291568905.git.minchan.kim@gmail.com>
+	<ca25c4e33beceeb3a96e8437671e5e0a188602fa.1291568905.git.minchan.kim@gmail.com>
+	<alpine.LSU.2.00.1012062027100.8572@tigran.mtv.corp.google.com>
+	<AANLkTindkfPJxxjR-nVy+Tmu6Q=fs2c=KOmdOQyfXaCP@mail.gmail.com>
+	<alpine.LSU.2.00.1012072258420.5260@sister.anvils>
+Date: Wed, 8 Dec 2010 16:55:11 +0900
+Message-ID: <AANLkTinx6wBUxQKWeCfcLbqB60qvTFWd8EHS0cGTj-Ma@mail.gmail.com>
+Subject: Re: [PATCH v4 7/7] Prevent activation of page in madvise_dontneed
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
->>> On 08.12.10 at 00:10, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Mon, 06 Dec 2010 16:41:11 +0000
-> "Jan Beulich" <JBeulich@novell.com> wrote:
->=20
->> For those (large) table allocations that come only from lowmem, the
->> total amount of memory shouldn't really matter.
->>=20
->> For vfs_caches_init(), in the same spirit also replace the use of
->> nr_free_pages() by nr_free_buffer_pages().
->>=20
->> Signed-off-by: Jan Beulich <jbeulich@novell.com>
->>=20
->> ---
->>  fs/dcache.c                       |    4 ++--
->>  init/main.c                       |    5 +++--
->>  2 files changed, 5 insertions(+), 4 deletions(-)
->>=20
->> --- linux-2.6.37-rc4/fs/dcache.c
->> +++ 2.6.37-rc4-use-totalhigh_pages/fs/dcache.c
->> @@ -2474,10 +2474,10 @@ void __init vfs_caches_init(unsigned lon
->>  {
->>  	unsigned long reserve;
->> =20
->> -	/* Base hash sizes on available memory, with a reserve equal to
->> +	/* Base hash sizes on available lowmem memory, with a reserve =
-equal to
->>             150% of current kernel size */
->> =20
->> -	reserve =3D min((mempages - nr_free_pages()) * 3/2, mempages - 1);
->> +	reserve =3D min((mempages - nr_free_buffer_pages()) * 3/2, =
-mempages - 1);
->>  	mempages -=3D reserve;
->> =20
->>  	names_cachep =3D kmem_cache_create("names_cache", PATH_MAX, 0,
->> --- linux-2.6.37-rc4/init/main.c
->> +++ 2.6.37-rc4-use-totalhigh_pages/init/main.c
->> @@ -22,6 +22,7 @@
->>  #include <linux/init.h>
->>  #include <linux/initrd.h>
->>  #include <linux/bootmem.h>
->> +#include <linux/highmem.h>
->>  #include <linux/acpi.h>
->>  #include <linux/tty.h>
->>  #include <linux/percpu.h>
->> @@ -673,13 +674,13 @@ asmlinkage void __init start_kernel(void
->>  #endif
->>  	thread_info_cache_init();
->>  	cred_init();
->> -	fork_init(totalram_pages);
->> +	fork_init(totalram_pages - totalhigh_pages);
->>  	proc_caches_init();
->>  	buffer_init();
->>  	key_init();
->>  	security_init();
->>  	dbg_late_init();
->> -	vfs_caches_init(totalram_pages);
->> +	vfs_caches_init(totalram_pages - totalhigh_pages);
->>  	signals_init();
->>  	/* rootfs populating might need page-writeback */
->>  	page_writeback_init();
->=20
-> Dunno.  The code is really quite confused, unobvious and not obviously
-> correct.
->=20
-> Mainly because it has callers who read some global state and then pass
-> that into callees who take that arg and then combine it with other
-> global state.  The code would be much more confidence-inspiring if it
-> were cleaned up, so that all callees just read the global state when
-> they need it.
+On Wed, Dec 8, 2010 at 4:26 PM, Hugh Dickins <hughd@google.com> wrote:
+> On Tue, 7 Dec 2010, Minchan Kim wrote:
+>>
+>> How about this? Although it doesn't remove null dependency, it meet my
+>> goal without big overhead.
+>> It's just quick patch.
+>
+> Roughly, yes; by "just quick patch" I take you to mean that I should
+> not waste time on all the minor carelessnesses scattered through it.
+>
+>> If you agree, I will resend this version as formal patch.
+>> (If you suffered from seeing below word-wrapped source, see the
+>> attachment. I asked to google two time to support text-plain mode in
+>> gmail web but I can't receive any response until now. ;(. Lots of
+>> kernel developer in google. Please support this mode for us who can't
+>> use SMTP although it's a very small VOC)
+>
+> Tiresome. =A0Seems not to be high on gmail's priorities.
+> It's sad to see even Linus attaching patches these days.
 
-Usually, when submitting bug fixes that include other cleanup, I'm
-asked to separate the two. Now you're asking the opposite...
-Irrespective of this I agree that passing global state at the single
-call site of a function is questionable, and may deserve cleaning up.
+That encourages me(But I don't mean I will use attachment again. :)).
 
-> And is there any significant difference between (totalram_pages -
-> totalhigh_pages) and nr_free_buffer_pages()?  They're both kind-of
-> evaluating the same thing?
+>
+>>
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index e097df6..14ae918 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -771,6 +771,7 @@ struct zap_details {
+>> =A0 =A0 =A0 =A0 pgoff_t last_index; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 /* Highest page->index
+>> to unmap */
+>> =A0 =A0 =A0 =A0 spinlock_t *i_mmap_lock; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+/* For unmap_mapping_range: */
+>> =A0 =A0 =A0 =A0 unsigned long truncate_count; =A0 =A0 =A0 =A0 =A0 /* Com=
+pare vm_truncate_count */
+>> + =A0 =A0 =A0 int ignore_reference;
+>> =A0};
+>>
+>> =A0struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long=
+ addr,
+>> diff --git a/mm/madvise.c b/mm/madvise.c
+>> index 319528b..fdb0253 100644
+>> --- a/mm/madvise.c
+>> +++ b/mm/madvise.c
+>> @@ -162,18 +162,22 @@ static long madvise_dontneed(struct vm_area_struct=
+ * vma,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct vm_are=
+a_struct ** prev,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long=
+ start, unsigned long end)
+>> =A0{
+>> + =A0 =A0 =A0 struct zap_details details ;
+>> +
+>> =A0 =A0 =A0 =A0 *prev =3D vma;
+>> =A0 =A0 =A0 =A0 if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EINVAL;
+>>
+>> =A0 =A0 =A0 =A0 if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct zap_details details =3D {
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 .nonlinear_vma =3D vma,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 .last_index =3D ULONG_MAX,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 };
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 zap_page_range(vma, start, end - start, &d=
+etails);
+>> - =A0 =A0 =A0 } else
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 zap_page_range(vma, start, end - start, NU=
+LL);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 details.nonlinear_vma =3D vma;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 details.last_index =3D ULONG_MAX;
+>> + =A0 =A0 =A0 } else {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 details.nonlinear_vma =3D NULL;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 details.last_index =3D NULL;
+>> + =A0 =A0 =A0 }
+>> +
+>> + =A0 =A0 =A0 details.ignore_references =3D true;
+>> + =A0 =A0 =A0 zap_page_range(vma, start, end - start, &details);
+>> =A0 =A0 =A0 =A0 return 0;
+>> =A0}
+>>
+>> diff --git a/mm/memory.c b/mm/memory.c
+>> index ebfeedf..d46ac42 100644
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -897,9 +897,15 @@ static unsigned long zap_pte_range(struct mmu_gathe=
+r *tlb,
+>> =A0 =A0 =A0 =A0 pte_t *pte;
+>> =A0 =A0 =A0 =A0 spinlock_t *ptl;
+>> =A0 =A0 =A0 =A0 int rss[NR_MM_COUNTERS];
+>> -
+>> + =A0 =A0 =A0 bool ignore_reference =3D false;
+>> =A0 =A0 =A0 =A0 init_rss_vec(rss);
+>>
+>> + =A0 =A0 =A0 if (details && ((!details->check_mapping && !details->nonl=
+inear_vma)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0|| !details->ignore_reference))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 details =3D NULL;
+>> +
+>
+> =A0 =A0 =A0 =A0bool mark_accessed =3D true;
+>
+> =A0 =A0 =A0 =A0if (VM_SequentialReadHint(vma) ||
+> =A0 =A0 =A0 =A0 =A0 =A0(details && details->ignore_reference))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mark_accessed =3D false;
+> =A0 =A0 =A0 =A0if (details && !details->check_mapping && !details->nonlin=
+ear_vma)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0details =3D NULL;
+>
+>
+>> =A0 =A0 =A0 =A0 pte =3D pte_offset_map_lock(mm, pmd, addr, &ptl);
+>> =A0 =A0 =A0 =A0 arch_enter_lazy_mmu_mode();
+>> =A0 =A0 =A0 =A0 do {
+>> @@ -949,7 +955,8 @@ static unsigned long zap_pte_range(struct mmu_gather=
+ *tlb,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (pte_=
+dirty(ptent))
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 set_page_dirty(page);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (pte_=
+young(ptent) &&
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 li=
+kely(!VM_SequentialReadHint(vma)))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 li=
+kely(!VM_SequentialReadHint(vma)) &&
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 li=
+kely(!ignore_reference))
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 mark_page_accessed(page);
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (pte_yo=
+ung(ptent) && mark_accessed)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0mark_page_accessed(page);
+>
+>
 
-totalram_pages - totalhigh_pages, as their names say, evaluates
-to the total number of lowmem pages, whereas
-nr_free_buffer_pages() gives us the number of available lowmem
-pages (you actually pointed me at this function when I submitted
-a first version of these changes).
+Much clean.
 
-> And after this patch, vfs_caches_init() is evaluating
->=20
-> 	totalram_pages - totalhigh_pages - nr_free_buffer_pages()
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 rss[MM_F=
+ILEPAGES]--;
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>> @@ -1038,8 +1045,6 @@ static unsigned long unmap_page_range(struct
+>> mmu_gather *tlb,
+>> =A0 =A0 =A0 =A0 pgd_t *pgd;
+>> =A0 =A0 =A0 =A0 unsigned long next;
+>>
+>> - =A0 =A0 =A0 if (details && !details->check_mapping && !details->nonlin=
+ear_vma)
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 details =3D NULL;
+>>
+>> =A0 =A0 =A0 =A0 BUG_ON(addr >=3D end);
+>> =A0 =A0 =A0 =A0 mem_cgroup_uncharge_start();
+>> @@ -1102,7 +1107,8 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
+>> =A0 =A0 =A0 =A0 unsigned long tlb_start =3D 0; =A0 =A0/* For tlb_finish_=
+mmu */
+>> =A0 =A0 =A0 =A0 int tlb_start_valid =3D 0;
+>> =A0 =A0 =A0 =A0 unsigned long start =3D start_addr;
+>> - =A0 =A0 =A0 spinlock_t *i_mmap_lock =3D details? details->i_mmap_lock:=
+ NULL;
+>> + =A0 =A0 =A0 spinlock_t *i_mmap_lock =3D details ?
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 (detais->check_mapping ? details->i_mmap_l=
+ock: NULL) : NULL;
+>
+> Why that change?
 
-The lowmem equivalent of (totalram_pages - nr_free_pages()).
+It has done very careless. Sorry for that. I thought i_mmap_lock
+always is used with check_mapping. Clear wrong!
+My concern is that if we don't have such routine, caller use only
+ingore_reference should initialize i_mmap_lock with NULL.
+It's bad.
 
-> which will be pretty close to zero, won't it?  Maybe negative?  Does
-> the code actually work??
+Hmm...
 
-Yes, it has been working for me for many months.
+>
+> Hugh
+>
 
-Jan
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
