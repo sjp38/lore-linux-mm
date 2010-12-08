@@ -1,119 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E78826B0087
-	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 20:33:58 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB81Xu4n004146
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 8 Dec 2010 10:33:56 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7FC1045DE80
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 10:33:56 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6789F45DE7C
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 10:33:56 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 57E211DB8038
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 10:33:56 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 163981DB803B
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 10:33:56 +0900 (JST)
-Date: Wed, 8 Dec 2010 10:28:12 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/4] Add kswapd descriptor.
-Message-Id: <20101208102812.5b93c1bc.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <AANLkTin+p5WnLjMkr8Qntkt4fR1+fdY=t6hkvV6G8Mok@mail.gmail.com>
-References: <1291099785-5433-1-git-send-email-yinghan@google.com>
-	<1291099785-5433-2-git-send-email-yinghan@google.com>
-	<20101207123308.GD5422@csn.ul.ie>
-	<AANLkTimzL_CwLruzPspgmOk4OJU8M7dXycUyHmhW2s9O@mail.gmail.com>
-	<20101208093948.1b3b64c5.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTin+p5WnLjMkr8Qntkt4fR1+fdY=t6hkvV6G8Mok@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4B92B6B0087
+	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 20:43:10 -0500 (EST)
+Received: by iwn1 with SMTP id 1so783792iwn.37
+        for <linux-mm@kvack.org>; Tue, 07 Dec 2010 17:43:08 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20101208095642.8128ab33.kamezawa.hiroyu@jp.fujitsu.com>
+References: <cover.1291568905.git.minchan.kim@gmail.com>
+	<d57730effe4b48012d31ceca07938ed3eb401aba.1291568905.git.minchan.kim@gmail.com>
+	<20101207144923.GB2356@cmpxchg.org>
+	<20101207150710.GA26613@barrios-desktop>
+	<20101207151939.GF2356@cmpxchg.org>
+	<20101207152625.GB608@barrios-desktop>
+	<20101207155645.GG2356@cmpxchg.org>
+	<AANLkTi=iNGT_p_VfW9GxdaKXLt2xBHM2jdwmCbF_u8uh@mail.gmail.com>
+	<20101208095642.8128ab33.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 8 Dec 2010 10:43:08 +0900
+Message-ID: <AANLkTimtkb7Nczhads4u3r21RJauZvviLFkXjaL1ErDb@mail.gmail.com>
+Subject: Re: [PATCH v4 2/7] deactivate invalidated pages
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Ying Han <yinghan@google.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 7 Dec 2010 17:24:12 -0800
-Ying Han <yinghan@google.com> wrote:
+Hi Kame,
 
-> On Tue, Dec 7, 2010 at 4:39 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Tue, 7 Dec 2010 09:28:01 -0800
-> > Ying Han <yinghan@google.com> wrote:
-> >
-> >> On Tue, Dec 7, 2010 at 4:33 AM, Mel Gorman <mel@csn.ul.ie> wrote:
-> >
-> >> Potentially there will
-> >> > also be a very large number of new IO sources. I confess I haven't read the
-> >> > thread yet so maybe this has already been thought of but it might make sense
-> >> > to have a 1:N relationship between kswapd and memcgroups and cycle between
-> >> > containers. The difficulty will be a latency between when kswapd wakes up
-> >> > and when a particular container is scanned. The closer the ratio is to 1:1,
-> >> > the less the latency will be but the higher the contenion on the LRU lock
-> >> > and IO will be.
-> >>
-> >> No, we weren't talked about the mapping anywhere in the thread. Having
-> >> many kswapd threads
-> >> at the same time isn't a problem as long as no locking contention (
-> >> ext, 1k kswapd threads on
-> >> 1k fake numa node system). So breaking the zone->lru_lock should work.
-> >>
-> >
-> > That's me who make zone->lru_lock be shared. And per-memcg lock will makes
-> > the maintainance of memcg very bad. That will add many races.
-> > Or we need to make memcg's LRU not synchronized with zone's LRU, IOW, we need
-> > to have completely independent LRU.
-> >
-> > I'd like to limit the number of kswapd-for-memcg if zone->lru lock contention
-> > is problematic. memcg _can_ work without background reclaim.
-> 
-> >
-> > How about adding per-node kswapd-for-memcg it will reclaim pages by a memcg's
-> > request ? as
-> >
-> > A  A  A  A memcg_wake_kswapd(struct mem_cgroup *mem)
-> > A  A  A  A {
-> > A  A  A  A  A  A  A  A do {
-> > A  A  A  A  A  A  A  A  A  A  A  A nid = select_victim_node(mem);
-> > A  A  A  A  A  A  A  A  A  A  A  A /* ask kswapd to reclaim memcg's memory */
-> > A  A  A  A  A  A  A  A  A  A  A  A ret = memcg_kswapd_queue_work(nid, mem); /* may return -EBUSY if very busy*/
-> > A  A  A  A  A  A  A  A } while()
-> > A  A  A  A }
-> >
-> > This will make lock contention minimum. Anyway, using too much cpu for this
-> > unnecessary_but_good_for_performance_function is bad. Throttoling is required.
-> 
-> I don't see the problem of one-kswapd-per-cgroup here since there will
-> be no performance cost if they are not running.
-> 
-Yes. But we've got a report from user who uses 2000+ cgroups on his host, one year ago.
-(in libcgroup mailing list.)
+On Wed, Dec 8, 2010 at 9:56 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Wed, 8 Dec 2010 07:51:25 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+>
+>> On Wed, Dec 8, 2010 at 12:56 AM, Johannes Weiner <hannes@cmpxchg.org> wr=
+ote:
+>> > On Wed, Dec 08, 2010 at 12:26:25AM +0900, Minchan Kim wrote:
+>> >> On Tue, Dec 07, 2010 at 04:19:39PM +0100, Johannes Weiner wrote:
+>> >> > On Wed, Dec 08, 2010 at 12:07:10AM +0900, Minchan Kim wrote:
+>> >> > > On Tue, Dec 07, 2010 at 03:49:24PM +0100, Johannes Weiner wrote:
+>> >> > > > On Mon, Dec 06, 2010 at 02:29:10AM +0900, Minchan Kim wrote:
+>> >> > > > > Changelog since v3:
+>> >> > > > > =A0- Change function comments - suggested by Johannes
+>> >> > > > > =A0- Change function name - suggested by Johannes
+>> >> > > > > =A0- add only dirty/writeback pages to deactive pagevec
+>> >> > > >
+>> >> > > > Why the extra check?
+>> >> > > >
+>> >> > > > > @@ -359,8 +360,16 @@ unsigned long invalidate_mapping_pages(s=
+truct address_space *mapping,
+>> >> > > > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (lock_failed)
+>> >> > > > > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 c=
+ontinue;
+>> >> > > > >
+>> >> > > > > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret +=3D invalidate=
+_inode_page(page);
+>> >> > > > > -
+>> >> > > > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D invalidate_=
+inode_page(page);
+>> >> > > > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>> >> > > > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* If the page is=
+ dirty or under writeback, we can not
+>> >> > > > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* invalidate it =
+now. =A0But we assume that attempted
+>> >> > > > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* invalidation i=
+s a hint that the page is no longer
+>> >> > > > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* of interest an=
+d try to speed up its reclaim.
+>> >> > > > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+>> >> > > > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!ret && (PageDi=
+rty(page) || PageWriteback(page)))
+>> >> > > > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dea=
+ctivate_page(page);
+>> >> > > >
+>> >> > > > The writeback completion handler does not take the page lock, s=
+o you
+>> >> > > > can still miss pages that finish writeback before this test, no=
+?
+>> >> > >
+>> >> > > Yes. but I think it's rare and even though it happens, it's not c=
+ritical.
+>> >> > > >
+>> >> > > > Can you explain why you felt the need to add these checks?
+>> >> > >
+>> >> > > invalidate_inode_page can return 0 although the pages is !{dirty|=
+writeback}.
+>> >> > > Look invalidate_complete_page. As easiest example, if the page ha=
+s buffer and
+>> >> > > try_to_release_page can't release the buffer, it could return 0.
+>> >> >
+>> >> > Ok, but somebody still tried to truncate the page, so why shouldn't=
+ we
+>> >> > try to reclaim it? =A0The reason for deactivating at this location =
+is
+>> >> > that truncation is a strong hint for reclaim, not that it failed du=
+e
+>> >> > to dirty/writeback pages.
+>> >> >
+>> >> > What's the problem with deactivating pages where try_to_release_pag=
+e()
+>> >> > failed?
+>> >>
+>> >> If try_to_release_page fails and the such pages stay long time in pag=
+evec,
+>> >> pagevec drain often happens.
+>> >
+>> > You mean because the pagevec becomes full more often? =A0These are not
+>> > many pages you get extra without the checks, the race window is very
+>> > small after all.
+>>
+>> Right.
+>> It was a totally bad answer. The work in midnight makes my mind to be hu=
+rt. :)
+>>
+>> Another point is that we can move such pages(!try_to_release_page,
+>> someone else holding the ref) into tail of inactive.
+>> We can't expect such pages will be freed sooner or later and it can
+>> stir lru pages unnecessary.
+>> On the other hand it's a _really_ rare so couldn't we move the pages int=
+o tail?
+>> If it can be justified, I will remove the check.
+>> What do you think about it?
+>>
+>
+> I wonder ...how about adding "victim" list for "Reclaim" pages ? Then, we=
+ don't need
+> extra LRU rotation.
 
-So, running 2000+ deadly thread will be bad. It's cost.
-In theory, the number of memcg can be 65534.
+It can make the code clean.
+As far as I think, victim list does following as.
 
-> I haven't measured the lock contention and cputime for each kswapd
-> running. Theoretically it would be a problem
-> if thousands of cgroups are configured on the the host and all of them
-> are under memory pressure.
-> 
-I think that's a configuration mistake. 
+1. select victim pages by strong hint
+2. move the page from LRU to victim
+3. reclaimer always peeks victim list before diving into LRU list.
+4-1. If the victim pages is used by others or dirty, it can be moved
+into LRU, again or remain the page in victim list.
+If the page is remained victim, when do we move it into LRU again if
+the reclaimer continues to fail the page?
+We have to put the new rule.
+4-2. If the victim pages isn't used by others and clean, we can
+reclaim the page asap.
 
-> We can either optimize the locking or make each kswapd smarter (hold
-> the lock less time). My current plan is to have the
-> one-kswapd-per-cgroup on the V2 patch w/ select_victim_node, and the
-> optimization for this comes as following patchset.
-> 
+AFAIK, strong hints are just two(invalidation, readahead max window heurist=
+ic).
+I am not sure it's valuable to add new hierarchy(ie, LRU, victim,
+unevictable) for cleaning the minor codes.
+In addition, we have to put the new rule so it would make the LRU code
+complicated.
+I remember how unevictable feature merge is hard.
 
-My point above is holding remove node's lock, touching remote node's page
-increases memory reclaim cost very much. Then, I like per-node approach.
+But I am not against if we have more usecases. In this case, it's
+valuable to implement it although it's not easy.
 
-Thanks,
--Kame
+Thanks, Kame.
+
+>
+> Thanks,
+> -Kame
+>
+>
+>
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
