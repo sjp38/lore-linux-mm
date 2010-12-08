@@ -1,210 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 10DA16B008C
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 02:55:12 -0500 (EST)
-Received: by iwn1 with SMTP id 1so1280993iwn.37
-        for <linux-mm@kvack.org>; Tue, 07 Dec 2010 23:55:11 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 057196B008C
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 03:02:48 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB882hux024834
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 8 Dec 2010 17:02:45 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id ADDCD45DE4D
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 17:02:45 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D19645DD74
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 17:02:45 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 800421DB803C
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 17:02:45 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 381541DB8038
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 17:02:45 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH v4 5/7] add profile information for invalidated page reclaim
+In-Reply-To: <dff7a42e5877b23a3cc3355743da4b7ef37299f8.1291568905.git.minchan.kim@gmail.com>
+References: <cover.1291568905.git.minchan.kim@gmail.com> <dff7a42e5877b23a3cc3355743da4b7ef37299f8.1291568905.git.minchan.kim@gmail.com>
+Message-Id: <20101208165944.174D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1012072258420.5260@sister.anvils>
-References: <cover.1291568905.git.minchan.kim@gmail.com>
-	<ca25c4e33beceeb3a96e8437671e5e0a188602fa.1291568905.git.minchan.kim@gmail.com>
-	<alpine.LSU.2.00.1012062027100.8572@tigran.mtv.corp.google.com>
-	<AANLkTindkfPJxxjR-nVy+Tmu6Q=fs2c=KOmdOQyfXaCP@mail.gmail.com>
-	<alpine.LSU.2.00.1012072258420.5260@sister.anvils>
-Date: Wed, 8 Dec 2010 16:55:11 +0900
-Message-ID: <AANLkTinx6wBUxQKWeCfcLbqB60qvTFWd8EHS0cGTj-Ma@mail.gmail.com>
-Subject: Re: [PATCH v4 7/7] Prevent activation of page in madvise_dontneed
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed,  8 Dec 2010 17:02:44 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 8, 2010 at 4:26 PM, Hugh Dickins <hughd@google.com> wrote:
-> On Tue, 7 Dec 2010, Minchan Kim wrote:
->>
->> How about this? Although it doesn't remove null dependency, it meet my
->> goal without big overhead.
->> It's just quick patch.
->
-> Roughly, yes; by "just quick patch" I take you to mean that I should
-> not waste time on all the minor carelessnesses scattered through it.
->
->> If you agree, I will resend this version as formal patch.
->> (If you suffered from seeing below word-wrapped source, see the
->> attachment. I asked to google two time to support text-plain mode in
->> gmail web but I can't receive any response until now. ;(. Lots of
->> kernel developer in google. Please support this mode for us who can't
->> use SMTP although it's a very small VOC)
->
-> Tiresome. =A0Seems not to be high on gmail's priorities.
-> It's sad to see even Linus attaching patches these days.
+> This patch adds profile information about invalidated page reclaim.
+> It's just for profiling for test so it would be discard when the series
+> are merged.
+> 
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Nick Piggin <npiggin@kernel.dk>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  include/linux/vmstat.h |    4 ++--
+>  mm/swap.c              |    3 +++
+>  mm/vmstat.c            |    3 +++
+>  3 files changed, 8 insertions(+), 2 deletions(-)
 
-That encourages me(But I don't mean I will use attachment again. :)).
+Today, we have tracepoint. tracepoint has no overhead if it's unused.
+but vmstat has a overhead even if unused.
 
->
->>
->> diff --git a/include/linux/mm.h b/include/linux/mm.h
->> index e097df6..14ae918 100644
->> --- a/include/linux/mm.h
->> +++ b/include/linux/mm.h
->> @@ -771,6 +771,7 @@ struct zap_details {
->> =A0 =A0 =A0 =A0 pgoff_t last_index; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 /* Highest page->index
->> to unmap */
->> =A0 =A0 =A0 =A0 spinlock_t *i_mmap_lock; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
-/* For unmap_mapping_range: */
->> =A0 =A0 =A0 =A0 unsigned long truncate_count; =A0 =A0 =A0 =A0 =A0 /* Com=
-pare vm_truncate_count */
->> + =A0 =A0 =A0 int ignore_reference;
->> =A0};
->>
->> =A0struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long=
- addr,
->> diff --git a/mm/madvise.c b/mm/madvise.c
->> index 319528b..fdb0253 100644
->> --- a/mm/madvise.c
->> +++ b/mm/madvise.c
->> @@ -162,18 +162,22 @@ static long madvise_dontneed(struct vm_area_struct=
- * vma,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct vm_are=
-a_struct ** prev,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long=
- start, unsigned long end)
->> =A0{
->> + =A0 =A0 =A0 struct zap_details details ;
->> +
->> =A0 =A0 =A0 =A0 *prev =3D vma;
->> =A0 =A0 =A0 =A0 if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EINVAL;
->>
->> =A0 =A0 =A0 =A0 if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct zap_details details =3D {
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 .nonlinear_vma =3D vma,
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 .last_index =3D ULONG_MAX,
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 };
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 zap_page_range(vma, start, end - start, &d=
-etails);
->> - =A0 =A0 =A0 } else
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 zap_page_range(vma, start, end - start, NU=
-LL);
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 details.nonlinear_vma =3D vma;
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 details.last_index =3D ULONG_MAX;
->> + =A0 =A0 =A0 } else {
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 details.nonlinear_vma =3D NULL;
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 details.last_index =3D NULL;
->> + =A0 =A0 =A0 }
->> +
->> + =A0 =A0 =A0 details.ignore_references =3D true;
->> + =A0 =A0 =A0 zap_page_range(vma, start, end - start, &details);
->> =A0 =A0 =A0 =A0 return 0;
->> =A0}
->>
->> diff --git a/mm/memory.c b/mm/memory.c
->> index ebfeedf..d46ac42 100644
->> --- a/mm/memory.c
->> +++ b/mm/memory.c
->> @@ -897,9 +897,15 @@ static unsigned long zap_pte_range(struct mmu_gathe=
-r *tlb,
->> =A0 =A0 =A0 =A0 pte_t *pte;
->> =A0 =A0 =A0 =A0 spinlock_t *ptl;
->> =A0 =A0 =A0 =A0 int rss[NR_MM_COUNTERS];
->> -
->> + =A0 =A0 =A0 bool ignore_reference =3D false;
->> =A0 =A0 =A0 =A0 init_rss_vec(rss);
->>
->> + =A0 =A0 =A0 if (details && ((!details->check_mapping && !details->nonl=
-inear_vma)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0|| !details->ignore_reference))
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 details =3D NULL;
->> +
->
-> =A0 =A0 =A0 =A0bool mark_accessed =3D true;
->
-> =A0 =A0 =A0 =A0if (VM_SequentialReadHint(vma) ||
-> =A0 =A0 =A0 =A0 =A0 =A0(details && details->ignore_reference))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mark_accessed =3D false;
-> =A0 =A0 =A0 =A0if (details && !details->check_mapping && !details->nonlin=
-ear_vma)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0details =3D NULL;
->
->
->> =A0 =A0 =A0 =A0 pte =3D pte_offset_map_lock(mm, pmd, addr, &ptl);
->> =A0 =A0 =A0 =A0 arch_enter_lazy_mmu_mode();
->> =A0 =A0 =A0 =A0 do {
->> @@ -949,7 +955,8 @@ static unsigned long zap_pte_range(struct mmu_gather=
- *tlb,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (pte_=
-dirty(ptent))
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 set_page_dirty(page);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (pte_=
-young(ptent) &&
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 li=
-kely(!VM_SequentialReadHint(vma)))
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 li=
-kely(!VM_SequentialReadHint(vma)) &&
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 li=
-kely(!ignore_reference))
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 mark_page_accessed(page);
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (pte_yo=
-ung(ptent) && mark_accessed)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0mark_page_accessed(page);
->
->
-
-Much clean.
-
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 rss[MM_F=
-ILEPAGES]--;
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->> @@ -1038,8 +1045,6 @@ static unsigned long unmap_page_range(struct
->> mmu_gather *tlb,
->> =A0 =A0 =A0 =A0 pgd_t *pgd;
->> =A0 =A0 =A0 =A0 unsigned long next;
->>
->> - =A0 =A0 =A0 if (details && !details->check_mapping && !details->nonlin=
-ear_vma)
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 details =3D NULL;
->>
->> =A0 =A0 =A0 =A0 BUG_ON(addr >=3D end);
->> =A0 =A0 =A0 =A0 mem_cgroup_uncharge_start();
->> @@ -1102,7 +1107,8 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
->> =A0 =A0 =A0 =A0 unsigned long tlb_start =3D 0; =A0 =A0/* For tlb_finish_=
-mmu */
->> =A0 =A0 =A0 =A0 int tlb_start_valid =3D 0;
->> =A0 =A0 =A0 =A0 unsigned long start =3D start_addr;
->> - =A0 =A0 =A0 spinlock_t *i_mmap_lock =3D details? details->i_mmap_lock:=
- NULL;
->> + =A0 =A0 =A0 spinlock_t *i_mmap_lock =3D details ?
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 (detais->check_mapping ? details->i_mmap_l=
-ock: NULL) : NULL;
->
-> Why that change?
-
-It has done very careless. Sorry for that. I thought i_mmap_lock
-always is used with check_mapping. Clear wrong!
-My concern is that if we don't have such routine, caller use only
-ingore_reference should initialize i_mmap_lock with NULL.
-It's bad.
-
-Hmm...
-
->
-> Hugh
->
+Then, all new vmstat proposal should be described why you think it is
+frequently used from administrators.
 
 
 
---=20
-Kind regards,
-Minchan Kim
+
+> 
+> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+> index 833e676..c38ad95 100644
+> --- a/include/linux/vmstat.h
+> +++ b/include/linux/vmstat.h
+> @@ -30,8 +30,8 @@
+>  
+>  enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+>  		FOR_ALL_ZONES(PGALLOC),
+> -		PGFREE, PGACTIVATE, PGDEACTIVATE,
+> -		PGFAULT, PGMAJFAULT,
+> +		PGFREE, PGACTIVATE, PGDEACTIVATE, PGINVALIDATE,
+> +		PGRECLAIM, PGFAULT, PGMAJFAULT,
+>  		FOR_ALL_ZONES(PGREFILL),
+>  		FOR_ALL_ZONES(PGSTEAL),
+>  		FOR_ALL_ZONES(PGSCAN_KSWAPD),
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 0f23998..2f21e6e 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -317,6 +317,7 @@ static void lru_deactivate(struct page *page, struct zone *zone)
+>  		 * is _really_ small and  it's non-critical problem.
+>  		 */
+>  		SetPageReclaim(page);
+> +		__count_vm_event(PGRECLAIM);
+
+Um. No.
+This is not reclaim operation anyway. Userland folks shouldn't know
+you override PG_reclaim. It's implementaion internal information.
+
+
+
+>  	} else {
+>  		/*
+>  		 * The page's writeback ends up during pagevec
+> @@ -328,6 +329,8 @@ static void lru_deactivate(struct page *page, struct zone *zone)
+>  
+>  	if (active)
+>  		__count_vm_event(PGDEACTIVATE);
+> +
+> +	__count_vm_event(PGINVALIDATE);
+>  	update_page_reclaim_stat(zone, page, file, 0);
+
+I have similar complains as above.
+If you use PGINVALIDATE, other invalidate pass should update this counter too.
+
+
+>  }
+>  
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 3555636..ef6102d 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -818,6 +818,9 @@ static const char * const vmstat_text[] = {
+>  	"pgactivate",
+>  	"pgdeactivate",
+>  
+> +	"pginvalidate",
+> +	"pgreclaim",
+> +
+>  	"pgfault",
+>  	"pgmajfault",
+>  
+> -- 
+> 1.7.0.4
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
