@@ -1,60 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 94A436B0093
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 03:13:37 -0500 (EST)
-Received: by iwn1 with SMTP id 1so1306042iwn.37
-        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 00:13:36 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 09EF66B0093
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 03:16:02 -0500 (EST)
+Received: by iwn1 with SMTP id 1so1309444iwn.37
+        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 00:16:01 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20101208165944.174D.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20101208170504.1750.A69D9226@jp.fujitsu.com>
 References: <cover.1291568905.git.minchan.kim@gmail.com>
-	<dff7a42e5877b23a3cc3355743da4b7ef37299f8.1291568905.git.minchan.kim@gmail.com>
-	<20101208165944.174D.A69D9226@jp.fujitsu.com>
-Date: Wed, 8 Dec 2010 17:13:35 +0900
-Message-ID: <AANLkTik4mtr8T6PddQopi4cwWGRmJ+-utykgjywGoxj+@mail.gmail.com>
-Subject: Re: [PATCH v4 5/7] add profile information for invalidated page reclaim
+	<0724024711222476a0c8deadb5b366265b8e5824.1291568905.git.minchan.kim@gmail.com>
+	<20101208170504.1750.A69D9226@jp.fujitsu.com>
+Date: Wed, 8 Dec 2010 17:16:01 +0900
+Message-ID: <AANLkTikG1EAMm8yPvBVUXjFz1Bu9m+vfwH3TRPDzS9mq@mail.gmail.com>
+Subject: Re: [PATCH v4 4/7] Reclaim invalidated page ASAP
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-Hi KOSAKI,
-
-On Wed, Dec 8, 2010 at 5:02 PM, KOSAKI Motohiro
+On Wed, Dec 8, 2010 at 5:04 PM, KOSAKI Motohiro
 <kosaki.motohiro@jp.fujitsu.com> wrote:
->> This patch adds profile information about invalidated page reclaim.
->> It's just for profiling for test so it would be discard when the series
->> are merged.
+>> invalidate_mapping_pages is very big hint to reclaimer.
+>> It means user doesn't want to use the page any more.
+>> So in order to prevent working set page eviction, this patch
+>> move the page into tail of inactive list by PG_reclaim.
+>>
+>> Please, remember that pages in inactive list are working set
+>> as well as active list. If we don't move pages into inactive list's
+>> tail, pages near by tail of inactive list can be evicted although
+>> we have a big clue about useless pages. It's totally bad.
+>>
+>> Now PG_readahead/PG_reclaim is shared.
+>> fe3cba17 added ClearPageReclaim into clear_page_dirty_for_io for
+>> preventing fast reclaiming readahead marker page.
+>>
+>> In this series, PG_reclaim is used by invalidated page, too.
+>> If VM find the page is invalidated and it's dirty, it sets PG_reclaim
+>> to reclaim asap. Then, when the dirty page will be writeback,
+>> clear_page_dirty_for_io will clear PG_reclaim unconditionally.
+>> It disturbs this serie's goal.
+>>
+>> I think it's okay to clear PG_readahead when the page is dirty, not
+>> writeback time. So this patch moves ClearPageReadahead.
 >>
 >> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->> Cc: Rik van Riel <riel@redhat.com>
->> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> Acked-by: Rik van Riel <riel@redhat.com>
+>> Acked-by: Mel Gorman <mel@csn.ul.ie>
 >> Cc: Wu Fengguang <fengguang.wu@intel.com>
+>> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 >> Cc: Johannes Weiner <hannes@cmpxchg.org>
 >> Cc: Nick Piggin <npiggin@kernel.dk>
->> Cc: Mel Gorman <mel@csn.ul.ie>
->> ---
->> =A0include/linux/vmstat.h | =A0 =A04 ++--
->> =A0mm/swap.c =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A03 +++
->> =A0mm/vmstat.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A03 +++
->> =A03 files changed, 8 insertions(+), 2 deletions(-)
 >
-> Today, we have tracepoint. tracepoint has no overhead if it's unused.
-> but vmstat has a overhead even if unused.
->
-> Then, all new vmstat proposal should be described why you think it is
-> frequently used from administrators.
+> Until anyone should data, I will not ack this. This patch increase
+> VM state, but benefit is doubious.
 
-It's just for easy gathering the data when Ben will test.
-I never want to merge it in upstream and even mmtom.
+Make sense to me. If Ben is busy, I will measure it and send the result.
+Thanks!
 
-If you don't like it for just testing, I am happy to change it with tracepo=
-int.
-
-Thanks.
---=20
+-- 
 Kind regards,
 Minchan Kim
 
