@@ -1,103 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6D3936B0087
-	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 21:15:21 -0500 (EST)
-Received: by iwn1 with SMTP id 1so827786iwn.37
-        for <linux-mm@kvack.org>; Tue, 07 Dec 2010 18:15:20 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20101208105637.5103de75.kamezawa.hiroyu@jp.fujitsu.com>
-References: <cover.1291568905.git.minchan.kim@gmail.com>
-	<d57730effe4b48012d31ceca07938ed3eb401aba.1291568905.git.minchan.kim@gmail.com>
-	<20101207144923.GB2356@cmpxchg.org>
-	<20101207150710.GA26613@barrios-desktop>
-	<20101207151939.GF2356@cmpxchg.org>
-	<20101207152625.GB608@barrios-desktop>
-	<20101207155645.GG2356@cmpxchg.org>
-	<AANLkTi=iNGT_p_VfW9GxdaKXLt2xBHM2jdwmCbF_u8uh@mail.gmail.com>
-	<20101208095642.8128ab33.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTimtkb7Nczhads4u3r21RJauZvviLFkXjaL1ErDb@mail.gmail.com>
-	<20101208105637.5103de75.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Wed, 8 Dec 2010 11:15:19 +0900
-Message-ID: <AANLkTim9to0Wa_iWyVA4FSV6sfT4tcR2bmV7t54HOQ1c@mail.gmail.com>
-Subject: Re: [PATCH v4 2/7] deactivate invalidated pages
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6A25C6B008C
+	for <linux-mm@kvack.org>; Tue,  7 Dec 2010 21:19:14 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oB82JBUc026905
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 8 Dec 2010 11:19:11 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D5CF2E68C2
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 11:19:11 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4261B1EF083
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 11:19:11 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B355E08004
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 11:19:11 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E24EAE08001
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 11:19:10 +0900 (JST)
+Date: Wed, 8 Dec 2010 11:13:29 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/4] Add kswapd descriptor.
+Message-Id: <20101208111329.ad0a8dca.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <AANLkTikXO1YxzX2PJyKobeb=Cg_EhTVW9-pBFnPE9dYh@mail.gmail.com>
+References: <1291099785-5433-1-git-send-email-yinghan@google.com>
+	<1291099785-5433-2-git-send-email-yinghan@google.com>
+	<20101207123308.GD5422@csn.ul.ie>
+	<AANLkTimzL_CwLruzPspgmOk4OJU8M7dXycUyHmhW2s9O@mail.gmail.com>
+	<20101208093948.1b3b64c5.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTin+p5WnLjMkr8Qntkt4fR1+fdY=t6hkvV6G8Mok@mail.gmail.com>
+	<20101208102812.5b93c1bc.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTikXO1YxzX2PJyKobeb=Cg_EhTVW9-pBFnPE9dYh@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Ying Han <yinghan@google.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 8, 2010 at 10:56 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Wed, 8 Dec 2010 10:43:08 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
->
->> Hi Kame,
->>
-> Hi,
->
->> > I wonder ...how about adding "victim" list for "Reclaim" pages ? Then, we don't need
->> > extra LRU rotation.
->>
->> It can make the code clean.
->> As far as I think, victim list does following as.
->>
->> 1. select victim pages by strong hint
->> 2. move the page from LRU to victim
->> 3. reclaimer always peeks victim list before diving into LRU list.
->> 4-1. If the victim pages is used by others or dirty, it can be moved
->> into LRU, again or remain the page in victim list.
->> If the page is remained victim, when do we move it into LRU again if
->> the reclaimer continues to fail the page?
-> When sometone touches it.
->
->> We have to put the new rule.
->> 4-2. If the victim pages isn't used by others and clean, we can
->> reclaim the page asap.
->>
->> AFAIK, strong hints are just two(invalidation, readahead max window heuristic).
->> I am not sure it's valuable to add new hierarchy(ie, LRU, victim,
->> unevictable) for cleaning the minor codes.
->> In addition, we have to put the new rule so it would make the LRU code
->> complicated.
->> I remember how unevictable feature merge is hard.
->>
-> yes, it was hard.
->
->> But I am not against if we have more usecases. In this case, it's
->> valuable to implement it although it's not easy.
->>
->
-> I wonder "victim list" can be used for something like Cleancache, when
-> we have very-low-latency backend devices.
-> And we may able to have page-cache-limit, which Balbir proposed as.
+On Tue, 7 Dec 2010 18:10:11 -0800
+Ying Han <yinghan@google.com> wrote:
 
-Yes, I thought that, too. I think it would be a good feature in embedded system.
+> >
+> >> I haven't measured the lock contention and cputime for each kswapd
+> >> running. Theoretically it would be a problem
+> >> if thousands of cgroups are configured on the the host and all of them
+> >> are under memory pressure.
+> >>
+> > I think that's a configuration mistake.
+> >
+> >> We can either optimize the locking or make each kswapd smarter (hold
+> >> the lock less time). My current plan is to have the
+> >> one-kswapd-per-cgroup on the V2 patch w/ select_victim_node, and the
+> >> optimization for this comes as following patchset.
+> >>
+> >
+> > My point above is holding remove node's lock, touching remote node's page
+> > increases memory reclaim cost very much. Then, I like per-node approach.
+> 
+> So in a case of one physical node and thousands of cgroups, we are
+> queuing all the works into single kswapd
+> which is doing the global background reclaim as well. This could be a
+> problem on a multi-core system where
+> all the cgroups queuing behind the current work being throttle which
+> might not be necessary.
 
->
->  - kvictimed? will move unmappedd page caches to victim list
-> This may work like a InactiveClean list which we had before and make
-> sizing easy.
->
+percpu thread is enough. And there is direct reclaim, absense of kswapd
+will not be critical (because memcg doesn't need 'zone balancing').
+And as you said, 'usual' users will not use 100+ cgroups. Queueing will
+not be fatal, I think.
 
-Before further discuss, we need customer's confirm.
-We know very well it is very hard to merge if anyone doesn't use.
-
-Balbir, What do think about it?
+> 
+> I am not sure which way is better at this point. I would like to keep
+> the current implementation for the next post V2
+> since smaller changes between versions sounds better to me.
+> 
+yes, please go ahread. I'm not against the functionality itself.
 
 
-> Thanks,
-> -Kame
->
->
->
->
-
-
-
--- 
-Kind regards,
-Minchan Kim
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
