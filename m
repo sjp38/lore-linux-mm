@@ -1,252 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1DBA86B0089
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 14:11:14 -0500 (EST)
-Date: Thu, 9 Dec 2010 20:10:33 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 61 of 66] use compaction for GFP_ATOMIC order > 0
-Message-ID: <20101209191033.GK19131@random.random>
-References: <patchbomb.1288798055@v2.random>
- <b540c09bfe5160120952.1288798116@v2.random>
- <20101118163124.GG8135@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101118163124.GG8135@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 728A46B0087
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 15:04:12 -0500 (EST)
+From: Joe Perches <joe@perches.com>
+Subject: [trivial PATCH 00/15] remove duplicate unlikely from IS_ERR
+Date: Thu,  9 Dec 2010 12:03:53 -0800
+Message-Id: <cover.1291923888.git.joe@perches.com>
+In-Reply-To: <1291906801-1389-2-git-send-email-tklauser@distanz.ch>
+References: <1291906801-1389-2-git-send-email-tklauser@distanz.ch>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: netdev@vger.kernel.org, uclinux-dist-devel@blackfin.uclinux.org, rtc-linux@googlegroups.com, linux-s390@vger.kernel.org, osd-dev@open-osd.org, linux-arm-msm@vger.kernel.org, linux-usb@vger.kernel.org, linux-ext4@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org
+Cc: Jiri Kosina <trivial@kernel.org>, dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-scsi@vger.kernel.org, linux-wireless@vger.kernel.org, devel@driverdev.osuosl.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 04:31:24PM +0000, Mel Gorman wrote:
-> I don't think this is related to THP although I see what you're doing.
-> It should be handled on its own. I'd also wonder if some of the tg3
-> failures are due to MIGRATE_RESERVE not being set properly when
-> min_free_kbytes is automatically resized.
+Tobias Klauser <tklauser@distanz.ch> sent a patch to remove
+an unnecessary unlikely from drivers/misc/c2port/core.c,
+https://lkml.org/lkml/2010/12/9/199
 
-The failures also happened on older kernels except they wouldn't print
-it in the kernel logs, but you're right we may get better with migrate
-reserve enabled also on huge systems (it seems hugeadm
---set_recommended-min_free_kbytes was doing a little more than its
-kernel counterpart with large systems with tons of ram, now fixed).
+Here are the other instances treewide.
 
-My status as far as this patch is concerned:
+I think it'd be good if people would, when noticing defects in a
+specific subsystem, look for and correct the same defect treewide.
 
-=========
-Subject: use compaction for all allocation orders
+IS_ERR already has an unlikely test so remove unnecessary
+unlikelys from the call sites.
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+from: include/linux/err.h
+#define IS_ERR_VALUE(x) unlikely((x) >= (unsigned long)-MAX_ERRNO)
+[...]
+static inline long __must_check IS_ERR(const void *ptr)
+{
+	return IS_ERR_VALUE((unsigned long)ptr);
+}
 
-It makes no sense not to enable compaction for small order pages as we don't
-want to end up with bad order 2 allocations and good and graceful order 9
-allocations.
+Sending directly to maintainers for now, will resend in a month
+or so only to trivial if not picked up.
+ 
+Joe Perches (15):
+  drm: Remove duplicate unlikely from IS_ERR
+  stmmac: Remove duplicate unlikely from IS_ERR
+  rtc: Remove duplicate unlikely from IS_ERR
+  s390: Remove duplicate unlikely from IS_ERR
+  osd: Remove duplicate unlikely from IS_ERR
+  serial: Remove duplicate unlikely from IS_ERR
+  brcm80211: Remove duplicate unlikely from IS_ERR
+  gadget: Remove duplicate unlikely from IS_ERR
+  exofs: Remove duplicate unlikely from IS_ERR
+  ext2: Remove duplicate unlikely from IS_ERR
+  ext3: Remove duplicate unlikely from IS_ERR
+  ext4: Remove duplicate unlikely from IS_ERR
+  nfs: Remove duplicate unlikely from IS_ERR
+  mm: Remove duplicate unlikely from IS_ERR
+  ipv6: Remove duplicate unlikely from IS_ERR
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
+ drivers/gpu/drm/ttm/ttm_tt.c                     |    4 ++--
+ drivers/net/stmmac/stmmac_main.c                 |    2 +-
+ drivers/rtc/rtc-bfin.c                           |    2 +-
+ drivers/s390/scsi/zfcp_fsf.c                     |    4 ++--
+ drivers/scsi/osd/osd_initiator.c                 |    2 +-
+ drivers/serial/msm_serial.c                      |    2 +-
+ drivers/staging/brcm80211/brcmfmac/wl_cfg80211.c |    2 +-
+ drivers/usb/gadget/f_fs.c                        |    4 ++--
+ fs/exofs/super.c                                 |    2 +-
+ fs/ext2/namei.c                                  |    2 +-
+ fs/ext3/namei.c                                  |    2 +-
+ fs/ext4/namei.c                                  |    2 +-
+ fs/nfs/mount_clnt.c                              |    2 +-
+ mm/vmalloc.c                                     |    2 +-
+ net/ipv6/af_inet6.c                              |    2 +-
+ 15 files changed, 18 insertions(+), 18 deletions(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -476,7 +495,7 @@ unsigned long try_to_compact_pages(struc
- 	 * made because an assumption is made that the page allocator can satisfy
- 	 * the "cheaper" orders without taking special steps
- 	 */
--	if (order <= PAGE_ALLOC_COSTLY_ORDER || !may_enter_fs || !may_perform_io)
-+	if (!order || !may_enter_fs || !may_perform_io)
- 		return rc;
- 
- 	count_vm_event(COMPACTSTALL);
-
-
-
-
-===========
-Subject: use compaction in kswapd for GFP_ATOMIC order > 0
-
-From: Andrea Arcangeli <aarcange@redhat.com>
-
-This takes advantage of memory compaction to properly generate pages of order >
-0 if regular page reclaim fails and priority level becomes more severe and we
-don't reach the proper watermarks.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
-
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -11,6 +11,9 @@
- /* The full zone was compacted */
- #define COMPACT_COMPLETE	3
- 
-+#define COMPACT_MODE_DIRECT_RECLAIM	0
-+#define COMPACT_MODE_KSWAPD		1
-+
- #ifdef CONFIG_COMPACTION
- extern int sysctl_compact_memory;
- extern int sysctl_compaction_handler(struct ctl_table *table, int write,
-@@ -20,6 +23,9 @@ extern int sysctl_extfrag_handler(struct
- 			void __user *buffer, size_t *length, loff_t *ppos);
- 
- extern int fragmentation_index(struct zone *zone, unsigned int order);
-+extern unsigned long compact_zone_order(struct zone *zone,
-+					int order, gfp_t gfp_mask,
-+					int compact_mode);
- extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *mask);
- 
-@@ -59,6 +65,13 @@ static inline unsigned long try_to_compa
- 	return COMPACT_CONTINUE;
- }
- 
-+static inline unsigned long compact_zone_order(struct zone *zone,
-+					       int order, gfp_t gfp_mask,
-+					       int compact_mode)
-+{
-+	return COMPACT_CONTINUE;
-+}
-+
- static inline void defer_compaction(struct zone *zone)
- {
- }
-diff --git a/mm/compaction.c b/mm/compaction.c
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -38,6 +38,8 @@ struct compact_control {
- 	unsigned int order;		/* order a direct compactor needs */
- 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
- 	struct zone *zone;
-+
-+	int compact_mode;
- };
- 
- static unsigned long release_freepages(struct list_head *freelist)
-@@ -357,10 +359,10 @@ static void update_nr_listpages(struct c
- }
- 
- static int compact_finished(struct zone *zone,
--						struct compact_control *cc)
-+			    struct compact_control *cc)
- {
- 	unsigned int order;
--	unsigned long watermark = low_wmark_pages(zone) + (1 << cc->order);
-+	unsigned long watermark;
- 
- 	if (fatal_signal_pending(current))
- 		return COMPACT_PARTIAL;
-@@ -370,12 +372,27 @@ static int compact_finished(struct zone 
- 		return COMPACT_COMPLETE;
- 
- 	/* Compaction run is not finished if the watermark is not met */
-+	if (cc->compact_mode != COMPACT_MODE_KSWAPD)
-+		watermark = low_wmark_pages(zone);
-+	else
-+		watermark = high_wmark_pages(zone);
-+	watermark += (1 << cc->order);
-+
- 	if (!zone_watermark_ok(zone, cc->order, watermark, 0, 0))
- 		return COMPACT_CONTINUE;
- 
- 	if (cc->order == -1)
- 		return COMPACT_CONTINUE;
- 
-+	/*
-+	 * Generating only one page of the right order is not enough
-+	 * for kswapd, we must continue until we're above the high
-+	 * watermark as a pool for high order GFP_ATOMIC allocations
-+	 * too.
-+	 */
-+	if (cc->compact_mode == COMPACT_MODE_KSWAPD)
-+		return COMPACT_CONTINUE;
-+
- 	/* Direct compactor: Is a suitable page free? */
- 	for (order = cc->order; order < MAX_ORDER; order++) {
- 		/* Job done if page is free of the right migratetype */
-@@ -433,8 +450,9 @@ static int compact_zone(struct zone *zon
- 	return ret;
- }
- 
--static unsigned long compact_zone_order(struct zone *zone,
--						int order, gfp_t gfp_mask)
-+unsigned long compact_zone_order(struct zone *zone,
-+				 int order, gfp_t gfp_mask,
-+				 int compact_mode)
- {
- 	struct compact_control cc = {
- 		.nr_freepages = 0,
-@@ -442,6 +460,7 @@ static unsigned long compact_zone_order(
- 		.order = order,
- 		.migratetype = allocflags_to_migratetype(gfp_mask),
- 		.zone = zone,
-+		.compact_mode = compact_mode,
- 	};
- 	INIT_LIST_HEAD(&cc.freepages);
- 	INIT_LIST_HEAD(&cc.migratepages);
-@@ -517,7 +536,8 @@ unsigned long try_to_compact_pages(struc
- 			break;
- 		}
- 
--		status = compact_zone_order(zone, order, gfp_mask);
-+		status = compact_zone_order(zone, order, gfp_mask,
-+					    COMPACT_MODE_DIRECT_RECLAIM);
- 		rc = max(status, rc);
- 
- 		if (zone_watermark_ok(zone, order, watermark, 0, 0))
-@@ -547,6 +567,7 @@ static int compact_node(int nid)
- 			.nr_freepages = 0,
- 			.nr_migratepages = 0,
- 			.order = -1,
-+			.compact_mode = COMPACT_MODE_DIRECT_RECLAIM,
- 		};
- 
- 		zone = &pgdat->node_zones[zoneid];
-diff --git a/mm/vmscan.c b/mm/vmscan.c
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -40,6 +40,7 @@
- #include <linux/memcontrol.h>
- #include <linux/delayacct.h>
- #include <linux/sysctl.h>
-+#include <linux/compaction.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -2148,6 +2149,7 @@ loop_again:
- 		 * cause too much scanning of the lower zones.
- 		 */
- 		for (i = 0; i <= end_zone; i++) {
-+			int compaction;
- 			struct zone *zone = pgdat->node_zones + i;
- 			int nr_slab;
- 
-@@ -2177,9 +2179,26 @@ loop_again:
- 						lru_pages);
- 			sc.nr_reclaimed += reclaim_state->reclaimed_slab;
- 			total_scanned += sc.nr_scanned;
-+
-+			compaction = 0;
-+			if (order &&
-+			    zone_watermark_ok(zone, 0,
-+					       high_wmark_pages(zone),
-+					      end_zone, 0) &&
-+			    !zone_watermark_ok(zone, order,
-+					       high_wmark_pages(zone),
-+					       end_zone, 0)) {
-+				compact_zone_order(zone,
-+						   order,
-+						   sc.gfp_mask,
-+						   COMPACT_MODE_KSWAPD);
-+				compaction = 1;
-+			}
-+
- 			if (zone->all_unreclaimable)
- 				continue;
--			if (nr_slab == 0 && !zone_reclaimable(zone))
-+			if (!compaction && nr_slab == 0 &&
-+			    !zone_reclaimable(zone))
- 				zone->all_unreclaimable = 1;
- 			/*
- 			 * If we've done a decent amount of scanning and
+-- 
+1.7.3.3.464.gf80b6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
