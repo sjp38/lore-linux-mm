@@ -1,84 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 38A5F6B0087
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 20:18:14 -0500 (EST)
-Date: Wed, 8 Dec 2010 17:18:08 -0800
-From: Simon Kirby <sim@hostway.ca>
-Subject: Re: [PATCH 0/5] Prevent kswapd dumping excessive amounts of memory
-	in response to high-order allocations V2
-Message-ID: <20101209011808.GC3796@hostway.ca>
-References: <1291376734-30202-1-git-send-email-mel@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1291376734-30202-1-git-send-email-mel@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AD186B0087
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 20:25:49 -0500 (EST)
+Date: Wed, 8 Dec 2010 17:23:24 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm: skip rebalance of hopeless zones
+Message-Id: <20101208172324.d45911f4.akpm@linux-foundation.org>
+In-Reply-To: <20101209003621.GB3796@hostway.ca>
+References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
+	<20101209003621.GB3796@hostway.ca>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Simon Kirby <sim@hostway.ca>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 03, 2010 at 11:45:29AM +0000, Mel Gorman wrote:
+On Wed, 8 Dec 2010 16:36:21 -0800 Simon Kirby <sim@hostway.ca> wrote:
 
-> This still needs testing. I've tried multiple reproduction scenarios locally
-> but two things are tripping me. One, Simon's network card is using GFP_ATOMIC
-> allocations where as the one I use locally does not. Second, Simon's is a real
-> mail workload with network traffic and there are no decent mail simulator
-> benchmarks (that I could find at least) that would replicate the situation.
-> Still, I'm hopeful it'll stop kswapd going mad on his machine and might
-> also alleviate some of the "too much free memory" problem.
+> On Wed, Dec 08, 2010 at 04:16:59PM +0100, Johannes Weiner wrote:
 > 
-> Changelog since V1
->   o Take classzone into account
->   o Ensure that kswapd always balances at order-09
->   o Reset classzone and order after reading
->   o Require a percentage of a node be balanced for high-order allocations,
->     not just any zone as ZONE_DMA could be balanced when the node in general
->     is a mess
+> > Kswapd tries to rebalance zones persistently until their high
+> > watermarks are restored.
+> > 
+> > If the amount of unreclaimable pages in a zone makes this impossible
+> > for reclaim, though, kswapd will end up in a busy loop without a
+> > chance of reaching its goal.
+> > 
+> > This behaviour was observed on a virtual machine with a tiny
+> > Normal-zone that filled up with unreclaimable slab objects.
+> > 
+> > This patch makes kswapd skip rebalancing on such 'hopeless' zones and
+> > leaves them to direct reclaim.
 > 
-> Simon Kirby reported the following problem
+> Hi!
 > 
->    We're seeing cases on a number of servers where cache never fully
->    grows to use all available memory.  Sometimes we see servers with 4
->    GB of memory that never seem to have less than 1.5 GB free, even with
->    a constantly-active VM.  In some cases, these servers also swap out
->    while this happens, even though they are constantly reading the working
->    set into memory.  We have been seeing this happening for a long time;
->    I don't think it's anything recent, and it still happens on 2.6.36.
-> 
-> After some debugging work by Simon, Dave Hansen and others, the prevaling
-> theory became that kswapd is reclaiming order-3 pages requested by SLUB
-> too aggressive about it.
-> 
-> There are two apparent problems here. On the target machine, there is a small
-> Normal zone in comparison to DMA32. As kswapd tries to balance all zones, it
-> would continually try reclaiming for Normal even though DMA32 was balanced
-> enough for callers. The second problem is that sleeping_prematurely() uses
-> the requested order, not the order kswapd finally reclaimed at. This keeps
-> kswapd artifically awake.
-> 
-> This series aims to alleviate these problems but needs testing to confirm
-> it alleviates the actual problem and wider review to think if there is a
-> better alternative approach. Local tests passed but are not reproducing
-> the same problem unfortunately so the results are inclusive.
+> We are experiencing a similar issue, though with a 757 MB Normal zone,
+> where kswapd tries to rebalance Normal after an order-3 allocation while
+> page cache allocations (order-0) keep splitting it back up again.  It can
+> run the whole day like this (SSD storage) without sleeping.
 
-So, we have been running the first version of this series in production
-since November 26th, and this version of this series in production since
-early yesterday morning.  Both versions definitely solve the kswapd not
-sleeping problem and do improve the use of memory for caching.  There are
-still problems with fragmentation causing reclaim of more page cache than
-I would like, but without this patch, the system is in bad shape (it
-keeps reading daemons in from disk because kswapd keeps reclaiming them).
+People at google have told me they've seen the same thing.  A fork is
+taking 15 minutes when someone else is doing a dd, because the fork
+enters direct-reclaim trying for an order-one page.  It successfully
+frees some order-one pages but before it gets back to allocate one, dd
+has gone and stolen them, or split them apart.
 
-http://0x.ca/sim/ref/2.6.36/?C=M;O=A
-http://0x.ca/sim/ref/2.6.36/mel_v2_memory_day.png
-http://0x.ca/sim/ref/2.6.36/mel_v2_buddyinfo_day.png
-http://0x.ca/sim/ref/2.6.36/mel_v2_buddyinfo_DMA32_day.png
-http://0x.ca/sim/ref/2.6.36/mel_v2_buddyinfo_Normal_day.png
+This problem would have got worse when slub came along doing its stupid
+unnecessary high-order allocations.
 
-No problem with page allocation failures or any other problem in the
-weeks of testing.
+Billions of years ago a direct-reclaimer had a one-deep cache in the
+task_struct into which it freed the page to prevent it from getting
+stolen.
 
-Simon-
+Later, we took that out because pages were being freed into the
+per-cpu-pages magazine, which is effectively task-local anyway.  But
+per-cpu-pages are only for order-0 pages.  See slub stupidity, above.
+
+I expect that this is happening so repeatably because the
+direct-reclaimer is dong a sleep somewhere after freeing the pages it
+needs - if it wasn't doing that then surely the window wouldn't be wide
+enough for it to happen so often.  But I didn't look.
+
+Suitable fixes might be
+
+a) don't go to sleep after the successful direct-reclaim.
+
+b) reinstate the one-deep task-local free page cache.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
