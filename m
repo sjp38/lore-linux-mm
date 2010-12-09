@@ -1,34 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id AE7116B0087
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 15:32:56 -0500 (EST)
-Subject: Re: [trivial PATCH 00/15] remove duplicate unlikely from IS_ERR
-From: Joe Perches <joe@perches.com>
-In-Reply-To: <cover.1291923888.git.joe@perches.com>
-References: <1291906801-1389-2-git-send-email-tklauser@distanz.ch>
-	 <cover.1291923888.git.joe@perches.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 09 Dec 2010 12:32:53 -0800
-Message-ID: <1291926773.20677.26.camel@Joe-Laptop>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E5FF6B0087
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 16:17:29 -0500 (EST)
+Date: Thu, 9 Dec 2010 13:17:23 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm: skip rebalance of hopeless zones
+Message-Id: <20101209131723.fd51b032.akpm@linux-foundation.org>
+In-Reply-To: <20101209000440.GM2356@cmpxchg.org>
+References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
+	<20101208141909.5c9c60e8.akpm@linux-foundation.org>
+	<20101209000440.GM2356@cmpxchg.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: netdev@vger.kernel.org, Tobias Klauser <tklauser@distanz.ch>
-Cc: uclinux-dist-devel@blackfin.uclinux.org, rtc-linux@googlegroups.com, linux-s390@vger.kernel.org, osd-dev@open-osd.org, linux-arm-msm@vger.kernel.org, linux-usb@vger.kernel.org, linux-ext4@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, Jiri Kosina <trivial@kernel.org>, dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-scsi@vger.kernel.org, linux-wireless@vger.kernel.org, devel@driverdev.osuosl.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-12-09 at 12:03 -0800, Joe Perches wrote:
-> Tobias Klauser <tklauser@distanz.ch> sent a patch to remove
-> an unnecessary unlikely from drivers/misc/c2port/core.c,
-> https://lkml.org/lkml/2010/12/9/199
+On Thu, 9 Dec 2010 01:04:40 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-It seems that Tobias did send all the appropriate patches,
-not as a series, but as individual patches to kernel-janitor.
+> On Wed, Dec 08, 2010 at 02:19:09PM -0800, Andrew Morton wrote:
+> > On Wed,  8 Dec 2010 16:16:59 +0100
+> > Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > 
+> > > Kswapd tries to rebalance zones persistently until their high
+> > > watermarks are restored.
+> > > 
+> > > If the amount of unreclaimable pages in a zone makes this impossible
+> > > for reclaim, though, kswapd will end up in a busy loop without a
+> > > chance of reaching its goal.
+> > > 
+> > > This behaviour was observed on a virtual machine with a tiny
+> > > Normal-zone that filled up with unreclaimable slab objects.
+> > 
+> > Doesn't this mean that vmscan is incorrectly handling its
+> > zone->all_unreclaimable logic?
+> 
+> I don't think so.  What leads to the problem is that we only declare a
+> zone unreclaimable after a lot of work, but reset it with a single
+> page that gets released back to the allocator (past the pcp queue,
+> that is).
+> 
+> That's probably a good idea per-se, we don't want to leave a zone
+> behind and retry it eagerly when pages are freed up.
+> 
+> > presumably in certain cases that's a bit more efficient than doing the
+> > scan and using ->all_unreclaimable.  But the scanner shouldn't have got
+> > stuck!  That's a regresion which got added, and I don't think that new
+> > code of this nature was needed to fix that regression.
+> 
+> I'll dig through the history.  But we observed this on a very odd
+> configuration (24MB ZONE_NORMAL), maybe this was never hit before?
+> 
+> > Did this zone end up with ->all_unreclaimable set?  If so, why was
+> > kswapd stuck in a loop scanning an all-unreclaimable zone?
+> 
+> It wasn't.  This state is just not very sticky.  After all, the zone
+> is not all_unreclaimable, just not reclaimable enough to restore the
+> high watermark.  But the remaining reclaimable pages of that zone may
+> very well be in constant flux.
 
-c2port was the only one that went to lkml.
+It's bothersome that we have two mechanisms for doing pretty mcuh the
+same thing.
 
-Please ignore this series and apply Tobias' patches.
+> > Also, if I'm understanding the new logic then if the "goal" is 100
+> > pages and zone_reclaimable_pages() says "50 pages potentially
+> > reclaimable" then kswapd won't reclaim *any* pages.  If so, is that
+> > good behaviour?  Should we instead attempt to reclaim some of those 50
+> > pages and then give up?  That sounds like a better strategy if we want
+> > to keep (say) network Rx happening in a tight memory situation.
+> 
+> Yes, that is probably a good idea.  I'll see that this is improved for
+> atomic allocators.
 
+Does that mean we can expect a v2?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
