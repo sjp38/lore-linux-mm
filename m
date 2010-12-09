@@ -1,51 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 63BBC6B0095
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 06:18:26 -0500 (EST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id CD7326B008A
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 06:19:49 -0500 (EST)
+Date: Thu, 9 Dec 2010 11:19:30 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 5/6] mm: kswapd: Treat zone->all_unreclaimable in sleeping_prematurely similar to balance_pgdat()
-Date: Thu,  9 Dec 2010 11:18:19 +0000
-Message-Id: <1291893500-12342-6-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1291893500-12342-1-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 0/5] Prevent kswapd dumping excessive amounts of memory
+	in response to high-order allocations V3
+Message-ID: <20101209111930.GQ5422@csn.ul.ie>
 References: <1291893500-12342-1-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1291893500-12342-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Simon Kirby <sim@hostway.ca>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-After DEF_PRIORITY, balance_pgdat() considers all_unreclaimable zones to
-be balanced but sleeping_prematurely does not. This can force kswapd to
-stay awake longer than it should. This patch fixes it.
+Bah, this should have been PATCH 0/6 of course :(
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/vmscan.c |   10 +++++++++-
- 1 files changed, 9 insertions(+), 1 deletions(-)
+On Thu, Dec 09, 2010 at 11:18:14AM +0000, Mel Gorman wrote:
+> There was a minor bug in V2 that led to this release.  I'm hopeful it'll
+> stop kswapd going mad on Simon's machine and might also alleviate some of
+> the "too much free memory" problem.
+> 
+> Changelog since V2
+>   o Add clarifying comments
+>   o Properly check that the zone is balanced for order-0
+>   o Treat zone->all_unreclaimable properly
+> 
+> Changelog since V1
+>   o Take classzone into account
+>   o Ensure that kswapd always balances at order-09
+>   o Reset classzone and order after reading
+>   o Require a percentage of a node be balanced for high-order allocations,
+>     not just any zone as ZONE_DMA could be balanced when the node in general
+>     is a mess
+> 
+> <SNIP>
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bc233d8..d7b0a3c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2149,8 +2149,16 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
- 		if (!populated_zone(zone))
- 			continue;
- 
--		if (zone->all_unreclaimable)
-+		/*
-+		 * balance_pgdat() skips over all_unreclaimable after
-+		 * DEF_PRIORITY. Effectively, it considers them balanced so
-+		 * they must be considered balanced here as well if kswapd
-+		 * is to sleep
-+		 */
-+		if (zone->all_unreclaimable) {
-+			balanced += zone->present_pages;
- 			continue;
-+		}
- 
- 		if (!zone_watermark_ok(zone, order, high_wmark_pages(zone),
- 								0, 0))
 -- 
-1.7.1
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
