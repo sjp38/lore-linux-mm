@@ -1,168 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CC1436B0087
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 13:48:39 -0500 (EST)
-Date: Thu, 9 Dec 2010 19:47:42 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 51 of 66] set recommended min free kbytes
-Message-ID: <20101209184742.GH19131@random.random>
-References: <patchbomb.1288798055@v2.random>
- <e4c3f336872db7bfbf58.1288798106@v2.random>
- <20101118161623.GB8135@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CC0CC6B0089
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 13:48:42 -0500 (EST)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id oB9Imd7I025277
+	for <linux-mm@kvack.org>; Thu, 9 Dec 2010 10:48:40 -0800
+Received: from qyj19 (qyj19.prod.google.com [10.241.83.83])
+	by wpaz1.hot.corp.google.com with ESMTP id oB9ImcH8028291
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 9 Dec 2010 10:48:38 -0800
+Received: by qyj19 with SMTP id 19so76418qyj.12
+        for <linux-mm@kvack.org>; Thu, 09 Dec 2010 10:48:38 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101118161623.GB8135@csn.ul.ie>
+In-Reply-To: <20101209144412.GE20133@csn.ul.ie>
+References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
+	<20101209003621.GB3796@hostway.ca>
+	<20101208172324.d45911f4.akpm@linux-foundation.org>
+	<20101209144412.GE20133@csn.ul.ie>
+Date: Thu, 9 Dec 2010 10:48:37 -0800
+Message-ID: <AANLkTimHrL5HnSf-rAMGdg-_ZKZ5RgJ_sEWo+BH5Q9sL@mail.gmail.com>
+Subject: Re: [patch] mm: skip rebalance of hopeless zones
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Simon Kirby <sim@hostway.ca>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 04:16:24PM +0000, Mel Gorman wrote:
-> > +	/* Make sure at least 2 hugepages are free for MIGRATE_RESERVE */
-> > +	recommended_min = HPAGE_PMD_NR * nr_zones * 2;
-> > +
-> 
-> The really important value is pageblock_nr_pages here. It'll just happen
-> to work on x86 and x86-64 but anti-fragmentation is really about
-> pageblocks, not PMDs.
-> 
-> > +	/*
-> > +	 * Make sure that on average at least two pageblocks are almost free
-> > +	 * of another type, one for a migratetype to fall back to and a
-> > +	 * second to avoid subsequent fallbacks of other types There are 3
-> > +	 * MIGRATE_TYPES we care about.
-> > +	 */
-> > +	recommended_min += HPAGE_PMD_NR * nr_zones * 3 * 3;
-> > +
-> 
-> Same on the use of pageblock_nr_pages. Also, you can replace 3 with
-> MIGRATE_PCPTYPES.
-> 
-> > +	/* don't ever allow to reserve more than 5% of the lowmem */
-> > +	recommended_min = min(recommended_min,
-> > +			      (unsigned long) nr_free_buffer_pages() / 20);
-> > +	recommended_min <<= (PAGE_SHIFT-10);
-> > +
-> > +	if (recommended_min > min_free_kbytes) {
-> > +		min_free_kbytes = recommended_min;
-> > +		setup_per_zone_wmarks();
-> > +	}
-> 
-> 
-> The timing this is called is important. Would you mind doing a quick
-> debugging check by adding a printk to setup_zone_migrate_reserve() to ensure
-> MIGRATE_RESERVE is getting set on sensible pageblocks? (see where the comment
-> Suitable for reserving if this block is movable is) If MIGRATE_RESERVE blocks
-> are not being created in a sensible fashion, atomic high-order allocations
-> will suffer in mysterious ways.
-> 
-> SEtting the higher min free kbytes from userspace happens to work because
-> the system is initialised and MIGRATE_MOVABLE exists but that might not be
-> the case when automatically set like this patch.
+On Thu, Dec 9, 2010 at 6:44 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> On Wed, Dec 08, 2010 at 05:23:24PM -0800, Andrew Morton wrote:
+>> On Wed, 8 Dec 2010 16:36:21 -0800 Simon Kirby <sim@hostway.ca> wrote:
+>>
+>> > On Wed, Dec 08, 2010 at 04:16:59PM +0100, Johannes Weiner wrote:
+>> >
+>> > > Kswapd tries to rebalance zones persistently until their high
+>> > > watermarks are restored.
+>> > >
+>> > > If the amount of unreclaimable pages in a zone makes this impossible
+>> > > for reclaim, though, kswapd will end up in a busy loop without a
+>> > > chance of reaching its goal.
+>> > >
+>> > > This behaviour was observed on a virtual machine with a tiny
+>> > > Normal-zone that filled up with unreclaimable slab objects.
+>> > >
+>> > > This patch makes kswapd skip rebalancing on such 'hopeless' zones an=
+d
+>> > > leaves them to direct reclaim.
+>> >
+>> > Hi!
+>> >
+>> > We are experiencing a similar issue, though with a 757 MB Normal zone,
+>> > where kswapd tries to rebalance Normal after an order-3 allocation whi=
+le
+>> > page cache allocations (order-0) keep splitting it back up again. =A0I=
+t can
+>> > run the whole day like this (SSD storage) without sleeping.
+>>
+>> People at google have told me they've seen the same thing. =A0A fork is
+>> taking 15 minutes when someone else is doing a dd, because the fork
+>> enters direct-reclaim trying for an order-one page. =A0It successfully
+>> frees some order-one pages but before it gets back to allocate one, dd
+>> has gone and stolen them, or split them apart.
+>>
+>
+> Is there a known test case for this or should I look at doing a
+> streaming-IO test with a basic workload constantly forking in the
+> background to measure the fork latency?
 
-When min_free_kbytes doesn't need to be increased (like huge system
-with lots of ram) setup_per_zone_wmarks wasn't called in the
-late_initcall where this code runs, and the original
-setup_per_zone_wmarks apparently wasn't calling
-setup_zone_migrate_reserve (how can it be?).
+We were seeing some system daemons(sshd) being OOM killed while
+running in the same
+memory container as dd test. I assume we can generate the test case
+while running dd on
+10G of file in 1G container, at the same time running
+unixbench(fork/exec loop)?
 
-Anyway now I patched it like this and it seems to work properly with
-the unconditional setup_per_zone_wmarks in
-late_initcall(set_recommended_min_free_kbytes).
+--Ying
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -103,7 +103,7 @@ static int set_recommended_min_free_kbyt
- 		nr_zones++;
- 
- 	/* Make sure at least 2 hugepages are free for MIGRATE_RESERVE */
--	recommended_min = HPAGE_PMD_NR * nr_zones * 2;
-+	recommended_min = pageblock_nr_pages * nr_zones * 2;
- 
- 	/*
- 	 * Make sure that on average at least two pageblocks are almost free
-@@ -111,17 +111,17 @@ static int set_recommended_min_free_kbyt
- 	 * second to avoid subsequent fallbacks of other types There are 3
- 	 * MIGRATE_TYPES we care about.
- 	 */
--	recommended_min += HPAGE_PMD_NR * nr_zones * 3 * 3;
-+	recommended_min += pageblock_nr_pages * nr_zones *
-+			   MIGRATE_PCPTYPES * MIGRATE_PCPTYPES;
- 
- 	/* don't ever allow to reserve more than 5% of the lowmem */
- 	recommended_min = min(recommended_min,
- 			      (unsigned long) nr_free_buffer_pages() / 20);
- 	recommended_min <<= (PAGE_SHIFT-10);
- 
--	if (recommended_min > min_free_kbytes) {
-+	if (recommended_min > min_free_kbytes)
- 		min_free_kbytes = recommended_min;
--		setup_per_zone_wmarks();
--	}
-+	setup_per_zone_wmarks();
- 	return 0;
- }
- late_initcall(set_recommended_min_free_kbytes);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3188,6 +3188,7 @@ static void setup_zone_migrate_reserve(s
- 	 */
- 	reserve = min(2, reserve);
- 
-+	printk("reserve start %d\n", reserve);
- 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
- 		if (!pfn_valid(pfn))
- 			continue;
-@@ -3226,6 +3227,7 @@ static void setup_zone_migrate_reserve(s
- 			move_freepages_block(zone, page, MIGRATE_MOVABLE);
- 		}
- 	}
-+	printk("reserve end %d\n", reserve);
- }
- 
- /*
+>
+>> This problem would have got worse when slub came along doing its stupid
+>> unnecessary high-order allocations.
+>>
+>> Billions of years ago a direct-reclaimer had a one-deep cache in the
+>> task_struct into which it freed the page to prevent it from getting
+>> stolen.
+>>
+>> Later, we took that out because pages were being freed into the
+>> per-cpu-pages magazine, which is effectively task-local anyway. =A0But
+>> per-cpu-pages are only for order-0 pages. =A0See slub stupidity, above.
+>>
+>> I expect that this is happening so repeatably because the
+>> direct-reclaimer is dong a sleep somewhere after freeing the pages it
+>> needs - if it wasn't doing that then surely the window wouldn't be wide
+>> enough for it to happen so often. =A0But I didn't look.
+>>
+>> Suitable fixes might be
+>>
+>> a) don't go to sleep after the successful direct-reclaim.
+>>
+>
+> I submitted a patch for this a long time ago but at the time we didn't
+> have a test case that made a difference to it. Might be worth
+> revisiting. I can't find the related patch any more but it was fairly
+> trivial.
 
+If you have the patch, maybe we can give a try on our case.
 
-
-hugeadm with CONFIG_TRANSPARENT_HUGEPAGE=n leads to:
-
-reserve start 1
-reserve end 0
-reserve start 2
-reserve end 0
-reserve start 2
-reserve end 0
-reserve start 0
-reserve end 0
-reserve start 0
-reserve end 0
-reserve start 0
-reserve end 0
-reserve start 2
-reserve end 0
-reserve start 0
-reserve end 0
-
-With CONFIG_TRANSPARENT_HUGEPAGE=Y I boot I see:
-
-reserve start 1
-reserve end 0
-reserve start 2
-reserve end 0
-reserve start 2
-reserve end 0
-reserve start 0
-reserve end 0
-reserve start 0
-reserve end 0
-reserve start 0
-reserve end 0
-reserve start 2
-reserve end 0
-reserve start 0
+--Ying
+>
+> --
+> Mel Gorman
+> Part-time Phd Student =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+Linux Technology Center
+> University of Limerick =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 IB=
+M Dublin Software Lab
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
