@@ -1,57 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F19096B0092
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 10:06:38 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3D8B36B0089
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 10:21:14 -0500 (EST)
+Received: by yxl31 with SMTP id 31so1481000yxl.14
+        for <linux-mm@kvack.org>; Thu, 09 Dec 2010 07:21:12 -0800 (PST)
+Date: Fri, 10 Dec 2010 00:21:02 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 1/6] mm: kswapd: Stop high-order balancing when any
+ suitable zone is balanced
+Message-ID: <20101209152102.GB1740@barrios-desktop>
+References: <1291893500-12342-1-git-send-email-mel@csn.ul.ie>
+ <1291893500-12342-2-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <19712.61515.201226.938553@quad.stoffel.home>
-Date: Thu, 9 Dec 2010 10:05:47 -0500
-From: "John Stoffel" <john@stoffel.org>
-Subject: Re: [PATCH] fs/vfs/security: pass last path component to LSM on inode
- creation
-In-Reply-To: <20101208194527.13537.77202.stgit@paris.rdu.redhat.com>
-References: <20101208194527.13537.77202.stgit@paris.rdu.redhat.com>
+Content-Disposition: inline
+In-Reply-To: <1291893500-12342-2-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Eric Paris <eparis@redhat.com>
-Cc: xfs-masters@oss.sgi.com, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-mtd@lists.infradead.org, jfs-discussion@lists.sourceforge.net, ocfs2-devel@oss.oracle.com, reiserfs-devel@vger.kernel.org, xfs@oss.sgi.com, linux-mm@kvack.org, linux-security-module@vger.kernel.org, chris.mason@oracle.com, jack@suse.cz, akpm@linux-foundation.org, adilger.kernel@dilger.ca, tytso@mit.edu, swhiteho@redhat.com, dwmw2@infradead.org, shaggy@linux.vnet.ibm.com, mfasheh@suse.com, joel.becker@oracle.com, aelder@sgi.com, hughd@google.com, jmorris@namei.org, sds@tycho.nsa.gov, eparis@parisplace.org, hch@lst.de, dchinner@redhat.com, viro@zeniv.linux.org.uk, tao.ma@oracle.com, shemminger@vyatta.com, jeffm@suse.com, serue@us.ibm.com, paul.moore@hp.com, penguin-kernel@I-love.SAKURA.ne.jp, casey@schaufler-ca.com, kees.cook@canonical.com, dhowells@redhat.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "Eric" == Eric Paris <eparis@redhat.com> writes:
+On Thu, Dec 09, 2010 at 11:18:15AM +0000, Mel Gorman wrote:
+> When the allocator enters its slow path, kswapd is woken up to balance the
+> node. It continues working until all zones within the node are balanced. For
+> order-0 allocations, this makes perfect sense but for higher orders it can
+> have unintended side-effects. If the zone sizes are imbalanced, kswapd may
+> reclaim heavily within a smaller zone discarding an excessive number of
+> pages. The user-visible behaviour is that kswapd is awake and reclaiming
+> even though plenty of pages are free from a suitable zone.
+> 
+> This patch alters the "balance" logic for high-order reclaim allowing kswapd
+> to stop if any suitable zone becomes balanced to reduce the number of pages
+> it reclaims from other zones. kswapd still tries to ensure that order-0
+> watermarks for all zones are met before sleeping.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-Eric> SELinux would like to implement a new labeling behavior of newly
-Eric> created inodes.  We currently label new inodes based on the
-Eric> parent and the creating process.  This new behavior would also
-Eric> take into account the name of the new object when deciding the
-Eric> new label.  This is not the (supposed) full path, just the last
-Eric> component of the path.
+Looks good to me.
 
-Eric> This is very useful because creating /etc/shadow is different
-Eric> than creating /etc/passwd but the kernel hooks are unable to
-Eric> differentiate these operations.  We currently require that
-Eric> userspace realize it is doing some difficult operation like that
-Eric> and than userspace jumps through SELinux hoops to get things set
-Eric> up correctly.  This patch does not implement new behavior, that
-Eric> is obviously contained in a seperate SELinux patch, but it does
-Eric> pass the needed name down to the correct LSM hook.  If no such
-Eric> name exists it is fine to pass NULL.
-
-I've looked this patch over, and maybe I'm missing something, but how
-does knowing the name of the file really tell you anything, esp when
-you only get the filename, not the path?  What threat are you
-addressing with this change?  
-
-So what happens when I create a file /home/john/shadow, does selinux
-(or LSM in general) then run extra checks because the filename is
-'shadow' in your model?  
-
-I *think* the overhead shouldn't be there if SELINUX is disabled, but
-have you confirmed this?  How you run performance tests before/after
-this change when doing lots of creations of inodes to see what sort of
-performance changes might be there?
-
-Thanks,
-John
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
