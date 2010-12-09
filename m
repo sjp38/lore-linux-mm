@@ -1,49 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 82BFC6B0087
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 02:50:05 -0500 (EST)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id oB97o3dQ006455
-	for <linux-mm@kvack.org>; Wed, 8 Dec 2010 23:50:03 -0800
-Received: from pvd12 (pvd12.prod.google.com [10.241.209.204])
-	by wpaz9.hot.corp.google.com with ESMTP id oB97njeG011424
-	for <linux-mm@kvack.org>; Wed, 8 Dec 2010 23:50:02 -0800
-Received: by pvd12 with SMTP id 12so495527pvd.34
-        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 23:50:02 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 3B1DE6B0089
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 02:50:10 -0500 (EST)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id oB97o7V3006512
+	for <linux-mm@kvack.org>; Wed, 8 Dec 2010 23:50:08 -0800
+Received: from pvg6 (pvg6.prod.google.com [10.241.210.134])
+	by hpaq2.eem.corp.google.com with ESMTP id oB97o5gR015330
+	for <linux-mm@kvack.org>; Wed, 8 Dec 2010 23:50:06 -0800
+Received: by pvg6 with SMTP id 6so651909pvg.37
+        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 23:50:05 -0800 (PST)
 From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH 0/2] RFC: page munlock issues when breaking up COW
-Date: Wed,  8 Dec 2010 23:49:37 -0800
-Message-Id: <1291880979-16309-1-git-send-email-walken@google.com>
+Subject: [PATCH 2/2] mlock: do not munlock pages in __do_fault()
+Date: Wed,  8 Dec 2010 23:49:39 -0800
+Message-Id: <1291880979-16309-3-git-send-email-walken@google.com>
+In-Reply-To: <1291880979-16309-1-git-send-email-walken@google.com>
+References: <1291880979-16309-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 To: Nick Piggin <npiggin@kernel.dk>, linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I'm sending this up as RFC only as I've only done minimal testing so far -
-I would actually be particularly interested in comments about any corner
-cases I must make sure to test for...
+If the page is going to be written to, __do_page needs to break COW.
+However, the old page (before breaking COW) was never mapped mapped into
+the current pte (__do_fault is only called when the pte is not present),
+so vmscan can't have marked the old page as PageMlocked due to being
+mapped in __do_fault's VMA. Therefore, __do_fault() does not need to worry
+about clearing PageMlocked() on the old page.
 
-It looks like there is a race in the do_wp_page() code that munlocks the
-old page after breaking up COW. The pte still points to that old page,
-so I don't see that we are protected against vmscan mlocking back the
-page right away. This can be easily worked around by moving that code to
-the end of do_wp_page(), after the pte has been pointed to the new page.
+Signed-off-by: Michel Lespinasse <walken@google.com>
+---
+ mm/memory.c |    6 ------
+ 1 files changed, 0 insertions(+), 6 deletions(-)
 
-Also, the corresponding code in __do_fault() seems entirely unnecessary,
-since there was never a pte pointing to the old page in our vma.
-
-I found this by code inspection only, and while I believe I understand
-this code well by now, there is always the possibility that I may have
-missed something. I hope Nick can comment, since he wrote this part of
-the code.
-
-Michel Lespinasse (2):
-  mlock: fix race when munlocking pages in do_wp_page()
-  mlock: do not munlock pages in __do_fault()
-
- mm/memory.c |   32 ++++++++++++--------------------
- 1 files changed, 12 insertions(+), 20 deletions(-)
-
+diff --git a/mm/memory.c b/mm/memory.c
+index 68f2dbe..7befd03 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3015,12 +3015,6 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 				goto out;
+ 			}
+ 			charged = 1;
+-			/*
+-			 * Don't let another task, with possibly unlocked vma,
+-			 * keep the mlocked page.
+-			 */
+-			if (vma->vm_flags & VM_LOCKED)
+-				clear_page_mlock(vmf.page);
+ 			copy_user_highpage(page, vmf.page, address, vma);
+ 			__SetPageUptodate(page);
+ 		} else {
 -- 
 1.7.3.1
 
