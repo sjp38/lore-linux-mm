@@ -1,33 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 8AF6F6B008C
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 11:09:40 -0500 (EST)
-Received: by iwn1 with SMTP id 1so3901487iwn.37
-        for <linux-mm@kvack.org>; Thu, 09 Dec 2010 08:09:34 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E56EA6B0087
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 12:15:35 -0500 (EST)
+Date: Thu, 9 Dec 2010 18:14:35 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 33 of 66] madvise(MADV_HUGEPAGE)
+Message-ID: <20101209171435.GD19131@random.random>
+References: <patchbomb.1288798055@v2.random>
+ <7193ff8e62fcf7885199.1288798088@v2.random>
+ <20101118151935.GW8135@csn.ul.ie>
 MIME-Version: 1.0
-In-Reply-To: <1291905904-32716-1-git-send-email-tklauser@distanz.ch>
-References: <1291905904-32716-1-git-send-email-tklauser@distanz.ch>
-Date: Fri, 10 Dec 2010 01:09:34 +0900
-Message-ID: <AANLkTimNdZ4qRRFfrMUnmyZgPuoe2M8eVdCQykg1Dk-u@mail.gmail.com>
-Subject: Re: [PATCH] vmalloc: Remove redundant unlikely()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101118151935.GW8135@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Tobias Klauser <tklauser@distanz.ch>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 9, 2010 at 11:45 PM, Tobias Klauser <tklauser@distanz.ch> wrote:
-> IS_ERR() already implies unlikely(), so it can be omitted here.
->
-> Signed-off-by: Tobias Klauser <tklauser@distanz.ch>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Thu, Nov 18, 2010 at 03:19:35PM +0000, Mel Gorman wrote:
+> On Wed, Nov 03, 2010 at 04:28:08PM +0100, Andrea Arcangeli wrote:
+> > @@ -121,6 +122,11 @@ static inline int split_huge_page(struct
+> >  #define wait_split_huge_page(__anon_vma, __pmd)	\
+> >  	do { } while (0)
+> >  #define PageTransHuge(page) 0
+> > +static inline int hugepage_madvise(unsigned long *vm_flags)
+> > +{
+> > +	BUG_ON(0);
+> 
+> What's BUG_ON(0) in aid of?
 
-Nice catch.
+When CONFIG_TRANSPARENT_HUGEPAGE is disabled, nothing must call that
+function (madvise must return -EINVAL like older kernels instead). But
+I guess you meant I should convert the BUG_ON(0) to a BUG() instead? (done)
 
--- 
-Kind regards,
-Minchan Kim
+> I should have said it at patch 4 but don't forget that Michael Kerrisk
+> should be made aware of MADV_HUGEPAGE so it makes it to a manual page
+> at some point.
+
+Ok, I'll forward patch 4.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
