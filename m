@@ -1,46 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 637976B0088
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 20:08:42 -0500 (EST)
-Date: Wed, 8 Dec 2010 17:08:38 -0800
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 38A5F6B0087
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 20:18:14 -0500 (EST)
+Date: Wed, 8 Dec 2010 17:18:08 -0800
 From: Simon Kirby <sim@hostway.ca>
-Subject: Re: [patch] mm: skip rebalance of hopeless zones
-Message-ID: <20101209010838.GA11758@hostway.ca>
-References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org> <20101209003621.GB3796@hostway.ca> <4D00277F.9040000@redhat.com>
+Subject: Re: [PATCH 0/5] Prevent kswapd dumping excessive amounts of memory
+	in response to high-order allocations V2
+Message-ID: <20101209011808.GC3796@hostway.ca>
+References: <1291376734-30202-1-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4D00277F.9040000@redhat.com>
+In-Reply-To: <1291376734-30202-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 08, 2010 at 07:49:03PM -0500, Rik van Riel wrote:
+On Fri, Dec 03, 2010 at 11:45:29AM +0000, Mel Gorman wrote:
 
-> On 12/08/2010 07:36 PM, Simon Kirby wrote:
->
->> Mel Gorman posted a similar patch to yours, but the logic is instead to
->> consider order>0 balancing sufficient when there are other balanced zones
->> totalling at least 25% of pages on this node.  This would probably fix
->> your case as well.
->
-> Mel's patch addresses something very different and is unlikely
-> to fix the problem this patch addresses.
+> This still needs testing. I've tried multiple reproduction scenarios locally
+> but two things are tripping me. One, Simon's network card is using GFP_ATOMIC
+> allocations where as the one I use locally does not. Second, Simon's is a real
+> mail workload with network traffic and there are no decent mail simulator
+> benchmarks (that I could find at least) that would replicate the situation.
+> Still, I'm hopeful it'll stop kswapd going mad on his machine and might
+> also alleviate some of the "too much free memory" problem.
+> 
+> Changelog since V1
+>   o Take classzone into account
+>   o Ensure that kswapd always balances at order-09
+>   o Reset classzone and order after reading
+>   o Require a percentage of a node be balanced for high-order allocations,
+>     not just any zone as ZONE_DMA could be balanced when the node in general
+>     is a mess
+> 
+> Simon Kirby reported the following problem
+> 
+>    We're seeing cases on a number of servers where cache never fully
+>    grows to use all available memory.  Sometimes we see servers with 4
+>    GB of memory that never seem to have less than 1.5 GB free, even with
+>    a constantly-active VM.  In some cases, these servers also swap out
+>    while this happens, even though they are constantly reading the working
+>    set into memory.  We have been seeing this happening for a long time;
+>    I don't think it's anything recent, and it still happens on 2.6.36.
+> 
+> After some debugging work by Simon, Dave Hansen and others, the prevaling
+> theory became that kswapd is reclaiming order-3 pages requested by SLUB
+> too aggressive about it.
+> 
+> There are two apparent problems here. On the target machine, there is a small
+> Normal zone in comparison to DMA32. As kswapd tries to balance all zones, it
+> would continually try reclaiming for Normal even though DMA32 was balanced
+> enough for callers. The second problem is that sleeping_prematurely() uses
+> the requested order, not the order kswapd finally reclaimed at. This keeps
+> kswapd artifically awake.
+> 
+> This series aims to alleviate these problems but needs testing to confirm
+> it alleviates the actual problem and wider review to think if there is a
+> better alternative approach. Local tests passed but are not reproducing
+> the same problem unfortunately so the results are inclusive.
 
-Ok, I see they're quite separate.
+So, we have been running the first version of this series in production
+since November 26th, and this version of this series in production since
+early yesterday morning.  Both versions definitely solve the kswapd not
+sleeping problem and do improve the use of memory for caching.  There are
+still problems with fragmentation causing reclaim of more page cache than
+I would like, but without this patch, the system is in bad shape (it
+keeps reading daemons in from disk because kswapd keeps reclaiming them).
 
-Johannes' patch solves the problem of trying to balance a tiny Normal
-zone which happens to be full of unclaimable slab pages by giving up in
-this hopeless case, regardless of order.
+http://0x.ca/sim/ref/2.6.36/?C=M;O=A
+http://0x.ca/sim/ref/2.6.36/mel_v2_memory_day.png
+http://0x.ca/sim/ref/2.6.36/mel_v2_buddyinfo_day.png
+http://0x.ca/sim/ref/2.6.36/mel_v2_buddyinfo_DMA32_day.png
+http://0x.ca/sim/ref/2.6.36/mel_v2_buddyinfo_Normal_day.png
 
-Mel's patch solves the problem of fighting allocations causing an
-order>0 imbalance in the small Normal zone which happens to be full of
-reclaimable pages by giving up in this not-worth-bothering case.
-
-The key difference is that Johannes' patch has no condition on order, so
-Mel's patch probably would help (though not for intended reasons) in the
-order != 0 case, and probably not in the order=0 case.
+No problem with page allocation failures or any other problem in the
+weeks of testing.
 
 Simon-
 
