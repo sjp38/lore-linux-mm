@@ -1,111 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 965CA6B0089
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 02:50:10 -0500 (EST)
-Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
-	by smtp-out.google.com with ESMTP id oB97o8Kx027020
-	for <linux-mm@kvack.org>; Wed, 8 Dec 2010 23:50:08 -0800
-Received: from pwi8 (pwi8.prod.google.com [10.241.219.8])
-	by hpaq11.eem.corp.google.com with ESMTP id oB97o4Ix008436
-	for <linux-mm@kvack.org>; Wed, 8 Dec 2010 23:50:07 -0800
-Received: by pwi8 with SMTP id 8so477905pwi.6
-        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 23:50:04 -0800 (PST)
-From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH 1/2] mlock: fix race when munlocking pages in do_wp_page()
-Date: Wed,  8 Dec 2010 23:49:38 -0800
-Message-Id: <1291880979-16309-2-git-send-email-walken@google.com>
-In-Reply-To: <1291880979-16309-1-git-send-email-walken@google.com>
-References: <1291880979-16309-1-git-send-email-walken@google.com>
+	by kanga.kvack.org (Postfix) with ESMTP id F199A6B0087
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 03:23:22 -0500 (EST)
+Message-Id: <4D00A03F0200007800026DEB@vpn.id2.novell.com>
+Date: Thu, 09 Dec 2010 08:24:15 +0000
+From: "Jan Beulich" <JBeulich@novell.com>
+Subject: [PATCH] clean up and adjust kmap-types.h
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@kernel.dk>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: mingo@elte.hu, tglx@linutronix.de, linux-arch@vger.kernel.org, hpa@zytor.com
 List-ID: <linux-mm.kvack.org>
 
-vmscan can lazily find pages that are mapped within VM_LOCKED vmas,
-and set the PageMlocked bit on these pages, transfering them onto the
-unevictable list. When do_wp_page() breaks COW within a VM_LOCKED vma,
-it may need to clear PageMlocked on the old page and set it on the
-new page instead.
+Several of the types aren't being used at all anymore - those can be
+deleted altogether. Others are used only by single components that can
+be assumed to be enabled everywhere, so those are made dependent upon
+CONFIG_* settings. Since this somewhat conflicts with the sequential
+gap markers used under __WITH_KM_FENCE, and since this can be
+simplified anyway, fold the enumerator definitions with the (modified
+accordingly) KMAP_D() macro always.
 
-This change fixes an issue where do_wp_page() was clearing PageMlocked on
-the old page while the pte was still pointing to it (as well as rmap).
-Therefore, we were not protected against vmscan immediately trasnfering
-the old page back onto the unevictable list. This could cause pages to
-get stranded there forever.
+The whole point of the reduction is that, at least on ix86, the number
+of kmap types can (depending on configuration) affect the amount of
+low memory, and thus unused types should be avoided if possible.
 
-I propose to move the corresponding code to the end of do_wp_page(),
-after the pte (and rmap) have been pointed to the new page. Additionally,
-we can use munlock_vma_page() instead of clear_page_mlock(), so that
-the old page stays mlocked if there are still other VM_LOCKED vmas
-mapping it.
+Signed-off-by: Jan Beulich <jbeulich@novell.com>
 
-Signed-off-by: Michel Lespinasse <walken@google.com>
 ---
- mm/memory.c |   26 ++++++++++++--------------
- 1 files changed, 12 insertions(+), 14 deletions(-)
+ arch/arm/include/asm/kmap_types.h     |    6 ---
+ arch/powerpc/include/asm/kmap_types.h |   11 -------
+ arch/tile/include/asm/kmap_types.h    |    5 ---
+ include/asm-generic/kmap_types.h      |   53 ++++++++++++++++-------------=
+-----
+ 4 files changed, 26 insertions(+), 49 deletions(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index d21e1f2..68f2dbe 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2183,7 +2183,6 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 							 &ptl);
- 			if (!pte_same(*page_table, orig_pte)) {
- 				unlock_page(old_page);
--				page_cache_release(old_page);
- 				goto unlock;
- 			}
- 			page_cache_release(old_page);
-@@ -2253,7 +2252,6 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 							 &ptl);
- 			if (!pte_same(*page_table, orig_pte)) {
- 				unlock_page(old_page);
--				page_cache_release(old_page);
- 				goto unlock;
- 			}
- 
-@@ -2331,16 +2329,6 @@ gotten:
- 	}
- 	__SetPageUptodate(new_page);
- 
--	/*
--	 * Don't let another task, with possibly unlocked vma,
--	 * keep the mlocked page.
--	 */
--	if ((vma->vm_flags & VM_LOCKED) && old_page) {
--		lock_page(old_page);	/* for LRU manipulation */
--		clear_page_mlock(old_page);
--		unlock_page(old_page);
--	}
+--- 2.6.37-rc5/arch/arm/include/asm/kmap_types.h
++++ 2.6.37-rc5-kmap-types/arch/arm/include/asm/kmap_types.h
+@@ -24,10 +24,4 @@ enum km_type {
+ 	KM_TYPE_NR
+ };
+=20
+-#ifdef CONFIG_DEBUG_HIGHMEM
+-#define KM_NMI		(-1)
+-#define KM_NMI_PTE	(-1)
+-#define KM_IRQ_PTE	(-1)
+-#endif
 -
- 	if (mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))
- 		goto oom_free_new;
- 
-@@ -2408,10 +2396,20 @@ gotten:
- 
- 	if (new_page)
- 		page_cache_release(new_page);
--	if (old_page)
--		page_cache_release(old_page);
- unlock:
- 	pte_unmap_unlock(page_table, ptl);
-+	if (old_page) {
-+		/*
-+		 * Don't let another task, with possibly unlocked vma,
-+		 * keep the mlocked page.
-+		 */
-+		if ((ret & VM_FAULT_WRITE) && (vma->vm_flags & VM_LOCKED)) {
-+			lock_page(old_page);	/* LRU manipulation */
-+			munlock_vma_page(old_page);
-+			unlock_page(old_page);
-+		}
-+		page_cache_release(old_page);
-+	}
- 	return ret;
- oom_free_new:
- 	page_cache_release(new_page);
--- 
-1.7.3.1
+ #endif
+--- 2.6.37-rc5/arch/powerpc/include/asm/kmap_types.h
++++ 2.6.37-rc5-kmap-types/arch/powerpc/include/asm/kmap_types.h
+@@ -30,16 +30,5 @@ enum km_type {
+ 	KM_TYPE_NR
+ };
+=20
+-/*
+- * This is a temporary build fix that (so they say on lkml....) should no =
+longer
+- * be required after 2.6.33, because of changes planned to the kmap code.
+- * Let's try to remove this cruft then.
+- */
+-#ifdef CONFIG_DEBUG_HIGHMEM
+-#define KM_NMI		(-1)
+-#define KM_NMI_PTE	(-1)
+-#define KM_IRQ_PTE	(-1)
+-#endif
+-
+ #endif	/* __KERNEL__ */
+ #endif	/* _ASM_POWERPC_KMAP_TYPES_H */
+--- 2.6.37-rc5/arch/tile/include/asm/kmap_types.h
++++ 2.6.37-rc5-kmap-types/arch/tile/include/asm/kmap_types.h
+@@ -45,12 +45,7 @@ enum {
+ 	KM_IRQ1,
+ 	KM_SOFTIRQ0,
+ 	KM_SOFTIRQ1,
+-	KM_SYNC_ICACHE,
+-	KM_SYNC_DCACHE,
+ 	KM_UML_USERCOPY,
+-	KM_IRQ_PTE,
+-	KM_NMI,
+-	KM_NMI_PTE,
+ 	KM_KDB
+ };
+=20
+--- 2.6.37-rc5/include/asm-generic/kmap_types.h
++++ 2.6.37-rc5-kmap-types/include/asm-generic/kmap_types.h
+@@ -2,37 +2,36 @@
+ #define _ASM_GENERIC_KMAP_TYPES_H
+=20
+ #ifdef __WITH_KM_FENCE
+-# define KMAP_D(n) __KM_FENCE_##n ,
++# define KMAP_D(n) __KM_FENCE_##n, KM_##n
+ #else
+-# define KMAP_D(n)
++# define KMAP_D(n) KM_##n
+ #endif
+=20
+ enum km_type {
+-KMAP_D(0)	KM_BOUNCE_READ,
+-KMAP_D(1)	KM_SKB_SUNRPC_DATA,
+-KMAP_D(2)	KM_SKB_DATA_SOFTIRQ,
+-KMAP_D(3)	KM_USER0,
+-KMAP_D(4)	KM_USER1,
+-KMAP_D(5)	KM_BIO_SRC_IRQ,
+-KMAP_D(6)	KM_BIO_DST_IRQ,
+-KMAP_D(7)	KM_PTE0,
+-KMAP_D(8)	KM_PTE1,
+-KMAP_D(9)	KM_IRQ0,
+-KMAP_D(10)	KM_IRQ1,
+-KMAP_D(11)	KM_SOFTIRQ0,
+-KMAP_D(12)	KM_SOFTIRQ1,
+-KMAP_D(13)	KM_SYNC_ICACHE,
+-KMAP_D(14)	KM_SYNC_DCACHE,
+-/* UML specific, for copy_*_user - used in do_op_one_page */
+-KMAP_D(15)	KM_UML_USERCOPY,
+-KMAP_D(16)	KM_IRQ_PTE,
+-KMAP_D(17)	KM_NMI,
+-KMAP_D(18)	KM_NMI_PTE,
+-KMAP_D(19)	KM_KDB,
+-/*
+- * Remember to update debug_kmap_atomic() when adding new kmap types!
+- */
+-KMAP_D(20)	KM_TYPE_NR
++	KMAP_D(BOUNCE_READ),
++#if defined(CONFIG_SUNRPC) || defined(CONFIG_SUNRPC_MODULE)
++	KMAP_D(SKB_SUNRPC_DATA),
++#endif
++	KMAP_D(SKB_DATA_SOFTIRQ),
++	KMAP_D(USER0),
++	KMAP_D(USER1),
++	KMAP_D(BIO_SRC_IRQ),
++	KMAP_D(BIO_DST_IRQ),
++#if defined(CONFIG_X86) && defined(CONFIG_CRASH_DUMP)
++	KMAP_D(PTE0),
++#endif
++	KMAP_D(IRQ0),
++	KMAP_D(IRQ1),
++	KMAP_D(SOFTIRQ0),
++	KMAP_D(SOFTIRQ1),
++#ifdef CONFIG_UML /* for copy_*_user - used in do_op_one_page */
++	KMAP_D(UML_USERCOPY),
++#endif
++#ifdef CONFIG_KGDB_KDB
++	KMAP_D(KDB),
++#endif
++
++	KMAP_D(TYPE_NR)
+ };
+=20
+ #undef KMAP_D
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
