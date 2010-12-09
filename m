@@ -1,42 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1B7896B008A
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 13:16:48 -0500 (EST)
-Date: Thu, 9 Dec 2010 19:15:53 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 45 of 66] remove PG_buddy
-Message-ID: <20101209181553.GG19131@random.random>
-References: <patchbomb.1288798055@v2.random>
- <85c897773782cdde8b69.1288798100@v2.random>
- <20101118160801.GA8135@csn.ul.ie>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BB4276B0087
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 13:39:51 -0500 (EST)
+Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
+	by smtp-out.google.com with ESMTP id oB9IdmWu006548
+	for <linux-mm@kvack.org>; Thu, 9 Dec 2010 10:39:48 -0800
+Received: from qyk12 (qyk12.prod.google.com [10.241.83.140])
+	by kpbe16.cbf.corp.google.com with ESMTP id oB9Id9KK008491
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 9 Dec 2010 10:39:47 -0800
+Received: by qyk12 with SMTP id 12so2393259qyk.5
+        for <linux-mm@kvack.org>; Thu, 09 Dec 2010 10:39:47 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101118160801.GA8135@csn.ul.ie>
+In-Reply-To: <20101208172324.d45911f4.akpm@linux-foundation.org>
+References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
+	<20101209003621.GB3796@hostway.ca>
+	<20101208172324.d45911f4.akpm@linux-foundation.org>
+Date: Thu, 9 Dec 2010 10:39:46 -0800
+Message-ID: <AANLkTik1sqUqk061KMu8ZEn5Ai4AyTfKR3JA1ceR5qFW@mail.gmail.com>
+Subject: Re: [patch] mm: skip rebalance of hopeless zones
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Simon Kirby <sim@hostway.ca>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 18, 2010 at 04:08:01PM +0000, Mel Gorman wrote:
-> On Wed, Nov 03, 2010 at 04:28:20PM +0100, Andrea Arcangeli wrote:
-> > From: Andrea Arcangeli <aarcange@redhat.com>
-> > 
-> > PG_buddy can be converted to _mapcount == -2. So the PG_compound_lock can be
-> > added to page->flags without overflowing (because of the sparse section bits
-> > increasing) with CONFIG_X86_PAE=y and CONFIG_X86_PAT=y. This also has to move
-> > the memory hotplug code from _mapcount to lru.next to avoid any risk of
-> > clashes. We can't use lru.next for PG_buddy removal, but memory hotplug can use
-> > lru.next even more easily than the mapcount instead.
-> > 
-> 
-> Does this make much of a difference? I confess I didn't read the patch closely
-> because I didn't get the motivation.
+On Wed, Dec 8, 2010 at 5:23 PM, Andrew Morton <akpm@linux-foundation.org> w=
+rote:
+> On Wed, 8 Dec 2010 16:36:21 -0800 Simon Kirby <sim@hostway.ca> wrote:
+>
+>> On Wed, Dec 08, 2010 at 04:16:59PM +0100, Johannes Weiner wrote:
+>>
+>> > Kswapd tries to rebalance zones persistently until their high
+>> > watermarks are restored.
+>> >
+>> > If the amount of unreclaimable pages in a zone makes this impossible
+>> > for reclaim, though, kswapd will end up in a busy loop without a
+>> > chance of reaching its goal.
+>> >
+>> > This behaviour was observed on a virtual machine with a tiny
+>> > Normal-zone that filled up with unreclaimable slab objects.
+>> >
+>> > This patch makes kswapd skip rebalancing on such 'hopeless' zones and
+>> > leaves them to direct reclaim.
+>>
+>> Hi!
+>>
+>> We are experiencing a similar issue, though with a 757 MB Normal zone,
+>> where kswapd tries to rebalance Normal after an order-3 allocation while
+>> page cache allocations (order-0) keep splitting it back up again. =A0It =
+can
+>> run the whole day like this (SSD storage) without sleeping.
+>
+> People at google have told me they've seen the same thing. =A0A fork is
+> taking 15 minutes when someone else is doing a dd, because the fork
+> enters direct-reclaim trying for an order-one page. =A0It successfully
+> frees some order-one pages but before it gets back to allocate one, dd
+> has gone and stolen them, or split them apart.
 
-The motivation is described in the first line. If I wouldn't remove
-PG_buddy, introducing PG_compound_lock would overflow the 32bit build
-with CONFIG_X86_PAE=y and CONFIG_X86_PAT=y. The bitflag easier to nuke
-was PG_buddy.
+So we are running into this problem in a container environment. While
+running dd in a container with
+bunch of system daemons like sshd, we've seen sshd being OOM killed.
+
+One of the theory which we haven't fully proven is dd keep sallocating
+and stealing pages which just being
+reclaimed from ttfp of sshd. We've talked with Andrew and wondering if
+there is a way to prevent that
+happening. And we learned that we might have something for order 0
+pages since they got freed to per-cpu
+list and the process triggered ttfp more likely to get it unless being
+rescheduled. But nothing for order 1 which
+is fork() in this case.
+
+--Ying
+
+>
+> This problem would have got worse when slub came along doing its stupid
+> unnecessary high-order allocations.
+>
+> Billions of years ago a direct-reclaimer had a one-deep cache in the
+> task_struct into which it freed the page to prevent it from getting
+> stolen.
+>
+> Later, we took that out because pages were being freed into the
+> per-cpu-pages magazine, which is effectively task-local anyway. =A0But
+> per-cpu-pages are only for order-0 pages. =A0See slub stupidity, above.
+>
+> I expect that this is happening so repeatably because the
+> direct-reclaimer is dong a sleep somewhere after freeing the pages it
+> needs - if it wasn't doing that then surely the window wouldn't be wide
+> enough for it to happen so often. =A0But I didn't look.
+>
+> Suitable fixes might be
+>
+> a) don't go to sleep after the successful direct-reclaim.
+>
+> b) reinstate the one-deep task-local free page cache.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
