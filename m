@@ -1,101 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 537066B0087
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 20:16:21 -0500 (EST)
-Received: by iwn1 with SMTP id 1so4646400iwn.37
-        for <linux-mm@kvack.org>; Thu, 09 Dec 2010 17:16:19 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 259166B0087
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 20:22:09 -0500 (EST)
+Date: Fri, 10 Dec 2010 07:57:05 +0800
+From: Shaohui Zheng <shaohui.zheng@linux.intel.com>
+Subject: Re: [7/7,v8] NUMA Hotplug Emulator: Implement per-node add_memory
+ debugfs interface
+Message-ID: <20101209235705.GA10674@shaohui>
+References: <A24AE1FFE7AEC5489F83450EE98351BF2A40FED20A@shsmsx502.ccr.corp.intel.com>
+ <20101209012124.GD5798@shaohui>
+ <alpine.DEB.2.00.1012091325530.13564@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <1291893500-12342-4-git-send-email-mel@csn.ul.ie>
-References: <1291893500-12342-1-git-send-email-mel@csn.ul.ie>
-	<1291893500-12342-4-git-send-email-mel@csn.ul.ie>
-Date: Fri, 10 Dec 2010 10:16:19 +0900
-Message-ID: <AANLkTi=2LYh04DMagfEQ6dtsfrzzLtopPG--BW+SGtpy@mail.gmail.com>
-Subject: Re: [PATCH 3/6] mm: kswapd: Use the order that kswapd was reclaiming
- at for sleeping_prematurely()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1012091325530.13564@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Shaohui Zheng <shaohui.zheng@intel.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, gregkh@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 9, 2010 at 8:18 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> Before kswapd goes to sleep, it uses sleeping_prematurely() to check if
-> there was a race pushing a zone below its watermark. If the race
-> happened, it stays awake. However, balance_pgdat() can decide to reclaim
-> at a lower order if it decides that high-order reclaim is not working as
+On Thu, Dec 09, 2010 at 01:29:28PM -0800, David Rientjes wrote:
+> On Thu, 9 Dec 2010, Shaohui Zheng wrote:
+> 
+> > > I don't think you should be using memparse() to support this type of 
+> > > interface, the standard way of writing memory locations is by writing 
+> > > address in hex as the first example does.  The idea is to not try to make 
+> > > things simpler by introducing multiple ways of doing the same thing but 
+> > > rather to standardize on a single interface.
+> > 
+> > Undoubtedly, A hex is the best way to represent a physical address. If we use
+> > memparse function, we can use the much simpler way to represent an address,
+> > it is not the offical way, but it takes many conveniences if we just want to 
+> > to some simple test.
+> > 
+> 
+> Testing code should be removed from the patch prior to proposal.
+> 
+> > When we reserce memory, we use mempasre to parse the mem=XXX parameter, we can
+> > avoid the complicated translation when we add memory thru the add_memory interface,
+> > how about still use the memparse here? but remove it from the document since it is
+> > just for some simple testing. 
+> > 
+> 
+> We really don't want a public interface to have undocumented behavior, so 
+> it would be much better to retain the documentation if you choose to keep 
+> the memparse().  I disagree that converting the mem= parameter to hex is 
+> "complicated," however, so I'd prefer that the interface is similar to 
+> that of add_node.
+> 
 
-Could you specify "order-0" explicitly instead of "a lower order"?
-It makes more clear to me.
+Okay, I will keep interface to accept hex address which is simliar wiht add_node.
 
-> expected. This information is not passed back to sleeping_prematurely().
-> The impact is that kswapd remains awake reclaiming pages long after it
-> should have gone to sleep. This patch passes the adjusted order to
-> sleeping_prematurely and uses the same logic as balance_pgdat to decide
-> if it's ok to go to sleep.
->
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> > > > +	printk(KERN_INFO "Add a memory section to node: %d.\n", nid);
+> > > > +	phys_addr = memparse(buf, NULL);
+> > > > +	ret = add_memory(nid, phys_addr, PAGES_PER_SECTION << PAGE_SHIFT);
+> > > 
+> > > Does the add_memory() call handle memoryless nodes such that they 
+> > > appropriately transition to N_HIGH_MEMORY when memory is added?
+> > 
+> > For memoryless nodes, it will cause OOM issue on old kernel version, but now
+> > memoryless node is already supported, and the test result matches it well. The
+> > emulator is a tool to reproduce the OOM issue in eraly kernel.
+> > 
+> 
+> That doesn't address the question.  My question is whether or not adding 
+> memory to a memoryless node in this way transitions its state to 
+> N_HIGH_MEMORY in the VM?
+I guess that you are talking about memory hotplug on x86_32, memory hotplug is
+NOT supported well for x86_32, and the function add_memory does not consider
+this situlation.
 
-A comment below.
+For 64bit, N_HIGH_MEMORY == N_NORMAL_MEMORY, so we need not to do the transition.
 
-> ---
-> =A0mm/vmscan.c | =A0 14 ++++++++++----
-> =A01 files changed, 10 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index b4472a1..52e229e 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2132,7 +2132,7 @@ static bool pgdat_balanced(pg_data_t *pgdat, unsign=
-ed long balanced)
-> =A0}
->
-> =A0/* is kswapd sleeping prematurely? */
-> -static int sleeping_prematurely(pg_data_t *pgdat, int order, long remain=
-ing)
-> +static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remai=
-ning)
-> =A0{
-> =A0 =A0 =A0 =A0int i;
-> =A0 =A0 =A0 =A0unsigned long balanced =3D 0;
-> @@ -2142,7 +2142,7 @@ static int sleeping_prematurely(pg_data_t *pgdat, i=
-nt order, long remaining)
-> =A0 =A0 =A0 =A0if (remaining)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return 1;
->
-> - =A0 =A0 =A0 /* If after HZ/10, a zone is below the high mark, it's prem=
-ature */
-> + =A0 =A0 =A0 /* Check the watermark levels */
-> =A0 =A0 =A0 =A0for (i =3D 0; i < pgdat->nr_zones; i++) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct zone *zone =3D pgdat->node_zones + =
-i;
->
-> @@ -2427,7 +2427,13 @@ out:
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0}
->
-> - =A0 =A0 =A0 return sc.nr_reclaimed;
-> + =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0* Return the order we were reclaiming at so sleeping_pre=
-maturely()
-> + =A0 =A0 =A0 =A0* makes a decision on the order we were last reclaiming =
-at. However,
-> + =A0 =A0 =A0 =A0* if another caller entered the allocator slow path whil=
-e kswapd
-> + =A0 =A0 =A0 =A0* was awake, order will remain at the higher level
-> + =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 return order;
-> =A0}
-
-Please change return value description of balance_pgdat.
-"Returns the number of pages which were actually freed"
-
-
---=20
-Kind regards,
-Minchan Kim
+-- 
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
