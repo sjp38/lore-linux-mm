@@ -1,53 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C8B866B008A
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 21:52:48 -0500 (EST)
-Date: Wed, 8 Dec 2010 21:52:44 -0500 (EST)
-From: caiqian@redhat.com
-Message-ID: <328504308.562701291863164154.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-In-Reply-To: <1390696678.561621291861499485.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Subject: Re: continuous oom caused system deadlock
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 636F96B0087
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 00:25:07 -0500 (EST)
+Received: by iwn1 with SMTP id 1so3031273iwn.37
+        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 21:25:05 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20101208180156.91dcd122.akpm@linux-foundation.org>
+References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
+	<20101209003621.GB3796@hostway.ca>
+	<20101208172324.d45911f4.akpm@linux-foundation.org>
+	<AANLkTik3KBVZBaOxSeO01N1XXobXTOiSAsZcyv0mJraC@mail.gmail.com>
+	<20101208180156.91dcd122.akpm@linux-foundation.org>
+Date: Thu, 9 Dec 2010 14:18:44 +0900
+Message-ID: <AANLkTi=wfKhxWPsLzzRjT088PC1dHmDCoNkPfrnLH-6r@mail.gmail.com>
+Subject: Re: [patch] mm: skip rebalance of hopeless zones
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: multipart/mixed; boundary=001485eba1e825354f0496f35f1b
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Simon Kirby <sim@hostway.ca>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+--001485eba1e825354f0496f35f1b
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-> > Bisect indicated that this is the first bad commit,
-> > 
-> > commit 696d3cd5fb318c070dc757fe109e04e398138172
-> > Author: David Rientjes <rientjes@google.com>
-> > Date:   Fri Jun 11 22:45:17 2010 +0200
-> > 
-> >     __out_of_memory() only has a single caller, so fold it into
-> >     out_of_memory() and add a comment about locking for its call to
-> >     oom_kill_process().
-> >     
-> >     Signed-off-by: David Rientjes <rientjes@google.com>
-> >     Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >     Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> >     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> > 
-> 
-> This commit dropped the releasing of tasklist_lock when the oom killer
-> chooses not to act because it finds another task that has already been
-> killed but has yet to exit.  That's fixed by b52723c5, so this bisect
-> isn't the source of your problem.
-> 
-> You didn't report the specific mmotm kernel that this was happening
-> on, so trying to diagnose or reproduce it is diffcult.  Could you try
-> 2.6.37-rc5 with your test case?  If it works fine, could you try 
-> mmotm-2010-12-02-16-34?
-The version is 2010-11-23-16-12 which included b52723c5 you mentioned. 2.6.37-rc5 had the same problem.
+On Thu, Dec 9, 2010 at 11:01 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Thu, 9 Dec 2010 10:55:24 +0900 Minchan Kim <minchan.kim@gmail.com> wro=
+te:
+>
+>> >> > leaves them to direct reclaim.
+>> >>
+>> >> Hi!
+>> >>
+>> >> We are experiencing a similar issue, though with a 757 MB Normal zone=
+,
+>> >> where kswapd tries to rebalance Normal after an order-3 allocation wh=
+ile
+>> >> page cache allocations (order-0) keep splitting it back up again. __I=
+t can
+>> >> run the whole day like this (SSD storage) without sleeping.
+>> >
+>> > People at google have told me they've seen the same thing. __A fork is
+>> > taking 15 minutes when someone else is doing a dd, because the fork
+>> > enters direct-reclaim trying for an order-one page. __It successfully
+>> > frees some order-one pages but before it gets back to allocate one, dd
+>> > has gone and stolen them, or split them apart.
+>> >
+>> > This problem would have got worse when slub came along doing its stupi=
+d
+>> > unnecessary high-order allocations.
+>> >
+>> > Billions of years ago a direct-reclaimer had a one-deep cache in the
+>> > task_struct into which it freed the page to prevent it from getting
+>> > stolen.
+>> >
+>> > Later, we took that out because pages were being freed into the
+>> > per-cpu-pages magazine, which is effectively task-local anyway. __But
+>> > per-cpu-pages are only for order-0 pages. __See slub stupidity, above.
+>> >
+>> > I expect that this is happening so repeatably because the
+>> > direct-reclaimer is dong a sleep somewhere after freeing the pages it
+>> > needs - if it wasn't doing that then surely the window wouldn't be wid=
+e
+>> > enough for it to happen so often. __But I didn't look.
+>> >
+>> > Suitable fixes might be
+>> >
+>> > a) don't go to sleep after the successful direct-reclaim.
+>>
+>> It can't make sure success since direct reclaim needs sleep with !GFP_AO=
+MIC.
+>
+> It doesn't necessarily need to sleep *after* successfully freeing
+> pages. =A0If it needs to sleep then do it before or during the freeing.
+>
+>> >
+>> > b) reinstate the one-deep task-local free page cache.
+>>
+>> I like b) so how about this?
+>> Just for the concept.
+>>
+>> @@ -1880,7 +1881,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask,
+>> unsigned int order,
+>> =A0 =A0 =A0 =A0 reclaim_state.reclaimed_slab =3D 0;
+>> =A0 =A0 =A0 =A0 p->reclaim_state =3D &reclaim_state;
+>>
+>> - =A0 =A0 =A0 *did_some_progress =3D try_to_free_pages(zonelist, order,
+>> gfp_mask, nodemask);
+>> + =A0 =A0 =A0 *did_some_progress =3D try_to_free_pages(zonelist, order,
+>> gfp_mask, nodemask, &ret_pages);
+>>
+>> =A0 =A0 =A0 =A0 p->reclaim_state =3D NULL;
+>> =A0 =A0 =A0 =A0 lockdep_clear_current_reclaim_state();
+>> @@ -1892,10 +1893,11 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask,
+>> unsigned int order,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return NULL;
+>>
+>> =A0retry:
+>> - =A0 =A0 =A0 page =3D get_page_from_freelist(gfp_mask, nodemask, order,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 zonelist, high_zoneidx,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 alloc_flags, preferred_zone,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 migratetype);
+>> + =A0 =A0 =A0 if(!list_empty(&ret_pages)) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 page =3D lru_to_page(ret_pages);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&page->lru);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 free_page_list(&ret_pages);
+>> + =A0 =A0 =A0 }
+>
+> Maybe. =A0Or just pass a page*.
+>
 
-CAI Qian
+I did it more detailed but It's not completed and test at all.
+Please consider just RFC.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- CUT_HERE --
+--001485eba1e825354f0496f35f1b--
