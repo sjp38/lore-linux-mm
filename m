@@ -1,45 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E0F4C6B0087
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 19:48:17 -0500 (EST)
-Message-ID: <4D002730.7050504@redhat.com>
-Date: Wed, 08 Dec 2010 19:47:44 -0500
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9DA126B0087
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 19:49:33 -0500 (EST)
+Message-ID: <4D00277F.9040000@redhat.com>
+Date: Wed, 08 Dec 2010 19:49:03 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [patch] mm: skip rebalance of hopeless zones
-References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org> <20101208141909.5c9c60e8.akpm@linux-foundation.org>
-In-Reply-To: <20101208141909.5c9c60e8.akpm@linux-foundation.org>
+References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org> <20101209003621.GB3796@hostway.ca>
+In-Reply-To: <20101209003621.GB3796@hostway.ca>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+To: Simon Kirby <sim@hostway.ca>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 12/08/2010 05:19 PM, Andrew Morton wrote:
+On 12/08/2010 07:36 PM, Simon Kirby wrote:
 
-> presumably in certain cases that's a bit more efficient than doing the
-> scan and using ->all_unreclaimable.  But the scanner shouldn't have got
-> stuck!  That's a regresion which got added, and I don't think that new
-> code of this nature was needed to fix that regression.
->
-> Did this zone end up with ->all_unreclaimable set?  If so, why was
-> kswapd stuck in a loop scanning an all-unreclaimable zone?
+> Mel Gorman posted a similar patch to yours, but the logic is instead to
+> consider order>0 balancing sufficient when there are other balanced zones
+> totalling at least 25% of pages on this node.  This would probably fix
+> your case as well.
 
-IIRC kswapd does not get stuck, but the page allocator
-keeps waking it up. That also results in near 100% CPU use.
-
-> Also, if I'm understanding the new logic then if the "goal" is 100
-> pages and zone_reclaimable_pages() says "50 pages potentially
-> reclaimable" then kswapd won't reclaim *any* pages.  If so, is that
-> good behaviour?  Should we instead attempt to reclaim some of those 50
-> pages and then give up?  That sounds like a better strategy if we want
-> to keep (say) network Rx happening in a tight memory situation.
-
-Actually, given the number of reports on how the VM keeps
-trying to hard and the system stalls for minutes before an
-OOM kill happens, giving up earlier is probably the right
-thing to do.
+Mel's patch addresses something very different and is unlikely
+to fix the problem this patch addresses.
 
 -- 
 All rights reversed
