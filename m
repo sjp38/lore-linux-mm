@@ -1,145 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id DD83C6B0087
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 19:19:48 -0500 (EST)
-Received: by iwn1 with SMTP id 1so2627466iwn.37
-        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 16:19:47 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A16E76B0088
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 19:36:40 -0500 (EST)
+Date: Wed, 8 Dec 2010 16:36:21 -0800
+From: Simon Kirby <sim@hostway.ca>
+Subject: Re: [patch] mm: skip rebalance of hopeless zones
+Message-ID: <20101209003621.GB3796@hostway.ca>
+References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20101208065650.GP3158@balbir.in.ibm.com>
-References: <20101207144923.GB2356@cmpxchg.org>
-	<20101207150710.GA26613@barrios-desktop>
-	<20101207151939.GF2356@cmpxchg.org>
-	<20101207152625.GB608@barrios-desktop>
-	<20101207155645.GG2356@cmpxchg.org>
-	<AANLkTi=iNGT_p_VfW9GxdaKXLt2xBHM2jdwmCbF_u8uh@mail.gmail.com>
-	<20101208095642.8128ab33.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTimtkb7Nczhads4u3r21RJauZvviLFkXjaL1ErDb@mail.gmail.com>
-	<20101208105637.5103de75.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTim9to0Wa_iWyVA4FSV6sfT4tcR2bmV7t54HOQ1c@mail.gmail.com>
-	<20101208065650.GP3158@balbir.in.ibm.com>
-Date: Thu, 9 Dec 2010 09:19:46 +0900
-Message-ID: <AANLkTimhRdRV4QS6gtLfm5DL-ZaeZjpdNT0-Muj4ePKP@mail.gmail.com>
-Subject: Re: [PATCH v4 2/7] deactivate invalidated pages
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
+To: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 8, 2010 at 3:56 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wr=
-ote:
-> * MinChan Kim <minchan.kim@gmail.com> [2010-12-08 11:15:19]:
->
->> On Wed, Dec 8, 2010 at 10:56 AM, KAMEZAWA Hiroyuki
->> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> > On Wed, 8 Dec 2010 10:43:08 +0900
->> > Minchan Kim <minchan.kim@gmail.com> wrote:
->> >
->> >> Hi Kame,
->> >>
->> > Hi,
->> >
->> >> > I wonder ...how about adding "victim" list for "Reclaim" pages ? Th=
-en, we don't need
->> >> > extra LRU rotation.
->> >>
->> >> It can make the code clean.
->> >> As far as I think, victim list does following as.
->> >>
->> >> 1. select victim pages by strong hint
->> >> 2. move the page from LRU to victim
->> >> 3. reclaimer always peeks victim list before diving into LRU list.
->> >> 4-1. If the victim pages is used by others or dirty, it can be moved
->> >> into LRU, again or remain the page in victim list.
->> >> If the page is remained victim, when do we move it into LRU again if
->> >> the reclaimer continues to fail the page?
->> > When sometone touches it.
->> >
->> >> We have to put the new rule.
->> >> 4-2. If the victim pages isn't used by others and clean, we can
->> >> reclaim the page asap.
->> >>
->> >> AFAIK, strong hints are just two(invalidation, readahead max window h=
-euristic).
->> >> I am not sure it's valuable to add new hierarchy(ie, LRU, victim,
->> >> unevictable) for cleaning the minor codes.
->> >> In addition, we have to put the new rule so it would make the LRU cod=
-e
->> >> complicated.
->> >> I remember how unevictable feature merge is hard.
->> >>
->> > yes, it was hard.
->> >
->> >> But I am not against if we have more usecases. In this case, it's
->> >> valuable to implement it although it's not easy.
->> >>
->> >
->> > I wonder "victim list" can be used for something like Cleancache, when
->> > we have very-low-latency backend devices.
->> > And we may able to have page-cache-limit, which Balbir proposed as.
->>
->> Yes, I thought that, too. I think it would be a good feature in embedded=
- system.
->>
->> >
->> > =A0- kvictimed? will move unmappedd page caches to victim list
->> > This may work like a InactiveClean list which we had before and make
->> > sizing easy.
->> >
->>
->> Before further discuss, we need customer's confirm.
->> We know very well it is very hard to merge if anyone doesn't use.
->>
->> Balbir, What do think about it?
->>
->
-> The idea seems interesting, I am in the process of refreshing my
-> patches for unmapped page cache control. I presume the process of
-> filling the victim list will be similar to what I have or unmapped
-> page cache isolation.
+On Wed, Dec 08, 2010 at 04:16:59PM +0100, Johannes Weiner wrote:
 
-I saw your previous implementation. It doesn't have any benefit from
-victim list.
-It needs scanning pfns, select unmapped page and move it into victim list.
-I think we might need kvictimd as Kame said but I am not convinced.
-If I have a trouble with implementing my series, I might think it. But
-until now, I think it's not bad and rough test result isn't bad.
+> Kswapd tries to rebalance zones persistently until their high
+> watermarks are restored.
+> 
+> If the amount of unreclaimable pages in a zone makes this impossible
+> for reclaim, though, kswapd will end up in a busy loop without a
+> chance of reaching its goal.
+> 
+> This behaviour was observed on a virtual machine with a tiny
+> Normal-zone that filled up with unreclaimable slab objects.
+> 
+> This patch makes kswapd skip rebalancing on such 'hopeless' zones and
+> leaves them to direct reclaim.
 
-To be honest, I think victim list(or cleanlist) is to be another
-project. If it is completed, maybe we can make my patches simple.
-I approve page cache limit control POV but it should be another project.
-So I want to merge this series then if we need really victim list,
-let's consider at that time.
+Hi!
 
-Anyway, I will see your next version to find needs of victim list.
+We are experiencing a similar issue, though with a 757 MB Normal zone,
+where kswapd tries to rebalance Normal after an order-3 allocation while
+page cache allocations (order-0) keep splitting it back up again.  It can
+run the whole day like this (SSD storage) without sleeping.
 
->
->>
->> > Thanks,
->> > -Kame
->> >
->> >
->> >
->> >
->>
->>
->>
->> --
->> Kind regards,
->> Minchan Kim
->
+Mel Gorman posted a similar patch to yours, but the logic is instead to
+consider order>0 balancing sufficient when there are other balanced zones
+totalling at least 25% of pages on this node.  This would probably fix
+your case as well.
+
+See "Free memory never fully used, swapping" thread, and "[PATCH 0/5]
+Prevent kswapd dumping excessive amounts of memory in response to
+high-order allocations V2", and finally "Stop high-order balancing when
+any suitable zone is balanced".
+
+It probably makes sense to merge one of these patches, or sort out the
+good parts of each.  I'm not sure if your patch alone would solve our
+case with a significantly bigger Normal zone but where most pages are
+still reclaimable...
+
+On the other hand, I still think it's weird that kswapd can fight with
+allocations.  It seems like something should hold the free pages while
+balancing is happening to avoid them being split right back up again by
+lower-order allocations.
+
+Simon-
+
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  include/linux/mmzone.h |    2 ++
+>  mm/page_alloc.c        |    4 ++--
+>  mm/vmscan.c            |   36 ++++++++++++++++++++++++++++--------
+>  3 files changed, 32 insertions(+), 10 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 4890662..0cc1d63 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -655,6 +655,8 @@ typedef struct pglist_data {
+>  extern struct mutex zonelists_mutex;
+>  void build_all_zonelists(void *data);
+>  void wakeup_kswapd(struct zone *zone, int order);
+> +bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+> +			 int classzone_idx, int alloc_flags, long free_pages);
+>  bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+>  		int classzone_idx, int alloc_flags);
+>  bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 1845a97..c7d2b28 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1458,8 +1458,8 @@ static inline int should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
+>   * Return true if free pages are above 'mark'. This takes into account the order
+>   * of the allocation.
+>   */
+> -static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+> -		      int classzone_idx, int alloc_flags, long free_pages)
+> +bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+> +			 int classzone_idx, int alloc_flags, long free_pages)
+>  {
+>  	/* free_pages my go negative - that's OK */
+>  	long min = mark;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 42a4859..5623f36 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2191,6 +2191,25 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+>  }
+>  #endif
+>  
+> +static bool zone_needs_scan(struct zone *zone, int order,
+> +			    unsigned long goal, int classzone_idx)
+> +{
+> +	unsigned long free, prospect;
+> +
+> +	free = zone_page_state(zone, NR_FREE_PAGES);
+> +	if (zone->percpu_drift_mark && free < zone->percpu_drift_mark)
+> +		free = zone_page_state_snapshot(zone, NR_FREE_PAGES);
+> +
+> +	if (__zone_watermark_ok(zone, order, goal, classzone_idx, 0, free))
+> +		return false;
+> +	/*
+> +	 * Ensure that the watermark is at all restorable through
+> +	 * reclaim.  Otherwise, leave the zone to direct reclaim.
+> +	 */
+> +	prospect = free + zone_reclaimable_pages(zone);
+> +	return prospect >= goal;
+> +}
+> +
+>  /* is kswapd sleeping prematurely? */
+>  static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
+>  {
+> @@ -2210,8 +2229,7 @@ static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
+>  		if (zone->all_unreclaimable)
+>  			continue;
+>  
+> -		if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone),
+> -								0, 0))
+> +		if (zone_needs_scan(zone, order, high_wmark_pages(zone), 0))
+>  			return 1;
+>  	}
+>  
+> @@ -2282,6 +2300,7 @@ loop_again:
+>  		 */
+>  		for (i = pgdat->nr_zones - 1; i >= 0; i--) {
+>  			struct zone *zone = pgdat->node_zones + i;
+> +			unsigned long goal;
+>  
+>  			if (!populated_zone(zone))
+>  				continue;
+> @@ -2297,8 +2316,8 @@ loop_again:
+>  				shrink_active_list(SWAP_CLUSTER_MAX, zone,
+>  							&sc, priority, 0);
+>  
+> -			if (!zone_watermark_ok_safe(zone, order,
+> -					high_wmark_pages(zone), 0, 0)) {
+> +			goal = high_wmark_pages(zone);
+> +			if (zone_needs_scan(zone, order, goal, 0)) {
+>  				end_zone = i;
+>  				break;
+>  			}
+> @@ -2323,6 +2342,7 @@ loop_again:
+>  		 */
+>  		for (i = 0; i <= end_zone; i++) {
+>  			struct zone *zone = pgdat->node_zones + i;
+> +			unsigned long goal;
+>  			int nr_slab;
+>  
+>  			if (!populated_zone(zone))
+> @@ -2339,12 +2359,13 @@ loop_again:
+>  			 */
+>  			mem_cgroup_soft_limit_reclaim(zone, order, sc.gfp_mask);
+>  
+> +			goal = high_wmark_pages(zone);
+>  			/*
+>  			 * We put equal pressure on every zone, unless one
+>  			 * zone has way too many pages free already.
+>  			 */
+>  			if (!zone_watermark_ok_safe(zone, order,
+> -					8*high_wmark_pages(zone), end_zone, 0))
+> +						    8 * goal, end_zone, 0))
+>  				shrink_zone(priority, zone, &sc);
+>  			reclaim_state->reclaimed_slab = 0;
+>  			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
+> @@ -2373,8 +2394,7 @@ loop_again:
+>  				compact_zone_order(zone, sc.order, sc.gfp_mask,
+>  							false);
+>  
+> -			if (!zone_watermark_ok_safe(zone, order,
+> -					high_wmark_pages(zone), end_zone, 0)) {
+> +			if (zone_needs_scan(zone, order, goal, end_zone)) {
+>  				all_zones_ok = 0;
+>  				/*
+>  				 * We are still under min water mark.  This
+> @@ -2587,7 +2607,7 @@ void wakeup_kswapd(struct zone *zone, int order)
+>  		pgdat->kswapd_max_order = order;
+>  	if (!waitqueue_active(&pgdat->kswapd_wait))
+>  		return;
+> -	if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zone), 0, 0))
+> +	if (!zone_needs_scan(zone, order, low_wmark_pages(zone), 0))
+>  		return;
+>  
+>  	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
+> -- 
+> 1.7.3.2
+> 
 > --
-> =A0 =A0 =A0 =A0Three Cheers,
-> =A0 =A0 =A0 =A0Balbir
->
-
-
-
---=20
-Kind regards,
-Minchan Kim
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
