@@ -1,106 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DC136B0087
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 09:34:30 -0500 (EST)
-Date: Thu, 9 Dec 2010 14:34:06 +0000
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 51CFE6B008A
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 09:42:22 -0500 (EST)
+Date: Thu, 9 Dec 2010 14:42:02 +0000
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [patch] mm: skip rebalance of hopeless zones
-Message-ID: <20101209143405.GC20133@csn.ul.ie>
-References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org> <20101208141909.5c9c60e8.akpm@linux-foundation.org>
+Message-ID: <20101209144202.GD20133@csn.ul.ie>
+References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org> <20101209003621.GB3796@hostway.ca> <4D00277F.9040000@redhat.com> <20101209010838.GA11758@hostway.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101208141909.5c9c60e8.akpm@linux-foundation.org>
+In-Reply-To: <20101209010838.GA11758@hostway.ca>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Simon Kirby <sim@hostway.ca>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 08, 2010 at 02:19:09PM -0800, Andrew Morton wrote:
-> On Wed,  8 Dec 2010 16:16:59 +0100
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Wed, Dec 08, 2010 at 05:08:38PM -0800, Simon Kirby wrote:
+> On Wed, Dec 08, 2010 at 07:49:03PM -0500, Rik van Riel wrote:
 > 
-> > Kswapd tries to rebalance zones persistently until their high
-> > watermarks are restored.
-> > 
-> > If the amount of unreclaimable pages in a zone makes this impossible
-> > for reclaim, though, kswapd will end up in a busy loop without a
-> > chance of reaching its goal.
-> > 
-> > This behaviour was observed on a virtual machine with a tiny
-> > Normal-zone that filled up with unreclaimable slab objects.
-> 
-> Doesn't this mean that vmscan is incorrectly handling its
-> zone->all_unreclaimable logic?
-> 
-
-I believe there is a bug in sleeping_prematurely() that is not handling
-zone->all_unreclaimable logic correctly at the very least. I posted a
-patch called "mm: kswapd: Treat zone->all_unreclaimable in
-sleeping_prematurely similar to balance_pgdat()" as part of a larger
-series. Johannes, it'd be nice if you could read that patch and see if
-it's related to this bug.
-
-> > This patch makes kswapd skip rebalancing on such 'hopeless' zones and
-> > leaves them to direct reclaim.
-> > 
-> > ...
+> > On 12/08/2010 07:36 PM, Simon Kirby wrote:
 > >
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2191,6 +2191,25 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
-> >  }
-> >  #endif
-> >  
-> > +static bool zone_needs_scan(struct zone *zone, int order,
-> > +			    unsigned long goal, int classzone_idx)
-> > +{
-> > +	unsigned long free, prospect;
-> > +
-> > +	free = zone_page_state(zone, NR_FREE_PAGES);
-> > +	if (zone->percpu_drift_mark && free < zone->percpu_drift_mark)
-> > +		free = zone_page_state_snapshot(zone, NR_FREE_PAGES);
-> > +
-> > +	if (__zone_watermark_ok(zone, order, goal, classzone_idx, 0, free))
-> > +		return false;
-> > +	/*
-> > +	 * Ensure that the watermark is at all restorable through
-> > +	 * reclaim.  Otherwise, leave the zone to direct reclaim.
-> > +	 */
-> > +	prospect = free + zone_reclaimable_pages(zone);
-> > +	return prospect >= goal;
-> > +}
+> >> Mel Gorman posted a similar patch to yours, but the logic is instead to
+> >> consider order>0 balancing sufficient when there are other balanced zones
+> >> totalling at least 25% of pages on this node.  This would probably fix
+> >> your case as well.
+> >
+> > Mel's patch addresses something very different and is unlikely
+> > to fix the problem this patch addresses.
 > 
-> presumably in certain cases that's a bit more efficient than doing the
-> scan and using ->all_unreclaimable.  But the scanner shouldn't have got
-> stuck!  That's a regresion which got added, and I don't think that new
-> code of this nature was needed to fix that regression.
+> Ok, I see they're quite separate.
 > 
-> Did this zone end up with ->all_unreclaimable set?  If so, why was
-> kswapd stuck in a loop scanning an all-unreclaimable zone?
+> Johannes' patch solves the problem of trying to balance a tiny Normal
+> zone which happens to be full of unclaimable slab pages by giving up in
+> this hopeless case, regardless of order.
+> 
+> Mel's patch solves the problem of fighting allocations causing an
+> order>0 imbalance in the small Normal zone which happens to be full of
+> reclaimable pages by giving up in this not-worth-bothering case.
+> 
+> The key difference is that Johannes' patch has no condition on order, so
+> Mel's patch probably would help (though not for intended reasons) in the
+> order != 0 case, and probably not in the order=0 case.
 > 
 
-There is a bug that kswapd is staying awake when it shouldn't. I've cc'd
-you on V3 of a series "Prevent kswapd dumping excessive amounts of
-memory in response to high-order allocations". It has been reported
-that V2 of the series fixed a problem where kswapd stayed awake when it
-shouldn't.
-
-> Also, if I'm understanding the new logic then if the "goal" is 100
-> pages and zone_reclaimable_pages() says "50 pages potentially
-> reclaimable" then kswapd won't reclaim *any* pages.  If so, is that
-> good behaviour?  Should we instead attempt to reclaim some of those 50
-> pages and then give up?  That sounds like a better strategy if we want
-> to keep (say) network Rx happening in a tight memory situation.
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+I would be interested in hearing if the patch in that series that alters
+how sleeping_prematurely() treats zone->all_unreclaimable makes a
+difference though.
 
 -- 
 Mel Gorman
