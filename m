@@ -1,72 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 70C366B0087
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 19:04:59 -0500 (EST)
-Date: Thu, 9 Dec 2010 01:04:40 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm: skip rebalance of hopeless zones
-Message-ID: <20101209000440.GM2356@cmpxchg.org>
-References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
- <20101208141909.5c9c60e8.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id DD83C6B0087
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 19:19:48 -0500 (EST)
+Received: by iwn1 with SMTP id 1so2627466iwn.37
+        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 16:19:47 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101208141909.5c9c60e8.akpm@linux-foundation.org>
+In-Reply-To: <20101208065650.GP3158@balbir.in.ibm.com>
+References: <20101207144923.GB2356@cmpxchg.org>
+	<20101207150710.GA26613@barrios-desktop>
+	<20101207151939.GF2356@cmpxchg.org>
+	<20101207152625.GB608@barrios-desktop>
+	<20101207155645.GG2356@cmpxchg.org>
+	<AANLkTi=iNGT_p_VfW9GxdaKXLt2xBHM2jdwmCbF_u8uh@mail.gmail.com>
+	<20101208095642.8128ab33.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTimtkb7Nczhads4u3r21RJauZvviLFkXjaL1ErDb@mail.gmail.com>
+	<20101208105637.5103de75.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTim9to0Wa_iWyVA4FSV6sfT4tcR2bmV7t54HOQ1c@mail.gmail.com>
+	<20101208065650.GP3158@balbir.in.ibm.com>
+Date: Thu, 9 Dec 2010 09:19:46 +0900
+Message-ID: <AANLkTimhRdRV4QS6gtLfm5DL-ZaeZjpdNT0-Muj4ePKP@mail.gmail.com>
+Subject: Re: [PATCH v4 2/7] deactivate invalidated pages
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@kernel.dk>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 08, 2010 at 02:19:09PM -0800, Andrew Morton wrote:
-> On Wed,  8 Dec 2010 16:16:59 +0100
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > Kswapd tries to rebalance zones persistently until their high
-> > watermarks are restored.
-> > 
-> > If the amount of unreclaimable pages in a zone makes this impossible
-> > for reclaim, though, kswapd will end up in a busy loop without a
-> > chance of reaching its goal.
-> > 
-> > This behaviour was observed on a virtual machine with a tiny
-> > Normal-zone that filled up with unreclaimable slab objects.
-> 
-> Doesn't this mean that vmscan is incorrectly handling its
-> zone->all_unreclaimable logic?
+On Wed, Dec 8, 2010 at 3:56 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wr=
+ote:
+> * MinChan Kim <minchan.kim@gmail.com> [2010-12-08 11:15:19]:
+>
+>> On Wed, Dec 8, 2010 at 10:56 AM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> > On Wed, 8 Dec 2010 10:43:08 +0900
+>> > Minchan Kim <minchan.kim@gmail.com> wrote:
+>> >
+>> >> Hi Kame,
+>> >>
+>> > Hi,
+>> >
+>> >> > I wonder ...how about adding "victim" list for "Reclaim" pages ? Th=
+en, we don't need
+>> >> > extra LRU rotation.
+>> >>
+>> >> It can make the code clean.
+>> >> As far as I think, victim list does following as.
+>> >>
+>> >> 1. select victim pages by strong hint
+>> >> 2. move the page from LRU to victim
+>> >> 3. reclaimer always peeks victim list before diving into LRU list.
+>> >> 4-1. If the victim pages is used by others or dirty, it can be moved
+>> >> into LRU, again or remain the page in victim list.
+>> >> If the page is remained victim, when do we move it into LRU again if
+>> >> the reclaimer continues to fail the page?
+>> > When sometone touches it.
+>> >
+>> >> We have to put the new rule.
+>> >> 4-2. If the victim pages isn't used by others and clean, we can
+>> >> reclaim the page asap.
+>> >>
+>> >> AFAIK, strong hints are just two(invalidation, readahead max window h=
+euristic).
+>> >> I am not sure it's valuable to add new hierarchy(ie, LRU, victim,
+>> >> unevictable) for cleaning the minor codes.
+>> >> In addition, we have to put the new rule so it would make the LRU cod=
+e
+>> >> complicated.
+>> >> I remember how unevictable feature merge is hard.
+>> >>
+>> > yes, it was hard.
+>> >
+>> >> But I am not against if we have more usecases. In this case, it's
+>> >> valuable to implement it although it's not easy.
+>> >>
+>> >
+>> > I wonder "victim list" can be used for something like Cleancache, when
+>> > we have very-low-latency backend devices.
+>> > And we may able to have page-cache-limit, which Balbir proposed as.
+>>
+>> Yes, I thought that, too. I think it would be a good feature in embedded=
+ system.
+>>
+>> >
+>> > =A0- kvictimed? will move unmappedd page caches to victim list
+>> > This may work like a InactiveClean list which we had before and make
+>> > sizing easy.
+>> >
+>>
+>> Before further discuss, we need customer's confirm.
+>> We know very well it is very hard to merge if anyone doesn't use.
+>>
+>> Balbir, What do think about it?
+>>
+>
+> The idea seems interesting, I am in the process of refreshing my
+> patches for unmapped page cache control. I presume the process of
+> filling the victim list will be similar to what I have or unmapped
+> page cache isolation.
 
-I don't think so.  What leads to the problem is that we only declare a
-zone unreclaimable after a lot of work, but reset it with a single
-page that gets released back to the allocator (past the pcp queue,
-that is).
+I saw your previous implementation. It doesn't have any benefit from
+victim list.
+It needs scanning pfns, select unmapped page and move it into victim list.
+I think we might need kvictimd as Kame said but I am not convinced.
+If I have a trouble with implementing my series, I might think it. But
+until now, I think it's not bad and rough test result isn't bad.
 
-That's probably a good idea per-se, we don't want to leave a zone
-behind and retry it eagerly when pages are freed up.
+To be honest, I think victim list(or cleanlist) is to be another
+project. If it is completed, maybe we can make my patches simple.
+I approve page cache limit control POV but it should be another project.
+So I want to merge this series then if we need really victim list,
+let's consider at that time.
 
-> presumably in certain cases that's a bit more efficient than doing the
-> scan and using ->all_unreclaimable.  But the scanner shouldn't have got
-> stuck!  That's a regresion which got added, and I don't think that new
-> code of this nature was needed to fix that regression.
+Anyway, I will see your next version to find needs of victim list.
 
-I'll dig through the history.  But we observed this on a very odd
-configuration (24MB ZONE_NORMAL), maybe this was never hit before?
+>
+>>
+>> > Thanks,
+>> > -Kame
+>> >
+>> >
+>> >
+>> >
+>>
+>>
+>>
+>> --
+>> Kind regards,
+>> Minchan Kim
+>
+> --
+> =A0 =A0 =A0 =A0Three Cheers,
+> =A0 =A0 =A0 =A0Balbir
+>
 
-> Did this zone end up with ->all_unreclaimable set?  If so, why was
-> kswapd stuck in a loop scanning an all-unreclaimable zone?
 
-It wasn't.  This state is just not very sticky.  After all, the zone
-is not all_unreclaimable, just not reclaimable enough to restore the
-high watermark.  But the remaining reclaimable pages of that zone may
-very well be in constant flux.
 
-> Also, if I'm understanding the new logic then if the "goal" is 100
-> pages and zone_reclaimable_pages() says "50 pages potentially
-> reclaimable" then kswapd won't reclaim *any* pages.  If so, is that
-> good behaviour?  Should we instead attempt to reclaim some of those 50
-> pages and then give up?  That sounds like a better strategy if we want
-> to keep (say) network Rx happening in a tight memory situation.
-
-Yes, that is probably a good idea.  I'll see that this is improved for
-atomic allocators.
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
