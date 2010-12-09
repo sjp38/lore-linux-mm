@@ -1,42 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 069756B0089
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 15:04:16 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id AE7116B0087
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 15:32:56 -0500 (EST)
+Subject: Re: [trivial PATCH 00/15] remove duplicate unlikely from IS_ERR
 From: Joe Perches <joe@perches.com>
-Subject: [PATCH 14/15] mm: Remove duplicate unlikely from IS_ERR
-Date: Thu,  9 Dec 2010 12:04:07 -0800
-Message-Id: <6f83d6103080eb248402114b60f6cf30c0f54db8.1291923889.git.joe@perches.com>
-In-Reply-To: <1291906801-1389-2-git-send-email-tklauser@distanz.ch>
-References: <1291906801-1389-2-git-send-email-tklauser@distanz.ch>
 In-Reply-To: <cover.1291923888.git.joe@perches.com>
-References: <cover.1291923888.git.joe@perches.com>
+References: <1291906801-1389-2-git-send-email-tklauser@distanz.ch>
+	 <cover.1291923888.git.joe@perches.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 09 Dec 2010 12:32:53 -0800
+Message-ID: <1291926773.20677.26.camel@Joe-Laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: Jiri Kosina <trivial@kernel.org>, linux-mm@kvack.org
+To: netdev@vger.kernel.org, Tobias Klauser <tklauser@distanz.ch>
+Cc: uclinux-dist-devel@blackfin.uclinux.org, rtc-linux@googlegroups.com, linux-s390@vger.kernel.org, osd-dev@open-osd.org, linux-arm-msm@vger.kernel.org, linux-usb@vger.kernel.org, linux-ext4@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, Jiri Kosina <trivial@kernel.org>, dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-scsi@vger.kernel.org, linux-wireless@vger.kernel.org, devel@driverdev.osuosl.org
 List-ID: <linux-mm.kvack.org>
 
-IS_ERR already uses unlikely, remove unlikely from the call sites.
+On Thu, 2010-12-09 at 12:03 -0800, Joe Perches wrote:
+> Tobias Klauser <tklauser@distanz.ch> sent a patch to remove
+> an unnecessary unlikely from drivers/misc/c2port/core.c,
+> https://lkml.org/lkml/2010/12/9/199
 
-Signed-off-by: Joe Perches <joe@perches.com>
----
- mm/vmalloc.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+It seems that Tobias did send all the appropriate patches,
+not as a series, but as individual patches to kernel-janitor.
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index eb5cc7d..31dcb64 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -748,7 +748,7 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
- 	va = alloc_vmap_area(VMAP_BLOCK_SIZE, VMAP_BLOCK_SIZE,
- 					VMALLOC_START, VMALLOC_END,
- 					node, gfp_mask);
--	if (unlikely(IS_ERR(va))) {
-+	if (IS_ERR(va)) {
- 		kfree(vb);
- 		return ERR_CAST(va);
- 	}
--- 
-1.7.3.3.464.gf80b6
+c2port was the only one that went to lkml.
+
+Please ignore this series and apply Tobias' patches.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
