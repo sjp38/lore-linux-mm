@@ -1,51 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 3E7FD6B0087
-	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 20:53:48 -0500 (EST)
-Date: Thu, 9 Dec 2010 08:23:02 +0800
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [1/7,v8] NUMA Hotplug Emulator: documentation
-Message-ID: <20101209002302.GB5798@shaohui>
-References: <20101207010033.280301752@intel.com>
- <20101207010139.681125359@intel.com>
- <20101207182420.GA2038@mgebm.net>
- <20101207232000.GA5353@shaohui>
- <20101208181644.GA2152@mgebm.net>
- <alpine.DEB.2.00.1012081315040.15658@chino.kir.corp.google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id AC14D6B0089
+	for <linux-mm@kvack.org>; Wed,  8 Dec 2010 20:55:26 -0500 (EST)
+Received: by iwn1 with SMTP id 1so2755813iwn.37
+        for <linux-mm@kvack.org>; Wed, 08 Dec 2010 17:55:25 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1012081315040.15658@chino.kir.corp.google.com>
+In-Reply-To: <20101208172324.d45911f4.akpm@linux-foundation.org>
+References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
+	<20101209003621.GB3796@hostway.ca>
+	<20101208172324.d45911f4.akpm@linux-foundation.org>
+Date: Thu, 9 Dec 2010 10:55:24 +0900
+Message-ID: <AANLkTik3KBVZBaOxSeO01N1XXobXTOiSAsZcyv0mJraC@mail.gmail.com>
+Subject: Re: [patch] mm: skip rebalance of hopeless zones
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Eric B Munson <emunson@mgebm.net>, Shaohui Zheng <shaohui.zheng@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, Andi Kleen <ak@linux.intel.com>, dave@linux.vnet.ibm.com, Greg Kroah-Hartman <gregkh@suse.de>, Haicheng Li <haicheng.li@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Simon Kirby <sim@hostway.ca>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 08, 2010 at 01:16:10PM -0800, David Rientjes wrote:
-> On Wed, 8 Dec 2010, Eric B Munson wrote:
-> 
-> > Shaohui,
-> > 
-> > I was able to online a cpu to node 0 successfully.  My problem was that I did
-> > not take the cpu offline before I released it.  Everything looks to be working
-> > for me.
-> > 
-> 
-> I think it should fail more gracefully than triggering WARN_ON()s because 
-> of duplicate sysfs dentries though, right?
+On Thu, Dec 9, 2010 at 10:23 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Wed, 8 Dec 2010 16:36:21 -0800 Simon Kirby <sim@hostway.ca> wrote:
+>
+>> On Wed, Dec 08, 2010 at 04:16:59PM +0100, Johannes Weiner wrote:
+>>
+>> > Kswapd tries to rebalance zones persistently until their high
+>> > watermarks are restored.
+>> >
+>> > If the amount of unreclaimable pages in a zone makes this impossible
+>> > for reclaim, though, kswapd will end up in a busy loop without a
+>> > chance of reaching its goal.
+>> >
+>> > This behaviour was observed on a virtual machine with a tiny
+>> > Normal-zone that filled up with unreclaimable slab objects.
+>> >
+>> > This patch makes kswapd skip rebalancing on such 'hopeless' zones and
+>> > leaves them to direct reclaim.
+>>
+>> Hi!
+>>
+>> We are experiencing a similar issue, though with a 757 MB Normal zone,
+>> where kswapd tries to rebalance Normal after an order-3 allocation while
+>> page cache allocations (order-0) keep splitting it back up again. =A0It =
+can
+>> run the whole day like this (SSD storage) without sleeping.
+>
+> People at google have told me they've seen the same thing. =A0A fork is
+> taking 15 minutes when someone else is doing a dd, because the fork
+> enters direct-reclaim trying for an order-one page. =A0It successfully
+> frees some order-one pages but before it gets back to allocate one, dd
+> has gone and stolen them, or split them apart.
+>
+> This problem would have got worse when slub came along doing its stupid
+> unnecessary high-order allocations.
+>
+> Billions of years ago a direct-reclaimer had a one-deep cache in the
+> task_struct into which it freed the page to prevent it from getting
+> stolen.
+>
+> Later, we took that out because pages were being freed into the
+> per-cpu-pages magazine, which is effectively task-local anyway. =A0But
+> per-cpu-pages are only for order-0 pages. =A0See slub stupidity, above.
+>
+> I expect that this is happening so repeatably because the
+> direct-reclaimer is dong a sleep somewhere after freeing the pages it
+> needs - if it wasn't doing that then surely the window wouldn't be wide
+> enough for it to happen so often. =A0But I didn't look.
+>
+> Suitable fixes might be
+>
+> a) don't go to sleep after the successful direct-reclaim.
 
-Yes, we should do more checking on the return value, the duplicate dentries can
-be avoided.  
-
-Another solution: force user to offline the cpu before we do cpu release.
-
--- 
-Thanks & Regards,
-Shaohui
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+It can't make sure success since direct reclaim needs sleep with !GFP_AOMIC=
