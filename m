@@ -1,38 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 43BFC6B008A
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 09:45:08 -0500 (EST)
-From: Tobias Klauser <tklauser@distanz.ch>
-Subject: [PATCH] vmalloc: Remove redundant unlikely()
-Date: Thu,  9 Dec 2010 15:45:04 +0100
-Message-Id: <1291905904-32716-1-git-send-email-tklauser@distanz.ch>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C009D6B008A
+	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 09:46:57 -0500 (EST)
+Date: Thu, 9 Dec 2010 14:46:32 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [patch] mm: skip rebalance of hopeless zones
+Message-ID: <20101209144632.GF20133@csn.ul.ie>
+References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org> <20101209003621.GB3796@hostway.ca> <20101208172324.d45911f4.akpm@linux-foundation.org> <AANLkTi=3WFrrhbrRUi986KCaMknUeXGsb8Lq6O8K4RMd@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <AANLkTi=3WFrrhbrRUi986KCaMknUeXGsb8Lq6O8K4RMd@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: kernel-janitors@vger.kernel.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Simon Kirby <sim@hostway.ca>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-IS_ERR() already implies unlikely(), so it can be omitted here.
+On Thu, Dec 09, 2010 at 10:55:10AM +0200, Pekka Enberg wrote:
+> On Thu, Dec 9, 2010 at 3:23 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > This problem would have got worse when slub came along doing its stupid
+> > unnecessary high-order allocations.
+> 
+> Stupid, maybe but not unnecessary because they're a performance
+> improvement on large CPU systems (needed because of current SLUB
+> design). We're scaling the allocation order based on number of CPUs
+> but maybe we could shrink it even more.
+> 
 
-Signed-off-by: Tobias Klauser <tklauser@distanz.ch>
----
- mm/vmalloc.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+It's conceivable that the GFP_NOKSWAPD patch needs to be taken from the
+THP series and applied to slub but only when slub is ruled out as the
+only source of the problem. Right now, it looks like forking workloads
+are suffering which is unrelated to slub.
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index eb5cc7d..31dcb64 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -748,7 +748,7 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
- 	va = alloc_vmap_area(VMAP_BLOCK_SIZE, VMAP_BLOCK_SIZE,
- 					VMALLOC_START, VMALLOC_END,
- 					node, gfp_mask);
--	if (unlikely(IS_ERR(va))) {
-+	if (IS_ERR(va)) {
- 		kfree(vb);
- 		return ERR_CAST(va);
- 	}
 -- 
-1.7.0.4
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
