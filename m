@@ -1,126 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 68F7D6B0087
-	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 06:28:52 -0500 (EST)
-Date: Fri, 10 Dec 2010 11:28:32 +0000
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DC8486B008A
+	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 06:33:06 -0500 (EST)
+Date: Fri, 10 Dec 2010 11:32:45 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/5] Prevent kswapd dumping excessive amounts of memory
-	in response to high-order allocations V2
-Message-ID: <20101210112832.GP20133@csn.ul.ie>
-References: <1291376734-30202-1-git-send-email-mel@csn.ul.ie> <20101209015530.GD3796@hostway.ca> <20101209114506.GA20133@csn.ul.ie> <20101210000632.GB18263@hostway.ca>
+Subject: Re: [patch]vmscan: make kswapd use a correct order
+Message-ID: <20101210113245.GQ20133@csn.ul.ie>
+References: <20101201132730.ABC2.A69D9226@jp.fujitsu.com> <20101201155854.GA3372@barrios-desktop> <20101202101234.GR13268@csn.ul.ie> <20101202153526.GB1735@barrios-desktop> <20101202154235.GY13268@csn.ul.ie> <20101202205342.GB1892@hostway.ca> <20101203120053.GA13268@csn.ul.ie> <20101204120726.GA4502@hostway.ca> <20101206120342.GD21406@csn.ul.ie> <20101209234452.GA18263@hostway.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101210000632.GB18263@hostway.ca>
+In-Reply-To: <20101209234452.GA18263@hostway.ca>
 Sender: owner-linux-mm@kvack.org
 To: Simon Kirby <sim@hostway.ca>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 09, 2010 at 04:06:32PM -0800, Simon Kirby wrote:
-> On Thu, Dec 09, 2010 at 11:45:06AM +0000, Mel Gorman wrote:
+On Thu, Dec 09, 2010 at 03:44:52PM -0800, Simon Kirby wrote:
+> On Mon, Dec 06, 2010 at 12:03:42PM +0000, Mel Gorman wrote:
 > 
-> > On Wed, Dec 08, 2010 at 05:55:30PM -0800, Simon Kirby wrote:
-> > > Hmm...
+> > > This was part of the problem.  kswapd was throwing so much out while
+> > > trying to meet the watermark in zone Normal that the daemons had to keep
+> > > being read back in from /dev/sda (non-ssd), and this ended up causing
+> > > degraded performance.
+> > 
+> > But there is still potentially two problems here. The first was kswapd
+> > throwing out everything in zone normal. Even when fixed, there is
+> > potentially still too many pages being thrown out. The situation might
+> > be improved but not repaired.
+> 
+> Yes.
+> 
+> > > > Before you said SLUB was using only order-0 and order-1, I would have
+> > > > suspected lumpy reclaim. Without high-order allocations, fragmentation
+> > > > is not a problem and shouldn't be triggering a mass freeing of memory.
+> > > > can you confirm with perf that there is no other constant source of
+> > > > high-order allocations?
 > > > 
-> > > Wouldn't it make more sense for the fast path page allocator to allocate
-> > > weighted-round-robin (by zone size) from each zone, rather than just
-> > > starting from the highest and working down?
+> > > Let me clarify: On _another_ box, with 2.6.36 but without your patches
+> > > and without as much load or SSD devices, I forced slub to use order-0
+> > > except where order-1 was absolutely necessary (objects > 4096 bytes),
+> > > just to see what impact this had on free memory.  There was a change,
+> > > but still lots of memory left free.  I was trying to avoid confusion by
+> > > posting graphs from different machines, but here is that one just as a
+> > > reference: http://0x.ca/sim/ref/2.6.36/memory_stor25r_week.png
+> > > (I made the slub order adjustment on Tuesday, November 30th.)
+> > > The spikes are actually from mail nightly expunge/purge runs.  It seems
+> > > that minimizing the slub orders did remove the large free spike that
+> > > was happening during mailbox compaction runs (nightly), and overall there
+> > > was a bit more memory used on average, but it definitely didn't "fix" it. 
+> > 
+> > Ok, but it's still evidence that lumpy reclaim is still the problem here. This
+> > should be "fixed" by reclaim/compaction which has less impact and frees
+> > fewer pages than lumpy reclaim. If necessary, I can backport this to 2.6.36
+> > for you to verify. There is little chance the series would be accepted into
+> > -stable but you'd at least know that 2.6.37 or 2.6.38 would behave as expected.
+> 
+> Isn't lumpy reclaim supposed to _improve_ this situation by trying to
+> free contiguous stuff rather than shooting aimlessly until contiguous
+> pages appear? 
+
+For lower orders like order-1 and order-2, it reclaims randomly before
+using lumpy reclaim as the assumption is that these lower pages free
+naturally.
+
+> Or is there some other point to it?  If this is the case,
+> maybe the issue is that lumpy reclaim isn't happening soon enough, so it
+> shoots around too much before it tries to look for lumpy stuff. 
+
+It used to happen sooner but it ran into latency problems.
+
+> In
+> 2.6.3[67], set_lumpy_reclaim_mode() only sets lumpy mode if sc->order >
+> PAGE_ALLOC_COSTLY_ORDER (>= 4), or if priority < DEF_PRIORITY - 2.
+> 
+> Also, try_to_compact_pages() bails without doing anything when order <=
+> PAGE_ALLOC_COSTLY_ORDER, which is the order I'm seeing problems at.  So,
+> without further chanegs, I don't see how CONFIG_COMPACTION or 2.6.37 will
+> make any difference, unless I'm missing some related 2.6.37 changes.
+> 
+
+There is increasing pressure to use compaction for the lower orders as
+well. This problem is going to be added to the list of justifications :/
+
+> > > There are definitely pages that are leaking from dovecot or similar which
+> > > can be swapped out and not swapped in again (you can see "apps" growing),
+> > > but there are no tasks I can think of that would ever cause the system to
+> > > be starved. 
+> > 
+> > So dovecot has a memory leak? As you say, this shouldn't starve the system
+> > but it's inevitable that swap usage will grow over time.
+> 
+> Yeah, we just squashed what seemed to be the biggest leak in dovecot, so
+> this should stop happening once we rebuild and restart everything.
+> 
+
+Ok.
+
+> > > The calls to pageout() seem to happen if sc.may_writepage is
+> > > set, which seems to happen when it thinks it has scanned enough without
+> > > making enough progress.  Could this happen just from too much
+> > > fragmentation?
 > > > 
 > > 
-> > Unfortunately, that would cause other problems. Zones are about
-> > addressing limitations. The DMA zone is used by callers that cannot
-> > address above 16M. On the other extreme, the HighMem zone is used for
-> > addresses that cannot be directly mapped at all times due to a lack of
-> > virtual address space.
+> > Not on its own but if too many pages have to be scanned due to
+> > fragmentation, it can get set.
 > > 
-> > If we round-robined the zones, callers that could use HighMem or Normal
-> > may consume memory from DMA32 or DMA causing future allocation requests
-> > that require those zones to fail.
-> 
-> Yeah, I don't mean in all cases, I mean when no particular zone is
-> requested; eg, __alloc_pages_nodemask() with a non-picky zone list, or 
-> when multiple zones are allowed.  This is the case for most allocations.
-> 
-
-Yes, but just because caller A is not picky about the zone does not mean
-caller B is not. Callers always try the highest-possible zone first so
-that pages from lower zones are not used unnecessarily.
-
-> As soon as my 757 MB Normal fills up, the allocations come from DMA32
-> anyway.  (Nothing ever comes from DMA because of lowmem_reserve_pages.)
-> 
-> > > This would mean that each zone would get a proportional amount of
-> > > allocations and reclaiming a bit from each would likely throw out the
-> > > oldest allocations, rather than some of that and and some more recent
-> > > stuff that was allocated at the beginning of the lower zone.
-> > > 
-> > > For example, with the current approach, a time progression of allocations
-> > > looks like this (N=Normal, D=DMA32): 1N 2N 3N 4D 5D 6D 7D 8D 9D
-> > > 
-> > > ...once the watermark is hit, kswapd reclaims 1 and 4, since they're
-> > > oldest in each zone, but 2 and 3 were allocated earlier.
-> > > 
-> > > Versus a weighted-round-robin approach: 1N 2D 3D 4N 5D 6D 7N 8D 9D
-> > > 
-> > > ...kswapd reclaims 1 and 2, and they're oldest in time and maybe LRU.
-> > > 
-> > > Things probably eventually mix up enough once the system has reclaimed
-> > > and allocated more for a while with the current approach, but the
-> > > allocations are still chunky depending on how many extra things kswapd
-> > > reclaims to reach higher-order watermarks, and doesn't this always mess
-> > > with the LRU when the there are multiple usable zones?
+> > > The swapping seems to be at a slow but constant rate, so maybe it's
 > > 
-> > If addressing limitations were not a problem, we'd just have a single
-> > zone :/
+> > I assume you mean swap usage is growing at a slow but constant rate?
 > 
-> Wouldn't that be nice. ;)
+> Yes.
+> 
+> > > happening just due to the way the types of allocations are biasing to
+> > > Normal instead of DMA32, or vice-versa. 
+> > > Check out the latest memory
+> > > graphs for the server running your original patch:
+> > > 
+> > > http://0x.ca/sim/ref/2.6.36/memory_mel_patch_dec4.png
+> > 
+> > Do you think the growth in swap usage is due to dovecot leaking?
+> 
+> I guess we'll find out shortly, with dovecot being fixed. :)
 > 
 
-It would :)
+Great.
 
-> > > Anyway, this approach might be horrible for some other reasons (page
-> > > allocations hoping to be sequential?  bigger cache footprint?), but it
-> > > might reduce the requirements for other other workarounds, and it would
-> > > make the LRU node-wide instead of zone-wide.
+> > > http://0x.ca/sim/ref/2.6.36/zoneinfo_mel_patch_dec4
+> > > http://0x.ca/sim/ref/2.6.36/pagetypeinfo_mel_patch_dec4
+> > > 
+> > > Hmm, pagetypeinfo shows none or only a few of the pages in Normal are
+> > > considered reclaimable...
 > > > 
 > > 
-> > Node-wide would be preferably from a page aging perspective but as zones
-> > are about addressing limitations, we need to be able to reclaim zones
-> > from a specific zone quickly and not have to scan looking for suitable
-> > pages.
+> > Reclaimable in the context of pagetypeinfo means slab-reclaimable. The
+> > results imply that very few slab allocations are being satisified from
+> > the Normal zone or at least very few have been released recently.
 > 
-> So, I'm not proposing abandoning zones, but simply changing
-> get_page_from_freelist() to remember where it last walked zonelist, and
-> try to make a (weighted) round robin out of it.  It can already allocate
-> from any zone in this case anyway.  (The implementation would be a bit
-> more complicated than this due to zonelist not being static, of course.)
+> Hmm, ok.
 > 
-
-I'd worry it'd still fall foul of using lower zones when it shouldn't.
-
-> Even if the checking of other zones happens in a buffered or chunky way
-> to reduce caching effects, it would still mean that all zones fill up at
-> roughly the same time, rather than the DMA zone filling up last. 
-
-Well, as each zone gets filled, kswapd is woken up to reclaim some
-pages. kswapd always works from the lowest to the highest zone to reduce
-the likelihood a picky caller will fail its allocation. If the lower
-zones have enough free pages they are ignored and kswapd reclaimed from
-the higher zone.
-
-> This
-> way, the oldest pages would all be the ones that want to be reclaimed,
-> rather than the a bunch of not-oldest pages being reclaimed simply
-> because the allocator decided to start with a higher zone to avoid
-> allocating from the DMA zone.
+> Simon-
 > 
-
-I see what you're saying - a young page can be reclaimed quickly just
-because it's in the wrong zone. In cases where the highest zone is
-comparatively small, it could cause serious issues. Will think about it
-more but a straight round-robining of the zones used could cause
-problems of its own :(
 
 -- 
 Mel Gorman
