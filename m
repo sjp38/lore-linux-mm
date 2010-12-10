@@ -1,327 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 391436B008A
-	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 09:32:44 -0500 (EST)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp08.au.ibm.com (8.14.4/8.13.1) with ESMTP id oBAEWeD4013206
-	for <linux-mm@kvack.org>; Sat, 11 Dec 2010 01:32:40 +1100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oBAEWebP844020
-	for <linux-mm@kvack.org>; Sat, 11 Dec 2010 01:32:40 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oBAEWd7r022527
-	for <linux-mm@kvack.org>; Sat, 11 Dec 2010 01:32:39 +1100
-Subject: [PATCH 3/3] Provide control over unmapped pages (v2)
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Fri, 10 Dec 2010 20:02:35 +0530
-Message-ID: <20101210143112.29934.22944.stgit@localhost6.localdomain6>
-In-Reply-To: <20101210142745.29934.29186.stgit@localhost6.localdomain6>
-References: <20101210142745.29934.29186.stgit@localhost6.localdomain6>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D8E476B008C
+	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 10:46:28 -0500 (EST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH 4/6] mm: kswapd: Reset kswapd_max_order and classzone_idx after reading
+Date: Fri, 10 Dec 2010 15:46:23 +0000
+Message-Id: <1291995985-5913-5-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1291995985-5913-1-git-send-email-mel@csn.ul.ie>
+References: <1291995985-5913-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Changelog v2
-1. Use a config option to enable the code (Andrew Morton)
-2. Explain the magic tunables in the code or at-least attempt
-   to explain them (General comment)
-3. Hint uses of the boot parameter with unlikely (Andrew Morton)
-4. Use better names (balanced is not a good naming convention)
-5. Updated Documentation/kernel-parameters.txt (Andrew Morton)
+When kswapd wakes up, it reads its order and classzone from pgdat and
+calls balance_pgdat. While its awake, it potentially reclaimes at a high
+order and a low classzone index. This might have been a once-off that
+was not required by subsequent callers. However, because the pgdat
+values were not reset, they remain artifically high while
+balance_pgdat() is running and potentially kswapd enters a second
+unnecessary reclaim cycle. Reset the pgdat order and classzone index
+after reading.
 
-Provide control using zone_reclaim() and a boot parameter. The
-code reuses functionality from zone_reclaim() to isolate unmapped
-pages and reclaim them as a priority, ahead of other mapped pages.
-
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- Documentation/kernel-parameters.txt |    8 +++
- include/linux/swap.h                |   21 ++++++--
- init/Kconfig                        |   12 ++++
- kernel/sysctl.c                     |    2 +
- mm/page_alloc.c                     |    9 +++
- mm/vmscan.c                         |   97 +++++++++++++++++++++++++++++++++++
- 6 files changed, 142 insertions(+), 7 deletions(-)
+ mm/vmscan.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index dd8fe2b..f52b0bd 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -2515,6 +2515,14 @@ and is between 256 and 4096 characters. It is defined in the file
- 			[X86]
- 			Set unknown_nmi_panic=1 early on boot.
- 
-+	unmapped_page_control
-+			[KNL] Available if CONFIG_UNMAPPED_PAGECACHE_CONTROL
-+			is enabled. It controls the amount of unmapped memory
-+			that is present in the system. This boot option plus
-+			vm.min_unmapped_ratio (sysctl) provide granular control
-+			over how much unmapped page cache can exist in the system
-+			before kswapd starts reclaiming unmapped page cache pages.
-+
- 	usbcore.autosuspend=
- 			[USB] The autosuspend time delay (in seconds) used
- 			for newly-detected USB devices (default 2).  This
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index ac5c06e..773d7e5 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -253,19 +253,32 @@ extern int vm_swappiness;
- extern int remove_mapping(struct address_space *mapping, struct page *page);
- extern long vm_total_pages;
- 
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
- extern int sysctl_min_unmapped_ratio;
- extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
--#ifdef CONFIG_NUMA
--extern int zone_reclaim_mode;
--extern int sysctl_min_slab_ratio;
- #else
--#define zone_reclaim_mode 0
- static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
- {
- 	return 0;
- }
- #endif
- 
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+extern bool should_reclaim_unmapped_pages(struct zone *zone);
-+#else
-+static inline bool should_reclaim_unmapped_pages(struct zone *zone)
-+{
-+	return false;
-+}
-+#endif
-+
-+#ifdef CONFIG_NUMA
-+extern int zone_reclaim_mode;
-+extern int sysctl_min_slab_ratio;
-+#else
-+#define zone_reclaim_mode 0
-+#endif
-+
- extern int page_evictable(struct page *page, struct vm_area_struct *vma);
- extern void scan_mapping_unevictable_pages(struct address_space *);
- 
-diff --git a/init/Kconfig b/init/Kconfig
-index 3eb22ad..78c9169 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -782,6 +782,18 @@ endif # NAMESPACES
- config MM_OWNER
- 	bool
- 
-+config UNMAPPED_PAGECACHE_CONTROL
-+	bool "Provide control over unmapped page cache"
-+	default n
-+	help
-+	  This option adds support for controlling unmapped page cache
-+	  via a boot parameter (unmapped_page_control). The boot parameter
-+	  with sysctl (vm.min_unmapped_ratio) control the total number
-+	  of unmapped pages in the system. This feature is useful if
-+	  you want to limit the amount of unmapped page cache or want
-+	  to reduce page cache duplication in a virtualized environment.
-+	  If unsure say 'N'
-+
- config SYSFS_DEPRECATED
- 	bool "enable deprecated sysfs features to support old userspace tools"
- 	depends on SYSFS
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index e40040e..ab2c60a 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1211,6 +1211,7 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &zero,
- 	},
- #endif
-+#if defined(CONFIG_UNMAPPED_PAGE_CONTROL) || defined(CONFIG_NUMA)
- 	{
- 		.procname	= "min_unmapped_ratio",
- 		.data		= &sysctl_min_unmapped_ratio,
-@@ -1220,6 +1221,7 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &zero,
- 		.extra2		= &one_hundred,
- 	},
-+#endif
- #ifdef CONFIG_NUMA
- 	{
- 		.procname	= "zone_reclaim_mode",
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1845a97..1c9fbab 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1662,6 +1662,9 @@ zonelist_scan:
- 			unsigned long mark;
- 			int ret;
- 
-+			if (should_reclaim_unmapped_pages(zone))
-+				wakeup_kswapd(zone, order);
-+
- 			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
- 			if (zone_watermark_ok(zone, order, mark,
- 				    classzone_idx, alloc_flags))
-@@ -4154,10 +4157,12 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 
- 		zone->spanned_pages = size;
- 		zone->present_pages = realsize;
--#ifdef CONFIG_NUMA
--		zone->node = nid;
-+#if defined(CONFIG_UNMAPPED_PAGE_CONTROL) || defined(CONFIG_NUMA)
- 		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
- 						/ 100;
-+#endif
-+#ifdef CONFIG_NUMA
-+		zone->node = nid;
- 		zone->min_slab_pages = (realsize * sysctl_min_slab_ratio) / 100;
- #endif
- 		zone->name = zone_names[j];
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4e2ad05..daf2ad1 100644
+index 4d968b0..e1be4e8 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -158,6 +158,29 @@ static DECLARE_RWSEM(shrinker_rwsem);
- #define scanning_global_lru(sc)	(1)
- #endif
+@@ -2646,6 +2646,8 @@ static int kswapd(void *p)
+ 			kswapd_try_to_sleep(pgdat, order);
+ 			order = pgdat->kswapd_max_order;
+ 			classzone_idx = pgdat->classzone_idx;
++			pgdat->kswapd_max_order = 0;
++			pgdat->classzone_idx = MAX_NR_ZONES - 1;
+ 		}
  
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+static unsigned long reclaim_unmapped_pages(int priority, struct zone *zone,
-+						struct scan_control *sc);
-+static int unmapped_page_control __read_mostly;
-+
-+static int __init unmapped_page_control_parm(char *str)
-+{
-+	unmapped_page_control = 1;
-+	/*
-+	 * XXX: Should we tweak swappiness here?
-+	 */
-+	return 1;
-+}
-+__setup("unmapped_page_control", unmapped_page_control_parm);
-+
-+#else /* !CONFIG_UNMAPPED_PAGECACHE_CONTROL */
-+static inline unsigned long reclaim_unmapped_pages(int priority,
-+				struct zone *zone, struct scan_control *sc)
-+{
-+	return 0;
-+}
-+#endif
-+
- static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
- 						  struct scan_control *sc)
- {
-@@ -2297,6 +2320,12 @@ loop_again:
- 				shrink_active_list(SWAP_CLUSTER_MAX, zone,
- 							&sc, priority, 0);
- 
-+			/*
-+			 * We do unmapped page reclaim once here and once
-+			 * below, so that we don't lose out
-+			 */
-+			reclaim_unmapped_pages(priority, zone, &sc);
-+
- 			if (!zone_watermark_ok_safe(zone, order,
- 					high_wmark_pages(zone), 0, 0)) {
- 				end_zone = i;
-@@ -2332,6 +2361,11 @@ loop_again:
- 				continue;
- 
- 			sc.nr_scanned = 0;
-+			/*
-+			 * Reclaim unmapped pages upfront, this should be
-+			 * really cheap
-+			 */
-+			reclaim_unmapped_pages(priority, zone, &sc);
- 
- 			/*
- 			 * Call soft limit reclaim before calling shrink_zone.
-@@ -2587,7 +2621,8 @@ void wakeup_kswapd(struct zone *zone, int order)
- 		pgdat->kswapd_max_order = order;
- 	if (!waitqueue_active(&pgdat->kswapd_wait))
- 		return;
--	if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zone), 0, 0))
-+	if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zone), 0, 0) &&
-+		!should_reclaim_unmapped_pages(zone))
- 		return;
- 
- 	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
-@@ -2740,6 +2775,7 @@ static int __init kswapd_init(void)
- 
- module_init(kswapd_init)
- 
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
- /*
-  * Zone reclaim mode
-  *
-@@ -2960,6 +2996,65 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 
- 	return ret;
- }
-+#endif
-+
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+/*
-+ * Routine to reclaim unmapped pages, inspired from the code under
-+ * CONFIG_NUMA that does unmapped page and slab page control by keeping
-+ * min_unmapped_pages in the zone. We currently reclaim just unmapped
-+ * pages, slab control will come in soon, at which point this routine
-+ * should be called reclaim cached pages
-+ */
-+unsigned long reclaim_unmapped_pages(int priority, struct zone *zone,
-+						struct scan_control *sc)
-+{
-+	if (unlikely(unmapped_page_control) &&
-+		(zone_unmapped_file_pages(zone) > zone->min_unmapped_pages)) {
-+		struct scan_control nsc;
-+		unsigned long nr_pages;
-+
-+		nsc = *sc;
-+
-+		nsc.swappiness = 0;
-+		nsc.may_writepage = 0;
-+		nsc.may_unmap = 0;
-+		nsc.nr_reclaimed = 0;
-+
-+		nr_pages = zone_unmapped_file_pages(zone) -
-+				zone->min_unmapped_pages;
-+		/*
-+		 * We don't want to be too aggressive with our
-+		 * reclaim, it is our best effort to control
-+		 * unmapped pages
-+		 */
-+		nr_pages >>= 3;
-+
-+		zone_reclaim_unmapped_pages(zone, &nsc, nr_pages);
-+		return nsc.nr_reclaimed;
-+	}
-+	return 0;
-+}
-+
-+/*
-+ * 16 is a magic number that was pulled out of a magician's
-+ * hat. This number automatically provided the best performance
-+ * to memory usage (unmapped pages). Lower than this and we spend
-+ * a lot of time in frequent reclaims, higher and our control is
-+ * weakend.
-+ */
-+#define UNMAPPED_PAGE_RATIO 16
-+
-+bool should_reclaim_unmapped_pages(struct zone *zone)
-+{
-+	if (unlikely(unmapped_page_control) &&
-+		(zone_unmapped_file_pages(zone) >
-+			UNMAPPED_PAGE_RATIO * zone->min_unmapped_pages))
-+		return true;
-+	return false;
-+}
-+#endif
-+
- 
- /*
-  * page_evictable - test whether a page is evictable
+ 		ret = try_to_freeze();
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
