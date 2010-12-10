@@ -1,45 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D37AB6B0087
-	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 05:54:59 -0500 (EST)
-Date: Fri, 10 Dec 2010 11:54:36 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm: skip rebalance of hopeless zones
-Message-ID: <20101210105436.GO2356@cmpxchg.org>
-References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
- <AANLkTikOgkGBn9AbEDAM4KegsnwuXqF2jg7icu0yc8Kh@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 858AA6B0087
+	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 05:55:53 -0500 (EST)
+Date: Fri, 10 Dec 2010 10:55:32 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 5/6] mm: kswapd: Treat zone->all_unreclaimable in
+	sleeping_prematurely similar to balance_pgdat()
+Message-ID: <20101210105532.GM20133@csn.ul.ie>
+References: <1291893500-12342-1-git-send-email-mel@csn.ul.ie> <1291893500-12342-6-git-send-email-mel@csn.ul.ie> <20101210102337.8ff1fad2.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTikOgkGBn9AbEDAM4KegsnwuXqF2jg7icu0yc8Kh@mail.gmail.com>
+In-Reply-To: <20101210102337.8ff1fad2.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Ying Han <yinghan@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 09, 2010 at 10:51:40AM -0800, Ying Han wrote:
-> On Wed, Dec 8, 2010 at 7:16 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > @@ -2587,7 +2607,7 @@ void wakeup_kswapd(struct zone *zone, int order)
-> >                pgdat->kswapd_max_order = order;
-> >        if (!waitqueue_active(&pgdat->kswapd_wait))
-> >                return;
-> > -       if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zone), 0, 0))
-> > +       if (!zone_needs_scan(zone, order, low_wmark_pages(zone), 0))
-> >                return;
-> >
-> >        trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
+On Fri, Dec 10, 2010 at 10:23:37AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Thu,  9 Dec 2010 11:18:19 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> So we look at zone_reclaimable_pages() only to determine proceed
-> reclaiming or not. What if I have tons of unused dentry and inode
-> caches and we are skipping the shrinker here?
+> > After DEF_PRIORITY, balance_pgdat() considers all_unreclaimable zones to
+> > be balanced but sleeping_prematurely does not. This can force kswapd to
+> > stay awake longer than it should. This patch fixes it.
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> 
+> Hmm, maybe the logic works well but I don't like very much.
+> 
+> How about adding below instead of pgdat->node_present_pages ?
+> 
+> static unsigned long required_balanced_pages(pgdat, classzone_idx)
+> {
+> 	unsigned long present = 0;
+> 
+> 	for_each_zone_in_node(zone, pgdat) {
+> 		if (zone->all_unreclaimable) /* Ignore unreclaimable zone at checking balance */
+> 			continue;
+> 		if (zone_idx(zone) > classzone_idx)
+> 			continue;
+> 		present = zone->present_pages;
+> 	}
+> 	return present;
+> }
+> 
 
-We have no straight-forward way to asking that (yet - per-zone
-shrinkers may change that?), so the zone is left for direct reclaim to
-figure this out.
+I'm afraid I do not really understand. After your earlier comments,
+pgdat_balanced() now looks like
 
-Forcing allocators into direct reclaim more often is still better than
-having kswapd run wild.
+static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
+                                                int classzone_idx)
+{
+        unsigned long present_pages = 0;
+        int i;
+
+        for (i = 0; i <= classzone_idx; i++)
+                present_pages += pgdat->node_zones[i].present_pages;
+
+        return balanced_pages > (present_pages >> 2);
+}
+
+so the classzone is being taken into account. I'm not sure what you're
+asking for it to be changed to. Maybe it'll be clearer after V4 comes
+out rebased on top of mmotm.
+
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
