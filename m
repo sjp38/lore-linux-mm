@@ -1,146 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DC8486B008A
-	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 06:33:06 -0500 (EST)
-Date: Fri, 10 Dec 2010 11:32:45 +0000
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 591866B0092
+	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 06:36:57 -0500 (EST)
+Date: Fri, 10 Dec 2010 11:34:54 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [patch]vmscan: make kswapd use a correct order
-Message-ID: <20101210113245.GQ20133@csn.ul.ie>
-References: <20101201132730.ABC2.A69D9226@jp.fujitsu.com> <20101201155854.GA3372@barrios-desktop> <20101202101234.GR13268@csn.ul.ie> <20101202153526.GB1735@barrios-desktop> <20101202154235.GY13268@csn.ul.ie> <20101202205342.GB1892@hostway.ca> <20101203120053.GA13268@csn.ul.ie> <20101204120726.GA4502@hostway.ca> <20101206120342.GD21406@csn.ul.ie> <20101209234452.GA18263@hostway.ca>
+Subject: Re: [patch] mm: skip rebalance of hopeless zones
+Message-ID: <20101210113454.GR20133@csn.ul.ie>
+References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org> <20101209003621.GB3796@hostway.ca> <20101208172324.d45911f4.akpm@linux-foundation.org> <20101209144412.GE20133@csn.ul.ie> <AANLkTimHrL5HnSf-rAMGdg-_ZKZ5RgJ_sEWo+BH5Q9sL@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101209234452.GA18263@hostway.ca>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTimHrL5HnSf-rAMGdg-_ZKZ5RgJ_sEWo+BH5Q9sL@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Simon Kirby <sim@hostway.ca>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Ying Han <yinghan@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Simon Kirby <sim@hostway.ca>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 09, 2010 at 03:44:52PM -0800, Simon Kirby wrote:
-> On Mon, Dec 06, 2010 at 12:03:42PM +0000, Mel Gorman wrote:
+On Thu, Dec 09, 2010 at 10:48:37AM -0800, Ying Han wrote:
+> On Thu, Dec 9, 2010 at 6:44 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> > On Wed, Dec 08, 2010 at 05:23:24PM -0800, Andrew Morton wrote:
+> >> On Wed, 8 Dec 2010 16:36:21 -0800 Simon Kirby <sim@hostway.ca> wrote:
+> >>
+> >> > On Wed, Dec 08, 2010 at 04:16:59PM +0100, Johannes Weiner wrote:
+> >> >
+> >> > > Kswapd tries to rebalance zones persistently until their high
+> >> > > watermarks are restored.
+> >> > >
+> >> > > If the amount of unreclaimable pages in a zone makes this impossible
+> >> > > for reclaim, though, kswapd will end up in a busy loop without a
+> >> > > chance of reaching its goal.
+> >> > >
+> >> > > This behaviour was observed on a virtual machine with a tiny
+> >> > > Normal-zone that filled up with unreclaimable slab objects.
+> >> > >
+> >> > > This patch makes kswapd skip rebalancing on such 'hopeless' zones and
+> >> > > leaves them to direct reclaim.
+> >> >
+> >> > Hi!
+> >> >
+> >> > We are experiencing a similar issue, though with a 757 MB Normal zone,
+> >> > where kswapd tries to rebalance Normal after an order-3 allocation while
+> >> > page cache allocations (order-0) keep splitting it back up again.  It can
+> >> > run the whole day like this (SSD storage) without sleeping.
+> >>
+> >> People at google have told me they've seen the same thing.  A fork is
+> >> taking 15 minutes when someone else is doing a dd, because the fork
+> >> enters direct-reclaim trying for an order-one page.  It successfully
+> >> frees some order-one pages but before it gets back to allocate one, dd
+> >> has gone and stolen them, or split them apart.
+> >>
+> >
+> > Is there a known test case for this or should I look at doing a
+> > streaming-IO test with a basic workload constantly forking in the
+> > background to measure the fork latency?
 > 
-> > > This was part of the problem.  kswapd was throwing so much out while
-> > > trying to meet the watermark in zone Normal that the daemons had to keep
-> > > being read back in from /dev/sda (non-ssd), and this ended up causing
-> > > degraded performance.
-> > 
-> > But there is still potentially two problems here. The first was kswapd
-> > throwing out everything in zone normal. Even when fixed, there is
-> > potentially still too many pages being thrown out. The situation might
-> > be improved but not repaired.
-> 
-> Yes.
-> 
-> > > > Before you said SLUB was using only order-0 and order-1, I would have
-> > > > suspected lumpy reclaim. Without high-order allocations, fragmentation
-> > > > is not a problem and shouldn't be triggering a mass freeing of memory.
-> > > > can you confirm with perf that there is no other constant source of
-> > > > high-order allocations?
-> > > 
-> > > Let me clarify: On _another_ box, with 2.6.36 but without your patches
-> > > and without as much load or SSD devices, I forced slub to use order-0
-> > > except where order-1 was absolutely necessary (objects > 4096 bytes),
-> > > just to see what impact this had on free memory.  There was a change,
-> > > but still lots of memory left free.  I was trying to avoid confusion by
-> > > posting graphs from different machines, but here is that one just as a
-> > > reference: http://0x.ca/sim/ref/2.6.36/memory_stor25r_week.png
-> > > (I made the slub order adjustment on Tuesday, November 30th.)
-> > > The spikes are actually from mail nightly expunge/purge runs.  It seems
-> > > that minimizing the slub orders did remove the large free spike that
-> > > was happening during mailbox compaction runs (nightly), and overall there
-> > > was a bit more memory used on average, but it definitely didn't "fix" it. 
-> > 
-> > Ok, but it's still evidence that lumpy reclaim is still the problem here. This
-> > should be "fixed" by reclaim/compaction which has less impact and frees
-> > fewer pages than lumpy reclaim. If necessary, I can backport this to 2.6.36
-> > for you to verify. There is little chance the series would be accepted into
-> > -stable but you'd at least know that 2.6.37 or 2.6.38 would behave as expected.
-> 
-> Isn't lumpy reclaim supposed to _improve_ this situation by trying to
-> free contiguous stuff rather than shooting aimlessly until contiguous
-> pages appear? 
-
-For lower orders like order-1 and order-2, it reclaims randomly before
-using lumpy reclaim as the assumption is that these lower pages free
-naturally.
-
-> Or is there some other point to it?  If this is the case,
-> maybe the issue is that lumpy reclaim isn't happening soon enough, so it
-> shoots around too much before it tries to look for lumpy stuff. 
-
-It used to happen sooner but it ran into latency problems.
-
-> In
-> 2.6.3[67], set_lumpy_reclaim_mode() only sets lumpy mode if sc->order >
-> PAGE_ALLOC_COSTLY_ORDER (>= 4), or if priority < DEF_PRIORITY - 2.
-> 
-> Also, try_to_compact_pages() bails without doing anything when order <=
-> PAGE_ALLOC_COSTLY_ORDER, which is the order I'm seeing problems at.  So,
-> without further chanegs, I don't see how CONFIG_COMPACTION or 2.6.37 will
-> make any difference, unless I'm missing some related 2.6.37 changes.
+> We were seeing some system daemons(sshd) being OOM killed while
+> running in the same
+> memory container as dd test. I assume we can generate the test case
+> while running dd on
+> 10G of file in 1G container, at the same time running
+> unixbench(fork/exec loop)?
 > 
 
-There is increasing pressure to use compaction for the lower orders as
-well. This problem is going to be added to the list of justifications :/
+unixbench in a fork/exec loop won't tell us the latency of each
+individual operation. If order-1 is really a problem, we should see a
+large standard deviation between fork/exec attempts. A custom test of
+some sort is probably required.
 
-> > > There are definitely pages that are leaking from dovecot or similar which
-> > > can be swapped out and not swapped in again (you can see "apps" growing),
-> > > but there are no tasks I can think of that would ever cause the system to
-> > > be starved. 
-> > 
-> > So dovecot has a memory leak? As you say, this shouldn't starve the system
-> > but it's inevitable that swap usage will grow over time.
+> >
+> >> This problem would have got worse when slub came along doing its stupid
+> >> unnecessary high-order allocations.
+> >>
+> >> Billions of years ago a direct-reclaimer had a one-deep cache in the
+> >> task_struct into which it freed the page to prevent it from getting
+> >> stolen.
+> >>
+> >> Later, we took that out because pages were being freed into the
+> >> per-cpu-pages magazine, which is effectively task-local anyway.  But
+> >> per-cpu-pages are only for order-0 pages.  See slub stupidity, above.
+> >>
+> >> I expect that this is happening so repeatably because the
+> >> direct-reclaimer is dong a sleep somewhere after freeing the pages it
+> >> needs - if it wasn't doing that then surely the window wouldn't be wide
+> >> enough for it to happen so often.  But I didn't look.
+> >>
+> >> Suitable fixes might be
+> >>
+> >> a) don't go to sleep after the successful direct-reclaim.
+> >>
+> >
+> > I submitted a patch for this a long time ago but at the time we didn't
+> > have a test case that made a difference to it. Might be worth
+> > revisiting. I can't find the related patch any more but it was fairly
+> > trivial.
 > 
-> Yeah, we just squashed what seemed to be the biggest leak in dovecot, so
-> this should stop happening once we rebuild and restart everything.
-> 
-
-Ok.
-
-> > > The calls to pageout() seem to happen if sc.may_writepage is
-> > > set, which seems to happen when it thinks it has scanned enough without
-> > > making enough progress.  Could this happen just from too much
-> > > fragmentation?
-> > > 
-> > 
-> > Not on its own but if too many pages have to be scanned due to
-> > fragmentation, it can get set.
-> > 
-> > > The swapping seems to be at a slow but constant rate, so maybe it's
-> > 
-> > I assume you mean swap usage is growing at a slow but constant rate?
-> 
-> Yes.
-> 
-> > > happening just due to the way the types of allocations are biasing to
-> > > Normal instead of DMA32, or vice-versa. 
-> > > Check out the latest memory
-> > > graphs for the server running your original patch:
-> > > 
-> > > http://0x.ca/sim/ref/2.6.36/memory_mel_patch_dec4.png
-> > 
-> > Do you think the growth in swap usage is due to dovecot leaking?
-> 
-> I guess we'll find out shortly, with dovecot being fixed. :)
+> If you have the patch, maybe we can give a try on our case.
 > 
 
-Great.
-
-> > > http://0x.ca/sim/ref/2.6.36/zoneinfo_mel_patch_dec4
-> > > http://0x.ca/sim/ref/2.6.36/pagetypeinfo_mel_patch_dec4
-> > > 
-> > > Hmm, pagetypeinfo shows none or only a few of the pages in Normal are
-> > > considered reclaimable...
-> > > 
-> > 
-> > Reclaimable in the context of pagetypeinfo means slab-reclaimable. The
-> > results imply that very few slab allocations are being satisified from
-> > the Normal zone or at least very few have been released recently.
-> 
-> Hmm, ok.
-> 
-> Simon-
-> 
+I'll cobble one together early next week.
 
 -- 
 Mel Gorman
