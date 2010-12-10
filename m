@@ -1,53 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2308A6B0087
-	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 02:37:14 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oBA7bAOI007160
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 10 Dec 2010 16:37:10 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7867F45DE6B
-	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 16:37:10 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E3B645DE55
-	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 16:37:10 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 46537E18008
-	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 16:37:10 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 04FBC1DB803B
-	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 16:37:10 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch] mm: skip rebalance of hopeless zones
-In-Reply-To: <20101210162623.C7C7.A69D9226@jp.fujitsu.com>
-References: <AANLkTikOgkGBn9AbEDAM4KegsnwuXqF2jg7icu0yc8Kh@mail.gmail.com> <20101210162623.C7C7.A69D9226@jp.fujitsu.com>
-Message-Id: <20101210163338.C7CA.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 53BD96B008A
+	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 03:01:46 -0500 (EST)
+From: "Zheng, Shaohui" <shaohui.zheng@intel.com>
+Date: Fri, 10 Dec 2010 16:01:39 +0800
+Subject: RE: [5/7,v8] NUMA Hotplug Emulator: Support cpu probe/release in
+ x86_64
+Message-ID: <A24AE1FFE7AEC5489F83450EE98351BF2A40FED8E3@shsmsx502.ccr.corp.intel.com>
+References: <20101207010033.280301752@intel.com>
+ <20101207010140.092555703@intel.com>
+ <alpine.DEB.2.00.1012081334160.15658@chino.kir.corp.google.com>
+ <4D00A345.6070100@kernel.org>
+In-Reply-To: <4D00A345.6070100@kernel.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 10 Dec 2010 16:37:09 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "lethal@linux-sh.org" <lethal@linux-sh.org>, Andi Kleen <ak@linux.intel.com>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@suse.de>, Ingo Molnar <mingo@elte.hu>, "Brown, Len" <len.brown@intel.com>, Yinghai Lu <Yinghai.Lu@sun.com>, "Li, Haicheng" <haicheng.li@intel.com>, Shaohui Zheng <shaohui.zheng@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-> > So we look at zone_reclaimable_pages() only to determine proceed
-> > reclaiming or not. What if I have tons of unused dentry and inode
-> > caches and we are skipping the shrinker here?
-> > 
-> > --Ying
-> 
-> Good catch!
-> I perfectly agree with you.
+The unification numa code of 32 and 64 bit make the codes much simpler to m=
+aintain. It is good direction.
 
-The problem is, nunber of reclaimable slab doesn't give us any information.
-There are frequently pinned and unreclaimable. That's one of the reason
-now we are trying reclaim only when priority==DEF_PRIORITY even if all_unreclaimable=1.
+I already rework this patch based on your unification numa code, add I add =
+you in the CC list in my patch.
 
-slab shrinker should implement all_unreclaimable heuristics too?
+Thanks & Regards,
+Shaohui
 
 
+-----Original Message-----
+From: Tejun Heo [mailto:tj@kernel.org]=20
+Sent: Thursday, December 09, 2010 5:37 PM
+To: David Rientjes
+Cc: Zheng, Shaohui; Andrew Morton; linux-mm@kvack.org; linux-kernel@vger.ke=
+rnel.org; haicheng.li@linux.intel.com; lethal@linux-sh.org; Andi Kleen; dav=
+e@linux.vnet.ibm.com; Greg Kroah-Hartman; Ingo Molnar; Brown, Len; Yinghai =
+Lu; Li, Haicheng
+Subject: Re: [5/7,v8] NUMA Hotplug Emulator: Support cpu probe/release in x=
+86_64
+
+Hello,
+
+On 12/08/2010 10:36 PM, David Rientjes wrote:
+> On Tue, 7 Dec 2010, shaohui.zheng@intel.com wrote:
+>=20
+>> From: Shaohui Zheng <shaohui.zheng@intel.com>
+>>
+>> CPU physical hot-add/hot-remove are supported on some hardwares, and it=
+=20
+>> was already supported in current linux kernel. NUMA Hotplug Emulator pro=
+vides
+>> a mechanism to emulate the process with software method. It can be used =
+for
+>> testing or debuging purpose.
+>>
+>> CPU physical hotplug is different with logical CPU online/offline. Logic=
+al
+>> online/offline is controled by interface /sys/device/cpu/cpuX/online. CP=
+U
+>> hotplug emulator uses probe/release interface. It becomes possible to do=
+ cpu
+>> hotplug automation and stress
+>>
+>> Add cpu interface probe/release under sysfs for x86_64. User can use thi=
+s
+>> interface to emulate the cpu hot-add and hot-remove process.
+>>
+>> Directive:
+>> *) Reserve CPU thru grub parameter like:
+>> 	maxcpus=3D4
+>>
+>> the rest CPUs will not be initiliazed.=20
+>>
+>> *) Probe CPU
+>> we can use the probe interface to hot-add new CPUs:
+>> 	echo nid > /sys/devices/system/cpu/probe
+>>
+>> *) Release a CPU
+>> 	echo cpu > /sys/devices/system/cpu/release
+>>
+>> A reserved CPU will be hot-added to the specified node.
+>> 1) nid =3D=3D 0, the CPU will be added to the real node which the CPU
+>> should be in
+>> 2) nid !=3D 0, add the CPU to node nid even through it is a fake node.
+>>
+>=20
+> This patch is undoubtedly going to conflict with Tejun's unification of=20
+> the 32 and 64 bit NUMA boot paths, specifically the patch at=20
+> http://marc.info/?l=3Dlinux-kernel&m=3D129087151912379.
+
+Oh yeah, it definitely looks like it will collide with the unification
+patch.  The problem is more fundamental than the actual patch
+collisions tho.  During x86_32/64 merge, some parts were left unmerged
+- some reflect actual differences between 32 and 64 but more were
+probably because it was too much work.
+
+These subtle diversions make the code unnecessarily complicated,
+fragile and difficult to maintain, so, in general, I think we should
+be heading toward unifying 32 and 64 unless the difference is caused
+by actual hardware even when the feature or code might not be too
+useful for 32bit.
+
+So, the same thing holds for NUMA hotplug emulator.  32bit supports
+NUMA and there already is 64bit only NUMA emulator.  I think it would
+be much better if we take this chance to unify 32 and 64bit code paths
+on this area rather than going further toward the wrong direction.
+
+> Tejun, what's the status of that patchset posted on November 27?  Any=20
+> comments about this change?
+
+I don't know.  I pinged Ingo yesterday.  Ingo?
+
+Thanks.
+
+--=20
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
