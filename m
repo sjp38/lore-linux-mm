@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 30FFD6B0092
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 566F56B0093
 	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 10:46:30 -0500 (EST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 3/6] mm: kswapd: Use the order that kswapd was reclaiming at for sleeping_prematurely()
-Date: Fri, 10 Dec 2010 15:46:22 +0000
-Message-Id: <1291995985-5913-4-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 2/6] mm: kswapd: Keep kswapd awake for high-order allocations until a percentage of the node is balanced
+Date: Fri, 10 Dec 2010 15:46:21 +0000
+Message-Id: <1291995985-5913-3-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1291995985-5913-1-git-send-email-mel@csn.ul.ie>
 References: <1291995985-5913-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,77 +13,138 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Before kswapd goes to sleep, it uses sleeping_prematurely() to check if
-there was a race pushing a zone below its watermark. If the race happened,
-it stays awake. However, balance_pgdat() can decide to reclaim at order-0
-if it decides that high-order reclaim is not working as expected. This
-information is not passed back to sleeping_prematurely().  The impact is
-that kswapd remains awake reclaiming pages long after it should have gone
-to sleep. This patch passes the adjusted order to sleeping_prematurely and
-uses the same logic as balance_pgdat to decide if it's ok to go to sleep.
+When reclaiming for high-orders, kswapd is responsible for balancing a
+node but it should not reclaim excessively. It avoids excessive reclaim by
+considering if any zone in a node is balanced then the node is balanced. In
+the cases where there are imbalanced zone sizes (e.g. ZONE_DMA with both
+ZONE_DMA32 and ZONE_NORMAL), kswapd can go to sleep prematurely as just
+one small zone was balanced.
+
+This alters the sleep logic of kswapd slightly. It counts the number of pages
+that make up the balanced zones. If the total number of balanced pages is
+more than a quarter of the zone, kswapd will go back to sleep. This should
+keep a node balanced without reclaiming an excessive number of pages.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/vmscan.c |   16 +++++++++++-----
- 1 files changed, 11 insertions(+), 5 deletions(-)
+ mm/vmscan.c |   58 +++++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 files changed, 49 insertions(+), 9 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 6723101..4d968b0 100644
+index 625dfba..6723101 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2220,7 +2220,7 @@ static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
+@@ -2191,10 +2191,40 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
  }
+ #endif
  
++/*
++ * pgdat_balanced is used when checking if a node is balanced for high-order
++ * allocations. Only zones that meet watermarks and are in a zone allowed
++ * by the callers classzone_idx are added to balanced_pages. The total of
++ * balanced pages must be at least 25% of the zones allowed by classzone_idx
++ * for the node to be considered balanced. Forcing all zones to be balanced
++ * for high orders can cause excessive reclaim when there are imbalanced zones.
++ * The choice of 25% is due to
++ *   o a 16M DMA zone that is balanced will not balance a zone on any
++ *     reasonable sized machine
++ *   o On all other machines, the top zone must be at least a reasonable
++ *     precentage of the middle zones. For example, on 32-bit x86, highmem
++ *     would need to be at least 256M for it to be balance a whole node.
++ *     Similarly, on x86-64 the Normal zone would need to be at least 1G
++ *     to balance a node on its own. These seemed like reasonable ratios.
++ */
++static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
++						int classzone_idx)
++{
++	unsigned long present_pages = 0;
++	int i;
++
++	for (i = 0; i <= classzone_idx; i++)
++		present_pages += pgdat->node_zones[i].present_pages;
++
++	return balanced_pages > (present_pages >> 2);
++}
++
  /* is kswapd sleeping prematurely? */
--static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
-+static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
+ static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
  {
  	int i;
- 	unsigned long balanced = 0;
-@@ -2230,7 +2230,7 @@ static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
++	unsigned long balanced = 0;
++	bool all_zones_ok = true;
+ 
+ 	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
  	if (remaining)
- 		return 1;
+@@ -2212,10 +2242,20 @@ static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
  
--	/* If after HZ/10, a zone is below the high mark, it's premature */
-+	/* Check the watermark levels */
- 	for (i = 0; i < pgdat->nr_zones; i++) {
- 		struct zone *zone = pgdat->node_zones + i;
- 
-@@ -2262,7 +2262,7 @@ static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
-  * For kswapd, balance_pgdat() will work across all this node's zones until
-  * they are all at high_wmark_pages(zone).
-  *
-- * Returns the number of pages which were actually freed.
-+ * Returns the final order kswapd was reclaiming at
-  *
-  * There is special handling here for zones which are full of pinned pages.
-  * This can happen if the pages are all mlocked, or if they are all used by
-@@ -2525,7 +2525,13 @@ out:
- 		}
+ 		if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone),
+ 								0, 0))
+-			return 1;
++			all_zones_ok = false;
++		else
++			balanced += zone->present_pages;
  	}
  
--	return sc.nr_reclaimed;
+-	return 0;
 +	/*
-+	 * Return the order we were reclaiming at so sleeping_prematurely()
-+	 * makes a decision on the order we were last reclaiming at. However,
-+	 * if another caller entered the allocator slow path while kswapd
-+	 * was awake, order will remain at the higher level
++	 * For high-order requests, the balanced zones must contain at least
++	 * 25% of the nodes pages for kswapd to sleep. For order-0, all zones
++	 * must be balanced
 +	 */
-+	return order;
++	if (order)
++		return pgdat_balanced(pgdat, balanced, 0);
++	else
++		return !all_zones_ok;
  }
  
- static void kswapd_try_to_sleep(pg_data_t *pgdat, int order)
-@@ -2652,7 +2658,7 @@ static int kswapd(void *p)
- 		 */
- 		if (!ret) {
- 			trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
--			balance_pgdat(pgdat, order, classzone_idx);
-+			order = balance_pgdat(pgdat, order, classzone_idx);
+ /*
+@@ -2243,7 +2283,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 							int classzone_idx)
+ {
+ 	int all_zones_ok;
+-	int any_zone_ok;
++	unsigned long balanced;
+ 	int priority;
+ 	int i;
+ 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+@@ -2277,7 +2317,7 @@ loop_again:
+ 			disable_swap_token();
+ 
+ 		all_zones_ok = 1;
+-		any_zone_ok = 0;
++		balanced = 0;
+ 
+ 		/*
+ 		 * Scan in the highmem->dma direction for the highest
+@@ -2397,11 +2437,11 @@ loop_again:
+ 				 */
+ 				zone_clear_flag(zone, ZONE_CONGESTED);
+ 				if (i <= classzone_idx)
+-					any_zone_ok = 1;
++					balanced += zone->present_pages;
+ 			}
+ 
  		}
- 	}
- 	return 0;
+-		if (all_zones_ok || (order && any_zone_ok))
++		if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced, classzone_idx)))
+ 			break;		/* kswapd: all done */
+ 		/*
+ 		 * OK, kswapd is getting into trouble.  Take a nap, then take
+@@ -2427,10 +2467,10 @@ out:
+ 
+ 	/*
+ 	 * order-0: All zones must meet high watermark for a balanced node
+-	 * high-order: Any zone below pgdats classzone_idx must meet the high
+-	 *             watermark for a balanced node
++	 * high-order: Balanced zones must make up at least 25% of the node
++	 *             for the node to be balanced
+ 	 */
+-	if (!(all_zones_ok || (order && any_zone_ok))) {
++	if (!(all_zones_ok || (order && pgdat_balanced(pgdat, balanced, classzone_idx)))) {
+ 		cond_resched();
+ 
+ 		try_to_freeze();
 -- 
 1.7.1
 
