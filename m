@@ -1,47 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id DABBB6B0087
-	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 22:53:40 -0500 (EST)
-Received: by iwn1 with SMTP id 1so4853966iwn.37
-        for <linux-mm@kvack.org>; Thu, 09 Dec 2010 19:53:39 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B12806B0087
+	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 01:22:18 -0500 (EST)
+Received: from mail-iw0-f178.google.com (mail-iw0-f178.google.com [209.85.214.178])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id oBA6LhOs029981
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Thu, 9 Dec 2010 22:21:44 -0800
+Received: by iwn1 with SMTP id 1so5046479iwn.37
+        for <linux-mm@kvack.org>; Thu, 09 Dec 2010 22:21:42 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20101209141317.60d14fb5.akpm@linux-foundation.org>
-References: <1291305649-2405-1-git-send-email-minchan.kim@gmail.com>
-	<20101209141317.60d14fb5.akpm@linux-foundation.org>
-Date: Fri, 10 Dec 2010 12:53:39 +0900
-Message-ID: <AANLkTikxRpiRdXpxgAJWaOhhA32Fup97DLYA9gNUS5TP@mail.gmail.com>
-Subject: Re: [PATCH] vmscan: make kswapd use a correct order
-From: Minchan Kim <minchan.kim@gmail.com>
+In-Reply-To: <AANLkTikYZi0=c+yM1p8H18u+9WVbsQXjAinUWyNt7x+t@mail.gmail.com>
+References: <1291335412-16231-1-git-send-email-walken@google.com>
+	<1291335412-16231-2-git-send-email-walken@google.com>
+	<20101208152740.ac449c3d.akpm@linux-foundation.org>
+	<AANLkTikYZi0=c+yM1p8H18u+9WVbsQXjAinUWyNt7x+t@mail.gmail.com>
+Date: Thu, 9 Dec 2010 22:11:30 -0800
+Message-ID: <AANLkTinY0pcTcd+OxPLyvsJgHgh=cTaB1-8VbEA2tstb@mail.gmail.com>
+Subject: Re: [PATCH 1/6] mlock: only hold mmap_sem in shared mode when
+ faulting in pages
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
+To: Michel Lespinasse <walken@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 10, 2010 at 7:13 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Fri, =A03 Dec 2010 01:00:49 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
+On Wednesday, December 8, 2010, Michel Lespinasse <walken@google.com> wrote:
 >
->> +static bool kswapd_try_to_sleep(pg_data_t *pgdat, int order)
->
-> OT: kswapd_try_to_sleep() does a
-> trace_mm_vmscan_kswapd_sleep(pgdat->node_id) if it sleeps for a long
-> time, but doesn't trace anything at all if it does a short sleep.
-> Where's the sense in that?
->
+> Yes, patch 1/6 changes the long hold time to be in read mode instead
+> of write mode, which is only a band-aid. But, this prepares for patch
+> 5/6, which releases mmap_sem whenever there is contention on it or
+> when blocking on disk reads.
 
-AFAIU, short sleep is _sleep_ but that trace's goal is to count only long s=
-leep.
-In addition, short sleep is a just ready to go or not long sleep so I
-think we don't need short sleep trace.
-And for knowing short sleep count, we can use
-KSWAPD_{LOW|HIGH}_WMARK_HIT_QUICKLY.
+I have to say that I'm not a huge fan of that horribly kludgy
+contention check case.
 
---=20
-Kind regards,
-Minchan Kim
+The "move page-in to read-locked sequence" and the changes to
+get_user_pages look fine, but the contention thing is just disgusting.
+I'd really like to see some other approach if at all possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
