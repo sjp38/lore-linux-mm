@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B8676B0087
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1392E6B0088
 	for <linux-mm@kvack.org>; Thu,  9 Dec 2010 21:49:39 -0500 (EST)
 From: Ying Han <yinghan@google.com>
-Subject: [PATCH 2/2] Add per cpuset meminfo
-Date: Thu,  9 Dec 2010 18:49:05 -0800
-Message-Id: <1291949345-13892-3-git-send-email-yinghan@google.com>
+Subject: [PATCH 1/2] Add hugetlb_report_nodemask_meminfo()
+Date: Thu,  9 Dec 2010 18:49:04 -0800
+Message-Id: <1291949345-13892-2-git-send-email-yinghan@google.com>
 In-Reply-To: <1291949345-13892-1-git-send-email-yinghan@google.com>
 References: <1291949345-13892-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,158 +13,76 @@ To: Paul Menage <menage@google.com>, Andi Kleen <ak@linux.intel.com>, Mel Gorman
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This exports accumulated memory information through cpuset.meminfo
-for each cpuset. This is a useful extention which userspace program
-doesn't have to perform the aggregation itself.
+It is useful to accumulate hugetlb statistics on nodemask. This
+is used on the following patch also which exporting per-cpuset
+meminfo.
 
 Signed-off-by: Ying Han <yinghan@google.com>
 ---
- kernel/cpuset.c |  118 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 118 insertions(+), 0 deletions(-)
+ include/linux/hugetlb.h |    3 +++
+ mm/hugetlb.c            |   21 +++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 0 deletions(-)
 
-diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-index 51b143e..815c375 100644
---- a/kernel/cpuset.c
-+++ b/kernel/cpuset.c
-@@ -53,6 +53,7 @@
- #include <linux/time.h>
- #include <linux/backing-dev.h>
- #include <linux/sort.h>
-+#include <linux/hugetlb.h>
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 943c76b..5e95672 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -10,6 +10,7 @@ struct user_struct;
+ #ifdef CONFIG_HUGETLB_PAGE
  
- #include <asm/uaccess.h>
- #include <asm/atomic.h>
-@@ -1720,6 +1721,118 @@ static s64 cpuset_read_s64(struct cgroup *cont, struct cftype *cft)
- 	return 0;
+ #include <linux/mempolicy.h>
++#include <linux/nodemask.h>
+ #include <linux/shm.h>
+ #include <asm/tlbflush.h>
+ 
+@@ -36,6 +37,7 @@ void __unmap_hugepage_range(struct vm_area_struct *,
+ int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
+ void hugetlb_report_meminfo(struct seq_file *);
+ int hugetlb_report_node_meminfo(int, char *);
++void hugetlb_report_nodemask_meminfo(const nodemask_t *mask, struct seq_file *);
+ unsigned long hugetlb_total_pages(void);
+ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, unsigned int flags);
+@@ -93,6 +95,7 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
+ {
+ }
+ #define hugetlb_report_node_meminfo(n, buf)	0
++#define hugetlb_report_nodemask_meminfo(mask, seq_file)
+ #define follow_huge_pmd(mm, addr, pmd, write)	NULL
+ #define follow_huge_pud(mm, addr, pud, write)	NULL
+ #define prepare_hugepage_range(file, addr, len)	(-EINVAL)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index c4a3558..27961eb 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2029,6 +2029,27 @@ int hugetlb_report_node_meminfo(int nid, char *buf)
+ 		nid, h->surplus_huge_pages_node[nid]);
  }
  
-+#define K(x) ((x) << (PAGE_SHIFT - 10))
-+static int cpuset_read_meminfo(struct cgroup *cont, struct cftype *cft,
-+			       struct seq_file *m)
++void hugetlb_report_nodemask_meminfo(const nodemask_t *mask, struct seq_file *m)
 +{
-+	struct cpuset *cs = cgroup_cs(cont);
-+	struct sysinfo si_accum;
-+	unsigned long *node_info;
++	unsigned long total = 0;
++	unsigned long free = 0;
++	unsigned long surp = 0;
++	struct hstate *h = &default_hstate;
 +	int nid;
-+	NODEMASK_ALLOC(nodemask_t, mask, GFP_KERNEL);
 +
-+	if (mask == NULL)
-+		return -ENOMEM;
-+	node_info = kzalloc(sizeof(*node_info) * NR_VM_ZONE_STAT_ITEMS,
-+			    GFP_KERNEL);
-+	if (node_info == NULL) {
-+		NODEMASK_FREE(mask);
-+		return -ENOMEM;
-+	}
-+
-+	mutex_lock(&callback_mutex);
-+	*mask = cs->mems_allowed;
-+	mutex_unlock(&callback_mutex);
-+
-+	memset(&si_accum, 0, sizeof(si_accum));
 +	for_each_node_mask(nid, *mask) {
-+		int i;
-+		struct sysinfo si_node;
-+
-+		si_meminfo_node(&si_node, nid);
-+		si_accum.totalram += si_node.totalram;
-+		si_accum.freeram += si_node.freeram;
-+#ifdef CONFIG_HIGHMEM
-+		si_accum.totalhigh += si_node.totalhigh;
-+		si_accum.freehigh += si_node.freehigh;
-+#endif
-+
-+		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-+			node_info[i] += node_page_state(nid, i);
++		total += h->nr_huge_pages_node[nid];
++		free += h->free_huge_pages_node[nid];
++		surp += h->surplus_huge_pages_node[nid];
 +	}
 +
 +	seq_printf(m,
-+		   "MemTotal:       %8lu kB\n"
-+		   "MemFree:        %8lu kB\n"
-+		   "MemUsed:        %8lu kB\n"
-+		   "Active:         %8lu kB\n"
-+		   "Inactive:       %8lu kB\n"
-+		   "Active(anon):   %8lu kB\n"
-+		   "Inactive(anon): %8lu kB\n"
-+		   "Active(file):   %8lu kB\n"
-+		   "Inactive(file): %8lu kB\n"
-+		   "Unevictable:    %8lu kB\n"
-+		   "Mlock:          %8lu kB\n"
-+#ifdef CONFIG_HIGHMEM
-+		   "HighTotal:      %8lu kB\n"
-+		   "HighFree:       %8lu kB\n"
-+		   "LowTotal:       %8lu kB\n"
-+		   "LowFree:        %8lu kB\n"
-+#endif
-+		   "Dirty:          %8lu kB\n"
-+		   "Writeback:      %8lu kB\n"
-+		   "FilePages:      %8lu kB\n"
-+		   "Mapped:         %8lu kB\n"
-+		   "AnonPages:      %8lu kB\n"
-+		   "Shmem:          %8lu kB\n"
-+		   "KernelStack:    %8lu kB\n"
-+		   "PageTables:     %8lu kB\n"
-+		   "NFS_Unstable:   %8lu kB\n"
-+		   "Bounce:         %8lu kB\n"
-+		   "WritebackTmp:   %8lu kB\n"
-+		   "Slab:           %8lu kB\n"
-+		   "SReclaimable:   %8lu kB\n"
-+		   "SUnreclaim:     %8lu kB\n",
-+		   K(si_accum.totalram),
-+		   K(si_accum.freeram),
-+		   K(si_accum.totalram - si_accum.freeram),
-+		   K(node_info[NR_ACTIVE_ANON] + node_info[NR_ACTIVE_FILE]),
-+		   K(node_info[NR_INACTIVE_ANON] +
-+			node_info[NR_INACTIVE_FILE]),
-+		   K(node_info[NR_ACTIVE_ANON]),
-+		   K(node_info[NR_INACTIVE_ANON]),
-+		   K(node_info[NR_ACTIVE_FILE]),
-+		   K(node_info[NR_INACTIVE_FILE]),
-+		   K(node_info[NR_UNEVICTABLE]),
-+		   K(node_info[NR_MLOCK]),
-+#ifdef CONFIG_HIGHMEM
-+		   K(si_accum.totalhigh),
-+		   K(si_accum.freehigh),
-+		   K(si_accum.totalram - si_accum.totalhigh),
-+		   K(si_accum.freeram - si_accum.freehigh),
-+#endif
-+		   K(node_info[NR_FILE_DIRTY]),
-+		   K(node_info[NR_WRITEBACK]),
-+		   K(node_info[NR_FILE_PAGES]),
-+		   K(node_info[NR_FILE_MAPPED]),
-+		   K(node_info[NR_ANON_PAGES]),
-+		   K(node_info[NR_SHMEM]),
-+			node_info[NR_KERNEL_STACK] * THREAD_SIZE / 1024,
-+		   K(node_info[NR_PAGETABLE]),
-+		   K(node_info[NR_UNSTABLE_NFS]),
-+		   K(node_info[NR_BOUNCE]),
-+		   K(node_info[NR_WRITEBACK_TEMP]),
-+		   K(node_info[NR_SLAB_RECLAIMABLE] +
-+			node_info[NR_SLAB_UNRECLAIMABLE]),
-+		   K(node_info[NR_SLAB_RECLAIMABLE]),
-+		   K(node_info[NR_SLAB_UNRECLAIMABLE]));
-+	hugetlb_report_nodemask_meminfo(mask, m);
-+
-+	kfree(node_info);
-+	NODEMASK_FREE(mask);
-+
-+	return 0;
++		"HugePages_Total: %5lu\n"
++		"HugePages_Free:  %5lu\n"
++		"HugePages_Surp:  %5lu\n",
++		total, free, surp);
 +}
- 
- /*
-  * for the common functions, 'private' gives the type of file
-@@ -1805,6 +1918,11 @@ static struct cftype files[] = {
- 		.write_u64 = cpuset_write_u64,
- 		.private = FILE_SPREAD_SLAB,
- 	},
 +
-+	{
-+		.name = "meminfo",
-+		.read_seq_string = cpuset_read_meminfo,
-+	},
- };
- 
- static struct cftype cft_memory_pressure_enabled = {
+ /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
+ unsigned long hugetlb_total_pages(void)
+ {
 -- 
 1.7.3.1
 
