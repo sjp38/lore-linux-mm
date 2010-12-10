@@ -1,96 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D5E26B0088
-	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 07:18:14 -0500 (EST)
-Date: Fri, 10 Dec 2010 12:17:54 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 44 of 66] skip transhuge pages in ksm for now
-Message-ID: <20101210121754.GT20133@csn.ul.ie>
-References: <patchbomb.1288798055@v2.random> <91ac2384163d0f01633e.1288798099@v2.random> <20101118160613.GZ8135@csn.ul.ie> <20101209181354.GF19131@random.random>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C5B4F6B0087
+	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 09:29:31 -0500 (EST)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp02.au.ibm.com (8.14.4/8.13.1) with ESMTP id oBAEObHm026258
+	for <linux-mm@kvack.org>; Sat, 11 Dec 2010 01:24:37 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oBAETO5J1790092
+	for <linux-mm@kvack.org>; Sat, 11 Dec 2010 01:29:25 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oBAETOuv022847
+	for <linux-mm@kvack.org>; Sat, 11 Dec 2010 01:29:24 +1100
+Subject: [PATCH 0/3] Provide unmapped page cache control (v2)
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Fri, 10 Dec 2010 19:59:20 +0530
+Message-ID: <20101210142745.29934.29186.stgit@localhost6.localdomain6>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20101209181354.GF19131@random.random>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 09, 2010 at 07:13:54PM +0100, Andrea Arcangeli wrote:
-> On Thu, Nov 18, 2010 at 04:06:13PM +0000, Mel Gorman wrote:
-> > On Wed, Nov 03, 2010 at 04:28:19PM +0100, Andrea Arcangeli wrote:
-> > > From: Andrea Arcangeli <aarcange@redhat.com>
-> > > 
-> > > Skip transhuge pages in ksm for now.
-> > > 
-> > > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > > Reviewed-by: Rik van Riel <riel@redhat.com>
-> > 
-> > Acked-by: Mel Gorman <mel@csn.ul.ie>
-> > 
-> > This is an idle concern that I haven't looked into but is there any conflict
-> > between khugepaged scanning the KSM scanning?
-> > 
-> > Specifically, I *think* the impact of this patch is that KSM will not
-> > accidentally split a huge page. Is that right? If so, it could do with
-> > being included in the changelog.
-> 
-> KSM wasn't aware about hugepages and in turn it'd never split them
-> anyway. We want KSM to split hugepages only when if finds two equal
-> subpages. That will happen later.
-> 
 
-Ok.
+The following series implements page cache control,
+this is a split out version of patch 1 of version 3 of the
+page cache optimization patches posted earlier at
+Previous posting https://lkml.org/lkml/2010/11/30/79
 
-> Right now there is no collision of ksmd and khugepaged, regular pages,
-> hugepages and ksm pages will co-exist fine in the same vma. The only
-> problem is that the system has now to start swapping before KSM has a
-> chance to find equal pages and we'll fix it in the future so KSM can
-> scan inside hugepages too and split them and merge the subpages as
-> needed before the memory pressure starts.
-> 
+The previous revision received lot of comments, I've tried to
+address as many of those as possible in this revision. The
+last series was reviewed-by Christoph Lameter.
 
-Ok. So it's not a perfect mesh but it's not broken either.
+There were comments on overlap with Nick's changes and overlap
+with them. I don't feel these changes impact Nick's work and
+integration can/will be considered as the patches evolve, if
+need be.
 
-> > On the other hand, can khugepaged be prevented from promoting a hugepage
-> > because of KSM?
-> 
-> Sure, khugepaged won't promote if there's any ksm page in the
-> range. That's not going to change. When KSM is started, the priority
-> remains in saving memory. If people uses enabled=madvise and
-> MADV_HUGEPAGE+MADV_MERGEABLE there is actually zero memory loss
-> because of THP and there is a speed improvement for all pages that
-> aren't equal. So it's an ideal setup even for embedded. Regular cloud
-> setup would be enabled=always + MADV_MERGEABLE (with enabled=always
-> MADV_HUGEPAGE becomes a noop).
-> 
+Detailed Description
+====================
+This patch implements unmapped page cache control via preferred
+page cache reclaim. The current patch hooks into kswapd and reclaims
+page cache if the user has requested for unmapped page control.
+This is useful in the following scenario
+- In a virtualized environment with cache=writethrough, we see
+  double caching - (one in the host and one in the guest). As
+  we try to scale guests, cache usage across the system grows.
+  The goal of this patch is to reclaim page cache when Linux is running
+  as a guest and get the host to hold the page cache and manage it.
+  There might be temporary duplication, but in the long run, memory
+  in the guests would be used for mapped pages.
+- The option is controlled via a boot option and the administrator
+  can selectively turn it on, on a need to use basis.
 
-That's a reasonable compromise. Thanks for clarifying.
+A lot of the code is borrowed from zone_reclaim_mode logic for
+__zone_reclaim(). One might argue that the with ballooning and
+KSM this feature is not very useful, but even with ballooning,
+we need extra logic to balloon multiple VM machines and it is hard
+to figure out the correct amount of memory to balloon. With these
+patches applied, each guest has a sufficient amount of free memory
+available, that can be easily seen and reclaimed by the balloon driver.
+The additional memory in the guest can be reused for additional
+applications or used to start additional guests/balance memory in
+the host.
 
-> On a related note I'm also going to introduce a MADV_NO_HUGEPAGE, is
-> that a good name for it? cloud management wants to be able to disable
-> THP per-VM basis (when the VM are totally idle, and low priority, this
-> currently also helps to maximize the power of KSM that would otherwise
-> be activated only after initial sawpping, but the KSM part will be
-> fixed). It could be achieved also with enabled=madvise and
-> MADV_HUGEPAGE but we don't want to change the system wide default in
-> order to disable THP on a per-VM basis: it's much nicer if the default
-> behavior of the host remains the same in case it's not a pure
-> hypervisor usage but there are other loads running in parallel to the
-> virt load. In theory a prctl(PR_NO_HUGEPAGE) could also do it and it'd
-> be possible to use from a wrapper (madvise can't be wrapped), but I
-> think MADV_NO_HUGEPAGE is cleaner and it won't require brand new
-> per-process info.
-> 
+KSM currently does not de-duplicate host and guest page cache. The goal
+of this patch is to help automatically balance unmapped page cache when
+instructed to do so.
 
-I see no problem with the proposal. The name seems as good as any other
-name. I guess the only other sensible alternative might be
-MADV_BASEPAGE.
+There are some magic numbers in use in the code, UNMAPPED_PAGE_RATIO
+and the number of pages to reclaim when unmapped_page_control argument
+is supplied. These numbers were chosen to avoid aggressiveness in
+reaping page cache ever so frequently, at the same time providing control.
+
+The sysctl for min_unmapped_ratio provides further control from
+within the guest on the amount of unmapped pages to reclaim.
+
+Data from the previous patchsets can be found at
+https://lkml.org/lkml/2010/11/30/79
+
+Size measurement
+
+CONFIG_UNMAPPED_PAGECACHE_CONTROL and CONFIG_NUMA enabled
+# size mm/built-in.o 
+   text    data     bss     dec     hex filename
+ 419431 1883047  140888 2443366  254866 mm/built-in.o
+
+CONFIG_UNMAPPED_PAGECACHE_CONTROL disabled, CONFIG_NUMA enabled
+# size mm/built-in.o 
+   text    data     bss     dec     hex filename
+ 418908 1883023  140888 2442819  254643 mm/built-in.o
+
+
+---
+
+Balbir Singh (3):
+      Move zone_reclaim() outside of CONFIG_NUMA
+      Refactor zone_reclaim, move reusable functionality outside
+      Provide control over unmapped pages
+
+
+ Documentation/kernel-parameters.txt |    8 ++
+ include/linux/mmzone.h              |    4 +
+ include/linux/swap.h                |   21 +++++-
+ init/Kconfig                        |   12 +++
+ kernel/sysctl.c                     |   20 +++--
+ mm/page_alloc.c                     |    9 ++
+ mm/vmscan.c                         |  132 +++++++++++++++++++++++++++++++----
+ 7 files changed, 175 insertions(+), 31 deletions(-)
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Three Cheers,
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
