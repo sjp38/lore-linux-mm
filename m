@@ -1,52 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 37D936B0087
-	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 06:13:04 -0500 (EST)
-Subject: Re: [PATCH 1/6] mlock: only hold mmap_sem in shared mode when
- faulting in pages
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <AANLkTikXx4MgdPYWYNVj8cMOSHTHJEUHqKZ_q-P4jFYp@mail.gmail.com>
-References: <1291335412-16231-1-git-send-email-walken@google.com>
-	 <1291335412-16231-2-git-send-email-walken@google.com>
-	 <20101208152740.ac449c3d.akpm@linux-foundation.org>
-	 <AANLkTikYZi0=c+yM1p8H18u+9WVbsQXjAinUWyNt7x+t@mail.gmail.com>
-	 <AANLkTinY0pcTcd+OxPLyvsJgHgh=cTaB1-8VbEA2tstb@mail.gmail.com>
-	 <AANLkTikXx4MgdPYWYNVj8cMOSHTHJEUHqKZ_q-P4jFYp@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Fri, 10 Dec 2010 12:12:49 +0100
-Message-ID: <1291979569.6803.114.camel@twins>
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DEB06B0087
+	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 06:17:56 -0500 (EST)
+Date: Fri, 10 Dec 2010 11:17:37 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] vmscan: make kswapd use a correct order
+Message-ID: <20101210111736.GO20133@csn.ul.ie>
+References: <1291305649-2405-1-git-send-email-minchan.kim@gmail.com> <20101209141317.60d14fb5.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20101209141317.60d14fb5.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Michel Lespinasse <walken@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-12-09 at 22:39 -0800, Michel Lespinasse wrote:
-> I think rwsem_is_contended() actually sounds better than fiddling with
-> constants, but OTOH maybe the mlock use case is not significant enough
-> to justify introducing that new API.=20
+On Thu, Dec 09, 2010 at 02:13:17PM -0800, Andrew Morton wrote:
+> On Fri,  3 Dec 2010 01:00:49 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+> 
+> > +static bool kswapd_try_to_sleep(pg_data_t *pgdat, int order)
+> 
+> OT: kswapd_try_to_sleep() does a
+> trace_mm_vmscan_kswapd_sleep(pgdat->node_id) if it sleeps for a long
+> time, but doesn't trace anything at all if it does a short sleep. 
+> Where's the sense in that?
+> 
 
-Right, so I don't see the problem with _is_contended() either. In fact,
-I introduce mutex_is_contended() in the mmu_preempt series to convert
-existing (spin) lock break tests.
+The tracepoint is to mark when kswapd is going fully to sleep and being
+inactive because all its work is done. The tracepoints name might be
+unfortunate because it's really used to track if kswapd is active or
+inactive rather than sleeping.
 
-If you want to do lock-breaks like cond_resched_lock() all you really
-have is *_is_contended(), sleeping locks will schedule unconditional.
-
-int cond_break_mutex(struct mutex *mutex)
-{
-	int ret =3D 0;
-	if (mutex_is_contended(mutex)) {
-		mutex_unlock(mutex);
-		ret =3D 1;
-		mutex_lock(mutex);
-	}
-	return 1;
-}
-
-Or more exotic lock breaks, like the mmu-gather stuff, which falls out
-of its nested page-table loops and restarts the whole affair.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
