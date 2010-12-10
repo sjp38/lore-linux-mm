@@ -1,75 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 858AA6B0087
-	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 05:55:53 -0500 (EST)
-Date: Fri, 10 Dec 2010 10:55:32 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 5/6] mm: kswapd: Treat zone->all_unreclaimable in
-	sleeping_prematurely similar to balance_pgdat()
-Message-ID: <20101210105532.GM20133@csn.ul.ie>
-References: <1291893500-12342-1-git-send-email-mel@csn.ul.ie> <1291893500-12342-6-git-send-email-mel@csn.ul.ie> <20101210102337.8ff1fad2.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20101210102337.8ff1fad2.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 37D936B0087
+	for <linux-mm@kvack.org>; Fri, 10 Dec 2010 06:13:04 -0500 (EST)
+Subject: Re: [PATCH 1/6] mlock: only hold mmap_sem in shared mode when
+ faulting in pages
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <AANLkTikXx4MgdPYWYNVj8cMOSHTHJEUHqKZ_q-P4jFYp@mail.gmail.com>
+References: <1291335412-16231-1-git-send-email-walken@google.com>
+	 <1291335412-16231-2-git-send-email-walken@google.com>
+	 <20101208152740.ac449c3d.akpm@linux-foundation.org>
+	 <AANLkTikYZi0=c+yM1p8H18u+9WVbsQXjAinUWyNt7x+t@mail.gmail.com>
+	 <AANLkTinY0pcTcd+OxPLyvsJgHgh=cTaB1-8VbEA2tstb@mail.gmail.com>
+	 <AANLkTikXx4MgdPYWYNVj8cMOSHTHJEUHqKZ_q-P4jFYp@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Fri, 10 Dec 2010 12:12:49 +0100
+Message-ID: <1291979569.6803.114.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 10, 2010 at 10:23:37AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu,  9 Dec 2010 11:18:19 +0000
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > After DEF_PRIORITY, balance_pgdat() considers all_unreclaimable zones to
-> > be balanced but sleeping_prematurely does not. This can force kswapd to
-> > stay awake longer than it should. This patch fixes it.
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> 
-> Hmm, maybe the logic works well but I don't like very much.
-> 
-> How about adding below instead of pgdat->node_present_pages ?
-> 
-> static unsigned long required_balanced_pages(pgdat, classzone_idx)
-> {
-> 	unsigned long present = 0;
-> 
-> 	for_each_zone_in_node(zone, pgdat) {
-> 		if (zone->all_unreclaimable) /* Ignore unreclaimable zone at checking balance */
-> 			continue;
-> 		if (zone_idx(zone) > classzone_idx)
-> 			continue;
-> 		present = zone->present_pages;
-> 	}
-> 	return present;
-> }
-> 
+On Thu, 2010-12-09 at 22:39 -0800, Michel Lespinasse wrote:
+> I think rwsem_is_contended() actually sounds better than fiddling with
+> constants, but OTOH maybe the mlock use case is not significant enough
+> to justify introducing that new API.=20
 
-I'm afraid I do not really understand. After your earlier comments,
-pgdat_balanced() now looks like
+Right, so I don't see the problem with _is_contended() either. In fact,
+I introduce mutex_is_contended() in the mmu_preempt series to convert
+existing (spin) lock break tests.
 
-static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
-                                                int classzone_idx)
+If you want to do lock-breaks like cond_resched_lock() all you really
+have is *_is_contended(), sleeping locks will schedule unconditional.
+
+int cond_break_mutex(struct mutex *mutex)
 {
-        unsigned long present_pages = 0;
-        int i;
-
-        for (i = 0; i <= classzone_idx; i++)
-                present_pages += pgdat->node_zones[i].present_pages;
-
-        return balanced_pages > (present_pages >> 2);
+	int ret =3D 0;
+	if (mutex_is_contended(mutex)) {
+		mutex_unlock(mutex);
+		ret =3D 1;
+		mutex_lock(mutex);
+	}
+	return 1;
 }
 
-so the classzone is being taken into account. I'm not sure what you're
-asking for it to be changed to. Maybe it'll be clearer after V4 comes
-out rebased on top of mmotm.
-
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Or more exotic lock breaks, like the mmu-gather stuff, which falls out
+of its nested page-table loops and restarts the whole affair.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
