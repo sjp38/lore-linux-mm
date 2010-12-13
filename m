@@ -1,61 +1,55 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 26/35] btrfs: wait on too many nr_async_bios
-Date: Mon, 13 Dec 2010 22:47:12 +0800
-Message-ID: <20101213150329.473271564@intel.com>
+Subject: [PATCH 18/35] writeback: start background writeback earlier
+Date: Mon, 13 Dec 2010 22:47:04 +0800
+Message-ID: <20101213150328.526742344@intel.com>
 References: <20101213144646.341970461@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PSA2R-0002El-5D
-	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:10:07 +0100
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id AA3266B00AB
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:08:51 -0500 (EST)
-Content-Disposition: inline; filename=btrfs-nr_async_bios-wait.patch
+	id 1PSA2b-0002MM-3L
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:10:17 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id DB9756B00AE
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:08:52 -0500 (EST)
+Content-Disposition: inline; filename=writeback-kick-background-early.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Tests show that btrfs is repeatedly moving _all_ PG_dirty pages into
-PG_writeback state. It's desirable to have some limit on the number of
-writeback pages.
+It's possible for some one to suddenly eat lots of memory,
+leading to sudden drop of global dirty limit. So a dirtier
+task may get hard throttled immediately without some previous
+balance_dirty_pages() call to invoke background writeback.
+
+In this case we need to check for background writeback earlier in the
+loop to avoid stucking the application for very long time. This was not
+a problem before the IO-less balance_dirty_pages() because it will try
+to write something and then break out of the loop regardless of the
+global limit.
+
+Another scheme this check will help is, the dirty limit is too close to
+the background threshold, so that someone manages to jump directly into
+the pause threshold (background+dirty)/2.
 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/btrfs/disk-io.c |    7 +++++++
- 1 file changed, 7 insertions(+)
+ mm/page-writeback.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
-before patch:
-	http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/btrfs-1dd-1M-8p-2952M-2.6.37-rc5+-2010-12-08-21-30/vmstat-dirty-300.png
-
-after patch:
-	http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/btrfs-1dd-1M-8p-2952M-2.6.37-rc5+-2010-12-08-21-14/vmstat-dirty-300.png
-
---- linux-next.orig/fs/btrfs/disk-io.c	2010-12-13 21:45:55.000000000 +0800
-+++ linux-next/fs/btrfs/disk-io.c	2010-12-13 21:46:20.000000000 +0800
-@@ -590,6 +590,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_
- 			extent_submit_bio_hook_t *submit_bio_done)
- {
- 	struct async_submit_bio *async;
-+	int limit;
+--- linux-next.orig/mm/page-writeback.c	2010-12-13 21:46:16.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-12-13 21:46:17.000000000 +0800
+@@ -748,6 +748,9 @@ static void balance_dirty_pages(struct a
+ 				    bdi_stat(bdi, BDI_WRITEBACK);
+ 		}
  
- 	async = kmalloc(sizeof(*async), GFP_NOFS);
- 	if (!async)
-@@ -617,6 +618,12 @@ int btrfs_wq_submit_bio(struct btrfs_fs_
- 
- 	btrfs_queue_worker(&fs_info->workers, &async->work);
- 
-+	limit = btrfs_async_submit_limit(fs_info);
++		if (unlikely(!writeback_in_progress(bdi)))
++			bdi_start_background_writeback(bdi);
 +
-+	if (atomic_read(&fs_info->nr_async_bios) > limit)
-+		wait_event(fs_info->async_submit_wait,
-+			   (atomic_read(&fs_info->nr_async_bios) < limit));
-+
- 	while (atomic_read(&fs_info->async_submit_draining) &&
- 	      atomic_read(&fs_info->nr_async_submits)) {
- 		wait_event(fs_info->async_submit_wait,
+ 		bdi_update_bandwidth(bdi, start_time, bdi_dirty, bdi_thresh);
+ 
+ 		/*
 
 
 --
