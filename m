@@ -1,69 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 684A96B0088
-	for <linux-mm@kvack.org>; Sun, 12 Dec 2010 22:34:56 -0500 (EST)
-Date: Mon, 13 Dec 2010 10:09:25 +0800
-From: Shaohui Zheng <shaohui.zheng@linux.intel.com>
-Subject: Re: [7/7,v8] NUMA Hotplug Emulator: Implement per-node add_memory
- debugfs interface
-Message-ID: <20101213020924.GB19637@shaohui>
-References: <A24AE1FFE7AEC5489F83450EE98351BF2A40FED20A@shsmsx502.ccr.corp.intel.com>
- <20101209012124.GD5798@shaohui>
- <alpine.DEB.2.00.1012091325530.13564@chino.kir.corp.google.com>
- <20101209235705.GA10674@shaohui>
- <alpine.DEB.2.00.1012101529190.30039@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1012101529190.30039@chino.kir.corp.google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 896B06B0088
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 06:27:00 -0500 (EST)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: TEXT/PLAIN
+Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0LDD00DNO6GX1I70@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 13 Dec 2010 11:26:57 +0000 (GMT)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0LDD00G5B6GW84@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 13 Dec 2010 11:26:57 +0000 (GMT)
+Date: Mon, 13 Dec 2010 12:26:42 +0100
+From: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Subject: [PATCHv7 01/10] mm: migrate.c: fix compilation error
+In-reply-to: <cover.1292004520.git.m.nazarewicz@samsung.com>
+Message-id: 
+ <86d353f4d141c83492cff9f946d382234aac3c77.1292004520.git.m.nazarewicz@samsung.com>
+References: <cover.1292004520.git.m.nazarewicz@samsung.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, Andi Kleen <ak@linux.intel.com>, Greg Kroah-Hartman <gregkh@suse.de>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, BooJin Kim <boojin.kim@samsung.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Michal Nazarewicz <m.nazarewicz@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 10, 2010 at 03:30:38PM -0800, David Rientjes wrote:
-> On Fri, 10 Dec 2010, Shaohui Zheng wrote:
-> 
-> > > That doesn't address the question.  My question is whether or not adding 
-> > > memory to a memoryless node in this way transitions its state to 
-> > > N_HIGH_MEMORY in the VM?
-> > I guess that you are talking about memory hotplug on x86_32, memory hotplug is
-> > NOT supported well for x86_32, and the function add_memory does not consider
-> > this situlation.
-> > 
-> > For 64bit, N_HIGH_MEMORY == N_NORMAL_MEMORY, so we need not to do the transition.
-> > 
-> 
-> One more time :)  Memoryless nodes do not have their bit set in 
-> N_HIGH_MEMORY.  When memory is added to a memoryless node with this new 
-> interface, does the bit get set?
+GCC complained about update_mmu_cache() not being defined
+in migrate.c.  Including <asm/tlbflush.h> seems to solve the problem.
 
-When we use debugfs add_node interface to add a fake node, the node was created, 
-and memory sections were created, but the state of the memory section is still 
-__offline__, so the new added node is still memoryless node. the result of debugfs
-add_memory interface doing the similar thing with add_node, it just add memory
-to an exists node.
+Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+---
+ mm/migrate.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-For the state transition to N_HIGH_MEMORY, it does not happen on the above too
-interfaces. It happens when the memory was onlined with sysfs /sys/device/system/memory/memoryXX/online
-interface.
-
-That is the code path:
-store_mem_state
-	->memory_block_change_state
-	 	->memory_block_action
-			->online_pages
-
-			if (onlined_pages) {
-				kswapd_run(zone_to_nid(zone));
-				node_set_state(zone_to_nid(zone), N_HIGH_MEMORY);
-			}
-
-does it address your question? thanks.
-
+diff --git a/mm/migrate.c b/mm/migrate.c
+index fe5a3c6..6ae8a66 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -35,6 +35,8 @@
+ #include <linux/hugetlb.h>
+ #include <linux/gfp.h>
+ 
++#include <asm/tlbflush.h>
++
+ #include "internal.h"
+ 
+ #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
 -- 
-Thanks & Regards,
-Shaohui
+1.7.2.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
