@@ -1,313 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A0F516B008A
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 06:27:01 -0500 (EST)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN
-Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0LDD00DNO6GX1I70@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 13 Dec 2010 11:26:57 +0000 (GMT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 36A536B008C
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 06:27:02 -0500 (EST)
+Received: from eu_spt1 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0LDD00M866GZ5R@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Mon, 13 Dec 2010 11:26:59 +0000 (GMT)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0LDD00IEE6GWYE@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 13 Dec 2010 11:26:57 +0000 (GMT)
-Date: Mon, 13 Dec 2010 12:26:45 +0100
+ 2004)) with ESMTPA id <0LDD00IFB6GYYE@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 13 Dec 2010 11:26:59 +0000 (GMT)
+Date: Mon, 13 Dec 2010 12:26:51 +0100
 From: Michal Nazarewicz <m.nazarewicz@samsung.com>
-Subject: [PATCHv7 04/10] mm: move some functions from memory_hotplug.c to
- page_isolation.c
+Subject: [PATCHv7 10/10] ARM: cma: Added CMA to Aquila,
+ Goni and c210 universal boards
 In-reply-to: <cover.1292004520.git.m.nazarewicz@samsung.com>
 Message-id: 
- <26b030da54b10bc98c94a27c1340f2882e1c3129.1292004520.git.m.nazarewicz@samsung.com>
+ <cb1df81fb822b99ff00d2f4387525f8b07f05e57.1292004520.git.m.nazarewicz@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
 References: <cover.1292004520.git.m.nazarewicz@samsung.com>
 Sender: owner-linux-mm@kvack.org
 To: Michal Nazarewicz <mina86@mina86.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, BooJin Kim <boojin.kim@samsung.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Michal Nazarewicz <m.nazarewicz@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+This commit adds CMA memory reservation code to Aquila, Goni and c210
+universal boards.
 
-Memory hotplug is a logic for making pages unused in the specified
-range of pfn. So, some of core logics can be used for other purpose
-as allocating a very large contigous memory block.
-
-This patch moves some functions from mm/memory_hotplug.c to
-mm/page_isolation.c. This helps adding a function for large-alloc in
-page_isolation.c with memory-unplug technique.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-[mina86: reworded commit message]
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- include/linux/page-isolation.h |    7 +++
- mm/memory_hotplug.c            |  108 --------------------------------------
- mm/page_isolation.c            |  111 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 118 insertions(+), 108 deletions(-)
+ arch/arm/mach-s5pv210/mach-aquila.c         |    2 +
+ arch/arm/mach-s5pv210/mach-goni.c           |    2 +
+ arch/arm/mach-s5pv310/mach-universal_c210.c |    2 +
+ arch/arm/plat-s5p/Makefile                  |    2 +
+ arch/arm/plat-s5p/cma-stub.c                |   49 +++++++++++++++++++++++++++
+ arch/arm/plat-s5p/include/plat/cma-stub.h   |   21 +++++++++++
+ 6 files changed, 78 insertions(+), 0 deletions(-)
+ create mode 100644 arch/arm/plat-s5p/cma-stub.c
+ create mode 100644 arch/arm/plat-s5p/include/plat/cma-stub.h
 
-diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-index 051c1b1..58cdbac 100644
---- a/include/linux/page-isolation.h
-+++ b/include/linux/page-isolation.h
-@@ -33,5 +33,12 @@ test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
- extern int set_migratetype_isolate(struct page *page);
- extern void unset_migratetype_isolate(struct page *page);
+diff --git a/arch/arm/mach-s5pv210/mach-aquila.c b/arch/arm/mach-s5pv210/mach-aquila.c
+index 28677ca..8608a16 100644
+--- a/arch/arm/mach-s5pv210/mach-aquila.c
++++ b/arch/arm/mach-s5pv210/mach-aquila.c
+@@ -39,6 +39,7 @@
+ #include <plat/fb.h>
+ #include <plat/fimc-core.h>
+ #include <plat/sdhci.h>
++#include <plat/cma-stub.h>
  
+ /* Following are default values for UCON, ULCON and UFCON UART registers */
+ #define AQUILA_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
+@@ -690,4 +691,5 @@ MACHINE_START(AQUILA, "Aquila")
+ 	.map_io		= aquila_map_io,
+ 	.init_machine	= aquila_machine_init,
+ 	.timer		= &s3c24xx_timer,
++	.reserve	= cma_mach_reserve,
+ MACHINE_END
+diff --git a/arch/arm/mach-s5pv210/mach-goni.c b/arch/arm/mach-s5pv210/mach-goni.c
+index b1dcf96..b1bf079 100644
+--- a/arch/arm/mach-s5pv210/mach-goni.c
++++ b/arch/arm/mach-s5pv210/mach-goni.c
+@@ -45,6 +45,7 @@
+ #include <plat/keypad.h>
+ #include <plat/sdhci.h>
+ #include <plat/clock.h>
++#include <plat/cma-stub.h>
+ 
+ /* Following are default values for UCON, ULCON and UFCON UART registers */
+ #define GONI_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
+@@ -865,4 +866,5 @@ MACHINE_START(GONI, "GONI")
+ 	.map_io		= goni_map_io,
+ 	.init_machine	= goni_machine_init,
+ 	.timer		= &s3c24xx_timer,
++	.reserve	= cma_mach_reserve,
+ MACHINE_END
+diff --git a/arch/arm/mach-s5pv310/mach-universal_c210.c b/arch/arm/mach-s5pv310/mach-universal_c210.c
+index 16d8fc0..d65703a 100644
+--- a/arch/arm/mach-s5pv310/mach-universal_c210.c
++++ b/arch/arm/mach-s5pv310/mach-universal_c210.c
+@@ -21,6 +21,7 @@
+ #include <plat/s5pv310.h>
+ #include <plat/cpu.h>
+ #include <plat/devs.h>
++#include <plat/cma-stub.h>
+ 
+ #include <mach/map.h>
+ 
+@@ -152,6 +153,7 @@ MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
+ 	.boot_params	= S5P_PA_SDRAM + 0x100,
+ 	.init_irq	= s5pv310_init_irq,
+ 	.map_io		= universal_map_io,
++	.reserve	= cma_mach_reserve,
+ 	.init_machine	= universal_machine_init,
+ 	.timer		= &s5pv310_timer,
+ MACHINE_END
+diff --git a/arch/arm/plat-s5p/Makefile b/arch/arm/plat-s5p/Makefile
+index de65238..6fdb6ce 100644
+--- a/arch/arm/plat-s5p/Makefile
++++ b/arch/arm/plat-s5p/Makefile
+@@ -28,3 +28,5 @@ obj-$(CONFIG_S5P_DEV_FIMC0)	+= dev-fimc0.o
+ obj-$(CONFIG_S5P_DEV_FIMC1)	+= dev-fimc1.o
+ obj-$(CONFIG_S5P_DEV_FIMC2)	+= dev-fimc2.o
+ obj-$(CONFIG_S5P_DEV_ONENAND)	+= dev-onenand.o
++
++obj-$(CONFIG_CMA) += cma-stub.o
+diff --git a/arch/arm/plat-s5p/cma-stub.c b/arch/arm/plat-s5p/cma-stub.c
+new file mode 100644
+index 0000000..716e56d
+--- /dev/null
++++ b/arch/arm/plat-s5p/cma-stub.c
+@@ -0,0 +1,49 @@
 +/*
-+ * For migration.
++ * This file is just a quick and dirty hack to get CMA testing device
++ * working.  The cma_mach_reserve() should be called as mach's reserve
++ * callback.  CMA testing device will use cma_ctx for allocations.
 + */
 +
-+int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn);
-+unsigned long scan_lru_pages(unsigned long start, unsigned long end);
-+int do_migrate_range(unsigned long start_pfn, unsigned long end_pfn);
- 
- #endif
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 2c6523a..2b18cb5 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -634,114 +634,6 @@ int is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
- }
- 
- /*
-- * Confirm all pages in a range [start, end) is belongs to the same zone.
-- */
--static int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
--{
--	unsigned long pfn;
--	struct zone *zone = NULL;
--	struct page *page;
--	int i;
--	for (pfn = start_pfn;
--	     pfn < end_pfn;
--	     pfn += MAX_ORDER_NR_PAGES) {
--		i = 0;
--		/* This is just a CONFIG_HOLES_IN_ZONE check.*/
--		while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + i))
--			i++;
--		if (i == MAX_ORDER_NR_PAGES)
--			continue;
--		page = pfn_to_page(pfn + i);
--		if (zone && page_zone(page) != zone)
--			return 0;
--		zone = page_zone(page);
--	}
--	return 1;
--}
--
--/*
-- * Scanning pfn is much easier than scanning lru list.
-- * Scan pfn from start to end and Find LRU page.
-- */
--static unsigned long scan_lru_pages(unsigned long start, unsigned long end)
--{
--	unsigned long pfn;
--	struct page *page;
--	for (pfn = start; pfn < end; pfn++) {
--		if (pfn_valid(pfn)) {
--			page = pfn_to_page(pfn);
--			if (PageLRU(page))
--				return pfn;
--		}
--	}
--	return 0;
--}
--
--static struct page *
--hotremove_migrate_alloc(struct page *page, unsigned long private, int **x)
--{
--	/* This should be improooooved!! */
--	return alloc_page(GFP_HIGHUSER_MOVABLE);
--}
--
--#define NR_OFFLINE_AT_ONCE_PAGES	(256)
--static int
--do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
--{
--	unsigned long pfn;
--	struct page *page;
--	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
--	int not_managed = 0;
--	int ret = 0;
--	LIST_HEAD(source);
--
--	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
--		if (!pfn_valid(pfn))
--			continue;
--		page = pfn_to_page(pfn);
--		if (!page_count(page))
--			continue;
--		/*
--		 * We can skip free pages. And we can only deal with pages on
--		 * LRU.
--		 */
--		ret = isolate_lru_page(page);
--		if (!ret) { /* Success */
--			list_add_tail(&page->lru, &source);
--			move_pages--;
--			inc_zone_page_state(page, NR_ISOLATED_ANON +
--					    page_is_file_cache(page));
--
--		} else {
--#ifdef CONFIG_DEBUG_VM
--			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
--			       pfn);
--			dump_page(page);
--#endif
--			/* Becasue we don't have big zone->lock. we should
--			   check this again here. */
--			if (page_count(page)) {
--				not_managed++;
--				ret = -EBUSY;
--				break;
--			}
--		}
--	}
--	if (!list_empty(&source)) {
--		if (not_managed) {
--			putback_lru_pages(&source);
--			goto out;
--		}
--		/* this function returns # of failed pages */
--		ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
--		if (ret)
--			putback_lru_pages(&source);
--	}
--out:
--	return ret;
--}
--
--/*
-  * remove from free_area[] and mark all as Reserved.
-  */
- static int
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 4ae42bb..077cf19 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -5,6 +5,9 @@
- #include <linux/mm.h>
- #include <linux/page-isolation.h>
- #include <linux/pageblock-flags.h>
-+#include <linux/memcontrol.h>
-+#include <linux/migrate.h>
-+#include <linux/mm_inline.h>
- #include "internal.h"
- 
- static inline struct page *
-@@ -139,3 +142,111 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
- 	spin_unlock_irqrestore(&zone->lock, flags);
- 	return ret ? 0 : -EBUSY;
- }
++#include <plat/cma-stub.h>
 +
++#include <linux/cma.h>
++#include <linux/err.h>
++#include <linux/init.h>
++#include <linux/kernel.h>
 +
-+/*
-+ * Confirm all pages in a range [start, end) is belongs to the same zone.
-+ */
-+int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
++struct cma *cma_ctx;
++
++#define cma_size (32UL << 20) /* 32 MiB */
++
++static unsigned long cma_start __initdata;
++
++void __init cma_mach_reserve(void)
 +{
-+	unsigned long pfn;
-+	struct zone *zone = NULL;
-+	struct page *page;
-+	int i;
-+	for (pfn = start_pfn;
-+	     pfn < end_pfn;
-+	     pfn += MAX_ORDER_NR_PAGES) {
-+		i = 0;
-+		/* This is just a CONFIG_HOLES_IN_ZONE check.*/
-+		while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + i))
-+			i++;
-+		if (i == MAX_ORDER_NR_PAGES)
-+			continue;
-+		page = pfn_to_page(pfn + i);
-+		if (zone && page_zone(page) != zone)
-+			return 0;
-+		zone = page_zone(page);
-+	}
-+	return 1;
++	unsigned long start = cma_reserve(0, cma_size, 0);
++	if (IS_ERR_VALUE(start))
++		printk(KERN_WARNING "cma: unable to reserve %lu for CMA: %d\n",
++		       cma_size >> 20, (int)start);
++	else
++		cma_start = start;
 +}
 +
-+/*
-+ * Scanning pfn is much easier than scanning lru list.
-+ * Scan pfn from start to end and Find LRU page.
-+ */
-+unsigned long scan_lru_pages(unsigned long start, unsigned long end)
++static int __init cma_mach_init(void)
 +{
-+	unsigned long pfn;
-+	struct page *page;
-+	for (pfn = start; pfn < end; pfn++) {
-+		if (pfn_valid(pfn)) {
-+			page = pfn_to_page(pfn);
-+			if (PageLRU(page))
-+				return pfn;
-+		}
-+	}
-+	return 0;
-+}
++	int ret = -ENOMEM;
 +
-+struct page *
-+hotremove_migrate_alloc(struct page *page, unsigned long private, int **x)
-+{
-+	/* This should be improooooved!! */
-+	return alloc_page(GFP_HIGHUSER_MOVABLE);
-+}
-+
-+#define NR_OFFLINE_AT_ONCE_PAGES	(256)
-+int do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
-+{
-+	unsigned long pfn;
-+	struct page *page;
-+	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
-+	int not_managed = 0;
-+	int ret = 0;
-+	LIST_HEAD(source);
-+
-+	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
-+		if (!pfn_valid(pfn))
-+			continue;
-+		page = pfn_to_page(pfn);
-+		if (!page_count(page))
-+			continue;
-+		/*
-+		 * We can skip free pages. And we can only deal with pages on
-+		 * LRU.
-+		 */
-+		ret = isolate_lru_page(page);
-+		if (!ret) { /* Success */
-+			list_add_tail(&page->lru, &source);
-+			move_pages--;
-+			inc_zone_page_state(page, NR_ISOLATED_ANON +
-+					    page_is_file_cache(page));
-+
++	if (cma_start) {
++		struct cma *ctx = cma_create(cma_start, cma_size);
++		if (IS_ERR(ctx)) {
++			ret = PTR_ERR(ctx);
++			printk(KERN_WARNING
++			       "cma: cma_create(%p, %p) failed: %d\n",
++			       (void *)cma_start, (void *)cma_size, ret);
 +		} else {
-+#ifdef CONFIG_DEBUG_VM
-+			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
-+			       pfn);
-+			dump_page(page);
-+#endif
-+			/* Because we don't have big zone->lock. we should
-+			   check this again here. */
-+			if (page_count(page)) {
-+				not_managed++;
-+				ret = -EBUSY;
-+				break;
-+			}
++			cma_ctx = ctx;
++			ret = 0;
 +		}
 +	}
-+	if (!list_empty(&source)) {
-+		if (not_managed) {
-+			putback_lru_pages(&source);
-+			goto out;
-+		}
-+		/* this function returns # of failed pages */
-+		ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
-+		if (ret)
-+			putback_lru_pages(&source);
-+	}
-+out:
++
 +	return ret;
 +}
++device_initcall(cma_mach_init);
+diff --git a/arch/arm/plat-s5p/include/plat/cma-stub.h b/arch/arm/plat-s5p/include/plat/cma-stub.h
+new file mode 100644
+index 0000000..a24a03b
+--- /dev/null
++++ b/arch/arm/plat-s5p/include/plat/cma-stub.h
+@@ -0,0 +1,21 @@
++/*
++ * This file is just a quick and dirty hack to get CMA testing device
++ * working.  The cma_mach_reserve() should be called as mach's reserve
++ * callback.  CMA testing device will use cma_ctx for allocations.
++ */
++
++struct cma;
++
++#ifdef CONFIG_CMA
++
++extern struct cma *cma_ctx;
++
++void cma_mach_reserve(void);
++
++#else
++
++#define cma_ctx ((struct cma *)NULL)
++
++#define cma_mach_reserve NULL
++
++#endif
 -- 
 1.7.2.3
 
