@@ -1,99 +1,141 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 15/35] writeback: adapt max balance pause time to memory size
-Date: Mon, 13 Dec 2010 22:47:01 +0800
-Message-ID: <20101213150328.166706725@intel.com>
+Subject: [PATCH 24/35] btrfs: dont call balance_dirty_pages_ratelimited() on already dirty pages
+Date: Mon, 13 Dec 2010 22:47:10 +0800
+Message-ID: <20101213150329.233623422@intel.com>
 References: <20101213144646.341970461@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PSA26-00024A-4G
-	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:09:46 +0100
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C17586B00A4
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:08:50 -0500 (EST)
-Content-Disposition: inline; filename=writeback-max-pause-time-for-small-memory-system.patch
+	id 1PSA29-00024Z-IE
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:09:49 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3750E6B00A2
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:08:51 -0500 (EST)
+Content-Disposition: inline; filename=btrfs-fix-balance-size.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-For small memory systems, sleeping for 200ms at a time is an overkill.
-Given 4MB dirty limit, all the dirty/writeback pages will be written to
-a 80MB/s disk within 50ms. If the task goes sleep for 200ms after it
-dirtied 4MB, the disk will go idle for 150ms without any new data feed.
+When doing 1KB sequential writes to the same page,
+balance_dirty_pages_ratelimited() should be called once instead of 4
+times. Failing to do so will make all tasks throttled much too heavy.
 
-So allow up to N milliseconds pause time for (4*N) MB bdi dirty limit.
-On a typical 4GB desktop, the max pause time will be ~150ms.
-
+CC: Chris Mason <chris.mason@oracle.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/page-writeback.c |   25 ++++++++++++++++++++++---
- 1 file changed, 22 insertions(+), 3 deletions(-)
+ fs/btrfs/file.c       |   11 +++++++----
+ fs/btrfs/ioctl.c      |    6 ++++--
+ fs/btrfs/relocation.c |    6 ++++--
+ 3 files changed, 15 insertions(+), 8 deletions(-)
 
---- linux-next.orig/mm/page-writeback.c	2010-12-13 21:46:15.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-12-13 21:46:16.000000000 +0800
-@@ -643,6 +643,22 @@ unlock:
- }
+--- linux-next.orig/fs/btrfs/file.c	2010-12-13 21:45:55.000000000 +0800
++++ linux-next/fs/btrfs/file.c	2010-12-13 21:46:19.000000000 +0800
+@@ -762,7 +762,8 @@ out:
+ static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
+ 			 struct page **pages, size_t num_pages,
+ 			 loff_t pos, unsigned long first_index,
+-			 unsigned long last_index, size_t write_bytes)
++			 unsigned long last_index, size_t write_bytes,
++			 int *nr_dirtied)
+ {
+ 	struct extent_state *cached_state = NULL;
+ 	int i;
+@@ -825,7 +826,8 @@ again:
+ 				     GFP_NOFS);
+ 	}
+ 	for (i = 0; i < num_pages; i++) {
+-		clear_page_dirty_for_io(pages[i]);
++		if (!clear_page_dirty_for_io(pages[i]))
++			(*nr_dirtied)++;
+ 		set_page_extent_mapped(pages[i]);
+ 		WARN_ON(!PageLocked(pages[i]));
+ 	}
+@@ -966,6 +968,7 @@ static ssize_t btrfs_file_aio_write(stru
+ 					 offset);
+ 		size_t num_pages = (write_bytes + PAGE_CACHE_SIZE - 1) >>
+ 					PAGE_CACHE_SHIFT;
++		int nr_dirtied = 0;
  
- /*
-+ * Limit pause time for small memory systems. If sleeping for too long time,
-+ * the small pool of dirty/writeback pages may go empty and disk go idle.
-+ */
-+static unsigned long max_pause(unsigned long bdi_thresh)
-+{
-+	unsigned long t;
-+
-+	/* 1ms for every 4MB */
-+	t = bdi_thresh >> (32 - PAGE_CACHE_SHIFT -
-+			   ilog2(roundup_pow_of_two(HZ)));
-+	t += 2;
-+
-+	return min_t(unsigned long, t, MAX_PAUSE);
-+}
-+
-+/*
-  * balance_dirty_pages() must be called by processes which are generating dirty
-  * data.  It looks at the number of dirty pages in the machine and will force
-  * the caller to perform writeback if the system is over `vm_dirty_ratio'.
-@@ -663,6 +679,7 @@ static void balance_dirty_pages(struct a
- 	unsigned long long bw;
- 	unsigned long period;
- 	unsigned long pause = 0;
-+	unsigned long pause_max;
- 	bool dirty_exceeded = false;
- 	struct backing_dev_info *bdi = mapping->backing_dev_info;
- 	unsigned long start_time = jiffies;
-@@ -715,8 +732,10 @@ static void balance_dirty_pages(struct a
- 		if (avg_dirty < bdi_dirty || avg_dirty > task_thresh)
- 			avg_dirty = bdi_dirty;
+ 		WARN_ON(num_pages > nrptrs);
+ 		memset(pages, 0, sizeof(struct page *) * nrptrs);
+@@ -976,7 +979,7 @@ static ssize_t btrfs_file_aio_write(stru
  
-+		pause_max = max_pause(bdi_thresh);
-+
- 		if (avg_dirty >= task_thresh || nr_dirty > dirty_thresh) {
--			pause = MAX_PAUSE;
-+			pause = pause_max;
- 			goto pause;
+ 		ret = prepare_pages(root, file, pages, num_pages,
+ 				    pos, first_index, last_index,
+-				    write_bytes);
++				    write_bytes, &nr_dirtied);
+ 		if (ret) {
+ 			btrfs_delalloc_release_space(inode, write_bytes);
+ 			goto out;
+@@ -1000,7 +1003,7 @@ static ssize_t btrfs_file_aio_write(stru
+ 						 pos + write_bytes - 1);
+ 		} else {
+ 			balance_dirty_pages_ratelimited_nr(inode->i_mapping,
+-							   num_pages);
++							   nr_dirtied);
+ 			if (num_pages <
+ 			    (root->leafsize >> PAGE_CACHE_SHIFT) + 1)
+ 				btrfs_btree_balance_dirty(root, 1);
+--- linux-next.orig/fs/btrfs/ioctl.c	2010-12-13 21:45:55.000000000 +0800
++++ linux-next/fs/btrfs/ioctl.c	2010-12-13 21:46:19.000000000 +0800
+@@ -647,6 +647,7 @@ static int btrfs_defrag_file(struct file
+ 	u64 skip = 0;
+ 	u64 defrag_end = 0;
+ 	unsigned long i;
++	int dirtied;
+ 	int ret;
+ 
+ 	if (inode->i_size == 0)
+@@ -751,7 +752,7 @@ again:
+ 
+ 		btrfs_set_extent_delalloc(inode, page_start, page_end, NULL);
+ 		ClearPageChecked(page);
+-		set_page_dirty(page);
++		dirtied = set_page_dirty(page);
+ 		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
+ 
+ loop_unlock:
+@@ -759,7 +760,8 @@ loop_unlock:
+ 		page_cache_release(page);
+ 		mutex_unlock(&inode->i_mutex);
+ 
+-		balance_dirty_pages_ratelimited_nr(inode->i_mapping, 1);
++		if (dirtied)
++			balance_dirty_pages_ratelimited_nr(inode->i_mapping, 1);
+ 		i++;
+ 	}
+ 
+--- linux-next.orig/fs/btrfs/relocation.c	2010-12-13 21:45:55.000000000 +0800
++++ linux-next/fs/btrfs/relocation.c	2010-12-13 21:46:19.000000000 +0800
+@@ -2894,6 +2894,7 @@ static int relocate_file_extent_cluster(
+ 	struct file_ra_state *ra;
+ 	int nr = 0;
+ 	int ret = 0;
++	int dirtied;
+ 
+ 	if (!cluster->nr)
+ 		return 0;
+@@ -2970,7 +2971,7 @@ static int relocate_file_extent_cluster(
  		}
  
-@@ -750,7 +769,7 @@ static void balance_dirty_pages(struct a
- 			pause = 1;
- 			break;
- 		}
--		pause = clamp_val(pause, 1, MAX_PAUSE);
-+		pause = clamp_val(pause, 1, pause_max);
+ 		btrfs_set_extent_delalloc(inode, page_start, page_end, NULL);
+-		set_page_dirty(page);
++		dirtied = set_page_dirty(page);
  
- pause:
- 		current->paused_when = jiffies;
-@@ -781,7 +800,7 @@ pause:
- 		current->nr_dirtied_pause = ratelimit_pages(bdi);
- 	else if (pause == 1)
- 		current->nr_dirtied_pause += current->nr_dirtied_pause / 32 + 1;
--	else if (pause >= MAX_PAUSE)
-+	else if (pause >= pause_max)
- 		/*
- 		 * when repeated, writing 1 page per 100ms on slow devices,
- 		 * i-(i+2)/4 will be able to reach 1 but never reduce to 0.
+ 		unlock_extent(&BTRFS_I(inode)->io_tree,
+ 			      page_start, page_end, GFP_NOFS);
+@@ -2978,7 +2979,8 @@ static int relocate_file_extent_cluster(
+ 		page_cache_release(page);
+ 
+ 		index++;
+-		balance_dirty_pages_ratelimited(inode->i_mapping);
++		if (dirtied)
++			balance_dirty_pages_ratelimited(inode->i_mapping);
+ 		btrfs_throttle(BTRFS_I(inode)->root);
+ 	}
+ 	WARN_ON(nr != cluster->nr);
 
 
 --
