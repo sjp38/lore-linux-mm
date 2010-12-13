@@ -1,82 +1,51 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 47/47] nfs: trace nfs_commit_release()
-Date: Mon, 13 Dec 2010 14:43:36 +0800
-Message-ID: <20101213064842.818298449@intel.com>
+Subject: [PATCH 43/47] nfs: dont change wbc->nr_to_write in write_inode()
+Date: Mon, 13 Dec 2010 14:43:32 +0800
+Message-ID: <20101213064842.310150037@intel.com>
 References: <20101213064249.648862451@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PS2Fy-00062X-2j
-	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 07:51:34 +0100
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C4E5A6B00A5
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 01:49:45 -0500 (EST)
-Content-Disposition: inline; filename=trace-nfs-commit-release.patch
+	id 1PS2G1-00063A-Fh
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 07:51:37 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2D4F96B00B6
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 01:49:46 -0500 (EST)
+Content-Disposition: inline; filename=writeback-nfs-commit-remove-nr_to_write.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Trond Myklebust <Trond.Myklebust@netapp.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
+It's introduced in commit 420e3646 ("NFS: Reduce the number of
+unnecessary COMMIT calls") and seems not necessary.
 
+CC: Trond Myklebust <Trond.Myklebust@netapp.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/nfs/write.c             |    3 +++
- include/trace/events/nfs.h |   31 +++++++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+)
+ fs/nfs/write.c |    9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)
 
---- linux-next.orig/fs/nfs/write.c	2010-12-08 22:44:38.000000000 +0800
-+++ linux-next/fs/nfs/write.c	2010-12-08 22:44:38.000000000 +0800
-@@ -1475,6 +1475,9 @@ static void nfs_commit_release(void *cal
+--- linux-next.orig/fs/nfs/write.c	2010-12-09 12:20:20.000000000 +0800
++++ linux-next/fs/nfs/write.c	2010-12-09 12:20:30.000000000 +0800
+@@ -1557,15 +1557,8 @@ static int nfs_commit_unstable_pages(str
  	}
- 	nfs_commit_clear_lock(NFS_I(data->inode));
- 	nfs_commit_wakeup(NFS_SERVER(data->inode));
-+	trace_nfs_commit_release(data->inode,
-+				 data->args.offset,
-+				 data->args.count);
- 	nfs_commitdata_release(calldata);
- }
  
---- linux-next.orig/include/trace/events/nfs.h	2010-12-08 22:44:38.000000000 +0800
-+++ linux-next/include/trace/events/nfs.h	2010-12-08 22:44:38.000000000 +0800
-@@ -51,6 +51,37 @@ TRACE_EVENT(nfs_commit_unstable_pages,
- 	)
- );
- 
-+TRACE_EVENT(nfs_commit_release,
-+
-+	TP_PROTO(struct inode *inode,
-+		 unsigned long offset,
-+		 unsigned long len),
-+
-+	TP_ARGS(inode, offset, len),
-+
-+	TP_STRUCT__entry(
-+		__array(char, name, 32)
-+		__field(unsigned long,	ino)
-+		__field(unsigned long,	offset)
-+		__field(unsigned long,	len)
-+	),
-+
-+	TP_fast_assign(
-+		strncpy(__entry->name,
-+			dev_name(inode->i_mapping->backing_dev_info->dev), 32);
-+		__entry->ino		= inode->i_ino;
-+		__entry->offset		= offset;
-+		__entry->len		= len;
-+	),
-+
-+	TP_printk("bdi %s: ino=%lu offset=%lu len=%lu",
-+		  __entry->name,
-+		  __entry->ino,
-+		  __entry->offset,
-+		  __entry->len
-+	)
-+);
-+
- 
- #endif /* _TRACE_NFS_H */
- 
+ 	ret = nfs_commit_inode(inode, flags);
+-	if (ret >= 0) {
+-		if (wbc->sync_mode == WB_SYNC_NONE) {
+-			if (ret < wbc->nr_to_write)
+-				wbc->nr_to_write -= ret;
+-			else
+-				wbc->nr_to_write = 0;
+-		}
++	if (ret >= 0)
+ 		return 0;
+-	}
+ out_mark_dirty:
+ 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+ 	return ret;
 
 
 --
