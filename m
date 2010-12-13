@@ -1,122 +1,125 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 08/35] writeback: user space think time compensation
-Date: Mon, 13 Dec 2010 22:46:54 +0800
-Message-ID: <20101213150327.344665065@intel.com>
+Subject: [PATCH 22/35] writeback: trace global dirty page states
+Date: Mon, 13 Dec 2010 22:47:08 +0800
+Message-ID: <20101213150329.002158963@intel.com>
 References: <20101213144646.341970461@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PSA1l-0001tS-NI
-	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:09:26 +0100
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 752A96B0095
+	id 1PSA1o-0001uz-Cw
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:09:28 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id C06EC6B00A3
 	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:08:50 -0500 (EST)
-Content-Disposition: inline; filename=writeback-task-last-dirty-time.patch
+Content-Disposition: inline; filename=writeback-trace-global-dirty-states.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Take the task's think time into account when computing the final pause time.
-This will make accurate throttle bandwidth. In the rare case that the task
-slept longer than the period time, the extra sleep time will also be
-compensated in next period if it's not too big (<100ms).  Accumulated
-errors are carefully avoided as long as the task don't sleep for too
-long time.
-
-case 1: period > think
-
-		pause = period - think
-		paused_when += pause
-
-			     period time
-	      |======================================>|
-		  think time
-	      |===============>|
-	------|----------------|----------------------|-----------
-	paused_when         jiffies
-
-
-case 2: period <= think
-
-		don't pause and reduce future pause time by:
-		paused_when += period
-
-		       period time
-	      |=========================>|
-			     think time
-	      |======================================>|
-	------|--------------------------+------------|-----------
-	paused_when                                jiffies
-
+Add trace balance_dirty_state for showing the global dirty page counts
+and thresholds at each balance_dirty_pages() loop.
 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/sched.h |    1 +
- mm/page-writeback.c   |   22 ++++++++++++++++++++--
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ include/trace/events/writeback.h |   57 +++++++++++++++++++++++++++++
+ mm/page-writeback.c              |   15 ++++++-
+ 2 files changed, 69 insertions(+), 3 deletions(-)
 
---- linux-next.orig/include/linux/sched.h	2010-12-13 21:46:13.000000000 +0800
-+++ linux-next/include/linux/sched.h	2010-12-13 21:46:13.000000000 +0800
-@@ -1477,6 +1477,7 @@ struct task_struct {
- 	 */
- 	int nr_dirtied;
- 	int nr_dirtied_pause;
-+	unsigned long paused_when;	/* start of a write-and-pause period */
+--- linux-next.orig/mm/page-writeback.c	2010-12-13 21:46:18.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-12-13 21:46:18.000000000 +0800
+@@ -713,12 +713,21 @@ static void balance_dirty_pages(struct a
+ 		 * written to the server's write cache, but has not yet
+ 		 * been flushed to permanent storage.
+ 		 */
+-		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
+-					global_page_state(NR_UNSTABLE_NFS);
+-		nr_dirty = nr_reclaimable + global_page_state(NR_WRITEBACK);
++		nr_reclaimable = global_page_state(NR_FILE_DIRTY);
++		bdi_dirty = global_page_state(NR_UNSTABLE_NFS);
++		nr_dirty = global_page_state(NR_WRITEBACK);
  
- #ifdef CONFIG_LATENCYTOP
- 	int latency_record_count;
---- linux-next.orig/mm/page-writeback.c	2010-12-13 21:46:13.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-12-13 21:46:13.000000000 +0800
-@@ -537,6 +537,7 @@ static void balance_dirty_pages(struct a
- 	unsigned long dirty_thresh;
- 	unsigned long bdi_thresh;
- 	unsigned long bw;
-+	unsigned long period;
- 	unsigned long pause = 0;
- 	bool dirty_exceeded = false;
- 	struct backing_dev_info *bdi = mapping->backing_dev_info;
-@@ -583,7 +584,7 @@ static void balance_dirty_pages(struct a
- 				    bdi_stat(bdi, BDI_WRITEBACK);
- 		}
+ 		global_dirty_limits(&background_thresh, &dirty_thresh);
  
--		if (bdi_dirty >= bdi_thresh) {
-+		if (bdi_dirty >= bdi_thresh || nr_dirty > dirty_thresh) {
- 			pause = MAX_PAUSE;
- 			goto pause;
- 		}
-@@ -593,12 +594,29 @@ static void balance_dirty_pages(struct a
- 		bw = bw * (bdi_thresh - bdi_dirty);
- 		do_div(bw, bdi_thresh / TASK_SOFT_DIRTY_LIMIT + 1);
- 
--		pause = HZ * (pages_dirtied << PAGE_CACHE_SHIFT) / (bw + 1);
-+		period = HZ * (pages_dirtied << PAGE_CACHE_SHIFT) / (bw + 1) + 1;
-+		pause = current->paused_when + period - jiffies;
-+		/*
-+		 * Take it as long think time if pause falls into (-10s, 0).
-+		 * If it's less than 100ms, try to compensate it in future by
-+		 * updating the virtual time; otherwise just reset the time, as
-+		 * it may be a light dirtier.
-+		 */
-+		if (unlikely(-pause < HZ*10)) {
-+			if (-pause <= HZ/10)
-+				current->paused_when += period;
-+			else
-+				current->paused_when = jiffies;
-+			pause = 1;
-+			break;
-+		}
- 		pause = clamp_val(pause, 1, MAX_PAUSE);
- 
- pause:
-+		current->paused_when = jiffies;
- 		__set_current_state(TASK_UNINTERRUPTIBLE);
- 		io_schedule_timeout(pause);
-+		current->paused_when += pause;
- 
++		trace_balance_dirty_state(mapping,
++					  nr_reclaimable,
++					  nr_dirty,
++					  bdi_dirty,
++					  background_thresh,
++					  dirty_thresh);
++		nr_reclaimable += bdi_dirty;
++		nr_dirty += nr_reclaimable;
++
  		/*
- 		 * The bdi thresh is somehow "soft" limit derived from the
+ 		 * Throttle it only when the background writeback cannot
+ 		 * catch-up. This avoids (excessively) small writeouts
+--- linux-next.orig/include/trace/events/writeback.h	2010-12-13 21:46:18.000000000 +0800
++++ linux-next/include/trace/events/writeback.h	2010-12-13 21:46:18.000000000 +0800
+@@ -149,6 +149,63 @@ DEFINE_WBC_EVENT(wbc_writeback_written);
+ DEFINE_WBC_EVENT(wbc_writeback_wait);
+ DEFINE_WBC_EVENT(wbc_writepage);
+ 
++TRACE_EVENT(balance_dirty_state,
++
++	TP_PROTO(struct address_space *mapping,
++		 unsigned long nr_dirty,
++		 unsigned long nr_writeback,
++		 unsigned long nr_unstable,
++		 unsigned long background_thresh,
++		 unsigned long dirty_thresh
++	),
++
++	TP_ARGS(mapping,
++		nr_dirty,
++		nr_writeback,
++		nr_unstable,
++		background_thresh,
++		dirty_thresh
++	),
++
++	TP_STRUCT__entry(
++		__array(char,		bdi, 32)
++		__field(unsigned long,	ino)
++		__field(unsigned long,	nr_dirty)
++		__field(unsigned long,	nr_writeback)
++		__field(unsigned long,	nr_unstable)
++		__field(unsigned long,	background_thresh)
++		__field(unsigned long,	dirty_thresh)
++		__field(unsigned long,	task_dirtied_pause)
++	),
++
++	TP_fast_assign(
++		strlcpy(__entry->bdi,
++			dev_name(mapping->backing_dev_info->dev), 32);
++		__entry->ino			= mapping->host->i_ino;
++		__entry->nr_dirty		= nr_dirty;
++		__entry->nr_writeback		= nr_writeback;
++		__entry->nr_unstable		= nr_unstable;
++		__entry->background_thresh	= background_thresh;
++		__entry->dirty_thresh		= dirty_thresh;
++		__entry->task_dirtied_pause	= current->nr_dirtied_pause;
++	),
++
++	TP_printk("bdi %s: dirty=%lu wb=%lu unstable=%lu "
++		  "bg_thresh=%lu thresh=%lu gap=%ld "
++		  "poll_thresh=%lu ino=%lu",
++		  __entry->bdi,
++		  __entry->nr_dirty,
++		  __entry->nr_writeback,
++		  __entry->nr_unstable,
++		  __entry->background_thresh,
++		  __entry->dirty_thresh,
++		  __entry->dirty_thresh - __entry->nr_dirty -
++		  __entry->nr_writeback - __entry->nr_unstable,
++		  __entry->task_dirtied_pause,
++		  __entry->ino
++	)
++);
++
+ #define KBps(x)			((x) << (PAGE_SHIFT - 10))
+ #define BDP_PERCENT(a, b, c)	(((__entry->a) - (__entry->b)) * 100 * (c) + \
+ 				  __entry->bdi_limit/2) / (__entry->bdi_limit|1)
 
 
 --
