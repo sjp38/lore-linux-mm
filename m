@@ -1,83 +1,68 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 02/47] writeback: safety margin for bdi stat error
-Date: Mon, 13 Dec 2010 14:42:51 +0800
-Message-ID: <20101213064837.177415939@intel.com>
+Subject: [PATCH 11/47] writeback: reduce per-bdi dirty threshold ramp up time
+Date: Mon, 13 Dec 2010 14:43:00 +0800
+Message-ID: <20101213064838.285412238@intel.com>
 References: <20101213064249.648862451@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PS2EN-0005Rp-BV
-	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 07:49:55 +0100
+	id 1PS2EQ-0005U4-A1
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 07:49:58 +0100
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 08B9B6B0092
+	by kanga.kvack.org (Postfix) with SMTP id 0AFF96B0093
 	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 01:49:39 -0500 (EST)
-Content-Disposition: inline; filename=writeback-bdi-error.patch
+Content-Disposition: inline; filename=writeback-speedup-per-bdi-threshold-ramp-up.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Richard Kennedy <richard@rsk.demon.co.uk>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-In a simple dd test on a 8p system with "mem=256M", I find all light
-dirtier tasks on the root fs are get heavily throttled. That happens
-because the global limit is exceeded. It's unbelievable at first sight,
-because the test fs doing the heavy dd is under its bdi limit.  After
-doing some tracing, it's discovered that
+Reduce the dampening for the control system, yielding faster
+convergence.
 
-        bdi_dirty < bdi_dirty_limit() < global_dirty_limit() < nr_dirty
+Currently it converges at a snail's pace for slow devices (in order of
+minutes).  For really fast storage, the convergence speed should be fine.
 
-So the root cause is, the bdi_dirty is well under the global nr_dirty
-due to accounting errors. This can be fixed by using bdi_stat_sum(),
-however that's costly on large NUMA machines. So do a less costly fix
-of lowering the bdi limit, so that the accounting errors won't lead to
-the absurd situation "global limit exceeded but bdi limit not exceeded".
+It makes sense to make it reasonably fast for typical desktops.
 
-This provides guarantee when there is only 1 heavily dirtied bdi, and
-works by opportunity for 2+ heavy dirtied bdi's (hopefully they won't
-reach big error _and_ exceed their bdi limit at the same time).
+After patch, it converges in ~10 seconds for 60MB/s writes and 4GB mem.
+So expect ~1s for a fast 600MB/s storage under 4GB mem, or ~4s under
+16GB mem, which seems reasonable.
+
+$ while true; do grep BdiDirtyThresh /debug/bdi/8:0/stats; sleep 1; done
+BdiDirtyThresh:            0 kB
+BdiDirtyThresh:       118748 kB
+BdiDirtyThresh:       214280 kB
+BdiDirtyThresh:       303868 kB
+BdiDirtyThresh:       376528 kB
+BdiDirtyThresh:       411180 kB
+BdiDirtyThresh:       448636 kB
+BdiDirtyThresh:       472260 kB
+BdiDirtyThresh:       490924 kB
+BdiDirtyThresh:       499596 kB
+BdiDirtyThresh:       507068 kB
+...
+DirtyThresh:          530392 kB
 
 CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Richard Kennedy <richard@rsk.demon.co.uk>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/page-writeback.c |   18 ++++++++++++++++--
- 1 file changed, 16 insertions(+), 2 deletions(-)
+ mm/page-writeback.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
---- linux-next.orig/mm/page-writeback.c	2010-12-08 22:44:21.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-12-08 22:44:21.000000000 +0800
-@@ -434,10 +434,16 @@ void global_dirty_limits(unsigned long *
- 	*pdirty = dirty;
+--- linux-next.orig/mm/page-writeback.c	2010-12-08 22:44:25.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-12-08 22:44:25.000000000 +0800
+@@ -125,7 +125,7 @@ static int calc_period_shift(void)
+ 	else
+ 		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
+ 				100;
+-	return 2 + ilog2(dirty_total - 1);
++	return ilog2(dirty_total - 1) - 1;
  }
  
--/*
-+/**
-  * bdi_dirty_limit - @bdi's share of dirty throttling threshold
-+ * @bdi: the backing_dev_info to query
-+ * @dirty: global dirty limit in pages
-+ * @dirty_pages: current number of dirty pages
-  *
-- * Allocate high/low dirty limits to fast/slow devices, in order to prevent
-+ * Returns @bdi's dirty limit in pages. The term "dirty" in the context of
-+ * dirty balancing includes all PG_dirty, PG_writeback and NFS unstable pages.
-+ *
-+ * It allocates high/low dirty limits to fast/slow devices, in order to prevent
-  * - starving fast devices
-  * - piling up dirty pages (that will take long time to sync) on slow devices
-  *
-@@ -458,6 +464,14 @@ unsigned long bdi_dirty_limit(struct bac
- 	long numerator, denominator;
- 
- 	/*
-+	 * try to prevent "global limit exceeded but bdi limit not exceeded"
-+	 */
-+	if (likely(dirty > bdi_stat_error(bdi)))
-+		dirty -= bdi_stat_error(bdi);
-+	else
-+		return 0;
-+
-+	/*
- 	 * Provide a global safety margin of ~1%, or up to 32MB for a 20GB box.
- 	 */
- 	dirty -= min(dirty / 128, 32768ULL >> (PAGE_SHIFT-10));
+ /*
 
 
 --
