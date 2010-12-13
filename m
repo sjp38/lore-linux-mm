@@ -1,99 +1,213 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 27/35] nfs: livelock prevention is now done in VFS
-Date: Mon, 13 Dec 2010 22:47:13 +0800
-Message-ID: <20101213150329.592797204@intel.com>
+Subject: [PATCH 21/35] writeback: trace balance_dirty_pages()
+Date: Mon, 13 Dec 2010 22:47:07 +0800
+Message-ID: <20101213150328.886689684@intel.com>
 References: <20101213144646.341970461@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PSA1u-0001xK-TZ
-	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:09:35 +0100
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id D62FE6B00A5
+	id 1PSA1y-0001zi-Ai
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:09:38 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9FA9E6B0099
 	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:08:50 -0500 (EST)
-Content-Disposition: inline; filename=nfs-revert-livelock-72cb77f4a5ac.patch
+Content-Disposition: inline; filename=writeback-trace-balance_dirty_pages.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Trond Myklebust <Trond.Myklebust@netapp.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-This reverts commit 72cb77f4a5 ("NFS: Throttle page dirtying while we're
-flushing to disk"). The two problems it tries to address
+It would be useful for analyzing the dynamics of the throttling
+algorithms, and helpful for debugging user reported problems.
 
-- sync live lock
-- out of order writes
+Here is an interesting test to verify the theory with balance_dirty_pages()
+tracing. On a partition that can do ~60MB/s, a sparse file is created and
+4 rsync tasks with different write bandwidth started:
 
-are now all addressed in the VFS
+	dd if=/dev/zero of=/mnt/1T bs=1M count=1 seek=1024000
+	echo 1 > /debug/tracing/events/writeback/balance_dirty_pages/enable
 
-- PAGECACHE_TAG_TOWRITE prevents sync live lock
-- IO-less balance_dirty_pages() avoids concurrent writes
+	rsync localhost:/mnt/1T /mnt/a --bwlimit 10000&
+	rsync localhost:/mnt/1T /mnt/A --bwlimit 10000&
+	rsync localhost:/mnt/1T /mnt/b --bwlimit 20000&
+	rsync localhost:/mnt/1T /mnt/c --bwlimit 30000&
 
-CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+Trace outputs within 0.1 second, grouped by tasks:
+
+rsync-3824  [004] 15002.076447: balance_dirty_pages: bdi=btrfs-2 weight=15% limit=130876 gap=5340 dirtied=192 pause=20
+
+rsync-3822  [003] 15002.091701: balance_dirty_pages: bdi=btrfs-2 weight=15% limit=130777 gap=5113 dirtied=192 pause=20
+
+rsync-3821  [006] 15002.004667: balance_dirty_pages: bdi=btrfs-2 weight=30% limit=129570 gap=3714 dirtied=64 pause=8
+rsync-3821  [006] 15002.012654: balance_dirty_pages: bdi=btrfs-2 weight=30% limit=129589 gap=3733 dirtied=64 pause=8
+rsync-3821  [006] 15002.021838: balance_dirty_pages: bdi=btrfs-2 weight=30% limit=129604 gap=3748 dirtied=64 pause=8
+rsync-3821  [004] 15002.091193: balance_dirty_pages: bdi=btrfs-2 weight=29% limit=129583 gap=3983 dirtied=64 pause=8
+rsync-3821  [004] 15002.102729: balance_dirty_pages: bdi=btrfs-2 weight=29% limit=129594 gap=3802 dirtied=64 pause=8
+rsync-3821  [000] 15002.109252: balance_dirty_pages: bdi=btrfs-2 weight=29% limit=129619 gap=3827 dirtied=64 pause=8
+
+rsync-3823  [002] 15002.009029: balance_dirty_pages: bdi=btrfs-2 weight=39% limit=128762 gap=2842 dirtied=64 pause=12
+rsync-3823  [002] 15002.021598: balance_dirty_pages: bdi=btrfs-2 weight=39% limit=128813 gap=3021 dirtied=64 pause=12
+rsync-3823  [003] 15002.032973: balance_dirty_pages: bdi=btrfs-2 weight=39% limit=128805 gap=2885 dirtied=64 pause=12
+rsync-3823  [003] 15002.048800: balance_dirty_pages: bdi=btrfs-2 weight=39% limit=128823 gap=2967 dirtied=64 pause=12
+rsync-3823  [003] 15002.060728: balance_dirty_pages: bdi=btrfs-2 weight=39% limit=128821 gap=3221 dirtied=64 pause=12
+rsync-3823  [000] 15002.073152: balance_dirty_pages: bdi=btrfs-2 weight=39% limit=128825 gap=3225 dirtied=64 pause=12
+rsync-3823  [005] 15002.090111: balance_dirty_pages: bdi=btrfs-2 weight=39% limit=128782 gap=3214 dirtied=64 pause=12
+rsync-3823  [004] 15002.102520: balance_dirty_pages: bdi=btrfs-2 weight=39% limit=128764 gap=3036 dirtied=64 pause=12
+
+The data vividly show that
+
+- the heaviest writer is throttled a bit (weight=39%)
+
+- the lighter writers run at full speed (weight=15%,15%,30%)
+
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/nfs/file.c          |    9 ---------
- fs/nfs/write.c         |   11 -----------
- include/linux/nfs_fs.h |    1 -
- 3 files changed, 21 deletions(-)
+ include/trace/events/writeback.h |   87 ++++++++++++++++++++++++++++-
+ mm/page-writeback.c              |   20 ++++++
+ 2 files changed, 104 insertions(+), 3 deletions(-)
 
---- linux-next.orig/fs/nfs/file.c	2010-12-13 21:45:55.000000000 +0800
-+++ linux-next/fs/nfs/file.c	2010-12-13 21:46:20.000000000 +0800
-@@ -392,15 +392,6 @@ static int nfs_write_begin(struct file *
- 			   IOMODE_RW);
+--- linux-next.orig/include/trace/events/writeback.h	2010-12-13 21:46:09.000000000 +0800
++++ linux-next/include/trace/events/writeback.h	2010-12-13 21:46:18.000000000 +0800
+@@ -147,11 +147,92 @@ DEFINE_EVENT(wbc_class, name, \
+ DEFINE_WBC_EVENT(wbc_writeback_start);
+ DEFINE_WBC_EVENT(wbc_writeback_written);
+ DEFINE_WBC_EVENT(wbc_writeback_wait);
+-DEFINE_WBC_EVENT(wbc_balance_dirty_start);
+-DEFINE_WBC_EVENT(wbc_balance_dirty_written);
+-DEFINE_WBC_EVENT(wbc_balance_dirty_wait);
+ DEFINE_WBC_EVENT(wbc_writepage);
  
- start:
--	/*
--	 * Prevent starvation issues if someone is doing a consistency
--	 * sync-to-disk
--	 */
--	ret = wait_on_bit(&NFS_I(mapping->host)->flags, NFS_INO_FLUSHING,
--			nfs_wait_bit_killable, TASK_KILLABLE);
--	if (ret)
--		return ret;
--
- 	page = grab_cache_page_write_begin(mapping, index, flags);
- 	if (!page)
- 		return -ENOMEM;
---- linux-next.orig/fs/nfs/write.c	2010-12-13 21:45:55.000000000 +0800
-+++ linux-next/fs/nfs/write.c	2010-12-13 21:46:20.000000000 +0800
-@@ -337,26 +337,15 @@ static int nfs_writepages_callback(struc
- int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
- {
- 	struct inode *inode = mapping->host;
--	unsigned long *bitlock = &NFS_I(inode)->flags;
- 	struct nfs_pageio_descriptor pgio;
- 	int err;
++#define KBps(x)			((x) << (PAGE_SHIFT - 10))
++#define BDP_PERCENT(a, b, c)	(((__entry->a) - (__entry->b)) * 100 * (c) + \
++				  __entry->bdi_limit/2) / (__entry->bdi_limit|1)
++
++TRACE_EVENT(balance_dirty_pages,
++
++	TP_PROTO(struct backing_dev_info *bdi,
++		 long bdi_dirty,
++		 long avg_dirty,
++		 long bdi_limit,
++		 long task_limit,
++		 long dirtied,
++		 long task_bw,
++		 long period,
++		 long pause),
++
++	TP_ARGS(bdi, bdi_dirty, avg_dirty, bdi_limit, task_limit,
++		dirtied, task_bw, period, pause),
++
++	TP_STRUCT__entry(
++		__array(char,	bdi, 32)
++		__field(long,	bdi_dirty)
++		__field(long,	avg_dirty)
++		__field(long,	bdi_limit)
++		__field(long,	task_limit)
++		__field(long,	dirtied)
++		__field(long,	bdi_bw)
++		__field(long,	base_bw)
++		__field(long,	task_bw)
++		__field(long,	period)
++		__field(long,	think)
++		__field(long,	pause)
++	),
++
++	TP_fast_assign(
++		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
++		__entry->bdi_dirty	= bdi_dirty;
++		__entry->avg_dirty	= avg_dirty;
++		__entry->bdi_limit	= bdi_limit;
++		__entry->task_limit	= task_limit;
++		__entry->dirtied	= dirtied;
++		__entry->bdi_bw		= KBps(bdi->write_bandwidth);
++		__entry->base_bw	= KBps(bdi->throttle_bandwidth);
++		__entry->task_bw	= KBps(task_bw);
++		__entry->think		= current->paused_when == 0 ? 0 :
++			 (long)(jiffies - current->paused_when) * 1000 / HZ;
++		__entry->period		= period * 1000 / HZ;
++		__entry->pause		= pause * 1000 / HZ;
++	),
++
++
++	/*
++	 *            [..............soft throttling range............]
++	 *            ^               |<=========== bdi_gap =========>|
++	 * (background+dirty)/2       |<== task_gap ==>|
++	 * -------------------|-------+----------------|--------------|
++	 *   (bdi_limit * 7/8)^       ^bdi_dirty       ^task_limit    ^bdi_limit
++	 *
++	 * Reasonable large gaps help produce smooth pause times.
++	 */
++	TP_printk("bdi %s: "
++		  "bdi_limit=%lu task_limit=%lu bdi_dirty=%lu avg_dirty=%lu "
++		  "bdi_gap=%ld%% task_gap=%ld%% task_weight=%ld%% "
++		  "bdi_bw=%lu base_bw=%lu task_bw=%lu "
++		  "dirtied=%lu period=%lu think=%ld pause=%ld",
++		  __entry->bdi,
++		  __entry->bdi_limit,
++		  __entry->task_limit,
++		  __entry->bdi_dirty,
++		  __entry->avg_dirty,
++		  BDP_PERCENT(bdi_limit, bdi_dirty, BDI_SOFT_DIRTY_LIMIT),
++		  BDP_PERCENT(task_limit, avg_dirty, TASK_SOFT_DIRTY_LIMIT),
++		  /* task weight: proportion of recent dirtied pages */
++		  BDP_PERCENT(bdi_limit, task_limit, TASK_SOFT_DIRTY_LIMIT),
++		  __entry->bdi_bw,	/* bdi write bandwidth */
++		  __entry->base_bw,	/* bdi base throttle bandwidth */
++		  __entry->task_bw,	/* task throttle bandwidth */
++		  __entry->dirtied,
++		  __entry->period,	/* ms */
++		  __entry->think,	/* ms */
++		  __entry->pause	/* ms */
++		  )
++);
++
+ DECLARE_EVENT_CLASS(writeback_congest_waited_template,
  
--	/* Stop dirtying of new pages while we sync */
--	err = wait_on_bit_lock(bitlock, NFS_INO_FLUSHING,
--			nfs_wait_bit_killable, TASK_KILLABLE);
--	if (err)
--		goto out_err;
--
- 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
+ 	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
+--- linux-next.orig/mm/page-writeback.c	2010-12-13 21:46:17.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-12-13 21:46:18.000000000 +0800
+@@ -778,6 +778,8 @@ static void balance_dirty_pages(struct a
+ 		pause_max = max_pause(bdi_thresh);
  
- 	nfs_pageio_init_write(&pgio, inode, wb_priority(wbc));
- 	err = write_cache_pages(mapping, wbc, nfs_writepages_callback, &pgio);
- 	nfs_pageio_complete(&pgio);
+ 		if (avg_dirty >= task_thresh || nr_dirty > dirty_thresh) {
++			bw = 0;
++			period = 0;
+ 			pause = pause_max;
+ 			goto pause;
+ 		}
+@@ -805,6 +807,15 @@ static void balance_dirty_pages(struct a
+ 		 * it may be a light dirtier.
+ 		 */
+ 		if (unlikely(-pause < HZ*10)) {
++			trace_balance_dirty_pages(bdi,
++						  bdi_dirty,
++						  avg_dirty,
++						  bdi_thresh,
++						  task_thresh,
++						  pages_dirtied,
++						  bw,
++						  period,
++						  pause);
+ 			if (-pause <= HZ/10)
+ 				current->paused_when += period;
+ 			else
+@@ -815,6 +826,15 @@ static void balance_dirty_pages(struct a
+ 		pause = clamp_val(pause, 1, pause_max);
  
--	clear_bit_unlock(NFS_INO_FLUSHING, bitlock);
--	smp_mb__after_clear_bit();
--	wake_up_bit(bitlock, NFS_INO_FLUSHING);
--
- 	if (err < 0)
- 		goto out_err;
- 	err = pgio.pg_error;
---- linux-next.orig/include/linux/nfs_fs.h	2010-12-13 21:45:55.000000000 +0800
-+++ linux-next/include/linux/nfs_fs.h	2010-12-13 21:46:20.000000000 +0800
-@@ -216,7 +216,6 @@ struct nfs_inode {
- #define NFS_INO_STALE		(1)		/* possible stale inode */
- #define NFS_INO_ACL_LRU_SET	(2)		/* Inode is on the LRU list */
- #define NFS_INO_MOUNTPOINT	(3)		/* inode is remote mountpoint */
--#define NFS_INO_FLUSHING	(4)		/* inode is flushing out data */
- #define NFS_INO_FSCACHE		(5)		/* inode can be cached by FS-Cache */
- #define NFS_INO_FSCACHE_LOCK	(6)		/* FS-Cache cookie management lock */
- #define NFS_INO_COMMIT		(7)		/* inode is committing unstable writes */
+ pause:
++		trace_balance_dirty_pages(bdi,
++					  bdi_dirty,
++					  avg_dirty,
++					  bdi_thresh,
++					  task_thresh,
++					  pages_dirtied,
++					  bw,
++					  period,
++					  pause);
+ 		current->paused_when = jiffies;
+ 		__set_current_state(TASK_UNINTERRUPTIBLE);
+ 		io_schedule_timeout(pause);
 
 
 --
