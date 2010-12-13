@@ -1,76 +1,68 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 11/35] writeback: show bdi write bandwidth in debugfs
-Date: Mon, 13 Dec 2010 22:46:57 +0800
-Message-ID: <20101213150327.692180857@intel.com>
+Subject: [PATCH 04/35] writeback: reduce per-bdi dirty threshold ramp up time
+Date: Mon, 13 Dec 2010 22:46:50 +0800
+Message-ID: <20101213150326.856922289@intel.com>
 References: <20101213144646.341970461@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PSA1I-0001b7-7x
-	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:08:56 +0100
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 169EE6B0093
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:08:48 -0500 (EST)
-Content-Disposition: inline; filename=writeback-bandwidth-show.patch
+	id 1PSA1L-0001cC-M6
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:08:59 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8CAD16B0095
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:08:49 -0500 (EST)
+Content-Disposition: inline; filename=writeback-speedup-per-bdi-threshold-ramp-up.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Theodore Tso <tytso@mit.edu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Richard Kennedy <richard@rsk.demon.co.uk>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Add a "BdiWriteBandwidth" entry (and indent others) in /debug/bdi/*/stats.
+Reduce the dampening for the control system, yielding faster
+convergence.
 
-btw increase digital field width to 10, for keeping the possibly
-huge BdiWritten number aligned at least for desktop systems.
+Currently it converges at a snail's pace for slow devices (in order of
+minutes).  For really fast storage, the convergence speed should be fine.
 
-This will break user space tools if they are dumb enough to depend on
-the number of white spaces.
+It makes sense to make it reasonably fast for typical desktops.
 
-CC: Theodore Ts'o <tytso@mit.edu>
-CC: Jan Kara <jack@suse.cz>
+After patch, it converges in ~10 seconds for 60MB/s writes and 4GB mem.
+So expect ~1s for a fast 600MB/s storage under 4GB mem, or ~4s under
+16GB mem, which seems reasonable.
+
+$ while true; do grep BdiDirtyThresh /debug/bdi/8:0/stats; sleep 1; done
+BdiDirtyThresh:            0 kB
+BdiDirtyThresh:       118748 kB
+BdiDirtyThresh:       214280 kB
+BdiDirtyThresh:       303868 kB
+BdiDirtyThresh:       376528 kB
+BdiDirtyThresh:       411180 kB
+BdiDirtyThresh:       448636 kB
+BdiDirtyThresh:       472260 kB
+BdiDirtyThresh:       490924 kB
+BdiDirtyThresh:       499596 kB
+BdiDirtyThresh:       507068 kB
+...
+DirtyThresh:          530392 kB
+
 CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Richard Kennedy <richard@rsk.demon.co.uk>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/backing-dev.c |   24 +++++++++++++-----------
- 1 file changed, 13 insertions(+), 11 deletions(-)
+ mm/page-writeback.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
---- linux-next.orig/mm/backing-dev.c	2010-12-13 21:46:14.000000000 +0800
-+++ linux-next/mm/backing-dev.c	2010-12-13 21:46:14.000000000 +0800
-@@ -87,21 +87,23 @@ static int bdi_debug_stats_show(struct s
+--- linux-next.orig/mm/page-writeback.c	2010-12-13 21:46:11.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-12-13 21:46:11.000000000 +0800
+@@ -145,7 +145,7 @@ static int calc_period_shift(void)
+ 	else
+ 		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
+ 				100;
+-	return 2 + ilog2(dirty_total - 1);
++	return ilog2(dirty_total - 1) - 1;
+ }
  
- #define K(x) ((x) << (PAGE_SHIFT - 10))
- 	seq_printf(m,
--		   "BdiWriteback:     %8lu kB\n"
--		   "BdiReclaimable:   %8lu kB\n"
--		   "BdiDirtyThresh:   %8lu kB\n"
--		   "DirtyThresh:      %8lu kB\n"
--		   "BackgroundThresh: %8lu kB\n"
--		   "BdiWritten:       %8lu kB\n"
--		   "b_dirty:          %8lu\n"
--		   "b_io:             %8lu\n"
--		   "b_more_io:        %8lu\n"
--		   "bdi_list:         %8u\n"
--		   "state:            %8lx\n",
-+		   "BdiWriteback:       %10lu kB\n"
-+		   "BdiReclaimable:     %10lu kB\n"
-+		   "BdiDirtyThresh:     %10lu kB\n"
-+		   "DirtyThresh:        %10lu kB\n"
-+		   "BackgroundThresh:   %10lu kB\n"
-+		   "BdiWritten:         %10lu kB\n"
-+		   "BdiWriteBandwidth:  %10lu kBps\n"
-+		   "b_dirty:            %10lu\n"
-+		   "b_io:               %10lu\n"
-+		   "b_more_io:          %10lu\n"
-+		   "bdi_list:           %10u\n"
-+		   "state:              %10lx\n",
- 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
- 		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
- 		   K(bdi_thresh), K(dirty_thresh), K(background_thresh),
- 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITTEN)),
-+		   (unsigned long) K(bdi->write_bandwidth),
- 		   nr_dirty, nr_io, nr_more_io,
- 		   !list_empty(&bdi->bdi_list), bdi->state);
- #undef K
+ /*
 
 
 --
