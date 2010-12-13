@@ -1,70 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 64B446B008A
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 13:24:24 -0500 (EST)
-Subject: Re: [PATCH 16/35] writeback: increase min pause time on concurrent dirtiers
-In-Reply-To: Your message of "Mon, 13 Dec 2010 22:47:02 +0800."
-             <20101213150328.284979629@intel.com>
-From: Valdis.Kletnieks@vt.edu
-References: <20101213144646.341970461@intel.com>
-            <20101213150328.284979629@intel.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1292264611_4828P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 13 Dec 2010 13:23:31 -0500
-Message-ID: <15881.1292264611@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 557806B008A
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 14:34:22 -0500 (EST)
+Received: by pwj8 with SMTP id 8so661666pwj.14
+        for <linux-mm@kvack.org>; Mon, 13 Dec 2010 11:34:18 -0800 (PST)
+Date: Mon, 13 Dec 2010 12:34:08 -0700
+From: Eric B Munson <emunson@mgebm.net>
+Subject: Re: [PATCH 1/6] mm: kswapd: Stop high-order balancing when any
+ suitable zone is balanced
+Message-ID: <20101213193408.GC3401@mgebm.net>
+References: <1291995985-5913-1-git-send-email-mel@csn.ul.ie>
+ <1291995985-5913-2-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="/e2eDi0V/xtL+Mc8"
+Content-Disposition: inline
+In-Reply-To: <1291995985-5913-2-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_1292264611_4828P
+
+--/e2eDi0V/xtL+Mc8
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-On Mon, 13 Dec 2010 22:47:02 +0800, Wu Fengguang said:
-> Target for >60ms pause time when there are 100+ heavy dirtiers per bdi.
-> (will average around 100ms given 200ms max pause time)
+On Fri, 10 Dec 2010, Mel Gorman wrote:
 
-> --- linux-next.orig/mm/page-writeback.c	2010-12-13 21:46:16.000000000 +0800
-> +++ linux-next/mm/page-writeback.c	2010-12-13 21:46:16.000000000 +0800
-> @@ -659,6 +659,27 @@ static unsigned long max_pause(unsigned 
->  }
->  
->  /*
-> + * Scale up pause time for concurrent dirtiers in order to reduce CPU overheads.
-> + * But ensure reasonably large [min_pause, max_pause] range size, so that
-> + * nr_dirtied_pause (and hence future pause time) can stay reasonably stable.
-> + */
-> +static unsigned long min_pause(struct backing_dev_info *bdi,
-> +			       unsigned long max)
-> +{
-> +	unsigned long hi = ilog2(bdi->write_bandwidth);
-> +	unsigned long lo = ilog2(bdi->throttle_bandwidth);
-> +	unsigned long t;
-> +
-> +	if (lo >= hi)
-> +		return 1;
-> +
-> +	/* (N * 10ms) on 2^N concurrent tasks */
-> +	t = (hi - lo) * (10 * HZ) / 1024;
+> When the allocator enters its slow path, kswapd is woken up to balance the
+> node. It continues working until all zones within the node are balanced. =
+For
+> order-0 allocations, this makes perfect sense but for higher orders it can
+> have unintended side-effects. If the zone sizes are imbalanced, kswapd may
+> reclaim heavily within a smaller zone discarding an excessive number of
+> pages. The user-visible behaviour is that kswapd is awake and reclaiming
+> even though plenty of pages are free from a suitable zone.
+>=20
+> This patch alters the "balance" logic for high-order reclaim allowing ksw=
+apd
+> to stop if any suitable zone becomes balanced to reduce the number of pag=
+es
+> it reclaims from other zones. kswapd still tries to ensure that order-0
+> watermarks for all zones are met before sleeping.
+>=20
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Either I need more caffeine, or the comment doesn't match the code
-if HZ != 1000?
+Started reviewing before I saw this series.
 
---==_Exmh_1292264611_4828P
-Content-Type: application/pgp-signature
+Reviewed-by: Eric B Munson <emunson@mgebm.net>
+
+--/e2eDi0V/xtL+Mc8
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.10 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
 
-iD8DBQFNBmSjcC3lWbTT17ARAhaGAJ4hO1vSUX2dOFYhTxtx4nolhPInvQCg+b7T
-10xDTpJ05qAcw1zJI4oYpr0=
-=JhtH
+iQEcBAEBAgAGBQJNBnUwAAoJEH65iIruGRnNYksH/0Q6qqkuy5cHyFc5tXrSAcuZ
+mBmDyjuxATuedCeuMtBoNhjTTAomuPp6RqJzeqFPptWSzaDMMcXlkh8ToNJPuniH
+B7lIYHPe1qLP5YCRQ1OAl+U8u+EBFg6h5GgxKGSzJXgAE/sNNkZpysnL6spcOHXk
+0CXS4dGiGNZVef4zBIkB+/cQ4pgj46okdNGGDbAfkAXah9Le8+3oL5zNSLoEhK6J
+s6PxkDoycJcH61fKQC6P9cZZ8EPZk+rJFrKEQ4nDjdBwfZCLI3EQ2t9Njr1bmJtt
+e9n6H3DCj+vOuz1QNyrjlwPL9N6D7yhyHKdZWCrEsCT0PIqLaysQTZVmh+PPPwI=
+=W6G+
 -----END PGP SIGNATURE-----
 
---==_Exmh_1292264611_4828P--
+--/e2eDi0V/xtL+Mc8--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
