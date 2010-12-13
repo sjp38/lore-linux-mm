@@ -1,83 +1,49 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 42/47] nfs: heuristics to avoid commit
-Date: Mon, 13 Dec 2010 14:43:31 +0800
-Message-ID: <20101213064842.173584535@intel.com>
+Subject: [PATCH 18/47] writeback: move BDI_WRITTEN accounting into __bdi_writeout_inc()
+Date: Mon, 13 Dec 2010 14:43:07 +0800
+Message-ID: <20101213064839.157986401@intel.com>
 References: <20101213064249.648862451@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PS2G6-00064X-Pn
-	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 07:51:43 +0100
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3B4596B00AF
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 01:49:48 -0500 (EST)
-Content-Disposition: inline; filename=writeback-nfs-should-commit.patch
+	id 1PS2G9-00065G-PL
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 07:51:46 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 810246B00B7
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 01:49:49 -0500 (EST)
+Content-Disposition: inline; filename=writeback-bdi-written-fix.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-The heuristics introduced by commit 420e3646 ("NFS: Reduce the number of
-unnecessary COMMIT calls") do not work well for large inodes being
-actively written to.
+This will cover and fix fuse, which only calls bdi_writeout_inc(). -Peter
 
-Refine the criterion to
-- it has gone quiet (all data transfered to server)
-- has accumulated >= 4MB data to commit (so it will be large IO)
-- too few active commits (hence active IO) in the server
-
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/nfs/write.c |   31 ++++++++++++++++++++++++++-----
- 1 file changed, 26 insertions(+), 5 deletions(-)
+ mm/page-writeback.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
---- linux-next.orig/fs/nfs/write.c	2010-12-09 12:19:24.000000000 +0800
-+++ linux-next/fs/nfs/write.c	2010-12-09 12:20:20.000000000 +0800
-@@ -1518,17 +1518,38 @@ out_mark_dirty:
- 	return res;
- }
- 
--static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_control *wbc)
-+static bool nfs_should_commit(struct inode *inode,
-+			      struct writeback_control *wbc)
+--- linux-next.orig/mm/page-writeback.c	2010-12-08 22:44:27.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-12-08 22:44:27.000000000 +0800
+@@ -199,6 +199,7 @@ int dirty_bytes_handler(struct ctl_table
+  */
+ static inline void __bdi_writeout_inc(struct backing_dev_info *bdi)
  {
-+	struct nfs_server *nfss = NFS_SERVER(inode);
- 	struct nfs_inode *nfsi = NFS_I(inode);
-+	unsigned long npages = nfsi->npages;
-+	unsigned long to_commit = nfsi->ncommit;
-+	unsigned long in_commit = atomic_long_read(&nfss->in_commit);
-+
-+	/* no more active writes */
-+	if (to_commit == npages)
-+		return true;
-+
-+	/* big enough */
-+	if (to_commit >= MIN_WRITEBACK_PAGES)
-+		return true;
-+
-+	/* active commits drop low: kick more IO for the server disk */
-+	if (to_commit > in_commit / 2)
-+		return true;
-+
-+	return false;
-+}
-+
-+static int nfs_commit_unstable_pages(struct inode *inode,
-+				     struct writeback_control *wbc)
-+{
- 	int flags = FLUSH_SYNC;
- 	int ret = 0;
- 
- 	if (wbc->sync_mode == WB_SYNC_NONE) {
--		/* Don't commit yet if this is a non-blocking flush and there
--		 * are a lot of outstanding writes for this mapping.
--		 */
--		if (nfsi->ncommit <= (nfsi->npages >> 1))
-+		if (!nfs_should_commit(inode, wbc))
- 			goto out_mark_dirty;
- 
- 		/* don't wait for the COMMIT response */
++	__inc_bdi_stat(bdi, BDI_WRITTEN);
+ 	__prop_inc_percpu_max(&vm_completions, &bdi->completions,
+ 			      bdi->max_prop_frac);
+ }
+@@ -1411,7 +1412,6 @@ int test_clear_page_writeback(struct pag
+ 						PAGECACHE_TAG_WRITEBACK);
+ 			if (bdi_cap_account_writeback(bdi)) {
+ 				__dec_bdi_stat(bdi, BDI_WRITEBACK);
+-				__inc_bdi_stat(bdi, BDI_WRITTEN);
+ 				__bdi_writeout_inc(bdi);
+ 			}
+ 		}
 
 
 --
