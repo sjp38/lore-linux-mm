@@ -1,54 +1,114 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 76B736B0087
-	for <linux-mm@kvack.org>; Fri, 31 Dec 2010 06:21:41 -0500 (EST)
-Date: Fri, 31 Dec 2010 13:20:43 +0200
-From: Pasi =?iso-8859-1?Q?K=E4rkk=E4inen?= <pasik@iki.fi>
-Subject: Re: [Xen-devel] Re: [PATCH 2/3] drivers/xen/balloon.c: Various
-	balloon features and fixes
-Message-ID: <20101231112043.GZ2754@reaktio.net>
-References: <20101220134724.GC6749@router-fw-old.local.net-space.pl> <20101227150847.GA3728@dumpdata.com> <947c7677e042b3fd1ca22d775ca9aeb9@imap.selfip.ru> <20101227163918.GB7189@dumpdata.com> <92e9dd494cc640c04fdac03fa6d10e8d@imap.selfip.ru> <20101229164910.GD2743@router-fw-old.local.net-space.pl>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101229164910.GD2743@router-fw-old.local.net-space.pl>
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 04/47] writeback: consolidate variable names in balance_dirty_pages()
+Date: Mon, 13 Dec 2010 14:42:53 +0800
+Message-ID: <20101213064837.404605715@intel.com>
+References: <20101213064249.648862451@intel.com>
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by lo.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1PS2E8-0005NO-O3
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 07:49:41 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B3C006B0088
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 01:49:38 -0500 (EST)
+Content-Disposition: inline; filename=writeback-cleanup-name-merge.patch
 Sender: owner-linux-mm@kvack.org
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: Vasiliy G Tolstov <v.tolstov@selfip.ru>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, jeremy@goop.org, xen-devel@lists.xensource.com, haicheng.li@linux.intel.com, dan.magenheimer@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi.kleen@intel.com, akpm@linux-foundation.org, fengguang.wu@intel.com
-List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+List-Id: linux-mm.kvack.org
 
-On Wed, Dec 29, 2010 at 05:49:10PM +0100, Daniel Kiper wrote:
-> Hi,
-> 
-> On Tue, Dec 28, 2010 at 12:52:03AM +0300, Vasiliy G Tolstov wrote:
-> > On Mon, 27 Dec 2010 11:39:18 -0500, Konrad Rzeszutek Wilk
-> > <konrad.wilk@oracle.com> wrote:
-> > > On Mon, Dec 27, 2010 at 07:27:56PM +0300, Vasiliy G Tolstov wrote:
-> > >> On Mon, 27 Dec 2010 10:08:47 -0500, Konrad Rzeszutek Wilk
-> > >> <konrad.wilk@oracle.com> wrote:
-> > >> > On Mon, Dec 20, 2010 at 02:47:24PM +0100, Daniel Kiper wrote:
-> > >> >> Features and fixes:
-> > >> >>   - HVM mode is supported now,
-> > >> >>   - migration from mod_timer() to schedule_delayed_work(),
-> > >> >>   - removal of driver_pages (I do not have seen any
-> > >> >>     references to it),
-> > >> >>   - protect before CPU exhaust by event/x process during
-> > >> >>     errors by adding some delays in scheduling next event,
-> > >> >>   - some other minor fixes.
-> > >>
-> > >> I have apply this patch to bare 2.6.36.2 kernel from kernel.org. If
-> > >> memory=maxmemory pv guest run's on migrating fine.
-> > >> If on already running domU i have xm mem-max xxx 1024 (before that it
-> > >> has 768) and do xm mem-set 1024 guest now have 1024 memory, but after
-> > >> that it can't migrate to another host.
-> 
-> Do you still need memory hotplug patch for jeremy stable-2.6.32.x ???
-> 
+Lots of lengthy tests.. Let's compact the names
 
-I think it would be good to have it for xen/stable-2.6.32.x aswell!
-(that's the tree that's used the most atm).
+	nr_dirty = NR_FILE_DIRTY + NR_WRITEBACK + NR_UNSTABLE_NFS
 
--- Pasi
+balance_dirty_pages() only cares about the above dirty sum except
+in one place -- on starting background writeback.
+
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/page-writeback.c |   30 ++++++++++++++----------------
+ 1 file changed, 14 insertions(+), 16 deletions(-)
+
+--- linux-next.orig/mm/page-writeback.c	2010-12-08 22:44:22.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-12-08 22:44:22.000000000 +0800
+@@ -497,8 +497,9 @@ unsigned long bdi_dirty_limit(struct bac
+ static void balance_dirty_pages(struct address_space *mapping,
+ 				unsigned long pages_dirtied)
+ {
+-	long nr_reclaimable, bdi_nr_reclaimable;
+-	long nr_writeback, bdi_nr_writeback;
++	long nr_reclaimable;
++	long nr_dirty;
++	long bdi_dirty;  /* = file_dirty + writeback + unstable_nfs */
+ 	unsigned long background_thresh;
+ 	unsigned long dirty_thresh;
+ 	unsigned long bdi_thresh;
+@@ -516,7 +517,7 @@ static void balance_dirty_pages(struct a
+ 		 */
+ 		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
+ 					global_page_state(NR_UNSTABLE_NFS);
+-		nr_writeback = global_page_state(NR_WRITEBACK);
++		nr_dirty = nr_reclaimable + global_page_state(NR_WRITEBACK);
+ 
+ 		global_dirty_limits(&background_thresh, &dirty_thresh);
+ 
+@@ -525,12 +526,10 @@ static void balance_dirty_pages(struct a
+ 		 * catch-up. This avoids (excessively) small writeouts
+ 		 * when the bdi limits are ramping up.
+ 		 */
+-		if (nr_reclaimable + nr_writeback <=
+-				(background_thresh + dirty_thresh) / 2)
++		if (nr_dirty <= (background_thresh + dirty_thresh) / 2)
+ 			break;
+ 
+-		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh,
+-					     nr_reclaimable + nr_writeback);
++		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh, nr_dirty);
+ 		bdi_thresh = task_dirty_limit(current, bdi_thresh);
+ 
+ 		/*
+@@ -544,21 +543,21 @@ static void balance_dirty_pages(struct a
+ 		 * deltas.
+ 		 */
+ 		if (bdi_thresh < 2*bdi_stat_error(bdi)) {
+-			bdi_nr_reclaimable = bdi_stat_sum(bdi, BDI_RECLAIMABLE);
+-			bdi_nr_writeback = bdi_stat_sum(bdi, BDI_WRITEBACK);
++			bdi_dirty = bdi_stat_sum(bdi, BDI_RECLAIMABLE) +
++				    bdi_stat_sum(bdi, BDI_WRITEBACK);
+ 		} else {
+-			bdi_nr_reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
+-			bdi_nr_writeback = bdi_stat(bdi, BDI_WRITEBACK);
++			bdi_dirty = bdi_stat(bdi, BDI_RECLAIMABLE) +
++				    bdi_stat(bdi, BDI_WRITEBACK);
+ 		}
+ 
+-		if (bdi_nr_reclaimable + bdi_nr_writeback >= bdi_thresh) {
++		if (bdi_dirty >= bdi_thresh) {
+ 			pause = HZ/10;
+ 			goto pause;
+ 		}
+ 
+ 		bw = 100 << 20; /* use static 100MB/s for the moment */
+ 
+-		bw = bw * (bdi_thresh - (bdi_nr_reclaimable + bdi_nr_writeback));
++		bw = bw * (bdi_thresh - bdi_dirty);
+ 		bw = bw / (bdi_thresh / TASK_SOFT_DIRTY_LIMIT + 1);
+ 
+ 		pause = HZ * (pages_dirtied << PAGE_CACHE_SHIFT) / (bw + 1);
+@@ -574,9 +573,8 @@ pause:
+ 		 * bdi or process from holding back light ones; The latter is
+ 		 * the last resort safeguard.
+ 		 */
+-		dirty_exceeded =
+-			(bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
+-			|| (nr_reclaimable + nr_writeback > dirty_thresh);
++		dirty_exceeded = (bdi_dirty > bdi_thresh) ||
++				  (nr_dirty > dirty_thresh);
+ 
+ 		if (!dirty_exceeded)
+ 			break;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
