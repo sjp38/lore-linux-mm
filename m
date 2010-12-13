@@ -1,51 +1,83 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 43/47] nfs: dont change wbc->nr_to_write in write_inode()
-Date: Mon, 13 Dec 2010 14:43:32 +0800
-Message-ID: <20101213064842.310150037@intel.com>
+Subject: [PATCH 42/47] nfs: heuristics to avoid commit
+Date: Mon, 13 Dec 2010 14:43:31 +0800
+Message-ID: <20101213064842.173584535@intel.com>
 References: <20101213064249.648862451@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PS2G1-00063A-Fh
-	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 07:51:37 +0100
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2D4F96B00B6
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 01:49:46 -0500 (EST)
-Content-Disposition: inline; filename=writeback-nfs-commit-remove-nr_to_write.patch
+	id 1PS2G6-00064X-Pn
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 07:51:43 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 3B4596B00AF
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 01:49:48 -0500 (EST)
+Content-Disposition: inline; filename=writeback-nfs-should-commit.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Trond Myklebust <Trond.Myklebust@netapp.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-It's introduced in commit 420e3646 ("NFS: Reduce the number of
-unnecessary COMMIT calls") and seems not necessary.
+The heuristics introduced by commit 420e3646 ("NFS: Reduce the number of
+unnecessary COMMIT calls") do not work well for large inodes being
+actively written to.
 
-CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+Refine the criterion to
+- it has gone quiet (all data transfered to server)
+- has accumulated >= 4MB data to commit (so it will be large IO)
+- too few active commits (hence active IO) in the server
+
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/nfs/write.c |    9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ fs/nfs/write.c |   31 ++++++++++++++++++++++++++-----
+ 1 file changed, 26 insertions(+), 5 deletions(-)
 
---- linux-next.orig/fs/nfs/write.c	2010-12-09 12:20:20.000000000 +0800
-+++ linux-next/fs/nfs/write.c	2010-12-09 12:20:30.000000000 +0800
-@@ -1557,15 +1557,8 @@ static int nfs_commit_unstable_pages(str
- 	}
+--- linux-next.orig/fs/nfs/write.c	2010-12-09 12:19:24.000000000 +0800
++++ linux-next/fs/nfs/write.c	2010-12-09 12:20:20.000000000 +0800
+@@ -1518,17 +1518,38 @@ out_mark_dirty:
+ 	return res;
+ }
  
- 	ret = nfs_commit_inode(inode, flags);
--	if (ret >= 0) {
--		if (wbc->sync_mode == WB_SYNC_NONE) {
--			if (ret < wbc->nr_to_write)
--				wbc->nr_to_write -= ret;
--			else
--				wbc->nr_to_write = 0;
--		}
-+	if (ret >= 0)
- 		return 0;
--	}
- out_mark_dirty:
- 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
- 	return ret;
+-static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_control *wbc)
++static bool nfs_should_commit(struct inode *inode,
++			      struct writeback_control *wbc)
+ {
++	struct nfs_server *nfss = NFS_SERVER(inode);
+ 	struct nfs_inode *nfsi = NFS_I(inode);
++	unsigned long npages = nfsi->npages;
++	unsigned long to_commit = nfsi->ncommit;
++	unsigned long in_commit = atomic_long_read(&nfss->in_commit);
++
++	/* no more active writes */
++	if (to_commit == npages)
++		return true;
++
++	/* big enough */
++	if (to_commit >= MIN_WRITEBACK_PAGES)
++		return true;
++
++	/* active commits drop low: kick more IO for the server disk */
++	if (to_commit > in_commit / 2)
++		return true;
++
++	return false;
++}
++
++static int nfs_commit_unstable_pages(struct inode *inode,
++				     struct writeback_control *wbc)
++{
+ 	int flags = FLUSH_SYNC;
+ 	int ret = 0;
+ 
+ 	if (wbc->sync_mode == WB_SYNC_NONE) {
+-		/* Don't commit yet if this is a non-blocking flush and there
+-		 * are a lot of outstanding writes for this mapping.
+-		 */
+-		if (nfsi->ncommit <= (nfsi->npages >> 1))
++		if (!nfs_should_commit(inode, wbc))
+ 			goto out_mark_dirty;
+ 
+ 		/* don't wait for the COMMIT response */
 
 
 --
