@@ -1,131 +1,76 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 01/35] writeback: enabling gate limit for light dirtied bdi
-Date: Mon, 13 Dec 2010 22:46:47 +0800
-Message-ID: <20101213150326.480108782@intel.com>
+Subject: [PATCH 11/35] writeback: show bdi write bandwidth in debugfs
+Date: Mon, 13 Dec 2010 22:46:57 +0800
+Message-ID: <20101213150327.692180857@intel.com>
 References: <20101213144646.341970461@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PSA1F-0001aJ-2c
-	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:08:53 +0100
+	id 1PSA1I-0001b7-7x
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:08:56 +0100
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 157176B0092
+	by kanga.kvack.org (Postfix) with SMTP id 169EE6B0093
 	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:08:48 -0500 (EST)
-Content-Disposition: inline; filename=writeback-min-bdi-dirty-limit.patch
+Content-Disposition: inline; filename=writeback-bandwidth-show.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Theodore Tso <tytso@mit.edu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-I noticed that my NFSROOT test system goes slow responding when there
-is heavy dd to a local disk. Traces show that the NFSROOT's bdi limit
-is near 0 and many tasks in the system are repeatedly stuck in
-balance_dirty_pages().
+Add a "BdiWriteBandwidth" entry (and indent others) in /debug/bdi/*/stats.
 
-There are two generic problems:
+btw increase digital field width to 10, for keeping the possibly
+huge BdiWritten number aligned at least for desktop systems.
 
-- light dirtiers at one device (more often than not the rootfs) get
-  heavily impacted by heavy dirtiers on another independent device
+This will break user space tools if they are dumb enough to depend on
+the number of white spaces.
 
-- the light dirtied device does heavy throttling because bdi limit=0,
-  and the heavy throttling may in turn withhold its bdi limit in 0 as
-  it cannot dirty fast enough to grow up the bdi's proportional weight.
-
-Fix it by introducing some "low pass" gate, which is a small (<=32MB)
-value reserved by others and can be safely "stole" from the current
-global dirty margin.  It does not need to be big to help the bdi gain
-its initial weight.
-
-Acked-by: Rik van Riel <riel@redhat.com>
+CC: Theodore Ts'o <tytso@mit.edu>
+CC: Jan Kara <jack@suse.cz>
 CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/writeback.h |    3 ++-
- mm/backing-dev.c          |    2 +-
- mm/page-writeback.c       |   29 ++++++++++++++++++++++++++---
- 3 files changed, 29 insertions(+), 5 deletions(-)
+ mm/backing-dev.c |   24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)
 
---- linux-next.orig/mm/page-writeback.c	2010-12-13 21:45:58.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-12-13 21:46:10.000000000 +0800
-@@ -443,13 +443,26 @@ void global_dirty_limits(unsigned long *
-  *
-  * The bdi's share of dirty limit will be adapting to its throughput and
-  * bounded by the bdi->min_ratio and/or bdi->max_ratio parameters, if set.
-- */
--unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
-+ *
-+ * There is a chicken and egg problem: when bdi A (eg. /pub) is heavy dirtied
-+ * and bdi B (eg. /) is light dirtied hence has 0 dirty limit, tasks writing to
-+ * B always get heavily throttled and bdi B's dirty limit might never be able
-+ * to grow up from 0. So we do tricks to reserve some global margin and honour
-+ * it to the bdi's that run low.
-+ */
-+unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
-+			      unsigned long dirty,
-+			      unsigned long dirty_pages)
- {
- 	u64 bdi_dirty;
- 	long numerator, denominator;
- 
- 	/*
-+	 * Provide a global safety margin of ~1%, or up to 32MB for a 20GB box.
-+	 */
-+	dirty -= min(dirty / 128, 32768UL >> (PAGE_SHIFT-10));
-+
-+	/*
- 	 * Calculate this BDI's share of the dirty ratio.
- 	 */
- 	bdi_writeout_fraction(bdi, &numerator, &denominator);
-@@ -459,6 +472,15 @@ unsigned long bdi_dirty_limit(struct bac
- 	do_div(bdi_dirty, denominator);
- 
- 	bdi_dirty += (dirty * bdi->min_ratio) / 100;
-+
-+	/*
-+	 * If we can dirty N more pages globally, honour N/2 to the bdi that
-+	 * runs low, so as to help it ramp up.
-+	 */
-+	if (unlikely(bdi_dirty < (dirty - dirty_pages) / 2 &&
-+		     dirty > dirty_pages))
-+		bdi_dirty = (dirty - dirty_pages) / 2;
-+
- 	if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
- 		bdi_dirty = dirty * bdi->max_ratio / 100;
- 
-@@ -508,7 +530,8 @@ static void balance_dirty_pages(struct a
- 				(background_thresh + dirty_thresh) / 2)
- 			break;
- 
--		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
-+		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh,
-+					     nr_reclaimable + nr_writeback);
- 		bdi_thresh = task_dirty_limit(current, bdi_thresh);
- 
- 		/*
---- linux-next.orig/mm/backing-dev.c	2010-12-13 21:45:58.000000000 +0800
-+++ linux-next/mm/backing-dev.c	2010-12-13 21:46:10.000000000 +0800
-@@ -83,7 +83,7 @@ static int bdi_debug_stats_show(struct s
- 	spin_unlock(&inode_lock);
- 
- 	global_dirty_limits(&background_thresh, &dirty_thresh);
--	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
-+	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh, dirty_thresh);
+--- linux-next.orig/mm/backing-dev.c	2010-12-13 21:46:14.000000000 +0800
++++ linux-next/mm/backing-dev.c	2010-12-13 21:46:14.000000000 +0800
+@@ -87,21 +87,23 @@ static int bdi_debug_stats_show(struct s
  
  #define K(x) ((x) << (PAGE_SHIFT - 10))
  	seq_printf(m,
---- linux-next.orig/include/linux/writeback.h	2010-12-13 21:45:58.000000000 +0800
-+++ linux-next/include/linux/writeback.h	2010-12-13 21:46:10.000000000 +0800
-@@ -126,7 +126,8 @@ int dirty_writeback_centisecs_handler(st
- 
- void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
- unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
--			       unsigned long dirty);
-+			       unsigned long dirty,
-+			       unsigned long dirty_pages);
- 
- void page_writeback_init(void);
- void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
+-		   "BdiWriteback:     %8lu kB\n"
+-		   "BdiReclaimable:   %8lu kB\n"
+-		   "BdiDirtyThresh:   %8lu kB\n"
+-		   "DirtyThresh:      %8lu kB\n"
+-		   "BackgroundThresh: %8lu kB\n"
+-		   "BdiWritten:       %8lu kB\n"
+-		   "b_dirty:          %8lu\n"
+-		   "b_io:             %8lu\n"
+-		   "b_more_io:        %8lu\n"
+-		   "bdi_list:         %8u\n"
+-		   "state:            %8lx\n",
++		   "BdiWriteback:       %10lu kB\n"
++		   "BdiReclaimable:     %10lu kB\n"
++		   "BdiDirtyThresh:     %10lu kB\n"
++		   "DirtyThresh:        %10lu kB\n"
++		   "BackgroundThresh:   %10lu kB\n"
++		   "BdiWritten:         %10lu kB\n"
++		   "BdiWriteBandwidth:  %10lu kBps\n"
++		   "b_dirty:            %10lu\n"
++		   "b_io:               %10lu\n"
++		   "b_more_io:          %10lu\n"
++		   "bdi_list:           %10u\n"
++		   "state:              %10lx\n",
+ 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
+ 		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
+ 		   K(bdi_thresh), K(dirty_thresh), K(background_thresh),
+ 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITTEN)),
++		   (unsigned long) K(bdi->write_bandwidth),
+ 		   nr_dirty, nr_io, nr_more_io,
+ 		   !list_empty(&bdi->bdi_list), bdi->state);
+ #undef K
 
 
 --
