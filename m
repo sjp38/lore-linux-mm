@@ -1,55 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0B3FD6B0095
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 11:49:44 -0500 (EST)
-Date: Mon, 13 Dec 2010 08:49:25 -0800
-From: Sarah Sharp <sarah.a.sharp@linux.intel.com>
-Subject: Re: 2.6.36.2 reliably panics in VFS
-Message-ID: <20101213164925.GB23870@xanatos>
-References: <20101212113004.94FA96FD97@nx.neverkill.us>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 79B9C6B0095
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 11:54:20 -0500 (EST)
+Received: by pwj8 with SMTP id 8so635696pwj.14
+        for <linux-mm@kvack.org>; Mon, 13 Dec 2010 08:54:14 -0800 (PST)
+Date: Mon, 13 Dec 2010 09:54:05 -0700
+From: Eric B Munson <emunson@mgebm.net>
+Subject: Re: [PATCH 1/6] mm: kswapd: Stop high-order balancing when any
+ suitable zone is balanced
+Message-ID: <20101213165405.GA3401@mgebm.net>
+References: <1291893500-12342-1-git-send-email-mel@csn.ul.ie>
+ <1291893500-12342-2-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="x+6KMIRAuhnl3hBn"
 Content-Disposition: inline
-In-Reply-To: <20101212113004.94FA96FD97@nx.neverkill.us>
+In-Reply-To: <1291893500-12342-2-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Peter Steiner <sp@med-2-med.com>
-Cc: viro@zeniv.linux.org.uk, linux-mm@kvack.org, axboe@kernel.dk
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Dec 12, 2010 at 12:26:48PM +0100, Peter Steiner wrote:
-> Hi
-> 
-> compiled latest 2.6.36.2 but it reliably panics() my machine.
-> It happens if I try to dd sda to sdb (backup) using xhci USB3.0
-> (conceptronic CUSB3EXC) but ALSO using native USB 2.0 ports on the
-> machine - after 10-15 minutes of dd.
 
-Can you run lspci -v and lsusb?  I'm wondering if the USB 2.0 ports are
-part of an EHCI host controller or an xHCI host controller.
+--x+6KMIRAuhnl3hBn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> Please see attached screenshot (I cannot copy it as text as it takes
-> down the machine and locks up in text console, so I can only make a
-> foto).
+On Thu, 09 Dec 2010, Mel Gorman wrote:
 
-Can you run netconsole to capture more of the messages before that?  If
-you need help with setting up netconsole, see:
-	http://sarah.thesharps.us/2010-03-26-09-41
+> When the allocator enters its slow path, kswapd is woken up to balance the
+> node. It continues working until all zones within the node are balanced. =
+For
+> order-0 allocations, this makes perfect sense but for higher orders it can
+> have unintended side-effects. If the zone sizes are imbalanced, kswapd may
+> reclaim heavily within a smaller zone discarding an excessive number of
+> pages. The user-visible behaviour is that kswapd is awake and reclaiming
+> even though plenty of pages are free from a suitable zone.
+>=20
+> This patch alters the "balance" logic for high-order reclaim allowing ksw=
+apd
+> to stop if any suitable zone becomes balanced to reduce the number of pag=
+es
+> it reclaims from other zones. kswapd still tries to ensure that order-0
+> watermarks for all zones are met before sleeping.
+>=20
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-> see attached .config.
-> 
-> The bug did NOT happen on 2.6.35.7 - however there the USB3.0 xhci
-> frequently disconnects the sdb backup disk and dd fails after 400GB of
-> copy or so (but no panic).
+Looks good to me.
 
-Would this happen to be on a Lenovo W510 laptop?  I've received reports
-of different oopses caused by disconnects, while running 2.6.35.8:
+Reviewed-by: Eric B Munson <emunson@mgebm.net>
 
-http://marc.info/?l=linux-kernel&m=129131271416325&w=2
+--x+6KMIRAuhnl3hBn
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
 
-Do you see panics or oopses when you run 2.6.35.8?  Or did you just
-upgrade straight from 2.6.35.7 to 2.6.36.2?
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
 
-Sarah Sharp
+iQEcBAEBAgAGBQJNBk+tAAoJEH65iIruGRnN2UoIAJAVhQyLzVEJO3bRcprOcF32
+6nu2UwoACYmA3ge+eMjaOdqaZ/GW2XNIW6n211oGUmZt1ttRihOxRPDhxqUkCYf6
+O32MwxEdSf61I1icQlEnj7+fP0UMES8h5e0hi2Aq3LXo82aTgUa4CuCeI8RqMpMv
+lcGm4/dilzG0l4TNt0GfxiI4xeZu5+A2mDAsVyTd+77d3A0GxszptXlKf3NbSKJn
+au5sCS5E+aqHNkqXfrTzPM0HzxXeVvd12RZJYiF6WfTXs29CV0cHIs/gHAb5cYlu
+b4yQX20HId2YuFjl5UhszOSXYj2Gsw4Bhk/ZArKWMdAqQCkui+njxql+uHjym6w=
+=zXJi
+-----END PGP SIGNATURE-----
+
+--x+6KMIRAuhnl3hBn--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
