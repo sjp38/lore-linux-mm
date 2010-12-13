@@ -1,60 +1,131 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 03/35] writeback: prevent duplicate balance_dirty_pages_ratelimited() calls
-Date: Mon, 13 Dec 2010 22:46:49 +0800
-Message-ID: <20101213150326.733656527@intel.com>
+Subject: [PATCH 01/35] writeback: enabling gate limit for light dirtied bdi
+Date: Mon, 13 Dec 2010 22:46:47 +0800
+Message-ID: <20101213150326.480108782@intel.com>
 References: <20101213144646.341970461@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PSA1C-0001Xb-1e
-	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:08:51 +0100
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 6BD946B008A
+	id 1PSA1F-0001aJ-2c
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:08:53 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 157176B0092
 	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:08:48 -0500 (EST)
-Content-Disposition: inline; filename=writeback-fix-duplicate-bdp-calls.patch
+Content-Disposition: inline; filename=writeback-min-bdi-dirty-limit.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-When dd in 512bytes, balance_dirty_pages_ratelimited() used to be called
-8 times for the same page, even if the page is only dirtied once. Fix it
-with a (slightly racy) PageDirty() test.
+I noticed that my NFSROOT test system goes slow responding when there
+is heavy dd to a local disk. Traces show that the NFSROOT's bdi limit
+is near 0 and many tasks in the system are repeatedly stuck in
+balance_dirty_pages().
 
+There are two generic problems:
+
+- light dirtiers at one device (more often than not the rootfs) get
+  heavily impacted by heavy dirtiers on another independent device
+
+- the light dirtied device does heavy throttling because bdi limit=0,
+  and the heavy throttling may in turn withhold its bdi limit in 0 as
+  it cannot dirty fast enough to grow up the bdi's proportional weight.
+
+Fix it by introducing some "low pass" gate, which is a small (<=32MB)
+value reserved by others and can be safely "stole" from the current
+global dirty margin.  It does not need to be big to help the bdi gain
+its initial weight.
+
+Acked-by: Rik van Riel <riel@redhat.com>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/filemap.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ include/linux/writeback.h |    3 ++-
+ mm/backing-dev.c          |    2 +-
+ mm/page-writeback.c       |   29 ++++++++++++++++++++++++++---
+ 3 files changed, 29 insertions(+), 5 deletions(-)
 
---- linux-next.orig/mm/filemap.c	2010-12-13 21:45:57.000000000 +0800
-+++ linux-next/mm/filemap.c	2010-12-13 21:46:11.000000000 +0800
-@@ -2244,6 +2244,7 @@ static ssize_t generic_perform_write(str
- 	long status = 0;
- 	ssize_t written = 0;
- 	unsigned int flags = 0;
-+	unsigned int dirty;
+--- linux-next.orig/mm/page-writeback.c	2010-12-13 21:45:58.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-12-13 21:46:10.000000000 +0800
+@@ -443,13 +443,26 @@ void global_dirty_limits(unsigned long *
+  *
+  * The bdi's share of dirty limit will be adapting to its throughput and
+  * bounded by the bdi->min_ratio and/or bdi->max_ratio parameters, if set.
+- */
+-unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
++ *
++ * There is a chicken and egg problem: when bdi A (eg. /pub) is heavy dirtied
++ * and bdi B (eg. /) is light dirtied hence has 0 dirty limit, tasks writing to
++ * B always get heavily throttled and bdi B's dirty limit might never be able
++ * to grow up from 0. So we do tricks to reserve some global margin and honour
++ * it to the bdi's that run low.
++ */
++unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
++			      unsigned long dirty,
++			      unsigned long dirty_pages)
+ {
+ 	u64 bdi_dirty;
+ 	long numerator, denominator;
  
  	/*
- 	 * Copies from kernel address space cannot fail (NFSD is a big user).
-@@ -2292,6 +2293,7 @@ again:
- 		pagefault_enable();
- 		flush_dcache_page(page);
++	 * Provide a global safety margin of ~1%, or up to 32MB for a 20GB box.
++	 */
++	dirty -= min(dirty / 128, 32768UL >> (PAGE_SHIFT-10));
++
++	/*
+ 	 * Calculate this BDI's share of the dirty ratio.
+ 	 */
+ 	bdi_writeout_fraction(bdi, &numerator, &denominator);
+@@ -459,6 +472,15 @@ unsigned long bdi_dirty_limit(struct bac
+ 	do_div(bdi_dirty, denominator);
  
-+		dirty = PageDirty(page);
- 		mark_page_accessed(page);
- 		status = a_ops->write_end(file, mapping, pos, bytes, copied,
- 						page, fsdata);
-@@ -2318,7 +2320,8 @@ again:
- 		pos += copied;
- 		written += copied;
+ 	bdi_dirty += (dirty * bdi->min_ratio) / 100;
++
++	/*
++	 * If we can dirty N more pages globally, honour N/2 to the bdi that
++	 * runs low, so as to help it ramp up.
++	 */
++	if (unlikely(bdi_dirty < (dirty - dirty_pages) / 2 &&
++		     dirty > dirty_pages))
++		bdi_dirty = (dirty - dirty_pages) / 2;
++
+ 	if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
+ 		bdi_dirty = dirty * bdi->max_ratio / 100;
  
--		balance_dirty_pages_ratelimited(mapping);
-+		if (!dirty)
-+			balance_dirty_pages_ratelimited(mapping);
+@@ -508,7 +530,8 @@ static void balance_dirty_pages(struct a
+ 				(background_thresh + dirty_thresh) / 2)
+ 			break;
  
- 	} while (iov_iter_count(i));
+-		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
++		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh,
++					     nr_reclaimable + nr_writeback);
+ 		bdi_thresh = task_dirty_limit(current, bdi_thresh);
  
+ 		/*
+--- linux-next.orig/mm/backing-dev.c	2010-12-13 21:45:58.000000000 +0800
++++ linux-next/mm/backing-dev.c	2010-12-13 21:46:10.000000000 +0800
+@@ -83,7 +83,7 @@ static int bdi_debug_stats_show(struct s
+ 	spin_unlock(&inode_lock);
+ 
+ 	global_dirty_limits(&background_thresh, &dirty_thresh);
+-	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
++	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh, dirty_thresh);
+ 
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
+ 	seq_printf(m,
+--- linux-next.orig/include/linux/writeback.h	2010-12-13 21:45:58.000000000 +0800
++++ linux-next/include/linux/writeback.h	2010-12-13 21:46:10.000000000 +0800
+@@ -126,7 +126,8 @@ int dirty_writeback_centisecs_handler(st
+ 
+ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
+ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
+-			       unsigned long dirty);
++			       unsigned long dirty,
++			       unsigned long dirty_pages);
+ 
+ void page_writeback_init(void);
+ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 
 
 --
