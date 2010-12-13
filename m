@@ -1,184 +1,195 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 29/35] nfs: in-commit pages accounting and wait queue
-Date: Mon, 13 Dec 2010 22:47:15 +0800
-Message-ID: <20101213150329.831955132@intel.com>
+Subject: [PATCH 28/35] nfs: writeback pages wait queue
+Date: Mon, 13 Dec 2010 22:47:14 +0800
+Message-ID: <20101213150329.719290665@intel.com>
 References: <20101213144646.341970461@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PSA2w-0002Xg-0l
-	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:10:38 +0100
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9C8DB6B00B3
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:09:04 -0500 (EST)
-Content-Disposition: inline; filename=writeback-nfs-in-commit.patch
+	id 1PSA32-0002dE-Dl
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:10:44 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8EDEA6B00B1
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:09:29 -0500 (EST)
+Content-Disposition: inline; filename=writeback-nfs-request-queue.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Trond Myklebust <Trond.Myklebust@netapp.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Trond Myklebust <Trond.Myklebust@netapp.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-When doing 10+ concurrent dd's, I observed very bumpy commits submission
-(partly because the dd's are started at the same time, and hence reached
-4MB to-commit pages at the same time). Basically we rely on the server
-to complete and return write/commit requests, and want both to progress
-smoothly and not consume too many pages. The write request wait queue is
-not enough as it's mainly network bounded. So add another commit request
-wait queue. Only async writes need to sleep on this queue.
+The generic writeback routines are departing from congestion_wait()
+in preference of get_request_wait(), aka. waiting on the block queues.
 
-cc: Trond Myklebust <Trond.Myklebust@netapp.com>
+Introduce the missing writeback wait queue for NFS, otherwise its
+writeback pages will grow out of control, exhausting all PG_dirty pages.
+
+CC: Jens Axboe <axboe@kernel.dk>
+CC: Chris Mason <chris.mason@oracle.com>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Trond Myklebust <Trond.Myklebust@netapp.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/nfs/client.c           |    1 
- fs/nfs/write.c            |   51 ++++++++++++++++++++++++++++++------
- include/linux/nfs_fs_sb.h |    2 +
- 3 files changed, 46 insertions(+), 8 deletions(-)
+ fs/nfs/client.c           |    2 
+ fs/nfs/write.c            |   93 +++++++++++++++++++++++++++++++-----
+ include/linux/nfs_fs_sb.h |    1 
+ 3 files changed, 85 insertions(+), 11 deletions(-)
 
---- linux-next.orig/fs/nfs/write.c	2010-12-13 21:46:21.000000000 +0800
+--- linux-next.orig/fs/nfs/write.c	2010-12-13 21:46:20.000000000 +0800
 +++ linux-next/fs/nfs/write.c	2010-12-13 21:46:21.000000000 +0800
-@@ -516,7 +516,7 @@ nfs_mark_request_commit(struct nfs_page 
- }
+@@ -185,11 +185,68 @@ static int wb_priority(struct writeback_
+  * NFS congestion control
+  */
  
- static int
--nfs_clear_request_commit(struct nfs_page *req)
-+nfs_clear_request_commit(struct inode *inode, struct nfs_page *req)
- {
- 	struct page *page = req->wb_page;
++#define NFS_WAIT_PAGES	(1024L >> (PAGE_SHIFT - 10))
+ int nfs_congestion_kb;
  
-@@ -554,7 +554,7 @@ nfs_mark_request_commit(struct nfs_page 
- }
- 
- static inline int
--nfs_clear_request_commit(struct nfs_page *req)
-+nfs_clear_request_commit(struct inode *inode, struct nfs_page *req)
- {
- 	return 0;
- }
-@@ -599,8 +599,10 @@ nfs_scan_commit(struct inode *inode, str
- 		return 0;
- 
- 	ret = nfs_scan_list(nfsi, dst, idx_start, npages, NFS_PAGE_TAG_COMMIT);
--	if (ret > 0)
-+	if (ret > 0) {
- 		nfsi->ncommit -= ret;
-+		atomic_long_add(ret, &NFS_SERVER(inode)->in_commit);
-+	}
- 	if (nfs_need_commit(NFS_I(inode)))
- 		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
- 	return ret;
-@@ -668,7 +670,7 @@ static struct nfs_page *nfs_try_to_updat
- 		spin_lock(&inode->i_lock);
- 	}
- 
--	if (nfs_clear_request_commit(req) &&
-+	if (nfs_clear_request_commit(inode, req) &&
- 			radix_tree_tag_clear(&NFS_I(inode)->nfs_page_tree,
- 				req->wb_index, NFS_PAGE_TAG_COMMIT) != NULL)
- 		NFS_I(inode)->ncommit--;
-@@ -1271,6 +1273,34 @@ int nfs_writeback_done(struct rpc_task *
- 
- 
- #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
-+static void nfs_commit_wait(struct nfs_server *nfss)
+-#define NFS_CONGESTION_ON_THRESH 	(nfs_congestion_kb >> (PAGE_SHIFT-10))
+-#define NFS_CONGESTION_OFF_THRESH	\
+-	(NFS_CONGESTION_ON_THRESH - (NFS_CONGESTION_ON_THRESH >> 2))
++/*
++ * SYNC requests will block on (2*limit) and wakeup on (2*limit-NFS_WAIT_PAGES)
++ * ASYNC requests will block on (limit) and wakeup on (limit - NFS_WAIT_PAGES)
++ * In this way SYNC writes will never be blocked by ASYNC ones.
++ */
++
++static void nfs_set_congested(long nr, struct backing_dev_info *bdi)
 +{
 +	long limit = nfs_congestion_kb >> (PAGE_SHIFT - 10);
++
++	if (nr > limit && !test_bit(BDI_async_congested, &bdi->state))
++		set_bdi_congested(bdi, BLK_RW_ASYNC);
++	else if (nr > 2 * limit && !test_bit(BDI_sync_congested, &bdi->state))
++		set_bdi_congested(bdi, BLK_RW_SYNC);
++}
++
++static void nfs_wait_contested(int is_sync,
++			       struct backing_dev_info *bdi,
++			       wait_queue_head_t *wqh)
++{
++	int waitbit = is_sync ? BDI_sync_congested : BDI_async_congested;
 +	DEFINE_WAIT(wait);
 +
-+	if (atomic_long_read(&nfss->in_commit) < limit)
++	if (!test_bit(waitbit, &bdi->state))
 +		return;
 +
 +	for (;;) {
-+		prepare_to_wait(&nfss->in_commit_wait, &wait,
-+				TASK_UNINTERRUPTIBLE);
-+		if (atomic_long_read(&nfss->in_commit) < limit)
++		prepare_to_wait(&wqh[is_sync], &wait, TASK_UNINTERRUPTIBLE);
++		if (!test_bit(waitbit, &bdi->state))
 +			break;
 +
 +		io_schedule();
 +	}
-+	finish_wait(&nfss->in_commit_wait, &wait);
++	finish_wait(&wqh[is_sync], &wait);
 +}
 +
-+static void nfs_commit_wakeup(struct nfs_server *nfss)
++static void nfs_wakeup_congested(long nr,
++				 struct backing_dev_info *bdi,
++				 wait_queue_head_t *wqh)
 +{
 +	long limit = nfs_congestion_kb >> (PAGE_SHIFT - 10);
 +
-+	if (atomic_long_read(&nfss->in_commit) < limit - limit / 8 &&
-+	    waitqueue_active(&nfss->in_commit_wait))
-+		wake_up(&nfss->in_commit_wait);
++	if (nr < 2 * limit - min(limit / 8, NFS_WAIT_PAGES)) {
++		if (test_bit(BDI_sync_congested, &bdi->state)) {
++			clear_bdi_congested(bdi, BLK_RW_SYNC);
++			smp_mb__after_clear_bit();
++		}
++		if (waitqueue_active(&wqh[BLK_RW_SYNC]))
++			wake_up(&wqh[BLK_RW_SYNC]);
++	}
++	if (nr < limit - min(limit / 8, NFS_WAIT_PAGES)) {
++		if (test_bit(BDI_async_congested, &bdi->state)) {
++			clear_bdi_congested(bdi, BLK_RW_ASYNC);
++			smp_mb__after_clear_bit();
++		}
++		if (waitqueue_active(&wqh[BLK_RW_ASYNC]))
++			wake_up(&wqh[BLK_RW_ASYNC]);
++	}
 +}
-+
- static int nfs_commit_set_lock(struct nfs_inode *nfsi, int may_wait)
- {
- 	if (!test_and_set_bit(NFS_INO_COMMIT, &nfsi->flags))
-@@ -1376,6 +1406,7 @@ nfs_commit_list(struct inode *inode, str
- 		req = nfs_list_entry(head->next);
- 		nfs_list_remove_request(req);
- 		nfs_mark_request_commit(req);
-+		atomic_long_dec(&NFS_SERVER(inode)->in_commit);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
- 		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
- 				BDI_RECLAIMABLE);
-@@ -1409,7 +1440,8 @@ static void nfs_commit_release(void *cal
- 	while (!list_empty(&data->pages)) {
- 		req = nfs_list_entry(data->pages.next);
- 		nfs_list_remove_request(req);
--		nfs_clear_request_commit(req);
-+		nfs_clear_request_commit(data->inode, req);
-+		atomic_long_dec(&NFS_SERVER(data->inode)->in_commit);
  
- 		dprintk("NFS:       commit (%s/%lld %d@%lld)",
- 			req->wb_context->path.dentry->d_inode->i_sb->s_id,
-@@ -1438,6 +1470,7 @@ static void nfs_commit_release(void *cal
- 		nfs_clear_page_tag_locked(req);
+ static int nfs_set_page_writeback(struct page *page)
+ {
+@@ -200,11 +257,8 @@ static int nfs_set_page_writeback(struct
+ 		struct nfs_server *nfss = NFS_SERVER(inode);
+ 
+ 		page_cache_get(page);
+-		if (atomic_long_inc_return(&nfss->writeback) >
+-				NFS_CONGESTION_ON_THRESH) {
+-			set_bdi_congested(&nfss->backing_dev_info,
+-						BLK_RW_ASYNC);
+-		}
++		nfs_set_congested(atomic_long_inc_return(&nfss->writeback),
++				  &nfss->backing_dev_info);
  	}
- 	nfs_commit_clear_lock(NFS_I(data->inode));
-+	nfs_commit_wakeup(NFS_SERVER(data->inode));
- 	nfs_commitdata_release(calldata);
+ 	return ret;
+ }
+@@ -216,8 +270,10 @@ static void nfs_end_page_writeback(struc
+ 
+ 	end_page_writeback(page);
+ 	page_cache_release(page);
+-	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
+-		clear_bdi_congested(&nfss->backing_dev_info, BLK_RW_ASYNC);
++
++	nfs_wakeup_congested(atomic_long_dec_return(&nfss->writeback),
++			     &nfss->backing_dev_info,
++			     nfss->writeback_wait);
  }
  
-@@ -1452,11 +1485,13 @@ static const struct rpc_call_ops nfs_com
- int nfs_commit_inode(struct inode *inode, int how)
- {
- 	LIST_HEAD(head);
--	int may_wait = how & FLUSH_SYNC;
-+	int sync = how & FLUSH_SYNC;
- 	int res = 0;
+ static struct nfs_page *nfs_find_and_lock_request(struct page *page, bool nonblock)
+@@ -318,19 +374,34 @@ static int nfs_writepage_locked(struct p
  
--	if (!nfs_commit_set_lock(NFS_I(inode), may_wait))
-+	if (!nfs_commit_set_lock(NFS_I(inode), sync))
- 		goto out_mark_dirty;
-+	if (!sync)
-+		nfs_commit_wait(NFS_SERVER(inode));
- 	spin_lock(&inode->i_lock);
- 	res = nfs_scan_commit(inode, &head, 0, 0);
- 	spin_unlock(&inode->i_lock);
-@@ -1464,7 +1499,7 @@ int nfs_commit_inode(struct inode *inode
- 		int error = nfs_commit_list(inode, &head, how);
- 		if (error < 0)
- 			return error;
--		if (may_wait)
-+		if (sync)
- 			wait_on_bit(&NFS_I(inode)->flags, NFS_INO_COMMIT,
- 					nfs_wait_bit_killable,
- 					TASK_KILLABLE);
---- linux-next.orig/include/linux/nfs_fs_sb.h	2010-12-13 21:46:21.000000000 +0800
+ int nfs_writepage(struct page *page, struct writeback_control *wbc)
+ {
++	struct inode *inode = page->mapping->host;
++	struct nfs_server *nfss = NFS_SERVER(inode);
+ 	int ret;
+ 
+ 	ret = nfs_writepage_locked(page, wbc);
+ 	unlock_page(page);
++
++	nfs_wait_contested(wbc->sync_mode == WB_SYNC_ALL,
++			   &nfss->backing_dev_info,
++			   nfss->writeback_wait);
++
+ 	return ret;
+ }
+ 
+-static int nfs_writepages_callback(struct page *page, struct writeback_control *wbc, void *data)
++static int nfs_writepages_callback(struct page *page,
++				   struct writeback_control *wbc, void *data)
+ {
++	struct inode *inode = page->mapping->host;
++	struct nfs_server *nfss = NFS_SERVER(inode);
+ 	int ret;
+ 
+ 	ret = nfs_do_writepage(page, wbc, data);
+ 	unlock_page(page);
++
++	nfs_wait_contested(wbc->sync_mode == WB_SYNC_ALL,
++			   &nfss->backing_dev_info,
++			   nfss->writeback_wait);
++
+ 	return ret;
+ }
+ 
+--- linux-next.orig/include/linux/nfs_fs_sb.h	2010-12-13 21:45:54.000000000 +0800
 +++ linux-next/include/linux/nfs_fs_sb.h	2010-12-13 21:46:21.000000000 +0800
-@@ -107,6 +107,8 @@ struct nfs_server {
+@@ -106,6 +106,7 @@ struct nfs_server {
+ 	struct nfs_iostats __percpu *io_stats;	/* I/O statistics */
  	struct backing_dev_info	backing_dev_info;
  	atomic_long_t		writeback;	/* number of writeback pages */
- 	wait_queue_head_t	writeback_wait[2];
-+	atomic_long_t		in_commit;	/* number of in-commit pages */
-+	wait_queue_head_t	in_commit_wait;
++	wait_queue_head_t	writeback_wait[2];
  	int			flags;		/* various flags */
  	unsigned int		caps;		/* server capabilities */
  	unsigned int		rsize;		/* read size */
---- linux-next.orig/fs/nfs/client.c	2010-12-13 21:46:21.000000000 +0800
+--- linux-next.orig/fs/nfs/client.c	2010-12-13 21:45:54.000000000 +0800
 +++ linux-next/fs/nfs/client.c	2010-12-13 21:46:21.000000000 +0800
-@@ -1008,6 +1008,7 @@ static struct nfs_server *nfs_alloc_serv
+@@ -1006,6 +1006,8 @@ static struct nfs_server *nfs_alloc_serv
+ 	INIT_LIST_HEAD(&server->master_link);
+ 
  	atomic_set(&server->active, 0);
- 	init_waitqueue_head(&server->writeback_wait[BLK_RW_SYNC]);
- 	init_waitqueue_head(&server->writeback_wait[BLK_RW_ASYNC]);
-+	init_waitqueue_head(&server->in_commit_wait);
++	init_waitqueue_head(&server->writeback_wait[BLK_RW_SYNC]);
++	init_waitqueue_head(&server->writeback_wait[BLK_RW_ASYNC]);
  
  	server->io_stats = nfs_alloc_iostats();
  	if (!server->io_stats) {
