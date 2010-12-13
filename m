@@ -1,188 +1,82 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 13/35] writeback: bdi base throttle bandwidth
-Date: Mon, 13 Dec 2010 22:46:59 +0800
-Message-ID: <20101213150327.936117931@intel.com>
+Subject: [PATCH 35/35] nfs: trace nfs_commit_release()
+Date: Mon, 13 Dec 2010 22:47:21 +0800
+Message-ID: <20101213150330.555135409@intel.com>
 References: <20101213144646.341970461@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PSA2m-0002S9-Jh
-	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:10:28 +0100
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A995D6B00AD
+	id 1PSA2p-0002Ts-QE
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:10:32 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E50506B00AF
 	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:09:03 -0500 (EST)
-Content-Disposition: inline; filename=writeback-bw-for-concurrent-dirtiers.patch
+Content-Disposition: inline; filename=trace-nfs-commit-release.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-This basically does
-
--	task_bw = linear_function(task_weight, bdi_dirty, bdi->write_bandwidth)
-+	task_bw = linear_function(task_weight, bdi_dirty, bdi->throttle_bandwidth)
-
-where
-                                    adapt to
-	bdi->throttle_bandwidth ================> bdi->write_bandwidth / N
-	                        stabilize around
-
-	N = number of concurrent heavy dirtier tasks
-	    (light dirtiers will have little effect)
-
-It offers two great benefits:
-
-1) in many configurations (eg. NFS), bdi->write_bandwidth fluctuates a lot
-   (more than 100%) by nature. bdi->throttle_bandwidth will be much more
-   stable.  It will normally be a flat line in the time-bw graph.
-
-2) bdi->throttle_bandwidth will be close to the final task_bw in stable state.
-   In contrast, bdi->write_bandwidth is N times larger than task_bw.
-   Given N=4, bdi_dirty will float around A before patch, and we want it
-   stabilize around B by lowering the slope of the control line, so that
-   when bdi_dirty fluctuates for the same delta (to points A'/B'), the
-   corresponding fluctuation of task_bw is reduced to 1/4. The benefit
-   is obvious: when there are 1000 concurrent dirtiers, the fluctuations
-   quickly go out of control; with this patch, the max fluctuations
-   virtually are the same as the single dirtier case. In this way, the
-   control system can scale to whatever huge number of dirtiers.
-
-fig.1 before patch
-
-               bdi->write_bandwidth   ........o
-                                               o
-                                                o
-                                                 o
-                                                  o
-                                                   o
-                                                    o
-                                                     o
-                                                      o
-                                                       o
-                                                        o
-                                                         o
-   task_bw = bdi->write_bandwidth / 4 ....................o
-                                                          |o
-                                                          | o
-                                                          |  o <= A'
-----------------------------------------------------------+---o
-                                                          A   C
-
-fig.2 after patch
-
-task_bw = bdi->throttle_bandwidth     ........o
-        = bdi->write_bandwidth / 4            |   o <= B'
-                                              |       o
-                                              |           o
-----------------------------------------------+---------------o
-                                              B               C
-
-The added complexity is, it will take some time for
-bdi->throttle_bandwidth to adapt to the workload:
-
-- 2 seconds to scale to 10 times more dirtier tasks
-- 10 seconds to 10 times less dirtier tasks
-
-The slower adapt time to reduced tasks is not a big problem. Because
-the control line is not linear. At worst, bdi_dirty will drop below the
-15% throttle threshold where the tasks won't be throttled at all.
-
-When the system has dirtiers of different speed, bdi->throttle_bandwidth
-will adapt to around the most fast speed.
 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/backing-dev.h |    1 
- mm/backing-dev.c            |    1 
- mm/page-writeback.c         |   42 +++++++++++++++++++++++++++++++++-
- 3 files changed, 43 insertions(+), 1 deletion(-)
+ fs/nfs/write.c             |    3 +++
+ include/trace/events/nfs.h |   31 +++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)
 
---- linux-next.orig/include/linux/backing-dev.h	2010-12-13 21:46:14.000000000 +0800
-+++ linux-next/include/linux/backing-dev.h	2010-12-13 21:46:15.000000000 +0800
-@@ -78,6 +78,7 @@ struct backing_dev_info {
- 	unsigned long bw_time_stamp;
- 	unsigned long written_stamp;
- 	unsigned long write_bandwidth;
-+	unsigned long throttle_bandwidth;
- 
- 	struct prop_local_percpu completions;
- 	int dirty_exceeded;
---- linux-next.orig/mm/page-writeback.c	2010-12-13 21:46:15.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-12-13 21:46:15.000000000 +0800
-@@ -521,6 +521,45 @@ out:
- 	return 1 + int_sqrt(dirty_thresh - dirty_pages);
+--- linux-next.orig/fs/nfs/write.c	2010-12-13 21:46:23.000000000 +0800
++++ linux-next/fs/nfs/write.c	2010-12-13 21:46:23.000000000 +0800
+@@ -1475,6 +1475,9 @@ static void nfs_commit_release(void *cal
+ 	}
+ 	nfs_commit_clear_lock(NFS_I(data->inode));
+ 	nfs_commit_wakeup(NFS_SERVER(data->inode));
++	trace_nfs_commit_release(data->inode,
++				 data->args.offset,
++				 data->args.count);
+ 	nfs_commitdata_release(calldata);
  }
  
-+/*
-+ * The bdi throttle bandwidth is introduced for resisting bdi_dirty from
-+ * getting too close to task_thresh. It allows scaling up to 1000+ concurrent
-+ * dirtier tasks while keeping the fluctuation level flat.
-+ */
-+static void __bdi_update_throttle_bandwidth(struct backing_dev_info *bdi,
-+					    unsigned long dirty,
-+					    unsigned long thresh)
-+{
-+	unsigned long gap = thresh / TASK_SOFT_DIRTY_LIMIT + 1;
-+	unsigned long bw = bdi->throttle_bandwidth;
-+
-+	if (dirty > thresh)
-+		return;
-+
-+	/* adapt to concurrent dirtiers */
-+	if (dirty > thresh - gap) {
-+		bw -= bw >> (3 + 4 * (thresh - dirty) / gap);
-+		goto out;
-+	}
-+
-+	/* adapt to one single dirtier */
-+	if (dirty > thresh - gap * 2 + gap / 4 &&
-+	    bw > bdi->write_bandwidth + bdi->write_bandwidth / 2) {
-+		bw -= bw >> (3 + 4 * (thresh - dirty - gap) / gap);
-+		goto out;
-+	}
-+
-+	if (dirty <= thresh - gap * 2 - gap / 2 &&
-+	    bw < bdi->write_bandwidth - bdi->write_bandwidth / 2) {
-+		bw += (bw >> 4) + 1;
-+		goto out;
-+	}
-+
-+	return;
-+out:
-+	bdi->throttle_bandwidth = bw;
-+}
-+
- static void __bdi_update_write_bandwidth(struct backing_dev_info *bdi,
- 					 unsigned long elapsed,
- 					 unsigned long written)
-@@ -563,6 +602,7 @@ void bdi_update_bandwidth(struct backing
- 		goto unlock;
+--- linux-next.orig/include/trace/events/nfs.h	2010-12-13 21:46:23.000000000 +0800
++++ linux-next/include/trace/events/nfs.h	2010-12-13 21:46:23.000000000 +0800
+@@ -51,6 +51,37 @@ TRACE_EVENT(nfs_commit_unstable_pages,
+ 	)
+ );
  
- 	__bdi_update_write_bandwidth(bdi, elapsed, written);
-+	__bdi_update_throttle_bandwidth(bdi, bdi_dirty, bdi_thresh);
++TRACE_EVENT(nfs_commit_release,
++
++	TP_PROTO(struct inode *inode,
++		 unsigned long offset,
++		 unsigned long len),
++
++	TP_ARGS(inode, offset, len),
++
++	TP_STRUCT__entry(
++		__array(char, name, 32)
++		__field(unsigned long,	ino)
++		__field(unsigned long,	offset)
++		__field(unsigned long,	len)
++	),
++
++	TP_fast_assign(
++		strncpy(__entry->name,
++			dev_name(inode->i_mapping->backing_dev_info->dev), 32);
++		__entry->ino		= inode->i_ino;
++		__entry->offset		= offset;
++		__entry->len		= len;
++	),
++
++	TP_printk("bdi %s: ino=%lu offset=%lu len=%lu",
++		  __entry->name,
++		  __entry->ino,
++		  __entry->offset,
++		  __entry->len
++	)
++);
++
  
- snapshot:
- 	bdi->written_stamp = written;
-@@ -651,7 +691,7 @@ static void balance_dirty_pages(struct a
- 		 * close to task_thresh, and help reduce fluctuations of pause
- 		 * time when there are lots of dirtiers.
- 		 */
--		bw = bdi->write_bandwidth;
-+		bw = bdi->throttle_bandwidth;
- 		bw = bw * (bdi_thresh - bdi_dirty);
- 		do_div(bw, bdi_thresh / BDI_SOFT_DIRTY_LIMIT + 1);
+ #endif /* _TRACE_NFS_H */
  
---- linux-next.orig/mm/backing-dev.c	2010-12-13 21:46:14.000000000 +0800
-+++ linux-next/mm/backing-dev.c	2010-12-13 21:46:15.000000000 +0800
-@@ -664,6 +664,7 @@ int bdi_init(struct backing_dev_info *bd
- 
- 	spin_lock_init(&bdi->bw_lock);
- 	bdi->write_bandwidth = 100 << (20 - PAGE_SHIFT);  /* 100 MB/s */
-+	bdi->throttle_bandwidth = 100 << (20 - PAGE_SHIFT);
- 
- 	bdi->dirty_exceeded = 0;
- 	err = prop_local_init_percpu(&bdi->completions);
 
 
 --
