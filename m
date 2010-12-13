@@ -1,72 +1,124 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 09/35] writeback: account per-bdi accumulated written pages
-Date: Mon, 13 Dec 2010 22:46:55 +0800
-Message-ID: <20101213150327.453495823@intel.com>
+Subject: [PATCH 34/35] nfs: trace nfs_commit_unstable_pages()
+Date: Mon, 13 Dec 2010 22:47:20 +0800
+Message-ID: <20101213150330.441472077@intel.com>
 References: <20101213144646.341970461@intel.com>
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline; filename=writeback-bdi-written.patch
-Sender: linux-kernel-owner@vger.kernel.org
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by lo.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1PSA2H-00029d-8H
+	for glkm-linux-mm-2@m.gmane.org; Mon, 13 Dec 2010 16:09:57 +0100
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 563976B00A7
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 10:08:51 -0500 (EST)
+Content-Disposition: inline; filename=nfs-trace-write_inode.patch
+Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Trond Myklebust <Trond.Myklebust@netapp.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-From: Jan Kara <jack@suse.cz>
-
-Introduce the BDI_WRITTEN counter. It will be used for estimating the
-bdi's write bandwidth.
-
-Peter Zijlstra <a.p.zijlstra@chello.nl>:
-Move BDI_WRITTEN accounting into __bdi_writeout_inc().
-This will cover and fix fuse, which only calls bdi_writeout_inc().
-
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Jan Kara <jack@suse.cz>
+CC: Trond Myklebust <Trond.Myklebust@netapp.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/backing-dev.h |    1 +
- mm/backing-dev.c            |    6 ++++--
- mm/page-writeback.c         |    1 +
- 3 files changed, 6 insertions(+), 2 deletions(-)
+ fs/nfs/write.c             |   10 ++++--
+ include/trace/events/nfs.h |   58 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 2 deletions(-)
 
---- linux-next.orig/include/linux/backing-dev.h	2010-12-13 21:45:57.000000000 +0800
-+++ linux-next/include/linux/backing-dev.h	2010-12-13 21:46:13.000000000 +0800
-@@ -40,6 +40,7 @@ typedef int (congested_fn)(void *, int);
- enum bdi_stat_item {
- 	BDI_RECLAIMABLE,
- 	BDI_WRITEBACK,
-+	BDI_WRITTEN,
- 	NR_BDI_STAT_ITEMS
- };
+--- linux-next.orig/fs/nfs/write.c	2010-12-13 21:46:22.000000000 +0800
++++ linux-next/fs/nfs/write.c	2010-12-13 21:46:23.000000000 +0800
+@@ -29,6 +29,9 @@
+ #include "nfs4_fs.h"
+ #include "fscache.h"
  
---- linux-next.orig/mm/backing-dev.c	2010-12-13 21:46:10.000000000 +0800
-+++ linux-next/mm/backing-dev.c	2010-12-13 21:46:13.000000000 +0800
-@@ -92,6 +92,7 @@ static int bdi_debug_stats_show(struct s
- 		   "BdiDirtyThresh:   %8lu kB\n"
- 		   "DirtyThresh:      %8lu kB\n"
- 		   "BackgroundThresh: %8lu kB\n"
-+		   "BdiWritten:       %8lu kB\n"
- 		   "b_dirty:          %8lu\n"
- 		   "b_io:             %8lu\n"
- 		   "b_more_io:        %8lu\n"
-@@ -99,8 +100,9 @@ static int bdi_debug_stats_show(struct s
- 		   "state:            %8lx\n",
- 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
- 		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
--		   K(bdi_thresh), K(dirty_thresh),
--		   K(background_thresh), nr_dirty, nr_io, nr_more_io,
-+		   K(bdi_thresh), K(dirty_thresh), K(background_thresh),
-+		   (unsigned long) K(bdi_stat(bdi, BDI_WRITTEN)),
-+		   nr_dirty, nr_io, nr_more_io,
- 		   !list_empty(&bdi->bdi_list), bdi->state);
- #undef K
++#define CREATE_TRACE_POINTS
++#include <trace/events/nfs.h>
++
+ #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
  
---- linux-next.orig/mm/page-writeback.c	2010-12-13 21:46:13.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-12-13 21:46:13.000000000 +0800
-@@ -204,6 +204,7 @@ int dirty_bytes_handler(struct ctl_table
-  */
- static inline void __bdi_writeout_inc(struct backing_dev_info *bdi)
- {
-+	__inc_bdi_stat(bdi, BDI_WRITTEN);
- 	__prop_inc_percpu_max(&vm_completions, &bdi->completions,
- 			      bdi->max_prop_frac);
+ #define MIN_POOL_WRITE		(32)
+@@ -1566,10 +1569,13 @@ static int nfs_commit_unstable_pages(str
+ 
+ 	ret = nfs_commit_inode(inode, flags);
+ 	if (ret >= 0)
+-		return 0;
++		goto out;
++
+ out_mark_dirty:
+ 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+-	return ret;
++out:
++	trace_nfs_commit_unstable_pages(inode, wbc, flags, ret);
++	return ret >= 0 ? 0 : ret;
  }
+ #else
+ static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_control *wbc)
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-next/include/trace/events/nfs.h	2010-12-13 21:46:23.000000000 +0800
+@@ -0,0 +1,58 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM nfs
++
++#if !defined(_TRACE_NFS_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_NFS_H
++
++#include <linux/nfs_fs.h>
++
++
++TRACE_EVENT(nfs_commit_unstable_pages,
++
++	TP_PROTO(struct inode *inode,
++		 struct writeback_control *wbc,
++		 int sync,
++		 int ret
++	),
++
++	TP_ARGS(inode, wbc, sync, ret),
++
++	TP_STRUCT__entry(
++		__array(char, name, 32)
++		__field(unsigned long,	ino)
++		__field(unsigned long,	npages)
++		__field(unsigned long,	in_commit)
++		__field(unsigned long,	write_chunk)
++		__field(int,		sync)
++		__field(int,		ret)
++	),
++
++	TP_fast_assign(
++		strncpy(__entry->name,
++			dev_name(inode->i_mapping->backing_dev_info->dev), 32);
++		__entry->ino		= inode->i_ino;
++		__entry->npages		= NFS_I(inode)->npages;
++		__entry->in_commit	=
++			atomic_long_read(&NFS_SERVER(inode)->in_commit);
++		__entry->write_chunk	= wbc->per_file_limit;
++		__entry->sync		= sync;
++		__entry->ret		= ret;
++	),
++
++	TP_printk("bdi %s: ino=%lu npages=%ld "
++		  "incommit=%lu write_chunk=%lu sync=%d ret=%d",
++		  __entry->name,
++		  __entry->ino,
++		  __entry->npages,
++		  __entry->in_commit,
++		  __entry->write_chunk,
++		  __entry->sync,
++		  __entry->ret
++	)
++);
++
++
++#endif /* _TRACE_NFS_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
