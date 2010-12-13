@@ -1,57 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id CEF216B0088
-	for <linux-mm@kvack.org>; Sun, 12 Dec 2010 21:08:48 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oBD28iHc011311
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 13 Dec 2010 11:08:44 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 673FE45DE5B
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 11:08:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4ACF945DE55
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 11:08:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3770AE08002
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 11:08:44 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E458F1DB803C
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 11:08:43 +0900 (JST)
-Date: Mon, 13 Dec 2010 11:03:01 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/6] mm: kswapd: Keep kswapd awake for high-order
- allocations until a percentage of the node is balanced
-Message-Id: <20101213110301.655194ed.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1291995985-5913-3-git-send-email-mel@csn.ul.ie>
-References: <1291995985-5913-1-git-send-email-mel@csn.ul.ie>
-	<1291995985-5913-3-git-send-email-mel@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 684A96B0088
+	for <linux-mm@kvack.org>; Sun, 12 Dec 2010 22:34:56 -0500 (EST)
+Date: Mon, 13 Dec 2010 10:09:25 +0800
+From: Shaohui Zheng <shaohui.zheng@linux.intel.com>
+Subject: Re: [7/7,v8] NUMA Hotplug Emulator: Implement per-node add_memory
+ debugfs interface
+Message-ID: <20101213020924.GB19637@shaohui>
+References: <A24AE1FFE7AEC5489F83450EE98351BF2A40FED20A@shsmsx502.ccr.corp.intel.com>
+ <20101209012124.GD5798@shaohui>
+ <alpine.DEB.2.00.1012091325530.13564@chino.kir.corp.google.com>
+ <20101209235705.GA10674@shaohui>
+ <alpine.DEB.2.00.1012101529190.30039@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1012101529190.30039@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, Andi Kleen <ak@linux.intel.com>, Greg Kroah-Hartman <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 10 Dec 2010 15:46:21 +0000
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Fri, Dec 10, 2010 at 03:30:38PM -0800, David Rientjes wrote:
+> On Fri, 10 Dec 2010, Shaohui Zheng wrote:
+> 
+> > > That doesn't address the question.  My question is whether or not adding 
+> > > memory to a memoryless node in this way transitions its state to 
+> > > N_HIGH_MEMORY in the VM?
+> > I guess that you are talking about memory hotplug on x86_32, memory hotplug is
+> > NOT supported well for x86_32, and the function add_memory does not consider
+> > this situlation.
+> > 
+> > For 64bit, N_HIGH_MEMORY == N_NORMAL_MEMORY, so we need not to do the transition.
+> > 
+> 
+> One more time :)  Memoryless nodes do not have their bit set in 
+> N_HIGH_MEMORY.  When memory is added to a memoryless node with this new 
+> interface, does the bit get set?
 
-> When reclaiming for high-orders, kswapd is responsible for balancing a
-> node but it should not reclaim excessively. It avoids excessive reclaim by
-> considering if any zone in a node is balanced then the node is balanced. In
-> the cases where there are imbalanced zone sizes (e.g. ZONE_DMA with both
-> ZONE_DMA32 and ZONE_NORMAL), kswapd can go to sleep prematurely as just
-> one small zone was balanced.
-> 
-> This alters the sleep logic of kswapd slightly. It counts the number of pages
-> that make up the balanced zones. If the total number of balanced pages is
-> more than a quarter of the zone, kswapd will go back to sleep. This should
-> keep a node balanced without reclaiming an excessive number of pages.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+When we use debugfs add_node interface to add a fake node, the node was created, 
+and memory sections were created, but the state of the memory section is still 
+__offline__, so the new added node is still memoryless node. the result of debugfs
+add_memory interface doing the similar thing with add_node, it just add memory
+to an exists node.
+
+For the state transition to N_HIGH_MEMORY, it does not happen on the above too
+interfaces. It happens when the memory was onlined with sysfs /sys/device/system/memory/memoryXX/online
+interface.
+
+That is the code path:
+store_mem_state
+	->memory_block_change_state
+	 	->memory_block_action
+			->online_pages
+
+			if (onlined_pages) {
+				kswapd_run(zone_to_nid(zone));
+				node_set_state(zone_to_nid(zone), N_HIGH_MEMORY);
+			}
+
+does it address your question? thanks.
+
+-- 
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
