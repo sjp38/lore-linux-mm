@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 35AE86B0093
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 21:34:13 -0500 (EST)
-Received: by iwn40 with SMTP id 40so194275iwn.14
-        for <linux-mm@kvack.org>; Mon, 13 Dec 2010 18:34:11 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 122476B0093
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 21:36:13 -0500 (EST)
+Received: by iyj17 with SMTP id 17so77600iyj.14
+        for <linux-mm@kvack.org>; Mon, 13 Dec 2010 18:36:12 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20101214110711.af70b5b0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <87lj3t30a9.fsf@gmail.com>
 References: <cover.1291568905.git.minchan.kim@gmail.com>
 	<0724024711222476a0c8deadb5b366265b8e5824.1291568905.git.minchan.kim@gmail.com>
 	<20101208170504.1750.A69D9226@jp.fujitsu.com>
@@ -13,83 +13,63 @@ References: <cover.1291568905.git.minchan.kim@gmail.com>
 	<87oc8wa063.fsf@gmail.com>
 	<AANLkTin642NFLMubtCQhSVUNLzfdk5ajz-RWe2zT+Lw6@mail.gmail.com>
 	<20101213153105.GA2344@barrios-desktop>
-	<20101214110711.af70b5b0.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 14 Dec 2010 11:34:11 +0900
-Message-ID: <AANLkTi=kBwNQjQ0XBo9Fu5dbUtZ4wBy11K4vU1Kfo6QK@mail.gmail.com>
+	<87lj3t30a9.fsf@gmail.com>
+Date: Tue, 14 Dec 2010 11:36:12 +0900
+Message-ID: <AANLkTikT_HNvuBR0J-2COgB54gquj2FineOjkzU+mt6_@mail.gmail.com>
 Subject: Re: [PATCH v4 4/7] Reclaim invalidated page ASAP
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Ben Gamari <bgamari.foss@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
+To: Ben Gamari <bgamari.foss@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 14, 2010 at 11:07 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Tue, 14 Dec 2010 00:31:05 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
->
->> Test Environment :
->> DRAM : 2G, CPU : Intel(R) Core(TM)2 CPU
->> Rsync backup directory size : 16G
->>
->> rsync version is 3.0.7.
->> rsync patch is Ben's fadivse.
->> stress scenario do following jobs with parallel.
->>
->> 1. make all -j4 linux, git clone linux-kernel
->> 2. git clone linux-kernel
->> 3. rsync src dst
->>
->> nrns : no-patched rsync + no stress
->> prns : patched rsync + no stress
->> nrs =A0: no-patched rsync + stress
->> prs =A0: patched rsync + stress
->>
->> pginvalidate : the number of dirty/writeback pages which is invalidated =
-by fadvise
->> pgreclaim : pages moved PG_reclaim trick in inactive's tail
->>
+Hi Ben,
+
+On Tue, Dec 14, 2010 at 5:06 AM, Ben Gamari <bgamari.foss@gmail.com> wrote:
+> On Tue, 14 Dec 2010 00:31:05 +0900, Minchan Kim <minchan.kim@gmail.com> w=
+rote:
 >> In summary, my patch enhances a littie bit about elapsed time in
 >> memory pressure environment and enhance reclaim effectivness(reclaim/rec=
 laim)
 >> with x2. It means reclaim latency is short and doesn't evict working set
 >> pages due to invalidated pages.
 >>
+> Thank you very much for this testing! I'm very sorry I've been unable to
+> contribute more recently. My last exam is on Wednesday and besides some
+> grading that is the end of the semester. =A0Is there anything you would
+
+No worry. I hope you have great grade in your exam. :)
+
+> like me to do? Perhaps reproducing these results on my setup would be
+> useful?
+
+Thanks very much if you do.
+
+>
 >> Look at reclaim effectivness. Patched rsync enhances x2 about reclaim
 >> effectiveness and compared to mmotm-12-03, mmotm-12-03-fadvise enhances
 >> 3 minute about elapsed time in stress environment.
 >> I think it's due to reduce scanning, reclaim overhead.
 >>
->> In no-stress enviroment, fadivse makes program little bit slow.
->> I think because there are many pgfault. I don't know why it happens.
->> Could you guess why it happens?
->>
->> Before futher work, I hope listen opinions.
->> Any comment is welcome.
->>
->
-> At first, the improvement seems great. Thank you for your effort.
+> Good good. This looks quite promising.
 
-Thanks, Kame.
+Thanks, Ben.
 
 >
 >> In no-stress enviroment, fadivse makes program little bit slow.
 >> I think because there are many pgfault. I don't know why it happens.
 >> Could you guess why it happens?
 >>
->
-> Are there no program which accesses a directory rsync'ed ?
+> Hmm, nothing comes to mind. As I've said in the past, rsync should
+> require each page only once. Perhaps perf might offer some insight into
+> where this time is being spent?
 
-Maybe. some programs might have mmaped files.
-But although it happens, deactivate_page found that and it does
-nothing so the page can't be reclaimed.
+Maybe. I will have a plan to look into that.
 
 >
-> Thanks,
-> -Kame
->
+> - Ben
 >
 
 
