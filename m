@@ -1,50 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 33B726B0093
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 18:22:41 -0500 (EST)
-Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
-	by smtp-out.google.com with ESMTP id oBENMbLq013196
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 15:22:39 -0800
-Received: from qwk4 (qwk4.prod.google.com [10.241.195.132])
-	by kpbe14.cbf.corp.google.com with ESMTP id oBENMZfn009810
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 15:22:36 -0800
-Received: by qwk4 with SMTP id 4so1326586qwk.4
-        for <linux-mm@kvack.org>; Tue, 14 Dec 2010 15:22:35 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTim-sV6JO5apPdd9oG23q3THaZ1FazfF1nqUfs6C@mail.gmail.com>
-References: <1291335412-16231-1-git-send-email-walken@google.com>
-	<1291335412-16231-2-git-send-email-walken@google.com>
-	<20101208152740.ac449c3d.akpm@linux-foundation.org>
-	<AANLkTikYZi0=c+yM1p8H18u+9WVbsQXjAinUWyNt7x+t@mail.gmail.com>
-	<AANLkTinY0pcTcd+OxPLyvsJgHgh=cTaB1-8VbEA2tstb@mail.gmail.com>
-	<20101214005140.GA29904@google.com>
-	<20101213170526.3b010058.akpm@linux-foundation.org>
-	<AANLkTim-sV6JO5apPdd9oG23q3THaZ1FazfF1nqUfs6C@mail.gmail.com>
-Date: Tue, 14 Dec 2010 15:22:35 -0800
-Message-ID: <AANLkTim-CBKeXYiK=TWHafcEto32mKAqCggTVW5-r9nj@mail.gmail.com>
-Subject: Re: [PATCH 1/6] mlock: only hold mmap_sem in shared mode when
- faulting in pages
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 891636B008A
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 18:56:51 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oBENun4n029935
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 15 Dec 2010 08:56:49 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 13A8345DE4D
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 08:56:49 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EC4D345DE5D
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 08:56:48 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D544FE18001
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 08:56:48 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A548E08001
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 08:56:48 +0900 (JST)
+Date: Wed, 15 Dec 2010 08:50:47 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCHv7 08/10] mm: cma: Contiguous Memory Allocator added
+Message-Id: <20101215085047.251778be.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <87zks8fyb0.fsf@erwin.mina86.com>
+References: <cover.1292004520.git.m.nazarewicz@samsung.com>
+	<fc8aa07ac71d554ba10af4943fdb05197c681fa2.1292004520.git.m.nazarewicz@samsung.com>
+	<20101214102401.37bf812d.kamezawa.hiroyu@jp.fujitsu.com>
+	<87zks8fyb0.fsf@erwin.mina86.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Michal Nazarewicz <m.nazarewicz@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, BooJin Kim <boojin.kim@samsung.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 14, 2010 at 7:43 AM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> Without _any_ at all of the crappy "rwsem_contended()" or the stupid
-> constants, we hold it only for reading, _and_ we drop it for any
-> actual IO. So the semaphore is held only for actual CPU intensive
-> cases. We're talking a reduction from minutes to milliseconds.
+On Tue, 14 Dec 2010 11:23:15 +0100
+Michal Nazarewicz <mina86@mina86.com> wrote:
 
-It's actually still several seconds for a large enough mlock from page cache.
+> > Hmm, it seems __cm_alloc() and __cm_migrate() has no special codes for CMA.
+> > I'd like reuse this for my own contig page allocator.
+> > So, could you make these function be more generic (name) ?
+> > as
+> > 	__alloc_range(start, size, mirate_type);
+> >
+> > Then, what I have to do is only to add "search range" functions.
+> 
+> Sure thing.  I'll post it tomorrow or Friday. How about
+> alloc_contig_range() maybe?
+> 
 
-But yes, I agree it'll do fine for now :)
+That sounds great. Thank you.
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
