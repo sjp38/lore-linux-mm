@@ -1,50 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id BFA7B6B0088
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 12:46:33 -0500 (EST)
-Date: Tue, 14 Dec 2010 18:46:26 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Deadlocks with transparent huge pages and userspace fs daemons
-Message-ID: <20101214174626.GN5638@random.random>
-References: <1288817005.4235.11393.camel@nimitz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1288817005.4235.11393.camel@nimitz>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BC49B6B0089
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 13:43:23 -0500 (EST)
+Subject: Re: [PATCH 16/35] writeback: increase min pause time on concurrent dirtiers
+In-Reply-To: Your message of "Tue, 14 Dec 2010 14:51:33 +0800."
+             <20101214065133.GA6940@localhost>
+From: Valdis.Kletnieks@vt.edu
+References: <20101213144646.341970461@intel.com> <20101213150328.284979629@intel.com> <15881.1292264611@localhost>
+            <20101214065133.GA6940@localhost>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1292352152_5019P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 14 Dec 2010 13:42:32 -0500
+Message-ID: <14658.1292352152@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Lin Feng Shen <shenlinf@cn.ibm.com>, Yuri L Volobuev <volobuev@us.ibm.com>, Mel Gorman <mel@linux.vnet.ibm.com>, dingc@cn.ibm.com, lnxninja <lnxninja@us.ibm.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello Dave and everyone,
+--==_Exmh_1292352152_5019P
+Content-Type: text/plain; charset=us-ascii
 
-On Wed, Nov 03, 2010 at 01:43:25PM -0700, Dave Hansen wrote:
-> Hey Miklos,
+On Tue, 14 Dec 2010 14:51:33 +0800, Wu Fengguang said:
+
+> > > +	/* (N * 10ms) on 2^N concurrent tasks */
+> > > +	t = (hi - lo) * (10 * HZ) / 1024;
+> > 
+> > Either I need more caffeine, or the comment doesn't match the code
+> > if HZ != 1000?
 > 
-> When testing with a transparent huge page kernel:
-> 
-> 	http://git.kernel.org/gitweb.cgi?p=linux/kernel/git/andrea/aa.git;a=summary
-> 
-> some IBM testers ran into some deadlocks.  It appears that the
-> khugepaged process is trying to migrate one of a filesystem daemon's
-> pages while khugepaged holds the daemon's mmap_sem for write.
+> The "ms" in the comment may be confusing, but the pause time (t) is
+> measured in jiffies :)  Hope the below patch helps.
 
-The allocation under mmap_sem write mode in khugepaged bug should be
-fixed in current aa.git based on 37-rc5:
+No, I meant that 10 * HZ evaluates to different numbers depending what
+the CONFIG_HZ parameter is set to - 100, 250, 1000, or some other
+custom value.  Does this code behave correctly on a CONFIG_HZ=100 kernel?
 
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=shortlog
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=83e4d55d0014b3eeb982005d73f55ffcf2813504
 
-Let me know how it goes, it's not very well tested yet (which is why I
-didn't make a new submit yet).
+--==_Exmh_1292352152_5019P
+Content-Type: application/pgp-signature
 
-I stick to my idea this is bug in userland and may trigger if your
-daemon does mmap/munmap and the vma allocation under mmap_sem waits
-for the I/O, but I don't want to show it with THP enabled, and this is
-more scalable so it's definitely good idea and no downside whatsoever.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
 
-Thanks for the report,
-Andrea
+iD8DBQFNB7qYcC3lWbTT17ARAvTMAKC/ht0Fks0Or0Vt5OCz0fm3BUJrpQCeM8zE
+81BeEo8scun4qECHwhkfUDE=
+=q+q1
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1292352152_5019P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
