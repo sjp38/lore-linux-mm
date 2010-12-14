@@ -1,113 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C23616B008A
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 10:53:16 -0500 (EST)
-Date: Tue, 14 Dec 2010 23:53:08 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 31/35] nfs: dont change wbc->nr_to_write in
- write_inode()
-Message-ID: <20101214155307.GB8959@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C8ADA6B008A
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 10:58:03 -0500 (EST)
+Subject: Re: [PATCH 29/35] nfs: in-commit pages accounting and wait queue
+From: Trond Myklebust <Trond.Myklebust@netapp.com>
+In-Reply-To: <20101214154026.GA8959@localhost>
 References: <20101213144646.341970461@intel.com>
- <20101213150330.076517282@intel.com>
- <1292274104.8795.23.camel@heimdal.trondhjem.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1292274104.8795.23.camel@heimdal.trondhjem.org>
+	 <20101213150329.831955132@intel.com>
+	 <1292274951.8795.28.camel@heimdal.trondhjem.org>
+	 <20101214154026.GA8959@localhost>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 14 Dec 2010 10:57:25 -0500
+Message-ID: <1292342245.2976.13.camel@heimdal.trondhjem.org>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Trond Myklebust <Trond.Myklebust@netapp.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 14, 2010 at 05:01:44AM +0800, Trond Myklebust wrote:
-> On Mon, 2010-12-13 at 22:47 +0800, Wu Fengguang wrote:
-> > plain text document attachment
-> > (writeback-nfs-commit-remove-nr_to_write.patch)
-> > It's introduced in commit 420e3646 ("NFS: Reduce the number of
-> > unnecessary COMMIT calls") and seems not necessary.
-> > 
-> > CC: Trond Myklebust <Trond.Myklebust@netapp.com>
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> >  fs/nfs/write.c |    9 +--------
-> >  1 file changed, 1 insertion(+), 8 deletions(-)
-> > 
-> > --- linux-next.orig/fs/nfs/write.c	2010-12-13 21:46:21.000000000 +0800
-> > +++ linux-next/fs/nfs/write.c	2010-12-13 21:46:22.000000000 +0800
-> > @@ -1557,15 +1557,8 @@ static int nfs_commit_unstable_pages(str
-> >  	}
-> >  
-> >  	ret = nfs_commit_inode(inode, flags);
-> > -	if (ret >= 0) {
-> > -		if (wbc->sync_mode == WB_SYNC_NONE) {
-> > -			if (ret < wbc->nr_to_write)
-> > -				wbc->nr_to_write -= ret;
-> > -			else
-> > -				wbc->nr_to_write = 0;
-> > -		}
-> > +	if (ret >= 0)
-> >  		return 0;
-> > -	}
-> >  out_mark_dirty:
-> >  	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
-> >  	return ret;
-> 
-> It is there in order to tell the VM that it has succeeded in freeing up
-> a certain number of pages. Otherwise, we end up cycling forever in
-> writeback_sb_inodes() & friends with the latter not realising that they
-> have made progress.
+On Tue, 2010-12-14 at 23:40 +0800, Wu Fengguang wrote:
+> On Tue, Dec 14, 2010 at 05:15:51AM +0800, Trond Myklebust wrote:
+> > On Mon, 2010-12-13 at 22:47 +0800, Wu Fengguang wrote:
+> > > plain text document attachment (writeback-nfs-in-commit.patch)
+> > > When doing 10+ concurrent dd's, I observed very bumpy commits submiss=
+ion
+> > > (partly because the dd's are started at the same time, and hence reac=
+hed
+> > > 4MB to-commit pages at the same time). Basically we rely on the serve=
+r
+> > > to complete and return write/commit requests, and want both to progre=
+ss
+> > > smoothly and not consume too many pages. The write request wait queue=
+ is
+> > > not enough as it's mainly network bounded. So add another commit requ=
+est
+> > > wait queue. Only async writes need to sleep on this queue.
+> > >=20
+> >=20
+> > I'm not understanding the above reasoning. Why should we serialise
+> > commits at the per-filesystem level (and only for non-blocking flushes
+> > at that)?
+>=20
+> I did the commit wait queue after seeing this graph, where there is
+> very bursty pattern of commit submission and hence completion:
+>=20
+> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-=
+100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/nfs-commit-1000.png
+>=20
+> leading to big fluctuations, eg. the almost straight up/straight down
+> lines below
+> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-=
+100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/vmstat-dirty-300.png
+> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-=
+100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/dirty-pages.png
+> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-=
+100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/dirty-pages-200.png
+>=20
+> A commit wait queue will help wipe out the "peaks". The "fixed" graph
+> is
+> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-=
+100dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-03-23/vmstat-dirty-300.png
+> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-=
+100dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-03-23/dirty-pages.png
+>=20
+> Blocking flushes don't need to wait on this queue because they already
+> throttle themselves by waiting on the inode commit lock before/after
+> the commit.  They actually should not wait on this queue, to prevent
+> sync requests being unnecessarily blocked by async ones.
 
-Yeah it seems reasonable, thanks for the explanation.  I'll drop it.
+OK, but isn't it better then to just abort the commit, and have the
+relevant async process retry it later?
 
-The decrease of nr_to_write seems a partial solution. It will return
-control to wb_writeback(), however the function may still busy loop
-for long time without doing anything, when all the unstable pages are
-in-commit pages.
+This is a code path which is followed by kswapd, for instance. It seems
+dangerous to be throttling that instead of allowing it to proceed (and
+perhaps being able to free up memory on some other partition in the mean
+time).
 
-Strictly speaking, over_bground_thresh() should only check the number
-of to-commit pages, because the flusher can only commit the to-commit
-pages, and can do nothing but wait for the server to response to
-in-commit pages. A clean solution would involve breaking up the
-current NR_UNSTABLE_NFS into two counters. But you may not like the
-side effect that more dirty pages will then be cached in NFS client,
-as the background flusher will quit more earlier :)
+Cheers
+  Trond
 
-As a simple fix, I have a patch to avoid such possible busy loop.
+--=20
+Trond Myklebust
+Linux NFS client maintainer
 
-Thanks,
-Fengguang
----
-
-Subject: writeback: sleep for 10ms when nothing is written
-Date: Fri Dec 03 18:31:59 CST 2010
-
-It seems more safe to take a sleep when nothing was done.
-
-NFS background writeback could possibly busy loop in wb_writeback()
-when the NFS client has sent and commit all data. It relies on the
-NFS server and network condition to get the commit feedback to knock
-down the NR_UNSTABLE_NFS number.
-
-CC: Trond Myklebust <Trond.Myklebust@netapp.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- fs/fs-writeback.c |    5 +++++
- 1 file changed, 5 insertions(+)
-
---- linux-next.orig/fs/fs-writeback.c	2010-12-03 18:29:14.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2010-12-03 18:31:56.000000000 +0800
-@@ -741,6 +741,11 @@ static long wb_writeback(struct bdi_writ
- 		 * become available for writeback. Otherwise
- 		 * we'll just busyloop.
- 		 */
-+		if (list_empty(&wb->b_more_io)) {
-+			__set_current_state(TASK_UNINTERRUPTIBLE);
-+			io_schedule_timeout(max(HZ/100, 1));
-+			continue;
-+		}
- 		spin_lock(&inode_lock);
- 		if (!list_empty(&wb->b_more_io))  {
- 			inode = wb_inode(wb->b_more_io.prev);
+NetApp
+Trond.Myklebust@netapp.com
+www.netapp.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
