@@ -1,147 +1,279 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8399A6B008A
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 05:29:13 -0500 (EST)
-Received: by fxm9 with SMTP id 9so468525fxm.31
-        for <linux-mm@kvack.org>; Tue, 14 Dec 2010 02:29:10 -0800 (PST)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCHv7 08/10] mm: cma: Contiguous Memory Allocator added
-References: <cover.1292004520.git.m.nazarewicz@samsung.com>
-	<fc8aa07ac71d554ba10af4943fdb05197c681fa2.1292004520.git.m.nazarewicz@samsung.com>
-	<20101214102401.37bf812d.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 14 Dec 2010 11:23:15 +0100
-In-Reply-To: <20101214102401.37bf812d.kamezawa.hiroyu@jp.fujitsu.com>
-	(KAMEZAWA Hiroyuki's message of "Tue, 14 Dec 2010 10:24:01 +0900")
-Message-ID: <87zks8fyb0.fsf@erwin.mina86.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 449726B008A
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 05:46:04 -0500 (EST)
+In-reply-to: <20101213142059.643f8080.akpm@linux-foundation.org> (message from
+	Andrew Morton on Mon, 13 Dec 2010 14:20:59 -0800)
+Subject: Re: kernel BUG at mm/truncate.c:475!
+References: <20101130194945.58962c44@xenia.leun.net>
+	<alpine.LSU.2.00.1011301453090.12516@tigran.mtv.corp.google.com>
+	<E1PNjsI-0005Bk-NB@pomaz-ex.szeredi.hu>
+	<20101201124528.6809c539@xenia.leun.net>
+	<E1PNqO1-0005px-9h@pomaz-ex.szeredi.hu>
+	<20101202084159.6bff7355@xenia.leun.net>
+	<20101202091552.4a63f717@xenia.leun.net>
+	<E1PO5gh-00079U-Ma@pomaz-ex.szeredi.hu>
+	<20101202115722.1c00afd5@xenia.leun.net>
+	<20101203085350.55f94057@xenia.leun.net>
+	<E1PPaIw-0004pW-Mk@pomaz-ex.szeredi.hu>
+	<20101206204303.1de6277b@xenia.leun.net>
+	<E1PRQDn-0007jZ-5S@pomaz-ex.szeredi.hu> <20101213142059.643f8080.akpm@linux-foundation.org>
+Message-Id: <E1PSSO8-0003sy-Vr@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 14 Dec 2010 11:45:44 +0100
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Nazarewicz <m.nazarewicz@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, BooJin Kim <boojin.kim@samsung.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: miklos@szeredi.hu, lkml20101129@newton.leun.net, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Mon, 13 Dec 2010 12:26:49 +0100
-> Michal Nazarewicz <m.nazarewicz@samsung.com> wrote:
->> +/************************* Initialise CMA *************************/
->> +
->> +static struct cma_grabbed {
->> +	unsigned long start;
->> +	unsigned long size;
->> +} cma_grabbed[8] __initdata;
->> +static unsigned cma_grabbed_count __initdata;
->> +
->> +int cma_init(unsigned long start, unsigned long size)
->> +{
->> +	pr_debug("%s(%p+%p)\n", __func__, (void *)start, (void *)size);
->> +
->> +	if (!size)
->> +		return -EINVAL;
->> +	if ((start | size) & ((MAX_ORDER_NR_PAGES << PAGE_SHIFT) - 1))
->> +		return -EINVAL;
->> +	if (start + size < start)
->> +		return -EOVERFLOW;
->> +
->> +	if (cma_grabbed_count == ARRAY_SIZE(cma_grabbed))
->> +		return -ENOSPC;
->> +
->> +	cma_grabbed[cma_grabbed_count].start = start;
->> +	cma_grabbed[cma_grabbed_count].size  = size;
->> +	++cma_grabbed_count;
->> +	return 0;
->> +}
->> +
+On Mon, 13 Dec 2010, Andrew Morton wrote:
+> That's a pretty old bug, isn't it?  5+ years.
 
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
-> Is it guaranteed that there are no memory holes, or zone overlap
-> in the range ? I think correctness of the range must be checked.
+Probably.  Not easy to trigger, though.
 
-I keep thinking about it myself.  The idea is that you get memory range
-reserved using memblock (or some such) thus it should not contain any
-memory holes.  I'm not entirely sure about spanning different zones.
-I'll add the checking code.
+> > +
+> > +	clear_bit_unlock(AS_UNMAPPING, &mapping->flags);
+> > +	smp_mb__after_clear_bit();
+> > +	wake_up_bit(&mapping->flags, AS_UNMAPPING);
+> > +
+> 
+> I do think this was premature optimisation.  The open-coded lock is
+> hidden from lockdep so we won't find out if this introduces potential
+> deadlocks.  It would be better to add a new mutex at least temporarily,
+> then look at replacing it with a MiklosLock later on, when the code is
+> bedded in.
+> 
+> At which time, replacing mutexes with MiklosLocks becomes part of a
+> general "shrink the address_space" exercise in which there's no reason
+> to exclusively concentrate on that new mutex!
 
->> +#define MIGRATION_RETRY	5
->> +static int __cm_migrate(unsigned long start, unsigned long end)
->> +{
-[...]
->> +}
->> +
->> +static int __cm_alloc(unsigned long start, unsigned long size)
->> +{
->> +	unsigned long end, _start, _end;
->> +	int ret;
->> +
-[...]
->> +
->> +	start = phys_to_pfn(start);
->> +	end   = start + (size >> PAGE_SHIFT);
->> +
->> +	pr_debug("\tisolate range(%lx, %lx)\n",
->> +		 pfn_to_maxpage(start), pfn_to_maxpage_up(end));
->> +	ret = __start_isolate_page_range(pfn_to_maxpage(start),
->> +					 pfn_to_maxpage_up(end), MIGRATE_CMA);
->> +	if (ret)
->> +		goto done;
->> +
->> +	pr_debug("\tmigrate range(%lx, %lx)\n", start, end);
->> +	ret = __cm_migrate(start, end);
->> +	if (ret)
->> +		goto done;
->> +
-[...]
->> +
->> +	pr_debug("\tfinding buddy\n");
->> +	ret = 0;
->> +	while (!PageBuddy(pfn_to_page(start & (~0UL << ret))))
->> +		if (WARN_ON(++ret >= MAX_ORDER))
->> +			return -EINVAL;
->> +
->> +	_start = start & (~0UL << ret);
->> +	pr_debug("\talloc freed(%lx, %lx)\n", _start, end);
->> +	_end   = alloc_contig_freed_pages(_start, end, 0);
->> +
->> +	/* Free head and tail (if any) */
->> +	pr_debug("\tfree contig(%lx, %lx)\n", _start, start);
->> +	free_contig_pages(pfn_to_page(_start), start - _start);
->> +	pr_debug("\tfree contig(%lx, %lx)\n", end, _end);
->> +	free_contig_pages(pfn_to_page(end), _end - end);
->> +
->> +	ret = 0;
->> +
->> +done:
->> +	pr_debug("\tundo isolate range(%lx, %lx)\n",
->> +		 pfn_to_maxpage(start), pfn_to_maxpage_up(end));
->> +	__undo_isolate_page_range(pfn_to_maxpage(start),
->> +				  pfn_to_maxpage_up(end), MIGRATE_CMA);
->> +
->> +	pr_debug("ret = %d\n", ret);
->> +	return ret;
->> +}
->> +
->> +static void __cm_free(unsigned long start, unsigned long size)
->> +{
->> +	pr_debug("%s(%p+%p)\n", __func__, (void *)start, (void *)size);
->> +
->> +	free_contig_pages(pfn_to_page(phys_to_pfn(start)),
->> +			  size >> PAGE_SHIFT);
->> +}
+Okay, updated patch appended.
 
-> Hmm, it seems __cm_alloc() and __cm_migrate() has no special codes for CMA.
-> I'd like reuse this for my own contig page allocator.
-> So, could you make these function be more generic (name) ?
-> as
-> 	__alloc_range(start, size, mirate_type);
->
-> Then, what I have to do is only to add "search range" functions.
+> How hard is it to avoid adding a new lock and using an existing one,
+> presumablt i_mutex?  Because if we can get i_mutex coverage over
+> unmap_mapping_range() then I suspect all the
+> vm_truncate_count/restart_addr stuff can go away?
 
-Sure thing.  I'll post it tomorrow or Friday. How about
-alloc_contig_range() maybe?
+One place I know it's hard to get i_mutex coverage is fuse's
+d_revalidate.  That's because ->d_revalidate might be called with or
+without i_mutex at the discretion of the VFS.
 
--- 
-Pozdrawiam                                            _     _
- .o. | Wasal Jasnie Oswieconej Pani Informatyki     o' \,=./ `o
- ..o | Michal "mina86" Nazarewicz  <mina86*tlen.pl>    (o o)
- ooo +---<jid:mina86-jabber.org>---<tlen:mina86>---ooO--(_)--Ooo--
+You might ask, why does fuse call invalidate_inode_pages2() from
+d_revalidate?  The answer is, fuse does lookup revalidation and
+attribute revalidation in one go, and if it finds that the lookup is
+still valid but the file contents have changed, then it will need to
+invalidate the page cache.
+
+Thanks,
+Miklos
+
+
+---
+ fs/gfs2/main.c     |    9 +--------
+ fs/inode.c         |   22 +++++++++++++++-------
+ fs/nilfs2/btnode.c |    5 -----
+ fs/nilfs2/btnode.h |    1 -
+ fs/nilfs2/mdt.c    |    4 ++--
+ fs/nilfs2/page.c   |   13 -------------
+ fs/nilfs2/page.h   |    1 -
+ fs/nilfs2/super.c  |    2 +-
+ include/linux/fs.h |    2 ++
+ mm/memory.c        |    2 ++
+ 10 files changed, 23 insertions(+), 38 deletions(-)
+
+Index: linux.git/mm/memory.c
+===================================================================
+--- linux.git.orig/mm/memory.c	2010-12-11 14:09:55.000000000 +0100
++++ linux.git/mm/memory.c	2010-12-14 11:20:47.000000000 +0100
+@@ -2572,6 +2572,7 @@ void unmap_mapping_range(struct address_
+ 		details.last_index = ULONG_MAX;
+ 	details.i_mmap_lock = &mapping->i_mmap_lock;
+ 
++	mutex_lock(&mapping->unmap_mutex);
+ 	spin_lock(&mapping->i_mmap_lock);
+ 
+ 	/* Protect against endless unmapping loops */
+@@ -2588,6 +2589,7 @@ void unmap_mapping_range(struct address_
+ 	if (unlikely(!list_empty(&mapping->i_mmap_nonlinear)))
+ 		unmap_mapping_range_list(&mapping->i_mmap_nonlinear, &details);
+ 	spin_unlock(&mapping->i_mmap_lock);
++	mutex_unlock(&mapping->unmap_mutex);
+ }
+ EXPORT_SYMBOL(unmap_mapping_range);
+ 
+Index: linux.git/fs/gfs2/main.c
+===================================================================
+--- linux.git.orig/fs/gfs2/main.c	2010-11-26 10:52:16.000000000 +0100
++++ linux.git/fs/gfs2/main.c	2010-12-14 11:15:53.000000000 +0100
+@@ -59,14 +59,7 @@ static void gfs2_init_gl_aspace_once(voi
+ 	struct address_space *mapping = (struct address_space *)(gl + 1);
+ 
+ 	gfs2_init_glock_once(gl);
+-	memset(mapping, 0, sizeof(*mapping));
+-	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
+-	spin_lock_init(&mapping->tree_lock);
+-	spin_lock_init(&mapping->i_mmap_lock);
+-	INIT_LIST_HEAD(&mapping->private_list);
+-	spin_lock_init(&mapping->private_lock);
+-	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
+-	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
++	address_space_init_once(mapping);
+ }
+ 
+ /**
+Index: linux.git/fs/inode.c
+===================================================================
+--- linux.git.orig/fs/inode.c	2010-11-26 10:52:16.000000000 +0100
++++ linux.git/fs/inode.c	2010-12-14 11:21:49.000000000 +0100
+@@ -280,6 +280,20 @@ static void destroy_inode(struct inode *
+ 		kmem_cache_free(inode_cachep, (inode));
+ }
+ 
++void address_space_init_once(struct address_space *mapping)
++{
++	memset(mapping, 0, sizeof(*mapping));
++	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
++	spin_lock_init(&mapping->tree_lock);
++	spin_lock_init(&mapping->i_mmap_lock);
++	INIT_LIST_HEAD(&mapping->private_list);
++	spin_lock_init(&mapping->private_lock);
++	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
++	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
++	mutex_init(&mapping->unmap_mutex);
++}
++EXPORT_SYMBOL(address_space_init_once);
++
+ /*
+  * These are initializations that only need to be done
+  * once, because the fields are idempotent across use
+@@ -293,13 +307,7 @@ void inode_init_once(struct inode *inode
+ 	INIT_LIST_HEAD(&inode->i_devices);
+ 	INIT_LIST_HEAD(&inode->i_wb_list);
+ 	INIT_LIST_HEAD(&inode->i_lru);
+-	INIT_RADIX_TREE(&inode->i_data.page_tree, GFP_ATOMIC);
+-	spin_lock_init(&inode->i_data.tree_lock);
+-	spin_lock_init(&inode->i_data.i_mmap_lock);
+-	INIT_LIST_HEAD(&inode->i_data.private_list);
+-	spin_lock_init(&inode->i_data.private_lock);
+-	INIT_RAW_PRIO_TREE_ROOT(&inode->i_data.i_mmap);
+-	INIT_LIST_HEAD(&inode->i_data.i_mmap_nonlinear);
++	address_space_init_once(&inode->i_data);
+ 	i_size_ordered_init(inode);
+ #ifdef CONFIG_FSNOTIFY
+ 	INIT_HLIST_HEAD(&inode->i_fsnotify_marks);
+Index: linux.git/fs/nilfs2/btnode.c
+===================================================================
+--- linux.git.orig/fs/nilfs2/btnode.c	2010-11-26 10:52:17.000000000 +0100
++++ linux.git/fs/nilfs2/btnode.c	2010-12-14 11:19:52.000000000 +0100
+@@ -35,11 +35,6 @@
+ #include "btnode.h"
+ 
+ 
+-void nilfs_btnode_cache_init_once(struct address_space *btnc)
+-{
+-	nilfs_mapping_init_once(btnc);
+-}
+-
+ static const struct address_space_operations def_btnode_aops = {
+ 	.sync_page		= block_sync_page,
+ };
+Index: linux.git/fs/nilfs2/btnode.h
+===================================================================
+--- linux.git.orig/fs/nilfs2/btnode.h	2010-10-05 18:49:12.000000000 +0200
++++ linux.git/fs/nilfs2/btnode.h	2010-12-14 11:20:01.000000000 +0100
+@@ -37,7 +37,6 @@ struct nilfs_btnode_chkey_ctxt {
+ 	struct buffer_head *newbh;
+ };
+ 
+-void nilfs_btnode_cache_init_once(struct address_space *);
+ void nilfs_btnode_cache_init(struct address_space *, struct backing_dev_info *);
+ void nilfs_btnode_cache_clear(struct address_space *);
+ struct buffer_head *nilfs_btnode_create_block(struct address_space *btnc,
+Index: linux.git/fs/nilfs2/mdt.c
+===================================================================
+--- linux.git.orig/fs/nilfs2/mdt.c	2010-11-26 10:52:17.000000000 +0100
++++ linux.git/fs/nilfs2/mdt.c	2010-12-14 11:18:18.000000000 +0100
+@@ -460,9 +460,9 @@ int nilfs_mdt_setup_shadow_map(struct in
+ 	struct backing_dev_info *bdi = inode->i_sb->s_bdi;
+ 
+ 	INIT_LIST_HEAD(&shadow->frozen_buffers);
+-	nilfs_mapping_init_once(&shadow->frozen_data);
++	address_space_init_once(&shadow->frozen_data);
+ 	nilfs_mapping_init(&shadow->frozen_data, bdi, &shadow_map_aops);
+-	nilfs_mapping_init_once(&shadow->frozen_btnodes);
++	address_space_init_once(&shadow->frozen_btnodes);
+ 	nilfs_mapping_init(&shadow->frozen_btnodes, bdi, &shadow_map_aops);
+ 	mi->mi_shadow = shadow;
+ 	return 0;
+Index: linux.git/fs/nilfs2/page.c
+===================================================================
+--- linux.git.orig/fs/nilfs2/page.c	2010-11-26 10:52:17.000000000 +0100
++++ linux.git/fs/nilfs2/page.c	2010-12-14 11:17:26.000000000 +0100
+@@ -492,19 +492,6 @@ unsigned nilfs_page_count_clean_buffers(
+ 	return nc;
+ }
+  
+-void nilfs_mapping_init_once(struct address_space *mapping)
+-{
+-	memset(mapping, 0, sizeof(*mapping));
+-	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
+-	spin_lock_init(&mapping->tree_lock);
+-	INIT_LIST_HEAD(&mapping->private_list);
+-	spin_lock_init(&mapping->private_lock);
+-
+-	spin_lock_init(&mapping->i_mmap_lock);
+-	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
+-	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
+-}
+-
+ void nilfs_mapping_init(struct address_space *mapping,
+ 			struct backing_dev_info *bdi,
+ 			const struct address_space_operations *aops)
+Index: linux.git/fs/nilfs2/page.h
+===================================================================
+--- linux.git.orig/fs/nilfs2/page.h	2010-11-26 10:52:17.000000000 +0100
++++ linux.git/fs/nilfs2/page.h	2010-12-14 11:17:35.000000000 +0100
+@@ -61,7 +61,6 @@ void nilfs_free_private_page(struct page
+ int nilfs_copy_dirty_pages(struct address_space *, struct address_space *);
+ void nilfs_copy_back_pages(struct address_space *, struct address_space *);
+ void nilfs_clear_dirty_pages(struct address_space *);
+-void nilfs_mapping_init_once(struct address_space *mapping);
+ void nilfs_mapping_init(struct address_space *mapping,
+ 			struct backing_dev_info *bdi,
+ 			const struct address_space_operations *aops);
+Index: linux.git/fs/nilfs2/super.c
+===================================================================
+--- linux.git.orig/fs/nilfs2/super.c	2010-11-26 10:52:17.000000000 +0100
++++ linux.git/fs/nilfs2/super.c	2010-12-14 11:20:19.000000000 +0100
+@@ -1262,7 +1262,7 @@ static void nilfs_inode_init_once(void *
+ #ifdef CONFIG_NILFS_XATTR
+ 	init_rwsem(&ii->xattr_sem);
+ #endif
+-	nilfs_btnode_cache_init_once(&ii->i_btnode_cache);
++	address_space_init_once(&ii->i_btnode_cache);
+ 	ii->i_bmap = &ii->i_bmap_data;
+ 	inode_init_once(&ii->vfs_inode);
+ }
+Index: linux.git/include/linux/fs.h
+===================================================================
+--- linux.git.orig/include/linux/fs.h	2010-12-07 20:17:55.000000000 +0100
++++ linux.git/include/linux/fs.h	2010-12-14 11:21:30.000000000 +0100
+@@ -645,6 +645,7 @@ struct address_space {
+ 	spinlock_t		private_lock;	/* for use by the address_space */
+ 	struct list_head	private_list;	/* ditto */
+ 	struct address_space	*assoc_mapping;	/* ditto */
++	struct mutex		unmap_mutex;    /* to protect unmapping */
+ } __attribute__((aligned(sizeof(long))));
+ 	/*
+ 	 * On most architectures that alignment is already the case; but
+@@ -2205,6 +2206,7 @@ extern loff_t vfs_llseek(struct file *fi
+ 
+ extern int inode_init_always(struct super_block *, struct inode *);
+ extern void inode_init_once(struct inode *);
++extern void address_space_init_once(struct address_space *mapping);
+ extern void ihold(struct inode * inode);
+ extern void iput(struct inode *);
+ extern struct inode * igrab(struct inode *);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
