@@ -1,185 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AB8656B008A
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 02:31:48 -0500 (EST)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id oBE7ViWL022941
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 23:31:45 -0800
-Received: from iwn1 (iwn1.prod.google.com [10.241.68.65])
-	by kpbe11.cbf.corp.google.com with ESMTP id oBE7VNKv021720
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 23:31:43 -0800
-Received: by iwn1 with SMTP id 1so511169iwn.37
-        for <linux-mm@kvack.org>; Mon, 13 Dec 2010 23:31:43 -0800 (PST)
-Date: Mon, 13 Dec 2010 23:31:34 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: kernel BUG at mm/truncate.c:475!
-In-Reply-To: <20101213142059.643f8080.akpm@linux-foundation.org>
-Message-ID: <alpine.LSU.2.00.1012132246580.6071@sister.anvils>
-References: <20101130194945.58962c44@xenia.leun.net> <alpine.LSU.2.00.1011301453090.12516@tigran.mtv.corp.google.com> <E1PNjsI-0005Bk-NB@pomaz-ex.szeredi.hu> <20101201124528.6809c539@xenia.leun.net> <E1PNqO1-0005px-9h@pomaz-ex.szeredi.hu>
- <20101202084159.6bff7355@xenia.leun.net> <20101202091552.4a63f717@xenia.leun.net> <E1PO5gh-00079U-Ma@pomaz-ex.szeredi.hu> <20101202115722.1c00afd5@xenia.leun.net> <20101203085350.55f94057@xenia.leun.net> <E1PPaIw-0004pW-Mk@pomaz-ex.szeredi.hu>
- <20101206204303.1de6277b@xenia.leun.net> <E1PRQDn-0007jZ-5S@pomaz-ex.szeredi.hu> <20101213142059.643f8080.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id DF8F86B008A
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 03:20:55 -0500 (EST)
+Date: Tue, 14 Dec 2010 16:20:50 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 30/35] nfs: heuristics to avoid commit
+Message-ID: <20101214082050.GC6940@localhost>
+References: <20101213144646.341970461@intel.com>
+ <20101213150329.953837345@intel.com>
+ <1292273626.8795.19.camel@heimdal.trondhjem.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1292273626.8795.19.camel@heimdal.trondhjem.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, Michael Leun <lkml20101129@newton.leun.net>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Trond Myklebust <Trond.Myklebust@netapp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "Tang, Feng" <feng.tang@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 13 Dec 2010, Andrew Morton wrote:
-> On Sat, 11 Dec 2010 15:14:47 +0100
-> Miklos Szeredi <miklos@szeredi.hu> wrote:
+On Tue, Dec 14, 2010 at 04:53:46AM +0800, Trond Myklebust wrote:
+> On Mon, 2010-12-13 at 22:47 +0800, Wu Fengguang wrote:
+> > plain text document attachment (writeback-nfs-should-commit.patch)
+> > The heuristics introduced by commit 420e3646 ("NFS: Reduce the number of
+> > unnecessary COMMIT calls") do not work well for large inodes being
+> > actively written to.
+> > 
+> > Refine the criterion to
+> > - it has gone quiet (all data transfered to server)
+> > - has accumulated >= 4MB data to commit (so it will be large IO)
+> > - too few active commits (hence active IO) in the server
 > 
-> > On Mon, 6 Dec 2010, Michael Leun wrote:
-> > > At the moment I'm trying to create an easy to reproduce scenario.
-> > > 
-> > 
-> > I've managed to reproduce the BUG.  First I thought it has to do with
-> > fork() racing with invalidate_inode_pages2_range() but it turns out,
-> > just two parallel invocation of invalidate_inode_pages2_range() with
-> > some page faults going on can trigger it.
+> Where does the number 4MB come from? If I'm writing a 4GB file, I
+> certainly do not want to commit every 4MB; that would make for a total
+> of 1000 commit requests in addition to the writes. On a 64-bit client
+> +server both having loads of memory and connected by a decently a fast
+> network, that can be a significant slowdown...
 
-Thanks a lot for working this out, Miklos.
+Sorry the description omits too much details..
 
-(I don't see any explanation here for the madvise fuzzing page_mapped bug,
-but that's not your fault!  I'll have to do my own thinking on that one.)
+Let me show you the behavior in real workload first.
 
-> > 
-> > The problem is: unmap_mapping_range() is not prepared for more than
-> > one concurrent invocation per inode.  For example:
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-1dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-03-04/writeback-inode.png
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-1dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-03-04/nfs-commit-300.png
 
-Yes, I knowingly built that assumption into it 6 years ago.
+On a 3GB client writing 50MB/s to the NFS server, the write chunk size
+and commit size is mostly 32MB and 64MB.
 
-> > 
-> >   thread1: going through a big range, stops in the middle of a vma and
-> >      stores the restart address in vm_truncate_count.
-> > 
-> >   thread2: comes in with a small (e.g. single page) unmap request on
-> >      the same vma, somewhere before restart_address, finds that the
-> 
-> "restart_addr", please.
-> 
-> >      vma was already unmapped up to the restart address and happily
-> >      returns without doing anything.
-> > 
-> > Another scenario would be two big unmap requests, both having to
-> > restart the unmapping and each one setting vm_truncate_count to its
-> > own value.  This could go on forever without any of them being able to
-> > finish.
-> > 
-> > Truncate and hole punching already serialize with i_mutex.  Other
-> > callers of unmap_mapping_range() do not, however, and I see difficulty
-> > with doing it in the callers.  I think the proper solution is to add
-> > serialization to unmap_mapping_range() itself.
-> > 
-> > Attached patch attempts to do this without adding more fields to
-> > struct address_space.  It fixes the bug in my testing.
-> > 
-> 
-> That's a pretty old bug, isn't it?  5+ years.
+The ->writepages() size and the later commit size actually scales up
+to the available write bandwidth ("[PATCH 20/35] writeback: scale IO
+chunk size up to device bandwidth").
 
-Did you work out how it came about?  About 2.6.10, I was observing that
-unmap_mapping_range() is always called with i_mutex (and usually also
-i_alloc_sem) held; whereas around the same time you were adding calls to
-unmap_mapping_range() into invalidate_inode_pages2(), which has a much
-looser definition than truncation, and does not (necessarily) have
-i_mutex held.  We raced.
+So the "4MB" here is merely the minimal threshold. I chose it mainly
+by the rule of thumb "it's not too bad IO size". And it's mainly used
+for the cases:
 
-One fix might be to take i_mutex in invalidate_inode_pages2(); but
-I suspect a thorough search would show some calls do already hold it.
-Truncation/invalidation have grown a lot more paths since those days,
-hard work auditing through them all.  generic_error_remove_page() is
-also exceptional to be truncating without i_mutex, but I can never
-care very deeply about what might go wrong with hwpoison.
+1) low client=>server write bandwidth
 
-> > 
-> > ---
-> >  include/linux/pagemap.h |    1 +
-> >  mm/memory.c             |   14 ++++++++++++++
-> >  2 files changed, 15 insertions(+)
-> > 
-> > Index: linux.git/include/linux/pagemap.h
-> > ===================================================================
-> > --- linux.git.orig/include/linux/pagemap.h	2010-11-26 10:52:17.000000000 +0100
-> > +++ linux.git/include/linux/pagemap.h	2010-12-11 13:39:32.000000000 +0100
-> > @@ -24,6 +24,7 @@ enum mapping_flags {
-> >  	AS_ENOSPC	= __GFP_BITS_SHIFT + 1,	/* ENOSPC on async write */
-> >  	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
-> >  	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
-> > +	AS_UNMAPPING	= __GFP_BITS_SHIFT + 4, /* for unmap_mapping_range() */
-> >  };
-> >  
-> >  static inline void mapping_set_error(struct address_space *mapping, int error)
-> > Index: linux.git/mm/memory.c
-> > ===================================================================
-> > --- linux.git.orig/mm/memory.c	2010-12-11 13:07:28.000000000 +0100
-> > +++ linux.git/mm/memory.c	2010-12-11 14:09:42.000000000 +0100
-> > @@ -2535,6 +2535,12 @@ static inline void unmap_mapping_range_l
-> >  	}
-> >  }
-> >  
-> > +static int mapping_sleep(void *x)
-> > +{
-> > +	schedule();
-> > +	return 0;
-> > +}
-> > +
-> >  /**
-> >   * unmap_mapping_range - unmap the portion of all mmaps in the specified address_space corresponding to the specified page range in the underlying file.
-> >   * @mapping: the address space containing mmaps to be unmapped.
-> > @@ -2572,6 +2578,9 @@ void unmap_mapping_range(struct address_
-> >  		details.last_index = ULONG_MAX;
-> >  	details.i_mmap_lock = &mapping->i_mmap_lock;
-> >  
-> > +	wait_on_bit_lock(&mapping->flags, AS_UNMAPPING, mapping_sleep,
-> > +			 TASK_UNINTERRUPTIBLE);
-> > +
-> >  	spin_lock(&mapping->i_mmap_lock);
-> >  
-> >  	/* Protect against endless unmapping loops */
-> > @@ -2588,6 +2597,11 @@ void unmap_mapping_range(struct address_
-> >  	if (unlikely(!list_empty(&mapping->i_mmap_nonlinear)))
-> >  		unmap_mapping_range_list(&mapping->i_mmap_nonlinear, &details);
-> >  	spin_unlock(&mapping->i_mmap_lock);
-> > +
-> > +	clear_bit_unlock(AS_UNMAPPING, &mapping->flags);
-> > +	smp_mb__after_clear_bit();
-> > +	wake_up_bit(&mapping->flags, AS_UNMAPPING);
-> > +
-> 
-> I do think this was premature optimisation.  The open-coded lock is
-> hidden from lockdep so we won't find out if this introduces potential
-> deadlocks.  It would be better to add a new mutex at least temporarily,
-> then look at replacing it with a MiklosLock later on, when the code is
-> bedded in.
-> 
-> At which time, replacing mutexes with MiklosLocks becomes part of a
-> general "shrink the address_space" exercise in which there's no reason
-> to exclusively concentrate on that new mutex!
+In this case the VFS will call ->writepages() with small (but always
+ >= 4MB, see patch 20/35) nr_to_write , and the 4MB threshold helps
+accumulate to-be-commited pages over multiple ->write_inode() calls.
+As you said it will help to further scale this 4MB threshold up to the
+client's memory size. But complexity arises in the next case.
 
-Yes, I very much agree with you there: valiant effort by Miklos to
-avoid bloat, but we're better off using a known primitive for now.
+2) bandwidth/memory is high, but there are lots of concurrent dd's
 
-> 
-> How hard is it to avoid adding a new lock and using an existing one,
-> presumablt i_mutex?  Because if we can get i_mutex coverage over
-> unmap_mapping_range()
+When doing 10 dd's with mem=3G, it still achieves 20-30MB write/commit
+size:
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-10dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-03-13/writeback-300.png
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-10dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-03-13/nfs-commit-300.png
 
-invalidate_inode_pages2() calls are the ones to check for that; but I
-got tired, and maybe Miklos already found problems with that approach.
+However when there comes 100 dd's, you cannot wait each inode to
+accumulate much more than 4MB pages to commit, because 4*100MB is
+approaching the client's dirty limit. So you'll see around 4-5MB
+commit sizes in this graph.
+http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-03-23/nfs-commit-300.png
 
-> then I suspect all the vm_truncate_count/restart_addr stuff can go away?
+Then you see the problem: how to decide one auto scaled threshold to
+start commit for the current inode? It's easy for the 1-dd case.
+However when there are N dd's (admittedly NFS clients rarely do large
+N), we don't readily know the number N to scale down the threshold
+that's suitable for 1-dd case..
 
-That would be lovely, but in fact no: it's guarding against operations on
-vmas, things like munmap and mprotect, which can shuffle the prio_tree
-when i_mmap_lock is dropped, without i_mutex ever being taken.
+So I give up the scale-to-memory commit threshold idea that could help
+case (1) and just do it in a dumb but should good enough way. But I'm
+open to better ideas :)
 
-However, if we adopt Peter's preemptible mmu_gather patches, i_mmap_lock
-becomes a mutex, so there's then no need for any of this (I think Peter
-just did a straight conversion here, leaving it in, but it becomes
-pointless and would gladly be removed).
+> Most of the time, we really want the server to be managing its dirty
+> cache entirely independently of the client. The latter should only be
+> sending the commit when it really needs to free up those pages.
 
-Hugh
+Agreed. And it makes one major contrariety I'm fighting about: do large
+commit size but not too much to make unacceptable fluctuations in the
+data flow. It leads to the decision to include patch 20/35 into this
+series. It magically reduces the frequency to ->writepages()/write_inode()
+and results in semi-adaptive wrote pages in each ->writepages() (and
+the later commit) to the number of concurrent dd's.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
