@@ -1,48 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 124FE6B008A
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 15:38:36 -0500 (EST)
-Subject: Re: [PATCH 16/35] writeback: increase min pause time on concurrent dirtiers
-In-Reply-To: Your message of "Tue, 14 Dec 2010 21:24:15 +0100."
-             <1292358255.13513.390.camel@laptop>
-From: Valdis.Kletnieks@vt.edu
-References: <20101213144646.341970461@intel.com> <20101213150328.284979629@intel.com> <15881.1292264611@localhost> <20101214065133.GA6940@localhost> <14658.1292352152@localhost> <1292352908.13513.376.camel@laptop> <20252.1292357637@localhost>
-            <1292358255.13513.390.camel@laptop>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1292359075_5019P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 14 Dec 2010 15:37:55 -0500
-Message-ID: <21373.1292359075@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id AF84E6B008A
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 16:03:53 -0500 (EST)
+In-reply-to: <20101214174626.GN5638@random.random> (message from Andrea
+	Arcangeli on Tue, 14 Dec 2010 18:46:26 +0100)
+Subject: Re: Deadlocks with transparent huge pages and userspace fs daemons
+References: <1288817005.4235.11393.camel@nimitz> <20101214174626.GN5638@random.random>
+Message-Id: <E1PSc21-0004ob-M6@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 14 Dec 2010 22:03:33 +0100
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: dave@linux.vnet.ibm.com, miklos@szeredi.hu, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, shenlinf@cn.ibm.com, volobuev@us.ibm.com, mel@linux.vnet.ibm.com, dingc@cn.ibm.com, lnxninja@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_1292359075_5019P
-Content-Type: text/plain; charset=us-ascii
+On Tue, 14 Dec 2010, Andrea Arcangeli wrote:
+> Hello Dave and everyone,
+> 
+> On Wed, Nov 03, 2010 at 01:43:25PM -0700, Dave Hansen wrote:
+> > Hey Miklos,
+> > 
+> > When testing with a transparent huge page kernel:
+> > 
+> > 	http://git.kernel.org/gitweb.cgi?p=linux/kernel/git/andrea/aa.git;a=summary
+> > 
+> > some IBM testers ran into some deadlocks.  It appears that the
+> > khugepaged process is trying to migrate one of a filesystem daemon's
+> > pages while khugepaged holds the daemon's mmap_sem for write.
+> 
+> The allocation under mmap_sem write mode in khugepaged bug should be
+> fixed in current aa.git based on 37-rc5:
+> 
+> http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=shortlog
+> http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=83e4d55d0014b3eeb982005d73f55ffcf2813504
+> 
+> Let me know how it goes, it's not very well tested yet (which is why I
+> didn't make a new submit yet).
+> 
+> I stick to my idea this is bug in userland and may trigger if your
+> daemon does mmap/munmap and the vma allocation under mmap_sem waits
+> for the I/O, but I don't want to show it with THP enabled, and this is
+> more scalable so it's definitely good idea and no downside whatsoever.
 
-On Tue, 14 Dec 2010 21:24:15 +0100, Peter Zijlstra said:
+This is all fine and dandy, but please let's not forget about the
+other thing that Dave's test uncovered.  Namely that page migration
+triggered by transparent hugepages takes the page lock on arbitrary
+filesystems.  This is also deadlocky on fuse, but also not a good idea
+for any filesystem where page reading time is not bounded (think NFS
+with network down).
 
-> You're confused. 10*HZ jiffies is always 10 seconds.
-
-I must be misremembering times past, when HZ was settable
-but a jiffie was always 1/100th of a second...  Senility has
-finally set it. :)
-
---==_Exmh_1292359075_5019P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFNB9WjcC3lWbTT17ARAj7+AJ9/OF4KRUBMv0x5wXfUMLmmedtWvACffjh3
-SVZe9YHIxLX+IUkfoJ5o9ds=
-=MxJx
------END PGP SIGNATURE-----
-
---==_Exmh_1292359075_5019P--
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
