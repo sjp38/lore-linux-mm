@@ -1,7 +1,7 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 24AA86B008A
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 04:10:40 -0500 (EST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id ED1426B008A
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 04:12:06 -0500 (EST)
 Subject: Re: kernel BUG at mm/truncate.c:475!
 From: Peter Zijlstra <peterz@infradead.org>
 In-Reply-To: <alpine.LSU.2.00.1012132246580.6071@sister.anvils>
@@ -22,8 +22,8 @@ References: <20101130194945.58962c44@xenia.leun.net>
 	 <alpine.LSU.2.00.1012132246580.6071@sister.anvils>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Date: Tue, 14 Dec 2010 10:10:07 +0100
-Message-ID: <1292317807.6803.1324.camel@twins>
+Date: Tue, 14 Dec 2010 10:11:35 +0100
+Message-ID: <1292317895.6803.1329.camel@twins>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 To: Hugh Dickins <hughd@google.com>
@@ -31,27 +31,29 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 2010-12-13 at 23:31 -0800, Hugh Dickins wrote:
-> > then I suspect all the vm_truncate_count/restart_addr stuff can go away=
-?
+> > > +   clear_bit_unlock(AS_UNMAPPING, &mapping->flags);
+> > > +   smp_mb__after_clear_bit();
+> > > +   wake_up_bit(&mapping->flags, AS_UNMAPPING);
+> > > +
+> >=20
+> > I do think this was premature optimisation.  The open-coded lock is
+> > hidden from lockdep so we won't find out if this introduces potential
+> > deadlocks.  It would be better to add a new mutex at least temporarily,
+> > then look at replacing it with a MiklosLock later on, when the code is
+> > bedded in.
+> >=20
+> > At which time, replacing mutexes with MiklosLocks becomes part of a
+> > general "shrink the address_space" exercise in which there's no reason
+> > to exclusively concentrate on that new mutex!
 >=20
-> That would be lovely, but in fact no: it's guarding against operations on
-> vmas, things like munmap and mprotect, which can shuffle the prio_tree
-> when i_mmap_lock is dropped, without i_mutex ever being taken.
->=20
-> However, if we adopt Peter's preemptible mmu_gather patches, i_mmap_lock
-> becomes a mutex, so there's then no need for any of this (I think Peter
-> just did a straight conversion here, leaving it in, but it becomes
-> pointless and would gladly be removed).=20
+> Yes, I very much agree with you there: valiant effort by Miklos to
+> avoid bloat, but we're better off using a known primitive for now.
 
-I'm still trying to sell that series, so if you see any value in it,
-please reply with positive feedback ;-)
+Also, bit-spinlocks _suck_.. They're not fair, they're expensive and
+like already noted they're hidden from lockdep.
 
-Also, the whole vm_truncate_count/restart_addr isn't entirely useless,
-its still a lock break which might help with long held locks. Imagine
-someone trying to unmap several TB worth of pages at once (not entirely
-beyond the realm of possibility today, and we all know tomorrow will be
-huge).
-
+Ideally we should be removing bit-spinlocks from the kernel, not add
+more.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
