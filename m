@@ -1,82 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 122476B0093
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 21:36:13 -0500 (EST)
-Received: by iyj17 with SMTP id 17so77600iyj.14
-        for <linux-mm@kvack.org>; Mon, 13 Dec 2010 18:36:12 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id F20D46B008A
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2010 23:59:53 -0500 (EST)
+Date: Tue, 14 Dec 2010 12:59:48 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 00/35] IO-less dirty throttling v4
+Message-ID: <20101214045948.GA12454@localhost>
+References: <20101213144646.341970461@intel.com>
+ <AANLkTinFeu7LMaDFgUcP3r2oqVHE5bei3T5JTPGBNvS9@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <87lj3t30a9.fsf@gmail.com>
-References: <cover.1291568905.git.minchan.kim@gmail.com>
-	<0724024711222476a0c8deadb5b366265b8e5824.1291568905.git.minchan.kim@gmail.com>
-	<20101208170504.1750.A69D9226@jp.fujitsu.com>
-	<AANLkTikG1EAMm8yPvBVUXjFz1Bu9m+vfwH3TRPDzS9mq@mail.gmail.com>
-	<87oc8wa063.fsf@gmail.com>
-	<AANLkTin642NFLMubtCQhSVUNLzfdk5ajz-RWe2zT+Lw6@mail.gmail.com>
-	<20101213153105.GA2344@barrios-desktop>
-	<87lj3t30a9.fsf@gmail.com>
-Date: Tue, 14 Dec 2010 11:36:12 +0900
-Message-ID: <AANLkTikT_HNvuBR0J-2COgB54gquj2FineOjkzU+mt6_@mail.gmail.com>
-Subject: Re: [PATCH v4 4/7] Reclaim invalidated page ASAP
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTinFeu7LMaDFgUcP3r2oqVHE5bei3T5JTPGBNvS9@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Ben Gamari <bgamari.foss@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>
+To: "Yan, Zheng" <zheng.z.yan@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, "Wu, Fengguang" <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Ben,
+On Tue, Dec 14, 2010 at 11:26:29AM +0800, Yan, Zheng wrote:
+> got error "global_dirty_limits" [fs/nfs/nfs.ko] undefined! when
+> compiling dirty-throttling-v4
 
-On Tue, Dec 14, 2010 at 5:06 AM, Ben Gamari <bgamari.foss@gmail.com> wrote:
-> On Tue, 14 Dec 2010 00:31:05 +0900, Minchan Kim <minchan.kim@gmail.com> w=
-rote:
->> In summary, my patch enhances a littie bit about elapsed time in
->> memory pressure environment and enhance reclaim effectivness(reclaim/rec=
-laim)
->> with x2. It means reclaim latency is short and doesn't evict working set
->> pages due to invalidated pages.
->>
-> Thank you very much for this testing! I'm very sorry I've been unable to
-> contribute more recently. My last exam is on Wednesday and besides some
-> grading that is the end of the semester. =A0Is there anything you would
+Thanks! This should fix it. The fix will show up in the git tree after a while.
 
-No worry. I hope you have great grade in your exam. :)
+Thanks,
+Fengguang
+---
+Subject: writeback: export global_dirty_limits() for NFS
+Date: Tue Dec 14 12:55:18 CST 2010
 
-> like me to do? Perhaps reproducing these results on my setup would be
-> useful?
+"global_dirty_limits" [fs/nfs/nfs.ko] undefined!
 
-Thanks very much if you do.
+Reported-by: Yan Zheng <zheng.z.yan@linux.intel.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/page-writeback.c |    1 +
+ 1 file changed, 1 insertion(+)
 
->
->> Look at reclaim effectivness. Patched rsync enhances x2 about reclaim
->> effectiveness and compared to mmotm-12-03, mmotm-12-03-fadvise enhances
->> 3 minute about elapsed time in stress environment.
->> I think it's due to reduce scanning, reclaim overhead.
->>
-> Good good. This looks quite promising.
-
-Thanks, Ben.
-
->
->> In no-stress enviroment, fadivse makes program little bit slow.
->> I think because there are many pgfault. I don't know why it happens.
->> Could you guess why it happens?
->>
-> Hmm, nothing comes to mind. As I've said in the past, rsync should
-> require each page only once. Perhaps perf might offer some insight into
-> where this time is being spent?
-
-Maybe. I will have a plan to look into that.
-
->
-> - Ben
->
-
-
-
---=20
-Kind regards,
-Minchan Kim
+--- linux-next.orig/mm/page-writeback.c	2010-12-14 12:54:57.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-12-14 12:55:11.000000000 +0800
+@@ -419,6 +419,7 @@ void global_dirty_limits(unsigned long *
+ 	*pbackground = background;
+ 	*pdirty = dirty;
+ }
++EXPORT_SYMBOL_GPL(global_dirty_limits);
+ 
+ /**
+  * bdi_dirty_limit - @bdi's share of dirty throttling threshold
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
