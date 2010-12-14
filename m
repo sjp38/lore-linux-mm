@@ -1,92 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C8ADA6B008A
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 10:58:03 -0500 (EST)
-Subject: Re: [PATCH 29/35] nfs: in-commit pages accounting and wait queue
-From: Trond Myklebust <Trond.Myklebust@netapp.com>
-In-Reply-To: <20101214154026.GA8959@localhost>
-References: <20101213144646.341970461@intel.com>
-	 <20101213150329.831955132@intel.com>
-	 <1292274951.8795.28.camel@heimdal.trondhjem.org>
-	 <20101214154026.GA8959@localhost>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Tue, 14 Dec 2010 10:57:25 -0500
-Message-ID: <1292342245.2976.13.camel@heimdal.trondhjem.org>
-Mime-Version: 1.0
+	by kanga.kvack.org (Postfix) with SMTP id 4EBF16B008A
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 11:07:50 -0500 (EST)
+Date: Tue, 14 Dec 2010 17:06:37 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 55 of 66] select CONFIG_COMPACTION if
+ TRANSPARENT_HUGEPAGE enabled
+Message-ID: <20101214160637.GB5638@random.random>
+References: <patchbomb.1288798055@v2.random>
+ <89a62752012298bb500c.1288798110@v2.random>
+ <20101109151756.BC7B.A69D9226@jp.fujitsu.com>
+ <20101109211145.GB6809@random.random>
+ <20101118162245.GE8135@csn.ul.ie>
+ <20101209190407.GJ19131@random.random>
+ <20101214094556.GF13914@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101214094556.GF13914@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-12-14 at 23:40 +0800, Wu Fengguang wrote:
-> On Tue, Dec 14, 2010 at 05:15:51AM +0800, Trond Myklebust wrote:
-> > On Mon, 2010-12-13 at 22:47 +0800, Wu Fengguang wrote:
-> > > plain text document attachment (writeback-nfs-in-commit.patch)
-> > > When doing 10+ concurrent dd's, I observed very bumpy commits submiss=
-ion
-> > > (partly because the dd's are started at the same time, and hence reac=
-hed
-> > > 4MB to-commit pages at the same time). Basically we rely on the serve=
-r
-> > > to complete and return write/commit requests, and want both to progre=
-ss
-> > > smoothly and not consume too many pages. The write request wait queue=
- is
-> > > not enough as it's mainly network bounded. So add another commit requ=
-est
-> > > wait queue. Only async writes need to sleep on this queue.
-> > >=20
-> >=20
-> > I'm not understanding the above reasoning. Why should we serialise
-> > commits at the per-filesystem level (and only for non-blocking flushes
-> > at that)?
->=20
-> I did the commit wait queue after seeing this graph, where there is
-> very bursty pattern of commit submission and hence completion:
->=20
-> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-=
-100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/nfs-commit-1000.png
->=20
-> leading to big fluctuations, eg. the almost straight up/straight down
-> lines below
-> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-=
-100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/vmstat-dirty-300.png
-> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-=
-100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/dirty-pages.png
-> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-=
-100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/dirty-pages-200.png
->=20
-> A commit wait queue will help wipe out the "peaks". The "fixed" graph
-> is
-> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-=
-100dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-03-23/vmstat-dirty-300.png
-> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-=
-100dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-03-23/dirty-pages.png
->=20
-> Blocking flushes don't need to wait on this queue because they already
-> throttle themselves by waiting on the inode commit lock before/after
-> the commit.  They actually should not wait on this queue, to prevent
-> sync requests being unnecessarily blocked by async ones.
+Hi Mel,
 
-OK, but isn't it better then to just abort the commit, and have the
-relevant async process retry it later?
+On Tue, Dec 14, 2010 at 09:45:56AM +0000, Mel Gorman wrote:
+> On Thu, Dec 09, 2010 at 08:04:07PM +0100, Andrea Arcangeli wrote:
+> > On Thu, Nov 18, 2010 at 04:22:45PM +0000, Mel Gorman wrote:
+> > > Just to confirm - by hang, you mean grinds to a slow pace as opposed to
+> > > coming to a complete stop and having to restart?
+> > 
+> > Hmm it's like if you're gigabytes in swap and apps hangs for a while
+> > and system is not really usable and it swaps for most new memory
+> > allocations despite there's plenty of memory free, but it's not a
+> > deadlock of course.
+> > 
+> 
+> Ok, but it's likely to be kswapd being very aggressive because it's
+> woken up frequently and tries to balance all zones. Once it's not
+> deadlocking entirely, there isn't a more fundamental bug hiding in there
+> somewhere.
 
-This is a code path which is followed by kswapd, for instance. It seems
-dangerous to be throttling that instead of allowing it to proceed (and
-perhaps being able to free up memory on some other partition in the mean
-time).
+kswapd isn't activated by transhuge allocations because there's
+khugepaged for that and it's throttle to try a 2m alloc only once per
+minute if there's fragmentation.
 
-Cheers
-  Trond
-
---=20
-Trond Myklebust
-Linux NFS client maintainer
-
-NetApp
-Trond.Myklebust@netapp.com
-www.netapp.com
+So the reason of the trashing is the direct lumpy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
