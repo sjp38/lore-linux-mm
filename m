@@ -1,69 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id DDB8F6B008A
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 10:45:12 -0500 (EST)
-Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id oBEFi6h0010027
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 07:44:06 -0800
-Received: by iwn40 with SMTP id 40so922394iwn.14
-        for <linux-mm@kvack.org>; Tue, 14 Dec 2010 07:44:06 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C23616B008A
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 10:53:16 -0500 (EST)
+Date: Tue, 14 Dec 2010 23:53:08 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 31/35] nfs: dont change wbc->nr_to_write in
+ write_inode()
+Message-ID: <20101214155307.GB8959@localhost>
+References: <20101213144646.341970461@intel.com>
+ <20101213150330.076517282@intel.com>
+ <1292274104.8795.23.camel@heimdal.trondhjem.org>
 MIME-Version: 1.0
-In-Reply-To: <20101213170526.3b010058.akpm@linux-foundation.org>
-References: <1291335412-16231-1-git-send-email-walken@google.com>
- <1291335412-16231-2-git-send-email-walken@google.com> <20101208152740.ac449c3d.akpm@linux-foundation.org>
- <AANLkTikYZi0=c+yM1p8H18u+9WVbsQXjAinUWyNt7x+t@mail.gmail.com>
- <AANLkTinY0pcTcd+OxPLyvsJgHgh=cTaB1-8VbEA2tstb@mail.gmail.com>
- <20101214005140.GA29904@google.com> <20101213170526.3b010058.akpm@linux-foundation.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 14 Dec 2010 07:43:46 -0800
-Message-ID: <AANLkTim-sV6JO5apPdd9oG23q3THaZ1FazfF1nqUfs6C@mail.gmail.com>
-Subject: Re: [PATCH 1/6] mlock: only hold mmap_sem in shared mode when
- faulting in pages
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1292274104.8795.23.camel@heimdal.trondhjem.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Trond Myklebust <Trond.Myklebust@netapp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 13, 2010 at 5:05 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
->
-> Reading 1024 pages can still take a long time. =A0I can't immediately
-> think of a better approach though.
+On Tue, Dec 14, 2010 at 05:01:44AM +0800, Trond Myklebust wrote:
+> On Mon, 2010-12-13 at 22:47 +0800, Wu Fengguang wrote:
+> > plain text document attachment
+> > (writeback-nfs-commit-remove-nr_to_write.patch)
+> > It's introduced in commit 420e3646 ("NFS: Reduce the number of
+> > unnecessary COMMIT calls") and seems not necessary.
+> > 
+> > CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > ---
+> >  fs/nfs/write.c |    9 +--------
+> >  1 file changed, 1 insertion(+), 8 deletions(-)
+> > 
+> > --- linux-next.orig/fs/nfs/write.c	2010-12-13 21:46:21.000000000 +0800
+> > +++ linux-next/fs/nfs/write.c	2010-12-13 21:46:22.000000000 +0800
+> > @@ -1557,15 +1557,8 @@ static int nfs_commit_unstable_pages(str
+> >  	}
+> >  
+> >  	ret = nfs_commit_inode(inode, flags);
+> > -	if (ret >= 0) {
+> > -		if (wbc->sync_mode == WB_SYNC_NONE) {
+> > -			if (ret < wbc->nr_to_write)
+> > -				wbc->nr_to_write -= ret;
+> > -			else
+> > -				wbc->nr_to_write = 0;
+> > -		}
+> > +	if (ret >= 0)
+> >  		return 0;
+> > -	}
+> >  out_mark_dirty:
+> >  	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+> >  	return ret;
+> 
+> It is there in order to tell the VM that it has succeeded in freeing up
+> a certain number of pages. Otherwise, we end up cycling forever in
+> writeback_sb_inodes() & friends with the latter not realising that they
+> have made progress.
 
-I don't see the need for _any_ of this.
+Yeah it seems reasonable, thanks for the explanation.  I'll drop it.
 
-Guys, we used to hold the damn thing for writing the *WHOLE*DAMN*TIME*.
+The decrease of nr_to_write seems a partial solution. It will return
+control to wb_writeback(), however the function may still busy loop
+for long time without doing anything, when all the unstable pages are
+in-commit pages.
 
-Without _any_ at all of the crappy "rwsem_contended()" or the stupid
-constants, we hold it only for reading, _and_ we drop it for any
-actual IO. So the semaphore is held only for actual CPU intensive
-cases. We're talking a reduction from minutes to milliseconds.
+Strictly speaking, over_bground_thresh() should only check the number
+of to-commit pages, because the flusher can only commit the to-commit
+pages, and can do nothing but wait for the server to response to
+in-commit pages. A clean solution would involve breaking up the
+current NR_UNSTABLE_NFS into two counters. But you may not like the
+side effect that more dirty pages will then be cached in NFS client,
+as the background flusher will quit more earlier :)
 
-So stop this insanity. Do neither the rwsem contention checking _nor_
-the "do things in batches".
+As a simple fix, I have a patch to avoid such possible busy loop.
 
-Really.
+Thanks,
+Fengguang
+---
 
-The thing is, afte six months of doing the simple and straightforward
-and _obvious_ parts, if people still think it's a real problem, at
-that point I'm going to be interested in hearing about trying to be
-clever. But when the semaphore hold times have gone down by four
-orders of magnitude, I simply think it's fundamentally wrong to dick
-around with some stupid detail. Certainly not in the same patch
-series.
+Subject: writeback: sleep for 10ms when nothing is written
+Date: Fri Dec 03 18:31:59 CST 2010
 
-"Keep It Simple, Stupid".
+It seems more safe to take a sleep when nothing was done.
 
-So don't even _try_ to send me a series that does all of this. I'm not
-going to take it. Do a series that fixes the _problem_. No more.
+NFS background writeback could possibly busy loop in wb_writeback()
+when the NFS client has sent and commit all data. It relies on the
+NFS server and network condition to get the commit feedback to knock
+down the NR_UNSTABLE_NFS number.
 
-And btw, read the paper "Worse is better".
+CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/fs-writeback.c |    5 +++++
+ 1 file changed, 5 insertions(+)
 
-                                   Linus
+--- linux-next.orig/fs/fs-writeback.c	2010-12-03 18:29:14.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-12-03 18:31:56.000000000 +0800
+@@ -741,6 +741,11 @@ static long wb_writeback(struct bdi_writ
+ 		 * become available for writeback. Otherwise
+ 		 * we'll just busyloop.
+ 		 */
++		if (list_empty(&wb->b_more_io)) {
++			__set_current_state(TASK_UNINTERRUPTIBLE);
++			io_schedule_timeout(max(HZ/100, 1));
++			continue;
++		}
+ 		spin_lock(&inode_lock);
+ 		if (!list_empty(&wb->b_more_io))  {
+ 			inode = wb_inode(wb->b_more_io.prev);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
