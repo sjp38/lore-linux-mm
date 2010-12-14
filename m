@@ -1,62 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 9CC226B0095
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 10:41:35 -0500 (EST)
-Date: Tue, 14 Dec 2010 23:40:26 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 29/35] nfs: in-commit pages accounting and wait queue
-Message-ID: <20101214154026.GA8959@localhost>
-References: <20101213144646.341970461@intel.com>
- <20101213150329.831955132@intel.com>
- <1292274951.8795.28.camel@heimdal.trondhjem.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id DDB8F6B008A
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 10:45:12 -0500 (EST)
+Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id oBEFi6h0010027
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 07:44:06 -0800
+Received: by iwn40 with SMTP id 40so922394iwn.14
+        for <linux-mm@kvack.org>; Tue, 14 Dec 2010 07:44:06 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1292274951.8795.28.camel@heimdal.trondhjem.org>
+In-Reply-To: <20101213170526.3b010058.akpm@linux-foundation.org>
+References: <1291335412-16231-1-git-send-email-walken@google.com>
+ <1291335412-16231-2-git-send-email-walken@google.com> <20101208152740.ac449c3d.akpm@linux-foundation.org>
+ <AANLkTikYZi0=c+yM1p8H18u+9WVbsQXjAinUWyNt7x+t@mail.gmail.com>
+ <AANLkTinY0pcTcd+OxPLyvsJgHgh=cTaB1-8VbEA2tstb@mail.gmail.com>
+ <20101214005140.GA29904@google.com> <20101213170526.3b010058.akpm@linux-foundation.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 14 Dec 2010 07:43:46 -0800
+Message-ID: <AANLkTim-sV6JO5apPdd9oG23q3THaZ1FazfF1nqUfs6C@mail.gmail.com>
+Subject: Re: [PATCH 1/6] mlock: only hold mmap_sem in shared mode when
+ faulting in pages
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Trond Myklebust <Trond.Myklebust@netapp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@kernel.dk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 14, 2010 at 05:15:51AM +0800, Trond Myklebust wrote:
-> On Mon, 2010-12-13 at 22:47 +0800, Wu Fengguang wrote:
-> > plain text document attachment (writeback-nfs-in-commit.patch)
-> > When doing 10+ concurrent dd's, I observed very bumpy commits submission
-> > (partly because the dd's are started at the same time, and hence reached
-> > 4MB to-commit pages at the same time). Basically we rely on the server
-> > to complete and return write/commit requests, and want both to progress
-> > smoothly and not consume too many pages. The write request wait queue is
-> > not enough as it's mainly network bounded. So add another commit request
-> > wait queue. Only async writes need to sleep on this queue.
-> > 
-> 
-> I'm not understanding the above reasoning. Why should we serialise
-> commits at the per-filesystem level (and only for non-blocking flushes
-> at that)?
+On Mon, Dec 13, 2010 at 5:05 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+>
+> Reading 1024 pages can still take a long time. =A0I can't immediately
+> think of a better approach though.
 
-I did the commit wait queue after seeing this graph, where there is
-very bursty pattern of commit submission and hence completion:
+I don't see the need for _any_ of this.
 
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/nfs-commit-1000.png
+Guys, we used to hold the damn thing for writing the *WHOLE*DAMN*TIME*.
 
-leading to big fluctuations, eg. the almost straight up/straight down
-lines below
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/vmstat-dirty-300.png
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/dirty-pages.png
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/dirty-pages-200.png
+Without _any_ at all of the crappy "rwsem_contended()" or the stupid
+constants, we hold it only for reading, _and_ we drop it for any
+actual IO. So the semaphore is held only for actual CPU intensive
+cases. We're talking a reduction from minutes to milliseconds.
 
-A commit wait queue will help wipe out the "peaks". The "fixed" graph
-is
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-03-23/vmstat-dirty-300.png
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-03-23/dirty-pages.png
+So stop this insanity. Do neither the rwsem contention checking _nor_
+the "do things in batches".
 
-Blocking flushes don't need to wait on this queue because they already
-throttle themselves by waiting on the inode commit lock before/after
-the commit.  They actually should not wait on this queue, to prevent
-sync requests being unnecessarily blocked by async ones.
+Really.
 
-Thanks,
-Fengguang
+The thing is, afte six months of doing the simple and straightforward
+and _obvious_ parts, if people still think it's a real problem, at
+that point I'm going to be interested in hearing about trying to be
+clever. But when the semaphore hold times have gone down by four
+orders of magnitude, I simply think it's fundamentally wrong to dick
+around with some stupid detail. Certainly not in the same patch
+series.
+
+"Keep It Simple, Stupid".
+
+So don't even _try_ to send me a series that does all of this. I'm not
+going to take it. Do a series that fixes the _problem_. No more.
+
+And btw, read the paper "Worse is better".
+
+                                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
