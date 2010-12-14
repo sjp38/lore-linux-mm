@@ -1,87 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3BBD16B0093
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 09:57:02 -0500 (EST)
-Date: Tue, 14 Dec 2010 22:56:54 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 04/35] writeback: reduce per-bdi dirty threshold ramp
- up time
-Message-ID: <20101214145654.GA25607@localhost>
-References: <20101213144646.341970461@intel.com>
- <20101213150326.856922289@intel.com>
- <1292333854.2019.16.camel@castor.rsk>
- <20101214135910.GA21401@localhost>
- <20101214143325.GA22764@localhost>
- <20101214143902.GA24827@localhost>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CEC16B0093
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 10:01:59 -0500 (EST)
+Message-ID: <4D0786D3.7070007@akana.de>
+Date: Tue, 14 Dec 2010 16:01:39 +0100
+From: Ingo Korb <ingo@akana.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101214143902.GA24827@localhost>
+Subject: PROBLEM: __offline_isolated_pages may offline too many pages
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, mel@csn.ul.ie, cl@linux-foundation.org, yinghai@kernel.org, andi.kleen@intel.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 14, 2010 at 10:39:02PM +0800, Wu Fengguang wrote:
-> On Tue, Dec 14, 2010 at 10:33:25PM +0800, Wu Fengguang wrote:
-> > On Tue, Dec 14, 2010 at 09:59:10PM +0800, Wu Fengguang wrote:
-> > > On Tue, Dec 14, 2010 at 09:37:34PM +0800, Richard Kennedy wrote:
-> > 
-> > > > As to the ramp up time, when writing to 2 disks at the same time I see
-> > > > the per_bdi_threshold taking up to 20 seconds to converge on a steady
-> > > > value after one of the write stops. So I think this could be speeded up
-> > > > even more, at least on my setup.
-> > > 
-> > > I have the roughly same ramp up time on the 1-disk 3GB mem test:
-> > > 
-> > > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/ext4-1dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-00-37/dirty-pages.png
-> > >  
-> > 
-> > Interestingly, the above graph shows that after about 10s fast ramp
-> > up, there is another 20s slow ramp down. It's obviously due the
-> > decline of global limit:
-> > 
-> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/ext4-1dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-00-37/vmstat-dirty.png
-> > 
-> > But why is the global limit declining?  The following log shows that
-> > nr_file_pages keeps growing and goes stable after 75 seconds (so long
-> > time!). In the same period nr_free_pages goes slowly down to its
-> > stable value. Given that the global limit is mainly derived from
-> > nr_free_pages+nr_file_pages (I disabled swap), something must be
-> > slowly eating memory until 75 ms. Maybe the tracing ring buffers?
-> > 
-> >          free     file      reclaimable pages
-> > 50s      369324 + 318760 => 688084
-> > 60s      235989 + 448096 => 684085
-> > 
-> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/ext4-1dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-00-37/vmstat
-> 
-> The log shows that ~64MB reclaimable memory is stoled. But the trace
-> data only takes 1.8MB. Hmm..
+Hi!
 
-ext2 has the same pattern:
+[1.] One line summary of the problem:
+__offline_isolated_pages may isolate too many pages
 
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/ext2-1dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-01-36/dirty-pages.png
+[2.] Full description of the problem/report:
+While experimenting with remove_memory/online_pages, removing as few 
+pages as possible (pageblock_nr_pages, 512 on my box) I noticed that the 
+number of pages marked "reserved" increased even though both functions 
+did not indicate an error. Following the code it was clear that 
+__offline_isolated_pages marked twice as many pages as it should:
 
-But it does not happen for btrfs!
+=== start paste (from dmesg) ===
+Offlined Pages 512
+remove from free list c00 1024 e00
+=== end paste ===
 
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/btrfs-1dd-1M-8p-2952M-2.6.37-rc5-2010-12-10-21-23/vmstat-dirty.png
+The issue seems to be that __offline_isolated_pages blindly uses 
+page_order() to determine how many pages it should mark as reserved in 
+the current loop iteration, without checking if this would exceed the 
+limit set by end_pfn.
 
-Seems that it's the nr_slab_reclaimable keep growing until 75s.
+I'm not sure what the correct way to fix this would be - is memory 
+isolation supposed to touch the order of a page if it crosses the end 
+(or beginning!) of the range of pages to be isolated?
 
-Looking at
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/ext2-1dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-01-36/slabinfo-end
+[3.] Keywords (i.e., modules, networking, kernel):
+kernel mm memory-hotplug
 
-It should be the buffer heads that slowly eats the memory during the time:
+[4.] Kernel information
+[4.1.] Kernel version (from /proc/version):
+Linux version 2.6.35-00002-g76c52bb (ingo@memtester) (gcc version 4.4.5 
+(Debian 4.4.5-6) ) #7 SMP Tue Dec 14 14:28:17 CET 2010
 
-buffer_head       670304 670662    104   37    1 : tunables  120   60 8 : slabdata  18117  18126    480
+The diff between vanilla 2.6.35 and this version is available at 
+http://akana.de/memtest35.diff - the only changes are a reduced timeout 
+in remove_memory and a bunch of additional exported symbols.
 
-(670304/37)*4 = 72464KB.
+[4.2.] Kernel .config file:
+http://akana.de/config-memtest35
 
-The consumption seems acceptable for a 3G memory system.
+[5.] Most recent kernel version which did not have the bug:
+Probably none
 
-Thanks,
-Fengguang
+[8.] Environment
+[8.1.] Software (add the output of the ver_linux script here)
+Linux memtester 2.6.35-00002-g76c52bb #7 SMP Tue Dec 14 14:28:17 CET 
+2010 x86_64 GNU/Linux
+
+Gnu C                  4.4.5
+Gnu make               3.81
+binutils               2.20.1
+util-linux             (no fdformat on the system)
+mount                  support
+module-init-tools      found
+Linux C Library        2.11.2
+Dynamic linker (ldd)   2.11.2
+Procps                 3.2.8
+Kbd                    1.15.2
+Sh-utils               8.5
+Modules Loaded         phys_mem ipv6 pcspkr i2c_piix4 i2c_core shpchp e1000
+
+Distribution is Debian testing if it matters
+
+[8.2.] Processor information (from /proc/cpuinfo):
+AMD Phenom 9650, but the system is running inside a VMWare Player 
+instance with just a single virtual CPU
+
+[8.3.] Module information (from /proc/modules):
+phys_mem 15068 0 - Live 0xffffffffa00d1000
+ipv6 340746 24 - Live 0xffffffffa0068000
+pcspkr 2022 0 - Live 0xffffffffa0062000
+i2c_piix4 13334 0 - Live 0xffffffffa0059000
+i2c_core 28244 1 i2c_piix4, Live 0xffffffffa004b000
+shpchp 35612 0 - Live 0xffffffffa003b000
+e1000 164575 0 - Live 0xffffffffa0000000
+
+[8.4.] Loaded driver and hardware information (/proc/ioports, /proc/iomem)
+[8.5.] PCI information ('lspci -vvv' as root)
+[8.6.] SCSI information (from /proc/scsi/scsi)
+As far as I can tell irrelevant to this problem?
+(forgot to copy those, will add later if neccessary)
+
+-ik
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
