@@ -1,279 +1,428 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 449726B008A
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 05:46:04 -0500 (EST)
-In-reply-to: <20101213142059.643f8080.akpm@linux-foundation.org> (message from
-	Andrew Morton on Mon, 13 Dec 2010 14:20:59 -0800)
-Subject: Re: kernel BUG at mm/truncate.c:475!
-References: <20101130194945.58962c44@xenia.leun.net>
-	<alpine.LSU.2.00.1011301453090.12516@tigran.mtv.corp.google.com>
-	<E1PNjsI-0005Bk-NB@pomaz-ex.szeredi.hu>
-	<20101201124528.6809c539@xenia.leun.net>
-	<E1PNqO1-0005px-9h@pomaz-ex.szeredi.hu>
-	<20101202084159.6bff7355@xenia.leun.net>
-	<20101202091552.4a63f717@xenia.leun.net>
-	<E1PO5gh-00079U-Ma@pomaz-ex.szeredi.hu>
-	<20101202115722.1c00afd5@xenia.leun.net>
-	<20101203085350.55f94057@xenia.leun.net>
-	<E1PPaIw-0004pW-Mk@pomaz-ex.szeredi.hu>
-	<20101206204303.1de6277b@xenia.leun.net>
-	<E1PRQDn-0007jZ-5S@pomaz-ex.szeredi.hu> <20101213142059.643f8080.akpm@linux-foundation.org>
-Message-Id: <E1PSSO8-0003sy-Vr@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 14 Dec 2010 11:45:44 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A2F906B0093
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 06:02:49 -0500 (EST)
+Received: by iwn40 with SMTP id 40so654224iwn.14
+        for <linux-mm@kvack.org>; Tue, 14 Dec 2010 03:02:45 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20101210143112.29934.22944.stgit@localhost6.localdomain6>
+References: <20101210142745.29934.29186.stgit@localhost6.localdomain6>
+	<20101210143112.29934.22944.stgit@localhost6.localdomain6>
+Date: Tue, 14 Dec 2010 20:02:45 +0900
+Message-ID: <AANLkTinaTUUfvK+Nc-Whck21r-OzT+0CFVnS4W_jG5aw@mail.gmail.com>
+Subject: Re: [PATCH 3/3] Provide control over unmapped pages (v2)
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: miklos@szeredi.hu, lkml20101129@newton.leun.net, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 13 Dec 2010, Andrew Morton wrote:
-> That's a pretty old bug, isn't it?  5+ years.
+On Fri, Dec 10, 2010 at 11:32 PM, Balbir Singh
+<balbir@linux.vnet.ibm.com> wrote:
+> Changelog v2
+> 1. Use a config option to enable the code (Andrew Morton)
+> 2. Explain the magic tunables in the code or at-least attempt
+> =A0 to explain them (General comment)
+> 3. Hint uses of the boot parameter with unlikely (Andrew Morton)
+> 4. Use better names (balanced is not a good naming convention)
+> 5. Updated Documentation/kernel-parameters.txt (Andrew Morton)
+>
+> Provide control using zone_reclaim() and a boot parameter. The
+> code reuses functionality from zone_reclaim() to isolate unmapped
+> pages and reclaim them as a priority, ahead of other mapped pages.
+>
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+> =A0Documentation/kernel-parameters.txt | =A0 =A08 +++
+> =A0include/linux/swap.h =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 21 ++++++--
+> =A0init/Kconfig =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 12 +=
++++
+> =A0kernel/sysctl.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A02 +
+> =A0mm/page_alloc.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A09 +++
+> =A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 97 +=
+++++++++++++++++++++++++++++++++++
+> =A06 files changed, 142 insertions(+), 7 deletions(-)
+>
+> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-p=
+arameters.txt
+> index dd8fe2b..f52b0bd 100644
+> --- a/Documentation/kernel-parameters.txt
+> +++ b/Documentation/kernel-parameters.txt
+> @@ -2515,6 +2515,14 @@ and is between 256 and 4096 characters. It is defi=
+ned in the file
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0[X86]
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Set unknown_nmi_panic=3D1 =
+early on boot.
+>
+> + =A0 =A0 =A0 unmapped_page_control
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 [KNL] Available if CONFIG_U=
+NMAPPED_PAGECACHE_CONTROL
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 is enabled. It controls the=
+ amount of unmapped memory
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 that is present in the syst=
+em. This boot option plus
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 vm.min_unmapped_ratio (sysc=
+tl) provide granular control
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 over how much unmapped page=
+ cache can exist in the system
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 before kswapd starts reclai=
+ming unmapped page cache pages.
+> +
+> =A0 =A0 =A0 =A0usbcore.autosuspend=3D
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0[USB] The autosuspend time=
+ delay (in seconds) used
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0for newly-detected USB dev=
+ices (default 2). =A0This
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index ac5c06e..773d7e5 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -253,19 +253,32 @@ extern int vm_swappiness;
+> =A0extern int remove_mapping(struct address_space *mapping, struct page *=
+page);
+> =A0extern long vm_total_pages;
+>
+> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
+> =A0extern int sysctl_min_unmapped_ratio;
+> =A0extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
+> -#ifdef CONFIG_NUMA
+> -extern int zone_reclaim_mode;
+> -extern int sysctl_min_slab_ratio;
+> =A0#else
+> -#define zone_reclaim_mode 0
+> =A0static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned in=
+t order)
+> =A0{
+> =A0 =A0 =A0 =A0return 0;
+> =A0}
+> =A0#endif
+>
+> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
+> +extern bool should_reclaim_unmapped_pages(struct zone *zone);
+> +#else
+> +static inline bool should_reclaim_unmapped_pages(struct zone *zone)
+> +{
+> + =A0 =A0 =A0 return false;
+> +}
+> +#endif
+> +
+> +#ifdef CONFIG_NUMA
+> +extern int zone_reclaim_mode;
+> +extern int sysctl_min_slab_ratio;
+> +#else
+> +#define zone_reclaim_mode 0
+> +#endif
+> +
+> =A0extern int page_evictable(struct page *page, struct vm_area_struct *vm=
+a);
+> =A0extern void scan_mapping_unevictable_pages(struct address_space *);
+>
+> diff --git a/init/Kconfig b/init/Kconfig
+> index 3eb22ad..78c9169 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -782,6 +782,18 @@ endif # NAMESPACES
+> =A0config MM_OWNER
+> =A0 =A0 =A0 =A0bool
+>
+> +config UNMAPPED_PAGECACHE_CONTROL
+> + =A0 =A0 =A0 bool "Provide control over unmapped page cache"
+> + =A0 =A0 =A0 default n
+> + =A0 =A0 =A0 help
+> + =A0 =A0 =A0 =A0 This option adds support for controlling unmapped page =
+cache
+> + =A0 =A0 =A0 =A0 via a boot parameter (unmapped_page_control). The boot =
+parameter
+> + =A0 =A0 =A0 =A0 with sysctl (vm.min_unmapped_ratio) control the total n=
+umber
+> + =A0 =A0 =A0 =A0 of unmapped pages in the system. This feature is useful=
+ if
+> + =A0 =A0 =A0 =A0 you want to limit the amount of unmapped page cache or =
+want
+> + =A0 =A0 =A0 =A0 to reduce page cache duplication in a virtualized envir=
+onment.
+> + =A0 =A0 =A0 =A0 If unsure say 'N'
+> +
+> =A0config SYSFS_DEPRECATED
+> =A0 =A0 =A0 =A0bool "enable deprecated sysfs features to support old user=
+space tools"
+> =A0 =A0 =A0 =A0depends on SYSFS
+> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> index e40040e..ab2c60a 100644
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -1211,6 +1211,7 @@ static struct ctl_table vm_table[] =3D {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.extra1 =A0 =A0 =A0 =A0 =3D &zero,
+> =A0 =A0 =A0 =A0},
+> =A0#endif
+> +#if defined(CONFIG_UNMAPPED_PAGE_CONTROL) || defined(CONFIG_NUMA)
+> =A0 =A0 =A0 =A0{
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.procname =A0 =A0 =A0 =3D "min_unmapped_ra=
+tio",
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.data =A0 =A0 =A0 =A0 =A0 =3D &sysctl_min_=
+unmapped_ratio,
+> @@ -1220,6 +1221,7 @@ static struct ctl_table vm_table[] =3D {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.extra1 =A0 =A0 =A0 =A0 =3D &zero,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.extra2 =A0 =A0 =A0 =A0 =3D &one_hundred,
+> =A0 =A0 =A0 =A0},
+> +#endif
+> =A0#ifdef CONFIG_NUMA
+> =A0 =A0 =A0 =A0{
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.procname =A0 =A0 =A0 =3D "zone_reclaim_mo=
+de",
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 1845a97..1c9fbab 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1662,6 +1662,9 @@ zonelist_scan:
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long mark;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0int ret;
+>
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (should_reclaim_unmapped=
+_pages(zone))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 wakeup_kswa=
+pd(zone, order);
 
-Probably.  Not easy to trigger, though.
+I think we can put the logic into zone_watermark_okay.
 
-> > +
-> > +	clear_bit_unlock(AS_UNMAPPING, &mapping->flags);
-> > +	smp_mb__after_clear_bit();
-> > +	wake_up_bit(&mapping->flags, AS_UNMAPPING);
-> > +
-> 
-> I do think this was premature optimisation.  The open-coded lock is
-> hidden from lockdep so we won't find out if this introduces potential
-> deadlocks.  It would be better to add a new mutex at least temporarily,
-> then look at replacing it with a MiklosLock later on, when the code is
-> bedded in.
-> 
-> At which time, replacing mutexes with MiklosLocks becomes part of a
-> general "shrink the address_space" exercise in which there's no reason
-> to exclusively concentrate on that new mutex!
+> +
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mark =3D zone->watermark[a=
+lloc_flags & ALLOC_WMARK_MASK];
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (zone_watermark_ok(zone=
+, order, mark,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0cl=
+asszone_idx, alloc_flags))
+> @@ -4154,10 +4157,12 @@ static void __paginginit free_area_init_core(stru=
+ct pglist_data *pgdat,
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0zone->spanned_pages =3D size;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0zone->present_pages =3D realsize;
+> -#ifdef CONFIG_NUMA
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 zone->node =3D nid;
+> +#if defined(CONFIG_UNMAPPED_PAGE_CONTROL) || defined(CONFIG_NUMA)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0zone->min_unmapped_pages =3D (realsize*sys=
+ctl_min_unmapped_ratio)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0/ 100;
+> +#endif
+> +#ifdef CONFIG_NUMA
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 zone->node =3D nid;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0zone->min_slab_pages =3D (realsize * sysct=
+l_min_slab_ratio) / 100;
+> =A0#endif
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0zone->name =3D zone_names[j];
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 4e2ad05..daf2ad1 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -158,6 +158,29 @@ static DECLARE_RWSEM(shrinker_rwsem);
+> =A0#define scanning_global_lru(sc) =A0 =A0 =A0 =A0(1)
+> =A0#endif
+>
+> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
+> +static unsigned long reclaim_unmapped_pages(int priority, struct zone *z=
+one,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 struct scan_control *sc);
+> +static int unmapped_page_control __read_mostly;
+> +
+> +static int __init unmapped_page_control_parm(char *str)
+> +{
+> + =A0 =A0 =A0 unmapped_page_control =3D 1;
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* XXX: Should we tweak swappiness here?
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 return 1;
+> +}
+> +__setup("unmapped_page_control", unmapped_page_control_parm);
+> +
+> +#else /* !CONFIG_UNMAPPED_PAGECACHE_CONTROL */
+> +static inline unsigned long reclaim_unmapped_pages(int priority,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct zone=
+ *zone, struct scan_control *sc)
+> +{
+> + =A0 =A0 =A0 return 0;
+> +}
+> +#endif
+> +
+> =A0static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0struct scan_control *sc)
+> =A0{
+> @@ -2297,6 +2320,12 @@ loop_again:
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0shrink_act=
+ive_list(SWAP_CLUSTER_MAX, zone,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0&sc, priority, 0);
+>
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* We do unmapped page re=
+claim once here and once
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* below, so that we don'=
+t lose out
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 reclaim_unmapped_pages(prio=
+rity, zone, &sc);
 
-Okay, updated patch appended.
+It can make unnecessary stir of lru pages.
+How about this?
+zone_watermark_ok returns ZONE_UNMAPPED_PAGE_FULL.
+wakeup_kswapd(..., please reclaim unmapped page cache).
+If kswapd is woke up by unmapped page full, kswapd sets up sc with unmap =
+=3D 0.
+If the kswapd try to reclaim unmapped page, shrink_page_list doesn't
+rotate non-unmapped pages.
 
-> How hard is it to avoid adding a new lock and using an existing one,
-> presumablt i_mutex?  Because if we can get i_mutex coverage over
-> unmap_mapping_range() then I suspect all the
-> vm_truncate_count/restart_addr stuff can go away?
+> +
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (!zone_watermark_ok_saf=
+e(zone, order,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0high_wmark_pages(zone), 0, 0)) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0end_zone =
+=3D i;
+> @@ -2332,6 +2361,11 @@ loop_again:
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0continue;
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sc.nr_scanned =3D 0;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Reclaim unmapped pages=
+ upfront, this should be
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* really cheap
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 reclaim_unmapped_pages(prio=
+rity, zone, &sc);
 
-One place I know it's hard to get i_mutex coverage is fuse's
-d_revalidate.  That's because ->d_revalidate might be called with or
-without i_mutex at the discretion of the VFS.
+Remove the hacky code.
 
-You might ask, why does fuse call invalidate_inode_pages2() from
-d_revalidate?  The answer is, fuse does lookup revalidation and
-attribute revalidation in one go, and if it finds that the lookup is
-still valid but the file contents have changed, then it will need to
-invalidate the page cache.
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * Call soft limit reclaim=
+ before calling shrink_zone.
+> @@ -2587,7 +2621,8 @@ void wakeup_kswapd(struct zone *zone, int order)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0pgdat->kswapd_max_order =3D order;
+> =A0 =A0 =A0 =A0if (!waitqueue_active(&pgdat->kswapd_wait))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
+> - =A0 =A0 =A0 if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zon=
+e), 0, 0))
+> + =A0 =A0 =A0 if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zon=
+e), 0, 0) &&
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 !should_reclaim_unmapped_pages(zone))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
+>
+> =A0 =A0 =A0 =A0trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zon=
+e), order);
+> @@ -2740,6 +2775,7 @@ static int __init kswapd_init(void)
+>
+> =A0module_init(kswapd_init)
+>
+> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
+> =A0/*
+> =A0* Zone reclaim mode
+> =A0*
+> @@ -2960,6 +2996,65 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask=
+, unsigned int order)
+>
+> =A0 =A0 =A0 =A0return ret;
+> =A0}
+> +#endif
+> +
+> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
+> +/*
+> + * Routine to reclaim unmapped pages, inspired from the code under
+> + * CONFIG_NUMA that does unmapped page and slab page control by keeping
+> + * min_unmapped_pages in the zone. We currently reclaim just unmapped
+> + * pages, slab control will come in soon, at which point this routine
+> + * should be called reclaim cached pages
+> + */
+> +unsigned long reclaim_unmapped_pages(int priority, struct zone *zone,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 struct scan_control *sc)
+> +{
+> + =A0 =A0 =A0 if (unlikely(unmapped_page_control) &&
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 (zone_unmapped_file_pages(zone) > zone->min=
+_unmapped_pages)) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct scan_control nsc;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long nr_pages;
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 nsc =3D *sc;
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 nsc.swappiness =3D 0;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 nsc.may_writepage =3D 0;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 nsc.may_unmap =3D 0;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 nsc.nr_reclaimed =3D 0;
 
-Thanks,
-Miklos
+This logic can be put in zone_reclaim_unmapped_pages.
 
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_pages =3D zone_unmapped_file_pages(zone)=
+ -
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 zone->min_u=
+nmapped_pages;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* We don't want to be too aggressive wit=
+h our
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* reclaim, it is our best effort to cont=
+rol
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* unmapped pages
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_pages >>=3D 3;
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 zone_reclaim_unmapped_pages(zone, &nsc, nr_=
+pages);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return nsc.nr_reclaimed;
+> + =A0 =A0 =A0 }
+> + =A0 =A0 =A0 return 0;
+> +}
+> +
+> +/*
+> + * 16 is a magic number that was pulled out of a magician's
+> + * hat. This number automatically provided the best performance
+> + * to memory usage (unmapped pages). Lower than this and we spend
+> + * a lot of time in frequent reclaims, higher and our control is
+> + * weakend.
+> + */
+> +#define UNMAPPED_PAGE_RATIO 16
+> +
+> +bool should_reclaim_unmapped_pages(struct zone *zone)
+> +{
+> + =A0 =A0 =A0 if (unlikely(unmapped_page_control) &&
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 (zone_unmapped_file_pages(zone) >
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 UNMAPPED_PAGE_RATIO * zone-=
+>min_unmapped_pages))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return true;
+> + =A0 =A0 =A0 return false;
+> +}
+> +#endif
+> +
+>
+> =A0/*
+> =A0* page_evictable - test whether a page is evictable
+>
+>
 
----
- fs/gfs2/main.c     |    9 +--------
- fs/inode.c         |   22 +++++++++++++++-------
- fs/nilfs2/btnode.c |    5 -----
- fs/nilfs2/btnode.h |    1 -
- fs/nilfs2/mdt.c    |    4 ++--
- fs/nilfs2/page.c   |   13 -------------
- fs/nilfs2/page.h   |    1 -
- fs/nilfs2/super.c  |    2 +-
- include/linux/fs.h |    2 ++
- mm/memory.c        |    2 ++
- 10 files changed, 23 insertions(+), 38 deletions(-)
+As I look first, the code isn't good shape.
+But more important thing is how many there are users.
+Could we pay cost to maintain feature few user?
 
-Index: linux.git/mm/memory.c
-===================================================================
---- linux.git.orig/mm/memory.c	2010-12-11 14:09:55.000000000 +0100
-+++ linux.git/mm/memory.c	2010-12-14 11:20:47.000000000 +0100
-@@ -2572,6 +2572,7 @@ void unmap_mapping_range(struct address_
- 		details.last_index = ULONG_MAX;
- 	details.i_mmap_lock = &mapping->i_mmap_lock;
- 
-+	mutex_lock(&mapping->unmap_mutex);
- 	spin_lock(&mapping->i_mmap_lock);
- 
- 	/* Protect against endless unmapping loops */
-@@ -2588,6 +2589,7 @@ void unmap_mapping_range(struct address_
- 	if (unlikely(!list_empty(&mapping->i_mmap_nonlinear)))
- 		unmap_mapping_range_list(&mapping->i_mmap_nonlinear, &details);
- 	spin_unlock(&mapping->i_mmap_lock);
-+	mutex_unlock(&mapping->unmap_mutex);
- }
- EXPORT_SYMBOL(unmap_mapping_range);
- 
-Index: linux.git/fs/gfs2/main.c
-===================================================================
---- linux.git.orig/fs/gfs2/main.c	2010-11-26 10:52:16.000000000 +0100
-+++ linux.git/fs/gfs2/main.c	2010-12-14 11:15:53.000000000 +0100
-@@ -59,14 +59,7 @@ static void gfs2_init_gl_aspace_once(voi
- 	struct address_space *mapping = (struct address_space *)(gl + 1);
- 
- 	gfs2_init_glock_once(gl);
--	memset(mapping, 0, sizeof(*mapping));
--	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
--	spin_lock_init(&mapping->tree_lock);
--	spin_lock_init(&mapping->i_mmap_lock);
--	INIT_LIST_HEAD(&mapping->private_list);
--	spin_lock_init(&mapping->private_lock);
--	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
--	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
-+	address_space_init_once(mapping);
- }
- 
- /**
-Index: linux.git/fs/inode.c
-===================================================================
---- linux.git.orig/fs/inode.c	2010-11-26 10:52:16.000000000 +0100
-+++ linux.git/fs/inode.c	2010-12-14 11:21:49.000000000 +0100
-@@ -280,6 +280,20 @@ static void destroy_inode(struct inode *
- 		kmem_cache_free(inode_cachep, (inode));
- }
- 
-+void address_space_init_once(struct address_space *mapping)
-+{
-+	memset(mapping, 0, sizeof(*mapping));
-+	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
-+	spin_lock_init(&mapping->tree_lock);
-+	spin_lock_init(&mapping->i_mmap_lock);
-+	INIT_LIST_HEAD(&mapping->private_list);
-+	spin_lock_init(&mapping->private_lock);
-+	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
-+	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
-+	mutex_init(&mapping->unmap_mutex);
-+}
-+EXPORT_SYMBOL(address_space_init_once);
-+
- /*
-  * These are initializations that only need to be done
-  * once, because the fields are idempotent across use
-@@ -293,13 +307,7 @@ void inode_init_once(struct inode *inode
- 	INIT_LIST_HEAD(&inode->i_devices);
- 	INIT_LIST_HEAD(&inode->i_wb_list);
- 	INIT_LIST_HEAD(&inode->i_lru);
--	INIT_RADIX_TREE(&inode->i_data.page_tree, GFP_ATOMIC);
--	spin_lock_init(&inode->i_data.tree_lock);
--	spin_lock_init(&inode->i_data.i_mmap_lock);
--	INIT_LIST_HEAD(&inode->i_data.private_list);
--	spin_lock_init(&inode->i_data.private_lock);
--	INIT_RAW_PRIO_TREE_ROOT(&inode->i_data.i_mmap);
--	INIT_LIST_HEAD(&inode->i_data.i_mmap_nonlinear);
-+	address_space_init_once(&inode->i_data);
- 	i_size_ordered_init(inode);
- #ifdef CONFIG_FSNOTIFY
- 	INIT_HLIST_HEAD(&inode->i_fsnotify_marks);
-Index: linux.git/fs/nilfs2/btnode.c
-===================================================================
---- linux.git.orig/fs/nilfs2/btnode.c	2010-11-26 10:52:17.000000000 +0100
-+++ linux.git/fs/nilfs2/btnode.c	2010-12-14 11:19:52.000000000 +0100
-@@ -35,11 +35,6 @@
- #include "btnode.h"
- 
- 
--void nilfs_btnode_cache_init_once(struct address_space *btnc)
--{
--	nilfs_mapping_init_once(btnc);
--}
--
- static const struct address_space_operations def_btnode_aops = {
- 	.sync_page		= block_sync_page,
- };
-Index: linux.git/fs/nilfs2/btnode.h
-===================================================================
---- linux.git.orig/fs/nilfs2/btnode.h	2010-10-05 18:49:12.000000000 +0200
-+++ linux.git/fs/nilfs2/btnode.h	2010-12-14 11:20:01.000000000 +0100
-@@ -37,7 +37,6 @@ struct nilfs_btnode_chkey_ctxt {
- 	struct buffer_head *newbh;
- };
- 
--void nilfs_btnode_cache_init_once(struct address_space *);
- void nilfs_btnode_cache_init(struct address_space *, struct backing_dev_info *);
- void nilfs_btnode_cache_clear(struct address_space *);
- struct buffer_head *nilfs_btnode_create_block(struct address_space *btnc,
-Index: linux.git/fs/nilfs2/mdt.c
-===================================================================
---- linux.git.orig/fs/nilfs2/mdt.c	2010-11-26 10:52:17.000000000 +0100
-+++ linux.git/fs/nilfs2/mdt.c	2010-12-14 11:18:18.000000000 +0100
-@@ -460,9 +460,9 @@ int nilfs_mdt_setup_shadow_map(struct in
- 	struct backing_dev_info *bdi = inode->i_sb->s_bdi;
- 
- 	INIT_LIST_HEAD(&shadow->frozen_buffers);
--	nilfs_mapping_init_once(&shadow->frozen_data);
-+	address_space_init_once(&shadow->frozen_data);
- 	nilfs_mapping_init(&shadow->frozen_data, bdi, &shadow_map_aops);
--	nilfs_mapping_init_once(&shadow->frozen_btnodes);
-+	address_space_init_once(&shadow->frozen_btnodes);
- 	nilfs_mapping_init(&shadow->frozen_btnodes, bdi, &shadow_map_aops);
- 	mi->mi_shadow = shadow;
- 	return 0;
-Index: linux.git/fs/nilfs2/page.c
-===================================================================
---- linux.git.orig/fs/nilfs2/page.c	2010-11-26 10:52:17.000000000 +0100
-+++ linux.git/fs/nilfs2/page.c	2010-12-14 11:17:26.000000000 +0100
-@@ -492,19 +492,6 @@ unsigned nilfs_page_count_clean_buffers(
- 	return nc;
- }
-  
--void nilfs_mapping_init_once(struct address_space *mapping)
--{
--	memset(mapping, 0, sizeof(*mapping));
--	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
--	spin_lock_init(&mapping->tree_lock);
--	INIT_LIST_HEAD(&mapping->private_list);
--	spin_lock_init(&mapping->private_lock);
--
--	spin_lock_init(&mapping->i_mmap_lock);
--	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
--	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
--}
--
- void nilfs_mapping_init(struct address_space *mapping,
- 			struct backing_dev_info *bdi,
- 			const struct address_space_operations *aops)
-Index: linux.git/fs/nilfs2/page.h
-===================================================================
---- linux.git.orig/fs/nilfs2/page.h	2010-11-26 10:52:17.000000000 +0100
-+++ linux.git/fs/nilfs2/page.h	2010-12-14 11:17:35.000000000 +0100
-@@ -61,7 +61,6 @@ void nilfs_free_private_page(struct page
- int nilfs_copy_dirty_pages(struct address_space *, struct address_space *);
- void nilfs_copy_back_pages(struct address_space *, struct address_space *);
- void nilfs_clear_dirty_pages(struct address_space *);
--void nilfs_mapping_init_once(struct address_space *mapping);
- void nilfs_mapping_init(struct address_space *mapping,
- 			struct backing_dev_info *bdi,
- 			const struct address_space_operations *aops);
-Index: linux.git/fs/nilfs2/super.c
-===================================================================
---- linux.git.orig/fs/nilfs2/super.c	2010-11-26 10:52:17.000000000 +0100
-+++ linux.git/fs/nilfs2/super.c	2010-12-14 11:20:19.000000000 +0100
-@@ -1262,7 +1262,7 @@ static void nilfs_inode_init_once(void *
- #ifdef CONFIG_NILFS_XATTR
- 	init_rwsem(&ii->xattr_sem);
- #endif
--	nilfs_btnode_cache_init_once(&ii->i_btnode_cache);
-+	address_space_init_once(&ii->i_btnode_cache);
- 	ii->i_bmap = &ii->i_bmap_data;
- 	inode_init_once(&ii->vfs_inode);
- }
-Index: linux.git/include/linux/fs.h
-===================================================================
---- linux.git.orig/include/linux/fs.h	2010-12-07 20:17:55.000000000 +0100
-+++ linux.git/include/linux/fs.h	2010-12-14 11:21:30.000000000 +0100
-@@ -645,6 +645,7 @@ struct address_space {
- 	spinlock_t		private_lock;	/* for use by the address_space */
- 	struct list_head	private_list;	/* ditto */
- 	struct address_space	*assoc_mapping;	/* ditto */
-+	struct mutex		unmap_mutex;    /* to protect unmapping */
- } __attribute__((aligned(sizeof(long))));
- 	/*
- 	 * On most architectures that alignment is already the case; but
-@@ -2205,6 +2206,7 @@ extern loff_t vfs_llseek(struct file *fi
- 
- extern int inode_init_always(struct super_block *, struct inode *);
- extern void inode_init_once(struct inode *);
-+extern void address_space_init_once(struct address_space *mapping);
- extern void ihold(struct inode * inode);
- extern void iput(struct inode *);
- extern struct inode * igrab(struct inode *);
+It depends on your effort which proves the usage cases and benefit.
+It would be good to give a real data.
+
+If we want really this, how about the new cache lru idea as Kame suggests?
+For example, add_to_page_cache_lru adds the page into cache lru.
+page_add_file_rmap moves the page into inactive file.
+page_remove_rmap moves the page into lru cache, again.
+We can count the unmapped pages and if the size exceeds limit, we can
+wake up kswapd.
+whenever the memory pressure happens, first of all, reclaimer try to
+reclaim cache lru.
+
+It can enhance reclaim latency and is good to embedded people.
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
