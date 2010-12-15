@@ -1,38 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BCAE6B0095
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 04:26:05 -0500 (EST)
-Message-ID: <4D08899F.4050502@akana.de>
-Date: Wed, 15 Dec 2010 10:25:51 +0100
-From: Ingo Korb <ingo@akana.de>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E18466B008C
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 05:43:07 -0500 (EST)
+Date: Wed, 15 Dec 2010 10:42:44 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/6] mm: kswapd: Stop high-order balancing when any
+	suitable zone is balanced
+Message-ID: <20101215104244.GH13914@csn.ul.ie>
+References: <1291995985-5913-1-git-send-email-mel@csn.ul.ie> <1291995985-5913-2-git-send-email-mel@csn.ul.ie> <20101214143306.485f2c7c.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: PROBLEM: __offline_isolated_pages may offline too many pages
-References: <4D0786D3.7070007@akana.de> <20101215092134.e2c8849f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101215092134.e2c8849f.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20101214143306.485f2c7c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, cl@linux-foundation.org, yinghai@kernel.org, andi.kleen@intel.com, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Simon Kirby <sim@hostway.ca>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 15.12.2010 01:21, KAMEZAWA Hiroyuki wrote:
+On Tue, Dec 14, 2010 at 02:33:06PM -0800, Andrew Morton wrote:
+> On Fri, 10 Dec 2010 15:46:20 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > When the allocator enters its slow path, kswapd is woken up to balance the
+> > node. It continues working until all zones within the node are balanced. For
+> > order-0 allocations, this makes perfect sense but for higher orders it can
+> > have unintended side-effects. If the zone sizes are imbalanced, kswapd may
+> > reclaim heavily within a smaller zone discarding an excessive number of
+> > pages.
+> 
+> Why was it doing this?  
+> 
 
-> It's designed for offline memory section>  MAX_ORDER. pageblock_nr_pages
-> is tend to be smaller than that.
->
-> Do you see the problem with _exsisting_ user interface of memory hotplug ?
-> I think we have no control other than memory section.
+Partially because of lumpy reclaim but mostly because it simply stays
+awake. If the zone is unbalanced, kswapd will reclaim in there,
+shrinking slabs, rotating lists etc. even if ultimately it cannot
+balance that zone.
 
-The existing, exported interface (remove_memory() - the check itself is 
-in offline_pages()) only checks if both start and end of the 
-to-be-removed block are aligned to pageblock_nr_pages. As you noted the 
-actual size and alignment requirements in __offline_isolated_pages can 
-be larger that that, so I think the checks in offline_pages() should be 
-changed (if 1<<MAX_ORDER is always >= pageblock_nr_pages) or extended 
-(if there can be any relation between the two).
+> > The user-visible behaviour is that kswapd is awake and reclaiming
+> > even though plenty of pages are free from a suitable zone.
+> 
+> Suitable for what?  I assume you refer to a future allocation which can
+> be satisfied from more than one of the zones?
+> 
 
--ik
+Yes.
+
+> But what if that allocation wanted to allocate a high-order page from
+> a zone which we just abandoned?
+> 
+
+classzone_idx is taken into account by the series overall and it doesn't
+count zones above the classzone_idx.
+
+> > This patch alters the "balance" logic for high-order reclaim allowing kswapd
+> > to stop if any suitable zone becomes balanced to reduce the number of pages
+> 
+> again, suitable for what?
+> 
+
+Suitable for a future allocation of the same type that woke kswapd.
+
+> > it reclaims from other zones. kswapd still tries to ensure that order-0
+> > watermarks for all zones are met before sleeping.
+> 
+> Handling order-0 pages differently from higher-order pages sounds weird
+> and wrong.
+> 
+> I don't think I understand this patch.
+> 
+
+The objective is that kswapd will go to sleep again. It has been found
+when there is a constant source of high-order allocations that kswapd
+stays awake constantly trying to reclaim even though a suitable zone had
+free pages.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
