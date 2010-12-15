@@ -1,64 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7C5E26B0095
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 00:30:07 -0500 (EST)
-Date: Wed, 15 Dec 2010 06:29:10 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 36 of 66] memcg compound
-Message-ID: <20101215052910.GR5638@random.random>
-References: <patchbomb.1288798055@v2.random>
- <495ffee2d60adab4d18b.1288798091@v2.random>
- <20101118152628.GY8135@csn.ul.ie>
- <20101119101041.ffe00712.kamezawa.hiroyu@jp.fujitsu.com>
- <20101214173817.GH5638@random.random>
- <20101215091209.8c757ad1.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DF26F6B0093
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 01:53:41 -0500 (EST)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp03.in.ibm.com (8.14.4/8.13.1) with ESMTP id oBF6rWEu015185
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 12:23:32 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oBF6rWet2781282
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 12:23:32 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oBF6rVIv030492
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 17:53:32 +1100
+Date: Wed, 15 Dec 2010 12:15:22 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/3] Refactor zone_reclaim (v2)
+Message-ID: <20101215064522.GA2657@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20101210142745.29934.29186.stgit@localhost6.localdomain6>
+ <20101210143018.29934.11893.stgit@localhost6.localdomain6>
+ <AANLkTimeecObDMQMbWzNhL1mE+UT9D3o1WWS4bmxtR4U@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20101215091209.8c757ad1.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTimeecObDMQMbWzNhL1mE+UT9D3o1WWS4bmxtR4U@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+* MinChan Kim <minchan.kim@gmail.com> [2010-12-14 19:01:26]:
 
-On Wed, Dec 15, 2010 at 09:12:09AM +0900, KAMEZAWA Hiroyuki wrote:
-> Thank you. Hmm,..seems not very simple :( I'm sorry.
-> Please do as you want.
-
-I did the below change, let me know if there's any problem with it.
-
-What's left is mem_cgroup_move_parent...
-
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -2503,6 +2503,9 @@ __do_uncharge(struct mem_cgroup *mem, co
-> >  	if (!batch->do_batch || test_thread_flag(TIF_MEMDIE))
-> >  		goto direct_uncharge;
-> >  
-> > +	if (page_size != PAGE_SIZE)
-> > +		goto direct_uncharge;
-> > +
-> >  	/*
-> >  	 * In typical case, batch->memcg == mem. This means we can
-> >  	 * merge a series of uncharges to an uncharge of res_counter.
-> > @@ -2511,9 +2514,9 @@ __do_uncharge(struct mem_cgroup *mem, co
-> >  	if (batch->memcg != mem)
-> >  		goto direct_uncharge;
-> >  	/* remember freed charge and uncharge it later */
-> > -	batch->bytes += page_size;
-> > +	batch->bytes += PAGE_SIZE;
-> >  	if (uncharge_memsw)
-> > -		batch->memsw_bytes += page_size;
-> > +		batch->memsw_bytes += PAGE_SIZE;
-> >  	return;
-> >  direct_uncharge:
-> >  	res_counter_uncharge(&mem->res, page_size);
-> > 
-> > 
+> Hi Balbir,
 > 
+> On Fri, Dec 10, 2010 at 11:31 PM, Balbir Singh
+> <balbir@linux.vnet.ibm.com> wrote:
+> > Move reusable functionality outside of zone_reclaim.
+> > Make zone_reclaim_unmapped_pages modular
+> >
+> > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> > ---
+> >  mm/vmscan.c |   35 +++++++++++++++++++++++------------
+> >  1 files changed, 23 insertions(+), 12 deletions(-)
+> >
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index e841cae..4e2ad05 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2815,6 +2815,27 @@ static long zone_pagecache_reclaimable(struct zone *zone)
+> >  }
+> >
+> >  /*
+> > + * Helper function to reclaim unmapped pages, we might add something
+> > + * similar to this for slab cache as well. Currently this function
+> > + * is shared with __zone_reclaim()
+> > + */
+> > +static inline void
+> > +zone_reclaim_unmapped_pages(struct zone *zone, struct scan_control *sc,
+> > +                               unsigned long nr_pages)
+> > +{
+> > +       int priority;
+> > +       /*
+> > +        * Free memory by calling shrink zone with increasing
+> > +        * priorities until we have enough memory freed.
+> > +        */
+> > +       priority = ZONE_RECLAIM_PRIORITY;
+> > +       do {
+> > +               shrink_zone(priority, zone, sc);
+> > +               priority--;
+> > +       } while (priority >= 0 && sc->nr_reclaimed < nr_pages);
+> > +}
+> 
+> As I said previous version, zone_reclaim_unmapped_pages doesn't have
+> any functions related to reclaim unmapped pages.
+> The function name is rather strange.
+> It would be better to add scan_control setup in function inner to
+> reclaim only unmapped pages.
+
+OK, that is an idea worth looking at, I'll revisit this function.
+
+Thanks for the review!
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
