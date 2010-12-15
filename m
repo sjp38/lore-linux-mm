@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B46176B00A5
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D5F3C6B00A6
 	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 17:20:14 -0500 (EST)
 From: Jeremy Fitzhardinge <jeremy@goop.org>
-Subject: [PATCH 6/9] vmalloc: use apply_to_page_range_batch() for vmap_page_range_noflush()
-Date: Wed, 15 Dec 2010 14:19:52 -0800
-Message-Id: <24592fddc8f945442fd429a2288611d0924b2a69.1292450600.git.jeremy.fitzhardinge@citrix.com>
+Subject: [PATCH 5/9] vmalloc: use apply_to_page_range_batch() for vunmap_page_range()
+Date: Wed, 15 Dec 2010 14:19:51 -0800
+Message-Id: <48e58c3147aa3548db2a99e3eee854a7bf9e4696.1292450600.git.jeremy.fitzhardinge@citrix.com>
 In-Reply-To: <cover.1292450600.git.jeremy.fitzhardinge@citrix.com>
 References: <cover.1292450600.git.jeremy.fitzhardinge@citrix.com>
 In-Reply-To: <cover.1292450600.git.jeremy.fitzhardinge@citrix.com>
@@ -17,134 +17,88 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 
-There's no need to open-code it when there's a helpful utility
-function.
+There's no need to open-code it when there's helpful utility function
+to do the job.
 
 Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 Cc: Nick Piggin <npiggin@kernel.dk>
 ---
- mm/vmalloc.c |   92 ++++++++++++++++++---------------------------------------
- 1 files changed, 29 insertions(+), 63 deletions(-)
+ mm/vmalloc.c |   53 +++++++++--------------------------------------------
+ 1 files changed, 9 insertions(+), 44 deletions(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 5c5ad6a..0e845bb 100644
+index 67ce748..5c5ad6a 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -53,63 +53,34 @@ static void vunmap_page_range(unsigned long addr, unsigned long end)
- 	apply_to_page_range_batch(&init_mm, addr, end - addr, vunmap_pte, NULL);
- }
+@@ -33,59 +33,24 @@
  
--static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
--		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
-+struct vmap_data
+ /*** Page table manipulation functions ***/
+ 
+-static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end)
++static int vunmap_pte(pte_t *pte, unsigned count,
++		      unsigned long addr, void *data)
  {
 -	pte_t *pte;
-+	struct page **pages;
-+	unsigned index;
-+	pgprot_t prot;
-+};
- 
--	/*
--	 * nr is a running index into the array which helps higher level
--	 * callers keep track of where we're up to.
--	 */
-+static int vmap_pte(pte_t *pte, unsigned count,
-+		    unsigned long addr, void *data)
-+{
-+	struct vmap_data *vmap = data;
- 
--	pte = pte_alloc_kernel(pmd, addr);
--	if (!pte)
--		return -ENOMEM;
+-
+-	pte = pte_offset_kernel(pmd, addr);
 -	do {
--		struct page *page = pages[*nr];
 +	while (count--) {
-+		struct page *page = vmap->pages[vmap->index];
- 
- 		if (WARN_ON(!pte_none(*pte)))
- 			return -EBUSY;
-+
- 		if (WARN_ON(!page))
- 			return -ENOMEM;
--		set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
--		(*nr)++;
+ 		pte_t ptent = *pte;
+-		WARN_ON(!pte_none(ptent) && !pte_present(ptent));
+-		pte_clear(&init_mm, addr, pte);
 -	} while (pte++, addr += PAGE_SIZE, addr != end);
--	return 0;
 -}
- 
--static int vmap_pmd_range(pud_t *pud, unsigned long addr,
--		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
+-
+-static void vunmap_pmd_range(pud_t *pud, unsigned long addr, unsigned long end)
 -{
 -	pmd_t *pmd;
 -	unsigned long next;
--
--	pmd = pmd_alloc(&init_mm, pud, addr);
--	if (!pmd)
--		return -ENOMEM;
+ 
+-	pmd = pmd_offset(pud, addr);
 -	do {
 -		next = pmd_addr_end(addr, end);
--		if (vmap_pte_range(pmd, addr, next, prot, pages, nr))
--			return -ENOMEM;
+-		if (pmd_none_or_clear_bad(pmd))
+-			continue;
+-		vunmap_pte_range(pmd, addr, next);
 -	} while (pmd++, addr = next, addr != end);
--	return 0;
 -}
-+		set_pte_at(&init_mm, addr, pte, mk_pte(page, vmap->prot));
++		WARN_ON(!pte_none(ptent) && !pte_present(ptent));
  
--static int vmap_pud_range(pgd_t *pgd, unsigned long addr,
--		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
+-static void vunmap_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end)
 -{
 -	pud_t *pud;
 -	unsigned long next;
-+		pte++;
++		pte_clear(&init_mm, addr, pte++);
 +		addr += PAGE_SIZE;
-+		vmap->index++;
 +	}
  
--	pud = pud_alloc(&init_mm, pgd, addr);
--	if (!pud)
--		return -ENOMEM;
+-	pud = pud_offset(pgd, addr);
 -	do {
 -		next = pud_addr_end(addr, end);
--		if (vmap_pmd_range(pud, addr, next, prot, pages, nr))
--			return -ENOMEM;
+-		if (pud_none_or_clear_bad(pud))
+-			continue;
+-		vunmap_pmd_range(pud, addr, next);
 -	} while (pud++, addr = next, addr != end);
- 	return 0;
++	return 0;
  }
  
-@@ -122,22 +93,17 @@ static int vmap_pud_range(pgd_t *pgd, unsigned long addr,
- static int vmap_page_range_noflush(unsigned long start, unsigned long end,
- 				   pgprot_t prot, struct page **pages)
+ static void vunmap_page_range(unsigned long addr, unsigned long end)
  {
 -	pgd_t *pgd;
 -	unsigned long next;
--	unsigned long addr = start;
--	int err = 0;
--	int nr = 0;
 -
 -	BUG_ON(addr >= end);
 -	pgd = pgd_offset_k(addr);
 -	do {
 -		next = pgd_addr_end(addr, end);
--		err = vmap_pud_range(pgd, addr, next, prot, pages, &nr);
--		if (err)
--			return err;
+-		if (pgd_none_or_clear_bad(pgd))
+-			continue;
+-		vunmap_pud_range(pgd, addr, next);
 -	} while (pgd++, addr = next, addr != end);
--
--	return nr;
-+	int err;
-+	struct vmap_data vmap = {
-+		.pages = pages,
-+		.index = 0,
-+		.prot = prot
-+	};
-+	
-+	err = apply_to_page_range_batch(&init_mm, start, end - start,
-+					vmap_pte, &vmap);
-+	
-+	return err ? err : vmap.index;
++	apply_to_page_range_batch(&init_mm, addr, end - addr, vunmap_pte, NULL);
  }
  
- static int vmap_page_range(unsigned long start, unsigned long end,
+ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
 -- 
 1.7.3.3
 
