@@ -1,297 +1,346 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 842426B008C
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 23:33:10 -0500 (EST)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id oBF4X3tF015130
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 20:33:06 -0800
-Received: from iwn38 (iwn38.prod.google.com [10.241.68.102])
-	by kpbe16.cbf.corp.google.com with ESMTP id oBF4VghW011513
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 20:33:02 -0800
-Received: by iwn38 with SMTP id 38so1663351iwn.36
-        for <linux-mm@kvack.org>; Tue, 14 Dec 2010 20:33:00 -0800 (PST)
-Date: Tue, 14 Dec 2010 20:32:49 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: kernel BUG at mm/truncate.c:475!
-In-Reply-To: <E1PSSO8-0003sy-Vr@pomaz-ex.szeredi.hu>
-Message-ID: <alpine.LSU.2.00.1012142020030.12693@tigran.mtv.corp.google.com>
-References: <20101130194945.58962c44@xenia.leun.net> <alpine.LSU.2.00.1011301453090.12516@tigran.mtv.corp.google.com> <E1PNjsI-0005Bk-NB@pomaz-ex.szeredi.hu> <20101201124528.6809c539@xenia.leun.net> <E1PNqO1-0005px-9h@pomaz-ex.szeredi.hu>
- <20101202084159.6bff7355@xenia.leun.net> <20101202091552.4a63f717@xenia.leun.net> <E1PO5gh-00079U-Ma@pomaz-ex.szeredi.hu> <20101202115722.1c00afd5@xenia.leun.net> <20101203085350.55f94057@xenia.leun.net> <E1PPaIw-0004pW-Mk@pomaz-ex.szeredi.hu>
- <20101206204303.1de6277b@xenia.leun.net> <E1PRQDn-0007jZ-5S@pomaz-ex.szeredi.hu> <20101213142059.643f8080.akpm@linux-foundation.org> <E1PSSO8-0003sy-Vr@pomaz-ex.szeredi.hu>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 1217C6B008C
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 00:16:49 -0500 (EST)
+Date: Wed, 15 Dec 2010 06:15:40 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Transparent Hugepage Support #33
+Message-ID: <20101215051540.GP5638@random.random>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, robert@swiecki.net, lkml20101129@newton.leun.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>, Miklos Szeredi <miklos@szeredi.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 14 Dec 2010, Miklos Szeredi wrote:
-> On Mon, 13 Dec 2010, Andrew Morton wrote:
-> > That's a pretty old bug, isn't it?  5+ years.
-> 
-> Probably.  Not easy to trigger, though.
-> 
-> > > +
-> > > +	clear_bit_unlock(AS_UNMAPPING, &mapping->flags);
-> > > +	smp_mb__after_clear_bit();
-> > > +	wake_up_bit(&mapping->flags, AS_UNMAPPING);
-> > > +
-> > 
-> > I do think this was premature optimisation.  The open-coded lock is
-> > hidden from lockdep so we won't find out if this introduces potential
-> > deadlocks.  It would be better to add a new mutex at least temporarily,
-> > then look at replacing it with a MiklosLock later on, when the code is
-> > bedded in.
-> > 
-> > At which time, replacing mutexes with MiklosLocks becomes part of a
-> > general "shrink the address_space" exercise in which there's no reason
-> > to exclusively concentrate on that new mutex!
-> 
-> Okay, updated patch appended.
-> 
-> > How hard is it to avoid adding a new lock and using an existing one,
-> > presumablt i_mutex?  Because if we can get i_mutex coverage over
-> > unmap_mapping_range() then I suspect all the
-> > vm_truncate_count/restart_addr stuff can go away?
-> 
-> One place I know it's hard to get i_mutex coverage is fuse's
-> d_revalidate.  That's because ->d_revalidate might be called with or
-> without i_mutex at the discretion of the VFS.
+Some of some relevant user of the project:
 
-Right, pity we weren't stricter about that.
+KVM Virtualization
+GCC (kernel build included, requires a few liner patch to enable)
+JVM
+VMware Workstation
+HPC
 
-> 
-> You might ask, why does fuse call invalidate_inode_pages2() from
-> d_revalidate?  The answer is, fuse does lookup revalidation and
-> attribute revalidation in one go, and if it finds that the lookup is
-> still valid but the file contents have changed, then it will need to
-> invalidate the page cache.
-> 
-> Thanks,
-> Miklos
-> 
+It would be great if it could go in -mm.
 
-Yes, this looks to me like what is needed for now.
+http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=blob;f=Documentation/vm/transhuge.txt
+http://www.linux-kvm.org/wiki/images/9/9e/2010-forum-thp.pdf
 
-I'd feel rather happier about it if I thought it would also fix
-Robert's kernel BUG at /build/buildd/linux-2.6.35/mm/filemap.c:128!
-but I've still not found time to explain that one.
+http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=shortlog
 
-Robert, you said yours is usually repeatable in 12 hours - any chance
-you could give iknowthis a run with the patch below, to see if it
-makes any difference to yours?  (I admit I don't see how it would.)
+first: git clone git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
+or first: git clone --reference linux-2.6 git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
+later: git fetch; git checkout -f origin/master
 
-Thanks,
-Hugh
+The tree is rebased and git pull won't work.
 
-> 
-> ---
- fs/gfs2/main.c     |    9 +--------
- fs/inode.c         |   22 +++++++++++++++-------
- fs/nilfs2/btnode.c |    5 -----
- fs/nilfs2/btnode.h |    1 -
- fs/nilfs2/mdt.c    |    4 ++--
- fs/nilfs2/page.c   |   13 -------------
- fs/nilfs2/page.h   |    1 -
- fs/nilfs2/super.c  |    2 +-
- include/linux/fs.h |    2 ++
- mm/memory.c        |    2 ++
- 10 files changed, 23 insertions(+), 38 deletions(-)
+http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.37-rc5/transparent_hugepage-33/
+http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.37-rc5/transparent_hugepage-33.gz
 
-Index: linux.git/mm/memory.c
-===================================================================
---- linux.git.orig/mm/memory.c	2010-12-11 14:09:55.000000000 +0100
-+++ linux.git/mm/memory.c	2010-12-14 11:20:47.000000000 +0100
-@@ -2572,6 +2572,7 @@ void unmap_mapping_range(struct address_
- 		details.last_index = ULONG_MAX;
- 	details.i_mmap_lock = &mapping->i_mmap_lock;
- 
-+	mutex_lock(&mapping->unmap_mutex);
- 	spin_lock(&mapping->i_mmap_lock);
- 
- 	/* Protect against endless unmapping loops */
-@@ -2588,6 +2589,7 @@ void unmap_mapping_range(struct address_
- 	if (unlikely(!list_empty(&mapping->i_mmap_nonlinear)))
- 		unmap_mapping_range_list(&mapping->i_mmap_nonlinear, &details);
- 	spin_unlock(&mapping->i_mmap_lock);
-+	mutex_unlock(&mapping->unmap_mutex);
- }
- EXPORT_SYMBOL(unmap_mapping_range);
- 
-Index: linux.git/fs/gfs2/main.c
-===================================================================
---- linux.git.orig/fs/gfs2/main.c	2010-11-26 10:52:16.000000000 +0100
-+++ linux.git/fs/gfs2/main.c	2010-12-14 11:15:53.000000000 +0100
-@@ -59,14 +59,7 @@ static void gfs2_init_gl_aspace_once(voi
- 	struct address_space *mapping = (struct address_space *)(gl + 1);
- 
- 	gfs2_init_glock_once(gl);
--	memset(mapping, 0, sizeof(*mapping));
--	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
--	spin_lock_init(&mapping->tree_lock);
--	spin_lock_init(&mapping->i_mmap_lock);
--	INIT_LIST_HEAD(&mapping->private_list);
--	spin_lock_init(&mapping->private_lock);
--	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
--	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
-+	address_space_init_once(mapping);
- }
- 
- /**
-Index: linux.git/fs/inode.c
-===================================================================
---- linux.git.orig/fs/inode.c	2010-11-26 10:52:16.000000000 +0100
-+++ linux.git/fs/inode.c	2010-12-14 11:21:49.000000000 +0100
-@@ -280,6 +280,20 @@ static void destroy_inode(struct inode *
- 		kmem_cache_free(inode_cachep, (inode));
- }
- 
-+void address_space_init_once(struct address_space *mapping)
-+{
-+	memset(mapping, 0, sizeof(*mapping));
-+	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
-+	spin_lock_init(&mapping->tree_lock);
-+	spin_lock_init(&mapping->i_mmap_lock);
-+	INIT_LIST_HEAD(&mapping->private_list);
-+	spin_lock_init(&mapping->private_lock);
-+	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
-+	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
-+	mutex_init(&mapping->unmap_mutex);
-+}
-+EXPORT_SYMBOL(address_space_init_once);
-+
- /*
-  * These are initializations that only need to be done
-  * once, because the fields are idempotent across use
-@@ -293,13 +307,7 @@ void inode_init_once(struct inode *inode
- 	INIT_LIST_HEAD(&inode->i_devices);
- 	INIT_LIST_HEAD(&inode->i_wb_list);
- 	INIT_LIST_HEAD(&inode->i_lru);
--	INIT_RADIX_TREE(&inode->i_data.page_tree, GFP_ATOMIC);
--	spin_lock_init(&inode->i_data.tree_lock);
--	spin_lock_init(&inode->i_data.i_mmap_lock);
--	INIT_LIST_HEAD(&inode->i_data.private_list);
--	spin_lock_init(&inode->i_data.private_lock);
--	INIT_RAW_PRIO_TREE_ROOT(&inode->i_data.i_mmap);
--	INIT_LIST_HEAD(&inode->i_data.i_mmap_nonlinear);
-+	address_space_init_once(&inode->i_data);
- 	i_size_ordered_init(inode);
- #ifdef CONFIG_FSNOTIFY
- 	INIT_HLIST_HEAD(&inode->i_fsnotify_marks);
-Index: linux.git/fs/nilfs2/btnode.c
-===================================================================
---- linux.git.orig/fs/nilfs2/btnode.c	2010-11-26 10:52:17.000000000 +0100
-+++ linux.git/fs/nilfs2/btnode.c	2010-12-14 11:19:52.000000000 +0100
-@@ -35,11 +35,6 @@
- #include "btnode.h"
- 
- 
--void nilfs_btnode_cache_init_once(struct address_space *btnc)
--{
--	nilfs_mapping_init_once(btnc);
--}
--
- static const struct address_space_operations def_btnode_aops = {
- 	.sync_page		= block_sync_page,
- };
-Index: linux.git/fs/nilfs2/btnode.h
-===================================================================
---- linux.git.orig/fs/nilfs2/btnode.h	2010-10-05 18:49:12.000000000 +0200
-+++ linux.git/fs/nilfs2/btnode.h	2010-12-14 11:20:01.000000000 +0100
-@@ -37,7 +37,6 @@ struct nilfs_btnode_chkey_ctxt {
- 	struct buffer_head *newbh;
- };
- 
--void nilfs_btnode_cache_init_once(struct address_space *);
- void nilfs_btnode_cache_init(struct address_space *, struct backing_dev_info *);
- void nilfs_btnode_cache_clear(struct address_space *);
- struct buffer_head *nilfs_btnode_create_block(struct address_space *btnc,
-Index: linux.git/fs/nilfs2/mdt.c
-===================================================================
---- linux.git.orig/fs/nilfs2/mdt.c	2010-11-26 10:52:17.000000000 +0100
-+++ linux.git/fs/nilfs2/mdt.c	2010-12-14 11:18:18.000000000 +0100
-@@ -460,9 +460,9 @@ int nilfs_mdt_setup_shadow_map(struct in
- 	struct backing_dev_info *bdi = inode->i_sb->s_bdi;
- 
- 	INIT_LIST_HEAD(&shadow->frozen_buffers);
--	nilfs_mapping_init_once(&shadow->frozen_data);
-+	address_space_init_once(&shadow->frozen_data);
- 	nilfs_mapping_init(&shadow->frozen_data, bdi, &shadow_map_aops);
--	nilfs_mapping_init_once(&shadow->frozen_btnodes);
-+	address_space_init_once(&shadow->frozen_btnodes);
- 	nilfs_mapping_init(&shadow->frozen_btnodes, bdi, &shadow_map_aops);
- 	mi->mi_shadow = shadow;
- 	return 0;
-Index: linux.git/fs/nilfs2/page.c
-===================================================================
---- linux.git.orig/fs/nilfs2/page.c	2010-11-26 10:52:17.000000000 +0100
-+++ linux.git/fs/nilfs2/page.c	2010-12-14 11:17:26.000000000 +0100
-@@ -492,19 +492,6 @@ unsigned nilfs_page_count_clean_buffers(
- 	return nc;
- }
-  
--void nilfs_mapping_init_once(struct address_space *mapping)
--{
--	memset(mapping, 0, sizeof(*mapping));
--	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
--	spin_lock_init(&mapping->tree_lock);
--	INIT_LIST_HEAD(&mapping->private_list);
--	spin_lock_init(&mapping->private_lock);
--
--	spin_lock_init(&mapping->i_mmap_lock);
--	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
--	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
--}
--
- void nilfs_mapping_init(struct address_space *mapping,
- 			struct backing_dev_info *bdi,
- 			const struct address_space_operations *aops)
-Index: linux.git/fs/nilfs2/page.h
-===================================================================
---- linux.git.orig/fs/nilfs2/page.h	2010-11-26 10:52:17.000000000 +0100
-+++ linux.git/fs/nilfs2/page.h	2010-12-14 11:17:35.000000000 +0100
-@@ -61,7 +61,6 @@ void nilfs_free_private_page(struct page
- int nilfs_copy_dirty_pages(struct address_space *, struct address_space *);
- void nilfs_copy_back_pages(struct address_space *, struct address_space *);
- void nilfs_clear_dirty_pages(struct address_space *);
--void nilfs_mapping_init_once(struct address_space *mapping);
- void nilfs_mapping_init(struct address_space *mapping,
- 			struct backing_dev_info *bdi,
- 			const struct address_space_operations *aops);
-Index: linux.git/fs/nilfs2/super.c
-===================================================================
---- linux.git.orig/fs/nilfs2/super.c	2010-11-26 10:52:17.000000000 +0100
-+++ linux.git/fs/nilfs2/super.c	2010-12-14 11:20:19.000000000 +0100
-@@ -1262,7 +1262,7 @@ static void nilfs_inode_init_once(void *
- #ifdef CONFIG_NILFS_XATTR
- 	init_rwsem(&ii->xattr_sem);
- #endif
--	nilfs_btnode_cache_init_once(&ii->i_btnode_cache);
-+	address_space_init_once(&ii->i_btnode_cache);
- 	ii->i_bmap = &ii->i_bmap_data;
- 	inode_init_once(&ii->vfs_inode);
- }
-Index: linux.git/include/linux/fs.h
-===================================================================
---- linux.git.orig/include/linux/fs.h	2010-12-07 20:17:55.000000000 +0100
-+++ linux.git/include/linux/fs.h	2010-12-14 11:21:30.000000000 +0100
-@@ -645,6 +645,7 @@ struct address_space {
- 	spinlock_t		private_lock;	/* for use by the address_space */
- 	struct list_head	private_list;	/* ditto */
- 	struct address_space	*assoc_mapping;	/* ditto */
-+	struct mutex		unmap_mutex;    /* to protect unmapping */
- } __attribute__((aligned(sizeof(long))));
- 	/*
- 	 * On most architectures that alignment is already the case; but
-@@ -2205,6 +2206,7 @@ extern loff_t vfs_llseek(struct file *fi
- 
- extern int inode_init_always(struct super_block *, struct inode *);
- extern void inode_init_once(struct inode *);
-+extern void address_space_init_once(struct address_space *mapping);
- extern void ihold(struct inode * inode);
- extern void iput(struct inode *);
- extern struct inode * igrab(struct inode *);
+Diff #32 -> #33:
+
+ b/THP-disable-on-small-systems               |    4 
+
+Improved header.
+
+ b/clear_copy_huge_page                       |   60 +--
+
+Update after upstream changes.
+
+ b/compaction-add-trace-events                |  179 +++++++++
+ b/compaction-instead-of-lumpy                |  415 ++++++++++++++++++++++
+ b/compaction-lumpy_mode                      |  169 +++++++++
+ b/compaction-migrate-async                   |  388 +++++++++++++++++++++
+ b/compaction-migrate_pages-api-bool          |  133 +++++++
+ b/compaction-movable-pageblocks              |   56 +++
+ b/compaction-reclaim_mode                    |  248 +++++++++++++
+ b/zone_watermark_ok_safe                     |  372 ++++++++++++++++++++
+
+Mel's lumpy compaction (disables lumpy and uses compaction instead
+when CONFIG_COMPACTION=y) allows proper runtime when there are
+frequent hugepage allocations like with THP on. Picked from mmotm
+broken-out patchset to allow easy -mm integration and to test it out
+in combination of THP.
+
+ b/compaction-all-orders                      |   23 +
+ b/compaction-kswapd                          |  104 +++--
+
+Split the compaction-all-orders part off compaction-kswapd.
+
+ b/compound_get_put                           |   39 +-
+
+Cleanups.
+
+ b/compound_get_put_fix                       |   28 +
+
+While reading code I think there was a super tiny race (never
+reproduced) in the put_page of a tail page in case split_huge_page
+would run on the head page after put_page releases the compound lock
+but before put_page_testzero is called (only after put_page_testzero returns
+true we're sure split_huge_page can't run from under us anymore as it
+requires a reference on the head page to run, rechecking PageHead is
+enough to fix it).
+
+ b/compound_lock                              |   13 
+
+Change the API to return flags instead of void.
+
+ b/compound_trans_order                       |  120 ++++++
+
+Be safe while reading compound_order on transparent hugepages that may
+be under split_huge_page.
+
+ b/gfp_no_kswapd                              |   17 
+
+Define ___GFP_NO_KSWAPD.
+
+ b/khugepaged-mmap_sem                        |  113 ++++++
+
+Some user reported deadlocks after days of load with pvfs.
+
+Allocate memory inside mmap_sem read mode (not anymore inside mmap_sem
+write mode) within khugepaged collapse_huge_page to satisfy certain
+filesystems in userland that may benefit from THP (so they don't need
+to use MADV_NOHUGEPAGE). Not sure if this bugfix was really required
+from a theoretical standpoint (as far as the deadlock is concerned
+this may actually hide bugs), but it makes the code more scalable so
+it actually makes the code better and it's a no brainer.
+
+Still investigating the page lock usage in khugepaged vs fuse.
+
+ b/ksm-swapcache                              |   64 ---
+
+Use Hugh's equivalent one liner fix.
+
+ b/kvm_transparent_hugepage                   |   38 +-
+
+Adjust for hva_to_pfn interface change.
+
+ b/madv_nohugepage                            |  157 ++++++++
+ b/madv_nohugepage_define                     |   64 +++
+
+Add MADV_NOHUGEPAGE to disable THP on low priority vmas (needed
+especially now that KSM won't scan inside THP, later it will be less
+important but maybe still useful to leave hugepages available for
+higher priority virtual machines).
+
+ b/memcg_compound                             |   71 ++-
+
+Don't batch hugepage releasing in __do_uncharge.
+
+ b/memcg_huge_memory                          |   12 
+
+Optimize with mem_cgroup_uncharge_start/stop().
+
+ b/memory-failure-thp-vs-hugetlbfs            |   44 ++
+
+The new hugetlbfs memory-failure code merged upstream collided with
+THP (reported by some users running
+mce-test.git/hwpoison/run-huge-test.sh on aa.git).
+
+Use PageHuge to differentiate between THP pages and hugetlbfs pages in
+common paths that can run into any of the two types. PageTransHuge
+will still return 1 for hugetlbfs pages because PageTransHuge must
+only be used in the core VM paths where hugetlbfs pages can't be
+processed. In any place where hugetlbfs shared the common paths with
+the core VM code, PageHuge should be used to differentiate the
+two. Usually PageHuge is only needed in THP context in slow paths
+(memory-failure is not just a slow but even an error path), so it's
+ok and we don't want to slowdown PageTransHuge considering PageHuge
+already is there for this.
+
+ b/pagetranscompound                          |   30 -
+
+Cleanups.
+
+ b/pmd_mangling_generic                       |  488 +++++++++++++++++++--------
+
+Cleanups to save icache by moving slow common methods to
+mm/pgtable-generic.c.
+
+ b/pmd_mangling_x86                           |   41 --
+
+Update header and undo a noop change.
+
+ b/pmd_paravirt_ops                           |   12 
+
+Fix x86 32bit build with PAE off and paravirt on.
+
+ b/pmd_trans                                  |   13 
+
+macro -> inline cleanups.
+
+ b/pmd_trans_huge_migrate                     |   31 -
+
+Remove false positive bug on.
+
+ b/pte_alloc_trans_splitting                  |   13 
+
+Add BUG_ON matching the issue in pmd_trans_huge_migrate (pmd must be
+null to call __pte_alloc, pmd_present is not enough if pmd_trans_huge
+can be set). The reason is that very temporarily to optimize away one
+unnecessary IPI for every split_huge_page we mark the pmd not present
+but still huge for the duration of the IPI (this is to prevent
+simultaneous 4k and 2M tlb entries that would machine check some CPU
+with erratas).
+
+ b/set-recommended-min_free_kbytes            |   10 
+
+Explicit call setup_per_zone_wmarks even if min_free_kbytes is already
+bigger than recommended_min (otherwise the reserved pageblocks won't
+be enabled on huge systems). This brings the kernel version of
+set_recommended_min_free_kbytes fully equivalent to the hugeadm
+--set-recommended-min_free_kbytes command line.
+
+ b/transhuge-enable-direct-defrag             |    3 
+
+Header update.
+
+ b/transhuge-selects-compaction               |   15 
+
+Header update to explain why THP selects compaction.
+
+ b/transparent_hugepage                       |  114 ++++--
+
+Make PageTransHuge inline and move it from huge_mm.h to page-flags.h.
+
+Add BUG_ON if is_vma_temporary_stack is set during split_huge_page (we
+can't fail, it shall never trigger because mremap done on the initial
+kernel stack during execve that sets the temporary stack flag for its
+duration, shouldn't work on hugepages). The BUG_ON makes sure it won't
+break silently if the user stack is ever born huge. 
+
+Use assert_spin_locked instead of VM_BUG_ON.
+
+Remove potentially false positive bugcheck for not present pmd, same
+as pte_alloc_trans_splitting.
+
+ b/transparent_hugepage-doc                   |   67 ++-
+
+Doc improvement from Mel.
+
+ b/transparent_hugepage-numa                  |   50 +-
+
+Fix memleak if memcg fails charge during khugepaged collapse_huge_page
+with CONFIG_NUMA=y.
+
+ b/transparent_hugepage_vmstat-anon_vma-chain |   16 
+
+
+ memcg_consume_stock                          |   56 ---
+ remove-lumpy_reclaim                         |  131 -------
+ exec-migrate-race-anon_vma-chain
+
+removed.
+
+FAQ:
+
+Q: When will 1G pages be supported? (by far the most frequently asked question
+   in the last two days)
+A: Not any time soon but it's not entirly impossible... The benefit of going
+   from 2M to 1G is likely much lower than the benefit of going from 4k to 2M
+   so it's unlikely to be a worthwhile effort for a while. And some CPUs
+   won't have 1G TLB so it only speedup a bit the tlb miss handler but
+   it won't actually decrease the tlb miss rate.
+
+Q: When this will work on filebacked pages? (pagecache/swapcache/tmpfs)
+A: Not until it's merged in mainline. It's already feature complete for many
+   usages and the moment we expand into pagecache the patch would grow
+   significantly.
+
+Q: When will KSM will scan inside Transparent Hugepages?
+A: Working on that, this should materialize soon enough.
+
+Q: What is the next place where to remove split_huge_page_pmd()?
+A: mremap. JVM uses mremap in the garbage collector so the ~18% boost (no virt)
+   has further margin for optimizations.
+
+Full diffstat:
+
+ Documentation/vm/transhuge.txt        |  298 ++++
+ arch/alpha/include/asm/mman.h         |    3 
+ arch/mips/include/asm/mman.h          |    3 
+ arch/parisc/include/asm/mman.h        |    3 
+ arch/powerpc/mm/gup.c                 |   12 
+ arch/x86/include/asm/kvm_host.h       |    1 
+ arch/x86/include/asm/paravirt.h       |   25 
+ arch/x86/include/asm/paravirt_types.h |    6 
+ arch/x86/include/asm/pgtable-2level.h |    9 
+ arch/x86/include/asm/pgtable-3level.h |   23 
+ arch/x86/include/asm/pgtable.h        |  143 ++
+ arch/x86/include/asm/pgtable_64.h     |   28 
+ arch/x86/include/asm/pgtable_types.h  |    3 
+ arch/x86/kernel/paravirt.c            |    3 
+ arch/x86/kernel/tboot.c               |    2 
+ arch/x86/kernel/vm86_32.c             |    1 
+ arch/x86/kvm/mmu.c                    |   60 
+ arch/x86/kvm/paging_tmpl.h            |    4 
+ arch/x86/mm/gup.c                     |   28 
+ arch/x86/mm/pgtable.c                 |   66 
+ arch/xtensa/include/asm/mman.h        |    3 
+ drivers/base/node.c                   |   21 
+ fs/Kconfig                            |    2 
+ fs/proc/meminfo.c                     |   14 
+ fs/proc/page.c                        |   14 
+ include/asm-generic/mman-common.h     |    3 
+ include/asm-generic/pgtable.h         |  225 ++-
+ include/linux/compaction.h            |   25 
+ include/linux/gfp.h                   |   15 
+ include/linux/huge_mm.h               |  159 ++
+ include/linux/kernel.h                |    7 
+ include/linux/khugepaged.h            |   67 
+ include/linux/kvm_host.h              |    4 
+ include/linux/memory_hotplug.h        |   14 
+ include/linux/migrate.h               |   12 
+ include/linux/mm.h                    |  137 +
+ include/linux/mm_inline.h             |   19 
+ include/linux/mm_types.h              |    3 
+ include/linux/mmu_notifier.h          |   66 
+ include/linux/mmzone.h                |   11 
+ include/linux/page-flags.h            |   65 
+ include/linux/rmap.h                  |    2 
+ include/linux/sched.h                 |    1 
+ include/linux/swap.h                  |    2 
+ include/linux/vmstat.h                |    5 
+ include/trace/events/compaction.h     |   74 +
+ include/trace/events/vmscan.h         |    6 
+ kernel/fork.c                         |   12 
+ kernel/futex.c                        |   55 
+ mm/Kconfig                            |   38 
+ mm/Makefile                           |    3 
+ mm/compaction.c                       |  174 +-
+ mm/huge_memory.c                      | 2331 ++++++++++++++++++++++++++++++++++
+ mm/hugetlb.c                          |   70 -
+ mm/internal.h                         |    4 
+ mm/ksm.c                              |   29 
+ mm/madvise.c                          |   10 
+ mm/memcontrol.c                       |  129 +
+ mm/memory-failure.c                   |   22 
+ mm/memory.c                           |  199 ++
+ mm/memory_hotplug.c                   |   17 
+ mm/mempolicy.c                        |   20 
+ mm/migrate.c                          |   29 
+ mm/mincore.c                          |    7 
+ mm/mmap.c                             |    7 
+ mm/mmu_notifier.c                     |   20 
+ mm/mmzone.c                           |   21 
+ mm/mprotect.c                         |   20 
+ mm/mremap.c                           |    9 
+ mm/page_alloc.c                       |   98 +
+ mm/pagewalk.c                         |    1 
+ mm/pgtable-generic.c                  |  123 +
+ mm/rmap.c                             |   87 -
+ mm/sparse.c                           |    4 
+ mm/swap.c                             |  131 +
+ mm/swap_state.c                       |    6 
+ mm/swapfile.c                         |    2 
+ mm/vmscan.c                           |  210 ++-
+ mm/vmstat.c                           |   69 -
+ virt/kvm/iommu.c                      |    2 
+ virt/kvm/kvm_main.c                   |   56 
+ 81 files changed, 5189 insertions(+), 523 deletions(-)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
