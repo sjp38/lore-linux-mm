@@ -1,89 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DF26F6B0093
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 01:53:41 -0500 (EST)
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by e28smtp03.in.ibm.com (8.14.4/8.13.1) with ESMTP id oBF6rWEu015185
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 12:23:32 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oBF6rWet2781282
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 12:23:32 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oBF6rVIv030492
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 17:53:32 +1100
-Date: Wed, 15 Dec 2010 12:15:22 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/3] Refactor zone_reclaim (v2)
-Message-ID: <20101215064522.GA2657@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20101210142745.29934.29186.stgit@localhost6.localdomain6>
- <20101210143018.29934.11893.stgit@localhost6.localdomain6>
- <AANLkTimeecObDMQMbWzNhL1mE+UT9D3o1WWS4bmxtR4U@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BCAE6B0095
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 04:26:05 -0500 (EST)
+Message-ID: <4D08899F.4050502@akana.de>
+Date: Wed, 15 Dec 2010 10:25:51 +0100
+From: Ingo Korb <ingo@akana.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTimeecObDMQMbWzNhL1mE+UT9D3o1WWS4bmxtR4U@mail.gmail.com>
+Subject: Re: PROBLEM: __offline_isolated_pages may offline too many pages
+References: <4D0786D3.7070007@akana.de> <20101215092134.e2c8849f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20101215092134.e2c8849f.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, cl@linux-foundation.org, yinghai@kernel.org, andi.kleen@intel.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* MinChan Kim <minchan.kim@gmail.com> [2010-12-14 19:01:26]:
+On 15.12.2010 01:21, KAMEZAWA Hiroyuki wrote:
 
-> Hi Balbir,
-> 
-> On Fri, Dec 10, 2010 at 11:31 PM, Balbir Singh
-> <balbir@linux.vnet.ibm.com> wrote:
-> > Move reusable functionality outside of zone_reclaim.
-> > Make zone_reclaim_unmapped_pages modular
-> >
-> > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > ---
-> >  mm/vmscan.c |   35 +++++++++++++++++++++++------------
-> >  1 files changed, 23 insertions(+), 12 deletions(-)
-> >
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index e841cae..4e2ad05 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2815,6 +2815,27 @@ static long zone_pagecache_reclaimable(struct zone *zone)
-> >  }
-> >
-> >  /*
-> > + * Helper function to reclaim unmapped pages, we might add something
-> > + * similar to this for slab cache as well. Currently this function
-> > + * is shared with __zone_reclaim()
-> > + */
-> > +static inline void
-> > +zone_reclaim_unmapped_pages(struct zone *zone, struct scan_control *sc,
-> > +                               unsigned long nr_pages)
-> > +{
-> > +       int priority;
-> > +       /*
-> > +        * Free memory by calling shrink zone with increasing
-> > +        * priorities until we have enough memory freed.
-> > +        */
-> > +       priority = ZONE_RECLAIM_PRIORITY;
-> > +       do {
-> > +               shrink_zone(priority, zone, sc);
-> > +               priority--;
-> > +       } while (priority >= 0 && sc->nr_reclaimed < nr_pages);
-> > +}
-> 
-> As I said previous version, zone_reclaim_unmapped_pages doesn't have
-> any functions related to reclaim unmapped pages.
-> The function name is rather strange.
-> It would be better to add scan_control setup in function inner to
-> reclaim only unmapped pages.
+> It's designed for offline memory section>  MAX_ORDER. pageblock_nr_pages
+> is tend to be smaller than that.
+>
+> Do you see the problem with _exsisting_ user interface of memory hotplug ?
+> I think we have no control other than memory section.
 
-OK, that is an idea worth looking at, I'll revisit this function.
+The existing, exported interface (remove_memory() - the check itself is 
+in offline_pages()) only checks if both start and end of the 
+to-be-removed block are aligned to pageblock_nr_pages. As you noted the 
+actual size and alignment requirements in __offline_isolated_pages can 
+be larger that that, so I think the checks in offline_pages() should be 
+changed (if 1<<MAX_ORDER is always >= pageblock_nr_pages) or extended 
+(if there can be any relation between the two).
 
-Thanks for the review!
-
--- 
-	Three Cheers,
-	Balbir
+-ik
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
