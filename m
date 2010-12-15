@@ -1,93 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id AB7896B008A
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 19:18:19 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oBF0IGkP032460
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 813ED6B0093
+	for <linux-mm@kvack.org>; Tue, 14 Dec 2010 19:27:21 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oBF0RJit003779
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 15 Dec 2010 09:18:17 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F37F45DE6B
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 09:18:16 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 52FC445DE73
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 09:18:16 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 43B371DB804E
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 09:18:16 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D40E1DB804A
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 09:18:16 +0900 (JST)
-Date: Wed, 15 Dec 2010 09:12:09 +0900
+	Wed, 15 Dec 2010 09:27:19 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B1D045DE64
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 09:27:19 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E6D845DE63
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 09:27:19 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2CCAAE08002
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 09:27:19 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EB6891DB803B
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 09:27:18 +0900 (JST)
+Date: Wed, 15 Dec 2010 09:21:34 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 36 of 66] memcg compound
-Message-Id: <20101215091209.8c757ad1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101214173817.GH5638@random.random>
-References: <patchbomb.1288798055@v2.random>
-	<495ffee2d60adab4d18b.1288798091@v2.random>
-	<20101118152628.GY8135@csn.ul.ie>
-	<20101119101041.ffe00712.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101214173817.GH5638@random.random>
+Subject: Re: PROBLEM: __offline_isolated_pages may offline too many pages
+Message-Id: <20101215092134.e2c8849f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4D0786D3.7070007@akana.de>
+References: <4D0786D3.7070007@akana.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Ingo Korb <ingo@akana.de>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, cl@linux-foundation.org, yinghai@kernel.org, andi.kleen@intel.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 14 Dec 2010 18:38:17 +0100
-Andrea Arcangeli <aarcange@redhat.com> wrote:
- 
-> > > > @@ -2491,14 +2503,14 @@ __do_uncharge(struct mem_cgroup *mem, co
-> > > >  	if (batch->memcg != mem)
-> > > >  		goto direct_uncharge;
-> > > >  	/* remember freed charge and uncharge it later */
-> > > > -	batch->bytes += PAGE_SIZE;
-> > > > +	batch->bytes += page_size;
-> > 
-> > Hmm, isn't it simpler to avoid batched-uncharge when page_size > PAGE_SIZE ?
+On Tue, 14 Dec 2010 16:01:39 +0100
+Ingo Korb <ingo@akana.de> wrote:
+
+> Hi!
 > 
-> As you wish, so I'm changing it like this.
+> [1.] One line summary of the problem:
+> __offline_isolated_pages may isolate too many pages
 > 
-> archs where the pmd is implemented purely in software might actually
-> be able to use page sizes smaller than 2M that may make sense to
-> batch, but for now if you think this is simpler I'll go for it. We
-> need simple.
+> [2.] Full description of the problem/report:
+> While experimenting with remove_memory/online_pages, removing as few 
+> pages as possible (pageblock_nr_pages, 512 on my box) I noticed that the 
+> number of pages marked "reserved" increased even though both functions 
+> did not indicate an error. Following the code it was clear that 
+> __offline_isolated_pages marked twice as many pages as it should:
 > 
 
-Thank you. Hmm,..seems not very simple :( I'm sorry.
-Please do as you want.
+It's designed for offline memory section > MAX_ORDER. pageblock_nr_pages
+is tend to be smaller than that.
 
+Do you see the problem with _exsisting_ user interface of memory hotplug ?
+I think we have no control other than memory section.
+
+> === start paste (from dmesg) ===
+> Offlined Pages 512
+> remove from free list c00 1024 e00
+> === end paste ===
+> 
+> The issue seems to be that __offline_isolated_pages blindly uses 
+> page_order() to determine how many pages it should mark as reserved in 
+> the current loop iteration, without checking if this would exceed the 
+> limit set by end_pfn.
+> 
+
+It's because designed to work under memory section, it's aligned to MAX_ORDER.
+Its blindness works correctly.
+
+
+> I'm not sure what the correct way to fix this would be - is memory 
+> isolation supposed to touch the order of a page if it crosses the end 
+> (or beginning!) of the range of pages to be isolated?
+> 
+
+Nothing to be fixed. If you _need_ another functionality, please add a new
+feature. But, in theory, memory offline doesn't work in the range smaller
+than MAX_ORDER because of buddy allocator.
+
+Thanks,
 -Kame
-
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2503,6 +2503,9 @@ __do_uncharge(struct mem_cgroup *mem, co
->  	if (!batch->do_batch || test_thread_flag(TIF_MEMDIE))
->  		goto direct_uncharge;
->  
-> +	if (page_size != PAGE_SIZE)
-> +		goto direct_uncharge;
-> +
->  	/*
->  	 * In typical case, batch->memcg == mem. This means we can
->  	 * merge a series of uncharges to an uncharge of res_counter.
-> @@ -2511,9 +2514,9 @@ __do_uncharge(struct mem_cgroup *mem, co
->  	if (batch->memcg != mem)
->  		goto direct_uncharge;
->  	/* remember freed charge and uncharge it later */
-> -	batch->bytes += page_size;
-> +	batch->bytes += PAGE_SIZE;
->  	if (uncharge_memsw)
-> -		batch->memsw_bytes += page_size;
-> +		batch->memsw_bytes += PAGE_SIZE;
->  	return;
->  direct_uncharge:
->  	res_counter_uncharge(&mem->res, page_size);
-> 
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
