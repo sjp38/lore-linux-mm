@@ -1,127 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id EE6D26B008C
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 10:09:21 -0500 (EST)
-Date: Wed, 15 Dec 2010 23:07:14 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 29/35] nfs: in-commit pages accounting and wait queue
-Message-ID: <20101215150714.GA22454@localhost>
-References: <20101213144646.341970461@intel.com>
- <20101213150329.831955132@intel.com>
- <1292274951.8795.28.camel@heimdal.trondhjem.org>
- <20101214154026.GA8959@localhost>
- <1292342245.2976.13.camel@heimdal.trondhjem.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1292342245.2976.13.camel@heimdal.trondhjem.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 62ED06B008C
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 10:50:13 -0500 (EST)
+Subject: [PATCH] mm: add replace_page_cache_page() function
+Message-Id: <E1PStc6-0006Cd-0Z@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Wed, 15 Dec 2010 16:49:58 +0100
 Sender: owner-linux-mm@kvack.org
-To: Trond Myklebust <Trond.Myklebust@netapp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 14, 2010 at 11:57:25PM +0800, Trond Myklebust wrote:
-> On Tue, 2010-12-14 at 23:40 +0800, Wu Fengguang wrote:
-> > On Tue, Dec 14, 2010 at 05:15:51AM +0800, Trond Myklebust wrote:
-> > > On Mon, 2010-12-13 at 22:47 +0800, Wu Fengguang wrote:
-> > > > plain text document attachment (writeback-nfs-in-commit.patch)
-> > > > When doing 10+ concurrent dd's, I observed very bumpy commits submission
-> > > > (partly because the dd's are started at the same time, and hence reached
-> > > > 4MB to-commit pages at the same time). Basically we rely on the server
-> > > > to complete and return write/commit requests, and want both to progress
-> > > > smoothly and not consume too many pages. The write request wait queue is
-> > > > not enough as it's mainly network bounded. So add another commit request
-> > > > wait queue. Only async writes need to sleep on this queue.
-> > > > 
-> > > 
-> > > I'm not understanding the above reasoning. Why should we serialise
-> > > commits at the per-filesystem level (and only for non-blocking flushes
-> > > at that)?
-> > 
-> > I did the commit wait queue after seeing this graph, where there is
-> > very bursty pattern of commit submission and hence completion:
-> > 
-> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/nfs-commit-1000.png
-> > 
-> > leading to big fluctuations, eg. the almost straight up/straight down
-> > lines below
-> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/vmstat-dirty-300.png
-> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/dirty-pages.png
-> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/dirty-pages-200.png
-> > 
-> > A commit wait queue will help wipe out the "peaks". The "fixed" graph
-> > is
-> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-03-23/vmstat-dirty-300.png
-> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2952M-2.6.37-rc5+-2010-12-09-03-23/dirty-pages.png
-> > 
-> > Blocking flushes don't need to wait on this queue because they already
-> > throttle themselves by waiting on the inode commit lock before/after
-> > the commit.  They actually should not wait on this queue, to prevent
-> > sync requests being unnecessarily blocked by async ones.
-> 
-> OK, but isn't it better then to just abort the commit, and have the
-> relevant async process retry it later?
+From: Miklos Szeredi <mszeredi@suse.cz>
 
-I'll drop this patch. I vaguely remember that bursty commit graph
-mentioned below
+This function basically does:
 
-> > I did the commit wait queue after seeing this graph, where there is
-> > very bursty pattern of commit submission and hence completion:
-> > 
-> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/nfs-100dd-1M-8p-2953M-2.6.37-rc3+-2010-12-03-01/nfs-commit-1000.png
+     remove_from_page_cache(old);
+     page_cache_release(old);
+     add_to_page_cache_locked(new);
 
-is caused by this condition in nfs_should_commit():
+Except it does this atomically, so there's no possibility for the
+"add" to fail because of a race.
 
-        /* big enough */
-        if (to_commit >= MIN_WRITEBACK_PAGES)
-                return true;
+This is used by fuse to move pages into the page cache.
 
-It's because the 100 dd's accumulated 4MB dirty pages at roughly the
-same time. Then I added the in_commit accounting (for the below test)
-and wait queue. It seems that the below condition is good enough to
-smooth out the commit distribution.
+Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
+---
+ fs/fuse/dev.c           |   10 ++++------
+ include/linux/pagemap.h |    1 +
+ mm/filemap.c            |   41 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 46 insertions(+), 6 deletions(-)
 
-        /* active commits drop low: kick more IO for the server disk */
-        if (to_commit > in_commit / 2)
-                return true;
-
-And I'm going further remove the above two conditions, and do a much
-more simple change:
-
--               if (nfsi->ncommit <= (nfsi->npages >> 1))
-+               if (nfsi->ncommit <= (nfsi->npages >> 4))
-                        goto out_mark_dirty;
-
-The change to ">> 4" helps reduce the fluctuation to the acceptable
-level: balance_dirty_page() is now doing soft dirty throttling in a
-small range of bdi_dirty_limit/8. The above change guarantees that
-when an NFS commit completes, the bdi_dirty won't suddenly drop out
-of the soft throttling region. On my mem=3GB test box and 1-dd case,
-npages/16 ~= 32MB is still a large size.
-
-Basic tests show that it achieves roughly the same effect with these
-two patches
-
-[PATCH 29/35] nfs: in-commit pages accounting and wait queue
-[PATCH 30/35] nfs: heuristics to avoid commit
-
-It would not only be simpler, but also be able to do larger commits in
-the case of "fast and memory bounty server/client connected by slow
-network". In this case, the above two patches will do 4MB commits,
-while the simpler change can do much larger.
-
-> This is a code path which is followed by kswapd, for instance. It seems
-> dangerous to be throttling that instead of allowing it to proceed (and
-> perhaps being able to free up memory on some other partition in the mean
-> time).
-
-It seems pageout() calls nfs_writepage(), the latter does unstable
-write and also won't commit the page. This means pageout() cannot
-guarantee free of the page at all.. so NFS dirty pages are virtually
-unreclaimable..
-
-Thanks,
-Fengguang
+Index: linux-2.6/mm/filemap.c
+===================================================================
+--- linux-2.6.orig/mm/filemap.c	2010-12-15 16:39:55.000000000 +0100
++++ linux-2.6/mm/filemap.c	2010-12-15 16:41:24.000000000 +0100
+@@ -389,6 +389,47 @@ int filemap_write_and_wait_range(struct
+ }
+ EXPORT_SYMBOL(filemap_write_and_wait_range);
+ 
++int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
++{
++	int error;
++
++	VM_BUG_ON(!PageLocked(old));
++	VM_BUG_ON(!PageLocked(new));
++	VM_BUG_ON(new->mapping);
++
++	error = mem_cgroup_cache_charge(new, current->mm,
++					gfp_mask & GFP_RECLAIM_MASK);
++	if (error)
++		goto out;
++
++	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
++	if (error == 0) {
++		struct address_space *mapping = old->mapping;
++		pgoff_t offset = old->index;
++
++		page_cache_get(new);
++		new->mapping = mapping;
++		new->index = offset;
++
++		spin_lock_irq(&mapping->tree_lock);
++		__remove_from_page_cache(old);
++		error = radix_tree_insert(&mapping->page_tree, offset, new);
++		BUG_ON(error);
++		mapping->nrpages++;
++		__inc_zone_page_state(new, NR_FILE_PAGES);
++		if (PageSwapBacked(new))
++			__inc_zone_page_state(new, NR_SHMEM);
++		spin_unlock_irq(&mapping->tree_lock);
++		radix_tree_preload_end();
++		mem_cgroup_uncharge_cache_page(old);
++		page_cache_release(old);
++	} else
++		mem_cgroup_uncharge_cache_page(new);
++out:
++	return error;
++}
++EXPORT_SYMBOL_GPL(replace_page_cache_page);
++
+ /**
+  * add_to_page_cache_locked - add a locked page to the pagecache
+  * @page:	page to add
+Index: linux-2.6/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.orig/include/linux/pagemap.h	2010-12-15 16:39:39.000000000 +0100
++++ linux-2.6/include/linux/pagemap.h	2010-12-15 16:41:24.000000000 +0100
+@@ -457,6 +457,7 @@ int add_to_page_cache_lru(struct page *p
+ 				pgoff_t index, gfp_t gfp_mask);
+ extern void remove_from_page_cache(struct page *page);
+ extern void __remove_from_page_cache(struct page *page);
++int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask);
+ 
+ /*
+  * Like add_to_page_cache_locked, but used to add newly allocated pages:
+Index: linux-2.6/fs/fuse/dev.c
+===================================================================
+--- linux-2.6.orig/fs/fuse/dev.c	2010-12-15 16:39:39.000000000 +0100
++++ linux-2.6/fs/fuse/dev.c	2010-12-15 16:41:24.000000000 +0100
+@@ -729,14 +729,12 @@ static int fuse_try_move_page(struct fus
+ 	if (WARN_ON(PageMlocked(oldpage)))
+ 		goto out_fallback_unlock;
+ 
+-	remove_from_page_cache(oldpage);
+-	page_cache_release(oldpage);
+-
+-	err = add_to_page_cache_locked(newpage, mapping, index, GFP_KERNEL);
++	err = replace_page_cache_page(oldpage, newpage, GFP_KERNEL);
+ 	if (err) {
+-		printk(KERN_WARNING "fuse_try_move_page: failed to add page");
+-		goto out_fallback_unlock;
++		unlock_page(newpage);
++		return err;
+ 	}
++
+ 	page_cache_get(newpage);
+ 
+ 	if (!(buf->flags & PIPE_BUF_FLAG_LRU))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
