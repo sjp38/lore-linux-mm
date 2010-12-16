@@ -1,78 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id CAB636B00A2
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 19:06:49 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oBH06lm6029066
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 17 Dec 2010 09:06:47 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DB81B45DE5C
-	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 09:06:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C67F745DE58
-	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 09:06:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B7B611DB8048
-	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 09:06:46 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 839211DB804A
-	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 09:06:46 +0900 (JST)
-Date: Fri, 17 Dec 2010 09:01:03 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: add replace_page_cache_page() function
-Message-Id: <20101217090103.2a9ca19a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <E1PTCae-0007tw-Un@pomaz-ex.szeredi.hu>
-References: <E1PStc6-0006Cd-0Z@pomaz-ex.szeredi.hu>
-	<20101216100744.e3a417cf.kamezawa.hiroyu@jp.fujitsu.com>
-	<E1PTCae-0007tw-Un@pomaz-ex.szeredi.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 819806B0098
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 19:59:33 -0500 (EST)
+Date: Fri, 17 Dec 2010 07:34:35 +0800
+From: Shaohui Zheng <shaohui.zheng@linux.intel.com>
+Subject: Re: [5/7, v9] NUMA Hotplug Emulator: Support cpu probe/release in
+ x86_64
+Message-ID: <20101216233435.GA26886@shaohui>
+References: <20101210073119.156388875@intel.com>
+ <20101210073242.670777298@intel.com>
+ <20101216162541.GA14157@mgebm.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101216162541.GA14157@mgebm.net>
 Sender: owner-linux-mm@kvack.org
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Eric B Munson <emunson@mgebm.net>
+Cc: shaohui.zheng@intel.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Ingo Molnar <mingo@elte.hu>, Len Brown <len.brown@intel.com>, Yinghai Lu <Yinghai.Lu@Sun.COM>, Tejun Heo <tj@kernel.org>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Dec 2010 13:05:44 +0100
-Miklos Szeredi <miklos@szeredi.hu> wrote:
+On Thu, Dec 16, 2010 at 09:25:41AM -0700, Eric B Munson wrote:
+> Shaohui,
+> 
+> What kernel is this series based on?  I cannot get it to build when applied
+> to mainline.  I seem to be missing a definition for set_apicid_to_node.
+> 
+> Eric
+> 
 
-> On Thu, 16 Dec 2010, KAMEZAWA Hiroyuki wrote:
+Eric,
+	These is a code conflict with Tejun's NUNA unification code, and Tejun's code is still under
+review. This patchset solves the code conflict, the v9 emulator is based on his patches, and we
+need to wait until his patches was accepted.
 
-> > Hmm, then, the page will be recharged to "current" instead of the memcg
-> > where "old" was under control. Is this design ? If so, why ?
-> 
-> No, I just haven't thought about it.
-> 
-> Porbably charging "new" to where "old" was charged is the logical
-> thing to do here.
-> 
-> > 
-> > In mm/migrate.c, following is called.
-> > 
-> > 	 charge = mem_cgroup_prepare_migration(page, newpage, &mem);
-> > 	....do migration....
-> >         if (!charge)
-> >                 mem_cgroup_end_migration(mem, page, newpage);
-> > 
-> > BTW, off topic, in fuse/dev.c
-> > 
-> > add_to_page_cache_locked(page)
-> 
-> This is the call which the above patch replaces with
-> replace_page_cache_page().  So if I fix replace_page_cache_page() to
-> charge "newpage" to the correct memory cgroup, that should solve all
-> problems, no?
-> 
-No. memory cgroup expects all pages should be found on LRU. But, IIUC,
-pages on this radix-tree will not be on LRU. So, memory cgroup can't find
-it at destroying cgroup and can't reduce "usage" of resource to be 0.
-This makes rmdir() returns -EBUSY.
+Tejun's patch: http://marc.info/?l=linux-kernel&m=129087151912379.
 
-I'm sorry if this page will be on LRU, somewhere.
+	If you are doing some testing, you can try to use v8 emulator.
 
-Thanks,
--Kame
+-- 
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
