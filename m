@@ -1,94 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6C4606B009B
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 02:00:58 -0500 (EST)
-Date: Thu, 16 Dec 2010 18:00:47 +1100
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: linux-next early user mode crash (Was: Re: Transparent Hugepage
- Support #33)
-Message-Id: <20101216180047.4bb69b80.sfr@canb.auug.org.au>
-In-Reply-To: <20101216170814.6a874692.sfr@canb.auug.org.au>
-References: <20101215051540.GP5638@random.random>
-	<20101216095408.3a60cbad.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101215171809.0e0bc3d5.akpm@linux-foundation.org>
-	<20101216130251.12dbe8d8.sfr@canb.auug.org.au>
-	<20101216052958.GA2161@linux.vnet.ibm.com>
-	<20101216170814.6a874692.sfr@canb.auug.org.au>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA1";
- boundary="Signature=_Thu__16_Dec_2010_18_00_47_+1100_WtcUS6F9aAnBQgU3"
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 714386B009B
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 05:27:26 -0500 (EST)
+Date: Thu, 16 Dec 2010 10:26:41 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: PROBLEM: __offline_isolated_pages may offline too many pages
+Message-ID: <20101216102641.GK13914@csn.ul.ie>
+References: <4D0786D3.7070007@akana.de> <20101215092134.e2c8849f.kamezawa.hiroyu@jp.fujitsu.com> <4D08899F.4050502@akana.de> <20101216090657.9d3aaa4c.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20101216090657.9d3aaa4c.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: paulmck@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>, Miklos Szeredi <miklos@szeredi.hu>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ingo Korb <ingo@akana.de>, linux-mm@kvack.org, akpm@linux-foundation.org, cl@linux-foundation.org, yinghai@kernel.org, andi.kleen@intel.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---Signature=_Thu__16_Dec_2010_18_00_47_+1100_WtcUS6F9aAnBQgU3
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Thu, Dec 16, 2010 at 09:06:57AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Wed, 15 Dec 2010 10:25:51 +0100
+> Ingo Korb <ingo@akana.de> wrote:
+> 
+> > On 15.12.2010 01:21, KAMEZAWA Hiroyuki wrote:
+> > 
+> > > It's designed for offline memory section>  MAX_ORDER. pageblock_nr_pages
+> > > is tend to be smaller than that.
+> > >
+> > > Do you see the problem with _exsisting_ user interface of memory hotplug ?
+> > > I think we have no control other than memory section.
+> > 
+> > The existing, exported interface (remove_memory() - the check itself is 
+> > in offline_pages()) only checks if both start and end of the 
+> > to-be-removed block are aligned to pageblock_nr_pages. As you noted the 
+> > actual size and alignment requirements in __offline_isolated_pages can 
+> > be larger that that, so I think the checks in offline_pages() should be 
+> > changed (if 1<<MAX_ORDER is always >= pageblock_nr_pages) or extended 
+> > (if there can be any relation between the two).
+> > 
+> 
+> Ok, maybe my mistake. This is a fix. Thank you for reporting.
+> ==
+> 
+> offline_pages()'s sanity check of given range is wrong. It should
+> be aligned to MAX_ORDER. Current exsiting caller uses SECTION_SIZE
+> alignment, so this change has no influence to exsisting callers.
+> 
+> Reported-by: Ingo Korb <ingo@akana.de>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Hi Paul,
+Other than the spelling mistakes in the changelog and the lack of a
+subject;
 
-On Thu, 16 Dec 2010 17:08:14 +1100 Stephen Rothwell <sfr@canb.auug.org.au> =
-wrote:
->
-> On Wed, 15 Dec 2010 21:29:58 -0800 "Paul E. McKenney" <paulmck@linux.vnet=
-.ibm.com> wrote:
-> >
-> > RCU problems would normally take longer to run the system out of memory,
-> > but who knows?
-> >=20
-> > I did a push into -rcu in the suspect time frame, so have pulled it.  I=
- am
-> > sure that kernel.org will push this change to its mirrors at some point.
-> > Just in case tree-by-tree bisecting is faster than commit-by-commit
-> > bisecting.
->=20
-> I have bisected it down to the rcu tree, so the three commits that were
-> added yesterday are the suspects.  I am still bisecting.  If will just
-> revert those three commits from linux-next today in the hope that Andrew
-> will end up with a working tree.
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-Bisect finished:
+> ---
+>  mm/memory_hotplug.c |   10 +++++++---
+>  1 file changed, 7 insertions(+), 3 deletions(-)
+> 
+> Index: linux-2.6.37-rc5/mm/memory_hotplug.c
+> ===================================================================
+> --- linux-2.6.37-rc5.orig/mm/memory_hotplug.c
+> +++ linux-2.6.37-rc5/mm/memory_hotplug.c
+> @@ -798,10 +798,14 @@ static int offline_pages(unsigned long s
+>  	struct memory_notify arg;
+>  
+>  	BUG_ON(start_pfn >= end_pfn);
+> -	/* at least, alignment against pageblock is necessary */
+> -	if (!IS_ALIGNED(start_pfn, pageblock_nr_pages))
+> +	/*
+> +	 * Considering buddy allocator which joins nearby pages, the range
+> +	 * in offline should be aligned to MAX_ORDER. If not, isolated
+> +	 * page will be joined to other (not isolated) pages.
+> +	 */
+> +	if (!IS_ALIGNED(start_pfn, MAX_ORDER_NR_PAGES))
+>  		return -EINVAL;
+> -	if (!IS_ALIGNED(end_pfn, pageblock_nr_pages))
+> +	if (!IS_ALIGNED(end_pfn, MAX_ORDER_NR_PAGES))
+>  		return -EINVAL;
+>  	/* This makes hotplug much easier...and readable.
+>  	   we assume this for now. .*/
+> 
 
-4e40200dab0e673b019979b5b8f5e5d1b25885c2 is first bad commit
-commit 4e40200dab0e673b019979b5b8f5e5d1b25885c2
-Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-Date:   Fri Dec 10 15:02:47 2010 -0800
-
-    rcu: fine-tune grace-period begin/end checks
-   =20
-    Use the CPU's bit in rnp->qsmask to determine whether or not the CPU
-    should try to report a quiescent state.  Handle overflow in the check
-    for rdp->gpnum having fallen behind.
-   =20
-    Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-
-So far 4 of my 6 boot tests that failed yesterday have succeeded today
-(with those last three rcu commits reverted) - the others are still
-building.
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-http://www.canb.auug.org.au/~sfr/
-
---Signature=_Thu__16_Dec_2010_18_00_47_+1100_WtcUS6F9aAnBQgU3
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-
-iQEcBAEBAgAGBQJNCbkfAAoJEDMEi1NhKgbsb8sIAI4Q7/giSPc1uoT/MlbwkN/6
-ffHpEXpGNeDQAZQtW5OqgwH9EpgnjWnScvBQvmfczMvSmVCqwYOe1Ei7kA2UWrZM
-vfVb1Op+GdyuA3v4RPK54vPOlLv0+uK7cYgxsOzmANc6TK61VczaIRd4QDRgg2N+
-yzpkIhhGeeGnnNynabPIMVt2GDuKhQX0DuFn8206s9jDO6+KVkt+gfNHNiEzdz0A
-HrU2eK7SEC7gLWDTkm45cfAN2cVuLqQa26eq3IoQqm9MIC61Yer7aStxSlkGBCsG
-L6tPuSUcCMNFPPAvcSusvXZScWmrSVwH1W9znfz8yLYbEq+hO2Z+zqIdmSFdcSs=
-=ex13
------END PGP SIGNATURE-----
-
---Signature=_Thu__16_Dec_2010_18_00_47_+1100_WtcUS6F9aAnBQgU3--
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
