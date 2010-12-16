@@ -1,94 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 41D366B00AC
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 19:13:02 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oBG0Cww7024895
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 16 Dec 2010 09:12:58 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A6A645DE67
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 09:12:58 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3763545DE68
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 09:12:58 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 269461DB803C
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 09:12:58 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E95151DB803B
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 09:12:57 +0900 (JST)
-Date: Thu, 16 Dec 2010 09:06:57 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: PROBLEM: __offline_isolated_pages may offline too many pages
-Message-Id: <20101216090657.9d3aaa4c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4D08899F.4050502@akana.de>
-References: <4D0786D3.7070007@akana.de>
-	<20101215092134.e2c8849f.kamezawa.hiroyu@jp.fujitsu.com>
-	<4D08899F.4050502@akana.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 244336B00AD
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 19:26:26 -0500 (EST)
+Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
+	by smtp-out.google.com with ESMTP id oBG0QMnp024002
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 16:26:22 -0800
+Received: from yws5 (yws5.prod.google.com [10.192.19.5])
+	by hpaq13.eem.corp.google.com with ESMTP id oBG0Q5hN018993
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 16:26:21 -0800
+Received: by yws5 with SMTP id 5so2165404yws.15
+        for <linux-mm@kvack.org>; Wed, 15 Dec 2010 16:26:20 -0800 (PST)
+Date: Wed, 15 Dec 2010 16:26:11 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: kernel BUG at mm/truncate.c:475!
+In-Reply-To: <E1PSpQw-0005s5-QW@pomaz-ex.szeredi.hu>
+Message-ID: <alpine.LSU.2.00.1012151542480.7987@tigran.mtv.corp.google.com>
+References: <20101130194945.58962c44@xenia.leun.net> <alpine.LSU.2.00.1011301453090.12516@tigran.mtv.corp.google.com> <E1PNjsI-0005Bk-NB@pomaz-ex.szeredi.hu> <20101201124528.6809c539@xenia.leun.net> <E1PNqO1-0005px-9h@pomaz-ex.szeredi.hu>
+ <20101202084159.6bff7355@xenia.leun.net> <20101202091552.4a63f717@xenia.leun.net> <E1PO5gh-00079U-Ma@pomaz-ex.szeredi.hu> <20101202115722.1c00afd5@xenia.leun.net> <20101203085350.55f94057@xenia.leun.net> <E1PPaIw-0004pW-Mk@pomaz-ex.szeredi.hu>
+ <20101206204303.1de6277b@xenia.leun.net> <E1PRQDn-0007jZ-5S@pomaz-ex.szeredi.hu> <20101213142059.643f8080.akpm@linux-foundation.org> <E1PSSO8-0003sy-Vr@pomaz-ex.szeredi.hu> <alpine.LSU.2.00.1012142020030.12693@tigran.mtv.corp.google.com>
+ <E1PSpQw-0005s5-QW@pomaz-ex.szeredi.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Ingo Korb <ingo@akana.de>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, cl@linux-foundation.org, yinghai@kernel.org, andi.kleen@intel.com, linux-kernel@vger.kernel.org"akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: akpm@linux-foundation.org, robert@swiecki.net, lkml20101129@newton.leun.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Dec 2010 10:25:51 +0100
-Ingo Korb <ingo@akana.de> wrote:
-
-> On 15.12.2010 01:21, KAMEZAWA Hiroyuki wrote:
+On Wed, 15 Dec 2010, Miklos Szeredi wrote:
+> On Tue, 14 Dec 2010, Hugh Dickins wrote:
+> > I'd feel rather happier about it if I thought it would also fix
+> > Robert's kernel BUG at /build/buildd/linux-2.6.35/mm/filemap.c:128!
+> > but I've still not found time to explain that one.
 > 
-> > It's designed for offline memory section>  MAX_ORDER. pageblock_nr_pages
-> > is tend to be smaller than that.
-> >
-> > Do you see the problem with _exsisting_ user interface of memory hotplug ?
-> > I think we have no control other than memory section.
+> Me neither, all unmap_mapping_range() calls from shmfs are either with
+> i_mutex or from evict_inode.
+
+And the page returned by shmem_fault is already locked.
+
 > 
-> The existing, exported interface (remove_memory() - the check itself is 
-> in offline_pages()) only checks if both start and end of the 
-> to-be-removed block are aligned to pageblock_nr_pages. As you noted the 
-> actual size and alignment requirements in __offline_isolated_pages can 
-> be larger that that, so I think the checks in offline_pages() should be 
-> changed (if 1<<MAX_ORDER is always >= pageblock_nr_pages) or extended 
-> (if there can be any relation between the two).
-> 
+> Hmm, is there anything preventing remap_file_pages() installing a pte
+> at an address that unmap_mapping_range() has already processed?
 
-Ok, maybe my mistake. This is a fix. Thank you for reporting.
-==
+Interesting line of thought: nothing I think, but isn't that okay?
 
-offline_pages()'s sanity check of given range is wrong. It should
-be aligned to MAX_ORDER. Current exsiting caller uses SECTION_SIZE
-alignment, so this change has no influence to exsisting callers.
+Though its zap_pte can take out present ptes pointing to actual pages,
+all populate_range ever installs is non-present pte_file entries: and a
+fault on one of those goes through the same checks as in a linear mapping.
 
-Reported-by: Ingo Korb <ingo@akana.de>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memory_hotplug.c |   10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+(I thought I was going to find an inconsistency with zap_pte_range there,
+but no: truncation does not remove pte_file entries beyond end of file,
+I remember now thinking that we need to keep SIGBUS-beyond-EOF on them,
+instead of letting truncation silently revert those offsets to linear.)
 
-Index: linux-2.6.37-rc5/mm/memory_hotplug.c
-===================================================================
---- linux-2.6.37-rc5.orig/mm/memory_hotplug.c
-+++ linux-2.6.37-rc5/mm/memory_hotplug.c
-@@ -798,10 +798,14 @@ static int offline_pages(unsigned long s
- 	struct memory_notify arg;
- 
- 	BUG_ON(start_pfn >= end_pfn);
--	/* at least, alignment against pageblock is necessary */
--	if (!IS_ALIGNED(start_pfn, pageblock_nr_pages))
-+	/*
-+	 * Considering buddy allocator which joins nearby pages, the range
-+	 * in offline should be aligned to MAX_ORDER. If not, isolated
-+	 * page will be joined to other (not isolated) pages.
-+	 */
-+	if (!IS_ALIGNED(start_pfn, MAX_ORDER_NR_PAGES))
- 		return -EINVAL;
--	if (!IS_ALIGNED(end_pfn, pageblock_nr_pages))
-+	if (!IS_ALIGNED(end_pfn, MAX_ORDER_NR_PAGES))
- 		return -EINVAL;
- 	/* This makes hotplug much easier...and readable.
- 	   we assume this for now. .*/
+Or am I missing something?
+(Well, we know I am, because I've not explained Robert's BUG.)
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
