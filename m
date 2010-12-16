@@ -1,40 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 610AA6B00A7
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 18:57:27 -0500 (EST)
-Date: Wed, 15 Dec 2010 15:55:45 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Transparent Hugepage Support #33
-Message-Id: <20101215155545.303ca2c2.akpm@linux-foundation.org>
-In-Reply-To: <20101215051540.GP5638@random.random>
-References: <20101215051540.GP5638@random.random>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 41D366B00AC
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 19:13:02 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oBG0Cww7024895
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 16 Dec 2010 09:12:58 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A6A645DE67
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 09:12:58 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3763545DE68
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 09:12:58 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 269461DB803C
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 09:12:58 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E95151DB803B
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 09:12:57 +0900 (JST)
+Date: Thu, 16 Dec 2010 09:06:57 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: PROBLEM: __offline_isolated_pages may offline too many pages
+Message-Id: <20101216090657.9d3aaa4c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4D08899F.4050502@akana.de>
+References: <4D0786D3.7070007@akana.de>
+	<20101215092134.e2c8849f.kamezawa.hiroyu@jp.fujitsu.com>
+	<4D08899F.4050502@akana.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>, Miklos Szeredi <miklos@szeredi.hu>
+To: Ingo Korb <ingo@akana.de>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mel@csn.ul.ie, cl@linux-foundation.org, yinghai@kernel.org, andi.kleen@intel.com, linux-kernel@vger.kernel.org"akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Dec 2010 06:15:40 +0100
-Andrea Arcangeli <aarcange@redhat.com> wrote:
+On Wed, 15 Dec 2010 10:25:51 +0100
+Ingo Korb <ingo@akana.de> wrote:
 
-> Some of some relevant user of the project:
+> On 15.12.2010 01:21, KAMEZAWA Hiroyuki wrote:
 > 
-> KVM Virtualization
-> GCC (kernel build included, requires a few liner patch to enable)
-> JVM
-> VMware Workstation
-> HPC
+> > It's designed for offline memory section>  MAX_ORDER. pageblock_nr_pages
+> > is tend to be smaller than that.
+> >
+> > Do you see the problem with _exsisting_ user interface of memory hotplug ?
+> > I think we have no control other than memory section.
 > 
-> It would be great if it could go in -mm.
+> The existing, exported interface (remove_memory() - the check itself is 
+> in offline_pages()) only checks if both start and end of the 
+> to-be-removed block are aligned to pageblock_nr_pages. As you noted the 
+> actual size and alignment requirements in __offline_isolated_pages can 
+> be larger that that, so I think the checks in offline_pages() should be 
+> changed (if 1<<MAX_ORDER is always >= pageblock_nr_pages) or extended 
+> (if there can be any relation between the two).
+> 
 
-That all merged pretty easily on top of the current mm pile.  Except
-for kvm-mmu-transparent-hugepage-support.patch which needs some thought
-and testing to get it merged into the KVM changes in linux-next.  I
-simply omitted kvm-mmu-transparent-hugepage-support.patch so please
-take a look?
+Ok, maybe my mistake. This is a fix. Thank you for reporting.
+==
 
+offline_pages()'s sanity check of given range is wrong. It should
+be aligned to MAX_ORDER. Current exsiting caller uses SECTION_SIZE
+alignment, so this change has no influence to exsisting callers.
+
+Reported-by: Ingo Korb <ingo@akana.de>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memory_hotplug.c |   10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+Index: linux-2.6.37-rc5/mm/memory_hotplug.c
+===================================================================
+--- linux-2.6.37-rc5.orig/mm/memory_hotplug.c
++++ linux-2.6.37-rc5/mm/memory_hotplug.c
+@@ -798,10 +798,14 @@ static int offline_pages(unsigned long s
+ 	struct memory_notify arg;
+ 
+ 	BUG_ON(start_pfn >= end_pfn);
+-	/* at least, alignment against pageblock is necessary */
+-	if (!IS_ALIGNED(start_pfn, pageblock_nr_pages))
++	/*
++	 * Considering buddy allocator which joins nearby pages, the range
++	 * in offline should be aligned to MAX_ORDER. If not, isolated
++	 * page will be joined to other (not isolated) pages.
++	 */
++	if (!IS_ALIGNED(start_pfn, MAX_ORDER_NR_PAGES))
+ 		return -EINVAL;
+-	if (!IS_ALIGNED(end_pfn, pageblock_nr_pages))
++	if (!IS_ALIGNED(end_pfn, MAX_ORDER_NR_PAGES))
+ 		return -EINVAL;
+ 	/* This makes hotplug much easier...and readable.
+ 	   we assume this for now. .*/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
