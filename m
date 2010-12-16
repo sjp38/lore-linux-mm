@@ -1,67 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B5506B009B
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 14:05:33 -0500 (EST)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id oBGJ5UTT013388
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 11:05:30 -0800
-Received: from qwk4 (qwk4.prod.google.com [10.241.195.132])
-	by hpaq1.eem.corp.google.com with ESMTP id oBGJ5BOv001528
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 11:05:29 -0800
-Received: by qwk4 with SMTP id 4so3717813qwk.32
-        for <linux-mm@kvack.org>; Thu, 16 Dec 2010 11:05:24 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4BFA86B0098
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 17:10:52 -0500 (EST)
+Received: by pzk27 with SMTP id 27so6481pzk.9
+        for <linux-mm@kvack.org>; Thu, 16 Dec 2010 14:10:50 -0800 (PST)
+Date: Fri, 17 Dec 2010 07:04:57 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH] mm: add replace_page_cache_page() function
+Message-ID: <20101216220457.GA3450@barrios-desktop>
+References: <E1PStc6-0006Cd-0Z@pomaz-ex.szeredi.hu>
+ <AANLkTikXQmsgZ8Ea-GoQ4k2St6yCJj8Z3XthuBQ9u+EV@mail.gmail.com>
+ <E1PTCV4-0007sR-SO@pomaz-ex.szeredi.hu>
 MIME-Version: 1.0
-In-Reply-To: <AANLkTim-WizK2PrfGM0zJ1=_VQkJao-D7oAcQ_et7-fi@mail.gmail.com>
-References: <20101130194945.58962c44@xenia.leun.net>
-	<alpine.LSU.2.00.1011301453090.12516@tigran.mtv.corp.google.com>
-	<E1PNjsI-0005Bk-NB@pomaz-ex.szeredi.hu>
-	<20101201124528.6809c539@xenia.leun.net>
-	<E1PNqO1-0005px-9h@pomaz-ex.szeredi.hu>
-	<20101202084159.6bff7355@xenia.leun.net>
-	<20101202091552.4a63f717@xenia.leun.net>
-	<E1PO5gh-00079U-Ma@pomaz-ex.szeredi.hu>
-	<20101202115722.1c00afd5@xenia.leun.net>
-	<20101203085350.55f94057@xenia.leun.net>
-	<E1PPaIw-0004pW-Mk@pomaz-ex.szeredi.hu>
-	<20101206204303.1de6277b@xenia.leun.net>
-	<E1PRQDn-0007jZ-5S@pomaz-ex.szeredi.hu>
-	<20101213142059.643f8080.akpm@linux-foundation.org>
-	<E1PSSO8-0003sy-Vr@pomaz-ex.szeredi.hu>
-	<alpine.LSU.2.00.1012142020030.12693@tigran.mtv.corp.google.com>
-	<AANLkTim-WizK2PrfGM0zJ1=_VQkJao-D7oAcQ_et7-fi@mail.gmail.com>
-Date: Thu, 16 Dec 2010 11:05:24 -0800
-Message-ID: <AANLkTi=gbhxFGHj70ybCLU7exJ6ckLjzeFgjfQxTaGuQ@mail.gmail.com>
-Subject: Re: kernel BUG at mm/truncate.c:475!
-From: Hugh Dickins <hughd@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <E1PTCV4-0007sR-SO@pomaz-ex.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
-To: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, Andrew Morton <akpm@linux-foundation.org>, lkml20101129@newton.leun.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 16, 2010 at 6:50 AM, Robert =C5=9Awi=C4=99cki <robert@swiecki.n=
-et> wrote:
->>
->> I'd feel rather happier about it if I thought it would also fix
->> Robert's kernel BUG at /build/buildd/linux-2.6.35/mm/filemap.c:128!
->> but I've still not found time to explain that one.
->>
->> Robert, you said yours is usually repeatable in 12 hours - any chance
->> you could give iknowthis a run with the patch below, to see if it
->> makes any difference to yours? =C2=A0(I admit I don't see how it would.)
->
-> Hi Hugh,
->
-> Do you still want me to do that?
+On Thu, Dec 16, 2010 at 12:59:58PM +0100, Miklos Szeredi wrote:
+> On Thu, 16 Dec 2010, Minchan Kim wrote:
+> > > +int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+> > > +{
+> > > + ?? ?? ?? int error;
+> > > +
+> > > + ?? ?? ?? VM_BUG_ON(!PageLocked(old));
+> > > + ?? ?? ?? VM_BUG_ON(!PageLocked(new));
+> > > + ?? ?? ?? VM_BUG_ON(new->mapping);
+> > > +
+> > > + ?? ?? ?? error = mem_cgroup_cache_charge(new, current->mm,
+> > > + ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? gfp_mask & GFP_RECLAIM_MASK);
+> > > + ?? ?? ?? if (error)
+> > > + ?? ?? ?? ?? ?? ?? ?? goto out;
+> > > +
+> > > + ?? ?? ?? error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+> > > + ?? ?? ?? if (error == 0) {
+> > > + ?? ?? ?? ?? ?? ?? ?? struct address_space *mapping = old->mapping;
+> > > + ?? ?? ?? ?? ?? ?? ?? pgoff_t offset = old->index;
+> > > +
+> > > + ?? ?? ?? ?? ?? ?? ?? page_cache_get(new);
+> > > + ?? ?? ?? ?? ?? ?? ?? new->mapping = mapping;
+> > > + ?? ?? ?? ?? ?? ?? ?? new->index = offset;
+> > > +
+> > > + ?? ?? ?? ?? ?? ?? ?? spin_lock_irq(&mapping->tree_lock);
+> > > + ?? ?? ?? ?? ?? ?? ?? __remove_from_page_cache(old);
+> > > + ?? ?? ?? ?? ?? ?? ?? error = radix_tree_insert(&mapping->page_tree, offset, new);
+> > > + ?? ?? ?? ?? ?? ?? ?? BUG_ON(error);
+> > > + ?? ?? ?? ?? ?? ?? ?? mapping->nrpages++;
+> > > + ?? ?? ?? ?? ?? ?? ?? __inc_zone_page_state(new, NR_FILE_PAGES);
+> > > + ?? ?? ?? ?? ?? ?? ?? if (PageSwapBacked(new))
+> > > + ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? __inc_zone_page_state(new, NR_SHMEM);
+> > > + ?? ?? ?? ?? ?? ?? ?? spin_unlock_irq(&mapping->tree_lock);
+> > > + ?? ?? ?? ?? ?? ?? ?? radix_tree_preload_end();
+> > > + ?? ?? ?? ?? ?? ?? ?? mem_cgroup_uncharge_cache_page(old);
+> > > + ?? ?? ?? ?? ?? ?? ?? page_cache_release(old);
+> > 
+> > Why do you release reference of old?
+> 
+> That's the page cache reference we release.  Just like we acquire the
+> page cache reference for "new" above.
 
-If you can spare the time, yes, please do:
-it will be valuable information either way.
-I just don't want to deceive you that we
-expect this to be the fix.
+I mean current page cache handling semantic and page reference counting semantic
+is separeated. For example, remove_from_page_cache doesn't drop the reference of page.
+That's because we need more works after drop the page from page cache.
+Look at shmem_writepage, truncate_complete_page.
 
-Thanks,
-Hugh
+You makes the general API and caller might need works before the old page 
+is free. So how about this?
+
+err = replace_page_cache_page(oldpage, newpage, GFP_KERNEL);
+if (err) {
+        ...
+}
+
+page_cache_release(oldpage); /* drop ref of page cache */
+
+
+> 
+> I suspect it's historic that page_cache_release() doesn't drop the
+> page cache ref.
+
+Sorry I can't understand your words.
+
+> 
+> Thanks for the review.
+> 
+> Miklos
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
