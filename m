@@ -1,62 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 244336B00AD
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 19:26:26 -0500 (EST)
-Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
-	by smtp-out.google.com with ESMTP id oBG0QMnp024002
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 16:26:22 -0800
-Received: from yws5 (yws5.prod.google.com [10.192.19.5])
-	by hpaq13.eem.corp.google.com with ESMTP id oBG0Q5hN018993
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 16:26:21 -0800
-Received: by yws5 with SMTP id 5so2165404yws.15
-        for <linux-mm@kvack.org>; Wed, 15 Dec 2010 16:26:20 -0800 (PST)
-Date: Wed, 15 Dec 2010 16:26:11 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: kernel BUG at mm/truncate.c:475!
-In-Reply-To: <E1PSpQw-0005s5-QW@pomaz-ex.szeredi.hu>
-Message-ID: <alpine.LSU.2.00.1012151542480.7987@tigran.mtv.corp.google.com>
-References: <20101130194945.58962c44@xenia.leun.net> <alpine.LSU.2.00.1011301453090.12516@tigran.mtv.corp.google.com> <E1PNjsI-0005Bk-NB@pomaz-ex.szeredi.hu> <20101201124528.6809c539@xenia.leun.net> <E1PNqO1-0005px-9h@pomaz-ex.szeredi.hu>
- <20101202084159.6bff7355@xenia.leun.net> <20101202091552.4a63f717@xenia.leun.net> <E1PO5gh-00079U-Ma@pomaz-ex.szeredi.hu> <20101202115722.1c00afd5@xenia.leun.net> <20101203085350.55f94057@xenia.leun.net> <E1PPaIw-0004pW-Mk@pomaz-ex.szeredi.hu>
- <20101206204303.1de6277b@xenia.leun.net> <E1PRQDn-0007jZ-5S@pomaz-ex.szeredi.hu> <20101213142059.643f8080.akpm@linux-foundation.org> <E1PSSO8-0003sy-Vr@pomaz-ex.szeredi.hu> <alpine.LSU.2.00.1012142020030.12693@tigran.mtv.corp.google.com>
- <E1PSpQw-0005s5-QW@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 85A9B6B00A8
+	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 20:05:41 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oBG10Gp2028571
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 16 Dec 2010 10:00:16 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E4E345DE5F
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 10:00:16 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F35345DE55
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 10:00:16 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E8BEE18006
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 10:00:16 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 26CB31DB803E
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 10:00:16 +0900 (JST)
+Date: Thu, 16 Dec 2010 09:54:08 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Transparent Hugepage Support #33
+Message-Id: <20101216095408.3a60cbad.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20101215051540.GP5638@random.random>
+References: <20101215051540.GP5638@random.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: akpm@linux-foundation.org, robert@swiecki.net, lkml20101129@newton.leun.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>, Miklos Szeredi <miklos@szeredi.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Dec 2010, Miklos Szeredi wrote:
-> On Tue, 14 Dec 2010, Hugh Dickins wrote:
-> > I'd feel rather happier about it if I thought it would also fix
-> > Robert's kernel BUG at /build/buildd/linux-2.6.35/mm/filemap.c:128!
-> > but I've still not found time to explain that one.
+On Wed, 15 Dec 2010 06:15:40 +0100
+Andrea Arcangeli <aarcange@redhat.com> wrote:
+
+> Some of some relevant user of the project:
 > 
-> Me neither, all unmap_mapping_range() calls from shmfs are either with
-> i_mutex or from evict_inode.
-
-And the page returned by shmem_fault is already locked.
-
+> KVM Virtualization
+> GCC (kernel build included, requires a few liner patch to enable)
+> JVM
+> VMware Workstation
+> HPC
 > 
-> Hmm, is there anything preventing remap_file_pages() installing a pte
-> at an address that unmap_mapping_range() has already processed?
+> It would be great if it could go in -mm.
 
-Interesting line of thought: nothing I think, but isn't that okay?
+Things should be done in memory cgroup is
+ 
+ - make accounting correct (RSS count will be broken)
+ - make move_charge() to work
+   (at rmdir(), this is now broken. It seems move-charge-at-task-move to work)
 
-Though its zap_pte can take out present ptes pointing to actual pages,
-all populate_range ever installs is non-present pte_file entries: and a
-fault on one of those goes through the same checks as in a linear mapping.
+Do you have known other viewpoints ? I'll look into when -mm is shipped.
 
-(I thought I was going to find an inconsistency with zap_pte_range there,
-but no: truncation does not remove pte_file entries beyond end of file,
-I remember now thinking that we need to keep SIGBUS-beyond-EOF on them,
-instead of letting truncation silently revert those offsets to linear.)
 
-Or am I missing something?
-(Well, we know I am, because I've not explained Robert's BUG.)
-
-Hugh
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
