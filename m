@@ -1,85 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A29696B0099
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 00:38:02 -0500 (EST)
-Date: Thu, 16 Dec 2010 13:37:57 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 18/35] writeback: start background writeback earlier
-Message-ID: <20101216053757.GA14681@localhost>
-References: <20101213144646.341970461@intel.com>
- <20101213150328.526742344@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101213150328.526742344@intel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6866A6B009B
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 01:08:30 -0500 (EST)
+Date: Thu, 16 Dec 2010 17:08:14 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: linux-next early user mode crash (Was: Re: Transparent Hugepage
+ Support #33)
+Message-Id: <20101216170814.6a874692.sfr@canb.auug.org.au>
+In-Reply-To: <20101216052958.GA2161@linux.vnet.ibm.com>
+References: <20101215051540.GP5638@random.random>
+	<20101216095408.3a60cbad.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101215171809.0e0bc3d5.akpm@linux-foundation.org>
+	<20101216130251.12dbe8d8.sfr@canb.auug.org.au>
+	<20101216052958.GA2161@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA1";
+ boundary="Signature=_Thu__16_Dec_2010_17_08_14_+1100_PAVxCv9Yt7IyiYtX"
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: paulmck@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>, Miklos Szeredi <miklos@szeredi.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 13, 2010 at 10:47:04PM +0800, Wu, Fengguang wrote:
-> It's possible for some one to suddenly eat lots of memory,
-> leading to sudden drop of global dirty limit. So a dirtier
-> task may get hard throttled immediately without some previous
-> balance_dirty_pages() call to invoke background writeback.
-> 
-> In this case we need to check for background writeback earlier in the
-> loop to avoid stucking the application for very long time. This was not
-> a problem before the IO-less balance_dirty_pages() because it will try
-> to write something and then break out of the loop regardless of the
-> global limit.
-> 
-> Another scheme this check will help is, the dirty limit is too close to
-> the background threshold, so that someone manages to jump directly into
-> the pause threshold (background+dirty)/2.
-> 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  mm/page-writeback.c |    3 +++
->  1 file changed, 3 insertions(+)
-> 
-> --- linux-next.orig/mm/page-writeback.c	2010-12-13 21:46:16.000000000 +0800
-> +++ linux-next/mm/page-writeback.c	2010-12-13 21:46:17.000000000 +0800
-> @@ -748,6 +748,9 @@ static void balance_dirty_pages(struct a
->  				    bdi_stat(bdi, BDI_WRITEBACK);
->  		}
->  
-> +		if (unlikely(!writeback_in_progress(bdi)))
-> +			bdi_start_background_writeback(bdi);
-> +
->  		bdi_update_bandwidth(bdi, start_time, bdi_dirty, bdi_thresh);
->  
->  		/*
-> 
+--Signature=_Thu__16_Dec_2010_17_08_14_+1100_PAVxCv9Yt7IyiYtX
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-The above patch allows this simplification.
----
-Subject: writeback: start background writeback earlier - handle laptop mode
-Date: Wed Dec 15 20:15:54 CST 2010
+Hi Paul,
 
-The laptop mode handling can be simplified since we've kick background
-writeback inside the balance_dirty_pages() loop on dirty_exceeded.
+On Wed, 15 Dec 2010 21:29:58 -0800 "Paul E. McKenney" <paulmck@linux.vnet.i=
+bm.com> wrote:
+>
+> RCU problems would normally take longer to run the system out of memory,
+> but who knows?
+>=20
+> I did a push into -rcu in the suspect time frame, so have pulled it.  I am
+> sure that kernel.org will push this change to its mirrors at some point.
+> Just in case tree-by-tree bisecting is faster than commit-by-commit
+> bisecting.
 
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/page-writeback.c |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+I have bisected it down to the rcu tree, so the three commits that were
+added yesterday are the suspects.  I am still bisecting.  If will just
+revert those three commits from linux-next today in the hope that Andrew
+will end up with a working tree.
 
---- linux-next.orig/mm/page-writeback.c	2010-12-15 20:14:33.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-12-15 20:15:39.000000000 +0800
-@@ -891,8 +891,10 @@ pause:
- 	 * In normal mode, we start background writeout at the lower
- 	 * background_thresh, to keep the amount of dirty memory low.
- 	 */
--	if ((laptop_mode && dirty_exceeded) ||
--	    (!laptop_mode && (nr_reclaimable > background_thresh)))
-+	if (laptop_mode)
-+		return;
-+
-+	if (nr_reclaimable > background_thresh)
- 		bdi_start_background_writeback(bdi);
- }
- 
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
+
+--Signature=_Thu__16_Dec_2010_17_08_14_+1100_PAVxCv9Yt7IyiYtX
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iQEcBAEBAgAGBQJNCazOAAoJEDMEi1NhKgbsv/0H/iELZ0Z2qcADCAdtlw4H6Qmx
+miMgjDO/fZ6db597Uib+vf4m9bTzw916hO6KEvbsT7eBSlpl+EepGm68QnTr1ALw
+E3uuOgrwGDejfrl1hHMoS6kAl7nHqgx7tax8XiBwh5P7WD0N0VmFXfFXjxjXu9Mv
+Ir30l7qN7fxYNPwY6raKdxEBle8pS9ouCtYbgqB7Q0FO2GX6N3fLt/fxoodDIYnj
+vJt6kG1G8BC2iOoO6TU8LvKXPXoypHuFCvfYfQdix9J+krkKVoj8XGEgvHaoSWR8
+h2aQ7uf9CCoLrJnvLyySQW9b9+lxAGtuR72Jhs4Ckh8OpqUXU6V6nxqGHXDZng0=
+=LsKI
+-----END PGP SIGNATURE-----
+
+--Signature=_Thu__16_Dec_2010_17_08_14_+1100_PAVxCv9Yt7IyiYtX--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
