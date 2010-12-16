@@ -1,172 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 49F5E6B0098
-	for <linux-mm@kvack.org>; Wed, 15 Dec 2010 21:36:34 -0500 (EST)
-Date: Thu, 16 Dec 2010 03:35:21 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: kvm mmu transparent hugepage support for linux-next
-Message-ID: <20101216023521.GE5638@random.random>
-References: <20101215051540.GP5638@random.random>
- <20101215155545.303ca2c2.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 4F66F6B0099
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 00:17:27 -0500 (EST)
+Date: Thu, 16 Dec 2010 13:17:22 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 17/35] writeback: quit throttling when bdi dirty pages
+ dropped low
+Message-ID: <20101216051722.GA9093@localhost>
+References: <20101213144646.341970461@intel.com>
+ <20101213150328.407612632@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101215155545.303ca2c2.akpm@linux-foundation.org>
+In-Reply-To: <20101213150328.407612632@intel.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>, Miklos Szeredi <miklos@szeredi.hu>, Gleb Natapov <gleb@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+This patch seems optional and won't improve things noticeably.
+Even if we break out of the loop, the task will quickly return to
+balance_dirty_pages() as long as the bdi is dirty_exceeded. So I'd
+like to drop this patch for now.
 
-On Wed, Dec 15, 2010 at 03:55:45PM -0800, Andrew Morton wrote:
-> On Wed, 15 Dec 2010 06:15:40 +0100
-> Andrea Arcangeli <aarcange@redhat.com> wrote:
+Thanks,
+Fengguang
+
+On Mon, Dec 13, 2010 at 10:47:03PM +0800, Wu, Fengguang wrote:
+> Tests show that bdi_thresh may take minutes to ramp up on a typical
+> desktop. The time should be improvable but cannot be eliminated totally.
+> So when (background_thresh + dirty_thresh)/2 is reached and
+> balance_dirty_pages() starts to throttle the task, it will suddenly find
+> the (still low and ramping up) bdi_thresh is exceeded _excessively_. Here
+> we definitely don't want to stall the task for one minute (when it's
+> writing to USB stick). So introduce an alternative way to break out of
+> the loop when the bdi dirty/write pages has dropped by a reasonable
+> amount.
 > 
-> > Some of some relevant user of the project:
-> > 
-> > KVM Virtualization
-> > GCC (kernel build included, requires a few liner patch to enable)
-> > JVM
-> > VMware Workstation
-> > HPC
-> > 
-> > It would be great if it could go in -mm.
+> It will at least pause for one loop before trying to break out.
 > 
-> That all merged pretty easily on top of the current mm pile.  Except
-> for kvm-mmu-transparent-hugepage-support.patch which needs some thought
-> and testing to get it merged into the KVM changes in linux-next.  I
-> simply omitted kvm-mmu-transparent-hugepage-support.patch so please
-> take a look?
-
-Ok, I've an untested patch as full replacement of the
-5Akvm-mmu-transparent-hugepage-support.patch, for linux-next. It's
-untested because I didn't even try to boot linux-next after reading
-your last mail about it. In the meantime I'd appreciate review from
-Marcelo.
-
-For Marcelo: before we were calling gup and checking if the pfn was
-part of a compound page, and we were returning the right "level" from
-inside mapping_level(). Now mapping_level is only left to detect
-hugetlbfs. So if hugetlbfs isn't detected, _after_ gfn_to_pfn runs, we
-check if the pfn is part of a trans compound page. If it is, we adjust
-pfn/gfn after the fact before invoking spte establishment. It should
-be functionally equivalent to the previous version and it eliminates
-one unnecessary gfn_to_pfn/gup invocation compared to the previous
-code. I had to rewrite it to adjust after the fact (async page fault)
-to avoid invalidating async page faults (or to avoid handling async
-page faults inside mapping_level itself which would litter its
-interface and make it a lot more complex). If we're allowed to adjust
-after the fact, this is simpler more efficient and it'll live happily
-with the async page faults. Note: I didn't adjust the guest virtual
-address as I don't think it needs adjustment. Let me know if you see
-something wrong with this, thanks! (good thing is, if something's
-wrong we'll notice it very quick as soon as we can test it :)
-
-=========
-Subject: kvm mmu transparent hugepage support
-
-From: Andrea Arcangeli <aarcange@redhat.com>
-
-This should work for both hugetlbfs and transparent hugepages.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
-
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index bdb9fa9..22062b2 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -2286,6 +2286,18 @@ static int kvm_handle_bad_page(struct kvm *kvm, gfn_t gfn, pfn_t pfn)
- 	return 1;
- }
- 
-+static void transparent_hugepage_adjust(gfn_t *gfn, pfn_t *pfn, int * level)
-+{
-+	/* check if it's a transparent hugepage */
-+	if (!is_error_pfn(*pfn) && !kvm_is_mmio_pfn(*pfn) &&
-+	    *level == PT_PAGE_TABLE_LEVEL &&
-+	    PageTransCompound(pfn_to_page(*pfn))) {
-+		*level = PT_DIRECTORY_LEVEL;
-+		*gfn = *gfn & ~(KVM_PAGES_PER_HPAGE(*level) - 1);
-+		*pfn = *pfn & ~(KVM_PAGES_PER_HPAGE(*level) - 1);
-+	}
-+}
-+
- static bool try_async_pf(struct kvm_vcpu *vcpu, bool no_apf, gfn_t gfn,
- 			 gva_t gva, pfn_t *pfn, bool write, bool *writable);
- 
-@@ -2314,6 +2326,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn,
- 
- 	if (try_async_pf(vcpu, no_apf, gfn, v, &pfn, write, &map_writable))
- 		return 0;
-+	transparent_hugepage_adjust(&gfn, &pfn, &level);
- 
- 	/* mmio */
- 	if (is_error_pfn(pfn))
-@@ -2676,6 +2689,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
- 
- 	if (try_async_pf(vcpu, no_apf, gfn, gpa, &pfn, write, &map_writable))
- 		return 0;
-+	transparent_hugepage_adjust(&gfn, &pfn, &level);
- 
- 	/* mmio */
- 	if (is_error_pfn(pfn))
-diff --git a/arch/x86/kvm/paging_tmpl.h b/arch/x86/kvm/paging_tmpl.h
-index 590bf12..bc91891 100644
---- a/arch/x86/kvm/paging_tmpl.h
-+++ b/arch/x86/kvm/paging_tmpl.h
-@@ -575,6 +575,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
- 	if (try_async_pf(vcpu, no_apf, walker.gfn, addr, &pfn, write_fault,
- 			 &map_writable))
- 		return 0;
-+	transparent_hugepage_adjust(&walker.gfn, &pfn, &level);
- 
- 	/* mmio */
- 	if (is_error_pfn(pfn))
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index fb93ff9..4fa0121 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -103,8 +103,36 @@ static pfn_t fault_pfn;
- inline int kvm_is_mmio_pfn(pfn_t pfn)
- {
- 	if (pfn_valid(pfn)) {
--		struct page *page = compound_head(pfn_to_page(pfn));
--		return PageReserved(page);
-+		struct page *head;
-+		struct page *tail = pfn_to_page(pfn);
-+		head = compound_head(tail);
-+		if (head != tail) {
-+			smp_rmb();
-+			/*
-+			 * head may be a dangling pointer.
-+			 * __split_huge_page_refcount clears PageTail
-+			 * before overwriting first_page, so if
-+			 * PageTail is still there it means the head
-+			 * pointer isn't dangling.
-+			 */
-+			if (PageTail(tail)) {
-+				/*
-+				 * the "head" is not a dangling
-+				 * pointer but the hugepage may have
-+				 * been splitted from under us (and we
-+				 * may not hold a reference count on
-+				 * the head page so it can be reused
-+				 * before we run PageReferenced), so
-+				 * we've to recheck PageTail before
-+				 * returning what we just read.
-+				 */
-+				int reserved = PageReserved(head);
-+				smp_rmb();
-+				if (PageTail(tail))
-+					return reserved;
-+			}
-+		}
-+		return PageReserved(tail);
- 	}
- 
- 	return true;
+> The break is designed mainly to help the single task case. The break
+> threshold is time for writing 125ms data, so that when the task slept
+> for MAX_PAUSE=200ms, it will have good chance to break out. For NFS
+> there may be only 1-2 completions of large COMMIT per second, in which
+> case the task may still get stuck for 1s.
+> 
+> Note that this opens the chance that during normal operation, a huge
+> number of slow dirtiers writing to a really slow device might manage to
+> outrun bdi_thresh. But the risk is pretty low.
+> 
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  mm/page-writeback.c |   19 +++++++++++++++++++
+>  1 file changed, 19 insertions(+)
+> 
+> --- linux-next.orig/mm/page-writeback.c	2010-12-13 21:46:16.000000000 +0800
+> +++ linux-next/mm/page-writeback.c	2010-12-13 21:46:16.000000000 +0800
+> @@ -693,6 +693,7 @@ static void balance_dirty_pages(struct a
+>  	long nr_dirty;
+>  	long bdi_dirty;  /* = file_dirty + writeback + unstable_nfs */
+>  	long avg_dirty;  /* smoothed bdi_dirty */
+> +	long bdi_prev_dirty = 0;
+>  	unsigned long background_thresh;
+>  	unsigned long dirty_thresh;
+>  	unsigned long bdi_thresh;
+> @@ -749,6 +750,24 @@ static void balance_dirty_pages(struct a
+>  
+>  		bdi_update_bandwidth(bdi, start_time, bdi_dirty, bdi_thresh);
+>  
+> +		/*
+> +		 * bdi_thresh takes time to ramp up from the initial 0,
+> +		 * especially for slow devices.
+> +		 *
+> +		 * It's possible that at the moment dirty throttling starts,
+> +		 *	bdi_dirty = nr_dirty
+> +		 *		  = (background_thresh + dirty_thresh) / 2
+> +		 *		  >> bdi_thresh
+> +		 * Then the task could be blocked for many seconds to flush all
+> +		 * the exceeded (bdi_dirty - bdi_thresh) pages. So offer a
+> +		 * complementary way to break out of the loop when 125ms worth
+> +		 * of dirty pages have been cleaned during our pause time.
+> +		 */
+> +		if (nr_dirty <= dirty_thresh &&
+> +		    bdi_prev_dirty - bdi_dirty > (long)bdi->write_bandwidth / 8)
+> +			break;
+> +		bdi_prev_dirty = bdi_dirty;
+> +
+>  		avg_dirty = bdi->avg_dirty;
+>  		if (avg_dirty < bdi_dirty || avg_dirty > task_thresh)
+>  			avg_dirty = bdi_dirty;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
