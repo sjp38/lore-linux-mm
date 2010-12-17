@@ -1,251 +1,477 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DE936B00A2
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 23:16:43 -0500 (EST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9477C6B00A3
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 23:16:44 -0500 (EST)
 From: KyongHo Cho <pullip.cho@samsung.com>
-Subject: [RFCv2,8/8] mm: vcm: Sample driver added
-Date: Fri, 17 Dec 2010 12:56:27 +0900
-Message-Id: <1292558187-17348-9-git-send-email-pullip.cho@samsung.com>
-In-Reply-To: <1292558187-17348-8-git-send-email-pullip.cho@samsung.com>
+Subject: [RFCv2,5/8] mm: vcm: VCM MMU wrapper added
+Date: Fri, 17 Dec 2010 12:56:24 +0900
+Message-Id: <1292558187-17348-6-git-send-email-pullip.cho@samsung.com>
+In-Reply-To: <1292558187-17348-5-git-send-email-pullip.cho@samsung.com>
 References: <1292558187-17348-1-git-send-email-pullip.cho@samsung.com>
  <1292558187-17348-2-git-send-email-pullip.cho@samsung.com>
  <1292558187-17348-3-git-send-email-pullip.cho@samsung.com>
  <1292558187-17348-4-git-send-email-pullip.cho@samsung.com>
  <1292558187-17348-5-git-send-email-pullip.cho@samsung.com>
- <1292558187-17348-6-git-send-email-pullip.cho@samsung.com>
- <1292558187-17348-7-git-send-email-pullip.cho@samsung.com>
- <1292558187-17348-8-git-send-email-pullip.cho@samsung.com>
 Sender: owner-linux-mm@kvack.org
 To: KyongHo Cho <pullip.cho@samsung.com>
 Cc: Kyungmin Park <kyungmin.park@samsung.com>, Kukjin Kim <kgene.kim@samsung.com>, Inho Lee <ilho215.lee@samsung.com>, Inki Dae <inki.dae@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linux-samsung-soc@vger.kernel.org, Michal Nazarewicz <m.nazarewicz@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-This commit adds a sample Virtual Contiguous Memory framework
-driver.  It handles no real hardware and is there only for
-demonstrating purposes.
+From: Michal Nazarewicz <m.nazarewicz@samsung.com>
 
-* * * THIS COMMIT IS NOT FOR MERGING * * *
+This commits adds a VCM MMU wrapper which is meant to be a helper
+code for creating VCM drivers for real hardware MMUs.
 
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- Documentation/virtual-contiguous-memory.txt |    3 +
- include/linux/vcm-sample.h                  |   30 +++++++
- mm/Kconfig                                  |   13 +++
- mm/Makefile                                 |    1 +
- mm/vcm-sample.c                             |  119 +++++++++++++++++++++++++++
- 5 files changed, 166 insertions(+), 0 deletions(-)
- create mode 100644 include/linux/vcm-sample.h
- create mode 100644 mm/vcm-sample.c
+ Documentation/virtual-contiguous-memory.txt |   80 ++++++++++
+ include/linux/vcm-drv.h                     |   80 ++++++++++
+ mm/Kconfig                                  |   11 ++
+ mm/vcm.c                                    |  219 +++++++++++++++++++++++++++
+ 4 files changed, 390 insertions(+), 0 deletions(-)
 
 diff --git a/Documentation/virtual-contiguous-memory.txt b/Documentation/virtual-contiguous-memory.txt
-index 9354c4c..8edd457 100644
+index c830b69..9036abe 100644
 --- a/Documentation/virtual-contiguous-memory.txt
 +++ b/Documentation/virtual-contiguous-memory.txt
-@@ -781,6 +781,9 @@ already there.
- Note that to use the VCM MMU wrapper one needs to select the VCM_MMU
- Kconfig option or otherwise the wrapper won't be available.
+@@ -803,6 +803,86 @@ When to release the ownership of a reservation:
+ It is not required as well unable to remove the reservation explicitly. The
+ last call to vcm_unreserve() will cause the reservation to be removed.
  
-+There is a sample driver provided which provides a template for real
-+drivers.  It can be found in [[file:../mm/vcm-sample.c][mm/vcm-sample.c]] file.
++** Writing a hardware MMU driver
 +
- *** Context creation
++It may be undesirable to implement all of the operations that are
++required to create a usable driver.  In case of hardware MMUs a helper
++wrapper driver has been created to make writing real drivers as simple
++as possible.
++
++The wrapper implements most of the functionality of the driver leaving
++only implementation of the actual talking to the hardware MMU in hands
++of programmer.  Reservations managements as general housekeeping is
++already there.
++
++Note that to use the VCM MMU wrapper one needs to select the VCM_MMU
++Kconfig option or otherwise the wrapper won't be available.
++
++*** Context creation
++
++Similarly to normal drivers, MMU driver needs to provide a context
++creation function.  Such a function must provide a vcm_mmu object and
++initialise vcm.start, vcm.size and driver fields of the structure.
++When this is done, vcm_mmu_init() should be called which will
++initialise the rest of the fields and validate entered values:
++
++	struct vcm *__must_check vcm_mmu_init(struct vcm_mmu *mmu);
++
++This is, in fact, very similar to the way standard driver is created.
++
++*** Orders
++
++One of the fields of the vcm_mmu_driver structure is orders.  This is
++an array of orders of pages supported by the hardware MMU.  It must be
++sorted from largest to smallest and zero terminated.
++
++The order is the logarithm with the base two of the size of supported
++page size divided by PAGE_SIZE.  For instance, { 8, 4, 0 } means that
++MMU supports 1MiB, 64KiB and 4KiB pages.
++
++*** Operations
++
++The three operations that MMU wrapper driver uses are:
++
++	void (*cleanup)(struct vcm *vcm);
++
++	int (*activate)(struct vcm_res *res, struct vcm_phys *phys);
++	void (*deactivate)(struct vcm_res *res, struct vcm_phys *phys);
++
++	int (*activate_page)(dma_addr_t vaddr, dma_addr_t paddr,
++			     unsigned order, void *vcm),
++	int (*deactivate_page)(dma_addr_t vaddr, dma_addr_t paddr,
++			       unsigned order, void *vcm),
++
++The first one frees all resources allocated by the context creation
++function (including the structure itself).  If this operation is not
++given, kfree() will be called on vcm_mmu structure.
++
++The activate and deactivate operations are required and they are used
++to update mappings in the MMU.  Whenever binding is activated or
++deactivated the respective operation is called.
++
++To divide mapping into physical pages, vcm_phys_walk() function can be
++used:
++
++	int vcm_phys_walk(dma_addr_t vaddr, const struct vcm_phys *phys,
++			  const unsigned char *orders,
++			  int (*callback)(dma_addr_t vaddr, dma_addr_t paddr,
++					  unsigned order, void *priv),
++			  int (*recovery)(dma_addr_t vaddr, dma_addr_t paddr,
++					  unsigned order, void *priv),
++			  void *priv);
++
++It start from given virtual address and tries to divide allocated
++physical memory to as few pages as possible where order of each page
++is one of the orders specified by orders argument.
++
++It may be easier to implement activate_page and deactivate_page
++operations instead thought.  They are called on each individual page
++rather then the whole mapping.  It basically incorporates call to the
++vcm_phys_walk() function so driver does not need to call it
++explicitly.
++
+ * Epilogue
  
- Similarly to normal drivers, MMU driver needs to provide a context
-diff --git a/include/linux/vcm-sample.h b/include/linux/vcm-sample.h
-new file mode 100644
-index 0000000..86a71ca
---- /dev/null
-+++ b/include/linux/vcm-sample.h
-@@ -0,0 +1,30 @@
-+/*
-+ * Virtual Contiguous Memory sample driver header file
-+ * Copyright (c) 2010 by Samsung Electronics.
-+ * Written by Michal Nazarewicz (m.nazarewicz@samsung.com)
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License as
-+ * published by the Free Software Foundation; either version 2 of the
-+ * License or (at your optional) any later version of the license.
-+ */
+ The initial version of the VCM framework was written by Zach Pfeffer
+diff --git a/include/linux/vcm-drv.h b/include/linux/vcm-drv.h
+index 536b051..98d065b 100644
+--- a/include/linux/vcm-drv.h
++++ b/include/linux/vcm-drv.h
+@@ -114,6 +114,86 @@ struct vcm_phys {
+  */
+ struct vcm *__must_check vcm_init(struct vcm *vcm);
+ 
++#ifdef CONFIG_VCM_MMU
 +
-+/*
-+ * See Documentation/virtual-contiguous-memory.txt for details.
-+ */
-+
-+#ifndef __LINUX_VCM_SAMP_H
-+#define __LINUX_VCM_SAMP_H
-+
-+#include <linux/types.h>
-+
-+struct vcm;
++struct vcm_mmu;
 +
 +/**
-+ * vcm_samp_create() - creates a VCM context
-+ *
-+ * ... Documentation goes here ...
++ * struct vcm_mmu_driver - a driver used for real MMUs.
++ * @orders:	array of orders of pages supported by the MMU sorted from
++ *		the largest to the smallest.  The last element is always
++ *		zero (which means 4K page).
++ * @cleanup:	Function called when the VCM context is destroyed;
++ *		optional, if not provided, kfree() is used.
++ * @activate:	callback function for activating a single mapping; it's
++ *		role is to set up the MMU so that reserved address space
++ *		donated by res will point to physical memory donated by
++ *		phys; called under spinlock with IRQs disabled - cannot
++ *		sleep; required unless @activate_page and @deactivate_page
++ *		are both provided
++ * @deactivate:	this reverses the effect of @activate; called under spinlock
++ *		with IRQs disabled - cannot sleep; required unless
++ *		@deactivate_page is provided.
++ * @activate_page:	callback function for activating a single page; it is
++ *			ignored if @activate is provided; it's given a single
++ *			page such that its order (given as third argument) is
++ *			one of the supported orders specified in @orders;
++ *			called under spinlock with IRQs disabled - cannot
++ *			sleep; required unless @activate is provided.
++ * @deactivate_page:	this reverses the effect of the @activate_page
++ *			callback; called under spinlock with IRQs disabled
++ *			- cannot sleep; required unless @activate and
++ *			@deactivate are both provided.
 + */
-+struct vcm *__must_check vcm_samp_create(/* ... */);
++struct vcm_mmu_driver {
++	const unsigned char	*orders;
++
++	void (*cleanup)(struct vcm *vcm);
++	int (*activate)(struct vcm_res *res, struct vcm_phys *phys);
++	void (*deactivate)(struct vcm_res *res, struct vcm_phys *phys);
++	int (*activate_page)(dma_addr_t vaddr, dma_addr_t paddr,
++			     unsigned order, void *vcm);
++	int (*deactivate_page)(dma_addr_t vaddr, dma_addr_t paddr,
++			       unsigned order, void *vcm);
++};
++
++/**
++ * struct vcm_mmu - VCM MMU context
++ * @vcm:	VCM context.
++ * @driver:	VCM MMU driver's operations.
++ * @pool:	virtual address space allocator; internal.
++ * @bound_res:	list of bound reservations; internal.
++ * @lock:	protects @bound_res and calls to activate/deactivate
++ *		operations; internal.
++ * @activated:	whether VCM context has been activated; internal.
++ */
++struct vcm_mmu {
++	struct vcm			vcm;
++	const struct vcm_mmu_driver	*driver;
++	/* internal */
++	struct gen_pool			*pool;
++	struct list_head		bound_res;
++	/* Protects operations on bound_res list. */
++	spinlock_t			lock;
++	int				activated;
++};
++
++/**
++ * vcm_mmu_init() - initialises a VCM context for a real MMU.
++ * @mmu:	the vcm_mmu context to initialise.
++ *
++ * This function initialises the vcm_mmu structure created by a MMU
++ * driver when setting things up.  It sets up all fields of the
++ * structure expect for @mmu->vcm.start, @mmu.vcm->size and
++ * @mmu->driver which are validated by this function.  If they have
++ * invalid value function produces warning and returns an
++ * error-pointer.  On any other error, an error-pointer is returned as
++ * well.  If everything is fine, address of @mmu->vcm is returned.
++ */
++struct vcm *__must_check vcm_mmu_init(struct vcm_mmu *mmu);
 +
 +#endif
++
+ #ifdef CONFIG_VCM_PHYS
+ 
+ /**
 diff --git a/mm/Kconfig b/mm/Kconfig
-index 0f4d893..adb90a8 100644
+index 00d975e..e91499d 100644
 --- a/mm/Kconfig
 +++ b/mm/Kconfig
-@@ -430,6 +430,19 @@ config VCM_CMA
-  	  For more information see
-  	  <Documentation/virtual-contiguous-memory.txt>.  If unsure, say "n".
+@@ -369,6 +369,17 @@ config VCM_PHYS
+ 	  will be automatically selected.  You select it if you are going to
+ 	  build external modules that will use this functionality.
  
-+config VCM_SAMP
-+ 	bool "VCM sample driver"
-+ 	depends on VCM
-+ 	select VCM_MMU
++config VCM_MMU
++ 	bool "VCM MMU wrapper"
++ 	depends on VCM && MODULES
++ 	select VCM_PHYS
++ 	select GENERIC_ALLOCATOR
 + 	help
-+ 	  This enables a sample driver for the VCM framework.  This driver
-+ 	  does not handle any real harwdare.  It's merely an template of
-+ 	  how for real drivers.
-+
-+ 	  For more information see
-+ 	  <Documentation/virtual-contiguous-memory.txt>.  If unsure, say
-+ 	  "n".
++ 	  This enables the VCM MMU wrapper which helps creating VCM drivers
++ 	  for IO MMUs.  If a VCM driver is built that requires this option, it
++ 	  will be automatically selected.  You select it if you are going to
++ 	  build external modules that will use this functionality.
 +
  #
  # UP and nommu archs use km based percpu allocator
  #
-diff --git a/mm/Makefile b/mm/Makefile
-index 78e1bd5..515c433 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -46,3 +46,4 @@ obj-$(CONFIG_CMA) += cma.o
- obj-$(CONFIG_CMA_BEST_FIT) += cma-best-fit.o
- obj-$(CONFIG_VCM) += vcm.o
- obj-$(CONFIG_VCM_CMA) += vcm-cma.o
-+obj-$(CONFIG_VCM_SAMPLE) += vcm-sample.o
-diff --git a/mm/vcm-sample.c b/mm/vcm-sample.c
-new file mode 100644
-index 0000000..27a2ae7
---- /dev/null
-+++ b/mm/vcm-sample.c
-@@ -0,0 +1,119 @@
-+/*
-+ * Virtual Contiguous Memory driver template
-+ * Copyright (c) 2010 by Samsung Electronics.
-+ * Written by Michal Nazarewicz (m.nazarewicz@samsung.com)
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License as
-+ * published by the Free Software Foundation; either version 2 of the
-+ * License or (at your optional) any later version of the license.
-+ */
+diff --git a/mm/vcm.c b/mm/vcm.c
+index cd9f4ee..0d74e95 100644
+--- a/mm/vcm.c
++++ b/mm/vcm.c
+@@ -19,6 +19,8 @@
+ #include <linux/vmalloc.h>
+ #include <linux/err.h>
+ #include <linux/slab.h>
++#include <linux/genalloc.h>
 +
-+/*
-+ * This is just a sample code.  It does nothing useful other then
-+ * presenting a template for VCM driver.
-+ */
+ 
+ /******************************** Devices API *******************************/
+ 
+@@ -429,6 +431,223 @@ struct vcm *__must_check vcm_init(struct vcm *vcm)
+ EXPORT_SYMBOL_GPL(vcm_init);
+ 
+ 
++/*************************** Hardware MMU wrapper ***************************/
 +
-+/*
-+ * See Documentation/virtual-contiguous-memory.txt for details.
-+ */
++#ifdef CONFIG_VCM_MMU
 +
-+#include <linux/vcm-drv.h>
-+
-+struct vcm_samp {
-+	struct vcm_mmu	mmu;
-+	/* ... */
++struct vcm_mmu_res {
++	struct vcm_res			res;
++	struct list_head		bound;
 +};
 +
-+static const unsigned vcm_samp_orders[] = {
-+	4 + 20 - PAGES_SHIFT,	/* 16MiB pages */
-+	0 + 20 - PAGES_SHIFT,	/*  1MiB pages */
-+	6 + 10 - PAGES_SHIFT,	/* 64KiB pages */
-+	2 + 10 - PAGES_SHIFT,	/*  4KiB pages */
-+};
-+
-+static int vcm_samp_activate_page(dma_addr_t vaddr, dma_addr_t paddr,
-+				  unsigned order, void *priv)
++static void vcm_mmu_cleanup(struct vcm *vcm)
 +{
-+	struct vcm_samp *samp =
-+		container_of((struct vcm *)priv, struct vcm_samp, mmu.vcm);
-+
-+	/*
-+	 * Handle adding a mapping from virtual page at @vaddr to
-+	 * physical page ad @paddr.  The page is of order @order which
-+	 * means that it's (PAGE_SIZE << @order) bytes.
-+	 */
-+
-+	return -EOPNOTSUPP;
++	struct vcm_mmu *mmu = container_of(vcm, struct vcm_mmu, vcm);
++	WARN_ON(spin_is_locked(&mmu->lock) || !list_empty(&mmu->bound_res));
++	gen_pool_destroy(mmu->pool);
++	if (mmu->driver->cleanup)
++		mmu->driver->cleanup(vcm);
++	else
++		kfree(mmu);
 +}
 +
-+static int vcm_samp_deactivate_page(dma_addr_t vaddr, dma_addr_t paddr,
-+				    unsigned order, void *priv)
++static struct vcm_res *
++vcm_mmu_res(struct vcm *vcm, resource_size_t size, unsigned flags)
 +{
-+	struct vcm_samp *samp =
-+		container_of((struct vcm *)priv, struct vcm_samp, mmu.vcm);
++	struct vcm_mmu *mmu = container_of(vcm, struct vcm_mmu, vcm);
++	const unsigned char *orders;
++	struct vcm_mmu_res *res;
++	dma_addr_t addr;
++	unsigned order;
 +
-+	/*
-+	 * Handle removing a mapping from virtual page at @vaddr to
-+	 * physical page at @paddr.  The page is of order @order which
-+	 * means that it's (PAGE_SIZE << @order) bytes.
-+	 */
-+
-+	/* It's best not to fail here */
-+	return 0;
-+}
-+
-+static void vcm_samp_cleanup(struct vcm *vcm)
-+{
-+	struct vcm_samp *samp =
-+		container_of(res->vcm, struct vcm_samp, mmu.vcm);
-+
-+	/* Clean ups ... */
-+
-+	kfree(samp);
-+}
-+
-+struct vcm *__must_check vcm_samp_create(/* ... */)
-+{
-+	static const struct vcm_mmu_driver driver = {
-+		.order           = vcm_samp_orders,
-+		.cleanup         = vcm_samp_cleanup,
-+		.activate_page   = vcm_samp_activate_page,
-+		.deactivate_page = vcm_samp_deactivate_page,
-+	};
-+
-+	struct vcm_samp *samp;
-+	struct vcm *vcm;
-+
-+	switch (0) {
-+	case 0:
-+	case PAGE_SHIFT == 12:
-+		/*
-+		 * If you have a compilation error here it means you
-+		 * are compiling for a very strange platfrom where
-+		 * PAGE_SHIFT is not 12 (ie. PAGE_SIZE is not 4KiB).
-+		 * This driver assumes PAGE_SHIFT is 12.
-+		 */
-+	};
-+
-+	samp = kzalloc(sizeof *samp, GFP_KERNEL);
-+	if (!samp)
++	res = kzalloc(sizeof *res, GFP_KERNEL);
++	if (!res)
 +		return ERR_PTR(-ENOMEM);
 +
-+	/* ... Set things up ... */
++	order = ffs(size) - PAGE_SHIFT - 1;
++	for (orders = mmu->driver->orders; *orders > order; ++orders)
++		/* nop */;
++	order = *orders + PAGE_SHIFT;
 +
-+	samp->mmu.driver    = &driver;
-+	/* skip first 64K so that zero address will be a NULL pointer */
-+	samp->mmu.vcm.start =  (64 << 10);
-+	samp->mmu.vcm.size  = -(64 << 10);
++	addr = gen_pool_alloc_aligned(mmu->pool, size, order);
++	if (!addr) {
++		kfree(res);
++		return ERR_PTR(-ENOSPC);
++	}
 +
-+	vcm = vcm_mmu_init(&samp->mmu);
-+	if (!IS_ERR(vcm))
++	INIT_LIST_HEAD(&res->bound);
++	res->res.start = addr;
++	res->res.res_size = size;
++
++	return &res->res;
++}
++
++static struct vcm_phys *
++vcm_mmu_phys(struct vcm *vcm, resource_size_t size, unsigned flags)
++{
++	return vcm_phys_alloc(size, flags,
++			      container_of(vcm, struct vcm_mmu,
++					   vcm)->driver->orders);
++}
++
++static int __must_check
++__vcm_mmu_activate(struct vcm_res *res, struct vcm_phys *phys)
++{
++	struct vcm_mmu *mmu = container_of(res->vcm, struct vcm_mmu, vcm);
++	if (mmu->driver->activate)
++		return mmu->driver->activate(res, phys);
++
++	return vcm_phys_walk(res->start, phys, mmu->driver->orders,
++			     mmu->driver->activate_page,
++			     mmu->driver->deactivate_page, res->vcm);
++}
++
++static void __vcm_mmu_deactivate(struct vcm_res *res, struct vcm_phys *phys)
++{
++	struct vcm_mmu *mmu = container_of(res->vcm, struct vcm_mmu, vcm);
++	if (mmu->driver->deactivate)
++		return mmu->driver->deactivate(res, phys);
++
++	vcm_phys_walk(res->start, phys, mmu->driver->orders,
++		      mmu->driver->deactivate_page, NULL, res->vcm);
++}
++
++static int vcm_mmu_bind(struct vcm_res *_res, struct vcm_phys *phys)
++{
++	struct vcm_mmu_res *res = container_of(_res, struct vcm_mmu_res, res);
++	struct vcm_mmu *mmu = container_of(_res->vcm, struct vcm_mmu, vcm);
++	unsigned long flags;
++	int ret;
++
++	spin_lock_irqsave(&mmu->lock, flags);
++	if (mmu->activated) {
++		ret = __vcm_mmu_activate(_res, phys);
++		if (ret < 0)
++			goto done;
++	}
++	list_add_tail(&res->bound, &mmu->bound_res);
++	ret = 0;
++done:
++	spin_unlock_irqrestore(&mmu->lock, flags);
++
++	return ret;
++}
++
++static void vcm_mmu_unbind(struct vcm_res *_res)
++{
++	struct vcm_mmu_res *res = container_of(_res, struct vcm_mmu_res, res);
++	struct vcm_mmu *mmu = container_of(_res->vcm, struct vcm_mmu, vcm);
++	unsigned long flags;
++
++	spin_lock_irqsave(&mmu->lock, flags);
++	if (mmu->activated)
++		__vcm_mmu_deactivate(_res, _res->phys);
++	list_del_init(&res->bound);
++	spin_unlock_irqrestore(&mmu->lock, flags);
++}
++
++static void vcm_mmu_unreserve(struct vcm_res *res)
++{
++	struct vcm_mmu *mmu = container_of(res->vcm, struct vcm_mmu, vcm);
++	gen_pool_free(mmu->pool, res->start, res->res_size);
++}
++
++static int vcm_mmu_activate(struct vcm *vcm)
++{
++	struct vcm_mmu *mmu = container_of(vcm, struct vcm_mmu, vcm);
++	struct vcm_mmu_res *r, *rr;
++	unsigned long flags;
++	int ret;
++
++	spin_lock_irqsave(&mmu->lock, flags);
++
++	list_for_each_entry(r, &mmu->bound_res, bound) {
++		ret = __vcm_mmu_activate(&r->res, r->res.phys);
++		if (ret >= 0)
++			continue;
++
++		list_for_each_entry(rr, &mmu->bound_res, bound) {
++			if (r == rr)
++				goto done;
++			__vcm_mmu_deactivate(&rr->res, rr->res.phys);
++		}
++	}
++
++	mmu->activated = 1;
++	ret = 0;
++
++done:
++	spin_unlock_irqrestore(&mmu->lock, flags);
++
++	return ret;
++}
++
++static void vcm_mmu_deactivate(struct vcm *vcm)
++{
++	struct vcm_mmu *mmu = container_of(vcm, struct vcm_mmu, vcm);
++	struct vcm_mmu_res *r;
++	unsigned long flags;
++
++	spin_lock_irqsave(&mmu->lock, flags);
++
++	mmu->activated = 0;
++
++	list_for_each_entry(r, &mmu->bound_res, bound)
++		mmu->driver->deactivate(&r->res, r->res.phys);
++
++	spin_unlock_irqrestore(&mmu->lock, flags);
++}
++
++struct vcm *__must_check vcm_mmu_init(struct vcm_mmu *mmu)
++{
++	static const struct vcm_driver driver = {
++		.cleanup	= vcm_mmu_cleanup,
++		.res		= vcm_mmu_res,
++		.phys		= vcm_mmu_phys,
++		.bind		= vcm_mmu_bind,
++		.unbind		= vcm_mmu_unbind,
++		.unreserve	= vcm_mmu_unreserve,
++		.activate	= vcm_mmu_activate,
++		.deactivate	= vcm_mmu_deactivate,
++	};
++
++	struct vcm *vcm;
++	int ret;
++
++	if (WARN_ON(!mmu || !mmu->driver ||
++		    !(mmu->driver->activate ||
++		      (mmu->driver->activate_page &&
++		       mmu->driver->deactivate_page)) ||
++		    !(mmu->driver->deactivate ||
++		      mmu->driver->deactivate_page)))
++		return ERR_PTR(-EINVAL);
++
++	mmu->vcm.driver = &driver;
++	vcm = vcm_init(&mmu->vcm);
++	if (IS_ERR(vcm))
 +		return vcm;
 +
-+	/* ... Error recovery ... */
++	mmu->pool = gen_pool_create(PAGE_SHIFT, -1);
++	if (!mmu->pool)
++		return ERR_PTR(-ENOMEM);
 +
-+	kfree(samp);
-+	return vcm;
++	ret = gen_pool_add(mmu->pool, mmu->vcm.start, mmu->vcm.size, -1);
++	if (ret) {
++		gen_pool_destroy(mmu->pool);
++		return ERR_PTR(ret);
++	}
++
++	vcm->driver     = &driver;
++	INIT_LIST_HEAD(&mmu->bound_res);
++	spin_lock_init(&mmu->lock);
++
++	return &mmu->vcm;
 +}
-+EXPORT_SYMBOL_GPL(vcm_samp_create);
++EXPORT_SYMBOL_GPL(vcm_mmu_init);
++
++#endif
++
++
+ /************************ Physical memory management ************************/
+ 
+ #ifdef CONFIG_VCM_PHYS
 -- 
 1.6.2.5
 
