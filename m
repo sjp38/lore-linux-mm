@@ -1,48 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 81E686B00A1
-	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 12:14:19 -0500 (EST)
-Received: by mail-pv0-f169.google.com with SMTP id 30so143145pvc.14
-        for <linux-mm@kvack.org>; Fri, 17 Dec 2010 09:14:15 -0800 (PST)
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [RFC 5/5] truncate: Remove unnecessary page release
-Date: Sat, 18 Dec 2010 02:13:40 +0900
-Message-Id: <02ab98b3a1450f7a1c31edc48ccc57e887cee900.1292604746.git.minchan.kim@gmail.com>
-In-Reply-To: <cover.1292604745.git.minchan.kim@gmail.com>
-References: <cover.1292604745.git.minchan.kim@gmail.com>
-In-Reply-To: <cover.1292604745.git.minchan.kim@gmail.com>
-References: <cover.1292604745.git.minchan.kim@gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E28536B0095
+	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 13:44:49 -0500 (EST)
+MIME-Version: 1.0
+Message-ID: <7fbf2264-04be-4899-9c1f-5c2e0942b158@default>
+Date: Fri, 17 Dec 2010 10:44:06 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [RFC] radix_tree_destroy?
+References: <62b1cf2f-17ec-45c9-a980-308d9b75cdc5@default
+ 20101217032721.GD20847@linux-sh.org>
+In-Reply-To: <20101217032721.GD20847@linux-sh.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Nick Piggin <npiggin@suse.de>, Al Viro <viro@zeniv.linux.org.uk>
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This patch series changes remove_from_page_cache's page ref counting
-rule. page cache ref count is decreased in remove_from_page_cache.
-So we don't need call again in caller context.
+> > +void radix_tree_destroy(struct radix_tree_root *root, void
+> (*slot_free)(void *))
+> > +{
+> > +=09if (root->rnode =3D=3D NULL)
+> > +=09=09return;
+> > +=09if (root->height =3D=3D 0)
+> > +=09=09slot_free(root->rnode);
+>=20
+> Don't you want indirect_to_ptr(root->rnode) here? You probably also
+> don't
+> want the callback in the !radix_tree_is_indirect_ptr() case.
+>=20
+> > +=09else {
+> > +=09=09radix_tree_node_destroy(root->rnode, root->height,
+> slot_free);
+> > +=09=09radix_tree_node_free(root->rnode);
+> > +=09=09root->height =3D 0;
+> > +=09}
+> > +=09root->rnode =3D NULL;
+> > +}
+>=20
+> The above will handle the nodes, but what about the root? It looks like
+> you're at least going to leak tags on the root, so at the very least
+> you'd still want a root_tag_clear_all() here.
 
-Cc: Nick Piggin <npiggin@suse.de>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: linux-mm@kvack.org
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- mm/truncate.c |    1 -
- 1 files changed, 0 insertions(+), 1 deletions(-)
+Thanks for your help.  Will do both.  My use model doesn't require
+tags or rcu, so my hacked version of radix_tree_destroy missed those
+subtleties.
 
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 9ee5673..8decb93 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -114,7 +114,6 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
- 	 * calls cleancache_put_page (and note page->mapping is now NULL)
- 	 */
- 	cleancache_flush_page(mapping, page);
--	page_cache_release(page);	/* pagecache ref */
- 	return 0;
- }
- 
--- 
-1.7.0.4
+So my assumption was correct?  There is no way to efficiently
+destroy an entire radix tree without adding this new routine?
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
