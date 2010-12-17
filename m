@@ -1,220 +1,251 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DF07E6B009E
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 23:16:42 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DE936B00A2
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 23:16:43 -0500 (EST)
 From: KyongHo Cho <pullip.cho@samsung.com>
-Subject: [RFCv2,4/8] mm: vcm: VCM VMM driver added
-Date: Fri, 17 Dec 2010 12:56:23 +0900
-Message-Id: <1292558187-17348-5-git-send-email-pullip.cho@samsung.com>
-In-Reply-To: <1292558187-17348-4-git-send-email-pullip.cho@samsung.com>
+Subject: [RFCv2,8/8] mm: vcm: Sample driver added
+Date: Fri, 17 Dec 2010 12:56:27 +0900
+Message-Id: <1292558187-17348-9-git-send-email-pullip.cho@samsung.com>
+In-Reply-To: <1292558187-17348-8-git-send-email-pullip.cho@samsung.com>
 References: <1292558187-17348-1-git-send-email-pullip.cho@samsung.com>
  <1292558187-17348-2-git-send-email-pullip.cho@samsung.com>
  <1292558187-17348-3-git-send-email-pullip.cho@samsung.com>
  <1292558187-17348-4-git-send-email-pullip.cho@samsung.com>
+ <1292558187-17348-5-git-send-email-pullip.cho@samsung.com>
+ <1292558187-17348-6-git-send-email-pullip.cho@samsung.com>
+ <1292558187-17348-7-git-send-email-pullip.cho@samsung.com>
+ <1292558187-17348-8-git-send-email-pullip.cho@samsung.com>
 Sender: owner-linux-mm@kvack.org
 To: KyongHo Cho <pullip.cho@samsung.com>
 Cc: Kyungmin Park <kyungmin.park@samsung.com>, Kukjin Kim <kgene.kim@samsung.com>, Inho Lee <ilho215.lee@samsung.com>, Inki Dae <inki.dae@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linux-samsung-soc@vger.kernel.org, Michal Nazarewicz <m.nazarewicz@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Michal Nazarewicz <m.nazarewicz@samsung.com>
+This commit adds a sample Virtual Contiguous Memory framework
+driver.  It handles no real hardware and is there only for
+demonstrating purposes.
 
-This commit adds a VCM VMM driver that handles kernl virtual
-address space mappings.  The VCM context is available as a static
-object vcm_vmm.  It is mostly just a wrapper around vmap()
-function.
+* * * THIS COMMIT IS NOT FOR MERGING * * *
 
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- Documentation/virtual-contiguous-memory.txt |   22 +++++-
- include/linux/vcm.h                         |   13 +++
- mm/vcm.c                                    |  108 +++++++++++++++++++++++++++
- 3 files changed, 140 insertions(+), 3 deletions(-)
+ Documentation/virtual-contiguous-memory.txt |    3 +
+ include/linux/vcm-sample.h                  |   30 +++++++
+ mm/Kconfig                                  |   13 +++
+ mm/Makefile                                 |    1 +
+ mm/vcm-sample.c                             |  119 +++++++++++++++++++++++++++
+ 5 files changed, 166 insertions(+), 0 deletions(-)
+ create mode 100644 include/linux/vcm-sample.h
+ create mode 100644 mm/vcm-sample.c
 
 diff --git a/Documentation/virtual-contiguous-memory.txt b/Documentation/virtual-contiguous-memory.txt
-index 10a0638..c830b69 100644
+index 9354c4c..8edd457 100644
 --- a/Documentation/virtual-contiguous-memory.txt
 +++ b/Documentation/virtual-contiguous-memory.txt
-@@ -510,6 +510,25 @@ state.
+@@ -781,6 +781,9 @@ already there.
+ Note that to use the VCM MMU wrapper one needs to select the VCM_MMU
+ Kconfig option or otherwise the wrapper won't be available.
  
- The following VCM drivers are provided:
++There is a sample driver provided which provides a template for real
++drivers.  It can be found in [[file:../mm/vcm-sample.c][mm/vcm-sample.c]] file.
++
+ *** Context creation
  
-+** Virtual Memory Manager driver
-+
-+Virtual Memory Manager driver is available as vcm_vmm and lets one map
-+VCM managed physical memory into kernel space.  The calls that this
-+driver supports are:
-+
-+	vcm_make_binding()
-+	vcm_destroy_binding()
-+
-+	vcm_alloc()
-+
-+	vcm_map()
-+	vcm_unmap()
-+
-+vcm_map() is likely to work with physical memory allocated in context
-+of other drivers as well (the only requirement is that "page" field of
-+struct vcm_phys_part will be set for all physically contiguous parts
-+and that each part's size will be multiply of PAGE_SIZE).
-+
- ** Real hardware drivers
- 
- There are no real hardware drivers at this time.
-@@ -793,6 +812,3 @@ rewritten by Michal Nazarewicz <m.nazarewicz@samsung.com>.
- The new version is still lacking a few important features.  Most
- notably, no real hardware MMU has been implemented yet.  This may be
- ported from original Zach's proposal.
--
--Also, support for VMM is lacking.  This is another thing that can be
--ported from Zach's proposal.
-diff --git a/include/linux/vcm.h b/include/linux/vcm.h
-index 3d54f18..800b5a0 100644
---- a/include/linux/vcm.h
-+++ b/include/linux/vcm.h
-@@ -295,4 +295,17 @@ int  __must_check vcm_activate(struct vcm *vcm);
-  */
- void vcm_deactivate(struct vcm *vcm);
- 
-+/**
-+ * vcm_vmm - VMM context
+ Similarly to normal drivers, MMU driver needs to provide a context
+diff --git a/include/linux/vcm-sample.h b/include/linux/vcm-sample.h
+new file mode 100644
+index 0000000..86a71ca
+--- /dev/null
++++ b/include/linux/vcm-sample.h
+@@ -0,0 +1,30 @@
++/*
++ * Virtual Contiguous Memory sample driver header file
++ * Copyright (c) 2010 by Samsung Electronics.
++ * Written by Michal Nazarewicz (m.nazarewicz@samsung.com)
 + *
-+ * Context for manipulating kernel virtual mappings.  Reserve as well
-+ * as rebinding is not supported by this driver.  Also, all mappings
-+ * are always active (till unbound) regardless of calls to
-+ * vcm_activate().
-+ *
-+ * After mapping, the start field of struct vcm_res should be cast to
-+ * pointer to void and interpreted as a valid kernel space pointer.
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License or (at your optional) any later version of the license.
 + */
-+extern struct vcm vcm_vmm[1];
 +
- #endif
-diff --git a/mm/vcm.c b/mm/vcm.c
-index 6804114..cd9f4ee 100644
---- a/mm/vcm.c
-+++ b/mm/vcm.c
-@@ -16,6 +16,7 @@
- #include <linux/vcm-drv.h>
- #include <linux/module.h>
- #include <linux/mm.h>
-+#include <linux/vmalloc.h>
- #include <linux/err.h>
- #include <linux/slab.h>
++/*
++ * See Documentation/virtual-contiguous-memory.txt for details.
++ */
++
++#ifndef __LINUX_VCM_SAMP_H
++#define __LINUX_VCM_SAMP_H
++
++#include <linux/types.h>
++
++struct vcm;
++
++/**
++ * vcm_samp_create() - creates a VCM context
++ *
++ * ... Documentation goes here ...
++ */
++struct vcm *__must_check vcm_samp_create(/* ... */);
++
++#endif
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 0f4d893..adb90a8 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -430,6 +430,19 @@ config VCM_CMA
+  	  For more information see
+  	  <Documentation/virtual-contiguous-memory.txt>.  If unsure, say "n".
  
-@@ -305,6 +306,113 @@ void vcm_deactivate(struct vcm *vcm)
- EXPORT_SYMBOL_GPL(vcm_deactivate);
- 
- 
-+/****************************** VCM VMM driver ******************************/
++config VCM_SAMP
++ 	bool "VCM sample driver"
++ 	depends on VCM
++ 	select VCM_MMU
++ 	help
++ 	  This enables a sample driver for the VCM framework.  This driver
++ 	  does not handle any real harwdare.  It's merely an template of
++ 	  how for real drivers.
 +
-+static void vcm_vmm_cleanup(struct vcm *vcm)
-+{
-+	/* This should never be called.  vcm_vmm is a static object. */
-+	BUG_ON(1);
-+}
++ 	  For more information see
++ 	  <Documentation/virtual-contiguous-memory.txt>.  If unsure, say
++ 	  "n".
 +
-+static struct vcm_phys *
-+vcm_vmm_phys(struct vcm *vcm, resource_size_t size, unsigned flags)
-+{
-+	static const unsigned char orders[] = { 0 };
-+	return vcm_phys_alloc(size, flags, orders);
-+}
+ #
+ # UP and nommu archs use km based percpu allocator
+ #
+diff --git a/mm/Makefile b/mm/Makefile
+index 78e1bd5..515c433 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -46,3 +46,4 @@ obj-$(CONFIG_CMA) += cma.o
+ obj-$(CONFIG_CMA_BEST_FIT) += cma-best-fit.o
+ obj-$(CONFIG_VCM) += vcm.o
+ obj-$(CONFIG_VCM_CMA) += vcm-cma.o
++obj-$(CONFIG_VCM_SAMPLE) += vcm-sample.o
+diff --git a/mm/vcm-sample.c b/mm/vcm-sample.c
+new file mode 100644
+index 0000000..27a2ae7
+--- /dev/null
++++ b/mm/vcm-sample.c
+@@ -0,0 +1,119 @@
++/*
++ * Virtual Contiguous Memory driver template
++ * Copyright (c) 2010 by Samsung Electronics.
++ * Written by Michal Nazarewicz (m.nazarewicz@samsung.com)
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License or (at your optional) any later version of the license.
++ */
 +
-+static void vcm_vmm_unreserve(struct vcm_res *res)
-+{
-+	kfree(res);
-+}
++/*
++ * This is just a sample code.  It does nothing useful other then
++ * presenting a template for VCM driver.
++ */
 +
-+struct vcm_res *vcm_vmm_map(struct vcm *vcm, struct vcm_phys *phys,
-+			    unsigned flags)
++/*
++ * See Documentation/virtual-contiguous-memory.txt for details.
++ */
++
++#include <linux/vcm-drv.h>
++
++struct vcm_samp {
++	struct vcm_mmu	mmu;
++	/* ... */
++};
++
++static const unsigned vcm_samp_orders[] = {
++	4 + 20 - PAGES_SHIFT,	/* 16MiB pages */
++	0 + 20 - PAGES_SHIFT,	/*  1MiB pages */
++	6 + 10 - PAGES_SHIFT,	/* 64KiB pages */
++	2 + 10 - PAGES_SHIFT,	/*  4KiB pages */
++};
++
++static int vcm_samp_activate_page(dma_addr_t vaddr, dma_addr_t paddr,
++				  unsigned order, void *priv)
 +{
++	struct vcm_samp *samp =
++		container_of((struct vcm *)priv, struct vcm_samp, mmu.vcm);
++
 +	/*
-+	 * Original implementation written by Cho KyongHo
-+	 * (pullip.cho@samsung.com).  Later rewritten by mina86.
++	 * Handle adding a mapping from virtual page at @vaddr to
++	 * physical page ad @paddr.  The page is of order @order which
++	 * means that it's (PAGE_SIZE << @order) bytes.
 +	 */
-+	struct vcm_phys_part *part;
-+	struct page **pages, **p;
-+	struct vcm_res *res;
-+	int ret = -ENOMEM;
-+	unsigned i;
 +
-+	pages = kmalloc((phys->size >> PAGE_SHIFT) * sizeof *pages, GFP_KERNEL);
-+	if (!pages)
-+		return ERR_PTR(-ENOMEM);
-+	p = pages;
-+
-+	res = kmalloc(sizeof *res, GFP_KERNEL);
-+	if (!res)
-+		goto error_pages;
-+
-+	i    = phys->count;
-+	part = phys->parts;
-+	do {
-+		unsigned j = part->size >> PAGE_SHIFT;
-+		struct page *page = part->page;
-+		if (!page)
-+			goto error_notsupp;
-+		do {
-+			*p++ = page++;
-+		} while (--j);
-+	} while (++part, --i);
-+
-+	res->start = (dma_addr_t)vmap(pages, p - pages, VM_ALLOC, PAGE_KERNEL);
-+	if (!res->start)
-+		goto error_res;
-+
-+	kfree(pages);
-+	res->res_size = phys->size;
-+	return res;
-+
-+error_notsupp:
-+	ret = -EOPNOTSUPP;
-+error_res:
-+	kfree(res);
-+error_pages:
-+	kfree(pages);
-+	return ERR_PTR(ret);
++	return -EOPNOTSUPP;
 +}
 +
-+static void vcm_vmm_unbind(struct vcm_res *res)
++static int vcm_samp_deactivate_page(dma_addr_t vaddr, dma_addr_t paddr,
++				    unsigned order, void *priv)
 +{
-+	vunmap((void *)res->start);
-+}
++	struct vcm_samp *samp =
++		container_of((struct vcm *)priv, struct vcm_samp, mmu.vcm);
 +
-+static int vcm_vmm_activate(struct vcm *vcm)
-+{
-+	/* no operation, all bindings are immediately active */
++	/*
++	 * Handle removing a mapping from virtual page at @vaddr to
++	 * physical page at @paddr.  The page is of order @order which
++	 * means that it's (PAGE_SIZE << @order) bytes.
++	 */
++
++	/* It's best not to fail here */
 +	return 0;
 +}
 +
-+static void vcm_vmm_deactivate(struct vcm *vcm)
++static void vcm_samp_cleanup(struct vcm *vcm)
 +{
-+	/*
-+	 * no operation, all bindings are immediately active and
-+	 * cannot be deactivated unless unbound.
-+	 */
++	struct vcm_samp *samp =
++		container_of(res->vcm, struct vcm_samp, mmu.vcm);
++
++	/* Clean ups ... */
++
++	kfree(samp);
 +}
 +
-+struct vcm vcm_vmm[1] = { {
-+	.start       = 0,
-+	.size        = ~(resource_size_t)0,
-+	/* prevent activate/deactivate from being called */
-+	.activations = ATOMIC_INIT(1),
-+	.driver      = &(const struct vcm_driver) {
-+		.cleanup	= vcm_vmm_cleanup,
-+		.phys		= vcm_vmm_phys,
-+		.unbind		= vcm_vmm_unbind,
-+		.unreserve	= vcm_vmm_unreserve,
-+		.activate	= vcm_vmm_activate,
-+		.deactivate	= vcm_vmm_deactivate,
-+	}
-+} };
-+EXPORT_SYMBOL_GPL(vcm_vmm);
++struct vcm *__must_check vcm_samp_create(/* ... */)
++{
++	static const struct vcm_mmu_driver driver = {
++		.order           = vcm_samp_orders,
++		.cleanup         = vcm_samp_cleanup,
++		.activate_page   = vcm_samp_activate_page,
++		.deactivate_page = vcm_samp_deactivate_page,
++	};
 +
++	struct vcm_samp *samp;
++	struct vcm *vcm;
 +
- /****************************** VCM Drivers API *****************************/
- 
- struct vcm *__must_check vcm_init(struct vcm *vcm)
++	switch (0) {
++	case 0:
++	case PAGE_SHIFT == 12:
++		/*
++		 * If you have a compilation error here it means you
++		 * are compiling for a very strange platfrom where
++		 * PAGE_SHIFT is not 12 (ie. PAGE_SIZE is not 4KiB).
++		 * This driver assumes PAGE_SHIFT is 12.
++		 */
++	};
++
++	samp = kzalloc(sizeof *samp, GFP_KERNEL);
++	if (!samp)
++		return ERR_PTR(-ENOMEM);
++
++	/* ... Set things up ... */
++
++	samp->mmu.driver    = &driver;
++	/* skip first 64K so that zero address will be a NULL pointer */
++	samp->mmu.vcm.start =  (64 << 10);
++	samp->mmu.vcm.size  = -(64 << 10);
++
++	vcm = vcm_mmu_init(&samp->mmu);
++	if (!IS_ERR(vcm))
++		return vcm;
++
++	/* ... Error recovery ... */
++
++	kfree(samp);
++	return vcm;
++}
++EXPORT_SYMBOL_GPL(vcm_samp_create);
 -- 
 1.6.2.5
 
