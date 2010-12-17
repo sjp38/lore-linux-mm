@@ -1,64 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C5A136B0098
-	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 10:42:20 -0500 (EST)
-Received: by iwn40 with SMTP id 40so848102iwn.14
-        for <linux-mm@kvack.org>; Fri, 17 Dec 2010 07:42:19 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTima=Tqkga6RzWepLt_H6ooqZappcqZB4MKk546J@mail.gmail.com>
-References: <20101213144646.341970461@intel.com>
-	<20101213150329.002158963@intel.com>
-	<20101217021934.GA9525@localhost>
-	<alpine.LSU.2.00.1012162239270.23229@sister.anvils>
-	<20101217112111.GA8323@localhost>
-	<AANLkTima=Tqkga6RzWepLt_H6ooqZappcqZB4MKk546J@mail.gmail.com>
-Date: Sat, 18 Dec 2010 00:42:18 +0900
-Message-ID: <AANLkTimW4beh2Ta2TutKUeZ2fsER23r6E-MgW11ed6wK@mail.gmail.com>
-Subject: Re: [PATCH] writeback: skip balance_dirty_pages() for in-memory fs
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DA6A86B0098
+	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 10:52:03 -0500 (EST)
+In-reply-to: <20101217090103.2a9ca19a.kamezawa.hiroyu@jp.fujitsu.com> (message
+	from KAMEZAWA Hiroyuki on Fri, 17 Dec 2010 09:01:03 +0900)
+Subject: Re: [PATCH] mm: add replace_page_cache_page() function
+References: <E1PStc6-0006Cd-0Z@pomaz-ex.szeredi.hu>
+	<20101216100744.e3a417cf.kamezawa.hiroyu@jp.fujitsu.com>
+	<E1PTCae-0007tw-Un@pomaz-ex.szeredi.hu> <20101217090103.2a9ca19a.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <E1PTcau-0001aw-60@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Fri, 17 Dec 2010 16:51:44 +0100
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: miklos@szeredi.hu, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Dec 18, 2010 at 12:34 AM, Minchan Kim <minchan.kim@gmail.com> wrote=
-:
-> On Fri, Dec 17, 2010 at 8:21 PM, Wu Fengguang <fengguang.wu@intel.com> wr=
-ote:
->> This avoids unnecessary checks and dirty throttling on tmpfs/ramfs.
->>
->> It also prevents
->>
->> [ =A0388.126563] BUG: unable to handle kernel NULL pointer dereference a=
-t 0000000000000050
->>
->> in the balance_dirty_pages tracepoint, which will call
->>
->> =A0 =A0 =A0 =A0dev_name(mapping->backing_dev_info->dev)
->>
->> but shmem_backing_dev_info.dev is NULL.
->>
->> CC: Hugh Dickins <hughd@google.com>
->> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
->
-> Is it a material for -stable?
+On Fri, 17 Dec 2010, KAMEZAWA Hiroyuki wrote:
+> No. memory cgroup expects all pages should be found on LRU. But, IIUC,
+> pages on this radix-tree will not be on LRU. So, memory cgroup can't find
+> it at destroying cgroup and can't reduce "usage" of resource to be 0.
+> This makes rmdir() returns -EBUSY.
 
-No. balance_dirty_pages tracepoint is new. :)
+Oh, right.  Yes, the page will be on the LRU (it needs to be,
+otherwise the VM coulnd't reclaim it).  After the
+add_to_page_cache_locked is this:
 
->
-> --
-> Kind regards,
-> Minchan Kim
->
+	if (!(buf->flags & PIPE_BUF_FLAG_LRU))
+		lru_cache_add_file(newpage);
 
+It will add the page to the LRU, unless it's already on it.
 
-
---=20
-Kind regards,
-Minchan Kim
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
