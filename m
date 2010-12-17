@@ -1,39 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C543C6B0098
-	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 10:53:47 -0500 (EST)
-In-reply-to: <AANLkTinhkZKWkthN1R39+6nDbN0xZq-g7jP5-LVLxZ3E@mail.gmail.com>
-	(message from Minchan Kim on Fri, 17 Dec 2010 10:40:51 +0900)
-Subject: Re: [PATCH] mm: add replace_page_cache_page() function
-References: <E1PStc6-0006Cd-0Z@pomaz-ex.szeredi.hu>
-	<AANLkTikXQmsgZ8Ea-GoQ4k2St6yCJj8Z3XthuBQ9u+EV@mail.gmail.com>
-	<E1PTCV4-0007sR-SO@pomaz-ex.szeredi.hu>
-	<20101216220457.GA3450@barrios-desktop>
-	<alpine.LSU.2.00.1012161708260.3351@tigran.mtv.corp.google.com> <AANLkTinhkZKWkthN1R39+6nDbN0xZq-g7jP5-LVLxZ3E@mail.gmail.com>
-Message-Id: <E1PTcch-0001bp-7s@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Fri, 17 Dec 2010 16:53:35 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 224336B0098
+	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 12:13:52 -0500 (EST)
+Received: by pvc30 with SMTP id 30so143145pvc.14
+        for <linux-mm@kvack.org>; Fri, 17 Dec 2010 09:13:49 -0800 (PST)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [RFC 0/5] Change page reference hanlding semantic of page cache
+Date: Sat, 18 Dec 2010 02:13:35 +0900
+Message-Id: <cover.1292604745.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: hughd@google.com, miklos@szeredi.hu, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 17 Dec 2010, Minchan Kim wrote:
-> >> >
-> >> > I suspect it's historic that page_cache_release() doesn't drop the
-> >> > page cache ref.
-> >>
-> >> Sorry I can't understand your words.
-> >
-> > Me neither: I believe Miklos meant __remove_from_page_cache() rather
-> > than page_cache_release() in that instance.
-> 
-> Maybe. :)
+I copy description of 1/5.
 
-Yeah, I did mean remove_from_page_cache :)
+Now we add page reference on add_to_page_cache but doesn't drop it
+in remove_from_page_cache. Such asymmetric makes confusing about
+page reference so that caller should notice it and comment why they
+release page reference. It's not good API.
 
-Thanks,
-Miklos
+Long time ago, Hugh tried it[1] but gave up of reason which
+reiser4's drop_page had to unlock the page between removing it from
+page cache and doing the page_cache_release. But now the situation is
+changed. I think at least things in current mainline doesn't have any
+obstacles. The problem is fs or somethings out of mainline.
+If it has done such thing like reiser4, this patch could be a problem.
+
+Do anyone know the such things? Do we care about things out of mainline?
+
+[1] http://lkml.org/lkml/2004/10/24/140
+
+Minchan Kim (5):
+  drop page reference on remove_from_page_cache
+  fuse: Remove unnecessary page release
+  tlbfs: Remove unnecessary page release
+  swap: Remove unnecessary page release
+  truncate: Remove unnecessary page release
+
+ fs/fuse/dev.c        |    1 -
+ fs/hugetlbfs/inode.c |    1 -
+ mm/filemap.c         |   12 ++++++++++++
+ mm/shmem.c           |    1 -
+ mm/truncate.c        |    1 -
+ 5 files changed, 12 insertions(+), 4 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
