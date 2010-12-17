@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B4EBE6B009F
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 23:16:41 -0500 (EST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 72CE56B009E
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 23:16:42 -0500 (EST)
 From: KyongHo Cho <pullip.cho@samsung.com>
-Subject: [RFCv2,6/8] mm: vcm: VCM One-to-One wrapper added
-Date: Fri, 17 Dec 2010 12:56:25 +0900
-Message-Id: <1292558187-17348-7-git-send-email-pullip.cho@samsung.com>
-In-Reply-To: <1292558187-17348-6-git-send-email-pullip.cho@samsung.com>
+Subject: [RFCv2,7/8] mm: vcm: vcm-cma: VCM CMA driver added
+Date: Fri, 17 Dec 2010 12:56:26 +0900
+Message-Id: <1292558187-17348-8-git-send-email-pullip.cho@samsung.com>
+In-Reply-To: <1292558187-17348-7-git-send-email-pullip.cho@samsung.com>
 References: <1292558187-17348-1-git-send-email-pullip.cho@samsung.com>
  <1292558187-17348-2-git-send-email-pullip.cho@samsung.com>
  <1292558187-17348-3-git-send-email-pullip.cho@samsung.com>
  <1292558187-17348-4-git-send-email-pullip.cho@samsung.com>
  <1292558187-17348-5-git-send-email-pullip.cho@samsung.com>
  <1292558187-17348-6-git-send-email-pullip.cho@samsung.com>
+ <1292558187-17348-7-git-send-email-pullip.cho@samsung.com>
 Sender: owner-linux-mm@kvack.org
 To: KyongHo Cho <pullip.cho@samsung.com>
 Cc: Kyungmin Park <kyungmin.park@samsung.com>, Kukjin Kim <kgene.kim@samsung.com>, Inho Lee <ilho215.lee@samsung.com>, Inki Dae <inki.dae@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org, linux-samsung-soc@vger.kernel.org, Michal Nazarewicz <m.nazarewicz@samsung.com>
@@ -20,239 +21,228 @@ List-ID: <linux-mm.kvack.org>
 
 From: Michal Nazarewicz <m.nazarewicz@samsung.com>
 
-This commits adds a VCM One-to-One wrapper which is meant to be
-a helper code for creating VCM drivers for "fake" MMUs, ie.
-situation where there is no real hardware MMU and memory
-must be contiguous physically and mapped directly to "virtual"
-address space.
+This commit adds a VCM driver that instead of using real
+hardware MMU emulates one and uses CMA for allocating
+contiguous memory chunks.
 
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- Documentation/virtual-contiguous-memory.txt |   33 ++++++++++
- include/linux/vcm-drv.h                     |   41 ++++++++++++
- mm/Kconfig                                  |   10 +++
- mm/vcm.c                                    |   90 +++++++++++++++++++++++++++
- 4 files changed, 174 insertions(+), 0 deletions(-)
+ Documentation/virtual-contiguous-memory.txt |   12 +++-
+ include/linux/vcm-cma.h                     |   38 ++++++++++
+ mm/Kconfig                                  |   14 ++++
+ mm/Makefile                                 |    1 +
+ mm/vcm-cma.c                                |   99 +++++++++++++++++++++++++++
+ 5 files changed, 163 insertions(+), 1 deletions(-)
+ create mode 100644 include/linux/vcm-cma.h
+ create mode 100644 mm/vcm-cma.c
 
 diff --git a/Documentation/virtual-contiguous-memory.txt b/Documentation/virtual-contiguous-memory.txt
-index 9036abe..070685b 100644
+index 070685b..46edaee 100644
 --- a/Documentation/virtual-contiguous-memory.txt
 +++ b/Documentation/virtual-contiguous-memory.txt
-@@ -883,6 +883,39 @@ rather then the whole mapping.  It basically incorporates call to the
- vcm_phys_walk() function so driver does not need to call it
- explicitly.
+@@ -552,7 +552,17 @@ well:
+ If one uses vcm_unbind() then vcm_bind() on the same reservation,
+ physical memory pair should also work.
  
-+** Writing a one-to-one VCM driver
+-There are no One-to-One drivers at this time.
++*** VCM CMA
 +
-+Similarly to a wrapper for a real hardware MMU a wrapper for
-+one-to-one VCM contexts has been created.  It implements all of the
-+houskeeping operations and leaves only contiguous memory management
-+(that is allocating and freeing contiguous regions) to the VCM O2O
-+driver.
++VCM CMA driver is a One-to-One driver which uses CMA (see
++[[file:contiguous-memory.txt][contiguous-memory.txt]]) to allocate physically contiguous memory.  VCM
++CMA context is created by calling:
 +
-+As with other drivers, one-to-one driver needs to provide a context
-+creation function.  It needs to allocate space for vcm_o2o structure
-+and initialise its vcm.start, vcm.end and driver fields.  Calling
-+vcm_o2o_init() will fill the other fields and validate entered values:
++	struct vcm *__must_check
++	vcm_cma_create(const char *regions, dma_addr_t alignment);
 +
-+	struct vcm *__must_check vcm_o2o_init(struct vcm_o2o *o2o);
-+
-+There are the following two operations used by the wrapper:
-+
-+	void (*cleanup)(struct vcm *vcm);
-+	struct vcm_phys *(*phys)(struct vcm *vcm, resource_size_t size,
-+				 unsigned flags);
-+
-+The cleanup operation cleans the context and frees all resources.  If
-+not provided, kfree() is used.
-+
-+The phys operation is used in the same way as the core driver's phys
-+operation.  The only difference is that it must return a physically
-+contiguous memory block -- ie. returned structure must have only one
-+part.  On error, the operation must return an error-pointer.  It is
-+required.
-+
-+Note that to use the VCM one-to-one wrapper one needs to select the
-+VCM_O2O Kconfig option or otherwise the wrapper won't be available.
-+
- * Epilogue
++Its first argument is the list of regions that CMA should try to
++allocate memory from.  The second argument is required alignment.
  
- The initial version of the VCM framework was written by Zach Pfeffer
-diff --git a/include/linux/vcm-drv.h b/include/linux/vcm-drv.h
-index 98d065b..d7d97de 100644
---- a/include/linux/vcm-drv.h
-+++ b/include/linux/vcm-drv.h
-@@ -194,6 +194,47 @@ struct vcm *__must_check vcm_mmu_init(struct vcm_mmu *mmu);
+ * Writing a VCM driver
  
- #endif
- 
-+#ifdef CONFIG_VCM_O2O
-+
-+/**
-+ * struct vcm_o2o_driver - VCM One-to-One driver
-+ * @cleanup:	cleans up the VCM context; if not specified. kfree() is used.
-+ * @phys:	allocates a physical contiguous memory block; this is used in
-+ *		the same way &struct vcm_driver's phys is used expect it must
-+ *		provide a contiguous block (ie. exactly one part); required.
-+ */
-+struct vcm_o2o_driver {
-+	void (*cleanup)(struct vcm *vcm);
-+	struct vcm_phys *(*phys)(struct vcm *vcm, resource_size_t size,
-+				 unsigned flags);
-+};
-+
-+/**
-+ * struct vcm_o2o - VCM One-to-One context
-+ * @vcm:	VCM context.
-+ * @driver:	VCM One-to-One driver's operations.
-+ */
-+struct vcm_o2o {
-+	struct vcm			vcm;
-+	const struct vcm_o2o_driver	*driver;
-+};
-+
-+/**
-+ * vcm_o2o_init() - initialises a VCM context for a one-to-one context.
-+ * @o2o:	the vcm_o2o context to initialise.
+diff --git a/include/linux/vcm-cma.h b/include/linux/vcm-cma.h
+new file mode 100644
+index 0000000..57c2cc9
+--- /dev/null
++++ b/include/linux/vcm-cma.h
+@@ -0,0 +1,38 @@
++/*
++ * Virtual Contiguous Memory driver for CMA header
++ * Copyright (c) 2010 by Samsung Electronics.
++ * Written by Michal Nazarewicz (m.nazarewicz@samsung.com)
 + *
-+ * This function initialises the vcm_o2o structure created by a O2O
-+ * driver when setting things up.  It sets up all fields of the
-+ * structure expect for @o2o->vcm.start, @o2o->vcm.size and
-+ * @o2o->driver which are validated by this function.  If they have
-+ * invalid value function produces warning and returns an
-+ * error-pointer.  On any other error, an error-pointer is returned as
-+ * well.  If everything is fine, address of @o2o->vcm is returned.
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License or (at your optional) any later version of the license.
 + */
-+struct vcm *__must_check vcm_o2o_init(struct vcm_o2o *o2o);
++
++/*
++ * See Documentation/virtual-contiguous-memory.txt for details.
++ */
++
++#ifndef __LINUX_VCM_CMA_H
++#define __LINUX_VCM_CMA_H
++
++#include <linux/types.h>
++
++struct vcm;
++
++/**
++ * vcm_cma_create() - creates a VCM context that fakes a hardware MMU
++ * @ctx:	the cma context that is defined by the machine's implementation.
++ *		from.
++ * @alignment:	required alignment of allocations.
++ *
++ * This creates VCM context that can be used on platforms with no
++ * hardware MMU or for devices that aro conected to the bus directly.
++ * Because it does not represent real MMU it has some limitations:
++ * basically, vcm_alloc(), vcm_reserve() and vcm_bind() are likely to
++ * fail so vcm_make_binding() should be used instead.
++ */
++struct vcm *__must_check
++vcm_cma_create(struct cma *ctx, unsigned long alignment);
 +
 +#endif
-+
- #ifdef CONFIG_VCM_PHYS
- 
- /**
 diff --git a/mm/Kconfig b/mm/Kconfig
-index e91499d..53328d2 100644
+index 53328d2..5cd25e7 100644
 --- a/mm/Kconfig
 +++ b/mm/Kconfig
-@@ -380,6 +380,16 @@ config VCM_MMU
-  	  will be automatically selected.  You select it if you are going to
-  	  build external modules that will use this functionality.
+@@ -390,6 +390,20 @@ config VCM_O2O
+ 	  it if you are going to build external modules that will use this
+ 	  functionality.
  
-+config VCM_O2O
-+	bool "VCM O2O wrapper"
-+	depends on VCM && MODULES
++config VCM_CMA
++	bool "VCM CMA driver"
++	depends on VCM && CMA
++	select VCM_O2O
 +	help
-+	  This enables the VCM one-to-one wrapper which helps creating VCM
-+	  drivers for devices without IO MMUs.  If a VCM driver is built that
-+	  requires this option, it will be automatically selected.  You select
-+	  it if you are going to build external modules that will use this
-+	  functionality.
++	  This enables VCM driver that instead of using a real hardware
++	  MMU fakes one and uses a direct mapping.  It provides a subset
++	  of functionalities of a real MMU but if drivers limits their
++	  use of VCM to only supported operations they can work on
++	  both systems with and without MMU with no changes.
++
++	  For more information see
++	  <Documentation/virtual-contiguous-memory.txt>.  If unsure, say "n".
 +
  #
  # UP and nommu archs use km based percpu allocator
  #
-diff --git a/mm/vcm.c b/mm/vcm.c
-index 0d74e95..312540a 100644
---- a/mm/vcm.c
-+++ b/mm/vcm.c
-@@ -648,6 +648,96 @@ EXPORT_SYMBOL_GPL(vcm_mmu_init);
- #endif
- 
- 
-+/**************************** One-to-One wrapper ****************************/
+diff --git a/mm/Makefile b/mm/Makefile
+index b96a6cb..6663fc2 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -44,3 +44,4 @@ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+ obj-$(CONFIG_CMA) += cma.o
+ obj-$(CONFIG_VCM) += vcm.o
++obj-$(CONFIG_VCM_CMA) += vcm-cma.o
+diff --git a/mm/vcm-cma.c b/mm/vcm-cma.c
+new file mode 100644
+index 0000000..dcdc751
+--- /dev/null
++++ b/mm/vcm-cma.c
+@@ -0,0 +1,99 @@
++/*
++ * Virtual Contiguous Memory driver for CMA
++ * Copyright (c) 2010 by Samsung Electronics.
++ * Written by Michal Nazarewicz (m.nazarewicz@samsung.com)
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License or (at your optional) any later version of the license.
++ */
 +
-+#ifdef CONFIG_VCM_O2O
++/*
++ * See Documentation/virtual-contiguous-memory.txt for details.
++ */
 +
-+static void vcm_o2o_cleanup(struct vcm *vcm)
++#include <linux/vcm-drv.h>
++#include <linux/cma.h>
++#include <linux/module.h>
++#include <linux/err.h>
++#include <linux/errno.h>
++#include <linux/slab.h>
++
++struct vcm_cma {
++	struct vcm_o2o	o2o;
++	struct cma	*ctx;
++	unsigned long	alignment;
++};
++
++struct vcm_cma_phys {
++	struct cm		*chunk;
++	struct vcm_phys		phys;
++};
++
++static void vcm_cma_free(struct vcm_phys *_phys)
 +{
-+	struct vcm_o2o *o2o = container_of(vcm, struct vcm_o2o, vcm);
-+	if (o2o->driver->cleanup)
-+		o2o->driver->cleanup(vcm);
-+	else
-+		kfree(o2o);
++	struct vcm_cma_phys *phys =
++		container_of(_phys, struct vcm_cma_phys, phys);
++	cm_unpin(phys->chunk);
++	cm_free(phys->chunk);
++	kfree(phys);
 +}
 +
 +static struct vcm_phys *
-+vcm_o2o_phys(struct vcm *vcm, resource_size_t size, unsigned flags)
++vcm_cma_phys(struct vcm *vcm, resource_size_t size, unsigned flags)
 +{
-+	struct vcm_o2o *o2o = container_of(vcm, struct vcm_o2o, vcm);
-+	struct vcm_phys *phys;
++	struct vcm_cma *cma = container_of(vcm, struct vcm_cma, o2o.vcm);
++	struct vcm_cma_phys *phys;
++	struct cm *chunk;
 +
-+	phys = o2o->driver->phys(vcm, size, flags);
-+	if (!IS_ERR(phys) &&
-+	    WARN_ON(!phys->free || !phys->parts->size ||
-+		    phys->parts->size < size ||
-+		    ((phys->parts->start | phys->parts->size) &
-+		     ~PAGE_MASK))) {
-+		if (phys->free)
-+			phys->free(phys);
-+		return ERR_PTR(-EINVAL);
-+	}
-+
-+	return phys;
-+}
-+
-+static struct vcm_res *
-+vcm_o2o_map(struct vcm *vcm, struct vcm_phys *phys, unsigned flags)
-+{
-+	struct vcm_res *res;
-+
-+	if (phys->count != 1)
-+		return ERR_PTR(-EOPNOTSUPP);
-+
-+	if (!phys->parts->size
-+	 || ((phys->parts->start | phys->parts->size) & ~PAGE_MASK))
-+		return ERR_PTR(-EINVAL);
-+
-+	res = kmalloc(sizeof *res, GFP_KERNEL);
-+	if (!res)
++	phys = kmalloc(sizeof *phys + sizeof *phys->phys.parts, GFP_KERNEL);
++	if (!phys)
 +		return ERR_PTR(-ENOMEM);
 +
-+	res->start    = phys->parts->start;
-+	res->res_size = phys->parts->size;
-+	return res;
++	chunk = cm_alloc(cma->ctx, size, cma->alignment);
++	if (IS_ERR(chunk)) {
++		kfree(phys);
++		return ERR_CAST(chunk);
++	}
++
++	phys->chunk = chunk;
++	phys->phys.count = 1;
++	phys->phys.free = vcm_cma_free;
++	phys->phys.parts->start = cm_pin(chunk);
++	phys->phys.parts->size  = size;
++	return &phys->phys;
 +}
 +
-+static int vcm_o2o_bind(struct vcm_res *res, struct vcm_phys *phys)
++struct vcm *__must_check
++vcm_cma_create(struct cma *ctx, unsigned long alignment)
 +{
-+	if (phys->count != 1)
-+		return -EOPNOTSUPP;
-+
-+	if (!phys->parts->size
-+	 || ((phys->parts->start | phys->parts->size) & ~PAGE_MASK))
-+		return -EINVAL;
-+
-+	if (res->start != phys->parts->start)
-+		return -EOPNOTSUPP;
-+
-+	return 0;
-+}
-+
-+struct vcm *__must_check vcm_o2o_init(struct vcm_o2o *o2o)
-+{
-+	static const struct vcm_driver driver = {
-+		.cleanup	= vcm_o2o_cleanup,
-+		.phys		= vcm_o2o_phys,
-+		.map		= vcm_o2o_map,
-+		.bind		= vcm_o2o_bind,
-+		.unreserve	= (void (*)(struct vcm_res *))kfree,
++	static const struct vcm_o2o_driver driver = {
++		.phys	= vcm_cma_phys,
 +	};
 +
-+	if (WARN_ON(!o2o || !o2o->driver || !o2o->driver->phys))
++	struct vcm_cma *cma;
++	struct vcm *vcm;
++
++	if (alignment & (alignment - 1))
 +		return ERR_PTR(-EINVAL);
 +
-+	o2o->vcm.driver = &driver;
-+	return vcm_init(&o2o->vcm);
++	cma = kmalloc(sizeof *cma, GFP_KERNEL);
++	if (!cma)
++		return ERR_PTR(-ENOMEM);
++
++	cma->o2o.driver    = &driver;
++	/* dummy size and start address!
++	 * to be accepted by vcm_init()
++	 * vcm_cma does not use these members.
++	 */
++	cma->o2o.vcm.start = 0;
++	cma->o2o.vcm.size  = PAGE_SIZE;
++	cma->ctx	   = ctx;
++	cma->alignment     = alignment;
++	vcm = vcm_o2o_init(&cma->o2o);
++	if (IS_ERR(vcm))
++		kfree(cma);
++	return vcm;
 +}
-+EXPORT_SYMBOL_GPL(vcm_o2o_init);
-+
-+#endif
-+
-+
- /************************ Physical memory management ************************/
- 
- #ifdef CONFIG_VCM_PHYS
++EXPORT_SYMBOL_GPL(vcm_cma_create);
 -- 
 1.6.2.5
 
