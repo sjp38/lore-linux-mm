@@ -1,45 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 819806B0098
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 19:59:33 -0500 (EST)
-Date: Fri, 17 Dec 2010 07:34:35 +0800
-From: Shaohui Zheng <shaohui.zheng@linux.intel.com>
-Subject: Re: [5/7, v9] NUMA Hotplug Emulator: Support cpu probe/release in
- x86_64
-Message-ID: <20101216233435.GA26886@shaohui>
-References: <20101210073119.156388875@intel.com>
- <20101210073242.670777298@intel.com>
- <20101216162541.GA14157@mgebm.net>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id AF2636B009F
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 20:21:45 -0500 (EST)
+Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
+	by smtp-out.google.com with ESMTP id oBH1Le3X003383
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 17:21:41 -0800
+Received: from iyi12 (iyi12.prod.google.com [10.241.51.12])
+	by kpbe15.cbf.corp.google.com with ESMTP id oBH1LKs6004147
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 17:21:39 -0800
+Received: by iyi12 with SMTP id 12so127126iyi.25
+        for <linux-mm@kvack.org>; Thu, 16 Dec 2010 17:21:39 -0800 (PST)
+Date: Thu, 16 Dec 2010 17:21:30 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: add replace_page_cache_page() function
+In-Reply-To: <20101216220457.GA3450@barrios-desktop>
+Message-ID: <alpine.LSU.2.00.1012161708260.3351@tigran.mtv.corp.google.com>
+References: <E1PStc6-0006Cd-0Z@pomaz-ex.szeredi.hu> <AANLkTikXQmsgZ8Ea-GoQ4k2St6yCJj8Z3XthuBQ9u+EV@mail.gmail.com> <E1PTCV4-0007sR-SO@pomaz-ex.szeredi.hu> <20101216220457.GA3450@barrios-desktop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101216162541.GA14157@mgebm.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Eric B Munson <emunson@mgebm.net>
-Cc: shaohui.zheng@intel.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Ingo Molnar <mingo@elte.hu>, Len Brown <len.brown@intel.com>, Yinghai Lu <Yinghai.Lu@Sun.COM>, Tejun Heo <tj@kernel.org>, Haicheng Li <haicheng.li@intel.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 16, 2010 at 09:25:41AM -0700, Eric B Munson wrote:
-> Shaohui,
+On Fri, 17 Dec 2010, Minchan Kim wrote:
+> On Thu, Dec 16, 2010 at 12:59:58PM +0100, Miklos Szeredi wrote:
+> > On Thu, 16 Dec 2010, Minchan Kim wrote:
+> > > 
+> > > Why do you release reference of old?
+> > 
+> > That's the page cache reference we release.  Just like we acquire the
+> > page cache reference for "new" above.
 > 
-> What kernel is this series based on?  I cannot get it to build when applied
-> to mainline.  I seem to be missing a definition for set_apicid_to_node.
+> I mean current page cache handling semantic and page reference counting semantic
+> is separeated. For example, remove_from_page_cache doesn't drop the reference of page.
+> That's because we need more works after drop the page from page cache.
+> Look at shmem_writepage, truncate_complete_page.
+
+I disagree with you there: I like the way Miklos made it symmetric,
+I like the way delete_from_swap_cache drops the swap cache reference,
+I dislike the way remove_from_page_cache does not - I did once try to
+change that, but did a bad job, messed up reiserfs or reiser4 I forget
+which, retreated in shame.
+
+In both the examples you give, shmem_writepage and truncate_complete_page,
+the caller has to be holding their own reference, in part because they
+locked the page, and will need to unlock it before releasing their ref.
+I think that would be true of any replace_page_cache_page caller.
+
 > 
-> Eric
+> You makes the general API and caller might need works before the old page 
+> is free. So how about this?
 > 
+> err = replace_page_cache_page(oldpage, newpage, GFP_KERNEL);
+> if (err) {
+>         ...
+> }
+> 
+> page_cache_release(oldpage); /* drop ref of page cache */
+> 
+> 
+> > 
+> > I suspect it's historic that page_cache_release() doesn't drop the
+> > page cache ref.
+> 
+> Sorry I can't understand your words.
 
-Eric,
-	These is a code conflict with Tejun's NUNA unification code, and Tejun's code is still under
-review. This patchset solves the code conflict, the v9 emulator is based on his patches, and we
-need to wait until his patches was accepted.
+Me neither: I believe Miklos meant __remove_from_page_cache() rather
+than page_cache_release() in that instance.
 
-Tejun's patch: http://marc.info/?l=linux-kernel&m=129087151912379.
-
-	If you are doing some testing, you can try to use v8 emulator.
-
--- 
-Thanks & Regards,
-Shaohui
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
