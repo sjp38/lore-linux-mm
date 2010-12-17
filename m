@@ -1,67 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EE836B0093
-	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 00:21:08 -0500 (EST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id AE1606B0098
+	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 01:53:05 -0500 (EST)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id oBH6qxBw030323
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 22:53:03 -0800
+Received: from pzk36 (pzk36.prod.google.com [10.243.19.164])
+	by kpbe17.cbf.corp.google.com with ESMTP id oBH6qvf7014885
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2010 22:52:58 -0800
+Received: by pzk36 with SMTP id 36so85882pzk.39
+        for <linux-mm@kvack.org>; Thu, 16 Dec 2010 22:52:57 -0800 (PST)
+Date: Thu, 16 Dec 2010 22:52:50 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 22/35] writeback: trace global dirty page states
+In-Reply-To: <20101217021934.GA9525@localhost>
+Message-ID: <alpine.LSU.2.00.1012162239270.23229@sister.anvils>
+References: <20101213144646.341970461@intel.com> <20101213150329.002158963@intel.com> <20101217021934.GA9525@localhost>
 MIME-Version: 1.0
-Message-ID: <deceffd7-c3a8-49a9-b203-4b4d06af1195@default>
-Date: Thu, 16 Dec 2010 21:15:07 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH V0 1/4] kztmem: simplified radix tree data structure
- support
-References: <20101207180653.GA28115@ca-server1.us.oracle.com
- dd88185d-bc2c-4d65-8730-8b1fc712306a@default>
-In-Reply-To: <dd88185d-bc2c-4d65-8730-8b1fc712306a@default>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>, akpm@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, riel@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, minchan.kim@gmail.com
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> A monolithic patch containing all of kztmem, cleancache, and frontswap
-> that applies cleanly to 2.6.36 can be found at:
->=20
-> http://oss.oracle.com/projects/tmem/dist/files/kztmem/kztmem-linux-
-> 2.6.36-101207.patch
->=20
-> (Or http://oss.oracle.com/projects/tmem and Downloads and kztmem
-> patches)
->=20
-> I'm a git novice but can prepare a git tree also if desired.
->=20
-> To try kztmem:
->=20
-> 1) apply the monolithic patch to 2.6.36
-> 2) rebuild your config ensuring that CONFIG_KZTMEM, CONFIG_CLEANCACHE,
->    CONFIG_FRONTSWAP, and CONFIG_ZRAM (for xvMalloc) become enabled
-> 3) rebuild and reboot with "kztmem" as a kernel boot parameter
-> 4) see /sys/kernel/mm/kztmem/* for statistics... note that with
->    lots of RAM and no swapping, little or no activity will be seen
->=20
-> As I said, there are known weird bugs that may or may not show
-> up in your configuration and build environment, so be prepared
-> in advance that the kernel may crash... removing kztmem as
-> a boot parameter should disable kztmem and result in a normal boot.
->=20
-> Thanks in advance for trying and testing (and, if you are so
-> inclined, debugging) kztmem!  I'll be happy to answer any
-> questions on- or off-list!
+On Fri, 17 Dec 2010, Wu Fengguang wrote:
+> On Mon, Dec 13, 2010 at 10:47:08PM +0800, Wu, Fengguang wrote:
+> 
+> > +	TP_fast_assign(
+> > +		strlcpy(__entry->bdi,
+> > +			dev_name(mapping->backing_dev_info->dev), 32);
+> > +		__entry->ino			= mapping->host->i_ino;
+> 
+> I got an oops against the above line on shmem. Can be fixed by the
+> below patch, but still not 100% confident..
+> 
+> Thanks,
+> Fengguang
+> ---
+> Subject: writeback fix dereferencing NULL shmem mapping->host
+> Date: Thu Dec 16 22:22:00 CST 2010
+> 
+> The oops happens when doing "cp /proc/vmstat /dev/shm". It seems to be
+> triggered on accessing host->i_ino, since the offset of i_ino is exactly
+> 0x50. However I'm afraid the problem is not fully understand
+> 
+> 1) it's not normal that tmpfs will have mapping->host == NULL
+> 
+> 2) I tried removing the dereference as the below diff, however it
+>    didn't stop the oops. This is very weird.
+> 
+> TRACE_EVENT balance_dirty_state:
+> 
+>  	TP_fast_assign(
+>  		strlcpy(__entry->bdi,
+>  			dev_name(mapping->backing_dev_info->dev), 32);
 
-FYI, in case anyone was thinking about giving it a spin,
-I have just posted an update of the (monolithic) kztmem
-patch here:
+I believe this line above is actually the problem: you can imagine that
+tmpfs leaves backing_dev_info->dev NULL, and dev_name() appears to
+access dev->init_name at 64-bit offset 0x50 down struct device.
 
-http://oss.oracle.com/projects/tmem/dist/files/kztmem/kztmem-linux-2.6.36-1=
-01207.patch=20
+> -		__entry->ino			= mapping->host->i_ino;
+>  		__entry->nr_dirty		= nr_dirty;
+>  		__entry->nr_writeback		= nr_writeback;
+>  		__entry->nr_unstable		= nr_unstable;
+...
+> 
+> CC: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-I think all the weird bugs and crashes are now gone, though I
-have some concurrency rework to do after some feedback from
-Jeremy Fitzhardinge, and that's not going to happen until
-after the holidays.  So I am posting this intermediate version
-if you want to try it, but please hold off on any detailed
-code review until I post v1 to lkml/linux-mm.
+I prefer hughd@google.com, but the tiscali address survived unexpectedly.
 
-Thanks,
-Dan
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  mm/page-writeback.c |    3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> --- linux-next.orig/mm/page-writeback.c	2010-12-17 09:30:11.000000000 +0800
+> +++ linux-next/mm/page-writeback.c	2010-12-17 09:31:05.000000000 +0800
+> @@ -907,6 +907,9 @@ void balance_dirty_pages_ratelimited_nr(
+>  {
+>  	struct backing_dev_info *bdi = mapping->backing_dev_info;
+>  
+> +	if (!mapping_cap_writeback_dirty(mapping))
+> +		return;
+> +
+>  	current->nr_dirtied += nr_pages_dirtied;
+>  
+>  	if (unlikely(!current->nr_dirtied_pause))
+
+That would not really be the right patch to fix your oops, but it
+or something like would be a very sensible patch in its own right:
+looking back through old patches I never got around to sending in,
+I can see I had a very similar one two years ago, to save wasting
+time on dirty page accounting here when it's inappropriate.
+Though mine was testing !mapping_cap_account_dirty(mapping).
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
