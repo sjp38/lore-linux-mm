@@ -1,56 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E28536B0095
-	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 13:44:49 -0500 (EST)
-MIME-Version: 1.0
-Message-ID: <7fbf2264-04be-4899-9c1f-5c2e0942b158@default>
-Date: Fri, 17 Dec 2010 10:44:06 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [RFC] radix_tree_destroy?
-References: <62b1cf2f-17ec-45c9-a980-308d9b75cdc5@default
- 20101217032721.GD20847@linux-sh.org>
-In-Reply-To: <20101217032721.GD20847@linux-sh.org>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 15BFD6B009A
+	for <linux-mm@kvack.org>; Fri, 17 Dec 2010 17:33:59 -0500 (EST)
+Date: Fri, 17 Dec 2010 14:33:16 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: mmotm 2010-12-16-14-56 uploaded (hugetlb)
+Message-Id: <20101217143316.fa36be7d.randy.dunlap@oracle.com>
+In-Reply-To: <201012162329.oBGNTdPY006808@imap1.linux-foundation.org>
+References: <201012162329.oBGNTdPY006808@imap1.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > +void radix_tree_destroy(struct radix_tree_root *root, void
-> (*slot_free)(void *))
-> > +{
-> > +=09if (root->rnode =3D=3D NULL)
-> > +=09=09return;
-> > +=09if (root->height =3D=3D 0)
-> > +=09=09slot_free(root->rnode);
->=20
-> Don't you want indirect_to_ptr(root->rnode) here? You probably also
-> don't
-> want the callback in the !radix_tree_is_indirect_ptr() case.
->=20
-> > +=09else {
-> > +=09=09radix_tree_node_destroy(root->rnode, root->height,
-> slot_free);
-> > +=09=09radix_tree_node_free(root->rnode);
-> > +=09=09root->height =3D 0;
-> > +=09}
-> > +=09root->rnode =3D NULL;
-> > +}
->=20
-> The above will handle the nodes, but what about the root? It looks like
-> you're at least going to leak tags on the root, so at the very least
-> you'd still want a root_tag_clear_all() here.
+On Thu, 16 Dec 2010 14:56:39 -0800 akpm@linux-foundation.org wrote:
 
-Thanks for your help.  Will do both.  My use model doesn't require
-tags or rcu, so my hacked version of radix_tree_destroy missed those
-subtleties.
+> The mm-of-the-moment snapshot 2010-12-16-14-56 has been uploaded to
+> 
+>    http://userweb.kernel.org/~akpm/mmotm/
+> 
+> and will soon be available at
+> 
+>    git://zen-kernel.org/kernel/mmotm.git
+> 
+> It contains the following patches against 2.6.37-rc6:
 
-So my assumption was correct?  There is no way to efficiently
-destroy an entire radix tree without adding this new routine?
 
-Thanks,
-Dan
+# CONFIG_HUGETLBFS is not set
+CONFIG_HUGETLB_PAGE=y
+
+
+In file included from mmotm-2010-1216-1456/kernel/fork.c:36:
+mmotm-2010-1216-1456/include/linux/hugetlb.h: In function 'hstate_inode':
+mmotm-2010-1216-1456/include/linux/hugetlb.h:255: error: implicit declaration of function 'HUGETLBFS_SB'
+
+
+
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
