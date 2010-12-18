@@ -1,191 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id DABCC6B009A
-	for <linux-mm@kvack.org>; Sat, 18 Dec 2010 03:17:10 -0500 (EST)
-Date: Sat, 18 Dec 2010 09:17:07 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: mmotm 2010-12-16-14-56 uploaded (hugetlb)
-Message-ID: <20101218081707.GX1671@random.random>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C4E266B009A
+	for <linux-mm@kvack.org>; Sat, 18 Dec 2010 05:11:09 -0500 (EST)
+Subject: mmotm 2010-12-16 - breaks mlockall() call
+In-Reply-To: Your message of "Thu, 16 Dec 2010 14:56:39 PST."
+             <201012162329.oBGNTdPY006808@imap1.linux-foundation.org>
+From: Valdis.Kletnieks@vt.edu
 References: <201012162329.oBGNTdPY006808@imap1.linux-foundation.org>
- <20101217143316.fa36be7d.randy.dunlap@oracle.com>
- <20101217145334.3d67d80b.akpm@linux-foundation.org>
- <20101217233740.GR1671@random.random>
- <4D0C0043.7090408@oracle.com>
- <20101217165834.447cc096.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101217165834.447cc096.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1292667059_131643P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Sat, 18 Dec 2010 05:10:59 -0500
+Message-ID: <131961.1292667059@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>
+Cc: linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi everyone,
+--==_Exmh_1292667059_131643P
+Content-Type: text/plain; charset=us-ascii
 
-On Fri, Dec 17, 2010 at 04:58:34PM -0800, Andrew Morton wrote:
-> The first one millionth:
+On Thu, 16 Dec 2010 14:56:39 PST, akpm@linux-foundation.org said:
+> The mm-of-the-moment snapshot 2010-12-16-14-56 has been uploaded to
 > 
-> include/asm-generic/pgtable.h: In function 'ptep_get_and_clear':
-> include/asm-generic/pgtable.h:77: error: expected statement before ')' token
-> include/asm-generic/pgtable.h:94: error: invalid storage class for function 'pmdp_get_and_clear'
-> 
-> Due to thp-add-pmd-mangling-generic-functions.patch
+>    http://userweb.kernel.org/~akpm/mmotm/
 
-Here two fixes for the um build.
+The patch mlock-only-hold-mmap_sem-in-shared-mode-when-faulting-in-pages.patch
+causes this chunk of code from cryptsetup-luks to fail during the initramfs:
 
-This is thp-add-pmd-mangling-generic-functions-fix.patch. I hope I'm
-not asking for more build troubles down the road insisting on inline
-and returning (pmd_t) { 0 } instead of converting it back to a
-preprocessor macro.
+	if (mlockall(MCL_CURRENT | MCL_FUTURE)) {
+                        log_err(ctx, _("WARNING!!! Possibly insecure memory. Are you root?\n"));
+                        _memlock_count--;
+                        return 0;
+                }
 
-========
-Subject: thp: fix pgtable.h build for um
+Bisection fingered this patch, which was added after -rc4-mmotm1202, which
+boots without tripping this log_err() call.  I haven't tried building a
+-rc6-mmotm1216 with this patch reverted, because reverting it causes apply
+errors for subsequent patches.
 
-From: Andrea Arcangeli <aarcange@redhat.com>
-
-make ARCH=um failed because of some typo error in newly written code to cleanup
-asm-generic/pgtable.h but that was never compiled in on x86/x64 without um.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
-
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -74,7 +74,7 @@ static inline pte_t ptep_get_and_clear(s
- 	pte_t pte = *ptep;
- 	pte_clear(mm, address, ptep);
- 	return pte;
--)
-+}
- #endif
- 
- #ifndef __HAVE_ARCH_PMDP_GET_AND_CLEAR
-@@ -93,7 +93,7 @@ static inline pmd_t pmdp_get_and_clear(s
- 				       pmd_t *pmdp)
- {
- 	BUG();
--	return 0;
-+	return (pmd_t){ 0 };
- }
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- #endif
-diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
---- a/mm/pgtable-generic.c
-+++ b/mm/pgtable-generic.c
-@@ -29,7 +29,7 @@ int ptep_set_access_flags(struct vm_area
- 		flush_tlb_page(vma, address);
- 	}
- 	return changed;
--})
-+}
- #endif
- 
- #ifndef __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
+Ideas?
 
 
 
-This one is thp-pte-alloc-trans-splitting-fix.patch
+--==_Exmh_1292667059_131643P
+Content-Type: application/pgp-signature
 
-======
-Subject: thp: fix pte_alloc_map
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+iD8DBQFNDIizcC3lWbTT17ARAoqyAJwJgWcv6nVI2dPt5mjCr5CFhzwa8gCfcP0p
+LtHJhxD89wxagNQco+pC6js=
+=8EEn
+-----END PGP SIGNATURE-----
 
-vma can be NULL safely for archs not implementing THP.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
-
-diff --git a/arch/arm/mm/pgd.c b/arch/arm/mm/pgd.c
---- a/arch/arm/mm/pgd.c
-+++ b/arch/arm/mm/pgd.c
-@@ -52,7 +52,7 @@ pgd_t *get_pgd_slow(struct mm_struct *mm
- 		if (!new_pmd)
- 			goto no_pmd;
- 
--		new_pte = pte_alloc_map(mm, new_pmd, 0);
-+		new_pte = pte_alloc_map(mm, NULL, new_pmd, 0);
- 		if (!new_pte)
- 			goto no_pte;
- 
-diff --git a/arch/ia64/mm/hugetlbpage.c b/arch/ia64/mm/hugetlbpage.c
---- a/arch/ia64/mm/hugetlbpage.c
-+++ b/arch/ia64/mm/hugetlbpage.c
-@@ -38,7 +38,7 @@ huge_pte_alloc(struct mm_struct *mm, uns
- 	if (pud) {
- 		pmd = pmd_alloc(mm, pud, taddr);
- 		if (pmd)
--			pte = pte_alloc_map(mm, pmd, taddr);
-+			pte = pte_alloc_map(mm, NULL, pmd, taddr);
- 	}
- 	return pte;
- }
-diff --git a/arch/sh/mm/hugetlbpage.c b/arch/sh/mm/hugetlbpage.c
---- a/arch/sh/mm/hugetlbpage.c
-+++ b/arch/sh/mm/hugetlbpage.c
-@@ -35,7 +35,7 @@ pte_t *huge_pte_alloc(struct mm_struct *
- 		if (pud) {
- 			pmd = pmd_alloc(mm, pud, addr);
- 			if (pmd)
--				pte = pte_alloc_map(mm, pmd, addr);
-+				pte = pte_alloc_map(mm, NULL, pmd, addr);
- 		}
- 	}
- 
-diff --git a/arch/sparc/mm/generic_32.c b/arch/sparc/mm/generic_32.c
---- a/arch/sparc/mm/generic_32.c
-+++ b/arch/sparc/mm/generic_32.c
-@@ -50,7 +50,7 @@ static inline int io_remap_pmd_range(str
- 		end = PGDIR_SIZE;
- 	offset -= address;
- 	do {
--		pte_t * pte = pte_alloc_map(mm, pmd, address);
-+		pte_t * pte = pte_alloc_map(mm, NULL, pmd, address);
- 		if (!pte)
- 			return -ENOMEM;
- 		io_remap_pte_range(mm, pte, address, end - address, address + offset, prot, space);
-diff --git a/arch/sparc/mm/generic_64.c b/arch/sparc/mm/generic_64.c
---- a/arch/sparc/mm/generic_64.c
-+++ b/arch/sparc/mm/generic_64.c
-@@ -92,7 +92,7 @@ static inline int io_remap_pmd_range(str
- 		end = PGDIR_SIZE;
- 	offset -= address;
- 	do {
--		pte_t * pte = pte_alloc_map(mm, pmd, address);
-+		pte_t * pte = pte_alloc_map(mm, NULL, pmd, address);
- 		if (!pte)
- 			return -ENOMEM;
- 		io_remap_pte_range(mm, pte, address, end - address, address + offset, prot, space);
-diff --git a/arch/sparc/mm/hugetlbpage.c b/arch/sparc/mm/hugetlbpage.c
---- a/arch/sparc/mm/hugetlbpage.c
-+++ b/arch/sparc/mm/hugetlbpage.c
-@@ -214,7 +214,7 @@ pte_t *huge_pte_alloc(struct mm_struct *
- 	if (pud) {
- 		pmd = pmd_alloc(mm, pud, addr);
- 		if (pmd)
--			pte = pte_alloc_map(mm, pmd, addr);
-+			pte = pte_alloc_map(mm, NULL, pmd, addr);
- 	}
- 	return pte;
- }
-diff --git a/arch/um/kernel/skas/mmu.c b/arch/um/kernel/skas/mmu.c
---- a/arch/um/kernel/skas/mmu.c
-+++ b/arch/um/kernel/skas/mmu.c
-@@ -31,7 +31,7 @@ static int init_stub_pte(struct mm_struc
- 	if (!pmd)
- 		goto out_pmd;
- 
--	pte = pte_alloc_map(mm, pmd, proc);
-+	pte = pte_alloc_map(mm, NULL, pmd, proc);
- 	if (!pte)
- 		goto out_pte;
- 
-
-
-Let me know if there are further build troubles, thanks!
-Andrea
+--==_Exmh_1292667059_131643P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
