@@ -1,62 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C4E266B009A
-	for <linux-mm@kvack.org>; Sat, 18 Dec 2010 05:11:09 -0500 (EST)
-Subject: mmotm 2010-12-16 - breaks mlockall() call
-In-Reply-To: Your message of "Thu, 16 Dec 2010 14:56:39 PST."
-             <201012162329.oBGNTdPY006808@imap1.linux-foundation.org>
-From: Valdis.Kletnieks@vt.edu
-References: <201012162329.oBGNTdPY006808@imap1.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1292667059_131643P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Sat, 18 Dec 2010 05:10:59 -0500
-Message-ID: <131961.1292667059@localhost>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 596636B0092
+	for <linux-mm@kvack.org>; Sun, 19 Dec 2010 17:19:27 -0500 (EST)
+Date: Sun, 19 Dec 2010 23:10:20 +0100 (CET)
+From: Jesper Juhl <jj@chaosbits.net>
+Subject: [PATCH] Close mem leak in error path in
+ mm/hugetlb.c::nr_hugepages_store_common()
+Message-ID: <alpine.LNX.2.00.1012192305260.6486@swampdragon.chaosbits.net>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>
-Cc: linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_1292667059_131643P
-Content-Type: text/plain; charset=us-ascii
+Hi,
 
-On Thu, 16 Dec 2010 14:56:39 PST, akpm@linux-foundation.org said:
-> The mm-of-the-moment snapshot 2010-12-16-14-56 has been uploaded to
-> 
->    http://userweb.kernel.org/~akpm/mmotm/
-
-The patch mlock-only-hold-mmap_sem-in-shared-mode-when-faulting-in-pages.patch
-causes this chunk of code from cryptsetup-luks to fail during the initramfs:
-
-	if (mlockall(MCL_CURRENT | MCL_FUTURE)) {
-                        log_err(ctx, _("WARNING!!! Possibly insecure memory. Are you root?\n"));
-                        _memlock_count--;
-                        return 0;
-                }
-
-Bisection fingered this patch, which was added after -rc4-mmotm1202, which
-boots without tripping this log_err() call.  I haven't tried building a
--rc6-mmotm1216 with this patch reverted, because reverting it causes apply
-errors for subsequent patches.
-
-Ideas?
+The NODEMASK_ALLOC macro dynamically allocates memory for its second 
+argument ('nodes_allowed' in this context).
+In nr_hugepages_store_common() we may abort early if strict_strtoul() 
+fails, but in that case we do not free the memory already allocated to 
+'nodes_allowed', causing a memory leak.
+This patch closes the leak by freeing the memory in the error path.
 
 
+Signed-off-by: Jesper Juhl <jj@chaosbits.net>
+---
+ hugetlb.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
---==_Exmh_1292667059_131643P
-Content-Type: application/pgp-signature
+  compile tested only
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 8585524..9fdcc35 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1439,8 +1439,10 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+ 	NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __GFP_NORETRY);
+ 
+ 	err = strict_strtoul(buf, 10, &count);
+-	if (err)
++	if (err) {
++		kfree(nodes_allowed);
+ 		return 0;
++	}
+ 
+ 	h = kobj_to_hstate(kobj, &nid);
+ 	if (nid == NUMA_NO_NODE) {
 
-iD8DBQFNDIizcC3lWbTT17ARAoqyAJwJgWcv6nVI2dPt5mjCr5CFhzwa8gCfcP0p
-LtHJhxD89wxagNQco+pC6js=
-=8EEn
------END PGP SIGNATURE-----
 
---==_Exmh_1292667059_131643P--
+
+-- 
+Jesper Juhl <jj@chaosbits.net>            http://www.chaosbits.net/
+Don't top-post http://www.catb.org/~esr/jargon/html/T/top-post.html
+Plain text mails only, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
