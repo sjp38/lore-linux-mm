@@ -1,64 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 774F46B0095
-	for <linux-mm@kvack.org>; Sun, 19 Dec 2010 19:00:09 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oBK002Ma019608
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 20 Dec 2010 09:00:03 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C235A45DE5C
-	for <linux-mm@kvack.org>; Mon, 20 Dec 2010 09:00:02 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A8DB645DE5A
-	for <linux-mm@kvack.org>; Mon, 20 Dec 2010 09:00:02 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8BBDFE38002
-	for <linux-mm@kvack.org>; Mon, 20 Dec 2010 09:00:02 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 57674E08005
-	for <linux-mm@kvack.org>; Mon, 20 Dec 2010 09:00:02 +0900 (JST)
-Date: Mon, 20 Dec 2010 08:54:13 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: add replace_page_cache_page() function
-Message-Id: <20101220085413.b83d1093.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <E1PTcau-0001aw-60@pomaz-ex.szeredi.hu>
-References: <E1PStc6-0006Cd-0Z@pomaz-ex.szeredi.hu>
-	<20101216100744.e3a417cf.kamezawa.hiroyu@jp.fujitsu.com>
-	<E1PTCae-0007tw-Un@pomaz-ex.szeredi.hu>
-	<20101217090103.2a9ca19a.kamezawa.hiroyu@jp.fujitsu.com>
-	<E1PTcau-0001aw-60@pomaz-ex.szeredi.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C6CB6B009A
+	for <linux-mm@kvack.org>; Sun, 19 Dec 2010 20:00:50 -0500 (EST)
+Received: by iwn40 with SMTP id 40so2743609iwn.14
+        for <linux-mm@kvack.org>; Sun, 19 Dec 2010 17:00:48 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <alpine.LNX.2.00.1012192305260.6486@swampdragon.chaosbits.net>
+References: <alpine.LNX.2.00.1012192305260.6486@swampdragon.chaosbits.net>
+Date: Mon, 20 Dec 2010 10:00:48 +0900
+Message-ID: <AANLkTikNx5SG9Z=tUu6tyFRqnR2sLe5NxAjLCJr1UKmq@mail.gmail.com>
+Subject: Re: [PATCH] Close mem leak in error path in mm/hugetlb.c::nr_hugepages_store_common()
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jesper Juhl <jj@chaosbits.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 17 Dec 2010 16:51:44 +0100
-Miklos Szeredi <miklos@szeredi.hu> wrote:
+On Mon, Dec 20, 2010 at 7:10 AM, Jesper Juhl <jj@chaosbits.net> wrote:
+> Hi,
+>
+> The NODEMASK_ALLOC macro dynamically allocates memory for its second
+> argument ('nodes_allowed' in this context).
+> In nr_hugepages_store_common() we may abort early if strict_strtoul()
+> fails, but in that case we do not free the memory already allocated to
+> 'nodes_allowed', causing a memory leak.
+> This patch closes the leak by freeing the memory in the error path.
+>
+>
+> Signed-off-by: Jesper Juhl <jj@chaosbits.net>
+> ---
+> =A0hugetlb.c | =A0 =A04 +++-
+> =A01 file changed, 3 insertions(+), 1 deletion(-)
+>
+> =A0compile tested only
+>
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 8585524..9fdcc35 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1439,8 +1439,10 @@ static ssize_t nr_hugepages_store_common(bool obey=
+_mempolicy,
+> =A0 =A0 =A0 =A0NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __G=
+FP_NORETRY);
+>
+> =A0 =A0 =A0 =A0err =3D strict_strtoul(buf, 10, &count);
+> - =A0 =A0 =A0 if (err)
+> + =A0 =A0 =A0 if (err) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(nodes_allowed);
 
-> On Fri, 17 Dec 2010, KAMEZAWA Hiroyuki wrote:
-> > No. memory cgroup expects all pages should be found on LRU. But, IIUC,
-> > pages on this radix-tree will not be on LRU. So, memory cgroup can't find
-> > it at destroying cgroup and can't reduce "usage" of resource to be 0.
-> > This makes rmdir() returns -EBUSY.
-> 
-> Oh, right.  Yes, the page will be on the LRU (it needs to be,
-> otherwise the VM coulnd't reclaim it).  After the
-> add_to_page_cache_locked is this:
-> 
-> 	if (!(buf->flags & PIPE_BUF_FLAG_LRU))
-> 		lru_cache_add_file(newpage);
-> 
-> It will add the page to the LRU, unless it's already on it.
-> 
+Nice catch. But use NODEMASK_FREE. It might be not kmalloced object.
 
-Thank you for clarification. 
 
-Thanks,
--Kame
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
