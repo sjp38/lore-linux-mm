@@ -1,111 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B58BB6B00B5
-	for <linux-mm@kvack.org>; Sun, 19 Dec 2010 22:31:57 -0500 (EST)
-Received: by iwn40 with SMTP id 40so2825222iwn.14
-        for <linux-mm@kvack.org>; Sun, 19 Dec 2010 19:31:55 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20101220120218.E56F.A69D9226@jp.fujitsu.com>
-References: <20101220113239.E56C.A69D9226@jp.fujitsu.com>
-	<AANLkTikOu6xUs3e_gEubidwSc_kQVuTKask+1WcCjzFs@mail.gmail.com>
-	<20101220120218.E56F.A69D9226@jp.fujitsu.com>
-Date: Mon, 20 Dec 2010 12:31:55 +0900
-Message-ID: <AANLkTikaTAsU9yVpdDriJ9LmUhGQoNp06f6ZMF+wJKcX@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 8A1F86B00B8
+	for <linux-mm@kvack.org>; Sun, 19 Dec 2010 23:41:25 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id oBK4fHBk031518
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 20 Dec 2010 13:41:17 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 49F9345DE55
+	for <linux-mm@kvack.org>; Mon, 20 Dec 2010 13:41:17 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 239C145DE68
+	for <linux-mm@kvack.org>; Mon, 20 Dec 2010 13:41:17 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A70FE08002
+	for <linux-mm@kvack.org>; Mon, 20 Dec 2010 13:41:17 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B6358E18005
+	for <linux-mm@kvack.org>; Mon, 20 Dec 2010 13:41:16 +0900 (JST)
+Date: Mon, 20 Dec 2010 13:35:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC 5/5] truncate: Remove unnecessary page release
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Message-Id: <20101220133526.e075feb8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <AANLkTi=UfmZNfKWCisrs6ezzoWqpcwUOT5bs8LGwN7Rv@mail.gmail.com>
+References: <cover.1292604745.git.minchan.kim@gmail.com>
+	<02ab98b3a1450f7a1c31edc48ccc57e887cee900.1292604746.git.minchan.kim@gmail.com>
+	<20101220112227.E566.A69D9226@jp.fujitsu.com>
+	<20101220112733.064f2fe3.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTi=UfmZNfKWCisrs6ezzoWqpcwUOT5bs8LGwN7Rv@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Al Viro <viro@zeniv.linux.org.uk>, Andi Kleen <andi@firstfloor.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Al Viro <viro@zeniv.linux.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 20, 2010 at 12:03 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> On Mon, Dec 20, 2010 at 11:32 AM, KOSAKI Motohiro
->> <kosaki.motohiro@jp.fujitsu.com> wrote:
->> >> On Mon, Dec 20, 2010 at 11:21 AM, KOSAKI Motohiro
->> >> <kosaki.motohiro@jp.fujitsu.com> wrote:
->> >> >> This patch series changes remove_from_page_cache's page ref counti=
-ng
->> >> >> rule. page cache ref count is decreased in remove_from_page_cache.
->> >> >> So we don't need call again in caller context.
->> >> >>
->> >> >> Cc: Nick Piggin <npiggin@suse.de>
->> >> >> Cc: Al Viro <viro@zeniv.linux.org.uk>
->> >> >> Cc: linux-mm@kvack.org
->> >> >> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->> >> >> ---
->> >> >> =A0mm/truncate.c | =A0 =A01 -
->> >> >> =A01 files changed, 0 insertions(+), 1 deletions(-)
->> >> >>
->> >> >> diff --git a/mm/truncate.c b/mm/truncate.c
->> >> >> index 9ee5673..8decb93 100644
->> >> >> --- a/mm/truncate.c
->> >> >> +++ b/mm/truncate.c
->> >> >> @@ -114,7 +114,6 @@ truncate_complete_page(struct address_space *m=
-apping, struct page *page)
->> >> >> =A0 =A0 =A0 =A0* calls cleancache_put_page (and note page->mapping=
- is now NULL)
->> >> >> =A0 =A0 =A0 =A0*/
->> >> >> =A0 =A0 =A0 cleancache_flush_page(mapping, page);
->> >> >> - =A0 =A0 page_cache_release(page); =A0 =A0 =A0 /* pagecache ref *=
-/
->> >> >> =A0 =A0 =A0 return 0;
->> >> >
->> >> > Do we _always_ have stable page reference here? IOW, I can assume
->> >>
->> >> I think so.
->> >> Because the page is locked so caller have to hold a ref to unlock it.
->> >
->> > Hmm...
->> >
->> > Perhaps, I'm missing something. But I think =A0__memory_failure() only=
- lock
->> > compaund_head page. not all. example.
->>
->> The page passed truncate_complete_page is only head page?
->> Is it possible to pass the page which isn't head of compound in
->> truncate_complete_page?
->
-> I dunno, really. My five miniture grep found following logic. therefore I=
- asked you.
->
->
->
-> __memory_failure()
+On Mon, 20 Dec 2010 11:58:50 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
+
+> On Mon, Dec 20, 2010 at 11:27 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Mon, 20 Dec 2010 11:21:52 +0900 (JST)
+> > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> >
+> >> > This patch series changes remove_from_page_cache's page ref counting
+> >> > rule. page cache ref count is decreased in remove_from_page_cache.
+> >> > So we don't need call again in caller context.
+> >> >
+> >> > Cc: Nick Piggin <npiggin@suse.de>
+> >> > Cc: Al Viro <viro@zeniv.linux.org.uk>
+> >> > Cc: linux-mm@kvack.org
+> >> > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> >> > ---
+> >> > A mm/truncate.c | A  A 1 -
+> >> > A 1 files changed, 0 insertions(+), 1 deletions(-)
+> >> >
+> >> > diff --git a/mm/truncate.c b/mm/truncate.c
+> >> > index 9ee5673..8decb93 100644
+> >> > --- a/mm/truncate.c
+> >> > +++ b/mm/truncate.c
+> >> > @@ -114,7 +114,6 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
+> >> > A  A  A * calls cleancache_put_page (and note page->mapping is now NULL)
+> >> > A  A  A */
+> >> > A  A  cleancache_flush_page(mapping, page);
+> >> > - A  page_cache_release(page); A  A  A  /* pagecache ref */
+> >> > A  A  return 0;
+> >>
+> >> Do we _always_ have stable page reference here? IOW, I can assume
+> >> cleancache_flush_page() doesn't cause NULL deref?
+> >>
+> > Hmm, my review was bad.
+> >
+> > I think cleancache_flush_page() here should eat (mapping, index) as argument
+> > rather than "page".
+> >
+> > BTW, A I can't understand
+> > ==
+> > void __cleancache_flush_page(struct address_space *mapping, struct page *page)
+> > {
+> > A  A  A  A /* careful... page->mapping is NULL sometimes when this is called */
+> > A  A  A  A int pool_id = mapping->host->i_sb->cleancache_poolid;
+> > A  A  A  A struct cleancache_filekey key = { .u.key = { 0 } };
+> > ==
+> >
+> > Why above is safe...
+> > I think (mapping,index) should be passed instead of page.
+> 
+> I don't think current code isn't safe.
+> 
+> void __cleancache_flush_page(struct address_space *mapping, struct page *page)
 > {
-> =A0 =A0 =A0 =A0p =3D pfn_to_page(pfn);
-> =A0 =A0 =A0 =A0hpage =3D compound_head(p);
-> (snip)
-> =A0 =A0 =A0 =A0res =3D -EBUSY;
-> =A0 =A0 =A0 =A0for (ps =3D error_states;; ps++) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if ((p->flags & ps->mask) =3D=3D ps->res) =
-{
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0res =3D page_action(ps, p,=
- pfn); =A0// call truncate here
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0break;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0}
-> out:
-> =A0 =A0 =A0 =A0unlock_page(hpage);
-> }
->
->
+>         /* careful... page->mapping is NULL sometimes when this is called */
+>         int pool_id = mapping->host->i_sb->cleancache_poolid;
+>         struct cleancache_filekey key = { .u.key = { 0 } };
+> 
+>         if (pool_id >= 0) {
+>                 VM_BUG_ON(!PageLocked(page));
+> 
+> it does check PageLocked. So caller should hold a page reference to
+> prevent freeing ramined PG_locked
+> If the caller doesn't hold a ref of page, I think it's BUG of caller.
+> 
+> In our case, caller calls truncate_complete_page have to make sure it, I think.
+> 
 
-AFAIK, We have to handle head page when we handle compound page.
-Internal page handling logic about tail pages is hidden by compound
-page internal.
+Ah, my point is that this function trust page->index even if page->mapping is
+reset to NULL. And I'm not sure that there are any race that an other thread
+add a replacement page for (mapping, index) while a thread call this function.
 
-So I think memory_failure also don't have a problem.
-For needing double check, Cced Andi.
-
-Thanks for the review, KOSAKI.
+Thanks,
+-Kame
 
 
---=20
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
