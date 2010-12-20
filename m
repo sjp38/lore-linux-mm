@@ -1,62 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C6CB6B009A
-	for <linux-mm@kvack.org>; Sun, 19 Dec 2010 20:00:50 -0500 (EST)
-Received: by iwn40 with SMTP id 40so2743609iwn.14
-        for <linux-mm@kvack.org>; Sun, 19 Dec 2010 17:00:48 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D64626B009C
+	for <linux-mm@kvack.org>; Sun, 19 Dec 2010 20:48:10 -0500 (EST)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id oBK1m7k8003935
+	for <linux-mm@kvack.org>; Sun, 19 Dec 2010 17:48:07 -0800
+Received: from qwg5 (qwg5.prod.google.com [10.241.194.133])
+	by hpaq12.eem.corp.google.com with ESMTP id oBK1m6s9029445
+	for <linux-mm@kvack.org>; Sun, 19 Dec 2010 17:48:06 -0800
+Received: by qwg5 with SMTP id 5so2299173qwg.20
+        for <linux-mm@kvack.org>; Sun, 19 Dec 2010 17:48:06 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LNX.2.00.1012192305260.6486@swampdragon.chaosbits.net>
-References: <alpine.LNX.2.00.1012192305260.6486@swampdragon.chaosbits.net>
-Date: Mon, 20 Dec 2010 10:00:48 +0900
-Message-ID: <AANLkTikNx5SG9Z=tUu6tyFRqnR2sLe5NxAjLCJr1UKmq@mail.gmail.com>
-Subject: Re: [PATCH] Close mem leak in error path in mm/hugetlb.c::nr_hugepages_store_common()
-From: Minchan Kim <minchan.kim@gmail.com>
+In-Reply-To: <131961.1292667059@localhost>
+References: <201012162329.oBGNTdPY006808@imap1.linux-foundation.org>
+	<131961.1292667059@localhost>
+Date: Sun, 19 Dec 2010 17:48:05 -0800
+Message-ID: <AANLkTik4ffEzb_zzEN7Y+fksSkr+6HZs5Szd4VupH4+-@mail.gmail.com>
+Subject: Re: mmotm 2010-12-16 - breaks mlockall() call
+From: Michel Lespinasse <walken@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Jesper Juhl <jj@chaosbits.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Valdis.Kletnieks@vt.edu
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 20, 2010 at 7:10 AM, Jesper Juhl <jj@chaosbits.net> wrote:
-> Hi,
+On Sat, Dec 18, 2010 at 2:10 AM,  <Valdis.Kletnieks@vt.edu> wrote:
+> On Thu, 16 Dec 2010 14:56:39 PST, akpm@linux-foundation.org said:
+>> The mm-of-the-moment snapshot 2010-12-16-14-56 has been uploaded to
+>>
+>> =A0 =A0http://userweb.kernel.org/~akpm/mmotm/
 >
-> The NODEMASK_ALLOC macro dynamically allocates memory for its second
-> argument ('nodes_allowed' in this context).
-> In nr_hugepages_store_common() we may abort early if strict_strtoul()
-> fails, but in that case we do not free the memory already allocated to
-> 'nodes_allowed', causing a memory leak.
-> This patch closes the leak by freeing the memory in the error path.
+> The patch mlock-only-hold-mmap_sem-in-shared-mode-when-faulting-in-pages.=
+patch
+> causes this chunk of code from cryptsetup-luks to fail during the initram=
+fs:
 >
+> =A0 =A0 =A0 =A0if (mlockall(MCL_CURRENT | MCL_FUTURE)) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0log_err(ctx, _("WARNING!!!=
+ Possibly insecure memory. Are you root?\n"));
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0_memlock_count--;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return 0;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
 >
-> Signed-off-by: Jesper Juhl <jj@chaosbits.net>
-> ---
-> =A0hugetlb.c | =A0 =A04 +++-
-> =A01 file changed, 3 insertions(+), 1 deletion(-)
+> Bisection fingered this patch, which was added after -rc4-mmotm1202, whic=
+h
+> boots without tripping this log_err() call. =A0I haven't tried building a
+> -rc6-mmotm1216 with this patch reverted, because reverting it causes appl=
+y
+> errors for subsequent patches.
 >
-> =A0compile tested only
->
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 8585524..9fdcc35 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1439,8 +1439,10 @@ static ssize_t nr_hugepages_store_common(bool obey=
-_mempolicy,
-> =A0 =A0 =A0 =A0NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __G=
-FP_NORETRY);
->
-> =A0 =A0 =A0 =A0err =3D strict_strtoul(buf, 10, &count);
-> - =A0 =A0 =A0 if (err)
-> + =A0 =A0 =A0 if (err) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(nodes_allowed);
+> Ideas?
 
-Nice catch. But use NODEMASK_FREE. It might be not kmalloced object.
+I had a quick look, but didn't figure out much so far.
 
+Could you send me your initramfs image and .config file so I can
+reproduce the issue locally ?
 
+Thanks,
 
 --=20
-Kind regards,
-Minchan Kim
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
