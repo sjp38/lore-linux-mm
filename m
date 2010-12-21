@@ -1,55 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D7C76B0089
-	for <linux-mm@kvack.org>; Tue, 21 Dec 2010 00:08:06 -0500 (EST)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id oBL582Kv024612
-	for <linux-mm@kvack.org>; Mon, 20 Dec 2010 21:08:02 -0800
-Received: from pxi4 (pxi4.prod.google.com [10.243.27.4])
-	by kpbe19.cbf.corp.google.com with ESMTP id oBL57w1I019526
-	for <linux-mm@kvack.org>; Mon, 20 Dec 2010 21:08:01 -0800
-Received: by pxi4 with SMTP id 4so932835pxi.16
-        for <linux-mm@kvack.org>; Mon, 20 Dec 2010 21:07:58 -0800 (PST)
-Date: Mon, 20 Dec 2010 21:07:51 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CBDD6B0089
+	for <linux-mm@kvack.org>; Tue, 21 Dec 2010 00:59:59 -0500 (EST)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id oBL5xubO015901
+	for <linux-mm@kvack.org>; Mon, 20 Dec 2010 21:59:56 -0800
+Received: from pvb32 (pvb32.prod.google.com [10.241.209.96])
+	by wpaz5.hot.corp.google.com with ESMTP id oBL5xsOQ020609
+	for <linux-mm@kvack.org>; Mon, 20 Dec 2010 21:59:55 -0800
+Received: by pvb32 with SMTP id 32so787588pvb.21
+        for <linux-mm@kvack.org>; Mon, 20 Dec 2010 21:59:54 -0800 (PST)
+Date: Mon, 20 Dec 2010 21:59:46 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [RFC 0/5] Change page reference hanlding semantic of page
- cache
-In-Reply-To: <AANLkTikss0RW_xRrD_vVvfqy1rH+NC=WPUB2qKBaw5qo@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1012202048220.15447@tigran.mtv.corp.google.com>
-References: <cover.1292604745.git.minchan.kim@gmail.com> <20101220103307.GA22986@infradead.org> <AANLkTikss0RW_xRrD_vVvfqy1rH+NC=WPUB2qKBaw5qo@mail.gmail.com>
+Subject: Re: [PATCH] writeback: skip balance_dirty_pages() for in-memory fs
+In-Reply-To: <20101217112111.GA8323@localhost>
+Message-ID: <alpine.LSU.2.00.1012202127310.16112@tigran.mtv.corp.google.com>
+References: <20101213144646.341970461@intel.com> <20101213150329.002158963@intel.com> <20101217021934.GA9525@localhost> <alpine.LSU.2.00.1012162239270.23229@sister.anvils> <20101217112111.GA8323@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Dec 2010, Minchan Kim wrote:
-> On Mon, Dec 20, 2010 at 7:33 PM, Christoph Hellwig <hch@infradead.org> wrote:
-> > You'll need to merge all patches into one, otherwise you create really
-> > nasty memory leaks when bisecting between them.
-> >
+On Fri, 17 Dec 2010, Wu Fengguang wrote:
+
+> This avoids unnecessary checks and dirty throttling on tmpfs/ramfs.
 > 
-> Okay. I will resend.
+> It also prevents
 > 
-> Thanks for the notice, Christoph.
+> [  388.126563] BUG: unable to handle kernel NULL pointer dereference at 0000000000000050
+> 
+> in the balance_dirty_pages tracepoint, which will call
+> 
+> 	dev_name(mapping->backing_dev_info->dev)
+> 
+> but shmem_backing_dev_info.dev is NULL.
+> 
+> CC: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Good point from hch, but I feel even more strongly: if you're going to
-do this now, please rename remove_from_page_cache (delete_from_page_cache
-was what I chose back when I misdid it) - you're changing an EXPORTed
-function in a subtle (well, subtlish) confusing way, which could easily
-waste people's time down the line, whether in not-yet-in-tree filesystems
-or backports of fixes.  I'd much rather you break someone's build,
-forcing them to look at what changed, than crash or leak at runtime.
+Whilst I do like this change, and I do think it's the right thing to do
+(given that the bdi has explicitly opted out of what it then got into),
+I've a sneaking feeling that something somewhere may show a regression
+from it.  IIRC, there were circumstances in which it actually did
+(inadvertently) end up throttling the tmpfs writing - if there were
+too many dirty non-tmpfs pages around??
 
-If you do rename, you can keep your patch structure, introducing the
-new function as a wrapper to the old at the beginning, then removing
-the old function at the end.
+What am I saying?!  I think I'm asking you to look more closely at what
+actually used to happen, and be more explicit about the behavior you're
+stopping here - although the patch is mainly code optimization, there
+is some functional change I think.  (You do mention throttling on
+tmpfs/ramfs, but the way it worked out wasn't straightforward.)
 
-(As you know, I do agree that it's right to decrement the reference
-count at the point of removing from page cache.)
+I'd better not burble on for a third paragraph!
 
 Hugh
+
+> ---
+>  mm/page-writeback.c |    3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> --- linux-next.orig/mm/page-writeback.c	2010-12-17 19:09:19.000000000 +0800
+> +++ linux-next/mm/page-writeback.c	2010-12-17 19:09:22.000000000 +0800
+> @@ -899,6 +899,9 @@ void balance_dirty_pages_ratelimited_nr(
+>  {
+>  	struct backing_dev_info *bdi = mapping->backing_dev_info;
+>  
+> +	if (!bdi_cap_account_dirty(bdi))
+> +		return;
+> +
+>  	current->nr_dirtied += nr_pages_dirtied;
+>  
+>  	if (unlikely(!current->nr_dirtied_pause))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
