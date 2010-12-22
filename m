@@ -1,101 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7695B6B0087
-	for <linux-mm@kvack.org>; Wed, 22 Dec 2010 09:07:41 -0500 (EST)
-From: KyongHo Cho <pullip.cho@samsung.com>
-Subject: [PATCH] mm: simple approach to calculate combined index of adjacent buddy lists
-Date: Wed, 22 Dec 2010 22:46:34 +0900
-Message-Id: <1293025594-15802-1-git-send-email-pullip.cho@samsung.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 08D3A6B0087
+	for <linux-mm@kvack.org>; Wed, 22 Dec 2010 10:33:18 -0500 (EST)
+Received: by iwn40 with SMTP id 40so5493006iwn.14
+        for <linux-mm@kvack.org>; Wed, 22 Dec 2010 07:33:16 -0800 (PST)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH 0/7] Change page reference handling semantic of page cache
+Date: Thu, 23 Dec 2010 00:32:42 +0900
+Message-Id: <cover.1293031046.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: KyongHo Cho <pullip.cho@samsung.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-The previous approach of calucation of combined index was
+Now we increases page reference on add_to_page_cache but doesn't decrease it
+in remove_from_page_cache. Such asymmetric makes confusing about
+page reference so that caller should notice it and comment why they
+release page reference. It's not good API.
 
-page_idx & ~(1 << order))
+Long time ago, Hugh tried it[1] but gave up of reason which
+reiser4's drop_page had to unlock the page between removing it from
+page cache and doing the page_cache_release. But now the situation is
+changed. I think at least things in current mainline doesn't have any
+obstacles. The problem is fs or somethings out of mainline.
+If it has done such thing like reiser4, this patch could be a problem but
+they found it when compile time since we remove remove_from_page_cache.
 
-but we have same result with
+[1] http://lkml.org/lkml/2004/10/24/140
 
-page_idx & buddy_idx.
+The series configuration is following as. 
 
-I think this reduces instructions slightly as well as enhances readability.
+[1/7] : This patch introduces new API delete_from_page_cache.
+[2,3,4,5/7] : Change remove_from_page_cache with delete_from_page_cache.
+Intentionally I divide patch per file since someone might have a concern 
+about releasing page reference of delete_from_page_cache in 
+somecase (ex, truncate.c)
+[6/7] : Remove old API so out of fs can meet compile error when build time
+and can notice it.
+[7/7] : Change __remove_from_page_cache with __delete_from_page_cache, too.
+In this time, I made all-in-one patch because it doesn't change old behavior
+so it has no concern. Just clean up patch.
 
-(Sorry for duplicate patch in linux-mm.  failed to send this patch a bit ago.)
+Minchan Kim (7):
+  [1/7] Introduce delete_from_page_cache
+  [2/7] fuse: Change remove_from_page_cache
+  [3/7] tlbfs: Change remove_from_page_cache
+  [4/7] swap: Change remove_from_page_cache
+  [5/7] truncate: Change remove_from_page_cache
+  [6/7] Good bye remove_from_page_cache
+  [7/7] Change __remove_from_page_cache
 
-Signed-off-by: KyongHo Cho <pullip.cho@samsung.com>
----
- mm/page_alloc.c |   25 ++++++++++---------------
- 1 files changed, 10 insertions(+), 15 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f12ad18..6033053 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -420,18 +420,10 @@ static inline void rmv_page_order(struct page *page)
-  *
-  * Assumption: *_mem_map is contiguous at least up to MAX_ORDER
-  */
--static inline struct page *
--__page_find_buddy(struct page *page, unsigned long page_idx, unsigned int order)
--{
--	unsigned long buddy_idx = page_idx ^ (1 << order);
--
--	return page + (buddy_idx - page_idx);
--}
--
- static inline unsigned long
--__find_combined_index(unsigned long page_idx, unsigned int order)
-+__find_buddy_index(unsigned long page_idx, unsigned int order)
- {
--	return (page_idx & ~(1 << order));
-+	return page_idx ^ (1 << order);
- }
- 
- /*
-@@ -493,6 +485,7 @@ static inline void __free_one_page(struct page *page,
- {
- 	unsigned long page_idx;
- 	unsigned long combined_idx;
-+	unsigned long buddy_idx;
- 	struct page *buddy;
- 
- 	if (unlikely(PageCompound(page)))
-@@ -507,7 +500,8 @@ static inline void __free_one_page(struct page *page,
- 	VM_BUG_ON(bad_range(zone, page));
- 
- 	while (order < MAX_ORDER-1) {
--		buddy = __page_find_buddy(page, page_idx, order);
-+		buddy_idx = __find_buddy_index(page_idx, order);
-+		buddy = page + (buddy_idx - page_idx);
- 		if (!page_is_buddy(page, buddy, order))
- 			break;
- 
-@@ -515,7 +509,7 @@ static inline void __free_one_page(struct page *page,
- 		list_del(&buddy->lru);
- 		zone->free_area[order].nr_free--;
- 		rmv_page_order(buddy);
--		combined_idx = __find_combined_index(page_idx, order);
-+		combined_idx = buddy_idx & page_idx;
- 		page = page + (combined_idx - page_idx);
- 		page_idx = combined_idx;
- 		order++;
-@@ -532,9 +526,10 @@ static inline void __free_one_page(struct page *page,
- 	 */
- 	if ((order < MAX_ORDER-1) && pfn_valid_within(page_to_pfn(buddy))) {
- 		struct page *higher_page, *higher_buddy;
--		combined_idx = __find_combined_index(page_idx, order);
--		higher_page = page + combined_idx - page_idx;
--		higher_buddy = __page_find_buddy(higher_page, combined_idx, order + 1);
-+		combined_idx = buddy_idx & page_idx;
-+		higher_page = page + (combined_idx - page_idx);
-+		buddy_idx = __find_buddy_index(combined_idx, order + 1);
-+		higher_buddy = page + (buddy_idx - combined_idx);
- 		if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
- 			list_add_tail(&page->lru,
- 				&zone->free_area[order].free_list[migratetype]);
--- 
-1.6.2.5
+ fs/fuse/dev.c           |    3 +--
+ fs/hugetlbfs/inode.c    |    3 +--
+ include/linux/pagemap.h |    4 ++--
+ mm/filemap.c            |   22 +++++++++++++++++-----
+ mm/shmem.c              |    3 +--
+ mm/truncate.c           |    5 ++---
+ mm/vmscan.c             |    2 +-
+ 7 files changed, 25 insertions(+), 17 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
