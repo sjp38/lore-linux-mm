@@ -1,36 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 83A516B0087
-	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 05:07:52 -0500 (EST)
-Date: Thu, 23 Dec 2010 10:06:42 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCHv8 00/12] Contiguous Memory Allocator
-Message-ID: <20101223100642.GD3636@n2100.arm.linux.org.uk>
-References: <cover.1292443200.git.m.nazarewicz@samsung.com> <AANLkTim8_=0+-zM5z4j0gBaw3PF3zgpXQNetEn-CfUGb@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E8F326B0087
+	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 05:13:59 -0500 (EST)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp08.in.ibm.com (8.14.4/8.13.1) with ESMTP id oBN9Vijt006163
+	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 15:01:44 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oBNADsQG2588784
+	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 15:43:54 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oBNADrLt012893
+	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 21:13:54 +1100
+Date: Wed, 22 Dec 2010 11:40:08 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/3] Refactor zone_reclaim (v2)
+Message-ID: <20101222061008.GJ7237@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20101210142745.29934.29186.stgit@localhost6.localdomain6>
+ <20101210143018.29934.11893.stgit@localhost6.localdomain6>
+ <AANLkTimeecObDMQMbWzNhL1mE+UT9D3o1WWS4bmxtR4U@mail.gmail.com>
+ <20101214114542.GE14178@balbir.in.ibm.com>
+ <AANLkTimy2wKPGxMsO0d_CxUNiDcc+8HWRBctOTrkbbjX@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <AANLkTim8_=0+-zM5z4j0gBaw3PF3zgpXQNetEn-CfUGb@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTimy2wKPGxMsO0d_CxUNiDcc+8HWRBctOTrkbbjX@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Kyungmin Park <kmpark@infradead.org>
-Cc: Michal Nazarewicz <m.nazarewicz@samsung.com>, linux-arm-kernel@lists.infradead.org, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-media@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 23, 2010 at 06:30:57PM +0900, Kyungmin Park wrote:
-> Hi Andrew,
+* MinChan Kim <minchan.kim@gmail.com> [2010-12-15 07:38:42]:
+
+> On Tue, Dec 14, 2010 at 8:45 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > * MinChan Kim <minchan.kim@gmail.com> [2010-12-14 19:01:26]:
+> >
+> >> Hi Balbir,
+> >>
+> >> On Fri, Dec 10, 2010 at 11:31 PM, Balbir Singh
+> >> <balbir@linux.vnet.ibm.com> wrote:
+> >> > Move reusable functionality outside of zone_reclaim.
+> >> > Make zone_reclaim_unmapped_pages modular
+> >> >
+> >> > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> >> > ---
+> >> >  mm/vmscan.c |   35 +++++++++++++++++++++++------------
+> >> >  1 files changed, 23 insertions(+), 12 deletions(-)
+> >> >
+> >> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >> > index e841cae..4e2ad05 100644
+> >> > --- a/mm/vmscan.c
+> >> > +++ b/mm/vmscan.c
+> >> > @@ -2815,6 +2815,27 @@ static long zone_pagecache_reclaimable(struct zone *zone)
+> >> >  }
+> >> >
+> >> >  /*
+> >> > + * Helper function to reclaim unmapped pages, we might add something
+> >> > + * similar to this for slab cache as well. Currently this function
+> >> > + * is shared with __zone_reclaim()
+> >> > + */
+> >> > +static inline void
+> >> > +zone_reclaim_unmapped_pages(struct zone *zone, struct scan_control *sc,
+> >> > +                               unsigned long nr_pages)
+> >> > +{
+> >> > +       int priority;
+> >> > +       /*
+> >> > +        * Free memory by calling shrink zone with increasing
+> >> > +        * priorities until we have enough memory freed.
+> >> > +        */
+> >> > +       priority = ZONE_RECLAIM_PRIORITY;
+> >> > +       do {
+> >> > +               shrink_zone(priority, zone, sc);
+> >> > +               priority--;
+> >> > +       } while (priority >= 0 && sc->nr_reclaimed < nr_pages);
+> >> > +}
+> >>
+> >> As I said previous version, zone_reclaim_unmapped_pages doesn't have
+> >> any functions related to reclaim unmapped pages.
+> >
+> > The scan control point has the right arguments for implementing
+> > reclaim of unmapped pages.
 > 
-> any comments? what's the next step to merge it for 2.6.38 kernel. we
-> want to use this feature at mainline kernel.
+> I mean you should set up scan_control setup in this function.
+> Current zone_reclaim_unmapped_pages doesn't have any specific routine
+> related to reclaim unmapped pages.
+> Otherwise, change the function name with just "zone_reclaim_pages". I
+> think you don't want it.
 
-Has anyone addressed my issue with it that this is wide-open for
-abuse by allocating large chunks of memory, and then remapping
-them in some way with different attributes, thereby violating the
-ARM architecture specification?
+Done, I renamed the function to zone_reclaim_pages.
 
-In other words, do we _actually_ have a use for this which doesn't
-involve doing something like allocating 32MB of memory from it,
-remapping it so that it's DMA coherent, and then performing DMA
-on the resulting buffer?
+Thanks!
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
