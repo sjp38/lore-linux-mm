@@ -1,242 +1,258 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C9F9F6B0088
-	for <linux-mm@kvack.org>; Wed, 22 Dec 2010 17:45:20 -0500 (EST)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id oBMMjEtV008660
-	for <linux-mm@kvack.org>; Wed, 22 Dec 2010 14:45:15 -0800
-Received: from pwj5 (pwj5.prod.google.com [10.241.219.69])
-	by kpbe17.cbf.corp.google.com with ESMTP id oBMMjA14023097
-	for <linux-mm@kvack.org>; Wed, 22 Dec 2010 14:45:13 -0800
-Received: by pwj5 with SMTP id 5so329824pwj.1
-        for <linux-mm@kvack.org>; Wed, 22 Dec 2010 14:45:10 -0800 (PST)
-Date: Wed, 22 Dec 2010 14:45:05 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2] memcg: add oom killer delay
-In-Reply-To: <alpine.DEB.2.00.1012220031010.24462@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1012221443540.2612@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1012212318140.22773@chino.kir.corp.google.com> <20101221235924.b5c1aecc.akpm@linux-foundation.org> <alpine.DEB.2.00.1012220031010.24462@chino.kir.corp.google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B24816B0087
+	for <linux-mm@kvack.org>; Wed, 22 Dec 2010 19:14:18 -0500 (EST)
+From: Seiji Aguchi <seiji.aguchi@hds.com>
+Date: Wed, 22 Dec 2010 18:35:40 -0500
+Subject: [RFC][PATCH] Add a sysctl option controlling kexec when MCE occurred
+Message-ID: <5C4C569E8A4B9B42A84A977CF070A35B2C132F68FC@USINDEVS01.corp.hds.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Divyesh Shah <dpshah@google.com>, linux-mm@kvack.org
+To: "rdunlap@xenotime.net" <rdunlap@xenotime.net>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "ebiederm@xmission.com" <ebiederm@xmission.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linuxfoundation.org" <akpm@linuxfoundation.org>, "eugeneteo@kernel.org" <eugeneteo@kernel.org>, "kees.cook@canonical.com" <kees.cook@canonical.com>, "drosenberg@vsecurity.com" <drosenberg@vsecurity.com>, "ying.huang@intel.com" <ying.huang@intel.com>, "len.brown@intel.com" <len.brown@intel.com>, "seto.hidetoshi@jp.fujitsu.com" <seto.hidetoshi@jp.fujitsu.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "gregkh@suse.de" <gregkh@suse.de>, "davem@davemloft.net" <davem@davemloft.net>, "hadi@cyberus.ca" <hadi@cyberus.ca>, "hawk@comx.dk" <hawk@comx.dk>, "opurdila@ixiacom.com" <opurdila@ixiacom.com>, "hidave.darkstar@gmail.com" <hidave.darkstar@gmail.com>, "dzickus@redhat.com" <dzickus@redhat.com>, "eric.dumazet@gmail.com" <eric.dumazet@gmail.com>, "ext-andriy.shevchenko@nokia.com" <ext-andriy.shevchenko@nokia.com>, "tj@kernel.org" <tj@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kexec@lists.infradead.org" <kexec@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>
+Cc: Satoru Moriya <satoru.moriya@hds.com>, Seiji Aguchi <seiji.aguchi@hds.com>
 List-ID: <linux-mm.kvack.org>
 
-Completely disabling the oom killer for a memcg is problematic if
-userspace is unable to address the condition itself, usually because
-userspace is unresponsive.  This scenario creates a memcg livelock:
-tasks are continuously trying to allocate memory and nothing is getting
-killed, so memory freeing is impossible since reclaim has failed, and
-all work stalls with no remedy in sight.
+Hi,
 
-This patch adds an oom killer delay so that a memcg may be configured to
-wait at least a pre-defined number of milliseconds before calling the
-oom killer.  If the oom condition persists for this number of
-milliseconds, the oom killer will be called the next time the memory
-controller attempts to charge a page (and memory.oom_control is set to
-0).  This allows userspace to have a short period of time to respond to
-the condition before timing out and deferring to the kernel to kill a
-task.
+[Purpose]
+Kexec may trigger additional hardware errors and multiply the damage=20
+if it works after MCE occurred because there are some hardware-related=20
+operations in kexec as follows.
+  - Sending NMI to cpus
+  - Initializing hardware during boot process of second kernel.
+  - Accessing to memory and dumping it to disks.
 
-Admins may set the oom killer timeout using the new interface:
+So, I propose adding a new option controlling kexec behaviour when MCE=20
+occurred.
+This patch prevents unnecessary hardware errors and avoid expanding=20
+the damage.
 
-	# echo 60000 > memory.oom_delay
+[Patch Description]
+I added a sysctl option ,kernel.kexec_on_mce, controlling kexec behaviour=20
+when MCE occurred.
 
-This will defer oom killing to the kernel only after 60 seconds has
-elapsed.  When setting memory.oom_delay, all pending timeouts are
-restarted.
+ - Permission
+   - 0644
+ - Value(default is "1")
+   - non-zero: Kexec is enabled regardless of MCE.
+   - 0: Kexec is disabled when MCE occurred.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
+Matrix of kernel.kexec_on_mce value, MCE and kexec behaviour
+
+--------------------------------------------------
+kernel.kexec_on_mce| MCE          | kexec behaviour
+--------------------------------------------------
+non-zero           | occurred     | enabled
+                   -------------------------------
+                   | not occurred | enabled
+--------------------------------------------------
+0                  | occurred     | disabled
+                   |------------------------------
+                   | not occurred | enabled
+--------------------------------------------------
+
+Any comments and suggestions are welcome.
+
+Signed-off-by: Seiji Aguchi <seiji.aguchi@hds.com>
+
 ---
- v2 of the patch to address your suggestions -- if we _really_ want to
- leave the kernel open to the possibility of livelock as the result of
- a userspace bug, then this doesn't need to be merged.  Otherwise, it
- would be nice to get this support for a more robust memory controller.
+ Documentation/sysctl/kernel.txt  |   12 ++++++++++++
+ arch/x86/include/asm/mce.h       |    2 ++
+ arch/x86/kernel/cpu/mcheck/mce.c |    4 ++++
+ include/linux/sysctl.h           |    1 +
+ kernel/kexec.c                   |    7 +++++++
+ kernel/sysctl.c                  |   12 ++++++++++++
+ kernel/sysctl_binary.c           |    1 +
+ mm/memory-failure.c              |    9 +++++++++
+ 8 files changed, 48 insertions(+), 0 deletions(-)
 
- Documentation/cgroups/memory.txt |   17 +++++++++++
- mm/memcontrol.c                  |   55 +++++++++++++++++++++++++++++++++----
- 2 files changed, 66 insertions(+), 6 deletions(-)
-
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -68,6 +68,7 @@ Brief summary of control files.
- 				 (See sysctl's vm.swappiness)
-  memory.move_charge_at_immigrate # set/show controls of moving charges
-  memory.oom_control		 # set/show oom controls.
-+ memory.oom_delay_millisecs	 # set/show millisecs to wait before oom kill
- 
- 1. History
- 
-@@ -640,6 +641,22 @@ At reading, current status of OOM is shown.
- 	under_oom	 0 or 1 (if 1, the memory cgroup is under OOM, tasks may
- 				 be stopped.)
- 
-+It is also possible to configure an oom killer timeout to prevent the
-+possibility that the memcg will livelock looking for memory if userspace
-+has disabled the oom killer with oom_control but cannot act to fix the
-+condition itself (usually because userspace has become unresponsive).
+diff --git a/Documentation/sysctl/kernel.txt b/Documentation/sysctl/kernel.=
+txt
+index 209e158..ce3240e 100644
+--- a/Documentation/sysctl/kernel.txt
++++ b/Documentation/sysctl/kernel.txt
+@@ -34,6 +34,7 @@ show up in /proc/sys/kernel:
+ - hotplug
+ - java-appletviewer           [ binfmt_java, obsolete ]
+ - java-interpreter            [ binfmt_java, obsolete ]
++- kexec_on_mce                [ X86 only ]
+ - kstack_depth_to_print       [ X86 only ]
+ - l2cr                        [ PPC only ]
+ - modprobe                    =3D=3D> Documentation/debugging-modules.txt
+@@ -261,6 +262,17 @@ This flag controls the L2 cache of G3 processor boards=
+. If
+=20
+ =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+=20
++kexec_on_mce: (X86 only)
 +
-+To set an oom killer timeout for a memcg, write the number of milliseconds
-+to wait before killing a task to memory.oom_delay_millisecs:
++Controls the kexec behaviour when MCE occurred.
++Default value is 1.
 +
-+	# echo 60000 > memory.oom_delay_millisecs	# 60 seconds before kill
-+
-+This timeout is reset the next time the memcg successfully charges memory
-+to a task.
-+
-+There is no delay if memory.oom_delay_millisecs is set to 0 (default).
++0: Kexec is disabled when MCE occurred.
++non-zero: Kexec is enabled regardless of MCE.
 +
 +
- 11. TODO
- 
- 1. Add support for accounting huge pages (as a separate controller)
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -233,12 +233,16 @@ struct mem_cgroup {
- 	 * Should the accounting and control be hierarchical, per subtree?
- 	 */
- 	bool use_hierarchy;
-+	/* oom_delay has expired and still out of memory? */
-+	bool oom_delay_expired;
- 	atomic_t	oom_lock;
- 	atomic_t	refcnt;
- 
- 	unsigned int	swappiness;
- 	/* OOM-Killer disable */
- 	int		oom_kill_disable;
-+	/* number of ticks to stall before calling oom killer */
-+	int		oom_delay;
- 
- 	/* set when res.limit == memsw.limit */
- 	bool		memsw_is_minimum;
-@@ -1524,6 +1528,7 @@ static void memcg_wakeup_oom(struct mem_cgroup *mem)
- 
- static void memcg_oom_recover(struct mem_cgroup *mem)
- {
-+	mem->oom_delay_expired = false;
- 	if (mem && atomic_read(&mem->oom_lock))
- 		memcg_wakeup_oom(mem);
- }
-@@ -1531,17 +1536,18 @@ static void memcg_oom_recover(struct mem_cgroup *mem)
- /*
-  * try to call OOM killer. returns false if we should exit memory-reclaim loop.
-  */
--bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
-+static bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
- {
- 	struct oom_wait_info owait;
--	bool locked, need_to_kill;
-+	bool locked;
-+	bool need_to_kill = true;
-+	bool need_to_delay = false;
- 
- 	owait.mem = mem;
- 	owait.wait.flags = 0;
- 	owait.wait.func = memcg_oom_wake_function;
- 	owait.wait.private = current;
- 	INIT_LIST_HEAD(&owait.wait.task_list);
--	need_to_kill = true;
- 	/* At first, try to OOM lock hierarchy under mem.*/
- 	mutex_lock(&memcg_oom_mutex);
- 	locked = mem_cgroup_oom_lock(mem);
-@@ -1553,26 +1559,34 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
- 	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
- 	if (!locked || mem->oom_kill_disable)
- 		need_to_kill = false;
--	if (locked)
-+	if (locked) {
- 		mem_cgroup_oom_notify(mem);
-+		if (mem->oom_delay && !mem->oom_delay_expired) {
-+			need_to_kill = false;
-+			need_to_delay = true;
-+		}
-+	}
- 	mutex_unlock(&memcg_oom_mutex);
- 
- 	if (need_to_kill) {
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
- 		mem_cgroup_out_of_memory(mem, mask);
- 	} else {
--		schedule();
-+		schedule_timeout(need_to_delay ? mem->oom_delay :
-+						 MAX_SCHEDULE_TIMEOUT);
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
- 	}
- 	mutex_lock(&memcg_oom_mutex);
- 	mem_cgroup_oom_unlock(mem);
- 	memcg_wakeup_oom(mem);
-+	mem->oom_delay_expired = need_to_delay;
- 	mutex_unlock(&memcg_oom_mutex);
- 
- 	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
- 		return false;
- 	/* Give chance to dying process */
--	schedule_timeout(1);
-+	if (!need_to_delay)
-+		schedule_timeout(1);
- 	return true;
- }
- 
-@@ -2007,6 +2021,7 @@ again:
- 		refill_stock(mem, csize - PAGE_SIZE);
- 	css_put(&mem->css);
- done:
-+	mem->oom_delay_expired = false;
- 	*memcg = mem;
- 	return 0;
- nomem:
-@@ -4053,6 +4068,28 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
- 	return 0;
- }
- 
-+static u64 mem_cgroup_oom_delay_millisecs_read(struct cgroup *cgrp,
-+					struct cftype *cft)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
 +
-+	return jiffies_to_msecs(memcg->oom_delay);
-+}
+ kstack_depth_to_print: (X86 only)
+=20
+ Controls the number of words to print when dumping the raw
+diff --git a/arch/x86/include/asm/mce.h b/arch/x86/include/asm/mce.h
+index c62c13c..062dabd 100644
+--- a/arch/x86/include/asm/mce.h
++++ b/arch/x86/include/asm/mce.h
+@@ -123,6 +123,8 @@ extern struct atomic_notifier_head x86_mce_decoder_chai=
+n;
+=20
+ extern int mce_disabled;
+ extern int mce_p5_enabled;
++extern int kexec_on_mce;
++extern int mce_flag;
+=20
+ #ifdef CONFIG_X86_MCE
+ int mcheck_init(void);
+diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/=
+mce.c
+index 7a35b72..edbaf77 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce.c
++++ b/arch/x86/kernel/cpu/mcheck/mce.c
+@@ -85,6 +85,8 @@ static int			mce_dont_log_ce		__read_mostly;
+ int				mce_cmci_disabled	__read_mostly;
+ int				mce_ignore_ce		__read_mostly;
+ int				mce_ser			__read_mostly;
++int				kexec_on_mce =3D 1;
++int				mce_flag;
+=20
+ struct mce_bank                *mce_banks		__read_mostly;
+=20
+@@ -944,6 +946,8 @@ void do_machine_check(struct pt_regs *regs, long error_=
+code)
+=20
+ 	percpu_inc(mce_exception_count);
+=20
++	mce_flag =3D 1;
 +
-+static int mem_cgroup_oom_delay_millisecs_write(struct cgroup *cgrp,
-+					struct cftype *cft, u64 val)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-+
-+	/* Sanity check -- don't wait longer than an hour */
-+	if (val > (60 * 60 * 1000))
-+		return -EINVAL;
-+
-+	memcg->oom_delay = msecs_to_jiffies(val);
-+	memcg_oom_recover(memcg);
-+	return 0;
-+}
-+
- static struct cftype mem_cgroup_files[] = {
- 	{
- 		.name = "usage_in_bytes",
-@@ -4116,6 +4153,11 @@ static struct cftype mem_cgroup_files[] = {
- 		.unregister_event = mem_cgroup_oom_unregister_event,
- 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
- 	},
-+	{
-+		.name = "oom_delay_millisecs",
-+		.read_u64 = mem_cgroup_oom_delay_millisecs_read,
-+		.write_u64 = mem_cgroup_oom_delay_millisecs_write,
-+	},
+ 	if (notify_die(DIE_NMI, "machine check", regs, error_code,
+ 			   18, SIGKILL) =3D=3D NOTIFY_STOP)
+ 		goto out;
+diff --git a/include/linux/sysctl.h b/include/linux/sysctl.h
+index 7bb5cb6..0ebe708 100644
+--- a/include/linux/sysctl.h
++++ b/include/linux/sysctl.h
+@@ -153,6 +153,7 @@ enum
+ 	KERN_MAX_LOCK_DEPTH=3D74, /* int: rtmutex's maximum lock depth */
+ 	KERN_NMI_WATCHDOG=3D75, /* int: enable/disable nmi watchdog */
+ 	KERN_PANIC_ON_NMI=3D76, /* int: whether we will panic on an unrecovered *=
+/
++	KERN_KEXEC_ON_MCE=3D77, /* int: whether we will dump memory on mce */
  };
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-@@ -4357,6 +4399,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
- 		parent = mem_cgroup_from_cont(cont->parent);
- 		mem->use_hierarchy = parent->use_hierarchy;
- 		mem->oom_kill_disable = parent->oom_kill_disable;
-+		mem->oom_delay = parent->oom_delay;
- 	}
- 
- 	if (parent && parent->use_hierarchy) {
+=20
+=20
+diff --git a/kernel/kexec.c b/kernel/kexec.c
+index b55045b..3e5c41a 100644
+--- a/kernel/kexec.c
++++ b/kernel/kexec.c
+@@ -39,6 +39,7 @@
+ #include <asm/io.h>
+ #include <asm/system.h>
+ #include <asm/sections.h>
++#include <asm/mce.h>
+=20
+ /* Per cpu memory for storing cpu states in case of system crash. */
+ note_buf_t __percpu *crash_notes;
+@@ -1074,6 +1075,12 @@ void crash_kexec(struct pt_regs *regs)
+ 	 * of memory the xchg(&kexec_crash_image) would be
+ 	 * sufficient.  But since I reuse the memory...
+ 	 */
++#ifdef CONFIG_X86_MCE
++	if (!kexec_on_mce && mce_flag) {
++		printk(KERN_WARNING "Kexec is disabled because MCE occurred\n");
++		return;
++	}
++#endif
+ 	if (mutex_trylock(&kexec_mutex)) {
+ 		if (kexec_crash_image) {
+ 			struct pt_regs fixed_regs;
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 5abfa15..3a64cd6 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -81,6 +81,9 @@
+ #include <linux/nmi.h>
+ #endif
+=20
++#ifdef CONFIG_X86_MCE
++#include <asm/mce.h>
++#endif
+=20
+ #if defined(CONFIG_SYSCTL)
+=20
+@@ -963,6 +966,15 @@ static struct ctl_table kern_table[] =3D {
+ 		.proc_handler	=3D proc_dointvec,
+ 	},
+ #endif
++#if defined(CONFIG_X86_MCE)
++	{
++		.procname	=3D "kexec_on_mce",
++		.data		=3D &kexec_on_mce,
++		.maxlen		=3D sizeof(int),
++		.mode		=3D 0644,
++		.proc_handler	=3D proc_dointvec,
++	},
++#endif
+ /*
+  * NOTE: do not add new entries to this table unless you have read
+  * Documentation/sysctl/ctl_unnumbered.txt
+diff --git a/kernel/sysctl_binary.c b/kernel/sysctl_binary.c
+index 1357c57..a25f971 100644
+--- a/kernel/sysctl_binary.c
++++ b/kernel/sysctl_binary.c
+@@ -138,6 +138,7 @@ static const struct bin_table bin_kern_table[] =3D {
+ 	{ CTL_INT,	KERN_MAX_LOCK_DEPTH,		"max_lock_depth" },
+ 	{ CTL_INT,	KERN_NMI_WATCHDOG,		"nmi_watchdog" },
+ 	{ CTL_INT,	KERN_PANIC_ON_NMI,		"panic_on_unrecovered_nmi" },
++	{ CTL_INT,	KERN_KEXEC_ON_MCE,		"kexec_on_mce" },
+ 	{}
+ };
+=20
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 46ab2c0..3ec075a 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -52,6 +52,11 @@
+ #include <linux/swapops.h>
+ #include <linux/hugetlb.h>
+ #include <linux/memory_hotplug.h>
++
++#ifdef CONFIG_X86_MCE
++#include <asm/mce.h>
++#endif
++
+ #include "internal.h"
+=20
+ int sysctl_memory_failure_early_kill __read_mostly =3D 0;
+@@ -949,6 +954,10 @@ int __memory_failure(unsigned long pfn, int trapno, in=
+t flags)
+ 	int res;
+ 	unsigned int nr_pages;
+=20
++#ifdef CONFIG_X86_MCE
++	mce_flag =3D 1;
++#endif
++
+ 	if (!sysctl_memory_failure_recovery)
+ 		panic("Memory failure from trap %d on page %lx", trapno, pfn);
+=20
+--=20
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
