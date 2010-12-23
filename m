@@ -1,55 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 634B96B0088
-	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 16:38:49 -0500 (EST)
-Date: Thu, 23 Dec 2010 13:37:09 -0800
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: Cross compilers (Was: Re: [PATCH] Fix unconditional GFP_KERNEL
- allocations in __vmalloc().)
-Message-Id: <20101223133709.d5973e48.randy.dunlap@oracle.com>
-In-Reply-To: <20101215144835.adf2078f.sfr@canb.auug.org.au>
-References: <1292381126-5710-1-git-send-email-ricardo.correia@oracle.com>
-	<1292381600.2994.6.camel@oralap>
-	<20101215144835.adf2078f.sfr@canb.auug.org.au>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 595F86B0088
+	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 18:46:15 -0500 (EST)
+Date: Thu, 23 Dec 2010 15:17:46 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] mm: page allocator: Adjust the per-cpu counter
+ threshold when memory is low
+Message-Id: <20101223151746.d67e94bf.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1012231456520.2116@chino.kir.corp.google.com>
+References: <1288169256-7174-1-git-send-email-mel@csn.ul.ie>
+	<1288169256-7174-2-git-send-email-mel@csn.ul.ie>
+	<20101126160619.GP22651@bombadil.infradead.org>
+	<20101129095618.GB13268@csn.ul.ie>
+	<20101129131626.GF15818@bombadil.infradead.org>
+	<20101129150824.GF13268@csn.ul.ie>
+	<20101129152230.GH15818@bombadil.infradead.org>
+	<20101129155801.GG13268@csn.ul.ie>
+	<alpine.DEB.2.00.1012231413560.2116@chino.kir.corp.google.com>
+	<20101223143521.f94a5106.akpm@linux-foundation.org>
+	<alpine.DEB.2.00.1012231456520.2116@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: "Ricardo M. Correia" <ricardo.correia@oracle.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, andreas.dilger@oracle.com, behlendorf1@llnl.gov, tony@bakeyournoodle.com
+To: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Greg Kroah-Hartman <gregkh@suse.de>, Kyle McMartin <kyle@mcmartin.ca>, Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Dec 2010 14:48:35 +1100 Stephen Rothwell wrote:
+On Thu, 23 Dec 2010 15:07:02 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-> Hi Ricardo,
+> On Thu, 23 Dec 2010, Andrew Morton wrote:
 > 
-> On Wed, 15 Dec 2010 03:53:20 +0100 "Ricardo M. Correia" <ricardo.correia@oracle.com> wrote:
-> >
-> > Since I have done all these changes manually and I don't have any
-> > non-x86-64 machines, it's possible that I may have typoed or missed
-> > something and that this patch may break compilation on other
-> > architectures or with other config options.
+> > > We had to pull aa454840 "mm: page allocator: calculate a better estimate 
+> > > of NR_FREE_PAGES when memory is low and kswapd is awake" from 2.6.36 
+> > > internally because tests showed that it would cause the machine to stall 
+> > > as the result of heavy kswapd activity.  I merged it back with this fix as 
+> > > it is pending in the -mm tree and it solves the issue we were seeing, so I 
+> > > definitely think this should be pushed to -stable (and I would seriously 
+> > > consider it for 2.6.37 inclusion even at this late date).
 > > 
-> > Any suggestions are welcome.
+> > How's about I send
+> > mm-page-allocator-adjust-the-per-cpu-counter-threshold-when-memory-is-low.patch
+> > in for 2.6.38 and tag it for backporting into 2.6.37.1 and 2.6.36.x? 
+> > That way it'll get a bit of 2.6.38-rc testing before being merged into
+> > 2.6.37.x.
+> > 
 > 
-> See http://kernel.org/pub/tools/crosstool/files/bin
+> I don't think anyone would be able to answer that judgment call other than 
+> you or Linus, it's a trade-off on whether 2.6.37 should be released with 
+> the knowledge that it regresses just like 2.6.36 does (rendering both 
+> unusable on some of our machines out of the box) because we're late in the 
+> cycle.
+> 
+> I personally think the testing is already sufficient since it's been 
+> sitting in -mm for two months, it's been suggested as stable material by a 
+> couple different parties, it was a prerequisite for the transparent 
+> hugepage series, and we've tested and merged it as fixing the regression 
+> in 2.6.36 (as Fedora has, as far as I know).  We've already merged the fix 
+> internally, though, so it's not for selfish reasons :)
 
+Wibble, wobble.  It's good that the patch has been used in RH kernels. 
+otoh, the patch is really quite big and the problem was present in
+2.6.36 without a lot of complaints and we're very late in -rc and not
+many people will be testing over xmas/newyear, and it would be most sad
+to put badness into mainline at this time.
 
-OK, what am I doing wrong?
-
-Using alpha or s390x gcc builds on x86_64 host give me:
-
-/local/cross/gcc-4.5.1-nolibc/s390x-linux/bin/s390x-linux-gcc: /lib64/libc.so.6: version `GLIBC_2.11' not found (required by /local/cross/gcc-4.5.1-nolibc/s390x-linux/bin/s390x-linux-gcc)
-
-or
-
-/local/cross/gcc-4.5.1-nolibc/alpha-linux/bin/alpha-linux-gcc: /lib64/libc.so.6: version `GLIBC_2.11' not found (required by /local/cross/gcc-4.5.1-nolibc/alpha-linux/bin/alpha-linux-gcc)
-
-
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
-desserts:  http://www.xenotime.net/linux/recipes/
+So I'm still inclined to go with (discretion > valour).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
