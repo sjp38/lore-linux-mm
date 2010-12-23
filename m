@@ -1,40 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id CE8CD6B0092
-	for <linux-mm@kvack.org>; Wed, 22 Dec 2010 19:30:30 -0500 (EST)
-Date: Wed, 22 Dec 2010 16:29:35 -0800
-From: Greg KH <gregkh@suse.de>
-Subject: Re: [RFC][PATCH] Add a sysctl option controlling kexec when MCE
- occurred
-Message-ID: <20101223002935.GA9811@suse.de>
-References: <5C4C569E8A4B9B42A84A977CF070A35B2C132F68FC@USINDEVS01.corp.hds.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CBFAC6B0087
+	for <linux-mm@kvack.org>; Wed, 22 Dec 2010 20:14:27 -0500 (EST)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id oBN1EN5Z025038
+	for <linux-mm@kvack.org>; Wed, 22 Dec 2010 17:14:23 -0800
+Received: from pvc30 (pvc30.prod.google.com [10.241.209.158])
+	by kpbe13.cbf.corp.google.com with ESMTP id oBN1DoBo027686
+	for <linux-mm@kvack.org>; Wed, 22 Dec 2010 17:14:22 -0800
+Received: by pvc30 with SMTP id 30so1276894pvc.14
+        for <linux-mm@kvack.org>; Wed, 22 Dec 2010 17:14:17 -0800 (PST)
+Date: Wed, 22 Dec 2010 17:14:13 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [2/7, v9] NUMA Hotplug Emulator: Add numa=possible option
+In-Reply-To: <20101222162717.289cfe01.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1012221713490.26427@chino.kir.corp.google.com>
+References: <20101210073119.156388875@intel.com> <20101210073242.357094158@intel.com> <20101222162717.289cfe01.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5C4C569E8A4B9B42A84A977CF070A35B2C132F68FC@USINDEVS01.corp.hds.com>
+Content-Type: MULTIPART/MIXED; BOUNDARY="531368966-1419668146-1293066855=:26427"
 Sender: owner-linux-mm@kvack.org
-To: Seiji Aguchi <seiji.aguchi@hds.com>
-Cc: "rdunlap@xenotime.net" <rdunlap@xenotime.net>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "ebiederm@xmission.com" <ebiederm@xmission.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linuxfoundation.org" <akpm@linuxfoundation.org>, "eugeneteo@kernel.org" <eugeneteo@kernel.org>, "kees.cook@canonical.com" <kees.cook@canonical.com>, "drosenberg@vsecurity.com" <drosenberg@vsecurity.com>, "ying.huang@intel.com" <ying.huang@intel.com>, "len.brown@intel.com" <len.brown@intel.com>, "seto.hidetoshi@jp.fujitsu.com" <seto.hidetoshi@jp.fujitsu.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "hadi@cyberus.ca" <hadi@cyberus.ca>, "hawk@comx.dk" <hawk@comx.dk>, "opurdila@ixiacom.com" <opurdila@ixiacom.com>, "hidave.darkstar@gmail.com" <hidave.darkstar@gmail.com>, "dzickus@redhat.com" <dzickus@redhat.com>, "eric.dumazet@gmail.com" <eric.dumazet@gmail.com>, "ext-andriy.shevchenko@nokia.com" <ext-andriy.shevchenko@nokia.com>, "tj@kernel.org" <tj@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kexec@lists.infradead.org" <kexec@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Satoru Moriya <satoru.moriya@hds.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Haicheng Li <haicheng.li@linux.intel.com>, lethal@linux-sh.org, Andi Kleen <ak@linux.intel.com>, shaohui.zheng@linux.intel.com, dave@linux.vnet.ibm.com, Greg KH <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 22, 2010 at 06:35:40PM -0500, Seiji Aguchi wrote:
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -81,6 +81,9 @@
->  #include <linux/nmi.h>
->  #endif
->  
-> +#ifdef CONFIG_X86_MCE
-> +#include <asm/mce.h>
-> +#endif
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Please don't put ifdefs in .c files, you do that a lot for this option.
-Just make it work on all platforms and then you will not need the
-#ifdef.
+--531368966-1419668146-1293066855=:26427
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
 
-thanks,
+On Wed, 22 Dec 2010, Andrew Morton wrote:
 
-greg k-h
+> > @@ -646,6 +647,15 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
+> >  		numa_set_node(i, 0);
+> >  	memblock_x86_register_active_regions(0, start_pfn, last_pfn);
+> >  	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT);
+> > +out: __maybe_unused
+> 
+> hm, I didn't know you could do that with labels.
+> 
+> Does it work?
+> 
+
+Yeah, it's equivalent to __attribute__((unused)) and according to the gcc 
+manual section 6.30:
+
+	In GNU C, an attribute specifier list may appear after the colon 
+	following a label, other than a case or default label. The only 
+	attribute it makes sense to use after a label is unused. This 
+	feature is intended for code generated by programs which contains 
+	labels that may be unused but which is compiled with a??-Walla??. It 
+	would not normally be appropriate to use in it human-written code, 
+	though it could be useful in cases where the code that jumps to 
+	the label is contained within an #ifdef conditional.
+
+I used it because I knew I wouldn't get away with putting a label inside 
+an #ifdef :)
+
+> > +	for (i = 0; i < numa_possible_nodes; i++) {
+> > +		int nid;
+> > +
+> > +		nid = first_unset_node(node_possible_map);
+> > +		if (nid == MAX_NUMNODES)
+> > +			break;
+> > +		node_set(nid, node_possible_map);
+> > +	}
+> >  }
+> >  
+> >  unsigned long __init numa_free_all_bootmem(void)
+--531368966-1419668146-1293066855=:26427--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
