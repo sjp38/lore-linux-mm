@@ -1,64 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4A7CA6B0088
-	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 14:57:03 -0500 (EST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <5C4C569E8A4B9B42A84A977CF070A35B2C132F68FC@USINDEVS01.corp.hds.com>
-	<aab9953c699dace1ed94efd6505c7844.squirrel@www.firstfloor.org>
-	<20101223091851.GC30055@liondog.tnic>
-	<5C4C569E8A4B9B42A84A977CF070A35B2C132F6BB0@USINDEVS01.corp.hds.com>
-Date: Thu, 23 Dec 2010 11:56:21 -0800
-In-Reply-To: <5C4C569E8A4B9B42A84A977CF070A35B2C132F6BB0@USINDEVS01.corp.hds.com>
-	(Seiji Aguchi's message of "Thu, 23 Dec 2010 12:31:24 -0500")
-Message-ID: <m11v58xnyy.fsf@fess.ebiederm.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E69856B0088
+	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 16:08:19 -0500 (EST)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id oBNL8Di5012166
+	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 13:08:18 -0800
+Received: from pzk5 (pzk5.prod.google.com [10.243.19.133])
+	by kpbe13.cbf.corp.google.com with ESMTP id oBNL7gPE025244
+	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 13:08:12 -0800
+Received: by pzk5 with SMTP id 5so2067621pzk.31
+        for <linux-mm@kvack.org>; Thu, 23 Dec 2010 13:08:12 -0800 (PST)
+Date: Thu, 23 Dec 2010 13:08:07 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] Fix unconditional GFP_KERNEL allocations in
+ __vmalloc().
+In-Reply-To: <20101217162626.DA0A.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1012231305080.26724@chino.kir.corp.google.com>
+References: <1292381126-5710-1-git-send-email-ricardo.correia@oracle.com> <20101217162626.DA0A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Subject: Re: [RFC][PATCH] Add a sysctl option controlling kexec when MCE occurred
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Seiji Aguchi <seiji.aguchi@hds.com>
-Cc: Borislav Petkov <bp@alien8.de>, Andi Kleen <andi@firstfloor.org>, "rdunlap@xenotime.net" <rdunlap@xenotime.net>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "akpm@linuxfoundation.org" <akpm@linuxfoundation.org>, "eugeneteo@kernel.org" <eugeneteo@kernel.org>, "kees.cook@canonical.com" <kees.cook@canonical.com>, "drosenberg@vsecurity.com" <drosenberg@vsecurity.com>, "ying.huang@intel.com" <ying.huang@intel.com>, "len.brown@intel.com" <len.brown@intel.com>, "seto.hidetoshi@jp.fujitsu.com" <seto.hidetoshi@jp.fujitsu.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "gregkh@suse.de" <gregkh@suse.de>, "davem@davemloft.net" <davem@davemloft.net>, "hadi@cyberus.ca" <hadi@cyberus.ca>, "hawk@comx.dk" <hawk@comx.dk>, "opurdila@ixiacom.com" <opurdila@ixiacom.com>, "hidave.darkstar@gmail.com" <hidave.darkstar@gmail.com>, "dzickus@redhat.com" <dzickus@redhat.com>, "eric.dumazet@gmail.com" <eric.dumazet@gmail.com>, "ext-andriy.shevchenko@nokia.com" <ext-andriy.shevchenko@nokia.com>, "tj@kernel.org" <tj@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kexec@lists.infradead.org" <kexec@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Satoru Moriya <satoru.moriya@hds.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: "Ricardo M. Correia" <ricardo.correia@oracle.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, andreas.dilger@oracle.com, behlendorf1@llnl.gov
 List-ID: <linux-mm.kvack.org>
 
-Seiji Aguchi <seiji.aguchi@hds.com> writes:
+On Fri, 17 Dec 2010, KOSAKI Motohiro wrote:
 
-> Hi,
->
-> I agree with Borislav that kexec shouldn't start at all because we can't guarantee 
-> a stable system anymore when MCE is reported.
+> > (Patch based on 2.6.36 tag).
+> > 
+> > These GFP_KERNEL allocations could happen even though the caller of __vmalloc()
+> > requested a stricter gfp mask (such as GFP_NOFS or GFP_ATOMIC).
+> > 
+> > This was first noticed in Lustre, where it led to deadlocks due to a filesystem
+> > thread which requested a GFP_NOFS __vmalloc() allocation ended up calling down
+> > to Lustre itself to free memory, despite this not being allowed by GFP_NOFS.
+> > 
+> > Further analysis showed that some in-tree filesystems (namely GFS, Ceph and XFS)
+> > were vulnerable to the same bug due to calling __vmalloc() or vm_map_ram() in
+> > contexts where __GFP_FS allocations are not allowed.
+> > 
+> > Fixing this bug required changing a few mm interfaces to accept gfp flags.
+> > This needed to be done in all architectures, thus the large number of changes.
+> 
+> I like this patch. but please separate it two patches.
+> 
+>  1) add gfp_mask argument to some function
+>  2) vmalloc use flexible mask instead GFP_KERNEL always.
+> 
+> I mean please consider to make reviewers friendly patch.
+> IOW, please see your diffstat. ;)
+> 
 
-In the case of kexec on panic we can never guarantee a stable system.
-But the odds are much better of executing non-corrupt code  and of
-telling people you had a hardware error if you go through the kexec
-on panic process.
-
-If I read Andi's patch correctly he was suggesting to not allow any more
-mces to be reported on that path.
-
-
-> On the other hand, I understand there are people like Andi who want to start kexec 
-> even if MCE occurred.
->
-> That is why I propose adding a new option controlling kexec behaviour
-> when MCE occurred.
-
-What do you gain but not doing the kexec on panic, when you have the
-system configured to take one.  We already have the big policy knobs
-to enable or disable this kind of behavior.
-
-> I don't stick to "sysctl".
-
-I think adding a sysctl in this path or any unnecessary code will make
-things less reliable.
-
-Last time this happened to me (about a week ago).  The kexec on panic
-from a ecc reported memory error worked just fine.  Aka in the real
-world it seems to work.
-
-So what is the problem you are trying to avoid, and why can't we do
-something in the kernels initialization path to avoid initializing
-when there is a problem?
-
-Eric
+I agree, I'm also wondering if it would be easier to introduce seperate, 
+lower-level versions of the functions that the current interfaces would 
+then use instead of converting all of their current use cases.  Using 
+pmd_alloc_one() as an example: convert existing pmd_alloc_one() to 
+__pmd_alloc_one() for each arch and add the gfp_t formal), then introduce 
+a new pmd_alloc_one() that does __pmd_alloc_one(..., GFP_KERNEL).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
