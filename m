@@ -1,36 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A0DEE6B0088
-	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 12:46:24 -0500 (EST)
-From: Seiji Aguchi <seiji.aguchi@hds.com>
-Date: Thu, 23 Dec 2010 12:31:24 -0500
-Subject: RE: [RFC][PATCH] Add a sysctl option controlling kexec when MCE
- occurred
-Message-ID: <5C4C569E8A4B9B42A84A977CF070A35B2C132F6BB0@USINDEVS01.corp.hds.com>
-References: <5C4C569E8A4B9B42A84A977CF070A35B2C132F68FC@USINDEVS01.corp.hds.com>
- <aab9953c699dace1ed94efd6505c7844.squirrel@www.firstfloor.org>
- <20101223091851.GC30055@liondog.tnic>
-In-Reply-To: <20101223091851.GC30055@liondog.tnic>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E63B6B0088
+	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 13:04:54 -0500 (EST)
+From: David Brown <davidb@codeaurora.org>
+Subject: Re: [PATCHv8 00/12] Contiguous Memory Allocator
+References: <cover.1292443200.git.m.nazarewicz@samsung.com>
+	<AANLkTim8_=0+-zM5z4j0gBaw3PF3zgpXQNetEn-CfUGb@mail.gmail.com>
+	<20101223100642.GD3636@n2100.arm.linux.org.uk>
+	<00ea01cba290$4d67f500$e837df00$%szyprowski@samsung.com>
+	<20101223121917.GG3636@n2100.arm.linux.org.uk>
+	<4D135004.3070904@samsung.com>
+	<20101223134838.GK3636@n2100.arm.linux.org.uk>
+	<4D1356D7.2000008@samsung.com>
+	<20101223141608.GM3636@n2100.arm.linux.org.uk>
+	<AANLkTinzsOom5awOr6Y8e7PKRbCWYQOqEbdw9is6HroR@mail.gmail.com>
+Date: Thu, 23 Dec 2010 10:04:51 -0800
+In-Reply-To: <AANLkTinzsOom5awOr6Y8e7PKRbCWYQOqEbdw9is6HroR@mail.gmail.com>
+	(Felipe Contreras's message of "Thu, 23 Dec 2010 16:42:57 +0200")
+Message-ID: <8yasjxobc1o.fsf@huya.qualcomm.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Borislav Petkov <bp@alien8.de>, Andi Kleen <andi@firstfloor.org>
-Cc: "rdunlap@xenotime.net" <rdunlap@xenotime.net>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "ebiederm@xmission.com" <ebiederm@xmission.com>, "akpm@linuxfoundation.org" <akpm@linuxfoundation.org>, "eugeneteo@kernel.org" <eugeneteo@kernel.org>, "kees.cook@canonical.com" <kees.cook@canonical.com>, "drosenberg@vsecurity.com" <drosenberg@vsecurity.com>, "ying.huang@intel.com" <ying.huang@intel.com>, "len.brown@intel.com" <len.brown@intel.com>, "seto.hidetoshi@jp.fujitsu.com" <seto.hidetoshi@jp.fujitsu.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "gregkh@suse.de" <gregkh@suse.de>, "davem@davemloft.net" <davem@davemloft.net>, "hadi@cyberus.ca" <hadi@cyberus.ca>, "hawk@comx.dk" <hawk@comx.dk>, "opurdila@ixiacom.com" <opurdila@ixiacom.com>, "hidave.darkstar@gmail.com" <hidave.darkstar@gmail.com>, "dzickus@redhat.com" <dzickus@redhat.com>, "eric.dumazet@gmail.com" <eric.dumazet@gmail.com>, "ext-andriy.shevchenko@nokia.com" <ext-andriy.shevchenko@nokia.com>, "tj@kernel.org" <tj@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kexec@lists.infradead.org" <kexec@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Satoru Moriya <satoru.moriya@hds.com>
+To: Felipe Contreras <felipe.contreras@gmail.com>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Ankita Garg <ankita@in.ibm.com>, Daniel Walker <dwalker@codeaurora.org>, Kyungmin Park <kmpark@infradead.org>, linux-media@vger.kernel.org, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Tomasz Fujak <t.fujak@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-SGksDQoNCkkgYWdyZWUgd2l0aCBCb3Jpc2xhdiB0aGF0IGtleGVjIHNob3VsZG4ndCBzdGFydCBh
-dCBhbGwgYmVjYXVzZSB3ZSBjYW4ndCBndWFyYW50ZWUgDQphIHN0YWJsZSBzeXN0ZW0gYW55bW9y
-ZSB3aGVuIE1DRSBpcyByZXBvcnRlZC4NCg0KT24gdGhlIG90aGVyIGhhbmQsIEkgdW5kZXJzdGFu
-ZCB0aGVyZSBhcmUgcGVvcGxlIGxpa2UgQW5kaSB3aG8gd2FudCB0byBzdGFydCBrZXhlYyANCmV2
-ZW4gaWYgTUNFIG9jY3VycmVkLg0KDQpUaGF0IGlzIHdoeSBJIHByb3Bvc2UgYWRkaW5nIGEgbmV3
-IG9wdGlvbiBjb250cm9sbGluZyBrZXhlYyBiZWhhdmlvdXIgd2hlbiBNQ0Ugb2NjdXJyZWQuDQoN
-CkkgZG9uJ3Qgc3RpY2sgdG8gInN5c2N0bCIuDQpJIHN1Z2dlc3QgdG8gYWRkIGEgbmV3IGJvb3Qg
-cGFyYW1ldGVyIGluc3RlYWQgb2Ygc3lzY3RsIGJlY2F1c2UgdXNlcnMgY2FuJ3QgY2hhbmdlIA0K
-dGhlaXIgY29uZmlndXJhdGlvbiBvbmNlIHRoZSBib290IHBhcmFtZXRlciBpcyBzZXQuDQoNCkkg
-d2lsbCByZXNlbmQgdGhlIHBhdGNoIGlmIGl0IGlzIGFjY2VwdGFibGUuDQoNClJlZ2FyZHMsDQoN
-ClNlaWppDQo=
+Felipe Contreras <felipe.contreras@gmail.com> writes:
+
+> On Thu, Dec 23, 2010 at 4:16 PM, Russell King - ARM Linux
+
+> A generic solution (that I think I already proposed) would be to
+> reserve a chunk of memory for the CMA that can be removed from the
+> normally mapped kernel memory through memblock at boot time. The size
+> of this memory region would be configurable through kconfig. Then, the
+> CMA would have a "dma" flag or something, and take chunks out of it
+> until there's no more, and then return errors. That would work for
+> ARM.
+
+That sounds an awful lot like the Android kernel's pmem implementation.
+
+Solving this problem is important for us as well, but, I'm not sure I
+see a better solution that something like Felipe suggests.
+
+The disadvantage, of course, being that the memory isn't available for
+the system when the user isn't doing the multi-media.
+
+David
+
+-- 
+Sent by an employee of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
