@@ -1,63 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id F3B376B0087
-	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 01:35:32 -0500 (EST)
-Date: Thu, 23 Dec 2010 13:10:47 +0800
-From: Shaohui Zheng <shaohui.zheng@linux.intel.com>
-Subject: Re: [6/7, v9] NUMA Hotplug Emulator: Fake CPU socket with logical
- CPU on x86
-Message-ID: <20101223051047.GA13060@shaohui>
-References: <20101210073119.156388875@intel.com>
- <20101210073242.773689101@intel.com>
- <20101222162732.bef6904e.akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 62F096B0087
+	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 02:43:43 -0500 (EST)
+Message-ID: <aab9953c699dace1ed94efd6505c7844.squirrel@www.firstfloor.org>
+In-Reply-To: 
+ <5C4C569E8A4B9B42A84A977CF070A35B2C132F68FC@USINDEVS01.corp.hds.com>
+References: 
+    <5C4C569E8A4B9B42A84A977CF070A35B2C132F68FC@USINDEVS01.corp.hds.com>
+Date: Thu, 23 Dec 2010 08:43:39 +0100
+Subject: Re: [RFC][PATCH] Add a sysctl option controlling kexec when MCE
+ occurred
+From: "Andi Kleen" <andi@firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101222162732.bef6904e.akpm@linux-foundation.org>
+Content-Type: text/plain;charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: shaohui.zheng@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Sam Ravnborg <sam@ravnborg.org>, Haicheng Li <haicheng.li@intel.com>
+To: Seiji Aguchi <seiji.aguchi@hds.com>
+Cc: "rdunlap@xenotime.net" <rdunlap@xenotime.net>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "ebiederm@xmission.com" <ebiederm@xmission.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linuxfoundation.org" <akpm@linuxfoundation.org>, "eugeneteo@kernel.org" <eugeneteo@kernel.org>, "kees.cook@canonical.com" <kees.cook@canonical.com>, "drosenberg@vsecurity.com" <drosenberg@vsecurity.com>, "ying.huang@intel.com" <ying.huang@intel.com>, "len.brown@intel.com" <len.brown@intel.com>, "seto.hidetoshi@jp.fujitsu.com" <seto.hidetoshi@jp.fujitsu.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "gregkh@suse.de" <gregkh@suse.de>, "davem@davemloft.net" <davem@davemloft.net>, "hadi@cyberus.ca" <hadi@cyberus.ca>, "hawk@comx.dk" <hawk@comx.dk>, "opurdila@ixiacom.com" <opurdila@ixiacom.com>, "hidave.darkstar@gmail.com" <hidave.darkstar@gmail.com>, "dzickus@redhat.com" <dzickus@redhat.com>, "eric.dumazet@gmail.com" <eric.dumazet@gmail.com>, "ext-andriy.shevchenko@nokia.com" <ext-andriy.shevchenko@nokia.com>, "tj@kernel.org" <tj@kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kexec@lists.infradead.org" <kexec@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Satoru Moriya <satoru.moriya@hds.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 22, 2010 at 04:27:32PM -0800, Andrew Morton wrote:
-> >  static struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
-> > @@ -198,6 +200,8 @@
-> >  {
-> >  	int cpuid, phys_id;
-> >  	unsigned long timeout;
-> > +	u8 cpu_probe_on = 0;
-> 
-> Unneeded initialisation.
-> 
-> Does this cause an unused var warning when
-> CONFIG_ARCH_CPU_PROBE_RELEASE=n?
-> 
 
-I am trying to avoid too much ifdef here, it seems it take an unused var
-warining when CONFIG_ARCH_CPU_PROBE_RELEASE=n. good catching.
 
-I will figure out a better method.
+>   - Accessing to memory and dumping it to disks.
 
-> > +	struct cpuinfo_x86 *c;
-> >  
-> >  	/*
-> >  	 * If waken up by an INIT in an 82489DX configuration
-> >
-> > ...
-> >
-> > +#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-> > +/*
-> > + * Put the logical cpu into a new sokect, and encapsule it into core 0.
-> 
-> That comment needs help.
-> 
+A better solution for this is
 
-Agree, the comment is too simple, should add better documents for function
-fake_cpu_socket_info.
+http://git.kernel.org/?p=linux/kernel/git/ak/linux-mce-2.6.git;a=commitdiff;h=fe61906edce9e70d02481a77a617ba1397573dce
+and
+http://git.kernel.org/?p=linux/kernel/git/ak/linux-mce-2.6.git;a=commit;h=cb58f049ae6709ddbab71be199390dc6852018cd
 
--- 
-Thanks & Regards,
-Shaohui
+I'm not a big friend of sysctls for things like this -- either the behaviour
+makes sense and should be default or not.
+
+-Andi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
