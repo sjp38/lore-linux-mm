@@ -1,72 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 966946B008A
-	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 05:14:04 -0500 (EST)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp05.in.ibm.com (8.14.4/8.13.1) with ESMTP id oBNADsJp017851
-	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 15:43:54 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oBNADsts1863910
-	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 15:43:54 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oBNADqFl026617
-	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 21:13:53 +1100
-Date: Thu, 23 Dec 2010 00:36:21 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: 2.6.37-rc7: NULL pointer dereference
-Message-ID: <20101222190621.GA16046@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1293020757.1998.2.camel@localhost.localdomain>
- <AANLkTin6GMiXHuoVzNWPcj0jXDqWyfWCwW9fd-v=pq=X@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTin6GMiXHuoVzNWPcj0jXDqWyfWCwW9fd-v=pq=X@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A1EB86B0087
+	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 05:58:19 -0500 (EST)
+Received: from epmmp1 (mailout4.samsung.com [203.254.224.34])
+ by mailout4.samsung.com
+ (Oracle Communications Messaging Exchange Server 7u4-19.01 64bit (built Sep  7
+ 2010)) with ESMTP id <0LDV00F0VNT5Y010@mailout4.samsung.com> for
+ linux-mm@kvack.org; Thu, 23 Dec 2010 19:58:17 +0900 (KST)
+Received: from AMDC159 ([106.116.37.153])
+ by mmp1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTPA id <0LDV00873NSXWU@mmp1.samsung.com> for linux-mm@kvack.org; Thu,
+ 23 Dec 2010 19:58:17 +0900 (KST)
+Date: Thu, 23 Dec 2010 11:58:08 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCHv8 00/12] Contiguous Memory Allocator
+In-reply-to: <20101223100642.GD3636@n2100.arm.linux.org.uk>
+Message-id: <00ea01cba290$4d67f500$e837df00$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-language: pl
+Content-transfer-encoding: 7BIT
+References: <cover.1292443200.git.m.nazarewicz@samsung.com>
+ <AANLkTim8_=0+-zM5z4j0gBaw3PF3zgpXQNetEn-CfUGb@mail.gmail.com>
+ <20101223100642.GD3636@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Thomas Meyer <thomas@m3y3r.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Kyungmin Park' <kmpark@infradead.org>
+Cc: 'Michal Nazarewicz' <m.nazarewicz@samsung.com>, linux-arm-kernel@lists.infradead.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Johan MOSSBERG' <johan.xx.mossberg@stericsson.com>, 'Mel Gorman' <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, linux-mm@kvack.org, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-media@vger.kernel.org, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-* MinChan Kim <minchan.kim@gmail.com> [2010-12-23 00:37:11]:
+Hello,
 
-> Cced linux-mm and maintainers of memcg.
+On Thursday, December 23, 2010 11:07 AM Russell King - ARM Linux wrote:
+
+> On Thu, Dec 23, 2010 at 06:30:57PM +0900, Kyungmin Park wrote:
+> > Hi Andrew,
+> >
+> > any comments? what's the next step to merge it for 2.6.38 kernel. we
+> > want to use this feature at mainline kernel.
 > 
-> On Wed, Dec 22, 2010 at 9:25 PM, Thomas Meyer <thomas@m3y3r.de> wrote:
-> > BUG: unable to handle kernel NULL pointer dereference at 00000008
-> > IP: [<c04eae14>] __mem_cgroup_try_charge+0x234/0x430
-> > *pde = 00000000
-> > Oops: 0000 [#1]
-> > last sysfs file: /sys/devices/platform/regulatory.0/uevent
-> > Modules linked in: vfat fat usb_storage fuse sco bnep l2cap bluetooth cpufreq_ondemand acpi_cpufreq mperf ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 ip6table_filter ip6_tables kvm_intel kvm uinput arc4 ecb snd_hda_codec_hdmi snd_hda_codec_realtek iwlagn snd_hda_intel snd_hda_codec iwlcore uvcvideo snd_hwdep mac80211 snd_seq videodev snd_seq_device snd_pcm cfg80211 snd_timer rfkill v4l1_compat wmi snd pcspkr soundcore joydev serio_raw snd_page_alloc ipv6 sha256_generic aes_i586 aes_generic cbc dm_crypt [last unloaded: scsi_wait_scan]
-> > Pid: 8058, comm: swapoff Tainted: G          I 2.6.37-rc7 #221 JM11-MS/Aspire 1810T
-> > EIP: 0060:[<c04eae14>] EFLAGS: 00010246 CPU: 0
-> > EIP is at __mem_cgroup_try_charge+0x234/0x430
-> > EAX: 00000008 EBX: 00000000 ECX: f2e71f10 EDX: f2f96380
-> > ESI: f3e55860 EDI: 00020000 EBP: f2e71eb4 ESP: f2e71e54
-> >  DS: 007b ES: 007b FS: 0000 GS: 00e0 SS: 0068
-> > Process swapoff (pid: 8058, ti=f2e70000 task=f3e55860 task.ti=f2e70000)
-> > Stack:
-> >  f2e71e88 c0456607 26ba7c1c f3e55860 00000010 f3e55860 069d208a b2ee651d
-> >  00000008 000000d0 f2f96380 00000005 01ffffff f2e71f10 00000246 ec1a64ae
-> >  ffffffff 00000000 27b52eae f044dc84 00000000 f2f96380 00000000 000000d0
-> > Call Trace:
-> >  [<c0456607>] ? ktime_get_ts+0x107/0x140
-> >  [<c04ebb89>] ? mem_cgroup_try_charge_swapin+0x49/0xb0
-> >  [<c04d9b4b>] ? unuse_mm+0x1db/0x300
-> >  [<c04dad9a>] ? sys_swapoff+0x2aa/0x890
-> >  [<c047cd58>] ? audit_syscall_entry+0x218/0x240
-> >  [<c047d043>] ? audit_syscall_exit+0x1f3/0x220
-> >  [<c0403013>] ? sysenter_do_call+0x12/0x22
-> > Code: 55 c8 8b 82 90 01 00 00 85 c0 74 09 8b 80 7c 03 00 00 8b 58 2c 3b 1d 54 20 a9 c0 74 61 3b 1d 4c ca a4 c0 74 6a 8d 43 08 89 45 c0 <8b> 43 08 a8 01 0f 85 73 fe ff ff 8d 4b 04 89 5d bc 8d 76 00 8b
-> > EIP: [<c04eae14>] __mem_cgroup_try_charge+0x234/0x430 SS:ESP 0068:f2e71e54
-> > CR2: 0000000000000008
+> Has anyone addressed my issue with it that this is wide-open for
+> abuse by allocating large chunks of memory, and then remapping
+> them in some way with different attributes, thereby violating the
+> ARM architecture specification?
 
-Thanks for the report, does this happen at bootup?
+Actually this contiguous memory allocator is a better replacement for
+alloc_pages() which is used by dma_alloc_coherent(). It is a generic
+framework that is not tied only to ARM architecture.
 
--- 
-	Three Cheers,
-	Balbir
+> In other words, do we _actually_ have a use for this which doesn't
+> involve doing something like allocating 32MB of memory from it,
+> remapping it so that it's DMA coherent, and then performing DMA
+> on the resulting buffer?
+
+This is an arm specific problem, also related to dma_alloc_coherent()
+allocator. To be 100% conformant with ARM specification we would
+probably need to unmap all pages used by the dma_coherent allocator
+from the LOW MEM area. This is doable, but completely not related
+to the CMA and this patch series.
+
+Best regards
+--
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
