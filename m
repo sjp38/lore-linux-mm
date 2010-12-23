@@ -1,48 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id ACF396B0087
-	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 07:20:36 -0500 (EST)
-Date: Thu, 23 Dec 2010 12:19:18 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCHv8 00/12] Contiguous Memory Allocator
-Message-ID: <20101223121917.GG3636@n2100.arm.linux.org.uk>
-References: <cover.1292443200.git.m.nazarewicz@samsung.com> <AANLkTim8_=0+-zM5z4j0gBaw3PF3zgpXQNetEn-CfUGb@mail.gmail.com> <20101223100642.GD3636@n2100.arm.linux.org.uk> <00ea01cba290$4d67f500$e837df00$%szyprowski@samsung.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 536F06B008A
+	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 07:26:59 -0500 (EST)
+Received: from prdlxvm0001.codify.net (prdlxvm0001.codify.net [127.0.0.1])
+	by prdlxvm0001.codify.net (Postfix) with ESMTP id 8CA801CC0287
+	for <linux-mm@kvack.org>; Thu, 23 Dec 2010 23:41:32 +1000 (EST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <00ea01cba290$4d67f500$e837df00$%szyprowski@samsung.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+From: oztfs-request@oztfs.com
+Subject: confirm dd729c0f98e3c83bf828d7e374ff52b7d56d497d
+Reply-To: oztfs-request@oztfs.com
+Message-ID: <mailman.0.1293111692.6587.oztfs@oztfs.com>
+Date: Thu, 23 Dec 2010 23:41:32 +1000
 Sender: owner-linux-mm@kvack.org
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: 'Kyungmin Park' <kmpark@infradead.org>, 'Michal Nazarewicz' <m.nazarewicz@samsung.com>, linux-arm-kernel@lists.infradead.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Johan MOSSBERG' <johan.xx.mossberg@stericsson.com>, 'Mel Gorman' <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, linux-mm@kvack.org, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-media@vger.kernel.org, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 23, 2010 at 11:58:08AM +0100, Marek Szyprowski wrote:
-> Actually this contiguous memory allocator is a better replacement for
-> alloc_pages() which is used by dma_alloc_coherent(). It is a generic
-> framework that is not tied only to ARM architecture.
+Mailing list removal confirmation notice for mailing list oztfs
 
-... which is open to abuse.  What I'm trying to find out is - if it
-can't be used for DMA, what is it to be used for?
+We have received a request for the removal of your email address,
+"linux-mm@kvack.org" from the oztfs@oztfs.com mailing list.  To
+confirm that you want to be removed from this mailing list, simply
+reply to this message, keeping the Subject: header intact.  Or visit
+this web page:
 
-Or are we inventing an everything-but-ARM framework?
+    http://prdlxvm0001.codify.net/mailman/confirm/oztfs/dd729c0f98e3c83bf828d7e374ff52b7d56d497d
 
-> > In other words, do we _actually_ have a use for this which doesn't
-> > involve doing something like allocating 32MB of memory from it,
-> > remapping it so that it's DMA coherent, and then performing DMA
-> > on the resulting buffer?
-> 
-> This is an arm specific problem, also related to dma_alloc_coherent()
-> allocator. To be 100% conformant with ARM specification we would
-> probably need to unmap all pages used by the dma_coherent allocator
-> from the LOW MEM area. This is doable, but completely not related
-> to the CMA and this patch series.
 
-You've already been told why we can't unmap pages from the kernel
-direct mapping.
+Or include the following line -- and only the following line -- in a
+message to oztfs-request@oztfs.com:
 
-Okay, so I'm just going to assume that CMA has _no_ _business_ being
-used on ARM, and is not something that should interest anyone in the
-ARM community.
+    confirm dd729c0f98e3c83bf828d7e374ff52b7d56d497d
+
+Note that simply sending a `reply' to this message should work from
+most mail readers, since that usually leaves the Subject: line in the
+right form (additional "Re:" text in the Subject: is okay).
+
+If you do not wish to be removed from this list, please simply
+disregard this message.  If you think you are being maliciously
+removed from the list, or have any other questions, send them to
+oztfs-owner@oztfs.com.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
