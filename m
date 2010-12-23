@@ -1,159 +1,276 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C1736B008A
-	for <linux-mm@kvack.org>; Wed, 22 Dec 2010 19:28:13 -0500 (EST)
-Date: Wed, 22 Dec 2010 16:27:36 -0800
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A95E6B008A
+	for <linux-mm@kvack.org>; Wed, 22 Dec 2010 19:28:51 -0500 (EST)
+Date: Wed, 22 Dec 2010 16:27:27 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [7/7, v9] NUMA Hotplug Emulator: Implement per-node add_memory
- debugfs interface
-Message-Id: <20101222162736.e51d2e18.akpm@linux-foundation.org>
-In-Reply-To: <20101210073242.876873390@intel.com>
+Subject: Re: [5/7, v9] NUMA Hotplug Emulator: Support cpu probe/release in
+ x86_64
+Message-Id: <20101222162727.56b830b0.akpm@linux-foundation.org>
+In-Reply-To: <20101210073242.670777298@intel.com>
 References: <20101210073119.156388875@intel.com>
-	<20101210073242.876873390@intel.com>
+	<20101210073242.670777298@intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: shaohui.zheng@intel.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Haicheng Li <haicheng.li@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, ak@linux.intel.com, shaohui.zheng@linux.intel.com, rientjes@google.com, dave@linux.vnet.ibm.com, gregkh@suse.de, Ingo Molnar <mingo@elte.hu>, Len Brown <len.brown@intel.com>, Yinghai Lu <Yinghai.Lu@Sun.COM>, Tejun Heo <tj@kernel.org>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 10 Dec 2010 15:31:26 +0800
+On Fri, 10 Dec 2010 15:31:24 +0800
 shaohui.zheng@intel.com wrote:
 
-> From:  Shaohui Zheng <shaohui.zheng@intel.com>
+> From: Shaohui Zheng <shaohui.zheng@intel.com>
 > 
-> Add add_memory interface to support to memory hotplug emulation for each online
-> node under debugfs. The reserved memory can be added into desired node with
-> this interface.
+> CPU physical hot-add/hot-remove are supported on some hardwares, and it 
+> was already supported in current linux kernel. NUMA Hotplug Emulator provides
+> a mechanism to emulate the process with software method. It can be used for
+> testing or debuging purpose.
 > 
-> The layout on debugfs:
-> 	mem_hotplug/node0/add_memory
-> 	mem_hotplug/node1/add_memory
-> 	mem_hotplug/node2/add_memory
-> 	...
+> CPU physical hotplug is different with logical CPU online/offline. Logical
+> online/offline is controled by interface /sys/device/cpu/cpuX/online. CPU
+> hotplug emulator uses probe/release interface. It becomes possible to do cpu
+> hotplug automation and stress
 > 
-> Add a memory section(128M) to node 3(boots with mem=1024m)
+> Add cpu interface probe/release under sysfs for x86_64. User can use this
+> interface to emulate the cpu hot-add and hot-remove process.
 > 
-> 	echo 0x40000000 > mem_hotplug/node3/add_memory
+> Directive:
+> *) Reserve CPU thru grub parameter like:
+> 	maxcpus=4
+> 
+> the rest CPUs will not be initiliazed. 
+> 
+> *) Probe CPU
+> we can use the probe interface to hot-add new CPUs:
+> 	echo nid > /sys/devices/system/cpu/probe
+> 
+> *) Release a CPU
+> 	echo cpu > /sys/devices/system/cpu/release
+> 
+> A reserved CPU will be hot-added to the specified node.
+> 1) nid == 0, the CPU will be added to the real node which the CPU
+> should be in
+> 2) nid != 0, add the CPU to node nid even through it is a fake node.
 > 
 >
 > ...
 >
-> +#ifdef CONFIG_ARCH_MEMORY_PROBE
+> --- linux-hpe4.orig/arch/x86/kernel/topology.c	2010-12-10 14:39:43.333331000 +0800
+> +++ linux-hpe4/arch/x86/kernel/topology.c	2010-12-10 14:49:56.043331000 +0800
+> @@ -30,6 +30,9 @@
+>  #include <linux/init.h>
+>  #include <linux/smp.h>
+>  #include <asm/cpu.h>
+> +#include <linux/cpu.h>
+> +#include <linux/topology.h>
+> +#include <linux/acpi.h>
+>  
+>  static DEFINE_PER_CPU(struct x86_cpu, cpu_devices);
+>  
+> @@ -66,6 +69,78 @@
+>  	unregister_cpu(&per_cpu(cpu_devices, num).cpu);
+>  }
+>  EXPORT_SYMBOL(arch_unregister_cpu);
 > +
-> +static ssize_t add_memory_store(struct file *file, const char __user *buf,
-> +				size_t count, loff_t *ppos)
+> +ssize_t arch_cpu_probe(const char *buf, size_t count)
 > +{
-> +	u64 phys_addr = 0;
+> +	int nid = 0;
+> +	int num = 0, selected = 0;
 
-Even more unneeded initalisation.
+One definition per line make for more maintainable code.
 
-Please check the whole patchset for this.  It's bad because it can
-sometimes generate more code and because it can sometimes hide bugs by
-suppressing used-uninitialsied warnings.
+Two of these initialisations are unnecessary.
 
-> +	int nid = file->private_data - NULL;
-
-Well that was sneaky.
-
-It would be more conventional to just use the typecast:
-
-	int nid = (long)file->private_data;
-
-
-> +	int ret;
+> +	/* check parameters */
+> +	if (!buf || count < 2)
+> +		return -EPERM;
 > +
-> +	printk(KERN_INFO "Add a memory section to node: %d.\n", nid);
-> +	phys_addr = simple_strtoull(buf, NULL, 0);
+> +	nid = simple_strtoul(buf, NULL, 0);
 
-checkpatch
+checkpatch?
 
-> +	ret = add_memory(nid, phys_addr, PAGES_PER_SECTION << PAGE_SHIFT);
-> +	if (ret)
-> +		count = ret;
+> +	printk(KERN_DEBUG "Add a cpu to node : %d\n", nid);
+
+"Add a CPU to node %d" would make more sense.
+
+> +	if (nid < 0 || nid > nr_node_ids - 1) {
+> +		printk(KERN_ERR "Invalid NUMA node id: %d (0 <= nid < %d).\n",
+> +			nid, nr_node_ids);
+> +		return -EPERM;
+> +	}
+> +
+> +	if (!node_online(nid)) {
+> +		printk(KERN_ERR "NUMA node %d is not online, give up.\n", nid);
+
+"giving"
+
+> +		return -EPERM;
+> +	}
+> +
+> +	/* find first uninitialized cpu */
+> +	for_each_present_cpu(num) {
+
+s/num/cpu/ would be conventional.  "num" is a pretty poor identifier in
+general - it fails to identify what it is counting.
+
+> +		if (per_cpu(cpu_sys_devices, num) == NULL) {
+> +			selected = num;
+
+Similarly, I'd have used "selected_cpu".
+
+> +			break;
+> +		}
+> +	}
+> +
+> +	if (selected >= num_possible_cpus()) {
+> +		printk(KERN_ERR "No free cpu, give up cpu probing.\n");
+> +		return -EPERM;
+> +	}
+> +
+> +	/* register cpu */
+> +	arch_register_cpu_node(selected, nid);
+> +	acpi_map_lsapic_emu(selected, nid);
 > +
 > +	return count;
 > +}
-> +
-> +static int add_memory_open(struct inode *inode, struct file *file)
+> +EXPORT_SYMBOL(arch_cpu_probe);
+
+arch_cpu_probe() is global and exported to modules, but is undocumented.
+
+If it had been documented, I might have been able to work out why arg
+`count' is checked, but never used.
+
+> +ssize_t arch_cpu_release(const char *buf, size_t count)
 > +{
-> +	file->private_data = inode->i_private;
+> +	int cpu = 0;
+> +
+> +	cpu =  simple_strtoul(buf, NULL, 0);
 
-Was this usage of i_private and private_data documented in comments
-somewhere?
+unneeded initialisation, spurious whitespace, checkpatch.
 
-> +	return 0;
+> +	/* cpu 0 is not hotplugable */
+> +	if (cpu == 0) {
+> +		printk(KERN_ERR "can not release cpu 0.\n");
+
+It's generally better to make kernel messages self-identifying. 
+Especially error messages.  If someone comes along and sees "can not
+release cpu 0" in their logs, they don't have a clue what caused it
+unless they download the kernel sources and go grepping.
+
+> +		return -EPERM;
+> +	}
+> +
+> +	if (cpu_online(cpu)) {
+> +		printk(KERN_DEBUG "offline cpu %d.\n", cpu);
+> +		if (!cpu_down(cpu)) {
+> +			printk(KERN_ERR "fail to offline cpu %d, give up.\n", cpu);
+
+"failed", "giving".
+
+> +			return -EPERM;
+> +		}
+> +
+> +	}
+> +
+> +	arch_unregister_cpu(cpu);
+> +	acpi_unmap_lsapic(cpu);
+> +
+> +	return count;
 > +}
-> +
-> +static const struct file_operations add_memory_file_ops = {
-> +	.open		= add_memory_open,
-> +	.write		= add_memory_store,
-> +	.llseek		= generic_file_llseek,
-> +};
-> +
-> +/*
-> + * Create add_memory debugfs entry under specified node
-> + */
-> +static int debugfs_create_add_memory_entry(int nid)
-> +{
-> +	char buf[32];
-> +	static struct dentry *node_debug_root;
-> +
-> +	snprintf(buf, sizeof(buf), "node%d", nid);
-> +	node_debug_root = debugfs_create_dir(buf, memhp_debug_root);
-> +	if (!node_debug_root)
-> +		return -ENOMEM;
+> +EXPORT_SYMBOL(arch_cpu_release);
 
-hm, debugfs_create_dir() was poorly designed - it should return an
-ERR_PTR() so callers don't need to assume ENOMEM, which may be incorrect.
+No documentation.
 
-> +	/* the nid information was represented by the offset of pointer(NULL+nid) */
-> +	if (!debugfs_create_file("add_memory", S_IWUSR, node_debug_root,
-> +			NULL + nid, &add_memory_file_ops))
-> +		return -ENOMEM;
-> +
-> +	return 0;
-> +}
-> +
-> +static int __init memory_debug_init(void)
-> +{
-> +	int nid;
-> +
-> +	if (!memhp_debug_root)
-> +		memhp_debug_root = debugfs_create_dir("mem_hotplug", NULL);
-> +	if (!memhp_debug_root)
-> +		return -ENOMEM;
-> +
-> +	for_each_online_node(nid)
-> +		 debugfs_create_add_memory_entry(nid);
-> +
-> +	return 0;
-> +}
-> +
-> +module_init(memory_debug_init);
-> +#else
-> +static debugfs_create_add_memory_entry(int nid)
-
-"static int".
-
-> +{
-> +	return 0;
-> +}
-> +#endif /* CONFIG_ARCH_MEMORY_PROBE */
-> +
->  static ssize_t add_node_store(struct file *file, const char __user *buf,
->  				size_t count, loff_t *ppos)
->  {
-> @@ -963,6 +1038,8 @@
->  		return -ENOMEM;
+>  #else /* CONFIG_HOTPLUG_CPU */
 >  
->  	ret = add_memory(nid, start, size);
-> +
-> +	debugfs_create_add_memory_entry(nid);
->  	return ret ? ret : count;
+>  static int __init arch_register_cpu(int num)
+> @@ -83,8 +158,14 @@
+>  		register_one_node(i);
+>  #endif
+>  
+> -	for_each_present_cpu(i)
+> -		arch_register_cpu(i);
+> +	/*
+> +	 * when cpu hotplug emulation enabled, register the online cpu only,
+> +	 * the rests are reserved for cpu probe.
+> +	 */
+
+Something like "When cpu hotplug emulation is enabled, register only
+the online cpu.  The remainder are reserved for cpu probing.".
+
+
+> +	for_each_present_cpu(i) {
+> +		if ((cpu_hpe_on && cpu_online(i)) || !cpu_hpe_on)
+> +			arch_register_cpu(i);
+> +	}
+>  
+>  	return 0;
 >  }
+>
+> ...
+>
+> --- linux-hpe4.orig/drivers/acpi/processor_driver.c	2010-12-10 13:42:34.593331000 +0800
+> +++ linux-hpe4/drivers/acpi/processor_driver.c	2010-12-10 14:48:32.143331001 +0800
+> @@ -542,6 +542,14 @@
+>  		goto err_free_cpumask;
 >  
+>  	sysdev = get_cpu_sysdev(pr->id);
+> +	/*
+> +	 * Reserve cpu for hotplug emulation, the reserved cpu can be hot-added
+> +	 * throu the cpu probe interface. Return directly.
+
+s/emulation, the/emulation.  The/
+s/throu/through/
+
+> +	 */
+> +	if (sysdev == NULL) {
+> +		goto out;
+> +	}
+
+Unneeded braces.
+
+>  	if (sysfs_create_link(&device->dev.kobj, &sysdev->kobj, "sysdev")) {
+>  		result = -EFAULT;
+>  		goto err_remove_fs;
+> @@ -582,6 +590,7 @@
+>  		goto err_remove_sysfs;
+>  	}
+>  
+> +out:
+>  	return 0;
+>  
+>
+> ...
+>
+> --- linux-hpe4.orig/drivers/base/cpu.c	2010-12-10 14:39:43.333331000 +0800
+> +++ linux-hpe4/drivers/base/cpu.c	2010-12-10 14:48:32.143331001 +0800
+> @@ -22,9 +22,15 @@
+>  };
+>  EXPORT_SYMBOL(cpu_sysdev_class);
+>  
+> -static DEFINE_PER_CPU(struct sys_device *, cpu_sys_devices);
+> +DEFINE_PER_CPU(struct sys_device *, cpu_sys_devices);
+>  
+>  #ifdef CONFIG_HOTPLUG_CPU
+> +/*
+> + * cpu_hpe_on is a switch to enable/disable cpu hotplug emulation. it is
+
+s/it/It/.
+
+> + * disabled in default, we can enable it throu grub parameter cpu_hpe=on
+
+"through".
+
+> + */
+> +int cpu_hpe_on;
+
+__read_mostly, perhaps.
+
+>  static ssize_t show_online(struct sys_device *dev, struct sysdev_attribute *attr,
+>  			   char *buf)
+>  {
 >
 > ...
 >
