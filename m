@@ -1,95 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 65A206B0088
-	for <linux-mm@kvack.org>; Fri, 24 Dec 2010 03:37:50 -0500 (EST)
-Date: Fri, 24 Dec 2010 09:37:39 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC][PATCH] memcg: add valid check at allocating or freeing
- memory
-Message-ID: <20101224083739.GF2048@cmpxchg.org>
-References: <20101224093131.274c8728.nishimura@mxp.nes.nec.co.jp>
+	by kanga.kvack.org (Postfix) with ESMTP id 330CE6B0088
+	for <linux-mm@kvack.org>; Fri, 24 Dec 2010 07:15:29 -0500 (EST)
+Received: by qyk7 with SMTP id 7so7883281qyk.14
+        for <linux-mm@kvack.org>; Fri, 24 Dec 2010 04:15:27 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101224093131.274c8728.nishimura@mxp.nes.nec.co.jp>
+Reply-To: sedat.dilek@gmail.com
+In-Reply-To: <201012240132.oBO1W8Ub022207@imap1.linux-foundation.org>
+References: <201012240132.oBO1W8Ub022207@imap1.linux-foundation.org>
+Date: Fri, 24 Dec 2010 13:15:26 +0100
+Message-ID: <AANLkTinegsqmSzXqqrF930abQfOBu6_MH1EToupKV214@mail.gmail.com>
+Subject: Re: mmotm 2010-12-23-16-58 uploaded
+From: Sedat Dilek <sedat.dilek@googlemail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 24, 2010 at 09:31:31AM +0900, Daisuke Nishimura wrote:
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> This patch add checks at allocating or freeing a page whether the page is used
-> (iow, charged) from the view point of memcg.
-> This check may be usefull in debugging a problem and we did a similar checks
-> before the commit 52d4b9ac(memcg: allocate all page_cgroup at boot).
-> 
-> This patch adds some overheads at allocating or freeing memory, so it's enabled
-> only when CONFIG_DEBUG_VM is enabled.
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+On Fri, Dec 24, 2010 at 1:58 AM,  <akpm@linux-foundation.org> wrote:
+> The mm-of-the-moment snapshot 2010-12-23-16-58 has been uploaded to
+>
+> =C2=A0 http://userweb.kernel.org/~akpm/mmotm/
+>
+> and will soon be available at
+>
+> =C2=A0 git://zen-kernel.org/kernel/mmotm.git
+>
 
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2971,6 +2971,53 @@ int mem_cgroup_shmem_charge_fallback(struct page *page,
->  	return ret;
->  }
->  
-> +#ifdef CONFIG_DEBUG_VM
-> +static bool
-> +__mem_cgroup_bad_page_check(struct page *page, struct page_cgroup **pcp)
-> +{
-> +	struct page_cgroup *pc;
-> +	bool ret = false;
-> +
-> +	pc = lookup_page_cgroup(page);
-> +	if (unlikely(!pc))
-> +		goto out;
-> +
-> +	if (PageCgroupUsed(pc)) {
-> +		ret = true;
-> +		if (pcp)
-> +			*pcp = pc;
-> +	}
-> +out:
-> +	return ret;
+The readme in [1] lists a wrong browseable GIT-repo URL:
 
-I think it is not necessary to have two return values.  Just return
-the pc if it's in use:
+"Alternatively, these patches are available in a git repository at
 
-static struct page_cgroup *lookup_page_cgroup_used(struct page)
-{
-	struct page_cgroup *pc;
+git:	git://zen-kernel.org/kernel/mmotm.git
+gitweb:	http://git.zen-kernel.org/?p=3Dkernel/mmotm.git;a=3Dsummary"
 
-	pc = lookup_page_cgroup(page);
-	if (likely(pc) && PageCgroupUsed(pc))
-		return pc;
-	return NULL;
-}
+Correct would be [2]:
 
-> +bool mem_cgroup_bad_page_check(struct page *page)
-> +{
-> +	if (mem_cgroup_disabled())
-> +		return false;
-> +
-> +	return __mem_cgroup_bad_page_check(page, NULL);
+gitweb: http://git.zen-kernel.org/mmotm/
 
-	return !!lookup_page_cgroup_used(page);
+> It contains the following patches against 2.6.37-rc7:
+>
+[...]
+> linux-next-git-rejects.patch
 
-> +void mem_cgroup_print_bad_page(struct page *page)
-> +{
-> +	struct page_cgroup *pc;
-> +
-> +	if (__mem_cgroup_bad_page_check(page, &pc))
-> +		printk(KERN_ALERT "pc:%p pc->flags:%ld pc->mem_cgroup:%p\n",
-> +			pc, pc->flags, pc->mem_cgroup);
+Hm, the content of this patch looks a bit strange.
+Is that a post-cleanup patch to linux-next merge?
 
-	pc = lookup_page_cgroup_used(page);
-	if (pc)
-		printk()
+- Sedat -
 
-Other than that, I agree with the patch.
+[1] http://userweb.kernel.org/~akpm/mmotm/mmotm-readme.txt
+[2] http://git.zen-kernel.org/mmotm/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
