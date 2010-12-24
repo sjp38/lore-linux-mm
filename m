@@ -1,56 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B97BA6B0088
-	for <linux-mm@kvack.org>; Fri, 24 Dec 2010 08:09:16 -0500 (EST)
-Date: Fri, 24 Dec 2010 05:04:59 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mmotm 2010-12-23-16-58 uploaded
-Message-Id: <20101224050459.0331deb7.akpm@linux-foundation.org>
-In-Reply-To: <AANLkTinegsqmSzXqqrF930abQfOBu6_MH1EToupKV214@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 069DF6B0088
+	for <linux-mm@kvack.org>; Fri, 24 Dec 2010 12:54:15 -0500 (EST)
+Date: Fri, 24 Dec 2010 09:52:26 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: [PATCH -mmotm] kptr_restrict: fix build when PRINTK not enabled
+Message-Id: <20101224095226.2129fa9c.randy.dunlap@oracle.com>
+In-Reply-To: <201012240132.oBO1W8Ub022207@imap1.linux-foundation.org>
 References: <201012240132.oBO1W8Ub022207@imap1.linux-foundation.org>
-	<AANLkTinegsqmSzXqqrF930abQfOBu6_MH1EToupKV214@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: sedat.dilek@gmail.com
-Cc: Sedat Dilek <sedat.dilek@googlemail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: akpm@linux-foundation.org, Dan Rosenberg <drosenberg@vsecurity.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 24 Dec 2010 13:15:26 +0100 Sedat Dilek <sedat.dilek@googlemail.com> wrote:
+From: Randy Dunlap <randy.dunlap@oracle.com>
 
-> On Fri, Dec 24, 2010 at 1:58 AM,  <akpm@linux-foundation.org> wrote:
-> > The mm-of-the-moment snapshot 2010-12-23-16-58 has been uploaded to
-> >
-> > __ http://userweb.kernel.org/~akpm/mmotm/
-> >
-> > and will soon be available at
-> >
-> > __ git://zen-kernel.org/kernel/mmotm.git
-> >
-> 
-> The readme in [1] lists a wrong browseable GIT-repo URL:
-> 
-> "Alternatively, these patches are available in a git repository at
-> 
-> git:	git://zen-kernel.org/kernel/mmotm.git
-> gitweb:	http://git.zen-kernel.org/?p=kernel/mmotm.git;a=summary"
-> 
-> Correct would be [2]:
-> 
-> gitweb: http://git.zen-kernel.org/mmotm/
+#include <linux/printk.h> since that is where kptr_restrict is externed.
 
-hm, thanks.  The darn thing keeps moving around.
+Put kptr_restrict inside #ifdef CONFIG_PRINTK block to fix build error
+when CONFIG_PRINTK is not enabled:
 
-> > It contains the following patches against 2.6.37-rc7:
-> >
-> [...]
-> > linux-next-git-rejects.patch
-> 
-> Hm, the content of this patch looks a bit strange.
-> Is that a post-cleanup patch to linux-next merge?
+kernel/sysctl.c:712: error: 'kptr_restrict' undeclared here (not in a function)
 
-Yes.  It's caused by skew between Linus's tree and linux-next.
+Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: Dan Rosenberg <drosenberg@vsecurity.com>
+---
+ kernel/sysctl.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+--- mmotm-2010-1223-1658.orig/kernel/sysctl.c
++++ mmotm-2010-1223-1658/kernel/sysctl.c
+@@ -24,6 +24,7 @@
+ #include <linux/slab.h>
+ #include <linux/sysctl.h>
+ #include <linux/signal.h>
++#include <linux/printk.h>
+ #include <linux/proc_fs.h>
+ #include <linux/security.h>
+ #include <linux/ctype.h>
+@@ -706,7 +707,6 @@ static struct ctl_table kern_table[] = {
+ 		.extra1		= &zero,
+ 		.extra2		= &one,
+ 	},
+-#endif
+ 	{
+ 		.procname	= "kptr_restrict",
+ 		.data		= &kptr_restrict,
+@@ -716,6 +716,7 @@ static struct ctl_table kern_table[] = {
+ 		.extra1		= &zero,
+ 		.extra2		= &two,
+ 	},
++#endif
+ 	{
+ 		.procname	= "ngroups_max",
+ 		.data		= &ngroups_max,
+
+
+
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
+desserts:  http://www.xenotime.net/linux/recipes/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
