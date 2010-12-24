@@ -1,256 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CAD736B0098
-	for <linux-mm@kvack.org>; Sat, 25 Dec 2010 14:33:49 -0500 (EST)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp03.in.ibm.com (8.14.4/8.13.1) with ESMTP id oBPJXgov007285
-	for <linux-mm@kvack.org>; Sun, 26 Dec 2010 01:03:42 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oBPJXgch4255818
-	for <linux-mm@kvack.org>; Sun, 26 Dec 2010 01:03:42 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oBPJXgWP012513
-	for <linux-mm@kvack.org>; Sun, 26 Dec 2010 06:33:42 +1100
-Date: Sat, 25 Dec 2010 16:17:14 +0530
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id CEF756B0099
+	for <linux-mm@kvack.org>; Sat, 25 Dec 2010 14:33:51 -0500 (EST)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp09.in.ibm.com (8.14.4/8.13.1) with ESMTP id oBPIsOMp022093
+	for <linux-mm@kvack.org>; Sun, 26 Dec 2010 00:24:24 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id oBPJXfgm3260558
+	for <linux-mm@kvack.org>; Sun, 26 Dec 2010 01:03:41 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id oBPJXexT009519
+	for <linux-mm@kvack.org>; Sun, 26 Dec 2010 06:33:40 +1100
+Date: Fri, 24 Dec 2010 14:39:27 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [patch] memcg: add oom killer delay
-Message-ID: <20101225104713.GC4763@balbir.in.ibm.com>
+Subject: Re: [RFC][PATCH] memcg: add valid check at allocating or freeing
+ memory
+Message-ID: <20101224090927.GB4763@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
-References: <alpine.DEB.2.00.1012212318140.22773@chino.kir.corp.google.com>
+References: <20101224093131.274c8728.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1012212318140.22773@chino.kir.corp.google.com>
+In-Reply-To: <20101224093131.274c8728.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Divyesh Shah <dpshah@google.com>, linux-mm@kvack.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-* David Rientjes <rientjes@google.com> [2010-12-21 23:27:25]:
+* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2010-12-24 09:31:31]:
 
-> Completely disabling the oom killer for a memcg is problematic if
-> userspace is unable to address the condition itself, usually because
-> userspace is unresponsive.  This scenario creates a memcg livelock:
-> tasks are continuously trying to allocate memory and nothing is getting
-> killed, so memory freeing is impossible since reclaim has failed, and
-> all work stalls with no remedy in sight.
+> Hi,
 > 
-> This patch adds an oom killer delay so that a memcg may be configured to
-> wait at least a pre-defined number of milliseconds before calling the
-> oom killer.  If the oom condition persists for this number of
-> milliseconds, the oom killer will be called the next time the memory
-> controller attempts to charge a page (and memory.oom_control is set to
-> 0).  This allows userspace to have a short period of time to respond to
-> the condition before timing out and deferring to the kernel to kill a
-> task.
+> I know we have many works to be done: THP, dirty limit, per-memcg background reclaim.
+> So, I'm not in hurry to push this patch.
 > 
-> Admins may set the oom killer timeout using the new interface:
+> This patch add checks at allocating or freeing a page whether the page is used
+> (iow, charged) from the view point of memcg. In fact, I've hit this check while
+> debugging a problem on RHEL6 kernel, which have stuck me these days and have not
+> been fixed unfortunately...
 > 
-> 	# echo 60000 > memory.oom_delay
+> ===
+> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > 
-> This will defer oom killing to the kernel only after 60 seconds has
-> elapsed.  When setting memory.oom_delay, all pending timeouts are
-> restarted.
-
-I think Paul mentioned this problem and solution (I think already in
-use at google) some time back. Is x miliseconds a per oom kill decision
-timer or is it global?
-
+> This patch add checks at allocating or freeing a page whether the page is used
+> (iow, charged) from the view point of memcg.
+> This check may be usefull in debugging a problem and we did a similar checks
+> before the commit 52d4b9ac(memcg: allocate all page_cgroup at boot).
 > 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> This patch adds some overheads at allocating or freeing memory, so it's enabled
+> only when CONFIG_DEBUG_VM is enabled.
+> 
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > ---
->  Documentation/cgroups/memory.txt |   15 ++++++++++
->  mm/memcontrol.c                  |   56 +++++++++++++++++++++++++++++++++----
->  2 files changed, 65 insertions(+), 6 deletions(-)
+>  include/linux/memcontrol.h |   12 +++++++++++
+>  mm/memcontrol.c            |   47 ++++++++++++++++++++++++++++++++++++++++++++
+>  mm/page_alloc.c            |    8 +++++-
+>  3 files changed, 65 insertions(+), 2 deletions(-)
 > 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -68,6 +68,7 @@ Brief summary of control files.
->  				 (See sysctl's vm.swappiness)
->   memory.move_charge_at_immigrate # set/show controls of moving charges
->   memory.oom_control		 # set/show oom controls.
-> + memory.oom_delay		 # set/show millisecs to wait before oom kill
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 067115c..04754c4 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -146,6 +146,8 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+>  						gfp_t gfp_mask);
+>  u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
 > 
->  1. History
+> +bool mem_cgroup_bad_page_check(struct page *page);
+> +void mem_cgroup_print_bad_page(struct page *page);
+>  #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+>  struct mem_cgroup;
 > 
-> @@ -640,6 +641,20 @@ At reading, current status of OOM is shown.
->  	under_oom	 0 or 1 (if 1, the memory cgroup is under OOM, tasks may
->  				 be stopped.)
+> @@ -336,6 +338,16 @@ u64 mem_cgroup_get_limit(struct mem_cgroup *mem)
+>  	return 0;
+>  }
 > 
-> +It is also possible to configure an oom killer timeout to prevent the
-> +possibility that the memcg will livelock looking for memory if userspace
-> +has disabled the oom killer with oom_control but cannot act to fix the
-> +condition itself (usually because userspace has become unresponsive).
+> +static inline bool
+> +mem_cgroup_bad_page_check(struct page *page)
+> +{
+> +	return false;
+> +}
 > +
-> +To set an oom killer timeout for a memcg, write the number of milliseconds
-> +to wait before killing a task to memory.oom_delay:
-> +
-> +	# echo 60000 > memory.oom_delay	# wait 60 seconds, then oom kill
-> +
-> +This timeout is reset the next time the memcg successfully charges memory
-> +to a task.
-> +
-> +
->  11. TODO
+> +static void
+> +mem_cgroup_print_bad_page(struct page *page)
+> +{
+> +}
+>  #endif /* CONFIG_CGROUP_MEM_CONT */
 > 
->  1. Add support for accounting huge pages (as a separate controller)
+>  #endif /* _LINUX_MEMCONTROL_H */
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 7d89517..21af8b2 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -233,12 +233,16 @@ struct mem_cgroup {
->  	 * Should the accounting and control be hierarchical, per subtree?
->  	 */
->  	bool use_hierarchy;
-> +	/* oom_delay has expired and still out of memory? */
-> +	bool oom_kill_delay_expired;
->  	atomic_t	oom_lock;
->  	atomic_t	refcnt;
-> 
->  	unsigned int	swappiness;
->  	/* OOM-Killer disable */
->  	int		oom_kill_disable;
-> +	/* min number of ticks to wait before calling oom killer */
-> +	int		oom_kill_delay;
-> 
->  	/* set when res.limit == memsw.limit */
->  	bool		memsw_is_minimum;
-> @@ -1524,6 +1528,7 @@ static void memcg_wakeup_oom(struct mem_cgroup *mem)
-> 
->  static void memcg_oom_recover(struct mem_cgroup *mem)
->  {
-> +	mem->oom_kill_delay_expired = false;
->  	if (mem && atomic_read(&mem->oom_lock))
->  		memcg_wakeup_oom(mem);
+> @@ -2971,6 +2971,53 @@ int mem_cgroup_shmem_charge_fallback(struct page *page,
+>  	return ret;
 >  }
-> @@ -1531,17 +1536,18 @@ static void memcg_oom_recover(struct mem_cgroup *mem)
->  /*
->   * try to call OOM killer. returns false if we should exit memory-reclaim loop.
->   */
-> -bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
-> +static bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
->  {
->  	struct oom_wait_info owait;
-> -	bool locked, need_to_kill;
-> +	bool locked;
-> +	bool need_to_kill = true;
-> +	bool need_to_delay = false;
 > 
->  	owait.mem = mem;
->  	owait.wait.flags = 0;
->  	owait.wait.func = memcg_oom_wake_function;
->  	owait.wait.private = current;
->  	INIT_LIST_HEAD(&owait.wait.task_list);
-> -	need_to_kill = true;
->  	/* At first, try to OOM lock hierarchy under mem.*/
->  	mutex_lock(&memcg_oom_mutex);
->  	locked = mem_cgroup_oom_lock(mem);
-> @@ -1553,26 +1559,34 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
->  	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
->  	if (!locked || mem->oom_kill_disable)
->  		need_to_kill = false;
-> -	if (locked)
-> +	if (locked) {
->  		mem_cgroup_oom_notify(mem);
-> +		if (mem->oom_kill_delay && !mem->oom_kill_delay_expired) {
-> +			need_to_kill = false;
-> +			need_to_delay = true;
-> +		}
+> +#ifdef CONFIG_DEBUG_VM
+> +static bool
+> +__mem_cgroup_bad_page_check(struct page *page, struct page_cgroup **pcp)
+> +{
+> +	struct page_cgroup *pc;
+> +	bool ret = false;
+> +
+> +	pc = lookup_page_cgroup(page);
+> +	if (unlikely(!pc))
+> +		goto out;
+> +
+> +	if (PageCgroupUsed(pc)) {
+> +		ret = true;
+> +		if (pcp)
+> +			*pcp = pc;
 > +	}
->  	mutex_unlock(&memcg_oom_mutex);
-> 
->  	if (need_to_kill) {
->  		finish_wait(&memcg_oom_waitq, &owait.wait);
->  		mem_cgroup_out_of_memory(mem, mask);
->  	} else {
-> -		schedule();
-> +		schedule_timeout(need_to_delay ? mem->oom_kill_delay :
-> +						 MAX_SCHEDULE_TIMEOUT);
->  		finish_wait(&memcg_oom_waitq, &owait.wait);
->  	}
->  	mutex_lock(&memcg_oom_mutex);
->  	mem_cgroup_oom_unlock(mem);
->  	memcg_wakeup_oom(mem);
-> +	mem->oom_kill_delay_expired = need_to_delay;
->  	mutex_unlock(&memcg_oom_mutex);
-> 
->  	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
->  		return false;
->  	/* Give chance to dying process */
-> -	schedule_timeout(1);
-> +	if (!need_to_delay)
-> +		schedule_timeout(1);
->  	return true;
->  }
-
-I think we need additional statistics for tracking oom kills due to
-timer expiry.
-
-
-> 
-> @@ -2007,6 +2021,7 @@ again:
->  		refill_stock(mem, csize - PAGE_SIZE);
->  	css_put(&mem->css);
->  done:
-> +	mem->oom_kill_delay_expired = false;
->  	*memcg = mem;
->  	return 0;
->  nomem:
-> @@ -4053,6 +4068,29 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
->  	return 0;
->  }
-> 
-> +static u64 mem_cgroup_oom_delay_read(struct cgroup *cgrp, struct cftype *cft)
-> +{
-> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-> +
-> +	return jiffies_to_msecs(memcg->oom_kill_delay);
+> +out:
+> +	return ret;
 > +}
 > +
-> +static int mem_cgroup_oom_delay_write(struct cgroup *cgrp, struct cftype *cft,
-> +				      u64 val)
+> +bool mem_cgroup_bad_page_check(struct page *page)
 > +{
-> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> +	if (mem_cgroup_disabled())
+> +		return false;
 > +
-> +	/* Sanity check -- don't wait longer than an hour */
-> +	if (val > (60 * 60 * 1000))
-> +		return -EINVAL;
-
-Why do this and not document it? These sort of things get exremely
-confusing. I would prefer not to have it without a resonable use case
-or very good documentation, explaining why we need an upper bound.
-
-> +
-> +	cgroup_lock();
-> +	memcg->oom_kill_delay = msecs_to_jiffies(val);
-> +	memcg_oom_recover(memcg);
-> +	cgroup_unlock();
-> +	return 0;
+> +	return __mem_cgroup_bad_page_check(page, NULL);
 > +}
 > +
->  static struct cftype mem_cgroup_files[] = {
->  	{
->  		.name = "usage_in_bytes",
-> @@ -4116,6 +4154,11 @@ static struct cftype mem_cgroup_files[] = {
->  		.unregister_event = mem_cgroup_oom_unregister_event,
->  		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
->  	},
-> +	{
-> +		.name = "oom_delay",
-> +		.read_u64 = mem_cgroup_oom_delay_read,
-> +		.write_u64 = mem_cgroup_oom_delay_write,
-> +	},
->  };
+> +void mem_cgroup_print_bad_page(struct page *page)
+> +{
+> +	struct page_cgroup *pc;
+> +
+> +	if (__mem_cgroup_bad_page_check(page, &pc))
+> +		printk(KERN_ALERT "pc:%p pc->flags:%ld pc->mem_cgroup:%p\n",
+> +			pc, pc->flags, pc->mem_cgroup);
+
+I like the patch overall, I'm not sure if KERN_ALERT is the right
+level and I'd also like to see the pfn and page information printed.
+pc->mem_cgroup itself is a pointer and not very useful, how about
+printing pc->mem_cgroup.css->cgroup->dentry->d_name->name (Phew!)
+
+> +}
+> +#else
+> +bool mem_cgroup_bad_page_check(struct page *page)
+> +{
+> +	return false;
+> +}
+> +
+> +void mem_cgroup_print_bad_page(struct page *page)
+> +{
+> +}
+> +#endif
+> +
+>  static DEFINE_MUTEX(set_limit_mutex);
 > 
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-> @@ -4357,6 +4400,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
->  		parent = mem_cgroup_from_cont(cont->parent);
->  		mem->use_hierarchy = parent->use_hierarchy;
->  		mem->oom_kill_disable = parent->oom_kill_disable;
-> +		mem->oom_kill_delay = parent->oom_kill_delay;
+>  static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 7650ceb..5caeda8 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -53,6 +53,7 @@
+>  #include <linux/compaction.h>
+>  #include <trace/events/kmem.h>
+>  #include <linux/ftrace_event.h>
+> +#include <linux/memcontrol.h>
+> 
+>  #include <asm/tlbflush.h>
+>  #include <asm/div64.h>
+> @@ -570,7 +571,8 @@ static inline int free_pages_check(struct page *page)
+>  	if (unlikely(page_mapcount(page) |
+>  		(page->mapping != NULL)  |
+>  		(atomic_read(&page->_count) != 0) |
+> -		(page->flags & PAGE_FLAGS_CHECK_AT_FREE))) {
+> +		(page->flags & PAGE_FLAGS_CHECK_AT_FREE) |
+> +		(mem_cgroup_bad_page_check(page)))) {
+>  		bad_page(page);
+>  		return 1;
 >  	}
-> 
->  	if (parent && parent->use_hierarchy) {
+> @@ -755,7 +757,8 @@ static inline int check_new_page(struct page *page)
+>  	if (unlikely(page_mapcount(page) |
+>  		(page->mapping != NULL)  |
+>  		(atomic_read(&page->_count) != 0)  |
+> -		(page->flags & PAGE_FLAGS_CHECK_AT_PREP))) {
+> +		(page->flags & PAGE_FLAGS_CHECK_AT_PREP) |
+> +		(mem_cgroup_bad_page_check(page)))) {
+>  		bad_page(page);
+>  		return 1;
+>  	}
+> @@ -5627,4 +5630,5 @@ void dump_page(struct page *page)
+>  		page, atomic_read(&page->_count), page_mapcount(page),
+>  		page->mapping, page->index);
+>  	dump_page_flags(page->flags);
+> +	mem_cgroup_print_bad_page(page);
+>  }
+
+Overall, it is a good debugging aid
+
+
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
 
 -- 
 	Three Cheers,
