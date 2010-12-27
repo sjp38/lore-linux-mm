@@ -1,207 +1,364 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 229A56B0088
-	for <linux-mm@kvack.org>; Sun, 26 Dec 2010 22:39:50 -0500 (EST)
-Date: Mon, 27 Dec 2010 12:35:53 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][PATCH] memcg: add valid check at allocating or freeing
- memory
-Message-Id: <20101227123553.ed4a2576.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20101224090927.GB4763@balbir.in.ibm.com>
-References: <20101224093131.274c8728.nishimura@mxp.nes.nec.co.jp>
-	<20101224090927.GB4763@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E9FC6B0087
+	for <linux-mm@kvack.org>; Mon, 27 Dec 2010 10:10:15 -0500 (EST)
+Date: Mon, 27 Dec 2010 10:08:47 -0500
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCH 2/3] drivers/xen/balloon.c: Various balloon features
+ and fixes
+Message-ID: <20101227150847.GA3728@dumpdata.com>
+References: <20101220134724.GC6749@router-fw-old.local.net-space.pl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101220134724.GC6749@router-fw-old.local.net-space.pl>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi.
-
-On Fri, 24 Dec 2010 14:39:27 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> * nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2010-12-24 09:31:31]:
+On Mon, Dec 20, 2010 at 02:47:24PM +0100, Daniel Kiper wrote:
+> Features and fixes:
+>   - HVM mode is supported now,
+>   - migration from mod_timer() to schedule_delayed_work(),
+>   - removal of driver_pages (I do not have seen any
+>     references to it),
+>   - protect before CPU exhaust by event/x process during
+>     errors by adding some delays in scheduling next event,
+>   - some other minor fixes.
 > 
-> > Hi,
-> > 
-> > I know we have many works to be done: THP, dirty limit, per-memcg background reclaim.
-> > So, I'm not in hurry to push this patch.
-> > 
-> > This patch add checks at allocating or freeing a page whether the page is used
-> > (iow, charged) from the view point of memcg. In fact, I've hit this check while
-> > debugging a problem on RHEL6 kernel, which have stuck me these days and have not
-> > been fixed unfortunately...
-> > 
-> > ===
-> > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > 
-> > This patch add checks at allocating or freeing a page whether the page is used
-> > (iow, charged) from the view point of memcg.
-> > This check may be usefull in debugging a problem and we did a similar checks
-> > before the commit 52d4b9ac(memcg: allocate all page_cgroup at boot).
-> > 
-> > This patch adds some overheads at allocating or freeing memory, so it's enabled
-> > only when CONFIG_DEBUG_VM is enabled.
-> > 
-> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > ---
-> >  include/linux/memcontrol.h |   12 +++++++++++
-> >  mm/memcontrol.c            |   47 ++++++++++++++++++++++++++++++++++++++++++++
-> >  mm/page_alloc.c            |    8 +++++-
-> >  3 files changed, 65 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> > index 067115c..04754c4 100644
-> > --- a/include/linux/memcontrol.h
-> > +++ b/include/linux/memcontrol.h
-> > @@ -146,6 +146,8 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
-> >  						gfp_t gfp_mask);
-> >  u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
-> > 
-> > +bool mem_cgroup_bad_page_check(struct page *page);
-> > +void mem_cgroup_print_bad_page(struct page *page);
-> >  #else /* CONFIG_CGROUP_MEM_RES_CTLR */
-> >  struct mem_cgroup;
-> > 
-> > @@ -336,6 +338,16 @@ u64 mem_cgroup_get_limit(struct mem_cgroup *mem)
-> >  	return 0;
-> >  }
-> > 
-> > +static inline bool
-> > +mem_cgroup_bad_page_check(struct page *page)
-> > +{
-> > +	return false;
-> > +}
-> > +
-> > +static void
-> > +mem_cgroup_print_bad_page(struct page *page)
-> > +{
-> > +}
-> >  #endif /* CONFIG_CGROUP_MEM_CONT */
-> > 
-> >  #endif /* _LINUX_MEMCONTROL_H */
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 7d89517..21af8b2 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -2971,6 +2971,53 @@ int mem_cgroup_shmem_charge_fallback(struct page *page,
-> >  	return ret;
-> >  }
-> > 
-> > +#ifdef CONFIG_DEBUG_VM
-> > +static bool
-> > +__mem_cgroup_bad_page_check(struct page *page, struct page_cgroup **pcp)
-> > +{
-> > +	struct page_cgroup *pc;
-> > +	bool ret = false;
-> > +
-> > +	pc = lookup_page_cgroup(page);
-> > +	if (unlikely(!pc))
-> > +		goto out;
-> > +
-> > +	if (PageCgroupUsed(pc)) {
-> > +		ret = true;
-> > +		if (pcp)
-> > +			*pcp = pc;
-> > +	}
-> > +out:
-> > +	return ret;
-> > +}
-> > +
-> > +bool mem_cgroup_bad_page_check(struct page *page)
-> > +{
-> > +	if (mem_cgroup_disabled())
-> > +		return false;
-> > +
-> > +	return __mem_cgroup_bad_page_check(page, NULL);
-> > +}
-> > +
-> > +void mem_cgroup_print_bad_page(struct page *page)
-> > +{
-> > +	struct page_cgroup *pc;
-> > +
-> > +	if (__mem_cgroup_bad_page_check(page, &pc))
-> > +		printk(KERN_ALERT "pc:%p pc->flags:%ld pc->mem_cgroup:%p\n",
-> > +			pc, pc->flags, pc->mem_cgroup);
+> Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
+> ---
+>  arch/x86/xen/mmu.c    |    3 +-
+>  drivers/xen/balloon.c |  128 +++++++++++++++++++++++++++++++++----------------
+>  2 files changed, 87 insertions(+), 44 deletions(-)
 > 
-> I like the patch overall, I'm not sure if KERN_ALERT is the right
-> level and I'd also like to see the pfn and page information printed.
-Using the same level as dump_page() does would be better, IMHO.
-And, I think this function should show information only about memcg. Information
-about the page itself like pfn should be showed by dump_page().
-
-> pc->mem_cgroup itself is a pointer and not very useful, how about
-> printing pc->mem_cgroup.css->cgroup->dentry->d_name->name (Phew!)
-> 
-pc->mem_cgroup is enough to me(we can know path of it by using "crash" utility),
-but I agree showing the path of it would be more informative.
-I'll try it as mem_cgroup_print_oom_info() does.
-
-> > +}
-> > +#else
-> > +bool mem_cgroup_bad_page_check(struct page *page)
-> > +{
-> > +	return false;
-> > +}
-> > +
-> > +void mem_cgroup_print_bad_page(struct page *page)
-> > +{
-> > +}
-> > +#endif
-> > +
-> >  static DEFINE_MUTEX(set_limit_mutex);
-> > 
-> >  static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 7650ceb..5caeda8 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -53,6 +53,7 @@
-> >  #include <linux/compaction.h>
-> >  #include <trace/events/kmem.h>
-> >  #include <linux/ftrace_event.h>
-> > +#include <linux/memcontrol.h>
-> > 
-> >  #include <asm/tlbflush.h>
-> >  #include <asm/div64.h>
-> > @@ -570,7 +571,8 @@ static inline int free_pages_check(struct page *page)
-> >  	if (unlikely(page_mapcount(page) |
-> >  		(page->mapping != NULL)  |
-> >  		(atomic_read(&page->_count) != 0) |
-> > -		(page->flags & PAGE_FLAGS_CHECK_AT_FREE))) {
-> > +		(page->flags & PAGE_FLAGS_CHECK_AT_FREE) |
-> > +		(mem_cgroup_bad_page_check(page)))) {
-> >  		bad_page(page);
-> >  		return 1;
-> >  	}
-> > @@ -755,7 +757,8 @@ static inline int check_new_page(struct page *page)
-> >  	if (unlikely(page_mapcount(page) |
-> >  		(page->mapping != NULL)  |
-> >  		(atomic_read(&page->_count) != 0)  |
-> > -		(page->flags & PAGE_FLAGS_CHECK_AT_PREP))) {
-> > +		(page->flags & PAGE_FLAGS_CHECK_AT_PREP) |
-> > +		(mem_cgroup_bad_page_check(page)))) {
-> >  		bad_page(page);
-> >  		return 1;
-> >  	}
-> > @@ -5627,4 +5630,5 @@ void dump_page(struct page *page)
-> >  		page, atomic_read(&page->_count), page_mapcount(page),
-> >  		page->mapping, page->index);
-> >  	dump_page_flags(page->flags);
-> > +	mem_cgroup_print_bad_page(page);
-> >  }
-> 
-> Overall, it is a good debugging aid
-> 
-> 
-> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
+> index 42086ac..6278650 100644
+> --- a/arch/x86/xen/mmu.c
+> +++ b/arch/x86/xen/mmu.c
+> @@ -75,8 +75,7 @@
 >  
-Thanks!
+>  /*
+>   * Protects atomic reservation decrease/increase against concurrent increases.
+> - * Also protects non-atomic updates of current_pages and driver_pages, and
+> - * balloon lists.
+> + * Also protects non-atomic updates of current_pages and balloon lists.
+>   */
+>  DEFINE_SPINLOCK(xen_reservation_lock);
+>  
+> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+> index 500290b..06dbdad 100644
+> --- a/drivers/xen/balloon.c
+> +++ b/drivers/xen/balloon.c
+> @@ -69,14 +69,11 @@ struct balloon_stats {
+>  	/* We aim for 'current allocation' == 'target allocation'. */
+>  	unsigned long current_pages;
+>  	unsigned long target_pages;
+> -	/*
+> -	 * Drivers may alter the memory reservation independently, but they
+> -	 * must inform the balloon driver so we avoid hitting the hard limit.
+> -	 */
+> -	unsigned long driver_pages;
+>  	/* Number of pages in high- and low-memory balloons. */
+>  	unsigned long balloon_low;
+>  	unsigned long balloon_high;
+> +	unsigned long schedule_delay;
+> +	unsigned long max_schedule_delay;
+>  };
+>  
+>  static DEFINE_MUTEX(balloon_mutex);
+> @@ -103,15 +100,14 @@ static LIST_HEAD(ballooned_pages);
+>  
+>  /* Main work function, always executed in process context. */
+>  static void balloon_process(struct work_struct *work);
+> -static DECLARE_WORK(balloon_worker, balloon_process);
+> -static struct timer_list balloon_timer;
+> +static DECLARE_DELAYED_WORK(balloon_worker, balloon_process);
+>  
+>  /* When ballooning out (allocating memory to return to Xen) we don't really
+>     want the kernel to try too hard since that can trigger the oom killer. */
+>  #define GFP_BALLOON \
+>  	(GFP_HIGHUSER | __GFP_NOWARN | __GFP_NORETRY | __GFP_NOMEMALLOC)
+>  
+> -static void scrub_page(struct page *page)
+> +static inline void scrub_page(struct page *page)
+>  {
+>  #ifdef CONFIG_XEN_SCRUB_PAGES
+>  	clear_highpage(page);
+> @@ -172,9 +168,29 @@ static struct page *balloon_next_page(struct page *page)
+>  	return list_entry(next, struct page, lru);
+>  }
+>  
+> -static void balloon_alarm(unsigned long unused)
+> +static void update_schedule_delay(int cmd)
+>  {
+> -	schedule_work(&balloon_worker);
+> +	unsigned long new_schedule_delay;
+> +
+> +	/*
+> +	 * cmd >= 0: balloon_stats.schedule_delay = 1,
+> +	 * cmd < 0: increase balloon_stats.schedule_delay but
+> +	 *          no more than balloon_stats.max_schedule_delay.
+> +	 */
+> +
+> +	if (cmd >= 0) {
+> +		balloon_stats.schedule_delay = 1;
+> +		return;
+> +	}
+> +
+> +	new_schedule_delay = balloon_stats.schedule_delay << 1;
+> +
+> +	if (new_schedule_delay > balloon_stats.max_schedule_delay) {
+> +		balloon_stats.schedule_delay = balloon_stats.max_schedule_delay;
+> +		return;
+> +	}
+> +
+> +	balloon_stats.schedule_delay = new_schedule_delay;
+>  }
+>  
+>  static unsigned long current_target(void)
+> @@ -191,9 +207,9 @@ static unsigned long current_target(void)
+>  
+>  static int increase_reservation(unsigned long nr_pages)
+>  {
+> +	int rc, state = 0;
+>  	unsigned long  pfn, i, flags;
+>  	struct page   *page;
+> -	long           rc;
+>  	struct xen_memory_reservation reservation = {
+>  		.address_bits = 0,
+>  		.extent_order = 0,
+> @@ -206,8 +222,17 @@ static int increase_reservation(unsigned long nr_pages)
+>  	spin_lock_irqsave(&xen_reservation_lock, flags);
+>  
+>  	page = balloon_first_page();
+> +
+> +	if (!page) {
+> +		state = -ENOMEM;
+> +		goto out;
+> +	}
+> +
+>  	for (i = 0; i < nr_pages; i++) {
+> -		BUG_ON(page == NULL);
+> +		if (!page) {
+> +			nr_pages = i;
+> +			break;
+> +		}
+>  		frame_list[i] = page_to_pfn(page);
+>  		page = balloon_next_page(page);
+>  	}
+> @@ -215,8 +240,11 @@ static int increase_reservation(unsigned long nr_pages)
+>  	set_xen_guest_handle(reservation.extent_start, frame_list);
+>  	reservation.nr_extents = nr_pages;
+>  	rc = HYPERVISOR_memory_op(XENMEM_populate_physmap, &reservation);
+> -	if (rc < 0)
+> -		goto out;
+> +	if (rc < nr_pages) {
+> +		state = (rc <= 0) ? -ENOMEM : 1;
+> +		if (rc <= 0)
+> +			goto out;
+> +	}
+>  
+>  	for (i = 0; i < rc; i++) {
+>  		page = balloon_retrieve();
+> @@ -229,7 +257,7 @@ static int increase_reservation(unsigned long nr_pages)
+>  		set_phys_to_machine(pfn, frame_list[i]);
+>  
+>  		/* Link back into the page tables if not highmem. */
+> -		if (pfn < max_low_pfn) {
+> +		if (xen_pv_domain() && !PageHighMem(page)) {
+>  			int ret;
+>  			ret = HYPERVISOR_update_va_mapping(
+>  				(unsigned long)__va(pfn << PAGE_SHIFT),
+> @@ -249,15 +277,14 @@ static int increase_reservation(unsigned long nr_pages)
+>   out:
+>  	spin_unlock_irqrestore(&xen_reservation_lock, flags);
+>  
+> -	return rc < 0 ? rc : rc != nr_pages;
+> +	return state;
+>  }
+>  
+>  static int decrease_reservation(unsigned long nr_pages)
+>  {
+>  	unsigned long  pfn, i, flags;
+>  	struct page   *page;
+> -	int            need_sleep = 0;
+> -	int ret;
+> +	int ret, state = 0;
+>  	struct xen_memory_reservation reservation = {
+>  		.address_bits = 0,
+>  		.extent_order = 0,
+> @@ -270,7 +297,7 @@ static int decrease_reservation(unsigned long nr_pages)
+>  	for (i = 0; i < nr_pages; i++) {
+>  		if ((page = alloc_page(GFP_BALLOON)) == NULL) {
+>  			nr_pages = i;
+> -			need_sleep = 1;
+> +			state = -ENOMEM;
+>  			break;
+>  		}
+>  
+> @@ -279,7 +306,7 @@ static int decrease_reservation(unsigned long nr_pages)
+>  
+>  		scrub_page(page);
+>  
+> -		if (!PageHighMem(page)) {
+> +		if (xen_pv_domain() && !PageHighMem(page)) {
+>  			ret = HYPERVISOR_update_va_mapping(
+>  				(unsigned long)__va(pfn << PAGE_SHIFT),
+>  				__pte_ma(0), 0);
+> @@ -310,7 +337,7 @@ static int decrease_reservation(unsigned long nr_pages)
+>  
+>  	spin_unlock_irqrestore(&xen_reservation_lock, flags);
+>  
+> -	return need_sleep;
+> +	return state;
+>  }
+>  
+>  /*
+> @@ -321,27 +348,41 @@ static int decrease_reservation(unsigned long nr_pages)
+>   */
+>  static void balloon_process(struct work_struct *work)
+>  {
+> -	int need_sleep = 0;
+> +	int rc, state = 0;
+>  	long credit;
+>  
+>  	mutex_lock(&balloon_mutex);
+>  
+>  	do {
+>  		credit = current_target() - balloon_stats.current_pages;
+> -		if (credit > 0)
+> -			need_sleep = (increase_reservation(credit) != 0);
+> -		if (credit < 0)
+> -			need_sleep = (decrease_reservation(-credit) != 0);
+> +
+> +		/*
+> +		 * state > 0: hungry,
+> +		 * state == 0: done or nothing to do,
+> +		 * state < 0: error, go to sleep.
 
-Daisuke Nishimura.
+Would it be better to just have #defines for this?
+
+> +		 */
+> +
+> +		if (credit > 0) {
+> +			rc = increase_reservation(credit);
+> +			state = (rc < 0) ? rc : state;
+> +		}
+> +
+> +		if (credit < 0) {
+> +			rc = decrease_reservation(-credit);
+> +			state = (rc < 0) ? rc : state;
+> +		}
+> +
+> +		update_schedule_delay(state);
+>  
+>  #ifndef CONFIG_PREEMPT
+>  		if (need_resched())
+>  			schedule();
+>  #endif
+> -	} while ((credit != 0) && !need_sleep);
+> +	} while (credit && state >= 0);
+>  
+>  	/* Schedule more work if there is some still to be done. */
+> -	if (current_target() != balloon_stats.current_pages)
+> -		mod_timer(&balloon_timer, jiffies + HZ);
+> +	if (state < 0)
+> +		schedule_delayed_work(&balloon_worker, balloon_stats.schedule_delay * HZ);
+>  
+>  	mutex_unlock(&balloon_mutex);
+>  }
+> @@ -351,7 +392,7 @@ static void balloon_set_new_target(unsigned long target)
+>  {
+>  	/* No need for lock. Not read-modify-write updates. */
+>  	balloon_stats.target_pages = target;
+> -	schedule_work(&balloon_worker);
+> +	schedule_delayed_work(&balloon_worker, 0);
+>  }
+>  
+>  static struct xenbus_watch target_watch =
+> @@ -395,28 +436,28 @@ static struct notifier_block xenstore_notifier;
+>  
+>  static int __init balloon_init(void)
+>  {
+> -	unsigned long pfn;
+> +	unsigned long pfn, nr_pages;
+>  	struct page *page;
+>  
+> -	if (!xen_pv_domain())
+> +	if (!xen_domain())
+>  		return -ENODEV;
+>  
+>  	pr_info("xen_balloon: Initialising balloon driver.\n");
+>  
+> -	balloon_stats.current_pages = min(xen_start_info->nr_pages, max_pfn);
+> +	nr_pages = xen_pv_domain() ? xen_start_info->nr_pages : max_pfn;
+> +
+> +	balloon_stats.current_pages = min(nr_pages, max_pfn);
+>  	balloon_stats.target_pages  = balloon_stats.current_pages;
+>  	balloon_stats.balloon_low   = 0;
+>  	balloon_stats.balloon_high  = 0;
+> -	balloon_stats.driver_pages  = 0UL;
+>  
+> -	init_timer(&balloon_timer);
+> -	balloon_timer.data = 0;
+> -	balloon_timer.function = balloon_alarm;
+> +	balloon_stats.schedule_delay = 1;
+> +	balloon_stats.max_schedule_delay = 32;
+
+How did you arrive at that number?
+
+>  
+>  	register_balloon(&balloon_sysdev);
+>  
+>  	/* Initialise the balloon with excess memory space. */
+> -	for (pfn = xen_start_info->nr_pages; pfn < max_pfn; pfn++) {
+> +	for (pfn = nr_pages; pfn < max_pfn; pfn++) {
+>  		page = pfn_to_page(pfn);
+>  		if (!PageReserved(page))
+>  			balloon_append(page);
+> @@ -452,7 +493,9 @@ module_exit(balloon_exit);
+>  BALLOON_SHOW(current_kb, "%lu\n", PAGES2KB(balloon_stats.current_pages));
+>  BALLOON_SHOW(low_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_low));
+>  BALLOON_SHOW(high_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_high));
+> -BALLOON_SHOW(driver_kb, "%lu\n", PAGES2KB(balloon_stats.driver_pages));
+> +
+> +static SYSDEV_ULONG_ATTR(schedule_delay, 0644, balloon_stats.schedule_delay);
+> +static SYSDEV_ULONG_ATTR(max_schedule_delay, 0644, balloon_stats.max_schedule_delay);
+>  
+>  static ssize_t show_target_kb(struct sys_device *dev, struct sysdev_attribute *attr,
+>  			      char *buf)
+> @@ -515,23 +558,24 @@ static SYSDEV_ATTR(target, S_IRUGO | S_IWUSR,
+>  static struct sysdev_attribute *balloon_attrs[] = {
+>  	&attr_target_kb,
+>  	&attr_target,
+> +	&attr_schedule_delay.attr,
+> +	&attr_max_schedule_delay.attr
+>  };
+>  
+>  static struct attribute *balloon_info_attrs[] = {
+>  	&attr_current_kb.attr,
+>  	&attr_low_kb.attr,
+>  	&attr_high_kb.attr,
+> -	&attr_driver_kb.attr,
+>  	NULL
+>  };
+>  
+>  static struct attribute_group balloon_info_group = {
+>  	.name = "info",
+> -	.attrs = balloon_info_attrs,
+> +	.attrs = balloon_info_attrs
+>  };
+>  
+>  static struct sysdev_class balloon_sysdev_class = {
+> -	.name = BALLOON_CLASS_NAME,
+> +	.name = BALLOON_CLASS_NAME
+>  };
+>  
+>  static int register_balloon(struct sys_device *sysdev)
+> -- 
+> 1.4.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
