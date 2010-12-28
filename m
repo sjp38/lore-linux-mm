@@ -1,221 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D0BD46B0087
-	for <linux-mm@kvack.org>; Tue, 28 Dec 2010 01:29:19 -0500 (EST)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id oBS6TFdb024086
-	for <linux-mm@kvack.org>; Mon, 27 Dec 2010 22:29:15 -0800
-Received: from pzk27 (pzk27.prod.google.com [10.243.19.155])
-	by kpbe12.cbf.corp.google.com with ESMTP id oBS6T91m023472
-	for <linux-mm@kvack.org>; Mon, 27 Dec 2010 22:29:14 -0800
-Received: by pzk27 with SMTP id 27so2349306pzk.28
-        for <linux-mm@kvack.org>; Mon, 27 Dec 2010 22:29:09 -0800 (PST)
-Date: Mon, 27 Dec 2010 22:29:05 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 637536B0087
+	for <linux-mm@kvack.org>; Tue, 28 Dec 2010 02:35:00 -0500 (EST)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id oBS7Yvme015961
+	for <linux-mm@kvack.org>; Mon, 27 Dec 2010 23:34:57 -0800
+Received: from pxi6 (pxi6.prod.google.com [10.243.27.6])
+	by wpaz13.hot.corp.google.com with ESMTP id oBS7YtOZ013659
+	for <linux-mm@kvack.org>; Mon, 27 Dec 2010 23:34:56 -0800
+Received: by pxi6 with SMTP id 6so4173557pxi.17
+        for <linux-mm@kvack.org>; Mon, 27 Dec 2010 23:34:55 -0800 (PST)
+Date: Mon, 27 Dec 2010 23:34:52 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch v3] memcg: add oom killer delay
-In-Reply-To: <alpine.DEB.2.00.1012272103370.27164@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1012272228350.17843@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1012212318140.22773@chino.kir.corp.google.com> <20101221235924.b5c1aecc.akpm@linux-foundation.org> <alpine.DEB.2.00.1012220031010.24462@chino.kir.corp.google.com> <alpine.DEB.2.00.1012221443540.2612@chino.kir.corp.google.com>
- <20101227095225.2cf907a3.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1012272103370.27164@chino.kir.corp.google.com>
+Subject: [patch] mm: add node hotplug emulation
+In-Reply-To: <alpine.DEB.2.00.1012272241200.23315@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1012272256470.24213@chino.kir.corp.google.com>
+References: <20101210073119.156388875@intel.com> <20101210073242.462037866@intel.com> <20101222162723.72075372.akpm@linux-foundation.org> <alpine.DEB.2.00.1012272241200.23315@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Divyesh Shah <dpshah@google.com>, linux-mm@kvack.org
+To: Shaohui Zheng <shaohui.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, lethal@linux-sh.org, Andi Kleen <ak@linux.intel.com>, dave@linux.vnet.ibm.com, Greg Kroah-Hartman <gregkh@suse.de>, Haicheng Li <haicheng.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Completely disabling the oom killer for a memcg is problematic if
-userspace is unable to address the condition itself, usually because it
-is unresponsive.  This scenario creates a memcg deadlock: tasks are
-sitting in TASK_KILLABLE waiting for the limit to be increased, a task to
-exit or move, or the oom killer reenabled and userspace is unable to do
-so.
+Add an interface to allow new nodes to be added when performing memory
+hot-add.  This provides a convenient interface to test memory hotplug
+notifier callbacks and surrounding hotplug code when new nodes are
+onlined without actually having a machine with such hotpluggable SRAT
+entries.
 
-An additional possible use case is to defer oom killing within a memcg
-for a set period of time, probably to prevent unnecessary kills due to
-temporary memory spikes, before allowing the kernel to handle the
-condition.
+This adds a new debugfs interface at /sys/kernel/debug/hotplug/add_node
+that behaves in a similar way to the memory hot-add "probe" interface.
+Its format is size@start, where "size" is the size of the new node to be
+added and "start" is the physical address of the new memory.
 
-This patch adds an oom killer delay so that a memcg may be configured to
-wait at least a pre-defined number of milliseconds before calling the oom
-killer.  If the oom condition persists for this number of milliseconds,
-the oom killer will be called the next time the memory controller
-attempts to charge a page (and memory.oom_control is set to 0).  This
-allows userspace to have a short period of time to respond to the
-condition before deferring to the kernel to kill a task.
+The new node id is a currently offline, but possible, node.  The bit must
+be set in node_possible_map so that nr_node_ids is sized appropriately.
 
-Admins may set the oom killer delay using the new interface:
+For emulation on x86, for example, it would be possible to set aside
+memory for hotplugged nodes (say, anything above 2G) and to add an
+additional four nodes as being possible on boot with
 
-	# echo 60000 > memory.oom_delay_millisecs
+	mem=2G numa=possible=4
 
-This will defer oom killing to the kernel only after 60 seconds has
-elapsed.  When setting memory.oom_delay, all pending delays have their
-charge retried and, if necessary, the new delay is then effected.
+and then creating a new 128M node at runtime:
 
-The delay is cleared the first time the memcg is oom to avoid unnecessary
-waiting when userspace is unresponsive for future oom conditions.  It may
-be set again using the above interface to enforce a delay on the next
-oom.
+	# echo 128M@0x80000000 > /sys/kernel/debug/hotplug/add_node
+	On node 1 totalpages: 0
+	init_memory_mapping: 0000000080000000-0000000088000000
+	 0080000000 - 0088000000 page 2M
+
+Once the new node has been added, its memory can be onlined.  If this
+memory represents memory section 16, for example:
+
+	# echo online > /sys/devices/system/memory/memory16/state
+	Built 2 zonelists in Node order, mobility grouping on.  Total pages: 514846
+	Policy zone: Normal
+
+ [ The memory section(s) mapped to a particular node are visible via
+   /sys/devices/system/node/node1, in this example. ]
+
+The new node is now hotplugged and ready for testing.
 
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- Documentation/cgroups/memory.txt |   26 +++++++++++++++++++++
- mm/memcontrol.c                  |   46 ++++++++++++++++++++++++++++++++++---
- 2 files changed, 68 insertions(+), 4 deletions(-)
+ Documentation/memory-hotplug.txt |   24 +++++++++++++
+ mm/memory_hotplug.c              |   69 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+), 0 deletions(-)
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 7781857..e426733 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -68,6 +68,7 @@ Brief summary of control files.
- 				 (See sysctl's vm.swappiness)
-  memory.move_charge_at_immigrate # set/show controls of moving charges
-  memory.oom_control		 # set/show oom controls.
-+ memory.oom_delay_millisecs	 # set/show millisecs to wait before oom kill
+diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+--- a/Documentation/memory-hotplug.txt
++++ b/Documentation/memory-hotplug.txt
+@@ -18,6 +18,7 @@ be changed often.
+ 4. Physical memory hot-add phase
+   4.1 Hardware(Firmware) Support
+   4.2 Notify memory hot-add event by hand
++  4.3 Node hotplug emulation
+ 5. Logical Memory hot-add phase
+   5.1. State of memory
+   5.2. How to online memory
+@@ -215,6 +216,29 @@ current implementation). You'll have to online memory by yourself.
+ Please see "How to online memory" in this text.
  
- 1. History
  
-@@ -640,6 +641,31 @@ At reading, current status of OOM is shown.
- 	under_oom	 0 or 1 (if 1, the memory cgroup is under OOM, tasks may
- 				 be stopped.)
++4.3 Node hotplug emulation
++------------
++With debugfs, it is possible to test node hotplug by assigning the newly
++added memory to a new node id when using a different interface with a similar
++behavior to "probe" described in section 4.2.  If a node id is possible
++(there are bits in /sys/devices/system/memory/possible that are not online),
++then it may be used to emulate a newly added node as the result of memory
++hotplug by using the debugfs "add_node" interface.
++
++The add_node interface is located at "hotplug/add_node" at the debugfs mount
++point.
++
++You can create a new node of a specified size starting at the physical
++address of new memory by
++
++% echo size@start_address_of_new_memory > /sys/kernel/debug/hotplug/add_node
++
++Where "size" can be represented in megabytes or gigabytes (for example,
++"128M" or "1G").  The minumum size is that of a memory section.
++
++Once the new node has been added, it is possible to online the memory by
++toggling the "state" of its memory section(s) as described in section 5.1.
++
  
-+It is also possible to configure an oom killer timeout to prevent the
-+possibility that the memcg will deadlock looking for memory if userspace
-+has disabled the oom killer with oom_control but cannot act to fix the
-+condition itself (usually because userspace has become unresponsive).
-+
-+To set an oom killer timeout for a memcg, write the number of milliseconds
-+to wait before killing a task to memory.oom_delay_millisecs:
-+
-+	# echo 60000 > memory.oom_delay_millisecs	# 60 seconds before kill
-+
-+This timeout is reset the first time the memcg is oom to prevent needlessly
-+waiting for the next oom when userspace is truly unresponsive.  It may be
-+set again using the above interface to defer killing a task the next time
-+the memcg is oom.
-+
-+Disabling the oom killer for a memcg with memory.oom_control takes
-+precedence over memory.oom_delay_millisecs, so it must be set to 0
-+(default) to allow the oom kill after the delay has expired.
-+
-+This value is inherited from the memcg's parent on creation.
-+
-+There is no delay if memory.oom_delay_millisecs is set to 0 (default).
-+This tunable's upper bound is 60 minutes.
-+
-+
- 11. TODO
- 
- 1. Add support for accounting huge pages (as a separate controller)
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e6aadd6..951a22c 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -229,6 +229,8 @@ struct mem_cgroup {
- 	unsigned int	swappiness;
- 	/* OOM-Killer disable */
- 	int		oom_kill_disable;
-+	/* number of ticks to stall before calling oom killer */
-+	int		oom_delay;
- 
- 	/* set when res.limit == memsw.limit */
- 	bool		memsw_is_minimum;
-@@ -1415,10 +1417,11 @@ static void memcg_oom_recover(struct mem_cgroup *mem)
- /*
-  * try to call OOM killer. returns false if we should exit memory-reclaim loop.
-  */
--bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
-+static bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
- {
- 	struct oom_wait_info owait;
- 	bool locked, need_to_kill;
-+	long timeout = MAX_SCHEDULE_TIMEOUT;
- 
- 	owait.mem = mem;
- 	owait.wait.flags = 0;
-@@ -1437,15 +1440,21 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
- 	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
- 	if (!locked || mem->oom_kill_disable)
- 		need_to_kill = false;
--	if (locked)
-+	if (locked) {
-+		if (mem->oom_delay) {
-+			need_to_kill = false;
-+			timeout = mem->oom_delay;
-+			mem->oom_delay = 0;
-+		}
- 		mem_cgroup_oom_notify(mem);
-+	}
- 	mutex_unlock(&memcg_oom_mutex);
- 
- 	if (need_to_kill) {
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
- 		mem_cgroup_out_of_memory(mem, mask);
- 	} else {
--		schedule();
-+		schedule_timeout(timeout);
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
- 	}
- 	mutex_lock(&memcg_oom_mutex);
-@@ -1456,7 +1465,8 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
- 	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
- 		return false;
- 	/* Give chance to dying process */
--	schedule_timeout(1);
-+	if (timeout != MAX_SCHEDULE_TIMEOUT)
-+		schedule_timeout(1);
- 	return true;
+ ------------------------------
+ 5. Logical Memory hot-add phase
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -927,3 +927,72 @@ int remove_memory(u64 start, u64 size)
  }
- 
-@@ -3863,6 +3873,28 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
- 	return 0;
- }
- 
-+static u64 mem_cgroup_oom_delay_millisecs_read(struct cgroup *cgrp,
-+					struct cftype *cft)
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ EXPORT_SYMBOL_GPL(remove_memory);
++
++#ifdef CONFIG_DEBUG_FS
++#include <linux/debugfs.h>
++
++static struct dentry *hotplug_debug_root;
++
++static ssize_t add_node_store(struct file *file, const char __user *buf,
++				size_t count, loff_t *ppos)
 +{
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++	NODEMASK_ALLOC(nodemask_t, mask, GFP_KERNEL);
++	u64 start, size;
++	char buffer[128];
++	char *p;
++	int nid;
++	int ret;
 +
-+	return jiffies_to_msecs(memcg->oom_delay);
++	if (!mask)
++		return -ENOMEM;
++	memset(buffer, 0, sizeof(buffer));
++	if (count > sizeof(buffer) - 1) {
++		ret = -EINVAL;
++		goto out;
++	}
++	if (copy_from_user(buffer, buf, count)) {
++		ret = -EFAULT;
++		goto out;
++	}
++
++	ret = -EINVAL;
++	size = memparse(buffer, &p);
++	if (size < ((u64)PAGES_PER_SECTION << PAGE_SHIFT))
++		goto out;
++	if (*p != '@')
++		goto out;
++	if (strict_strtoull(p + 1, 0, &start) < 0)
++		goto out;
++
++	ret = -ENOMEM;
++	nodes_andnot(*mask, node_possible_map, node_online_map);
++	nid = first_node(*mask);
++	if (nid == MAX_NUMNODES)
++		goto out;
++
++	ret = add_memory(nid, start, size);
++out:
++	NODEMASK_FREE(mask);
++	return ret ? ret : count;
 +}
 +
-+static int mem_cgroup_oom_delay_millisecs_write(struct cgroup *cgrp,
-+					struct cftype *cft, u64 val)
++static const struct file_operations add_node_file_ops = {
++	.write		= add_node_store,
++	.llseek		= generic_file_llseek,
++};
++
++static int __init hotplug_debug_init(void)
 +{
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++	hotplug_debug_root = debugfs_create_dir("hotplug", NULL);
++	if (!hotplug_debug_root)
++		return -ENOMEM;
 +
-+	/* Sanity check -- don't wait longer than an hour */
-+	if (val > (60 * 60 * 1000))
-+		return -EINVAL;
++	if (!debugfs_create_file("add_node", S_IWUSR, hotplug_debug_root,
++			NULL, &add_node_file_ops))
++		return -ENOMEM;
 +
-+	memcg->oom_delay = msecs_to_jiffies(val);
-+	memcg_oom_recover(memcg);
 +	return 0;
 +}
 +
- static struct cftype mem_cgroup_files[] = {
- 	{
- 		.name = "usage_in_bytes",
-@@ -3926,6 +3958,11 @@ static struct cftype mem_cgroup_files[] = {
- 		.unregister_event = mem_cgroup_oom_unregister_event,
- 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
- 	},
-+	{
-+		.name = "oom_delay_millisecs",
-+		.read_u64 = mem_cgroup_oom_delay_millisecs_read,
-+		.write_u64 = mem_cgroup_oom_delay_millisecs_write,
-+	},
- };
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-@@ -4164,6 +4201,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
- 		parent = mem_cgroup_from_cont(cont->parent);
- 		mem->use_hierarchy = parent->use_hierarchy;
- 		mem->oom_kill_disable = parent->oom_kill_disable;
-+		mem->oom_delay = parent->oom_delay;
- 	}
- 
- 	if (parent && parent->use_hierarchy) {
++module_init(hotplug_debug_init);
++#endif /* CONFIG_DEBUG_FS */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
