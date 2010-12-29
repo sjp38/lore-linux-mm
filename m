@@ -1,360 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D1A46B009C
-	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 12:07:35 -0500 (EST)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1564488Ab0L2RHC (ORCPT <rfc822;linux-mm@kvack.org>);
-	Wed, 29 Dec 2010 18:07:02 +0100
-Date: Wed, 29 Dec 2010 18:07:02 +0100
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: [PATCH R2 7/7] xen/balloon: Xen memory balloon driver with memory hotplug support
-Message-ID: <20101229170702.GL2743@router-fw-old.local.net-space.pl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4844F6B009E
+	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 15:54:42 -0500 (EST)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id oBTKsc0W008797
+	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 12:54:38 -0800
+Received: from iwn2 (iwn2.prod.google.com [10.241.68.66])
+	by hpaq7.eem.corp.google.com with ESMTP id oBTKsT5g027330
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 12:54:37 -0800
+Received: by iwn2 with SMTP id 2so12289000iwn.2
+        for <linux-mm@kvack.org>; Wed, 29 Dec 2010 12:54:29 -0800 (PST)
+Date: Wed, 29 Dec 2010 12:54:21 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: kernel BUG at /build/buildd/linux-2.6.35/mm/filemap.c:128!
+In-Reply-To: <alpine.LSU.2.00.1011300939520.6633@tigran.mtv.corp.google.com>
+Message-ID: <alpine.LSU.2.00.1012291231540.22566@sister.anvils>
+References: <AANLkTinbqG7sXxf82wc516snLoae1DtCWjo+VtsPx2P3@mail.gmail.com> <20101122154754.e022d935.akpm@linux-foundation.org> <AANLkTi=AiJ1MekBXZbVj3f2pBtFe52BtCxtbRq=u-YOR@mail.gmail.com> <20101129152500.000c380b.akpm@linux-foundation.org>
+ <alpine.LSU.2.00.1011300939520.6633@tigran.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: robert@swiecki.net
+Cc: Miklos Szeredi <miklos@szeredi.hu>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Features and fixes:
-  - new version of memory hotplug patch which supports
-    among others memory allocation policies during errors
-    (try until success or stop at first error),
-  - this version of patch was tested with tmem
-    (selfballooning and frontswap) and works
-    very well with it,
-  - some other minor fixes.
+On Tue, 30 Nov 2010, Hugh Dickins wrote:
+> On Mon, 29 Nov 2010, Andrew Morton wrote:
+> > On Tue, 23 Nov 2010 15:55:31 +0100
+> > Robert  wi cki <robert@swiecki.net> wrote:
+> > > >> [25142.286531] kernel BUG at /build/buildd/linux-2.6.35/mm/filemap.c:128!
+> > > >
+> > > > That's
+> > > >
+> > > >        BUG_ON(page_mapped(page));
+> > > >
+> > > > in  remove_from_page_cache().  That state is worth a BUG().
+> > 
+> > At a guess I'd say that another thread came in and established a
+> > mapping against a page in the to-be-truncated range while
+> > vmtruncate_range() was working on it.  In fact I'd be suspecting that
+> > the mapping was established after truncate_inode_page() ran its
+> > page_mapped() test.
+> 
+> It looks that way, but I don't see how it can be: the page is locked
+> before calling truncate_inode_page() and unlocked after it: and the
+> page (certainly in this tmpfs case, perhaps not for every filesystem)
+> cannot be faulted into an address space without holding its page lock.
+> 
+> Either we've made a change somewhere, and are now dropping and retaking
+> page lock in a way which exposes this bug?  Or truncate_inode_page()'s
+> unmap_mapping_range() call is somehow missing the page it's called for?
+> 
+> I guess the latter is the more likely: maybe the truncate_count/restart
+> logic isn't working properly.  I'll try to check over that again later -
+> but will be happy if someone else beats me to it.
 
-Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
----
- drivers/xen/Kconfig   |   10 ++
- drivers/xen/balloon.c |  222 ++++++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 221 insertions(+), 11 deletions(-)
+I have since found an omission in the restart_addr logic: looking back
+at the October 2004 history of vm_truncate_count, I see that originally
+I designed it to work one way, but hurriedly added a 7/6 redesign when
+vma splitting turned out to leave an ambiguity.  I should have updated
+the protection in mremap move at that time, but missed it.
 
-diff --git a/drivers/xen/Kconfig b/drivers/xen/Kconfig
-index 60d71e9..ada8ef5 100644
---- a/drivers/xen/Kconfig
-+++ b/drivers/xen/Kconfig
-@@ -9,6 +9,16 @@ config XEN_BALLOON
- 	  the system to expand the domain's memory allocation, or alternatively
- 	  return unneeded memory to the system.
+Robert, please try out the patch below (should apply fine to 2.6.35):
+I'm hoping this will fix what the fuzzer found, but it's still quite
+possible that it found something else wrong that I've not yet noticed.
+The patch could probably be cleverer (if we exported the notion of
+restart_addr out of mm/memory.c), but I'm more in the mood for being
+safe than clever at the moment.
+
+I didn't hear whether you'd managed to try out Miklos's patch; but
+this one is a better bet to be the fix for your particular issue.
+
+Thanks,
+Hugh
+
+--- 2.6.37-rc8/mm/mremap.c	2010-11-01 13:01:32.000000000 -0700
++++ linux/mm/mremap.c	2010-12-29 12:25:46.000000000 -0800
+@@ -91,9 +91,7 @@ static void move_ptes(struct vm_area_str
+ 		 */
+ 		mapping = vma->vm_file->f_mapping;
+ 		spin_lock(&mapping->i_mmap_lock);
+-		if (new_vma->vm_truncate_count &&
+-		    new_vma->vm_truncate_count != vma->vm_truncate_count)
+-			new_vma->vm_truncate_count = 0;
++		new_vma->vm_truncate_count = 0;
+ 	}
  
-+config XEN_BALLOON_MEMORY_HOTPLUG
-+	bool "Xen memory balloon driver with memory hotplug support"
-+	default n
-+	depends on XEN_BALLOON && MEMORY_HOTPLUG
-+	help
-+	  Xen memory balloon driver with memory hotplug support allows expanding
-+	  memory available for the system above limit declared at system startup.
-+	  It is very useful on critical systems which require long run without
-+	  rebooting.
-+
- config XEN_SCRUB_PAGES
- 	bool "Scrub pages before returning them to system"
- 	depends on XEN_BALLOON
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index f105e67..73abacd 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -6,6 +6,7 @@
-  * Copyright (c) 2003, B Dragovic
-  * Copyright (c) 2003-2004, M Williamson, K Fraser
-  * Copyright (c) 2005 Dan M. Smith, IBM Corporation
-+ * Copyright (c) 2010 Daniel Kiper
-  *
-  * This program is free software; you can redistribute it and/or
-  * modify it under the terms of the GNU General Public License version 2
-@@ -44,6 +45,7 @@
- #include <linux/list.h>
- #include <linux/sysdev.h>
- #include <linux/gfp.h>
-+#include <linux/memory.h>
- 
- #include <asm/page.h>
- #include <asm/pgalloc.h>
-@@ -79,6 +81,9 @@ enum bp_state {
- 	BP_HUNGRY
- };
- 
-+#define MH_POLICY_TRY_UNTIL_SUCCESS	0
-+#define MH_POLICY_STOP_AT_FIRST_ERROR	1
-+
- struct balloon_stats {
- 	/* We aim for 'current allocation' == 'target allocation'. */
- 	unsigned long current_pages;
-@@ -88,6 +93,10 @@ struct balloon_stats {
- 	unsigned long balloon_high;
- 	unsigned long schedule_delay;
- 	unsigned long max_schedule_delay;
-+#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-+	unsigned long boot_max_pfn;
-+	unsigned long mh_policy;
-+#endif
- };
- 
- static DEFINE_MUTEX(balloon_mutex);
-@@ -201,18 +210,195 @@ static void update_schedule_delay(enum bp_state state)
- 	balloon_stats.schedule_delay = new_schedule_delay;
- }
- 
--static unsigned long current_target(void)
-+#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-+static int allocate_memory_resource(struct resource **r, unsigned long nr_pages)
- {
--	unsigned long target = balloon_stats.target_pages;
-+	int rc;
-+	resource_size_t r_min, r_size;
-+
-+	/*
-+	 * Look for first unused memory region starting at page
-+	 * boundary. Skip last memory section created at boot time
-+	 * becuase it may contains unused memory pages with PG_reserved
-+	 * bit not set (online_pages require PG_reserved bit set).
-+	 */
-+
-+	*r = kzalloc(sizeof(struct resource), GFP_KERNEL);
- 
--	target = min(target,
--		     balloon_stats.current_pages +
--		     balloon_stats.balloon_low +
--		     balloon_stats.balloon_high);
-+	if (!*r)
-+		return -ENOMEM;
- 
--	return target;
-+	(*r)->name = "System RAM";
-+	(*r)->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-+	r_min = PFN_PHYS(section_nr_to_pfn(pfn_to_section_nr(balloon_stats.boot_max_pfn) + 1));
-+	r_size = nr_pages << PAGE_SHIFT;
-+
-+	rc = allocate_resource(&iomem_resource, *r, r_size, r_min,
-+					ULONG_MAX, PAGE_SIZE, NULL, NULL);
-+
-+	if (rc < 0) {
-+		kfree(*r);
-+		*r = NULL;
-+	}
-+
-+	return rc;
- }
- 
-+static void adjust_memory_resource(struct resource **r, unsigned long nr_pages)
-+{
-+	if ((*r)->end + 1 - (nr_pages << PAGE_SHIFT) == (*r)->start) {
-+		BUG_ON(release_resource(*r) < 0);
-+		kfree(*r);
-+		*r = NULL;
-+		return;
-+	}
-+
-+	BUG_ON(adjust_resource(*r, (*r)->start, (*r)->end + 1 - (*r)->start -
-+				(nr_pages << PAGE_SHIFT)) < 0);
-+}
-+
-+static int allocate_additional_memory(struct resource *r, unsigned long nr_pages)
-+{
-+	int rc;
-+	struct xen_memory_reservation reservation = {
-+		.address_bits = 0,
-+		.extent_order = 0,
-+		.domid        = DOMID_SELF
-+	};
-+	unsigned long flags, i, pfn, pfn_start;
-+
-+	if (!nr_pages)
-+		return 0;
-+
-+	pfn_start = PFN_UP(r->end) - nr_pages;
-+
-+	if (nr_pages > ARRAY_SIZE(frame_list))
-+		nr_pages = ARRAY_SIZE(frame_list);
-+
-+	for (i = 0, pfn = pfn_start; i < nr_pages; ++i, ++pfn)
-+		frame_list[i] = pfn;
-+
-+	set_xen_guest_handle(reservation.extent_start, frame_list);
-+	reservation.nr_extents = nr_pages;
-+
-+	spin_lock_irqsave(&xen_reservation_lock, flags);
-+
-+	rc = HYPERVISOR_memory_op(XENMEM_populate_physmap, &reservation);
-+
-+	if (rc <= 0)
-+		return (rc < 0) ? rc : -ENOMEM;
-+
-+	for (i = 0, pfn = pfn_start; i < rc; ++i, ++pfn) {
-+		BUG_ON(!xen_feature(XENFEAT_auto_translated_physmap) &&
-+		       phys_to_machine_mapping_valid(pfn));
-+		set_phys_to_machine(pfn, frame_list[i]);
-+	}
-+
-+	spin_unlock_irqrestore(&xen_reservation_lock, flags);
-+
-+	return rc;
-+}
-+
-+static void hotplug_allocated_memory(struct resource **r)
-+{
-+	int nid, rc;
-+	resource_size_t r_size;
-+	struct memory_block *mem;
-+	unsigned long pfn;
-+
-+	r_size = (*r)->end + 1 - (*r)->start;
-+	nid = memory_add_physaddr_to_nid((*r)->start);
-+
-+	rc = add_registered_memory(nid, (*r)->start, r_size);
-+
-+	if (rc) {
-+		pr_err("%s: add_registered_memory: Memory hotplug failed: %i\n",
-+			__func__, rc);
-+		balloon_stats.target_pages = balloon_stats.current_pages;
-+		*r = NULL;
-+		return;
-+	}
-+
-+	if (xen_pv_domain())
-+		for (pfn = PFN_DOWN((*r)->start); pfn < PFN_UP((*r)->end); ++pfn)
-+			if (!PageHighMem(pfn_to_page(pfn)))
-+				BUG_ON(HYPERVISOR_update_va_mapping(
-+					(unsigned long)__va(pfn << PAGE_SHIFT),
-+					mfn_pte(pfn_to_mfn(pfn), PAGE_KERNEL), 0));
-+
-+	rc = online_pages(PFN_DOWN((*r)->start), r_size >> PAGE_SHIFT);
-+
-+	if (rc) {
-+		pr_err("%s: online_pages: Failed: %i\n", __func__, rc);
-+		balloon_stats.target_pages = balloon_stats.current_pages;
-+		*r = NULL;
-+		return;
-+	}
-+
-+	for (pfn = PFN_DOWN((*r)->start); pfn < PFN_UP((*r)->end); pfn += PAGES_PER_SECTION) {
-+		mem = find_memory_block(__pfn_to_section(pfn));
-+		BUG_ON(!mem);
-+		BUG_ON(!present_section_nr(mem->phys_index));
-+		mutex_lock(&mem->state_mutex);
-+		mem->state = MEM_ONLINE;
-+		mutex_unlock(&mem->state_mutex);
-+	}
-+
-+	balloon_stats.current_pages += r_size >> PAGE_SHIFT;
-+
-+	*r = NULL;
-+}
-+
-+static enum bp_state request_additional_memory(long credit)
-+{
-+	int rc;
-+	static struct resource *r;
-+	static unsigned long pages_left;
-+
-+	if ((credit <= 0 || balloon_stats.balloon_low ||
-+				balloon_stats.balloon_high) && !r)
-+		return BP_DONE;
-+
-+	if (!r) {
-+		rc = allocate_memory_resource(&r, credit);
-+
-+		if (rc)
-+			return BP_ERROR;
-+
-+		pages_left = credit;
-+	}
-+
-+	rc = allocate_additional_memory(r, pages_left);
-+
-+	if (rc < 0) {
-+		if (balloon_stats.mh_policy == MH_POLICY_TRY_UNTIL_SUCCESS)
-+			return BP_ERROR;
-+
-+		adjust_memory_resource(&r, pages_left);
-+
-+		if (!r)
-+			return BP_ERROR;
-+	} else {
-+		pages_left -= rc;
-+
-+		if (pages_left)
-+			return BP_HUNGRY;
-+	}
-+
-+	hotplug_allocated_memory(&r);
-+
-+	return BP_DONE;
-+}
-+#else
-+static enum bp_state request_additional_memory(long credit)
-+{
-+	if (balloon_stats.balloon_low && balloon_stats.balloon_high &&
-+			balloon_stats.target_pages > balloon_stats.current_pages)
-+		balloon_stats.target_pages = balloon_stats.current_pages;
-+	return BP_DONE;
-+}
-+#endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */
-+
- static enum bp_state increase_reservation(unsigned long nr_pages)
- {
- 	enum bp_state state = BP_DONE;
-@@ -358,15 +544,17 @@ static enum bp_state decrease_reservation(unsigned long nr_pages)
-  */
- static void balloon_process(struct work_struct *work)
- {
--	enum bp_state rc, state = BP_DONE;
-+	enum bp_state rc, state;
- 	long credit;
- 
- 	mutex_lock(&balloon_mutex);
- 
- 	do {
--		credit = current_target() - balloon_stats.current_pages;
-+		credit = balloon_stats.target_pages - balloon_stats.current_pages;
-+
-+		state = request_additional_memory(credit);
- 
--		if (credit > 0) {
-+		if (credit > 0 && state == BP_DONE) {
- 			rc = increase_reservation(credit);
- 			state = (rc == BP_ERROR) ? BP_ERROR : state;
- 		}
-@@ -458,6 +646,11 @@ static int __init balloon_init(void)
- 	balloon_stats.schedule_delay = 1;
- 	balloon_stats.max_schedule_delay = 32;
- 
-+#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-+	balloon_stats.boot_max_pfn = max_pfn;
-+	balloon_stats.mh_policy = MH_POLICY_STOP_AT_FIRST_ERROR;
-+#endif
-+
- 	register_balloon(&balloon_sysdev);
- 
- 	/* Initialise the balloon with excess memory space. */
-@@ -501,6 +694,10 @@ BALLOON_SHOW(high_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_high));
- static SYSDEV_ULONG_ATTR(schedule_delay, 0644, balloon_stats.schedule_delay);
- static SYSDEV_ULONG_ATTR(max_schedule_delay, 0644, balloon_stats.max_schedule_delay);
- 
-+#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-+static SYSDEV_ULONG_ATTR(memory_hotplug_policy, 0644, balloon_stats.mh_policy);
-+#endif
-+
- static ssize_t show_target_kb(struct sys_device *dev, struct sysdev_attribute *attr,
- 			      char *buf)
- {
-@@ -563,7 +760,10 @@ static struct sysdev_attribute *balloon_attrs[] = {
- 	&attr_target_kb,
- 	&attr_target,
- 	&attr_schedule_delay.attr,
--	&attr_max_schedule_delay.attr
-+	&attr_max_schedule_delay.attr,
-+#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-+	&attr_memory_hotplug_policy.attr
-+#endif
- };
- 
- static struct attribute *balloon_info_attrs[] = {
--- 
-1.4.4.4
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
