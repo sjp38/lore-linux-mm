@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1252F6B0092
-	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 12:07:30 -0500 (EST)
+	by kanga.kvack.org (Postfix) with ESMTP id 81C636B0092
+	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 12:07:31 -0500 (EST)
 Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
 	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1554888Ab0L2RCM (ORCPT <rfc822;linux-mm@kvack.org>);
-	Wed, 29 Dec 2010 18:02:12 +0100
-Date: Wed, 29 Dec 2010 18:02:12 +0100
+	id S1564497Ab0L2RCu (ORCPT <rfc822;linux-mm@kvack.org>);
+	Wed, 29 Dec 2010 18:02:50 +0100
+Date: Wed, 29 Dec 2010 18:02:50 +0100
 From: Daniel Kiper <dkiper@net-space.pl>
-Subject: [PATCH R2 1/7] mm: Add add_registered_memory() to memory hotplug API
-Message-ID: <20101229170212.GF2743@router-fw-old.local.net-space.pl>
+Subject: [PATCH R2 2/7] xen/balloon: Removal of driver_pages
+Message-ID: <20101229170250.GG2743@router-fw-old.local.net-space.pl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -17,107 +17,68 @@ Sender: owner-linux-mm@kvack.org
 To: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-add_registered_memory() adds memory ealier registered
-as memory resource. It is required by memory hotplug
-for Xen guests, however it could be used also by other
-modules.
+Removal of driver_pages (I do not have seen any references to it).
 
 Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
 ---
- include/linux/memory_hotplug.h |    1 +
- mm/memory_hotplug.c            |   50 ++++++++++++++++++++++++++++++---------
- 2 files changed, 39 insertions(+), 12 deletions(-)
+ arch/x86/xen/mmu.c    |    3 +--
+ drivers/xen/balloon.c |    8 --------
+ 2 files changed, 1 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 864035f..2458b2f 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -203,6 +203,7 @@ static inline int is_mem_section_removable(unsigned long pfn,
- #endif /* CONFIG_MEMORY_HOTREMOVE */
+diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
+index 42086ac..6278650 100644
+--- a/arch/x86/xen/mmu.c
++++ b/arch/x86/xen/mmu.c
+@@ -75,8 +75,7 @@
  
- extern int mem_online_node(int nid);
-+extern int add_registered_memory(int nid, u64 start, u64 size);
- extern int add_memory(int nid, u64 start, u64 size);
- extern int arch_add_memory(int nid, u64 start, u64 size);
- extern int remove_memory(u64 start, u64 size);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index dd186c1..b642f26 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -509,20 +509,12 @@ out:
- }
+ /*
+  * Protects atomic reservation decrease/increase against concurrent increases.
+- * Also protects non-atomic updates of current_pages and driver_pages, and
+- * balloon lists.
++ * Also protects non-atomic updates of current_pages and balloon lists.
+  */
+ DEFINE_SPINLOCK(xen_reservation_lock);
  
- /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
--int __ref add_memory(int nid, u64 start, u64 size)
-+static int __ref __add_memory(int nid, u64 start, u64 size)
- {
- 	pg_data_t *pgdat = NULL;
- 	int new_pgdat = 0;
--	struct resource *res;
- 	int ret;
+diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+index 500290b..97919af 100644
+--- a/drivers/xen/balloon.c
++++ b/drivers/xen/balloon.c
+@@ -69,11 +69,6 @@ struct balloon_stats {
+ 	/* We aim for 'current allocation' == 'target allocation'. */
+ 	unsigned long current_pages;
+ 	unsigned long target_pages;
+-	/*
+-	 * Drivers may alter the memory reservation independently, but they
+-	 * must inform the balloon driver so we avoid hitting the hard limit.
+-	 */
+-	unsigned long driver_pages;
+ 	/* Number of pages in high- and low-memory balloons. */
+ 	unsigned long balloon_low;
+ 	unsigned long balloon_high;
+@@ -407,7 +402,6 @@ static int __init balloon_init(void)
+ 	balloon_stats.target_pages  = balloon_stats.current_pages;
+ 	balloon_stats.balloon_low   = 0;
+ 	balloon_stats.balloon_high  = 0;
+-	balloon_stats.driver_pages  = 0UL;
  
--	lock_system_sleep();
--
--	res = register_memory_resource(start, size);
--	ret = -EEXIST;
--	if (!res)
--		goto out;
--
- 	if (!node_online(nid)) {
- 		pgdat = hotadd_new_pgdat(nid, start);
- 		ret = -ENOMEM;
-@@ -556,14 +548,48 @@ int __ref add_memory(int nid, u64 start, u64 size)
- 	goto out;
+ 	init_timer(&balloon_timer);
+ 	balloon_timer.data = 0;
+@@ -452,7 +446,6 @@ module_exit(balloon_exit);
+ BALLOON_SHOW(current_kb, "%lu\n", PAGES2KB(balloon_stats.current_pages));
+ BALLOON_SHOW(low_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_low));
+ BALLOON_SHOW(high_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_high));
+-BALLOON_SHOW(driver_kb, "%lu\n", PAGES2KB(balloon_stats.driver_pages));
  
- error:
--	/* rollback pgdat allocation and others */
-+	/* rollback pgdat allocation */
- 	if (new_pgdat)
- 		rollback_node_hotadd(nid, pgdat);
--	if (res)
--		release_memory_resource(res);
-+
-+out:
-+	return ret;
-+}
-+
-+int add_registered_memory(int nid, u64 start, u64 size)
-+{
-+	int ret;
-+
-+	lock_system_sleep();
-+	ret = __add_memory(nid, start, size);
-+	unlock_system_sleep();
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(add_registered_memory);
-+
-+int add_memory(int nid, u64 start, u64 size)
-+{
-+	int ret = -EEXIST;
-+	struct resource *res;
-+
-+	lock_system_sleep();
-+
-+	res = register_memory_resource(start, size);
-+
-+	if (!res)
-+		goto out;
-+
-+	ret = __add_memory(nid, start, size);
-+
-+	if (!ret)
-+		goto out;
-+
-+	release_memory_resource(res);
+ static ssize_t show_target_kb(struct sys_device *dev, struct sysdev_attribute *attr,
+ 			      char *buf)
+@@ -521,7 +514,6 @@ static struct attribute *balloon_info_attrs[] = {
+ 	&attr_current_kb.attr,
+ 	&attr_low_kb.attr,
+ 	&attr_high_kb.attr,
+-	&attr_driver_kb.attr,
+ 	NULL
+ };
  
- out:
- 	unlock_system_sleep();
-+
- 	return ret;
- }
- EXPORT_SYMBOL_GPL(add_memory);
 -- 
 1.4.4.4
 
