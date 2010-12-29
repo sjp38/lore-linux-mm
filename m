@@ -1,93 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4844F6B009E
-	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 15:54:42 -0500 (EST)
-Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
-	by smtp-out.google.com with ESMTP id oBTKsc0W008797
-	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 12:54:38 -0800
-Received: from iwn2 (iwn2.prod.google.com [10.241.68.66])
-	by hpaq7.eem.corp.google.com with ESMTP id oBTKsT5g027330
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 12:54:37 -0800
-Received: by iwn2 with SMTP id 2so12289000iwn.2
-        for <linux-mm@kvack.org>; Wed, 29 Dec 2010 12:54:29 -0800 (PST)
-Date: Wed, 29 Dec 2010 12:54:21 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 500456B00A2
+	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 16:50:42 -0500 (EST)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id oBTLoaeW003632
+	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 13:50:37 -0800
+Received: from gxk25 (gxk25.prod.google.com [10.202.11.25])
+	by kpbe13.cbf.corp.google.com with ESMTP id oBTLoYxR018126
+	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 13:50:35 -0800
+Received: by gxk25 with SMTP id 25so2071835gxk.9
+        for <linux-mm@kvack.org>; Wed, 29 Dec 2010 13:50:34 -0800 (PST)
+Date: Wed, 29 Dec 2010 13:50:22 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: kernel BUG at /build/buildd/linux-2.6.35/mm/filemap.c:128!
-In-Reply-To: <alpine.LSU.2.00.1011300939520.6633@tigran.mtv.corp.google.com>
-Message-ID: <alpine.LSU.2.00.1012291231540.22566@sister.anvils>
-References: <AANLkTinbqG7sXxf82wc516snLoae1DtCWjo+VtsPx2P3@mail.gmail.com> <20101122154754.e022d935.akpm@linux-foundation.org> <AANLkTi=AiJ1MekBXZbVj3f2pBtFe52BtCxtbRq=u-YOR@mail.gmail.com> <20101129152500.000c380b.akpm@linux-foundation.org>
- <alpine.LSU.2.00.1011300939520.6633@tigran.mtv.corp.google.com>
+Subject: Re: 2.6.37-rc7: NULL pointer dereference
+In-Reply-To: <20101222164151.GA2048@cmpxchg.org>
+Message-ID: <alpine.LSU.2.00.1012291344460.22803@sister.anvils>
+References: <1293020757.1998.2.camel@localhost.localdomain> <AANLkTin6GMiXHuoVzNWPcj0jXDqWyfWCwW9fd-v=pq=X@mail.gmail.com> <20101222164151.GA2048@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-672622310-1293659434=:22803"
 Sender: owner-linux-mm@kvack.org
-To: robert@swiecki.net
-Cc: Miklos Szeredi <miklos@szeredi.hu>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Thomas Meyer <thomas@m3y3r.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Nov 2010, Hugh Dickins wrote:
-> On Mon, 29 Nov 2010, Andrew Morton wrote:
-> > On Tue, 23 Nov 2010 15:55:31 +0100
-> > Robert  wi cki <robert@swiecki.net> wrote:
-> > > >> [25142.286531] kernel BUG at /build/buildd/linux-2.6.35/mm/filemap.c:128!
-> > > >
-> > > > That's
-> > > >
-> > > >        BUG_ON(page_mapped(page));
-> > > >
-> > > > in  remove_from_page_cache().  That state is worth a BUG().
-> > 
-> > At a guess I'd say that another thread came in and established a
-> > mapping against a page in the to-be-truncated range while
-> > vmtruncate_range() was working on it.  In fact I'd be suspecting that
-> > the mapping was established after truncate_inode_page() ran its
-> > page_mapped() test.
-> 
-> It looks that way, but I don't see how it can be: the page is locked
-> before calling truncate_inode_page() and unlocked after it: and the
-> page (certainly in this tmpfs case, perhaps not for every filesystem)
-> cannot be faulted into an address space without holding its page lock.
-> 
-> Either we've made a change somewhere, and are now dropping and retaking
-> page lock in a way which exposes this bug?  Or truncate_inode_page()'s
-> unmap_mapping_range() call is somehow missing the page it's called for?
-> 
-> I guess the latter is the more likely: maybe the truncate_count/restart
-> logic isn't working properly.  I'll try to check over that again later -
-> but will be happy if someone else beats me to it.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-I have since found an omission in the restart_addr logic: looking back
-at the October 2004 history of vm_truncate_count, I see that originally
-I designed it to work one way, but hurriedly added a 7/6 redesign when
-vma splitting turned out to leave an ambiguity.  I should have updated
-the protection in mremap move at that time, but missed it.
+--8323584-672622310-1293659434=:22803
+Content-Type: TEXT/PLAIN; charset=iso-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-Robert, please try out the patch below (should apply fine to 2.6.35):
-I'm hoping this will fix what the fuzzer found, but it's still quite
-possible that it found something else wrong that I've not yet noticed.
-The patch could probably be cleverer (if we exported the notion of
-restart_addr out of mm/memory.c), but I'm more in the mood for being
-safe than clever at the moment.
+On Wed, 22 Dec 2010, Johannes Weiner wrote:
+> On Thu, Dec 23, 2010 at 12:37:11AM +0900, Minchan Kim wrote:
+> > On Wed, Dec 22, 2010 at 9:25 PM, Thomas Meyer <thomas@m3y3r.de> wrote:
+> > > BUG: unable to handle kernel NULL pointer dereference at 00000008
+> > > IP: [<c04eae14>] __mem_cgroup_try_charge+0x234/0x430
+> > > Process swapoff (pid: 8058, ti=3Df2e70000 task=3Df3e55860 task.ti=3Df=
+2e70000)
+> > > Call Trace:
+> > > =A0[<c0456607>] ? ktime_get_ts+0x107/0x140
+> > > =A0[<c04ebb89>] ? mem_cgroup_try_charge_swapin+0x49/0xb0
+> > > =A0[<c04d9b4b>] ? unuse_mm+0x1db/0x300
+> > > =A0[<c04dad9a>] ? sys_swapoff+0x2aa/0x890
+> > > =A0[<c047cd58>] ? audit_syscall_entry+0x218/0x240
+> > > =A0[<c047d043>] ? audit_syscall_exit+0x1f3/0x220
+> > > =A0[<c0403013>] ? sysenter_do_call+0x12/0x22
+>=20
+> This could be explained by a kernel without VM_BUG_ON(), where
+> !mm->owner goes uncaught until css_tryget() reads mem.css.flags (eight
+> bytes member offset on 32-bit).
+>=20
+> Does
+> =09http://marc.info/?l=3Dlinux-mm&m=3D128889198016021&w=3D2
+> help?
 
-I didn't hear whether you'd managed to try out Miklos's patch; but
-this one is a better bet to be the fix for your particular issue.
+I'm sure you're right, Hannes.  Thanks for the prod.  Sadly, Kame
+and I both let the fix drift, expecting it to magick its way into
+Linus's tree.  We're now at rc8: I'd better change my Acked-by to
+a Signed-off-by and try sending it in immediately: will do so now.
 
-Thanks,
 Hugh
-
---- 2.6.37-rc8/mm/mremap.c	2010-11-01 13:01:32.000000000 -0700
-+++ linux/mm/mremap.c	2010-12-29 12:25:46.000000000 -0800
-@@ -91,9 +91,7 @@ static void move_ptes(struct vm_area_str
- 		 */
- 		mapping = vma->vm_file->f_mapping;
- 		spin_lock(&mapping->i_mmap_lock);
--		if (new_vma->vm_truncate_count &&
--		    new_vma->vm_truncate_count != vma->vm_truncate_count)
--			new_vma->vm_truncate_count = 0;
-+		new_vma->vm_truncate_count = 0;
- 	}
- 
- 	/*
+--8323584-672622310-1293659434=:22803--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
