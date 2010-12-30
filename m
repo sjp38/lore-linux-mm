@@ -1,123 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 663176B00A8
-	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 22:15:58 -0500 (EST)
-Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
-	by smtp-out.google.com with ESMTP id oBU3Fnb9008627
-	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 19:15:49 -0800
-Received: from gwb11 (gwb11.prod.google.com [10.200.2.11])
-	by hpaq7.eem.corp.google.com with ESMTP id oBU3FYrv009143
-	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 19:15:47 -0800
-Received: by gwb11 with SMTP id 11so5590125gwb.25
-        for <linux-mm@kvack.org>; Wed, 29 Dec 2010 19:15:47 -0800 (PST)
-Date: Wed, 29 Dec 2010 19:15:37 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 81A9A6B00AB
+	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 22:17:18 -0500 (EST)
+Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
+	by smtp-out.google.com with ESMTP id oBU3HEIN031625
+	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 19:17:14 -0800
+Received: from iwn38 (iwn38.prod.google.com [10.241.68.102])
+	by kpbe12.cbf.corp.google.com with ESMTP id oBU3HCTr020571
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 29 Dec 2010 19:17:13 -0800
+Received: by iwn38 with SMTP id 38so10938529iwn.8
+        for <linux-mm@kvack.org>; Wed, 29 Dec 2010 19:17:12 -0800 (PST)
+Date: Wed, 29 Dec 2010 19:17:11 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] writeback: skip balance_dirty_pages() for in-memory fs
-In-Reply-To: <20101221093925.GA23110@localhost>
-Message-ID: <alpine.LSU.2.00.1012291856110.14917@sister.anvils>
-References: <20101213144646.341970461@intel.com> <20101213150329.002158963@intel.com> <20101217021934.GA9525@localhost> <alpine.LSU.2.00.1012162239270.23229@sister.anvils> <20101217112111.GA8323@localhost> <alpine.LSU.2.00.1012202127310.16112@tigran.mtv.corp.google.com>
- <20101221093925.GA23110@localhost>
+Subject: Re: [PATCH 0/7] Change page reference handling semantic of page
+ cache
+In-Reply-To: <cover.1293031046.git.minchan.kim@gmail.com>
+Message-ID: <alpine.LSU.2.00.1012291916020.14917@sister.anvils>
+References: <cover.1293031046.git.minchan.kim@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Dec 2010, Wu Fengguang wrote:
-> 
-> This avoids unnecessary checks and dirty throttling on tmpfs/ramfs.
-> 
-> It also prevents
-> 
-> [  388.126563] BUG: unable to handle kernel NULL pointer dereference at 0000000000000050
-> 
-> in the balance_dirty_pages tracepoint, which will call
-> 
-> 	dev_name(mapping->backing_dev_info->dev)
-> 
-> but shmem_backing_dev_info.dev is NULL.
-> 
-> Summary notes about the tmpfs/ramfs behavior changes:
-> 
-> As for 2.6.36 and older kernels, the tmpfs writes will sleep inside
-> balance_dirty_pages() as long as we are over the (dirty+background)/2
-> global throttle threshold.  This is because both the dirty pages and
-> threshold will be 0 for tmpfs/ramfs. Hence this test will always
-> evaluate to TRUE:
-> 
->                 dirty_exceeded =
->                         (bdi_nr_reclaimable + bdi_nr_writeback >= bdi_thresh)
->                         || (nr_reclaimable + nr_writeback >= dirty_thresh);
-> 
-> For 2.6.37, someone complained that the current logic does not allow the
-> users to set vm.dirty_ratio=0.  So commit 4cbec4c8b9 changed the test to
-> 
->                 dirty_exceeded =
->                         (bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
->                         || (nr_reclaimable + nr_writeback > dirty_thresh);
-> 
-> So 2.6.37 will behave differently for tmpfs/ramfs: it will never get
-> throttled unless the global dirty threshold is exceeded (which is very
-> unlikely to happen; once happen, will block many tasks).
-> 
-> I'd say that the 2.6.36 behavior is very bad for tmpfs/ramfs. It means
-> for a busy writing server, tmpfs write()s may get livelocked! The
-> "inadvertent" throttling can hardly bring help to any workload because
-> of its "either no throttling, or get throttled to death" property.
-> 
-> So based on 2.6.37, this patch won't bring more noticeable changes.
-> 
-> CC: Hugh Dickins <hughd@google.com>
-> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+On Thu, 23 Dec 2010, Minchan Kim wrote:
 
-Thanks a lot for investigating further and writing it all up here.
+> Now we increases page reference on add_to_page_cache but doesn't decrease it
+> in remove_from_page_cache. Such asymmetric makes confusing about
+> page reference so that caller should notice it and comment why they
+> release page reference. It's not good API.
+> 
+> Long time ago, Hugh tried it[1] but gave up of reason which
+> reiser4's drop_page had to unlock the page between removing it from
+> page cache and doing the page_cache_release. But now the situation is
+> changed. I think at least things in current mainline doesn't have any
+> obstacles. The problem is fs or somethings out of mainline.
+> If it has done such thing like reiser4, this patch could be a problem but
+> they found it when compile time since we remove remove_from_page_cache.
+> 
+> [1] http://lkml.org/lkml/2004/10/24/140
+> 
+> The series configuration is following as. 
+> 
+> [1/7] : This patch introduces new API delete_from_page_cache.
+> [2,3,4,5/7] : Change remove_from_page_cache with delete_from_page_cache.
+> Intentionally I divide patch per file since someone might have a concern 
+> about releasing page reference of delete_from_page_cache in 
+> somecase (ex, truncate.c)
+> [6/7] : Remove old API so out of fs can meet compile error when build time
+> and can notice it.
+> [7/7] : Change __remove_from_page_cache with __delete_from_page_cache, too.
+> In this time, I made all-in-one patch because it doesn't change old behavior
+> so it has no concern. Just clean up patch.
+> 
+> Minchan Kim (7):
+>   [1/7] Introduce delete_from_page_cache
+>   [2/7] fuse: Change remove_from_page_cache
+>   [3/7] tlbfs: Change remove_from_page_cache
+>   [4/7] swap: Change remove_from_page_cache
+>   [5/7] truncate: Change remove_from_page_cache
+>   [6/7] Good bye remove_from_page_cache
+>   [7/7] Change __remove_from_page_cache
+> 
+>  fs/fuse/dev.c           |    3 +--
+>  fs/hugetlbfs/inode.c    |    3 +--
+>  include/linux/pagemap.h |    4 ++--
+>  mm/filemap.c            |   22 +++++++++++++++++-----
+>  mm/shmem.c              |    3 +--
+>  mm/truncate.c           |    5 ++---
+>  mm/vmscan.c             |    2 +-
+>  7 files changed, 25 insertions(+), 17 deletions(-)
 
 Acked-by: Hugh Dickins <hughd@google.com>
 
-I notice bdi_cap_writeback_dirty go from bdi_writeout_fraction(), and
-bdi_cap_account_dirty appear in balance_dirty_pages_ratelimited_nr():
-maybe one day a patch to use just one flag throughout?  Unless you can
-dream up a use for the divergence.  (I hate wasting brainpower trying to
-decide which of two always-the-sames to use, like page_cache_release()
-and put_page(), until there's actual code to distinguish them.)
-
-Hugh
-
-> ---
->  mm/page-writeback.c |   10 ++++------
->  1 file changed, 4 insertions(+), 6 deletions(-)
-> 
-> --- linux-next.orig/mm/page-writeback.c	2010-12-18 09:14:53.000000000 +0800
-> +++ linux-next/mm/page-writeback.c	2010-12-21 17:35:44.000000000 +0800
-> @@ -230,13 +230,8 @@ void task_dirty_inc(struct task_struct *
->  static void bdi_writeout_fraction(struct backing_dev_info *bdi,
->  		long *numerator, long *denominator)
->  {
-> -	if (bdi_cap_writeback_dirty(bdi)) {
-> -		prop_fraction_percpu(&vm_completions, &bdi->completions,
-> +	prop_fraction_percpu(&vm_completions, &bdi->completions,
->  				numerator, denominator);
-> -	} else {
-> -		*numerator = 0;
-> -		*denominator = 1;
-> -	}
->  }
->  
->  static inline void task_dirties_fraction(struct task_struct *tsk,
-> @@ -878,6 +873,9 @@ void balance_dirty_pages_ratelimited_nr(
->  {
->  	struct backing_dev_info *bdi = mapping->backing_dev_info;
->  
-> +	if (!bdi_cap_account_dirty(bdi))
-> +		return;
-> +
->  	current->nr_dirtied += nr_pages_dirtied;
->  
->  	if (unlikely(!current->nr_dirtied_pause))
+for all seven: thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
