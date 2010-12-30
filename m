@@ -1,42 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A51806B00B4
-	for <linux-mm@kvack.org>; Thu, 30 Dec 2010 17:04:19 -0500 (EST)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1561521Ab0L3WEG (ORCPT <rfc822;linux-mm@kvack.org>);
-	Thu, 30 Dec 2010 23:04:06 +0100
-Date: Thu, 30 Dec 2010 23:04:06 +0100
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: Re: [PATCH R2 1/7] mm: Add add_registered_memory() to memory hotplug API
-Message-ID: <20101230220406.GB17191@router-fw-old.local.net-space.pl>
-References: <20101229170212.GF2743@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1012291643290.6040@chino.kir.corp.google.com> <20101230123013.GA12765@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1012301048550.12995@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1012301048550.12995@chino.kir.corp.google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7DB566B00B6
+	for <linux-mm@kvack.org>; Thu, 30 Dec 2010 18:24:04 -0500 (EST)
+Received: by fxm12 with SMTP id 12so5091568fxm.14
+        for <linux-mm@kvack.org>; Thu, 30 Dec 2010 15:24:01 -0800 (PST)
+MIME-Version: 1.0
+Date: Thu, 30 Dec 2010 23:24:00 +0000
+Message-ID: <AANLkTikrPWqH1tiG4Hx8eg09+Sn_cJ=EMbBVWrSabCF1@mail.gmail.com>
+Subject: CLOCK-Pro algorithm
+From: Adrian McMenamin <lkmladrian@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Daniel Kiper <dkiper@net-space.pl>, ian.campbell@citrix.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi.kleen@intel.com>, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: linux-mm@kvack.org
+Cc: Adrian McMenamin <adrianmcmenamin@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+I originally tried to send this to the addresses for Song Jiang, Feng
+Chen and Xiaodong Zhang on the USENIX paper but it bounced from all of
+them. So I hope you will indulge me if I send it to the list in the
+hope it might reach them. Or perhaps someone here could answer the
+questions below.
 
-On Thu, Dec 30, 2010 at 10:49:29AM -0800, David Rientjes wrote:
-> On Thu, 30 Dec 2010, Daniel Kiper wrote:
->
-> > > Looks like this patch was based on a kernel before 2.6.37-rc4 since it
-> > > doesn't have 20d6c96b5f (mem-hotplug: introduce {un}lock_memory_hotplug())
-> >
-> > As I wrote in "[PATCH R2 0/7] Xen memory balloon driver with memoryhotplug
-> > support" this patch applies to Linux kernel Ver. 2.6.36.
-> >
->
-> I'd suggest posting patches against the latest -git.
+Many thanks
 
-Thx, next patch will be based on latest rc.
+Adrian
 
-Daniel
+Dear all,
+
+I am just beginning work on an MSc project on Linux memory management
+and have been reading your paper to the 2005 USENIX Annual Technical
+Conference. I was wondering what the current status of this algorithm
+is as regards the Linux kernel.
+
+I can find this: http://linux-mm.org/ClockProApproximation and patches
+for testing with the 2.6.12 kernel but am not entirely clear as to
+whether this algorithm was included: certainly all the books I have
+read still talk of the LRU lists that are similar to the 2Q model.
+
+Could you enlighten me?
+
+Many thanks in advance
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
