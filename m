@@ -1,53 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 25A2A6B00B1
-	for <linux-mm@kvack.org>; Thu, 30 Dec 2010 16:25:27 -0500 (EST)
-Received: by iwn40 with SMTP id 40so11811589iwn.14
-        for <linux-mm@kvack.org>; Thu, 30 Dec 2010 13:25:25 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1012291231540.22566@sister.anvils>
-References: <AANLkTinbqG7sXxf82wc516snLoae1DtCWjo+VtsPx2P3@mail.gmail.com>
-	<20101122154754.e022d935.akpm@linux-foundation.org>
-	<AANLkTi=AiJ1MekBXZbVj3f2pBtFe52BtCxtbRq=u-YOR@mail.gmail.com>
-	<20101129152500.000c380b.akpm@linux-foundation.org>
-	<alpine.LSU.2.00.1011300939520.6633@tigran.mtv.corp.google.com>
-	<alpine.LSU.2.00.1012291231540.22566@sister.anvils>
-Date: Thu, 30 Dec 2010 22:25:25 +0100
-Message-ID: <AANLkTi=ZuOJ07yN-nqso_pX_NS90eKrPD=vG9-_a59vG@mail.gmail.com>
-Subject: Re: kernel BUG at /build/buildd/linux-2.6.35/mm/filemap.c:128!
-From: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 368BC6B00B4
+	for <linux-mm@kvack.org>; Thu, 30 Dec 2010 17:04:19 -0500 (EST)
+Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
+	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
+	id S1558450Ab0L3WC3 (ORCPT <rfc822;linux-mm@kvack.org>);
+	Thu, 30 Dec 2010 23:02:29 +0100
+Date: Thu, 30 Dec 2010 23:02:28 +0100
+From: Daniel Kiper <dkiper@net-space.pl>
+Subject: Re: [PATCH R2 5/7] xen/balloon: Protect before CPU exhaust by event/x process
+Message-ID: <20101230220228.GA17191@router-fw-old.local.net-space.pl>
+References: <20101229170541.GJ2743@router-fw-old.local.net-space.pl> <20101230162611.GA24313@dumpdata.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101230162611.GA24313@dumpdata.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Daniel Kiper <dkiper@net-space.pl>, ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> I guess the latter is the more likely: maybe the truncate_count/restart
->> logic isn't working properly. =C2=A0I'll try to check over that again la=
-ter -
->> but will be happy if someone else beats me to it.
+Hi,
+
+On Thu, Dec 30, 2010 at 11:26:11AM -0500, Konrad Rzeszutek Wilk wrote:
+> > -static int increase_reservation(unsigned long nr_pages)
+> > +static enum bp_state increase_reservation(unsigned long nr_pages)
+> >  {
+> > +	enum bp_state state = BP_DONE;
+> > +	int rc;
+> >  	unsigned long  pfn, i, flags;
+> >  	struct page   *page;
+> > -	long           rc;
 >
-> I have since found an omission in the restart_addr logic: looking back
-> at the October 2004 history of vm_truncate_count, I see that originally
-> I designed it to work one way, but hurriedly added a 7/6 redesign when
-> vma splitting turned out to leave an ambiguity. =C2=A0I should have updat=
-ed
-> the protection in mremap move at that time, but missed it.
->
-> Robert, please try out the patch below (should apply fine to 2.6.35):
+> How come? Is it just a cleanup?
 
-In the beginning  of Jan (3-4) at earliest I'm afraid, i.e. when I
-manage to get to my console-over-rs232 setup.
+I forgot to move it to separate patch. When I was working
+on protection before CPU exhaust I discovered that
+HYPERVISOR_memory_op() returns int and rc could be
+declared as int not as long.
 
-> I'm hoping this will fix what the fuzzer found, but it's still quite
-> possible that it found something else wrong that I've not yet noticed.
-> The patch could probably be cleverer (if we exported the notion of
-> restart_addr out of mm/memory.c), but I'm more in the mood for being
-> safe than clever at the moment.
-
---=20
-Robert =C5=9Awi=C4=99cki
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
