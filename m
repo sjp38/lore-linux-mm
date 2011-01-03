@@ -1,48 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 7D81C6B00A9
-	for <linux-mm@kvack.org>; Mon,  3 Jan 2011 09:26:39 -0500 (EST)
-Subject: Re: Should we be using unlikely() around tests of GFP_ZERO?
-From: Steven Rostedt <rostedt@goodmis.org>
-In-Reply-To: <AANLkTik9VodSjNnubf4Psbb9TgOEufw0m2q1_e5+X165@mail.gmail.com>
-References: <E1PZXeb-0004AV-2b@tytso-glaptop>
-	 <AANLkTi=9ZNk6w8PxvveWHy5+okfTyKUj3L2ywFOuFjoq@mail.gmail.com>
-	 <AANLkTinz52Ky5BhU-gHq8vx9=1uoN+iuDn1f0C8fnSjQ@mail.gmail.com>
-	 <1294062351.3948.7.camel@gandalf.stny.rr.com>
-	 <AANLkTik9VodSjNnubf4Psbb9TgOEufw0m2q1_e5+X165@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Date: Mon, 03 Jan 2011 09:26:36 -0500
-Message-ID: <1294064796.3948.12.camel@gandalf.stny.rr.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id D322D6B00B2
+	for <linux-mm@kvack.org>; Mon,  3 Jan 2011 11:31:39 -0500 (EST)
+Received: by pxi12 with SMTP id 12so3768980pxi.14
+        for <linux-mm@kvack.org>; Mon, 03 Jan 2011 08:31:07 -0800 (PST)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH] writeback: avoid unnecessary determine_dirtyable_memory call
+Date: Tue,  4 Jan 2011 01:30:49 +0900
+Message-Id: <1294072249-2916-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Theodore Ts'o <tytso@mit.edu>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, npiggin@kernel.dk
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2011-01-03 at 16:10 +0200, Pekka Enberg wrote:
+I think determine_dirtyable_memory is rather costly function since
+it need many atomic reads for gathering zone/global page state.
+But when we use vm_dirty_bytes && dirty_background_bytes, we don't
+need that costly calculation.
 
-> >  correct incorrect  %        Function                  File              Line
-> >  ------- ---------  -        --------                  ----              ----
-> >  6890998  2784830  28        slab_alloc                slub.c            1719
-> >
-> > That's incorrect 28% of the time.
-> 
-> Thanks! AFAICT, that number is high enough to justify removing the
-> unlikely() annotations, no?
+This patch eliminates such unnecessary overhead.
 
-Personally, I think anything that is incorrect more that 5% of the time
-should not have any annotation.
+NOTE : newly added if condition might add overhead in normal path.
+       But it should be _really_ small because anyway we need the
+       access both vm_dirty_bytes and dirty_background_bytes so it is
+       likely to hit the cache.
 
-My rule is to use the annotation when a branch goes one way 95% or more.
-With the exception of times when we want a particular path to be the
-faster path, because we know its in a more critical position (as there
-are cases in the scheduler and the tracing infrastructure itself).
+Cc: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/page-writeback.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
 
-But here, I think removing it is the right decision.
-
--- Steve
-
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index fc93802..c340536 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -390,9 +390,12 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
+ {
+ 	unsigned long background;
+ 	unsigned long dirty;
+-	unsigned long available_memory = determine_dirtyable_memory();
++	unsigned long available_memory;
+ 	struct task_struct *tsk;
+ 
++	if (!vm_dirty_bytes || !dirty_background_bytes)
++		available_memory = determine_dirtyable_memory();
++
+ 	if (vm_dirty_bytes)
+ 		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
+ 	else
+-- 
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
