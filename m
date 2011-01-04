@@ -1,131 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B4B36B0087
-	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 15:37:40 -0500 (EST)
-Date: Tue, 4 Jan 2011 12:37:36 -0800
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id EC6B86B0087
+	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 16:52:44 -0500 (EST)
+Date: Tue, 4 Jan 2011 13:51:48 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Take lock only once in dma_pool_free()
-Message-Id: <20110104123736.5ff6643e.akpm@linux-foundation.org>
-In-Reply-To: <201012201803.06873.eike-kernel@sf-tec.de>
-References: <201012201803.06873.eike-kernel@sf-tec.de>
+Subject: Re: [Bug 25042] New: RAM buffer I/O resource badly interacts with
+ memory hot-add
+Message-Id: <20110104135148.112d89c5.akpm@linux-foundation.org>
+In-Reply-To: <bug-25042-27@https.bugzilla.kernel.org/>
+References: <bug-25042-27@https.bugzilla.kernel.org/>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rolf Eike Beer <eike-kernel@sf-tec.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-acpi@vger.kernel.org
+Cc: bugzilla-daemon@bugzilla.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, petr@vandrovec.name, akataria@vmware.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 20 Dec 2010 18:03:06 +0100
-Rolf Eike Beer <eike-kernel@sf-tec.de> wrote:
 
-> >From 0db01c2ea9476609c399de3e9fdf7861df07d2f1 Mon Sep 17 00:00:00 2001
-> From: Rolf Eike Beer <eike-kernel@sf-tec.de>
-> Date: Mon, 20 Dec 2010 17:29:33 +0100
-> Subject: [PATCH] Speed up dma_pool_free()
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
+
+I'm not sure who to blame here so I'll just spray it at everyone I've
+ever met ;)
+
+On Thu, 16 Dec 2010 23:00:12 GMT
+bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=25042
 > 
-> dma_pool_free() scans for the page to free in the pool list holding the pool
-> lock. Then it releases the lock basically to acquire it immediately again.
-> Modify the code to only take the lock once.
+>            Summary: RAM buffer I/O resource badly interacts with memory
+>                     hot-add
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 2.6.35
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Other
+>         AssignedTo: akpm@linux-foundation.org
+>         ReportedBy: petr@vandrovec.name
+>                 CC: akataria@vmware.com
+>         Regression: Yes
 > 
-> This will do some additional loops and computations with the lock held in if 
-> memory debugging is activated. If it is not activated the only new operations 
-> with this lock is one if and one substraction.
 > 
-
-Fair enough, I guess.
-
+> Created an attachment (id=40502)
+>  --> (https://bugzilla.kernel.org/attachment.cgi?id=40502)
+> /proc/iomem after issuing hot-add, one from 3076 to 3200, other from 3200 to
+> 3456MB
 > 
-> diff --git a/mm/dmapool.c b/mm/dmapool.c
-> index 4df2de7..a2f6295 100644
-> --- a/mm/dmapool.c
-> +++ b/mm/dmapool.c
-> @@ -355,20 +355,15 @@ EXPORT_SYMBOL(dma_pool_alloc);
->  
->  static struct dma_page *pool_find_page(struct dma_pool *pool, dma_addr_t dma)
->  {
-> -	unsigned long flags;
->  	struct dma_page *page;
->  
-> -	spin_lock_irqsave(&pool->lock, flags);
->  	list_for_each_entry(page, &pool->page_list, page_list) {
->  		if (dma < page->dma)
->  			continue;
->  		if (dma < (page->dma + pool->allocation))
-> -			goto done;
-> +			return page;
->  	}
-> -	page = NULL;
-> - done:
-> -	spin_unlock_irqrestore(&pool->lock, flags);
-> -	return page;
-> +	return NULL;
->  }
->  
->  /**
-> @@ -386,8 +381,10 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, 
-> dma_addr_t dma)
-
-You have some wordwrapping there.
-
->  	unsigned long flags;
->  	unsigned int offset;
->  
-> +	spin_lock_irqsave(&pool->lock, flags);
->  	page = pool_find_page(pool, dma);
->  	if (!page) {
-> +		spin_unlock_irqrestore(&pool->lock, flags);
->  		if (pool->dev)
->  			dev_err(pool->dev,
->  				"dma_pool_free %s, %p/%lx (bad dma)\n",
-> @@ -401,6 +398,7 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, 
-> dma_addr_t dma)
->  	offset = vaddr - page->vaddr;
->  #ifdef	DMAPOOL_DEBUG
->  	if ((dma - page->dma) != offset) {
-> +		spin_unlock_irqrestore(&pool->lock, flags);
->  		if (pool->dev)
->  			dev_err(pool->dev,
->  				"dma_pool_free %s, %p (bad vaddr)/%Lx\n",
-> @@ -418,6 +416,7 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, 
-> dma_addr_t dma)
->  				chain = *(int *)(page->vaddr + chain);
->  				continue;
->  			}
-> +			spin_unlock_irqrestore(&pool->lock, flags);
->  			if (pool->dev)
->  				dev_err(pool->dev, "dma_pool_free %s, dma %Lx "
->  					"already free\n", pool->name,
-> @@ -432,7 +431,6 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, 
-> dma_addr_t dma)
->  	memset(vaddr, POOL_POISON_FREED, pool->size);
->  #endif
->  
-> -	spin_lock_irqsave(&pool->lock, flags);
->  	page->in_use--;
->  	*(int *)vaddr = page->offset;
->  	page->offset = offset;
-
-It's a bit scary that the code is playing with the dma_page outside the
-lock, but I guess the refcounting takes care of that.  As does the
-apparently-intentional leakiness of leaving a cache of pages around.
-
-The use of TASK_INTERRUPTIBLE in dma_pool_alloc() looks like a bug -
-the code will busywait if signal_pending().
-
---- a/mm/dmapool.c~a
-+++ a/mm/dmapool.c
-@@ -324,7 +324,7 @@ void *dma_pool_alloc(struct dma_pool *po
- 		if (mem_flags & __GFP_WAIT) {
- 			DECLARE_WAITQUEUE(wait, current);
- 
--			__set_current_state(TASK_INTERRUPTIBLE);
-+			__set_current_state(TASK_UNINTERRUPTIBLE);
- 			__add_wait_queue(&pool->waitq, &wait);
- 			spin_unlock_irqrestore(&pool->lock, flags);
- 
-_
-
+> Linus's commit 45fbe3ee01b8e463b28c2751b5dcc0cbdc142d90 in May 2009 added code
+> to create 'RAM buffer' above top of RAM to ensure that I/O resources do not
+> start immediately after RAM, but sometime later.  Originally it was enforcing
+> 32MB alignment, now it enforces 64MB.  Which means that in VMs with memory size
+> which is not multiple of 64MB there will be additional 'RAM buffer' resource
+> present:
+> 
+> 100000000-1003fffff : System RAM
+> 100400000-103ffffff : RAM buffer
+> 
+> When we try to hot-add memory, kernel complains that there was resource
+> conflict with this fake 'RAM buffer' and hot-added memory is not recognized:
+> 
+> [  115.324952] Hotplug Mem Device 
+> [  115.325549] System RAM resource 100400000 - 10fffffff cannot be added
+> [  115.325553] ACPI:memory_hp:add_memory failed
+> [  115.326519] ACPI:memory_hp:Error in acpi_memory_enable_device
+> [  115.327183] acpi_memhotplug: probe of PNP0C80:00 failed with error -22
+> [  115.327347] 
+> [  115.327350]  driver data not found
+> [  115.328808] ACPI:memory_hp:Cannot find driver data
+> 
+> For now we've modified hotplug code to split hot-added request into smaller
+> ranges, so only first <= 252MB are unusable, rather than whole xxxGB chunk, but
+> if 'RAM buffer' could be made dependent on memory hot-plug not available on the
+> platform, it would be much better.
+> 
+> Another approach is resurrecting
+> http://linux.derkeiler.com/Mailing-Lists/Kernel/2008-07/msg06501.html and using
+> this range instead of all "unclaimed" ranges for placing I/O devices.  Then
+> "RAM buffer" would not be necessary at all.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
