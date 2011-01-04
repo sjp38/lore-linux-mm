@@ -1,110 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0B2626B0087
-	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 12:56:37 -0500 (EST)
-Received: by pvc30 with SMTP id 30so3315858pvc.14
-        for <linux-mm@kvack.org>; Tue, 04 Jan 2011 09:56:35 -0800 (PST)
-Date: Tue, 4 Jan 2011 10:56:30 -0700
-From: Eric B Munson <emunson@mgebm.net>
-Subject: Re: [PATCH] hugetlb: remove overcommit sysfs for 1GB pages
-Message-ID: <20110104175630.GC3190@mgebm.net>
-References: <2026935485.119940.1294126785849.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
- <519552481.119951.1294126964024.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="6zdv2QT/q3FMhpsV"
-Content-Disposition: inline
-In-Reply-To: <519552481.119951.1294126964024.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B4B36B0087
+	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 15:37:40 -0500 (EST)
+Date: Tue, 4 Jan 2011 12:37:36 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Take lock only once in dma_pool_free()
+Message-Id: <20110104123736.5ff6643e.akpm@linux-foundation.org>
+In-Reply-To: <201012201803.06873.eike-kernel@sf-tec.de>
+References: <201012201803.06873.eike-kernel@sf-tec.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: CAI Qian <caiqian@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>, mel@csn.ul.ie
+To: Rolf Eike Beer <eike-kernel@sf-tec.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 20 Dec 2010 18:03:06 +0100
+Rolf Eike Beer <eike-kernel@sf-tec.de> wrote:
 
---6zdv2QT/q3FMhpsV
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+> >From 0db01c2ea9476609c399de3e9fdf7861df07d2f1 Mon Sep 17 00:00:00 2001
+> From: Rolf Eike Beer <eike-kernel@sf-tec.de>
+> Date: Mon, 20 Dec 2010 17:29:33 +0100
+> Subject: [PATCH] Speed up dma_pool_free()
+> 
+> dma_pool_free() scans for the page to free in the pool list holding the pool
+> lock. Then it releases the lock basically to acquire it immediately again.
+> Modify the code to only take the lock once.
+> 
+> This will do some additional loops and computations with the lock held in if 
+> memory debugging is activated. If it is not activated the only new operations 
+> with this lock is one if and one substraction.
+> 
 
+Fair enough, I guess.
 
-On Tue, 04 Jan 2011, CAI Qian wrote:
+> 
+> diff --git a/mm/dmapool.c b/mm/dmapool.c
+> index 4df2de7..a2f6295 100644
+> --- a/mm/dmapool.c
+> +++ b/mm/dmapool.c
+> @@ -355,20 +355,15 @@ EXPORT_SYMBOL(dma_pool_alloc);
+>  
+>  static struct dma_page *pool_find_page(struct dma_pool *pool, dma_addr_t dma)
+>  {
+> -	unsigned long flags;
+>  	struct dma_page *page;
+>  
+> -	spin_lock_irqsave(&pool->lock, flags);
+>  	list_for_each_entry(page, &pool->page_list, page_list) {
+>  		if (dma < page->dma)
+>  			continue;
+>  		if (dma < (page->dma + pool->allocation))
+> -			goto done;
+> +			return page;
+>  	}
+> -	page = NULL;
+> - done:
+> -	spin_unlock_irqrestore(&pool->lock, flags);
+> -	return page;
+> +	return NULL;
+>  }
+>  
+>  /**
+> @@ -386,8 +381,10 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, 
+> dma_addr_t dma)
 
-> 1GB pages cannot be over-commited, attempting to do so results in corrupt=
-ion,
-> so remove those files for simplicity.
->=20
-> Symptoms:
-> 1) setup 1gb hugepages.
->=20
-> cat /proc/cmdline
-> ...default_hugepagesz=3D1g hugepagesz=3D1g hugepages=3D1...
->=20
-> cat /proc/meminfo
-> ...
-> HugePages_Total:       1
-> HugePages_Free:        1
-> HugePages_Rsvd:        0
-> HugePages_Surp:        0
-> Hugepagesize:    1048576 kB
-> ...
->=20
-> 2) set nr_overcommit_hugepages
->=20
-> echo 1 >/sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepa=
-ges
-> cat /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
-> 1
->=20
-> 3) overcommit 2gb hugepages.
->=20
-> mmap(NULL, 18446744071562067968, PROT_READ|PROT_WRITE, MAP_SHARED, 3,
-> 	   0) =3D -1 ENOMEM (Cannot allocate memory)
->=20
-> cat /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
-> 18446744071589420672
->=20
-> Signed-off-by: CAI Qian <caiqian@redhat.com>
+You have some wordwrapping there.
 
-There are a couple of issues here: first, I think the overcommit value bein=
-g overwritten
-is a bug and this needs to be addressed and fixed before we cover it by rem=
-oving the sysfs
-file.
+>  	unsigned long flags;
+>  	unsigned int offset;
+>  
+> +	spin_lock_irqsave(&pool->lock, flags);
+>  	page = pool_find_page(pool, dma);
+>  	if (!page) {
+> +		spin_unlock_irqrestore(&pool->lock, flags);
+>  		if (pool->dev)
+>  			dev_err(pool->dev,
+>  				"dma_pool_free %s, %p/%lx (bad dma)\n",
+> @@ -401,6 +398,7 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, 
+> dma_addr_t dma)
+>  	offset = vaddr - page->vaddr;
+>  #ifdef	DMAPOOL_DEBUG
+>  	if ((dma - page->dma) != offset) {
+> +		spin_unlock_irqrestore(&pool->lock, flags);
+>  		if (pool->dev)
+>  			dev_err(pool->dev,
+>  				"dma_pool_free %s, %p (bad vaddr)/%Lx\n",
+> @@ -418,6 +416,7 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, 
+> dma_addr_t dma)
+>  				chain = *(int *)(page->vaddr + chain);
+>  				continue;
+>  			}
+> +			spin_unlock_irqrestore(&pool->lock, flags);
+>  			if (pool->dev)
+>  				dev_err(pool->dev, "dma_pool_free %s, dma %Lx "
+>  					"already free\n", pool->name,
+> @@ -432,7 +431,6 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, 
+> dma_addr_t dma)
+>  	memset(vaddr, POOL_POISON_FREED, pool->size);
+>  #endif
+>  
+> -	spin_lock_irqsave(&pool->lock, flags);
+>  	page->in_use--;
+>  	*(int *)vaddr = page->offset;
+>  	page->offset = offset;
 
-Second, will it be easier for userspace to work with some huge page sizes h=
-aving the
-overcommit file and others not or making the kernel hand EINVAL back when n=
-r_overcommit is
-is changed for an unsupported page size?
+It's a bit scary that the code is playing with the dma_page outside the
+lock, but I guess the refcounting takes care of that.  As does the
+apparently-intentional leakiness of leaving a cache of pages around.
 
-Finally, this is a problem for more than 1GB pages on x86_64.  It is true f=
-or all pages >
-1 << MAX_ORDER.  Once the overcommit bug is fixed and the second issue is a=
-nswered, the
-solution that is used (either EINVAL or no overcommit file) needs to happen=
- for all cases
-where it applies, not just the 1GB case.
+The use of TASK_INTERRUPTIBLE in dma_pool_alloc() looks like a bug -
+the code will busywait if signal_pending().
 
+--- a/mm/dmapool.c~a
++++ a/mm/dmapool.c
+@@ -324,7 +324,7 @@ void *dma_pool_alloc(struct dma_pool *po
+ 		if (mem_flags & __GFP_WAIT) {
+ 			DECLARE_WAITQUEUE(wait, current);
+ 
+-			__set_current_state(TASK_INTERRUPTIBLE);
++			__set_current_state(TASK_UNINTERRUPTIBLE);
+ 			__add_wait_queue(&pool->waitq, &wait);
+ 			spin_unlock_irqrestore(&pool->lock, flags);
+ 
+_
 
-
---6zdv2QT/q3FMhpsV
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-
-iQEcBAEBAgAGBQJNI19OAAoJEH65iIruGRnNo78H/1oxX+m8nqgLYCb1a+MEnzrP
-2uUqc4hCFMJwBHMhcKit97AAotBjq2oRDSOByCaggVLrfRC8C79zqHCu8PWtaLJK
-lBGjEg4sWj9HcrPSeIGHQ9LVMC9AZ6gpS4uN4RH4ROuHaelrSrPXpDjBRiTjG3g5
-r53gcim9YaOMkwe5z7Qzv5Btje/30v3b7Hp5jZqnJFIHhdlkoJc8BBEI8kDRpltc
-FveBEeYL+rpkt9dsPEUBZSj70R2XxEvjYjnp+UDPlIxzd+u6ADOE+O3ubSVDvZgZ
-PKcPodj+RYtjCo7uhBo/cIcfEbJch0/n+ubfdiwI1ve0YMRsh4NmIn8EnD56hFo=
-=I6Xz
------END PGP SIGNATURE-----
-
---6zdv2QT/q3FMhpsV--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
