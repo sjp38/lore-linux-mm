@@ -1,89 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3C78E6B0087
-	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 04:56:48 -0500 (EST)
-Date: Tue, 4 Jan 2011 10:56:41 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC]
- /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
-Message-ID: <20110104095641.GA8651@tiehlicka.suse.cz>
-References: <1060163918.101411.1293793346203.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
- <617041603.101416.1293793701124.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CCCF6B0087
+	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 05:13:57 -0500 (EST)
+Date: Tue, 4 Jan 2011 11:13:51 +0100 (CET)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: Re: [PATCH] writeback: fix typo of global_dirty_limits comment
+In-Reply-To: <1294072608-3172-1-git-send-email-minchan.kim@gmail.com>
+Message-ID: <alpine.LNX.2.00.1101041113440.26685@pobox.suse.cz>
+References: <1294072608-3172-1-git-send-email-minchan.kim@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <617041603.101416.1293793701124.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: CAI Qian <caiqian@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri 31-12-10 06:08:21, CAI Qian wrote:
-> Hi,
+On Tue, 4 Jan 2011, Minchan Kim wrote:
 
-Hi,
-
+> Change runtime with real-time
 > 
-> Problem: nr_overcommit_hugepages for 1gb hugepage went crazy.
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> ---
+>  mm/page-writeback.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
-> Symptom:
-> 1) setup 1gb hugepages.
-> # cat /proc/cmdline
-> default_hugepagesz=1g hugepagesz=1g hugepages=1
-> # cat /proc/meminfo
-> ...
-> HugePages_Total:       1
-> HugePages_Free:        1
-> HugePages_Rsvd:        0
-> HugePages_Surp:        0
-> Hugepagesize:    1048576 kB
-> ...
-> 
-> 2) set nr_overcommit_hugepages
-> # echo 1 >/sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
-> # cat /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
-> 1
-> 
-> 3) overcommit 2gb hugepages.
-> mmap(NULL, 18446744071562067968, PROT_READ|PROT_WRITE, MAP_SHARED, 3, 0) = -1 ENOMEM (Cannot allocate memory)
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index c340536..98b79e2 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -384,7 +384,7 @@ unsigned long determine_dirtyable_memory(void)
+>   * - vm.dirty_background_ratio  or  vm.dirty_background_bytes
+>   * - vm.dirty_ratio             or  vm.dirty_bytes
+>   * The dirty limits will be lifted by 1/4 for PF_LESS_THROTTLE (ie. nfsd) and
+> - * runtime tasks.
+> + * real-time tasks.
+>   */
+>  void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
+>  {
 
-Hmm, you are trying to reserve/mmap a lot of memory (17179869182 1GB huge
-pages).
+Applied, thank you.
 
-> # cat /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
-> 18446744071589420672
-> 
-> As you can see from the above, it did not allow overcommit despite nr_overcommit_hugepages value.
-
-You are trying to allocate much more than your overcommit allows.
-
-> Also, nr_overcommit_hugepages was overwritten with such a strange
-> value after overcommit failure. Should we just remove this file from
-> sysfs for simplicity?
-
-This is strange. The value is set only in hugetlb_overcommit_handler
-which is a sysctl handler.
-
-Are you sure that you are not changing the value by the /sys interface
-somewhere (there is no check for the value so you can set what-ever
-value you like)? I fail to see any mmap code path which would change
-this value.
-
-Btw. which kernel version are you using.
-
-> 
-> Thanks.
-> 
-> CAI Qian
-
-Regards
 -- 
-Michal Hocko
-L3 team 
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Jiri Kosina
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
