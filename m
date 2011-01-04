@@ -1,116 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7892C6B0087
-	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 12:31:56 -0500 (EST)
-Received: by mail-gx0-f178.google.com with SMTP id 25so3486532gxk.23
-        for <linux-mm@kvack.org>; Tue, 04 Jan 2011 09:31:52 -0800 (PST)
-From: Santosh Shilimkar <santosh.shilimkar@ti.com>
-References: <cover.1292443200.git.m.nazarewicz@samsung.com><AANLkTim8_=0+-zM5z4j0gBaw3PF3zgpXQNetEn-CfUGb@mail.gmail.com><20101223100642.GD3636@n2100.arm.linux.org.uk><C832F8F5D375BD43BFA11E82E0FE9FE00829C13EB2@EXDCVYMBSTM005.EQ1STM.local>
- <20110104171928.GB24935@n2100.arm.linux.org.uk>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0B2626B0087
+	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 12:56:37 -0500 (EST)
+Received: by pvc30 with SMTP id 30so3315858pvc.14
+        for <linux-mm@kvack.org>; Tue, 04 Jan 2011 09:56:35 -0800 (PST)
+Date: Tue, 4 Jan 2011 10:56:30 -0700
+From: Eric B Munson <emunson@mgebm.net>
+Subject: Re: [PATCH] hugetlb: remove overcommit sysfs for 1GB pages
+Message-ID: <20110104175630.GC3190@mgebm.net>
+References: <2026935485.119940.1294126785849.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+ <519552481.119951.1294126964024.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20110104171928.GB24935@n2100.arm.linux.org.uk>
-Date: Tue, 4 Jan 2011 23:01:39 +0530
-Message-ID: <02a71d80302932190e8edfddf82b7895@mail.gmail.com>
-Subject: RE: [PATCHv8 00/12] Contiguous Memory Allocator
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="6zdv2QT/q3FMhpsV"
+Content-Disposition: inline
+In-Reply-To: <519552481.119951.1294126964024.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>
-Cc: Daniel Walker <dwalker@codeaurora.org>, Kyungmin Park <kmpark@infradead.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Nazarewicz <m.nazarewicz@samsung.com>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: CAI Qian <caiqian@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-> -----Original Message-----
-> From: linux-arm-kernel-bounces@lists.infradead.org [mailto:linux-
-> arm-kernel-bounces@lists.infradead.org] On Behalf Of Russell King -
-> ARM Linux
-> Sent: Tuesday, January 04, 2011 10:49 PM
-> To: Johan MOSSBERG
-> Cc: Daniel Walker; Kyungmin Park; Mel Gorman; KAMEZAWA Hiroyuki;
-> Michal Nazarewicz; linux-kernel@vger.kernel.org; Michal Nazarewicz;
-> linux-mm@kvack.org; Ankita Garg; Andrew Morton; Marek Szyprowski;
-> linux-arm-kernel@lists.infradead.org; linux-media@vger.kernel.org
-> Subject: Re: [PATCHv8 00/12] Contiguous Memory Allocator
->
-> On Tue, Jan 04, 2011 at 05:23:37PM +0100, Johan MOSSBERG wrote:
-> > Russell King wrote:
-> > > Has anyone addressed my issue with it that this is wide-open for
-> > > abuse by allocating large chunks of memory, and then remapping
-> > > them in some way with different attributes, thereby violating
-> the
-> > > ARM architecture specification?
-> >
-> > I seem to have missed the previous discussion about this issue.
-> > Where in the specification (preferably ARMv7) can I find
-> > information about this?
->
-> Here's the extracts from the architecture reference manual:
->
-> * If the same memory locations are marked as having different
->   cacheability attributes, for example by the use of aliases in a
->   virtual to physical address mapping, behavior is UNPREDICTABLE.
->
-> A3.5.7 Memory access restrictions
->
-> Behavior is UNPREDICTABLE if the same memory location:
-> * is marked as Shareable Normal and Non-shareable Normal
-> * is marked as having different memory types (Normal, Device, or
->   Strongly-ordered)
-> * is marked as having different cacheability attributes
-> * is marked as being Shareable Device and Non-shareable Device
-> memory.
->
-> Such memory marking contradictions can occur, for example, by the
-> use of
-> aliases in a virtual to physical address mapping.
->
-> Glossary:
-> UNPREDICTABLE
-> Means the behavior cannot be relied upon. UNPREDICTABLE behavior
-> must not
-> represent security holes.  UNPREDICTABLE behavior must not halt or
-> hang
-> the processor, or any parts of the system. UNPREDICTABLE behavior
-> must not
-> be documented or promoted as having a defined effect.
->
-> > Is the problem that it is simply
-> > forbidden to map an address multiple times with different cache
-> > setting and if this is done the hardware might start failing? Or
-> > is the problem that having an address mapped cached means that
-> > speculative pre-fetch can read it into the cache at any time,
-> > possibly causing problems if an un-cached mapping exists? In my
-> > opinion option number two can be handled and I've made an attempt
-> > at doing that in hwmem (posted on linux-mm a while ago), look in
-> > cache_handler.c. Hwmem currently does not use cma but the next
-> > version probably will.
->
-> Given the extract from the architecture reference manual, do you
-> want
-> to run a system where you can't predict what the behaviour will be
-> if
-> you have two mappings present, one which is cacheable and one which
-> is
-> non-cacheable, and you're relying on the non-cacheable mapping to
-> never
-> return data from the cache?
->
-> What if during your testing, it appears to work correctly, but out
-> in
-> the field, someone's loaded a different application to your setup
-> resulting in different memory access patterns, causing cache lines
-> to
-> appear in the non-cacheable mapping, and then the CPU hits them on
-> subsequent accesses corrupting data...
->
-> You can't say that will never happen if you're relying on this
-> unpredictable behaviour.
->
-Just to add to Russell's point, we did land up in un-traceable
-CPU deadlocks while running the kernel which was violating some of
-the rules set by ARM ARM.
-The usecase use to work ~98% of the time.
 
-Regards,
-Santosh
+--6zdv2QT/q3FMhpsV
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
+
+
+On Tue, 04 Jan 2011, CAI Qian wrote:
+
+> 1GB pages cannot be over-commited, attempting to do so results in corrupt=
+ion,
+> so remove those files for simplicity.
+>=20
+> Symptoms:
+> 1) setup 1gb hugepages.
+>=20
+> cat /proc/cmdline
+> ...default_hugepagesz=3D1g hugepagesz=3D1g hugepages=3D1...
+>=20
+> cat /proc/meminfo
+> ...
+> HugePages_Total:       1
+> HugePages_Free:        1
+> HugePages_Rsvd:        0
+> HugePages_Surp:        0
+> Hugepagesize:    1048576 kB
+> ...
+>=20
+> 2) set nr_overcommit_hugepages
+>=20
+> echo 1 >/sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepa=
+ges
+> cat /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
+> 1
+>=20
+> 3) overcommit 2gb hugepages.
+>=20
+> mmap(NULL, 18446744071562067968, PROT_READ|PROT_WRITE, MAP_SHARED, 3,
+> 	   0) =3D -1 ENOMEM (Cannot allocate memory)
+>=20
+> cat /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
+> 18446744071589420672
+>=20
+> Signed-off-by: CAI Qian <caiqian@redhat.com>
+
+There are a couple of issues here: first, I think the overcommit value bein=
+g overwritten
+is a bug and this needs to be addressed and fixed before we cover it by rem=
+oving the sysfs
+file.
+
+Second, will it be easier for userspace to work with some huge page sizes h=
+aving the
+overcommit file and others not or making the kernel hand EINVAL back when n=
+r_overcommit is
+is changed for an unsupported page size?
+
+Finally, this is a problem for more than 1GB pages on x86_64.  It is true f=
+or all pages >
+1 << MAX_ORDER.  Once the overcommit bug is fixed and the second issue is a=
+nswered, the
+solution that is used (either EINVAL or no overcommit file) needs to happen=
+ for all cases
+where it applies, not just the 1GB case.
+
+
+
+--6zdv2QT/q3FMhpsV
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iQEcBAEBAgAGBQJNI19OAAoJEH65iIruGRnNo78H/1oxX+m8nqgLYCb1a+MEnzrP
+2uUqc4hCFMJwBHMhcKit97AAotBjq2oRDSOByCaggVLrfRC8C79zqHCu8PWtaLJK
+lBGjEg4sWj9HcrPSeIGHQ9LVMC9AZ6gpS4uN4RH4ROuHaelrSrPXpDjBRiTjG3g5
+r53gcim9YaOMkwe5z7Qzv5Btje/30v3b7Hp5jZqnJFIHhdlkoJc8BBEI8kDRpltc
+FveBEeYL+rpkt9dsPEUBZSj70R2XxEvjYjnp+UDPlIxzd+u6ADOE+O3ubSVDvZgZ
+PKcPodj+RYtjCo7uhBo/cIcfEbJch0/n+ubfdiwI1ve0YMRsh4NmIn8EnD56hFo=
+=I6Xz
+-----END PGP SIGNATURE-----
+
+--6zdv2QT/q3FMhpsV--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
