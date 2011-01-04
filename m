@@ -1,74 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id D1F416B0087
-	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 03:58:26 -0500 (EST)
-Message-ID: <4D22E0CF.8000307@leadcoretech.com>
-Date: Tue, 04 Jan 2011 16:56:47 +0800
-From: "Figo.zhang" <zhangtianfei@leadcoretech.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 3C78E6B0087
+	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 04:56:48 -0500 (EST)
+Date: Tue, 4 Jan 2011 10:56:41 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC]
+ /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
+Message-ID: <20110104095641.GA8651@tiehlicka.suse.cz>
+References: <1060163918.101411.1293793346203.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+ <617041603.101416.1293793701124.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3]mm/oom-kill: direct hardware access processes should
- get bonus
-References: <1288662213.10103.2.camel@localhost.localdomain>	<1289305468.10699.2.camel@localhost.localdomain>	<1289402093.10699.25.camel@localhost.localdomain>	<1289402666.10699.28.camel@localhost.localdomain>	<4D22D190.1080706@leadcoretech.com> <20110104172833.1ff20b41.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110104172833.1ff20b41.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <617041603.101416.1293793701124.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Figo.zhang" <figo1802@gmail.com>, "rientjes@google.com" <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: CAI Qian <caiqian@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 01/04/2011 04:28 PM, KAMEZAWA Hiroyuki wrote:
-> On Tue, 04 Jan 2011 15:51:44 +0800
-> "Figo.zhang"<zhangtianfei@leadcoretech.com>  wrote:
->
->>
->> i had send the patch to protect the hardware access processes for
->> oom-killer before, but rientjes have not agree with me.
->>
->> but today i catch log from my desktop. oom-killer have kill my "minicom"
->> and "Xorg". so i think it should add protection about it.
->>
->
-> Off topic.
->
-> In this log, I found
->
->>> Jan  4 15:22:55 figo-desktop kernel: Free swap  = -1636kB
->>> Jan  4 15:22:55 figo-desktop kernel: Total swap = 0kB
->>> Jan  4 15:22:55 figo-desktop kernel: 515070 pages RAM
->
-> ... This means total_swap_pages = 0 while pages are read-in at swapoff.
->
-> Let's see 'points' for oom
-> ==
-> points = (get_mm_rss(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS)) * 1000 /
->                          totalpages;
-> ==
->
-> Here, totalpages = total_ram + total_swap but totalswap is 0 here.
->
-> So, points can be>  1000, easily.
-> (This seems not to be related to the Xorg's death itself)
+On Fri 31-12-10 06:08:21, CAI Qian wrote:
+> Hi,
 
-total_swap is 0, so
-totalpages = total_ram,
-get_mm_counter(p->mm, MM_SWAPENTS) = 0,
+Hi,
 
-so
-points = (get_mm_rss(p->mm)) * 1000 / totalpages;
+> 
+> Problem: nr_overcommit_hugepages for 1gb hugepage went crazy.
+> 
+> Symptom:
+> 1) setup 1gb hugepages.
+> # cat /proc/cmdline
+> default_hugepagesz=1g hugepagesz=1g hugepages=1
+> # cat /proc/meminfo
+> ...
+> HugePages_Total:       1
+> HugePages_Free:        1
+> HugePages_Rsvd:        0
+> HugePages_Surp:        0
+> Hugepagesize:    1048576 kB
+> ...
+> 
+> 2) set nr_overcommit_hugepages
+> # echo 1 >/sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
+> # cat /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
+> 1
+> 
+> 3) overcommit 2gb hugepages.
+> mmap(NULL, 18446744071562067968, PROT_READ|PROT_WRITE, MAP_SHARED, 3, 0) = -1 ENOMEM (Cannot allocate memory)
 
-so points canot larger than 1000.
+Hmm, you are trying to reserve/mmap a lot of memory (17179869182 1GB huge
+pages).
 
+> # cat /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
+> 18446744071589420672
+> 
+> As you can see from the above, it did not allow overcommit despite nr_overcommit_hugepages value.
 
+You are trying to allocate much more than your overcommit allows.
 
+> Also, nr_overcommit_hugepages was overwritten with such a strange
+> value after overcommit failure. Should we just remove this file from
+> sysfs for simplicity?
 
->
->
->
-> Thanks,
-> -Kame
->
->
+This is strange. The value is set only in hugetlb_overcommit_handler
+which is a sysctl handler.
+
+Are you sure that you are not changing the value by the /sys interface
+somewhere (there is no check for the value so you can set what-ever
+value you like)? I fail to see any mmap code path which would change
+this value.
+
+Btw. which kernel version are you using.
+
+> 
+> Thanks.
+> 
+> CAI Qian
+
+Regards
+-- 
+Michal Hocko
+L3 team 
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
