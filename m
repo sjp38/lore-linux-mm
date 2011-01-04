@@ -1,68 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 961106B008A
-	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 11:18:16 -0500 (EST)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp08.au.ibm.com (8.14.4/8.13.1) with ESMTP id p04GIK8b027865
-	for <linux-mm@kvack.org>; Wed, 5 Jan 2011 03:18:20 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p04GI8jK2519132
-	for <linux-mm@kvack.org>; Wed, 5 Jan 2011 03:18:08 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p04GI78T023953
-	for <linux-mm@kvack.org>; Wed, 5 Jan 2011 03:18:08 +1100
-Date: Tue, 4 Jan 2011 21:48:05 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 0/7] Change page reference handling semantic of page
- cache
-Message-ID: <20110104161805.GE3120@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <cover.1293982522.git.minchan.kim@gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 879F06B008A
+	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 11:25:43 -0500 (EST)
+From: Johan MOSSBERG <johan.xx.mossberg@stericsson.com>
+Date: Tue, 4 Jan 2011 17:23:37 +0100
+Subject: RE: [PATCHv8 00/12] Contiguous Memory Allocator
+Message-ID: <C832F8F5D375BD43BFA11E82E0FE9FE00829C13EB2@EXDCVYMBSTM005.EQ1STM.local>
+References: <cover.1292443200.git.m.nazarewicz@samsung.com>
+ <AANLkTim8_=0+-zM5z4j0gBaw3PF3zgpXQNetEn-CfUGb@mail.gmail.com>
+ <20101223100642.GD3636@n2100.arm.linux.org.uk>
+In-Reply-To: <20101223100642.GD3636@n2100.arm.linux.org.uk>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <cover.1293982522.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>, Kyungmin Park <kmpark@infradead.org>
+Cc: Michal Nazarewicz <m.nazarewicz@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Daniel Walker <dwalker@codeaurora.org>, Mel Gorman <mel@csn.ul.ie>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Nazarewicz <mina86@mina86.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ankita Garg <ankita@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-* MinChan Kim <minchan.kim@gmail.com> [2011-01-03 00:44:29]:
+Russell King wrote:
+> Has anyone addressed my issue with it that this is wide-open for
+> abuse by allocating large chunks of memory, and then remapping
+> them in some way with different attributes, thereby violating the
+> ARM architecture specification?
 
-> Now we increases page reference on add_to_page_cache but doesn't decrease it
-> in remove_from_page_cache. Such asymmetric makes confusing about
-> page reference so that caller should notice it and comment why they
-> release page reference. It's not good API.
-> 
-> Long time ago, Hugh tried it[1] but gave up of reason which
-> reiser4's drop_page had to unlock the page between removing it from
-> page cache and doing the page_cache_release. But now the situation is
-> changed. I think at least things in current mainline doesn't have any
-> obstacles. The problem is fs or somethings out of mainline.
-> If it has done such thing like reiser4, this patch could be a problem but
-> they found it when compile time since we remove remove_from_page_cache.
-> 
-> [1] http://lkml.org/lkml/2004/10/24/140
-> 
-> The series configuration is following as. 
-> 
-> [1/7] : This patch introduces new API delete_from_page_cache.
-> [2,3,4,5/7] : Change remove_from_page_cache with delete_from_page_cache.
-> Intentionally I divide patch per file since someone might have a concern 
-> about releasing page reference of delete_from_page_cache in 
-> somecase (ex, truncate.c)
-> [6/7] : Remove old API so out of fs can meet compile error when build time
-> and can notice it.
-> [7/7] : Change __remove_from_page_cache with __delete_from_page_cache, too.
-> In this time, I made all-in-one patch because it doesn't change old behavior
-> so it has no concern. Just clean up patch.
->
+I seem to have missed the previous discussion about this issue.
+Where in the specification (preferably ARMv7) can I find
+information about this? Is the problem that it is simply
+forbidden to map an address multiple times with different cache
+setting and if this is done the hardware might start failing? Or
+is the problem that having an address mapped cached means that
+speculative pre-fetch can read it into the cache at any time,
+possibly causing problems if an un-cached mapping exists? In my
+opinion option number two can be handled and I've made an attempt
+at doing that in hwmem (posted on linux-mm a while ago), look in
+cache_handler.c. Hwmem currently does not use cma but the next
+version probably will.
 
-Could you please describe any testing done, was it mostly functional? 
-
--- 
-	Three Cheers,
-	Balbir
+/Johan Mossberg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
