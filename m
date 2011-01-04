@@ -1,77 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E63C6B0087
-	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 17:33:30 -0500 (EST)
-Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p04MWuQE028519
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Tue, 4 Jan 2011 14:32:57 -0800
-Received: by iwn40 with SMTP id 40so15474219iwn.14
-        for <linux-mm@kvack.org>; Tue, 04 Jan 2011 14:32:55 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A433A6B0087
+	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 18:12:51 -0500 (EST)
+Date: Tue, 4 Jan 2011 23:12:21 +0000
+From: Jamie Lokier <jamie@shareable.org>
+Subject: Re: [PATCHv8 00/12] Contiguous Memory Allocator
+Message-ID: <20110104231221.GA12222@shareable.org>
+References: <cover.1292443200.git.m.nazarewicz@samsung.com> <AANLkTim8_=0+-zM5z4j0gBaw3PF3zgpXQNetEn-CfUGb@mail.gmail.com> <20101223100642.GD3636@n2100.arm.linux.org.uk> <87k4j0ehdl.fsf@erwin.mina86.com> <20101223135120.GL3636@n2100.arm.linux.org.uk> <4D1357D5.9000507@samsung.com> <20101223142053.GN3636@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
-In-Reply-To: <20110104135148.112d89c5.akpm@linux-foundation.org>
-References: <bug-25042-27@https.bugzilla.kernel.org/> <20110104135148.112d89c5.akpm@linux-foundation.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 4 Jan 2011 14:32:35 -0800
-Message-ID: <AANLkTinJ9P_B_0p+Y4VsuN+SjiWz2ai9WrNJFHwk=Mm+@mail.gmail.com>
-Subject: Re: [Bug 25042] New: RAM buffer I/O resource badly interacts with
- memory hot-add
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101223142053.GN3636@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-acpi@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org, petr@vandrovec.name, akataria@vmware.com, Bjorn Helgaas <bjorn.helgaas@hp.com>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Tomasz Fujak <t.fujak@samsung.com>, Daniel Walker <dwalker@codeaurora.org>, Kyungmin Park <kmpark@infradead.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Ankita Garg <ankita@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 4, 2011 at 1:51 PM, Andrew Morton <akpm@linux-foundation.org> w=
-rote:
->> Linus's commit 45fbe3ee01b8e463b28c2751b5dcc0cbdc142d90 in May 2009 adde=
-d code
->> to create 'RAM buffer' above top of RAM to ensure that I/O resources do =
-not
->> start immediately after RAM, but sometime later. =A0Originally it was en=
-forcing
->> 32MB alignment, now it enforces 64MB. =A0Which means that in VMs with me=
-mory size
->> which is not multiple of 64MB there will be additional 'RAM buffer' reso=
-urce
->> present:
->>
->> 100000000-1003fffff : System RAM
->> 100400000-103ffffff : RAM buffer
+Russell King - ARM Linux wrote:
+> I'll give you another solution to the problem - lobby ARM Ltd to have
+> this restriction lifted from the architecture specification, which
+> will probably result in the speculative prefetching also having to be
+> removed.
 
-I'd suggest just working around it by hotplugging in 64MB chunks.
+I don't know if there was lobbying involved, but the way some barriers
+on x86 turned out to be unnecessary, on both Intel and AMD, after
+years of specs which abstractly implied they might be necessary....  I
+guess someone realised the relaxed specs weren't providing a benefit
+at the hardware level.
 
-IOW, the old "it hurts when I do that - don't do that then" solution
-to the problem. There is no reason why a VM should export some random
-8MB-aligned region that I can see.
+Perhaps it is possible to draw this to ARM's attention as a rather
+serious performance-damaging thing, so they might tighten the rules in
+favour of common sense, at least for the majority of devices?
 
->> Another approach is resurrecting
->> http://linux.derkeiler.com/Mailing-Lists/Kernel/2008-07/msg06501.html an=
-d using
->> this range instead of all "unclaimed" ranges for placing I/O devices. =
-=A0Then
->> "RAM buffer" would not be necessary at all.
+Off the top of my head (and I really don't know much about the
+internals of an ARM), hardware that avoided speculation where there
+was no entry already in the TLB for the address... that would be
+workable, as page/range TLB flushes would be enough to protect
+pages from access.
 
-Yeah, not going to happen. There's no point (see above), and it is
-fundamentally wrong to even think that the firmware tables - ACPI or
-otherwise - would be so perfect that you can just always trust them.
-Every time somebody makes the mistake of thinking they can do that
-(and it happens distressingly often), they are quickly shown to be
-wrong, and there's some random hardware out there that simply doesn't
-list the ranges it uses.
+With regard to specific chips (i.e. current ones, while lobbying to
+tighten the rules for future ones).  Is there a control register on
+the chips which are known to have this annoying issue, to turn off the
+problematic cache behaviour (permanently while Linux runs), or some
+set of memory attributes that produces that effect?  (Obviously there
+is: Turn off all caching, but is there a weaker and equally effective
+one on current hardware with the problem?)
 
-What could happen these days is to move the "gap" logic from the e820
-table (and /proc/iomem) and into the "arch_remove_reservations()"
-logic. See commit fcb119183c73bf0781009713f303e28b1fb13d3e. That might
-make memory hotplug happier.
+It might be there simply _isn't_ any solution that satisfies the
+generality of ARM spec, while satisfying the engineering requirements
+of particular media player chips on which the CMA+DMA may be perfectly
+safe.  That would be unpleasant but hardly the first time some feature
+was not usable on some chips and essential on some others.
 
-That said, I do repeat: why the hell do you keep digging that hole in
-the first place. Do memory hotplug in 256MB chunks, naturally aligned,
-and don't bother with any of this crazy crap.
+Take, for example, those (now old) ARMs that mishandle SWP so it can't
+be used.  We still use SWP in kernels, and indeed userspace, which
+will break if run on those particular chips, but that's ok - it's an
+understood limitation.
 
-                     Linus
+Russell, I think the repeated attempts to propose the same thing,
+which you keep rejecting (rightly), isn't because they're not
+listening, but because you haven't got a better solution - other than
+scrap the hardware :-)  Their code might actually be 100% reliable with
+the chips they use in those products, and it might be the _only_
+solution which works on those, thus solving a real problem.
+
+What's the right thing to do in that case?  Maintain a fork out of
+tree, or some Kconfig animal that says you can't select this ARM
+subarch and that memory facility in the same kernel because they are
+technically incompatible - but at least everyone can see the code, and
+know which chip families to avoid for certain applications?
+
+Here is a hint of an idea for a way forward:
+
+    - An API that everyone can use (in drivers etc.), that behaves the
+      same for everyone, except that:
+
+    - On some chips (ARMv7...) some functions requires a large
+      up-front memory reservation at boot time, (but that's ok because
+      you probably have gobs of RAM with it anyway).
+
+    - On other chips (<= ARMv6?) it is safe to reduce the up-front
+      reservation to less, maybe zero.  (Better for smaller memories).
+
+    - Maybe it even makes sense for drivers using the API to request,
+      at boot time, "_if_ you need early reservation, then _this_ is
+      how much I will need maximum".  The values can potentially
+      dynamic anti-fragmantation allocators too.  (I've done a bit of
+      research on this - a sort of "semi-reservation" where you don't
+      keep it free up front, but you limit how its used and grouped in
+      a precise way, to make sure other uses are sufficiently
+      reclaimable to satisfy the call when it comes.)
+
+    - Didn't reserve enough in advance for the architectural
+      constraints - get NULL back.  That's what allocators always do.
+      That's what /proc/cmdline's options have a long history helping
+      with - finding the setting which works on your kit.  People are
+      already used to a bit of fiddly tuning (and random crashes ;-)
+      with these media application sorts of things.
+
+Presumably the problem will ease off with IOMMUs and/or sensible SG
+(and/or sensible architectural constraints) becoming ubiquitous eventually.
+
+-- Jamie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
