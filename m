@@ -1,61 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D9AFD6B0092
-	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 06:37:46 -0500 (EST)
-Date: Wed, 5 Jan 2011 06:36:45 -0500 (EST)
-From: CAI Qian <caiqian@redhat.com>
-Message-ID: <1727059678.136426.1294227405240.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-In-Reply-To: <170350174.135335.1294212699514.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Subject: Re: [PATCH] hugetlb: remove overcommit sysfs for 1GB pages
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CB7076B008A
+	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 06:59:12 -0500 (EST)
+Date: Wed, 5 Jan 2011 12:58:40 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [BUGFIX][PATCH] memcg: fix memory migration of shmem swapcache
+Message-ID: <20110105115840.GD4654@cmpxchg.org>
+References: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Eric B Munson <emunson@mgebm.net>
-Cc: linux-mm <linux-mm@kvack.org>, mel@csn.ul.ie
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Jan 05, 2011 at 01:00:20PM +0900, Daisuke Nishimura wrote:
+> In current implimentation, mem_cgroup_end_migration() decides whether the page
+> migration has succeeded or not by checking "oldpage->mapping".
+> 
+> But if we are tring to migrate a shmem swapcache, the page->mapping of it is
+> NULL from the begining, so the check would be invalid.
+> As a result, mem_cgroup_end_migration() assumes the migration has succeeded
+> even if it's not, so "newpage" would be freed while it's not uncharged.
+> 
+> This patch fixes it by passing mem_cgroup_end_migration() the result of the
+> page migration.
 
-> This caused the process hung.
-> # echo ""
-> >/sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
-> # echo t >/proc/sysrq-trigger
-> ...
-> bash R running task 0 3189 3183 0x00000080
-> ffff8804196bfe58 ffffffff8149fcab 00007f4ab98c1700 ffffffff81130a40
-> ffff8804194495c0 0000000000014d80 0000000000000246 ffff8804196be010
-> ffff8804196bffd8 0000000000000000 00007f4ab98c1700 0000000000000000
-> Call Trace:
-> [<ffffffff81130a40>] ? nr_overcommit_hugepages_store+0x0/0x70
-> [<ffffffff8100c9ae>] ? apic_timer_interrupt+0xe/0x20
-> [<ffffffff81130a40>] ? nr_overcommit_hugepages_store+0x0/0x70
-> [<ffffffff81226236>] ? strict_strtoul+0x46/0x70
-> [<ffffffff81130a7a>] ? nr_overcommit_hugepages_store+0x3a/0x70
-> [<ffffffff811e047b>] ? selinux_file_permission+0xfb/0x150
-> [<ffffffff811d9473>] ? security_file_permission+0x23/0x90
-> [<ffffffff811b9ae5>] ? sysfs_write_file+0x115/0x180
-> [<ffffffff811504f8>] ? vfs_write+0xc8/0x190
-> [<ffffffff81150d61>] ? sys_write+0x51/0x90
-> [<ffffffff8100c0f4>] ? sysret_audit+0x16/0x20
-Looks like it is looping here...
+Are there other users that rely on unused->mapping being NULL after
+migration?
 
-...
-audit_syscall_exit
-sys_write
-    vfs_write
-        sysfs_write_file
-            nr_overcommit_hugepages_store
-audit_syscall_exit
+If so, aren't they prone to misinterpreting this for shmem swapcache
+as well?
 
-audit_syscall_exit
-sys_write
-    vfs_write
-        sysfs_write_file
-            nr_overcommit_hugepages_store
-audit_syscall_exit
-...
+If not, wouldn't it be better to remove that page->mapping = NULL from
+migrate_page_copy() altogether?  I think it's an ugly exception where
+the outcome of PageAnon() is not meaningful for an LRU page.
 
-CAI Qian
+To your patch:
+
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2856,7 +2856,7 @@ int mem_cgroup_prepare_migration(struct page *page,
+>  
+>  /* remove redundant charge if migration failed*/
+>  void mem_cgroup_end_migration(struct mem_cgroup *mem,
+> -	struct page *oldpage, struct page *newpage)
+> +	struct page *oldpage, struct page *newpage, int result)
+>  {
+>  	struct page *used, *unused;
+>  	struct page_cgroup *pc;
+> @@ -2865,8 +2865,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+>  		return;
+>  	/* blocks rmdir() */
+>  	cgroup_exclude_rmdir(&mem->css);
+> -	/* at migration success, oldpage->mapping is NULL. */
+> -	if (oldpage->mapping) {
+> +	if (result) {
+
+Since this function does not really need more than a boolean value,
+wouldn't it make the code more obvious if the parameter was `bool
+success'?
+
+	if (!success) {
+>  		used = oldpage;
+>  		unused = newpage;
+>  	} else {
+
+Minor nit, though.  I agree with the patch in general.
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
