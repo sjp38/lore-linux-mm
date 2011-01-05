@@ -1,86 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id CF6A06B0089
-	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 23:53:05 -0500 (EST)
-Received: by iyj17 with SMTP id 17so14605540iyj.14
-        for <linux-mm@kvack.org>; Tue, 04 Jan 2011 20:53:04 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2E37E6B0088
+	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 00:03:02 -0500 (EST)
+Date: Wed, 5 Jan 2011 00:02:35 -0500 (EST)
+From: CAI Qian <caiqian@redhat.com>
+Message-ID: <1831207094.134996.1294203755749.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <20110104175630.GC3190@mgebm.net>
+Subject: Re: [PATCH] hugetlb: remove overcommit sysfs for 1GB pages
 MIME-Version: 1.0
-In-Reply-To: <20110104161805.GE3120@balbir.in.ibm.com>
-References: <cover.1293982522.git.minchan.kim@gmail.com>
-	<20110104161805.GE3120@balbir.in.ibm.com>
-Date: Wed, 5 Jan 2011 13:53:04 +0900
-Message-ID: <AANLkTinSuEF-+CCiCyoQbMfMMUJyQAw5JQB8iNrkHgmX@mail.gmail.com>
-Subject: Re: [PATCH v2 0/7] Change page reference handling semantic of page cache
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
+To: Eric B Munson <emunson@mgebm.net>
+Cc: linux-mm <linux-mm@kvack.org>, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-Hi Balbir,
 
-On Wed, Jan 5, 2011 at 1:18 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wr=
-ote:
-> * MinChan Kim <minchan.kim@gmail.com> [2011-01-03 00:44:29]:
->
->> Now we increases page reference on add_to_page_cache but doesn't decreas=
-e it
->> in remove_from_page_cache. Such asymmetric makes confusing about
->> page reference so that caller should notice it and comment why they
->> release page reference. It's not good API.
->>
->> Long time ago, Hugh tried it[1] but gave up of reason which
->> reiser4's drop_page had to unlock the page between removing it from
->> page cache and doing the page_cache_release. But now the situation is
->> changed. I think at least things in current mainline doesn't have any
->> obstacles. The problem is fs or somethings out of mainline.
->> If it has done such thing like reiser4, this patch could be a problem bu=
-t
->> they found it when compile time since we remove remove_from_page_cache.
->>
->> [1] http://lkml.org/lkml/2004/10/24/140
->>
->> The series configuration is following as.
->>
->> [1/7] : This patch introduces new API delete_from_page_cache.
->> [2,3,4,5/7] : Change remove_from_page_cache with delete_from_page_cache.
->> Intentionally I divide patch per file since someone might have a concern
->> about releasing page reference of delete_from_page_cache in
->> somecase (ex, truncate.c)
->> [6/7] : Remove old API so out of fs can meet compile error when build ti=
-me
->> and can notice it.
->> [7/7] : Change __remove_from_page_cache with __delete_from_page_cache, t=
-oo.
->> In this time, I made all-in-one patch because it doesn't change old beha=
-vior
->> so it has no concern. Just clean up patch.
->>
->
-> Could you please describe any testing done, was it mostly functional?
+> There are a couple of issues here: first, I think the overcommit value being overwritten
+> is a bug and this needs to be addressed and fixed before we cover it by removing the sysfs
+> file.
+I have a reproducer mentioned in another thread. The trick is to run this command at the end,
 
-I didn't test it since I think it's okay as a code review.
-Do you find any faults or guess it?
-Anyway, I should have tested it before sending patches.
+echo "" >/proc/sys/vm/nr_overcommit_hugepages
 
-we are now -rc8 and Andrew doesn't held a patch.
-So I will test it until he grab a patch.
+> Second, will it be easier for userspace to work with some huge page
+> sizes having the
+> overcommit file and others not or making the kernel hand EINVAL back
+> when nr_overcommit is
+> is changed for an unsupported page size?
+I am not sure if it is normal for sysfs and procfs entries to return EINVAL. At least,
+nr_hugepages files are not capable to return EINVAL for 1GB pages case as well. It merely
+keep the value intact when trying to change it.
 
-Thanks,
+I was also wondering if it is possible to modify those files' permission based on the page size,
+but it looks like hard to implement since sysctl files permission is pretty much static.
 
->
-> --
-> =A0 =A0 =A0 =A0Three Cheers,
-> =A0 =A0 =A0 =A0Balbir
->
+> Finally, this is a problem for more than 1GB pages on x86_64. It is
+> true for all pages >
+> 1 << MAX_ORDER. Once the overcommit bug is fixed and the second issue
+> is answered, the
+> solution that is used (either EINVAL or no overcommit file) needs to
+> happen for all cases
+> where it applies, not just the 1GB case.
+OK, good point.
 
+Thanks.
 
-
---=20
-Kind regards,
-Minchan Kim
+CAI Qian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
