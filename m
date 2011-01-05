@@ -1,54 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C4DAF6B0088
-	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 02:32:05 -0500 (EST)
-Date: Wed, 5 Jan 2011 02:31:39 -0500 (EST)
-From: CAI Qian <caiqian@redhat.com>
-Message-ID: <170350174.135335.1294212699514.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-In-Reply-To: <1831207094.134996.1294203755749.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Subject: Re: [PATCH] hugetlb: remove overcommit sysfs for 1GB pages
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E42566B008A
+	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 02:58:02 -0500 (EST)
+Date: Wed, 5 Jan 2011 16:51:34 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: + memcg-fix-deadlock-between-cpuset-and-memcg.patch added to
+ -mm tree
+Message-Id: <20110105165134.46d868f4.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <201101032131.p03LVTp8029638@imap1.linux-foundation.org>
+References: <201101032131.p03LVTp8029638@imap1.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Eric B Munson <emunson@mgebm.net>
-Cc: linux-mm <linux-mm@kvack.org>, mel@csn.ul.ie
+To: akpm@linux-foundation.org
+Cc: balbir@in.ibm.com, bblum@andrew.cmu.edu, kamezawa.hiroyuki@gmail.com, menage@google.com, miaox@cn.fujitsu.com, rientjes@google.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm <linux-mm@kvack.org>, containers@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
+(resend with adding Cc: containers and linux-mm)
 
------ Original Message -----
-> > There are a couple of issues here: first, I think the overcommit
-> > value being overwritten
-> > is a bug and this needs to be addressed and fixed before we cover it
-> > by removing the sysfs
-> > file.
-> I have a reproducer mentioned in another thread. The trick is to run
-> this command at the end,
-> 
-> echo "" >/proc/sys/vm/nr_overcommit_hugepages
-This caused the process hung.
-# echo "" >/sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
-# echo t >/proc/sysrq-trigger
-...
-bash            R  running task        0  3189   3183 0x00000080
- ffff8804196bfe58 ffffffff8149fcab 00007f4ab98c1700 ffffffff81130a40
- ffff8804194495c0 0000000000014d80 0000000000000246 ffff8804196be010
- ffff8804196bffd8 0000000000000000 00007f4ab98c1700 0000000000000000
-Call Trace:
- [<ffffffff81130a40>] ? nr_overcommit_hugepages_store+0x0/0x70
- [<ffffffff8100c9ae>] ? apic_timer_interrupt+0xe/0x20
- [<ffffffff81130a40>] ? nr_overcommit_hugepages_store+0x0/0x70
- [<ffffffff81226236>] ? strict_strtoul+0x46/0x70
- [<ffffffff81130a7a>] ? nr_overcommit_hugepages_store+0x3a/0x70
- [<ffffffff811e047b>] ? selinux_file_permission+0xfb/0x150
- [<ffffffff811d9473>] ? security_file_permission+0x23/0x90
- [<ffffffff811b9ae5>] ? sysfs_write_file+0x115/0x180
- [<ffffffff811504f8>] ? vfs_write+0xc8/0x190
- [<ffffffff81150d61>] ? sys_write+0x51/0x90
- [<ffffffff8100c0f4>] ? sysret_audit+0x16/0x20
-...
+Hi, Andrew.
 
-CAI Qian
+Thank you for picking up this patch.
+
+But this version has a small race problem. This is a fix-up patch.
+
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+
+We must clear "mc.moving_task" before waking up all waiters at the end of
+task migration.
+
+Otherwise, there can be a small race like:
+
+        mem_cgroup_clear_mc()        |    mem_cgroup_wait_acct_move()
+    ---------------------------------+-----------------------------------
+          __mem_cgroup_clear_mc()    |
+            wake_up_all()            |
+                                     |    prepare_to_wait()
+                                     |    if (mc.moving_task) -> true
+                                     |      schedule()
+                                     |      -> noone wakes it up.
+          mc.moving_task = NULL      |
+
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/memcontrol.c |    6 +++++-
+ 1 files changed, 5 insertions(+), 1 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b108b30..61678be 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4714,12 +4714,16 @@ static void mem_cgroup_clear_mc(void)
+ {
+ 	struct mem_cgroup *from = mc.from;
+ 
++	/*
++	 * we must clear moving_task before waking up waiters at the end of
++	 * task migration.
++	 */
++	mc.moving_task = NULL;
+ 	__mem_cgroup_clear_mc();
+ 	spin_lock(&mc.lock);
+ 	mc.from = NULL;
+ 	mc.to = NULL;
+ 	spin_unlock(&mc.lock);
+-	mc.moving_task = NULL;
+ 	mem_cgroup_end_move(from);
+ }
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
