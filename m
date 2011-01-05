@@ -1,54 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B9B56B0088
-	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 06:15:52 -0500 (EST)
-Date: Wed, 5 Jan 2011 12:15:42 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm: skip rebalance of hopeless zones
-Message-ID: <20110105111542.GC4654@cmpxchg.org>
-References: <1291821419-11213-1-git-send-email-hannes@cmpxchg.org>
- <20101208141909.5c9c60e8.akpm@linux-foundation.org>
- <20101209000440.GM2356@cmpxchg.org>
- <20101209131723.fd51b032.akpm@linux-foundation.org>
- <20101210162706.GQ2356@cmpxchg.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D9AFD6B0092
+	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 06:37:46 -0500 (EST)
+Date: Wed, 5 Jan 2011 06:36:45 -0500 (EST)
+From: CAI Qian <caiqian@redhat.com>
+Message-ID: <1727059678.136426.1294227405240.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <170350174.135335.1294212699514.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Subject: Re: [PATCH] hugetlb: remove overcommit sysfs for 1GB pages
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101210162706.GQ2356@cmpxchg.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Eric B Munson <emunson@mgebm.net>
+Cc: linux-mm <linux-mm@kvack.org>, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-Andrew,
 
-On Fri, Dec 10, 2010 at 05:27:06PM +0100, Johannes Weiner wrote:
-> On Thu, Dec 09, 2010 at 01:17:23PM -0800, Andrew Morton wrote:
-> > Does that mean we can expect a v2?
-> 
-> Ok, while comparing Mel's patches with this change on IRC, I realized
-> that the enterprise kernel the issue was reported against is lacking
-> 'de3fab3 vmscan: kswapd: don't retry balance_pgdat() if all zones are
-> unreclaimable'.
-> 
-> The above change fixed the observed malfunction of course, but Occam's
-> Razor suggests that de3fab3 will do so, too.  I'll verify that, but I
-> don't expect to send another version of this patch.
+> This caused the process hung.
+> # echo ""
+> >/sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
+> # echo t >/proc/sysrq-trigger
+> ...
+> bash R running task 0 3189 3183 0x00000080
+> ffff8804196bfe58 ffffffff8149fcab 00007f4ab98c1700 ffffffff81130a40
+> ffff8804194495c0 0000000000014d80 0000000000000246 ffff8804196be010
+> ffff8804196bffd8 0000000000000000 00007f4ab98c1700 0000000000000000
+> Call Trace:
+> [<ffffffff81130a40>] ? nr_overcommit_hugepages_store+0x0/0x70
+> [<ffffffff8100c9ae>] ? apic_timer_interrupt+0xe/0x20
+> [<ffffffff81130a40>] ? nr_overcommit_hugepages_store+0x0/0x70
+> [<ffffffff81226236>] ? strict_strtoul+0x46/0x70
+> [<ffffffff81130a7a>] ? nr_overcommit_hugepages_store+0x3a/0x70
+> [<ffffffff811e047b>] ? selinux_file_permission+0xfb/0x150
+> [<ffffffff811d9473>] ? security_file_permission+0x23/0x90
+> [<ffffffff811b9ae5>] ? sysfs_write_file+0x115/0x180
+> [<ffffffff811504f8>] ? vfs_write+0xc8/0x190
+> [<ffffffff81150d61>] ? sys_write+0x51/0x90
+> [<ffffffff8100c0f4>] ? sysret_audit+0x16/0x20
+Looks like it is looping here...
 
-The problem is not reproducable on a kernel with de3fab3 applied.  You
-were right from the start, it was a bug in the all_unreclaimable code.
+...
+audit_syscall_exit
+sys_write
+    vfs_write
+        sysfs_write_file
+            nr_overcommit_hugepages_store
+audit_syscall_exit
 
-The hopeless zone patch fixed the bug as well.  So I had a problem, a
-working fix for it, and a broken mental image of the code that had me
-convinced the all_unreclaimable logic was just not enough.
+audit_syscall_exit
+sys_write
+    vfs_write
+        sysfs_write_file
+            nr_overcommit_hugepages_store
+audit_syscall_exit
+...
 
-Maybe there is still a corner case where the all_unreclaimable logic
-falls apart, but unless this happens in reality, I don't think there
-is any reason to further pursue this.
-
-> Sorry for the noise.
-> 
-> 	Hannes
+CAI Qian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
