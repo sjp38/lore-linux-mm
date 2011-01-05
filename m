@@ -1,123 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B1D246B0087
-	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 16:00:02 -0500 (EST)
-Date: Wed, 5 Jan 2011 12:59:59 -0800
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B5366B0087
+	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 16:12:22 -0500 (EST)
+Date: Wed, 5 Jan 2011 13:11:51 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC]
- /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
-Message-Id: <20110105125959.c6e3d90a.akpm@linux-foundation.org>
-In-Reply-To: <20110105084357.GA21349@tiehlicka.suse.cz>
-References: <20110104105214.GA10759@tiehlicka.suse.cz>
-	<907929848.134962.1294203162923.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-	<20110105084357.GA21349@tiehlicka.suse.cz>
+Subject: Re: [PATCH V2] Do not allow pagesize >= MAX_ORDER pool adjustment
+Message-Id: <20110105131151.b5b9cf5b.akpm@linux-foundation.org>
+In-Reply-To: <1294259397-15553-1-git-send-email-emunson@mgebm.net>
+References: <1294259397-15553-1-git-send-email-emunson@mgebm.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Michal Hocko <mhocko@suse.cz>
-Cc: CAI Qian <caiqian@redhat.com>, linux-mm <linux-mm@kvack.org>, Nishanth Aravamudan <nacc@us.ibm.com>
+To: Eric B Munson <emunson@mgebm.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, caiqian@redhat.com, mhocko@suse.cz
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 5 Jan 2011 09:43:57 +0100
-Michal Hocko <mhocko@suse.cz> wrote:
+On Wed,  5 Jan 2011 13:29:57 -0700
+Eric B Munson <emunson@mgebm.net> wrote:
 
-> ...
->
-> proc_doulongvec_minmax may fail if the given buffer doesn't represent
-> a valid number. If we provide something invalid we will initialize the
-> resulting value (nr_overcommit_huge_pages in this case) to a random
-> value from the stack.
+> Huge pages with order >= MAX_ORDER must be allocated at boot via
+> the kernel command line, they cannot be allocated or freed once
+> the kernel is up and running.  Currently we allow values to be
+> written to the sysfs and sysctl files controling pool size for these
+> huge page sizes.  This patch makes the store functions for nr_hugepages
+> and nr_overcommit_hugepages return -EINVAL when the pool for a
+> page size >= MAX_ORDER is changed.
 > 
-> The issue was introduced by a3d0c6aa when the default handler has been
-> replaced by the helper function where we do not check the return value.
-> 
-> Reproducer:
-> echo "" > /proc/sys/vm/nr_overcommit_hugepages
-> 
-> ...
->
+
+gack, you people keep on making me look at the hugetlb code :(
+
+> index 5cb71a9..15bd633 100644
 > --- a/mm/hugetlb.c
 > +++ b/mm/hugetlb.c
-> @@ -1928,7 +1928,8 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+> @@ -1443,6 +1443,12 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+>  		return -EINVAL;
+
+Why do these functions do a `return 0' if strict_strtoul() failed?
+
 >  
->  	table->data = &tmp;
->  	table->maxlen = sizeof(unsigned long);
-> -	proc_doulongvec_minmax(table, write, buffer, length, ppos);
-> +	if (proc_doulongvec_minmax(table, write, buffer, length, ppos))
+>  	h = kobj_to_hstate(kobj, &nid);
+> +
+> +	if (h->order >= MAX_ORDER) {
+> +		NODEMASK_FREE(nodes_allowed);
 > +		return -EINVAL;
+> +	}
 
-proc_doulongvec_minmax() can return -EFAULT or -ENOMEM.  It is
-incorrect to unconditionally convert those into -EINVAL.
+Let's avoid having multiple unwind-and-return paths in a function,
+please.  it often leads to resource leaks and locking errors as the
+code evolves.
 
->  	if (write) {
->  		NODEMASK_ALLOC(nodemask_t, nodes_allowed,
-
-hm, the code doesn't check that NODEMASK_ALLOC succeeded.  That
-NODEMASK_ALLOC conversion was quite sloppy.
-
-
---- a/mm/hugetlb.c~hugetlb-check-the-return-value-of-string-conversion-in-sysctl-handler-fix
+--- a/mm/hugetlb.c~hugetlb-do-not-allow-pagesize-=-max_order-pool-adjustment-fix
 +++ a/mm/hugetlb.c
-@@ -1859,14 +1859,16 @@ static int hugetlb_sysctl_handler_common
- {
- 	struct hstate *h = &default_hstate;
- 	unsigned long tmp;
-+	int ret;
+@@ -1363,6 +1363,7 @@ static ssize_t nr_hugepages_show_common(
  
- 	if (!write)
- 		tmp = h->max_huge_pages;
+ 	return sprintf(buf, "%lu\n", nr_huge_pages);
+ }
++
+ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+ 			struct kobject *kobj, struct kobj_attribute *attr,
+ 			const char *buf, size_t len)
+@@ -1375,15 +1376,14 @@ static ssize_t nr_hugepages_store_common
  
- 	table->data = &tmp;
- 	table->maxlen = sizeof(unsigned long);
--	if (proc_doulongvec_minmax(table, write, buffer, length, ppos))
--		return -EINVAL;
-+	ret = proc_doulongvec_minmax(table, write, buffer, length, ppos);
-+	if (ret)
+ 	err = strict_strtoul(buf, 10, &count);
+ 	if (err) {
+-		NODEMASK_FREE(nodes_allowed);
+-		return 0;
++		err = 0;		/* This seems wrong */
 +		goto out;
- 
- 	if (write) {
- 		NODEMASK_ALLOC(nodemask_t, nodes_allowed,
-@@ -1881,8 +1883,8 @@ static int hugetlb_sysctl_handler_common
- 		if (nodes_allowed != &node_states[N_HIGH_MEMORY])
- 			NODEMASK_FREE(nodes_allowed);
  	}
+ 
+ 	h = kobj_to_hstate(kobj, &nid);
 -
--	return 0;
+ 	if (h->order >= MAX_ORDER) {
+-		NODEMASK_FREE(nodes_allowed);
+-		return -EINVAL;
++		err = -EINVAL;
++		goto out;
+ 	}
+ 
+ 	if (nid == NUMA_NO_NODE) {
+@@ -1411,6 +1411,9 @@ static ssize_t nr_hugepages_store_common
+ 		NODEMASK_FREE(nodes_allowed);
+ 
+ 	return len;
 +out:
-+	return ret;
++	NODEMASK_FREE(nodes_allowed);
++	return err;
  }
  
- int hugetlb_sysctl_handler(struct ctl_table *table, int write,
-@@ -1920,22 +1922,24 @@ int hugetlb_overcommit_handler(struct ct
- {
- 	struct hstate *h = &default_hstate;
- 	unsigned long tmp;
-+	int ret;
- 
- 	if (!write)
- 		tmp = h->nr_overcommit_huge_pages;
- 
- 	table->data = &tmp;
- 	table->maxlen = sizeof(unsigned long);
--	if (proc_doulongvec_minmax(table, write, buffer, length, ppos))
--		return -EINVAL;
-+	ret = proc_doulongvec_minmax(table, write, buffer, length, ppos);
-+	if (ret)
-+		goto out;
- 
- 	if (write) {
- 		spin_lock(&hugetlb_lock);
- 		h->nr_overcommit_huge_pages = tmp;
- 		spin_unlock(&hugetlb_lock);
- 	}
--
--	return 0;
-+out:
-+	return ret;
- }
- 
- #endif /* CONFIG_SYSCTL */
+ static ssize_t nr_hugepages_show(struct kobject *kobj,
 _
 
 --
