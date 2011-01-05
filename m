@@ -1,75 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 9F7BD6B0087
-	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 15:30:17 -0500 (EST)
-Received: by pwj8 with SMTP id 8so2706095pwj.14
-        for <linux-mm@kvack.org>; Wed, 05 Jan 2011 12:30:16 -0800 (PST)
-From: Eric B Munson <emunson@mgebm.net>
-Subject: [PATCH V2] Do not allow pagesize >= MAX_ORDER pool adjustment
-Date: Wed,  5 Jan 2011 13:29:57 -0700
-Message-Id: <1294259397-15553-1-git-send-email-emunson@mgebm.net>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B1D246B0087
+	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 16:00:02 -0500 (EST)
+Date: Wed, 5 Jan 2011 12:59:59 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC]
+ /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
+Message-Id: <20110105125959.c6e3d90a.akpm@linux-foundation.org>
+In-Reply-To: <20110105084357.GA21349@tiehlicka.suse.cz>
+References: <20110104105214.GA10759@tiehlicka.suse.cz>
+	<907929848.134962.1294203162923.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+	<20110105084357.GA21349@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, caiqian@redhat.com, mhocko@suse.cz, Eric B Munson <emunson@mgebm.net>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: CAI Qian <caiqian@redhat.com>, linux-mm <linux-mm@kvack.org>, Nishanth Aravamudan <nacc@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Huge pages with order >= MAX_ORDER must be allocated at boot via
-the kernel command line, they cannot be allocated or freed once
-the kernel is up and running.  Currently we allow values to be
-written to the sysfs and sysctl files controling pool size for these
-huge page sizes.  This patch makes the store functions for nr_hugepages
-and nr_overcommit_hugepages return -EINVAL when the pool for a
-page size >= MAX_ORDER is changed.
+On Wed, 5 Jan 2011 09:43:57 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
 
-Reported-by: CAI Qian <caiqian@redhat.com>
+> ...
+>
+> proc_doulongvec_minmax may fail if the given buffer doesn't represent
+> a valid number. If we provide something invalid we will initialize the
+> resulting value (nr_overcommit_huge_pages in this case) to a random
+> value from the stack.
+> 
+> The issue was introduced by a3d0c6aa when the default handler has been
+> replaced by the helper function where we do not check the return value.
+> 
+> Reproducer:
+> echo "" > /proc/sys/vm/nr_overcommit_hugepages
+> 
+> ...
+>
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1928,7 +1928,8 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+>  
+>  	table->data = &tmp;
+>  	table->maxlen = sizeof(unsigned long);
+> -	proc_doulongvec_minmax(table, write, buffer, length, ppos);
+> +	if (proc_doulongvec_minmax(table, write, buffer, length, ppos))
+> +		return -EINVAL;
 
-Signed-off-by: Eric B Munson <emunson@mgebm.net>
----
-Changes from V1:
- Add check to sysctl handler
+proc_doulongvec_minmax() can return -EFAULT or -ENOMEM.  It is
+incorrect to unconditionally convert those into -EINVAL.
 
- mm/hugetlb.c |   12 ++++++++++++
- 1 files changed, 12 insertions(+), 0 deletions(-)
+>  	if (write) {
+>  		NODEMASK_ALLOC(nodemask_t, nodes_allowed,
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 5cb71a9..15bd633 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1443,6 +1443,12 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
- 		return -EINVAL;
+hm, the code doesn't check that NODEMASK_ALLOC succeeded.  That
+NODEMASK_ALLOC conversion was quite sloppy.
+
+
+--- a/mm/hugetlb.c~hugetlb-check-the-return-value-of-string-conversion-in-sysctl-handler-fix
++++ a/mm/hugetlb.c
+@@ -1859,14 +1859,16 @@ static int hugetlb_sysctl_handler_common
+ {
+ 	struct hstate *h = &default_hstate;
+ 	unsigned long tmp;
++	int ret;
  
- 	h = kobj_to_hstate(kobj, &nid);
-+
-+	if (h->order >= MAX_ORDER) {
-+		NODEMASK_FREE(nodes_allowed);
-+		return -EINVAL;
-+	}
-+
- 	if (nid == NUMA_NO_NODE) {
- 		/*
- 		 * global hstate attribute
-@@ -1517,6 +1523,9 @@ static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
- 	unsigned long input;
- 	struct hstate *h = kobj_to_hstate(kobj, NULL);
- 
-+	if (h->order >= MAX_ORDER)
-+		return -EINVAL;
-+
- 	err = strict_strtoul(buf, 10, &input);
- 	if (err)
- 		return -EINVAL;
-@@ -1926,6 +1935,9 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
  	if (!write)
  		tmp = h->max_huge_pages;
  
-+	if (write && h->order >= MAX_ORDER)
-+		return -EINVAL;
-+
  	table->data = &tmp;
  	table->maxlen = sizeof(unsigned long);
- 	proc_doulongvec_minmax(table, write, buffer, length, ppos);
--- 
-1.7.1
+-	if (proc_doulongvec_minmax(table, write, buffer, length, ppos))
+-		return -EINVAL;
++	ret = proc_doulongvec_minmax(table, write, buffer, length, ppos);
++	if (ret)
++		goto out;
+ 
+ 	if (write) {
+ 		NODEMASK_ALLOC(nodemask_t, nodes_allowed,
+@@ -1881,8 +1883,8 @@ static int hugetlb_sysctl_handler_common
+ 		if (nodes_allowed != &node_states[N_HIGH_MEMORY])
+ 			NODEMASK_FREE(nodes_allowed);
+ 	}
+-
+-	return 0;
++out:
++	return ret;
+ }
+ 
+ int hugetlb_sysctl_handler(struct ctl_table *table, int write,
+@@ -1920,22 +1922,24 @@ int hugetlb_overcommit_handler(struct ct
+ {
+ 	struct hstate *h = &default_hstate;
+ 	unsigned long tmp;
++	int ret;
+ 
+ 	if (!write)
+ 		tmp = h->nr_overcommit_huge_pages;
+ 
+ 	table->data = &tmp;
+ 	table->maxlen = sizeof(unsigned long);
+-	if (proc_doulongvec_minmax(table, write, buffer, length, ppos))
+-		return -EINVAL;
++	ret = proc_doulongvec_minmax(table, write, buffer, length, ppos);
++	if (ret)
++		goto out;
+ 
+ 	if (write) {
+ 		spin_lock(&hugetlb_lock);
+ 		h->nr_overcommit_huge_pages = tmp;
+ 		spin_unlock(&hugetlb_lock);
+ 	}
+-
+-	return 0;
++out:
++	return ret;
+ }
+ 
+ #endif /* CONFIG_SYSCTL */
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
