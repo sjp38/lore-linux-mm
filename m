@@ -1,52 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2E37E6B0088
-	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 00:03:02 -0500 (EST)
-Date: Wed, 5 Jan 2011 00:02:35 -0500 (EST)
-From: CAI Qian <caiqian@redhat.com>
-Message-ID: <1831207094.134996.1294203755749.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-In-Reply-To: <20110104175630.GC3190@mgebm.net>
-Subject: Re: [PATCH] hugetlb: remove overcommit sysfs for 1GB pages
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 141A56B0088
+	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 01:53:07 -0500 (EST)
+Date: Wed, 5 Jan 2011 15:47:48 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [BUGFIX][PATCH] memcg: fix memory migration of shmem swapcache
+Message-Id: <20110105154748.0a012407.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <AANLkTikCQbzQcUjxtgLrSVtF76Jr9zTmXUhO_yDWss5k@mail.gmail.com>
+References: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
+	<AANLkTikCQbzQcUjxtgLrSVtF76Jr9zTmXUhO_yDWss5k@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Eric B Munson <emunson@mgebm.net>
-Cc: linux-mm <linux-mm@kvack.org>, mel@csn.ul.ie
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 5 Jan 2011 13:48:50 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-> There are a couple of issues here: first, I think the overcommit value being overwritten
-> is a bug and this needs to be addressed and fixed before we cover it by removing the sysfs
-> file.
-I have a reproducer mentioned in another thread. The trick is to run this command at the end,
+> Hi,
+> 
+> On Wed, Jan 5, 2011 at 1:00 PM, Daisuke Nishimura
+> <nishimura@mxp.nes.nec.co.jp> wrote:
+> > Hi.
+> >
+> > This is a fix for a problem which has bothered me for a month.
+> >
+> > ===
+> > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> >
+> > In current implimentation, mem_cgroup_end_migration() decides whether the page
+> > migration has succeeded or not by checking "oldpage->mapping".
+> >
+> > But if we are tring to migrate a shmem swapcache, the page->mapping of it is
+> > NULL from the begining, so the check would be invalid.
+> > As a result, mem_cgroup_end_migration() assumes the migration has succeeded
+> > even if it's not, so "newpage" would be freed while it's not uncharged.
+> >
+> > This patch fixes it by passing mem_cgroup_end_migration() the result of the
+> > page migration.
+> >
+> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> 
+> Nice catch. I don't oppose the patch.
+Thank you for your review.
 
-echo "" >/proc/sys/vm/nr_overcommit_hugepages
+> But as looking the code in unmap_and_move, I feel part of mem cgroup
+> migrate is rather awkward.
+> 
+> int unmap_and_move()
+> {
+>    charge = mem_cgroup_prepare_migration(xxx);
+>    ..
+>    BUG_ON(charge); <-- BUG if it is charged?
+>    ..
+> uncharge:
+>    if (!charge)    <-- why do we have to uncharge !charge?
+>       mem_group_end_migration(xxx);
+>    ..
+> }
+> 
+> 'charge' local variable isn't good. How about changing "uncharge" or whatever?
+hmm, I agree that current code seems a bit confusing, but I can't think of
+better name to imply the result of 'charge'.
 
-> Second, will it be easier for userspace to work with some huge page
-> sizes having the
-> overcommit file and others not or making the kernel hand EINVAL back
-> when nr_overcommit is
-> is changed for an unsupported page size?
-I am not sure if it is normal for sysfs and procfs entries to return EINVAL. At least,
-nr_hugepages files are not capable to return EINVAL for 1GB pages case as well. It merely
-keep the value intact when trying to change it.
+And considering more, I can't understand why we need to check "if (!charge)"
+before mem_cgroup_end_migration() becase it must be always true and, IMHO,
+mem_cgroup_end_migration() should do all necesarry checks to avoid double uncharge.
+So, I think this local variable can be removed completely.
 
-I was also wondering if it is possible to modify those files' permission based on the page size,
-but it looks like hard to implement since sysctl files permission is pretty much static.
+	rc = mem_cgroup_prepare_migration(..);
+	if (rc == -ENOMEM)
+		goto unlock;
+	BUG_ON(rc);
+	..
+uncharge:
+	mem_cgroup_end_migration(..);
 
-> Finally, this is a problem for more than 1GB pages on x86_64. It is
-> true for all pages >
-> 1 << MAX_ORDER. Once the overcommit bug is fixed and the second issue
-> is answered, the
-> solution that is used (either EINVAL or no overcommit file) needs to
-> happen for all cases
-> where it applies, not just the 1GB case.
-OK, good point.
+KAMEZAWA-san, what do you think ?
 
-Thanks.
+> Of course, It would be another patch.
+Yes.
 
-CAI Qian
+> If you don't mind, I will send the patch or you may send the patch.
+> 
+I'll leave it to you, but anyway, please do it after this patch has merged.
+it will conflict with this patch.
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
