@@ -1,125 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BA4BD6B0088
-	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 23:52:44 -0500 (EST)
-Date: Tue, 4 Jan 2011 23:52:42 -0500 (EST)
-From: CAI Qian <caiqian@redhat.com>
-Message-ID: <907929848.134962.1294203162923.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-In-Reply-To: <20110104105214.GA10759@tiehlicka.suse.cz>
-Subject: Re: [RFC]
- /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages
+	by kanga.kvack.org (Postfix) with SMTP id CF6A06B0089
+	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 23:53:05 -0500 (EST)
+Received: by iyj17 with SMTP id 17so14605540iyj.14
+        for <linux-mm@kvack.org>; Tue, 04 Jan 2011 20:53:04 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20110104161805.GE3120@balbir.in.ibm.com>
+References: <cover.1293982522.git.minchan.kim@gmail.com>
+	<20110104161805.GE3120@balbir.in.ibm.com>
+Date: Wed, 5 Jan 2011 13:53:04 +0900
+Message-ID: <AANLkTinSuEF-+CCiCyoQbMfMMUJyQAw5JQB8iNrkHgmX@mail.gmail.com>
+Subject: Re: [PATCH v2 0/7] Change page reference handling semantic of page cache
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm <linux-mm@kvack.org>
+To: balbir@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
 List-ID: <linux-mm.kvack.org>
 
+Hi Balbir,
+
+On Wed, Jan 5, 2011 at 1:18 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wr=
+ote:
+> * MinChan Kim <minchan.kim@gmail.com> [2011-01-03 00:44:29]:
+>
+>> Now we increases page reference on add_to_page_cache but doesn't decreas=
+e it
+>> in remove_from_page_cache. Such asymmetric makes confusing about
+>> page reference so that caller should notice it and comment why they
+>> release page reference. It's not good API.
+>>
+>> Long time ago, Hugh tried it[1] but gave up of reason which
+>> reiser4's drop_page had to unlock the page between removing it from
+>> page cache and doing the page_cache_release. But now the situation is
+>> changed. I think at least things in current mainline doesn't have any
+>> obstacles. The problem is fs or somethings out of mainline.
+>> If it has done such thing like reiser4, this patch could be a problem bu=
+t
+>> they found it when compile time since we remove remove_from_page_cache.
+>>
+>> [1] http://lkml.org/lkml/2004/10/24/140
+>>
+>> The series configuration is following as.
+>>
+>> [1/7] : This patch introduces new API delete_from_page_cache.
+>> [2,3,4,5/7] : Change remove_from_page_cache with delete_from_page_cache.
+>> Intentionally I divide patch per file since someone might have a concern
+>> about releasing page reference of delete_from_page_cache in
+>> somecase (ex, truncate.c)
+>> [6/7] : Remove old API so out of fs can meet compile error when build ti=
+me
+>> and can notice it.
+>> [7/7] : Change __remove_from_page_cache with __delete_from_page_cache, t=
+oo.
+>> In this time, I made all-in-one patch because it doesn't change old beha=
+vior
+>> so it has no concern. Just clean up patch.
+>>
+>
+> Could you please describe any testing done, was it mostly functional?
+
+I didn't test it since I think it's okay as a code review.
+Do you find any faults or guess it?
+Anyway, I should have tested it before sending patches.
+
+we are now -rc8 and Andrew doesn't held a patch.
+So I will test it until he grab a patch.
+
+Thanks,
+
+>
+> --
+> =A0 =A0 =A0 =A0Three Cheers,
+> =A0 =A0 =A0 =A0Balbir
+>
 
 
------ Original Message -----
-> On Tue 04-01-11 05:21:46, CAI Qian wrote:
-> >
-> > > > 3) overcommit 2gb hugepages.
-> > > > mmap(NULL, 18446744071562067968, PROT_READ|PROT_WRITE,
-> > > > MAP_SHARED,
-> > > > 3, 0) = -1 ENOMEM (Cannot allocate memory)
-> > >
-> > > Hmm, you are trying to reserve/mmap a lot of memory (17179869182
-> > > 1GB
-> > > huge pages).
-> > That is strange - the test code merely did this,
-> > addr = mmap(ADDR, 2<<30, PROTECTION, FLAGS, fd, 0);
-> 
-> Didn't you want 1<<30 instead?
-No, it was expecting to use both the allocate + overcommited 1GB pages.
 
-> > > Are you sure that you are not changing the value by the /sys
-> > > interface
-> > > somewhere (there is no check for the value so you can set
-> > > what-ever
-> > > value you like)? I fail to see any mmap code path which would
-> > > change
-> > > this value.
-> > I could double-check here, but it is not important if the fact is
-> > that
-> > overcommit is not supported for 1GB pages.
-> 
-> What is the complete test case?
-Here is the reproducer I was using. The trick to reproduce this is to run at the end.
-
-echo "" >/proc/sys/vm/nr_overcommit_hugepages
-
-CAI Qian
-
----------------------
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/mount.h>
-#include <sys/shm.h>
-#include <sys/ipc.h>
-#include <unistd.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <ctype.h>
-
-#define PROTECTION		(PROT_READ | PROT_WRITE)
-
-#define ADDR (void *)(0x0UL)
-#define FLAGS (MAP_SHARED)
-
-static void setup(void);
-static void cleanup(void);
-static void overcommit(void);
-
-int main(int argc, char *argv[])
-{
-	setup();
-	overcommit();
-	cleanup();
-
-	return 0;
-}
-
-static void overcommit(void)
-{
-	void *addr = NULL;
-	int fd = -1;
-	char s[BUFSIZ];
-
-	snprintf(s, BUFSIZ, "/mnt/hugemmap05/file");
-	fd = open(s, O_CREAT | O_RDWR, 0755);
-	if (fd == -1)
-		perror("open");
-
-	addr = mmap(ADDR, 2UL<<30, PROTECTION, FLAGS, fd, 0);
-	if (addr == MAP_FAILED) {
-		perror("mmap");
-		cleanup();
-	}
-	close(fd);
-	unlink(s);
-}
-
-static void cleanup(void)
-{
-	system("echo "" >/proc/sys/vm/nr_overcommit_hugepages");
-	system("umount /mnt/hugemmap05");
-	exit(1);
-}
-
-static void setup(void)
-{
-	system("echo 1 >/sys/kernel/mm/hugepages/hugepages-1048576kB/nr_overcommit_hugepages");
-	system("mkdir /mnt/hugemmap05");
-	system("mount none -t hugetlbfs /mnt/hugemmap05");
-}
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
