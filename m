@@ -1,105 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B189D6B0088
-	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 23:02:43 -0500 (EST)
-Date: Wed, 5 Jan 2011 13:00:20 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [BUGFIX][PATCH] memcg: fix memory migration of shmem swapcache
-Message-Id: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 72DB76B0088
+	for <linux-mm@kvack.org>; Tue,  4 Jan 2011 23:48:51 -0500 (EST)
+Received: by iyj17 with SMTP id 17so14603330iyj.14
+        for <linux-mm@kvack.org>; Tue, 04 Jan 2011 20:48:50 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
+References: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
+Date: Wed, 5 Jan 2011 13:48:50 +0900
+Message-ID: <AANLkTikCQbzQcUjxtgLrSVtF76Jr9zTmXUhO_yDWss5k@mail.gmail.com>
+Subject: Re: [BUGFIX][PATCH] memcg: fix memory migration of shmem swapcache
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+Hi,
 
-This is a fix for a problem which has bothered me for a month.
+On Wed, Jan 5, 2011 at 1:00 PM, Daisuke Nishimura
+<nishimura@mxp.nes.nec.co.jp> wrote:
+> Hi.
+>
+> This is a fix for a problem which has bothered me for a month.
+>
+> ===
+> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+>
+> In current implimentation, mem_cgroup_end_migration() decides whether the page
+> migration has succeeded or not by checking "oldpage->mapping".
+>
+> But if we are tring to migrate a shmem swapcache, the page->mapping of it is
+> NULL from the begining, so the check would be invalid.
+> As a result, mem_cgroup_end_migration() assumes the migration has succeeded
+> even if it's not, so "newpage" would be freed while it's not uncharged.
+>
+> This patch fixes it by passing mem_cgroup_end_migration() the result of the
+> page migration.
+>
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-===
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Nice catch. I don't oppose the patch.
+But as looking the code in unmap_and_move, I feel part of mem cgroup
+migrate is rather awkward.
 
-In current implimentation, mem_cgroup_end_migration() decides whether the page
-migration has succeeded or not by checking "oldpage->mapping".
+int unmap_and_move()
+{
+   charge = mem_cgroup_prepare_migration(xxx);
+   ..
+   BUG_ON(charge); <-- BUG if it is charged?
+   ..
+uncharge:
+   if (!charge)    <-- why do we have to uncharge !charge?
+      mem_group_end_migration(xxx);
+   ..
+}
 
-But if we are tring to migrate a shmem swapcache, the page->mapping of it is
-NULL from the begining, so the check would be invalid.
-As a result, mem_cgroup_end_migration() assumes the migration has succeeded
-even if it's not, so "newpage" would be freed while it's not uncharged.
+'charge' local variable isn't good. How about changing "uncharge" or whatever?
+Of course, It would be another patch.
+If you don't mind, I will send the patch or you may send the patch.
 
-This patch fixes it by passing mem_cgroup_end_migration() the result of the
-page migration.
+Thanks,
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- include/linux/memcontrol.h |    5 ++---
- mm/memcontrol.c            |    5 ++---
- mm/migrate.c               |    2 +-
- 3 files changed, 5 insertions(+), 7 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 159a076..275157b 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -93,7 +93,7 @@ extern int
- mem_cgroup_prepare_migration(struct page *page,
- 	struct page *newpage, struct mem_cgroup **ptr);
- extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
--	struct page *oldpage, struct page *newpage);
-+	struct page *oldpage, struct page *newpage, int result);
- 
- /*
-  * For memory reclaim.
-@@ -231,8 +231,7 @@ mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
- }
- 
- static inline void mem_cgroup_end_migration(struct mem_cgroup *mem,
--					struct page *oldpage,
--					struct page *newpage)
-+		struct page *oldpage, struct page *newpage, int result)
- {
- }
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 61678be..632d3bc 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2856,7 +2856,7 @@ int mem_cgroup_prepare_migration(struct page *page,
- 
- /* remove redundant charge if migration failed*/
- void mem_cgroup_end_migration(struct mem_cgroup *mem,
--	struct page *oldpage, struct page *newpage)
-+	struct page *oldpage, struct page *newpage, int result)
- {
- 	struct page *used, *unused;
- 	struct page_cgroup *pc;
-@@ -2865,8 +2865,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
- 		return;
- 	/* blocks rmdir() */
- 	cgroup_exclude_rmdir(&mem->css);
--	/* at migration success, oldpage->mapping is NULL. */
--	if (oldpage->mapping) {
-+	if (result) {
- 		used = oldpage;
- 		unused = newpage;
- 	} else {
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 6ae8a66..9a5704a 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -756,7 +756,7 @@ rcu_unlock:
- 		rcu_read_unlock();
- uncharge:
- 	if (!charge)
--		mem_cgroup_end_migration(mem, page, newpage);
-+		mem_cgroup_end_migration(mem, page, newpage, rc);
- unlock:
- 	unlock_page(page);
- 
 -- 
-1.7.1
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
