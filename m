@@ -1,63 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id F02FB6B0087
-	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 17:11:11 -0500 (EST)
-Date: Wed, 5 Jan 2011 14:10:06 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 2/2]mm: batch activate_page() to reduce lock
- contention
-Message-Id: <20110105141006.22a2e9e9.akpm@linux-foundation.org>
-In-Reply-To: <1294214409.1949.573.camel@sli10-conroe>
-References: <1294214409.1949.573.camel@sli10-conroe>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3DEE26B0087
+	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 19:58:13 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 40FD53EE0BC
+	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 09:58:10 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8545845DE69
+	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 09:58:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 62C7145DE61
+	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 09:58:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5238B1DB8040
+	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 09:58:09 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EEFD61DB803C
+	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 09:58:08 +0900 (JST)
+Date: Thu, 6 Jan 2011 09:52:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][PATCH] memcg: fix memory migration of shmem swapcache
+Message-Id: <20110106095211.b35f012b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110105154748.0a012407.nishimura@mxp.nes.nec.co.jp>
+References: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
+	<AANLkTikCQbzQcUjxtgLrSVtF76Jr9zTmXUhO_yDWss5k@mail.gmail.com>
+	<20110105154748.0a012407.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 05 Jan 2011 16:00:09 +0800
-Shaohua Li <shaohua.li@intel.com> wrote:
+On Wed, 5 Jan 2011 15:47:48 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> The zone->lru_lock is heavily contented in workload where activate_page()
-> is frequently used. We could do batch activate_page() to reduce the lock
-> contention. The batched pages will be added into zone list when the pool
-> is full or page reclaim is trying to drain them.
+> On Wed, 5 Jan 2011 13:48:50 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
 > 
-> For example, in a 4 socket 64 CPU system, create a sparse file and 64 processes,
-> processes shared map to the file. Each process read access the whole file and
-> then exit. The process exit will do unmap_vmas() and cause a lot of
-> activate_page() call. In such workload, we saw about 58% total time reduction
-> with below patch. Other workloads with a lot of activate_page also benefits a
-> lot too.
+> > Hi,
+> > 
+> > On Wed, Jan 5, 2011 at 1:00 PM, Daisuke Nishimura
+> > <nishimura@mxp.nes.nec.co.jp> wrote:
+> > > Hi.
+> > >
+> > > This is a fix for a problem which has bothered me for a month.
+> > >
+> > > ===
+> > > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > >
+> > > In current implimentation, mem_cgroup_end_migration() decides whether the page
+> > > migration has succeeded or not by checking "oldpage->mapping".
+> > >
+> > > But if we are tring to migrate a shmem swapcache, the page->mapping of it is
+> > > NULL from the begining, so the check would be invalid.
+> > > As a result, mem_cgroup_end_migration() assumes the migration has succeeded
+> > > even if it's not, so "newpage" would be freed while it's not uncharged.
+> > >
+> > > This patch fixes it by passing mem_cgroup_end_migration() the result of the
+> > > page migration.
+> > >
+> > > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> > 
+> > Nice catch. I don't oppose the patch.
+> Thank you for your review.
+> 
 
-There still isn't much info about the performance benefit here.  Which
-is a bit of a problem when the patch's sole purpose is to provide
-performance benefit!
+Nice catch.
 
-So, much more complete performance testing results would help here. 
-And it's not just the "it sped up an obscure corner-case workload by
-N%".  How much impact (postive or negative) does the patch have on
-other workloads?
 
-And while you're doing the performance testing, please test this
-version too:
+> > But as looking the code in unmap_and_move, I feel part of mem cgroup
+> > migrate is rather awkward.
+> > 
+> > int unmap_and_move()
+> > {
+> >    charge = mem_cgroup_prepare_migration(xxx);
+> >    ..
+> >    BUG_ON(charge); <-- BUG if it is charged?
+> >    ..
+> > uncharge:
+> >    if (!charge)    <-- why do we have to uncharge !charge?
+> >       mem_group_end_migration(xxx);
+> >    ..
+> > }
+> > 
+> > 'charge' local variable isn't good. How about changing "uncharge" or whatever?
+> hmm, I agree that current code seems a bit confusing, but I can't think of
+> better name to imply the result of 'charge'.
+> 
+> And considering more, I can't understand why we need to check "if (!charge)"
+> before mem_cgroup_end_migration() becase it must be always true and, IMHO,
+> mem_cgroup_end_migration() should do all necesarry checks to avoid double uncharge.
 
---- a/mm/swap.c~a
-+++ a/mm/swap.c
-@@ -261,6 +261,10 @@ void activate_page(struct page *page)
- {
- 	struct zone *zone = page_zone(page);
- 
-+	/* Quick, racy check to avoid taking the lock */
-+	if (PageActive(page) || !PageLRU(page) || PageUnevictable(page))
-+		return;
-+
- 	spin_lock_irq(&zone->lru_lock);
- 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
- 		int file = page_is_file_cache(page);
-_
+ok, please remove it.
+Before this commit, http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=01b1ae63c2270cbacfd43fea94578c17950eb548;hp=bced0520fe462bb94021dcabd32e99630c171be2
+
+"mem" is not passed as argument and this was the reason for the vairable "charge".
+
+We can check "charge is in moving" by checking "mem == NULL".
+
+
+> So, I think this local variable can be removed completely.
+> 
+> 	rc = mem_cgroup_prepare_migration(..);
+> 	if (rc == -ENOMEM)
+> 		goto unlock;
+> 	BUG_ON(rc);
+> 	..
+> uncharge:
+> 	mem_cgroup_end_migration(..);
+> 
+> KAMEZAWA-san, what do you think ?
+> 
+
+seems ok.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
