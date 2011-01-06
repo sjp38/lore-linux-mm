@@ -1,122 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id EDBC56B0087
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 01:40:07 -0500 (EST)
-Date: Thu, 6 Jan 2011 15:29:11 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [BUGFIX][PATCH v4] memcg: fix memory migration of shmem swapcache
-Message-Id: <20110106152911.db6c5b2c.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20110106054200.GG3722@balbir.in.ibm.com>
-References: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
-	<20110105115840.GD4654@cmpxchg.org>
-	<20110106100923.24b1dd12.nishimura@mxp.nes.nec.co.jp>
-	<AANLkTi=rp=WZa7PP4V6anU0SQ3BM-RJQwiDu1fJuoDig@mail.gmail.com>
-	<20110106123415.895d6dfc.nishimura@mxp.nes.nec.co.jp>
-	<20110106054200.GG3722@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 460616B0087
+	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 01:54:25 -0500 (EST)
+Date: Thu, 6 Jan 2011 01:54:00 -0500 (EST)
+From: CAI Qian <caiqian@redhat.com>
+Message-ID: <890783047.150265.1294296840281.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <20110105131151.b5b9cf5b.akpm@linux-foundation.org>
+Subject: Re: [PATCH V2] Do not allow pagesize >= MAX_ORDER pool adjustment
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, mhocko@suse.cz, Eric B Munson <emunson@mgebm.net>
 List-ID: <linux-mm.kvack.org>
 
-> Sorry for nit-picking but succeed is not as good as succeeded,
-> successful, successful_migration or migration_ok
+
+
+----- Original Message -----
+> On Wed, 5 Jan 2011 13:29:57 -0700
+> Eric B Munson <emunson@mgebm.net> wrote:
 > 
-OK, I use "migration_ok".
+> > Huge pages with order >= MAX_ORDER must be allocated at boot via
+> > the kernel command line, they cannot be allocated or freed once
+> > the kernel is up and running. Currently we allow values to be
+> > written to the sysfs and sysctl files controling pool size for these
+> > huge page sizes. This patch makes the store functions for
+> > nr_hugepages
+> > and nr_overcommit_hugepages return -EINVAL when the pool for a
+> > page size >= MAX_ORDER is changed.
+> >
+> 
+> gack, you people keep on making me look at the hugetlb code :(
+> 
+> > index 5cb71a9..15bd633 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -1443,6 +1443,12 @@ static ssize_t nr_hugepages_store_common(bool
+> > obey_mempolicy,
+> >  		return -EINVAL;
+> 
+> Why do these functions do a `return 0' if strict_strtoul() failed?
+> 
+> >
+> >  	h = kobj_to_hstate(kobj, &nid);
+> > +
+> > + if (h->order >= MAX_ORDER) {
+> > + NODEMASK_FREE(nodes_allowed);
+> > + return -EINVAL;
+> > + }
+> 
+> Let's avoid having multiple unwind-and-return paths in a function,
+> please. it often leads to resource leaks and locking errors as the
+> code evolves.
+> 
+> ---
+> a/mm/hugetlb.c~hugetlb-do-not-allow-pagesize-=-max_order-pool-adjustment-fix
+> +++ a/mm/hugetlb.c
+> @@ -1363,6 +1363,7 @@ static ssize_t nr_hugepages_show_common(
+> 
+> return sprintf(buf, "%lu\n", nr_huge_pages);
+> }
+> +
+> static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+> struct kobject *kobj, struct kobj_attribute *attr,
+> const char *buf, size_t len)
+> @@ -1375,15 +1376,14 @@ static ssize_t nr_hugepages_store_common
+> 
+> err = strict_strtoul(buf, 10, &count);
+> if (err) {
+> - NODEMASK_FREE(nodes_allowed);
+> - return 0;
+> + err = 0; /* This seems wrong */
+> + goto out;
+> }
+> 
+> h = kobj_to_hstate(kobj, &nid);
+> -
+> if (h->order >= MAX_ORDER) {
+> - NODEMASK_FREE(nodes_allowed);
+> - return -EINVAL;
+> + err = -EINVAL;
+> + goto out;
+> }
+> 
+> if (nid == NUMA_NO_NODE) {
+> @@ -1411,6 +1411,9 @@ static ssize_t nr_hugepages_store_common
+> NODEMASK_FREE(nodes_allowed);
+> 
+> return len;
+> +out:
+> + NODEMASK_FREE(nodes_allowed);
+> + return err;
+> }
+> 
+> static ssize_t nr_hugepages_show(struct kobject *kobj,
+> _
+As I mentioned in another thread. This is missing checking in 
+hugetlb_overcommit_handler().
 
-===
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+CAI Qian
 
-In current implimentation, mem_cgroup_end_migration() decides whether the page
-migration has succeeded or not by checking "oldpage->mapping".
-
-But if we are tring to migrate a shmem swapcache, the page->mapping of it is
-NULL from the begining, so the check would be invalid.
-As a result, mem_cgroup_end_migration() assumes the migration has succeeded
-even if it's not, so "newpage" would be freed while it's not uncharged.
-
-This patch fixes it by passing mem_cgroup_end_migration() the result of the
-page migration.
-
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
-v3->v4
-  - s/succeed/migration_ok
-v2->v3
-  - s/success/succeed
-v1->v2
-  - pass mem_cgroup_end_migration() "bool" instead of "int".
-
- include/linux/memcontrol.h |    5 ++---
- mm/memcontrol.c            |    5 ++---
- mm/migrate.c               |    2 +-
- 3 files changed, 5 insertions(+), 7 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 159a076..769c318 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -93,7 +93,7 @@ extern int
- mem_cgroup_prepare_migration(struct page *page,
- 	struct page *newpage, struct mem_cgroup **ptr);
- extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
--	struct page *oldpage, struct page *newpage);
-+	struct page *oldpage, struct page *newpage, bool migration_ok);
- 
- /*
-  * For memory reclaim.
-@@ -231,8 +231,7 @@ mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
+-------------
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index c4a3558..60740bd 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1510,6 +1510,7 @@ static ssize_t nr_overcommit_hugepages_show(struct kobject *kobj,
+        struct hstate *h = kobj_to_hstate(kobj, NULL);
+        return sprintf(buf, "%lu\n", h->nr_overcommit_huge_pages);
  }
- 
- static inline void mem_cgroup_end_migration(struct mem_cgroup *mem,
--					struct page *oldpage,
--					struct page *newpage)
-+		struct page *oldpage, struct page *newpage, bool migration_ok)
++
+ static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
+                struct kobj_attribute *attr, const char *buf, size_t count)
  {
- }
+@@ -1986,6 +1987,9 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
+        if (!write)
+                tmp = h->nr_overcommit_huge_pages;
  
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 61678be..c35f817 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2856,7 +2856,7 @@ int mem_cgroup_prepare_migration(struct page *page,
- 
- /* remove redundant charge if migration failed*/
- void mem_cgroup_end_migration(struct mem_cgroup *mem,
--	struct page *oldpage, struct page *newpage)
-+	struct page *oldpage, struct page *newpage, bool migration_ok)
- {
- 	struct page *used, *unused;
- 	struct page_cgroup *pc;
-@@ -2865,8 +2865,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
- 		return;
- 	/* blocks rmdir() */
- 	cgroup_exclude_rmdir(&mem->css);
--	/* at migration success, oldpage->mapping is NULL. */
--	if (oldpage->mapping) {
-+	if (!migration_ok) {
- 		used = oldpage;
- 		unused = newpage;
- 	} else {
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 6ae8a66..be66b23 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -756,7 +756,7 @@ rcu_unlock:
- 		rcu_read_unlock();
- uncharge:
- 	if (!charge)
--		mem_cgroup_end_migration(mem, page, newpage);
-+		mem_cgroup_end_migration(mem, page, newpage, rc == 0);
- unlock:
- 	unlock_page(page);
- 
--- 
-1.7.1
++       if (write && h->order >= MAX_ORDER)
++               return -EINVAL;
++
+        table->data = &tmp;
+        table->maxlen = sizeof(unsigned long);
+        proc_doulongvec_minmax(table, write, buffer, length, ppos);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
