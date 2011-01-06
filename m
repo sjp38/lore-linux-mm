@@ -1,115 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 11D1B6B0087
-	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 21:51:21 -0500 (EST)
-Received: by iwn40 with SMTP id 40so16646917iwn.14
-        for <linux-mm@kvack.org>; Wed, 05 Jan 2011 18:51:20 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id A24B06B0092
+	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 21:52:09 -0500 (EST)
+Date: Wed, 5 Jan 2011 21:51:44 -0500 (EST)
+From: CAI Qian <caiqian@redhat.com>
+Message-ID: <2116525479.149526.1294282304830.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <1294259397-15553-1-git-send-email-emunson@mgebm.net>
+Subject: Re: [PATCH V2] Do not allow pagesize >= MAX_ORDER pool adjustment
 MIME-Version: 1.0
-In-Reply-To: <20110106095211.b35f012b.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
-	<AANLkTikCQbzQcUjxtgLrSVtF76Jr9zTmXUhO_yDWss5k@mail.gmail.com>
-	<20110105154748.0a012407.nishimura@mxp.nes.nec.co.jp>
-	<20110106095211.b35f012b.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 6 Jan 2011 11:51:20 +0900
-Message-ID: <AANLkTinimmHnNJrbDNefN+H6p=ZPDg_SfY4YYO_XW-kV@mail.gmail.com>
-Subject: Re: [BUGFIX][PATCH] memcg: fix memory migration of shmem swapcache
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Eric B Munson <emunson@mgebm.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, mhocko@suse.cz, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 6, 2011 at 9:52 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Wed, 5 Jan 2011 15:47:48 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
->
->> On Wed, 5 Jan 2011 13:48:50 +0900
->> Minchan Kim <minchan.kim@gmail.com> wrote:
->>
->> > Hi,
->> >
->> > On Wed, Jan 5, 2011 at 1:00 PM, Daisuke Nishimura
->> > <nishimura@mxp.nes.nec.co.jp> wrote:
->> > > Hi.
->> > >
->> > > This is a fix for a problem which has bothered me for a month.
->> > >
->> > > =3D=3D=3D
->> > > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
->> > >
->> > > In current implimentation, mem_cgroup_end_migration() decides whethe=
-r the page
->> > > migration has succeeded or not by checking "oldpage->mapping".
->> > >
->> > > But if we are tring to migrate a shmem swapcache, the page->mapping =
-of it is
->> > > NULL from the begining, so the check would be invalid.
->> > > As a result, mem_cgroup_end_migration() assumes the migration has su=
-cceeded
->> > > even if it's not, so "newpage" would be freed while it's not uncharg=
-ed.
->> > >
->> > > This patch fixes it by passing mem_cgroup_end_migration() the result=
- of the
->> > > page migration.
->> > >
->> > > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
->> > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
->> >
->> > Nice catch. I don't oppose the patch.
->> Thank you for your review.
->>
->
-> Nice catch.
->
->
->> > But as looking the code in unmap_and_move, I feel part of mem cgroup
->> > migrate is rather awkward.
->> >
->> > int unmap_and_move()
->> > {
->> > =A0 =A0charge =3D mem_cgroup_prepare_migration(xxx);
->> > =A0 =A0..
->> > =A0 =A0BUG_ON(charge); <-- BUG if it is charged?
->> > =A0 =A0..
->> > uncharge:
->> > =A0 =A0if (!charge) =A0 =A0<-- why do we have to uncharge !charge?
->> > =A0 =A0 =A0 mem_group_end_migration(xxx);
->> > =A0 =A0..
->> > }
->> >
->> > 'charge' local variable isn't good. How about changing "uncharge" or w=
-hatever?
->> hmm, I agree that current code seems a bit confusing, but I can't think =
-of
->> better name to imply the result of 'charge'.
->>
->> And considering more, I can't understand why we need to check "if (!char=
-ge)"
->> before mem_cgroup_end_migration() becase it must be always true and, IMH=
-O,
->> mem_cgroup_end_migration() should do all necesarry checks to avoid doubl=
-e uncharge.
->
-> ok, please remove it.
-> Before this commit, http://git.kernel.org/?p=3Dlinux/kernel/git/torvalds/=
-linux-2.6.git;a=3Dcommitdiff;h=3D01b1ae63c2270cbacfd43fea94578c17950eb548;h=
-p=3Dbced0520fe462bb94021dcabd32e99630c171be2
->
-> "mem" is not passed as argument and this was the reason for the vairable =
-"charge".
->
-> We can check "charge is in moving" by checking "mem =3D=3D NULL".
 
-I will send the patch after Andrew picks Daisuke's patch up.
-Thanks.
 
---=20
-Kind regards,
-Minchan Kim
+----- Original Message -----
+> Huge pages with order >= MAX_ORDER must be allocated at boot via
+> the kernel command line, they cannot be allocated or freed once
+> the kernel is up and running. Currently we allow values to be
+> written to the sysfs and sysctl files controling pool size for these
+> huge page sizes. This patch makes the store functions for nr_hugepages
+> and nr_overcommit_hugepages return -EINVAL when the pool for a
+> page size >= MAX_ORDER is changed.
+> 
+> Reported-by: CAI Qian <caiqian@redhat.com>
+> 
+> Signed-off-by: Eric B Munson <emunson@mgebm.net>
+> ---
+> Changes from V1:
+> Add check to sysctl handler
+> 
+> mm/hugetlb.c | 12 ++++++++++++
+> 1 files changed, 12 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 5cb71a9..15bd633 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1443,6 +1443,12 @@ static ssize_t nr_hugepages_store_common(bool
+> obey_mempolicy,
+> return -EINVAL;
+> 
+> h = kobj_to_hstate(kobj, &nid);
+> +
+> + if (h->order >= MAX_ORDER) {
+> + NODEMASK_FREE(nodes_allowed);
+> + return -EINVAL;
+> + }
+> +
+> if (nid == NUMA_NO_NODE) {
+> /*
+> * global hstate attribute
+> @@ -1517,6 +1523,9 @@ static ssize_t
+> nr_overcommit_hugepages_store(struct kobject *kobj,
+> unsigned long input;
+> struct hstate *h = kobj_to_hstate(kobj, NULL);
+> 
+> + if (h->order >= MAX_ORDER)
+> + return -EINVAL;
+> +
+> err = strict_strtoul(buf, 10, &input);
+> if (err)
+> return -EINVAL;
+> @@ -1926,6 +1935,9 @@ static int hugetlb_sysctl_handler_common(bool
+> obey_mempolicy,
+> if (!write)
+> tmp = h->max_huge_pages;
+> 
+> + if (write && h->order >= MAX_ORDER)
+> + return -EINVAL;
+> +
+> table->data = &tmp;
+> table->maxlen = sizeof(unsigned long);
+> proc_doulongvec_minmax(table, write, buffer, length, ppos);
+> --
+> 1.7.1
+I believe this is still not enough. hugetlb_overcommit_handler() does not use
+hugetlb_sysctl_handler_common() which also need this. Otherwise, people can
+still abuse /proc/sys/vm/nr_overcommit_pages.
+
+CAI Qian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
