@@ -1,43 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 928716B0087
-	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 21:21:07 -0500 (EST)
-Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p062KZHd010369
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Wed, 5 Jan 2011 18:20:36 -0800
-Received: by iwn40 with SMTP id 40so16629106iwn.14
-        for <linux-mm@kvack.org>; Wed, 05 Jan 2011 18:20:35 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 6466F6B0087
+	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 21:49:38 -0500 (EST)
+Received: by iyj17 with SMTP id 17so15565470iyj.14
+        for <linux-mm@kvack.org>; Wed, 05 Jan 2011 18:49:36 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20110106111231.4fc98855.kamezawa.hiroyu@jp.fujitsu.com>
-References: <bug-25042-27@https.bugzilla.kernel.org/> <20110104135148.112d89c5.akpm@linux-foundation.org>
- <20110106111231.4fc98855.kamezawa.hiroyu@jp.fujitsu.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 5 Jan 2011 18:20:15 -0800
-Message-ID: <AANLkTikF75EzTQAgCSVf-yGva2ioTHUVa2VTJ949EQ_q@mail.gmail.com>
-Subject: Re: [Bug 25042] New: RAM buffer I/O resource badly interacts with
- memory hot-add
+In-Reply-To: <20110106100923.24b1dd12.nishimura@mxp.nes.nec.co.jp>
+References: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
+	<20110105115840.GD4654@cmpxchg.org>
+	<20110106100923.24b1dd12.nishimura@mxp.nes.nec.co.jp>
+Date: Thu, 6 Jan 2011 11:49:36 +0900
+Message-ID: <AANLkTi=rp=WZa7PP4V6anU0SQ3BM-RJQwiDu1fJuoDig@mail.gmail.com>
+Subject: Re: [BUGFIX][PATCH] memcg: fix memory migration of shmem swapcache
+From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-acpi@vger.kernel.org, bugzilla-daemon@bugzilla.kernel.org, petr@vandrovec.name, akataria@vmware.com
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 5, 2011 at 6:12 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, Jan 6, 2011 at 10:09 AM, Daisuke Nishimura
+<nishimura@mxp.nes.nec.co.jp> wrote:
+> On Wed, 5 Jan 2011 12:58:40 +0100
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
 >
-> Hmm ? Why do you need to place "hot-added" memory's address range next to System
-> RAM ? Sparsemem allows sparse memory layout.
-
-Well, even without sparsemem, why couldn't the initial memory image
-just be more nicely aligned to 256MB or something?
-
-                          Linus
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> On Wed, Jan 05, 2011 at 01:00:20PM +0900, Daisuke Nishimura wrote:
+>> > In current implimentation, mem_cgroup_end_migration() decides whether =
+the page
+>> > migration has succeeded or not by checking "oldpage->mapping".
+>> >
+>> > But if we are tring to migrate a shmem swapcache, the page->mapping of=
+ it is
+>> > NULL from the begining, so the check would be invalid.
+>> > As a result, mem_cgroup_end_migration() assumes the migration has succ=
+eeded
+>> > even if it's not, so "newpage" would be freed while it's not uncharged=
