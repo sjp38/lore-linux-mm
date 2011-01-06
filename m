@@ -1,96 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5BD026B0092
-	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 20:01:22 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 880CE3EE0B5
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 10:01:20 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C31345DE69
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 10:01:20 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5266445DD74
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 10:01:20 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E2641DB8040
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 10:01:20 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0611E1DB803A
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 10:01:20 +0900 (JST)
-Date: Thu, 6 Jan 2011 09:55:28 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3]mm/oom-kill: direct hardware access processes should
- get bonus
-Message-Id: <20110106095528.a8e12526.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4D22E0CF.8000307@leadcoretech.com>
-References: <1288662213.10103.2.camel@localhost.localdomain>
-	<1289305468.10699.2.camel@localhost.localdomain>
-	<1289402093.10699.25.camel@localhost.localdomain>
-	<1289402666.10699.28.camel@localhost.localdomain>
-	<4D22D190.1080706@leadcoretech.com>
-	<20110104172833.1ff20b41.kamezawa.hiroyu@jp.fujitsu.com>
-	<4D22E0CF.8000307@leadcoretech.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D1DC6B0087
+	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 20:21:00 -0500 (EST)
+Date: Thu, 6 Jan 2011 10:09:23 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [BUGFIX][PATCH] memcg: fix memory migration of shmem swapcache
+Message-Id: <20110106100923.24b1dd12.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20110105115840.GD4654@cmpxchg.org>
+References: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
+	<20110105115840.GD4654@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Figo.zhang" <zhangtianfei@leadcoretech.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Figo.zhang" <figo1802@gmail.com>, "rientjes@google.com" <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 04 Jan 2011 16:56:47 +0800
-"Figo.zhang" <zhangtianfei@leadcoretech.com> wrote:
+On Wed, 5 Jan 2011 12:58:40 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> On 01/04/2011 04:28 PM, KAMEZAWA Hiroyuki wrote:
-> > On Tue, 04 Jan 2011 15:51:44 +0800
-> > "Figo.zhang"<zhangtianfei@leadcoretech.com>  wrote:
-> >
-> >>
-> >> i had send the patch to protect the hardware access processes for
-> >> oom-killer before, but rientjes have not agree with me.
-> >>
-> >> but today i catch log from my desktop. oom-killer have kill my "minicom"
-> >> and "Xorg". so i think it should add protection about it.
-> >>
-> >
-> > Off topic.
-> >
-> > In this log, I found
-> >
-> >>> Jan  4 15:22:55 figo-desktop kernel: Free swap  = -1636kB
-> >>> Jan  4 15:22:55 figo-desktop kernel: Total swap = 0kB
-> >>> Jan  4 15:22:55 figo-desktop kernel: 515070 pages RAM
-> >
-> > ... This means total_swap_pages = 0 while pages are read-in at swapoff.
-> >
-> > Let's see 'points' for oom
-> > ==
-> > points = (get_mm_rss(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS)) * 1000 /
-> >                          totalpages;
-> > ==
-> >
-> > Here, totalpages = total_ram + total_swap but totalswap is 0 here.
-> >
-> > So, points can be>  1000, easily.
-> > (This seems not to be related to the Xorg's death itself)
+> On Wed, Jan 05, 2011 at 01:00:20PM +0900, Daisuke Nishimura wrote:
+> > In current implimentation, mem_cgroup_end_migration() decides whether the page
+> > migration has succeeded or not by checking "oldpage->mapping".
+> > 
+> > But if we are tring to migrate a shmem swapcache, the page->mapping of it is
+> > NULL from the begining, so the check would be invalid.
+> > As a result, mem_cgroup_end_migration() assumes the migration has succeeded
+> > even if it's not, so "newpage" would be freed while it's not uncharged.
+> > 
+> > This patch fixes it by passing mem_cgroup_end_migration() the result of the
+> > page migration.
 > 
-> total_swap is 0, so
-> totalpages = total_ram,
-> get_mm_counter(p->mm, MM_SWAPENTS) = 0,
+> Are there other users that rely on unused->mapping being NULL after
+> migration?
 > 
-> so
-> points = (get_mm_rss(p->mm)) * 1000 / totalpages;
+As long as I can see, no.
+
+> If so, aren't they prone to misinterpreting this for shmem swapcache
+> as well?
 > 
-> so points canot larger than 1000.
+> If not, wouldn't it be better to remove that page->mapping = NULL from
+> migrate_page_copy() altogether?  I think it's an ugly exception where
+> the outcome of PageAnon() is not meaningful for an LRU page.
+> 
+IIUC, oldpage will be freed on success of page migration, so we hit bad_page
+check at freeing the page unless we clear oldpage->mapping, 
 
-mm_counter's swap count is reduced only when swapents are removed from
-page table. But total_swap is reduced to be 0 before try_to_unuse().
+> To your patch:
+> 
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -2856,7 +2856,7 @@ int mem_cgroup_prepare_migration(struct page *page,
+> >  
+> >  /* remove redundant charge if migration failed*/
+> >  void mem_cgroup_end_migration(struct mem_cgroup *mem,
+> > -	struct page *oldpage, struct page *newpage)
+> > +	struct page *oldpage, struct page *newpage, int result)
+> >  {
+> >  	struct page *used, *unused;
+> >  	struct page_cgroup *pc;
+> > @@ -2865,8 +2865,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+> >  		return;
+> >  	/* blocks rmdir() */
+> >  	cgroup_exclude_rmdir(&mem->css);
+> > -	/* at migration success, oldpage->mapping is NULL. */
+> > -	if (oldpage->mapping) {
+> > +	if (result) {
+> 
+> Since this function does not really need more than a boolean value,
+> wouldn't it make the code more obvious if the parameter was `bool
+> success'?
+> 
+> 	if (!success) {
+> >  		used = oldpage;
+> >  		unused = newpage;
+> >  	} else {
+> 
+> Minor nit, though.  I agree with the patch in general.
+> 
+Thank you for your review.
+How about this ?
 
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Thanks,
--Kame
+In current implimentation, mem_cgroup_end_migration() decides whether the page
+migration has succeeded or not by checking "oldpage->mapping".
 
+But if we are tring to migrate a shmem swapcache, the page->mapping of it is
+NULL from the begining, so the check would be invalid.
+As a result, mem_cgroup_end_migration() assumes the migration has succeeded
+even if it's not, so "newpage" would be freed while it's not uncharged.
 
+This patch fixes it by passing mem_cgroup_end_migration() the result of the
+page migration.
+
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ include/linux/memcontrol.h |    5 ++---
+ mm/memcontrol.c            |    5 ++---
+ mm/migrate.c               |    2 +-
+ 3 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 159a076..cc5a8fd 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -93,7 +93,7 @@ extern int
+ mem_cgroup_prepare_migration(struct page *page,
+ 	struct page *newpage, struct mem_cgroup **ptr);
+ extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
+-	struct page *oldpage, struct page *newpage);
++	struct page *oldpage, struct page *newpage, bool success);
+ 
+ /*
+  * For memory reclaim.
+@@ -231,8 +231,7 @@ mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
+ }
+ 
+ static inline void mem_cgroup_end_migration(struct mem_cgroup *mem,
+-					struct page *oldpage,
+-					struct page *newpage)
++		struct page *oldpage, struct page *newpage, bool success)
+ {
+ }
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 61678be..fbecd02 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2856,7 +2856,7 @@ int mem_cgroup_prepare_migration(struct page *page,
+ 
+ /* remove redundant charge if migration failed*/
+ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+-	struct page *oldpage, struct page *newpage)
++	struct page *oldpage, struct page *newpage, bool success)
+ {
+ 	struct page *used, *unused;
+ 	struct page_cgroup *pc;
+@@ -2865,8 +2865,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+ 		return;
+ 	/* blocks rmdir() */
+ 	cgroup_exclude_rmdir(&mem->css);
+-	/* at migration success, oldpage->mapping is NULL. */
+-	if (oldpage->mapping) {
++	if (!success) {
+ 		used = oldpage;
+ 		unused = newpage;
+ 	} else {
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 6ae8a66..be66b23 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -756,7 +756,7 @@ rcu_unlock:
+ 		rcu_read_unlock();
+ uncharge:
+ 	if (!charge)
+-		mem_cgroup_end_migration(mem, page, newpage);
++		mem_cgroup_end_migration(mem, page, newpage, rc == 0);
+ unlock:
+ 	unlock_page(page);
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
