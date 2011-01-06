@@ -1,124 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3DEE26B0087
-	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 19:58:13 -0500 (EST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5BD026B0092
+	for <linux-mm@kvack.org>; Wed,  5 Jan 2011 20:01:22 -0500 (EST)
 Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 40FD53EE0BC
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 09:58:10 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 880CE3EE0B5
+	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 10:01:20 +0900 (JST)
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8545845DE69
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 09:58:09 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C31345DE69
+	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 10:01:20 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 62C7145DE61
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 09:58:09 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5266445DD74
+	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 10:01:20 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5238B1DB8040
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 09:58:09 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EEFD61DB803C
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 09:58:08 +0900 (JST)
-Date: Thu, 6 Jan 2011 09:52:11 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E2641DB8040
+	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 10:01:20 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0611E1DB803A
+	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 10:01:20 +0900 (JST)
+Date: Thu, 6 Jan 2011 09:55:28 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] memcg: fix memory migration of shmem swapcache
-Message-Id: <20110106095211.b35f012b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110105154748.0a012407.nishimura@mxp.nes.nec.co.jp>
-References: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
-	<AANLkTikCQbzQcUjxtgLrSVtF76Jr9zTmXUhO_yDWss5k@mail.gmail.com>
-	<20110105154748.0a012407.nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH v3]mm/oom-kill: direct hardware access processes should
+ get bonus
+Message-Id: <20110106095528.a8e12526.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4D22E0CF.8000307@leadcoretech.com>
+References: <1288662213.10103.2.camel@localhost.localdomain>
+	<1289305468.10699.2.camel@localhost.localdomain>
+	<1289402093.10699.25.camel@localhost.localdomain>
+	<1289402666.10699.28.camel@localhost.localdomain>
+	<4D22D190.1080706@leadcoretech.com>
+	<20110104172833.1ff20b41.kamezawa.hiroyu@jp.fujitsu.com>
+	<4D22E0CF.8000307@leadcoretech.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: "Figo.zhang" <zhangtianfei@leadcoretech.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Figo.zhang" <figo1802@gmail.com>, "rientjes@google.com" <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 5 Jan 2011 15:47:48 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Tue, 04 Jan 2011 16:56:47 +0800
+"Figo.zhang" <zhangtianfei@leadcoretech.com> wrote:
 
-> On Wed, 5 Jan 2011 13:48:50 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
+> On 01/04/2011 04:28 PM, KAMEZAWA Hiroyuki wrote:
+> > On Tue, 04 Jan 2011 15:51:44 +0800
+> > "Figo.zhang"<zhangtianfei@leadcoretech.com>  wrote:
+> >
+> >>
+> >> i had send the patch to protect the hardware access processes for
+> >> oom-killer before, but rientjes have not agree with me.
+> >>
+> >> but today i catch log from my desktop. oom-killer have kill my "minicom"
+> >> and "Xorg". so i think it should add protection about it.
+> >>
+> >
+> > Off topic.
+> >
+> > In this log, I found
+> >
+> >>> Jan  4 15:22:55 figo-desktop kernel: Free swap  = -1636kB
+> >>> Jan  4 15:22:55 figo-desktop kernel: Total swap = 0kB
+> >>> Jan  4 15:22:55 figo-desktop kernel: 515070 pages RAM
+> >
+> > ... This means total_swap_pages = 0 while pages are read-in at swapoff.
+> >
+> > Let's see 'points' for oom
+> > ==
+> > points = (get_mm_rss(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS)) * 1000 /
+> >                          totalpages;
+> > ==
+> >
+> > Here, totalpages = total_ram + total_swap but totalswap is 0 here.
+> >
+> > So, points can be>  1000, easily.
+> > (This seems not to be related to the Xorg's death itself)
 > 
-> > Hi,
-> > 
-> > On Wed, Jan 5, 2011 at 1:00 PM, Daisuke Nishimura
-> > <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > Hi.
-> > >
-> > > This is a fix for a problem which has bothered me for a month.
-> > >
-> > > ===
-> > > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > >
-> > > In current implimentation, mem_cgroup_end_migration() decides whether the page
-> > > migration has succeeded or not by checking "oldpage->mapping".
-> > >
-> > > But if we are tring to migrate a shmem swapcache, the page->mapping of it is
-> > > NULL from the begining, so the check would be invalid.
-> > > As a result, mem_cgroup_end_migration() assumes the migration has succeeded
-> > > even if it's not, so "newpage" would be freed while it's not uncharged.
-> > >
-> > > This patch fixes it by passing mem_cgroup_end_migration() the result of the
-> > > page migration.
-> > >
-> > > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> > 
-> > Nice catch. I don't oppose the patch.
-> Thank you for your review.
+> total_swap is 0, so
+> totalpages = total_ram,
+> get_mm_counter(p->mm, MM_SWAPENTS) = 0,
 > 
-
-Nice catch.
-
-
-> > But as looking the code in unmap_and_move, I feel part of mem cgroup
-> > migrate is rather awkward.
-> > 
-> > int unmap_and_move()
-> > {
-> >    charge = mem_cgroup_prepare_migration(xxx);
-> >    ..
-> >    BUG_ON(charge); <-- BUG if it is charged?
-> >    ..
-> > uncharge:
-> >    if (!charge)    <-- why do we have to uncharge !charge?
-> >       mem_group_end_migration(xxx);
-> >    ..
-> > }
-> > 
-> > 'charge' local variable isn't good. How about changing "uncharge" or whatever?
-> hmm, I agree that current code seems a bit confusing, but I can't think of
-> better name to imply the result of 'charge'.
+> so
+> points = (get_mm_rss(p->mm)) * 1000 / totalpages;
 > 
-> And considering more, I can't understand why we need to check "if (!charge)"
-> before mem_cgroup_end_migration() becase it must be always true and, IMHO,
-> mem_cgroup_end_migration() should do all necesarry checks to avoid double uncharge.
+> so points canot larger than 1000.
 
-ok, please remove it.
-Before this commit, http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=01b1ae63c2270cbacfd43fea94578c17950eb548;hp=bced0520fe462bb94021dcabd32e99630c171be2
+mm_counter's swap count is reduced only when swapents are removed from
+page table. But total_swap is reduced to be 0 before try_to_unuse().
 
-"mem" is not passed as argument and this was the reason for the vairable "charge".
-
-We can check "charge is in moving" by checking "mem == NULL".
-
-
-> So, I think this local variable can be removed completely.
-> 
-> 	rc = mem_cgroup_prepare_migration(..);
-> 	if (rc == -ENOMEM)
-> 		goto unlock;
-> 	BUG_ON(rc);
-> 	..
-> uncharge:
-> 	mem_cgroup_end_migration(..);
-> 
-> KAMEZAWA-san, what do you think ?
-> 
-
-seems ok.
 
 Thanks,
 -Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
