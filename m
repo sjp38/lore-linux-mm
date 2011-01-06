@@ -1,160 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 68BD46B0087
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 00:42:10 -0500 (EST)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp05.au.ibm.com (8.14.4/8.13.1) with ESMTP id p065apOe011058
-	for <linux-mm@kvack.org>; Thu, 6 Jan 2011 16:36:51 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p065g5M52142286
-	for <linux-mm@kvack.org>; Thu, 6 Jan 2011 16:42:06 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p065g5sY015629
-	for <linux-mm@kvack.org>; Thu, 6 Jan 2011 16:42:05 +1100
-Date: Thu, 6 Jan 2011 11:12:00 +0530
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E9AEE6B0087
+	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 00:46:12 -0500 (EST)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp07.in.ibm.com (8.14.4/8.13.1) with ESMTP id p065k5bK015638
+	for <linux-mm@kvack.org>; Thu, 6 Jan 2011 11:16:05 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p065k5nW2441232
+	for <linux-mm@kvack.org>; Thu, 6 Jan 2011 11:16:05 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p065k4IA012258
+	for <linux-mm@kvack.org>; Thu, 6 Jan 2011 16:46:05 +1100
+Date: Thu, 6 Jan 2011 11:16:00 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [BUGFIX][PATCH v3] memcg: fix memory migration of shmem
- swapcache
-Message-ID: <20110106054200.GG3722@balbir.in.ibm.com>
+Subject: Re: [patch v3] memcg: add oom killer delay
+Message-ID: <20110106054600.GH3722@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
-References: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
- <20110105115840.GD4654@cmpxchg.org>
- <20110106100923.24b1dd12.nishimura@mxp.nes.nec.co.jp>
- <AANLkTi=rp=WZa7PP4V6anU0SQ3BM-RJQwiDu1fJuoDig@mail.gmail.com>
- <20110106123415.895d6dfc.nishimura@mxp.nes.nec.co.jp>
+References: <alpine.DEB.2.00.1012212318140.22773@chino.kir.corp.google.com>
+ <20101221235924.b5c1aecc.akpm@linux-foundation.org>
+ <alpine.DEB.2.00.1012220031010.24462@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1012221443540.2612@chino.kir.corp.google.com>
+ <20101227095225.2cf907a3.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1012272103370.27164@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1012272228350.17843@chino.kir.corp.google.com>
+ <20110104104130.a3faf0d5.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110104035956.GA3120@balbir.in.ibm.com>
+ <20110106105315.5f88ebce.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20110106123415.895d6dfc.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20110106105315.5f88ebce.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Divyesh Shah <dpshah@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2011-01-06 12:34:15]:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2011-01-06 10:53:15]:
 
-> > > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> > > index 159a076..cc5a8fd 100644
-> > > --- a/include/linux/memcontrol.h
-> > > +++ b/include/linux/memcontrol.h
-> > > @@ -93,7 +93,7 @@ extern int
-> > >  mem_cgroup_prepare_migration(struct page *page,
-> > >        struct page *newpage, struct mem_cgroup **ptr);
-> > >  extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
-> > > -       struct page *oldpage, struct page *newpage);
-> > > +       struct page *oldpage, struct page *newpage, bool success);
+> > Kamezawa-San, not sure if your comment is clear, are you suggesting
 > > 
-> > The term "success" implies present or future tense.
-> > The event this variable cares about in the past so "succeed" might be
-> > a more appropriate term.
-> > Sorry to be picky about the English but there is an important
-> > distinction here since we don't have any comment about the variable.
+> > Since memcg is the root of a hierarchy, we need to use hierarchical
+> > locking before changing the value of the root oom_delay?
 > > 
-> > Am I being too fussy?
-> Not at all. Your comments are very helpful to make the code more readable :)
 > 
-> ===
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> No. mem_cgroup_oom_lock() is a lock for hierarchy, not for a group.
 > 
-> In current implimentation, mem_cgroup_end_migration() decides whether the page
-> migration has succeeded or not by checking "oldpage->mapping".
+> For example,
 > 
-> But if we are tring to migrate a shmem swapcache, the page->mapping of it is
-> NULL from the begining, so the check would be invalid.
-> As a result, mem_cgroup_end_migration() assumes the migration has succeeded
-> even if it's not, so "newpage" would be freed while it's not uncharged.
+>   A
+>  / \
+> B   C
 > 
-> This patch fixes it by passing mem_cgroup_end_migration() the result of the
-> page migration.
+> In above hierarchy, when C is in OOM, A's OOM will be blocked by C's OOM.
+> Because A's OOM can be fixed by C's oom-kill.
+> This means oom_delay for A should be for C (and B), IOW, for hierarchy.
 > 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
-> v2->v3
->   - s/success/succeed
 > 
-> v1->v2
->   - pass mem_cgroup_end_migration() "bool" instead of "int".
-> 
->  include/linux/memcontrol.h |    5 ++---
->  mm/memcontrol.c            |    5 ++---
->  mm/migrate.c               |    2 +-
->  3 files changed, 5 insertions(+), 7 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 159a076..9f52b57 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -93,7 +93,7 @@ extern int
->  mem_cgroup_prepare_migration(struct page *page,
->  	struct page *newpage, struct mem_cgroup **ptr);
->  extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
-> -	struct page *oldpage, struct page *newpage);
-> +	struct page *oldpage, struct page *newpage, bool succeed);
+> A and B, C should have the same oom_delay, oom_disable value.
+>
 
-Sorry for nit-picking but succeed is not as good as succeeded,
-successful, successful_migration or migration_ok
+Why so? You already mentioned that A's OOM will be blocked by C's OOM?
+If we keep that behaviour, if C has a different oom_delay value, it
+won't matter, since we'll never go up to A. If the patch breaks that
+behaviour then we are in trouble. With hierarchy we need to ensure
+that if A has a oom_delay set and C does not, A's setting takes
+precendence. In the absence of that logic what you say makes sense.
+ 
+> About oom_disable,
+>  - It can be set only when A has no children and root of hierarchy.
+>  - It's inherited at creating children.
+> 
+> Then, A, B ,C have the same value.
+> 
+> Considering race conditions, I like current oom_disable's approach.
+>
 
-> 
->  /*
->   * For memory reclaim.
-> @@ -231,8 +231,7 @@ mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
->  }
-> 
->  static inline void mem_cgroup_end_migration(struct mem_cgroup *mem,
-> -					struct page *oldpage,
-> -					struct page *newpage)
-> +		struct page *oldpage, struct page *newpage, bool succeed)
->  {
->  }
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 61678be..71a39bc 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2856,7 +2856,7 @@ int mem_cgroup_prepare_migration(struct page *page,
-> 
->  /* remove redundant charge if migration failed*/
->  void mem_cgroup_end_migration(struct mem_cgroup *mem,
-> -	struct page *oldpage, struct page *newpage)
-> +	struct page *oldpage, struct page *newpage, bool succeed)
->  {
->  	struct page *used, *unused;
->  	struct page_cgroup *pc;
-> @@ -2865,8 +2865,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
->  		return;
->  	/* blocks rmdir() */
->  	cgroup_exclude_rmdir(&mem->css);
-> -	/* at migration success, oldpage->mapping is NULL. */
-> -	if (oldpage->mapping) {
-> +	if (!succeed) {
->  		used = oldpage;
->  		unused = newpage;
->  	} else {
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 6ae8a66..be66b23 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -756,7 +756,7 @@ rcu_unlock:
->  		rcu_read_unlock();
->  uncharge:
->  	if (!charge)
-> -		mem_cgroup_end_migration(mem, page, newpage);
-> +		mem_cgroup_end_migration(mem, page, newpage, rc == 0);
->  unlock:
->  	unlock_page(page);
-> 
-> -- 
-> 1.7.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks for clarifying. 
 
 -- 
 	Three Cheers,
