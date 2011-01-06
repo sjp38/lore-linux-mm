@@ -1,96 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 022E06B0087
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 00:58:01 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Postfix) with ESMTP id 8FBF23EE0BB
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 14:57:59 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7686645DE4D
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 14:57:59 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A43A45DE59
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 14:57:59 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4ED21E08001
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 14:57:59 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 174391DB8038
-	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 14:57:59 +0900 (JST)
-Date: Thu, 6 Jan 2011 14:52:01 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch v3] memcg: add oom killer delay
-Message-Id: <20110106145201.dab01250.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110106054600.GH3722@balbir.in.ibm.com>
-References: <alpine.DEB.2.00.1012212318140.22773@chino.kir.corp.google.com>
-	<20101221235924.b5c1aecc.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1012220031010.24462@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1012221443540.2612@chino.kir.corp.google.com>
-	<20101227095225.2cf907a3.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1012272103370.27164@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1012272228350.17843@chino.kir.corp.google.com>
-	<20110104104130.a3faf0d5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110104035956.GA3120@balbir.in.ibm.com>
-	<20110106105315.5f88ebce.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110106054600.GH3722@balbir.in.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id EDBC56B0087
+	for <linux-mm@kvack.org>; Thu,  6 Jan 2011 01:40:07 -0500 (EST)
+Date: Thu, 6 Jan 2011 15:29:11 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [BUGFIX][PATCH v4] memcg: fix memory migration of shmem swapcache
+Message-Id: <20110106152911.db6c5b2c.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20110106054200.GG3722@balbir.in.ibm.com>
+References: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
+	<20110105115840.GD4654@cmpxchg.org>
+	<20110106100923.24b1dd12.nishimura@mxp.nes.nec.co.jp>
+	<AANLkTi=rp=WZa7PP4V6anU0SQ3BM-RJQwiDu1fJuoDig@mail.gmail.com>
+	<20110106123415.895d6dfc.nishimura@mxp.nes.nec.co.jp>
+	<20110106054200.GG3722@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: balbir@linux.vnet.ibm.com
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Divyesh Shah <dpshah@google.com>, linux-mm@kvack.org
+Cc: Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 6 Jan 2011 11:16:00 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2011-01-06 10:53:15]:
+> Sorry for nit-picking but succeed is not as good as succeeded,
+> successful, successful_migration or migration_ok
 > 
-> > > Kamezawa-San, not sure if your comment is clear, are you suggesting
-> > > 
-> > > Since memcg is the root of a hierarchy, we need to use hierarchical
-> > > locking before changing the value of the root oom_delay?
-> > > 
-> > 
-> > No. mem_cgroup_oom_lock() is a lock for hierarchy, not for a group.
-> > 
-> > For example,
-> > 
-> >   A
-> >  / \
-> > B   C
-> > 
-> > In above hierarchy, when C is in OOM, A's OOM will be blocked by C's OOM.
-> > Because A's OOM can be fixed by C's oom-kill.
-> > This means oom_delay for A should be for C (and B), IOW, for hierarchy.
-> > 
-> > 
-> > A and B, C should have the same oom_delay, oom_disable value.
-> >
-> 
-> Why so? You already mentioned that A's OOM will be blocked by C's OOM?
-> If we keep that behaviour, if C has a different oom_delay value, it
-> won't matter, since we'll never go up to A. 
+OK, I use "migration_ok".
 
-When C's oom_delay is 10min and A's oom_delay is 1min, A can be blocked
-for 10min even if it has 1min delay. 
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-I don't want this complex rule.
+In current implimentation, mem_cgroup_end_migration() decides whether the page
+migration has succeeded or not by checking "oldpage->mapping".
 
-> If the patch breaks that
-> behaviour then we are in trouble. With hierarchy we need to ensure
-> that if A has a oom_delay set and C does not, A's setting takes
-> precendence. In the absence of that logic what you say makes sense.
->  
-His implemenation doesn't do that and I want a simple one even if I have
-to make an Ack to a feature which seems of-no-use to me.
+But if we are tring to migrate a shmem swapcache, the page->mapping of it is
+NULL from the begining, so the check would be invalid.
+As a result, mem_cgroup_end_migration() assumes the migration has succeeded
+even if it's not, so "newpage" would be freed while it's not uncharged.
 
+This patch fixes it by passing mem_cgroup_end_migration() the result of the
+page migration.
 
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+v3->v4
+  - s/succeed/migration_ok
+v2->v3
+  - s/success/succeed
+v1->v2
+  - pass mem_cgroup_end_migration() "bool" instead of "int".
 
-Thanks,
--Kame
+ include/linux/memcontrol.h |    5 ++---
+ mm/memcontrol.c            |    5 ++---
+ mm/migrate.c               |    2 +-
+ 3 files changed, 5 insertions(+), 7 deletions(-)
 
-
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 159a076..769c318 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -93,7 +93,7 @@ extern int
+ mem_cgroup_prepare_migration(struct page *page,
+ 	struct page *newpage, struct mem_cgroup **ptr);
+ extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
+-	struct page *oldpage, struct page *newpage);
++	struct page *oldpage, struct page *newpage, bool migration_ok);
+ 
+ /*
+  * For memory reclaim.
+@@ -231,8 +231,7 @@ mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
+ }
+ 
+ static inline void mem_cgroup_end_migration(struct mem_cgroup *mem,
+-					struct page *oldpage,
+-					struct page *newpage)
++		struct page *oldpage, struct page *newpage, bool migration_ok)
+ {
+ }
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 61678be..c35f817 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2856,7 +2856,7 @@ int mem_cgroup_prepare_migration(struct page *page,
+ 
+ /* remove redundant charge if migration failed*/
+ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+-	struct page *oldpage, struct page *newpage)
++	struct page *oldpage, struct page *newpage, bool migration_ok)
+ {
+ 	struct page *used, *unused;
+ 	struct page_cgroup *pc;
+@@ -2865,8 +2865,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+ 		return;
+ 	/* blocks rmdir() */
+ 	cgroup_exclude_rmdir(&mem->css);
+-	/* at migration success, oldpage->mapping is NULL. */
+-	if (oldpage->mapping) {
++	if (!migration_ok) {
+ 		used = oldpage;
+ 		unused = newpage;
+ 	} else {
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 6ae8a66..be66b23 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -756,7 +756,7 @@ rcu_unlock:
+ 		rcu_read_unlock();
+ uncharge:
+ 	if (!charge)
+-		mem_cgroup_end_migration(mem, page, newpage);
++		mem_cgroup_end_migration(mem, page, newpage, rc == 0);
+ unlock:
+ 	unlock_page(page);
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
