@@ -1,63 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 71BF76B00B8
-	for <linux-mm@kvack.org>; Fri,  7 Jan 2011 12:18:43 -0500 (EST)
-Date: Fri, 7 Jan 2011 09:18:34 -0800
-From: Randy Dunlap <randy.dunlap@Oracle.com>
-Subject: Re: mmotm 2011-01-06-15-41 uploaded (apple_bl)
-Message-Id: <20110107091834.47786e35.randy.dunlap@oracle.com>
-In-Reply-To: <201101070014.p070Egpo023959@imap1.linux-foundation.org>
-References: <201101070014.p070Egpo023959@imap1.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 914646B00BC
+	for <linux-mm@kvack.org>; Fri,  7 Jan 2011 12:57:32 -0500 (EST)
+Date: Fri, 7 Jan 2011 17:57:05 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: mmotm hangs on compaction lock_page
+Message-ID: <20110107175705.GL29257@csn.ul.ie>
+References: <alpine.LSU.2.00.1101061632020.9601@sister.anvils> <20110107145259.GK29257@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110107145259.GK29257@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, mjg@redhat.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 06 Jan 2011 15:41:14 -0800 akpm@linux-foundation.org wrote:
-
-> The mm-of-the-moment snapshot 2011-01-06-15-41 has been uploaded to
+On Fri, Jan 07, 2011 at 02:52:59PM +0000, Mel Gorman wrote:
+> On Thu, Jan 06, 2011 at 05:20:25PM -0800, Hugh Dickins wrote:
+> > Hi Mel,
+> > 
+> > Here are the traces of two concurrent "cp -a kerneltree elsewhere"s
+> > which have hung on mmotm: in limited RAM, on a PowerPC
 > 
->    http://userweb.kernel.org/~akpm/mmotm/
+> How limited in RAM and how many CPUs?
 > 
-> and will soon be available at
+> > - I don't have
+> > an explanation for why I can reproduce it in minutes on that box but
+> > never yet on the x86s.
+> > 
 > 
->    git://zen-kernel.org/kernel/mmotm.git
+> Strongest bet is simply that compaction is not triggering for you on the
+> x86 boxes. Monitor "grep compact /proc/vmstat" on the two machines and
+> see if the counters are growing on powerpc and not on x86. I'm trying to
+> reproduce the problem locally but no luck yet.
 > 
-> It contains the following patches against 2.6.37:
+> > Perhaps we can get it to happen with just one cp: the second cp here
+> > seemed to be deadlocking itself, unmap_and_move()'s force lock_page
+> > waiting on a page which its page cache readahead already holds locked.
+> > 
+> > cp              D 000000000fea3110     0 18874  18873 0x00008010
+> > Call Trace:
+> >  .__switch_to+0xcc/0x110
+> >  .schedule+0x670/0x7b0
+> >  .io_schedule+0x50/0x8c
+> >  .sync_page+0x84/0xa0
+> >  .sync_page_killable+0x10/0x48
+> >  .__wait_on_bit_lock+0x9c/0x140
+> >  .__lock_page_killable+0x74/0x98
+> >  .do_generic_file_read+0x2b0/0x504
+> >  .generic_file_aio_read+0x214/0x29c
+> >  .do_sync_read+0xac/0x10c
+> >  .vfs_read+0xd0/0x1a0
+> >  .SyS_read+0x58/0xa0
+> >  syscall_exit+0x0/0x40
+> >  syscall_exit+0x0/0x40
+> > 
+> > cp              D 000000000fea3110     0 18876  18875 0x00008010
+> > Call Trace:
+> >  0xc000000001343b68 (unreliable)
+> >  .__switch_to+0xcc/0x110
+> >  .schedule+0x670/0x7b0
+> >  .io_schedule+0x50/0x8c
+> >  .sync_page+0x84/0xa0
+> >  .__wait_on_bit_lock+0x9c/0x140
+> >  .__lock_page+0x74/0x98
+> >  .unmap_and_move+0xfc/0x380
+> >  .migrate_pages+0xbc/0x18c
+> >  .compact_zone+0xbc/0x400
+> >  .compact_zone_order+0xc8/0xf4
+> >  .try_to_compact_pages+0x104/0x1b8
+> >  .__alloc_pages_direct_compact+0xa8/0x228
+> >  .__alloc_pages_nodemask+0x42c/0x730
+> >  .allocate_slab+0x84/0x168
+> >  .new_slab+0x58/0x198
+> >  .__slab_alloc+0x1ec/0x430
+> >  .kmem_cache_alloc+0x7c/0xe0
+> >  .radix_tree_preload+0x94/0x140
+> >  .add_to_page_cache_locked+0x70/0x1f0
+> >  .add_to_page_cache_lru+0x50/0xac
+> >  .mpage_readpages+0xcc/0x198
+> >  .ext3_readpages+0x28/0x40
+> >  .__do_page_cache_readahead+0x1ac/0x2ac
+> >  .ra_submit+0x28/0x38
+> 
+> Something is odd right here. I would have expected entries in the
+> calli stack containing
+> 
+>  .ondemand_readahead
+>  .page_cache_sync_readahead
+> 
+> I am going to have to assume these functions were really called
+> otherwise the ra_submit is a mystery :(
+> 
+> >  .do_generic_file_read+0xe8/0x504
+> >  .generic_file_aio_read+0x214/0x29c
+> >  .do_sync_read+0xac/0x10c
+> >  .vfs_read+0xd0/0x1a0
+> >  .SyS_read+0x58/0xa0
+> >  syscall_exit+0x0/0x40
+> > 
+> > I haven't made a patch for it, just hacked unmap_and_move() to say
+> > "if (!0)" instead of "if (!force)" to get on with my testing.  I expect
+> > you'll want to pass another arg down to migrate_pages() to prevent
+> > setting force, or give it some flags, or do something with PF_MEMALLOC.
+> > 
+> 
+> I tend to agree but I'm failing to see how it might be happening right now.
+> The callchain looks something like
+> 
+> do_generic_file_read
+>    # page is not found
+>    page_cache_sync_readahead
+>       ondemand_readahead
+>          ra_submit
+>             __do_page_cache_readahead
+>                # Allocates a bunch of pages
+>                # Sets PageReadahead. Otherwise the pages  initialised
+>                # and they are not on the LRU yet
+>                read_pages
+>                   # Calls mapping->readpages which calls mpage_readpages
+>                   mpage_readpages
+>                      # For the list of pages (index initialised), add
+>                      # each of them to the LRU. Adding to the LRU
+>                      # locks the page and should return the page
+>                      # locked.
+>                      add_to_page_cache_lru
+>                      # sets PageSwapBacked
+>                         add_to_page_cache
+>                            # locks page
+>                            add_to_page_cache_locked
+>                               # preloads radix tree
+>                                  radix_tree_preload
+>                                  # DEADLOCK HERE. This is what does not
+>                                  # make sense. Compaction could not be
+>                                  # be finding the page on the LRU as
+>                                  # lru_cache_add_file() has not been
+>                                  # called yet for this page
+> 
+> So I don't think we are locking on the same page.
+> 
+> Here is a possibility. mpage_readpages() is reading ahead so there are obviously
+> pages that are not Uptodate. It queues these for asynchronous read with
+> block_read_full_page(), returns and adds the page to the LRU (so compaction
+> is now able to find it). IO starts at some time in the future with the page
+> still locked and gets unlocked at the end of IO by end_buffer_async_read().
+> 
+> Between when IO is queued and it completes, a new page is being added to
+> the LRU, the radix tree is loaded and compaction kicks off trying to
+> lock the same page that is not up to date yet. Something is preventing
+> the IO completing and the page being unlocked but I'm missing what that
+> might be.
+> 
+> Does this sound plausible? I'll keep looking but I wanted to see if
+> someone spotted quickly a major flaw in the reasoning or have a quick
+> guess as to why the page might not be getting unlocked at the end of IO
+> properly.
+> 
 
+I've still not figured out why the pages are not getting unlocked again
+but can you try the following bodge patch to confirm it's something to
+do with !Uptodate pages please?
 
-When ACPI is not enabled:
-
-drivers/video/backlight/apple_bl.c:142: warning: 'struct acpi_device' declared inside parameter list
-drivers/video/backlight/apple_bl.c:142: warning: its scope is only this definition or declaration, which is probably not what you want
-drivers/video/backlight/apple_bl.c:200: warning: 'struct acpi_device' declared inside parameter list
-drivers/video/backlight/apple_bl.c:214: error: variable 'apple_bl_driver' has initializer but incomplete type
-drivers/video/backlight/apple_bl.c:215: error: unknown field 'name' specified in initializer
-drivers/video/backlight/apple_bl.c:215: warning: excess elements in struct initializer
-drivers/video/backlight/apple_bl.c:215: warning: (near initialization for 'apple_bl_driver')
-drivers/video/backlight/apple_bl.c:216: error: unknown field 'ids' specified in initializer
-drivers/video/backlight/apple_bl.c:216: warning: excess elements in struct initializer
-drivers/video/backlight/apple_bl.c:216: warning: (near initialization for 'apple_bl_driver')
-drivers/video/backlight/apple_bl.c:217: error: unknown field 'ops' specified in initializer
-drivers/video/backlight/apple_bl.c:217: error: extra brace group at end of initializer
-drivers/video/backlight/apple_bl.c:217: error: (near initialization for 'apple_bl_driver')
-drivers/video/backlight/apple_bl.c:220: warning: excess elements in struct initializer
-drivers/video/backlight/apple_bl.c:220: warning: (near initialization for 'apple_bl_driver')
-drivers/video/backlight/apple_bl.c: In function 'apple_bl_init':
-drivers/video/backlight/apple_bl.c:225: error: implicit declaration of function 'acpi_bus_register_driver'
-drivers/video/backlight/apple_bl.c: In function 'apple_bl_exit':
-drivers/video/backlight/apple_bl.c:230: error: implicit declaration of function 'acpi_bus_unregister_driver'
-
-
-Should BACKLIGHT_APPLE also depend on ACPI?
-
-
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+==== CUT HERE ====
+diff --git a/mm/migrate.c b/mm/migrate.c
+index e12f717..66a2aac 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -612,6 +612,23 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+ }
+ 
+ /*
++ * HACK
++ * Do not allow direct compaction to migrate !Uptodate pages. It is possible
++ * the caller has locked the page for IO to complete and for some reason the
++ * IO is not completing and unlocking the page leading to deadlock
++ */
++static inline bool safe_to_lock_page(struct page *page)
++{
++	if (!(current->flags & PF_MEMALLOC))
++		return true;
++
++	if (!PageUptodate(page))
++		return false;
++
++	return true;
++}
++
++/*
+  * Obtain the lock on page, remove all ptes and migrate the page
+  * to the newly allocated page in newpage.
+  */
+@@ -642,7 +659,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+ 	rc = -EAGAIN;
+ 
+ 	if (!trylock_page(page)) {
+-		if (!force)
++		if (!force || !safe_to_lock_page(page))
+ 			goto move_newpage;
+ 		lock_page(page);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
