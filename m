@@ -1,99 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B34D96B00C8
-	for <linux-mm@kvack.org>; Fri,  7 Jan 2011 17:09:16 -0500 (EST)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Fri, 7 Jan 2011 17:07:06 -0500
-Subject: [RFC][PATCH 2/2] Make watermarks tunable separately
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C3A30A298@USINDEVS02.corp.hds.com>
-References: <65795E11DBF1E645A09CEC7EAEE94B9C3A30A295@USINDEVS02.corp.hds.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C2BE6B00CA
+	for <linux-mm@kvack.org>; Fri,  7 Jan 2011 17:24:08 -0500 (EST)
+Received: from kpbe18.cbf.corp.google.com (kpbe18.cbf.corp.google.com [172.25.105.82])
+	by smtp-out.google.com with ESMTP id p07MO5qi017465
+	for <linux-mm@kvack.org>; Fri, 7 Jan 2011 14:24:05 -0800
+Received: from pwj4 (pwj4.prod.google.com [10.241.219.68])
+	by kpbe18.cbf.corp.google.com with ESMTP id p07MO3cn018421
+	for <linux-mm@kvack.org>; Fri, 7 Jan 2011 14:24:03 -0800
+Received: by pwj4 with SMTP id 4so2343650pwj.10
+        for <linux-mm@kvack.org>; Fri, 07 Jan 2011 14:24:03 -0800 (PST)
+Date: Fri, 7 Jan 2011 14:23:59 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC][PATCH 0/2] Tunable watermark
 In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9C3A30A295@USINDEVS02.corp.hds.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Message-ID: <alpine.DEB.2.00.1101071416450.23577@chino.kir.corp.google.com>
+References: <65795E11DBF1E645A09CEC7EAEE94B9C3A30A295@USINDEVS02.corp.hds.com>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "rdunlap@xenotime.net" <rdunlap@xenotime.net>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
+To: Satoru Moriya <satoru.moriya@hds.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Randy Dunlap <rdunlap@xenotime.net>, dle-develop@lists.sourceforge.net, Seiji Aguchi <seiji.aguchi@hds.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch introduces three new sysctls to /proc/sys/vm:
-wmark_min_kbytes, wmark_low_kbytes and wmark_high_kbytes.
+On Fri, 7 Jan 2011, Satoru Moriya wrote:
 
-Each entry is used to compute watermark[min], watermark[low]
-and watermark[high] for each zone.
+> This patchset introduces a new knob to control each watermark
+> separately.
+> 
+> [Purpose]
+> To control the timing at which kswapd/direct reclaim starts(ends)
+> based on memory pressure and/or application characteristics
+> because direct reclaim makes a memory alloc/access latency worse.
+> (We'd like to avoid direct reclaim to keep latency low even if
+>  under the high memory pressure.)
+> 
+> [Problem]
+> The thresholds kswapd/direct reclaim starts(ends) depend on
+> watermark[min,low,high] and currently all watermarks are set
+> based on min_free_kbytes. min_free_kbytes is the amount of
+> free memory that Linux VM should keep at least.
+> 
 
-These parameters are also updated when min_free_kbytes are
-changed because originally they are set based on min_free_kbytes.
-On the other hand, min_free_kbytes is updated when wmark_free_kbytes
-changes.
+Not completely, it also depends on the amount of lowmem (because of the 
+reserve setup next) and the amount of memory in each zone.
 
-By using the parameters one can adjust the difference among
-watermark[min], watermark[low] and watermark[high] and as a result
-one can tune the kernel reclaim behaviour to fit their requirement.
+> This means the difference between thresholds at which kswapd
+> starts and direct reclaim starts depends on the amount of free
+> memory.
+> 
+> On the other hand, the amount of required memory depends on
+> applications. Therefore when it allocates/access memory more
+> than the difference between watemark[low] and watermark[min],
+> kernel sometimes runs direct reclaim before allocation and
+> it makes application latency bigger.
+> 
+> [Solution]
+> To avoid the situation above, this patch set introduces new
+> tunables /proc/sys/vm/wmark_min_kbytes, wmark_low_kbytes and
+> wmark_high_kbytes. Each entry controls watermark[min],
+> watermark[low] and watermark[high] separately.
+> By using these parameters one can make the difference between
+> min and low bigger than the amount of memory which applications
+> require.
+> 
 
-Signed-off-by: Satoru Moriya <satoru.moriya@hds.com>
----
- Documentation/sysctl/vm.txt |   37 +++++++++++++++
- include/linux/mmzone.h      |    6 ++
- kernel/sysctl.c             |   28 +++++++++++-
- mm/page_alloc.c             |  109 +++++++++++++++++++++++++++++++++++++++=
-++++
- 4 files changed, 179 insertions(+), 1 deletions(-)
+I really dislike this because it adds additional tunables that should 
+already be handled correctly by the VM and it's very difficult for users 
+to know what to tune these values to; these watermarks (with the exception 
+of min) are supposed to be internal to the VM implementation.
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index e10b279..674681d 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -55,6 +55,9 @@ Currently, these files are in /proc/sys/vm:
- - stat_interval
- - swappiness
- - vfs_cache_pressure
-+- wmark_high_kbytes
-+- wmark_low_kbytes
-+- wmark_min_kbytes
- - zone_reclaim_mode
-=20
- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-@@ -360,6 +363,8 @@ become subtly broken, and prone to deadlock under high =
-loads.
-=20
- Setting this too high will OOM your machine instantly.
-=20
-+This is also updated when wmark_min_free_kbytes changes.
-+
- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-=20
- min_slab_ratio:
-@@ -664,6 +669,38 @@ causes the kernel to prefer to reclaim dentries and in=
-odes.
-=20
- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-=20
-+wmark_high_kbytes
-+
-+Contains the amount of free memory above which kswapd stops reclaiming pag=
-es.
-+
-+The Linux VM uses this number to compute a watermark[WMARK_HIGH] value for
-+each zone in the system. This is also updated when min_free_kbytes is upda=
-ted.
-+The minimum is wmark_low_kbytes.
-+
-+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-+
-+wmark_low_kbytes
-+
-+Contains the amount of free memory below which kswapd starts to reclaim pa=
-ges.
-+
-+The Linux VM uses this number to compute a watermark[WMARK_LOW] value for
-+each zone in the system. This is also updated when min_free_kbytes changes=
+You didn't mention why it wouldn't be possible to modify 
+setup_per_zone_wmarks() in some way for your configuration so this happens 
+automatically.  If you can find a deterministic way to set these 
+watermarks from userspace, you should be able to do it in the kernel as 
+well based on the configuration.
+
+I think we should invest time in making sure the VM works for any type of 
+workload thrown at it instead of relying on userspace making lots of 
+adjustments.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
