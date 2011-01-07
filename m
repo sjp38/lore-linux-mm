@@ -1,220 +1,258 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 12A976B00BE
-	for <linux-mm@kvack.org>; Fri,  7 Jan 2011 13:22:54 -0500 (EST)
-Subject: [PATCH] mm: add replace_page_cache_page() function
-Message-Id: <E1PbGxV-0001ug-2r@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Fri, 07 Jan 2011 19:22:41 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 64EFB6B00BB
+	for <linux-mm@kvack.org>; Fri,  7 Jan 2011 13:54:37 -0500 (EST)
+Date: Fri, 7 Jan 2011 19:54:33 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH -mm] thp: fix for KVM THP support
+Message-ID: <20110107185433.GS15823@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: minchan.kim@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Here's an updated patch, addressing the review comments.
+Hello Andrew,
 
-Hiroyuki-san, can you please review the newly introduced
-mem_cgroup_replace_cache_page(), as I'm not fully familiar with the
-memory cgroup code.
+I'm sending 3 patches to apply on top of your -mm tree.
 
-Thanks,
-Miklos
+This adjusts the KVM THP support, there was some issue with the
+previous approach. This still keeps the same approach to avoid two
+gup_fast for each secondary mmu page fault but I tested it (even not
+exactly on top of -mm because I had some problem building it) and it
+works fine so far.
+
+======
+Subject: thp: fix for KVM THP support
+
+From: Andrea Arcangeli <aarcange@redhat.com>
+
+There were several bugs: dirty_bitmap ignored (migration shutoff largepages),
+has_wrprotect_page(directory_level) ignored, refcount taken on tail page and
+refcount released on pfn head page post-adjustment (now it's being transferred
+during the adjustment, that's where KSM over THP tripped inside
+split_huge_page, the rest I found it by code review).
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
+ arch/x86/kvm/mmu.c         |   97 ++++++++++++++++++++++++++++++++-------------
+ arch/x86/kvm/paging_tmpl.h |   10 +++-
+ 2 files changed, 79 insertions(+), 28 deletions(-)
 
-From: Miklos Szeredi <mszeredi@suse.cz>
-Subject: mm: add replace_page_cache_page() function
+This would become thp-kvm-mmu-transparent-hugepage-support-fix.patch
 
-This function basically does:
-
-     remove_from_page_cache(old);
-     page_cache_release(old);
-     add_to_page_cache_locked(new);
-
-Except it does this atomically, so there's no possibility for the
-"add" to fail because of a race.
-
-This is used by fuse to move pages into the page cache.
-
-Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
----
- fs/fuse/dev.c              |   10 +++------
- include/linux/memcontrol.h |    8 +++++++
- include/linux/pagemap.h    |    1 
- mm/filemap.c               |   50 +++++++++++++++++++++++++++++++++++++++++++++
- mm/memcontrol.c            |   38 ++++++++++++++++++++++++++++++++++
- 5 files changed, 101 insertions(+), 6 deletions(-)
-
-Index: linux-2.6/mm/filemap.c
-===================================================================
---- linux-2.6.orig/mm/filemap.c	2011-01-07 17:53:39.000000000 +0100
-+++ linux-2.6/mm/filemap.c	2011-01-07 19:14:45.000000000 +0100
-@@ -390,6 +390,56 @@ int filemap_write_and_wait_range(struct
- EXPORT_SYMBOL(filemap_write_and_wait_range);
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -554,14 +554,18 @@ static int host_mapping_level(struct kvm
+ 	return ret;
+ }
  
- /**
-+ * replace_page_cache_page - replace a pagecache page with a new one
-+ * @old:	page to be replaced
-+ * @new:	page to replace with
-+ * @gfp_mask:	page allocation mode
-+ *
-+ * This function replaces a page in the pagecache with a new one.  On
-+ * success it acquires the pagecache reference for the new page and
-+ * drop it for the old page.  Both the old and new pages must be
-+ * locked.  This function does not add the new page to the LRU, the
-+ * caller must do that.
-+ *
-+ * The remove + add is atomic.  The only way this function can fail is
-+ * memory allocation failure.
-+ */
-+int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
-+{
-+	int error;
-+
-+	VM_BUG_ON(!PageLocked(old));
-+	VM_BUG_ON(!PageLocked(new));
-+	VM_BUG_ON(new->mapping);
-+
-+	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
-+	if (!error) {
-+		struct address_space *mapping = old->mapping;
-+		pgoff_t offset = old->index;
-+
-+		page_cache_get(new);
-+		new->mapping = mapping;
-+		new->index = offset;
-+
-+		spin_lock_irq(&mapping->tree_lock);
-+		__remove_from_page_cache(old);
-+		error = radix_tree_insert(&mapping->page_tree, offset, new);
-+		BUG_ON(error);
-+		mapping->nrpages++;
-+		__inc_zone_page_state(new, NR_FILE_PAGES);
-+		if (PageSwapBacked(new))
-+			__inc_zone_page_state(new, NR_SHMEM);
-+		spin_unlock_irq(&mapping->tree_lock);
-+		radix_tree_preload_end();
-+		mem_cgroup_replace_cache_page(old, new);
-+		page_cache_release(old);
-+	}
-+
-+	return error;
-+}
-+EXPORT_SYMBOL_GPL(replace_page_cache_page);
-+
-+/**
-  * add_to_page_cache_locked - add a locked page to the pagecache
-  * @page:	page to add
-  * @mapping:	the page's address_space
-Index: linux-2.6/include/linux/pagemap.h
-===================================================================
---- linux-2.6.orig/include/linux/pagemap.h	2011-01-07 17:53:39.000000000 +0100
-+++ linux-2.6/include/linux/pagemap.h	2011-01-07 19:14:45.000000000 +0100
-@@ -457,6 +457,7 @@ int add_to_page_cache_lru(struct page *p
- 				pgoff_t index, gfp_t gfp_mask);
- extern void remove_from_page_cache(struct page *page);
- extern void __remove_from_page_cache(struct page *page);
-+int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask);
- 
- /*
-  * Like add_to_page_cache_locked, but used to add newly allocated pages:
-Index: linux-2.6/fs/fuse/dev.c
-===================================================================
---- linux-2.6.orig/fs/fuse/dev.c	2011-01-07 17:53:39.000000000 +0100
-+++ linux-2.6/fs/fuse/dev.c	2011-01-07 19:14:45.000000000 +0100
-@@ -737,14 +737,12 @@ static int fuse_try_move_page(struct fus
- 	if (WARN_ON(PageMlocked(oldpage)))
- 		goto out_fallback_unlock;
- 
--	remove_from_page_cache(oldpage);
--	page_cache_release(oldpage);
+-static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
++static bool mapping_level_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t large_gfn)
+ {
+ 	struct kvm_memory_slot *slot;
+-	int host_level, level, max_level;
 -
--	err = add_to_page_cache_locked(newpage, mapping, index, GFP_KERNEL);
-+	err = replace_page_cache_page(oldpage, newpage, GFP_KERNEL);
- 	if (err) {
--		printk(KERN_WARNING "fuse_try_move_page: failed to add page");
--		goto out_fallback_unlock;
-+		unlock_page(newpage);
-+		return err;
+ 	slot = gfn_to_memslot(vcpu->kvm, large_gfn);
+ 	if (slot && slot->dirty_bitmap)
+-		return PT_PAGE_TABLE_LEVEL;
++		return true;
++	return false;
++}
++
++static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
++{
++	int host_level, level, max_level;
+ 
+ 	host_level = host_mapping_level(vcpu->kvm, large_gfn);
+ 
+@@ -2315,15 +2319,45 @@ static int kvm_handle_bad_page(struct kv
+ 	return 1;
+ }
+ 
+-static void transparent_hugepage_adjust(gfn_t *gfn, pfn_t *pfn, int * level)
++static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
++					gfn_t *gfnp, pfn_t *pfnp, int *levelp)
+ {
+-	/* check if it's a transparent hugepage */
+-	if (!is_error_pfn(*pfn) && !kvm_is_mmio_pfn(*pfn) &&
+-	    *level == PT_PAGE_TABLE_LEVEL &&
+-	    PageTransCompound(pfn_to_page(*pfn))) {
+-		*level = PT_DIRECTORY_LEVEL;
+-		*gfn = *gfn & ~(KVM_PAGES_PER_HPAGE(*level) - 1);
+-		*pfn = *pfn & ~(KVM_PAGES_PER_HPAGE(*level) - 1);
++	pfn_t pfn = *pfnp;
++	gfn_t gfn = *gfnp;
++	int level = *levelp;
++
++	/*
++	 * Check if it's a transparent hugepage. If this would be an
++	 * hugetlbfs page, level wouldn't be set to
++	 * PT_PAGE_TABLE_LEVEL and there would be no adjustment done
++	 * here.
++	 */
++	if (!is_error_pfn(pfn) && !kvm_is_mmio_pfn(pfn) &&
++	    level == PT_PAGE_TABLE_LEVEL &&
++	    PageTransCompound(pfn_to_page(pfn)) &&
++	    !has_wrprotected_page(vcpu->kvm, gfn, PT_DIRECTORY_LEVEL)) {
++		unsigned long mask;
++		/*
++		 * mmu_notifier_retry was successful and we hold the
++		 * mmu_lock here, so the pmd can't become splitting
++		 * from under us, and in turn
++		 * __split_huge_page_refcount() can't run from under
++		 * us and we can safely transfer the refcount from
++		 * PG_tail to PG_head as we switch the pfn to tail to
++		 * head.
++		 */
++		*levelp = level = PT_DIRECTORY_LEVEL;
++		mask = KVM_PAGES_PER_HPAGE(level) - 1;
++		VM_BUG_ON((gfn & mask) != (pfn & mask));
++		if (pfn & mask) {
++			gfn &= ~mask;
++			*gfnp = gfn;
++			kvm_release_pfn_clean(pfn);
++			pfn &= ~mask;
++			if (!get_page_unless_zero(pfn_to_page(pfn)))
++				BUG();
++			*pfnp = pfn;
++		}
  	}
-+
- 	page_cache_get(newpage);
- 
- 	if (!(buf->flags & PIPE_BUF_FLAG_LRU))
-Index: linux-2.6/include/linux/memcontrol.h
-===================================================================
---- linux-2.6.orig/include/linux/memcontrol.h	2011-01-07 17:53:39.000000000 +0100
-+++ linux-2.6/include/linux/memcontrol.h	2011-01-07 19:14:45.000000000 +0100
-@@ -95,6 +95,9 @@ mem_cgroup_prepare_migration(struct page
- extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
- 	struct page *oldpage, struct page *newpage);
- 
-+extern void mem_cgroup_replace_cache_page(struct page *oldpage,
-+					  struct page *newpage);
-+
- /*
-  * For memory reclaim.
-  */
-@@ -236,6 +239,11 @@ static inline void mem_cgroup_end_migrat
- {
  }
  
-+static inline void mem_cgroup_replace_cache_page(struct page *oldpage,
-+					 	struct page *newpage)
-+{
-+}
-+
- static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
+@@ -2335,27 +2369,31 @@ static int nonpaging_map(struct kvm_vcpu
  {
- 	return 0;
-Index: linux-2.6/mm/memcontrol.c
-===================================================================
---- linux-2.6.orig/mm/memcontrol.c	2011-01-07 17:53:39.000000000 +0100
-+++ linux-2.6/mm/memcontrol.c	2011-01-07 19:20:41.000000000 +0100
-@@ -2905,6 +2905,44 @@ void mem_cgroup_end_migration(struct mem
- }
+ 	int r;
+ 	int level;
++	int force_pt_level;
+ 	pfn_t pfn;
+ 	unsigned long mmu_seq;
+ 	bool map_writable;
  
- /*
-+ * This function moves the charge from oldpage to newpage.  The new
-+ * page must not be already charged.
-+ */
-+void mem_cgroup_replace_cache_page(struct page *oldpage, struct page *newpage)
-+{
-+	struct page_cgroup *old_pc;
-+	struct page_cgroup *new_pc;
-+	struct mem_cgroup *mem;
-+
-+	if (mem_cgroup_disabled())
-+		return;
-+
-+	old_pc = lookup_page_cgroup(oldpage);
-+	lock_page_cgroup(old_pc);
-+	if (!PageCgroupUsed(old_pc)) {
-+		unlock_page_cgroup(old_pc);
-+		return;
-+	}
-+
-+	mem = old_pc->mem_cgroup;
-+	css_get(&mem->css);
-+	ClearPageCgroupUsed(old_pc);
-+	unlock_page_cgroup(old_pc);
-+
-+	new_pc = lookup_page_cgroup(newpage);
-+	lock_page_cgroup(new_pc);
-+	BUG_ON(PageCgroupUsed(new_pc));
-+
-+	new_pc->mem_cgroup = mem;
-+	smp_wmb();
-+	SetPageCgroupCache(new_pc);
-+	SetPageCgroupUsed(new_pc);
-+	unlock_page_cgroup(new_pc);
-+	css_put(&mem->css);
-+}
-+
-+
-+/*
-  * A call to try to shrink memory usage on charge failure at shmem's swapin.
-  * Calling hierarchical_reclaim is not enough because we should update
-  * last_oom_jiffies to prevent pagefault_out_of_memory from invoking global OOM.
+-	level = mapping_level(vcpu, gfn);
+-
+-	/*
+-	 * This path builds a PAE pagetable - so we can map 2mb pages at
+-	 * maximum. Therefore check if the level is larger than that.
+-	 */
+-	if (level > PT_DIRECTORY_LEVEL)
+-		level = PT_DIRECTORY_LEVEL;
++	force_pt_level = mapping_level_dirty_bitmap(vcpu, gfn);
++	if (likely(!force_pt_level)) {
++		level = mapping_level(vcpu, gfn);
++		/*
++		 * This path builds a PAE pagetable - so we can map
++		 * 2mb pages at maximum. Therefore check if the level
++		 * is larger than that.
++		 */
++		if (level > PT_DIRECTORY_LEVEL)
++			level = PT_DIRECTORY_LEVEL;
+ 
+-	gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
++		gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
++	} else
++		level = PT_PAGE_TABLE_LEVEL;
+ 
+ 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+ 	smp_rmb();
+ 
+ 	if (try_async_pf(vcpu, prefault, gfn, v, &pfn, write, &map_writable))
+ 		return 0;
+-	transparent_hugepage_adjust(&gfn, &pfn, &level);
+ 
+ 	/* mmio */
+ 	if (is_error_pfn(pfn))
+@@ -2365,6 +2403,8 @@ static int nonpaging_map(struct kvm_vcpu
+ 	if (mmu_notifier_retry(vcpu, mmu_seq))
+ 		goto out_unlock;
+ 	kvm_mmu_free_some_pages(vcpu);
++	if (likely(!force_pt_level))
++		transparent_hugepage_adjust(vcpu, &gfn, &pfn, &level);
+ 	r = __direct_map(vcpu, v, write, map_writable, level, gfn, pfn,
+ 			 prefault);
+ 	spin_unlock(&vcpu->kvm->mmu_lock);
+@@ -2701,6 +2741,7 @@ static int tdp_page_fault(struct kvm_vcp
+ 	pfn_t pfn;
+ 	int r;
+ 	int level;
++	int force_pt_level;
+ 	gfn_t gfn = gpa >> PAGE_SHIFT;
+ 	unsigned long mmu_seq;
+ 	int write = error_code & PFERR_WRITE_MASK;
+@@ -2713,16 +2754,18 @@ static int tdp_page_fault(struct kvm_vcp
+ 	if (r)
+ 		return r;
+ 
+-	level = mapping_level(vcpu, gfn);
+-
+-	gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
++	force_pt_level = mapping_level_dirty_bitmap(vcpu, gfn);
++	if (likely(!force_pt_level)) {
++		level = mapping_level(vcpu, gfn);
++		gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
++	} else
++		level = PT_PAGE_TABLE_LEVEL;
+ 
+ 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+ 	smp_rmb();
+ 
+ 	if (try_async_pf(vcpu, prefault, gfn, gpa, &pfn, write, &map_writable))
+ 		return 0;
+-	transparent_hugepage_adjust(&gfn, &pfn, &level);
+ 
+ 	/* mmio */
+ 	if (is_error_pfn(pfn))
+@@ -2731,6 +2774,8 @@ static int tdp_page_fault(struct kvm_vcp
+ 	if (mmu_notifier_retry(vcpu, mmu_seq))
+ 		goto out_unlock;
+ 	kvm_mmu_free_some_pages(vcpu);
++	if (likely(!force_pt_level))
++		transparent_hugepage_adjust(vcpu, &gfn, &pfn, &level);
+ 	r = __direct_map(vcpu, gpa, write, map_writable,
+ 			 level, gfn, pfn, prefault);
+ 	spin_unlock(&vcpu->kvm->mmu_lock);
+--- a/arch/x86/kvm/paging_tmpl.h
++++ b/arch/x86/kvm/paging_tmpl.h
+@@ -553,6 +553,7 @@ static int FNAME(page_fault)(struct kvm_
+ 	int r;
+ 	pfn_t pfn;
+ 	int level = PT_PAGE_TABLE_LEVEL;
++	int force_pt_level;
+ 	unsigned long mmu_seq;
+ 	bool map_writable;
+ 
+@@ -580,7 +581,11 @@ static int FNAME(page_fault)(struct kvm_
+ 		return 0;
+ 	}
+ 
+-	if (walker.level >= PT_DIRECTORY_LEVEL) {
++	if (walker.level >= PT_DIRECTORY_LEVEL)
++		force_pt_level = mapping_level_dirty_bitmap(vcpu, walker.gfn);
++	else
++		force_pt_level = 1;
++	if (!force_pt_level) {
+ 		level = min(walker.level, mapping_level(vcpu, walker.gfn));
+ 		walker.gfn = walker.gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
+ 	}
+@@ -591,7 +596,6 @@ static int FNAME(page_fault)(struct kvm_
+ 	if (try_async_pf(vcpu, prefault, walker.gfn, addr, &pfn, write_fault,
+ 			 &map_writable))
+ 		return 0;
+-	transparent_hugepage_adjust(&walker.gfn, &pfn, &level);
+ 
+ 	/* mmio */
+ 	if (is_error_pfn(pfn))
+@@ -603,6 +607,8 @@ static int FNAME(page_fault)(struct kvm_
+ 
+ 	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_PAGE_FAULT);
+ 	kvm_mmu_free_some_pages(vcpu);
++	if (!force_pt_level)
++		transparent_hugepage_adjust(vcpu, &walker.gfn, &pfn, &level);
+ 	sptep = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
+ 			     level, &write_pt, pfn, map_writable, prefault);
+ 	(void)sptep;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
