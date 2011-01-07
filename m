@@ -1,125 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A61766B00AE
-	for <linux-mm@kvack.org>; Fri,  7 Jan 2011 08:05:58 -0500 (EST)
-Received: by iyj17 with SMTP id 17so16967272iyj.14
-        for <linux-mm@kvack.org>; Fri, 07 Jan 2011 05:05:57 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D9516B00B0
+	for <linux-mm@kvack.org>; Fri,  7 Jan 2011 09:53:24 -0500 (EST)
+Date: Fri, 7 Jan 2011 14:52:59 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: mmotm hangs on compaction lock_page
+Message-ID: <20110107145259.GK29257@csn.ul.ie>
+References: <alpine.LSU.2.00.1101061632020.9601@sister.anvils>
 MIME-Version: 1.0
-In-Reply-To: <AANLkTi=S3TLY92RE3VZdzZ3MpzyWEOtxMaUPtm7miCA9@mail.gmail.com>
-References: <AANLkTinbqG7sXxf82wc516snLoae1DtCWjo+VtsPx2P3@mail.gmail.com>
-	<20101122154754.e022d935.akpm@linux-foundation.org>
-	<AANLkTi=AiJ1MekBXZbVj3f2pBtFe52BtCxtbRq=u-YOR@mail.gmail.com>
-	<20101129152500.000c380b.akpm@linux-foundation.org>
-	<alpine.LSU.2.00.1011300939520.6633@tigran.mtv.corp.google.com>
-	<alpine.LSU.2.00.1012291231540.22566@sister.anvils>
-	<AANLkTi=ZuOJ07yN-nqso_pX_NS90eKrPD=vG9-_a59vG@mail.gmail.com>
-	<AANLkTi=S3TLY92RE3VZdzZ3MpzyWEOtxMaUPtm7miCA9@mail.gmail.com>
-Date: Fri, 7 Jan 2011 14:05:57 +0100
-Message-ID: <AANLkTin75LdO653Q1eX4Ws1X-s2Dae+aRyGhx_a7yh9n@mail.gmail.com>
-Subject: Re: kernel BUG at /build/buildd/linux-2.6.35/mm/filemap.c:128!
-From: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1101061632020.9601@sister.anvils>
 Sender: owner-linux-mm@kvack.org
 To: Hugh Dickins <hughd@google.com>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 7, 2011 at 2:02 PM, Robert =C5=9Awi=C4=99cki <robert@swiecki.ne=
-t> wrote:
-> =C2=A0but will be happy if someone else beats me to it.
->>>
->>> I have since found an omission in the restart_addr logic: looking back
->>> at the October 2004 history of vm_truncate_count, I see that originally
->>> I designed it to work one way, but hurriedly added a 7/6 redesign when
->>> vma splitting turned out to leave an ambiguity. =C2=A0I should have upd=
-ated
->>> the protection in mremap move at that time, but missed it.
->>>
->>> Robert, please try out the patch below (should apply fine to 2.6.35):
->>
->> In the beginning =C2=A0of Jan (3-4) at earliest I'm afraid, i.e. when I
->> manage to get to my console-over-rs232 setup.
->
-> I cannot reproduce it even with the unpatched kernel, cause I get the
-> following oops (3 times out of 3 tries) relatively quickly. Still
-> trying.
->
-> Entering kdb (current=3D0xffff88006b525ac0, pid 12468) on processor 1 Oop=
-s: (null)
-> due to oops @ 0xffffffff810c2a1b
-> CPU 1 <c>
-> <d>Pid: 12468, comm: iknowthis Not tainted 2.6.37-rc2 #1
+On Thu, Jan 06, 2011 at 05:20:25PM -0800, Hugh Dickins wrote:
+> Hi Mel,
+> 
+> Here are the traces of two concurrent "cp -a kerneltree elsewhere"s
+> which have hung on mmotm: in limited RAM, on a PowerPC
 
-Hm.. wrong kernel, trying now with 2.6.35 - anyway this proc readdir
-oops appears also on 2.6.35
+How limited in RAM and how many CPUs?
 
-> 0GH911/Precision WorkStation 390
-> <d>RIP: 0010:[<ffffffff810c2a1b>] =C2=A0[<ffffffff810c2a1b>] next_pidmap+=
-0x4b/0xa0
-> <d>RSP: 0000:ffff88006bc6fd78 =C2=A0EFLAGS: 00010206
-> <d>RAX: 001ffffffffd2010 RBX: 001fffff829eee38 RCX: 0000000000000034
-> <d>RDX: 0000000000001bd7 RSI: 00000000e9009bd6 RDI: ffffffff82a1ce20
-> <d>RBP: ffff88006bc6fd98 R08: c000000000000000 R09: 4fb0000000000000
-> <d>R10: 7d80000000000000 R11: 0000000000000000 R12: ffffffff82a1d628
-> <d>R13: ffffffff82a1ce20 R14: ffff880123768000 R15: ffffffff811d98e0
-> <d>FS: =C2=A00000000000000000(0000) GS:ffff8800cfc40000(0063) knlGS:00000=
-000f74aa6c0
-> <d>CS: =C2=A00010 DS: 002b ES: 002b CR0: 000000008005003b
-> <d>CR2: 000000000808865c CR3: 000000011b1a4000 CR4: 00000000000006e0
-> <d>DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> <d>DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> Process iknowthis (pid: 12468, threadinfo ffff88006bc6e000, task
-> ffff88006b525ac0)
-> <0>Stack:
-> <c> ffff88006bc6fe78<c> 00000000e9009bd6<c> 0000000000000000<c>
-> ffffffff82a1ce20<c>
-> <c> ffff88006bc6fdc8<c> ffffffff810c2aac<c> ffff880018cfc410<c>
-> ffffffff82a1ce20<c>
-> <c> 00000000e9009bd6<c> ffffffff811d98e0<c> ffff88006bc6fe28<c>
-> ffffffff811f3dab<c>
-> <0>Call Trace:
-> [1]more>
-> Only 'q' or 'Q' are processed at more prompt, input ignored
-> <0> [<ffffffff810c2aac>] find_ge_pid+0x3c/0x50
-> <0> [<ffffffff811d98e0>] ? compat_fillonedir+0x0/0xe0
-> <0> [<ffffffff811f3dab>] next_tgid+0x3b/0xc0
-> <0> [<ffffffff811d98e0>] ? compat_fillonedir+0x0/0xe0
-> <0> [<ffffffff811f42ec>] proc_pid_readdir+0x13c/0x1d0
-> <0> [<ffffffff811d98e0>] ? compat_fillonedir+0x0/0xe0
-> <0> [<ffffffff811f03fa>] proc_root_readdir+0x4a/0x60
-> <0> [<ffffffff811d98e0>] ? compat_fillonedir+0x0/0xe0
-> <0> [<ffffffff811a58d0>] vfs_readdir+0xc0/0xe0
-> <0> [<ffffffff811d8435>] compat_sys_old_readdir+0x45/0x70
-> <0> [<ffffffff8108b023>] ia32_sysret+0x0/0x5
-> <0>Code: 89 fd 48 c1 e8 0f 48 c1 e0 04 48 8d 5c 07 08 4c 39 e3 73 54
-> 81 e2 ff 7f 00 00 eb 0f eb 02 90 90 48 83 c3 10 31 d2 49 39 dc 76 3d
-> <48> 8b 7b 08 48 85 ff 74 ec 48 63 d2 be 00 80 00 00 e8 6f a4 41
+> - I don't have
+> an explanation for why I can reproduce it in minutes on that box but
+> never yet on the x86s.
+> 
+
+Strongest bet is simply that compaction is not triggering for you on the
+x86 boxes. Monitor "grep compact /proc/vmstat" on the two machines and
+see if the counters are growing on powerpc and not on x86. I'm trying to
+reproduce the problem locally but no luck yet.
+
+> Perhaps we can get it to happen with just one cp: the second cp here
+> seemed to be deadlocking itself, unmap_and_move()'s force lock_page
+> waiting on a page which its page cache readahead already holds locked.
+> 
+> cp              D 000000000fea3110     0 18874  18873 0x00008010
 > Call Trace:
-> =C2=A0[<ffffffff810c2aac>] find_ge_pid+0x3c/0x50
-> =C2=A0[<ffffffff811d98e0>] ? compat_fillonedir+0x0/0xe0
-> =C2=A0[<ffffffff811f3dab>] next_tgid+0x3b/0xc0
-> =C2=A0[<ffffffff811d98e0>] ? compat_fillonedir+0x0/0xe0
-> =C2=A0[<ffffffff811f42ec>] proc_pid_readdir+0x13c/0x1d0
-> =C2=A0[<ffffffff811d98e0>] ? compat_fillonedir+0x0/0xe0
-> =C2=A0[<ffffffff811f03fa>] proc_root_readdir+0x4a/0x60
-> =C2=A0[<ffffffff811d98e0>] ? compat_fillonedir+0x0/0xe0
-> =C2=A0[<ffffffff811a58d0>] vfs_readdir+0xc0/0xe0
-> [1]more>
-> Only 'q' or 'Q' are processed at more prompt, input ignored
-> =C2=A0[<ffffffff811d8435>] compat_sys_old_readdir+0x45/0x70
-> =C2=A0[<ffffffff8108b023>] ia32_sysret+0x0/0x5
->
->
->
-> --
-> Robert =C5=9Awi=C4=99cki
->
+>  .__switch_to+0xcc/0x110
+>  .schedule+0x670/0x7b0
+>  .io_schedule+0x50/0x8c
+>  .sync_page+0x84/0xa0
+>  .sync_page_killable+0x10/0x48
+>  .__wait_on_bit_lock+0x9c/0x140
+>  .__lock_page_killable+0x74/0x98
+>  .do_generic_file_read+0x2b0/0x504
+>  .generic_file_aio_read+0x214/0x29c
+>  .do_sync_read+0xac/0x10c
+>  .vfs_read+0xd0/0x1a0
+>  .SyS_read+0x58/0xa0
+>  syscall_exit+0x0/0x40
+>  syscall_exit+0x0/0x40
+> 
+> cp              D 000000000fea3110     0 18876  18875 0x00008010
+> Call Trace:
+>  0xc000000001343b68 (unreliable)
+>  .__switch_to+0xcc/0x110
+>  .schedule+0x670/0x7b0
+>  .io_schedule+0x50/0x8c
+>  .sync_page+0x84/0xa0
+>  .__wait_on_bit_lock+0x9c/0x140
+>  .__lock_page+0x74/0x98
+>  .unmap_and_move+0xfc/0x380
+>  .migrate_pages+0xbc/0x18c
+>  .compact_zone+0xbc/0x400
+>  .compact_zone_order+0xc8/0xf4
+>  .try_to_compact_pages+0x104/0x1b8
+>  .__alloc_pages_direct_compact+0xa8/0x228
+>  .__alloc_pages_nodemask+0x42c/0x730
+>  .allocate_slab+0x84/0x168
+>  .new_slab+0x58/0x198
+>  .__slab_alloc+0x1ec/0x430
+>  .kmem_cache_alloc+0x7c/0xe0
+>  .radix_tree_preload+0x94/0x140
+>  .add_to_page_cache_locked+0x70/0x1f0
+>  .add_to_page_cache_lru+0x50/0xac
+>  .mpage_readpages+0xcc/0x198
+>  .ext3_readpages+0x28/0x40
+>  .__do_page_cache_readahead+0x1ac/0x2ac
+>  .ra_submit+0x28/0x38
 
+Something is odd right here. I would have expected entries in the
+calli stack containing
 
+ .ondemand_readahead
+ .page_cache_sync_readahead
 
---=20
-Robert =C5=9Awi=C4=99cki
+I am going to have to assume these functions were really called
+otherwise the ra_submit is a mystery :(
+
+>  .do_generic_file_read+0xe8/0x504
+>  .generic_file_aio_read+0x214/0x29c
+>  .do_sync_read+0xac/0x10c
+>  .vfs_read+0xd0/0x1a0
+>  .SyS_read+0x58/0xa0
+>  syscall_exit+0x0/0x40
+> 
+> I haven't made a patch for it, just hacked unmap_and_move() to say
+> "if (!0)" instead of "if (!force)" to get on with my testing.  I expect
+> you'll want to pass another arg down to migrate_pages() to prevent
+> setting force, or give it some flags, or do something with PF_MEMALLOC.
+> 
+
+I tend to agree but I'm failing to see how it might be happening right now.
+The callchain looks something like
+
+do_generic_file_read
+   # page is not found
+   page_cache_sync_readahead
+      ondemand_readahead
+         ra_submit
+            __do_page_cache_readahead
+               # Allocates a bunch of pages
+               # Sets PageReadahead. Otherwise the pages  initialised
+               # and they are not on the LRU yet
+               read_pages
+                  # Calls mapping->readpages which calls mpage_readpages
+                  mpage_readpages
+                     # For the list of pages (index initialised), add
+                     # each of them to the LRU. Adding to the LRU
+                     # locks the page and should return the page
+                     # locked.
+                     add_to_page_cache_lru
+                     # sets PageSwapBacked
+                        add_to_page_cache
+                           # locks page
+                           add_to_page_cache_locked
+                              # preloads radix tree
+                                 radix_tree_preload
+                                 # DEADLOCK HERE. This is what does not
+                                 # make sense. Compaction could not be
+                                 # be finding the page on the LRU as
+                                 # lru_cache_add_file() has not been
+                                 # called yet for this page
+
+So I don't think we are locking on the same page.
+
+Here is a possibility. mpage_readpages() is reading ahead so there are obviously
+pages that are not Uptodate. It queues these for asynchronous read with
+block_read_full_page(), returns and adds the page to the LRU (so compaction
+is now able to find it). IO starts at some time in the future with the page
+still locked and gets unlocked at the end of IO by end_buffer_async_read().
+
+Between when IO is queued and it completes, a new page is being added to
+the LRU, the radix tree is loaded and compaction kicks off trying to
+lock the same page that is not up to date yet. Something is preventing
+the IO completing and the page being unlocked but I'm missing what that
+might be.
+
+Does this sound plausible? I'll keep looking but I wanted to see if
+someone spotted quickly a major flaw in the reasoning or have a quick
+guess as to why the page might not be getting unlocked at the end of IO
+properly.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
