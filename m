@@ -1,258 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 64EFB6B00BB
-	for <linux-mm@kvack.org>; Fri,  7 Jan 2011 13:54:37 -0500 (EST)
-Date: Fri, 7 Jan 2011 19:54:33 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id CB28C6B0087
+	for <linux-mm@kvack.org>; Fri,  7 Jan 2011 14:06:25 -0500 (EST)
+Date: Fri, 7 Jan 2011 20:06:21 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH -mm] thp: fix for KVM THP support
-Message-ID: <20110107185433.GS15823@random.random>
+Subject: [PATCH -mm] KSM on THP
+Message-ID: <20110107190620.GT15823@random.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello Andrew,
+Hello,
 
-I'm sending 3 patches to apply on top of your -mm tree.
-
-This adjusts the KVM THP support, there was some issue with the
-previous approach. This still keeps the same approach to avoid two
-gup_fast for each secondary mmu page fault but I tested it (even not
-exactly on top of -mm because I had some problem building it) and it
-works fine so far.
+this is the second patch update and it should apply at the end.
 
 ======
-Subject: thp: fix for KVM THP support
+Subject: KSM on THP
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-There were several bugs: dirty_bitmap ignored (migration shutoff largepages),
-has_wrprotect_page(directory_level) ignored, refcount taken on tail page and
-refcount released on pfn head page post-adjustment (now it's being transferred
-during the adjustment, that's where KSM over THP tripped inside
-split_huge_page, the rest I found it by code review).
+This makes KSM full operational with THP pages. Subpages are scanned
+while the hugepage is still in place and delivering max cpu
+performance, and only if there's a match and we're going to
+deduplicate memory, the single hugepages with the subpage match is
+split.
+
+There will be no false sharing between ksmd and khugepaged. khugepaged
+won't collapse 2m virtual regions with KSM pages inside. ksmd also
+should only split pages when the checksum matches and we're likely to
+split an hugepage for some long living ksm page (usual ksm heuristic
+to avoid sharing pages that get de-cowed).
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- arch/x86/kvm/mmu.c         |   97 ++++++++++++++++++++++++++++++++-------------
- arch/x86/kvm/paging_tmpl.h |   10 +++-
- 2 files changed, 79 insertions(+), 28 deletions(-)
 
-This would become thp-kvm-mmu-transparent-hugepage-support-fix.patch
-
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -554,14 +554,18 @@ static int host_mapping_level(struct kvm
- 	return ret;
+diff --git a/mm/ksm.c b/mm/ksm.c
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -412,6 +412,29 @@ out:
+ 	up_read(&mm->mmap_sem);
  }
  
--static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
-+static bool mapping_level_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t large_gfn)
- {
- 	struct kvm_memory_slot *slot;
--	int host_level, level, max_level;
--
- 	slot = gfn_to_memslot(vcpu->kvm, large_gfn);
- 	if (slot && slot->dirty_bitmap)
--		return PT_PAGE_TABLE_LEVEL;
-+		return true;
-+	return false;
++static struct page *page_trans_compound_anon(struct page *page)
++{
++	if (PageTransCompound(page)) {
++		struct page *head;
++		head = compound_head(page);
++		/*
++		 * head may be a dangling pointer.
++		 * __split_huge_page_refcount clears PageTail
++		 * before overwriting first_page, so if
++		 * PageTail is still there it means the head
++		 * pointer isn't dangling.
++		 */
++		if (head != page) {
++			smp_rmb();
++			if (!PageTransCompound(page))
++				return NULL;
++		}
++		if (PageAnon(head))
++			return head;
++	}
++	return NULL;
 +}
 +
-+static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
+ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+ {
+ 	struct mm_struct *mm = rmap_item->mm;
+@@ -431,7 +454,7 @@ static struct page *get_mergeable_page(s
+ 	page = follow_page(vma, addr, FOLL_GET);
+ 	if (IS_ERR_OR_NULL(page))
+ 		goto out;
+-	if (PageAnon(page) && !PageTransCompound(page)) {
++	if (PageAnon(page) || page_trans_compound_anon(page)) {
+ 		flush_anon_page(vma, page, addr);
+ 		flush_dcache_page(page);
+ 	} else {
+@@ -709,6 +732,7 @@ static int write_protect_page(struct vm_
+ 	if (addr == -EFAULT)
+ 		goto out;
+ 
++	BUG_ON(PageTransCompound(page));
+ 	ptep = page_check_address(page, mm, addr, &ptl, 0);
+ 	if (!ptep)
+ 		goto out;
+@@ -784,6 +808,7 @@ static int replace_page(struct vm_area_s
+ 		goto out;
+ 
+ 	pmd = pmd_offset(pud, addr);
++	BUG_ON(pmd_trans_huge(*pmd));
+ 	if (!pmd_present(*pmd))
+ 		goto out;
+ 
+@@ -811,6 +836,33 @@ out:
+ 	return err;
+ }
+ 
++static int page_trans_compound_anon_split(struct page *page)
 +{
-+	int host_level, level, max_level;
- 
- 	host_level = host_mapping_level(vcpu->kvm, large_gfn);
- 
-@@ -2315,15 +2319,45 @@ static int kvm_handle_bad_page(struct kv
- 	return 1;
- }
- 
--static void transparent_hugepage_adjust(gfn_t *gfn, pfn_t *pfn, int * level)
-+static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
-+					gfn_t *gfnp, pfn_t *pfnp, int *levelp)
- {
--	/* check if it's a transparent hugepage */
--	if (!is_error_pfn(*pfn) && !kvm_is_mmio_pfn(*pfn) &&
--	    *level == PT_PAGE_TABLE_LEVEL &&
--	    PageTransCompound(pfn_to_page(*pfn))) {
--		*level = PT_DIRECTORY_LEVEL;
--		*gfn = *gfn & ~(KVM_PAGES_PER_HPAGE(*level) - 1);
--		*pfn = *pfn & ~(KVM_PAGES_PER_HPAGE(*level) - 1);
-+	pfn_t pfn = *pfnp;
-+	gfn_t gfn = *gfnp;
-+	int level = *levelp;
++	int ret = 0;
++	struct page *transhuge_head = page_trans_compound_anon(page);
++	if (transhuge_head) {
++		/* Get the reference on the head to split it. */
++		if (get_page_unless_zero(transhuge_head)) {
++			/*
++			 * Recheck we got the reference while the head
++			 * was still anonymous.
++			 */
++			if (PageAnon(transhuge_head))
++				ret = split_huge_page(transhuge_head);
++			else
++				/*
++				 * Retry later if split_huge_page run
++				 * from under us.
++				 */
++				ret = 1;
++			put_page(transhuge_head);
++		} else
++			/* Retry later if split_huge_page run from under us. */
++			ret = 1;
++	}
++	return ret;
++}
 +
-+	/*
-+	 * Check if it's a transparent hugepage. If this would be an
-+	 * hugetlbfs page, level wouldn't be set to
-+	 * PT_PAGE_TABLE_LEVEL and there would be no adjustment done
-+	 * here.
-+	 */
-+	if (!is_error_pfn(pfn) && !kvm_is_mmio_pfn(pfn) &&
-+	    level == PT_PAGE_TABLE_LEVEL &&
-+	    PageTransCompound(pfn_to_page(pfn)) &&
-+	    !has_wrprotected_page(vcpu->kvm, gfn, PT_DIRECTORY_LEVEL)) {
-+		unsigned long mask;
-+		/*
-+		 * mmu_notifier_retry was successful and we hold the
-+		 * mmu_lock here, so the pmd can't become splitting
-+		 * from under us, and in turn
-+		 * __split_huge_page_refcount() can't run from under
-+		 * us and we can safely transfer the refcount from
-+		 * PG_tail to PG_head as we switch the pfn to tail to
-+		 * head.
-+		 */
-+		*levelp = level = PT_DIRECTORY_LEVEL;
-+		mask = KVM_PAGES_PER_HPAGE(level) - 1;
-+		VM_BUG_ON((gfn & mask) != (pfn & mask));
-+		if (pfn & mask) {
-+			gfn &= ~mask;
-+			*gfnp = gfn;
-+			kvm_release_pfn_clean(pfn);
-+			pfn &= ~mask;
-+			if (!get_page_unless_zero(pfn_to_page(pfn)))
-+				BUG();
-+			*pfnp = pfn;
-+		}
- 	}
- }
+ /*
+  * try_to_merge_one_page - take two pages and merge them into one
+  * @vma: the vma that holds the pte pointing to page
+@@ -831,6 +883,9 @@ static int try_to_merge_one_page(struct 
  
-@@ -2335,27 +2369,31 @@ static int nonpaging_map(struct kvm_vcpu
- {
- 	int r;
- 	int level;
-+	int force_pt_level;
- 	pfn_t pfn;
- 	unsigned long mmu_seq;
- 	bool map_writable;
+ 	if (!(vma->vm_flags & VM_MERGEABLE))
+ 		goto out;
++	if (PageTransCompound(page) && page_trans_compound_anon_split(page))
++		goto out;
++	BUG_ON(PageTransCompound(page));
+ 	if (!PageAnon(page))
+ 		goto out;
  
--	level = mapping_level(vcpu, gfn);
--
--	/*
--	 * This path builds a PAE pagetable - so we can map 2mb pages at
--	 * maximum. Therefore check if the level is larger than that.
--	 */
--	if (level > PT_DIRECTORY_LEVEL)
--		level = PT_DIRECTORY_LEVEL;
-+	force_pt_level = mapping_level_dirty_bitmap(vcpu, gfn);
-+	if (likely(!force_pt_level)) {
-+		level = mapping_level(vcpu, gfn);
-+		/*
-+		 * This path builds a PAE pagetable - so we can map
-+		 * 2mb pages at maximum. Therefore check if the level
-+		 * is larger than that.
-+		 */
-+		if (level > PT_DIRECTORY_LEVEL)
-+			level = PT_DIRECTORY_LEVEL;
- 
--	gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
-+		gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
-+	} else
-+		level = PT_PAGE_TABLE_LEVEL;
- 
- 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
- 	smp_rmb();
- 
- 	if (try_async_pf(vcpu, prefault, gfn, v, &pfn, write, &map_writable))
- 		return 0;
--	transparent_hugepage_adjust(&gfn, &pfn, &level);
- 
- 	/* mmio */
- 	if (is_error_pfn(pfn))
-@@ -2365,6 +2403,8 @@ static int nonpaging_map(struct kvm_vcpu
- 	if (mmu_notifier_retry(vcpu, mmu_seq))
- 		goto out_unlock;
- 	kvm_mmu_free_some_pages(vcpu);
-+	if (likely(!force_pt_level))
-+		transparent_hugepage_adjust(vcpu, &gfn, &pfn, &level);
- 	r = __direct_map(vcpu, v, write, map_writable, level, gfn, pfn,
- 			 prefault);
- 	spin_unlock(&vcpu->kvm->mmu_lock);
-@@ -2701,6 +2741,7 @@ static int tdp_page_fault(struct kvm_vcp
- 	pfn_t pfn;
- 	int r;
- 	int level;
-+	int force_pt_level;
- 	gfn_t gfn = gpa >> PAGE_SHIFT;
- 	unsigned long mmu_seq;
- 	int write = error_code & PFERR_WRITE_MASK;
-@@ -2713,16 +2754,18 @@ static int tdp_page_fault(struct kvm_vcp
- 	if (r)
- 		return r;
- 
--	level = mapping_level(vcpu, gfn);
--
--	gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
-+	force_pt_level = mapping_level_dirty_bitmap(vcpu, gfn);
-+	if (likely(!force_pt_level)) {
-+		level = mapping_level(vcpu, gfn);
-+		gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
-+	} else
-+		level = PT_PAGE_TABLE_LEVEL;
- 
- 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
- 	smp_rmb();
- 
- 	if (try_async_pf(vcpu, prefault, gfn, gpa, &pfn, write, &map_writable))
- 		return 0;
--	transparent_hugepage_adjust(&gfn, &pfn, &level);
- 
- 	/* mmio */
- 	if (is_error_pfn(pfn))
-@@ -2731,6 +2774,8 @@ static int tdp_page_fault(struct kvm_vcp
- 	if (mmu_notifier_retry(vcpu, mmu_seq))
- 		goto out_unlock;
- 	kvm_mmu_free_some_pages(vcpu);
-+	if (likely(!force_pt_level))
-+		transparent_hugepage_adjust(vcpu, &gfn, &pfn, &level);
- 	r = __direct_map(vcpu, gpa, write, map_writable,
- 			 level, gfn, pfn, prefault);
- 	spin_unlock(&vcpu->kvm->mmu_lock);
---- a/arch/x86/kvm/paging_tmpl.h
-+++ b/arch/x86/kvm/paging_tmpl.h
-@@ -553,6 +553,7 @@ static int FNAME(page_fault)(struct kvm_
- 	int r;
- 	pfn_t pfn;
- 	int level = PT_PAGE_TABLE_LEVEL;
-+	int force_pt_level;
- 	unsigned long mmu_seq;
- 	bool map_writable;
- 
-@@ -580,7 +581,11 @@ static int FNAME(page_fault)(struct kvm_
- 		return 0;
- 	}
- 
--	if (walker.level >= PT_DIRECTORY_LEVEL) {
-+	if (walker.level >= PT_DIRECTORY_LEVEL)
-+		force_pt_level = mapping_level_dirty_bitmap(vcpu, walker.gfn);
-+	else
-+		force_pt_level = 1;
-+	if (!force_pt_level) {
- 		level = min(walker.level, mapping_level(vcpu, walker.gfn));
- 		walker.gfn = walker.gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
- 	}
-@@ -591,7 +596,6 @@ static int FNAME(page_fault)(struct kvm_
- 	if (try_async_pf(vcpu, prefault, walker.gfn, addr, &pfn, write_fault,
- 			 &map_writable))
- 		return 0;
--	transparent_hugepage_adjust(&walker.gfn, &pfn, &level);
- 
- 	/* mmio */
- 	if (is_error_pfn(pfn))
-@@ -603,6 +607,8 @@ static int FNAME(page_fault)(struct kvm_
- 
- 	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_PAGE_FAULT);
- 	kvm_mmu_free_some_pages(vcpu);
-+	if (!force_pt_level)
-+		transparent_hugepage_adjust(vcpu, &walker.gfn, &pfn, &level);
- 	sptep = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
- 			     level, &write_pt, pfn, map_writable, prefault);
- 	(void)sptep;
+@@ -1285,14 +1340,8 @@ next_mm:
+ 				cond_resched();
+ 				continue;
+ 			}
+-			if (PageTransCompound(*page)) {
+-				put_page(*page);
+-				ksm_scan.address &= HPAGE_PMD_MASK;
+-				ksm_scan.address += HPAGE_PMD_SIZE;
+-				cond_resched();
+-				continue;
+-			}
+-			if (PageAnon(*page)) {
++			if (PageAnon(*page) ||
++			    page_trans_compound_anon(*page)) {
+ 				flush_anon_page(vma, *page, ksm_scan.address);
+ 				flush_dcache_page(*page);
+ 				rmap_item = get_next_rmap_item(slot,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
