@@ -1,125 +1,275 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A9F646B0088
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 09:38:02 -0500 (EST)
-Received: by bwz16 with SMTP id 16so20147977bwz.14
-        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 06:38:00 -0800 (PST)
-Message-ID: <4D2B19C5.5060709@gmail.com>
-Date: Mon, 10 Jan 2011 15:37:57 +0100
-From: Jiri Slaby <jirislaby@gmail.com>
-MIME-Version: 1.0
-Subject: qemu-kvm defunct due to THP [was: mmotm 2011-01-06-15-41 uploaded]
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 285896B0087
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 10:01:33 -0500 (EST)
+Date: Mon, 10 Jan 2011 16:01:28 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: qemu-kvm defunct due to THP [was: mmotm 2011-01-06-15-41
+ uploaded]
+Message-ID: <20110110150128.GC9506@random.random>
 References: <201101070014.p070Egpo023959@imap1.linux-foundation.org>
-In-Reply-To: <201101070014.p070Egpo023959@imap1.linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-2
-Content-Transfer-Encoding: 7bit
+ <4D2B19C5.5060709@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4D2B19C5.5060709@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com, kvm@vger.kernel.org
+To: Jiri Slaby <jirislaby@gmail.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 01/07/2011 12:41 AM, akpm@linux-foundation.org wrote:
-> The mm-of-the-moment snapshot 2011-01-06-15-41 has been uploaded to
+On Mon, Jan 10, 2011 at 03:37:57PM +0100, Jiri Slaby wrote:
+> On 01/07/2011 12:41 AM, akpm@linux-foundation.org wrote:
+> > The mm-of-the-moment snapshot 2011-01-06-15-41 has been uploaded to
+> 
+> Hi, something of the following breaks qemu-kvm:
 
-Hi, something of the following breaks qemu-kvm:
+Thanks for the report. It's already fixed and I posted this a few days
+ago to linux-mm.
 
-> thp-add-pmd-mangling-generic-functions.patch
-> thp-add-pmd-mangling-generic-functions-fix-pgtableh-build-for-um.patch
-> thp-add-pmd-mangling-functions-to-x86.patch
-> thp-bail-out-gup_fast-on-splitting-pmd.patch
-> thp-pte-alloc-trans-splitting.patch
-> thp-pte-alloc-trans-splitting-fix.patch
-> thp-pte-alloc-trans-splitting-fix-checkpatch-fixes.patch
-> thp-add-pmd-mmu_notifier-helpers.patch
-> thp-clear-page-compound.patch
-> thp-add-pmd_huge_pte-to-mm_struct.patch
-> thp-split_huge_page_mm-vma.patch
-> thp-split_huge_page-paging.patch
-> thp-clear_copy_huge_page.patch
-> thp-kvm-mmu-transparent-hugepage-support.patch
-> thp-_gfp_no_kswapd.patch
-> thp-dont-alloc-harder-for-gfp-nomemalloc-even-if-nowait.patch
-> thp-transparent-hugepage-core.patch
-> thp-split_huge_page-anon_vma-ordering-dependency.patch
-> thp-verify-pmd_trans_huge-isnt-leaking.patch
-> thp-madvisemadv_hugepage.patch
-> thp-add-pagetranscompound.patch
-> thp-pmd_trans_huge-migrate-bugcheck.patch
-> thp-memcg-compound.patch
-> thp-transhuge-memcg-commit-tail-pages-at-charge.patch
-> thp-memcg-huge-memory.patch
-> thp-transparent-hugepage-vmstat.patch
-> thp-khugepaged.patch
-> thp-khugepaged-vma-merge.patch
-> thp-skip-transhuge-pages-in-ksm-for-now.patch
-> thp-remove-pg_buddy.patch
-> thp-add-x86-32bit-support.patch
-> thp-mincore-transparent-hugepage-support.patch
-> thp-add-pmd_modify.patch
-> thp-mprotect-pass-vma-down-to-page-table-walkers.patch
-> thp-mprotect-transparent-huge-page-support.patch
-> thp-set-recommended-min-free-kbytes.patch
-> thp-enable-direct-defrag.patch
-> thp-add-numa-awareness-to-hugepage-allocations.patch
-> thp-allocate-memory-in-khugepaged-outside-of-mmap_sem-write-mode.patch
-> thp-allocate-memory-in-khugepaged-outside-of-mmap_sem-write-mode-fix.patch
-> thp-transparent-hugepage-config-choice.patch
-> thp-select-config_compaction-if-transparent_hugepage-enabled.patch
-> thp-transhuge-isolate_migratepages.patch
-> thp-avoid-breaking-huge-pmd-invariants-in-case-of-vma_adjust-failures.patch
-> thp-dont-allow-transparent-hugepage-support-without-pse.patch
-> thp-mmu_notifier_test_young.patch
-> thp-freeze-khugepaged-and-ksmd.patch
-> thp-use-compaction-in-kswapd-for-gfp_atomic-order-0.patch
-> thp-use-compaction-for-all-allocation-orders.patch
-> thp-disable-transparent-hugepages-by-default-on-small-systems.patch
-> thp-fix-anon-memory-statistics-with-transparent-hugepages.patch
-> thp-scale-nr_rotated-to-balance-memory-pressure.patch
-> thp-transparent-hugepage-sysfs-meminfo.patch
-> thp-add-debug-checks-for-mapcount-related-invariants.patch
-> thp-fix-memory-failure-hugetlbfs-vs-thp-collision.patch
-> thp-compound_trans_order.patch
-> thp-compound_trans_order-fix.patch
-> thp-mm-define-madv_nohugepage.patch
-> thp-madvisemadv_nohugepage.patch
-> thp-khugepaged-make-khugepaged-aware-of-madvise.patch
-> thp-khugepaged-make-khugepaged-aware-of-madvise-fix.patch
+I had to rewrite the KVM THP support when merging THP in -mm, because
+the kvm code in -mm has async page faults and doing so I eliminated
+one gfn_to_page lookup for each kvm secondary mmu page fault. But
+first new attempt wasn't entirely successful ;), the below incremental
+fix should work. Please test it and let me know if any trouble is
+left.
 
-The series is unbisectable, build errors occur. It needs to be fixed too.
+Also note again on linux-mm I posted two more patches, I recommend to
+apply the other two as well. The second adds KSM THP support, the
+third cleanup some code but I like to have it tested.
 
-The kernel complains:
-BUG: Bad page state in process qemu-kvm  pfn:1bec05
-page:ffffea00061ba118 count:1883770 mapcount:0 mapping:          (null)
-index:0x0
-page flags: 0x8000000000008000(tail)
-Pid: 4221, comm: qemu-kvm Not tainted 2.6.37-mm1_64 #2
-Call Trace:
- [<ffffffff810cefcb>] ? bad_page+0xab/0x120
- [<ffffffff810cf4a1>] ? free_pages_prepare+0xa1/0xd0
- [<ffffffff810cfebd>] ? __free_pages_ok+0x2d/0xc0
- [<ffffffff810cff66>] ? free_compound_page+0x16/0x20
- [<ffffffff810d44f7>] ? __put_compound_page+0x17/0x20
- [<ffffffff810d4578>] ? put_compound_page+0x48/0x170
- [<ffffffff810d49ae>] ? release_pages+0x24e/0x260
- [<ffffffff810f757d>] ? free_pages_and_swap_cache+0x8d/0xb0
- [<ffffffff81108b30>] ? zap_huge_pmd+0x130/0x1b0
- [<ffffffff810e9877>] ? unmap_vmas+0x877/0xbb0
- [<ffffffff810ec14a>] ? exit_mmap+0xda/0x170
- [<ffffffff810697fa>] ? mmput+0x4a/0x110
- [<ffffffff8106e11b>] ? exit_mm+0x12b/0x170
- [<ffffffff81070299>] ? do_exit+0x6d9/0x820
- [<ffffffff810973cc>] ? futex_wake+0x10c/0x130
- [<ffffffff81070423>] ? do_group_exit+0x43/0xb0
- [<ffffffff8107c59a>] ? get_signal_to_deliver+0x1ba/0x390
- [<ffffffff8103028f>] ? do_notify_resume+0xef/0x850
- [<ffffffff8107aae3>] ? dequeue_signal+0x93/0x160
- [<ffffffff8107add7>] ? sys_rt_sigtimedwait+0x227/0x230
- [<ffffffff81099cce>] ? sys_futex+0x7e/0x150
- [<ffffffff8103101b>] ? int_signal+0x12/0x17
+Thanks a lot,
+Andrea
 
-regards,
--- 
-js
+====
+Subject: thp: fix for KVM THP support
+
+From: Andrea Arcangeli <aarcange@redhat.com>
+
+There were several bugs: dirty_bitmap ignored (migration shutoff largepages),
+has_wrprotect_page(directory_level) ignored, refcount taken on tail page and
+refcount released on pfn head page post-adjustment (now it's being transferred
+during the adjustment, that's where KSM over THP tripped inside
+split_huge_page, the rest I found it by code review).
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ arch/x86/kvm/mmu.c         |   97 ++++++++++++++++++++++++++++++++-------------
+ arch/x86/kvm/paging_tmpl.h |   10 +++-
+ 2 files changed, 79 insertions(+), 28 deletions(-)
+
+This would become thp-kvm-mmu-transparent-hugepage-support-fix.patch
+
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -554,14 +554,18 @@ static int host_mapping_level(struct kvm
+ 	return ret;
+ }
+ 
+-static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
++static bool mapping_level_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t large_gfn)
+ {
+ 	struct kvm_memory_slot *slot;
+-	int host_level, level, max_level;
+-
+ 	slot = gfn_to_memslot(vcpu->kvm, large_gfn);
+ 	if (slot && slot->dirty_bitmap)
+-		return PT_PAGE_TABLE_LEVEL;
++		return true;
++	return false;
++}
++
++static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
++{
++	int host_level, level, max_level;
+ 
+ 	host_level = host_mapping_level(vcpu->kvm, large_gfn);
+ 
+@@ -2315,15 +2319,45 @@ static int kvm_handle_bad_page(struct kv
+ 	return 1;
+ }
+ 
+-static void transparent_hugepage_adjust(gfn_t *gfn, pfn_t *pfn, int * level)
++static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
++					gfn_t *gfnp, pfn_t *pfnp, int *levelp)
+ {
+-	/* check if it's a transparent hugepage */
+-	if (!is_error_pfn(*pfn) && !kvm_is_mmio_pfn(*pfn) &&
+-	    *level == PT_PAGE_TABLE_LEVEL &&
+-	    PageTransCompound(pfn_to_page(*pfn))) {
+-		*level = PT_DIRECTORY_LEVEL;
+-		*gfn = *gfn & ~(KVM_PAGES_PER_HPAGE(*level) - 1);
+-		*pfn = *pfn & ~(KVM_PAGES_PER_HPAGE(*level) - 1);
++	pfn_t pfn = *pfnp;
++	gfn_t gfn = *gfnp;
++	int level = *levelp;
++
++	/*
++	 * Check if it's a transparent hugepage. If this would be an
++	 * hugetlbfs page, level wouldn't be set to
++	 * PT_PAGE_TABLE_LEVEL and there would be no adjustment done
++	 * here.
++	 */
++	if (!is_error_pfn(pfn) && !kvm_is_mmio_pfn(pfn) &&
++	    level == PT_PAGE_TABLE_LEVEL &&
++	    PageTransCompound(pfn_to_page(pfn)) &&
++	    !has_wrprotected_page(vcpu->kvm, gfn, PT_DIRECTORY_LEVEL)) {
++		unsigned long mask;
++		/*
++		 * mmu_notifier_retry was successful and we hold the
++		 * mmu_lock here, so the pmd can't become splitting
++		 * from under us, and in turn
++		 * __split_huge_page_refcount() can't run from under
++		 * us and we can safely transfer the refcount from
++		 * PG_tail to PG_head as we switch the pfn to tail to
++		 * head.
++		 */
++		*levelp = level = PT_DIRECTORY_LEVEL;
++		mask = KVM_PAGES_PER_HPAGE(level) - 1;
++		VM_BUG_ON((gfn & mask) != (pfn & mask));
++		if (pfn & mask) {
++			gfn &= ~mask;
++			*gfnp = gfn;
++			kvm_release_pfn_clean(pfn);
++			pfn &= ~mask;
++			if (!get_page_unless_zero(pfn_to_page(pfn)))
++				BUG();
++			*pfnp = pfn;
++		}
+ 	}
+ }
+ 
+@@ -2335,27 +2369,31 @@ static int nonpaging_map(struct kvm_vcpu
+ {
+ 	int r;
+ 	int level;
++	int force_pt_level;
+ 	pfn_t pfn;
+ 	unsigned long mmu_seq;
+ 	bool map_writable;
+ 
+-	level = mapping_level(vcpu, gfn);
+-
+-	/*
+-	 * This path builds a PAE pagetable - so we can map 2mb pages at
+-	 * maximum. Therefore check if the level is larger than that.
+-	 */
+-	if (level > PT_DIRECTORY_LEVEL)
+-		level = PT_DIRECTORY_LEVEL;
++	force_pt_level = mapping_level_dirty_bitmap(vcpu, gfn);
++	if (likely(!force_pt_level)) {
++		level = mapping_level(vcpu, gfn);
++		/*
++		 * This path builds a PAE pagetable - so we can map
++		 * 2mb pages at maximum. Therefore check if the level
++		 * is larger than that.
++		 */
++		if (level > PT_DIRECTORY_LEVEL)
++			level = PT_DIRECTORY_LEVEL;
+ 
+-	gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
++		gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
++	} else
++		level = PT_PAGE_TABLE_LEVEL;
+ 
+ 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+ 	smp_rmb();
+ 
+ 	if (try_async_pf(vcpu, prefault, gfn, v, &pfn, write, &map_writable))
+ 		return 0;
+-	transparent_hugepage_adjust(&gfn, &pfn, &level);
+ 
+ 	/* mmio */
+ 	if (is_error_pfn(pfn))
+@@ -2365,6 +2403,8 @@ static int nonpaging_map(struct kvm_vcpu
+ 	if (mmu_notifier_retry(vcpu, mmu_seq))
+ 		goto out_unlock;
+ 	kvm_mmu_free_some_pages(vcpu);
++	if (likely(!force_pt_level))
++		transparent_hugepage_adjust(vcpu, &gfn, &pfn, &level);
+ 	r = __direct_map(vcpu, v, write, map_writable, level, gfn, pfn,
+ 			 prefault);
+ 	spin_unlock(&vcpu->kvm->mmu_lock);
+@@ -2701,6 +2741,7 @@ static int tdp_page_fault(struct kvm_vcp
+ 	pfn_t pfn;
+ 	int r;
+ 	int level;
++	int force_pt_level;
+ 	gfn_t gfn = gpa >> PAGE_SHIFT;
+ 	unsigned long mmu_seq;
+ 	int write = error_code & PFERR_WRITE_MASK;
+@@ -2713,16 +2754,18 @@ static int tdp_page_fault(struct kvm_vcp
+ 	if (r)
+ 		return r;
+ 
+-	level = mapping_level(vcpu, gfn);
+-
+-	gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
++	force_pt_level = mapping_level_dirty_bitmap(vcpu, gfn);
++	if (likely(!force_pt_level)) {
++		level = mapping_level(vcpu, gfn);
++		gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
++	} else
++		level = PT_PAGE_TABLE_LEVEL;
+ 
+ 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+ 	smp_rmb();
+ 
+ 	if (try_async_pf(vcpu, prefault, gfn, gpa, &pfn, write, &map_writable))
+ 		return 0;
+-	transparent_hugepage_adjust(&gfn, &pfn, &level);
+ 
+ 	/* mmio */
+ 	if (is_error_pfn(pfn))
+@@ -2731,6 +2774,8 @@ static int tdp_page_fault(struct kvm_vcp
+ 	if (mmu_notifier_retry(vcpu, mmu_seq))
+ 		goto out_unlock;
+ 	kvm_mmu_free_some_pages(vcpu);
++	if (likely(!force_pt_level))
++		transparent_hugepage_adjust(vcpu, &gfn, &pfn, &level);
+ 	r = __direct_map(vcpu, gpa, write, map_writable,
+ 			 level, gfn, pfn, prefault);
+ 	spin_unlock(&vcpu->kvm->mmu_lock);
+--- a/arch/x86/kvm/paging_tmpl.h
++++ b/arch/x86/kvm/paging_tmpl.h
+@@ -553,6 +553,7 @@ static int FNAME(page_fault)(struct kvm_
+ 	int r;
+ 	pfn_t pfn;
+ 	int level = PT_PAGE_TABLE_LEVEL;
++	int force_pt_level;
+ 	unsigned long mmu_seq;
+ 	bool map_writable;
+ 
+@@ -580,7 +581,11 @@ static int FNAME(page_fault)(struct kvm_
+ 		return 0;
+ 	}
+ 
+-	if (walker.level >= PT_DIRECTORY_LEVEL) {
++	if (walker.level >= PT_DIRECTORY_LEVEL)
++		force_pt_level = mapping_level_dirty_bitmap(vcpu, walker.gfn);
++	else
++		force_pt_level = 1;
++	if (!force_pt_level) {
+ 		level = min(walker.level, mapping_level(vcpu, walker.gfn));
+ 		walker.gfn = walker.gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
+ 	}
+@@ -591,7 +596,6 @@ static int FNAME(page_fault)(struct kvm_
+ 	if (try_async_pf(vcpu, prefault, walker.gfn, addr, &pfn, write_fault,
+ 			 &map_writable))
+ 		return 0;
+-	transparent_hugepage_adjust(&walker.gfn, &pfn, &level);
+ 
+ 	/* mmio */
+ 	if (is_error_pfn(pfn))
+@@ -603,6 +607,8 @@ static int FNAME(page_fault)(struct kvm_
+ 
+ 	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_PAGE_FAULT);
+ 	kvm_mmu_free_some_pages(vcpu);
++	if (!force_pt_level)
++		transparent_hugepage_adjust(vcpu, &walker.gfn, &pfn, &level);
+ 	sptep = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
+ 			     level, &write_pt, pfn, map_writable, prefault);
+ 	(void)sptep;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
