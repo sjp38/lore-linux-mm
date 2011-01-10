@@ -1,82 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2A3B06B0087
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 10:39:02 -0500 (EST)
-Received: by iyj17 with SMTP id 17so19226241iyj.14
-        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 07:39:01 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 68F276B0087
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 10:39:42 -0500 (EST)
+Received: by iwn40 with SMTP id 40so20309541iwn.14
+        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 07:39:40 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20110108221635.GB23189@cmpxchg.org>
-References: <cover.1293982522.git.minchan.kim@gmail.com>
-	<39f5e90f69d523d7f69f8ba283e318def6538307.1293982522.git.minchan.kim@gmail.com>
-	<20110108221635.GB23189@cmpxchg.org>
-Date: Tue, 11 Jan 2011 00:39:00 +0900
-Message-ID: <AANLkTi=tkOgiPUSqo3OLVNJrSUrp97sdhQ1Jn0tLhi9Y@mail.gmail.com>
-Subject: Re: [PATCH v2 1/7] Introduce delete_from_page_cache
+In-Reply-To: <20110106095647.GC29257@csn.ul.ie>
+References: <cover.1292604745.git.minchan.kim@gmail.com>
+	<08549e97645f7d6c2bcc5c760a24fde56dfed513.1292604745.git.minchan.kim@gmail.com>
+	<20110106095647.GC29257@csn.ul.ie>
+Date: Tue, 11 Jan 2011 00:39:39 +0900
+Message-ID: <AANLkTin9RhCSf4YO2KYujV7T3W7D3vuecmGOq7XvFQGn@mail.gmail.com>
+Subject: Re: [RFC 3/5] tlbfs: Remove unnecessary page release
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, William Irwin <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jan 9, 2011 at 7:16 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Mon, Jan 03, 2011 at 12:44:30AM +0900, Minchan Kim wrote:
->> This function works as just wrapper remove_from_page_cache.
->> The difference is that it decreases page references in itself.
->> So caller have to make sure it has a page reference before calling.
+On Thu, Jan 6, 2011 at 6:56 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> On Sat, Dec 18, 2010 at 02:13:38AM +0900, Minchan Kim wrote:
+>> This patch series changes remove_from_page_cache's page ref counting
+>> rule. page cache ref count is decreased in remove_from_page_cache.
+>> So we don't need call again in caller context.
 >>
->> This patch is ready for removing remove_from_page_cache.
->>
->> Cc: Christoph Hellwig <hch@infradead.org>
->> Acked-by: Hugh Dickins <hughd@google.com>
->> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> Cc: William Irwin <wli@holomorphy.com>
 >> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->> ---
->> =A0include/linux/pagemap.h | =A0 =A01 +
->> =A0mm/filemap.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 17 +++++++++++++++++
->> =A02 files changed, 18 insertions(+), 0 deletions(-)
->>
->> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
->> index 9c66e99..7a1cb49 100644
->> --- a/include/linux/pagemap.h
->> +++ b/include/linux/pagemap.h
->> @@ -457,6 +457,7 @@ int add_to_page_cache_lru(struct page *page, struct =
-address_space *mapping,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pgoff_t inde=
-x, gfp_t gfp_mask);
->> =A0extern void remove_from_page_cache(struct page *page);
->> =A0extern void __remove_from_page_cache(struct page *page);
->> +extern void delete_from_page_cache(struct page *page);
->>
->> =A0/*
->> =A0 * Like add_to_page_cache_locked, but used to add newly allocated pag=
-es:
->> diff --git a/mm/filemap.c b/mm/filemap.c
->> index 095c393..1ca7475 100644
->> --- a/mm/filemap.c
->> +++ b/mm/filemap.c
->> @@ -166,6 +166,23 @@ void remove_from_page_cache(struct page *page)
->> =A0}
->> =A0EXPORT_SYMBOL(remove_from_page_cache);
->>
->> +/**
->> + * delete_from_page_cache - delete page from page cache
->> + *
 >
-> This empty line is invalid kerneldoc, the argument descriptions must
-> follow the short function description line immediately.
+> Other than the subject calling hugetlbfs tlbfs, I did not see any problem
+> with this assuming the first patch of the series is also applied.
 
-Thanks, Hannes.
+Thanks, Mel.
 Will fix.
 
->
-> Otherwise,
-> Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
->
 
-
---=20
+-- 
 Kind regards,
 Minchan Kim
 
