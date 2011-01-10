@@ -1,69 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F2816B0088
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 04:05:12 -0500 (EST)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp08.in.ibm.com (8.14.4/8.13.1) with ESMTP id p0A8IjjL015425
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 13:48:45 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0A956X23559638
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 14:35:07 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0A955G6015216
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 14:35:06 +0530
-Date: Mon, 10 Jan 2011 14:35:03 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [BUGFIX][PATCH v4] memcg: fix memory migration of shmem
- swapcache
-Message-ID: <20110110090503.GD2613@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20110105130020.e2a854e4.nishimura@mxp.nes.nec.co.jp>
- <20110105115840.GD4654@cmpxchg.org>
- <20110106100923.24b1dd12.nishimura@mxp.nes.nec.co.jp>
- <AANLkTi=rp=WZa7PP4V6anU0SQ3BM-RJQwiDu1fJuoDig@mail.gmail.com>
- <20110106123415.895d6dfc.nishimura@mxp.nes.nec.co.jp>
- <20110106054200.GG3722@balbir.in.ibm.com>
- <20110106152911.db6c5b2c.nishimura@mxp.nes.nec.co.jp>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C33D06B0088
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 08:16:27 -0500 (EST)
+Date: Mon, 10 Jan 2011 15:16:26 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 0/8] zcache: page cache compression support
+Message-ID: <20110110131626.GA18407@shutemov.name>
+References: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110106152911.db6c5b2c.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Christoph Hellwig <hch@infradead.org>, Minchan Kim <minchan.kim@gmail.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2011-01-06 15:29:11]:
+Hi,
 
-> > Sorry for nit-picking but succeed is not as good as succeeded,
-> > successful, successful_migration or migration_ok
-> > 
-> OK, I use "migration_ok".
-> 
-> ===
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> In current implimentation, mem_cgroup_end_migration() decides whether the page
-> migration has succeeded or not by checking "oldpage->mapping".
-> 
-> But if we are tring to migrate a shmem swapcache, the page->mapping of it is
-> NULL from the begining, so the check would be invalid.
-> As a result, mem_cgroup_end_migration() assumes the migration has succeeded
-> even if it's not, so "newpage" would be freed while it's not uncharged.
-> 
-> This patch fixes it by passing mem_cgroup_end_migration() the result of the
-> page migration.
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+What is status of the patchset?
+Do you have updated patchset with fixes?
 
-
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
- 
 -- 
-	Three Cheers,
-	Balbir
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
