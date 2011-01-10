@@ -1,41 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 68F276B0087
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 10:39:42 -0500 (EST)
-Received: by iwn40 with SMTP id 40so20309541iwn.14
-        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 07:39:40 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2962F6B0087
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 10:45:54 -0500 (EST)
+Received: by iwn40 with SMTP id 40so20315250iwn.14
+        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 07:45:51 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20110106095647.GC29257@csn.ul.ie>
-References: <cover.1292604745.git.minchan.kim@gmail.com>
-	<08549e97645f7d6c2bcc5c760a24fde56dfed513.1292604745.git.minchan.kim@gmail.com>
-	<20110106095647.GC29257@csn.ul.ie>
-Date: Tue, 11 Jan 2011 00:39:39 +0900
-Message-ID: <AANLkTin9RhCSf4YO2KYujV7T3W7D3vuecmGOq7XvFQGn@mail.gmail.com>
-Subject: Re: [RFC 3/5] tlbfs: Remove unnecessary page release
+In-Reply-To: <20110108222838.GE23189@cmpxchg.org>
+References: <cover.1293031046.git.minchan.kim@gmail.com>
+	<4c25f88c476520c47e3b0217e09b6b2d58638685.1293031046.git.minchan.kim@gmail.com>
+	<20110108222838.GE23189@cmpxchg.org>
+Date: Tue, 11 Jan 2011 00:45:51 +0900
+Message-ID: <AANLkTim=+aofmFG=OHTz6fuBC27+Mto31c75Tp_bYrph@mail.gmail.com>
+Subject: Re: [PATCH 4/7] swap: Change remove_from_page_cache
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, William Irwin <wli@holomorphy.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 6, 2011 at 6:56 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On Sat, Dec 18, 2010 at 02:13:38AM +0900, Minchan Kim wrote:
+On Sun, Jan 9, 2011 at 7:28 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Thu, Dec 23, 2010 at 12:32:46AM +0900, Minchan Kim wrote:
 >> This patch series changes remove_from_page_cache's page ref counting
->> rule. page cache ref count is decreased in remove_from_page_cache.
->> So we don't need call again in caller context.
+>> rule. Page cache ref count is decreased in delete_from_page_cache.
+>> So we don't need decreasing page reference by caller.
 >>
->> Cc: William Irwin <wli@holomorphy.com>
+>> Cc:Hugh Dickins <hughd@google.com>
 >> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+>> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> ---
+>> =A0mm/shmem.c | =A0 =A03 +--
 >
-> Other than the subject calling hugetlbfs tlbfs, I did not see any problem
-> with this assuming the first patch of the series is also applied.
+> Patch subject should probably say 'shmem' instead of 'swap'.
 
-Thanks, Mel.
+Thanks, Hannes.
 Will fix.
 
+>
+> Otherwise,
+> Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+>
 
--- 
+
+
+--=20
 Kind regards,
 Minchan Kim
 
