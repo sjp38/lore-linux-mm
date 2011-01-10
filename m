@@ -1,52 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2962F6B0087
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 10:45:54 -0500 (EST)
-Received: by iwn40 with SMTP id 40so20315250iwn.14
-        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 07:45:51 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B95A6B0087
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 11:44:26 -0500 (EST)
+Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p0AGiNGF004821
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 08:44:24 -0800
+Received: by iyj17 with SMTP id 17so19286964iyj.14
+        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 08:44:23 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20110108222838.GE23189@cmpxchg.org>
-References: <cover.1293031046.git.minchan.kim@gmail.com>
-	<4c25f88c476520c47e3b0217e09b6b2d58638685.1293031046.git.minchan.kim@gmail.com>
-	<20110108222838.GE23189@cmpxchg.org>
-Date: Tue, 11 Jan 2011 00:45:51 +0900
-Message-ID: <AANLkTim=+aofmFG=OHTz6fuBC27+Mto31c75Tp_bYrph@mail.gmail.com>
-Subject: Re: [PATCH 4/7] swap: Change remove_from_page_cache
-From: Minchan Kim <minchan.kim@gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1101091110520.5270@tiger>
+References: <alpine.DEB.2.00.1101091110520.5270@tiger>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 10 Jan 2011 08:44:03 -0800
+Message-ID: <AANLkTim0UBNG6bVgBDQsrBhVjS0FSdLbwaipBZGkTeWF@mail.gmail.com>
+Subject: Re: [GIT PULL] SLAB changes for v2.6.38
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: cl@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jan 9, 2011 at 7:28 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Thu, Dec 23, 2010 at 12:32:46AM +0900, Minchan Kim wrote:
->> This patch series changes remove_from_page_cache's page ref counting
->> rule. Page cache ref count is decreased in delete_from_page_cache.
->> So we don't need decreasing page reference by caller.
->>
->> Cc:Hugh Dickins <hughd@google.com>
->> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> ---
->> =A0mm/shmem.c | =A0 =A03 +--
+On Sun, Jan 9, 2011 at 1:13 AM, Pekka Enberg <penberg@kernel.org> wrote:
 >
-> Patch subject should probably say 'shmem' instead of 'swap'.
+> It's been rather quiet for slab allocators this merge cycle. There's only
+> few cleanups here. The bug fixes were merged in v2.6.37 already. As they
+> were cherry-picked from this branch, they show up in the pull request
+> (what's up with that btw).
 
-Thanks, Hannes.
-Will fix.
+For the "what's up with that btw" department:
 
->
-> Otherwise,
-> Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
->
+A cherry-pick really is nothing but "apply the same patch as a
+different commit".
 
+So there is no way to say "this is already there" - because it really
+isn't. It's a totally different thing. In fact, it would be very wrong
+to filter them out, both from a fundamental design standpoint, but
+also from a usability/reliability standpoint: cherry-picks are by no
+means guaranteed to be identical to the source - like any "re-apply
+the patch in another place" model, the end result is not at all
+guaranteed to be semantically identical simply due to different bases:
+the patches may not even be identical, and even if they are, the
+results of the code may depend on what else is going on.
 
+So don't think of cherry-picks as "the same commit". It's not, and it
+never will be. It's a totally separate commit, they just share some
+superficial commonalities.
 
---=20
-Kind regards,
-Minchan Kim
+                    Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
