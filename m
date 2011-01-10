@@ -1,24 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 307856B0087
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 13:14:53 -0500 (EST)
-Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
-	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0AHoqc5016601
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 12:50:53 -0500
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id D359972805B
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 13:14:50 -0500 (EST)
+	by kanga.kvack.org (Postfix) with ESMTP id 357B06B0087
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 13:16:22 -0500 (EST)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e35.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0AI2wHx005671
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 11:02:58 -0700
 Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0AIEoqp397254
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 13:14:50 -0500
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0AIGGcZ102300
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 11:16:16 -0700
 Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0AIEnTw005123
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 11:14:50 -0700
-Message-ID: <4D2B4C99.9090904@austin.ibm.com>
-Date: Mon, 10 Jan 2011 12:14:49 -0600
+	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0AIGFo4011482
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 11:16:16 -0700
+Message-ID: <4D2B4CEE.2050905@austin.ibm.com>
+Date: Mon, 10 Jan 2011 12:16:14 -0600
 From: Nathan Fontenot <nfont@austin.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH 3/4] Define memory_block_size_bytes for powerpc/pseries
+Subject: [PATCH 4/4] Define memory_block_size_bytes for x86_64 with CONFIG_X86_UV
+ defined
 References: <4D2B4B38.80102@austin.ibm.com>
 In-Reply-To: <4D2B4B38.80102@austin.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -28,111 +26,49 @@ To: Greg KH <greg@kroah.com>
 Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Robin Holt <holt@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Define a version of memory_block_size_bytes() for powerpc/pseries such that
-a memory block spans an entire lmb.
+Define a version of memory_block_size_bytes for x86_64 when CONFIG_X86_UV is
+set.
 
+Signed-off-by: Robin Holt <holt@sgi.com>
+Signed-off-by: Jack Steiner <steiner@sgi.com>
 Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
-Reviewed-by: Robin Holt <holt@sgi.com>
 
 ---
- arch/powerpc/platforms/pseries/hotplug-memory.c |   66 +++++++++++++++++++-----
- 1 file changed, 53 insertions(+), 13 deletions(-)
+ arch/x86/mm/init_64.c |   14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
-Index: linux-2.6/arch/powerpc/platforms/pseries/hotplug-memory.c
+Index: linux-2.6/arch/x86/mm/init_64.c
 ===================================================================
---- linux-2.6.orig/arch/powerpc/platforms/pseries/hotplug-memory.c	2011-01-05 10:08:14.000000000 -0600
-+++ linux-2.6/arch/powerpc/platforms/pseries/hotplug-memory.c	2011-01-05 10:17:49.000000000 -0600
-@@ -17,6 +17,54 @@
- #include <asm/pSeries_reconfig.h>
- #include <asm/sparsemem.h>
+--- linux-2.6.orig/arch/x86/mm/init_64.c	2011-01-05 10:08:13.000000000 -0600
++++ linux-2.6/arch/x86/mm/init_64.c	2011-01-05 10:17:51.000000000 -0600
+@@ -51,6 +51,7 @@
+ #include <asm/numa.h>
+ #include <asm/cacheflush.h>
+ #include <asm/init.h>
++#include <asm/uv/uv.h>
  
-+static unsigned long get_memblock_size(void)
-+{
-+	struct device_node *np;
-+	unsigned int memblock_size = 0;
-+
-+	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
-+	if (np) {
-+		const unsigned long *size;
-+
-+		size = of_get_property(np, "ibm,lmb-size", NULL);
-+		memblock_size = size ? *size : 0;
-+
-+		of_node_put(np);
-+	} else {
-+		unsigned int memzero_size = 0;
-+		const unsigned int *regs;
-+
-+		np = of_find_node_by_path("/memory@0");
-+		if (np) {
-+			regs = of_get_property(np, "reg", NULL);
-+			memzero_size = regs ? regs[3] : 0;
-+			of_node_put(np);
-+		}
-+
-+		if (memzero_size) {
-+			/* We now know the size of memory@0, use this to find
-+			 * the first memoryblock and get its size.
-+			 */
-+			char buf[64];
-+
-+			sprintf(buf, "/memory@%x", memzero_size);
-+			np = of_find_node_by_path(buf);
-+			if (np) {
-+				regs = of_get_property(np, "reg", NULL);
-+				memblock_size = regs ? regs[3] : 0;
-+				of_node_put(np);
-+			}
-+		}
-+	}
-+
-+	return memblock_size;
-+}
+ static int __init parse_direct_gbpages_off(char *arg)
+ {
+@@ -908,6 +909,19 @@ const char *arch_vma_name(struct vm_area
+ 	return NULL;
+ }
+ 
++#ifdef CONFIG_X86_UV
++#define MIN_MEMORY_BLOCK_SIZE   (1 << SECTION_SIZE_BITS)
 +
 +unsigned long memory_block_size_bytes(void)
 +{
-+	return get_memblock_size();
++	if (is_uv_system()) {
++		printk(KERN_INFO "UV: memory block size 2GB\n");
++		return 2UL * 1024 * 1024 * 1024;
++	}
++	return MIN_MEMORY_BLOCK_SIZE;
 +}
++#endif
 +
- static int pseries_remove_memblock(unsigned long base, unsigned int memblock_size)
- {
- 	unsigned long start, start_pfn;
-@@ -127,30 +175,22 @@ static int pseries_add_memory(struct dev
- 
- static int pseries_drconf_memory(unsigned long *base, unsigned int action)
- {
--	struct device_node *np;
--	const unsigned long *lmb_size;
-+	unsigned long memblock_size;
- 	int rc;
- 
--	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
--	if (!np)
-+	memblock_size = get_memblock_size();
-+	if (!memblock_size)
- 		return -EINVAL;
- 
--	lmb_size = of_get_property(np, "ibm,lmb-size", NULL);
--	if (!lmb_size) {
--		of_node_put(np);
--		return -EINVAL;
--	}
--
- 	if (action == PSERIES_DRCONF_MEM_ADD) {
--		rc = memblock_add(*base, *lmb_size);
-+		rc = memblock_add(*base, memblock_size);
- 		rc = (rc < 0) ? -EINVAL : 0;
- 	} else if (action == PSERIES_DRCONF_MEM_REMOVE) {
--		rc = pseries_remove_memblock(*base, *lmb_size);
-+		rc = pseries_remove_memblock(*base, memblock_size);
- 	} else {
- 		rc = -EINVAL;
- 	}
- 
--	of_node_put(np);
- 	return rc;
- }
- 
+ #ifdef CONFIG_SPARSEMEM_VMEMMAP
+ /*
+  * Initialise the sparsemem vmemmap using huge-pages at the PMD level.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
