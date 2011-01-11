@@ -1,26 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 88AB16B00E7
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 01:33:59 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1C4313EE0BD
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 15:33:56 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0294445DE58
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 15:33:56 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E097E45DE56
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 15:33:55 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D3F021DB8048
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 15:33:55 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A05BE1DB8047
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 15:33:55 +0900 (JST)
-Date: Tue, 11 Jan 2011 15:27:52 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FB9C6B00E7
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 01:37:30 -0500 (EST)
+Date: Tue, 11 Jan 2011 15:35:13 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Subject: Re: [PATCH] memcg: remove charge variable in unmap_and_move
-Message-Id: <20110111152752.88a2d142.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20110111153513.1c09fa21.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <1294725650-4732-1-git-send-email-minchan.kim@gmail.com>
 References: <1294725650-4732-1-git-send-email-minchan.kim@gmail.com>
 Mime-Version: 1.0
@@ -28,8 +13,10 @@ Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
+
+Hi,
 
 On Tue, 11 Jan 2011 15:00:50 +0900
 Minchan Kim <minchan.kim@gmail.com> wrote:
@@ -58,11 +45,78 @@ Minchan Kim <minchan.kim@gmail.com> wrote:
 > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 > Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
 > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/migrate.c |   12 ++++--------
+>  1 files changed, 4 insertions(+), 8 deletions(-)
+> 
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index b8a32da..e393841 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -623,7 +623,6 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+>  	struct page *newpage = get_new_page(page, private, &result);
+>  	int remap_swapcache = 1;
+>  	int rcu_locked = 0;
+> -	int charge = 0;
+>  	struct mem_cgroup *mem = NULL;
+>  	struct anon_vma *anon_vma = NULL;
+>  
+> @@ -662,12 +661,10 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+>  	}
+>  
+>  	/* charge against new page */
+> -	charge = mem_cgroup_prepare_migration(page, newpage, &mem);
+> -	if (charge == -ENOMEM) {
+> -		rc = -ENOMEM;
+> +	rc = mem_cgroup_prepare_migration(page, newpage, &mem);
+> +	if (rc == -ENOMEM)
+>  		goto unlock;
+> -	}
+> -	BUG_ON(charge);
+> +	BUG_ON(rc);
+>  
+>  	if (PageWriteback(page)) {
+>  		if (!force || !sync)
+> @@ -760,8 +757,7 @@ rcu_unlock:
+>  	if (rcu_locked)
+>  		rcu_read_unlock();
+>  uncharge:
+> -	if (!charge)
+> -		mem_cgroup_end_migration(mem, page, newpage, rc == 0);
+> +	mem_cgroup_end_migration(mem, page, newpage, rc == 0);
+>  unlock:
+>  	unlock_page(page);
+>  
+I proposed pseud code like above, but it's wrong unfortunately.
+If mem_cgroup_prepare_migration() has succeeded, rc is overwritten to 0.
+So even if we failed before calling move_to_new_page(), rc is 0 and
+mem_cgroup_end_migration() mis-understand this migration has succeeded.
 
-Ack.
+And, it seems to be just a bit off-topic, the place of the comment
+"prepare cgroup just returns 0 or -ENOMEM" isn't good, seeing the commit e8589cc1,
+which introduced the comment first.
+
+So, we should do like:
+
+	/* charge against new page */
+	if (mem_cgroup_end_migration(page, &newpage, &mem)) {
+		/* prepare_migration just returns 0 or -ENOMEM */
+		rc = -ENOMEM;
+		goto unlock;
+	}
+
+	if (PageWriteback(page)) {
+		...
+
+uncharge:
+	mem_cgroup_end_migration(mem, page, newpage, rc == 0);
+
+or, overwrite rc to -EAGAIN again.
+I don't stick to checking "BUG_ON(charge)" personally.
+
 
 Thanks,
--Kame
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
