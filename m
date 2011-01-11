@@ -1,118 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 4675E6B00E7
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 04:38:35 -0500 (EST)
-In-reply-to: <20110111125330.e416cff5.nishimura@mxp.nes.nec.co.jp> (message
-	from Daisuke Nishimura on Tue, 11 Jan 2011 12:53:30 +0900)
-Subject: Re: [PATCH] mm: add replace_page_cache_page() function
-References: <E1PbGxV-0001ug-2r@pomaz-ex.szeredi.hu>
-	<20110111112949.57fd6fd7.kamezawa.hiroyu@jp.fujitsu.com> <20110111125330.e416cff5.nishimura@mxp.nes.nec.co.jp>
-Message-Id: <E1PcagC-0007Ge-40@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 11 Jan 2011 10:38:16 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1426F6B00E7
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 04:46:30 -0500 (EST)
+Date: Tue, 11 Jan 2011 04:46:27 -0500 (EST)
+From: CAI Qian <caiqian@redhat.com>
+Message-ID: <976317569.44499.1294739187129.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+In-Reply-To: <1182272788.40910.1294716934667.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Subject: Re: known oom issues on numa in -mm tree?
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, miklos@szeredi.hu, akpm@linux-foundation.org, minchan.kim@gmail.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Jan 2011, Daisuke Nishimura wrote:
-> > What I recommend is below. (Please see the newest -mm because of a bug fix for
-> > mem cgroup) Considering page management on radix-tree, it can be considerd as
-> > a kind of page-migration, which replaces pages on radix-tree.
-> > 
-> > ==
-> > 
-> > > +int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
-> > > +{
-> > > +	int error;
-> > > +
-> > > +	VM_BUG_ON(!PageLocked(old));
-> > > +	VM_BUG_ON(!PageLocked(new));
-> > > +	VM_BUG_ON(new->mapping);
-> > > +
-> > 	struct mem_cgroup *memcg;
-> > 
-> I think it should be initialized to NULL.
-> 
-> > 	error = mem_cgroup_prepare_migration(old, new, &memcg);
-> 
-> I want some comments like:
-> 
-> 	/*
-> 	 * This is not page migration, but prepare_migration and end_migration
-> 	 * does enough work for charge replacement.
-> 	 */
-> 
-> > 	#
-> > 	# This function will charge against "newpage". But this expects
-> > 	# the caller allows GFP_KERNEL gfp_mask. 
-> > 	# After this, the newpage is in "charged" state.
-> > 	if (error)
-> > 		return -ENOMEM;
-> > 
-> > > +	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
-> > > +	if (!error) {
-> > > +		struct address_space *mapping = old->mapping;
-> > > +		pgoff_t offset = old->index;
-> > > +
-> > > +		page_cache_get(new);
-> > > +		new->mapping = mapping;
-> > > +		new->index = offset;
-> > > +
-> > > +		spin_lock_irq(&mapping->tree_lock);
-> > > +		__remove_from_page_cache(old);
-> > > +		error = radix_tree_insert(&mapping->page_tree, offset, new);
-> > > +		BUG_ON(error);
-> > > +		mapping->nrpages++;
-> > > +		__inc_zone_page_state(new, NR_FILE_PAGES);
-> > > +		if (PageSwapBacked(new))
-> > > +			__inc_zone_page_state(new, NR_SHMEM);
-> > > +		spin_unlock_irq(&mapping->tree_lock);
-> > > +		radix_tree_preload_end();
-> > 
-> > > +		mem_cgroup_replace_cache_page(old, new); <== remove this.
-> > 
-> > 		mem_cgroup_end_migraton(memcg, old, new, true);
-> > 
-> > > +		page_cache_release(old);
-> > > +	} 
-> > 	else 
-> > 		mem_cgroup_end_migration(memcg, old, new, false);
-> > 
-> > 	# Here, if the 4th argument is true, old page is uncharged.
-> > 	# if the 4th argument is false, the new page is uncharged.
-> > 	# Then, "charge" of the old page will be migrated onto the new page
-> > 	# if replacement is done.
-> > 
-> > 
-> > 
-> > > +
-> > > +	return error;
-> > > +}
-> > > +EXPORT_SYMBOL_GPL(replace_page_cache_page);
-> > > +
-> > 
-> > ==
-> > 
-> > I think this is enough simple and this covers all memory cgroup's racy
-> > problems.
-> > 
-> I agree.
+BTW, the latest linux-next also had the similar issue.
 
-Thanks for the comments.
+- kswapd was running for a long time.
 
-Yeah, using existing infrastructure is undoubtedly simpler and less
-prone to bugs.  So going with this for a first implementation might
-do.
+runnable tasks:
+            task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
+----------------------------------------------------------------------------------------------------------
+R        kswapd1    82    564957.671501     32922   120    564986.657154   1188257.259742   3555627.915255
 
-However, replace_page_cache_page() is meant to be very efficient,
-otherwise any performance won by not copying the page contents are
-lost to the cost of page replacement.  My guess is,
-mem_cgroup_prepare_migration()/end_migration() are to heavyweight for
-this.
+- it was looping for drain_local_pages.
 
-Thanks,
-Miklos
+oom02           R  running task        0  2023   1969 0x00000088
+ 0000000000000282 ffff88041d219df0 ffff88041fbf8ef0 ffffffff81100800
+ ffff880418ab5b18 0000000000000282 ffffffff8100c9ee ffff880418ab5ba8
+ 0000000087654321 0000000000000000 ffff880000000000 0000000000000001
+Call Trace:
+ [<ffffffff81100800>] ? drain_local_pages+0x0/0x20
+ [<ffffffff8100c9ee>] ? apic_timer_interrupt+0xe/0x20
+ [<ffffffff81097ea6>] ? smp_call_function_many+0x1b6/0x210
+ [<ffffffff81097e82>] ? smp_call_function_many+0x192/0x210
+ [<ffffffff81100800>] ? drain_local_pages+0x0/0x20
+ [<ffffffff81097f22>] ? smp_call_function+0x22/0x30
+ [<ffffffff81068184>] ? on_each_cpu+0x24/0x50
+ [<ffffffff810fe68c>] ? drain_all_pages+0x1c/0x20
+ [<ffffffff81100d04>] ? __alloc_pages_nodemask+0x4e4/0x840
+ [<ffffffff81138e09>] ? alloc_page_vma+0x89/0x140
+ [<ffffffff8111c481>] ? handle_mm_fault+0x871/0xd80
+ [<ffffffff814a4ecd>] ? schedule+0x3fd/0x980
+ [<ffffffff8100c9ee>] ? apic_timer_interrupt+0xe/0x20
+ [<ffffffff8100c9ee>] ? apic_timer_interrupt+0xe/0x20
+ [<ffffffff814aadd3>] ? do_page_fault+0x143/0x4b0
+ [<ffffffff8100a7b4>] ? __switch_to+0x194/0x320
+ [<ffffffff814a4ecd>] ? schedule+0x3fd/0x980
+ [<ffffffff814a7ad5>] ? page_fault+0x25/0x30
+
+- although the local pages were low.
+
+Node 1 Normal free:8052kB min:8136kB low:10168kB high:12204kB active_anon:8026400kB inactive_anon:0kB active_file:0kB inactive_file:20kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:8273920kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:116kB slab_reclaimable:23728kB slab_unreclaimable:175932kB kernel_stack:176kB pagetables:17136kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:10 all_unreclaimable? no
+lowmem_reserve[]: 0 0 0 0
+Node 0 DMA: 0*4kB 0*8kB 1*16kB 0*32kB 2*64kB 1*128kB 1*256kB 0*512kB 1*1024kB 1*2048kB 3*4096kB = 15888kB
+Node 0 DMA32: 10*4kB 10*8kB 7*16kB 8*32kB 4*64kB 8*128kB 10*256kB 2*512kB 4*1024kB 2*2048kB 534*4096kB = 2200808kB
+Node 0 Normal: 519*4kB 824*8kB 440*16kB 202*32kB 87*64kB 29*128kB 15*256kB 11*512kB 3*1024kB 8*2048kB 1065*4096kB = 4422620kB
+Node 1 Normal: 579*4kB 205*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 1*4096kB = 8052kB
+
+It could also be reproduced by using mempolicy alone. The test just hung at memset() while allocating memory.
+
+set_mempolicy(MPOL_BIND, &nmask, MAXNODES);
+while(1) {
+    s = mmap(NULL, length, PROT_READ|PROT_WRITE,
+                MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    memset(s, '\a', length);
+}
+
+CAI Qian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
