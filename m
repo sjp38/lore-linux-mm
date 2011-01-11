@@ -1,58 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D9EBE6B00E7
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 01:17:20 -0500 (EST)
-Received: from acsinet15.oracle.com (acsinet15.oracle.com [141.146.126.227])
-	by rcsinet10.oracle.com (Switch-3.4.2/Switch-3.4.2) with ESMTP id p0B6HFVR005968
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 06:17:17 GMT
-From: Andy Grover <andy.grover@oracle.com>
-Subject: [RESEND PATCH] mm: Use spin_lock_irqsave in __set_page_dirty_nobuffers
-Date: Mon, 10 Jan 2011 22:15:34 -0800
-Message-Id: <1294726534-16438-1-git-send-email-andy.grover@oracle.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 88AB16B00E7
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 01:33:59 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1C4313EE0BD
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 15:33:56 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0294445DE58
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 15:33:56 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E097E45DE56
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 15:33:55 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D3F021DB8048
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 15:33:55 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A05BE1DB8047
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 15:33:55 +0900 (JST)
+Date: Tue, 11 Jan 2011 15:27:52 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: remove charge variable in unmap_and_move
+Message-Id: <20110111152752.88a2d142.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1294725650-4732-1-git-send-email-minchan.kim@gmail.com>
+References: <1294725650-4732-1-git-send-email-minchan.kim@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: rds-devel@oss.oracle.com, Andy Grover <andy.grover@oracle.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-RDS is calling set_page_dirty from interrupt context, which
-ends up calling this function. Using irqsave ensures irqs
-are not re-enabled by this function.
+On Tue, 11 Jan 2011 15:00:50 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-Signed-off-by: Andy Grover <andy.grover@oracle.com>
----
- mm/page-writeback.c |    5 +++--
- 1 files changed, 3 insertions(+), 2 deletions(-)
+> memcg charge/uncharge could be handled by mem_cgroup_[prepare/end]
+> migration itself so charge local variable in unmap_and_move lost the role
+> since we introduced 01b1ae63c2.
+> 
+> In addition, the variable name is not good like below.
+> 
+> int unmap_and_move()
+> {
+> 	charge = mem_cgroup_prepare_migration(xxx);
+> 	..
+> 		BUG_ON(charge); <-- BUG if it is charged?
+> 		..
+> 		uncharge:
+> 		if (!charge)    <-- why do we have to uncharge !charge?
+> 			mem_group_end_migration(xxx);
+> 	..
+> }
+> 
+> So let's remove unnecessary and confusing variable.
+> 
+> Suggested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index b840afa..c6c381b 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1155,11 +1155,12 @@ int __set_page_dirty_nobuffers(struct page *page)
- 	if (!TestSetPageDirty(page)) {
- 		struct address_space *mapping = page_mapping(page);
- 		struct address_space *mapping2;
-+		unsigned long flags;
- 
- 		if (!mapping)
- 			return 1;
- 
--		spin_lock_irq(&mapping->tree_lock);
-+		spin_lock_irqsave(&mapping->tree_lock, flags);
- 		mapping2 = page_mapping(page);
- 		if (mapping2) { /* Race with truncate? */
- 			BUG_ON(mapping2 != mapping);
-@@ -1168,7 +1169,7 @@ int __set_page_dirty_nobuffers(struct page *page)
- 			radix_tree_tag_set(&mapping->page_tree,
- 				page_index(page), PAGECACHE_TAG_DIRTY);
- 		}
--		spin_unlock_irq(&mapping->tree_lock);
-+		spin_unlock_irqrestore(&mapping->tree_lock, flags);
- 		if (mapping->host) {
- 			/* !PageAnon && !swapper_space */
- 			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
--- 
-1.7.1
+Ack.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
