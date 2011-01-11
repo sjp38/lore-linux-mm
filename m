@@ -1,117 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 538E96B00E7
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 21:20:28 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 149AB3EE0B5
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 11:20:25 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EB85845DE5D
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 11:20:24 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C53FE45DE55
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 11:20:24 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B815E1DB8037
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 11:20:24 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 549D21DB803C
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 11:20:24 +0900 (JST)
-Date: Tue, 11 Jan 2011 11:14:20 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: mmotm hangs on compaction lock_page
-Message-Id: <20110111111420.111757ab.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.LSU.2.00.1101101458540.21100@tigran.mtv.corp.google.com>
-References: <alpine.LSU.2.00.1101061632020.9601@sister.anvils>
-	<20110107145259.GK29257@csn.ul.ie>
-	<20110107175705.GL29257@csn.ul.ie>
-	<20110110172609.GA11932@csn.ul.ie>
-	<alpine.LSU.2.00.1101101458540.21100@tigran.mtv.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 585B36B00E7
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 21:29:33 -0500 (EST)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id p0B2TV54022345
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 18:29:31 -0800
+Received: from vws8 (vws8.prod.google.com [10.241.21.136])
+	by wpaz13.hot.corp.google.com with ESMTP id p0B2TUtL018334
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 18:29:30 -0800
+Received: by vws8 with SMTP id 8so9002172vws.26
+        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 18:29:30 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20110111015742.GL9506@random.random>
+References: <alpine.LSU.2.00.1101101652200.11559@sister.anvils>
+	<20110111015742.GL9506@random.random>
+Date: Mon, 10 Jan 2011 18:29:29 -0800
+Message-ID: <AANLkTin=gzZuDBMdGmR5ZY_9f6kggvt0KJA3XK33-z+2@mail.gmail.com>
+Subject: Re: [PATCH mmotm] thp: transparent hugepage core fixlet
+From: Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 10 Jan 2011 15:56:37 -0800 (PST)
-Hugh Dickins <hughd@google.com> wrote:
+On Mon, Jan 10, 2011 at 5:57 PM, Andrea Arcangeli <aarcange@redhat.com> wro=
+te:
+> On Mon, Jan 10, 2011 at 04:55:53PM -0800, Hugh Dickins wrote:
+>> If you configure THP in addition to HUGETLB_PAGE on x86_32 without PAE,
+>> the p?d-folding works out that munlock_vma_pages_range() can crash to
+>> follow_page()'s pud_huge() BUG_ON(flags & FOLL_GET): it needs the same
+>> VM_HUGETLB check already there on the pmd_huge() line. =C2=A0Convenientl=
+y,
+>> openSUSE provides a "blogd" which tests this out at startup!
+>
+> How is THP related to this? pud_trans_huge doesn't exist, if pud_huge
+> is true, vma is already guaranteed to belong to hugetlbfs without
+> requiring the additional check.
 
-> > On Mon, 10 Jan 2011, Mel Gorman wrote:
-> > 
-> > ==== CUT HERE ====
-> > mm: compaction: Avoid potential deadlock for readahead pages and direct compaction
-> > 
-> > Hugh Dickins reported that two instances of cp were locking up when
-> > running on ppc64 in a memory constrained environment. The deadlock
-> > appears to apply to readahead pages. When reading ahead, the pages are
-> > added locked to the LRU and queued for IO. The process is also inserting
-> > pages into the page cache and so is calling radix_preload and entering
-> > the page allocator. When SLUB is used, this can result in direct
-> > compaction finding the page that was just added to the LRU but still
-> > locked by the current process leading to deadlock.
-> > 
-> > This patch avoids locking pages for migration that might already be
-> > locked by the current process. Ideally it would only apply for direct
-> > compaction but compaction does not set PF_MEMALLOC so there is no way
-> > currently of identifying a process in direct compaction. A process-flag
-> > could be added but is likely to be overkill.
-> > 
-> > Reported-by: Hugh Dickins <hughd@google.com>
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> 
-> But whilst I'm hugely grateful to you for working this out,
-> I'm sorry to say that I'm not keen on your patch!
-> 
-> PageMappedToDisk is an fs thing, not an mm thing (migrate.c copies it
-> over but that's all), and I don't like to see you rely on it.  I expect
-> it works well for ext234 and many others that use mpage_readpages,
-> but what of btrfs_readpages?  I couldn't see any use of PageMappedToDisk
-> there.  I suppose you could insist it use it too, but...
-> 
-> How about setting and clearing PF_MEMALLOC around the call to
-> try_to_compact_pages() in __alloc_pages_direct_compact(), and
-> skipping the lock_page when PF_MEMALLOC is set, whatever the
-> page flags?  That would mimic __alloc_pages_direct_reclaim
-> (hmm, reclaim_state??); and I've a suspicion that this readahead
-> deadlock may not be the only one lurking.
-> 
-> Hugh
+THP puts in pmds that are huge.  In this configuration the "folding" is
+such that the puds are the pmds.  So the pud_huge test passes and
+the BUG_ON hits.  I hope I've explained that correctly, agreed that
+it's confusing!
 
-Hmm, in migrate_pages()
-==
-int migrate_pages(struct list_head *from,
-                new_page_t get_new_page, unsigned long private, bool offlining,
-                bool sync)
-{
+>
+> I added the check to pmd_huge already, there it is needed, but for
+> pud_huge it isn't as far as I can tell.
 
-...
-        for(pass = 0; pass < 10 && retry; pass++) {
-                retry = 0;
-...
-	
-                        rc = unmap_and_move(get_new_page, private,
-                                                page, pass > 2, offlining,
-                                                sync);
+Crashing on that BUG_ON suggests otherwise ;)
 
-==
-
-do force locking at pass > 2. Considering direct-compaction, pass > 2 is not
-required I think because it can do compaction on other range of pages.
-
-IOW, what it requires is a range of pages for specified order, but a range of
-pages which is specfied by users. How about skipping pass > 2 when
-it's called by direct compaction ? quick-scan of the next range may be helpful
-rather than waiting on lock.
-
-Thanks,
--Kame
-	
-
-
-
-
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
