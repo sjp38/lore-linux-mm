@@ -1,73 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 5C0E46B00E9
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 00:22:34 -0500 (EST)
-Received: by gxk5 with SMTP id 5so9552930gxk.14
-        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 21:22:32 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 686E66B00EA
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 00:22:38 -0500 (EST)
+Received: by yxl31 with SMTP id 31so8787810yxl.14
+        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 21:22:36 -0800 (PST)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v3 0/7] Change page reference handling semantic of page cache
-Date: Tue, 11 Jan 2011 14:22:04 +0900
-Message-Id: <cover.1294723009.git.minchan.kim@gmail.com>
+Subject: [PATCH v3 1/7] Introduce delete_from_page_cache
+Date: Tue, 11 Jan 2011 14:22:05 +0900
+Message-Id: <34bbf652c570ce9a53ffad78d5fe9a5f3cdfa9a7.1294723009.git.minchan.kim@gmail.com>
+In-Reply-To: <cover.1294723009.git.minchan.kim@gmail.com>
+References: <cover.1294723009.git.minchan.kim@gmail.com>
+In-Reply-To: <cover.1294723009.git.minchan.kim@gmail.com>
+References: <cover.1294723009.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Now we increases page reference on add_to_page_cache but doesn't decrease it
-in remove_from_page_cache. Such asymmetric makes confusing about
-page reference so that caller should notice it and comment why they
-release page reference. It's not good API.
+This function works as just wrapper remove_from_page_cache.
+The difference is that it decreases page references in itself.
+So caller have to make sure it has a page reference before calling.
 
-Long time ago, Hugh tried it[1] but gave up of reason which
-reiser4's drop_page had to unlock the page between removing it from
-page cache and doing the page_cache_release. But now the situation is
-changed. I think at least things in current mainline doesn't have any
-obstacles. The problem is fs or somethings out of mainline.
-If it has done such thing like reiser4, this patch could be a problem but
-they found it when compile time since we remove remove_from_page_cache.
+This patch is ready for removing remove_from_page_cache.
 
-[1] http://lkml.org/lkml/2004/10/24/140
+Cc: Christoph Hellwig <hch@infradead.org>
+Acked-by: Hugh Dickins <hughd@google.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ include/linux/pagemap.h |    1 +
+ mm/filemap.c            |   16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 0 deletions(-)
 
-The series configuration is following as. 
-
-[1/7] : This patch introduces new API delete_from_page_cache.
-[2,3,4,5/7] : Change remove_from_page_cache with delete_from_page_cache.
-Intentionally I divide patch per file since someone might have a concern 
-about releasing page reference of delete_from_page_cache in 
-somecase (ex, truncate.c)
-[6/7] : Remove old API so out of fs can meet compile error when build time
-and can notice it.
-[7/7] : Change __remove_from_page_cache with __delete_from_page_cache, too.
-In this time, I made all-in-one patch because it doesn't change old behavior
-so it has no concern. Just clean up patch.
-
-from v2
- - Add Acked-by
- - rebase on mmotm-01-06
- - change title of some patch
-
-from v1
- - Add Acked-by
- - rebase on mmotm-12-23
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 9c66e99..7a1cb49 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -457,6 +457,7 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+ 				pgoff_t index, gfp_t gfp_mask);
+ extern void remove_from_page_cache(struct page *page);
+ extern void __remove_from_page_cache(struct page *page);
++extern void delete_from_page_cache(struct page *page);
  
-Minchan Kim (7):
-  [1/7] Introduce delete_from_page_cache
-  [2/7] fuse: Change remove_from_page_cache
-  [3/7] hugetlbfs: Change remove_from_page_cache
-  [4/7] shmem: Change remove_from_page_cache
-  [5/7] truncate: Change remove_from_page_cache
-  [6/7] Good bye remove_from_page_cache
-  [7/7] Change __remove_from_page_cache
-
- fs/fuse/dev.c           |    3 +--
- fs/hugetlbfs/inode.c    |    3 +--
- include/linux/pagemap.h |    4 ++--
- mm/filemap.c            |   21 ++++++++++++++++-----
- mm/memory-failure.c     |    2 +-
- mm/shmem.c              |    3 +--
- mm/truncate.c           |    7 +++----
- mm/vmscan.c             |    2 +-
- 8 files changed, 26 insertions(+), 19 deletions(-)
+ /*
+  * Like add_to_page_cache_locked, but used to add newly allocated pages:
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 095c393..cf9bbf2 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -166,6 +166,22 @@ void remove_from_page_cache(struct page *page)
+ }
+ EXPORT_SYMBOL(remove_from_page_cache);
+ 
++/**
++ * delete_from_page_cache - delete page from page cache
++ * @page: the page which the kernel is trying to remove from page cache
++ *
++ * This must be called only on pages that have
++ * been verified to be in the page cache and locked.
++ * It will never put the page into the free list,
++ * the caller has a reference on the page.
++ */
++void delete_from_page_cache(struct page *page)
++{
++	remove_from_page_cache(page);
++	page_cache_release(page);
++}
++EXPORT_SYMBOL(delete_from_page_cache);
++
+ static int sync_page(void *word)
+ {
+ 	struct address_space *mapping;
+-- 
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
