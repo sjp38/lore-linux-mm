@@ -1,86 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A8A1B6B00E7
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 01:01:18 -0500 (EST)
-Received: by gxk5 with SMTP id 5so9562247gxk.14
-        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 22:01:17 -0800 (PST)
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH] memcg: remove charge variable in unmap_and_move
-Date: Tue, 11 Jan 2011 15:00:50 +0900
-Message-Id: <1294725650-4732-1-git-send-email-minchan.kim@gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D9EBE6B00E7
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 01:17:20 -0500 (EST)
+Received: from acsinet15.oracle.com (acsinet15.oracle.com [141.146.126.227])
+	by rcsinet10.oracle.com (Switch-3.4.2/Switch-3.4.2) with ESMTP id p0B6HFVR005968
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 06:17:17 GMT
+From: Andy Grover <andy.grover@oracle.com>
+Subject: [RESEND PATCH] mm: Use spin_lock_irqsave in __set_page_dirty_nobuffers
+Date: Mon, 10 Jan 2011 22:15:34 -0800
+Message-Id: <1294726534-16438-1-git-send-email-andy.grover@oracle.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>
+To: linux-mm@kvack.org
+Cc: rds-devel@oss.oracle.com, Andy Grover <andy.grover@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-memcg charge/uncharge could be handled by mem_cgroup_[prepare/end]
-migration itself so charge local variable in unmap_and_move lost the role
-since we introduced 01b1ae63c2.
+RDS is calling set_page_dirty from interrupt context, which
+ends up calling this function. Using irqsave ensures irqs
+are not re-enabled by this function.
 
-In addition, the variable name is not good like below.
-
-int unmap_and_move()
-{
-	charge = mem_cgroup_prepare_migration(xxx);
-	..
-		BUG_ON(charge); <-- BUG if it is charged?
-		..
-		uncharge:
-		if (!charge)    <-- why do we have to uncharge !charge?
-			mem_group_end_migration(xxx);
-	..
-}
-
-So let's remove unnecessary and confusing variable.
-
-Suggested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Andy Grover <andy.grover@oracle.com>
 ---
- mm/migrate.c |   12 ++++--------
- 1 files changed, 4 insertions(+), 8 deletions(-)
+ mm/page-writeback.c |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index b8a32da..e393841 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -623,7 +623,6 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 	struct page *newpage = get_new_page(page, private, &result);
- 	int remap_swapcache = 1;
- 	int rcu_locked = 0;
--	int charge = 0;
- 	struct mem_cgroup *mem = NULL;
- 	struct anon_vma *anon_vma = NULL;
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index b840afa..c6c381b 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1155,11 +1155,12 @@ int __set_page_dirty_nobuffers(struct page *page)
+ 	if (!TestSetPageDirty(page)) {
+ 		struct address_space *mapping = page_mapping(page);
+ 		struct address_space *mapping2;
++		unsigned long flags;
  
-@@ -662,12 +661,10 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 	}
+ 		if (!mapping)
+ 			return 1;
  
- 	/* charge against new page */
--	charge = mem_cgroup_prepare_migration(page, newpage, &mem);
--	if (charge == -ENOMEM) {
--		rc = -ENOMEM;
-+	rc = mem_cgroup_prepare_migration(page, newpage, &mem);
-+	if (rc == -ENOMEM)
- 		goto unlock;
--	}
--	BUG_ON(charge);
-+	BUG_ON(rc);
- 
- 	if (PageWriteback(page)) {
- 		if (!force || !sync)
-@@ -760,8 +757,7 @@ rcu_unlock:
- 	if (rcu_locked)
- 		rcu_read_unlock();
- uncharge:
--	if (!charge)
--		mem_cgroup_end_migration(mem, page, newpage, rc == 0);
-+	mem_cgroup_end_migration(mem, page, newpage, rc == 0);
- unlock:
- 	unlock_page(page);
- 
+-		spin_lock_irq(&mapping->tree_lock);
++		spin_lock_irqsave(&mapping->tree_lock, flags);
+ 		mapping2 = page_mapping(page);
+ 		if (mapping2) { /* Race with truncate? */
+ 			BUG_ON(mapping2 != mapping);
+@@ -1168,7 +1169,7 @@ int __set_page_dirty_nobuffers(struct page *page)
+ 			radix_tree_tag_set(&mapping->page_tree,
+ 				page_index(page), PAGECACHE_TAG_DIRTY);
+ 		}
+-		spin_unlock_irq(&mapping->tree_lock);
++		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+ 		if (mapping->host) {
+ 			/* !PageAnon && !swapper_space */
+ 			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 -- 
-1.7.0.4
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
