@@ -1,94 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C92E06B0092
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 18:00:20 -0500 (EST)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id p0BN0GZc031439
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 15:00:16 -0800
-Received: from pwj9 (pwj9.prod.google.com [10.241.219.73])
-	by hpaq2.eem.corp.google.com with ESMTP id p0BMxxP2021168
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 15:00:15 -0800
-Received: by pwj9 with SMTP id 9so11472pwj.35
-        for <linux-mm@kvack.org>; Tue, 11 Jan 2011 14:59:58 -0800 (PST)
-Date: Tue, 11 Jan 2011 14:59:43 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH mmotm] thp: transparent hugepage core fixlet
-In-Reply-To: <20110111163120.GR9506@random.random>
-Message-ID: <alpine.LSU.2.00.1101111318190.26539@sister.anvils>
-References: <alpine.LSU.2.00.1101101652200.11559@sister.anvils> <20110111015742.GL9506@random.random> <AANLkTin=gzZuDBMdGmR5ZY_9f6kggvt0KJA3XK33-z+2@mail.gmail.com> <20110111140421.GM9506@random.random> <20110111163120.GR9506@random.random>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A2266B0092
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 18:53:32 -0500 (EST)
+From: H Hartley Sweeten <hartleys@visionengravers.com>
+Date: Tue, 11 Jan 2011 17:49:32 -0600
+Subject: [PATCH] mm/slab.c: make local symbols static
+Message-ID: <0D753D10438DA54287A00B027084269764CE0E54A2@AUSP01VMBX24.collaborationhost.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Jeremy Fitzhardinge <jeremy@goop.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "cl@linux-foundation.org" <cl@linux-foundation.org>, "penberg@cs.helsinki.fi" <penberg@cs.helsinki.fi>, "mpm@selenic.com" <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Jan 2011, Andrea Arcangeli wrote:
-> On Tue, Jan 11, 2011 at 03:04:21PM +0100, Andrea Arcangeli wrote:
-> > architectural bug to me. Why can't pud_huge simply return 0 for
-> > x86_32? Any other place dealing with hugepages and calling pud_huge on
-> > x86 noPAE would be at risk, otherwise, no?
-> 
-> Isn't this better solution?
-
-[Better solution than my patch to follow_page() in mmotm, to fix crash
-with Transparent Huge Pages by duplicating Andrea's pmd_huge VM_HUGETLB
-check to the pud_huge line too.]
-
-The truth is, I'm sure one of the solutions is better than the other,
-but I'm too confused by p?d folding to know which is which ;)
-
-Certainly I don't oppose your patch as a replacement for mine,
-if you're sure yours is better.
-
-There are only two places which are using pud_huge() anyway:
-follow_page() and apply_to_pmd_range().  Is the latter's
-BUG_ON(pud_huge) safe?  Safe in the THP world?
-
-And I never quite understood why we have both pmd_huge and pmd_large,
-pud_huge and pud_large.
-
-There are answers to these questions, but it would take me hours and
-hours of easily-confused research (across several arches) to decide.
-
-I'm hoping someone else has a surer grasp: Andi introduced pud_huge(),
-and Jeremy is the most active in the pagetable layers nowadays -
-perhaps they can tell us more quickly.
-
-Hugh
-
-> 
-> ======
-> Subject: avoid confusing hugetlbfs code when pmd_trans_huge is set
-> 
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> 
-> If pmd is set huge by THP, pud_huge shouldn't return 1 when pud doesn't exist
-> and it's just a 1:1 bypass over the pmd (like it happens on 32bit x86 because
-> there are at most 2 or 3 level of pagetables). Only pmd_huge can return 1.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
-> 
-> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> --- a/arch/x86/mm/hugetlbpage.c
-> +++ b/arch/x86/mm/hugetlbpage.c
-> @@ -227,7 +227,15 @@ int pmd_huge(pmd_t pmd)
->  
->  int pud_huge(pud_t pud)
->  {
-> +#ifdef CONFIG_X86_64
->  	return !!(pud_val(pud) & _PAGE_PSE);
-> +#else
-> +	/*
-> +	 * pud is a bypass with 2 or 3 level pagetables, only pmd_huge
-> +	 * can return 1.
-> +	 */
-> +	return 0;
-> +#endif
->  }
->  
->  struct page *
+TG9jYWwgc3ltYm9scyBzaG91bGQgYmUgc3RhdGljLg0KDQpTaWduZWQtb2ZmLWJ5OiBIIEhhcnRs
+ZXkgU3dlZXRlbiA8aHN3ZWV0ZW5AdmlzaW9uZW5ncmF2ZXJzLmNvbT4NCkNjOiBDaHJpc3RvcGgg
+TGFtZXRlciA8Y2xAbGludXgtZm91bmRhdGlvbi5vcmc+DQpDYzogUGVra2EgRW5iZXJnIDxwZW5i
+ZXJnQGNzLmhlbHNpbmtpLmZpPg0KQ2M6IE1hdHQgTWFja2FsbCA8bXBtQHNlbGVuaWMuY29tPg0K
+DQotLS0NCg0KZGlmZiAtLWdpdCBhL21tL3NsYWIuYyBiL21tL3NsYWIuYw0KaW5kZXggMjY0MDM3
+NC4uMzc5NjFkMWYgMTAwNjQ0DQotLS0gYS9tbS9zbGFiLmMNCisrKyBiL21tL3NsYWIuYw0KQEAg
+LTI4NCw3ICsyODQsNyBAQCBzdHJ1Y3Qga21lbV9saXN0MyB7DQogICogTmVlZCB0aGlzIGZvciBi
+b290c3RyYXBwaW5nIGEgcGVyIG5vZGUgYWxsb2NhdG9yLg0KICAqLw0KICNkZWZpbmUgTlVNX0lO
+SVRfTElTVFMgKDMgKiBNQVhfTlVNTk9ERVMpDQotc3RydWN0IGttZW1fbGlzdDMgX19pbml0ZGF0
+YSBpbml0a21lbV9saXN0M1tOVU1fSU5JVF9MSVNUU107DQorc3RhdGljIHN0cnVjdCBrbWVtX2xp
+c3QzIF9faW5pdGRhdGEgaW5pdGttZW1fbGlzdDNbTlVNX0lOSVRfTElTVFNdOw0KICNkZWZpbmUJ
+Q0FDSEVfQ0FDSEUgMA0KICNkZWZpbmUJU0laRV9BQyBNQVhfTlVNTk9ERVMNCiAjZGVmaW5lCVNJ
+WkVfTDMgKDIgKiBNQVhfTlVNTk9ERVMpDQpAQCAtNDA1Myw3ICs0MDUzLDcgQEAgc3RhdGljIGlu
+dCBlbmFibGVfY3B1Y2FjaGUoc3RydWN0IGttZW1fY2FjaGUgKmNhY2hlcCwgZ2ZwX3QgZ2ZwKQ0K
+ICAqIG5lY2Vzc2FyeS4gTm90ZSB0aGF0IHRoZSBsMyBsaXN0bG9jayBhbHNvIHByb3RlY3RzIHRo
+ZSBhcnJheV9jYWNoZQ0KICAqIGlmIGRyYWluX2FycmF5KCkgaXMgdXNlZCBvbiB0aGUgc2hhcmVk
+IGFycmF5Lg0KICAqLw0KLXZvaWQgZHJhaW5fYXJyYXkoc3RydWN0IGttZW1fY2FjaGUgKmNhY2hl
+cCwgc3RydWN0IGttZW1fbGlzdDMgKmwzLA0KK3N0YXRpYyB2b2lkIGRyYWluX2FycmF5KHN0cnVj
+dCBrbWVtX2NhY2hlICpjYWNoZXAsIHN0cnVjdCBrbWVtX2xpc3QzICpsMywNCiAJCQkgc3RydWN0
+IGFycmF5X2NhY2hlICphYywgaW50IGZvcmNlLCBpbnQgbm9kZSkNCiB7DQogCWludCB0b2ZyZWU7
+DQpAQCAtNDMxNyw3ICs0MzE3LDcgQEAgc3RhdGljIGNvbnN0IHN0cnVjdCBzZXFfb3BlcmF0aW9u
+cyBzbGFiaW5mb19vcCA9IHsNCiAgKiBAY291bnQ6IGRhdGEgbGVuZ3RoDQogICogQHBwb3M6IHVu
+dXNlZA0KICAqLw0KLXNzaXplX3Qgc2xhYmluZm9fd3JpdGUoc3RydWN0IGZpbGUgKmZpbGUsIGNv
+bnN0IGNoYXIgX191c2VyICogYnVmZmVyLA0KK3N0YXRpYyBzc2l6ZV90IHNsYWJpbmZvX3dyaXRl
+KHN0cnVjdCBmaWxlICpmaWxlLCBjb25zdCBjaGFyIF9fdXNlciAqYnVmZmVyLA0KIAkJICAgICAg
+IHNpemVfdCBjb3VudCwgbG9mZl90ICpwcG9zKQ0KIHsNCiAJY2hhciBrYnVmW01BWF9TTEFCSU5G
+T19XUklURSArIDFdLCAqdG1wOw0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
