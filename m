@@ -1,29 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 686E66B00EA
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 00:22:38 -0500 (EST)
-Received: by yxl31 with SMTP id 31so8787810yxl.14
-        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 21:22:36 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2365C6B00EC
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 00:22:45 -0500 (EST)
+Received: by gwj22 with SMTP id 22so9327641gwj.14
+        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 21:22:41 -0800 (PST)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v3 1/7] Introduce delete_from_page_cache
-Date: Tue, 11 Jan 2011 14:22:05 +0900
-Message-Id: <34bbf652c570ce9a53ffad78d5fe9a5f3cdfa9a7.1294723009.git.minchan.kim@gmail.com>
+Subject: [PATCH v3 2/7] fuse: Change remove_from_page_cache
+Date: Tue, 11 Jan 2011 14:22:06 +0900
+Message-Id: <a41d3be39d5ecf7549ae7cfb7fc63807fe07a394.1294723009.git.minchan.kim@gmail.com>
 In-Reply-To: <cover.1294723009.git.minchan.kim@gmail.com>
 References: <cover.1294723009.git.minchan.kim@gmail.com>
 In-Reply-To: <cover.1294723009.git.minchan.kim@gmail.com>
 References: <cover.1294723009.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Hellwig <hch@infradead.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Miklos Szeredi <miklos@szeredi.hu>, fuse-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-This function works as just wrapper remove_from_page_cache.
-The difference is that it decreases page references in itself.
-So caller have to make sure it has a page reference before calling.
+This patch series changes remove_from_page_cache's page ref counting
+rule. Page cache ref count is decreased in delete_from_page_cache.
+So we don't need decreasing page reference by caller.
 
-This patch is ready for removing remove_from_page_cache.
-
-Cc: Christoph Hellwig <hch@infradead.org>
+Cc: Miklos Szeredi <miklos@szeredi.hu>
+Cc: fuse-devel@lists.sourceforge.net
 Acked-by: Hugh Dickins <hughd@google.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
@@ -31,49 +30,23 @@ Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
 Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 ---
- include/linux/pagemap.h |    1 +
- mm/filemap.c            |   16 ++++++++++++++++
- 2 files changed, 17 insertions(+), 0 deletions(-)
+ fs/fuse/dev.c |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 9c66e99..7a1cb49 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -457,6 +457,7 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
- 				pgoff_t index, gfp_t gfp_mask);
- extern void remove_from_page_cache(struct page *page);
- extern void __remove_from_page_cache(struct page *page);
-+extern void delete_from_page_cache(struct page *page);
+diff --git a/fs/fuse/dev.c b/fs/fuse/dev.c
+index cf8d28d..1ef24fb 100644
+--- a/fs/fuse/dev.c
++++ b/fs/fuse/dev.c
+@@ -737,8 +737,7 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
+ 	if (WARN_ON(PageMlocked(oldpage)))
+ 		goto out_fallback_unlock;
  
- /*
-  * Like add_to_page_cache_locked, but used to add newly allocated pages:
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 095c393..cf9bbf2 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -166,6 +166,22 @@ void remove_from_page_cache(struct page *page)
- }
- EXPORT_SYMBOL(remove_from_page_cache);
+-	remove_from_page_cache(oldpage);
+-	page_cache_release(oldpage);
++	delete_from_page_cache(oldpage);
  
-+/**
-+ * delete_from_page_cache - delete page from page cache
-+ * @page: the page which the kernel is trying to remove from page cache
-+ *
-+ * This must be called only on pages that have
-+ * been verified to be in the page cache and locked.
-+ * It will never put the page into the free list,
-+ * the caller has a reference on the page.
-+ */
-+void delete_from_page_cache(struct page *page)
-+{
-+	remove_from_page_cache(page);
-+	page_cache_release(page);
-+}
-+EXPORT_SYMBOL(delete_from_page_cache);
-+
- static int sync_page(void *word)
- {
- 	struct address_space *mapping;
+ 	err = add_to_page_cache_locked(newpage, mapping, index, GFP_KERNEL);
+ 	if (err) {
 -- 
 1.7.0.4
 
