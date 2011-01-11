@@ -1,130 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 77A4C6B00E7
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 00:13:05 -0500 (EST)
-Received: by pzk27 with SMTP id 27so4834222pzk.14
-        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 21:13:03 -0800 (PST)
-Date: Tue, 11 Jan 2011 14:12:54 +0900
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 5C0E46B00E9
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 00:22:34 -0500 (EST)
+Received: by gxk5 with SMTP id 5so9552930gxk.14
+        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 21:22:32 -0800 (PST)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: mmotm hangs on compaction lock_page
-Message-ID: <20110111051254.GB2113@barrios-desktop>
-References: <alpine.LSU.2.00.1101061632020.9601@sister.anvils>
- <20110107145259.GK29257@csn.ul.ie>
- <20110107175705.GL29257@csn.ul.ie>
- <20110110172609.GA11932@csn.ul.ie>
- <alpine.LSU.2.00.1101101458540.21100@tigran.mtv.corp.google.com>
- <20110111111420.111757ab.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110111111420.111757ab.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH v3 0/7] Change page reference handling semantic of page cache
+Date: Tue, 11 Jan 2011 14:22:04 +0900
+Message-Id: <cover.1294723009.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 11, 2011 at 11:14:20AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Mon, 10 Jan 2011 15:56:37 -0800 (PST)
-> Hugh Dickins <hughd@google.com> wrote:
-> 
-> > > On Mon, 10 Jan 2011, Mel Gorman wrote:
-> > > 
-> > > ==== CUT HERE ====
-> > > mm: compaction: Avoid potential deadlock for readahead pages and direct compaction
-> > > 
-> > > Hugh Dickins reported that two instances of cp were locking up when
-> > > running on ppc64 in a memory constrained environment. The deadlock
-> > > appears to apply to readahead pages. When reading ahead, the pages are
-> > > added locked to the LRU and queued for IO. The process is also inserting
-> > > pages into the page cache and so is calling radix_preload and entering
-> > > the page allocator. When SLUB is used, this can result in direct
-> > > compaction finding the page that was just added to the LRU but still
-> > > locked by the current process leading to deadlock.
-> > > 
-> > > This patch avoids locking pages for migration that might already be
-> > > locked by the current process. Ideally it would only apply for direct
-> > > compaction but compaction does not set PF_MEMALLOC so there is no way
-> > > currently of identifying a process in direct compaction. A process-flag
-> > > could be added but is likely to be overkill.
-> > > 
-> > > Reported-by: Hugh Dickins <hughd@google.com>
-> > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > 
-> > But whilst I'm hugely grateful to you for working this out,
-> > I'm sorry to say that I'm not keen on your patch!
-> > 
-> > PageMappedToDisk is an fs thing, not an mm thing (migrate.c copies it
-> > over but that's all), and I don't like to see you rely on it.  I expect
-> > it works well for ext234 and many others that use mpage_readpages,
-> > but what of btrfs_readpages?  I couldn't see any use of PageMappedToDisk
-> > there.  I suppose you could insist it use it too, but...
-> > 
-> > How about setting and clearing PF_MEMALLOC around the call to
-> > try_to_compact_pages() in __alloc_pages_direct_compact(), and
-> > skipping the lock_page when PF_MEMALLOC is set, whatever the
-> > page flags?  That would mimic __alloc_pages_direct_reclaim
-> > (hmm, reclaim_state??); and I've a suspicion that this readahead
-> > deadlock may not be the only one lurking.
-> > 
-> > Hugh
-> 
-> Hmm, in migrate_pages()
-> ==
-> int migrate_pages(struct list_head *from,
->                 new_page_t get_new_page, unsigned long private, bool offlining,
->                 bool sync)
-> {
-> 
-> ...
->         for(pass = 0; pass < 10 && retry; pass++) {
->                 retry = 0;
-> ...
-> 	
->                         rc = unmap_and_move(get_new_page, private,
->                                                 page, pass > 2, offlining,
->                                                 sync);
-> 
-> ==
-> 
-> do force locking at pass > 2. Considering direct-compaction, pass > 2 is not
-> required I think because it can do compaction on other range of pages.
+Now we increases page reference on add_to_page_cache but doesn't decrease it
+in remove_from_page_cache. Such asymmetric makes confusing about
+page reference so that caller should notice it and comment why they
+release page reference. It's not good API.
 
-We have two phase of direct compaction with async and sync.
-It can be async patch of compaction.
+Long time ago, Hugh tried it[1] but gave up of reason which
+reiser4's drop_page had to unlock the page between removing it from
+page cache and doing the page_cache_release. But now the situation is
+changed. I think at least things in current mainline doesn't have any
+obstacles. The problem is fs or somethings out of mainline.
+If it has done such thing like reiser4, this patch could be a problem but
+they found it when compile time since we remove remove_from_page_cache.
 
-> 
-> IOW, what it requires is a range of pages for specified order, but a range of
-> pages which is specfied by users. How about skipping pass > 2 when
-> it's called by direct compaction ? quick-scan of the next range may be helpful
-> rather than waiting on lock.
+[1] http://lkml.org/lkml/2004/10/24/140
 
-If async migration fail to get a free big order, it try to compact with sync.
-In that case, waitting of locked page makes sense to me.
+The series configuration is following as. 
 
-So unconditional skip in pass > 2 isn't good.
-I vote Hugh's idea.
-It would just skip if only current context hold lock.
+[1/7] : This patch introduces new API delete_from_page_cache.
+[2,3,4,5/7] : Change remove_from_page_cache with delete_from_page_cache.
+Intentionally I divide patch per file since someone might have a concern 
+about releasing page reference of delete_from_page_cache in 
+somecase (ex, truncate.c)
+[6/7] : Remove old API so out of fs can meet compile error when build time
+and can notice it.
+[7/7] : Change __remove_from_page_cache with __delete_from_page_cache, too.
+In this time, I made all-in-one patch because it doesn't change old behavior
+so it has no concern. Just clean up patch.
 
+from v2
+ - Add Acked-by
+ - rebase on mmotm-01-06
+ - change title of some patch
 
-> 
-> Thanks,
-> -Kame
-> 	
-> 
-> 
-> 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+from v1
+ - Add Acked-by
+ - rebase on mmotm-12-23
+ 
+Minchan Kim (7):
+  [1/7] Introduce delete_from_page_cache
+  [2/7] fuse: Change remove_from_page_cache
+  [3/7] hugetlbfs: Change remove_from_page_cache
+  [4/7] shmem: Change remove_from_page_cache
+  [5/7] truncate: Change remove_from_page_cache
+  [6/7] Good bye remove_from_page_cache
+  [7/7] Change __remove_from_page_cache
 
--- 
-Kind regards,
-Minchan Kim
+ fs/fuse/dev.c           |    3 +--
+ fs/hugetlbfs/inode.c    |    3 +--
+ include/linux/pagemap.h |    4 ++--
+ mm/filemap.c            |   21 ++++++++++++++++-----
+ mm/memory-failure.c     |    2 +-
+ mm/shmem.c              |    3 +--
+ mm/truncate.c           |    7 +++----
+ mm/vmscan.c             |    2 +-
+ 8 files changed, 26 insertions(+), 19 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
