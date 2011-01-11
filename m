@@ -1,47 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A2266B0092
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 18:53:32 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1144F6B0092
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 18:26:00 -0500 (EST)
 From: H Hartley Sweeten <hartleys@visionengravers.com>
-Date: Tue, 11 Jan 2011 17:49:32 -0600
-Subject: [PATCH] mm/slab.c: make local symbols static
-Message-ID: <0D753D10438DA54287A00B027084269764CE0E54A2@AUSP01VMBX24.collaborationhost.net>
+Date: Tue, 11 Jan 2011 17:19:30 -0600
+Subject: [PATCH] mm/memblock: local functions should be static
+Message-ID: <0D753D10438DA54287A00B027084269764CE0E545D@AUSP01VMBX24.collaborationhost.net>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: "cl@linux-foundation.org" <cl@linux-foundation.org>, "penberg@cs.helsinki.fi" <penberg@cs.helsinki.fi>, "mpm@selenic.com" <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-TG9jYWwgc3ltYm9scyBzaG91bGQgYmUgc3RhdGljLg0KDQpTaWduZWQtb2ZmLWJ5OiBIIEhhcnRs
-ZXkgU3dlZXRlbiA8aHN3ZWV0ZW5AdmlzaW9uZW5ncmF2ZXJzLmNvbT4NCkNjOiBDaHJpc3RvcGgg
-TGFtZXRlciA8Y2xAbGludXgtZm91bmRhdGlvbi5vcmc+DQpDYzogUGVra2EgRW5iZXJnIDxwZW5i
-ZXJnQGNzLmhlbHNpbmtpLmZpPg0KQ2M6IE1hdHQgTWFja2FsbCA8bXBtQHNlbGVuaWMuY29tPg0K
-DQotLS0NCg0KZGlmZiAtLWdpdCBhL21tL3NsYWIuYyBiL21tL3NsYWIuYw0KaW5kZXggMjY0MDM3
-NC4uMzc5NjFkMWYgMTAwNjQ0DQotLS0gYS9tbS9zbGFiLmMNCisrKyBiL21tL3NsYWIuYw0KQEAg
-LTI4NCw3ICsyODQsNyBAQCBzdHJ1Y3Qga21lbV9saXN0MyB7DQogICogTmVlZCB0aGlzIGZvciBi
-b290c3RyYXBwaW5nIGEgcGVyIG5vZGUgYWxsb2NhdG9yLg0KICAqLw0KICNkZWZpbmUgTlVNX0lO
-SVRfTElTVFMgKDMgKiBNQVhfTlVNTk9ERVMpDQotc3RydWN0IGttZW1fbGlzdDMgX19pbml0ZGF0
-YSBpbml0a21lbV9saXN0M1tOVU1fSU5JVF9MSVNUU107DQorc3RhdGljIHN0cnVjdCBrbWVtX2xp
-c3QzIF9faW5pdGRhdGEgaW5pdGttZW1fbGlzdDNbTlVNX0lOSVRfTElTVFNdOw0KICNkZWZpbmUJ
-Q0FDSEVfQ0FDSEUgMA0KICNkZWZpbmUJU0laRV9BQyBNQVhfTlVNTk9ERVMNCiAjZGVmaW5lCVNJ
-WkVfTDMgKDIgKiBNQVhfTlVNTk9ERVMpDQpAQCAtNDA1Myw3ICs0MDUzLDcgQEAgc3RhdGljIGlu
-dCBlbmFibGVfY3B1Y2FjaGUoc3RydWN0IGttZW1fY2FjaGUgKmNhY2hlcCwgZ2ZwX3QgZ2ZwKQ0K
-ICAqIG5lY2Vzc2FyeS4gTm90ZSB0aGF0IHRoZSBsMyBsaXN0bG9jayBhbHNvIHByb3RlY3RzIHRo
-ZSBhcnJheV9jYWNoZQ0KICAqIGlmIGRyYWluX2FycmF5KCkgaXMgdXNlZCBvbiB0aGUgc2hhcmVk
-IGFycmF5Lg0KICAqLw0KLXZvaWQgZHJhaW5fYXJyYXkoc3RydWN0IGttZW1fY2FjaGUgKmNhY2hl
-cCwgc3RydWN0IGttZW1fbGlzdDMgKmwzLA0KK3N0YXRpYyB2b2lkIGRyYWluX2FycmF5KHN0cnVj
-dCBrbWVtX2NhY2hlICpjYWNoZXAsIHN0cnVjdCBrbWVtX2xpc3QzICpsMywNCiAJCQkgc3RydWN0
-IGFycmF5X2NhY2hlICphYywgaW50IGZvcmNlLCBpbnQgbm9kZSkNCiB7DQogCWludCB0b2ZyZWU7
-DQpAQCAtNDMxNyw3ICs0MzE3LDcgQEAgc3RhdGljIGNvbnN0IHN0cnVjdCBzZXFfb3BlcmF0aW9u
-cyBzbGFiaW5mb19vcCA9IHsNCiAgKiBAY291bnQ6IGRhdGEgbGVuZ3RoDQogICogQHBwb3M6IHVu
-dXNlZA0KICAqLw0KLXNzaXplX3Qgc2xhYmluZm9fd3JpdGUoc3RydWN0IGZpbGUgKmZpbGUsIGNv
-bnN0IGNoYXIgX191c2VyICogYnVmZmVyLA0KK3N0YXRpYyBzc2l6ZV90IHNsYWJpbmZvX3dyaXRl
-KHN0cnVjdCBmaWxlICpmaWxlLCBjb25zdCBjaGFyIF9fdXNlciAqYnVmZmVyLA0KIAkJICAgICAg
-IHNpemVfdCBjb3VudCwgbG9mZl90ICpwcG9zKQ0KIHsNCiAJY2hhciBrYnVmW01BWF9TTEFCSU5G
-T19XUklURSArIDFdLCAqdG1wOw0K
+The function memblock_overlaps_region() is only used in this file and should
+be marked static.
+
+Signed-off-by: H Hartley Sweeten <hsweeten@visionengravers.com>
+
+---
+
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 400dc62..69702ef 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -80,7 +80,8 @@ static long __init_memblock memblock_regions_adjacent(struct memblock_type *type
+ 	return memblock_addrs_adjacent(base1, size1, base2, size2);
+ }
+ 
+-long __init_memblock memblock_overlaps_region(struct memblock_type *type, phys_addr_t base, phys_addr_t size)
++static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
++				phys_addr_t base, phys_addr_t size)
+ {
+ 	unsigned long i;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
