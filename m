@@ -1,62 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id F09186B00E7
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 11:31:28 -0500 (EST)
-Date: Tue, 11 Jan 2011 17:31:20 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH mmotm] thp: transparent hugepage core fixlet
-Message-ID: <20110111163120.GR9506@random.random>
-References: <alpine.LSU.2.00.1101101652200.11559@sister.anvils>
- <20110111015742.GL9506@random.random>
- <AANLkTin=gzZuDBMdGmR5ZY_9f6kggvt0KJA3XK33-z+2@mail.gmail.com>
- <20110111140421.GM9506@random.random>
-MIME-Version: 1.0
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id F182B6B00E7
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 12:52:22 -0500 (EST)
+Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
+	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
+	id S1548761Ab1AKRvq (ORCPT <rfc822;linux-mm@kvack.org>);
+	Tue, 11 Jan 2011 18:51:46 +0100
+Date: Tue, 11 Jan 2011 18:51:46 +0100
+From: Daniel Kiper <dkiper@net-space.pl>
+Subject: Re: [PATCH R2 7/7] xen/balloon: Xen memory balloon driver with memory hotplug support
+Message-ID: <20110111175146.GA22656@router-fw-old.local.net-space.pl>
+References: <20101229170702.GL2743@router-fw-old.local.net-space.pl> <1294094002.18937.110.camel@nimitz>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110111140421.GM9506@random.random>
+In-Reply-To: <1294094002.18937.110.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Daniel Kiper <dkiper@net-space.pl>, ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 11, 2011 at 03:04:21PM +0100, Andrea Arcangeli wrote:
-> architectural bug to me. Why can't pud_huge simply return 0 for
-> x86_32? Any other place dealing with hugepages and calling pud_huge on
-> x86 noPAE would be at risk, otherwise, no?
+Hi everybody,
 
-Isn't this better solution?
+Sorry for delays. I could not devote fully my time to this
+project :-((( (especially at the beginning of this year).
+I am going to post all replies and new version of patch next week.
+Please be patient.
 
-======
-Subject: avoid confusing hugetlbfs code when pmd_trans_huge is set
-
-From: Andrea Arcangeli <aarcange@redhat.com>
-
-If pmd is set huge by THP, pud_huge shouldn't return 1 when pud doesn't exist
-and it's just a 1:1 bypass over the pmd (like it happens on 32bit x86 because
-there are at most 2 or 3 level of pagetables). Only pmd_huge can return 1.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
-
-diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
---- a/arch/x86/mm/hugetlbpage.c
-+++ b/arch/x86/mm/hugetlbpage.c
-@@ -227,7 +227,15 @@ int pmd_huge(pmd_t pmd)
- 
- int pud_huge(pud_t pud)
- {
-+#ifdef CONFIG_X86_64
- 	return !!(pud_val(pud) & _PAGE_PSE);
-+#else
-+	/*
-+	 * pud is a bypass with 2 or 3 level pagetables, only pmd_huge
-+	 * can return 1.
-+	 */
-+	return 0;
-+#endif
- }
- 
- struct page *
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
