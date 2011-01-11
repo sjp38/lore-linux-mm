@@ -1,56 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 585B36B00E7
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 21:29:33 -0500 (EST)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id p0B2TV54022345
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 18:29:31 -0800
-Received: from vws8 (vws8.prod.google.com [10.241.21.136])
-	by wpaz13.hot.corp.google.com with ESMTP id p0B2TUtL018334
-	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 18:29:30 -0800
-Received: by vws8 with SMTP id 8so9002172vws.26
-        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 18:29:30 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4E26C6B00E9
+	for <linux-mm@kvack.org>; Mon, 10 Jan 2011 21:34:40 -0500 (EST)
+Received: by pxi12 with SMTP id 12so5102007pxi.14
+        for <linux-mm@kvack.org>; Mon, 10 Jan 2011 18:34:38 -0800 (PST)
+Date: Tue, 11 Jan 2011 11:34:31 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: mmotm hangs on compaction lock_page
+Message-ID: <20110111023431.GA2113@barrios-desktop>
+References: <alpine.LSU.2.00.1101061632020.9601@sister.anvils>
+ <20110107145259.GK29257@csn.ul.ie>
+ <20110107175705.GL29257@csn.ul.ie>
+ <20110110172609.GA11932@csn.ul.ie>
+ <alpine.LSU.2.00.1101101458540.21100@tigran.mtv.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20110111015742.GL9506@random.random>
-References: <alpine.LSU.2.00.1101101652200.11559@sister.anvils>
-	<20110111015742.GL9506@random.random>
-Date: Mon, 10 Jan 2011 18:29:29 -0800
-Message-ID: <AANLkTin=gzZuDBMdGmR5ZY_9f6kggvt0KJA3XK33-z+2@mail.gmail.com>
-Subject: Re: [PATCH mmotm] thp: transparent hugepage core fixlet
-From: Hugh Dickins <hughd@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1101101458540.21100@tigran.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 10, 2011 at 5:57 PM, Andrea Arcangeli <aarcange@redhat.com> wro=
-te:
-> On Mon, Jan 10, 2011 at 04:55:53PM -0800, Hugh Dickins wrote:
->> If you configure THP in addition to HUGETLB_PAGE on x86_32 without PAE,
->> the p?d-folding works out that munlock_vma_pages_range() can crash to
->> follow_page()'s pud_huge() BUG_ON(flags & FOLL_GET): it needs the same
->> VM_HUGETLB check already there on the pmd_huge() line. =C2=A0Convenientl=
-y,
->> openSUSE provides a "blogd" which tests this out at startup!
->
-> How is THP related to this? pud_trans_huge doesn't exist, if pud_huge
-> is true, vma is already guaranteed to belong to hugetlbfs without
-> requiring the additional check.
+On Mon, Jan 10, 2011 at 03:56:37PM -0800, Hugh Dickins wrote:
+> On Mon, 10 Jan 2011, Mel Gorman wrote:
+> > This patch fixes makes the problem
+> > unreprodible for me at least. I still don't have the exact reason why pages are
+> > not getting unlocked by IO completion but suspect it's because the same process
+> > completes the IO that started it. If it's deadlocked, it never finishes the IO.
+> 
+> It again seems fairly obvious to me, now that you've spelt it out for me
+> this far.  If we go the mpage_readpages route, that builds up an mpage bio,
+> calling add_to_page_cache (which sets the locked bit) on a series of pages,
+> before submitting the bio whose mpage_end_io will unlock them all after.
+> An allocation when adding second or third... page is in danger of
+> deadlocking on the first page down in compaction's migration.
 
-THP puts in pmds that are huge.  In this configuration the "folding" is
-such that the puds are the pmds.  So the pud_huge test passes and
-the BUG_ON hits.  I hope I've explained that correctly, agreed that
-it's confusing!
+Indeed. 
+If we are lucky, all I/O requests are merged into just one bio and it will submit 
+by mpage_bio_submit after finishing looping add_to_page_cache_lru.
+It is likely to make deadlock if direct compaction happens in the middle of looping.
 
->
-> I added the check to pmd_huge already, there it is needed, but for
-> pud_huge it isn't as far as I can tell.
-
-Crashing on that BUG_ON suggests otherwise ;)
-
-Hugh
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
