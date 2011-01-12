@@ -1,60 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6454F6B0092
-	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 15:16:13 -0500 (EST)
-Received: by pwj8 with SMTP id 8so197753pwj.14
-        for <linux-mm@kvack.org>; Wed, 12 Jan 2011 12:16:09 -0800 (PST)
-Date: Wed, 12 Jan 2011 13:16:02 -0700
-From: Eric B Munson <emunson@mgebm.net>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id E4D786B00E8
+	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 15:16:33 -0500 (EST)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id p0CKGTia016985
+	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 12:16:29 -0800
+Received: from pwi7 (pwi7.prod.google.com [10.241.219.7])
+	by hpaq2.eem.corp.google.com with ESMTP id p0CKGRWX009772
+	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 12:16:27 -0800
+Received: by pwi7 with SMTP id 7so163760pwi.3
+        for <linux-mm@kvack.org>; Wed, 12 Jan 2011 12:16:26 -0800 (PST)
+Date: Wed, 12 Jan 2011 12:16:24 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH] Rename struct task variables from p to tsk
-Message-ID: <20110112201602.GA25957@mgebm.net>
+In-Reply-To: <1294845571-11529-1-git-send-email-emunson@mgebm.net>
+Message-ID: <alpine.DEB.2.00.1101121215370.31521@chino.kir.corp.google.com>
 References: <1294845571-11529-1-git-send-email-emunson@mgebm.net>
- <alpine.DEB.2.00.1101121205120.3053@router.home>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="LZvS9be/3tNcYl/X"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1101121205120.3053@router.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org
+To: Eric B Munson <emunson@mgebm.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 12 Jan 2011, Eric B Munson wrote:
 
---LZvS9be/3tNcYl/X
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+> p is not a meaningful identifier, this patch replaces all instances
+> in page_alloc.c of p when used as a struct task with the more useful
+> tsk.
+> 
 
-On Wed, 12 Jan 2011, Christoph Lameter wrote:
-
->=20
-> Use t instead of p? Its a local variable after all.
->=20
->=20
-
-I don't find t any more informative than p.  As a newcomer to most of this =
-code
-informative variable names, even for local variables, is a huge help.
-
---LZvS9be/3tNcYl/X
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-
-iQEcBAEBAgAGBQJNLgwCAAoJEH65iIruGRnNFa0H/3ZQiWcKF+2PSoaff+RcZc/S
-5vQExEgie4Sslctp5DQ4a7R1x1Q/9Jg65wooAqbN3muCYSrIqdTppravZM3tB/v3
-d8f2/UV6ESDmNavp8AD13gDB+OSupR4gAnZdqTrnqK3Ay8BTT6LID499+s5ojbsL
-4aoJZF8vQwwz7nuED29b/zUps5vBCO27S9NOwGRyyEFokvnFd07HHS7DFTY/CiP9
-OMf5n+SqQtAYjIbZqQx4QCOkh7arZguHxaXx8nXI8yNlGctaf/k71cKb5Bv8yh+f
-m57HJSkKtYvL5BB/QnHHSlQkx27UEstSuNr9sWQ5UrC5t+CS/w517iypTgb3B8o=
-=XVtQ
------END PGP SIGNATURE-----
-
---LZvS9be/3tNcYl/X--
+mm-page_allocc-dont-cache-current-in-a-local.patch removes all of the 
+stack allocations changed in this patch, so it's not needed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
