@@ -1,30 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id AFF3E6B0092
-	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 10:40:38 -0500 (EST)
-Received: by iyj17 with SMTP id 17so635684iyj.14
-        for <linux-mm@kvack.org>; Wed, 12 Jan 2011 07:40:37 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1F2476B00E7
+	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 13:05:32 -0500 (EST)
+Date: Wed, 12 Jan 2011 12:05:27 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] Rename struct task variables from p to tsk
+In-Reply-To: <1294845571-11529-1-git-send-email-emunson@mgebm.net>
+Message-ID: <alpine.DEB.2.00.1101121205120.3053@router.home>
+References: <1294845571-11529-1-git-send-email-emunson@mgebm.net>
 MIME-Version: 1.0
-Date: Wed, 12 Jan 2011 18:40:37 +0300
-Message-ID: <AANLkTin_-bH09WK43DS9p0Kpp=7y6iHbLnUrCtOc6Qy5@mail.gmail.com>
-Subject: cgroups and overcommit question
-From: Evgeniy Ivanov <lolkaantimat@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
+To: Eric B Munson <emunson@mgebm.net>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
 
-When I forbid memory overcommiting, malloc() returns 0 if can't
-reserve memory, but in a cgroup it will always succeed, when it can
-succeed when not in the group.
-E.g. I've set 2 to overcommit_memory, limit is 10M: I can ask malloc
-100M and it will not return any error (kernel is 2.6.32).
-Is it expected behavior?
+Use t instead of p? Its a local variable after all.
 
--- 
-Evgeniy Ivanov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
