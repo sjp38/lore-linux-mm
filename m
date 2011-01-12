@@ -1,43 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1B5D56B00E7
-	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 10:03:32 -0500 (EST)
-Date: Wed, 12 Jan 2011 16:02:46 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: qemu-kvm defunct due to THP [was: mmotm 2011-01-06-15-41
- uploaded]
-Message-ID: <20110112150246.GX9506@random.random>
-References: <201101070014.p070Egpo023959@imap1.linux-foundation.org>
- <4D2B19C5.5060709@gmail.com>
- <20110110150128.GC9506@random.random>
- <4D2B73FA.807@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4D2B73FA.807@gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 020556B0092
+	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 10:19:48 -0500 (EST)
+Received: by pxi12 with SMTP id 12so102865pxi.14
+        for <linux-mm@kvack.org>; Wed, 12 Jan 2011 07:19:46 -0800 (PST)
+From: Eric B Munson <emunson@mgebm.net>
+Subject: [PATCH] Rename struct task variables from p to tsk
+Date: Wed, 12 Jan 2011 08:19:31 -0700
+Message-Id: <1294845571-11529-1-git-send-email-emunson@mgebm.net>
 Sender: owner-linux-mm@kvack.org
-To: Jiri Slaby <jirislaby@gmail.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org, Eric B Munson <emunson@mgebm.net>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 10, 2011 at 10:02:50PM +0100, Jiri Slaby wrote:
-> Yup, this works for me. If you point me to the other 2, I will test them
-> too...
+p is not a meaningful identifier, this patch replaces all instances
+in page_alloc.c of p when used as a struct task with the more useful
+tsk.
 
-Sure, and they're already included in -mm.
+Signed-off-by: Eric B Munson <emunson@mgebm.net>
+---
+ mm/page_alloc.c |   22 +++++++++++-----------
+ 1 files changed, 11 insertions(+), 11 deletions(-)
 
-http://marc.info/?l=linux-mm&m=129442647907831&q=raw
-http://marc.info/?l=linux-mm&m=129442718808733&q=raw
-http://marc.info/?l=linux-mm&m=129442733108913&q=raw
-
-I also included in aa.git the other fixes for migrate deadlocks
-(anon_vma huge non-huge probably only reproducible with preempt but
-theoretically not only preempt issues, lock_page readahead with slub,
-and ksm-lru-drain accounting fix for one ltp ksm testcase) if you want
-to test that too (they're in -mm as well of course).
-
-Thanks,
-Andrea
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ff7e158..acfbb20 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1852,23 +1852,23 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+ {
+ 	struct page *page = NULL;
+ 	struct reclaim_state reclaim_state;
+-	struct task_struct *p = current;
++	struct task_struct *tsk = current;
+ 	bool drained = false;
+ 
+ 	cond_resched();
+ 
+ 	/* We now go into synchronous reclaim */
+ 	cpuset_memory_pressure_bump();
+-	p->flags |= PF_MEMALLOC;
++	tsk->flags |= PF_MEMALLOC;
+ 	lockdep_set_current_reclaim_state(gfp_mask);
+ 	reclaim_state.reclaimed_slab = 0;
+-	p->reclaim_state = &reclaim_state;
++	tsk->reclaim_state = &reclaim_state;
+ 
+ 	*did_some_progress = try_to_free_pages(zonelist, order, gfp_mask, nodemask);
+ 
+-	p->reclaim_state = NULL;
++	tsk->reclaim_state = NULL;
+ 	lockdep_clear_current_reclaim_state();
+-	p->flags &= ~PF_MEMALLOC;
++	tsk->flags &= ~PF_MEMALLOC;
+ 
+ 	cond_resched();
+ 
+@@ -1932,7 +1932,7 @@ void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
+ static inline int
+ gfp_to_alloc_flags(gfp_t gfp_mask)
+ {
+-	struct task_struct *p = current;
++	struct task_struct *tsk = current;
+ 	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
+ 	const gfp_t wait = gfp_mask & __GFP_WAIT;
+ 
+@@ -1954,12 +1954,12 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+ 		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+ 		 */
+ 		alloc_flags &= ~ALLOC_CPUSET;
+-	} else if (unlikely(rt_task(p)) && !in_interrupt())
++	} else if (unlikely(rt_task(tsk)) && !in_interrupt())
+ 		alloc_flags |= ALLOC_HARDER;
+ 
+ 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
+ 		if (!in_interrupt() &&
+-		    ((p->flags & PF_MEMALLOC) ||
++		    ((tsk->flags & PF_MEMALLOC) ||
+ 		     unlikely(test_thread_flag(TIF_MEMDIE))))
+ 			alloc_flags |= ALLOC_NO_WATERMARKS;
+ 	}
+@@ -1978,7 +1978,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	int alloc_flags;
+ 	unsigned long pages_reclaimed = 0;
+ 	unsigned long did_some_progress;
+-	struct task_struct *p = current;
++	struct task_struct *tsk = current;
+ 
+ 	/*
+ 	 * In the slowpath, we sanity check order to avoid ever trying to
+@@ -2034,7 +2034,7 @@ rebalance:
+ 		goto nopage;
+ 
+ 	/* Avoid recursion of direct reclaim */
+-	if (p->flags & PF_MEMALLOC)
++	if (tsk->flags & PF_MEMALLOC)
+ 		goto nopage;
+ 
+ 	/* Avoid allocations with no watermarks from looping endlessly */
+@@ -2108,7 +2108,7 @@ nopage:
+ 	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
+ 		printk(KERN_WARNING "%s: page allocation failure."
+ 			" order:%d, mode:0x%x\n",
+-			p->comm, order, gfp_mask);
++			tsk->comm, order, gfp_mask);
+ 		dump_stack();
+ 		show_mem();
+ 	}
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
