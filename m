@@ -1,69 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 92E446B00ED
-	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 15:40:02 -0500 (EST)
-Date: Wed, 12 Jan 2011 21:39:59 +0100 (CET)
-From: Jesper Juhl <jj@chaosbits.net>
-Subject: [PATCH] mm: Remove two memset calls in mm/memcontrol.c by using the
- zalloc variants of alloc functions
-Message-ID: <alpine.LNX.2.00.1101122135070.22297@swampdragon.chaosbits.net>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F3366B00EF
+	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 16:43:11 -0500 (EST)
+Date: Wed, 12 Jan 2011 22:43:03 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 01/35] writeback: enabling gate limit for light dirtied
+ bdi
+Message-ID: <20110112214303.GC14260@quack.suse.cz>
+References: <20101213144646.341970461@intel.com>
+ <20101213150326.480108782@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101213150326.480108782@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-We can avoid two calls to memset() in mm/memcontrol.c by using 
-kzalloc_node(), kzalloc & vzalloc().
+  Hi Fengguang,
 
-Signed-off-by: Jesper Juhl <jj@chaosbits.net>
----
- memcontrol.c |    8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+On Mon 13-12-10 22:46:47, Wu Fengguang wrote:
+> I noticed that my NFSROOT test system goes slow responding when there
+> is heavy dd to a local disk. Traces show that the NFSROOT's bdi limit
+> is near 0 and many tasks in the system are repeatedly stuck in
+> balance_dirty_pages().
+> 
+> There are two generic problems:
+> 
+> - light dirtiers at one device (more often than not the rootfs) get
+>   heavily impacted by heavy dirtiers on another independent device
+> 
+> - the light dirtied device does heavy throttling because bdi limit=0,
+>   and the heavy throttling may in turn withhold its bdi limit in 0 as
+>   it cannot dirty fast enough to grow up the bdi's proportional weight.
+> 
+> Fix it by introducing some "low pass" gate, which is a small (<=32MB)
+> value reserved by others and can be safely "stole" from the current
+> global dirty margin.  It does not need to be big to help the bdi gain
+> its initial weight.
+  I'm sorry for a late reply but I didn't get earlier to your patches...
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 00bb8a6..890df27 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4176,12 +4176,11 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
- 	 */
- 	if (!node_state(node, N_NORMAL_MEMORY))
- 		tmp = -1;
--	pn = kmalloc_node(sizeof(*pn), GFP_KERNEL, tmp);
-+	pn = kzalloc_node(sizeof(*pn), GFP_KERNEL, tmp);
- 	if (!pn)
- 		return 1;
- 
- 	mem->info.nodeinfo[node] = pn;
--	memset(pn, 0, sizeof(*pn));
- 
- 	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
- 		mz = &pn->zoneinfo[zone];
-@@ -4206,14 +4205,13 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- 
- 	/* Can be very big if MAX_NUMNODES is very big */
- 	if (size < PAGE_SIZE)
--		mem = kmalloc(size, GFP_KERNEL);
-+		mem = kzalloc(size, GFP_KERNEL);
- 	else
--		mem = vmalloc(size);
-+		mem = vzalloc(size);
- 
- 	if (!mem)
- 		return NULL;
- 
--	memset(mem, 0, size);
- 	mem->stat = alloc_percpu(struct mem_cgroup_stat_cpu);
- 	if (!mem->stat)
- 		goto out_free;
+...
+> -unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
+> + *
+> + * There is a chicken and egg problem: when bdi A (eg. /pub) is heavy dirtied
+> + * and bdi B (eg. /) is light dirtied hence has 0 dirty limit, tasks writing to
+> + * B always get heavily throttled and bdi B's dirty limit might never be able
+> + * to grow up from 0. So we do tricks to reserve some global margin and honour
+> + * it to the bdi's that run low.
+> + */
+> +unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
+> +			      unsigned long dirty,
+> +			      unsigned long dirty_pages)
+>  {
+>  	u64 bdi_dirty;
+>  	long numerator, denominator;
+>  
+>  	/*
+> +	 * Provide a global safety margin of ~1%, or up to 32MB for a 20GB box.
+> +	 */
+> +	dirty -= min(dirty / 128, 32768UL >> (PAGE_SHIFT-10));
+> +
+> +	/*
+>  	 * Calculate this BDI's share of the dirty ratio.
+>  	 */
+>  	bdi_writeout_fraction(bdi, &numerator, &denominator);
+> @@ -459,6 +472,15 @@ unsigned long bdi_dirty_limit(struct bac
+>  	do_div(bdi_dirty, denominator);
+>  
+>  	bdi_dirty += (dirty * bdi->min_ratio) / 100;
+> +
+> +	/*
+> +	 * If we can dirty N more pages globally, honour N/2 to the bdi that
+> +	 * runs low, so as to help it ramp up.
+> +	 */
+> +	if (unlikely(bdi_dirty < (dirty - dirty_pages) / 2 &&
+> +		     dirty > dirty_pages))
+> +		bdi_dirty = (dirty - dirty_pages) / 2;
+> +
+I wonder how well this works - have you tried that? Because from my naive
+understanding if we have say two drives - sda, sdb. Someone is banging sda
+really hard (several processes writing to the disk as fast as they can), then
+we are really close to dirty limit anyway and thus we won't give much space
+for sdb to ramp up it's writeout fraction...  Didn't you intend to use
+'dirty' without the safety margin subtracted in the above condition? That
+would then make more sense to me (i.e. those 32MB are then used as the
+ramp-up area).
 
+If I'm right in the above, maybe you could simplify the above condition to:
+if (bdi_dirty < margin)
+	bdi_dirty = margin;
 
+Effectively it seems rather similar to me and it's immediately obvious how
+it behales. Global limit is enforced anyway so the logic just differs in
+the number of dirtiers on ramping-up bdi you need to suck out the margin.
+
+								Honza
 
 -- 
-Jesper Juhl <jj@chaosbits.net>            http://www.chaosbits.net/
-Don't top-post http://www.catb.org/~esr/jargon/html/T/top-post.html
-Plain text mails only, please.
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
