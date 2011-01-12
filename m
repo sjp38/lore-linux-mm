@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id D8B8C6B0092
-	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 14:04:34 -0500 (EST)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN; charset=US-ASCII
-Received: from xanadu.home ([66.130.28.92]) by vl-mh-mrz21.ip.videotron.ca
- (Sun Java(tm) System Messaging Server 6.3-8.01 (built Dec 16 2008; 32bit))
- with ESMTP id <0LEX00D5IBMGXQ10@vl-mh-mrz21.ip.videotron.ca> for
- linux-mm@kvack.org; Wed, 12 Jan 2011 14:03:53 -0500 (EST)
-Date: Wed, 12 Jan 2011 14:04:12 -0500 (EST)
-From: Nicolas Pitre <nico@fluxnic.net>
-Subject: RE: [PATCHv8 00/12] Contiguous Memory Allocator
-In-reply-to: <001c01cbb289$864391f0$92cab5d0$%szyprowski@samsung.com>
-Message-id: <alpine.LFD.2.00.1101121357580.25498@xanadu.home>
-References: <cover.1292443200.git.m.nazarewicz@samsung.com>
- <AANLkTim8_=0+-zM5z4j0gBaw3PF3zgpXQNetEn-CfUGb@mail.gmail.com>
- <20101223100642.GD3636@n2100.arm.linux.org.uk>
- <00ea01cba290$4d67f500$e837df00$%szyprowski@samsung.com>
- <20101223121917.GG3636@n2100.arm.linux.org.uk>
- <00ec01cba2a2$af20b8b0$0d622a10$%szyprowski@samsung.com>
- <20101223134432.GJ3636@n2100.arm.linux.org.uk>
- <001c01cbb289$864391f0$92cab5d0$%szyprowski@samsung.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6454F6B0092
+	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 15:16:13 -0500 (EST)
+Received: by pwj8 with SMTP id 8so197753pwj.14
+        for <linux-mm@kvack.org>; Wed, 12 Jan 2011 12:16:09 -0800 (PST)
+Date: Wed, 12 Jan 2011 13:16:02 -0700
+From: Eric B Munson <emunson@mgebm.net>
+Subject: Re: [PATCH] Rename struct task variables from p to tsk
+Message-ID: <20110112201602.GA25957@mgebm.net>
+References: <1294845571-11529-1-git-send-email-emunson@mgebm.net>
+ <alpine.DEB.2.00.1101121205120.3053@router.home>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="LZvS9be/3tNcYl/X"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1101121205120.3053@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Kyungmin Park' <kmpark@infradead.org>, 'Michal Nazarewicz' <m.nazarewicz@samsung.com>, linux-arm-kernel@lists.infradead.org, 'Daniel Walker' <dwalker@codeaurora.org>, 'Johan MOSSBERG' <johan.xx.mossberg@stericsson.com>, 'Mel Gorman' <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, 'Michal Nazarewicz' <mina86@mina86.com>, linux-mm@kvack.org, 'Ankita Garg' <ankita@in.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-media@vger.kernel.org, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Jan 2011, Marek Szyprowski wrote:
 
-> I understand that modifying L1 page tables is definitely not a proper way of
-> handling this. It simply costs too much. But what if we consider that the DMA
-> memory can be only allocated from a specific range of the system memory?
-> Assuming that this range of memory is known during the boot time, it CAN be
-> mapped with two-level of tables in MMU. First level mapping will stay the
-> same all the time for all processes, but it would be possible to unmap the
-> pages required for DMA from the second level mapping what will be visible
-> from all the processes at once.
+--LZvS9be/3tNcYl/X
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-How much memory are we talking about?  What is the typical figure?
+On Wed, 12 Jan 2011, Christoph Lameter wrote:
 
-> Is there any reason why such solution won't work?
+>=20
+> Use t instead of p? Its a local variable after all.
+>=20
+>=20
 
-It could work indeed.
+I don't find t any more informative than p.  As a newcomer to most of this =
+code
+informative variable names, even for local variables, is a huge help.
 
-One similar solution that is already in place is to use highmem for that 
-reclaimable DMA memory.  It is easy to ensure affected highmem pages are 
-not mapped in kernel space.  And you can decide at boot time how many 
-highmem pages you want even if the system has less that 1GB of RAM.
+--LZvS9be/3tNcYl/X
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
 
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
 
-Nicolas
+iQEcBAEBAgAGBQJNLgwCAAoJEH65iIruGRnNFa0H/3ZQiWcKF+2PSoaff+RcZc/S
+5vQExEgie4Sslctp5DQ4a7R1x1Q/9Jg65wooAqbN3muCYSrIqdTppravZM3tB/v3
+d8f2/UV6ESDmNavp8AD13gDB+OSupR4gAnZdqTrnqK3Ay8BTT6LID499+s5ojbsL
+4aoJZF8vQwwz7nuED29b/zUps5vBCO27S9NOwGRyyEFokvnFd07HHS7DFTY/CiP9
+OMf5n+SqQtAYjIbZqQx4QCOkh7arZguHxaXx8nXI8yNlGctaf/k71cKb5Bv8yh+f
+m57HJSkKtYvL5BB/QnHHSlQkx27UEstSuNr9sWQ5UrC5t+CS/w517iypTgb3B8o=
+=XVtQ
+-----END PGP SIGNATURE-----
+
+--LZvS9be/3tNcYl/X--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
