@@ -1,40 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1144F6B0092
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 18:26:00 -0500 (EST)
-From: H Hartley Sweeten <hartleys@visionengravers.com>
-Date: Tue, 11 Jan 2011 17:19:30 -0600
-Subject: [PATCH] mm/memblock: local functions should be static
-Message-ID: <0D753D10438DA54287A00B027084269764CE0E545D@AUSP01VMBX24.collaborationhost.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id AA8166B0092
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 19:47:14 -0500 (EST)
+Date: Wed, 12 Jan 2011 09:38:14 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 1/2] memcg: remove unnecessary BUG_ON
+Message-Id: <20110112093814.7ddc9fe7.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <41390917af25769cd59eb001370b80ef6520a8bb.1294735182.git.minchan.kim@gmail.com>
+References: <41390917af25769cd59eb001370b80ef6520a8bb.1294735182.git.minchan.kim@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-The function memblock_overlaps_region() is only used in this file and should
-be marked static.
+On Tue, 11 Jan 2011 17:51:11 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-Signed-off-by: H Hartley Sweeten <hsweeten@visionengravers.com>
+> Now memcg in unmap_and_move checks BUG_ON of charge.
+> mem_cgroup_prepare_migration returns either 0 or -ENOMEM.
+> If it returns -ENOMEM, it jumps out unlock without the check.
+> If it returns 0, it can pass BUG_ON. So it's meaningless.
+> Let's remove it.
+> 
+> Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
----
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 400dc62..69702ef 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -80,7 +80,8 @@ static long __init_memblock memblock_regions_adjacent(struct memblock_type *type
- 	return memblock_addrs_adjacent(base1, size1, base2, size2);
- }
- 
--long __init_memblock memblock_overlaps_region(struct memblock_type *type, phys_addr_t base, phys_addr_t size)
-+static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
-+				phys_addr_t base, phys_addr_t size)
- {
- 	unsigned long i;
- 
+Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
