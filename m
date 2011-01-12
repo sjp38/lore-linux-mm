@@ -1,37 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E4D786B00E8
-	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 15:16:33 -0500 (EST)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id p0CKGTia016985
-	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 12:16:29 -0800
-Received: from pwi7 (pwi7.prod.google.com [10.241.219.7])
-	by hpaq2.eem.corp.google.com with ESMTP id p0CKGRWX009772
-	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 12:16:27 -0800
-Received: by pwi7 with SMTP id 7so163760pwi.3
-        for <linux-mm@kvack.org>; Wed, 12 Jan 2011 12:16:26 -0800 (PST)
-Date: Wed, 12 Jan 2011 12:16:24 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C81116B00EB
+	for <linux-mm@kvack.org>; Wed, 12 Jan 2011 15:23:35 -0500 (EST)
+Date: Wed, 12 Jan 2011 14:23:25 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: [PATCH] Rename struct task variables from p to tsk
-In-Reply-To: <1294845571-11529-1-git-send-email-emunson@mgebm.net>
-Message-ID: <alpine.DEB.2.00.1101121215370.31521@chino.kir.corp.google.com>
-References: <1294845571-11529-1-git-send-email-emunson@mgebm.net>
+In-Reply-To: <20110112201602.GA25957@mgebm.net>
+Message-ID: <alpine.DEB.2.00.1101121421490.9271@router.home>
+References: <1294845571-11529-1-git-send-email-emunson@mgebm.net> <alpine.DEB.2.00.1101121205120.3053@router.home> <20110112201602.GA25957@mgebm.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Eric B Munson <emunson@mgebm.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mel@csn.ul.ie, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 12 Jan 2011, Eric B Munson wrote:
 
-> p is not a meaningful identifier, this patch replaces all instances
-> in page_alloc.c of p when used as a struct task with the more useful
-> tsk.
-> 
+> On Wed, 12 Jan 2011, Christoph Lameter wrote:
+> > Use t instead of p? Its a local variable after all.
+>
+> I don't find t any more informative than p.  As a newcomer to most of this code
+> informative variable names, even for local variables, is a huge help.
 
-mm-page_allocc-dont-cache-current-in-a-local.patch removes all of the 
-stack allocations changed in this patch, so it's not needed.
+Local variables are short because they are defined close to the point of
+use.
+
+tsk is not that informative and the notion of a "task" can refer to
+various. However, when I see
+
+	struct task_struct *t;
+
+I know what it refers to.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
