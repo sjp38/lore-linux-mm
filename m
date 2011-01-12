@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E07C6B00E8
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 20:13:31 -0500 (EST)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id p0C1DRIM002704
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 17:13:28 -0800
-Received: from pzk36 (pzk36.prod.google.com [10.243.19.164])
-	by wpaz1.hot.corp.google.com with ESMTP id p0C1DQLY010312
-	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 17:13:26 -0800
-Received: by pzk36 with SMTP id 36so49395pzk.25
-        for <linux-mm@kvack.org>; Tue, 11 Jan 2011 17:13:25 -0800 (PST)
-Date: Tue, 11 Jan 2011 17:13:23 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id AA59E6B00E9
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 20:13:33 -0500 (EST)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id p0C1DVoX004920
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 17:13:31 -0800
+Received: from pzk34 (pzk34.prod.google.com [10.243.19.162])
+	by hpaq11.eem.corp.google.com with ESMTP id p0C1DT4k028165
+	for <linux-mm@kvack.org>; Tue, 11 Jan 2011 17:13:29 -0800
+Received: by pzk34 with SMTP id 34so20604pzk.24
+        for <linux-mm@kvack.org>; Tue, 11 Jan 2011 17:13:28 -0800 (PST)
+Date: Tue, 11 Jan 2011 17:13:26 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 2/3] oom: suppress show_mem() for many nodes in irq context
+Subject: [patch 3/3] oom: suppress nodes that are not allowed from meminfo
  on page alloc failure
 In-Reply-To: <alpine.DEB.2.00.1101111712190.20611@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1101111712410.20611@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1101111713000.20611@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1101111712190.20611@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -24,55 +24,50 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a page allocation failure occurs, show_mem() is called to dump the
-state of the VM so users may understand what happened to get into that
-condition.
+Displaying extremely verbose meminfo for all nodes on the system is
+overkill for page allocation failures when the context restricts that
+allocation to only a subset of nodes.  We don't particularly care about
+the state of all nodes when some are not allowed in the current context,
+they can have an abundance of memory but we can't allocate from that part
+of memory.
 
-This output, however, can be extremely verbose.  In irq context, it may
-result in significant delays that incur NMI watchdog timeouts when the
-machine is large (we use CONFIG_NODES_SHIFT > 8 here to define a "large"
-machine since the length of the show_mem() output is proportional to the
-number of possible nodes).
-
-This patch suppresses the show_mem() call in irq context when the kernel
-has CONFIG_NODES_SHIFT > 8.
+This patch suppresses disallowed nodes from the meminfo dump on a page
+allocation failure if the context requires it.
 
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/page_alloc.c |   17 ++++++++++++++++-
- 1 files changed, 16 insertions(+), 1 deletions(-)
+ mm/page_alloc.c |   19 ++++++++++++++++---
+ 1 files changed, 16 insertions(+), 3 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1700,6 +1700,20 @@ try_next_zone:
- 	return page;
- }
+@@ -2120,12 +2120,25 @@ rebalance:
  
-+/*
-+ * Large machines with many possible nodes should not always dump per-node
-+ * meminfo in irq context.
-+ */
-+static inline bool should_suppress_show_mem(void)
-+{
-+	bool ret = false;
+ nopage:
+ 	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
+-		printk(KERN_WARNING "%s: page allocation failure."
+-			" order:%d, mode:0x%x\n",
++		unsigned int filter = SHOW_MEM_FILTER_NODES;
 +
-+#if NODES_SHIFT > 8
-+	ret = in_interrupt();
-+#endif
-+	return ret;
-+}
++		/*
++		 * This documents exceptions given to allocations in certain
++		 * contexts that are allowed to allocate outside current's set
++		 * of allowed nodes.
++		 */
++		if (!(gfp_mask & __GFP_NOMEMALLOC))
++			if (test_thread_flag(TIF_MEMDIE) ||
++			    (current->flags & (PF_MEMALLOC | PF_EXITING)))
++				filter &= ~SHOW_MEM_FILTER_NODES;
++		if (in_interrupt() || !wait)
++			filter &= ~SHOW_MEM_FILTER_NODES;
 +
- static inline int
- should_alloc_retry(gfp_t gfp_mask, unsigned int order,
- 				unsigned long pages_reclaimed)
-@@ -2110,7 +2124,8 @@ nopage:
- 			" order:%d, mode:0x%x\n",
++		pr_warning("%s: page allocation failure. order:%d, mode:0x%x\n",
  			p->comm, order, gfp_mask);
  		dump_stack();
--		show_mem();
-+		if (!should_suppress_show_mem())
-+			show_mem();
+ 		if (!should_suppress_show_mem())
+-			show_mem();
++			__show_mem(filter);
  	}
  	return page;
  got_pg:
