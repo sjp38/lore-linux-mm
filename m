@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A4CA6B00EA
-	for <linux-mm@kvack.org>; Thu, 13 Jan 2011 17:01:24 -0500 (EST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 16CE76B00E8
+	for <linux-mm@kvack.org>; Thu, 13 Jan 2011 17:04:18 -0500 (EST)
 From: Ying Han <yinghan@google.com>
-Subject: [PATCH 1/5] Add kswapd descriptor.
-Date: Thu, 13 Jan 2011 14:00:31 -0800
-Message-Id: <1294956035-12081-2-git-send-email-yinghan@google.com>
+Subject: [PATCH 2/5] Add per cgroup reclaim watermarks.
+Date: Thu, 13 Jan 2011 14:00:32 -0800
+Message-Id: <1294956035-12081-3-git-send-email-yinghan@google.com>
 In-Reply-To: <1294956035-12081-1-git-send-email-yinghan@google.com>
 References: <1294956035-12081-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,322 +13,332 @@ To: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.n
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There is a kswapd kernel thread for each memory node. We add a different kswapd
-for each cgroup. The kswapd is sleeping in the wait queue headed at kswapd_wait
-field of a kswapd descriptor. The kswapd descriptor stores information of node
-or cgroup and it allows the global and per cgroup background reclaim to share
-common reclaim algorithms.
+The per cgroup kswapd is invoked when the cgroup's free memory (limit - usage)
+is less than a threshold--low_wmark. Then the kswapd thread starts to reclaim
+pages in a priority loop similar to global algorithm. The kswapd is done if the
+free memory is above a threshold--high_wmark.
 
-Changelog v2...v1:
-1. dynamic allocate kswapd descriptor and initialize the wait_queue_head of pgdat
-at kswapd_run.
+The per cgroup background reclaim is based on the per cgroup LRU and also adds
+per cgroup watermarks. There are two watermarks including "low_wmark" and
+"high_wmark", and they are calculated based on the limit_in_bytes(hard_limit)
+for each cgroup. Each time the hard_limit is changed, the corresponding wmarks
+are re-calculated. Since memory controller charges only user pages, there is
+no need for a "min_wmark". The current calculation of wmarks is a function of
+"memory.min_free_kbytes" which could be adjusted by writing different values
+into the new api. This is added mainly for debugging purpose.
 
-2. add helper macro is_node_kswapd to distinguish per-node/per-cgroup kswapd
-descriptor.
-
-TODO:
-1. move the struct mem_cgroup *kswapd_mem in kswapd sruct to later patch.
-2. rename thr in kswapd_run to something else.
-3. split this into two patches and the first one just add the kswapd descriptor
-definition.
+Change log v2...v1:
+1. Remove the res_counter_charge on wmark due to performance concern.
+2. Move the new APIs min_free_kbytes, reclaim_wmarks into seperate commit.
+3. Calculate the min_free_kbytes automatically based on the limit_in_bytes.
+4. make the wmark to be consistant with core VM which checks the free pages
+instead of usage.
+5. changed wmark to be boolean
 
 Signed-off-by: Ying Han <yinghan@google.com>
 ---
- include/linux/mmzone.h |    3 +-
- include/linux/swap.h   |    8 +++
- mm/memcontrol.c        |    2 +
- mm/page_alloc.c        |    1 -
- mm/vmscan.c            |  118 ++++++++++++++++++++++++++++++++++++------------
- 5 files changed, 100 insertions(+), 32 deletions(-)
+ include/linux/memcontrol.h  |    1 +
+ include/linux/res_counter.h |   83 +++++++++++++++++++++++++++++++++++++++++++
+ kernel/res_counter.c        |    6 +++
+ mm/memcontrol.c             |   73 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 163 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 4890662..d9e70e6 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -636,8 +636,7 @@ typedef struct pglist_data {
- 	unsigned long node_spanned_pages; /* total size of physical page
- 					     range, including holes */
- 	int node_id;
--	wait_queue_head_t kswapd_wait;
--	struct task_struct *kswapd;
-+	wait_queue_head_t *kswapd_wait;
- 	int kswapd_max_order;
- } pg_data_t;
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 3433784..80a605f 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -93,6 +93,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
  
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index eba53e7..52122fa 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -26,6 +26,14 @@ static inline int current_is_kswapd(void)
- 	return current->flags & PF_KSWAPD;
- }
+ extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
++extern int mem_cgroup_watermark_ok(struct mem_cgroup *mem, int charge_flags);
  
-+struct kswapd {
-+	struct task_struct *kswapd_task;
-+	wait_queue_head_t kswapd_wait;
-+	struct mem_cgroup *kswapd_mem;
-+	pg_data_t *kswapd_pgdat;
-+};
-+
-+int kswapd(void *p);
- /*
-  * MAX_SWAPFILES defines the maximum number of swaptypes: things which can
-  * be swapped to.  The swap type and the offset into that swap type are
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 73ccdfc..f6e0987 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -288,6 +288,8 @@ struct mem_cgroup {
+ static inline
+ int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
+diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+index fcb9884..10b7e59 100644
+--- a/include/linux/res_counter.h
++++ b/include/linux/res_counter.h
+@@ -39,6 +39,15 @@ struct res_counter {
  	 */
- 	struct mem_cgroup_stat_cpu nocpu_base;
- 	spinlock_t pcp_counter_lock;
+ 	unsigned long long soft_limit;
+ 	/*
++	 * the limit that reclaim triggers. it is the free count
++	 * (limit - usage)
++	 */
++	unsigned long long low_wmark_limit;
++	/*
++	 * the limit that reclaim stops. it is the free count
++	 */
++	unsigned long long high_wmark_limit;
++	/*
+ 	 * the number of unsuccessful attempts to consume the resource
+ 	 */
+ 	unsigned long long failcnt;
+@@ -55,6 +64,9 @@ struct res_counter {
+ 
+ #define RESOURCE_MAX (unsigned long long)LLONG_MAX
+ 
++#define CHARGE_WMARK_LOW	0x02
++#define CHARGE_WMARK_HIGH	0x04
 +
-+	wait_queue_head_t *kswapd_wait;
+ /**
+  * Helpers to interact with userspace
+  * res_counter_read_u64() - returns the value of the specified member.
+@@ -92,6 +104,8 @@ enum {
+ 	RES_LIMIT,
+ 	RES_FAILCNT,
+ 	RES_SOFT_LIMIT,
++	RES_LOW_WMARK_LIMIT,
++	RES_HIGH_WMARK_LIMIT
  };
  
- /* Stuffs for move charges at task migration. */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 62b7280..0b30939 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4092,7 +4092,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 
- 	pgdat_resize_init(pgdat);
- 	pgdat->nr_zones = 0;
--	init_waitqueue_head(&pgdat->kswapd_wait);
- 	pgdat->kswapd_max_order = 0;
- 	pgdat_page_cgroup_init(pgdat);
- 	
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8cc90d5..a53d91d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2115,12 +2115,18 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
- 
- 	return nr_reclaimed;
- }
-+
- #endif
- 
-+DEFINE_SPINLOCK(kswapds_spinlock);
-+#define is_node_kswapd(kswapd_p) (!(kswapd_p)->kswapd_mem)
-+
- /* is kswapd sleeping prematurely? */
--static int sleeping_prematurely(pg_data_t *pgdat, int order, long remaining)
-+static int sleeping_prematurely(struct kswapd *kswapd, int order,
-+				long remaining)
- {
- 	int i;
-+	pg_data_t *pgdat = kswapd->kswapd_pgdat;
- 
- 	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
- 	if (remaining)
-@@ -2377,21 +2383,27 @@ out:
-  * If there are applications that are active memory-allocators
-  * (most normal use), this basically shouldn't matter.
-  */
--static int kswapd(void *p)
-+int kswapd(void *p)
- {
- 	unsigned long order;
--	pg_data_t *pgdat = (pg_data_t*)p;
-+	struct kswapd *kswapd_p = (struct kswapd *)p;
-+	pg_data_t *pgdat = kswapd_p->kswapd_pgdat;
-+	wait_queue_head_t *wait_h = &kswapd_p->kswapd_wait;
- 	struct task_struct *tsk = current;
- 	DEFINE_WAIT(wait);
- 	struct reclaim_state reclaim_state = {
- 		.reclaimed_slab = 0,
- 	};
--	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
-+	const struct cpumask *cpumask;
- 
- 	lockdep_set_current_reclaim_state(GFP_KERNEL);
- 
--	if (!cpumask_empty(cpumask))
--		set_cpus_allowed_ptr(tsk, cpumask);
-+	if (is_node_kswapd(kswapd_p)) {
-+		BUG_ON(pgdat->kswapd_wait != wait_h);
-+		cpumask = cpumask_of_node(pgdat->node_id);
-+		if (!cpumask_empty(cpumask))
-+			set_cpus_allowed_ptr(tsk, cpumask);
-+	}
- 	current->reclaim_state = &reclaim_state;
- 
- 	/*
-@@ -2414,9 +2426,13 @@ static int kswapd(void *p)
- 		unsigned long new_order;
- 		int ret;
- 
--		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
--		new_order = pgdat->kswapd_max_order;
--		pgdat->kswapd_max_order = 0;
-+		prepare_to_wait(wait_h, &wait, TASK_INTERRUPTIBLE);
-+		if (is_node_kswapd(kswapd_p)) {
-+			new_order = pgdat->kswapd_max_order;
-+			pgdat->kswapd_max_order = 0;
-+		} else
-+			new_order = 0;
-+
- 		if (order < new_order) {
- 			/*
- 			 * Don't sleep if someone wants a larger 'order'
-@@ -2428,10 +2444,12 @@ static int kswapd(void *p)
- 				long remaining = 0;
- 
- 				/* Try to sleep for a short interval */
--				if (!sleeping_prematurely(pgdat, order, remaining)) {
-+				if (!sleeping_prematurely(kswapd_p, order,
-+							remaining)) {
- 					remaining = schedule_timeout(HZ/10);
--					finish_wait(&pgdat->kswapd_wait, &wait);
--					prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-+					finish_wait(wait_h, &wait);
-+					prepare_to_wait(wait_h, &wait,
-+							TASK_INTERRUPTIBLE);
- 				}
- 
- 				/*
-@@ -2439,13 +2457,19 @@ static int kswapd(void *p)
- 				 * premature sleep. If not, then go fully
- 				 * to sleep until explicitly woken up
- 				 */
--				if (!sleeping_prematurely(pgdat, order, remaining)) {
--					trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
--					set_pgdat_percpu_threshold(pgdat,
--						calculate_normal_threshold);
-+				if (!sleeping_prematurely(kswapd_p, order,
-+							remaining)) {
-+					if (is_node_kswapd(kswapd_p)) {
-+						trace_mm_vmscan_kswapd_sleep(
-+								pgdat->node_id);
-+						set_pgdat_percpu_threshold(pgdat,
-+							calculate_normal_threshold);
-+					}
- 					schedule();
--					set_pgdat_percpu_threshold(pgdat,
--						calculate_pressure_threshold);
-+					if (is_node_kswapd(kswapd_p)) {
-+						set_pgdat_percpu_threshold(pgdat,
-+							calculate_pressure_threshold);
-+					}
- 				} else {
- 					if (remaining)
- 						count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
-@@ -2454,9 +2478,10 @@ static int kswapd(void *p)
- 				}
- 			}
- 
--			order = pgdat->kswapd_max_order;
-+			if (is_node_kswapd(kswapd_p))
-+				order = pgdat->kswapd_max_order;
- 		}
--		finish_wait(&pgdat->kswapd_wait, &wait);
-+		finish_wait(wait_h, &wait);
- 
- 		ret = try_to_freeze();
- 		if (kthread_should_stop())
-@@ -2489,13 +2514,13 @@ void wakeup_kswapd(struct zone *zone, int order)
- 	pgdat = zone->zone_pgdat;
- 	if (pgdat->kswapd_max_order < order)
- 		pgdat->kswapd_max_order = order;
--	if (!waitqueue_active(&pgdat->kswapd_wait))
-+	if (!waitqueue_active(pgdat->kswapd_wait))
- 		return;
- 	if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zone), 0, 0))
- 		return;
- 
- 	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
--	wake_up_interruptible(&pgdat->kswapd_wait);
-+	wake_up_interruptible(pgdat->kswapd_wait);
- }
- 
  /*
-@@ -2587,12 +2612,23 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
- 		for_each_node_state(nid, N_HIGH_MEMORY) {
- 			pg_data_t *pgdat = NODE_DATA(nid);
- 			const struct cpumask *mask;
-+			struct kswapd *kswapd_p;
-+			struct task_struct *thr;
-+			wait_queue_head_t *wait;
+@@ -145,6 +159,28 @@ static inline bool res_counter_soft_limit_check_locked(struct res_counter *cnt)
+ 	return false;
+ }
  
- 			mask = cpumask_of_node(pgdat->node_id);
- 
-+			spin_lock(&kswapds_spinlock);
-+			wait = pgdat->kswapd_wait;
-+			kswapd_p = container_of(wait, struct kswapd,
-+						kswapd_wait);
-+			thr = kswapd_p->kswapd_task;
-+			spin_unlock(&kswapds_spinlock);
++static inline bool
++res_counter_high_wmark_limit_check_locked(struct res_counter *cnt)
++{
++	unsigned long long free = cnt->limit - cnt->usage;
 +
- 			if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
- 				/* One of our CPUs online: restore mask */
--				set_cpus_allowed_ptr(pgdat->kswapd, mask);
-+				if (thr)
-+					set_cpus_allowed_ptr(thr, mask);
- 		}
- 	}
- 	return NOTIFY_OK;
-@@ -2605,18 +2641,28 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
- int kswapd_run(int nid)
- {
- 	pg_data_t *pgdat = NODE_DATA(nid);
-+	struct task_struct *thr;
-+	struct kswapd *kswapd_p;
- 	int ret = 0;
- 
--	if (pgdat->kswapd)
-+	if (pgdat->kswapd_wait)
- 		return 0;
- 
--	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
--	if (IS_ERR(pgdat->kswapd)) {
-+	kswapd_p = kzalloc(sizeof(struct kswapd), GFP_KERNEL);
-+	if (!kswapd_p)
-+		return -ENOMEM;
++	if (free <= cnt->high_wmark_limit)
++		return false;
 +
-+	init_waitqueue_head(&kswapd_p->kswapd_wait);
-+	pgdat->kswapd_wait = &kswapd_p->kswapd_wait;
-+	kswapd_p->kswapd_pgdat = pgdat;
-+	thr = kthread_run(kswapd, kswapd_p, "kswapd%d", nid);
-+	if (IS_ERR(thr)) {
- 		/* failure at boot is fatal */
- 		BUG_ON(system_state == SYSTEM_BOOTING);
- 		printk("Failed to start kswapd on node %d\n",nid);
- 		ret = -1;
- 	}
-+	kswapd_p->kswapd_task = thr;
++	return true;
++}
++
++static inline bool
++res_counter_low_wmark_limit_check_locked(struct res_counter *cnt)
++{
++	unsigned long long free = cnt->limit - cnt->usage;
++
++	if (free <= cnt->low_wmark_limit)
++		return false;
++
++	return true;
++}
++
+ /**
+  * Get the difference between the usage and the soft limit
+  * @cnt: The counter
+@@ -193,6 +229,30 @@ static inline bool res_counter_check_under_soft_limit(struct res_counter *cnt)
  	return ret;
  }
  
-@@ -2625,10 +2671,24 @@ int kswapd_run(int nid)
-  */
- void kswapd_stop(int nid)
++static inline bool
++res_counter_check_under_low_wmark_limit(struct res_counter *cnt)
++{
++	bool ret;
++	unsigned long flags;
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	ret = res_counter_low_wmark_limit_check_locked(cnt);
++	spin_unlock_irqrestore(&cnt->lock, flags);
++	return ret;
++}
++
++static inline bool
++res_counter_check_under_high_wmark_limit(struct res_counter *cnt)
++{
++	bool ret;
++	unsigned long flags;
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	ret = res_counter_high_wmark_limit_check_locked(cnt);
++	spin_unlock_irqrestore(&cnt->lock, flags);
++	return ret;
++}
++
+ static inline void res_counter_reset_max(struct res_counter *cnt)
  {
--	struct task_struct *kswapd = NODE_DATA(nid)->kswapd;
-+	struct task_struct *thr = NULL;
-+	struct kswapd *kswapd_p = NULL;
-+	wait_queue_head_t *wait;
-+
-+	pg_data_t *pgdat = NODE_DATA(nid);
-+
-+	spin_lock(&kswapds_spinlock);
-+	wait = pgdat->kswapd_wait;
-+	if (wait) {
-+		kswapd_p = container_of(wait, struct kswapd, kswapd_wait);
-+		thr = kswapd_p->kswapd_task;
-+	}
-+	spin_unlock(&kswapds_spinlock);
-+
-+	if (thr)
-+		kthread_stop(thr);
- 
--	if (kswapd)
--		kthread_stop(kswapd);
-+	kfree(kswapd_p);
+ 	unsigned long flags;
+@@ -238,4 +298,27 @@ res_counter_set_soft_limit(struct res_counter *cnt,
+ 	return 0;
  }
  
- static int __init kswapd_init(void)
++static inline int
++res_counter_set_high_wmark_limit(struct res_counter *cnt,
++				unsigned long long wmark_limit)
++{
++	unsigned long flags;
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	cnt->high_wmark_limit = wmark_limit;
++	spin_unlock_irqrestore(&cnt->lock, flags);
++	return 0;
++}
++
++static inline int
++res_counter_set_low_wmark_limit(struct res_counter *cnt,
++				unsigned long long wmark_limit)
++{
++	unsigned long flags;
++
++	spin_lock_irqsave(&cnt->lock, flags);
++	cnt->low_wmark_limit = wmark_limit;
++	spin_unlock_irqrestore(&cnt->lock, flags);
++	return 0;
++}
+ #endif
+diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+index c7eaa37..f68bd63 100644
+--- a/kernel/res_counter.c
++++ b/kernel/res_counter.c
+@@ -19,6 +19,8 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent)
+ 	spin_lock_init(&counter->lock);
+ 	counter->limit = RESOURCE_MAX;
+ 	counter->soft_limit = RESOURCE_MAX;
++	counter->low_wmark_limit = 0;
++	counter->high_wmark_limit = 0;
+ 	counter->parent = parent;
+ }
+ 
+@@ -103,6 +105,10 @@ res_counter_member(struct res_counter *counter, int member)
+ 		return &counter->failcnt;
+ 	case RES_SOFT_LIMIT:
+ 		return &counter->soft_limit;
++	case RES_LOW_WMARK_LIMIT:
++		return &counter->low_wmark_limit;
++	case RES_HIGH_WMARK_LIMIT:
++		return &counter->high_wmark_limit;
+ 	};
+ 
+ 	BUG();
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f6e0987..5508d94 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -290,6 +290,7 @@ struct mem_cgroup {
+ 	spinlock_t pcp_counter_lock;
+ 
+ 	wait_queue_head_t *kswapd_wait;
++	unsigned long min_free_kbytes;
+ };
+ 
+ /* Stuffs for move charges at task migration. */
+@@ -378,6 +379,7 @@ static void mem_cgroup_get(struct mem_cgroup *mem);
+ static void mem_cgroup_put(struct mem_cgroup *mem);
+ static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+ static void drain_all_stock_async(void);
++static unsigned long get_min_free_kbytes(struct mem_cgroup *mem);
+ 
+ static struct mem_cgroup_per_zone *
+ mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+@@ -818,6 +820,45 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
+ 	return (mem == root_mem_cgroup);
+ }
+ 
++void setup_per_memcg_wmarks(struct mem_cgroup *mem)
++{
++	unsigned long min_free_kbytes;
++
++	min_free_kbytes = get_min_free_kbytes(mem);
++	if (min_free_kbytes == 0) {
++		u64 limit;
++
++		limit = mem_cgroup_get_limit(mem);
++		res_counter_set_low_wmark_limit(&mem->res, limit);
++		res_counter_set_high_wmark_limit(&mem->res, limit);
++	} else {
++		unsigned long long low_wmark, high_wmark;
++		unsigned long long tmp = min_free_kbytes << 10;
++
++		low_wmark = tmp + (tmp >> 2);
++		high_wmark = tmp + (tmp >> 1);
++		res_counter_set_low_wmark_limit(&mem->res, low_wmark);
++		res_counter_set_high_wmark_limit(&mem->res, high_wmark);
++	}
++}
++
++void init_per_memcg_wmarks(struct mem_cgroup *mem)
++{
++	unsigned long min_free_kbytes;
++	u64 limit_kbytes;
++
++	limit_kbytes = mem_cgroup_get_limit(mem) >> 10;
++	min_free_kbytes = int_sqrt(limit_kbytes * 16);
++	if (min_free_kbytes < 128)
++		min_free_kbytes = 128;
++	if (min_free_kbytes > 65536)
++		min_free_kbytes = 65536;
++
++	mem->min_free_kbytes = min_free_kbytes;
++	setup_per_memcg_wmarks(mem);
++
++}
++
+ /*
+  * Following LRU functions are allowed to be used without PCG_LOCK.
+  * Operations are called by routine of global LRU independently from memcg.
+@@ -1403,6 +1444,22 @@ unsigned long mem_cgroup_page_stat(struct mem_cgroup *mem,
+ 	return value;
+ }
+ 
++static unsigned long get_min_free_kbytes(struct mem_cgroup *memcg)
++{
++	struct cgroup *cgrp = memcg->css.cgroup;
++	unsigned long min_free_kbytes;
++
++	/* root ? */
++	if (cgrp == NULL || cgrp->parent == NULL)
++		return 0;
++
++	spin_lock(&memcg->reclaim_param_lock);
++	min_free_kbytes = memcg->min_free_kbytes;
++	spin_unlock(&memcg->reclaim_param_lock);
++
++	return min_free_kbytes;
++}
++
+ static void mem_cgroup_start_move(struct mem_cgroup *mem)
+ {
+ 	int cpu;
+@@ -3310,6 +3367,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 			else
+ 				memcg->memsw_is_minimum = false;
+ 		}
++		init_per_memcg_wmarks(memcg);
+ 		mutex_unlock(&set_limit_mutex);
+ 
+ 		if (!ret)
+@@ -3369,6 +3427,7 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+ 			else
+ 				memcg->memsw_is_minimum = false;
+ 		}
++		init_per_memcg_wmarks(memcg);
+ 		mutex_unlock(&set_limit_mutex);
+ 
+ 		if (!ret)
+@@ -4744,6 +4803,19 @@ static void __init enable_swap_cgroup(void)
+ }
+ #endif
+ 
++int mem_cgroup_watermark_ok(struct mem_cgroup *mem,
++				int charge_flags)
++{
++	long ret = 0;
++
++	if (charge_flags & CHARGE_WMARK_LOW)
++		ret = res_counter_check_under_low_wmark_limit(&mem->res);
++	if (charge_flags & CHARGE_WMARK_HIGH)
++		ret = res_counter_check_under_high_wmark_limit(&mem->res);
++
++	return ret;
++}
++
+ static int mem_cgroup_soft_limit_tree_init(void)
+ {
+ 	struct mem_cgroup_tree_per_node *rtpn;
+@@ -4834,6 +4906,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 
+ 	atomic_set(&mem->refcnt, 1);
+ 	mem->move_charge_at_immigrate = 0;
++	mem->min_free_kbytes = 0;
+ 	mutex_init(&mem->thresholds_lock);
+ 	return &mem->css;
+ free_out:
 -- 
 1.7.3.1
 
