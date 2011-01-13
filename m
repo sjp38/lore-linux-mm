@@ -1,84 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BFCED6B00EF
-	for <linux-mm@kvack.org>; Thu, 13 Jan 2011 17:07:40 -0500 (EST)
+	by kanga.kvack.org (Postfix) with ESMTP id 7856C6B00F0
+	for <linux-mm@kvack.org>; Thu, 13 Jan 2011 17:08:09 -0500 (EST)
 From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Thu, 13 Jan 2011 17:05:07 -0500
+Date: Thu, 13 Jan 2011 17:05:20 -0500
 Subject: RE: [RFC][PATCH 0/2] Tunable watermark
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C3B8DF645@USINDEVS02.corp.hds.com>
+Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C3B8DF647@USINDEVS02.corp.hds.com>
 References: <65795E11DBF1E645A09CEC7EAEE94B9C3A30A295@USINDEVS02.corp.hds.com>
  <alpine.DEB.2.00.1101071416450.23577@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1101071416450.23577@chino.kir.corp.google.com>
+ <AANLkTikQPXWkEJwN5fV2vnUS37Fs+GNzFXuFkKXcnzmu@mail.gmail.com>
+ <alpine.DEB.2.00.1101071436220.23858@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1101071436220.23858@chino.kir.corp.google.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
+To: David Rientjes <rientjes@google.com>, Ying Han <yinghan@google.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Randy Dunlap <rdunlap@xenotime.net>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi David,
+On 01/07/2011 05:39 PM, David Rientjes wrote:
 
-Thank you for your comments.
-
-On 01/07/2011 05:23 PM, David Rientjes wrote:
-> On Fri, 7 Jan 2011, Satoru Moriya wrote:
-
->>
->> [Problem]
->> The thresholds kswapd/direct reclaim starts(ends) depend on
->> watermark[min,low,high] and currently all watermarks are set
->> based on min_free_kbytes. min_free_kbytes is the amount of
->> free memory that Linux VM should keep at least.
->>
->=20
-> Not completely, it also depends on the amount of lowmem (because of the=20
-> reserve setup next) and the amount of memory in each zone.
-
-Right. Thanks.
-
->> [Solution]
->> To avoid the situation above, this patch set introduces new
->> tunables /proc/sys/vm/wmark_min_kbytes, wmark_low_kbytes and
->> wmark_high_kbytes. Each entry controls watermark[min],
->> watermark[low] and watermark[high] separately.
->> By using these parameters one can make the difference between
->> min and low bigger than the amount of memory which applications
->> require.
->>
->=20
-> I really dislike this because it adds additional tunables that should=20
-> already be handled correctly by the VM and it's very difficult for users=
+> The semantics of any watermark is to trigger events to happen at a=20
+> specific level, so they should be static with respect to a frame of=20
+> reference (which in the VM case is the min watermark with respect to the=
 =20
-> to know what to tune these values to; these watermarks (with the exceptio=
+> size of the zone).  If you're going to adjust the min watermark, it's the=
 n=20
-> of min) are supposed to be internal to the VM implementation.
+> _mandatory_ to adjust the others to that frame of reference, you shouldn'=
+t=20
+> need to tune them independently.
 
-The patchset targeted enterprise system and in that area users expect
-that they can tune the system by themselves to fulfill their requirements.
+Currently watermark[low,high] are set by following calculation (lowmem case=
+).
 
-> You didn't mention why it wouldn't be possible to modify=20
-> setup_per_zone_wmarks() in some way for your configuration so this happen=
-s=20
-> automatically.  If you can find a deterministic way to set these=20
-> watermarks from userspace, you should be able to do it in the kernel as=20
-> well based on the configuration.
+watermark[low]  =3D watermark[min] * 1.25
+watermark[high] =3D watermark[min] * 1.5
 
-Do you mean that we should introduce a mechanism into kernel that changes
-watermarks dynamically depending on its loads (such as cpu frequency contro=
-l)
-or we should change the calculation method in setup_per_zone_wmarks()?
+So the difference between watermarks are following:
 
-I think it is difficult to control watermarks automatically in kernel becau=
-se
-required memory varies widely among applications. On the other hand, sysctl
-parameters help us fit the kernel to each system's requirement flexibly.
+min <-- min/4 --> low <-- min/4 --> high
 
-> I think we should invest time in making sure the VM works for any type of=
+I think the differences, "min/4", are too small in my case.
+Of course I can make them bigger if I set min_free_kbytes to bigger value.=
 =20
-> workload thrown at it instead of relying on userspace making lots of=20
-> adjustments.
+But it means kernel keeps more free memory for PF_MEMALLOC case unnecessari=
+ly.
+
+So I suggest changing coefficients(1.25, 1.5). Also it's better
+to make them accessible from user space to tune in response to application
+requirements.
+
+> The problem that Satoru is reporting probably has nothing to do with the=
+=20
+> watermarks themselves but probably requires more aggressive action by=20
+> kswapd and/or memory compaction.
+
+More aggressive action may reduce the possibility of the problem reported.
+But we can't avoid the problem completely because applications may
+allocate/access faster than reclaiming/compaction.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
