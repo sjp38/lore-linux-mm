@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 748316B00E9
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 05:15:06 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 8DB3E3EE0BD
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:15:04 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7494D45DE58
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:15:04 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3CC9445DE59
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:15:04 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C5D71DB803F
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:15:04 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D682BE08002
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:15:03 +0900 (JST)
-Date: Fri, 14 Jan 2011 19:09:09 +0900
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 5A5F56B00E9
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 05:16:39 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Postfix) with ESMTP id C942D3EE0B6
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:16:35 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A825645DE54
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:16:35 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E3D245DE51
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:16:35 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DA71EF8006
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:16:35 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E61EEF8001
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:16:35 +0900 (JST)
+Date: Fri, 14 Jan 2011 19:10:42 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 2/4] [BUGFIX] dont set USED bit on tail pages
-Message-Id: <20110114190909.d396cdf4.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 3/4] [BUGFIX] fix memcgroup LRU stat with THP
+Message-Id: <20110114191042.dd145d22.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110114190412.73362cd7.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110114190412.73362cd7.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -33,182 +33,47 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Now, under THP:
+memroy cgroup's LRU stat should take care of size of pages because
+Transparent Hugepage inserts hugepage into LRU and zone counter
+is updeted based on the size of page.
 
-at charge:
-  - PageCgroupUsed bit is set to all page_cgroup on a hugepage.
-    ....set to 512 pages.
-at uncharge
-  - PageCgroupUsed bit is unset on the head page.
+If this value is the number wrong, memory reclaim will not work well.
 
-So, tail pages will remain with "Used" bit.
-
-This patch fixes that Used bit is set only to the head page.
-Used bits for tail pages will be set at spliting if necessary.
+Note: only head page of THP's huge page is linked into LRU.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/memcontrol.h |    4 ++
- mm/huge_memory.c           |    2 +
- mm/memcontrol.c            |   80 ++++++++++++++++++++++-----------------------
- 3 files changed, 46 insertions(+), 40 deletions(-)
+ mm/memcontrol.c |   10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
 Index: mmotm-0107/mm/memcontrol.c
 ===================================================================
 --- mmotm-0107.orig/mm/memcontrol.c
 +++ mmotm-0107/mm/memcontrol.c
-@@ -2084,15 +2084,28 @@ struct mem_cgroup *try_get_mem_cgroup_fr
- 	return mem;
- }
- 
--/*
-- * commit a charge got by __mem_cgroup_try_charge() and makes page_cgroup to be
-- * USED state. If already USED, uncharge and return.
-- */
--static void ____mem_cgroup_commit_charge(struct mem_cgroup *mem,
--					 struct page_cgroup *pc,
--					 enum charge_type ctype)
-+static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
-+				       struct page_cgroup *pc,
-+				       enum charge_type ctype,
-+				       int page_size)
- {
--	bool file = false;
-+	int count = page_size >> PAGE_SHIFT;
-+
-+	/* try_charge() can return NULL to *memcg, taking care of it. */
-+	if (!mem)
-+		return;
-+
-+	lock_page_cgroup(pc);
-+	if (unlikely(PageCgroupUsed(pc))) {
-+		unlock_page_cgroup(pc);
-+		mem_cgroup_cancel_charge(mem, page_size);
-+		return;
-+	}
-+
-+	/*
-+	 * we don't need page_cgroup_lock about tail pages, becase they are not
-+	 * accessed by any other context at this point.
-+	 */
- 	pc->mem_cgroup = mem;
- 	/*
- 	 * We access a page_cgroup asynchronously without lock_page_cgroup().
-@@ -2107,7 +2120,6 @@ static void ____mem_cgroup_commit_charge
- 	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
- 		SetPageCgroupCache(pc);
- 		SetPageCgroupUsed(pc);
--		file = true;
- 		break;
- 	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
- 		ClearPageCgroupCache(pc);
-@@ -2117,34 +2129,7 @@ static void ____mem_cgroup_commit_charge
- 		break;
- 	}
- 
--	mem_cgroup_charge_statistics(mem, file, 1);
--}
--
--static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
--				       struct page_cgroup *pc,
--				       enum charge_type ctype,
--				       int page_size)
--{
--	int i;
--	int count = page_size >> PAGE_SHIFT;
--
--	/* try_charge() can return NULL to *memcg, taking care of it. */
--	if (!mem)
--		return;
--
--	lock_page_cgroup(pc);
--	if (unlikely(PageCgroupUsed(pc))) {
--		unlock_page_cgroup(pc);
--		mem_cgroup_cancel_charge(mem, page_size);
--		return;
--	}
--
--	/*
--	 * we don't need page_cgroup_lock about tail pages, becase they are not
--	 * accessed by any other context at this point.
--	 */
--	for (i = 0; i < count; i++)
--		____mem_cgroup_commit_charge(mem, pc + i, ctype);
-+	mem_cgroup_charge_statistics(mem, PageCgroupCache(pc), count);
- 
- 	unlock_page_cgroup(pc);
- 	/*
-@@ -2154,6 +2139,23 @@ static void __mem_cgroup_commit_charge(s
+@@ -815,7 +815,10 @@ void mem_cgroup_del_lru_list(struct page
+ 	 * removed from global LRU.
  	 */
- 	memcg_check_events(mem, pc->page);
- }
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+/*
-+ * Because tail pages are not mared as "used", set it. We're under
-+ * compund_lock and don't need to take care of races.
-+ * Statistics are updated properly at charging. We just mark Used bits.
-+ */
-+void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail)
-+{
-+	struct page_cgroup *hpc = lookup_page_cgroup(head);
-+	struct page_cgroup *tpc = lookup_page_cgroup(tail);
-+
-+	tpc->mem_cgroup = hpc->mem_cgroup;
-+	smp_wmb(); /* see __commit_charge() */
-+	SetPageCgroupUsed(tpc);
-+	VM_BUG_ON(PageCgroupCache(hpc));
-+}
-+#endif
+ 	mz = page_cgroup_zoneinfo(pc);
+-	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
++	if (!PageTransHuge(page))
++		MEM_CGROUP_ZSTAT(mz, lru) -= 1;
++	else
++		MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
+ 	if (mem_cgroup_is_root(pc->mem_cgroup))
+ 		return;
+ 	VM_BUG_ON(list_empty(&pc->lru));
+@@ -866,7 +869,10 @@ void mem_cgroup_add_lru_list(struct page
+ 		return;
  
- /**
-  * __mem_cgroup_move_account - move account of the page
-@@ -2548,7 +2550,6 @@ direct_uncharge:
- static struct mem_cgroup *
- __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
- {
--	int i;
- 	int count;
- 	struct page_cgroup *pc;
- 	struct mem_cgroup *mem = NULL;
-@@ -2602,8 +2603,7 @@ __mem_cgroup_uncharge_common(struct page
- 		break;
- 	}
- 
--	for (i = 0; i < count; i++)
--		mem_cgroup_charge_statistics(mem, file, -1);
-+	mem_cgroup_charge_statistics(mem, file, -count);
- 
- 	ClearPageCgroupUsed(pc);
- 	/*
-Index: mmotm-0107/include/linux/memcontrol.h
-===================================================================
---- mmotm-0107.orig/include/linux/memcontrol.h
-+++ mmotm-0107/include/linux/memcontrol.h
-@@ -146,6 +146,10 @@ unsigned long mem_cgroup_soft_limit_recl
- 						gfp_t gfp_mask);
- u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail);
-+#endif
-+
- #else /* CONFIG_CGROUP_MEM_RES_CTLR */
- struct mem_cgroup;
- 
-Index: mmotm-0107/mm/huge_memory.c
-===================================================================
---- mmotm-0107.orig/mm/huge_memory.c
-+++ mmotm-0107/mm/huge_memory.c
-@@ -1203,6 +1203,8 @@ static void __split_huge_page_refcount(s
- 		BUG_ON(!PageDirty(page_tail));
- 		BUG_ON(!PageSwapBacked(page_tail));
- 
-+		mem_cgroup_split_huge_fixup(page, page_tail);
-+
- 		lru_add_page_tail(zone, page, page_tail);
- 	}
- 
-
+ 	mz = page_cgroup_zoneinfo(pc);
+-	MEM_CGROUP_ZSTAT(mz, lru) += 1;
++	if (!PageTransHuge(page))
++		MEM_CGROUP_ZSTAT(mz, lru) += 1;
++	else
++		MEM_CGROUP_ZSTAT(mz, lru) += 1 << compound_order(page);
+ 	SetPageCgroupAcctLRU(pc);
+ 	if (mem_cgroup_is_root(pc->mem_cgroup))
+ 		return;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
