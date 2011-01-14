@@ -1,79 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AFB96B0092
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 04:28:12 -0500 (EST)
-From: Huang Shijie <b32955@freescale.com>
-Subject: [PATCH] swap : check the return value of swap_readpage()
-Date: Fri, 14 Jan 2011 17:30:21 +0800
-Message-ID: <1294997421-8971-1-git-send-email-b32955@freescale.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 868A26B0092
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 05:10:11 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6BE0B3EE0B3
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:10:09 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E0C245DE4F
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:10:09 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 33AC745DE50
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:10:09 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 22757EF8002
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:10:09 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CDE5E1DB803F
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:10:08 +0900 (JST)
+Date: Fri, 14 Jan 2011 19:04:12 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/4] [BUGFIX] thp vs memcg fix.
+Message-Id: <20110114190412.73362cd7.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, b20596@freescale.com, Huang Shijie <b32955@freescale.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, hannes@cmpxchg.org, aarcange@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-The read_swap_cache_async() does not check the return value
-of swap_readpage().
 
-If swap_readpage() returns -ENOMEM, the read_swap_cache_async()
-still returns the `new_page` which has nothing. The caller will
-do some wrong operations on the `new_page` such as copy.
+Now, memcg is broken when used with THP in -mm. I thought I had more time but it's
+now merged....so, I made a quick fix. I'm sorry for my laziness.
 
-The patch fixs the problem.
+All patches are onto mmotm-Jan07. 
 
-Also remove the unlock_ page() in swap_readpage() in the wrong case
-, since __delete_from_swap_cache() needs a locked page.
+The issues are mainly on statistics accounting.
+ - the number of anon pages in memcg.
+ - the number of pages on LRU.
+ - rmdir() will leak some accounts. etc.
 
-Signed-off-by: Huang Shijie <b32955@freescale.com>
----
- mm/page_io.c    |    1 -
- mm/swap_state.c |   12 +++++++-----
- 2 files changed, 7 insertions(+), 6 deletions(-)
+Please see each patches for details. 
 
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 2dee975..5c759f2 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -124,7 +124,6 @@ int swap_readpage(struct page *page)
- 	VM_BUG_ON(PageUptodate(page));
- 	bio = get_swap_bio(GFP_KERNEL, page, end_swap_bio_read);
- 	if (bio == NULL) {
--		unlock_page(page);
- 		ret = -ENOMEM;
- 		goto out;
- 	}
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 5c8cfab..3bd7238 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -331,16 +331,18 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 		__set_page_locked(new_page);
- 		SetPageSwapBacked(new_page);
- 		err = __add_to_swap_cache(new_page, entry);
-+		radix_tree_preload_end();
- 		if (likely(!err)) {
--			radix_tree_preload_end();
- 			/*
- 			 * Initiate read into locked page and return.
- 			 */
--			lru_cache_add_anon(new_page);
--			swap_readpage(new_page);
--			return new_page;
-+			err = swap_readpage(new_page);
-+			if (likely(!err)) {
-+				lru_cache_add_anon(new_page);
-+				return new_page;
-+			}
-+			__delete_from_swap_cache(new_page);
- 		}
--		radix_tree_preload_end();
- 		ClearPageSwapBacked(new_page);
- 		__clear_page_locked(new_page);
- 		/*
--- 
-1.7.3.2
+I don't have enough test time before positing, so please take this as quick
+trial and give me strict review. And if you find another issues, please
+notify me.
 
+Testeres shoulld make CONFIG_TRANSPARENT_HUGEPAGE=y and
+use 'always'. giving memory pressure, create/remove memory cgroup,
+move tasks without account move. And see memory.stat file.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
