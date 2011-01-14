@@ -1,175 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 00EB06B00E9
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 05:21:31 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C852F3EE0B3
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:21:29 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id ADC4E45DE53
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:21:29 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9419C45DE50
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:21:29 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 82BABEF8002
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:21:29 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 423EE1DB803B
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 19:21:29 +0900 (JST)
-Date: Fri, 14 Jan 2011 19:15:35 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 4/4] [BUGFIX] fix account leak at force_empty, rmdir with
- THP
-Message-Id: <20110114191535.309b634c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110114190412.73362cd7.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 847766B0092
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 06:51:28 -0500 (EST)
+Date: Fri, 14 Jan 2011 12:51:21 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/4] [BUGFIX] enhance charge_statistics function for
+ fixising issues
+Message-ID: <20110114115121.GO23189@cmpxchg.org>
 References: <20110114190412.73362cd7.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20110114190644.a222f60d.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110114190644.a222f60d.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, hannes@cmpxchg.org, aarcange@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, aarcange@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On Fri, Jan 14, 2011 at 07:06:44PM +0900, KAMEZAWA Hiroyuki wrote:
+> mem_cgroup_charge_staistics() was designed for charging a page but
+> now, we have transparent hugepage. To fix problems (in following patch)
+> it's required to change the function to get the number of pages
+> as its arguments.
+> 
+> The new function gets following as argument.
+>   - type of page rather than 'pc'
+>   - size of page which is accounted.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Now, when THP is enabled, memcg's rmdir() function is broken
-because move_account() for THP page is not supported.
+I agree with the patch in general, below are only a few nitpicks.
 
-This will cause account leak or -EBUSY issue at rmdir().
-This patch fixes the issue by supporting move_account() THP pages.
+> --- mmotm-0107.orig/mm/memcontrol.c
+> +++ mmotm-0107/mm/memcontrol.c
+> @@ -600,23 +600,23 @@ static void mem_cgroup_swap_statistics(s
+>  }
+>  
+>  static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
+> -					 struct page_cgroup *pc,
+> -					 bool charge)
+> +					 bool file,
+> +					 int pages)
 
-And account information will be moved to its parent at rmdir().
+I think 'nr_pages' would be a better name.  This makes me think of a
+'struct page *[]'.
 
-How to test:
-   79  mount -t cgroup none /cgroup/memory/ -o memory
-   80  mkdir /cgroup/A/
-   81  mkdir /cgroup/memory/A
-   82  mkdir /cgroup/memory/A/B
-   83  cgexec -g memory:A/B ./malloc 128 &
-   84  grep anon /cgroup/memory/A/B/memory.stat
-   85  grep rss /cgroup/memory/A/B/memory.stat
-   86  echo 1728 > /cgroup/memory/A/tasks
-   87  grep rss /cgroup/memory/A/memory.stat
-   88  rmdir /cgroup/memory/A/B/
-   89  grep rss /cgroup/memory/A/memory.stat
+>  {
+> -	int val = (charge) ? 1 : -1;
+> -
+>  	preempt_disable();
+>  
+> -	if (PageCgroupCache(pc))
+> -		__this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_CACHE], val);
+> +	if (file)
+> +		__this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_CACHE], pages);
+>  	else
+> -		__this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_RSS], val);
+> +		__this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_RSS], pages);
+>  
+> -	if (charge)
+> +	/* pagein of a big page is an event. So, ignore page size */
+> +	if (pages > 0)
+>  		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGIN_COUNT]);
+>  	else
+>  		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGOUT_COUNT]);
+> -	__this_cpu_inc(mem->stat->count[MEM_CGROUP_EVENTS]);
+> +
+> +	__this_cpu_add(mem->stat->count[MEM_CGROUP_EVENTS], pages);
+>  
+>  	preempt_enable();
+>  }
+> @@ -2092,6 +2092,7 @@ static void ____mem_cgroup_commit_charge
+>  					 struct page_cgroup *pc,
+>  					 enum charge_type ctype)
+>  {
+> +	bool file = false;
+>  	pc->mem_cgroup = mem;
+>  	/*
+>  	 * We access a page_cgroup asynchronously without lock_page_cgroup().
+> @@ -2106,6 +2107,7 @@ static void ____mem_cgroup_commit_charge
+>  	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
+>  		SetPageCgroupCache(pc);
+>  		SetPageCgroupUsed(pc);
+> +		file = true;
+>  		break;
+>  	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
+>  		ClearPageCgroupCache(pc);
+> @@ -2115,7 +2117,7 @@ static void ____mem_cgroup_commit_charge
+>  		break;
+>  	}
+>  
+> -	mem_cgroup_charge_statistics(mem, pc, true);
+> +	mem_cgroup_charge_statistics(mem, file, 1);
 
-- Create 2 level directory and exec a task calls malloc(big chunk).
-- Move a task somewhere (its parent cgroup in above)
-- rmdir /A/B
-- check memory.stat in /A/B is moved to /A after rmdir. and confirm
-  RSS/LRU information includes usages it was charged against /A/B.
+The extra local variable is a bit awkward, since there are already
+several sources of this information (ctype and pc->flags).
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |   32 ++++++++++++++++++++++----------
- 1 file changed, 22 insertions(+), 10 deletions(-)
+Could you keep it like the other sites, just pass PageCgroupCache()
+here as well?
 
-Index: mmotm-0107/mm/memcontrol.c
-===================================================================
---- mmotm-0107.orig/mm/memcontrol.c
-+++ mmotm-0107/mm/memcontrol.c
-@@ -2154,6 +2154,10 @@ void mem_cgroup_split_huge_fixup(struct 
- 	smp_wmb(); /* see __commit_charge() */
- 	SetPageCgroupUsed(tpc);
- 	VM_BUG_ON(PageCgroupCache(hpc));
-+	/*
-+ 	 * Note: if dirty ratio etc..are supported,
-+         * other flags may need to be copied.
-+         */
- }
- #endif
- 
-@@ -2175,8 +2179,11 @@ void mem_cgroup_split_huge_fixup(struct 
-  */
- 
- static void __mem_cgroup_move_account(struct page_cgroup *pc,
--	struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
-+	struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge,
-+	int charge_size)
- {
-+	int pagenum = charge_size >> PAGE_SHIFT;
-+
- 	VM_BUG_ON(from == to);
- 	VM_BUG_ON(PageLRU(pc->page));
- 	VM_BUG_ON(!page_is_cgroup_locked(pc));
-@@ -2190,14 +2197,14 @@ static void __mem_cgroup_move_account(st
- 		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
- 		preempt_enable();
- 	}
--	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -1);
-+	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -pagenum);
- 	if (uncharge)
- 		/* This is not "cancel", but cancel_charge does all we need. */
--		mem_cgroup_cancel_charge(from, PAGE_SIZE);
-+		mem_cgroup_cancel_charge(from, charge_size);
- 
- 	/* caller should have done css_get */
- 	pc->mem_cgroup = to;
--	mem_cgroup_charge_statistics(to, PageCgroupCache(pc), 1);
-+	mem_cgroup_charge_statistics(to, PageCgroupCache(pc), pagenum);
- 	/*
- 	 * We charges against "to" which may not have any tasks. Then, "to"
- 	 * can be under rmdir(). But in current implementation, caller of
-@@ -2212,7 +2219,8 @@ static void __mem_cgroup_move_account(st
-  * __mem_cgroup_move_account()
-  */
- static int mem_cgroup_move_account(struct page_cgroup *pc,
--		struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
-+		struct mem_cgroup *from, struct mem_cgroup *to,
-+		bool uncharge, int charge_size)
- {
- 	int ret = -EINVAL;
- 	unsigned long flags;
-@@ -2220,7 +2228,7 @@ static int mem_cgroup_move_account(struc
- 	lock_page_cgroup(pc);
- 	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
- 		move_lock_page_cgroup(pc, &flags);
--		__mem_cgroup_move_account(pc, from, to, uncharge);
-+		__mem_cgroup_move_account(pc, from, to, uncharge, charge_size);
- 		move_unlock_page_cgroup(pc, &flags);
- 		ret = 0;
- 	}
-@@ -2245,6 +2253,7 @@ static int mem_cgroup_move_parent(struct
- 	struct cgroup *cg = child->css.cgroup;
- 	struct cgroup *pcg = cg->parent;
- 	struct mem_cgroup *parent;
-+	int charge_size = PAGE_SIZE;
- 	int ret;
- 
- 	/* Is ROOT ? */
-@@ -2256,16 +2265,19 @@ static int mem_cgroup_move_parent(struct
- 		goto out;
- 	if (isolate_lru_page(page))
- 		goto put;
-+	/* The page is isolated from LRU and we have no race with splitting */
-+	if (PageTransHuge(page))
-+		charge_size = PAGE_SIZE << compound_order(page);
- 
- 	parent = mem_cgroup_from_cont(pcg);
- 	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false,
--				      PAGE_SIZE);
-+				      charge_size);
- 	if (ret || !parent)
- 		goto put_back;
- 
--	ret = mem_cgroup_move_account(pc, child, parent, true);
-+	ret = mem_cgroup_move_account(pc, child, parent, true, charge_size);
- 	if (ret)
--		mem_cgroup_cancel_charge(parent, PAGE_SIZE);
-+		mem_cgroup_cancel_charge(parent, charge_size);
- put_back:
- 	putback_lru_page(page);
- put:
-@@ -4850,7 +4862,7 @@ retry:
- 				goto put;
- 			pc = lookup_page_cgroup(page);
- 			if (!mem_cgroup_move_account(pc,
--						mc.from, mc.to, false)) {
-+					mc.from, mc.to, false, PAGE_SIZE)) {
- 				mc.precharge--;
- 				/* we uncharge from mc.from later. */
- 				mc.moved_charge++;
+> @@ -2186,14 +2188,14 @@ static void __mem_cgroup_move_account(st
+>  		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+>  		preempt_enable();
+>  	}
+> -	mem_cgroup_charge_statistics(from, pc, false);
+> +	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -1);
+>  	if (uncharge)
+>  		/* This is not "cancel", but cancel_charge does all we need. */
+>  		mem_cgroup_cancel_charge(from, PAGE_SIZE);
+>  
+>  	/* caller should have done css_get */
+>  	pc->mem_cgroup = to;
+> -	mem_cgroup_charge_statistics(to, pc, true);
+> +	mem_cgroup_charge_statistics(to, PageCgroupCache(pc), 1);
+>  	/*
+>  	 * We charges against "to" which may not have any tasks. Then, "to"
+>  	 * can be under rmdir(). But in current implementation, caller of
+> @@ -2551,6 +2553,7 @@ __mem_cgroup_uncharge_common(struct page
+>  	struct page_cgroup *pc;
+>  	struct mem_cgroup *mem = NULL;
+>  	int page_size = PAGE_SIZE;
+> +	bool file = false;
+>  
+>  	if (mem_cgroup_disabled())
+>  		return NULL;
+> @@ -2578,6 +2581,9 @@ __mem_cgroup_uncharge_common(struct page
+>  	if (!PageCgroupUsed(pc))
+>  		goto unlock_out;
+>  
+> +	if (PageCgroupCache(pc))
+> +		file = true;
+> +
+>  	switch (ctype) {
+>  	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
+>  	case MEM_CGROUP_CHARGE_TYPE_DROP:
+> @@ -2597,7 +2603,7 @@ __mem_cgroup_uncharge_common(struct page
+>  	}
+>  
+>  	for (i = 0; i < count; i++)
+> -		mem_cgroup_charge_statistics(mem, pc + i, false);
+> +		mem_cgroup_charge_statistics(mem, file, -1);
+
+I see you get rid of this loop in the next patch, anyway.  Can you
+just use PageCgroupCache() instead of the extra variable?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
