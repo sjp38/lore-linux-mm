@@ -1,153 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D538D6B0092
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 07:21:39 -0500 (EST)
-Date: Fri, 14 Jan 2011 13:21:31 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 4/4] [BUGFIX] fix account leak at force_empty, rmdir with
- THP
-Message-ID: <20110114122131.GR23189@cmpxchg.org>
-References: <20110114190412.73362cd7.kamezawa.hiroyu@jp.fujitsu.com>
- <20110114191535.309b634c.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6757B6B0092
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 07:23:07 -0500 (EST)
+Received: by iwn40 with SMTP id 40so2581464iwn.14
+        for <linux-mm@kvack.org>; Fri, 14 Jan 2011 04:23:05 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110114191535.309b634c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110114120931.GP23189@cmpxchg.org>
+References: <20110114190412.73362cd7.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110114190909.d396cdf4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110114120931.GP23189@cmpxchg.org>
+Date: Fri, 14 Jan 2011 21:23:05 +0900
+Message-ID: <AANLkTimRQ25xbCA4hFxsYfiO2Z7RJZUhJuhYei5Twy1N@mail.gmail.com>
+Subject: Re: [PATCH 2/4] [BUGFIX] dont set USED bit on tail pages
+From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, aarcange@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, aarcange@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 14, 2011 at 07:15:35PM +0900, KAMEZAWA Hiroyuki wrote:
-> 
-> Now, when THP is enabled, memcg's rmdir() function is broken
-> because move_account() for THP page is not supported.
-> 
-> This will cause account leak or -EBUSY issue at rmdir().
-> This patch fixes the issue by supporting move_account() THP pages.
-> 
-> And account information will be moved to its parent at rmdir().
-> 
-> How to test:
->    79  mount -t cgroup none /cgroup/memory/ -o memory
->    80  mkdir /cgroup/A/
->    81  mkdir /cgroup/memory/A
->    82  mkdir /cgroup/memory/A/B
->    83  cgexec -g memory:A/B ./malloc 128 &
->    84  grep anon /cgroup/memory/A/B/memory.stat
->    85  grep rss /cgroup/memory/A/B/memory.stat
->    86  echo 1728 > /cgroup/memory/A/tasks
->    87  grep rss /cgroup/memory/A/memory.stat
->    88  rmdir /cgroup/memory/A/B/
->    89  grep rss /cgroup/memory/A/memory.stat
-> 
-> - Create 2 level directory and exec a task calls malloc(big chunk).
-> - Move a task somewhere (its parent cgroup in above)
-> - rmdir /A/B
-> - check memory.stat in /A/B is moved to /A after rmdir. and confirm
->   RSS/LRU information includes usages it was charged against /A/B.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   32 ++++++++++++++++++++++----------
->  1 file changed, 22 insertions(+), 10 deletions(-)
-> 
-> Index: mmotm-0107/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-0107.orig/mm/memcontrol.c
-> +++ mmotm-0107/mm/memcontrol.c
-> @@ -2154,6 +2154,10 @@ void mem_cgroup_split_huge_fixup(struct 
->  	smp_wmb(); /* see __commit_charge() */
->  	SetPageCgroupUsed(tpc);
->  	VM_BUG_ON(PageCgroupCache(hpc));
-> +	/*
-> + 	 * Note: if dirty ratio etc..are supported,
-> +         * other flags may need to be copied.
-> +         */
+Thank you for review.
 
-That's a good comment, but it should be in the patch that introduces
-this function and is a bit unrelated in this one.
+2011/1/14 Johannes Weiner <hannes@cmpxchg.org>:
+> On Fri, Jan 14, 2011 at 07:09:09PM +0900, KAMEZAWA Hiroyuki wrote:
+>> --- mmotm-0107.orig/mm/memcontrol.c
+>> +++ mmotm-0107/mm/memcontrol.c
+>
+>> @@ -2154,6 +2139,23 @@ static void __mem_cgroup_commit_charge(s
+>> =A0 =A0 =A0 =A0*/
+>> =A0 =A0 =A0 memcg_check_events(mem, pc->page);
+>> =A0}
+>> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> +/*
+>> + * Because tail pages are not mared as "used", set it. We're under
+>
+> marked
+>
+will fix.
 
->  }
->  #endif
->  
-> @@ -2175,8 +2179,11 @@ void mem_cgroup_split_huge_fixup(struct 
->   */
->  
->  static void __mem_cgroup_move_account(struct page_cgroup *pc,
-> -	struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
-> +	struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge,
-> +	int charge_size)
->  {
-> +	int pagenum = charge_size >> PAGE_SHIFT;
+>> + * compund_lock and don't need to take care of races.
+>> + * Statistics are updated properly at charging. We just mark Used bits.
+>> + */
+>> +void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail)
+>> +{
+>> + =A0 =A0 struct page_cgroup *hpc =3D lookup_page_cgroup(head);
+>> + =A0 =A0 struct page_cgroup *tpc =3D lookup_page_cgroup(tail);
+>
+> I have trouble reading the code fluently with those names as they are
+> just very similar random letter sequences. =A0Could you rename them so
+> that they're better to discriminate? =A0headpc and tailpc perhaps?
+>
+ok. I'll use headpc,tailpc.
 
-nr_pages?
+>> + =A0 =A0 tpc->mem_cgroup =3D hpc->mem_cgroup;
+>> + =A0 =A0 smp_wmb(); /* see __commit_charge() */
+>> + =A0 =A0 SetPageCgroupUsed(tpc);
+>> + =A0 =A0 VM_BUG_ON(PageCgroupCache(hpc));
+>
+> Right now, this would be a bug due to other circumstances, but this
+> function does not require the page to be anon to function correctly,
+> does it?
 
-> +
->  	VM_BUG_ON(from == to);
->  	VM_BUG_ON(PageLRU(pc->page));
->  	VM_BUG_ON(!page_is_cgroup_locked(pc));
-> @@ -2190,14 +2197,14 @@ static void __mem_cgroup_move_account(st
->  		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
->  		preempt_enable();
->  	}
-> -	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -1);
-> +	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -pagenum);
->  	if (uncharge)
->  		/* This is not "cancel", but cancel_charge does all we need. */
-> -		mem_cgroup_cancel_charge(from, PAGE_SIZE);
-> +		mem_cgroup_cancel_charge(from, charge_size);
->  
->  	/* caller should have done css_get */
->  	pc->mem_cgroup = to;
-> -	mem_cgroup_charge_statistics(to, PageCgroupCache(pc), 1);
-> +	mem_cgroup_charge_statistics(to, PageCgroupCache(pc), pagenum);
->  	/*
->  	 * We charges against "to" which may not have any tasks. Then, "to"
->  	 * can be under rmdir(). But in current implementation, caller of
-> @@ -2212,7 +2219,8 @@ static void __mem_cgroup_move_account(st
->   * __mem_cgroup_move_account()
->   */
->  static int mem_cgroup_move_account(struct page_cgroup *pc,
-> -		struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
-> +		struct mem_cgroup *from, struct mem_cgroup *to,
-> +		bool uncharge, int charge_size)
->  {
->  	int ret = -EINVAL;
->  	unsigned long flags;
-> @@ -2220,7 +2228,7 @@ static int mem_cgroup_move_account(struc
->  	lock_page_cgroup(pc);
->  	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
->  		move_lock_page_cgroup(pc, &flags);
-> -		__mem_cgroup_move_account(pc, from, to, uncharge);
-> +		__mem_cgroup_move_account(pc, from, to, uncharge, charge_size);
->  		move_unlock_page_cgroup(pc, &flags);
->  		ret = 0;
->  	}
-> @@ -2245,6 +2253,7 @@ static int mem_cgroup_move_parent(struct
->  	struct cgroup *cg = child->css.cgroup;
->  	struct cgroup *pcg = cg->parent;
->  	struct mem_cgroup *parent;
-> +	int charge_size = PAGE_SIZE;
->  	int ret;
->  
->  	/* Is ROOT ? */
-> @@ -2256,16 +2265,19 @@ static int mem_cgroup_move_parent(struct
->  		goto out;
->  	if (isolate_lru_page(page))
->  		goto put;
-> +	/* The page is isolated from LRU and we have no race with splitting */
-> +	if (PageTransHuge(page))
-> +		charge_size = PAGE_SIZE << compound_order(page);
+No.
 
-The same as in the previous patch, compound_order() implicitely
-handles order-0 pages and should do the right thing without an extra
-check.
+> =A0I don't think we should encode a made up dependency here.
+>
+Ok, I'll remove BUG_ON.
 
-The comment is valuable, though!
 
-Nitpicks aside:
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+>> @@ -2602,8 +2603,7 @@ __mem_cgroup_uncharge_common(struct page
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
+>> =A0 =A0 =A0 }
+>>
+>> - =A0 =A0 for (i =3D 0; i < count; i++)
+>> - =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_charge_statistics(mem, file, -1);
+>> + =A0 =A0 mem_cgroup_charge_statistics(mem, file, -count);
+>
+> Pass PageCgroupCache(pc) instead, ditch the `file' variable?
+>
+will do.
+
+>> =A0 =A0 =A0 ClearPageCgroupUsed(pc);
+>> =A0 =A0 =A0 /*
+>> Index: mmotm-0107/include/linux/memcontrol.h
+>> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+>> --- mmotm-0107.orig/include/linux/memcontrol.h
+>> +++ mmotm-0107/include/linux/memcontrol.h
+>> @@ -146,6 +146,10 @@ unsigned long mem_cgroup_soft_limit_recl
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 gfp_t gfp_mask);
+>> =A0u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
+>>
+>> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> +void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail);
+>> +#endif
+>> +
+>> =A0#else /* CONFIG_CGROUP_MEM_RES_CTLR */
+>> =A0struct mem_cgroup;
+>>
+>> Index: mmotm-0107/mm/huge_memory.c
+>> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+>> --- mmotm-0107.orig/mm/huge_memory.c
+>> +++ mmotm-0107/mm/huge_memory.c
+>> @@ -1203,6 +1203,8 @@ static void __split_huge_page_refcount(s
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 BUG_ON(!PageDirty(page_tail));
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 BUG_ON(!PageSwapBacked(page_tail));
+>>
+>> + =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_split_huge_fixup(page, page_tail);
+>
+> You need to provide a dummy for non-memcg configurations.
+
+Ahhh, yes. I'll add one.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
