@@ -1,184 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1532C6B0092
-	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 07:28:10 -0500 (EST)
-Received: by iyj17 with SMTP id 17so2535442iyj.14
-        for <linux-mm@kvack.org>; Fri, 14 Jan 2011 04:28:09 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F04C6B0092
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 17:47:47 -0500 (EST)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
+	by smtp-out.google.com with ESMTP id p0EMliIq000885
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 14:47:44 -0800
+Received: from gwj20 (gwj20.prod.google.com [10.200.10.20])
+	by hpaq14.eem.corp.google.com with ESMTP id p0EMlJTH016696
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 14:47:43 -0800
+Received: by gwj20 with SMTP id 20so1355349gwj.36
+        for <linux-mm@kvack.org>; Fri, 14 Jan 2011 14:47:38 -0800 (PST)
+Date: Fri, 14 Jan 2011 14:47:26 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] swap : check the return value of swap_readpage()
+In-Reply-To: <1294997421-8971-1-git-send-email-b32955@freescale.com>
+Message-ID: <alpine.LSU.2.00.1101141445070.5406@sister.anvils>
+References: <1294997421-8971-1-git-send-email-b32955@freescale.com>
 MIME-Version: 1.0
-In-Reply-To: <20110114122131.GR23189@cmpxchg.org>
-References: <20110114190412.73362cd7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110114191535.309b634c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110114122131.GR23189@cmpxchg.org>
-Date: Fri, 14 Jan 2011 21:28:09 +0900
-Message-ID: <AANLkTimoSux0Fg6dpiHy24A+4oVW9_74BQ6EC7LhO8Sg@mail.gmail.com>
-Subject: Re: [PATCH 4/4] [BUGFIX] fix account leak at force_empty, rmdir with THP
-From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, aarcange@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Huang Shijie <b32955@freescale.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, b20596@freescale.com
 List-ID: <linux-mm.kvack.org>
 
-2011/1/14 Johannes Weiner <hannes@cmpxchg.org>:
-> On Fri, Jan 14, 2011 at 07:15:35PM +0900, KAMEZAWA Hiroyuki wrote:
->>
->> Now, when THP is enabled, memcg's rmdir() function is broken
->> because move_account() for THP page is not supported.
->>
->> This will cause account leak or -EBUSY issue at rmdir().
->> This patch fixes the issue by supporting move_account() THP pages.
->>
->> And account information will be moved to its parent at rmdir().
->>
->> How to test:
->> =A0 =A079 =A0mount -t cgroup none /cgroup/memory/ -o memory
->> =A0 =A080 =A0mkdir /cgroup/A/
->> =A0 =A081 =A0mkdir /cgroup/memory/A
->> =A0 =A082 =A0mkdir /cgroup/memory/A/B
->> =A0 =A083 =A0cgexec -g memory:A/B ./malloc 128 &
->> =A0 =A084 =A0grep anon /cgroup/memory/A/B/memory.stat
->> =A0 =A085 =A0grep rss /cgroup/memory/A/B/memory.stat
->> =A0 =A086 =A0echo 1728 > /cgroup/memory/A/tasks
->> =A0 =A087 =A0grep rss /cgroup/memory/A/memory.stat
->> =A0 =A088 =A0rmdir /cgroup/memory/A/B/
->> =A0 =A089 =A0grep rss /cgroup/memory/A/memory.stat
->>
->> - Create 2 level directory and exec a task calls malloc(big chunk).
->> - Move a task somewhere (its parent cgroup in above)
->> - rmdir /A/B
->> - check memory.stat in /A/B is moved to /A after rmdir. and confirm
->> =A0 RSS/LRU information includes usages it was charged against /A/B.
->>
->> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> ---
->> =A0mm/memcontrol.c | =A0 32 ++++++++++++++++++++++----------
->> =A01 file changed, 22 insertions(+), 10 deletions(-)
->>
->> Index: mmotm-0107/mm/memcontrol.c
->> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->> --- mmotm-0107.orig/mm/memcontrol.c
->> +++ mmotm-0107/mm/memcontrol.c
->> @@ -2154,6 +2154,10 @@ void mem_cgroup_split_huge_fixup(struct
->> =A0 =A0 =A0 smp_wmb(); /* see __commit_charge() */
->> =A0 =A0 =A0 SetPageCgroupUsed(tpc);
->> =A0 =A0 =A0 VM_BUG_ON(PageCgroupCache(hpc));
->> + =A0 =A0 /*
->> + =A0 =A0 =A0* Note: if dirty ratio etc..are supported,
->> + =A0 =A0 =A0 =A0 * other flags may need to be copied.
->> + =A0 =A0 =A0 =A0 */
->
-> That's a good comment, but it should be in the patch that introduces
-> this function and is a bit unrelated in this one.
->
-Ok. I'll remove this. This is an alarm for Greg ;)
+On Fri, 14 Jan 2011, Huang Shijie wrote:
+> The read_swap_cache_async() does not check the return value
+> of swap_readpage().
+> 
 
->> =A0}
->> =A0#endif
->>
->> @@ -2175,8 +2179,11 @@ void mem_cgroup_split_huge_fixup(struct
->> =A0 */
->>
->> =A0static void __mem_cgroup_move_account(struct page_cgroup *pc,
->> - =A0 =A0 struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
->> + =A0 =A0 struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge,
->> + =A0 =A0 int charge_size)
->> =A0{
->> + =A0 =A0 int pagenum =3D charge_size >> PAGE_SHIFT;
->
-> nr_pages?
->
-Ok. replace pagenum <-> nr_pages.
+Thanks, we may want to fix that.
 
 
->> +
->> =A0 =A0 =A0 VM_BUG_ON(from =3D=3D to);
->> =A0 =A0 =A0 VM_BUG_ON(PageLRU(pc->page));
->> =A0 =A0 =A0 VM_BUG_ON(!page_is_cgroup_locked(pc));
->> @@ -2190,14 +2197,14 @@ static void __mem_cgroup_move_account(st
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 __this_cpu_inc(to->stat->count[MEM_CGROUP_ST=
-AT_FILE_MAPPED]);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 preempt_enable();
->> =A0 =A0 =A0 }
->> - =A0 =A0 mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -1);
->> + =A0 =A0 mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -pagen=
-um);
->> =A0 =A0 =A0 if (uncharge)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* This is not "cancel", but cancel_charge d=
-oes all we need. */
->> - =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_cancel_charge(from, PAGE_SIZE);
->> + =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_cancel_charge(from, charge_size);
->>
->> =A0 =A0 =A0 /* caller should have done css_get */
->> =A0 =A0 =A0 pc->mem_cgroup =3D to;
->> - =A0 =A0 mem_cgroup_charge_statistics(to, PageCgroupCache(pc), 1);
->> + =A0 =A0 mem_cgroup_charge_statistics(to, PageCgroupCache(pc), pagenum)=
-;
->> =A0 =A0 =A0 /*
->> =A0 =A0 =A0 =A0* We charges against "to" which may not have any tasks. T=
-hen, "to"
->> =A0 =A0 =A0 =A0* can be under rmdir(). But in current implementation, ca=
-ller of
->> @@ -2212,7 +2219,8 @@ static void __mem_cgroup_move_account(st
->> =A0 * __mem_cgroup_move_account()
->> =A0 */
->> =A0static int mem_cgroup_move_account(struct page_cgroup *pc,
->> - =A0 =A0 =A0 =A0 =A0 =A0 struct mem_cgroup *from, struct mem_cgroup *to=
-, bool uncharge)
->> + =A0 =A0 =A0 =A0 =A0 =A0 struct mem_cgroup *from, struct mem_cgroup *to=
-,
->> + =A0 =A0 =A0 =A0 =A0 =A0 bool uncharge, int charge_size)
->> =A0{
->> =A0 =A0 =A0 int ret =3D -EINVAL;
->> =A0 =A0 =A0 unsigned long flags;
->> @@ -2220,7 +2228,7 @@ static int mem_cgroup_move_account(struc
->> =A0 =A0 =A0 lock_page_cgroup(pc);
->> =A0 =A0 =A0 if (PageCgroupUsed(pc) && pc->mem_cgroup =3D=3D from) {
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 move_lock_page_cgroup(pc, &flags);
->> - =A0 =A0 =A0 =A0 =A0 =A0 __mem_cgroup_move_account(pc, from, to, unchar=
-ge);
->> + =A0 =A0 =A0 =A0 =A0 =A0 __mem_cgroup_move_account(pc, from, to, unchar=
-ge, charge_size);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 move_unlock_page_cgroup(pc, &flags);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D 0;
->> =A0 =A0 =A0 }
->> @@ -2245,6 +2253,7 @@ static int mem_cgroup_move_parent(struct
->> =A0 =A0 =A0 struct cgroup *cg =3D child->css.cgroup;
->> =A0 =A0 =A0 struct cgroup *pcg =3D cg->parent;
->> =A0 =A0 =A0 struct mem_cgroup *parent;
->> + =A0 =A0 int charge_size =3D PAGE_SIZE;
->> =A0 =A0 =A0 int ret;
->>
->> =A0 =A0 =A0 /* Is ROOT ? */
->> @@ -2256,16 +2265,19 @@ static int mem_cgroup_move_parent(struct
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto out;
->> =A0 =A0 =A0 if (isolate_lru_page(page))
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto put;
->> + =A0 =A0 /* The page is isolated from LRU and we have no race with spli=
-tting */
->> + =A0 =A0 if (PageTransHuge(page))
->> + =A0 =A0 =A0 =A0 =A0 =A0 charge_size =3D PAGE_SIZE << compound_order(pa=
-ge);
->
-> The same as in the previous patch, compound_order() implicitely
-> handles order-0 pages and should do the right thing without an extra
-> check.
->
-Sure.
+> If swap_readpage() returns -ENOMEM, the read_swap_cache_async()
+> still returns the `new_page` which has nothing. The caller will
+> do some wrong operations on the `new_page` such as copy.
+> 
 
-> The comment is valuable, though!
->
-> Nitpicks aside:
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+But what's really wrong is not to be checking PageUptodate.
+Looks like swapoff's try_to_unuse() never checked it (I'm largely
+guilty of that), and my ksm_does_need_to_copy() would blindly copy
+(from a !PageUptodate to a PageUptodate), averting the PageUptodate
+check which comes later in do_swap_page().
 
-Thank you for quick review!
-Updated one will be posted in the next week after some amounts of more test=
-s.
 
-Regards,
--Kame
+> The patch fixs the problem.
+> 
+
+It may fix a part of the problem, but - forgive me for saying! -
+your patch is not so beautiful that I want to push it as is.
+
+I'm more worried by the cases when the read gets an error and fails:
+we ought to be looking at what filemap.c does in it !PageUptodate case,
+and following a similar strategy (perhaps we shall want to distinguish
+the ENOMEM case, perhaps not: depends on the implementation).
+
+Is this ENOMEM case something you noticed by looking at the source,
+or something that has hit you in practice?  If the latter, then it's
+more urgent to fix it: but I'd be wondering how it comes about that
+bio's mempools have let you down, and even their GFP_KERNEL allocation
+is failing?
+
+
+> Also remove the unlock_ page() in swap_readpage() in the wrong case
+> , since __delete_from_swap_cache() needs a locked page.
+
+That change is only required because we're not checking PageUptodate
+properly everywhere.
+
+Hugh
+
+> 
+> Signed-off-by: Huang Shijie <b32955@freescale.com>
+> ---
+>  mm/page_io.c    |    1 -
+>  mm/swap_state.c |   12 +++++++-----
+>  2 files changed, 7 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/page_io.c b/mm/page_io.c
+> index 2dee975..5c759f2 100644
+> --- a/mm/page_io.c
+> +++ b/mm/page_io.c
+> @@ -124,7 +124,6 @@ int swap_readpage(struct page *page)
+>  	VM_BUG_ON(PageUptodate(page));
+>  	bio = get_swap_bio(GFP_KERNEL, page, end_swap_bio_read);
+>  	if (bio == NULL) {
+> -		unlock_page(page);
+>  		ret = -ENOMEM;
+>  		goto out;
+>  	}
+> diff --git a/mm/swap_state.c b/mm/swap_state.c
+> index 5c8cfab..3bd7238 100644
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -331,16 +331,18 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+>  		__set_page_locked(new_page);
+>  		SetPageSwapBacked(new_page);
+>  		err = __add_to_swap_cache(new_page, entry);
+> +		radix_tree_preload_end();
+>  		if (likely(!err)) {
+> -			radix_tree_preload_end();
+>  			/*
+>  			 * Initiate read into locked page and return.
+>  			 */
+> -			lru_cache_add_anon(new_page);
+> -			swap_readpage(new_page);
+> -			return new_page;
+> +			err = swap_readpage(new_page);
+> +			if (likely(!err)) {
+> +				lru_cache_add_anon(new_page);
+> +				return new_page;
+> +			}
+> +			__delete_from_swap_cache(new_page);
+>  		}
+> -		radix_tree_preload_end();
+>  		ClearPageSwapBacked(new_page);
+>  		__clear_page_locked(new_page);
+>  		/*
+> -- 
+> 1.7.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
