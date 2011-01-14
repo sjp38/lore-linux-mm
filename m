@@ -1,60 +1,392 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3924B6B00E7
-	for <linux-mm@kvack.org>; Thu, 13 Jan 2011 17:25:19 -0500 (EST)
-Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
-	by smtp-out.google.com with ESMTP id p0DMOsog002968
-	for <linux-mm@kvack.org>; Thu, 13 Jan 2011 14:24:54 -0800
-Received: from pxi15 (pxi15.prod.google.com [10.243.27.15])
-	by kpbe13.cbf.corp.google.com with ESMTP id p0DMOqQX030368
-	for <linux-mm@kvack.org>; Thu, 13 Jan 2011 14:24:52 -0800
-Received: by pxi15 with SMTP id 15so329063pxi.33
-        for <linux-mm@kvack.org>; Thu, 13 Jan 2011 14:24:52 -0800 (PST)
-Date: Thu, 13 Jan 2011 14:24:50 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: RE: [RFC][PATCH 0/2] Tunable watermark
-In-Reply-To: <65795E11DBF1E645A09CEC7EAEE94B9C3B8DF647@USINDEVS02.corp.hds.com>
-Message-ID: <alpine.DEB.2.00.1101131421220.26770@chino.kir.corp.google.com>
-References: <65795E11DBF1E645A09CEC7EAEE94B9C3A30A295@USINDEVS02.corp.hds.com> <alpine.DEB.2.00.1101071416450.23577@chino.kir.corp.google.com> <AANLkTikQPXWkEJwN5fV2vnUS37Fs+GNzFXuFkKXcnzmu@mail.gmail.com> <alpine.DEB.2.00.1101071436220.23858@chino.kir.corp.google.com>
- <65795E11DBF1E645A09CEC7EAEE94B9C3B8DF647@USINDEVS02.corp.hds.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7A7276B00E7
+	for <linux-mm@kvack.org>; Thu, 13 Jan 2011 19:17:35 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 920393EE0BB
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 09:17:31 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 74C2F45DE5B
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 09:17:31 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 54DFA45DE54
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 09:17:31 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 40F99EF800D
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 09:17:31 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DB559EF8006
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 09:17:30 +0900 (JST)
+Date: Fri, 14 Jan 2011 09:11:19 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/5] Add per cgroup reclaim watermarks.
+Message-Id: <20110114091119.2f11b3b9.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1294956035-12081-3-git-send-email-yinghan@google.com>
+References: <1294956035-12081-1-git-send-email-yinghan@google.com>
+	<1294956035-12081-3-git-send-email-yinghan@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Satoru Moriya <satoru.moriya@hds.com>
-Cc: Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Randy Dunlap <rdunlap@xenotime.net>, dle-develop@lists.sourceforge.net, Seiji Aguchi <seiji.aguchi@hds.com>
+To: Ying Han <yinghan@google.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Jan 2011, Satoru Moriya wrote:
+On Thu, 13 Jan 2011 14:00:32 -0800
+Ying Han <yinghan@google.com> wrote:
 
-> Currently watermark[low,high] are set by following calculation (lowmem case).
+> The per cgroup kswapd is invoked when the cgroup's free memory (limit - usage)
+> is less than a threshold--low_wmark. Then the kswapd thread starts to reclaim
+> pages in a priority loop similar to global algorithm. The kswapd is done if the
+> free memory is above a threshold--high_wmark.
 > 
-> watermark[low]  = watermark[min] * 1.25
-> watermark[high] = watermark[min] * 1.5
+> The per cgroup background reclaim is based on the per cgroup LRU and also adds
+> per cgroup watermarks. There are two watermarks including "low_wmark" and
+> "high_wmark", and they are calculated based on the limit_in_bytes(hard_limit)
+> for each cgroup. Each time the hard_limit is changed, the corresponding wmarks
+> are re-calculated. Since memory controller charges only user pages, there is
+> no need for a "min_wmark". The current calculation of wmarks is a function of
+> "memory.min_free_kbytes" which could be adjusted by writing different values
+> into the new api. This is added mainly for debugging purpose.
 > 
-> So the difference between watermarks are following:
+> Change log v2...v1:
+> 1. Remove the res_counter_charge on wmark due to performance concern.
+> 2. Move the new APIs min_free_kbytes, reclaim_wmarks into seperate commit.
+> 3. Calculate the min_free_kbytes automatically based on the limit_in_bytes.
+> 4. make the wmark to be consistant with core VM which checks the free pages
+> instead of usage.
+> 5. changed wmark to be boolean
 > 
-> min <-- min/4 --> low <-- min/4 --> high
-> 
-> I think the differences, "min/4", are too small in my case.
-> Of course I can make them bigger if I set min_free_kbytes to bigger value. 
-> But it means kernel keeps more free memory for PF_MEMALLOC case unnecessarily.
-> 
-> So I suggest changing coefficients(1.25, 1.5). Also it's better
-> to make them accessible from user space to tune in response to application
-> requirements.
-> 
+> Signed-off-by: Ying Han <yinghan@google.com>
 
-Userspace can't possibly be held responsible for tuning internal VM 
-parameters in response to certain workloads like this; if you have 
-evidence that different coefficients work better in different 
-circumstances, then present the criteria for which you intend to change 
-them from the command line via your new tunables and let's work to make 
-the VM more extendable to serve those workloads well.  This should be done 
-by showing how background reclaim is ineffective, we enter direct 
-compaction or reclaim too aggressively, we don't wait for writeout long 
-enough, we prematurely kill applications when unnecessary, etc, which 
-would undoubtedly have if you're going to make any sane adjustments via 
-these new tunables.
+Hmm, I don't think using the same algorithm as min_free_kbytes is good.
+
+Why it's bad to have 2 interfaces as low_wmark and high_wmark ? 
+
+And in this patch, min_free_kbytes can be [256...65536]...I think this
+'256' is not good because it should be able to be set to '0'.
+
+IIUC, in enterprise systems, there are users who want to keep a fixed amount
+of free memory always. This interface will not allow such use case.
+
+I think we should have 2 interfaces as low_wmark and high_wmark. But as default
+value, the same value as to the alogorithm with min_free_kbytes will make sense.
+
+BTW, please divide res_counter part and memcg part in the next post.
+
+Please explain your handling of 'hierarchy' in description.
+
+Thanks,
+-Kame
+
+
+> ---
+>  include/linux/memcontrol.h  |    1 +
+>  include/linux/res_counter.h |   83 +++++++++++++++++++++++++++++++++++++++++++
+>  kernel/res_counter.c        |    6 +++
+>  mm/memcontrol.c             |   73 +++++++++++++++++++++++++++++++++++++
+>  4 files changed, 163 insertions(+), 0 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 3433784..80a605f 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -93,6 +93,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
+>  
+>  extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+>  extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+> +extern int mem_cgroup_watermark_ok(struct mem_cgroup *mem, int charge_flags);
+>  
+>  static inline
+>  int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
+> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+> index fcb9884..10b7e59 100644
+> --- a/include/linux/res_counter.h
+> +++ b/include/linux/res_counter.h
+> @@ -39,6 +39,15 @@ struct res_counter {
+>  	 */
+>  	unsigned long long soft_limit;
+>  	/*
+> +	 * the limit that reclaim triggers. it is the free count
+> +	 * (limit - usage)
+> +	 */
+> +	unsigned long long low_wmark_limit;
+> +	/*
+> +	 * the limit that reclaim stops. it is the free count
+> +	 */
+> +	unsigned long long high_wmark_limit;
+> +	/*
+>  	 * the number of unsuccessful attempts to consume the resource
+>  	 */
+>  	unsigned long long failcnt;
+> @@ -55,6 +64,9 @@ struct res_counter {
+>  
+>  #define RESOURCE_MAX (unsigned long long)LLONG_MAX
+>  
+> +#define CHARGE_WMARK_LOW	0x02
+> +#define CHARGE_WMARK_HIGH	0x04
+> +
+>  /**
+>   * Helpers to interact with userspace
+>   * res_counter_read_u64() - returns the value of the specified member.
+> @@ -92,6 +104,8 @@ enum {
+>  	RES_LIMIT,
+>  	RES_FAILCNT,
+>  	RES_SOFT_LIMIT,
+> +	RES_LOW_WMARK_LIMIT,
+> +	RES_HIGH_WMARK_LIMIT
+>  };
+>  
+>  /*
+> @@ -145,6 +159,28 @@ static inline bool res_counter_soft_limit_check_locked(struct res_counter *cnt)
+>  	return false;
+>  }
+>  
+> +static inline bool
+> +res_counter_high_wmark_limit_check_locked(struct res_counter *cnt)
+> +{
+> +	unsigned long long free = cnt->limit - cnt->usage;
+> +
+> +	if (free <= cnt->high_wmark_limit)
+> +		return false;
+> +
+> +	return true;
+> +}
+> +
+> +static inline bool
+> +res_counter_low_wmark_limit_check_locked(struct res_counter *cnt)
+> +{
+> +	unsigned long long free = cnt->limit - cnt->usage;
+> +
+> +	if (free <= cnt->low_wmark_limit)
+> +		return false;
+> +
+> +	return true;
+> +}
+> +
+>  /**
+>   * Get the difference between the usage and the soft limit
+>   * @cnt: The counter
+> @@ -193,6 +229,30 @@ static inline bool res_counter_check_under_soft_limit(struct res_counter *cnt)
+>  	return ret;
+>  }
+>  
+> +static inline bool
+> +res_counter_check_under_low_wmark_limit(struct res_counter *cnt)
+> +{
+> +	bool ret;
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&cnt->lock, flags);
+> +	ret = res_counter_low_wmark_limit_check_locked(cnt);
+> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +	return ret;
+> +}
+> +
+> +static inline bool
+> +res_counter_check_under_high_wmark_limit(struct res_counter *cnt)
+> +{
+> +	bool ret;
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&cnt->lock, flags);
+> +	ret = res_counter_high_wmark_limit_check_locked(cnt);
+> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +	return ret;
+> +}
+> +
+>  static inline void res_counter_reset_max(struct res_counter *cnt)
+>  {
+>  	unsigned long flags;
+> @@ -238,4 +298,27 @@ res_counter_set_soft_limit(struct res_counter *cnt,
+>  	return 0;
+>  }
+>  
+> +static inline int
+> +res_counter_set_high_wmark_limit(struct res_counter *cnt,
+> +				unsigned long long wmark_limit)
+> +{
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&cnt->lock, flags);
+> +	cnt->high_wmark_limit = wmark_limit;
+> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +	return 0;
+> +}
+> +
+> +static inline int
+> +res_counter_set_low_wmark_limit(struct res_counter *cnt,
+> +				unsigned long long wmark_limit)
+> +{
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&cnt->lock, flags);
+> +	cnt->low_wmark_limit = wmark_limit;
+> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +	return 0;
+> +}
+>  #endif
+> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+> index c7eaa37..f68bd63 100644
+> --- a/kernel/res_counter.c
+> +++ b/kernel/res_counter.c
+> @@ -19,6 +19,8 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent)
+>  	spin_lock_init(&counter->lock);
+>  	counter->limit = RESOURCE_MAX;
+>  	counter->soft_limit = RESOURCE_MAX;
+> +	counter->low_wmark_limit = 0;
+> +	counter->high_wmark_limit = 0;
+>  	counter->parent = parent;
+>  }
+>  
+> @@ -103,6 +105,10 @@ res_counter_member(struct res_counter *counter, int member)
+>  		return &counter->failcnt;
+>  	case RES_SOFT_LIMIT:
+>  		return &counter->soft_limit;
+> +	case RES_LOW_WMARK_LIMIT:
+> +		return &counter->low_wmark_limit;
+> +	case RES_HIGH_WMARK_LIMIT:
+> +		return &counter->high_wmark_limit;
+>  	};
+>  
+>  	BUG();
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index f6e0987..5508d94 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -290,6 +290,7 @@ struct mem_cgroup {
+>  	spinlock_t pcp_counter_lock;
+>  
+>  	wait_queue_head_t *kswapd_wait;
+> +	unsigned long min_free_kbytes;
+>  };
+>  
+>  /* Stuffs for move charges at task migration. */
+> @@ -378,6 +379,7 @@ static void mem_cgroup_get(struct mem_cgroup *mem);
+>  static void mem_cgroup_put(struct mem_cgroup *mem);
+>  static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+>  static void drain_all_stock_async(void);
+> +static unsigned long get_min_free_kbytes(struct mem_cgroup *mem);
+>  
+>  static struct mem_cgroup_per_zone *
+>  mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+> @@ -818,6 +820,45 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
+>  	return (mem == root_mem_cgroup);
+>  }
+>  
+> +void setup_per_memcg_wmarks(struct mem_cgroup *mem)
+> +{
+> +	unsigned long min_free_kbytes;
+> +
+> +	min_free_kbytes = get_min_free_kbytes(mem);
+> +	if (min_free_kbytes == 0) {
+> +		u64 limit;
+> +
+> +		limit = mem_cgroup_get_limit(mem);
+> +		res_counter_set_low_wmark_limit(&mem->res, limit);
+> +		res_counter_set_high_wmark_limit(&mem->res, limit);
+> +	} else {
+> +		unsigned long long low_wmark, high_wmark;
+> +		unsigned long long tmp = min_free_kbytes << 10;
+> +
+> +		low_wmark = tmp + (tmp >> 2);
+> +		high_wmark = tmp + (tmp >> 1);
+> +		res_counter_set_low_wmark_limit(&mem->res, low_wmark);
+> +		res_counter_set_high_wmark_limit(&mem->res, high_wmark);
+> +	}
+> +}
+> +
+> +void init_per_memcg_wmarks(struct mem_cgroup *mem)
+> +{
+> +	unsigned long min_free_kbytes;
+> +	u64 limit_kbytes;
+> +
+> +	limit_kbytes = mem_cgroup_get_limit(mem) >> 10;
+> +	min_free_kbytes = int_sqrt(limit_kbytes * 16);
+> +	if (min_free_kbytes < 128)
+> +		min_free_kbytes = 128;
+> +	if (min_free_kbytes > 65536)
+> +		min_free_kbytes = 65536;
+> +
+> +	mem->min_free_kbytes = min_free_kbytes;
+> +	setup_per_memcg_wmarks(mem);
+> +
+> +}
+> +
+>  /*
+>   * Following LRU functions are allowed to be used without PCG_LOCK.
+>   * Operations are called by routine of global LRU independently from memcg.
+> @@ -1403,6 +1444,22 @@ unsigned long mem_cgroup_page_stat(struct mem_cgroup *mem,
+>  	return value;
+>  }
+>  
+> +static unsigned long get_min_free_kbytes(struct mem_cgroup *memcg)
+> +{
+> +	struct cgroup *cgrp = memcg->css.cgroup;
+> +	unsigned long min_free_kbytes;
+> +
+> +	/* root ? */
+> +	if (cgrp == NULL || cgrp->parent == NULL)
+> +		return 0;
+> +
+> +	spin_lock(&memcg->reclaim_param_lock);
+> +	min_free_kbytes = memcg->min_free_kbytes;
+> +	spin_unlock(&memcg->reclaim_param_lock);
+> +
+> +	return min_free_kbytes;
+> +}
+> +
+>  static void mem_cgroup_start_move(struct mem_cgroup *mem)
+>  {
+>  	int cpu;
+> @@ -3310,6 +3367,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+>  			else
+>  				memcg->memsw_is_minimum = false;
+>  		}
+> +		init_per_memcg_wmarks(memcg);
+>  		mutex_unlock(&set_limit_mutex);
+>  
+>  		if (!ret)
+> @@ -3369,6 +3427,7 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+>  			else
+>  				memcg->memsw_is_minimum = false;
+>  		}
+> +		init_per_memcg_wmarks(memcg);
+>  		mutex_unlock(&set_limit_mutex);
+>  
+>  		if (!ret)
+> @@ -4744,6 +4803,19 @@ static void __init enable_swap_cgroup(void)
+>  }
+>  #endif
+>  
+> +int mem_cgroup_watermark_ok(struct mem_cgroup *mem,
+> +				int charge_flags)
+> +{
+> +	long ret = 0;
+> +
+> +	if (charge_flags & CHARGE_WMARK_LOW)
+> +		ret = res_counter_check_under_low_wmark_limit(&mem->res);
+> +	if (charge_flags & CHARGE_WMARK_HIGH)
+> +		ret = res_counter_check_under_high_wmark_limit(&mem->res);
+> +
+> +	return ret;
+> +}
+> +
+>  static int mem_cgroup_soft_limit_tree_init(void)
+>  {
+>  	struct mem_cgroup_tree_per_node *rtpn;
+> @@ -4834,6 +4906,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  
+>  	atomic_set(&mem->refcnt, 1);
+>  	mem->move_charge_at_immigrate = 0;
+> +	mem->min_free_kbytes = 0;
+>  	mutex_init(&mem->thresholds_lock);
+>  	return &mem->css;
+>  free_out:
+> -- 
+> 1.7.3.1
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
