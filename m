@@ -1,11 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EC466B00E7
-	for <linux-mm@kvack.org>; Thu, 13 Jan 2011 20:04:50 -0500 (EST)
-Date: Fri, 14 Jan 2011 10:00:37 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B8B3D6B00E7
+	for <linux-mm@kvack.org>; Thu, 13 Jan 2011 20:06:58 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Postfix) with ESMTP id 582D93EE0B3
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 10:06:00 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 32DB52AEA8E
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 10:06:00 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 17BAF45DE56
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 10:06:00 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 04A791DB804A
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 10:06:00 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B904F1DB804D
+	for <linux-mm@kvack.org>; Fri, 14 Jan 2011 10:05:59 +0900 (JST)
+Date: Fri, 14 Jan 2011 10:00:07 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH v3] mm: add replace_page_cache_page() function
-Message-Id: <20110114100037.7c91cd09.nishimura@mxp.nes.nec.co.jp>
+Message-Id: <20110114100007.27c9fbce.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <E1PdNKX-0003t5-Rm@pomaz-ex.szeredi.hu>
 References: <E1Pcet8-0007kg-3R@pomaz-ex.szeredi.hu>
 	<20110111142528.GF2113@barrios-desktop>
@@ -18,12 +33,48 @@ Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, minchan.kim@gmail.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: minchan.kim@gmail.com, akpm@linux-foundation.org, nishimura@mxp.nes.nec.co.jp, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 13 Jan 2011 14:35:09 +0100
 Miklos Szeredi <miklos@szeredi.hu> wrote:
 
+> On Thu, 13 Jan 2011, KAMEZAWA Hiroyuki wrote:
+> > On Wed, 12 Jan 2011 15:30:11 +0100
+> > Miklos Szeredi <miklos@szeredi.hu> wrote:
+> > 
+> > > On Wed, 12 Jan 2011, KAMEZAWA Hiroyuki wrote:
+> > > > On Tue, 11 Jan 2011 23:25:28 +0900
+> > > > Minchan Kim <minchan.kim@gmail.com> wrote:
+> > > > 
+> > > > > On Tue, Jan 11, 2011 at 03:07:54PM +0100, Miklos Szeredi wrote:
+> > > > > > (resent with fixed CC list, sorry for the duplicate)
+> > > > > > 
+> > > > > > Thanks for the review.
+> > > > > > 
+> > > > > > Here's an updated patch.  Modifications since the last post:
+> > > > > > 
+> > > > > >  - don't pass gfp_mask (since it's only able to deal with GFP_KERNEL
+> > > > > >    anyway)
+> > > > > > 
+> > > > > 
+> > > > > I am not sure it's a good idea.
+> > > > > Now if we need just GFP_KERNEL, we can't make sure it in future.
+> > > > > Sometime we might need GFP_ATOMIC and friendd functions
+> > > > > (ex, add_to_page_cache_lru,add_to_page_cache_locked) already have gfp_mask.
+> > > > > It's a exported function so it's hard to modify it in future.
+> > > > > 
+> > > > > I want to keep it.
+> > > > > Instead of removing it, we can change mem_cgroup_prepare_migration as
+> > > > > getting gfp_mask.
+> > > > > 
+> > > > you're right.
+> > > 
+> > > Okay, makes sense.
+> > > 
+> > > Here's an updated patch.
+> > > 
+> > 
 > > Seems nicer. But you didn't fixed the caller of prepare_migraton()
 > > in mm/migrate.c (I think this is the only caller..)
 > > 
@@ -53,6 +104,20 @@ Miklos Szeredi <miklos@szeredi.hu> wrote:
 > This is used by fuse to move pages into the page cache.
 > 
 > Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
+
+Thank you.
+
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+But my last concern is that GFP_KERNEL is ok or not for compaction...
+(It was implicitly used.)
+
+Maybe migrate_page() should have gfp_mask but it should be in another work.
+
+Thanks,
+-Kame
+
+
 > ---
 >  fs/fuse/dev.c              |   10 ++----
 >  include/linux/memcontrol.h |    4 +-
@@ -230,12 +295,12 @@ Miklos Szeredi <miklos@szeredi.hu> wrote:
 >  	if (charge == -ENOMEM) {
 >  		rc = -ENOMEM;
 >  		goto unlock;
-This patch looks good and I want to ack, but this patch can conflict with patches
-in https://lkml.org/lkml/2011/1/11/10 and https://lkml.org/lkml/2011/1/11/65.
-So I think you'd better coordinate with Minchan.
-
-Thanks,
-Daisuke Nishimura.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
