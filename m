@@ -1,21 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 39C1E8D0039
-	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 08:22:25 -0500 (EST)
-Content-Type: text/plain; charset=UTF-8
-From: Chris Mason <chris.mason@oracle.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2CE328D0039
+	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 08:48:57 -0500 (EST)
+Received: by iyj17 with SMTP id 17so2066891iyj.2
+        for <linux-mm@kvack.org>; Mon, 17 Jan 2011 05:48:54 -0800 (PST)
+Date: Mon, 17 Jan 2011 22:48:44 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
 Subject: Re: hunting an IO hang
-In-reply-to: <20110117102744.GA27152@csn.ul.ie>
-References: <1295225684-sup-7168@think> <AANLkTikBamG2NG6j-z9fyTx=mk6NXFEE7LpB5z9s6ufr@mail.gmail.com> <4D339C87.30100@fusionio.com> <1295228148-sup-7379@think> <AANLkTimp6ef0W_=ijW=CfH6iC1mQzW3gLr1LZivJ5Bmd@mail.gmail.com> <AANLkTimr3hN8SDmbwv98hkcVfWoh9tioYg4M+0yanzpb@mail.gmail.com> <1295229722-sup-6494@think> <20110116183000.cc632557.akpm@linux-foundation.org> <1295231547-sup-8036@think> <20110117102744.GA27152@csn.ul.ie>
-Date: Mon, 17 Jan 2011 08:21:41 -0500
-Message-Id: <1295269009-sup-7646@think>
-Content-Transfer-Encoding: 8bit
+Message-ID: <20110117134844.GA1411@barrios-desktop>
+References: <1295225684-sup-7168@think>
+ <AANLkTikBamG2NG6j-z9fyTx=mk6NXFEE7LpB5z9s6ufr@mail.gmail.com>
+ <4D339C87.30100@fusionio.com>
+ <1295228148-sup-7379@think>
+ <AANLkTimp6ef0W_=ijW=CfH6iC1mQzW3gLr1LZivJ5Bmd@mail.gmail.com>
+ <AANLkTimr3hN8SDmbwv98hkcVfWoh9tioYg4M+0yanzpb@mail.gmail.com>
+ <1295229722-sup-6494@think>
+ <20110116183000.cc632557.akpm@linux-foundation.org>
+ <1295231547-sup-8036@think>
+ <20110117051135.GI9506@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110117051135.GI9506@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Chris Mason <chris.mason@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Excerpts from Mel Gorman's message of 2011-01-17 05:27:44 -0500:
+Hi Andrea,
+
+On Mon, Jan 17, 2011 at 06:11:35AM +0100, Andrea Arcangeli wrote:
 > On Sun, Jan 16, 2011 at 09:41:41PM -0500, Chris Mason wrote:
 > > Excerpts from Andrew Morton's message of 2011-01-16 21:30:00 -0500:
 > > > (lots of cc's added)
@@ -71,67 +85,132 @@ Excerpts from Mel Gorman's message of 2011-01-17 05:27:44 -0500:
 > > bug).  All of the crashes I've seen this weekend had this in the
 > > .config:
 > > 
+> > # CONFIG_TRANSPARENT_HUGEPAGE is not set
+> > CONFIG_COMPACTION=y
+> > CONFIG_MIGRATION=y
 > 
-> I can't find the reset of the thread on any mailing list and am trying
-> to reproduce the problem locally. What workload were you running?
+> I think it's unrelated but reading commit
+> cf608ac19c95804dc2df43b1f4f9e068aa9034ab if page_count(page) == 1 we
+> leave the page in the lru but we return 0 (so the caller of
+> migrate_pages won't call putback_lru_pages to actually free the page,
 
-I'm running a very basic IO stress test:
+Good catch. Totally It's my fault. I made linux memory hogger. :(
+Sorry for that.
 
-http://oss.oracle.com/~mason/stress.sh
+> however compaction would free it because it checks if the list is
+> empty and it ignores the migrate_pages retval). And in
 
-The command line is stress.sh -n 50 -c /mnt/linux-2.6 /mnt
+I want to change it with checking retval for consistency.
 
-Which starts 50 processes that do cp -a /mnt/linux-2.6
-/mnt/stress/$$.  Then they verify the result was correct and then they
-delete it, forever in a loop.  In this case my linux-2.6 directory is a
-full git tree with sources checked out.  No obj files though.
+> mm/memory-failure.c:1419, nobody is calling putback_lru_pages (it
+> seems a missing bit from that older patch). They seem just two memleak
+> unrelated to the above though.
 
-This was my crash from an overnight run with CONFIG_COMPACTION off:
+Nice point. Thanks fot notice me.
+It's strange in memory-failure.c:1419. I modified it at that time
+and didn't modified migrate_huge_pages(At that time, I didn't noticed hugepage
+migration so I missed it but I want to change it like migrate_pages)
+You can see my final patch in https://lkml.org/lkml/2010/8/24/248. It was changed. 
+Hmm. The putback_lru_pages in soft_offline_huge_page makes critical BUG(early free) 
+so we should fix it, too.
 
-# CONFIG_COMPACTION is not set
-CONFIG_MIGRATION=y
-CONFIG_DEBUG_PAGEALLOC=y
-CONFIG_DEBUG_SLAB=y
-CONFIG_DEBUG_SPINLOCK=y
-CONFIG_DEBUG_MUTEXES=y
-CONFIG_DEBUG_SPINLOCK_SLEEP=y
-CONFIG_DEBUG_VM=y
-CONFIG_DEBUG_MEMORY_INIT=y
-CONFIG_DEBUG_LIST=y
-CONFIG_DEBUG_PAGEALLOC=y
+We need 3 patch.
 
-I do have an NFS mount active during the run, but it isn't part of the
-test at all.
+1. fix migrate_huge_pages(take out of put_page in migrate_huge_pages) for page corruption.
+2. Your patch for memory leak
+3. compaction retval check for putback lru pages for consistency
 
-I've also managed to get all the procs in the system stuck waiting for
-IO requests.  It is possible these are two different bugs.  This
-list_del oops hits faster if I run the test with a good deal of memory
-pressure via an external memory hog.
+Hmm. Could I make a patch for any kernel tree?
+Unfortunately I can make it out of office and we may spend 1 day at least.
+If it is urgent, could you make the patch for me?
 
-------------[ cut here ]------------
-WARNING: at lib/list_debug.c:54 list_del+0x97/0xed()
-Hardware name: Bochs
-list_del corruption. prev->next should be ffffea000116d478, but was ffffea00014ba2c8
-Modules linked in: btrfs lzo_compress
-Pid: 524, comm: kswapd0 Not tainted 2.6.37-josef+ #182
-Call Trace:
- [<ffffffff8106edc1>] ? warn_slowpath_common+0x85/0x9d
- [<ffffffff8106ee7c>] ? warn_slowpath_fmt+0x46/0x48
- [<ffffffff81262e27>] ? list_del+0x97/0xed
- [<ffffffff810dbc59>] ? putback_lru_pages+0x7c/0x1eb
- [<ffffffff810dc070>] ? shrink_inactive_list+0x2a8/0x342
- [<ffffffff810dc676>] ? shrink_zone+0x327/0x3d6
- [<ffffffff8119a17a>] ? nfs_access_cache_shrinker+0x179/0x1a0
- [<ffffffff815c302e>] ? _raw_spin_unlock+0xe/0x10
- [<ffffffff810d2055>] ? zone_watermark_ok_safe+0xa9/0xb8
- [<ffffffff810dd26c>] ? kswapd+0x509/0x876
- [<ffffffff810dcd63>] ? kswapd+0x0/0x876
- [<ffffffff81089e40>] ? kthread+0x82/0x8a
- [<ffffffff810347d4>] ? kernel_thread_helper+0x4/0x10
- [<ffffffff81089dbe>] ? kthread+0x0/0x8a
- [<ffffffff810347d0>] ? kernel_thread_helper+0x0/0x10
+Thanks, Andrea.
+> 
+> NOTE: with the last changes compaction is used for all order > 0 and
+> even from kswapd, so you will now be able to trigger bugs in
+> compaction or migration even with THP off. However I'm surprised that
+> you have issues with compaction...
+> 
+> I'm posting this for Minchan to review (not meant for merging, untested).
+> 
+> ======
+> Subject: when migrate_pages returns 0, all pages must have been released
+> 
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> 
+> In some cases migrate_pages could return zero while still leaving a
+> few pages in the pagelist (and some caller wouldn't notice it has to
+> call putback_lru_pages).
+> 
+> Add one missing putback_lru_pages not added by commit
+> cf608ac19c95804dc2df43b1f4f9e068aa9034ab.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+> 
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index 548fbd7..75398b0 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -1419,6 +1419,7 @@ int soft_offline_page(struct page *page, int flags)
+>  		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
+>  								0, true);
+>  		if (ret) {
+> +			putback_lru_pages(&pagelist);
+>  			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+>  				pfn, ret, page->flags);
+>  			if (ret > 0)
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 46fe8cc..bea2a34 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -611,6 +611,14 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+>  	return rc;
+>  }
+>  
+> +static void unmap_and_move_release_page(struct page *page)
+> +{
+> +	list_del(&page->lru);
+> +	dec_zone_page_state(page, NR_ISOLATED_ANON +
+> +			    page_is_file_cache(page));
+> +	putback_lru_page(page);
+> +}
+> +
+>  /*
+>   * Obtain the lock on page, remove all ptes and migrate the page
+>   * to the newly allocated page in newpage.
+> @@ -631,11 +639,14 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+>  
+>  	if (page_count(page) == 1) {
+>  		/* page was freed from under us. So we are done. */
+> +		unmap_and_move_release_page(page);
+>  		goto move_newpage;
+>  	}
+>  	if (unlikely(PageTransHuge(page)))
+> -		if (unlikely(split_huge_page(page)))
+> +		if (unlikely(split_huge_page(page))) {
+> +			unmap_and_move_release_page(page);
+>  			goto move_newpage;
+> +		}
+>  
+>  	/* prepare cgroup just returns 0 or -ENOMEM */
+>  	rc = -EAGAIN;
+> @@ -779,10 +790,7 @@ unlock:
+>   		 * migrated will have kepts its references and be
+>   		 * restored.
+>   		 */
+> - 		list_del(&page->lru);
+> -		dec_zone_page_state(page, NR_ISOLATED_ANON +
+> -				page_is_file_cache(page));
+> -		putback_lru_page(page);
+> +		unmap_and_move_release_page(page);
+>  	}
+>  
+>  move_newpage:
 
--chris
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
