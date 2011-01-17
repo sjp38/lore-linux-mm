@@ -1,139 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8E3D78D0039
-	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 09:14:19 -0500 (EST)
-Received: by wwb29 with SMTP id 29so5286211wwb.26
-        for <linux-mm@kvack.org>; Mon, 17 Jan 2011 06:14:13 -0800 (PST)
-Message-ID: <4D344EAF.1080401@petalogix.com>
-Date: Mon, 17 Jan 2011 15:14:07 +0100
-From: Michal Simek <michal.simek@petalogix.com>
-Reply-To: michal.simek@petalogix.com
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B52CD8D0039
+	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 09:26:45 -0500 (EST)
+Date: Mon, 17 Jan 2011 15:26:15 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: hunting an IO hang
+Message-ID: <20110117142614.GP9506@random.random>
+References: <AANLkTikBamG2NG6j-z9fyTx=mk6NXFEE7LpB5z9s6ufr@mail.gmail.com>
+ <4D339C87.30100@fusionio.com>
+ <1295228148-sup-7379@think>
+ <AANLkTimp6ef0W_=ijW=CfH6iC1mQzW3gLr1LZivJ5Bmd@mail.gmail.com>
+ <AANLkTimr3hN8SDmbwv98hkcVfWoh9tioYg4M+0yanzpb@mail.gmail.com>
+ <1295229722-sup-6494@think>
+ <20110116183000.cc632557.akpm@linux-foundation.org>
+ <1295231547-sup-8036@think>
+ <20110117051135.GI9506@random.random>
+ <1295273312-sup-6780@think>
 MIME-Version: 1.0
-Subject: Re: [PATCH 13 of 66] export maybe_mkwrite
-References: <patchbomb.1288798055@v2.random> <15324c9c30081da3a740.1288798068@v2.random>
-In-Reply-To: <15324c9c30081da3a740.1288798068@v2.random>
-Content-Type: multipart/mixed;
- boundary="------------050903090406060709040502"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1295273312-sup-6780@think>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------050903090406060709040502
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-
-Andrea Arcangeli wrote:
-> From: Andrea Arcangeli <aarcange@redhat.com>
+On Mon, Jan 17, 2011 at 09:10:15AM -0500, Chris Mason wrote:
+> Excerpts from Andrea Arcangeli's message of 2011-01-17 00:11:35 -0500:
 > 
-> huge_memory.c needs it too when it fallbacks in copying hugepages into regular
-> fragmented pages if hugepage allocation fails during COW.
+> [ crashes under load ]
 > 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-
-It wasn't good idea to do it. mm/memory.c is used only for system with 
-MMU. System without MMU are broken.
-
-Not sure what the right fix is but anyway I think use one ifdef make 
-sense (git patch in attachment).
-
-Regards,
-Michal
-
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 956a355..f6385fc 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -470,6 +470,7 @@ static inline void set_compound_order(struct page 
-*page, unsigned long order)
-  	page[1].lru.prev = (void *)order;
-  }
-
-+#ifdef CONFIG_MMU
-  /*
-   * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-   * servicing faults for write access.  In the normal case, do always want
-@@ -482,6 +483,7 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct 
-vm_area_struct *vma)
-  		pte = pte_mkwrite(pte);
-  	return pte;
-  }
-+#endif
-
-  /*
-   * Multiple processes may "see" the same page. E.g. for untouched
-
-
-> ---
+> > 
+> > NOTE: with the last changes compaction is used for all order > 0 and
+> > even from kswapd, so you will now be able to trigger bugs in
+> > compaction or migration even with THP off. However I'm surprised that
+> > you have issues with compaction...
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -416,6 +416,19 @@ static inline void set_compound_order(st
->  }
->  
->  /*
-> + * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-> + * servicing faults for write access.  In the normal case, do always want
-> + * pte_mkwrite.  But get_user_pages can cause write faults for mappings
-> + * that do not have writing enabled, when used by access_process_vm.
-> + */
-> +static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
-> +{
-> +	if (likely(vma->vm_flags & VM_WRITE))
-> +		pte = pte_mkwrite(pte);
-> +	return pte;
-> +}
-> +
-> +/*
->   * Multiple processes may "see" the same page. E.g. for untouched
->   * mappings of /dev/null, all processes see the same page full of
->   * zeroes, and text pages of executables and shared libraries have
-> diff --git a/mm/memory.c b/mm/memory.c
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2048,19 +2048,6 @@ static inline int pte_unmap_same(struct 
->  	return same;
->  }
->  
-> -/*
-> - * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-> - * servicing faults for write access.  In the normal case, do always want
-> - * pte_mkwrite.  But get_user_pages can cause write faults for mappings
-> - * that do not have writing enabled, when used by access_process_vm.
-> - */
-> -static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
-> -{
-> -	if (likely(vma->vm_flags & VM_WRITE))
-> -		pte = pte_mkwrite(pte);
-> -	return pte;
-> -}
-> -
->  static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
->  {
->  	/*
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> I know I mentioned this in another email, but it is kind of buried in
+> other context.  I reproduced my crash with CONFIG_COMPACTION and
+> CONFIG_MIGRATION off.
 
+Ok, then it was an accident the page->lru got corrupted during
+migration and it has nothing to do with migration/compaction/thp. This
+makes sense because we should have noticed long ago if something
+wasn't stable there.
 
--- 
-Michal Simek, Ing. (M.Eng)
-PetaLogix - Linux Solutions for a Reconfigurable World
-w: www.petalogix.com p: +61-7-30090663,+42-0-721842854 f: +61-7-30090663
+I reworked the fix for the two memleaks I found while reviewing
+migration code for this bug (unrelated) introduced by the commit
+cf608ac19c95804dc2df43b1f4f9e068aa9034ab. It was enough to move the
+goto to fix this without having to add a new function (it's
+functionally identical to the one I sent before). It also wouldn't
+leak memory if it was compaction invoking migrate_pages (only other
+callers checking the retval of migrate_pages instead of list_empty,
+could leak memory). As said before, this couldn't explain your
+problem, and this is only a code review fix, I never triggered this.
 
---------------050903090406060709040502
-Content-Type: text/x-patch;
- name="0001-mm-System-without-MMU-do-not-need-pte_mkwrite.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename*0="0001-mm-System-without-MMU-do-not-need-pte_mkwrite.patch"
+This is still only for review for Minchan, not meant for inclusion
+yet.
 
+===
+Subject: when migrate_pages returns 0, all pages must have been released
 
---------------050903090406060709040502--
+From: Andrea Arcangeli <aarcange@redhat.com>
+
+In some cases migrate_pages could return zero while still leaving a
+few pages in the pagelist (and some caller wouldn't notice it has to
+call putback_lru_pages after commit
+cf608ac19c95804dc2df43b1f4f9e068aa9034ab).
+
+Add one missing putback_lru_pages not added by commit
+cf608ac19c95804dc2df43b1f4f9e068aa9034ab.
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 548fbd7..75398b0 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1419,6 +1419,7 @@ int soft_offline_page(struct page *page, int flags)
+ 		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
+ 								0, true);
+ 		if (ret) {
++			putback_lru_pages(&pagelist);
+ 			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+ 				pfn, ret, page->flags);
+ 			if (ret > 0)
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 46fe8cc..7d34237 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -772,6 +772,7 @@ uncharge:
+ unlock:
+ 	unlock_page(page);
+ 
++move_newpage:
+ 	if (rc != -EAGAIN) {
+  		/*
+  		 * A page that has been migrated has all references
+@@ -785,8 +786,6 @@ unlock:
+ 		putback_lru_page(page);
+ 	}
+ 
+-move_newpage:
+-
+ 	/*
+ 	 * Move the new page to the LRU. If migration was not successful
+ 	 * then this will free the page.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
