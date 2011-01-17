@@ -1,185 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7FF4A8D0039
-	for <linux-mm@kvack.org>; Sun, 16 Jan 2011 19:31:33 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D9E783EE0CE
-	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 09:31:29 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C188C45DE68
-	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 09:31:29 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A854745DE55
-	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 09:31:29 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 99AF01DB803A
-	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 09:31:29 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AF351DB8038
-	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 09:31:29 +0900 (JST)
-Date: Mon, 17 Jan 2011 09:25:29 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] [BUGFIX] fix account leak at force_empty, rmdir
- with THP
-Message-Id: <20110117092529.0708bc97.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110117091533.7fe2d819.nishimura@mxp.nes.nec.co.jp>
-References: <20110114190412.73362cd7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110114191535.309b634c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110117091533.7fe2d819.nishimura@mxp.nes.nec.co.jp>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CF788D0039
+	for <linux-mm@kvack.org>; Sun, 16 Jan 2011 21:31:03 -0500 (EST)
+Date: Sun, 16 Jan 2011 18:30:00 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: hunting an IO hang
+Message-Id: <20110116183000.cc632557.akpm@linux-foundation.org>
+In-Reply-To: <1295229722-sup-6494@think>
+References: <1295225684-sup-7168@think>
+	<AANLkTikBamG2NG6j-z9fyTx=mk6NXFEE7LpB5z9s6ufr@mail.gmail.com>
+	<4D339C87.30100@fusionio.com>
+	<1295228148-sup-7379@think>
+	<AANLkTimp6ef0W_=ijW=CfH6iC1mQzW3gLr1LZivJ5Bmd@mail.gmail.com>
+	<AANLkTimr3hN8SDmbwv98hkcVfWoh9tioYg4M+0yanzpb@mail.gmail.com>
+	<1295229722-sup-6494@think>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, hannes@cmpxchg.org, aarcange@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Jan 2011 09:15:33 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+(lots of cc's added)
 
-> Hi, thank you for your great works!
-> 
-> I've not read this series in detail, but one quick comment for move_parent.
-> 
-> > @@ -2245,6 +2253,7 @@ static int mem_cgroup_move_parent(struct
-> >  	struct cgroup *cg = child->css.cgroup;
-> >  	struct cgroup *pcg = cg->parent;
-> >  	struct mem_cgroup *parent;
-> > +	int charge_size = PAGE_SIZE;
-> >  	int ret;
-> >  
-> >  	/* Is ROOT ? */
-> > @@ -2256,16 +2265,19 @@ static int mem_cgroup_move_parent(struct
-> >  		goto out;
-> >  	if (isolate_lru_page(page))
-> >  		goto put;
-> > +	/* The page is isolated from LRU and we have no race with splitting */
-> > +	if (PageTransHuge(page))
-> > +		charge_size = PAGE_SIZE << compound_order(page);
-> >  
-> >  	parent = mem_cgroup_from_cont(pcg);
-> >  	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false,
-> > -				      PAGE_SIZE);
-> > +				      charge_size);
-> >  	if (ret || !parent)
-> >  		goto put_back;
-> >  
-> > -	ret = mem_cgroup_move_account(pc, child, parent, true);
-> > +	ret = mem_cgroup_move_account(pc, child, parent, true, charge_size);
-> >  	if (ret)
-> > -		mem_cgroup_cancel_charge(parent, PAGE_SIZE);
-> > +		mem_cgroup_cancel_charge(parent, charge_size);
-> >  put_back:
-> >  	putback_lru_page(page);
-> >  put:
-> I think there is possibility that the page is split after "if (PageTransHuge(page))".
-> 
-> In RHEL6, this part looks like:
-> 
->    1598         if (PageTransHuge(page))
->    1599                 page_size = PAGE_SIZE << compound_order(page);
->    1600
->    1601         ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page,
->    1602                                       page_size);
->    1603         if (ret || !parent)
->    1604                 return ret;
->    1605
->    1606         if (!get_page_unless_zero(page)) {
->    1607                 ret = -EBUSY;
->    1608                 goto uncharge;
->    1609         }
->    1610
->    1611         ret = isolate_lru_page(page);
->    1612
->    1613         if (ret)
->    1614                 goto cancel;
->    1615
->    1616         compound_lock_irqsave(page, &flags);
->    1617         ret = mem_cgroup_move_account(pc, child, parent, page_size);
->    1618         compound_unlock_irqrestore(page, flags);
->    1619
-> 
-> In fact, I found a bug of res_counter underflow around here, and I've already send
-> a patch to RedHat.
-> 
+On Sun, 16 Jan 2011 21:07:40 -0500 Chris Mason <chris.mason@oracle.com> wrote:
 
-Okay, I'll take care of that in the next version.
+> Excerpts from Linus Torvalds's message of 2011-01-16 20:53:04 -0500:
+> > .. except I actually didn't add Andrew to the cc after all.
+> > 
+> > NOW I did.
+> > 
+> > Oh, and if you can repeat this and bisect it, it would obviously be
+> > great. But that sounds rather painful.
+> 
+> Ok, so I've got 3 different problems in 3 totally different areas.
+> I'm running w/kvm, but this VM is very stable with 2.6.37.  Running
+> Linus' current git it goes boom in exotic ways, this time it was only on
+> ext3, btrfs code never loaded.
+> 
+> Linus, if you're planning on rc1 tonight I'll send my pull request out
+> the door.  Otherwise I'd prefer to fix this and send my pull after
+> actually getting a long btrfs run on the current code.
+> 
+> Next up, CONFIG_DEBUG*, always an adventure on rc1 kernels ;)
+> 
+> WARNING: at lib/list_debug.c:57 list_del+0xc0/0xed()
+> Hardware name: Bochs
+> list_del corruption. next->prev should be ffffea000010cde0, but was ffff88007cff6bc8
+> Modules linked in:
+> Pid: 524, comm: kswapd0 Not tainted 2.6.37-josef+ #180
+> Call Trace:
+>  [<ffffffff8106ec94>] ? warn_slowpath_common+0x85/0x9d
+>  [<ffffffff8106ed4f>] ? warn_slowpath_fmt+0x46/0x48
+>  [<ffffffff81263d6c>] ? list_del+0xc0/0xed
+>  [<ffffffff81106d9d>] ? migrate_pages+0x26f/0x357
+>  [<ffffffff81100e18>] ? compaction_alloc+0x0/0x2dc
+>  [<ffffffff8110150d>] ? compact_zone+0x391/0x5c4
+>  [<ffffffff81101905>] ? compact_zone_order+0xc2/0xd1
+>  [<ffffffff815c321e>] ? _raw_spin_unlock+0xe/0x10
+>  [<ffffffff810dc446>] ? kswapd+0x5c8/0x88f
+>  [<ffffffff810dbe7e>] ? kswapd+0x0/0x88f
+>  [<ffffffff81089ce8>] ? kthread+0x82/0x8a
+>  [<ffffffff810347d4>] ? kernel_thread_helper+0x4/0x10
+>  [<ffffffff81089c66>] ? kthread+0x0/0x8a
+>  [<ffffffff810347d0>] ? kernel_thread_helper+0x0/0x10
+> ---[ end trace 5c6b7933d16b301f ]---
 
-Thanks,
--Kame
-
-
-> ===
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> In mem_cgroup_move_parent(), the page can be split by other context after we
-> check PageTransHuge() and before hold the compound_lock of the page later.
-> 
-> This means a race can happen like:
-> 
-> 	__split_huge_page_refcount()		mem_cgroup_move_parent()
->     ---------------------------------------------------------------------------
-> 						if (PageTransHuge())
-> 						-> true
-> 						-> set "page_size" to huge page
-> 						   size.
-> 						__mem_cgroup_try_charge()
-> 						-> charge "page_size" to the
-> 						   parent.
-> 	compound_lock()
-> 	mem_cgroup_split_hugepage_commit()
-> 	-> commit all the tail pages to the
-> 	   "current"(i.e. child) cgroup.
-> 	   iow, pc->mem_cgroup of tail pages
-> 	   point to the child.
-> 	ClearPageCompound()
-> 	compound_unlock()
-> 						compound_lock()
-> 						mem_cgroup_move_account()
-> 						-> make pc->mem_cgroup of the
-> 						   head page point to the parent.
-> 						-> uncharge "page_size" from
-> 						   the child.
-> 						compound_unlock()
-> 
-> This can causes at least 2 problems.
-> 
-> 1. Tail pages are linked to LRU of the child, even though usages(res_counter) of
->    them have been already uncharged from the chilid. This causes res_counter
->    underflow at removing the child directory.
-> 2. Usage of the parent is increased by the huge page size at moving charge of
->    the head page, but usage will be decreased only by the normal page size when
->    the head page is uncharged later because it is not PageTransHuge() anymore.
->    This means the parent doesn't have enough pages on its LRU to decrease the
->    usage to 0 and it cannot be rmdir'ed.
-> 
-> This patch fixes this problem by re-checking PageTransHuge() again under the
-> compound_lock.
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> diff -uprN linux-2.6.32.x86_64.org/mm/memcontrol.c linux-2.6.32.x86_64/mm/memcontrol.c
-> --- linux-2.6.32.x86_64.org/mm/memcontrol.c	2010-07-15 16:44:57.000000000 +0900
-> +++ linux-2.6.32.x86_64/mm/memcontrol.c	2010-07-15 17:34:12.000000000 +0900
-> @@ -1608,6 +1608,17 @@ static int mem_cgroup_move_parent(struct
->  		goto cancel;
->  
->  	compound_lock_irqsave(page, &flags);
-> +	/* re-check under compound_lock because the page might be split */
-> +	if (unlikely(page_size != PAGE_SIZE && !PageTransHuge(page))) {
-> +		unsigned long extra = page_size - PAGE_SIZE;
-> +		/* uncharge extra charges from parent */
-> +		if (!mem_cgroup_is_root(parent)) {
-> +			res_counter_uncharge(&parent->res, extra);
-> +			if (do_swap_account)
-> +				res_counter_uncharge(&parent->memsw, extra);
-> +		}
-> +		page_size = PAGE_SIZE;
-> +	}
->  	ret = mem_cgroup_move_account(pc, child, parent, page_size);
->  	compound_unlock_irqrestore(page, flags);
->  
-> 
+uh-oh.  Does disabling CONFIG_COMPACTION make this go away (requires
+disabling CONFIG_TRANSPARENT_HUGEPAGE first).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
