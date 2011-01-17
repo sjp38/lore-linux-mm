@@ -1,79 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 213598D0039
-	for <linux-mm@kvack.org>; Sun, 16 Jan 2011 21:43:39 -0500 (EST)
-Content-Type: text/plain; charset=UTF-8
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: hunting an IO hang
-In-reply-to: <20110116183000.cc632557.akpm@linux-foundation.org>
-References: <1295225684-sup-7168@think> <AANLkTikBamG2NG6j-z9fyTx=mk6NXFEE7LpB5z9s6ufr@mail.gmail.com> <4D339C87.30100@fusionio.com> <1295228148-sup-7379@think> <AANLkTimp6ef0W_=ijW=CfH6iC1mQzW3gLr1LZivJ5Bmd@mail.gmail.com> <AANLkTimr3hN8SDmbwv98hkcVfWoh9tioYg4M+0yanzpb@mail.gmail.com> <1295229722-sup-6494@think> <20110116183000.cc632557.akpm@linux-foundation.org>
-Date: Sun, 16 Jan 2011 21:41:41 -0500
-Message-Id: <1295231547-sup-8036@think>
-Content-Transfer-Encoding: 8bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 03F938D0039
+	for <linux-mm@kvack.org>; Sun, 16 Jan 2011 22:07:10 -0500 (EST)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id p0H377fc028532
+	for <linux-mm@kvack.org>; Sun, 16 Jan 2011 19:07:07 -0800
+Received: from yie19 (yie19.prod.google.com [10.243.66.19])
+	by kpbe17.cbf.corp.google.com with ESMTP id p0H3751q021696
+	for <linux-mm@kvack.org>; Sun, 16 Jan 2011 19:07:06 -0800
+Received: by yie19 with SMTP id 19so2736190yie.31
+        for <linux-mm@kvack.org>; Sun, 16 Jan 2011 19:07:05 -0800 (PST)
+Date: Sun, 16 Jan 2011 19:06:48 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [CFP] LSF and Memory Management Workshop (April 4-5)
+Message-ID: <alpine.LSU.2.00.1101161904470.3011@sister.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Excerpts from Andrew Morton's message of 2011-01-16 21:30:00 -0500:
-> (lots of cc's added)
-> 
-> On Sun, 16 Jan 2011 21:07:40 -0500 Chris Mason <chris.mason@oracle.com> wrote:
-> 
-> > Excerpts from Linus Torvalds's message of 2011-01-16 20:53:04 -0500:
-> > > .. except I actually didn't add Andrew to the cc after all.
-> > > 
-> > > NOW I did.
-> > > 
-> > > Oh, and if you can repeat this and bisect it, it would obviously be
-> > > great. But that sounds rather painful.
-> > 
-> > Ok, so I've got 3 different problems in 3 totally different areas.
-> > I'm running w/kvm, but this VM is very stable with 2.6.37.  Running
-> > Linus' current git it goes boom in exotic ways, this time it was only on
-> > ext3, btrfs code never loaded.
-> > 
-> > Linus, if you're planning on rc1 tonight I'll send my pull request out
-> > the door.  Otherwise I'd prefer to fix this and send my pull after
-> > actually getting a long btrfs run on the current code.
-> > 
-> > Next up, CONFIG_DEBUG*, always an adventure on rc1 kernels ;)
-> > 
-> > WARNING: at lib/list_debug.c:57 list_del+0xc0/0xed()
-> > Hardware name: Bochs
-> > list_del corruption. next->prev should be ffffea000010cde0, but was ffff88007cff6bc8
-> > Modules linked in:
-> > Pid: 524, comm: kswapd0 Not tainted 2.6.37-josef+ #180
-> > Call Trace:
-> >  [<ffffffff8106ec94>] ? warn_slowpath_common+0x85/0x9d
-> >  [<ffffffff8106ed4f>] ? warn_slowpath_fmt+0x46/0x48
-> >  [<ffffffff81263d6c>] ? list_del+0xc0/0xed
-> >  [<ffffffff81106d9d>] ? migrate_pages+0x26f/0x357
-> >  [<ffffffff81100e18>] ? compaction_alloc+0x0/0x2dc
-> >  [<ffffffff8110150d>] ? compact_zone+0x391/0x5c4
-> >  [<ffffffff81101905>] ? compact_zone_order+0xc2/0xd1
-> >  [<ffffffff815c321e>] ? _raw_spin_unlock+0xe/0x10
-> >  [<ffffffff810dc446>] ? kswapd+0x5c8/0x88f
-> >  [<ffffffff810dbe7e>] ? kswapd+0x0/0x88f
-> >  [<ffffffff81089ce8>] ? kthread+0x82/0x8a
-> >  [<ffffffff810347d4>] ? kernel_thread_helper+0x4/0x10
-> >  [<ffffffff81089c66>] ? kthread+0x0/0x8a
-> >  [<ffffffff810347d0>] ? kernel_thread_helper+0x0/0x10
-> > ---[ end trace 5c6b7933d16b301f ]---
-> 
-> uh-oh.  Does disabling CONFIG_COMPACTION make this go away (requires
-> disabling CONFIG_TRANSPARENT_HUGEPAGE first).
+The annual Linux Storage, Filesystem and Memory Management Workshop for
+2011 will be held on the 2 days preceding the Linux Foundation
+Collaboration Summit at Hotel Kabuki in the Japantown area of San
+Francisco:
 
-We'll see.  I gave THP this same run of tests back in November, it
-passed without any problems (after fixing the related btrfs migration
-bug).  All of the crashes I've seen this weekend had this in the
-.config:
+   http://events.linuxfoundation.org/events/collaboration-summit
 
-# CONFIG_TRANSPARENT_HUGEPAGE is not set
-CONFIG_COMPACTION=y
-CONFIG_MIGRATION=y
+Given the success of last year's 3 track experiment, we are once again
+planning to hold some joint sessions and the rest split into separate
+Storage, Filesystem and Memory Management breakout sessions. We'd
+therefore like to issue a call for agenda proposals that are suitable
+for cross-track discussion as well as more technical subjects for
+discussion in the breakout sessions.
 
--chris
+Suggestions for agenda topics should be sent before February 6th to
+
+lsf-pc@lists.linuxfoundation.org
+
+and optionally cc the Linux list which would be most interested in it:
+
+SCSI: linux-scsi@vger.kernel.org
+FS: linux-fsdevel@vger.kernel.org
+MM: linux-mm@kvack.org
+
+Please remember to tag your subject with [LSF/MM TOPIC] to make it
+easier to track. Agenda topics and attendees will be selected by the
+programme committee, but the final agenda will be by formed by consensus
+of the attendees on the day.
+
+We'll try to cap attendance at around 25-30 per track to facilitate
+discussions although the final numbers will depend on the room sizes at
+the venue.
+
+Requests to attend should be sent to:
+
+lsf-pc@lists.linuxfoundation.org
+
+please summarize what expertise you will bring to the meeting, and what
+you'd like to discuss.  please also tag your email with [ATTEND] so
+there's less chance of it getting lost in the large mail pile.
+
+Presentations are allowed to guide discussion, but are strongly
+discouraged.  There will be no recording or audio bridge, however
+written minutes will be published as in previous years:
+
+2010:
+http://lwn.net/Articles/399148/
+http://lwn.net/Articles/399313/
+http://lwn.net/Articles/400589/
+
+2009:
+http://lwn.net/Articles/327601/
+http://lwn.net/Articles/327740/
+http://lwn.net/Articles/328347/
+
+Prior years:
+http://www.usenix.org/events/lsf08/tech/lsf08sums.pdf
+http://www.usenix.org/publications/login/2007-06/openpdfs/lsf07sums.pdf
+
+If you have feedback on last year's meeting that we can use to improve
+this year's, please also send that to:
+
+lsf-pc@lists.linuxfoundation.org
+
+On behalf of the Program Committee, Thanks,
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
