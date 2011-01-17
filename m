@@ -1,75 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0171B8D0039
-	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 13:25:59 -0500 (EST)
-Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p0HIPFwh014846
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 10:25:16 -0800
-Received: by iyj17 with SMTP id 17so5087607iyj.14
-        for <linux-mm@kvack.org>; Mon, 17 Jan 2011 10:25:15 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id AB2BC8D0039
+	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 14:14:13 -0500 (EST)
+Date: Mon, 17 Jan 2011 20:14:00 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [LSF/MM TOPIC] memory control groups
+Message-ID: <20110117191359.GI2212@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <1295285676-sup-8962@think>
-References: <AANLkTimp6ef0W_=ijW=CfH6iC1mQzW3gLr1LZivJ5Bmd@mail.gmail.com>
- <AANLkTimr3hN8SDmbwv98hkcVfWoh9tioYg4M+0yanzpb@mail.gmail.com>
- <1295229722-sup-6494@think> <20110116183000.cc632557.akpm@linux-foundation.org>
- <1295231547-sup-8036@think> <20110117102744.GA27152@csn.ul.ie>
- <1295269009-sup-7646@think> <20110117135059.GB27152@csn.ul.ie>
- <1295272970-sup-6500@think> <1295276272-sup-1788@think> <20110117170907.GC27152@csn.ul.ie>
- <1295285676-sup-8962@think>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 17 Jan 2011 10:24:55 -0800
-Message-ID: <AANLkTi=V1si-+UgmLD+YFzn5cf-x8q=tV_JhHisQUV7z@mail.gmail.com>
-Subject: Re: hunting an IO hang
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Shaohua Li <shaohua.li@intel.com>
+To: linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, Michel Lespinasse <walken@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 17, 2011 at 9:40 AM, Chris Mason <chris.mason@oracle.com> wrote=
-:
->> >
->> > I've reverted 744ed1442757767ffede5008bb13e0805085902e, and
->> > d8505dee1a87b8d41b9c4ee1325cd72258226fbc and the run has lasted longer
->> > than any runs in the past.
->> >
->>
->> Confirmed that reverting these patches makes the problem unreproducible
->> for the many_dd's + fsmark for at least an hour here.
->
-> After 2+ hours I'm still running with those two commits gone. =A0I'm
-> confident they are the cause of the crashes. =A0I also haven't triggered
-> the cfq stalls without them.
+Hello,
 
-Ok, so the question is how to proceed from here.
+on the MM summit, I would like to talk about the current state of
+memory control groups, the features and extensions that are currently
+being developed for it, and what their status is.
 
-I can easily revert them, and since I was planning on doing -rc1
-tonight, I probably will. But I promised Chris to delay until tomorrow
-if he needed time to chase this down, and while it's now apparently
-chased down, I'll certainly also be open to delaying until tomorrow if
-somebody has a patch to fix it.
+I am especially interested in talking about the current runtime memory
+overhead memcg comes with (1% of ram) and what we can do to shrink it.
 
-So right now my plan is:
- - I will revert those two later today and then release -rc1 in the evening
-UNLESS
- - somebody posts a patch for the problem in the next few hours and
-Chris/others are willing to give it a good test overnight (or whatever
-people feel is "sufficient" based on how easily they can trigger the
-issue), in which case I'd do -rc1 tomorrow (either with the reverts or
-the patch, depending on how testing works out)
+In comparison to how efficiently struct page is packed, and given that
+distro kernels come with memcg enabled per default, I think we should
+put a bit more thought into how struct page_cgroup (which exists for
+every page in the system as well) is organized.
 
-Sounds like a plan?
+I have a patch series that removes the page backpointer from struct
+page_cgroup by storing a node ID (or section ID, depending on whether
+sparsemem is configured) in the free bits of pc->flags.
 
-(Also, I'm really happy it didn't turn out to be the lock-less RCU
-lookup. I didn't really think it would be based on the symptoms, but
-I'm still happy. Reverting a few random MM patches is _sooo_ much
-easier than having to worry about some subtle locking issue with the
-totally changed VFS name lookup)
+I also plan on replacing the pc->mem_cgroup pointer with an ID
+(KAMEZAWA-san has patches for that), and move it to pc->flags too.
+Every flag not used means doubling the amount of possible control
+groups, so I have patches that get rid of some flags currently
+allocated, including PCG_CACHE, PCG_ACCT_LRU, and PCG_MIGRATION.
 
-                       Linus
+[ I meant to send those out much earlier already, but a bug in the
+migration rework was not responding to my yelling 'Marco', and now my
+changes collide horribly with THP, so it will take another rebase. ]
+
+The per-memcg dirty accounting work e.g. allocates a bunch of new bits
+in pc->flags and I'd like to hash out if this leaves enough room for
+the structure packing I described, or whether we can come up with a
+different way of tracking state.
+
+Would other people be interested in discussing this?
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
