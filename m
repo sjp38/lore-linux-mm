@@ -1,53 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A32BD8D0039
-	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 10:10:44 -0500 (EST)
-Date: Mon, 17 Jan 2011 15:33:45 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 13 of 66] export maybe_mkwrite
-Message-ID: <20110117143345.GQ9506@random.random>
-References: <patchbomb.1288798055@v2.random>
- <15324c9c30081da3a740.1288798068@v2.random>
- <4D344EAF.1080401@petalogix.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E06B8D0039
+	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 11:32:43 -0500 (EST)
+Date: Mon, 17 Jan 2011 17:32:22 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: hunting an IO hang
+Message-ID: <20110117163222.GG2212@cmpxchg.org>
+References: <AANLkTimp6ef0W_=ijW=CfH6iC1mQzW3gLr1LZivJ5Bmd@mail.gmail.com>
+ <AANLkTimr3hN8SDmbwv98hkcVfWoh9tioYg4M+0yanzpb@mail.gmail.com>
+ <1295229722-sup-6494@think>
+ <20110116183000.cc632557.akpm@linux-foundation.org>
+ <1295231547-sup-8036@think>
+ <20110117102744.GA27152@csn.ul.ie>
+ <1295269009-sup-7646@think>
+ <20110117135059.GB27152@csn.ul.ie>
+ <1295272970-sup-6500@think>
+ <1295276272-sup-1788@think>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4D344EAF.1080401@petalogix.com>
+In-Reply-To: <1295276272-sup-1788@think>
 Sender: owner-linux-mm@kvack.org
-To: Michal Simek <michal.simek@petalogix.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Shaohua Li <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Michal,
-
-On Mon, Jan 17, 2011 at 03:14:07PM +0100, Michal Simek wrote:
-> Andrea Arcangeli wrote:
-> > From: Andrea Arcangeli <aarcange@redhat.com>
-> > 
-> > huge_memory.c needs it too when it fallbacks in copying hugepages into regular
-> > fragmented pages if hugepage allocation fails during COW.
-> > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > Acked-by: Rik van Riel <riel@redhat.com>
-> > Acked-by: Mel Gorman <mel@csn.ul.ie>
+On Mon, Jan 17, 2011 at 10:02:47AM -0500, Chris Mason wrote:
+> Excerpts from Chris Mason's message of 2011-01-17 09:07:40 -0500:
 > 
-> It wasn't good idea to do it. mm/memory.c is used only for system with 
-> MMU. System without MMU are broken.
+> [ various crashes under load with current git ]
 > 
-> Not sure what the right fix is but anyway I think use one ifdef make 
-> sense (git patch in attachment).
+> > 
+> > I did have CONFIG_COMPACTION off for my latest reproduce.  The last two
+> > have been corruption on the page->lru lists, maybe that'll help narrow
+> > our bisect pool down.
+> 
+> I've reverted 744ed1442757767ffede5008bb13e0805085902e, and
+> d8505dee1a87b8d41b9c4ee1325cd72258226fbc and the run has lasted longer
+> than any runs in the past.
+> 
+> I'll give this a few hours but they seem the most related to my various
+> crashes so far.
 
-Can you show the build failure with CONFIG_MMU=n so I can understand
-better? Other places in mm.h depends on pte_t/vm_area_struct/VM_WRITE
-to be defined, if a system is without MMU nobody should call it
-simply. Not saying your patch is wrong, but I'm trying to understand
-how exactly it got broken and the gcc error would show it immediately.
+I went through the new batched activation code.  Shaohua, can you
+explain to me why the following sequence is not possible?
 
-This is only called by memory.o and huge_memory.o and they both are
-built only if MMU=y.
+1. CPU A and B schedule activation of a page (PG_lru && !PG_active)
+2. CPU A flushes the page to the active list (PG_lru && PG_active)
+3. CPU A isolates the page for scanning/migration and
+   puts it on private list (!PG_lru && PG_active)
+4. CPU B flushes the page to the active list (!PG_lru && PG_active),
+   the deferred activation code now assumes putback mode and adds the page
+   to the active list, thus corrupting the link to the private list of CPU A
+5. CPU A does list_del() from the private list (like unmap_and_move() does)
+   and trips up on the corruption
 
-Thanks!
-Andrea
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
