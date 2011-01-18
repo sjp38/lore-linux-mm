@@ -1,131 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3231C6B0092
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 15:42:46 -0500 (EST)
-Date: Tue, 18 Jan 2011 20:42:20 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [patch] mm: fix deferred congestion timeout if preferred zone
-	is not allowed
-Message-ID: <20110118204220.GB18984@csn.ul.ie>
-References: <alpine.DEB.2.00.1101172108380.29048@chino.kir.corp.google.com> <20110118101547.GF27152@csn.ul.ie> <alpine.DEB.2.00.1101181211100.18781@chino.kir.corp.google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E09696B0092
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 16:10:46 -0500 (EST)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id p0ILAfp1008512
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 13:10:41 -0800
+Received: from qwk4 (qwk4.prod.google.com [10.241.195.132])
+	by wpaz5.hot.corp.google.com with ESMTP id p0ILAJlq009588
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 13:10:40 -0800
+Received: by qwk4 with SMTP id 4so69697qwk.4
+        for <linux-mm@kvack.org>; Tue, 18 Jan 2011 13:10:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1101181211100.18781@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1101181227220.18781@chino.kir.corp.google.com>
+References: <1294956035-12081-1-git-send-email-yinghan@google.com>
+	<1294956035-12081-3-git-send-email-yinghan@google.com>
+	<20110114091119.2f11b3b9.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTimo7c3pwFoQvE140o6uFDOaRvxdq6+r3tQnfuPe@mail.gmail.com>
+	<alpine.DEB.2.00.1101181227220.18781@chino.kir.corp.google.com>
+Date: Tue, 18 Jan 2011 13:10:39 -0800
+Message-ID: <AANLkTi=oFTf9pLKdBU4wXm4tTsWjH+E2q9d5_nm_7gt9@mail.gmail.com>
+Subject: Re: [PATCH 2/5] Add per cgroup reclaim watermarks.
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 18, 2011 at 12:24:26PM -0800, David Rientjes wrote:
-> On Tue, 18 Jan 2011, Mel Gorman wrote:
-> 
-> > > wait_iff_congested(), though, uses preferred_zone to determine if the
-> > > congestion wait should be deferred because its dirty pages are backed by
-> > > a congested bdi.  This incorrectly defers the timeout and busy loops in
-> > > the page allocator with various cond_resched() calls if preferred_zone is
-> > > not allowed in the current context, usually consuming 100% of a cpu.
-> > > 
-> > 
-> > The current context being cpuset context or do you have other situations
-> > in mind?
-> > 
-> 
-> Only cpuset context will restrict certain nodes from being allocated from, 
-> mempolicies pass the allowed mask into the page allocator already.
-> 
-> > > This patch resets preferred_zone to an allowed zone in the slowpath if
-> > > the allocation context is constrained by current's cpuset. 
-> > 
-> > Well, preferred_zone has meaning. If it's not possible to allocate from
-> > that zone in the current cpuset context, it's not really preferred. Why
-> > not set it in the fast path so there isn't a useless call to
-> > get_page_from_freelist()?
-> > 
-> 
-> It may be the preferred zone even if it isn't allowed by current's cpuset 
-> such as if the allocation is __GFP_WAIT or the task has been oom killed 
-> and has the TIF_MEMDIE bit set, so the preferred zone in the fastpath is 
-> accurate in these cases.  In the slowpath, the former is protected by 
-> checking for ALLOC_CPUSET and the latter is usually only set after the 
-> page allocator has looped at least once and triggered the oom killer to be 
-> killed.
-> 
+On Tue, Jan 18, 2011 at 12:36 PM, David Rientjes <rientjes@google.com> wrot=
+e:
+> On Tue, 18 Jan 2011, Ying Han wrote:
+>
+>> I agree that "min_free_kbytes" concept doesn't apply well since there
+>> is no notion of "reserved pool" in memcg. I borrowed it at the
+>> beginning is to add a tunable to the per-memcg watermarks besides the
+>> hard_limit.
+>
+> You may want to add a small amount of memory that a memcg may allocate
+> from in oom conditions, however: memory reserves are allocated per-zone
+> and if the entire system is oom and that includes several dozen memcgs,
+> for example, they could all be contending for the same memory reserves.
+> It would be much easier to deplete all reserves since you would have
+> several tasks allowed to allocate from this pool: that's not possible
+> without memcg since the oom killer is serialized on zones and does not
+> kill a task if another oom killed task is already detected in the
+> tasklist.
 
-Ok, this is reasonable and is a notable distinction from nodemasks. It's
-worth including this in the changelog.
+so something like per-memcg min_wmark which also needs to be reserved upfro=
+nt?
 
-> I didn't want to add a branch to test for these possibilities in the 
-> fastpath, however, since preferred_zone isn't of critical importance until 
-> it's used in the slowpath (ignoring the statistical usage).
-> 
+> I think it would be very trivial to DoS the entire machine in this way:
+> set up a thousand memcgs with tasks that have core_state, for example, an=
+d
+> trigger them to all allocate anonymous memory up to their hard limit so
+> they oom at the same time. =A0The machine should livelock with all zones
+> having 0 pages free.
+>
+>> I read the
+>> patch posted from Satoru Moriya "Tunable watermarks", and introducing
+>> the per-memcg-per-watermark tunable
+>> sounds good to me. Might consider adding it to the next post.
+>>
+>
+> Those tunable watermarks were nacked for a reason: they are internal to
+> the VM and should be set to sane values by the kernel with no intevention
+> needed by userspace. =A0You'd need to show why a memcg would need a user =
+to
+> tune its watermarks to trigger background reclaim and why that's not
+> possible by the kernel and how this is a special case in comparsion to th=
+e
+> per-zone watermarks used by the VM.
 
-With these two paragraphs included in the changelog;
+KAMEZAWA gave an example on his early post, which some enterprise user
+like to keep fixed amount of free pages
+regardless of the hard_limit.
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Since setting the wmarks has impact on the reclaim behavior of each
+memcg,  adding this flexibility helps the system where it like to
+treat memcg differently based on the priority.
 
-Thanks.
+--Ying
 
-> > > It also
-> > > ensures preferred_zone is from the set of allowed nodes when called from
-> > > within direct reclaim; allocations are always constrainted by cpusets
-> > > since the context is always blockable.
-> > > 
-> > 
-> > preferred_zone should already be obeying nodemask and the set of allowed
-> > nodes. Are you aware of an instance where this is not the case or are
-> > you talking about the nodes allowed by the cpuset?
-> > 
-> 
-> In the direct reclaim path, the fix is to make sure preferred_zone is 
-> allowed by cpuset_current_mems_allowed since we don't need to test for 
-> __GFP_WAIT: it's useless to check the congestion of a zone that cannot be 
-> allocated from.
-> 
-> > > Both of these uses of cpuset_current_mems_allowed are protected by
-> > > get_mems_allowed().
-> > > ---
-> > >  mm/page_alloc.c |   12 ++++++++++++
-> > >  mm/vmscan.c     |    3 ++-
-> > >  2 files changed, 14 insertions(+), 1 deletions(-)
-> > > 
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -2034,6 +2034,18 @@ restart:
-> > >  	 */
-> > >  	alloc_flags = gfp_to_alloc_flags(gfp_mask);
-> > >  
-> > > +	/*
-> > > +	 * If preferred_zone cannot be allocated from in this context, find the
-> > > +	 * first allowable zone instead.
-> > > +	 */
-> > > +	if ((alloc_flags & ALLOC_CPUSET) &&
-> > > +	    !cpuset_zone_allowed_softwall(preferred_zone, gfp_mask)) {
-> > > +		first_zones_zonelist(zonelist, high_zoneidx,
-> > > +				&cpuset_current_mems_allowed, &preferred_zone);
-> > > +		if (unlikely(!preferred_zone))
-> > > +			goto nopage;
-> > > +	}
-> > > +
-> > 
-> > This looks as if it would work but is there any reason why
-> > cpuset_current_mems_allowed is not used as the nodemask for ALLOC_CPUSET? It's
-> > used by ZLC with CONFIG_NUMA machines for example so it seems a little
-> > inconsistent. If a nodemask was supplied by the caller, it could be AND'd
-> > with cpuset_current_mems_allowed.
-> > 
-> 
-> ALLOC_CPUSET is checked in get_page_from_freelist() because there are 
-> exceptions allowed both by cpuset_zone_allowed_softwall() based on the 
-> state of the task and by not setting ALLOC_CPUSET in the page allocator 
-> based on !__GFP_WAIT.
-> 
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
