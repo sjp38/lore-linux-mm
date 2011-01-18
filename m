@@ -1,100 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AD9D8D0039
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 05:20:13 -0500 (EST)
-Date: Tue, 18 Jan 2011 11:20:06 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [LSF/MM TOPIC] memory control groups
-Message-ID: <20110118102006.GL2212@cmpxchg.org>
-References: <20110117191359.GI2212@cmpxchg.org>
- <20110118101057.51d20ed7.kamezawa.hiroyu@jp.fujitsu.com>
- <20110118084013.GK2212@cmpxchg.org>
- <20110118181757.2aefcf87.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 835B48D0039
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 05:30:09 -0500 (EST)
+Date: Tue, 18 Jan 2011 10:29:41 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [patch] mm: fix deferred congestion timeout if preferred zone
+	is not allowed
+Message-ID: <20110118102941.GG27152@csn.ul.ie>
+References: <alpine.DEB.2.00.1101172108380.29048@chino.kir.corp.google.com> <20110118142339.6705.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110118181757.2aefcf87.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110118142339.6705.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, Michel Lespinasse <walken@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 18, 2011 at 06:17:57PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Tue, 18 Jan 2011 09:40:13 +0100
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > On Tue, Jan 18, 2011 at 10:10:57AM +0900, KAMEZAWA Hiroyuki wrote:
-> > > - pc->page can be replaced with some lookup routine.
-> > >   But Section bit encoding may be something mysterious and look up cost
-> > >   will be problem.
-> > 
-> > Why is that?
-> > 
-> > The lookup is actually straight-forward, like lookup_page_cgroup().
-> > And we only need it when coming from the per-cgroup LRU, i.e. in
-> > reclaim and force_empty.
-> >  
+On Tue, Jan 18, 2011 at 03:04:21PM +0900, KOSAKI Motohiro wrote:
+> Hi,
 > 
-> I see usage of pc->page is not very frequent. But I wonder we should
-> revisit performance of lookup_page_cgroup() before adding new weight.
-
-I think those are two different things to tackle.  But I will make
-sure to check for performance overhead when removing pc->page.
-
-> > > - I'm not sure PCG_MIGRATION. It's for avoiding races.
-> > 
-> > That's also a scary patch...  Yeah, it's to prevent uncharging of
-> > oldpage in case migration fails and it has to be reused.  I changed
-> > the migration sequence for memcg a bit so that we don't have to do
-> > that anymore.  It survived basic testing.
-> > 
+> > Before 0e093d99763e (writeback: do not sleep on the congestion queue if
+> > there are no congested BDIs or if significant congestion is not being
+> > encountered in the current zone), preferred_zone was only used for
+> > statistics and to determine the zoneidx from which to allocate from given
+> > the type requested.
 > 
-> Hmm. I saw level down of migration under memcg several times. So, I don't
-> want to modify running one without enough reason.
-> I guess all SECTION_BITS can be encoded to pc->flags without diet of flags.
-
-That's true, there is enough room for that.
-
-Those reduction patches I only wrote to also pack the pc->mem_cgroup
-ID into pc->flags, but these are two independent problems.
-
-I would not have finished the patch only for that one tiny flag, but
-it actually saved code and made it IMO a bit easier to understand.  I
-consider this a serious upside of code that has a history of breaking.
-
-But one at the time, first I will finish testing and benchmarking the
-pc->page removal.
-
-> > E.g. I have a suspicion that we might be able to do dirty accounting
-> > without all the flags (we have them in the page anyway!) but use
-> > proportionals instead.  It's not page-accurate, but I think the
-> > fundamental problem is solved: when the dirty ratio is exceeded,
-> > throttle the cgroup with the biggest dirty share.
+> True. So, following comment is now bogus. ;)
 > 
-> Using proportionals is a choice. But, IIUC, users of memcg wants 
-> something like /proc/meminfo. It doesn't match.
-> If I'm an user of container, I want an information like /proc/meminfo for
-> container.
+> __alloc_pages_nodemask()
+> {
+> (snip)
+>         get_mems_allowed();
+>         /* The preferred zone is used for statistics later */
+>         first_zones_zonelist(zonelist, high_zoneidx, nodemask, &preferred_zone);
+>         if (!preferred_zone) {
+>                 put_mems_allowed();
+>                 return NULL;
+>         }
+> 
 
-I totally agree that this is information that needs exporting.
+At best, it's misleading. It is used for staistics later but it's not
+all it's used for.
 
-But you can easily calculate an absolute number of bytes by applying a
-memcg's relative proportion to the absolute amount of dirty pages for
-example.  The only difference is that it probably won't be 100%
-accurate, but a few pages difference should really not matter for
-user-visible statistics.
+> 
+> Now, we have three preferred_zone usage.
+>  1. for zone stat
+>  2. wait_iff_congested
+>  3. for calculate compaction duration
+> 
 
-No?
+For 3, it is used to determine if compaction should be deferred. I'm not
+sure what it has to do with the duration of compaction.
 
-> Anyway, if the kernel goes to merge IO-less page reclaim, dirty ratio
-> support is the 1st thing we have to implement.
-> Without that, memcg will easily OOM.
+> So, I have two question.  
+> 
 
-Agreed.  I am not saying that my memory footprint concerns should
-stand in the way of merging important infrastructure.  This is work
-that can still be done even after dirty accounting is merged.
+three questions :)
 
-Thanks,
-	Hannes
+> 1. Why do we need different vm stat policy mempolicy and cpuset? 
+> That said, if we are using mempolicy, the above nodemask variable is 
+> not NULL, then preferrd_zone doesn't point nearest zone. But it point 
+> always nearest zone when cpuset are used. 
+> 
+
+I think this is historical. cpuset and mempolicy were introduced at
+different times and never merged together as they should have been. I
+think an attempt was made a very long time ago but there was significant
+resistance from SGI developers who didn't want to see regressions
+introduced in a feature they depended heavily on.
+
+> 2. Why wait_iff_congested in page_alloc only wait preferred zone? 
+> That said, theorically, any no congested zones in allocatable zones can
+> avoid waiting. Just code simplify?
+> 
+
+The ideal for page allocation is that the preferred zone is always used.
+If it is congested, it's probable that significant pressure also exists on
+the other zones in the zonelist (because an allocation attempt failed)
+but if the preferred zone is uncongested, we should try reclaiming from
+it rather than going to sleep.
+
+> 3. I'm not sure why zone->compact_defer is not noted per zone, instead
+> noted only preferred zone. Do you know the intention?
+> 
+
+If we are deferring compaction, we have failed to compact the preferred
+zone and all other zones in the zonelist. Updating the preferred zone is
+sufficient for future allocations of the same type. We could update all
+zones in the zonelist but it's unnecessary overhead and gains very little.
+
+> I mean my first feeling tell me that we have a chance to make code simplify
+> more.
+> 
+> Mel, Can you please tell us your opinion?
+> 
+
+Right now, I'm thinking that cpuset_current_mems_allowed should be used
+as a nodemask earlier so that preferred_zone gets initialised as a
+sensible value early on.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
