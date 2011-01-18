@@ -1,77 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C45118D0039
-	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 19:30:25 -0500 (EST)
-Subject: Re: hunting an IO hang
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20110117230358.GE27152@csn.ul.ie>
-References: <1295231547-sup-8036@think> <20110117102744.GA27152@csn.ul.ie>
-	 <1295269009-sup-7646@think> <20110117135059.GB27152@csn.ul.ie>
-	 <1295272970-sup-6500@think> <1295276272-sup-1788@think>
-	 <20110117170907.GC27152@csn.ul.ie> <1295285676-sup-8962@think>
-	 <AANLkTi=V1si-+UgmLD+YFzn5cf-x8q=tV_JhHisQUV7z@mail.gmail.com>
-	 <1295298806-sup-2802@think>  <20110117230358.GE27152@csn.ul.ie>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 18 Jan 2011 08:30:22 +0800
-Message-ID: <1295310622.1949.713.camel@sli10-conroe>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B23038D0039
+	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 20:16:59 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2C2C03EE0AE
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 10:16:56 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0762F45DD74
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 10:16:56 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D92C645DE55
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 10:16:55 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CA8141DB803F
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 10:16:55 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 819511DB803B
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 10:16:55 +0900 (JST)
+Date: Tue, 18 Jan 2011 10:10:57 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [LSF/MM TOPIC] memory control groups
+Message-Id: <20110118101057.51d20ed7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110117191359.GI2212@cmpxchg.org>
+References: <20110117191359.GI2212@cmpxchg.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Chris Mason <chris.mason@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, Michel Lespinasse <walken@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2011-01-18 at 07:03 +0800, Mel Gorman wrote:
-> On Mon, Jan 17, 2011 at 04:23:56PM -0500, Chris Mason wrote:
-> > Excerpts from Linus Torvalds's message of 2011-01-17 13:24:55 -0500:
-> > > On Mon, Jan 17, 2011 at 9:40 AM, Chris Mason <chris.mason@oracle.com> wrote:
-> > > >> >
-> > > >> > I've reverted 744ed1442757767ffede5008bb13e0805085902e, and
-> > > >> > d8505dee1a87b8d41b9c4ee1325cd72258226fbc and the run has lasted longer
-> > > >> > than any runs in the past.
-> > > >> >
-> > > >>
-> > > >> Confirmed that reverting these patches makes the problem unreproducible
-> > > >> for the many_dd's + fsmark for at least an hour here.
-> > > >
-> > > > After 2+ hours I'm still running with those two commits gone.  I'm
-> > > > confident they are the cause of the crashes.  I also haven't triggered
-> > > > the cfq stalls without them.
-> > > 
-> > > Ok, so the question is how to proceed from here.
-> > > 
-> > > I can easily revert them, and since I was planning on doing -rc1
-> > > tonight, I probably will. But I promised Chris to delay until tomorrow
-> > > if he needed time to chase this down, and while it's now apparently
-> > > chased down, I'll certainly also be open to delaying until tomorrow if
-> > > somebody has a patch to fix it.
-> > > 
-> > > So right now my plan is:
-> > >  - I will revert those two later today and then release -rc1 in the evening
-> > > UNLESS
-> > >  - somebody posts a patch for the problem in the next few hours and
-> > > Chris/others are willing to give it a good test overnight (or whatever
-> > > people feel is "sufficient" based on how easily they can trigger the
-> > > issue), in which case I'd do -rc1 tomorrow (either with the reverts or
-> > > the patch, depending on how testing works out)
-> > 
-> > If a patch does come in, I'm happy to test it.  Mel had a test that
-> > triggered within 1-2 minutes, mine took 30 or so, which means I'd want a
-> > 2 hour run to convince myself it was really fixed.  But, I'll give Mel's
-> > fs_mark + dd workload a try on the buggy kernel.
-> > 
+On Mon, 17 Jan 2011 20:14:00 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
+
+> Hello,
 > 
-> I spent a while seeing if there was a simple patch but it's not trivially
-> fixable. __activate_page() is getting called in too many different situations
-> to be fully sure the function is doing the right thing in all cases. I also
-> couldn't convince myself that the accounting was correct in all cases. I
-> think the idea of batching updates from mark_page_accessed() in particular
-> is a good idea but the patch needs a do-over.
-Sorry for the trouble. I'll look at it.
+> on the MM summit, I would like to talk about the current state of
+> memory control groups, the features and extensions that are currently
+> being developed for it, and what their status is.
+> 
+> I am especially interested in talking about the current runtime memory
+> overhead memcg comes with (1% of ram) and what we can do to shrink it.
+> 
+> In comparison to how efficiently struct page is packed, and given that
+> distro kernels come with memcg enabled per default, I think we should
+> put a bit more thought into how struct page_cgroup (which exists for
+> every page in the system as well) is organized.
+> 
+> I have a patch series that removes the page backpointer from struct
+> page_cgroup by storing a node ID (or section ID, depending on whether
+> sparsemem is configured) in the free bits of pc->flags.
+> 
+> I also plan on replacing the pc->mem_cgroup pointer with an ID
+> (KAMEZAWA-san has patches for that), and move it to pc->flags too.
+> Every flag not used means doubling the amount of possible control
+> groups, so I have patches that get rid of some flags currently
+> allocated, including PCG_CACHE, PCG_ACCT_LRU, and PCG_MIGRATION.
+> 
+> [ I meant to send those out much earlier already, but a bug in the
+> migration rework was not responding to my yelling 'Marco', and now my
+> changes collide horribly with THP, so it will take another rebase. ]
+> 
+> The per-memcg dirty accounting work e.g. allocates a bunch of new bits
+> in pc->flags and I'd like to hash out if this leaves enough room for
+> the structure packing I described, or whether we can come up with a
+> different way of tracking state.
+> 
+
+I see that there are requests for shrinking page_cgroup. And yes, I think
+we should do so. I think there are trade-off between performance v.s.
+memory usage. So, could you show the numbers when we discuss it ?
+
+BTW, I think we can...
+
+- PCG_ACCT_LRU bit can be dropped.(I think list_empty(&pc->lru) can be used.
+                ROOT cgroup will not be problem.)
+- pc->mem_cgroup can be replaced with ID.
+  But move it into flags field seems difficult because of races.
+- pc->page can be replaced with some lookup routine.
+  But Section bit encoding may be something mysterious and look up cost
+  will be problem.
+- PCG_CACHE bit is a duplicate of information of 'page'. So, we can use PageAnon()
+- I'm not sure PCG_MIGRATION. It's for avoiding races.
+
+Note: we'll need to use 16bits for blkio tracking.
+
+Another idea is dynamic allocation of page_cgroup. It may be able to be a help
+for THP enviroment but will not work well (just adds overhead) against file cache
+workload.
+
+Anwyay, my priority of development for memcg this year is:
+
+ 1. dirty ratio support.
+ 2. Backgound reclaim (kswapd)
+ 3. blkio tracking.
+
+Diet of page_cgroup should be done in step by step. We've seen many level down
+when some new feature comes to memory cgroup. 
 
 Thanks,
-Shaohua
-
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
