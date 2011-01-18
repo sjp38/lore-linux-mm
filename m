@@ -1,176 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D5BAE6B0092
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 15:03:26 -0500 (EST)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id p0IK2uT8007470
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 12:02:56 -0800
-Received: from qyk8 (qyk8.prod.google.com [10.241.83.136])
-	by kpbe19.cbf.corp.google.com with ESMTP id p0IK2q1M016544
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 391736B0092
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 15:24:39 -0500 (EST)
+Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
+	by smtp-out.google.com with ESMTP id p0IKOXxm010467
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 12:24:33 -0800
+Received: from pvg7 (pvg7.prod.google.com [10.241.210.135])
+	by kpbe16.cbf.corp.google.com with ESMTP id p0IKOUHh014672
 	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 12:02:54 -0800
-Received: by qyk8 with SMTP id 8so3308876qyk.20
-        for <linux-mm@kvack.org>; Tue, 18 Jan 2011 12:02:52 -0800 (PST)
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 12:24:31 -0800
+Received: by pvg7 with SMTP id 7so9433pvg.11
+        for <linux-mm@kvack.org>; Tue, 18 Jan 2011 12:24:30 -0800 (PST)
+Date: Tue, 18 Jan 2011 12:24:26 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm: fix deferred congestion timeout if preferred zone
+ is not allowed
+In-Reply-To: <20110118101547.GF27152@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1101181211100.18781@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1101172108380.29048@chino.kir.corp.google.com> <20110118101547.GF27152@csn.ul.ie>
 MIME-Version: 1.0
-In-Reply-To: <20110114091119.2f11b3b9.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1294956035-12081-1-git-send-email-yinghan@google.com>
-	<1294956035-12081-3-git-send-email-yinghan@google.com>
-	<20110114091119.2f11b3b9.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 18 Jan 2011 12:02:51 -0800
-Message-ID: <AANLkTimo7c3pwFoQvE140o6uFDOaRvxdq6+r3tQnfuPe@mail.gmail.com>
-Subject: Re: [PATCH 2/5] Add per cgroup reclaim watermarks.
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 13, 2011 at 4:11 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Thu, 13 Jan 2011 14:00:32 -0800
-> Ying Han <yinghan@google.com> wrote:
->
->> The per cgroup kswapd is invoked when the cgroup's free memory (limit - =
-usage)
->> is less than a threshold--low_wmark. Then the kswapd thread starts to re=
-claim
->> pages in a priority loop similar to global algorithm. The kswapd is done=
- if the
->> free memory is above a threshold--high_wmark.
->>
->> The per cgroup background reclaim is based on the per cgroup LRU and als=
-o adds
->> per cgroup watermarks. There are two watermarks including "low_wmark" an=
-d
->> "high_wmark", and they are calculated based on the limit_in_bytes(hard_l=
-imit)
->> for each cgroup. Each time the hard_limit is changed, the corresponding =
-wmarks
->> are re-calculated. Since memory controller charges only user pages, ther=
-e is
->> no need for a "min_wmark". The current calculation of wmarks is a functi=
-on of
->> "memory.min_free_kbytes" which could be adjusted by writing different va=
-lues
->> into the new api. This is added mainly for debugging purpose.
->>
->> Change log v2...v1:
->> 1. Remove the res_counter_charge on wmark due to performance concern.
->> 2. Move the new APIs min_free_kbytes, reclaim_wmarks into seperate commi=
-t.
->> 3. Calculate the min_free_kbytes automatically based on the limit_in_byt=
-es.
->> 4. make the wmark to be consistant with core VM which checks the free pa=
-ges
->> instead of usage.
->> 5. changed wmark to be boolean
->>
->> Signed-off-by: Ying Han <yinghan@google.com>
->
+On Tue, 18 Jan 2011, Mel Gorman wrote:
 
-Thank you  KAMEZAWA for your comments.
+> > wait_iff_congested(), though, uses preferred_zone to determine if the
+> > congestion wait should be deferred because its dirty pages are backed by
+> > a congested bdi.  This incorrectly defers the timeout and busy loops in
+> > the page allocator with various cond_resched() calls if preferred_zone is
+> > not allowed in the current context, usually consuming 100% of a cpu.
+> > 
+> 
+> The current context being cpuset context or do you have other situations
+> in mind?
+> 
 
-> Hmm, I don't think using the same algorithm as min_free_kbytes is good.
->
-> Why it's bad to have 2 interfaces as low_wmark and high_wmark ?
+Only cpuset context will restrict certain nodes from being allocated from, 
+mempolicies pass the allowed mask into the page allocator already.
 
+> > This patch resets preferred_zone to an allowed zone in the slowpath if
+> > the allocation context is constrained by current's cpuset. 
+> 
+> Well, preferred_zone has meaning. If it's not possible to allocate from
+> that zone in the current cpuset context, it's not really preferred. Why
+> not set it in the fast path so there isn't a useless call to
+> get_page_from_freelist()?
+> 
 
->
-> And in this patch, min_free_kbytes can be [256...65536]...I think this
-> '256' is not good because it should be able to be set to '0'.
->
-> IIUC, in enterprise systems, there are users who want to keep a fixed amo=
-unt
-> of free memory always. This interface will not allow such use case.
+It may be the preferred zone even if it isn't allowed by current's cpuset 
+such as if the allocation is __GFP_WAIT or the task has been oom killed 
+and has the TIF_MEMDIE bit set, so the preferred zone in the fastpath is 
+accurate in these cases.  In the slowpath, the former is protected by 
+checking for ALLOC_CPUSET and the latter is usually only set after the 
+page allocator has looped at least once and triggered the oom killer to be 
+killed.
 
->
-> I think we should have 2 interfaces as low_wmark and high_wmark. But as d=
-efault
-> value, the same value as to the alogorithm with min_free_kbytes will make=
- sense.
+I didn't want to add a branch to test for these possibilities in the 
+fastpath, however, since preferred_zone isn't of critical importance until 
+it's used in the slowpath (ignoring the statistical usage).
 
-I agree that "min_free_kbytes" concept doesn't apply well since there
-is no notion of "reserved pool" in memcg. I borrowed it at the
-beginning is to add a tunable to the per-memcg watermarks besides the
-hard_limit. I read the
-patch posted from Satoru Moriya "Tunable watermarks", and introducing
-the per-memcg-per-watermark tunable
-sounds good to me. Might consider adding it to the next post.
+> > It also
+> > ensures preferred_zone is from the set of allowed nodes when called from
+> > within direct reclaim; allocations are always constrainted by cpusets
+> > since the context is always blockable.
+> > 
+> 
+> preferred_zone should already be obeying nodemask and the set of allowed
+> nodes. Are you aware of an instance where this is not the case or are
+> you talking about the nodes allowed by the cpuset?
+> 
 
->
-> BTW, please divide res_counter part and memcg part in the next post.
+In the direct reclaim path, the fix is to make sure preferred_zone is 
+allowed by cpuset_current_mems_allowed since we don't need to test for 
+__GFP_WAIT: it's useless to check the congestion of a zone that cannot be 
+allocated from.
 
-Will do.
+> > Both of these uses of cpuset_current_mems_allowed are protected by
+> > get_mems_allowed().
+> > ---
+> >  mm/page_alloc.c |   12 ++++++++++++
+> >  mm/vmscan.c     |    3 ++-
+> >  2 files changed, 14 insertions(+), 1 deletions(-)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -2034,6 +2034,18 @@ restart:
+> >  	 */
+> >  	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+> >  
+> > +	/*
+> > +	 * If preferred_zone cannot be allocated from in this context, find the
+> > +	 * first allowable zone instead.
+> > +	 */
+> > +	if ((alloc_flags & ALLOC_CPUSET) &&
+> > +	    !cpuset_zone_allowed_softwall(preferred_zone, gfp_mask)) {
+> > +		first_zones_zonelist(zonelist, high_zoneidx,
+> > +				&cpuset_current_mems_allowed, &preferred_zone);
+> > +		if (unlikely(!preferred_zone))
+> > +			goto nopage;
+> > +	}
+> > +
+> 
+> This looks as if it would work but is there any reason why
+> cpuset_current_mems_allowed is not used as the nodemask for ALLOC_CPUSET? It's
+> used by ZLC with CONFIG_NUMA machines for example so it seems a little
+> inconsistent. If a nodemask was supplied by the caller, it could be AND'd
+> with cpuset_current_mems_allowed.
+> 
 
->
-> Please explain your handling of 'hierarchy' in description.
-I haven't thought through the 'hierarchy' handling in this patchset
-which I will probably put more thoughts in the following
-posts. Do you have recommendations on handing the 'hierarchy' ?
+ALLOC_CPUSET is checked in get_page_from_freelist() because there are 
+exceptions allowed both by cpuset_zone_allowed_softwall() based on the 
+state of the task and by not setting ALLOC_CPUSET in the page allocator 
+based on !__GFP_WAIT.
 
---Ying
-
->
-> Thanks,
-> -Kame
->
->
->> ---
->> =A0include/linux/memcontrol.h =A0| =A0 =A01 +
->> =A0include/linux/res_counter.h | =A0 83 ++++++++++++++++++++++++++++++++=
-+++++++++++
->> =A0kernel/res_counter.c =A0 =A0 =A0 =A0| =A0 =A06 +++
->> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0 | =A0 73 ++++++++++++++++++++=
-+++++++++++++++++
->> =A04 files changed, 163 insertions(+), 0 deletions(-)
->>
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index 3433784..80a605f 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -93,6 +93,7 @@ int task_in_mem_cgroup(struct task_struct *task, const=
- struct mem_cgroup *mem);
->>
->> =A0extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *p=
-age);
->> =A0extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)=
-;
->> +extern int mem_cgroup_watermark_ok(struct mem_cgroup *mem, int charge_f=
-lags);
->>
->> =A0static inline
->> =A0int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgro=
-up *cgroup)
->> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
->> index fcb9884..10b7e59 100644
->> --- a/include/linux/res_counter.h
->> +++ b/include/linux/res_counter.h
->> @@ -39,6 +39,15 @@ struct res_counter {
->> =A0 =A0 =A0 =A0*/
->> =A0 =A0 =A0 unsigned long long soft_limit;
->> =A0 =A0 =A0 /*
->> + =A0 =A0 =A0* the limit that reclaim triggers. it is the free count
->> + =A0 =A0 =A0* (limit - usage)
->> + =A0 =A0 =A0*/
->> + =A0 =A0 unsigned long long low_wmark_limit;
->> + =A0 =A0 /*
->> + =A0 =A0 =A0* the limit that reclaim stops. it is the free count
->> + =A0 =A0 =A0*/
->> + =A0 =A0 unsigned long long high_wmark_limit;
->> + =A0 =A0 /*
->> =A0 =A0 =A0 =A0* the number of unsuccessful attempts to consume the reso=
-urce
->> =A0 =A0 =A0 =A0*/
->> =A0 =A0 =A0 unsigned long long failcnt;
->> @@ -55,6 +64,9 @@ struct res_counter {
->>
->> =A0#define RESOURCE_MAX (unsigned long long)LLONG_MAX
->>
->> +#define CHARGE_WMARK_LOW =A0 =A0 0x02
->> +#define CHARGE_WMARK_HIGH =A0 =A00x04
->> +
->> =A0/**
->> =A0 * Helpers to interact with userspace
->> =A0 * res_counter_read_u64() - returns the value of the specified member=
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
