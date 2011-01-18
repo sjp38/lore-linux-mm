@@ -1,63 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 071088D0039
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 09:29:55 -0500 (EST)
-Received: by fxm12 with SMTP id 12so7383366fxm.14
-        for <linux-mm@kvack.org>; Tue, 18 Jan 2011 06:29:53 -0800 (PST)
-Message-ID: <4D35A3D6.4070801@monstr.eu>
-Date: Tue, 18 Jan 2011 15:29:42 +0100
-From: Michal Simek <monstr@monstr.eu>
-Reply-To: monstr@monstr.eu
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id DBA8C6B0092
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 11:31:11 -0500 (EST)
+Date: Tue, 18 Jan 2011 10:31:05 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: [LSF/MM TOPIC] Per cpu atomic operations and some ideas for faster
+ synchronization
+Message-ID: <alpine.DEB.2.00.1101181013340.15278@router.home>
 MIME-Version: 1.0
-Subject: Re: [PATCH 13 of 66] export maybe_mkwrite
-References: <patchbomb.1288798055@v2.random> <15324c9c30081da3a740.1288798068@v2.random> <4D344EAF.1080401@petalogix.com> <20110117143345.GQ9506@random.random>
-In-Reply-To: <20110117143345.GQ9506@random.random>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: lsf-pc@lists.linuxfoundation.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
-> Hi Michal,
-> 
-> On Mon, Jan 17, 2011 at 03:14:07PM +0100, Michal Simek wrote:
->> Andrea Arcangeli wrote:
->>> From: Andrea Arcangeli <aarcange@redhat.com>
->>>
->>> huge_memory.c needs it too when it fallbacks in copying hugepages into regular
->>> fragmented pages if hugepage allocation fails during COW.
->>>
->>> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
->>> Acked-by: Rik van Riel <riel@redhat.com>
->>> Acked-by: Mel Gorman <mel@csn.ul.ie>
->> It wasn't good idea to do it. mm/memory.c is used only for system with 
->> MMU. System without MMU are broken.
->>
->> Not sure what the right fix is but anyway I think use one ifdef make 
->> sense (git patch in attachment).
-> 
-> Can you show the build failure with CONFIG_MMU=n so I can understand
-> better? Other places in mm.h depends on pte_t/vm_area_struct/VM_WRITE
-> to be defined, if a system is without MMU nobody should call it
-> simply. Not saying your patch is wrong, but I'm trying to understand
-> how exactly it got broken and the gcc error would show it immediately.
-> 
-> This is only called by memory.o and huge_memory.o and they both are
-> built only if MMU=y.
+Synchronization is typically based on mechanisms to obtain exclusive
+ownership of cachelines that are used for global serialization of events
+between many processors. The overhead of the resulting cacheline bounces
+and the corresponding long wait times to acquire a lock to perform any
+synchronization increases as the number of processors on a system
+increases.
 
-Of course: Look for example at this page:
-http://www.monstr.eu/wiki/doku.php?id=log:2011-01-18_11_51_49#linux_next
+The locking overhead is now often been reduced using several existing
+techniques such as RCU and seqlocks.
 
-Thanks,
-Michal
+There is an additional technique that was recently introduced which allows
+using per cpu data to parallelize processing between multiple processors.
+All processor own their data exclusively and operations refers to local
+data.
 
--- 
-Michal Simek, Ing. (M.Eng)
-w: www.monstr.eu p: +42-0-721842854
-Maintainer of Linux kernel 2.6 Microblaze Linux - http://www.monstr.eu/fdt/
-Microblaze U-BOOT custodian
+In order to make these accesses more effective we recently introduces the
+this_cpu_xxx operations. These macros allow relocation of accesses
+relative to the current per processor area with negligible cost since the
+implementation uses a segment prefix to perform the relocation.
+
+Performing transactions on per cpu data has its own challenges since
+preemption and interrupts can cause processor changes or additional per
+cpu operations that can cause difficulties if a series of operations must
+occur in an atomic fashion. Disabling preemption and interrupts is
+expensive and therefore the this_cpu_ ops introduce per atomic operation
+analoguous to full atomic operations that operate on per cpu data an
+guarantee that operations are atomic vs. interrupts and preemption (as
+well as sometimes vs. NMI). These operations are significantly less
+expensive than fully atomic operations that must use a LOCK prefix and
+globally serialize access.
+
+There is also a new (full and per cpu) atomic operation: cmpxchg_double()
+which allows to extend the cmpxchg to two words. Two words allow to keep
+more state in lockless algorithms (f.e. one can version a pointer, or
+store the size of a list in addition to a pointer to a linked list).
+
+I would like to discuss these ideas and the various usage scenarios to get
+some more ideas on how to further refine these mechanisms and make them
+more useful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
