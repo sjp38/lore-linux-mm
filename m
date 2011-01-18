@@ -1,99 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B3D828D0039
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 01:04:26 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7B4733EE0BD
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 15:04:22 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 603A845DE62
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 15:04:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 36AE345DE5E
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 15:04:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F579E08005
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 15:04:22 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DB903E78006
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 15:04:21 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch] mm: fix deferred congestion timeout if preferred zone is not allowed
-In-Reply-To: <alpine.DEB.2.00.1101172108380.29048@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1101172108380.29048@chino.kir.corp.google.com>
-Message-Id: <20110118142339.6705.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AB0D8D0039
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 02:13:27 -0500 (EST)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id p0I7DPbN002634
+	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 23:13:25 -0800
+Received: from pvg7 (pvg7.prod.google.com [10.241.210.135])
+	by wpaz17.hot.corp.google.com with ESMTP id p0I7DJsN018149
+	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 23:13:23 -0800
+Received: by pvg7 with SMTP id 7so1752703pvg.22
+        for <linux-mm@kvack.org>; Mon, 17 Jan 2011 23:13:19 -0800 (PST)
+Date: Mon, 17 Jan 2011 23:12:57 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 00/21] mm: Preemptibility -v6
+In-Reply-To: <20101126143843.801484792@chello.nl>
+Message-ID: <alpine.LSU.2.00.1101172301340.2899@sister.anvils>
+References: <20101126143843.801484792@chello.nl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 18 Jan 2011 15:04:21 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@kernel.dk>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-> Before 0e093d99763e (writeback: do not sleep on the congestion queue if
-> there are no congested BDIs or if significant congestion is not being
-> encountered in the current zone), preferred_zone was only used for
-> statistics and to determine the zoneidx from which to allocate from given
-> the type requested.
-
-True. So, following comment is now bogus. ;)
-
-__alloc_pages_nodemask()
-{
-(snip)
-        get_mems_allowed();
-        /* The preferred zone is used for statistics later */
-        first_zones_zonelist(zonelist, high_zoneidx, nodemask, &preferred_zone);
-        if (!preferred_zone) {
-                put_mems_allowed();
-                return NULL;
-        }
-
-
-Now, we have three preferred_zone usage.
- 1. for zone stat
- 2. wait_iff_congested
- 3. for calculate compaction duration
-
-So, I have two question.  
-
-1. Why do we need different vm stat policy mempolicy and cpuset? 
-That said, if we are using mempolicy, the above nodemask variable is 
-not NULL, then preferrd_zone doesn't point nearest zone. But it point 
-always nearest zone when cpuset are used. 
-
-2. Why wait_iff_congested in page_alloc only wait preferred zone? 
-That said, theorically, any no congested zones in allocatable zones can
-avoid waiting. Just code simplify?
-
-3. I'm not sure why zone->compact_defer is not noted per zone, instead
-noted only preferred zone. Do you know the intention?
-
-I mean my first feeling tell me that we have a chance to make code simplify
-more.
-
-Mel, Can you please tell us your opinion?
-
-
-
-> wait_iff_congested(), though, uses preferred_zone to determine if the
-> congestion wait should be deferred because its dirty pages are backed by
-> a congested bdi.  This incorrectly defers the timeout and busy loops in
-> the page allocator with various cond_resched() calls if preferred_zone is
-> not allowed in the current context, usually consuming 100% of a cpu.
+On Fri, 26 Nov 2010, Peter Zijlstra wrote:
+> This patch-set makes part of the mm a lot more preemptible. It converts
+> i_mmap_lock and anon_vma->lock to mutexes and makes mmu_gather fully
+> preemptible.
 > 
-> This patch resets preferred_zone to an allowed zone in the slowpath if
-> the allocation context is constrained by current's cpuset.  It also
-> ensures preferred_zone is from the set of allowed nodes when called from
-> within direct reclaim; allocations are always constrainted by cpusets
-> since the context is always blockable.
+> The main motivation was making mm_take_all_locks() preemptible, since it
+> appears people are nesting hundreds of spinlocks there.
 > 
-> Both of these uses of cpuset_current_mems_allowed are protected by
-> get_mems_allowed().
+> The side-effects are that can finally make mmu_gather preemptible,
+> something which lots of people have wanted to do for a long time.
+> 
+> It also gets us anon_vma refcounting, which seems to result in a nice
+> cleanup of the anon_vma lifetime rules wrt KSM and compaction.
+> 
+> This patch-set is build and boot-tested on x86_64 (a previous version was
+> also tested on Dave's Niagra2 machines, and I suppose s390 was too when
+> Martin provided the conversion patch for his arch).
+> 
+> There are no known architectures left unconverted.
+> 
+> Yanmin ran the -v3 posting through the comprehensive Intel test farm
+> and didn't find any regressions.
+> 
+> ( Not included in this posting are the 4 Sparc64 patches that implement
+>   gup_fast, those can be applied separately after this series gets
+>   anywhere. )
+> 
+> The full series (including the Sparc64 gup_fast bits) also available in -git
+> form from (against Linus' tree as of about an hour ago):
+> 
+>   git://git.kernel.org/pub/scm/linux/kernel/git/peterz/linux-2.6-mmu_preempt.git
 
+Hi Peter,
+
+I understand you're intending to update your preemptible mmu_gather
+patchset against 2.6.38-rc1, so I've spent a while looking through
+(and running) your last posted version (plus its two fixes from BenH).
+
+I've had no problems in running it, I can't tell if it's quicker or
+slower than the unpatched.  The only argument against the patchset,
+really, would be performance: and though there are no bad reports on
+it as yet, I do wonder how we proceed if a genuine workload shows up
+which is adversely affected.  Oh well, silly to worry about the
+hypothetical I suppose.
+
+There's a few minor cleanups I'd hoped for (things like removing the
+start and end args from tlb_finish_mmu), but you're quite right to
+have stayed on course and not strayed down that path.
+
+However, there's one more-than-cleanup that I think you will need to add:
+the ZAP_BLOCK_SIZE zap_work stuff is still there, but I think it needs
+to be removed now, with the need_resched() and other checks moved down
+from unmap_vmas() to inside the pagetable spinlock in zap_pte_range().
+
+Because you're now accumulating more work than ever in the mmu_gather's
+buffer, and the more so with the 20/21 extended list: but this amounts
+to a backlog of work which will *usually* be done at the tlb_finish_mmu,
+but when memory is low (no extra buffers) may need flushing earlier -
+as things stand, while holding the pagetable spinlock, so introducing
+a large unpreemptible latency under those conditions.
+
+I believe that along with the need_resched() check moved inside
+zap_pte_range(), you need to check if the mmu_gather buffer is full,
+and if so drop pagetable spinlock while you flush it.  Hmm, but if
+it's extensible, then it wasn't full: I've not worked out how this
+would actually fit together.
+
+(I also believe that when memory is low, we *ought* to be freeing up
+the pages sooner: perhaps all the GFP_ATOMICs should be GFP_NOWAITs.)
+
+I found patch ordering a bit odd: I'm going to comment on them in
+what seems a more natural ordering to me: if Andrew folds your 00
+comments into 01 as he usually does, then I'd rather see them on the
+main preemptible mmu_gather patch, than on reverting some anon_vma
+annotations!  And with anon_vma->lock already nested inside i_mmap_lock,
+I think the anon_vma mods are secondary, and can just follow after.
+
+08/21 mm-preemptible_mmu_gather.patch
+      Acked-by: Hugh Dickins <hughd@google.com>
+      But I'd prefer __tlb_alloc_pages() be named __tlb_alloc_page(),
+      and think it should pass __GFP_NOWARN with its GFP_ATOMIC (same
+      remark would apply in several other patches too).
+
+09/21 powerpc-preemptible_mmu_gather.patch
+      I'll leave Acking to Ben, but it looked okay so far as I could tell.
+      I worry how much (unpreemptible) work happens in __flush_tlb_pending
+      in __switch_to, whether PPC64_TLB_BATCH_NR 192 ought to be smaller
+      now (I wonder where 192 came from originally); move the _TLF_LAZY_MMU
+      block below _switch() to after the local_irq_restore(flags)?
+      The mods to hpte_need_flush() look like what we need in 2.6.37-stable
+      to keep CONFIG_DEBUG_PREEMPT vfree() quiet, perhaps should be separated
+      out - but perhaps they're inappropriate and Ben has another fix in mind.
+
+10/21 sparc-preemptible_mmu_gather.patch
+      Similarly, looked okay so far as I could tell, and this one was
+      already doing flush_tlb_pending in switch_to; more of the 192
+      (not from you, of course).  tlb_batch_add() has some commented-out
+      (tb->fullmm) code that you probably meant to come back to.
+      mm/init_32.c still has DEFINE_PER_CPU(struct mmu_gather, mmu_gathers).
+
+11/21 s390-preemptible_mmu_gather.patch
+      I'd prefer __tlb_alloc_page(), with __GFP_NOWARN as suggested above.
+      mm/pgtable.c still has DEFINE_PER_CPU(struct mmu_gather, mmu_gathers).
+
+12/21 arm-preemptible_mmu_gather.patch
+13/21 sh-preemptible_mmu_gather.patch
+14/21 um-preemptible_mmu_gather.patch
+15/21 ia64-preemptible_mmu_gather.patch
+      All straightforward, but DEFINE_PER_CPU(struct mmu_gather, mmu_gathers)
+      still to be removed from these and other arches.
+
+16/21 mm_powerpc-move_the_rcu_page-table_freeing_into.patch
+      Seems good, prefer Ben and Dave to Ack.  "copmletion" -> "completion".
+
+17/21 lockdep_mutex-provide_mutex_lock_nest_lock.patch
+      Okay by me.
+
+18/21 mutex-provide_mutex_is_contended.patch
+      I suppose so, though if we use it in the truncate path, then we are
+      stuck with the vm_truncate_count stuff I'd rather hoped would go away;
+      but I guess you're right, that if we did spin_needbreak/need_lockbreak
+      before, then we ought to do this now - though I suspect I only added
+      it because I had to insert a resched-point anyway, and it seemed a good
+      idea at the time to check lockbreak too since that had just been added.
+
+19/21 mm-convert_i_mmap_lock_and_anon_vma-_lock_to_mutexes.patch
+      I suggest doing just the i_mmap_lock->mutex conversion at this point.
+      Acked-by: Hugh Dickins <hughd@google.com>
+      except that in the past we have renamed a lock when we've done this
+      kind of conversion, so I'd expect i_mmap_mutex throughout now.
+      Or am I just out of date?  I don't feel very strongly about it.
+
+20/21 mm-extended_batches_for_generic_mmu_gather.patch
+      Acked-by: Hugh Dickins <hughd@google.com>
+      though it struck me as overdesign at first: I guess Nick wanted it
+      because he had an implementation that used the pagetables themselves,
+      hence an assured supply of these buffers.  tlb_finish_mmu(), and
+      perhaps others, looking rather too big for inline by this stage.
+
+01/21 mm-revert_page_lock_anon_vma_lock_annotation.patch
+      Acked-by: Hugh Dickins <hughd@google.com>
+
+02/21 powerpc-use_call_rcu_sched_for_pagetables.patch
+      Already went into 2.6.37
+
+03/21 mm-improve_page_lock_anon_vma_comment.patch
+      Acked-by: Hugh Dickins <hughd@google.com>
+
+04/21 mm-rename_drop_anon_vma_to_put_anon_vma.patch
+      Acked-by: Hugh Dickins <hughd@google.com>
+      but (if you don't mind: leave it to me if you prefer) in mm/ksm.c
+      please just remove wrappers hold_anon_vma() and ksm_put_anon_vma():
+      they had a point when they originated the refcount but no point now.
+      Note there are now two places to update in mm/migrate.c in 38-rc1.
+
+05/21 mm-move_anon_vma_ref_out_from_under_config_ksm.patch
+      Acked-by: Hugh Dickins <hughd@google.com>
+      but you shouldn't need to touch mm/migrate.c again here with 38-rc1.
+      Didn't you end up double-decrementing refcount in the huge_page case?
+
+06/21 mm-simplify_anon_vma_refcounts.patch
+      Acked-by: Hugh Dickins <hughd@google.com>
+      except page_get_anon_vma() is being declared in rmap.h a patch early,
+      and you shouldn't need to touch mm/ksm.c again here with 38-rc1.
+      Did wonder if __put_anon_vma() is right to put anon_vma->root *before*
+      freeing anon_vma, but suppose your not_zero strictness makes it safe.
+
+07/21 mm-use_refcounts_for_page_lock_anon_vma.patch
+      Acked-by: Hugh Dickins <hughd@google.com>
+      but here I'm expecting you to use your page_get_anon_vma() in
+      mm/migrate.c too, to replace my 38-rc1 lock/get/unlock sequences.
+      Second page_mapped() test in page_get_anon_vma(): remove "goto out;"
+      from that block, it's already reached "out".  In patch description,
+      didn't understand "for each of convertion": "for sake of conversion"?
+      This brings us to a nice point, ready for the lock->mutex conversion:
+      the only defect being the doubled atomics in page_(un)lock_anon_vma.
+
+19/21 mm-convert_i_mmap_lock_and_anon_vma-_lock_to_mutexes.patch
+      I suggest doing the anon_vma lock->mutex conversion separately here.
+      Acked-by: Hugh Dickins <hughd@google.com>
+      except that in the past we have renamed a lock when we've done this
+      kind of conversion, so I'd expect anon_vma->mutex throughout now.
+      Or am I just out of date?  I don't feel very strongly about it.
+      
+21/21 mm-optimize_page_lock_anon_vma_fast-path.patch
+      I certainly see the call for this patch, I want to eliminate those
+      doubled atomics too.  This appears correct to me, and I've not dreamt
+      up an alternative; but I do dislike it, and I suspect you don't like
+      it much either.  I'm ambivalent about it, would love a better patch.
+
+sparc64-Kill_page_table_quicklists.patch
+sparc64-Use_RCU_page_table_freeing.patch
+sparc64-Add_support_for__PAGE_SPECIA.patch
+sparc64-Implement_get_user_pages_fast.patch
+      I did not spend very long looking at these, none of my business really!
+      but did notice one thing I didn't like, that pte_special() is declared
+      unsigned long in the third, whereas int in every other architecture. I
+      think it should follow the ia64-style there, use != 0 to return an int.
+
+A few checkpatch warnings, many of which I don't particularly agree with -
+though I do get annoyed by comments going over 80-cols without any need!
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
