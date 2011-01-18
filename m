@@ -1,7 +1,7 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BC288D0039
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 05:45:07 -0500 (EST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A3D28D0039
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 05:49:27 -0500 (EST)
 Subject: Re: [PATCH 00/21] mm: Preemptibility -v6
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 In-Reply-To: <alpine.LSU.2.00.1101172301340.2899@sister.anvils>
@@ -9,8 +9,8 @@ References: <20101126143843.801484792@chello.nl>
 	 <alpine.LSU.2.00.1101172301340.2899@sister.anvils>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Date: Tue, 18 Jan 2011 11:44:44 +0100
-Message-ID: <1295347484.30950.495.camel@laptop>
+Date: Tue, 18 Jan 2011 11:50:01 +0100
+Message-ID: <1295347801.30950.505.camel@laptop>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 To: Hugh Dickins <hughd@google.com>
@@ -18,22 +18,17 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kern
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 2011-01-17 at 23:12 -0800, Hugh Dickins wrote:
-> 18/21 mutex-provide_mutex_is_contended.patch
->       I suppose so, though if we use it in the truncate path, then we are
->       stuck with the vm_truncate_count stuff I'd rather hoped would go aw=
-ay;
->       but I guess you're right, that if we did spin_needbreak/need_lockbr=
-eak
->       before, then we ought to do this now - though I suspect I only adde=
-d
->       it because I had to insert a resched-point anyway, and it seemed a =
-good
->       idea at the time to check lockbreak too since that had just been ad=
-ded.=20
+> 21/21 mm-optimize_page_lock_anon_vma_fast-path.patch
+>       I certainly see the call for this patch, I want to eliminate those
+>       doubled atomics too.  This appears correct to me, and I've not drea=
+mt
+>       up an alternative; but I do dislike it, and I suspect you don't lik=
+e
+>       it much either.  I'm ambivalent about it, would love a better patch=
+.=20
 
-Like the other missed cleanups now possible, these are things we can
-most definitely look at once the dust settles a bit. I just didn't want
-to rewrite the world in one go.
+Spot on, maybe a one of our keen readers will have a bright idea.. :-)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
