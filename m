@@ -1,29 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C8E2E8D0039
-	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 21:21:49 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 8CFCE3EE0B3
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 11:21:46 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DFAF45DE5D
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 11:21:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 545A245DE5A
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 11:21:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 43D1FE08002
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 11:21:46 +0900 (JST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 391318D0039
+	for <linux-mm@kvack.org>; Mon, 17 Jan 2011 21:37:47 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 7A7FD3EE0B3
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 11:37:44 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E3A945DE58
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 11:37:44 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4682045DE57
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 11:37:44 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A9C7E08003
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 11:37:44 +0900 (JST)
 Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F2BEAE78001
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 11:21:45 +0900 (JST)
-Date: Tue, 18 Jan 2011 11:15:50 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 02708E08002
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 11:37:44 +0900 (JST)
+Date: Tue, 18 Jan 2011 11:31:48 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 4/4] memcg: fix rmdir, force_empty with THP
-Message-Id: <20110118111550.7633cd0e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110118111055.1be29ad0.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/4] fix THP and memcg issues v2.
+Message-Id: <20110118113148.77d5c0df.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110118110604.e2528324.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110118110604.e2528324.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110118111055.1be29ad0.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -32,125 +31,39 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 18 Jan 2011 11:06:04 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Now, when THP is enabled, memcg's rmdir() function is broken
-because move_account() for THP page is not supported.
+> 
+> Now, when THP is enabled, memcg's counter goes wrong. Moreover, rmdir()
+> may not end. I fixed some races since v1.
+> 
+> 
+> This series is a fix for obviouse counter breakage. When you test,
+> CONFIG_TRANSPARENT_HUGEPAGE=y
+> CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=y
+> 
+> is appreciated. Tests should be done is:
+> 
+> # mount -t cgroup none /cgroup/memory -omemory
+> # mkdir /cgroup/memory/A
+> # mkdir /cgroup/memory/A/B
+> # run some programs under B.
+> # echo 0 > /cgroup/memory/A/B/memory.force_empty
+> 
+> and check B's memory.stat shows RSS/CACHE/LRU are all 0.
+> Moving tasks while running is another good test.
+> 
+> I know there are another problem when memory cgroup hits limit and
+> reclaim in busy. But I will fix it in another patch.
+> 
 
-This will cause account leak or -EBUSY issue at rmdir().
-This patch fixes the issue by supporting move_account() THP pages.
+I found some mistake of patch handling in patch 2/4 and 3/4.
+(a code for 2/4 was in 3/4...)
+I'll send v3. I'm sorry.
 
-Changelog:
- - style fix.
- - add compound_lock for avoiding races.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |   37 ++++++++++++++++++++++++++-----------
- 1 file changed, 26 insertions(+), 11 deletions(-)
-
-Index: mmotm-0107/mm/memcontrol.c
-===================================================================
---- mmotm-0107.orig/mm/memcontrol.c
-+++ mmotm-0107/mm/memcontrol.c
-@@ -2197,8 +2197,11 @@ void mem_cgroup_split_huge_fixup(struct 
-  */
- 
- static void __mem_cgroup_move_account(struct page_cgroup *pc,
--	struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
-+	struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge,
-+	int charge_size)
- {
-+	int nr_pages = charge_size >> PAGE_SHIFT;
-+
- 	VM_BUG_ON(from == to);
- 	VM_BUG_ON(PageLRU(pc->page));
- 	VM_BUG_ON(!page_is_cgroup_locked(pc));
-@@ -2212,14 +2215,14 @@ static void __mem_cgroup_move_account(st
- 		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
- 		preempt_enable();
- 	}
--	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -1);
-+	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -nr_pages);
- 	if (uncharge)
- 		/* This is not "cancel", but cancel_charge does all we need. */
--		mem_cgroup_cancel_charge(from, PAGE_SIZE);
-+		mem_cgroup_cancel_charge(from, charge_size);
- 
- 	/* caller should have done css_get */
- 	pc->mem_cgroup = to;
--	mem_cgroup_charge_statistics(to, PageCgroupCache(pc), 1);
-+	mem_cgroup_charge_statistics(to, PageCgroupCache(pc), nr_pages);
- 	/*
- 	 * We charges against "to" which may not have any tasks. Then, "to"
- 	 * can be under rmdir(). But in current implementation, caller of
-@@ -2234,15 +2237,19 @@ static void __mem_cgroup_move_account(st
-  * __mem_cgroup_move_account()
-  */
- static int mem_cgroup_move_account(struct page_cgroup *pc,
--		struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
-+		struct mem_cgroup *from, struct mem_cgroup *to,
-+		bool uncharge, int charge_size)
- {
- 	int ret = -EINVAL;
- 	unsigned long flags;
- 
-+	if ((charge_size > PAGE_SIZE) && !PageTransHuge(pc->page))
-+		return -EBUSY;
-+
- 	lock_page_cgroup(pc);
- 	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
- 		move_lock_page_cgroup(pc, &flags);
--		__mem_cgroup_move_account(pc, from, to, uncharge);
-+		__mem_cgroup_move_account(pc, from, to, uncharge, charge_size);
- 		move_unlock_page_cgroup(pc, &flags);
- 		ret = 0;
- 	}
-@@ -2267,6 +2274,8 @@ static int mem_cgroup_move_parent(struct
- 	struct cgroup *cg = child->css.cgroup;
- 	struct cgroup *pcg = cg->parent;
- 	struct mem_cgroup *parent;
-+	int charge = PAGE_SIZE;
-+	unsigned long flags;
- 	int ret;
- 
- 	/* Is ROOT ? */
-@@ -2278,17 +2287,23 @@ static int mem_cgroup_move_parent(struct
- 		goto out;
- 	if (isolate_lru_page(page))
- 		goto put;
-+	/* The page is isolated from LRU and we have no race with splitting */
-+	charge = PAGE_SIZE << compound_order(page);
- 
- 	parent = mem_cgroup_from_cont(pcg);
--	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false,
--				      PAGE_SIZE);
-+	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, charge);
- 	if (ret || !parent)
- 		goto put_back;
- 
--	ret = mem_cgroup_move_account(pc, child, parent, true);
-+	if (charge > PAGE_SIZE)
-+		flags = compound_lock_irqsave(page);
-+
-+	ret = mem_cgroup_move_account(pc, child, parent, true, charge);
- 	if (ret)
--		mem_cgroup_cancel_charge(parent, PAGE_SIZE);
-+		mem_cgroup_cancel_charge(parent, charge);
- put_back:
-+	if (charge > PAGE_SIZE)
-+		compound_unlock_irqrestore(page, flags);
- 	putback_lru_page(page);
- put:
- 	put_page(page);
-@@ -4868,7 +4883,7 @@ retry:
- 				goto put;
- 			pc = lookup_page_cgroup(page);
- 			if (!mem_cgroup_move_account(pc,
--						mc.from, mc.to, false)) {
-+					mc.from, mc.to, false, PAGE_SIZE)) {
- 				mc.precharge--;
- 				/* we uncharge from mc.from later. */
- 				mc.moved_charge++;
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
