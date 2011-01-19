@@ -1,69 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EB356B0092
-	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 17:50:26 -0500 (EST)
-Received: by fxm12 with SMTP id 12so1413765fxm.14
-        for <linux-mm@kvack.org>; Wed, 19 Jan 2011 14:50:22 -0800 (PST)
-Date: Thu, 20 Jan 2011 00:49:50 +0200
-From: Ilya Dryomov <idryomov@gmail.com>
-Subject: Re: [BUG] BUG: unable to handle kernel paging request at fffba000
-Message-ID: <20110119224950.GA3429@kwango.lan.net>
-References: <20110119124047.GA30274@kwango.lan.net> <20110119221909.GO9506@random.random>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 53BF66B0092
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 18:07:34 -0500 (EST)
+Date: Wed, 19 Jan 2011 17:07:28 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [patch] mm: fix deferred congestion timeout if preferred zone
+ is not allowed
+In-Reply-To: <alpine.DEB.2.00.1101191212090.19519@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1101191703270.25961@router.home>
+References: <alpine.DEB.2.00.1101172108380.29048@chino.kir.corp.google.com> <AANLkTin036LNAJ053ByMRmQUnsBpRcv1s5uX1j_2c_Ds@mail.gmail.com> <alpine.DEB.2.00.1101181751420.25382@chino.kir.corp.google.com> <alpine.DEB.2.00.1101191351010.20403@router.home>
+ <20110119200625.GD15568@one.firstfloor.org> <alpine.DEB.2.00.1101191212090.19519@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110119221909.GO9506@random.random>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, idryomov@gmail.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 19, 2011 at 11:19:09PM +0100, Andrea Arcangeli wrote:
-> Hello Ilya,
-> 
-> thanks for sending me the gdb info too.
-> 
-> can you test this fix? Thanks a lot! (it only affected x86 32bit
-> builds with highpte enabled)
-> 
-> ====
-> Subject: fix pte_unmap in khugepaged for highpte x86_32
-> 
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> 
-> __collapse_huge_page_copy is still dereferencing the pte passed as parameter so
-> we must pte_unmap after __collapse_huge_page_copy returns, not before.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+On Wed, 19 Jan 2011, David Rientjes wrote:
 
-It fixes the above problem for me.  Thanks a lot Andrea.
+> On Wed, 19 Jan 2011, Andi Kleen wrote:
+>
+> > cpusets didn't exist when I designed that. But the idea was that
+> > the kernel has a first choice ("hit") and any other node is a "miss"
+> > that may need investigation.  So yes I would consider cpuset config as an
+> > intention too and should be counted as hit/miss.
+> >
+>
+> Ok, so there's no additional modification that needs to be made with the
+> patch (other than perhaps some more descriptive documentation of a
+> NUMA_HIT and NUMA_MISS).  When the kernel passes all zones into the page
+> allocator, it's relying on cpusets to reduce that zonelist to only
+> allowable nodes by using ALLOC_CPUSET.  If we can allocate from the first
+> zone allowed by the cpuset, it will be treated as a hit; otherwise, it
+> will be treated as a miss.  That's better than treating everything as a
+> miss when the cpuset doesn't include the first node.
 
-> ---
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 004c9c2..c4f634b 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1837,9 +1837,9 @@ static void collapse_huge_page(struct mm_struct *mm,
->  	spin_lock(ptl);
->  	isolated = __collapse_huge_page_isolate(vma, address, pte);
->  	spin_unlock(ptl);
-> -	pte_unmap(pte);
->  
->  	if (unlikely(!isolated)) {
-> +		pte_unmap(pte);
->  		spin_lock(&mm->page_table_lock);
->  		BUG_ON(!pmd_none(*pmd));
->  		set_pmd_at(mm, address, pmd, _pmd);
-> @@ -1856,6 +1856,7 @@ static void collapse_huge_page(struct mm_struct *mm,
->  	anon_vma_unlock(vma->anon_vma);
->  
->  	__collapse_huge_page_copy(pte, new_page, vma, address, ptl);
-> +	pte_unmap(pte);
->  	__SetPageUptodate(new_page);
->  	pgtable = pmd_pgtable(_pmd);
->  	VM_BUG_ON(page_count(pgtable) != 1);
-> 
+To be more specific: It is the first zone of the zonelist that the cpuset
+context provided for allocation from the node that the process is
+currently executing on.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
