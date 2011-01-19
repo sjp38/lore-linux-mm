@@ -1,48 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C1AF6B0092
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 23:38:55 -0500 (EST)
-Date: Wed, 19 Jan 2011 13:38:47 +0900
-From: Norbert Preining <preining@logic.at>
-Subject: Re: dirty throttling v5 for 2.6.37-rc7+
-Message-ID: <20110119043847.GF29887@gamma.logic.tuwien.ac.at>
-References: <20101224170418.GA3405@gamma.logic.tuwien.ac.at> <20101225030019.GA25383@localhost> <20101225052736.GA5649@gamma.logic.tuwien.ac.at> <20101225073850.GA1626@localhost>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 133F16B0092
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 05:04:08 -0500 (EST)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id p0JA41Hi002571
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 02:04:01 -0800
+Received: from pvg13 (pvg13.prod.google.com [10.241.210.141])
+	by wpaz5.hot.corp.google.com with ESMTP id p0JA3x1a010091
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 02:03:59 -0800
+Received: by pvg13 with SMTP id 13so108762pvg.10
+        for <linux-mm@kvack.org>; Wed, 19 Jan 2011 02:03:58 -0800 (PST)
+Date: Wed, 19 Jan 2011 02:03:51 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2/5] Add per cgroup reclaim watermarks.
+In-Reply-To: <20110119114735.aea5698f.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1101190200120.3623@chino.kir.corp.google.com>
+References: <1294956035-12081-1-git-send-email-yinghan@google.com> <1294956035-12081-3-git-send-email-yinghan@google.com> <20110114091119.2f11b3b9.kamezawa.hiroyu@jp.fujitsu.com> <AANLkTimo7c3pwFoQvE140o6uFDOaRvxdq6+r3tQnfuPe@mail.gmail.com>
+ <alpine.DEB.2.00.1101181227220.18781@chino.kir.corp.google.com> <AANLkTi=oFTf9pLKdBU4wXm4tTsWjH+E2q9d5_nm_7gt9@mail.gmail.com> <20110119095650.02db87e0.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1101181831110.25382@chino.kir.corp.google.com>
+ <20110119114735.aea5698f.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101225073850.GA1626@localhost>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ying Han <yinghan@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Fengguang,
+On Wed, 19 Jan 2011, KAMEZAWA Hiroyuki wrote:
 
-On Sa, 25 Dez 2010, Wu Fengguang wrote:
-> > > I just created branch "dirty-throttling-v5" based on today's linux-2.6 head.
+> I know.
+> 
+> THIS PATCH's min_free_kbytes is not the same to ZONE's one. It's just a
+> trigger. This patch's one is not used to limit charge() or for handling
+> gfp_mask.
+> (We can assume it's always GFP_HIGHUSER_MOVABLE or GFP_USER in some cases.)
+> 
+> So, I wrote the name of 'min_free_kbytes' in _this_ patch is a source of
+> confusion. I don't recommend to use such name in _this_ patch.
+> 
 
-One request, please update for 38-rc1, thanks.
-
-> It's already a test to simply run it in your environment, thanks!
-> Whether it runs fine or not, they will make valuable feedbacks :)
-
-It runs fine, and feels a bit better when I trash my hard disk with
-subversion. Still some times the whole computer is unresponsive,
-the mouse pointer when entering the terminal of the subversion process
-disappearing, but without it it is a bit worse.
-
-Thanks and all the best
-
-Norbert
-------------------------------------------------------------------------
-Norbert Preining            preining@{jaist.ac.jp, logic.at, debian.org}
-JAIST, Japan                                 TeX Live & Debian Developer
-DSA: 0x09C5B094   fp: 14DF 2E6C 0307 BE6D AD76  A9C0 D2BF 4AA3 09C5 B094
-------------------------------------------------------------------------
-Program aborting:
-Close all that you have worked on.
-You ask far too much.
-                       --- Windows Error Haiku
+Agree with respect to memcg min_free_kbytes.  I think it would be 
+preferrable, however, to have a single tunable for which oom killed tasks 
+may access a privileged pool of memory to avoid the aforementioned DoS and 
+base all other watermarks off that value just like it happens for the 
+global case.  Your point about throttling cpu for background reclaim is 
+also a good one: I think we should be able to control the aggressiveness 
+of memcg background reclaim with an additional property of memcg where a 
+child memcg cannot be more aggressive than a parent, but I think the 
+watermark should be internal to the subsystem itself and, perhaps, based 
+on the user tunable that determines how much memory is accessible by only 
+oom killed tasks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
