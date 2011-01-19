@@ -1,103 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 36DE76B0092
-	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 07:03:40 -0500 (EST)
-Date: Wed, 19 Jan 2011 13:03:19 +0100
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 937426B0092
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 07:10:49 -0500 (EST)
+Date: Wed, 19 Jan 2011 13:10:43 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch rfc] memcg: correctly order reading PCG_USED and
- pc->mem_cgroup
-Message-ID: <20110119120319.GA2232@cmpxchg.org>
+Subject: Re: [PATCH 2/4] memcg: fix USED bit handling at uncharge in THP
+Message-ID: <20110119121043.GB2232@cmpxchg.org>
+References: <20110118113528.fd24928f.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110118114049.5ffdf5da.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20110118114049.5ffdf5da.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-The placement of the read-side barrier is confused: the writer first
-sets pc->mem_cgroup, then PCG_USED.  The read-side barrier has to be
-between testing PCG_USED and reading pc->mem_cgroup.
+Hello KAMEZAWA-san,
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/memcontrol.c |   27 +++++++++------------------
- 1 files changed, 9 insertions(+), 18 deletions(-)
+On Tue, Jan 18, 2011 at 11:40:49AM +0900, KAMEZAWA Hiroyuki wrote:
+> +void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail)
+> +{
+> +	struct page_cgroup *head_pc = lookup_page_cgroup(head);
+> +	struct page_cgroup *tail_pc = lookup_page_cgroup(tail);
+> +	unsigned long flags;
+> +
+> +	/*
+> +	 * We have no races witch charge/uncharge but will have races with
+> +	 * page state accounting.
+> +	 */
+> +	move_lock_page_cgroup(head_pc, &flags);
+> +
+> +	tail_pc->mem_cgroup = head_pc->mem_cgroup;
+> +	smp_wmb(); /* see __commit_charge() */
 
-I am a bit dumbfounded as to why this has never had any impact.  I see
-two scenarios where charging can race with LRU operations:
+I thought the barriers were needed because charging does not hold the
+lru lock.  But here we do, and all the 'lockless' read-sides do so as
+well.  Am I missing something or can this barrier be removed?
 
-One is shmem pages on swapoff.  They are on the LRU when charged as
-page cache, which could race with isolation/putback.  This seems
-sufficiently rare.
-
-The other case is a swap cache page being charged while somebody else
-had it isolated.  mem_cgroup_lru_del_before_commit_swapcache() would
-see the page isolated and skip it.  The commit then has to race with
-putback, which could see PCG_USED but not pc->mem_cgroup, and crash
-with a NULL pointer dereference.  This does sound a bit more likely.
-
-Any idea?  Am I missing something?
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 5b562b3..db76ef7 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -836,13 +836,12 @@ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
- 		return;
- 
- 	pc = lookup_page_cgroup(page);
--	/*
--	 * Used bit is set without atomic ops but after smp_wmb().
--	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
--	 */
--	smp_rmb();
- 	/* unused or root page is not rotated. */
--	if (!PageCgroupUsed(pc) || mem_cgroup_is_root(pc->mem_cgroup))
-+	if (!PageCgroupUsed(pc))
-+		return;
-+	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
-+	smp_rmb();
-+	if (mem_cgroup_is_root(pc->mem_cgroup))
- 		return;
- 	mz = page_cgroup_zoneinfo(pc);
- 	list_move(&pc->lru, &mz->lists[lru]);
-@@ -857,14 +856,10 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
- 		return;
- 	pc = lookup_page_cgroup(page);
- 	VM_BUG_ON(PageCgroupAcctLRU(pc));
--	/*
--	 * Used bit is set without atomic ops but after smp_wmb().
--	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
--	 */
--	smp_rmb();
- 	if (!PageCgroupUsed(pc))
- 		return;
--
-+	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
-+	smp_rmb();
- 	mz = page_cgroup_zoneinfo(pc);
- 	/* huge page split is done under lru_lock. so, we have no races. */
- 	MEM_CGROUP_ZSTAT(mz, lru) += 1 << compound_order(page);
-@@ -1031,14 +1026,10 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
- 		return NULL;
- 
- 	pc = lookup_page_cgroup(page);
--	/*
--	 * Used bit is set without atomic ops but after smp_wmb().
--	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
--	 */
--	smp_rmb();
- 	if (!PageCgroupUsed(pc))
- 		return NULL;
--
-+	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
-+	smp_rmb();
- 	mz = page_cgroup_zoneinfo(pc);
- 	if (!mz)
- 		return NULL;
--- 
-1.7.3.4
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
