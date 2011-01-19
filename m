@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 907DF8D003A
-	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 12:10:35 -0500 (EST)
-Subject: Re: [PATCH 00/21] mm: Preemptibility -v6
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <alpine.LSU.2.00.1101172301340.2899@sister.anvils>
-References: <20101126143843.801484792@chello.nl>
-	 <alpine.LSU.2.00.1101172301340.2899@sister.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 19 Jan 2011 18:10:39 +0100
-Message-ID: <1295457039.28776.137.camel@laptop>
-Mime-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 30C2E8D003A
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 13:38:00 -0500 (EST)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id p0JIbvdK011126
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 10:37:57 -0800
+Received: from pwj6 (pwj6.prod.google.com [10.241.219.70])
+	by wpaz17.hot.corp.google.com with ESMTP id p0JIbP6A031234
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 10:37:56 -0800
+Received: by pwj6 with SMTP id 6so239253pwj.12
+        for <linux-mm@kvack.org>; Wed, 19 Jan 2011 10:37:55 -0800 (PST)
+Date: Wed, 19 Jan 2011 10:37:51 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm: fix deferred congestion timeout if preferred zone
+ is not allowed
+In-Reply-To: <20110119215500.2833.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1101191034060.16126@chino.kir.corp.google.com>
+References: <20110118101547.GF27152@csn.ul.ie> <alpine.DEB.2.00.1101181211100.18781@chino.kir.corp.google.com> <20110119215500.2833.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@kernel.dk>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2011-01-17 at 23:12 -0800, Hugh Dickins wrote:
+On Wed, 19 Jan 2011, KOSAKI Motohiro wrote:
 
-> However, there's one more-than-cleanup that I think you will need to add:
-> the ZAP_BLOCK_SIZE zap_work stuff is still there, but I think it needs
-> to be removed now, with the need_resched() and other checks moved down
-> from unmap_vmas() to inside the pagetable spinlock in zap_pte_range().
->=20
-> Because you're now accumulating more work than ever in the mmu_gather's
-> buffer, and the more so with the 20/21 extended list: but this amounts
-> to a backlog of work which will *usually* be done at the tlb_finish_mmu,
-> but when memory is low (no extra buffers) may need flushing earlier -
-> as things stand, while holding the pagetable spinlock, so introducing
-> a large unpreemptible latency under those conditions.
->=20
-> I believe that along with the need_resched() check moved inside
-> zap_pte_range(), you need to check if the mmu_gather buffer is full,
-> and if so drop pagetable spinlock while you flush it.  Hmm, but if
-> it's extensible, then it wasn't full: I've not worked out how this
-> would actually fit together.
+> I'm glad to you are keeping fastpath concern. However you don't need
+> nodemask-and in this case. Because zonelist->zref[0] is always in nodemask.
+> Please see policy_zonelist(). So, you can just replace nodemask with cpuset_mems_allowed.
+> 
+> This is not only simple, but also improve a consisteny of mempolicy.
+> 
 
-Very good point!! I'll work on this, I'll probably do a few of those
-cleanups previously left undone too, I'm seriously doubting the
-usefulness of the whole restart_addr muck now that its preemptible.
+mempolicies have nothing to do with this, they pass their nodemask into 
+the page allocator so the preferred_zone is already allowed; setting a 
+mempolicy with a nodemask that is disallowed by the cpuset is an invalid 
+configuration.
 
-> (I also believe that when memory is low, we *ought* to be freeing up
-> the pages sooner: perhaps all the GFP_ATOMICs should be GFP_NOWAITs.)
+> ---
+>  mm/page_alloc.c |    3 ++-
+>  1 files changed, 2 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 07a6544..876de04 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2146,7 +2146,8 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+>  
+>  	get_mems_allowed();
+>  	/* The preferred zone is used for statistics later */
+> -	first_zones_zonelist(zonelist, high_zoneidx, nodemask, &preferred_zone);
+> +	first_zones_zonelist(zonelist, high_zoneidx,
+> +			     &cpuset_current_mems_allowed, &preferred_zone);
+>  	if (!preferred_zone) {
+>  		put_mems_allowed();
+>  		return NULL;
 
-Agreed, I've moved everything to: GFP_NOWAIT | __GFP_NOWARN.=20
+As previously mentioned, I didn't want to affect the current behavior of 
+mempolicies when they pass their own nodemask into the page allocator that 
+may be a subset of the set of allowed nodes; in that case, the statistics 
+are probably actually important and we can defer resetting preferred_zone 
+to the slowpath where we know its a __GFP_WAIT allocation instead of the 
+first try in the fastpath.
 
-> I found patch ordering a bit odd: I'm going to comment on them in
-> what seems a more natural ordering to me: if Andrew folds your 00
-> comments into 01 as he usually does, then I'd rather see them on the
-> main preemptible mmu_gather patch, than on reverting some anon_vma
-> annotations!=20
-
-Shouldn't we simply ask for better changelogs instead of Andrew doing
-that? That said, I do like your order better, so did indeed reorder as
-you suggest.
-
->  And with anon_vma->lock already nested inside i_mmap_lock,
-> I think the anon_vma mods are secondary, and can just follow after.
->=20
-> 08/21 mm-preemptible_mmu_gather.patch
->       Acked-by: Hugh Dickins <hughd@google.com>
->       But I'd prefer __tlb_alloc_pages() be named __tlb_alloc_page(),
->       and think it should pass __GFP_NOWARN with its GFP_ATOMIC (same
->       remark would apply in several other patches too).
-
-Did the rename, and like mentioned, switched to GFP_NOWAIT |
-__GFP_NOWARN for everything.
-
-> 09/21 powerpc-preemptible_mmu_gather.patch
->       I'll leave Acking to Ben, but it looked okay so far as I could tell=
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
