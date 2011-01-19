@@ -1,30 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8B5106B0092
-	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 17:19:20 -0500 (EST)
-Date: Wed, 19 Jan 2011 23:19:09 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id F174C6B0092
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 17:22:08 -0500 (EST)
+Date: Wed, 19 Jan 2011 23:21:50 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [BUG] BUG: unable to handle kernel paging request at fffba000
-Message-ID: <20110119221909.GO9506@random.random>
-References: <20110119124047.GA30274@kwango.lan.net>
+Subject: Re: 2.6.38-rc1 problems with khugepaged
+Message-ID: <20110119222150.GP9506@random.random>
+References: <web-442414153@zbackend1.aha.ru>
+ <20110119155954.GA2272@kryptos.osrc.amd.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110119124047.GA30274@kwango.lan.net>
+In-Reply-To: <20110119155954.GA2272@kryptos.osrc.amd.com>
 Sender: owner-linux-mm@kvack.org
-To: Ilya Dryomov <idryomov@gmail.com>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
+To: Borislav Petkov <bp@amd64.org>
+Cc: werner <w.landgraf@ru.ru>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello Ilya,
+Hello Werner,
 
-thanks for sending me the gdb info too.
+this should fix your oops, it's untested still so let me know if you
+test it.
 
-can you test this fix? Thanks a lot! (it only affected x86 32bit
-builds with highpte enabled)
+It's a noop for x86_64 and it only affected x86 32bit with highpte enabled.
 
 ====
-Subject: fix pte_unmap in khugepaged for highpte x86_32
+Subject: khugepaged: fix pte_unmap for highpte x86_32
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
