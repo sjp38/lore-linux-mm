@@ -1,47 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A6F18D003A
-	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 15:18:21 -0500 (EST)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id p0JKIF7B020135
-	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 12:18:15 -0800
-Received: from pvc30 (pvc30.prod.google.com [10.241.209.158])
-	by hpaq1.eem.corp.google.com with ESMTP id p0JKICYf021931
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 12:18:14 -0800
-Received: by pvc30 with SMTP id 30so309894pvc.0
-        for <linux-mm@kvack.org>; Wed, 19 Jan 2011 12:18:12 -0800 (PST)
-Date: Wed, 19 Jan 2011 12:18:08 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm: fix deferred congestion timeout if preferred zone
- is not allowed
-In-Reply-To: <20110119200625.GD15568@one.firstfloor.org>
-Message-ID: <alpine.DEB.2.00.1101191212090.19519@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1101172108380.29048@chino.kir.corp.google.com> <AANLkTin036LNAJ053ByMRmQUnsBpRcv1s5uX1j_2c_Ds@mail.gmail.com> <alpine.DEB.2.00.1101181751420.25382@chino.kir.corp.google.com> <alpine.DEB.2.00.1101191351010.20403@router.home>
- <20110119200625.GD15568@one.firstfloor.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 0F6E96B0092
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 16:45:34 -0500 (EST)
+Date: Wed, 19 Jan 2011 22:45:23 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: 2.6.38-rc1 problems with khugepaged
+Message-ID: <20110119214523.GF2232@cmpxchg.org>
+References: <web-442414153@zbackend1.aha.ru>
+ <20110119155954.GA2272@kryptos.osrc.amd.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110119155954.GA2272@kryptos.osrc.amd.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
+To: werner <w.landgraf@ru.ru>
+Cc: Borislav Petkov <bp@amd64.org>, Ilya Dryomov <idryomov@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Jan 2011, Andi Kleen wrote:
+Hi,
 
-> cpusets didn't exist when I designed that. But the idea was that
-> the kernel has a first choice ("hit") and any other node is a "miss"
-> that may need investigation.  So yes I would consider cpuset config as an 
-> intention too and should be counted as hit/miss.
+On Wed, Jan 19, 2011 at 04:59:54PM +0100, Borislav Petkov wrote:
+> Adding some more parties to CC.
 > 
+> On Wed, Jan 19, 2011 at 09:45:25AM -0400, werner wrote:
+> > **  Help   Help Help ***
+> > 
+> > My computer crashs on booting  ...   :( :(
 
-Ok, so there's no additional modification that needs to be made with the 
-patch (other than perhaps some more descriptive documentation of a 
-NUMA_HIT and NUMA_MISS).  When the kernel passes all zones into the page 
-allocator, it's relying on cpusets to reduce that zonelist to only 
-allowable nodes by using ALLOC_CPUSET.  If we can allocate from the first 
-zone allowed by the cpuset, it will be treated as a hit; otherwise, it 
-will be treated as a miss.  That's better than treating everything as a 
-miss when the cpuset doesn't include the first node.
+That sucks!
+
+I cross-compiled for 32-bit and was able to match up the disassembly
+against the code line from your oops report.  Apparently the pte was
+an invalid pointer, and it makes perfect sense: we unmap the highpte
+_before_ we access the pointer again for __collapse_huge_page_copy().
+
+Can you test with this fix applied?  It is only compile-tested, I too
+have no 32-bit installations anymore.
+
+	Hannes
+
+---
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] thp: keep highpte mapped until it is no longer needed
+
+Two users reported THP-related crashes on 32-bit x86 machines.  Their
+oops reports indicated an invalid pte, and subsequent code inspection
+showed that the highpte is actually used after unmap.
+
+The fix is to unmap the pte only after all operations against it are
+finished.
+
+Reported-by: Ilya Dryomov <idryomov@gmail.com>
+Reported-by: werner <w.landgraf@ru.ru>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/huge_memory.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 1be1034..e187454 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1839,9 +1839,9 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	spin_lock(ptl);
+ 	isolated = __collapse_huge_page_isolate(vma, address, pte);
+ 	spin_unlock(ptl);
+-	pte_unmap(pte);
+ 
+ 	if (unlikely(!isolated)) {
++		pte_unmap(pte);
+ 		spin_lock(&mm->page_table_lock);
+ 		BUG_ON(!pmd_none(*pmd));
+ 		set_pmd_at(mm, address, pmd, _pmd);
+@@ -1858,6 +1858,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	anon_vma_unlock(vma->anon_vma);
+ 
+ 	__collapse_huge_page_copy(pte, new_page, vma, address, ptl);
++	pte_unmap(pte);
+ 	__SetPageUptodate(new_page);
+ 	pgtable = pmd_pgtable(_pmd);
+ 	VM_BUG_ON(page_count(pgtable) != 1);
+-- 
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
