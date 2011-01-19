@@ -1,80 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 0619B6B0092
-	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 07:40:53 -0500 (EST)
-Received: by bwz16 with SMTP id 16so782834bwz.14
-        for <linux-mm@kvack.org>; Wed, 19 Jan 2011 04:40:50 -0800 (PST)
-Date: Wed, 19 Jan 2011 14:40:47 +0200
-From: Ilya Dryomov <idryomov@gmail.com>
-Subject: [BUG] BUG: unable to handle kernel paging request at fffba000
-Message-ID: <20110119124047.GA30274@kwango.lan.net>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B97C16B0092
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 07:48:30 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id BA4473EE0C0
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 21:48:26 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 91ED045DE53
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 21:48:26 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D0FF45DE51
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 21:48:26 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F254EF8009
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 21:48:26 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1898CEF8003
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 21:48:26 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch] mm: fix deferred congestion timeout if preferred zone is not allowed
+In-Reply-To: <20110118102941.GG27152@csn.ul.ie>
+References: <20110118142339.6705.A69D9226@jp.fujitsu.com> <20110118102941.GG27152@csn.ul.ie>
+Message-Id: <20110119134014.2819.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 19 Jan 2011 21:48:25 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, idryomov@gmail.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+> > Now, we have three preferred_zone usage.
+> >  1. for zone stat
+> >  2. wait_iff_congested
+> >  3. for calculate compaction duration
+> > 
+> 
+> For 3, it is used to determine if compaction should be deferred. I'm not
+> sure what it has to do with the duration of compaction.
+> 
+> > So, I have two question.  
+> > 
+> 
+> three questions :)
 
-I just built a fresh 38-rc1 kernel with transparent huge page support
-built-in (TRANSPARENT_HUGEPAGE=y) and it failed to boot with the
-following bug.  However after the reboot everything went fine.  It turns
-out it only happens when fsck checks one or more filesystems before they
-are mounted.
+Hehe, Maybe the yellow monkey can't count number rather than two. I bet. ;-p
 
-It's easily reproducable it with touch /forcefsck and reboot on one of
-my 32-bit machines.  Haven't tried it on others yet.
+> > 1. Why do we need different vm stat policy mempolicy and cpuset? 
+> > That said, if we are using mempolicy, the above nodemask variable is 
+> > not NULL, then preferrd_zone doesn't point nearest zone. But it point 
+> > always nearest zone when cpuset are used. 
+> 
+> I think this is historical. cpuset and mempolicy were introduced at
+> different times and never merged together as they should have been. I
+> think an attempt was made a very long time ago but there was significant
+> resistance from SGI developers who didn't want to see regressions
+> introduced in a feature they depended heavily on.
 
-Thanks,
+Yup, I think so too.
+And as David said, NUMA stat is not so important stastics. Probably we can concentrate
+usage (2).
 
-		Ilya
 
-Checking file systems...fsck from util-linux-ng 2.17.2
-/dev/mapper/vg_zmb-lv_home: 235/2992416 files (0.4% non-contiguous),
-2461505/11968512 blocks
-/dev/mapper/vg_zmb-lv_tmp: 13/62464 files (0.0% non-contiguous), 8334/249856
-blocks
-/dev/mapper/vg_zmb-lv_usr: 24821/187680 files (0.2% non-contiguous),
-152556/749568 blocks
-/dev/mapper/vg_zmb-lv_var: 2871/375360 files (1.1% non-contiguous),
-222844/1499136 blocks
-[   13.716535] BUG: unable to handle kernel paging request at fffba000
-[   13.717402] IP: [<c1149f3d>] khugepaged+0x9dd/0xd00
-[   13.717402] *pde = 017da067 *pte = 00000000 
-[   13.717402] Oops: 0000 [#1] PREEMPT SMP 
-[   13.717402] last sysfs file: /sys/devices/virtual/net/lo/operstate
-[   13.717402] Modules linked in:
-[   13.717402] 
-[   13.717402] Pid: 582, comm: khugepaged Not tainted 2.6.38-rc1-testbox2 #7
-EP35-DS3/EP35-DS3
-[   13.717402] EIP: 0060:[<c1149f3d>] EFLAGS: 00010287 CPU: 0
-[   13.717402] EIP is at khugepaged+0x9dd/0xd00
-[   13.717402] EAX: 00000000 EBX: f307ef68 ECX: fffba000 EDX: fffbb000
-[   13.717402] ESI: f77eb4c0 EDI: f77d5000 EBP: f4731f9c ESP: f4731f1c
-[   13.885304]  DS: 007b ES: 007b FS: 00d8 GS: 0000 SS: 0068
-[   13.885304] Process khugepaged (pid: 582, ti=f4730000 task=f51a1f80
-task.ti=f4730000)
-[   13.885304] Stack:
-[   13.885304]  00000000 f51a1f80 b7000000 f51a1f80 df826067 00000001 fffbb000
-00000292
-[   13.885304]  f307ef68 efe8bb70 f307ef68 f77d5000 f3874570 fffba000 00002000
-f307ef68
-[   13.885304]  f3874534 00000000 00000004 f3874500 f51a1f80 f77d5000 f07a7000
-00000001
-[   13.885304] Call Trace:
-[   13.885304]  [<c10948c0>] ? autoremove_wake_function+0x0/0x40
-[   13.885304]  [<c1149560>] ? khugepaged+0x0/0xd00
-[   13.885304]  [<c1094474>] kthread+0x74/0x80
-[   13.885304]  [<c1094400>] ? kthread+0x0/0x80
-[   13.885304]  [<c103977a>] kernel_thread_helper+0x6/0x10
-[   13.885304] Code: 1d 00 89 d8 e8 15 75 f1 ff 8b 7d bc 8b 07 ff 80 a0 01 00 00
-83 45 ac 20 83 45 b4 04 8b 55 98 39 55 b4 0f 83 35 02 00 00 8b 4d b4 <8b> 19 85
-db 74 bb c1 eb 0c c1 e3 05 03 1d 00 20 d8 c1 89 d8 e8 
-[   13.885304] EIP: [<c1149f3d>] khugepaged+0x9dd/0xd00 SS:ESP 0068:f4731f1c
-[   13.885304] CR2: 00000000fffba000
-[   13.885304] ---[ end trace 7890962500b65912 ]---
+> 
+> > 2. Why wait_iff_congested in page_alloc only wait preferred zone? 
+> > That said, theorically, any no congested zones in allocatable zones can
+> > avoid waiting. Just code simplify?
+> > 
+> 
+> The ideal for page allocation is that the preferred zone is always used.
+
+Yup, really.
+
+However, now we are discussing reclaim and allocationo retry path. It's slightly different
+allocation fast path.
+
+> If it is congested, it's probable that significant pressure also exists on
+> the other zones in the zonelist (because an allocation attempt failed)
+
+Hmm..
+Why do we need to guess it? It is in allocation retrying path, IOW it's after try_to_free_pages(),
+scanning zonelist is not so heavy impact operation.
+
+
+> but if the preferred zone is uncongested, we should try reclaiming from
+> it rather than going to sleep.
+
+But if it's congested, the task will be stucked in vmscan anyway.
+Can you please show your worried scenario?
+
+> > 3. I'm not sure why zone->compact_defer is not noted per zone, instead
+> > noted only preferred zone. Do you know the intention?
+> 
+> If we are deferring compaction, we have failed to compact the preferred
+> zone and all other zones in the zonelist. Updating the preferred zone is
+> sufficient for future allocations of the same type. We could update all
+> zones in the zonelist but it's unnecessary overhead and gains very little.
+
+Ok, the requirement is to note one of zones, not list head zone of zonelist.
+
+
+> > I mean my first feeling tell me that we have a chance to make code simplify
+> > more.
+> > 
+> > Mel, Can you please tell us your opinion?
+> > 
+> 
+> Right now, I'm thinking that cpuset_current_mems_allowed should be used
+> as a nodemask earlier so that preferred_zone gets initialised as a
+> sensible value early on.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
