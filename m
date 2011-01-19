@@ -1,87 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DA9096B0092
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 19:43:19 -0500 (EST)
-Received: by iyj17 with SMTP id 17so241996iyj.14
-        for <linux-mm@kvack.org>; Tue, 18 Jan 2011 16:43:17 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1101172108380.29048@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1101172108380.29048@chino.kir.corp.google.com>
-Date: Wed, 19 Jan 2011 09:43:17 +0900
-Message-ID: <AANLkTin036LNAJ053ByMRmQUnsBpRcv1s5uX1j_2c_Ds@mail.gmail.com>
-Subject: Re: [patch] mm: fix deferred congestion timeout if preferred zone is
- not allowed
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id BC0896B0092
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 19:50:16 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E6B2D3EE0C2
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 09:50:13 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CC4CE45DE58
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 09:50:13 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B348245DE55
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 09:50:13 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A3B541DB803E
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 09:50:13 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 687AF1DB8038
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 09:50:13 +0900 (JST)
+Date: Wed, 19 Jan 2011 09:44:16 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/5] Add per cgroup reclaim watermarks.
+Message-Id: <20110119094416.80b717df.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <AANLkTimo7c3pwFoQvE140o6uFDOaRvxdq6+r3tQnfuPe@mail.gmail.com>
+References: <1294956035-12081-1-git-send-email-yinghan@google.com>
+	<1294956035-12081-3-git-send-email-yinghan@google.com>
+	<20110114091119.2f11b3b9.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTimo7c3pwFoQvE140o6uFDOaRvxdq6+r3tQnfuPe@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
+To: Ying Han <yinghan@google.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi David,
+On Tue, 18 Jan 2011 12:02:51 -0800
+Ying Han <yinghan@google.com> wrote:
 
-On Tue, Jan 18, 2011 at 2:09 PM, David Rientjes <rientjes@google.com> wrote=
-:
-> Before 0e093d99763e (writeback: do not sleep on the congestion queue if
-> there are no congested BDIs or if significant congestion is not being
-> encountered in the current zone), preferred_zone was only used for
-> statistics and to determine the zoneidx from which to allocate from given
-> the type requested.
->
-> wait_iff_congested(), though, uses preferred_zone to determine if the
-> congestion wait should be deferred because its dirty pages are backed by
-> a congested bdi. =A0This incorrectly defers the timeout and busy loops in
-> the page allocator with various cond_resched() calls if preferred_zone is
-> not allowed in the current context, usually consuming 100% of a cpu.
->
-> This patch resets preferred_zone to an allowed zone in the slowpath if
-> the allocation context is constrained by current's cpuset. =A0It also
-> ensures preferred_zone is from the set of allowed nodes when called from
-> within direct reclaim; allocations are always constrainted by cpusets
-> since the context is always blockable.
->
-> Both of these uses of cpuset_current_mems_allowed are protected by
-> get_mems_allowed().
-> ---
-> =A0mm/page_alloc.c | =A0 12 ++++++++++++
-> =A0mm/vmscan.c =A0 =A0 | =A0 =A03 ++-
-> =A02 files changed, 14 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2034,6 +2034,18 @@ restart:
-> =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0alloc_flags =3D gfp_to_alloc_flags(gfp_mask);
->
-> + =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0* If preferred_zone cannot be allocated from in this con=
-text, find the
-> + =A0 =A0 =A0 =A0* first allowable zone instead.
-> + =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 if ((alloc_flags & ALLOC_CPUSET) &&
-> + =A0 =A0 =A0 =A0 =A0 !cpuset_zone_allowed_softwall(preferred_zone, gfp_m=
-ask)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 first_zones_zonelist(zonelist, high_zoneidx=
-,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &cpuset_cur=
-rent_mems_allowed, &preferred_zone);
+> On Thu, Jan 13, 2011 at 4:11 PM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-This patch is one we need. but I have a nitpick.
-I am not familiar with CPUSET so I might be wrong.
+> >
+> > Please explain your handling of 'hierarchy' in description.
+> I haven't thought through the 'hierarchy' handling in this patchset
+> which I will probably put more thoughts in the following
+> posts. Do you have recommendations on handing the 'hierarchy' ?
+> 
 
-I think it could make side effect of statistics of ZVM on
-buffered_rmqueue since you intercept and change preferred_zone.
-It could make NUMA_HIT instead of NUMA_MISS.
-Is it your intention?
+For example, assume a Hierarchy like following.
+
+ A
+  \
+   B 
+
+B's usage is accoutned into A, too. So, it's difficult to determine when
+A's kswapd should run if
+ - A's kswapd runs only against 'A'
+ - A's kswapd just see information of A's LRU
+ - B has its own kswapd...this means A has 2 kswapd.
+.....
 
 
+What I think are 2 options.
 
+(1) having one kswapd per hierarchy, IOW, B will never have hierarchy.
+or
+(2) having kswapd per cgroup but it shares mutex. Parent's kswapd will
+   never run if one of children's run.
 
---=20
-Kind regards,
-Minchan Kim
+(1) sounds slow and handling of children's watermark will be serialized.
+(2) sounds we may have too much worker.
+
+I like something between (1) and (2) ;)   sqrt(num_of_cgroup) of kswapd
+is good ?
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
