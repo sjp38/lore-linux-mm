@@ -1,62 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 211796B0092
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 20:51:24 -0500 (EST)
-Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
-	by smtp-out.google.com with ESMTP id p0J1pKND001657
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 17:51:20 -0800
-Received: from pzk2 (pzk2.prod.google.com [10.243.19.130])
-	by kpbe14.cbf.corp.google.com with ESMTP id p0J1pIou013573
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F21E6B0092
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 20:53:29 -0500 (EST)
+Received: from kpbe18.cbf.corp.google.com (kpbe18.cbf.corp.google.com [172.25.105.82])
+	by smtp-out.google.com with ESMTP id p0J1rNwJ014875
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 17:53:24 -0800
+Received: from pvc30 (pvc30.prod.google.com [10.241.209.158])
+	by kpbe18.cbf.corp.google.com with ESMTP id p0J1rL2T014194
 	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 17:51:18 -0800
-Received: by pzk2 with SMTP id 2so58892pzk.32
-        for <linux-mm@kvack.org>; Tue, 18 Jan 2011 17:51:18 -0800 (PST)
-Date: Tue, 18 Jan 2011 17:51:15 -0800 (PST)
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 17:53:22 -0800
+Received: by pvc30 with SMTP id 30so64653pvc.14
+        for <linux-mm@kvack.org>; Tue, 18 Jan 2011 17:53:21 -0800 (PST)
+Date: Tue, 18 Jan 2011 17:53:19 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: [patch] mm: fix deferred congestion timeout if preferred zone
  is not allowed
-In-Reply-To: <20110118204220.GB18984@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1101181750000.25382@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1101172108380.29048@chino.kir.corp.google.com> <20110118101547.GF27152@csn.ul.ie> <alpine.DEB.2.00.1101181211100.18781@chino.kir.corp.google.com> <20110118204220.GB18984@csn.ul.ie>
+In-Reply-To: <AANLkTin036LNAJ053ByMRmQUnsBpRcv1s5uX1j_2c_Ds@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1101181751420.25382@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1101172108380.29048@chino.kir.corp.google.com> <AANLkTin036LNAJ053ByMRmQUnsBpRcv1s5uX1j_2c_Ds@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: MULTIPART/MIXED; BOUNDARY="531368966-429837500-1295402000=:25382"
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Jan 2011, Mel Gorman wrote:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-> > It may be the preferred zone even if it isn't allowed by current's cpuset 
-> > such as if the allocation is __GFP_WAIT or the task has been oom killed 
-> > and has the TIF_MEMDIE bit set, so the preferred zone in the fastpath is 
-> > accurate in these cases.  In the slowpath, the former is protected by 
-> > checking for ALLOC_CPUSET and the latter is usually only set after the 
-> > page allocator has looped at least once and triggered the oom killer to be 
-> > killed.
-> > 
+--531368966-429837500-1295402000=:25382
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
+
+On Wed, 19 Jan 2011, Minchan Kim wrote:
+
+> >
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -2034,6 +2034,18 @@ restart:
+> >         */
+> >        alloc_flags = gfp_to_alloc_flags(gfp_mask);
+> >
+> > +       /*
+> > +        * If preferred_zone cannot be allocated from in this context, find the
+> > +        * first allowable zone instead.
+> > +        */
+> > +       if ((alloc_flags & ALLOC_CPUSET) &&
+> > +           !cpuset_zone_allowed_softwall(preferred_zone, gfp_mask)) {
+> > +               first_zones_zonelist(zonelist, high_zoneidx,
+> > +                               &cpuset_current_mems_allowed, &preferred_zone);
 > 
-> Ok, this is reasonable and is a notable distinction from nodemasks. It's
-> worth including this in the changelog.
+> This patch is one we need. but I have a nitpick.
+> I am not familiar with CPUSET so I might be wrong.
+> 
+> I think it could make side effect of statistics of ZVM on
+> buffered_rmqueue since you intercept and change preferred_zone.
+> It could make NUMA_HIT instead of NUMA_MISS.
+> Is it your intention?
 > 
 
-Agreed, and please do s/__GFP_WAIT/!__GFP_WAIT/ for it, too :)
-
-> > I didn't want to add a branch to test for these possibilities in the 
-> > fastpath, however, since preferred_zone isn't of critical importance until 
-> > it's used in the slowpath (ignoring the statistical usage).
-> > 
-> 
-> With these two paragraphs included in the changelog;
-> 
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-> 
-
-Thanks, and as Andrew noted:
-
-Signed-off-by: David Rientjes <rientjes@google.com>
-
-I'd also suggest this for the -stable tree for 2.6.37.x.
+It depends on the semantics of NUMA_MISS: if no local nodes are allowed by 
+current's cpuset (a pretty poor cpuset config :), then it seems logical 
+that all allocations would be a miss.
+--531368966-429837500-1295402000=:25382--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
