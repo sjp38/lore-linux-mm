@@ -1,75 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CD8276B0092
-	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 23:10:08 -0500 (EST)
-Received: by iwn40 with SMTP id 40so391238iwn.14
-        for <linux-mm@kvack.org>; Tue, 18 Jan 2011 20:10:07 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C1AF6B0092
+	for <linux-mm@kvack.org>; Tue, 18 Jan 2011 23:38:55 -0500 (EST)
+Date: Wed, 19 Jan 2011 13:38:47 +0900
+From: Norbert Preining <preining@logic.at>
+Subject: Re: dirty throttling v5 for 2.6.37-rc7+
+Message-ID: <20110119043847.GF29887@gamma.logic.tuwien.ac.at>
+References: <20101224170418.GA3405@gamma.logic.tuwien.ac.at> <20101225030019.GA25383@localhost> <20101225052736.GA5649@gamma.logic.tuwien.ac.at> <20101225073850.GA1626@localhost>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1101181751420.25382@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1101172108380.29048@chino.kir.corp.google.com>
-	<AANLkTin036LNAJ053ByMRmQUnsBpRcv1s5uX1j_2c_Ds@mail.gmail.com>
-	<alpine.DEB.2.00.1101181751420.25382@chino.kir.corp.google.com>
-Date: Wed, 19 Jan 2011 13:10:06 +0900
-Message-ID: <AANLkTikhkiw0dx_5aj3habTbhofN_=Ptz7J0eDa49eN9@mail.gmail.com>
-Subject: Re: [patch] mm: fix deferred congestion timeout if preferred zone is
- not allowed
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101225073850.GA1626@localhost>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 19, 2011 at 10:53 AM, David Rientjes <rientjes@google.com> wrot=
-e:
-> On Wed, 19 Jan 2011, Minchan Kim wrote:
->
->> >
->> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> > --- a/mm/page_alloc.c
->> > +++ b/mm/page_alloc.c
->> > @@ -2034,6 +2034,18 @@ restart:
->> > =A0 =A0 =A0 =A0 */
->> > =A0 =A0 =A0 =A0alloc_flags =3D gfp_to_alloc_flags(gfp_mask);
->> >
->> > + =A0 =A0 =A0 /*
->> > + =A0 =A0 =A0 =A0* If preferred_zone cannot be allocated from in this =
-context, find the
->> > + =A0 =A0 =A0 =A0* first allowable zone instead.
->> > + =A0 =A0 =A0 =A0*/
->> > + =A0 =A0 =A0 if ((alloc_flags & ALLOC_CPUSET) &&
->> > + =A0 =A0 =A0 =A0 =A0 !cpuset_zone_allowed_softwall(preferred_zone, gf=
-p_mask)) {
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 first_zones_zonelist(zonelist, high_zone=
-idx,
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &cpuset_=
-current_mems_allowed, &preferred_zone);
->>
->> This patch is one we need. but I have a nitpick.
->> I am not familiar with CPUSET so I might be wrong.
->>
->> I think it could make side effect of statistics of ZVM on
->> buffered_rmqueue since you intercept and change preferred_zone.
->> It could make NUMA_HIT instead of NUMA_MISS.
->> Is it your intention?
->>
->
-> It depends on the semantics of NUMA_MISS: if no local nodes are allowed b=
-y
-> current's cpuset (a pretty poor cpuset config :), then it seems logical
-> that all allocations would be a miss.
+Hi Fengguang,
 
-It does make sense to me but I delegate the decision to Christoph who is au=
-thor.
-And please write down this behavior change into changelog. :)
-Thanks David.
+On Sa, 25 Dez 2010, Wu Fengguang wrote:
+> > > I just created branch "dirty-throttling-v5" based on today's linux-2.6 head.
 
+One request, please update for 38-rc1, thanks.
 
+> It's already a test to simply run it in your environment, thanks!
+> Whether it runs fine or not, they will make valuable feedbacks :)
 
---=20
-Kind regards,
-Minchan Kim
+It runs fine, and feels a bit better when I trash my hard disk with
+subversion. Still some times the whole computer is unresponsive,
+the mouse pointer when entering the terminal of the subversion process
+disappearing, but without it it is a bit worse.
+
+Thanks and all the best
+
+Norbert
+------------------------------------------------------------------------
+Norbert Preining            preining@{jaist.ac.jp, logic.at, debian.org}
+JAIST, Japan                                 TeX Live & Debian Developer
+DSA: 0x09C5B094   fp: 14DF 2E6C 0307 BE6D AD76  A9C0 D2BF 4AA3 09C5 B094
+------------------------------------------------------------------------
+Program aborting:
+Close all that you have worked on.
+You ask far too much.
+                       --- Windows Error Haiku
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
