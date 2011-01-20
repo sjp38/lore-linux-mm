@@ -1,74 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 22A328D003A
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 11:46:29 -0500 (EST)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0KGhrK6026042
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 09:43:53 -0700
-Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0KGkKjT175674
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 09:46:20 -0700
-Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0KGkGhS009376
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 09:46:17 -0700
-Message-ID: <4D3866D7.4080306@austin.ibm.com>
-Date: Thu, 20 Jan 2011 10:46:15 -0600
-From: Nathan Fontenot <nfont@austin.ibm.com>
-MIME-Version: 1.0
-Subject: [PATCH 4/4] Define memory_block_size_bytes for x86_64 with CONFIG_X86_UV
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D2D58D003A
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 11:47:40 -0500 (EST)
+Date: Thu, 20 Jan 2011 08:45:55 -0800
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH 0/4] De-couple sysfs memory directories from memory
+ sections
+Message-ID: <20110120164555.GA30922@kroah.com>
 References: <4D386498.9080201@austin.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <4D386498.9080201@austin.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg KH <greg@kroah.com>
+To: Nathan Fontenot <nfont@austin.ibm.com>
 Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Robin Holt <holt@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Define a version of memory_block_size_bytes for x86_64 when CONFIG_X86_UV is
-set.
+On Thu, Jan 20, 2011 at 10:36:40AM -0600, Nathan Fontenot wrote:
+> The root of this issue is in sysfs directory creation. Every time
+> a directory is created a string compare is done against sibling
+> directories ( see sysfs_find_dirent() ) to ensure we do not create 
+> duplicates.  The list of directory nodes in sysfs is kept as an
+> unsorted list which results in this being an exponentially longer
+> operation as the number of directories are created.
 
-Signed-off-by: Robin Holt <holt@sgi.com>
-Signed-off-by: Jack Steiner <steiner@sgi.com>
-Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
+Again, are you sure about this?  I thought we resolved this issue in the
+past, but you were going to check it.  Did you?
 
----
- arch/x86/mm/init_64.c |   14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+thanks,
 
-Index: linux-2.6/arch/x86/mm/init_64.c
-===================================================================
---- linux-2.6.orig/arch/x86/mm/init_64.c	2011-01-20 08:18:20.000000000 -0600
-+++ linux-2.6/arch/x86/mm/init_64.c	2011-01-20 08:21:10.000000000 -0600
-@@ -51,6 +51,7 @@
- #include <asm/numa.h>
- #include <asm/cacheflush.h>
- #include <asm/init.h>
-+#include <asm/uv/uv.h>
- 
- static int __init parse_direct_gbpages_off(char *arg)
- {
-@@ -908,6 +909,19 @@ const char *arch_vma_name(struct vm_area
- 	return NULL;
- }
- 
-+#ifdef CONFIG_X86_UV
-+#define MIN_MEMORY_BLOCK_SIZE   (1 << SECTION_SIZE_BITS)
-+
-+unsigned long memory_block_size_bytes(void)
-+{
-+	if (is_uv_system()) {
-+		printk(KERN_INFO "UV: memory block size 2GB\n");
-+		return 2UL * 1024 * 1024 * 1024;
-+	}
-+	return MIN_MEMORY_BLOCK_SIZE;
-+}
-+#endif
-+
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
- /*
-  * Initialise the sparsemem vmemmap using huge-pages at the PMD level.
-
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
