@@ -1,61 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C7FCA6B0092
-	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 19:59:16 -0500 (EST)
-Received: by iwn40 with SMTP id 40so49007iwn.14
-        for <linux-mm@kvack.org>; Wed, 19 Jan 2011 16:59:03 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1101191212090.19519@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1101172108380.29048@chino.kir.corp.google.com>
-	<AANLkTin036LNAJ053ByMRmQUnsBpRcv1s5uX1j_2c_Ds@mail.gmail.com>
-	<alpine.DEB.2.00.1101181751420.25382@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1101191351010.20403@router.home>
-	<20110119200625.GD15568@one.firstfloor.org>
-	<alpine.DEB.2.00.1101191212090.19519@chino.kir.corp.google.com>
-Date: Thu, 20 Jan 2011 09:59:03 +0900
-Message-ID: <AANLkTi=UDM5bjOS+51CHRDMcouT6Q9kEaRxCJL4TS2gN@mail.gmail.com>
-Subject: Re: [patch] mm: fix deferred congestion timeout if preferred zone is
- not allowed
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 15C2D8D003A
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 20:01:10 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1BE983EE0BC
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 10:01:07 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0559745DE60
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 10:01:07 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DB99D45DE5B
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 10:01:06 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CC9B0E78003
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 10:01:06 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 94DC0E78002
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 10:01:06 +0900 (JST)
+Date: Thu, 20 Jan 2011 09:55:03 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/4] memcg: fix USED bit handling at uncharge in THP
+Message-Id: <20110120095503.74dea304.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110119121043.GB2232@cmpxchg.org>
+References: <20110118113528.fd24928f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110118114049.5ffdf5da.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110119121043.GB2232@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 20, 2011 at 5:18 AM, David Rientjes <rientjes@google.com> wrote=
-:
-> On Wed, 19 Jan 2011, Andi Kleen wrote:
->
->> cpusets didn't exist when I designed that. But the idea was that
->> the kernel has a first choice ("hit") and any other node is a "miss"
->> that may need investigation. =A0So yes I would consider cpuset config as=
- an
->> intention too and should be counted as hit/miss.
->>
->
-> Ok, so there's no additional modification that needs to be made with the
-> patch (other than perhaps some more descriptive documentation of a
-> NUMA_HIT and NUMA_MISS). =A0When the kernel passes all zones into the pag=
-e
-> allocator, it's relying on cpusets to reduce that zonelist to only
-> allowable nodes by using ALLOC_CPUSET. =A0If we can allocate from the fir=
-st
-> zone allowed by the cpuset, it will be treated as a hit; otherwise, it
-> will be treated as a miss. =A0That's better than treating everything as a
-> miss when the cpuset doesn't include the first node.
->
+On Wed, 19 Jan 2011 13:10:43 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-Thanks for the care on this issue, David, Christoph, Andi.
-Looks good to me.
-Feel free to add my Reviewed-by.
+> Hello KAMEZAWA-san,
+> 
+> On Tue, Jan 18, 2011 at 11:40:49AM +0900, KAMEZAWA Hiroyuki wrote:
+> > +void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail)
+> > +{
+> > +	struct page_cgroup *head_pc = lookup_page_cgroup(head);
+> > +	struct page_cgroup *tail_pc = lookup_page_cgroup(tail);
+> > +	unsigned long flags;
+> > +
+> > +	/*
+> > +	 * We have no races witch charge/uncharge but will have races with
+> > +	 * page state accounting.
+> > +	 */
+> > +	move_lock_page_cgroup(head_pc, &flags);
+> > +
+> > +	tail_pc->mem_cgroup = head_pc->mem_cgroup;
+> > +	smp_wmb(); /* see __commit_charge() */
+> 
+> I thought the barriers were needed because charging does not hold the
+> lru lock.  But here we do, and all the 'lockless' read-sides do so as
+> well.  Am I missing something or can this barrier be removed?
+> 
 
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Hmm. I think this can be removed. But it's just because there is only one
+referer of lockless access to pc->mem_cgroup. I think it's ok to remove
+this but it should be done by independent patch with enough patch
+clarification. IOW, I'll do later in another patch.
 
---=20
-Kind regards,
-Minchan Kim
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
