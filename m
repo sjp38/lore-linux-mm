@@ -1,60 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 59D516B0092
-	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 20:56:52 -0500 (EST)
-Date: Thu, 20 Jan 2011 10:52:51 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [patch rfc] memcg: correctly order reading PCG_USED and
- pc->mem_cgroup
-Message-Id: <20110120105251.f0384f8d.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20110119120319.GA2232@cmpxchg.org>
-References: <20110119120319.GA2232@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 880418D003A
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 21:58:35 -0500 (EST)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id p0K2wRO9031206
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 18:58:27 -0800
+Received: from pvg12 (pvg12.prod.google.com [10.241.210.140])
+	by hpaq11.eem.corp.google.com with ESMTP id p0K2wO3n006328
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 19 Jan 2011 18:58:26 -0800
+Received: by pvg12 with SMTP id 12so32257pvg.26
+        for <linux-mm@kvack.org>; Wed, 19 Jan 2011 18:58:24 -0800 (PST)
+Date: Wed, 19 Jan 2011 18:58:21 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 1/3] oom: suppress nodes that are not allowed from meminfo
+ on oom kill
+In-Reply-To: <alpine.DEB.2.00.1101111712190.20611@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1101191857550.32605@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1101111712190.20611@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Jan 2011 13:03:19 +0100
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Tue, 11 Jan 2011, David Rientjes wrote:
 
-> The placement of the read-side barrier is confused: the writer first
-> sets pc->mem_cgroup, then PCG_USED.  The read-side barrier has to be
-> between testing PCG_USED and reading pc->mem_cgroup.
+> The oom killer is extremely verbose for machines with a large number of
+> cpus and/or nodes.  This verbosity can often be harmful if it causes
+> other important messages to be scrolled from the kernel log and incurs a
+> signicant time delay, specifically for kernels with
+> CONFIG_NODES_SHIFT > 8.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/memcontrol.c |   27 +++++++++------------------
->  1 files changed, 9 insertions(+), 18 deletions(-)
+> This patch causes only memory information to be displayed for nodes that
+> are allowed by current's cpuset when dumping the VM state.  Information
+> for all other nodes is irrelevant to the oom condition; we don't care if
+> there's an abundance of memory elsewhere if we can't access it.
 > 
-> I am a bit dumbfounded as to why this has never had any impact.  I see
-> two scenarios where charging can race with LRU operations:
+> This only affects the behavior of dumping memory information when an oom
+> is triggered.  Other dumps, such as for sysrq+m, still display the
+> unfiltered form when using the existing show_mem() interface.
 > 
-> One is shmem pages on swapoff.  They are on the LRU when charged as
-> page cache, which could race with isolation/putback.  This seems
-> sufficiently rare.
+> Additionally, the per-cpu pageset statistics are extremely verbose in oom
+> killer output, so it is now suppressed.  This removes
 > 
-> The other case is a swap cache page being charged while somebody else
-> had it isolated.  mem_cgroup_lru_del_before_commit_swapcache() would
-> see the page isolated and skip it.  The commit then has to race with
-> putback, which could see PCG_USED but not pc->mem_cgroup, and crash
-> with a NULL pointer dereference.  This does sound a bit more likely.
+> 	nodes_weight(current->mems_allowed) * (1 + nr_cpus)
 > 
-> Any idea?  Am I missing something?
+> lines from the oom killer output.
 > 
-pc->mem_cgroup is not cleared even when the page is freed, so NULL pointer
-dereference can happen only when it's the first time the page is used.
-But yes, even if it's not the first time, this means pc->mem_cgroup may be wrong.
+> Callers may use __show_mem(SHOW_MEM_FILTER_NODES) to filter disallowed
+> nodes.
 
-Anyway, I welcome this patch.
-
-Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-
-
-Thanks,
-Daisuke Nishimura.
+Are there any objections to merging this series in -mm?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
