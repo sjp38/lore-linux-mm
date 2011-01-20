@@ -1,130 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 86F3F8D003A
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 05:04:08 -0500 (EST)
-From: KyongHo Cho <pullip.cho@samsung.com>
-Subject: [PATCH] ARM: mm: Regarding section when dealing with meminfo
-Date: Thu, 20 Jan 2011 18:45:39 +0900
-Message-Id: <1295516739-9839-1-git-send-email-pullip.cho@samsung.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D00138D003A
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 05:19:02 -0500 (EST)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp01.au.ibm.com (8.14.4/8.13.1) with ESMTP id p0KAFGjJ029145
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 21:15:16 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0KAImKT2408626
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 21:18:48 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0KAImo2020003
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 21:18:48 +1100
+Date: Thu, 20 Jan 2011 15:48:44 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [LSF/MM TOPIC] memory control groups
+Message-ID: <20110120101844.GI2897@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20110117191359.GI2212@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20110117191359.GI2212@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-samsung-soc@vger.kernel.org, Kukjin Kim <kgene.kim@samsung.com>, Ilho Lee <ilho215.lee@samsung.com>, KeyYoung Park <keyyoung.park@samsung.com>, KyongHo Cho <pullip.cho@samsung.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, Michel Lespinasse <walken@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Sparsemem allows that a bank of memory spans over several adjacent
-sections if the start address and the end address of the bank
-belong to different sections.
-When gathering statictics of physical memory in mem_init() and
-show_mem(), this possiblity was not considered.
+* Johannes Weiner <hannes@cmpxchg.org> [2011-01-17 20:14:00]:
 
-This patch guarantees that simple increasing the pointer to page
-descriptors does not exceed the boundary of a section.
+> Hello,
+> 
+> on the MM summit, I would like to talk about the current state of
+> memory control groups, the features and extensions that are currently
+> being developed for it, and what their status is.
+> 
+> I am especially interested in talking about the current runtime memory
+> overhead memcg comes with (1% of ram) and what we can do to shrink it.
+> 
+> In comparison to how efficiently struct page is packed, and given that
+> distro kernels come with memcg enabled per default, I think we should
+> put a bit more thought into how struct page_cgroup (which exists for
+> every page in the system as well) is organized.
+> 
+> I have a patch series that removes the page backpointer from struct
+> page_cgroup by storing a node ID (or section ID, depending on whether
+> sparsemem is configured) in the free bits of pc->flags.
+> 
+> I also plan on replacing the pc->mem_cgroup pointer with an ID
+> (KAMEZAWA-san has patches for that), and move it to pc->flags too.
+> Every flag not used means doubling the amount of possible control
+> groups, so I have patches that get rid of some flags currently
+> allocated, including PCG_CACHE, PCG_ACCT_LRU, and PCG_MIGRATION.
+> 
+> [ I meant to send those out much earlier already, but a bug in the
+> migration rework was not responding to my yelling 'Marco', and now my
+> changes collide horribly with THP, so it will take another rebase. ]
+> 
+> The per-memcg dirty accounting work e.g. allocates a bunch of new bits
+> in pc->flags and I'd like to hash out if this leaves enough room for
+> the structure packing I described, or whether we can come up with a
+> different way of tracking state.
+> 
+> Would other people be interested in discussing this?
+>
 
-Signed-off-by: KyongHo Cho <pullip.cho@samsung.com>
----
- arch/arm/mm/init.c |   74 +++++++++++++++++++++++++++++++++++----------------
- 1 files changed, 51 insertions(+), 23 deletions(-)
+I would definitely be if I am invited to the LSF/MM summit. Even
+otherwise we should discuss this over email
 
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index 57c4c5c..6ccecbe 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -93,24 +93,38 @@ void show_mem(void)
- 
- 		pfn1 = bank_pfn_start(bank);
- 		pfn2 = bank_pfn_end(bank);
--
-+#ifndef CONFIG_SPARSEMEM
- 		page = pfn_to_page(pfn1);
- 		end  = pfn_to_page(pfn2 - 1) + 1;
--
-+#else
-+		pfn2--;
- 		do {
--			total++;
--			if (PageReserved(page))
--				reserved++;
--			else if (PageSwapCache(page))
--				cached++;
--			else if (PageSlab(page))
--				slab++;
--			else if (!page_count(page))
--				free++;
--			else
--				shared += page_count(page) - 1;
--			page++;
--		} while (page < end);
-+			page = pfn_to_page(pfn1);
-+			if (pfn_to_section_nr(pfn1) < pfn_to_section_nr(pfn2)) {
-+				pfn1 += PAGES_PER_SECTION;
-+				pfn1 &= PAGE_SECTION_MASK;
-+			} else {
-+				pfn1 = pfn2;
-+			}
-+			end = pfn_to_page(pfn1) + 1;
-+#endif
-+			do {
-+				total++;
-+				if (PageReserved(page))
-+					reserved++;
-+				else if (PageSwapCache(page))
-+					cached++;
-+				else if (PageSlab(page))
-+					slab++;
-+				else if (!page_count(page))
-+					free++;
-+				else
-+					shared += page_count(page) - 1;
-+				page++;
-+			} while (page < end);
-+#ifdef CONFIG_SPARSEMEM
-+		} while (pfn1 < pfn2);
-+#endif
- 	}
- 
- 	printk("%d pages of RAM\n", total);
-@@ -470,17 +484,31 @@ void __init mem_init(void)
- 
- 		pfn1 = bank_pfn_start(bank);
- 		pfn2 = bank_pfn_end(bank);
--
-+#ifndef CONFIG_SPARSEMEM
- 		page = pfn_to_page(pfn1);
- 		end  = pfn_to_page(pfn2 - 1) + 1;
--
-+#else
-+		pfn2--;
- 		do {
--			if (PageReserved(page))
--				reserved_pages++;
--			else if (!page_count(page))
--				free_pages++;
--			page++;
--		} while (page < end);
-+			page = pfn_to_page(pfn1);
-+			if (pfn_to_section_nr(pfn1) < pfn_to_section_nr(pfn2)) {
-+				pfn1 += PAGES_PER_SECTION;
-+				pfn1 &= PAGE_SECTION_MASK;
-+			} else {
-+				pfn1 = pfn2;
-+			}
-+			end = pfn_to_page(pfn1) + 1;
-+#endif
-+			do {
-+				if (PageReserved(page))
-+					reserved_pages++;
-+				else if (!page_count(page))
-+					free_pages++;
-+				page++;
-+			} while (page < end);
-+#ifdef CONFIG_SPARSEMEM
-+		} while (pfn1 < pfn2);
-+#endif
- 	}
- 
- 	/*
 -- 
-1.6.2.5
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
