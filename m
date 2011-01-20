@@ -1,91 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 27F9D8D003A
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 12:52:37 -0500 (EST)
-Received: by ywj3 with SMTP id 3so284504ywj.14
-        for <linux-mm@kvack.org>; Thu, 20 Jan 2011 09:52:34 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTi=MizfGY4koMmRHprts6Ji3ofeSZPBBTiH1FDcn@mail.gmail.com>
-References: <1295516739-9839-1-git-send-email-pullip.cho@samsung.com>
-	<20110120142844.GA28358@barrios-desktop>
-	<AANLkTinXAiShaf1f69ufVHg7KPaY5j=jmOTtK71GNNp5@mail.gmail.com>
-	<AANLkTikBbknwsLvN-b4HVqL_gAUHC-4VjQ=WQ=h_kLhW@mail.gmail.com>
-	<AANLkTi=MizfGY4koMmRHprts6Ji3ofeSZPBBTiH1FDcn@mail.gmail.com>
-Date: Fri, 21 Jan 2011 02:52:34 +0900
-Message-ID: <AANLkTimf4oqEs4Oq1gMEjRsqhGM=vYkU6zm2MSuRBVdk@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A2E2C8D003A
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 13:02:30 -0500 (EST)
+Date: Thu, 20 Jan 2011 18:01:46 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
 Subject: Re: [PATCH] ARM: mm: Regarding section when dealing with meminfo
-From: KyongHo Cho <pullip.linux@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-ID: <20110120180146.GH6335@n2100.arm.linux.org.uk>
+References: <1295516739-9839-1-git-send-email-pullip.cho@samsung.com> <1295544047.9039.609.camel@nimitz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1295544047.9039.609.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-samsung-soc@vger.kernel.org, Kukjin Kim <kgene.kim@samsung.com>, Ilho Lee <ilho215.lee@samsung.com>, KeyYoung Park <keyyoung.park@samsung.com>, KyongHo Cho <pullip.cho@samsung.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: KyongHo Cho <pullip.cho@samsung.com>, Kukjin Kim <kgene.kim@samsung.com>, KeyYoung Park <keyyoung.park@samsung.com>, linux-kernel@vger.kernel.org, Ilho Lee <ilho215.lee@samsung.com>, linux-mm@kvack.org, linux-samsung-soc@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 21, 2011 at 2:44 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> Fix linux-arm-kernel address.
->
-Thank you!
-Too late in the night:)
+On Thu, Jan 20, 2011 at 09:20:47AM -0800, Dave Hansen wrote:
+> This problem actually exists without sparsemem, too.  Discontigmem (at
+> least) does it as well.
 
-> On Fri, Jan 21, 2011 at 2:43 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
->> Restore Cced.
->>
->> On Fri, Jan 21, 2011 at 2:24 AM, KyongHo Cho <pullip.linux@gmail.com> wrote:
->>> On Thu, Jan 20, 2011 at 11:28 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
->>>> On Thu, Jan 20, 2011 at 06:45:39PM +0900, KyongHo Cho wrote:
->>>>> Sparsemem allows that a bank of memory spans over several adjacent
->>>>> sections if the start address and the end address of the bank
->>>>> belong to different sections.
->>>>> When gathering statictics of physical memory in mem_init() and
->>>>> show_mem(), this possiblity was not considered.
->>>>
->>>> Please write down the result if we doesn't consider this patch.
->>>> I can understand what happens but for making good description and review,
->>>> merging easily, it would be better to write down the result without
->>>> the patch explicitly.
->>>>
->>> As we know that each section has its own memmap and
->>> a contiguous chunk of physical memory that is represented by 'bank' in meminfo
->>> can be larger than the size of a section.
->>> "page++" in the current implementation can access invalid memory area.
->>> The size of the section is 256 MiB in ARM and the number of banks in
->>> meminfo is 8.
->>> This means that the maximum size of the physical memory cannot be grow than 2GiB
->>> to avoid this problem in the current implementation.
->>> Thus we need to fix the calculation of the last page descriptor in
->>> terms of sections.
->>>
->>> This patch determines the last page descriptor in a memmap with
->>> min(last_pfn_of_bank, last_pfn_of_current_section)
->>> If there remains physical memory not consumed, it calculates the last
->>> page descriptor
->>> with min(last_pfn_of_bank, last_pfn_of_next_section).
->>>
->>>>
->>>> Hmm.. new ifndef magic makes code readability bad.
->>>> Couldn't we do it by simple pfn iterator not page and pfn_valid check?
->>>>
->>> True.
->>> We need to consider the implementation again.
->>> I think the previous implementation gave the importance to the
->>> efficiency but to the readability.
->>>
->>
->> Please consider readability and consistency with other architectures
->> if we can do. :)
->> Thanks.
->>
->> --
->> Kind regards,
->> Minchan Kim
->>
->
->
->
-> --
-> Kind regards,
-> Minchan Kim
->
+We don't expect banks to cross sparsemem boundaries, or the older
+discontigmem nodes (esp. as we used to store the node number.)
+Discontigmem support has been removed now so that doesn't apply
+anymore.
+
+> The x86 version of show_mem() actually manages to do this without any
+> #ifdefs, and works for a ton of configuration options.  It uses
+> pfn_valid() to tell whether it can touch a given pfn.
+
+x86 memory layout tends to be very simple as it expects memory to
+start at the beginning of every region described by a pgdat and extend
+in one contiguous block.  I wish ARM was that simple.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
