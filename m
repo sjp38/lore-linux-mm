@@ -1,57 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 415878D003A
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 13:25:13 -0500 (EST)
-Date: Thu, 20 Jan 2011 19:24:44 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E68FE8D003A
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 13:49:18 -0500 (EST)
+Date: Thu, 20 Jan 2011 12:49:15 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: [PATCH 1/3] When migrate_pages returns 0, all pages must have
  been released
-Message-ID: <20110120182444.GA9506@random.random>
-References: <f60d811fd1abcb68d40ac19af35881d700a97cd2.1295539829.git.minchan.kim@gmail.com>
- <alpine.DEB.2.00.1101201130100.10695@router.home>
+In-Reply-To: <20110120182444.GA9506@random.random>
+Message-ID: <alpine.DEB.2.00.1101201233001.20633@router.home>
+References: <f60d811fd1abcb68d40ac19af35881d700a97cd2.1295539829.git.minchan.kim@gmail.com> <alpine.DEB.2.00.1101201130100.10695@router.home> <20110120182444.GA9506@random.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1101201130100.10695@router.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Thu, 20 Jan 2011, Andrea Arcangeli wrote:
 
-On Thu, Jan 20, 2011 at 11:30:35AM -0600, Christoph Lameter wrote:
-> On Fri, 21 Jan 2011, Minchan Kim wrote:
-> 
-> > diff --git a/mm/migrate.c b/mm/migrate.c
-> > index 46fe8cc..7d34237 100644
-> > --- a/mm/migrate.c
-> > +++ b/mm/migrate.c
-> > @@ -772,6 +772,7 @@ uncharge:
-> >  unlock:
-> >  	unlock_page(page);
+> Hello,
+>
+> On Thu, Jan 20, 2011 at 11:30:35AM -0600, Christoph Lameter wrote:
+> > On Fri, 21 Jan 2011, Minchan Kim wrote:
 > >
-> > +move_newpage:
-> >  	if (rc != -EAGAIN) {
-> >   		/*
-> >   		 * A page that has been migrated has all references
-> > @@ -785,8 +786,6 @@ unlock:
-> >  		putback_lru_page(page);
-> >  	}
+> > > diff --git a/mm/migrate.c b/mm/migrate.c
+> > > index 46fe8cc..7d34237 100644
+> > > --- a/mm/migrate.c
+> > > +++ b/mm/migrate.c
+> > > @@ -772,6 +772,7 @@ uncharge:
+> > >  unlock:
+> > >  	unlock_page(page);
+> > >
+> > > +move_newpage:
+> > >  	if (rc != -EAGAIN) {
+> > >   		/*
+> > >   		 * A page that has been migrated has all references
+> > > @@ -785,8 +786,6 @@ unlock:
+> > >  		putback_lru_page(page);
+> > >  	}
+> > >
+> > > -move_newpage:
+> > > -
+> > >  	/*
+> > >  	 * Move the new page to the LRU. If migration was not successful
+> > >  	 * then this will free the page.
+> > >
 > >
-> > -move_newpage:
-> > -
-> >  	/*
-> >  	 * Move the new page to the LRU. If migration was not successful
-> >  	 * then this will free the page.
-> >
-> 
-> What does this do? Not covered by the description.
+> > What does this do? Not covered by the description.
+>
+> It makes a difference for the two goto move_newpage, when rc =
+> 0. Otherwise the function will return 0, despite
+> putback_lru_page(page) wasn't called (and the caller of migrate_pages
+> won't call putback_lru_pages if migrate_pages returned 0).
 
-It makes a difference for the two goto move_newpage, when rc =
-0. Otherwise the function will return 0, despite
-putback_lru_page(page) wasn't called (and the caller of migrate_pages
-won't call putback_lru_pages if migrate_pages returned 0).
+Think about the difference:
+
+Moving the move_newpage will now cause another removal and freeing of the
+page if rc != -EAGAIN.
+
+The first goto move_newpage (because page count is 1) will now mean that
+the page is freed twice. One because of the rc != EAGAIN branch and then
+another time by the following putback_lru_page().
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
