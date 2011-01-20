@@ -1,46 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 59DAA8D003A
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 12:27:02 -0500 (EST)
-Date: Thu, 20 Jan 2011 09:25:26 -0800
-From: Greg KH <greg@kroah.com>
-Subject: Re: [PATCH 0/4] De-couple sysfs memory directories from memory
- sections
-Message-ID: <20110120172526.GC21643@kroah.com>
-References: <4D386498.9080201@austin.ibm.com>
- <20110120164555.GA30922@kroah.com>
- <4D386820.5080902@austin.ibm.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1F50A8D003A
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 12:37:19 -0500 (EST)
+Date: Thu, 20 Jan 2011 11:30:35 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/3] When migrate_pages returns 0, all pages must have
+ been released
+In-Reply-To: <f60d811fd1abcb68d40ac19af35881d700a97cd2.1295539829.git.minchan.kim@gmail.com>
+Message-ID: <alpine.DEB.2.00.1101201130100.10695@router.home>
+References: <f60d811fd1abcb68d40ac19af35881d700a97cd2.1295539829.git.minchan.kim@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4D386820.5080902@austin.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nathan Fontenot <nfont@austin.ibm.com>
-Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Robin Holt <holt@sgi.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 20, 2011 at 10:51:44AM -0600, Nathan Fontenot wrote:
-> On 01/20/2011 10:45 AM, Greg KH wrote:
-> > On Thu, Jan 20, 2011 at 10:36:40AM -0600, Nathan Fontenot wrote:
-> >> The root of this issue is in sysfs directory creation. Every time
-> >> a directory is created a string compare is done against sibling
-> >> directories ( see sysfs_find_dirent() ) to ensure we do not create 
-> >> duplicates.  The list of directory nodes in sysfs is kept as an
-> >> unsorted list which results in this being an exponentially longer
-> >> operation as the number of directories are created.
-> > 
-> > Again, are you sure about this?  I thought we resolved this issue in the
-> > past, but you were going to check it.  Did you?
-> > 
-> 
-> Yes, the string compare is still present in the sysfs code.  There was
-> discussion around this sometime last year when I sent a patch out that
-> stored the directory entries in something other than a linked list.
-> That patch was rejected but it was agreed that something should be done.
+On Fri, 21 Jan 2011, Minchan Kim wrote:
 
-Ah, ok, thanks for verifying.
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 46fe8cc..7d34237 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -772,6 +772,7 @@ uncharge:
+>  unlock:
+>  	unlock_page(page);
+>
+> +move_newpage:
+>  	if (rc != -EAGAIN) {
+>   		/*
+>   		 * A page that has been migrated has all references
+> @@ -785,8 +786,6 @@ unlock:
+>  		putback_lru_page(page);
+>  	}
+>
+> -move_newpage:
+> -
+>  	/*
+>  	 * Move the new page to the LRU. If migration was not successful
+>  	 * then this will free the page.
+>
 
-greg k-h
+What does this do? Not covered by the description.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
