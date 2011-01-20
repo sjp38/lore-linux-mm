@@ -1,74 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C3488D003A
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 11:36:54 -0500 (EST)
-Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
-	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0KGRHFY006592
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 11:27:49 -0500
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 64F7A4DE8042
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 11:33:27 -0500 (EST)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0KGakN91679436
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 11:36:46 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0KGaj5b005566
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 11:36:45 -0500
-Message-ID: <4D386498.9080201@austin.ibm.com>
-Date: Thu, 20 Jan 2011 10:36:40 -0600
-From: Nathan Fontenot <nfont@austin.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 8A12E8D003A
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 11:41:40 -0500 (EST)
+Received: by iwn40 with SMTP id 40so778718iwn.14
+        for <linux-mm@kvack.org>; Thu, 20 Jan 2011 08:41:03 -0800 (PST)
 MIME-Version: 1.0
-Subject: [PATCH 0/4] De-couple sysfs memory directories from memory sections
+In-Reply-To: <20110120161436.GB21494@random.random>
+References: <20110120154935.GA1760@barrios-desktop>
+	<20110120161436.GB21494@random.random>
+Date: Fri, 21 Jan 2011 01:41:02 +0900
+Message-ID: <AANLkTikHNcD3aOWKJdPtCqdJi9C34iLPxj5-L8=gqBFc@mail.gmail.com>
+Subject: Re: [BUG]thp: BUG at mm/huge_memory.c:1350
+From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Greg KH <greg@kroah.com>
-Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Robin Holt <holt@sgi.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a re-send of the remaining patches that did not make it
-into the last kernel release for de-coupling sysfs memory
-directories from memory sections.  The first three patches of the
-previous set went in, and this is the remaining patches that
-need to be applied.
+On Fri, Jan 21, 2011 at 1:14 AM, Andrea Arcangeli <aarcange@redhat.com> wro=
+te:
+> Hello Minchan,
+>
+> On Fri, Jan 21, 2011 at 12:49:35AM +0900, Minchan Kim wrote:
+>> Hi Andrea,
+>>
+>> I hit thg BUG 2 time during 5 booting.
+>> I applied khugepaged: fix pte_unmap for highpte x86_32 based on 2.6.38-r=
+c1.
+>
+> This is again 32bit which rings a bell because clearly it didn't have
+> a whole lot of testing (not remotely comparable to the amount of
+> testing x86-64 had), but it's not necessarily 32bit related. It still
+> would be worth to know if it still happens after you disable
+> CONFIG_HIGHMEM (to rule out 32bit issues in not well tested kmaps).
+>
 
-The patches decouple the concept that a single memory section corresponds
-to a single directory in /sys/devices/system/memory/.  On systems
-with large amounts of memory (1+ TB) there are performance issues
-related to creating the large number of sysfs directories.  For
-a powerpc machine with 1 TB of memory we are creating 63,000+
-directories.  This is resulting in boot times of around 45-50
-minutes for systems with 1 TB of memory and 8+ hours for systems
-with 2 TB of memory.  With this patch set applied I am now seeing
-boot times of 5 minutes or less.
+I wii try it at tomorrow.
 
-The root of this issue is in sysfs directory creation. Every time
-a directory is created a string compare is done against sibling
-directories ( see sysfs_find_dirent() ) to ensure we do not create 
-duplicates.  The list of directory nodes in sysfs is kept as an
-unsorted list which results in this being an exponentially longer
-operation as the number of directories are created.
+> The rmap walk simply didn't find an hugepmd pointing to the page. Or
+> the mapcount was left pinned after the page got somehow unmapped.
+>
+> I wonder why pages are added to swap and the system is so low on
+> memory during boot. How much memory do you have in the 32bit system?
 
-The solution solved by this patch set is to allow a single
-directory in sysfs to span multiple memory sections.  This is
-controlled by an optional architecturally defined function
-memory_block_size_bytes().  The default definition of this
-routine returns a memory block size equal to the memory section
-size. This maintains the current layout of sysfs memory
-directories as it appears to userspace to remain the same as it
-is today.
+That was my curiosity, too.
 
-For architectures that define their own version of this routine,
-as is done for powerpc and x86 in this patchset, the view in userspace
-would change such that each memoryXXX directory would span
-multiple memory sections.  The number of sections spanned would
-depend on the value reported by memory_block_size_bytes.
+> Do you boot with something like mem=3D256m? =A0This is also the Xorg
 
--Nathan Fontenot
+No. I didn't limit mem size. My system has a 2G memory.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> process, which is a bit more special than most and it may have device
+> drivers attached to the pages.
+
+Both bugs are hit by Xorg.
+I doubt it.
+
+>
+> One critical thing is that split_huge_page must be called when
+> splitting vmas, see split_huge_page_address and
+> __vma_adjust_trans_huge, right now it's called from vma_adjust
+> only. If anything is wrong in that function, or if any place adjusting
+> the vma is not covered by that function, it may result in exactly the
+> problem you run into. If drivers are mangling over the vmas that would
+> also explain it.
+>
+> If you happen to have crash dump with vmlinux that would be the best
+> debug option for this, also if you can reproduce it in a VM that will
+> make it easier to reproduce without your hardware. Otherwise we'll
+> find another way.
+
+I will investigate it after out of office at tomorrow. Sorry but here
+is 1:40 am. :)
+If you have a any guess or good method to investigate the bug, please reply=
