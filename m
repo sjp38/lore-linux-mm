@@ -1,120 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 294E28D003A
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 12:22:21 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 633848D003A
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 12:26:39 -0500 (EST)
 Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0KH3wrC015305
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 12:04:04 -0500
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 17B384DE80AA
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 12:17:38 -0500 (EST)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0KHKvB8398276
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 12:20:57 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0KHKvKp006016
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 15:20:57 -0200
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0KH93sC001155
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 12:09:09 -0500
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id AEC014DE81F5
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 12:22:14 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0KHPS9q354796
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 12:25:28 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0KHPR2G007530
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 15:25:28 -0200
 Subject: Re: [PATCH] ARM: mm: Regarding section when dealing with meminfo
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1295516739-9839-1-git-send-email-pullip.cho@samsung.com>
+In-Reply-To: <20110120142844.GA28358@barrios-desktop>
 References: <1295516739-9839-1-git-send-email-pullip.cho@samsung.com>
+	 <20110120142844.GA28358@barrios-desktop>
 Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Thu, 20 Jan 2011 09:20:47 -0800
-Message-ID: <1295544047.9039.609.camel@nimitz>
+Date: Thu, 20 Jan 2011 09:25:13 -0800
+Message-ID: <1295544313.9039.618.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KyongHo Cho <pullip.cho@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-samsung-soc@vger.kernel.org, Kukjin Kim <kgene.kim@samsung.com>, Ilho Lee <ilho215.lee@samsung.com>, KeyYoung Park <keyyoung.park@samsung.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KyongHo Cho <pullip.cho@samsung.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-samsung-soc@vger.kernel.org, Kukjin Kim <kgene.kim@samsung.com>, Ilho Lee <ilho215.lee@samsung.com>, KeyYoung Park <keyyoung.park@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2011-01-20 at 18:45 +0900, KyongHo Cho wrote:
-> Sparsemem allows that a bank of memory spans over several adjacent
-> sections if the start address and the end address of the bank
-> belong to different sections.
-> When gathering statictics of physical memory in mem_init() and
-> show_mem(), this possiblity was not considered.
+On Thu, 2011-01-20 at 23:28 +0900, Minchan Kim wrote:
+> On Thu, Jan 20, 2011 at 06:45:39PM +0900, KyongHo Cho wrote:
+> > Sparsemem allows that a bank of memory spans over several adjacent
+> > sections if the start address and the end address of the bank
+> > belong to different sections.
+> > When gathering statictics of physical memory in mem_init() and
+> > show_mem(), this possiblity was not considered.
 > 
-> This patch guarantees that simple increasing the pointer to page
-> descriptors does not exceed the boundary of a section
-...
-> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-> index 57c4c5c..6ccecbe 100644
-> --- a/arch/arm/mm/init.c
-> +++ b/arch/arm/mm/init.c
-> @@ -93,24 +93,38 @@ void show_mem(void)
-> 
->  		pfn1 = bank_pfn_start(bank);
->  		pfn2 = bank_pfn_end(bank);
-> -
-> +#ifndef CONFIG_SPARSEMEM
->  		page = pfn_to_page(pfn1);
->  		end  = pfn_to_page(pfn2 - 1) + 1;
-> -
-> +#else
-> +		pfn2--;
->  		do {
-> -			total++;
-> -			if (PageReserved(page))
-> -				reserved++;
-> -			else if (PageSwapCache(page))
-> -				cached++;
-> -			else if (PageSlab(page))
-> -				slab++;
-> -			else if (!page_count(page))
-> -				free++;
-> -			else
-> -				shared += page_count(page) - 1;
-> -			page++;
-> -		} while (page < end);
-> +			page = pfn_to_page(pfn1);
-> +			if (pfn_to_section_nr(pfn1) < pfn_to_section_nr(pfn2)) {
-> +				pfn1 += PAGES_PER_SECTION;
-> +				pfn1 &= PAGE_SECTION_MASK;
-> +			} else {
-> +				pfn1 = pfn2;
-> +			}
-> +			end = pfn_to_page(pfn1) + 1;
-> +#endif
+> Please write down the result if we doesn't consider this patch.
+> I can understand what happens but for making good description and review,
+> merging easily, it would be better to write down the result without 
+> the patch explicitly. 
 
-This problem actually exists without sparsemem, too.  Discontigmem (at
-least) does it as well.
+You'll oops.  __section_mem_map_addr() in:
 
-The x86 version of show_mem() actually manages to do this without any
-#ifdefs, and works for a ton of configuration options.  It uses
-pfn_valid() to tell whether it can touch a given pfn.
+> #define __pfn_to_page(pfn)                              \
+> ({      unsigned long __pfn = (pfn);                    \
+>         struct mem_section *__sec = __pfn_to_section(__pfn);    \
+>         __section_mem_map_addr(__sec) + __pfn;          \
+> })
 
-Long-term, it might be a good idea to convert arm's show_mem() over to
-use pgdat's like everything else.  But, for now, you should just be able
-to do something roughly like this:
+will return NULL, you'll add some fuzz on to it with __pfn, then you'll
+oops when the arm show_mem() does PageReserved() and dereferences
+page->flags.
 
--               page = pfn_to_page(pfn1);
--               end  = pfn_to_page(pfn2 - 1) + 1;
--
--               do {
-+		for (pfn = pfn1; pfn < pfn2; pfn++) {
-+			if (!pfn_valid(pfn))
-+				continue;
-+			page = pfn_to_page(pfn);
-+
-                        total++;
-                        if (PageReserved(page))
-                                reserved++;
-                        else if (PageSwapCache(page))
-                                cached++;
-                        else if (PageSlab(page))
-                                slab++;
-                        else if (!page_count(page))
-                                free++;
-                        else
-                                shared += page_count(page) - 1;
-                        page++;
--               } while (page < end);
-+		}
-
-That should work for sparsemem, or any other crazy memory models that we
-come up with.  pfn_to_page() is pretty quick, especially when doing it
-in a tight loop like that.
+Ether that, or with the sparsemem vmemmap variant, you'll get a
+valid-looking pointer with no backing memory, and oops as well.
 
 -- Dave
 
