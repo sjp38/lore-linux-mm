@@ -1,75 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D00138D003A
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 05:19:02 -0500 (EST)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp01.au.ibm.com (8.14.4/8.13.1) with ESMTP id p0KAFGjJ029145
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 21:15:16 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0KAImKT2408626
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 21:18:48 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0KAImo2020003
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 21:18:48 +1100
-Date: Thu, 20 Jan 2011 15:48:44 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [LSF/MM TOPIC] memory control groups
-Message-ID: <20110120101844.GI2897@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20110117191359.GI2212@cmpxchg.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C96CC8D003A
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 05:50:02 -0500 (EST)
+Date: Thu, 20 Jan 2011 11:49:47 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch rfc] memcg: correctly order reading PCG_USED and
+ pc->mem_cgroup
+Message-ID: <20110120104947.GK2232@cmpxchg.org>
+References: <20110119120319.GA2232@cmpxchg.org>
+ <20110120100654.a90d9cc6.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110117191359.GI2212@cmpxchg.org>
+In-Reply-To: <20110120100654.a90d9cc6.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, Michel Lespinasse <walken@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Johannes Weiner <hannes@cmpxchg.org> [2011-01-17 20:14:00]:
+On Thu, Jan 20, 2011 at 10:06:54AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Wed, 19 Jan 2011 13:03:19 +0100
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
+> 
+> > The placement of the read-side barrier is confused: the writer first
+> > sets pc->mem_cgroup, then PCG_USED.  The read-side barrier has to be
+> > between testing PCG_USED and reading pc->mem_cgroup.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > ---
+> >  mm/memcontrol.c |   27 +++++++++------------------
+> >  1 files changed, 9 insertions(+), 18 deletions(-)
+> > 
+> > I am a bit dumbfounded as to why this has never had any impact.  I see
+> > two scenarios where charging can race with LRU operations:
+> > 
+> > One is shmem pages on swapoff.  They are on the LRU when charged as
+> > page cache, which could race with isolation/putback.  This seems
+> > sufficiently rare.
+> > 
+> > The other case is a swap cache page being charged while somebody else
+> > had it isolated.  mem_cgroup_lru_del_before_commit_swapcache() would
+> > see the page isolated and skip it.  The commit then has to race with
+> > putback, which could see PCG_USED but not pc->mem_cgroup, and crash
+> > with a NULL pointer dereference.  This does sound a bit more likely.
+> > 
+> > Any idea?  Am I missing something?
+> > 
+> 
+> I think troubles happen only when PCG_USED bit was found but pc->mem_cgroup
+> is NULL. Hmm.
 
-> Hello,
-> 
-> on the MM summit, I would like to talk about the current state of
-> memory control groups, the features and extensions that are currently
-> being developed for it, and what their status is.
-> 
-> I am especially interested in talking about the current runtime memory
-> overhead memcg comes with (1% of ram) and what we can do to shrink it.
-> 
-> In comparison to how efficiently struct page is packed, and given that
-> distro kernels come with memcg enabled per default, I think we should
-> put a bit more thought into how struct page_cgroup (which exists for
-> every page in the system as well) is organized.
-> 
-> I have a patch series that removes the page backpointer from struct
-> page_cgroup by storing a node ID (or section ID, depending on whether
-> sparsemem is configured) in the free bits of pc->flags.
-> 
-> I also plan on replacing the pc->mem_cgroup pointer with an ID
-> (KAMEZAWA-san has patches for that), and move it to pc->flags too.
-> Every flag not used means doubling the amount of possible control
-> groups, so I have patches that get rid of some flags currently
-> allocated, including PCG_CACHE, PCG_ACCT_LRU, and PCG_MIGRATION.
-> 
-> [ I meant to send those out much earlier already, but a bug in the
-> migration rework was not responding to my yelling 'Marco', and now my
-> changes collide horribly with THP, so it will take another rebase. ]
-> 
-> The per-memcg dirty accounting work e.g. allocates a bunch of new bits
-> in pc->flags and I'd like to hash out if this leaves enough room for
-> the structure packing I described, or whether we can come up with a
-> different way of tracking state.
-> 
-> Would other people be interested in discussing this?
->
+Correct.  Well, or get linked to the wrong LRU list and subsequently
+prevent removal of both cgroups because it's impossible to empty them.
 
-I would definitely be if I am invited to the LSF/MM summit. Even
-otherwise we should discuss this over email
+>   set pc->mem_cgroup
+>   write_barrier
+>   set USED bit.
+> 
+>   read_barrier
+>   check USED bit
+>   access pc->mem_cgroup
+> 
+> So, is there a case which only USED bit can be seen ?
 
--- 
-	Three Cheers,
-	Balbir
+That's what I am not quite sure about.  As said, I think it can happen
+when swap cache charging races with reclaim or migration.
+
+When the two loads of the used bit and the memcg pointer get
+reordered, it could observe a set PCG_USED and a stale/unset
+pc->mem_cgroup.
+
+For example:
+
+swap minor fault:			vmscan:
+
+lookup_swap_cache()
+					unlock_page()
+lock_page()
+mem_cgroup_try_charge_swapin()
+					putback_lru_page()
+					mem_cgroup_add_lru_list()
+					  p = pc->mem_cgroup
+  pc->mem_cgroup = FOO
+  smp_wmb()
+  pc->flags |= PCG_USED
+					  f = pc->flags
+					  if (!(f & PCG_USED))
+						  return
+					  *p /* bang */
+
+> Anyway, your patch is right.
+> 
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+Thank you.
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
