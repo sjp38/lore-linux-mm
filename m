@@ -1,88 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1FCBC8D0069
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 15:57:14 -0500 (EST)
-Received: from sim by peace.netnation.com with local (Exim 4.69)
-	(envelope-from <sim@netnation.com>)
-	id 1Pg1Z8-000435-OA
-	for linux-mm@kvack.org; Thu, 20 Jan 2011 12:57:10 -0800
-Date: Thu, 20 Jan 2011 12:57:10 -0800
-From: Simon Kirby <sim@hostway.ca>
-Subject: File and anon pages versus total counts in zoneinfo
-Message-ID: <20110120205710.GC15647@hostway.ca>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E77F18D0069
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 16:29:10 -0500 (EST)
+Date: Thu, 20 Jan 2011 22:28:41 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/3] When migrate_pages returns 0, all pages must have
+ been released
+Message-ID: <20110120212841.GB9506@random.random>
+References: <f60d811fd1abcb68d40ac19af35881d700a97cd2.1295539829.git.minchan.kim@gmail.com>
+ <alpine.DEB.2.00.1101201130100.10695@router.home>
+ <20110120182444.GA9506@random.random>
+ <alpine.DEB.2.00.1101201233001.20633@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1101201233001.20633@router.home>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+On Thu, Jan 20, 2011 at 12:49:15PM -0600, Christoph Lameter wrote:
+> On Thu, 20 Jan 2011, Andrea Arcangeli wrote:
+> 
+> > Hello,
+> >
+> > On Thu, Jan 20, 2011 at 11:30:35AM -0600, Christoph Lameter wrote:
+> > > On Fri, 21 Jan 2011, Minchan Kim wrote:
+> > >
+> > > > diff --git a/mm/migrate.c b/mm/migrate.c
+> > > > index 46fe8cc..7d34237 100644
+> > > > --- a/mm/migrate.c
+> > > > +++ b/mm/migrate.c
+> > > > @@ -772,6 +772,7 @@ uncharge:
+> > > >  unlock:
+> > > >  	unlock_page(page);
+> > > >
+> > > > +move_newpage:
+> > > >  	if (rc != -EAGAIN) {
+> > > >   		/*
+> > > >   		 * A page that has been migrated has all references
+> > > > @@ -785,8 +786,6 @@ unlock:
+> > > >  		putback_lru_page(page);
+> > > >  	}
+> > > >
+> > > > -move_newpage:
+> > > > -
+> > > >  	/*
+> > > >  	 * Move the new page to the LRU. If migration was not successful
+> > > >  	 * then this will free the page.
+> > > >
+> > >
+> > > What does this do? Not covered by the description.
+> >
+> > It makes a difference for the two goto move_newpage, when rc =
+> > 0. Otherwise the function will return 0, despite
+> > putback_lru_page(page) wasn't called (and the caller of migrate_pages
+> > won't call putback_lru_pages if migrate_pages returned 0).
+> 
+> Think about the difference:
+> 
+> Moving the move_newpage will now cause another removal and freeing of the
+> page if rc != -EAGAIN.
 
-I was trying to write a multigraph munin plugin to graph /proc/zoneinfo,
-somewhere between the buddyinfo and memory plugins, to help get to the
-bottom of the huge order-0 fragmentation that seems to be only happening
-in the DMA32 zone on our servers (since at least 2.6.26).  I figured it
-would make a nice stacked graph similar to the memory graph, where
-everything could add up to the size of the zone (or total to the whole
-system memory), but I'm having trouble finding out which page states can
-overlap.
+The only ones doing "goto move_newpage" after the first two memleaks
+that are fixed by this patch are always run with rc = -EAGAIN. So this
+makes a difference only for the first two which were leaking memory before.
 
-It seems that nr_inactive_anon and nr_active_anon never seem to add to
-nr_anon_pages, and same with nr_inactive_file and nr_active_file to
-nr_file_pages.  In the below random case from my desktop, it seems there
-are more active and inactive anon pages than the actual nr_anon_pages,
-so the error is happening both ways here.
+> The first goto move_newpage (because page count is 1) will now mean that
+> the page is freed twice. One because of the rc != EAGAIN branch and then
+> another time by the following putback_lru_page().
 
-I tried to dig through the kernel to find the paths that relate to how
-file pages are allocated, but it seems like the LRU parts are separate
-and a little confusing to follow.  Is there anything useful I could
-follow here, or should I just give up and make it a regular line graph?
-
-This graph is just the stacked output of /proc/zoneinfo for DMA32 on a
-random server (in pages for now, not bytes).  It _almost_ looks like it
-would add up to the same number if I just dropped nr_anon_pages and
-nr_file_pages and made nr_dirty and nr_writeback lines instead of stacks,
-but _not quite_.  (I excluded nr_vmscan_write, nr_dirtied, nr_written as
-they seem to be counters.)
-
-Simon-
-
-Example from my desktop that doesn't add up for file or anon pages:
-
-Node 0, zone    DMA32
-  pages free     26961
-        min      1426
-        low      1782
-        high     2139
-        scanned  0
-        spanned  520128
-        present  513016
-    nr_free_pages 26961
-    nr_inactive_anon 8185
-    nr_active_anon 130189
-    nr_inactive_file 149021
-    nr_active_file 153911
-    nr_unevictable 1
-    nr_mlock     1
-    nr_anon_pages 137756
-    nr_mapped    17376
-    nr_file_pages 303551
-    nr_dirty     51
-    nr_writeback 0
-    nr_slab_reclaimable 26394
-    nr_slab_unreclaimable 4719
-    nr_page_table_pages 2316
-    nr_kernel_stack 248
-    nr_unstable  0
-    nr_bounce    0
-    nr_vmscan_write 346710
-    nr_writeback_temp 0
-    nr_isolated_anon 0
-    nr_isolated_file 0
-    nr_shmem     619
-    nr_dirtied   25820454
-    nr_written   17165935
+Which following putback_lru_page()?  You mean
+putback_lru_page(newpage)? That is for the newly allocated page
+(allocated at the very top, so always needed), it's not relevant to
+the page_count(page) = 1. The page_count 1 is hold by the caller, so
+it's leaking memory right now (for everything but compaction).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
