@@ -1,54 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 64A828D003A
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 07:41:13 -0500 (EST)
-Date: Thu, 20 Jan 2011 07:40:43 -0500
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 45E978D003A
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 07:48:07 -0500 (EST)
+Date: Thu, 20 Jan 2011 07:47:30 -0500
 From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] mm: prevent concurrent unmap_mapping_range() on the same
- inode
-Message-ID: <20110120124043.GA4347@infradead.org>
-References: <E1PftfG-0007w1-Ek@pomaz-ex.szeredi.hu>
+Subject: Re: [PATCH 0/8] zcache: page cache compression support
+Message-ID: <20110120124730.GA7284@infradead.org>
+References: <1279283870-18549-1-git-send-email-ngupta@vflare.org20110110131626.GA18407@shutemov.name>
+ <9e7aa896-ed1f-4d50-8227-3a922be39949@default>
+ <4D382B99.7070005@vflare.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <E1PftfG-0007w1-Ek@pomaz-ex.szeredi.hu>
+In-Reply-To: <4D382B99.7070005@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: akpm@linux-foundation.org, hughd@google.com, gurudas.pai@oracle.com, lkml20101129@newton.leun.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Christoph Hellwig <hch@infradead.org>, Minchan Kim <minchan.kim@gmail.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 20, 2011 at 01:30:58PM +0100, Miklos Szeredi wrote:
-> From: Miklos Szeredi <mszeredi@suse.cz>
+On Thu, Jan 20, 2011 at 07:33:29AM -0500, Nitin Gupta wrote:
+> I just started looking into kztmem (weird name!) but on
+> the high level it seems so much similar to zcache with some
+> dynamic resizing added (callback for shrinker interface).
 > 
-> Running a fuse filesystem with multiple open()'s in parallel can
-> trigger a "kernel BUG at mm/truncate.c:475"
-> 
-> The reason is, unmap_mapping_range() is not prepared for more than
-> one concurrent invocation per inode.  For example:
-> 
->   thread1: going through a big range, stops in the middle of a vma and
->      stores the restart address in vm_truncate_count.
-> 
->   thread2: comes in with a small (e.g. single page) unmap request on
->      the same vma, somewhere before restart_address, finds that the
->      vma was already unmapped up to the restart address and happily
->      returns without doing anything.
-> 
-> Another scenario would be two big unmap requests, both having to
-> restart the unmapping and each one setting vm_truncate_count to its
-> own value.  This could go on forever without any of them being able to
-> finish.
-> 
-> Truncate and hole punching already serialize with i_mutex.  Other
-> callers of unmap_mapping_range() do not, and it's difficult to get
-> i_mutex protection for all callers.  In particular ->d_revalidate(),
-> which calls invalidate_inode_pages2_range() in fuse, may be called
-> with or without i_mutex.
+> Now, I'll try rebuilding zcache according to new cleancache
+> API as provided by these set of patches. This will help refresh
+> whatever issues I was having back then with pagecache
+> compression and maybe pick useful bits/directions from
+> new kztmem work.
 
+Yes, we shouldn't have two drivers doing almost the same in the
+tree.  Also adding core hooks for staging drivers really is against
+the idea of staging of having a separate crap tree.  So it would be
+good to get zcache into a state where we can merge it into the
+proper tree first.  And then we can discuss if adding an abstraction
+layer between it and the core VM really makes sense, and if it does
+how.   But I'm pretty sure there's now need for multiple layers of
+abstraction for something that's relatively core VM functionality.
 
-Which I think is mostly a fuse problem.  I really hate bloating the
-generic inode (into which the address_space is embedded) with another
-mutex for deficits in rather special case filesystems. 
+E.g. the abstraction should involve because of it's users, not the
+compressed caching code should involve because it's needed to present
+a user for otherwise useless code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
