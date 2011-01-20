@@ -1,64 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C783F8D003A
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 09:14:45 -0500 (EST)
-In-reply-to: <20110120124043.GA4347@infradead.org> (message from Christoph
-	Hellwig on Thu, 20 Jan 2011 07:40:43 -0500)
-Subject: Re: [PATCH] mm: prevent concurrent unmap_mapping_range() on the same
- inode
-References: <E1PftfG-0007w1-Ek@pomaz-ex.szeredi.hu> <20110120124043.GA4347@infradead.org>
-Message-Id: <E1PfvGx-00086O-IA@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 20 Jan 2011 15:13:59 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A004E8D003A
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 09:28:57 -0500 (EST)
+Received: by yxl31 with SMTP id 31so197140yxl.14
+        for <linux-mm@kvack.org>; Thu, 20 Jan 2011 06:28:55 -0800 (PST)
+Date: Thu, 20 Jan 2011 23:28:44 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH] ARM: mm: Regarding section when dealing with meminfo
+Message-ID: <20110120142844.GA28358@barrios-desktop>
+References: <1295516739-9839-1-git-send-email-pullip.cho@samsung.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1295516739-9839-1-git-send-email-pullip.cho@samsung.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: miklos@szeredi.hu, akpm@linux-foundation.org, hughd@google.com, gurudas.pai@oracle.com, lkml20101129@newton.leun.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KyongHo Cho <pullip.cho@samsung.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-samsung-soc@vger.kernel.org, Kukjin Kim <kgene.kim@samsung.com>, Ilho Lee <ilho215.lee@samsung.com>, KeyYoung Park <keyyoung.park@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Jan 2011, Christoph Hellwig wrote:
-> On Thu, Jan 20, 2011 at 01:30:58PM +0100, Miklos Szeredi wrote:
-> > From: Miklos Szeredi <mszeredi@suse.cz>
-> > 
-> > Running a fuse filesystem with multiple open()'s in parallel can
-> > trigger a "kernel BUG at mm/truncate.c:475"
-> > 
-> > The reason is, unmap_mapping_range() is not prepared for more than
-> > one concurrent invocation per inode.  For example:
-> > 
-> >   thread1: going through a big range, stops in the middle of a vma and
-> >      stores the restart address in vm_truncate_count.
-> > 
-> >   thread2: comes in with a small (e.g. single page) unmap request on
-> >      the same vma, somewhere before restart_address, finds that the
-> >      vma was already unmapped up to the restart address and happily
-> >      returns without doing anything.
-> > 
-> > Another scenario would be two big unmap requests, both having to
-> > restart the unmapping and each one setting vm_truncate_count to its
-> > own value.  This could go on forever without any of them being able to
-> > finish.
-> > 
-> > Truncate and hole punching already serialize with i_mutex.  Other
-> > callers of unmap_mapping_range() do not, and it's difficult to get
-> > i_mutex protection for all callers.  In particular ->d_revalidate(),
-> > which calls invalidate_inode_pages2_range() in fuse, may be called
-> > with or without i_mutex.
+On Thu, Jan 20, 2011 at 06:45:39PM +0900, KyongHo Cho wrote:
+> Sparsemem allows that a bank of memory spans over several adjacent
+> sections if the start address and the end address of the bank
+> belong to different sections.
+> When gathering statictics of physical memory in mem_init() and
+> show_mem(), this possiblity was not considered.
+
+Please write down the result if we doesn't consider this patch.
+I can understand what happens but for making good description and review,
+merging easily, it would be better to write down the result without 
+the patch explicitly.
+
 > 
+> This patch guarantees that simple increasing the pointer to page
+> descriptors does not exceed the boundary of a section.
 > 
-> Which I think is mostly a fuse problem.  I really hate bloating the
-> generic inode (into which the address_space is embedded) with another
-> mutex for deficits in rather special case filesystems. 
+> Signed-off-by: KyongHo Cho <pullip.cho@samsung.com>
+> ---
+>  arch/arm/mm/init.c |   74 +++++++++++++++++++++++++++++++++++----------------
+>  1 files changed, 51 insertions(+), 23 deletions(-)
+> 
+> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+> index 57c4c5c..6ccecbe 100644
+> --- a/arch/arm/mm/init.c
+> +++ b/arch/arm/mm/init.c
+> @@ -93,24 +93,38 @@ void show_mem(void)
+>  
+>  		pfn1 = bank_pfn_start(bank);
+>  		pfn2 = bank_pfn_end(bank);
+> -
+> +#ifndef CONFIG_SPARSEMEM
+>  		page = pfn_to_page(pfn1);
+>  		end  = pfn_to_page(pfn2 - 1) + 1;
+> -
+> +#else
+> +		pfn2--;
+>  		do {
+> -			total++;
+> -			if (PageReserved(page))
+> -				reserved++;
+> -			else if (PageSwapCache(page))
+> -				cached++;
+> -			else if (PageSlab(page))
+> -				slab++;
+> -			else if (!page_count(page))
+> -				free++;
+> -			else
+> -				shared += page_count(page) - 1;
+> -			page++;
+> -		} while (page < end);
+> +			page = pfn_to_page(pfn1);
+> +			if (pfn_to_section_nr(pfn1) < pfn_to_section_nr(pfn2)) {
+> +				pfn1 += PAGES_PER_SECTION;
+> +				pfn1 &= PAGE_SECTION_MASK;
+> +			} else {
+> +				pfn1 = pfn2;
+> +			}
+> +			end = pfn_to_page(pfn1) + 1;
+> +#endif
+> +			do {
+> +				total++;
+> +				if (PageReserved(page))
+> +					reserved++;
+> +				else if (PageSwapCache(page))
+> +					cached++;
+> +				else if (PageSlab(page))
+> +					slab++;
+> +				else if (!page_count(page))
+> +					free++;
+> +				else
+> +					shared += page_count(page) - 1;
+> +				page++;
+> +			} while (page < end);
+> +#ifdef CONFIG_SPARSEMEM
+> +		} while (pfn1 < pfn2);
+> +#endif
+>  	}
+>  
+>  	printk("%d pages of RAM\n", total);
+> @@ -470,17 +484,31 @@ void __init mem_init(void)
+>  
+>  		pfn1 = bank_pfn_start(bank);
+>  		pfn2 = bank_pfn_end(bank);
+> -
+> +#ifndef CONFIG_SPARSEMEM
+>  		page = pfn_to_page(pfn1);
+>  		end  = pfn_to_page(pfn2 - 1) + 1;
+> -
+> +#else
+> +		pfn2--;
+>  		do {
+> -			if (PageReserved(page))
+> -				reserved_pages++;
+> -			else if (!page_count(page))
+> -				free_pages++;
+> -			page++;
+> -		} while (page < end);
+> +			page = pfn_to_page(pfn1);
+> +			if (pfn_to_section_nr(pfn1) < pfn_to_section_nr(pfn2)) {
+> +				pfn1 += PAGES_PER_SECTION;
+> +				pfn1 &= PAGE_SECTION_MASK;
+> +			} else {
+> +				pfn1 = pfn2;
+> +			}
+> +			end = pfn_to_page(pfn1) + 1;
+> +#endif
+> +			do {
+> +				if (PageReserved(page))
+> +					reserved_pages++;
+> +				else if (!page_count(page))
+> +					free_pages++;
+> +				page++;
+> +			} while (page < end);
+> +#ifdef CONFIG_SPARSEMEM
+> +		} while (pfn1 < pfn2);
+> +#endif
+>  	}
 
-As Hugh pointed out unmap_mapping_range() has grown a varied set of
-callers, which are difficult to fix up wrt i_mutex.  Fuse was just an
-example.
+Hmm.. new ifndef magic makes code readability bad.
+Couldn't we do it by simple pfn iterator not page and pfn_valid check?
 
-I don't like the bloat either, but this is the best I could come up
-with for fixing this problem generally.  If you have a better idea,
-please share it.
+>  
+>  	/*
+> -- 
+> 1.6.2.5
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Thanks,
-Miklos
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
