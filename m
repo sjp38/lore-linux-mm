@@ -1,48 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1F50A8D003A
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 12:37:19 -0500 (EST)
-Date: Thu, 20 Jan 2011 11:30:35 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/3] When migrate_pages returns 0, all pages must have
- been released
-In-Reply-To: <f60d811fd1abcb68d40ac19af35881d700a97cd2.1295539829.git.minchan.kim@gmail.com>
-Message-ID: <alpine.DEB.2.00.1101201130100.10695@router.home>
-References: <f60d811fd1abcb68d40ac19af35881d700a97cd2.1295539829.git.minchan.kim@gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 750938D003A
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 12:43:42 -0500 (EST)
+Received: by iyj17 with SMTP id 17so819837iyj.14
+        for <linux-mm@kvack.org>; Thu, 20 Jan 2011 09:43:22 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <AANLkTinXAiShaf1f69ufVHg7KPaY5j=jmOTtK71GNNp5@mail.gmail.com>
+References: <1295516739-9839-1-git-send-email-pullip.cho@samsung.com>
+	<20110120142844.GA28358@barrios-desktop>
+	<AANLkTinXAiShaf1f69ufVHg7KPaY5j=jmOTtK71GNNp5@mail.gmail.com>
+Date: Fri, 21 Jan 2011 02:43:22 +0900
+Message-ID: <AANLkTikBbknwsLvN-b4HVqL_gAUHC-4VjQ=WQ=h_kLhW@mail.gmail.com>
+Subject: Re: [PATCH] ARM: mm: Regarding section when dealing with meminfo
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>
+To: KyongHo Cho <pullip.linux@gmail.com>, inux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-samsung-soc@vger.kernel.org, Kukjin Kim <kgene.kim@samsung.com>, Ilho Lee <ilho215.lee@samsung.com>, KeyYoung Park <keyyoung.park@samsung.com>, KyongHo Cho <pullip.cho@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Jan 2011, Minchan Kim wrote:
+Restore Cced.
 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 46fe8cc..7d34237 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -772,6 +772,7 @@ uncharge:
->  unlock:
->  	unlock_page(page);
+On Fri, Jan 21, 2011 at 2:24 AM, KyongHo Cho <pullip.linux@gmail.com> wrote:
+> On Thu, Jan 20, 2011 at 11:28 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
+>> On Thu, Jan 20, 2011 at 06:45:39PM +0900, KyongHo Cho wrote:
+>>> Sparsemem allows that a bank of memory spans over several adjacent
+>>> sections if the start address and the end address of the bank
+>>> belong to different sections.
+>>> When gathering statictics of physical memory in mem_init() and
+>>> show_mem(), this possiblity was not considered.
+>>
+>> Please write down the result if we doesn't consider this patch.
+>> I can understand what happens but for making good description and review,
+>> merging easily, it would be better to write down the result without
+>> the patch explicitly.
+>>
+> As we know that each section has its own memmap and
+> a contiguous chunk of physical memory that is represented by 'bank' in meminfo
+> can be larger than the size of a section.
+> "page++" in the current implementation can access invalid memory area.
+> The size of the section is 256 MiB in ARM and the number of banks in
+> meminfo is 8.
+> This means that the maximum size of the physical memory cannot be grow than 2GiB
+> to avoid this problem in the current implementation.
+> Thus we need to fix the calculation of the last page descriptor in
+> terms of sections.
 >
-> +move_newpage:
->  	if (rc != -EAGAIN) {
->   		/*
->   		 * A page that has been migrated has all references
-> @@ -785,8 +786,6 @@ unlock:
->  		putback_lru_page(page);
->  	}
+> This patch determines the last page descriptor in a memmap with
+> min(last_pfn_of_bank, last_pfn_of_current_section)
+> If there remains physical memory not consumed, it calculates the last
+> page descriptor
+> with min(last_pfn_of_bank, last_pfn_of_next_section).
 >
-> -move_newpage:
-> -
->  	/*
->  	 * Move the new page to the LRU. If migration was not successful
->  	 * then this will free the page.
+>>
+>> Hmm.. new ifndef magic makes code readability bad.
+>> Couldn't we do it by simple pfn iterator not page and pfn_valid check?
+>>
+> True.
+> We need to consider the implementation again.
+> I think the previous implementation gave the importance to the
+> efficiency but to the readability.
 >
 
-What does this do? Not covered by the description.
+Please consider readability and consistency with other architectures
+if we can do. :)
+Thanks.
 
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
