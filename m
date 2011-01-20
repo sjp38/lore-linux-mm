@@ -1,70 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 12DAB8D003A
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 08:57:49 -0500 (EST)
-Received: by qyk10 with SMTP id 10so603273qyk.14
-        for <linux-mm@kvack.org>; Thu, 20 Jan 2011 05:57:48 -0800 (PST)
-Message-ID: <4D383F6C.1070308@vflare.org>
-Date: Thu, 20 Jan 2011 08:58:04 -0500
-From: Nitin Gupta <ngupta@vflare.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/8] zcache: page cache compression support
-References: <9e7aa896-ed1f-4d50-8227-3a922be39949@default>	<4D382B99.7070005@vflare.org>	<20110120124730.GA7284@infradead.org> <AANLkTim4t4zT5W0TJ7Vwzb568u1W6vz3b_cZirfK0Uhs@mail.gmail.com>
-In-Reply-To: <AANLkTim4t4zT5W0TJ7Vwzb568u1W6vz3b_cZirfK0Uhs@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C783F8D003A
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 09:14:45 -0500 (EST)
+In-reply-to: <20110120124043.GA4347@infradead.org> (message from Christoph
+	Hellwig on Thu, 20 Jan 2011 07:40:43 -0500)
+Subject: Re: [PATCH] mm: prevent concurrent unmap_mapping_range() on the same
+ inode
+References: <E1PftfG-0007w1-Ek@pomaz-ex.szeredi.hu> <20110120124043.GA4347@infradead.org>
+Message-Id: <E1PfvGx-00086O-IA@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Thu, 20 Jan 2011 15:13:59 +0100
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: miklos@szeredi.hu, akpm@linux-foundation.org, hughd@google.com, gurudas.pai@oracle.com, lkml20101129@newton.leun.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 01/20/2011 08:16 AM, Pekka Enberg wrote:
-> Hi Christoph,
->
-> On Thu, Jan 20, 2011 at 07:33:29AM -0500, Nitin Gupta wrote:
->>> I just started looking into kztmem (weird name!) but on
->>> the high level it seems so much similar to zcache with some
->>> dynamic resizing added (callback for shrinker interface).
->>>
->>> Now, I'll try rebuilding zcache according to new cleancache
->>> API as provided by these set of patches. This will help refresh
->>> whatever issues I was having back then with pagecache
->>> compression and maybe pick useful bits/directions from
->>> new kztmem work.
-> On Thu, Jan 20, 2011 at 2:47 PM, Christoph Hellwig<hch@infradead.org>  wrote:
->> Yes, we shouldn't have two drivers doing almost the same in the
->> tree.  Also adding core hooks for staging drivers really is against
->> the idea of staging of having a separate crap tree.  So it would be
->> good to get zcache into a state where we can merge it into the
->> proper tree first.  And then we can discuss if adding an abstraction
->> layer between it and the core VM really makes sense, and if it does
->> how.   But I'm pretty sure there's now need for multiple layers of
->> abstraction for something that's relatively core VM functionality.
->>
->> E.g. the abstraction should involve because of it's users, not the
->> compressed caching code should involve because it's needed to present
->> a user for otherwise useless code.
-> I'm not sure which hooks you're referring to but for zcache we did this:
->
-> http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=b3a27d0529c6e5206f1b60f60263e3ecfd0d77cb
->
-> I completely agree with getting zcache merged properly before going
-> for the cleancache stuff.
->
+On Thu, 20 Jan 2011, Christoph Hellwig wrote:
+> On Thu, Jan 20, 2011 at 01:30:58PM +0100, Miklos Szeredi wrote:
+> > From: Miklos Szeredi <mszeredi@suse.cz>
+> > 
+> > Running a fuse filesystem with multiple open()'s in parallel can
+> > trigger a "kernel BUG at mm/truncate.c:475"
+> > 
+> > The reason is, unmap_mapping_range() is not prepared for more than
+> > one concurrent invocation per inode.  For example:
+> > 
+> >   thread1: going through a big range, stops in the middle of a vma and
+> >      stores the restart address in vm_truncate_count.
+> > 
+> >   thread2: comes in with a small (e.g. single page) unmap request on
+> >      the same vma, somewhere before restart_address, finds that the
+> >      vma was already unmapped up to the restart address and happily
+> >      returns without doing anything.
+> > 
+> > Another scenario would be two big unmap requests, both having to
+> > restart the unmapping and each one setting vm_truncate_count to its
+> > own value.  This could go on forever without any of them being able to
+> > finish.
+> > 
+> > Truncate and hole punching already serialize with i_mutex.  Other
+> > callers of unmap_mapping_range() do not, and it's difficult to get
+> > i_mutex protection for all callers.  In particular ->d_revalidate(),
+> > which calls invalidate_inode_pages2_range() in fuse, may be called
+> > with or without i_mutex.
+> 
+> 
+> Which I think is mostly a fuse problem.  I really hate bloating the
+> generic inode (into which the address_space is embedded) with another
+> mutex for deficits in rather special case filesystems. 
 
-These hooks are for zram (generic, in-memory compressed block devices)
-which can also be used as swap disks. Without that swap notify hook, we
-could not free [compressed] swap pages as soon as they are marked free.
+As Hugh pointed out unmap_mapping_range() has grown a varied set of
+callers, which are difficult to fix up wrt i_mutex.  Fuse was just an
+example.
 
-For zcache (which does pagecache compression), we need separate set
-of hooks, currently known as "cleancache" [1]. These hooks are very
-minimal but not sure if they are accepted yet (they are present in
-linux-next tree only, see: mm/cleancache.c, include/linux/cleancache.h
+I don't like the bloat either, but this is the best I could come up
+with for fixing this problem generally.  If you have a better idea,
+please share it.
 
-[1] cleancache: http://lwn.net/Articles/393013/
-
-Nitin
-
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
