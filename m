@@ -1,91 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E31F98D003A
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 08:41:17 -0500 (EST)
-Date: Thu, 20 Jan 2011 14:41:08 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 4/4] memcg: fix rmdir, force_empty with THP
-Message-ID: <20110120134108.GO2232@cmpxchg.org>
-References: <20110118113528.fd24928f.kamezawa.hiroyu@jp.fujitsu.com>
- <20110118114348.9e1dba9b.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 12DAB8D003A
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 08:57:49 -0500 (EST)
+Received: by qyk10 with SMTP id 10so603273qyk.14
+        for <linux-mm@kvack.org>; Thu, 20 Jan 2011 05:57:48 -0800 (PST)
+Message-ID: <4D383F6C.1070308@vflare.org>
+Date: Thu, 20 Jan 2011 08:58:04 -0500
+From: Nitin Gupta <ngupta@vflare.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110118114348.9e1dba9b.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/8] zcache: page cache compression support
+References: <9e7aa896-ed1f-4d50-8227-3a922be39949@default>	<4D382B99.7070005@vflare.org>	<20110120124730.GA7284@infradead.org> <AANLkTim4t4zT5W0TJ7Vwzb568u1W6vz3b_cZirfK0Uhs@mail.gmail.com>
+In-Reply-To: <AANLkTim4t4zT5W0TJ7Vwzb568u1W6vz3b_cZirfK0Uhs@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 18, 2011 at 11:43:48AM +0900, KAMEZAWA Hiroyuki wrote:
-> 
-> Now, when THP is enabled, memcg's rmdir() function is broken
-> because move_account() for THP page is not supported.
-> 
-> This will cause account leak or -EBUSY issue at rmdir().
-> This patch fixes the issue by supporting move_account() THP pages.
-> 
-> Changelog:
->  - style fix.
->  - add compound_lock for avoiding races.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   37 ++++++++++++++++++++++++++-----------
->  1 file changed, 26 insertions(+), 11 deletions(-)
-> 
-> Index: mmotm-0107/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-0107.orig/mm/memcontrol.c
-> +++ mmotm-0107/mm/memcontrol.c
+On 01/20/2011 08:16 AM, Pekka Enberg wrote:
+> Hi Christoph,
+>
+> On Thu, Jan 20, 2011 at 07:33:29AM -0500, Nitin Gupta wrote:
+>>> I just started looking into kztmem (weird name!) but on
+>>> the high level it seems so much similar to zcache with some
+>>> dynamic resizing added (callback for shrinker interface).
+>>>
+>>> Now, I'll try rebuilding zcache according to new cleancache
+>>> API as provided by these set of patches. This will help refresh
+>>> whatever issues I was having back then with pagecache
+>>> compression and maybe pick useful bits/directions from
+>>> new kztmem work.
+> On Thu, Jan 20, 2011 at 2:47 PM, Christoph Hellwig<hch@infradead.org>  wrote:
+>> Yes, we shouldn't have two drivers doing almost the same in the
+>> tree.  Also adding core hooks for staging drivers really is against
+>> the idea of staging of having a separate crap tree.  So it would be
+>> good to get zcache into a state where we can merge it into the
+>> proper tree first.  And then we can discuss if adding an abstraction
+>> layer between it and the core VM really makes sense, and if it does
+>> how.   But I'm pretty sure there's now need for multiple layers of
+>> abstraction for something that's relatively core VM functionality.
+>>
+>> E.g. the abstraction should involve because of it's users, not the
+>> compressed caching code should involve because it's needed to present
+>> a user for otherwise useless code.
+> I'm not sure which hooks you're referring to but for zcache we did this:
+>
+> http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=b3a27d0529c6e5206f1b60f60263e3ecfd0d77cb
+>
+> I completely agree with getting zcache merged properly before going
+> for the cleancache stuff.
+>
 
-> @@ -2267,6 +2274,8 @@ static int mem_cgroup_move_parent(struct
->  	struct cgroup *cg = child->css.cgroup;
->  	struct cgroup *pcg = cg->parent;
->  	struct mem_cgroup *parent;
-> +	int charge = PAGE_SIZE;
+These hooks are for zram (generic, in-memory compressed block devices)
+which can also be used as swap disks. Without that swap notify hook, we
+could not free [compressed] swap pages as soon as they are marked free.
 
-No need to initialize, you assign it unconditionally below.
+For zcache (which does pagecache compression), we need separate set
+of hooks, currently known as "cleancache" [1]. These hooks are very
+minimal but not sure if they are accepted yet (they are present in
+linux-next tree only, see: mm/cleancache.c, include/linux/cleancache.h
 
-It's also a bit unfortunate that the parameter/variable with this
-meaning appears under a whole bunch of different names.  page_size,
-charge_size, and now charge.  Could you stick with page_size?
+[1] cleancache: http://lwn.net/Articles/393013/
 
-> @@ -2278,17 +2287,23 @@ static int mem_cgroup_move_parent(struct
->  		goto out;
->  	if (isolate_lru_page(page))
->  		goto put;
-> +	/* The page is isolated from LRU and we have no race with splitting */
-> +	charge = PAGE_SIZE << compound_order(page);
+Nitin
 
-Why is LRU isolation preventing the splitting?
-
-I think we need the compound lock to get a stable read, like
-compound_trans_order() does.
-
-	Hannes
-
->  	parent = mem_cgroup_from_cont(pcg);
-> -	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false,
-> -				      PAGE_SIZE);
-> +	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, charge);
->  	if (ret || !parent)
->  		goto put_back;
->  
-> -	ret = mem_cgroup_move_account(pc, child, parent, true);
-> +	if (charge > PAGE_SIZE)
-> +		flags = compound_lock_irqsave(page);
-> +
-> +	ret = mem_cgroup_move_account(pc, child, parent, true, charge);
->  	if (ret)
-> -		mem_cgroup_cancel_charge(parent, PAGE_SIZE);
-> +		mem_cgroup_cancel_charge(parent, charge);
->  put_back:
-> +	if (charge > PAGE_SIZE)
-> +		compound_unlock_irqrestore(page, flags);
->  	putback_lru_page(page);
->  put:
->  	put_page(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
