@@ -1,81 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BAECA6B00E7
-	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 15:13:10 -0500 (EST)
-Date: Thu, 20 Jan 2011 15:13:06 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: 2.6.38-rc1 problems with khugepaged
-Message-ID: <20110120201306.GA2025@home.goodmis.org>
-References: <web-442414153@zbackend1.aha.ru>
- <20110119155954.GA2272@kryptos.osrc.amd.com>
- <20110119222150.GP9506@random.random>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1FCBC8D0069
+	for <linux-mm@kvack.org>; Thu, 20 Jan 2011 15:57:14 -0500 (EST)
+Received: from sim by peace.netnation.com with local (Exim 4.69)
+	(envelope-from <sim@netnation.com>)
+	id 1Pg1Z8-000435-OA
+	for linux-mm@kvack.org; Thu, 20 Jan 2011 12:57:10 -0800
+Date: Thu, 20 Jan 2011 12:57:10 -0800
+From: Simon Kirby <sim@hostway.ca>
+Subject: File and anon pages versus total counts in zoneinfo
+Message-ID: <20110120205710.GC15647@hostway.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110119222150.GP9506@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Borislav Petkov <bp@amd64.org>, werner <w.landgraf@ru.ru>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 19, 2011 at 11:21:50PM +0100, Andrea Arcangeli wrote:
-> Hello Werner,
-> 
-> this should fix your oops, it's untested still so let me know if you
-> test it.
+Hi!
 
-I tested this with ktest.pl on the config that was breaking for me. I
-ran the test 20 times and it succeeded for all 20 tests.
+I was trying to write a multigraph munin plugin to graph /proc/zoneinfo,
+somewhere between the buddyinfo and memory plugins, to help get to the
+bottom of the huge order-0 fragmentation that seems to be only happening
+in the DMA32 zone on our servers (since at least 2.6.26).  I figured it
+would make a nice stacked graph similar to the memory graph, where
+everything could add up to the size of the zone (or total to the whole
+system memory), but I'm having trouble finding out which page states can
+overlap.
 
-Tested-by: Steven Rostedt <rostedt@goodmis.org>
+It seems that nr_inactive_anon and nr_active_anon never seem to add to
+nr_anon_pages, and same with nr_inactive_file and nr_active_file to
+nr_file_pages.  In the below random case from my desktop, it seems there
+are more active and inactive anon pages than the actual nr_anon_pages,
+so the error is happening both ways here.
 
--- Steve
+I tried to dig through the kernel to find the paths that relate to how
+file pages are allocated, but it seems like the LRU parts are separate
+and a little confusing to follow.  Is there anything useful I could
+follow here, or should I just give up and make it a regular line graph?
 
+This graph is just the stacked output of /proc/zoneinfo for DMA32 on a
+random server (in pages for now, not bytes).  It _almost_ looks like it
+would add up to the same number if I just dropped nr_anon_pages and
+nr_file_pages and made nr_dirty and nr_writeback lines instead of stacks,
+but _not quite_.  (I excluded nr_vmscan_write, nr_dirtied, nr_written as
+they seem to be counters.)
 
-> 
-> It's a noop for x86_64 and it only affected x86 32bit with highpte enabled.
-> 
-> ====
-> Subject: khugepaged: fix pte_unmap for highpte x86_32
-> 
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> 
-> __collapse_huge_page_copy is still dereferencing the pte passed as parameter so
-> we must pte_unmap after __collapse_huge_page_copy returns, not before.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 004c9c2..c4f634b 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1837,9 +1837,9 @@ static void collapse_huge_page(struct mm_struct *mm,
->  	spin_lock(ptl);
->  	isolated = __collapse_huge_page_isolate(vma, address, pte);
->  	spin_unlock(ptl);
-> -	pte_unmap(pte);
->  
->  	if (unlikely(!isolated)) {
-> +		pte_unmap(pte);
->  		spin_lock(&mm->page_table_lock);
->  		BUG_ON(!pmd_none(*pmd));
->  		set_pmd_at(mm, address, pmd, _pmd);
-> @@ -1856,6 +1856,7 @@ static void collapse_huge_page(struct mm_struct *mm,
->  	anon_vma_unlock(vma->anon_vma);
->  
->  	__collapse_huge_page_copy(pte, new_page, vma, address, ptl);
-> +	pte_unmap(pte);
->  	__SetPageUptodate(new_page);
->  	pgtable = pmd_pgtable(_pmd);
->  	VM_BUG_ON(page_count(pgtable) != 1);
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+Simon-
+
+Example from my desktop that doesn't add up for file or anon pages:
+
+Node 0, zone    DMA32
+  pages free     26961
+        min      1426
+        low      1782
+        high     2139
+        scanned  0
+        spanned  520128
+        present  513016
+    nr_free_pages 26961
+    nr_inactive_anon 8185
+    nr_active_anon 130189
+    nr_inactive_file 149021
+    nr_active_file 153911
+    nr_unevictable 1
+    nr_mlock     1
+    nr_anon_pages 137756
+    nr_mapped    17376
+    nr_file_pages 303551
+    nr_dirty     51
+    nr_writeback 0
+    nr_slab_reclaimable 26394
+    nr_slab_unreclaimable 4719
+    nr_page_table_pages 2316
+    nr_kernel_stack 248
+    nr_unstable  0
+    nr_bounce    0
+    nr_vmscan_write 346710
+    nr_writeback_temp 0
+    nr_isolated_anon 0
+    nr_isolated_file 0
+    nr_shmem     619
+    nr_dirtied   25820454
+    nr_written   17165935
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
