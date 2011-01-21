@@ -1,40 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3A5E78D0039
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 11:11:08 -0500 (EST)
-Date: Fri, 21 Jan 2011 10:11:03 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/3] When migrate_pages returns 0, all pages must have
- been released
-In-Reply-To: <20110120212841.GB9506@random.random>
-Message-ID: <alpine.DEB.2.00.1101211005150.14313@router.home>
-References: <f60d811fd1abcb68d40ac19af35881d700a97cd2.1295539829.git.minchan.kim@gmail.com> <alpine.DEB.2.00.1101201130100.10695@router.home> <20110120182444.GA9506@random.random> <alpine.DEB.2.00.1101201233001.20633@router.home>
- <20110120212841.GB9506@random.random>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 929818D0039
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 12:46:58 -0500 (EST)
+Date: Fri, 21 Jan 2011 18:44:42 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 00/21] mm: Preemptibility -v6
+Message-ID: <20110121174442.GI9506@random.random>
+References: <20101126143843.801484792@chello.nl>
+ <alpine.LSU.2.00.1101172301340.2899@sister.anvils>
+ <1295457039.28776.137.camel@laptop>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1295457039.28776.137.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@kernel.dk>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Jan 2011, Andrea Arcangeli wrote:
+On Wed, Jan 19, 2011 at 06:10:39PM +0100, Peter Zijlstra wrote:
+> > 19/21 mm-convert_i_mmap_lock_and_anon_vma-_lock_to_mutexes.patch
+> >       I suggest doing the anon_vma lock->mutex conversion separately here.
+> >       Acked-by: Hugh Dickins <hughd@google.com>
+> >       except that in the past we have renamed a lock when we've done this
+> >       kind of conversion, so I'd expect anon_vma->mutex throughout now.
+> >       Or am I just out of date?  I don't feel very strongly about it.
+> 
+> Done.. however:
+> 
+> Index: linux-2.6/include/linux/huge_mm.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/huge_mm.h
+> +++ linux-2.6/include/linux/huge_mm.h
+> @@ -91,12 +91,8 @@ extern void __split_huge_page_pmd(struct
+>  #define wait_split_huge_page(__anon_vma, __pmd)				\
+>  	do {								\
+>  		pmd_t *____pmd = (__pmd);				\
+> -		spin_unlock_wait(&(__anon_vma)->root->lock);		\
+> -		/*							\
+> -		 * spin_unlock_wait() is just a loop in C and so the	\
+> -		 * CPU can reorder anything around it.			\
+> -		 */							\
+> -		smp_mb();						\
+> +		anon_vma_lock(__anon_vma);				\
+> +		anon_vma_unlock(__anon_vma);				\
+>  		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
+>  		       pmd_trans_huge(*____pmd));			\
+>  	} while (0)
+> 
+> Andrea, is that smp_mb() simply to avoid us doing anything before the
+> lock is free? Why isn't there an mb() before to ensure nothing leaks
+> past it from the other end?
 
-> Which following putback_lru_page()?  You mean
-> putback_lru_page(newpage)? That is for the newly allocated page
-> (allocated at the very top, so always needed), it's not relevant to
-> the page_count(page) = 1. The page_count 1 is hold by the caller, so
-> it's leaking memory right now (for everything but compaction).
+The idea would be that by the time we read the pmd set to
+pmd_trans_splitting with the page_table_lock hold, we're guaranteed
+we'll see the anon-vma locked (if it's still locked). So it's ok if
+spin_unlock_wait happens before reading the pmd_trans_splitting check
+inside the CPU (all it matters is for it not to happen before the
+spin_lock(&page_table_lock) which it can't by the acquire semantics of
+the spinlock).
 
-Ahh yes we removed the putback_lru_pages call from migrate_pages()
-and broke the existing release logic. The caller has to call
-putback_release_pages() as per commit
-cf608ac19c95804dc2df43b1f4f9e068aa9034ab
+So in short we know we start with the anon_vma locked, and we just
+wait as long as needed.
 
-If that is still the case then we still have the double free.
-
-Could we please document the calling conventions exactly in the source?
-Right now it says that the caller should call putback_lru_pages().
-
+So we only need to protect to the stuff after spin_unlock_wait().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
