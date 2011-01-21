@@ -1,75 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6FB308D0039
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 10:55:24 -0500 (EST)
-Date: Fri, 21 Jan 2011 09:55:17 -0600 (CST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3A5E78D0039
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 11:11:08 -0500 (EST)
+Date: Fri, 21 Jan 2011 10:11:03 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [REPOST] [PATCH 3/3] Provide control over unmapped pages (v3)
-In-Reply-To: <20110121072315.GL2897@balbir.in.ibm.com>
-Message-ID: <alpine.DEB.2.00.1101210947270.13881@router.home>
-References: <20110120123039.30481.81151.stgit@localhost6.localdomain6> <20110120123649.30481.93286.stgit@localhost6.localdomain6> <alpine.DEB.2.00.1101200856310.10695@router.home> <20110121072315.GL2897@balbir.in.ibm.com>
+Subject: Re: [PATCH 1/3] When migrate_pages returns 0, all pages must have
+ been released
+In-Reply-To: <20110120212841.GB9506@random.random>
+Message-ID: <alpine.DEB.2.00.1101211005150.14313@router.home>
+References: <f60d811fd1abcb68d40ac19af35881d700a97cd2.1295539829.git.minchan.kim@gmail.com> <alpine.DEB.2.00.1101201130100.10695@router.home> <20110120182444.GA9506@random.random> <alpine.DEB.2.00.1101201233001.20633@router.home>
+ <20110120212841.GB9506@random.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Jan 2011, Balbir Singh wrote:
+On Thu, 20 Jan 2011, Andrea Arcangeli wrote:
 
-> * Christoph Lameter <cl@linux.com> [2011-01-20 09:00:09]:
->
-> > On Thu, 20 Jan 2011, Balbir Singh wrote:
-> >
-> > > +	unmapped_page_control
-> > > +			[KNL] Available if CONFIG_UNMAPPED_PAGECACHE_CONTROL
-> > > +			is enabled. It controls the amount of unmapped memory
-> > > +			that is present in the system. This boot option plus
-> > > +			vm.min_unmapped_ratio (sysctl) provide granular control
-> >
-> > min_unmapped_ratio is there to guarantee that zone reclaim does not
-> > reclaim all unmapped pages.
-> >
-> > What you want here is a max_unmapped_ratio.
-> >
->
-> I thought about that, the logic for reusing min_unmapped_ratio was to
-> keep a limit beyond which unmapped page cache shrinking should stop.
+> Which following putback_lru_page()?  You mean
+> putback_lru_page(newpage)? That is for the newly allocated page
+> (allocated at the very top, so always needed), it's not relevant to
+> the page_count(page) = 1. The page_count 1 is hold by the caller, so
+> it's leaking memory right now (for everything but compaction).
 
-Right. That is the role of it. Its a minimum to leave. You want a maximum
-size of the pagte cache.
+Ahh yes we removed the putback_lru_pages call from migrate_pages()
+and broke the existing release logic. The caller has to call
+putback_release_pages() as per commit
+cf608ac19c95804dc2df43b1f4f9e068aa9034ab
 
-> I think you are suggesting max_unmapped_ratio as the point at which
-> shrinking should begin, right?
+If that is still the case then we still have the double free.
 
-The role of min_unmapped_ratio is to never reclaim more pagecache if we
-reach that ratio even if we have to go off node for an allocation.
-
-AFAICT What you propose is a maximum size of the page cache. If the number
-of page cache pages goes beyond that then you trim the page cache in
-background reclaim.
-
-> > > +			reclaim_unmapped_pages(priority, zone, &sc);
-> > > +
-> > >  			if (!zone_watermark_ok_safe(zone, order,
-> >
-> > Hmmmm. Okay that means background reclaim does it. If so then we also want
-> > zone reclaim to be able to work in the background I think.
->
-> Anything specific you had in mind, works for me in testing, but is
-> there anything specific that stands out in your mind that needs to be
-> done?
-
-Hmmm. So this would also work in a NUMA configuration, right. Limiting the
-sizes of the page cache would avoid zone reclaim through these limit. Page
-cache size would be limited by the max_unmapped_ratio.
-
-zone_reclaim only would come into play if other allocations make the
-memory on the node so tight that we would have to evict more page
-cache pages in direct reclaim.
-Then zone_reclaim could go down to shrink the page cache size to
-min_unmapped_ratio.
-
+Could we please document the calling conventions exactly in the source?
+Right now it says that the caller should call putback_lru_pages().
 
 
 --
