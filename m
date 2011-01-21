@@ -1,91 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 445A38D0069
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 01:33:25 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 7/7] HWPOISON, hugetlb: fix hard offline for hugepage backed KVM guest
-Date: Fri, 21 Jan 2011 15:29:00 +0900
-Message-Id: <1295591340-1862-8-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1295591340-1862-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1295591340-1862-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 5B1CA8D0069
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 01:40:34 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id EA7403EE0AE
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:40:31 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D13F045DE59
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:40:31 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B6FF845DE55
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:40:31 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A8C11E18004
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:40:31 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 720FE1DB803B
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:40:31 +0900 (JST)
+Date: Fri, 21 Jan 2011 15:34:31 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/7] memcg : more fixes and clean up for 2.6.28-rc
+Message-Id: <20110121153431.191134dd.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <tatsu@ab.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Fernando Luis Vazquez Cao <fernando@oss.ntt.co.jp>, tony.luck@intel.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-When a qemu-kvm process touches HWPOISONed pages,
-we expect that a SIGBUS signal causes MCE on the guest OS.
-But currently it doesn't work on a hugepage backed KVM guest
-because is_hwpoison_address() can't detect the HWPOISON entry
-on PMD and the guest repeats page fault infinitely.
 
-This patch fixes it.
+This is a set of patches which I'm now testing, and it seems it passed
+small test. So I post this.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Huang Ying <ying.huang@intel.com>
----
- include/linux/swapops.h |   12 ++++++++++++
- mm/hugetlb.c            |    4 +++-
- mm/memory-failure.c     |    2 +-
- 3 files changed, 16 insertions(+), 2 deletions(-)
+Some are bug fixes and other are clean ups but I think these are for 2.6.38.
 
-diff --git v2.6.38-rc1/include/linux/swapops.h v2.6.38-rc1/include/linux/swapops.h
-index a220ef5..2c1a942 100644
---- v2.6.38-rc1/include/linux/swapops.h
-+++ v2.6.38-rc1/include/linux/swapops.h
-@@ -177,3 +177,15 @@ extern void migration_hugepage_entry_wait(struct mm_struct *mm, pmd_t *pmd,
- static inline void migration_hugepage_entry_wait(struct mm_struct *mm,
- 				 pmd_t *pmd, unsigned long address) { }
- #endif
-+
-+#if defined(CONFIG_MEMORY_FAILURE) && defined(CONFIG_HUGETLB_PAGE)
-+extern int is_hugetlb_entry_hwpoisoned(pte_t pte);
-+#else
-+static inline int is_hugetlb_entry_hwpoisoned(pte_t pte)
-+{
-+	return 0;
-+}
-+#endif
-+
-+
-+
-diff --git v2.6.38-rc1/mm/hugetlb.c v2.6.38-rc1/mm/hugetlb.c
-index b777c81..c65922e 100644
---- v2.6.38-rc1/mm/hugetlb.c
-+++ v2.6.38-rc1/mm/hugetlb.c
-@@ -2185,7 +2185,8 @@ static int is_hugetlb_entry_migration(pte_t pte)
- 		return 0;
- }
- 
--static int is_hugetlb_entry_hwpoisoned(pte_t pte)
-+#ifdef CONFIG_MEMORY_FAILURE
-+int is_hugetlb_entry_hwpoisoned(pte_t pte)
- {
- 	swp_entry_t swp;
- 
-@@ -2197,6 +2198,7 @@ static int is_hugetlb_entry_hwpoisoned(pte_t pte)
- 	} else
- 		return 0;
- }
-+#endif
- 
- void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
- 			    unsigned long end, struct page *ref_page)
-diff --git v2.6.38-rc1/mm/memory-failure.c v2.6.38-rc1/mm/memory-failure.c
-index eed1846..8ee5038 100644
---- v2.6.38-rc1/mm/memory-failure.c
-+++ v2.6.38-rc1/mm/memory-failure.c
-@@ -1461,7 +1461,7 @@ int is_hwpoison_address(unsigned long addr)
- 	pmdp = pmd_offset(pudp, addr);
- 	pmd = *pmdp;
- 	if (!pmd_present(pmd) || pmd_large(pmd))
--		return 0;
-+		return is_hugetlb_entry_hwpoisoned(*(pte_t *)pmdp);
- 	ptep = pte_offset_map(pmdp, addr);
- 	pte = *ptep;
- 	pte_unmap(ptep);
--- 
-1.7.3.4
+Brief decription
+
+[1/7] remove buggy comment and use better name for mem_cgroup_move_parent()
+      The fixes for mem_cgroup_move_parent() is already in mainline, this is
+      an add-on.
+
+[2/7] a bug fix for a new function mem_cgroup_split_huge_fixup(),
+      which was recently merged.
+
+[3/7] prepare for fixes in [4/7],[5/7]. This is an enhancement of function
+      which is used now.
+
+[4/7] fix mem_cgroup_charge() for THP. By this, memory cgroup's charge function
+      will handle THP request in sane way.
+
+[5/7] fix khugepaged scan condition for memcg.
+      This is a fix for hang of processes under small/buzy memory cgroup.
+
+[6/7] rename vairable names to be page_size, nr_pages, bytes rather than
+      ambiguous names.
+
+[7/7] some memcg function requires the caller to initialize variable
+      before call. It's ugly and fix it.
+
+
+I think patch 1,2,3,4,5 is urgent ones. But I think patch "5" needs some
+good review. But without "5", stress-test on small memory cgroup will not
+run succesfully.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
