@@ -1,81 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E54C88D0069
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 02:23:22 -0500 (EST)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp04.in.ibm.com (8.14.4/8.13.1) with ESMTP id p0L7NIKU026691
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 12:53:18 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0L7NIVl430208
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 12:53:18 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0L7NHTE002100
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 18:23:18 +1100
-Date: Fri, 21 Jan 2011 12:53:15 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [REPOST] [PATCH 3/3] Provide control over unmapped pages (v3)
-Message-ID: <20110121072315.GL2897@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20110120123039.30481.81151.stgit@localhost6.localdomain6>
- <20110120123649.30481.93286.stgit@localhost6.localdomain6>
- <alpine.DEB.2.00.1101200856310.10695@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1101200856310.10695@router.home>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CE1E8D0069
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 02:26:56 -0500 (EST)
+Date: Fri, 21 Jan 2011 16:16:07 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 1/7] memcg : comment, style fixes for recent patch of
+ move_parent
+Message-Id: <20110121161607.9b54e525.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20110121153726.54f4a159.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110121153431.191134dd.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110121153726.54f4a159.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-* Christoph Lameter <cl@linux.com> [2011-01-20 09:00:09]:
+On Fri, 21 Jan 2011 15:37:26 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> On Thu, 20 Jan 2011, Balbir Singh wrote:
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> > +	unmapped_page_control
-> > +			[KNL] Available if CONFIG_UNMAPPED_PAGECACHE_CONTROL
-> > +			is enabled. It controls the amount of unmapped memory
-> > +			that is present in the system. This boot option plus
-> > +			vm.min_unmapped_ratio (sysctl) provide granular control
+> A fix for 987eba66e0e6aa654d60881a14731a353ee0acb4
 > 
-> min_unmapped_ratio is there to guarantee that zone reclaim does not
-> reclaim all unmapped pages.
+> A clean up for mem_cgroup_move_parent(). 
+>  - remove unnecessary initialization of local variable.
+>  - rename charge_size -> page_size
+>  - remove unnecessary (wrong) comment.
 > 
-> What you want here is a max_unmapped_ratio.
->
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-I thought about that, the logic for reusing min_unmapped_ratio was to
-keep a limit beyond which unmapped page cache shrinking should stop.
-I think you are suggesting max_unmapped_ratio as the point at which
-shrinking should begin, right?
- 
-> 
-> >  {
-> > @@ -2297,6 +2320,12 @@ loop_again:
-> >  				shrink_active_list(SWAP_CLUSTER_MAX, zone,
-> >  							&sc, priority, 0);
-> >
-> > +			/*
-> > +			 * We do unmapped page reclaim once here and once
-> > +			 * below, so that we don't lose out
-> > +			 */
-> > +			reclaim_unmapped_pages(priority, zone, &sc);
-> > +
-> >  			if (!zone_watermark_ok_safe(zone, order,
-> 
-> Hmmmm. Okay that means background reclaim does it. If so then we also want
-> zone reclaim to be able to work in the background I think.
-
-Anything specific you had in mind, works for me in testing, but is
-there anything specific that stands out in your mind that needs to be
-done?
-
-Thanks for the review!
- 
-
--- 
-	Three Cheers,
-	Balbir
+Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
