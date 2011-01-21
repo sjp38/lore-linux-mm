@@ -1,70 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 45A508D0039
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 13:14:51 -0500 (EST)
-Date: Fri, 21 Jan 2011 19:14:42 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [BUG]thp: BUG at mm/huge_memory.c:1350
-Message-ID: <20110121181442.GK9506@random.random>
-References: <20110120154935.GA1760@barrios-desktop>
- <20110120161436.GB21494@random.random>
- <AANLkTikHNcD3aOWKJdPtCqdJi9C34iLPxj5-L8=gqBFc@mail.gmail.com>
- <20110121175843.GA1534@barrios-desktop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 936D18D0039
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 14:25:50 -0500 (EST)
+Message-ID: <4D39DDA6.1080604@oracle.com>
+Date: Fri, 21 Jan 2011 11:25:26 -0800
+From: Andy Grover <andy.grover@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110121175843.GA1534@barrios-desktop>
+Subject: Re: [RESEND PATCH] mm: Use spin_lock_irqsave in __set_page_dirty_nobuffers
+References: <1294726534-16438-1-git-send-email-andy.grover@oracle.com> <20110121001804.413b3f6d.akpm@linux-foundation.org>
+In-Reply-To: <20110121001804.413b3f6d.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, rds-devel@oss.oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jan 22, 2011 at 02:58:43AM +0900, Minchan Kim wrote:
-> I tested it again with some printk and I knew why it is out of memory.
-> 
-> do_page_fault(for write)
-> -> do_huge_pmd_anonymous_page
->         -> alloc_hugepage_vma
-> 
-> Above is repeated by almost 400 times. It means 2M * 400 = 800M usage in my 2G system.
-> Fragement can cause reclaim.
-> Interesting one is that above is repeated by same faulty address of same process as looping.
-> 
-> Apparently, do_huge_pmd_anonymous_page maps pmd to entry.
-> Nonetheless, page faults are repeated by same address.
-> It seems set_pmd_at is nop.
-> 
-> Do you have any idea?
+On 01/21/2011 12:18 AM, Andrew Morton wrote:
+> On Mon, 10 Jan 2011 22:15:34 -0800 Andy Grover<andy.grover@oracle.com>  wrote:
+>
+>> RDS is calling set_page_dirty from interrupt context,
+>
+> yikes.  Whatever possessed you to try that?
 
-Well clearly 32bit x86 wasn't well tested... Maybe we should
-temporarily disable the config option on x86 32bit.
+When doing an RDMA read into pinned pages, we get notified the operation 
+is complete in a tasklet, and would like to mark the pages dirty and 
+unpin in the same context.
 
-> Sometime Xorg, Sometime kswapd, Sometime plymouthd, Sometime fsck.
+The issue was __set_page_dirty_buffers (via calling set_page_dirty) was 
+unconditionally re-enabling irqs as a side-effect because it was using 
+*_irq instead of *_irqsave/restore.
 
-That's good. So the most likely explanation of that BUG_ON you hit, is
-the same bug that causes do_huge_pmd_anonymous_page to flood on the
-same address (clearly if CPU can't solve the TLB miss using the
-hugepmd, the rmap walk of split_huge_page will also fail to find the
-page in the hugepmd, so it makes perfect sense).
+How would you recommend we proceed? My understanding was calling 
+set_page_dirty prior to issuing the operation isn't an option since it 
+might get cleaned too early.
 
-That BUG_ON is by far my worst nightmare (that rmap walk of
-split_huge_page must be as accurate as the
-remove_migration_ptes/rmap_walk of migrate, it can't miss a hugepmd or
-it'll be trouble, just like remove_migration_ptes/rmap_walk can't miss
-a pte or it'll be trouble) and as far as common code is concerned I
-had zero outstanding problems with it for a long time already, so
-given your early debug info, I'm already optimistic and relieved that
-64bit is not affected by this and this isn't a generic common code
-issue and the most likely explanation is some silly arch specific bug
-that sets the pmd wrong and affects the page fault too (not just the
-rmap walk).
-
-I'll try to reproduce. Checking the pagetable layout of the process at
-the second page fault in the same address sounds good start to figure
-out what's wrong on x86_32.
-
-Thanks a lot for the help!
-Andrea
+Thanks -- Regards -- Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
