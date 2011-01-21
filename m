@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id CF57C8D0069
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 01:52:14 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 96DAF3EE0BC
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:52:12 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 79D2E45DE57
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:52:12 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5CF8445DE51
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:52:12 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C07CEF8003
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:52:12 +0900 (JST)
+	by kanga.kvack.org (Postfix) with SMTP id 0AD448D0069
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 01:55:41 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C7F893EE0AE
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:55:39 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A98F445DE59
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:55:39 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9108445DE55
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:55:39 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EB33E18002
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:55:39 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DAC31DB803B
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:52:12 +0900 (JST)
-Date: Fri, 21 Jan 2011 15:46:15 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F73E1DB8037
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:55:39 +0900 (JST)
+Date: Fri, 21 Jan 2011 15:49:43 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 5/7] memcg : fix khugepaged scan of process under buzy memcg
-Message-Id: <20110121154615.a433d843.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 6/7] memcg : use better variable name
+Message-Id: <20110121154943.d4e7a71a.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110121153431.191134dd.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110121153431.191134dd.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -31,159 +31,134 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+rename 'charge_size'at el. to be 'page_size'. Then,
 
-When using khugepaged with small memory cgroup, we see khugepaged
-causes soft lockup, or running process under memcg will hang
+  nr_pages = page_size >> PAGE_SHIFT
 
-It's because khugepaged tries to scan all pmd of a process
-which is under busy/small memory cgroup and tries to allocate
-HUGEPAGE size resource.
+seems natural.
 
-This work is done under mmap_sem and can cause memory reclaim
-repeatedly. This will easily raise cpu usage of khugepaged and latecy
-of scanned process will goes up. Moreover, it seems succesfully
-working TransHuge pages may be splitted by this memory reclaim
-caused by khugepaged.
+This patch renames
 
-This patch adds a hint for khugepaged whether a process is
-under a memory cgroup which has sufficient memory. If memcg
-seems busy, a process is skipped.
+ charge_size -> page_size
+ count -> nr_pages
 
-How to test:
-  # mount -o cgroup cgroup /cgroup/memory -o memory
-  # mkdir /cgroup/memory/A
-  # echo 200M (or some small) > /cgroup/memory/A/memory.limit_in_bytes
-  # echo 0 > /cgroup/memory/A/tasks
-  # make -j 8 kernel
+etc.
+
+
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/memcontrol.h |    7 +++++++
- mm/huge_memory.c           |   11 ++++++++++-
- mm/memcontrol.c            |   44 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 61 insertions(+), 1 deletion(-)
+ mm/memcontrol.c |   28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)
 
 Index: mmotm-0107/mm/memcontrol.c
 ===================================================================
 --- mmotm-0107.orig/mm/memcontrol.c
 +++ mmotm-0107/mm/memcontrol.c
-@@ -255,6 +255,9 @@ struct mem_cgroup {
- 	/* For oom notifier event fd */
- 	struct list_head oom_notify;
- 
-+	/* For transparent hugepage daemon */
-+	unsigned long long recent_failcnt;
-+
- 	/*
- 	 * Should we move charges of a task when a task is moved into this
- 	 * mem_cgroup ? And what type of charges should we move ?
-@@ -2190,6 +2193,47 @@ void mem_cgroup_split_huge_fixup(struct 
- 	tail_pc->flags = head_pc->flags & ~PCGF_NOCOPY_AT_SPLIT;
- 	move_unlock_page_cgroup(head_pc, &flags);
- }
-+
-+bool mem_cgroup_worth_try_hugepage_scan(struct mm_struct *mm)
-+{
-+	struct mem_cgroup *mem;
-+	bool ret = true;
-+	u64 recent_charge_fail;
-+
-+	if (mem_cgroup_disabled())
-+		return true;
-+
-+	mem = try_get_mem_cgroup_from_mm(mm);
-+
-+	if (!mem)
-+		return true;
-+
-+	if (mem_cgroup_is_root(mem))
-+		goto out;
-+
-+	if (mem_cgroup_check_under_limit(mem, HPAGE_SIZE))
-+		goto out;
-+	/*
-+	 * When memory cgroup is near to full, it's required to reclaim
-+	 * memory for collapsing. This requirement of 'extra charge' at
-+	 * splitting seems redundant but it's safe way for now.
-+	 *
-+	 * We return true when no one hit limits since we visit this mm before.
-+	 *
-+	 * TODO: This check is very naive. Some new good should be innovated.
-+	 */
-+	recent_charge_fail = res_counter_read_u64(&mem->res, RES_FAILCNT);
-+	if (mem->recent_failcnt
-+		&& recent_charge_fail > mem->recent_failcnt) {
-+		ret = false;
-+	}
-+	/* because this thread will fail charge by itself +1.*/
-+	mem->recent_failcnt = recent_charge_fail + 1;
-+out:
-+	css_put(&mem->css);
-+	return ret;
-+}
-+
- #endif
- 
- /**
-Index: mmotm-0107/mm/huge_memory.c
-===================================================================
---- mmotm-0107.orig/mm/huge_memory.c
-+++ mmotm-0107/mm/huge_memory.c
-@@ -2007,11 +2007,14 @@ static unsigned int khugepaged_scan_mm_s
- 	spin_unlock(&khugepaged_mm_lock);
- 
- 	mm = mm_slot->mm;
-+
- 	down_read(&mm->mmap_sem);
- 	if (unlikely(khugepaged_test_exit(mm)))
- 		vma = NULL;
--	else
-+	else if (mem_cgroup_worth_try_hugepage_scan(mm))
- 		vma = find_vma(mm, khugepaged_scan.address);
-+	else
-+		vma = NULL;
- 
- 	progress++;
- 	for (; vma; vma = vma->vm_next) {
-@@ -2023,6 +2026,12 @@ static unsigned int khugepaged_scan_mm_s
- 			break;
- 		}
- 
-+		if (unlikely(!mem_cgroup_worth_try_hugepage_scan(mm))) {
-+			progress++;
-+			vma = NULL; /* try next mm */
-+			break;
-+		}
-+
- 		if ((!(vma->vm_flags & VM_HUGEPAGE) &&
- 		     !khugepaged_always()) ||
- 		    (vma->vm_flags & VM_NOHUGEPAGE)) {
-Index: mmotm-0107/include/linux/memcontrol.h
-===================================================================
---- mmotm-0107.orig/include/linux/memcontrol.h
-+++ mmotm-0107/include/linux/memcontrol.h
-@@ -148,6 +148,7 @@ u64 mem_cgroup_get_limit(struct mem_cgro
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail);
-+bool mem_cgroup_worth_try_hugepage_scan(struct mm_struct *mm);
- #endif
- 
- #else /* CONFIG_CGROUP_MEM_RES_CTLR */
-@@ -341,6 +342,12 @@ u64 mem_cgroup_get_limit(struct mem_cgro
- 
- static inline mem_cgroup_split_huge_fixup(struct page *head, struct page *tail)
+@@ -1705,7 +1705,7 @@ static void drain_local_stock(struct wor
+  * Cache charges(val) which is from res_counter, to local per_cpu area.
+  * This will be consumed by consume_stock() function, later.
+  */
+-static void refill_stock(struct mem_cgroup *mem, int val)
++static void refill_stock(struct mem_cgroup *mem, int page_size)
  {
-+
-+}
-+
-+static inline bool mem_cgroup_worth_try_hugepage_scan(struct mm_struct *mm)
-+{
-+	return true;
+ 	struct memcg_stock_pcp *stock = &get_cpu_var(memcg_stock);
+ 
+@@ -1713,7 +1713,7 @@ static void refill_stock(struct mem_cgro
+ 		drain_stock(stock);
+ 		stock->cached = mem;
+ 	}
+-	stock->charge += val;
++	stock->charge += page_size;
+ 	put_cpu_var(memcg_stock);
  }
  
- #endif /* CONFIG_CGROUP_MEM_CONT */
+@@ -2037,12 +2037,12 @@ bypass:
+  * gotten by try_charge().
+  */
+ static void __mem_cgroup_cancel_charge(struct mem_cgroup *mem,
+-							unsigned long count)
++					unsigned long nr_pages)
+ {
+ 	if (!mem_cgroup_is_root(mem)) {
+-		res_counter_uncharge(&mem->res, PAGE_SIZE * count);
++		res_counter_uncharge(&mem->res, PAGE_SIZE * nr_pages);
+ 		if (do_swap_account)
+-			res_counter_uncharge(&mem->memsw, PAGE_SIZE * count);
++			res_counter_uncharge(&mem->memsw, PAGE_SIZE * nr_pages);
+ 	}
+ }
+ 
+@@ -2255,9 +2255,9 @@ out:
+ 
+ static void __mem_cgroup_move_account(struct page_cgroup *pc,
+ 	struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge,
+-	int charge_size)
++	int page_size)
+ {
+-	int nr_pages = charge_size >> PAGE_SHIFT;
++	int nr_pages = page_size >> PAGE_SHIFT;
+ 
+ 	VM_BUG_ON(from == to);
+ 	VM_BUG_ON(PageLRU(pc->page));
+@@ -2275,7 +2275,7 @@ static void __mem_cgroup_move_account(st
+ 	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -nr_pages);
+ 	if (uncharge)
+ 		/* This is not "cancel", but cancel_charge does all we need. */
+-		mem_cgroup_cancel_charge(from, charge_size);
++		mem_cgroup_cancel_charge(from, page_size);
+ 
+ 	/* caller should have done css_get */
+ 	pc->mem_cgroup = to;
+@@ -2295,18 +2295,18 @@ static void __mem_cgroup_move_account(st
+  */
+ static int mem_cgroup_move_account(struct page_cgroup *pc,
+ 		struct mem_cgroup *from, struct mem_cgroup *to,
+-		bool uncharge, int charge_size)
++		bool uncharge, int page_size)
+ {
+ 	int ret = -EINVAL;
+ 	unsigned long flags;
+ 
+-	if ((charge_size > PAGE_SIZE) && !PageTransHuge(pc->page))
++	if ((page_size > PAGE_SIZE) && !PageTransHuge(pc->page))
+ 		return -EBUSY;
+ 
+ 	lock_page_cgroup(pc);
+ 	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
+ 		move_lock_page_cgroup(pc, &flags);
+-		__mem_cgroup_move_account(pc, from, to, uncharge, charge_size);
++		__mem_cgroup_move_account(pc, from, to, uncharge, page_size);
+ 		move_unlock_page_cgroup(pc, &flags);
+ 		ret = 0;
+ 	}
+@@ -2645,7 +2645,7 @@ direct_uncharge:
+ static struct mem_cgroup *
+ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+ {
+-	int count;
++	int nr_pages;
+ 	struct page_cgroup *pc;
+ 	struct mem_cgroup *mem = NULL;
+ 	int page_size = PAGE_SIZE;
+@@ -2661,7 +2661,7 @@ __mem_cgroup_uncharge_common(struct page
+ 		VM_BUG_ON(!PageTransHuge(page));
+ 	}
+ 
+-	count = page_size >> PAGE_SHIFT;
++	nr_pages = page_size >> PAGE_SHIFT;
+ 	/*
+ 	 * Check if our page_cgroup is valid
+ 	 */
+@@ -2694,7 +2694,7 @@ __mem_cgroup_uncharge_common(struct page
+ 		break;
+ 	}
+ 
+-	mem_cgroup_charge_statistics(mem, PageCgroupCache(pc), -count);
++	mem_cgroup_charge_statistics(mem, PageCgroupCache(pc), -nr_pages);
+ 
+ 	ClearPageCgroupUsed(pc);
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
