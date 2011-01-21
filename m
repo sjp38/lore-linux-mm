@@ -1,53 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E643C8D0039
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 06:15:26 -0500 (EST)
-Received: by gyd10 with SMTP id 10so536529gyd.14
-        for <linux-mm@kvack.org>; Fri, 21 Jan 2011 03:15:25 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 610B18D0039
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 09:36:21 -0500 (EST)
+Message-ID: <4D3999BC.7000107@redhat.com>
+Date: Fri, 21 Jan 2011 09:35:40 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20110121103850.GI13235@n2100.arm.linux.org.uk>
-References: <1295516739-9839-1-git-send-email-pullip.cho@samsung.com>
-	<1295544047.9039.609.camel@nimitz>
-	<20110120180146.GH6335@n2100.arm.linux.org.uk>
-	<AANLkTimsL8YfSdXCBpN2cNVpj8HeJF0f-A7MJQoie+Zm@mail.gmail.com>
-	<20110121103850.GI13235@n2100.arm.linux.org.uk>
-Date: Fri, 21 Jan 2011 20:15:24 +0900
-Message-ID: <AANLkTi=8DnGVJ6j4rHv+bQoTK2UhgMysC95LuKjH-fBy@mail.gmail.com>
-Subject: Re: [PATCH] ARM: mm: Regarding section when dealing with meminfo
-From: KyongHo Cho <pullip.cho@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH] mm: System without MMU do not need pte_mkwrite
+References: <1295596196-8233-1-git-send-email-monstr@monstr.eu> <1295596196-8233-2-git-send-email-monstr@monstr.eu>
+In-Reply-To: <1295596196-8233-2-git-send-email-monstr@monstr.eu>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Kukjin Kim <kgene.kim@samsung.com>, KeyYoung Park <keyyoung.park@samsung.com>, linux-kernel@vger.kernel.org, Ilho Lee <ilho215.lee@samsung.com>, linux-mm@kvack.org, linux-samsung-soc@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Michal Simek <monstr@monstr.eu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 21, 2011 at 7:38 PM, Russell King - ARM Linux
-<linux@arm.linux.org.uk> wrote:
-> On Fri, Jan 21, 2011 at 11:12:27AM +0900, KyongHo Cho wrote:
->> Since the size of section is 256 mib and NR_BANKS is defined as 8,
->> no ARM system can have more RAM than 2GiB in the current implementation.
->> If you want banks in meminfo not to cross sparsemem boundaries,
->> we need to find another way of physical memory specification in the kern=
-el.
+On 01/21/2011 02:49 AM, Michal Simek wrote:
+> The patch "thp: export maybe_mkwrite"
+> (sha1 14fd403f2146f740942d78af4e0ee59396ad8eab)
+> break systems without MMU.
 >
-> There is no problem with increasing NR_BANKS.
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-samsung-s=
-oc" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+> Error log:
+>    CC      arch/microblaze/mm/init.o
+> In file included from include/linux/mman.h:14,
+>                   from arch/microblaze/mm/consistent.c:24:
+> include/linux/mm.h: In function 'maybe_mkwrite':
+> include/linux/mm.h:482: error: implicit declaration of function 'pte_mkwrite'
+> include/linux/mm.h:482: error: incompatible types in assignment
 >
-I think it is not reasonable to split a contiguous physical memory
-into several chunks.
-9 banks are required to use 2 gib.
-Even though you think it is no problem,
-it becomes a problem when we want to give physical memory information
-via booting command line but atag
-because there is a restriction in number of characters in booting command l=
-ine.
+> Signed-off-by: Michal Simek<monstr@monstr.eu>
+> CC: Andrea Arcangeli<aarcange@redhat.com>
+> CC: Linus Torvalds<torvalds@linux-foundation.org>
+> CC: Andrew Morton<akpm@linux-foundation.org>
+> CC: Rik van Riel<riel@redhat.com>
+> CC: Ingo Molnar<mingo@elte.hu>
 
-I don't understand why larger bank size than the section size is problem.
+Reviewed-by: Rik van Riel <riel@redhat.com>
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
