@@ -1,36 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F55F8D0069
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 02:38:02 -0500 (EST)
-Subject: Re: [PATCH 00/21] mm: Preemptibility -v6
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <alpine.LSU.2.00.1101201052060.1603@sister.anvils>
-References: <20101126143843.801484792@chello.nl>
-	 <alpine.LSU.2.00.1101172301340.2899@sister.anvils>
-	 <1295457039.28776.137.camel@laptop>
-	 <alpine.LSU.2.00.1101201052060.1603@sister.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 21 Jan 2011 18:36:32 +1100
-Message-ID: <1295595392.2148.285.camel@pasglop>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CE8098D0069
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 02:46:59 -0500 (EST)
+Date: Fri, 21 Jan 2011 16:45:30 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 3/7] memcg : fix mem_cgroup_check_under_limit
+Message-Id: <20110121164530.4cf9d01f.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20110121154141.680c96d9.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110121153431.191134dd.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110121154141.680c96d9.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@kernel.dk>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2011-01-20 at 11:57 -0800, Hugh Dickins wrote:
+On Fri, 21 Jan 2011 15:41:41 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> But that doesn't preclude lumping them all together for the final
-> commit,
-> for ease of bisection.  I think Andrew and Ben are the ones to decide
-> on that: Ben's bisectability got burnt by THP just now, so he'll have
-> strong feelings and good reasons.
+> Current memory cgroup's code tends to assume page_size == PAGE_SIZE
+> but THP does HPAGE_SIZE charge.
+> 
+> This is one of fixes for supporing THP. This modifies
+> mem_cgroup_check_under_limit to take page_size into account.
+> 
+> Total fixes for do_charge()/reclaim memory will follow this patch.
+> 
+> TODO: By this reclaim function can get page_size as argument.
+> So...there may be something should be improvoed.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-I do hate bisectability breakage indeed ... :-)
-
-Cheers,
-Ben.
+Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
