@@ -1,78 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 815186B00E8
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:09:48 -0500 (EST)
-Date: Fri, 21 Jan 2011 12:09:45 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RESEND PATCH] mm: Use spin_lock_irqsave in
- __set_page_dirty_nobuffers
-Message-Id: <20110121120945.8d0e1010.akpm@linux-foundation.org>
-In-Reply-To: <4D39DDA6.1080604@oracle.com>
-References: <1294726534-16438-1-git-send-email-andy.grover@oracle.com>
-	<20110121001804.413b3f6d.akpm@linux-foundation.org>
-	<4D39DDA6.1080604@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 590598D0039
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 18:54:28 -0500 (EST)
+Received: by ywj3 with SMTP id 3so761540ywj.14
+        for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:54:23 -0800 (PST)
+Date: Sat, 22 Jan 2011 08:54:13 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 1/3] When migrate_pages returns 0, all pages must have
+ been released
+Message-ID: <20110121235413.GA1703@barrios-desktop>
+References: <f60d811fd1abcb68d40ac19af35881d700a97cd2.1295539829.git.minchan.kim@gmail.com>
+ <alpine.DEB.2.00.1101201130100.10695@router.home>
+ <20110120182444.GA9506@random.random>
+ <alpine.DEB.2.00.1101201233001.20633@router.home>
+ <20110120212841.GB9506@random.random>
+ <alpine.DEB.2.00.1101211005150.14313@router.home>
+ <20110121173618.GH9506@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110121173618.GH9506@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Andy Grover <andy.grover@oracle.com>
-Cc: linux-mm@kvack.org, rds-devel@oss.oracle.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Jan 2011 11:25:26 -0800
-Andy Grover <andy.grover@oracle.com> wrote:
-
-> On 01/21/2011 12:18 AM, Andrew Morton wrote:
-> > On Mon, 10 Jan 2011 22:15:34 -0800 Andy Grover<andy.grover@oracle.com>  wrote:
-> >
-> >> RDS is calling set_page_dirty from interrupt context,
-> >
-> > yikes.  Whatever possessed you to try that?
+On Fri, Jan 21, 2011 at 06:36:18PM +0100, Andrea Arcangeli wrote:
+> On Fri, Jan 21, 2011 at 10:11:03AM -0600, Christoph Lameter wrote:
+> > On Thu, 20 Jan 2011, Andrea Arcangeli wrote:
+> > 
+> > > Which following putback_lru_page()?  You mean
+> > > putback_lru_page(newpage)? That is for the newly allocated page
+> > > (allocated at the very top, so always needed), it's not relevant to
+> > > the page_count(page) = 1. The page_count 1 is hold by the caller, so
+> > > it's leaking memory right now (for everything but compaction).
+> > 
+> > Ahh yes we removed the putback_lru_pages call from migrate_pages()
+> > and broke the existing release logic. The caller has to call
+> > putback_release_pages() as per commit
 > 
-> When doing an RDMA read into pinned pages, we get notified the operation 
-> is complete in a tasklet, and would like to mark the pages dirty and 
-> unpin in the same context.
+> putback_lru_paeges
 > 
-> The issue was __set_page_dirty_buffers (via calling set_page_dirty) was 
-> unconditionally re-enabling irqs as a side-effect because it was using 
-> *_irq instead of *_irqsave/restore.
+> > cf608ac19c95804dc2df43b1f4f9e068aa9034ab
+> 
+> That is the very commit that introduced the two bugs that I've fixed
+> by code review.
+> 
+> > 
+> > If that is still the case then we still have the double free.
+> 
+> The caller only calls putback_lru_pages if ret != 0 (the two cases you
+> refer to happen with ret = 0).
+> 
+> Even if caller unconditionally calls putback_lru_pages (kind of what
+> compaction did), it can't double free because migrate_pages already
+> unlinked the pages before calling putback_lru_page(page), so there's
+> no way to do a double free (however if the caller unconditionally
+> called putback_lru_pages there would be no memleak to fix, but it
+> doesn't).
+> 
+> > Could we please document the calling conventions exactly in the source?
+> > Right now it says that the caller should call putback_lru_pages().
+> 
+> The caller should call putback_lru_pages only if ret != 0. Minchan
+> this is your commit we're discussing can you check the commentary?
 
-Your patch patched __set_page_dirty_nobuffers()?
+No problem.
+I will send the patch.
 
-> How would you recommend we proceed? My understanding was calling 
-> set_page_dirty prior to issuing the operation isn't an option since it 
-> might get cleaned too early.
+Thanks Adnrea, Christoph.
 
-The page should be locked, for reasons explained over
-set_page_dirty_lock() (which was a strange place to document this).
 
-What you could perhaps do is to lock_page() all the pages and run
-set_page_dirty() on them *before* setting up the IO operation, then run
-unlock_page() from interrupt context.
+> 
+> Thanks!
+> Andrea
+> 
 
-I assume that all these pages are mapped into userspace processes?  If
-so, they're fully uptodate and we're OK.  If they're plain old
-pagecache pages then we could have partially uptodate pages and things
-get messier.
-
-Running lock_page() against multiple pages is problematic because it
-introduces a risk of ab/ba deadlocks against another thread which is
-also locking multiple pages.  Possible solutions are a) take some
-higher-level mutex so that only one thread will ever be running the
-lock_page()s at a time or b) lock all the pages in ascending
-paeg_to_pfn() order.  Both of these are a PITA.
-
-A slow-and-safe solution to all this would be to punt the operation to
-a process-context helper thread and run
-
-	lock_page(page);
-	if (page->mapping)	/* truncate? */
-		set_page_dirty(page);
-	unlock_page(page);
-
-against each page.
-
-Some thought is needed regarding anonymous pages and swapcache pages.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
