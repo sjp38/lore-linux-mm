@@ -1,46 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id CC1988D0039
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 19:07:10 -0500 (EST)
-Received: by gwj22 with SMTP id 22so756985gwj.14
-        for <linux-mm@kvack.org>; Fri, 21 Jan 2011 16:07:09 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 82E5F8D0039
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 19:59:11 -0500 (EST)
+Received: by pvc30 with SMTP id 30so476578pvc.14
+        for <linux-mm@kvack.org>; Fri, 21 Jan 2011 16:59:09 -0800 (PST)
+Date: Sat, 22 Jan 2011 09:59:01 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH] migration: clear migrate_pages's comment
-Date: Sat, 22 Jan 2011 09:06:52 +0900
-Message-Id: <1295654812-2108-1-git-send-email-minchan.kim@gmail.com>
+Subject: Re: [BUG]thp: BUG at mm/huge_memory.c:1350
+Message-ID: <20110122005901.GA1590@barrios-desktop>
+References: <20110120154935.GA1760@barrios-desktop>
+ <20110120161436.GB21494@random.random>
+ <AANLkTikHNcD3aOWKJdPtCqdJi9C34iLPxj5-L8=gqBFc@mail.gmail.com>
+ <20110121175843.GA1534@barrios-desktop>
+ <20110121181442.GK9506@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110121181442.GK9506@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Callers of migrate_pages should putback_lru_pages to return pages
-isolated to LRU or free list. Now comment is rather confusing.
-It says caller always have to call it.
-More clear thing is that caller have to call it if migrate_pages's 
-return value isn't zero.
+On Fri, Jan 21, 2011 at 07:14:42PM +0100, Andrea Arcangeli wrote:
+> On Sat, Jan 22, 2011 at 02:58:43AM +0900, Minchan Kim wrote:
+> > I tested it again with some printk and I knew why it is out of memory.
+> > 
+> > do_page_fault(for write)
+> > -> do_huge_pmd_anonymous_page
+> >         -> alloc_hugepage_vma
+> > 
+> > Above is repeated by almost 400 times. It means 2M * 400 = 800M usage in my 2G system.
+> > Fragement can cause reclaim.
+> > Interesting one is that above is repeated by same faulty address of same process as looping.
+> > 
+> > Apparently, do_huge_pmd_anonymous_page maps pmd to entry.
+> > Nonetheless, page faults are repeated by same address.
+> > It seems set_pmd_at is nop.
+> > 
+> > Do you have any idea?
+> 
+> Well clearly 32bit x86 wasn't well tested... Maybe we should
+> temporarily disable the config option on x86 32bit.
+> 
+> > Sometime Xorg, Sometime kswapd, Sometime plymouthd, Sometime fsck.
+> 
+> That's good. So the most likely explanation of that BUG_ON you hit, is
+> the same bug that causes do_huge_pmd_anonymous_page to flood on the
+> same address (clearly if CPU can't solve the TLB miss using the
+> hugepmd, the rmap walk of split_huge_page will also fail to find the
+> page in the hugepmd, so it makes perfect sense).
+> 
+> That BUG_ON is by far my worst nightmare (that rmap walk of
+> split_huge_page must be as accurate as the
+> remove_migration_ptes/rmap_walk of migrate, it can't miss a hugepmd or
+> it'll be trouble, just like remove_migration_ptes/rmap_walk can't miss
+> a pte or it'll be trouble) and as far as common code is concerned I
+> had zero outstanding problems with it for a long time already, so
+> given your early debug info, I'm already optimistic and relieved that
+> 64bit is not affected by this and this isn't a generic common code
+> issue and the most likely explanation is some silly arch specific bug
+> that sets the pmd wrong and affects the page fault too (not just the
+> rmap walk).
+> 
+> I'll try to reproduce. Checking the pagetable layout of the process at
+> the second page fault in the same address sounds good start to figure
+> out what's wrong on x86_32.
 
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- mm/migrate.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+Good news.
+If PSA is enable, it works well until now.
+Thanks for the good and interesting feature :)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 3a6d4fd..7661152 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -887,7 +887,7 @@ out:
-  * are movable anymore because to has become empty
-  * or no retryable pages exist anymore.
-  * Caller should call putback_lru_pages to return pages to the LRU
-- * or free list.
-+ * or free list only if ret != 0.
-  *
-  * Return: Number of pages not migrated or error code.
-  */
+> 
+> Thanks a lot for the help!
+> Andrea
+
 -- 
-1.7.0.4
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
