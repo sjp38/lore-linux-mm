@@ -1,63 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EB32D8D0039
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 21:20:26 -0500 (EST)
-Received: by iwn40 with SMTP id 40so2404104iwn.14
-        for <linux-mm@kvack.org>; Fri, 21 Jan 2011 18:20:25 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 23F238D0039
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 23:46:28 -0500 (EST)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id p0M4kAjI027340
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 20:46:10 -0800
+Received: from pvf33 (pvf33.prod.google.com [10.241.210.97])
+	by hpaq3.eem.corp.google.com with ESMTP id p0M4jbH5020925
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 20:46:09 -0800
+Received: by pvf33 with SMTP id 33so762008pvf.15
+        for <linux-mm@kvack.org>; Fri, 21 Jan 2011 20:46:08 -0800 (PST)
+Date: Fri, 21 Jan 2011 20:46:00 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: prevent concurrent unmap_mapping_range() on the same
+ inode
+In-Reply-To: <E1PfvGx-00086O-IA@pomaz-ex.szeredi.hu>
+Message-ID: <alpine.LSU.2.00.1101212014330.4301@sister.anvils>
+References: <E1PftfG-0007w1-Ek@pomaz-ex.szeredi.hu> <20110120124043.GA4347@infradead.org> <E1PfvGx-00086O-IA@pomaz-ex.szeredi.hu>
 MIME-Version: 1.0
-In-Reply-To: <20110122021647.GR9506@random.random>
-References: <20110120154935.GA1760@barrios-desktop>
-	<20110120161436.GB21494@random.random>
-	<AANLkTikHNcD3aOWKJdPtCqdJi9C34iLPxj5-L8=gqBFc@mail.gmail.com>
-	<20110121175843.GA1534@barrios-desktop>
-	<20110121181442.GK9506@random.random>
-	<20110122005901.GA1590@barrios-desktop>
-	<20110122010820.GP9506@random.random>
-	<20110122021647.GR9506@random.random>
-Date: Sat, 22 Jan 2011 11:20:25 +0900
-Message-ID: <AANLkTinAA=+JtEZQbb15DSznH5hkUGiw=km93Qe1TZf2@mail.gmail.com>
-Subject: Re: [BUG]thp: BUG at mm/huge_memory.c:1350
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: Christoph Hellwig <hch@infradead.org>, akpm@linux-foundation.org, gurudas.pai@oracle.com, lkml20101129@newton.leun.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jan 22, 2011 at 11:16 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> On Sat, Jan 22, 2011 at 02:08:20AM +0100, Andrea Arcangeli wrote:
->> Yeah x86 is not entirely broken, just some .config, and it's not
->
-> Like in this case sometime when I say x86 I mean x86_32, for clarity
-> x86_64 has never been affected by this, regardless of the .config.
->
->> common code bug (which is the most important thing!). I think it's a
->> bug in set_pmd_at when paravirt is set and PSA is off. If I'm right 4m
->> pages with PSA off should also work when disabling paravirt.
->
-> You said PSA and I kept saying it but I think we both meant
-> PAE. There's PSE and PAE, PSA is mix ;).
+On Thu, 20 Jan 2011, Miklos Szeredi wrote:
+> On Thu, 20 Jan 2011, Christoph Hellwig wrote:
+> > On Thu, Jan 20, 2011 at 01:30:58PM +0100, Miklos Szeredi wrote:
+> > > 
+> > > Truncate and hole punching already serialize with i_mutex.  Other
+> > > callers of unmap_mapping_range() do not, and it's difficult to get
+> > > i_mutex protection for all callers.  In particular ->d_revalidate(),
+> > > which calls invalidate_inode_pages2_range() in fuse, may be called
+> > > with or without i_mutex.
+> > 
+> > 
+> > Which I think is mostly a fuse problem.  I really hate bloating the
+> > generic inode (into which the address_space is embedded) with another
+> > mutex for deficits in rather special case filesystems. 
+> 
+> As Hugh pointed out unmap_mapping_range() has grown a varied set of
+> callers, which are difficult to fix up wrt i_mutex.  Fuse was just an
+> example.
+> 
+> I don't like the bloat either, but this is the best I could come up
+> with for fixing this problem generally.  If you have a better idea,
+> please share it.
 
-Yes. It was typo. :)
+If we start from the point that this is mostly a fuse problem (I expect
+that a thorough audit will show up a few other filesystems too, but
+let's start from this point): you cite ->d_revalidate as a particular
+problem, but can we fix up its call sites so that it is always called
+either with, or much preferably without, i_mutex held?  Though actually
+I couldn't find where ->d_revalidate() is called while holding i_mutex.
 
->
->> I'm just trying to reproduce...
->
-> Reproduced and fix posted in the other mail with lkml on CC. Hope it
-> works!
+Failing that, can fuse down_write i_alloc_sem before calling
+invalidate_inode_pages2(_range), to achieve the same exclusion?
+The setattr truncation path takes i_alloc_sem as well as i_mutex,
+though I'm not certain of its full coverage.
 
-Will test and report the result.
+I did already consider holding and dropping i_alloc_sem inside
+invalidate_inode_pages2_range(); but direct-io.c very much wants
+to take mmap_sem (when get_user_pages_fast goes slow) after taking
+i_alloc_sem, whereas fuse_direct_mmap() very much wants to call
+invalidate_inode_pages2() while mmap_sem is held.
 
->
-> Thanks,
-> Andrea
->
-
-
-
--- 
-Kind regards,
-Minchan Kim
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
