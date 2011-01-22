@@ -1,84 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 590598D0039
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 18:54:28 -0500 (EST)
-Received: by ywj3 with SMTP id 3so761540ywj.14
-        for <linux-mm@kvack.org>; Fri, 21 Jan 2011 15:54:23 -0800 (PST)
-Date: Sat, 22 Jan 2011 08:54:13 +0900
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id CC1988D0039
+	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 19:07:10 -0500 (EST)
+Received: by gwj22 with SMTP id 22so756985gwj.14
+        for <linux-mm@kvack.org>; Fri, 21 Jan 2011 16:07:09 -0800 (PST)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 1/3] When migrate_pages returns 0, all pages must have
- been released
-Message-ID: <20110121235413.GA1703@barrios-desktop>
-References: <f60d811fd1abcb68d40ac19af35881d700a97cd2.1295539829.git.minchan.kim@gmail.com>
- <alpine.DEB.2.00.1101201130100.10695@router.home>
- <20110120182444.GA9506@random.random>
- <alpine.DEB.2.00.1101201233001.20633@router.home>
- <20110120212841.GB9506@random.random>
- <alpine.DEB.2.00.1101211005150.14313@router.home>
- <20110121173618.GH9506@random.random>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110121173618.GH9506@random.random>
+Subject: [PATCH] migration: clear migrate_pages's comment
+Date: Sat, 22 Jan 2011 09:06:52 +0900
+Message-Id: <1295654812-2108-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 21, 2011 at 06:36:18PM +0100, Andrea Arcangeli wrote:
-> On Fri, Jan 21, 2011 at 10:11:03AM -0600, Christoph Lameter wrote:
-> > On Thu, 20 Jan 2011, Andrea Arcangeli wrote:
-> > 
-> > > Which following putback_lru_page()?  You mean
-> > > putback_lru_page(newpage)? That is for the newly allocated page
-> > > (allocated at the very top, so always needed), it's not relevant to
-> > > the page_count(page) = 1. The page_count 1 is hold by the caller, so
-> > > it's leaking memory right now (for everything but compaction).
-> > 
-> > Ahh yes we removed the putback_lru_pages call from migrate_pages()
-> > and broke the existing release logic. The caller has to call
-> > putback_release_pages() as per commit
-> 
-> putback_lru_paeges
-> 
-> > cf608ac19c95804dc2df43b1f4f9e068aa9034ab
-> 
-> That is the very commit that introduced the two bugs that I've fixed
-> by code review.
-> 
-> > 
-> > If that is still the case then we still have the double free.
-> 
-> The caller only calls putback_lru_pages if ret != 0 (the two cases you
-> refer to happen with ret = 0).
-> 
-> Even if caller unconditionally calls putback_lru_pages (kind of what
-> compaction did), it can't double free because migrate_pages already
-> unlinked the pages before calling putback_lru_page(page), so there's
-> no way to do a double free (however if the caller unconditionally
-> called putback_lru_pages there would be no memleak to fix, but it
-> doesn't).
-> 
-> > Could we please document the calling conventions exactly in the source?
-> > Right now it says that the caller should call putback_lru_pages().
-> 
-> The caller should call putback_lru_pages only if ret != 0. Minchan
-> this is your commit we're discussing can you check the commentary?
+Callers of migrate_pages should putback_lru_pages to return pages
+isolated to LRU or free list. Now comment is rather confusing.
+It says caller always have to call it.
+More clear thing is that caller have to call it if migrate_pages's 
+return value isn't zero.
 
-No problem.
-I will send the patch.
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/migrate.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-Thanks Adnrea, Christoph.
-
-
-> 
-> Thanks!
-> Andrea
-> 
-
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 3a6d4fd..7661152 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -887,7 +887,7 @@ out:
+  * are movable anymore because to has become empty
+  * or no retryable pages exist anymore.
+  * Caller should call putback_lru_pages to return pages to the LRU
+- * or free list.
++ * or free list only if ret != 0.
+  *
+  * Return: Number of pages not migrated or error code.
+  */
 -- 
-Kind regards,
-Minchan Kim
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
