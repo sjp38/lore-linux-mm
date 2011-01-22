@@ -1,72 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 23F238D0039
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 23:46:28 -0500 (EST)
-Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
-	by smtp-out.google.com with ESMTP id p0M4kAjI027340
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 20:46:10 -0800
-Received: from pvf33 (pvf33.prod.google.com [10.241.210.97])
-	by hpaq3.eem.corp.google.com with ESMTP id p0M4jbH5020925
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 21 Jan 2011 20:46:09 -0800
-Received: by pvf33 with SMTP id 33so762008pvf.15
-        for <linux-mm@kvack.org>; Fri, 21 Jan 2011 20:46:08 -0800 (PST)
-Date: Fri, 21 Jan 2011 20:46:00 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: prevent concurrent unmap_mapping_range() on the same
- inode
-In-Reply-To: <E1PfvGx-00086O-IA@pomaz-ex.szeredi.hu>
-Message-ID: <alpine.LSU.2.00.1101212014330.4301@sister.anvils>
-References: <E1PftfG-0007w1-Ek@pomaz-ex.szeredi.hu> <20110120124043.GA4347@infradead.org> <E1PfvGx-00086O-IA@pomaz-ex.szeredi.hu>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5AEDB6B0092
+	for <linux-mm@kvack.org>; Sat, 22 Jan 2011 14:51:04 -0500 (EST)
+Date: Sat, 22 Jan 2011 20:51:32 +0100 (CET)
+From: Jesper Juhl <jj@chaosbits.net>
+Subject: [PATCH] Fix uninitialized variable use in
+ mm/memcontrol.c::mem_cgroup_move_parent()
+Message-ID: <alpine.LNX.2.00.1101222044580.7746@swampdragon.chaosbits.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: Christoph Hellwig <hch@infradead.org>, akpm@linux-foundation.org, gurudas.pai@oracle.com, lkml20101129@newton.leun.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelianov <xemul@openvz.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Jan 2011, Miklos Szeredi wrote:
-> On Thu, 20 Jan 2011, Christoph Hellwig wrote:
-> > On Thu, Jan 20, 2011 at 01:30:58PM +0100, Miklos Szeredi wrote:
-> > > 
-> > > Truncate and hole punching already serialize with i_mutex.  Other
-> > > callers of unmap_mapping_range() do not, and it's difficult to get
-> > > i_mutex protection for all callers.  In particular ->d_revalidate(),
-> > > which calls invalidate_inode_pages2_range() in fuse, may be called
-> > > with or without i_mutex.
-> > 
-> > 
-> > Which I think is mostly a fuse problem.  I really hate bloating the
-> > generic inode (into which the address_space is embedded) with another
-> > mutex for deficits in rather special case filesystems. 
-> 
-> As Hugh pointed out unmap_mapping_range() has grown a varied set of
-> callers, which are difficult to fix up wrt i_mutex.  Fuse was just an
-> example.
-> 
-> I don't like the bloat either, but this is the best I could come up
-> with for fixing this problem generally.  If you have a better idea,
-> please share it.
+In mm/memcontrol.c::mem_cgroup_move_parent() there's a path that jumps to 
+the 'put_back' label
+  	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, charge);
+  	if (ret || !parent)
+  		goto put_back;
+ where we'll 
+  	if (charge > PAGE_SIZE)
+  		compound_unlock_irqrestore(page, flags);
+but, we have not assigned anything to 'flags' at this point, nor have we 
+called 'compound_lock_irqsave()' (which is what sets 'flags').
+So, I believe the 'put_back' label should be moved below the call to 
+compound_unlock_irqrestore() as per this patch. 
 
-If we start from the point that this is mostly a fuse problem (I expect
-that a thorough audit will show up a few other filesystems too, but
-let's start from this point): you cite ->d_revalidate as a particular
-problem, but can we fix up its call sites so that it is always called
-either with, or much preferably without, i_mutex held?  Though actually
-I couldn't find where ->d_revalidate() is called while holding i_mutex.
+Signed-off-by: Jesper Juhl <jj@chaosbits.net>
+---
+ memcontrol.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-Failing that, can fuse down_write i_alloc_sem before calling
-invalidate_inode_pages2(_range), to achieve the same exclusion?
-The setattr truncation path takes i_alloc_sem as well as i_mutex,
-though I'm not certain of its full coverage.
+  compile tested only.
 
-I did already consider holding and dropping i_alloc_sem inside
-invalidate_inode_pages2_range(); but direct-io.c very much wants
-to take mmap_sem (when get_user_pages_fast goes slow) after taking
-i_alloc_sem, whereas fuse_direct_mmap() very much wants to call
-invalidate_inode_pages2() while mmap_sem is held.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index db76ef7..4fcf47a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2292,9 +2292,10 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
+ 	ret = mem_cgroup_move_account(pc, child, parent, true, charge);
+ 	if (ret)
+ 		mem_cgroup_cancel_charge(parent, charge);
+-put_back:
++
+ 	if (charge > PAGE_SIZE)
+ 		compound_unlock_irqrestore(page, flags);
++put_back:
+ 	putback_lru_page(page);
+ put:
+ 	put_page(page);
 
-Hugh
+
+-- 
+Jesper Juhl <jj@chaosbits.net>            http://www.chaosbits.net/
+Don't top-post http://www.catb.org/~esr/jargon/html/T/top-post.html
+Plain text mails only, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
