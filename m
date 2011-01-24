@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B4FF66B00E8
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 120E66B00E9
 	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 17:56:21 -0500 (EST)
 From: Jeremy Fitzhardinge <jeremy@goop.org>
-Subject: [PATCH 8/9] xen/mmu: use apply_to_page_range_batch() in xen_remap_domain_mfn_range()
-Date: Mon, 24 Jan 2011 14:56:06 -0800
-Message-Id: <e35361f09bf25ecb5ba6877e44319de315b76f5e.1295653400.git.jeremy.fitzhardinge@citrix.com>
+Subject: [PATCH 7/9] vmalloc: use apply_to_page_range_batch() in alloc_vm_area()
+Date: Mon, 24 Jan 2011 14:56:05 -0800
+Message-Id: <d4205306bb6609275ad93a8d1bfb4de3d06d0eb5.1295653400.git.jeremy.fitzhardinge@citrix.com>
 In-Reply-To: <cover.1295653400.git.jeremy.fitzhardinge@citrix.com>
 References: <cover.1295653400.git.jeremy.fitzhardinge@citrix.com>
 In-Reply-To: <cover.1295653400.git.jeremy.fitzhardinge@citrix.com>
@@ -19,49 +19,36 @@ From: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 
 Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 ---
- arch/x86/xen/mmu.c |   19 ++++++++++++-------
- 1 files changed, 12 insertions(+), 7 deletions(-)
+ mm/vmalloc.c |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
-index 38ba804..25da278 100644
---- a/arch/x86/xen/mmu.c
-+++ b/arch/x86/xen/mmu.c
-@@ -2292,14 +2292,19 @@ struct remap_data {
- 	struct mmu_update *mmu_update;
- };
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index cf4e705..64d395f 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1993,9 +1993,9 @@ void  __attribute__((weak)) vmalloc_sync_all(void)
+ }
  
--static int remap_area_mfn_pte_fn(pte_t *ptep, unsigned long addr, void *data)
-+static int remap_area_mfn_pte_fn(pte_t *ptep, unsigned count,
-+				 unsigned long addr, void *data)
+ 
+-static int f(pte_t *pte, unsigned long addr, void *data)
++static int f(pte_t *pte, unsigned count, unsigned long addr, void *data)
  {
- 	struct remap_data *rmd = data;
--	pte_t pte = pte_mkspecial(pfn_pte(rmd->mfn++, rmd->prot));
- 
--	rmd->mmu_update->ptr = arbitrary_virt_to_machine(ptep).maddr;
--	rmd->mmu_update->val = pte_val_ma(pte);
--	rmd->mmu_update++;
-+	while (count--) {
-+		pte_t pte = pte_mkspecial(pfn_pte(rmd->mfn++, rmd->prot));
-+
-+		rmd->mmu_update->ptr = arbitrary_virt_to_machine(ptep).maddr;
-+		rmd->mmu_update->val = pte_val_ma(pte);
-+		rmd->mmu_update++;
-+		ptep++;
-+	}
- 
+-	/* apply_to_page_range() does all the hard work. */
++	/* apply_to_page_range_batch() does all the hard work. */
  	return 0;
  }
-@@ -2328,8 +2333,8 @@ int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
- 		range = (unsigned long)batch << PAGE_SHIFT;
  
- 		rmd.mmu_update = mmu_update;
--		err = apply_to_page_range(vma->vm_mm, addr, range,
--					  remap_area_mfn_pte_fn, &rmd);
-+		err = apply_to_page_range_batch(vma->vm_mm, addr, range,
-+						remap_area_mfn_pte_fn, &rmd);
- 		if (err)
- 			goto out;
- 
+@@ -2024,8 +2024,8 @@ struct vm_struct *alloc_vm_area(size_t size)
+ 	 * This ensures that page tables are constructed for this region
+ 	 * of kernel virtual address space and mapped into init_mm.
+ 	 */
+-	if (apply_to_page_range(&init_mm, (unsigned long)area->addr,
+-				area->size, f, NULL)) {
++	if (apply_to_page_range_batch(&init_mm, (unsigned long)area->addr,
++				      area->size, f, NULL)) {
+ 		free_vm_area(area);
+ 		return NULL;
+ 	}
 -- 
 1.7.3.4
 
