@@ -1,11 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A6A446B00E7
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B4FF66B00E8
 	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 17:56:21 -0500 (EST)
 From: Jeremy Fitzhardinge <jeremy@goop.org>
-Subject: [PATCH 0/9] Add apply_to_page_range_batch() and use it
-Date: Mon, 24 Jan 2011 14:55:58 -0800
-Message-Id: <cover.1295653400.git.jeremy.fitzhardinge@citrix.com>
+Subject: [PATCH 8/9] xen/mmu: use apply_to_page_range_batch() in xen_remap_domain_mfn_range()
+Date: Mon, 24 Jan 2011 14:56:06 -0800
+Message-Id: <e35361f09bf25ecb5ba6877e44319de315b76f5e.1295653400.git.jeremy.fitzhardinge@citrix.com>
+In-Reply-To: <cover.1295653400.git.jeremy.fitzhardinge@citrix.com>
+References: <cover.1295653400.git.jeremy.fitzhardinge@citrix.com>
+In-Reply-To: <cover.1295653400.git.jeremy.fitzhardinge@citrix.com>
+References: <cover.1295653400.git.jeremy.fitzhardinge@citrix.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Haavard Skinnemoen <hskinnemoen@atmel.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@kernel.dk>, Xen-devel <xen-devel@lists.xensource.com>, Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
@@ -13,56 +17,51 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 
-I'm proposing this series for 2.6.39.
+Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
+---
+ arch/x86/xen/mmu.c |   19 ++++++++++++-------
+ 1 files changed, 12 insertions(+), 7 deletions(-)
 
-We've had apply_to_page_range() for a while, which is a general way to
-apply a function to ptes across a range of addresses - including
-allocating any missing parts of the pagetable as needed.  This logic
-is replicated in a number of places throughout the kernel, but it
-hasn't been widely replaced by this function, partly because of
-concerns about the overhead of calling the function once per pte.
-
-This series adds apply_to_page_range_batch() (and reimplements
-apply_to_page_range() in terms of it), which calls the pte operation
-function once per pte page, moving the inner loop into the callback
-function.
-
-apply_to_page_range(_batch) also calls its callback with lazy mmu
-updates enabled, which allows batching of the operations in
-environments where this is beneficial (ie, virtualization).  The only
-caveat this introduces is callbacks can't expect to immediately see
-the effects of the pte updates in memory.
-
-Since this is effectively identical to the code in lib/ioremap.c and
-mm/vmalloc.c (twice!), I replace their open-coded variants.  I'm sure
-there are others places in the kernel which could do with this (I only
-stumbled over ioremap by accident).
-
-I also add a minor optimisation to vunmap_page_range() to use a
-plain pte_clear() rather than the more expensive and unnecessary
-ptep_get_and_clear().
-
-Jeremy Fitzhardinge (9):
-  mm: remove unused "token" argument from apply_to_page_range callback.
-  mm: add apply_to_page_range_batch()
-  ioremap: use apply_to_page_range_batch() for ioremap_page_range()
-  vmalloc: use plain pte_clear() for unmaps
-  vmalloc: use apply_to_page_range_batch() for vunmap_page_range()
-  vmalloc: use apply_to_page_range_batch() for
-    vmap_page_range_noflush()
-  vmalloc: use apply_to_page_range_batch() in alloc_vm_area()
-  xen/mmu: use apply_to_page_range_batch() in
-    xen_remap_domain_mfn_range()
-  xen/grant-table: use apply_to_page_range_batch()
-
- arch/x86/xen/grant-table.c |   30 +++++----
- arch/x86/xen/mmu.c         |   18 +++--
- include/linux/mm.h         |    9 ++-
- lib/ioremap.c              |   85 +++++++------------------
- mm/memory.c                |   57 ++++++++++++-----
- mm/vmalloc.c               |  150 ++++++++++++--------------------------------
- 6 files changed, 140 insertions(+), 209 deletions(-)
-
+diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
+index 38ba804..25da278 100644
+--- a/arch/x86/xen/mmu.c
++++ b/arch/x86/xen/mmu.c
+@@ -2292,14 +2292,19 @@ struct remap_data {
+ 	struct mmu_update *mmu_update;
+ };
+ 
+-static int remap_area_mfn_pte_fn(pte_t *ptep, unsigned long addr, void *data)
++static int remap_area_mfn_pte_fn(pte_t *ptep, unsigned count,
++				 unsigned long addr, void *data)
+ {
+ 	struct remap_data *rmd = data;
+-	pte_t pte = pte_mkspecial(pfn_pte(rmd->mfn++, rmd->prot));
+ 
+-	rmd->mmu_update->ptr = arbitrary_virt_to_machine(ptep).maddr;
+-	rmd->mmu_update->val = pte_val_ma(pte);
+-	rmd->mmu_update++;
++	while (count--) {
++		pte_t pte = pte_mkspecial(pfn_pte(rmd->mfn++, rmd->prot));
++
++		rmd->mmu_update->ptr = arbitrary_virt_to_machine(ptep).maddr;
++		rmd->mmu_update->val = pte_val_ma(pte);
++		rmd->mmu_update++;
++		ptep++;
++	}
+ 
+ 	return 0;
+ }
+@@ -2328,8 +2333,8 @@ int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
+ 		range = (unsigned long)batch << PAGE_SHIFT;
+ 
+ 		rmd.mmu_update = mmu_update;
+-		err = apply_to_page_range(vma->vm_mm, addr, range,
+-					  remap_area_mfn_pte_fn, &rmd);
++		err = apply_to_page_range_batch(vma->vm_mm, addr, range,
++						remap_area_mfn_pte_fn, &rmd);
+ 		if (err)
+ 			goto out;
+ 
 -- 
 1.7.3.4
 
