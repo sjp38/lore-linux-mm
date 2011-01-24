@@ -1,90 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2B4F66B0092
-	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 10:41:53 -0500 (EST)
-Date: Mon, 24 Jan 2011 16:33:54 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 00/21] mm: Preemptibility -v6
-Message-ID: <20110124153354.GA21612@redhat.com>
-References: <20101126143843.801484792@chello.nl> <alpine.LSU.2.00.1101172301340.2899@sister.anvils> <1295457039.28776.137.camel@laptop> <alpine.LSU.2.00.1101201052060.1603@sister.anvils> <1295624034.28776.303.camel@laptop> <1295871714.28776.406.camel@laptop> <20110124143407.GA19856@redhat.com> <1295881246.28776.445.camel@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1295881246.28776.445.camel@laptop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D8C356B0092
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 11:52:49 -0500 (EST)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0OGo9An002612
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 09:50:09 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0OGqZxr101232
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 09:52:37 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0OGqY8A005223
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 09:52:35 -0700
+Subject: Re: [PATCH] ARM: mm: Regarding section when dealing with meminfo
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20110123180532.GA3509@n2100.arm.linux.org.uk>
+References: <1295516739-9839-1-git-send-email-pullip.cho@samsung.com>
+	 <1295544047.9039.609.camel@nimitz>
+	 <20110120180146.GH6335@n2100.arm.linux.org.uk>
+	 <1295547087.9039.694.camel@nimitz>
+	 <20110123180532.GA3509@n2100.arm.linux.org.uk>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Mon, 24 Jan 2011 08:52:17 -0800
+Message-ID: <1295887937.11047.119.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@kernel.dk>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: KyongHo Cho <pullip.cho@samsung.com>, Kukjin Kim <kgene.kim@samsung.com>, KeyYoung Park <keyyoung.park@samsung.com>, linux-kernel@vger.kernel.org, Ilho Lee <ilho215.lee@samsung.com>, linux-mm@kvack.org, linux-samsung-soc@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On 01/24, Peter Zijlstra wrote:
->
-> On Mon, 2011-01-24 at 15:34 +0100, Oleg Nesterov wrote:
-> > On 01/24, Peter Zijlstra wrote:
-> > >
-> > > On Fri, 2011-01-21 at 16:33 +0100, Peter Zijlstra wrote:
-> > >
-> > > > Index: linux-2.6/mm/rmap.c
-> > > > ===================================================================
-> > > > --- linux-2.6.orig/mm/rmap.c
-> > > > +++ linux-2.6/mm/rmap.c
-> > > > @@ -1559,9 +1559,20 @@ void __put_anon_vma(struct anon_vma *ano
-> > > >  	 * Synchronize against page_lock_anon_vma() such that
-> > > >  	 * we can safely hold the lock without the anon_vma getting
-> > > >  	 * freed.
-> > > > +	 *
-> > > > +	 * Relies on the full mb implied by the atomic_dec_and_test() from
-> > > > +	 * put_anon_vma() against the full mb implied by mutex_trylock() from
-> > > > +	 * page_lock_anon_vma(). This orders:
-> > > > +	 *
-> > > > +	 * page_lock_anon_vma()		VS	put_anon_vma()
-> > > > +	 *   mutex_trylock()			  atomic_dec_and_test()
-> > > > +	 *   smp_mb()				  smp_mb()
-> > > > +	 *   atomic_read()			  mutex_is_locked()
-> > >
-> > > Bah!, I thought all mutex_trylock() implementations used an atomic op
-> > > with return value (which implies a mb), but it looks like (at least*)
-> > > PPC doesn't and only provides a LOCK barrier.
-> >
-> > But, mutex_trylock() must imply the one-way barrier, otherwise it
-> > is buggy, no?
->
-> > If this atomic_read() can leak out of the critical section, then
-> > I think mutex_trylock() should be fixed. Or I misunderstood the
-> > problem completely...
->
-> It implies the LOCK barrier, the one way permeable thing, not a full mb.
->
-> But I'm not sure the LOCK is sufficient to make the above scenario work.
+On Sun, 2011-01-23 at 18:05 +0000, Russell King - ARM Linux wrote:
+> On Thu, Jan 20, 2011 at 10:11:27AM -0800, Dave Hansen wrote:
+> > On Thu, 2011-01-20 at 18:01 +0000, Russell King - ARM Linux wrote:
+> > > > The x86 version of show_mem() actually manages to do this without any
+> > > > #ifdefs, and works for a ton of configuration options.  It uses
+> > > > pfn_valid() to tell whether it can touch a given pfn.
+> > > 
+> > > x86 memory layout tends to be very simple as it expects memory to
+> > > start at the beginning of every region described by a pgdat and extend
+> > > in one contiguous block.  I wish ARM was that simple.
+> > 
+> > x86 memory layouts can be pretty funky and have been that way for a long
+> > time.  That's why we *have* to handle holes in x86's show_mem().  My
+> > laptop even has a ~1GB hole in its ZONE_DMA32:
+> 
+> If x86 is soo funky, I suggest you try the x86 version of show_mem()
+> on an ARM platform with memory holes.  Make sure you try it with
+> sparsemem as well...
 
-OK, I can't say I am sure too.
+x86 uses the generic lib/ show_mem().  It works for any holes, as long
+as they're expressed in one of the memory models so that pfn_valid()
+notices them.
 
+ARM looks like its pfn_valid() is backed up by searching the (ASM
+arch-specific) memblocks.  That looks like it would be fairly slow
+compared to the other pfn_valid() implementations and I can see why it's
+being avoided in show_mem().
 
+Maybe we should add either the MAX_ORDER or section_nr() trick to the
+lib/ implementation.  I bet that would use pfn_valid() rarely enough to
+meet any performance concerns.
 
-Well. Thinking more, I can't understand why we can trust mutex_trylock()
-at all. Suppose that page_lock_anon_vma() races with put_anon_vma()
-and anon_vma->root != anon_vma. In this case page_lock_anon_vma() can
-take anon_vma->root->lock, but if this vma was already freed then it can
-be reused and anon_vma_alloc() can change ->root and set ->refcount == 1
-before we check atomic_read(refcount) != 0.
-
-IOW,
-	page_lock_anon_vma:
-							put_anon_vma() drops the
-							last reference
-
-	if (mutex_trylock(&anon_vma->root->lock)) {
-							anon_vma_alloc() picks this
-							memory, changes ->root and
-							sets ->refcount == 1
-
-		if (atomic_read(&anon_vma->refcount))
-			return anon_vma;
-	}
-
-Most probably I missed something, I forgot everything I knew about this
-code....
-
-Oleg.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
