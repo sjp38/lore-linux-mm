@@ -1,104 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 31D066B0092
-	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 01:37:36 -0500 (EST)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp09.au.ibm.com (8.14.4/8.13.1) with ESMTP id p0O6bPLe011914
-	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 17:37:25 +1100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0O6bLnW2523210
-	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 17:37:25 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0O6bKoI027636
-	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 17:37:21 +1100
-Date: Mon, 24 Jan 2011 12:07:10 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [REPOST] [PATCH 3/3] Provide control over unmapped pages (v3)
-Message-ID: <20110124063710.GM2897@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20110120123039.30481.81151.stgit@localhost6.localdomain6>
- <20110120123649.30481.93286.stgit@localhost6.localdomain6>
- <alpine.DEB.2.00.1101200856310.10695@router.home>
- <20110121072315.GL2897@balbir.in.ibm.com>
- <alpine.DEB.2.00.1101210947270.13881@router.home>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 841866B0092
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 05:04:42 -0500 (EST)
+Date: Mon, 24 Jan 2011 11:04:34 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3/7] memcg : fix mem_cgroup_check_under_limit
+Message-ID: <20110124100434.GS2232@cmpxchg.org>
+References: <20110121153431.191134dd.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110121154141.680c96d9.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1101210947270.13881@router.home>
+In-Reply-To: <20110121154141.680c96d9.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* Christoph Lameter <cl@linux.com> [2011-01-21 09:55:17]:
+On Fri, Jan 21, 2011 at 03:41:41PM +0900, KAMEZAWA Hiroyuki wrote:
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Current memory cgroup's code tends to assume page_size == PAGE_SIZE
+> but THP does HPAGE_SIZE charge.
+> 
+> This is one of fixes for supporing THP. This modifies
+> mem_cgroup_check_under_limit to take page_size into account.
+> 
+> Total fixes for do_charge()/reclaim memory will follow this patch.
+> 
+> TODO: By this reclaim function can get page_size as argument.
+> So...there may be something should be improvoed.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  include/linux/res_counter.h |   11 +++++++++++
+>  mm/memcontrol.c             |   27 ++++++++++++++-------------
+>  2 files changed, 25 insertions(+), 13 deletions(-)
+> 
+> Index: mmotm-0107/include/linux/res_counter.h
+> ===================================================================
+> --- mmotm-0107.orig/include/linux/res_counter.h
+> +++ mmotm-0107/include/linux/res_counter.h
+> @@ -182,6 +182,17 @@ static inline bool res_counter_check_und
+>  	return ret;
+>  }
+>  
+> +static inline s64 res_counter_check_margin(struct res_counter *cnt)
+> +{
+> +	s64 ret;
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&cnt->lock, flags);
+> +	ret = cnt->limit - cnt->usage;
+> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +	return ret;
+> +}
+> +
+>  static inline bool res_counter_check_under_soft_limit(struct res_counter *cnt)
+>  {
+>  	bool ret;
+> Index: mmotm-0107/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-0107.orig/mm/memcontrol.c
+> +++ mmotm-0107/mm/memcontrol.c
+> @@ -1099,14 +1099,14 @@ unsigned long mem_cgroup_isolate_pages(u
+>  #define mem_cgroup_from_res_counter(counter, member)	\
+>  	container_of(counter, struct mem_cgroup, member)
+>  
+> -static bool mem_cgroup_check_under_limit(struct mem_cgroup *mem)
+> +static bool mem_cgroup_check_under_limit(struct mem_cgroup *mem, int page_size)
+>  {
+>  	if (do_swap_account) {
+> -		if (res_counter_check_under_limit(&mem->res) &&
+> -			res_counter_check_under_limit(&mem->memsw))
+> +		if (res_counter_check_margin(&mem->res) >= page_size &&
+> +			res_counter_check_margin(&mem->memsw) >= page_size)
+>  			return true;
+>  	} else
+> -		if (res_counter_check_under_limit(&mem->res))
+> +		if (res_counter_check_margin(&mem->res) >= page_size)
+>  			return true;
+>  	return false;
+>  }
+> @@ -1367,7 +1367,8 @@ mem_cgroup_select_victim(struct mem_cgro
+>  static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+>  						struct zone *zone,
+>  						gfp_t gfp_mask,
+> -						unsigned long reclaim_options)
+> +						unsigned long reclaim_options,
+> +						int page_size)
+>  {
+>  	struct mem_cgroup *victim;
+>  	int ret, total = 0;
+> @@ -1434,7 +1435,7 @@ static int mem_cgroup_hierarchical_recla
+>  		if (check_soft) {
+>  			if (res_counter_check_under_soft_limit(&root_mem->res))
+>  				return total;
+> -		} else if (mem_cgroup_check_under_limit(root_mem))
+> +		} else if (mem_cgroup_check_under_limit(root_mem, page_size))
+>  			return 1 + total;
+>  	}
+>  	return total;
+> @@ -1844,7 +1845,7 @@ static int __mem_cgroup_do_charge(struct
+>  		return CHARGE_WOULDBLOCK;
+>  
+>  	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
+> -					gfp_mask, flags);
+> +					gfp_mask, flags, csize);
+>  	/*
+>  	 * try_to_free_mem_cgroup_pages() might not give us a full
+>  	 * picture of reclaim. Some pages are reclaimed and might be
+> @@ -1852,7 +1853,7 @@ static int __mem_cgroup_do_charge(struct
+>  	 * Check the limit again to see if the reclaim reduced the
+>  	 * current usage of the cgroup before giving up
+>  	 */
+> -	if (ret || mem_cgroup_check_under_limit(mem_over_limit))
+> +	if (ret || mem_cgroup_check_under_limit(mem_over_limit, csize))
+>  		return CHARGE_RETRY;
 
-> On Fri, 21 Jan 2011, Balbir Singh wrote:
-> 
-> > * Christoph Lameter <cl@linux.com> [2011-01-20 09:00:09]:
-> >
-> > > On Thu, 20 Jan 2011, Balbir Singh wrote:
-> > >
-> > > > +	unmapped_page_control
-> > > > +			[KNL] Available if CONFIG_UNMAPPED_PAGECACHE_CONTROL
-> > > > +			is enabled. It controls the amount of unmapped memory
-> > > > +			that is present in the system. This boot option plus
-> > > > +			vm.min_unmapped_ratio (sysctl) provide granular control
-> > >
-> > > min_unmapped_ratio is there to guarantee that zone reclaim does not
-> > > reclaim all unmapped pages.
-> > >
-> > > What you want here is a max_unmapped_ratio.
-> > >
-> >
-> > I thought about that, the logic for reusing min_unmapped_ratio was to
-> > keep a limit beyond which unmapped page cache shrinking should stop.
-> 
-> Right. That is the role of it. Its a minimum to leave. You want a maximum
-> size of the pagte cache.
+This is the only site that is really involved with THP.  But you need
+to touch every site because you change mem_cgroup_check_under_limit()
+instead of adding a new function.
 
-In this case we want the maximum to be as small as the minimum, but
-from a general design perspective maximum does make sense.
+I would suggest just adding another function for checking available
+space explicitely and only changing this single call site to use it.
 
-> 
-> > I think you are suggesting max_unmapped_ratio as the point at which
-> > shrinking should begin, right?
-> 
-> The role of min_unmapped_ratio is to never reclaim more pagecache if we
-> reach that ratio even if we have to go off node for an allocation.
-> 
-> AFAICT What you propose is a maximum size of the page cache. If the number
-> of page cache pages goes beyond that then you trim the page cache in
-> background reclaim.
-> 
-> > > > +			reclaim_unmapped_pages(priority, zone, &sc);
-> > > > +
-> > > >  			if (!zone_watermark_ok_safe(zone, order,
-> > >
-> > > Hmmmm. Okay that means background reclaim does it. If so then we also want
-> > > zone reclaim to be able to work in the background I think.
-> >
-> > Anything specific you had in mind, works for me in testing, but is
-> > there anything specific that stands out in your mind that needs to be
-> > done?
-> 
-> Hmmm. So this would also work in a NUMA configuration, right. Limiting the
-> sizes of the page cache would avoid zone reclaim through these limit. Page
-> cache size would be limited by the max_unmapped_ratio.
-> 
-> zone_reclaim only would come into play if other allocations make the
-> memory on the node so tight that we would have to evict more page
-> cache pages in direct reclaim.
-> Then zone_reclaim could go down to shrink the page cache size to
-> min_unmapped_ratio.
->
+Just ignore the return value of mem_cgroup_hierarchical_reclaim() and
+check for enough space unconditionally.
 
-I'll repost with max_unmapped_ration changes
-
-Thanks for the review! 
-
--- 
-	Three Cheers,
-	Balbir
+Everybody else is happy with PAGE_SIZE pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
