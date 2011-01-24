@@ -1,54 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D54296B0092
-	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 07:21:19 -0500 (EST)
-Subject: Re: [PATCH 00/21] mm: Preemptibility -v6
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1295624034.28776.303.camel@laptop>
-References: <20101126143843.801484792@chello.nl>
-	 <alpine.LSU.2.00.1101172301340.2899@sister.anvils>
-	 <1295457039.28776.137.camel@laptop>
-	 <alpine.LSU.2.00.1101201052060.1603@sister.anvils>
-	 <1295624034.28776.303.camel@laptop>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Mon, 24 Jan 2011 13:21:54 +0100
-Message-ID: <1295871714.28776.406.camel@laptop>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A3A026B0092
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 07:27:05 -0500 (EST)
+Received: by pzk27 with SMTP id 27so875229pzk.14
+        for <linux-mm@kvack.org>; Mon, 24 Jan 2011 04:27:03 -0800 (PST)
+Date: Mon, 24 Jan 2011 21:08:13 +0900
+From: Yoichi Yuasa <yuasa@linux-mips.org>
+Subject: [PATCH] fix build error when CONFIG_SWAP is not set
+Message-Id: <20110124210813.ba743fc5.yuasa@linux-mips.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@kernel.dk>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: yuasa@linux-mips.org, linux-mips <linux-mips@linux-mips.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2011-01-21 at 16:33 +0100, Peter Zijlstra wrote:
+In file included from
+linux-2.6/arch/mips/include/asm/tlb.h:21,
+                 from mm/pgtable-generic.c:9:
+include/asm-generic/tlb.h: In function 'tlb_flush_mmu':
+include/asm-generic/tlb.h:76: error: implicit declaration of function
+'release_pages'
+include/asm-generic/tlb.h: In function 'tlb_remove_page':
+include/asm-generic/tlb.h:105: error: implicit declaration of function
+'page_cache_release'
+make[1]: *** [mm/pgtable-generic.o] Error 1
 
-> Index: linux-2.6/mm/rmap.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- linux-2.6.orig/mm/rmap.c
-> +++ linux-2.6/mm/rmap.c
-> @@ -1559,9 +1559,20 @@ void __put_anon_vma(struct anon_vma *ano
->  	 * Synchronize against page_lock_anon_vma() such that
->  	 * we can safely hold the lock without the anon_vma getting
->  	 * freed.
-> +	 *
-> +	 * Relies on the full mb implied by the atomic_dec_and_test() from
-> +	 * put_anon_vma() against the full mb implied by mutex_trylock() from
-> +	 * page_lock_anon_vma(). This orders:
-> +	 *
-> +	 * page_lock_anon_vma()		VS	put_anon_vma()
-> +	 *   mutex_trylock()			  atomic_dec_and_test()
-> +	 *   smp_mb()				  smp_mb()
-> +	 *   atomic_read()			  mutex_is_locked()
+Signed-off-by: Yoichi Yuasa <yuasa@linux-mips.org>
+---
+ include/linux/swap.h |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
 
-Bah!, I thought all mutex_trylock() implementations used an atomic op
-with return value (which implies a mb), but it looks like (at least*)
-PPC doesn't and only provides a LOCK barrier.
-
-
-* possibly ARM and SH don't either, but I can't read either ASMs well
-enough to tell.
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 4d55932..92c1be6 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -8,6 +8,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/sched.h>
+ #include <linux/node.h>
++#include <linux/pagemap.h>
+ 
+ #include <asm/atomic.h>
+ #include <asm/page.h>
+-- 
+1.7.3.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
