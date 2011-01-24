@@ -1,72 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A070E6B0092
-	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 14:48:16 -0500 (EST)
-In-reply-to: <alpine.LSU.2.00.1101212014330.4301@sister.anvils> (message from
-	Hugh Dickins on Fri, 21 Jan 2011 20:46:00 -0800 (PST))
-Subject: Re: [PATCH] mm: prevent concurrent unmap_mapping_range() on the same
- inode
-References: <E1PftfG-0007w1-Ek@pomaz-ex.szeredi.hu> <20110120124043.GA4347@infradead.org> <E1PfvGx-00086O-IA@pomaz-ex.szeredi.hu> <alpine.LSU.2.00.1101212014330.4301@sister.anvils>
-Message-Id: <E1PhSO8-0005yN-Dp@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Mon, 24 Jan 2011 20:47:44 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 81AB36B00E7
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 15:44:48 -0500 (EST)
+Date: Mon, 24 Jan 2011 12:44:12 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] fix build error when CONFIG_SWAP is not set
+Message-Id: <20110124124412.69a7c814.akpm@linux-foundation.org>
+In-Reply-To: <4D3DD366.8000704@mvista.com>
+References: <20110124210813.ba743fc5.yuasa@linux-mips.org>
+	<4D3DD366.8000704@mvista.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: miklos@szeredi.hu, hch@infradead.org, akpm@linux-foundation.org, gurudas.pai@oracle.com, lkml20101129@newton.leun.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sergei Shtylyov <sshtylyov@mvista.com>
+Cc: Yoichi Yuasa <yuasa@linux-mips.org>, linux-mips <linux-mips@linux-mips.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Jan 2011, Hugh Dickins wrote:
-> On Thu, 20 Jan 2011, Miklos Szeredi wrote:
-> > On Thu, 20 Jan 2011, Christoph Hellwig wrote:
-> > > On Thu, Jan 20, 2011 at 01:30:58PM +0100, Miklos Szeredi wrote:
-> > > > 
-> > > > Truncate and hole punching already serialize with i_mutex.  Other
-> > > > callers of unmap_mapping_range() do not, and it's difficult to get
-> > > > i_mutex protection for all callers.  In particular ->d_revalidate(),
-> > > > which calls invalidate_inode_pages2_range() in fuse, may be called
-> > > > with or without i_mutex.
-> > > 
-> > > 
-> > > Which I think is mostly a fuse problem.  I really hate bloating the
-> > > generic inode (into which the address_space is embedded) with another
-> > > mutex for deficits in rather special case filesystems. 
-> > 
-> > As Hugh pointed out unmap_mapping_range() has grown a varied set of
-> > callers, which are difficult to fix up wrt i_mutex.  Fuse was just an
-> > example.
-> > 
-> > I don't like the bloat either, but this is the best I could come up
-> > with for fixing this problem generally.  If you have a better idea,
-> > please share it.
+On Mon, 24 Jan 2011 22:30:46 +0300
+Sergei Shtylyov <sshtylyov@mvista.com> wrote:
+
+> Hello.
 > 
-> If we start from the point that this is mostly a fuse problem (I expect
-> that a thorough audit will show up a few other filesystems too, but
-> let's start from this point): you cite ->d_revalidate as a particular
-> problem, but can we fix up its call sites so that it is always called
-> either with, or much preferably without, i_mutex held?  Though actually
-> I couldn't find where ->d_revalidate() is called while holding i_mutex.
+> Yoichi Yuasa wrote:
+> 
+> > In file included from
+> > linux-2.6/arch/mips/include/asm/tlb.h:21,
+> >                  from mm/pgtable-generic.c:9:
+> > include/asm-generic/tlb.h: In function 'tlb_flush_mmu':
+> > include/asm-generic/tlb.h:76: error: implicit declaration of function
+> > 'release_pages'
+> > include/asm-generic/tlb.h: In function 'tlb_remove_page':
+> > include/asm-generic/tlb.h:105: error: implicit declaration of function
+> > 'page_cache_release'
+> > make[1]: *** [mm/pgtable-generic.o] Error 1
+> > 
+> > Signed-off-by: Yoichi Yuasa <yuasa@linux-mips.org>
+> [...]
+> 
+> > diff --git a/include/linux/swap.h b/include/linux/swap.h
+> > index 4d55932..92c1be6 100644
+> > --- a/include/linux/swap.h
+> > +++ b/include/linux/swap.h
+> > @@ -8,6 +8,7 @@
+> >  #include <linux/memcontrol.h>
+> >  #include <linux/sched.h>
+> >  #include <linux/node.h>
+> > +#include <linux/pagemap.h>
+> 
+>     Hm, if the errors are in <asm-generic/tlb.h>, why add #include in 
+> <linux/swap.h>?
+> 
 
-lookup_one_len
-lookup_hash
-  __lookup_hash
-    do_revalidate
-      d_revalidate
+The build error is caused by macros which are defined in swap.h.
 
-I don't see an easy way to get rid of i_mutex for lookup_one_len() and
-lookup_hash().
+I worry about the effects of the patch - I don't know which of swap.h
+and pagemap.h is the "innermost" header file.  There's potential for
+new build errors due to strange inclusion graphs.
 
-> Failing that, can fuse down_write i_alloc_sem before calling
-> invalidate_inode_pages2(_range), to achieve the same exclusion?
-> The setattr truncation path takes i_alloc_sem as well as i_mutex,
-> though I'm not certain of its full coverage.
+err, there's also this, in swap.h:
 
-Yeah, fuse could use i_alloc_sem or a private mutex, but that would
-leave the other uses of unmap_mapping_range() to sort this out for
-themsevels.
+/* only sparc can not include linux/pagemap.h in this file
+ * so leave page_cache_release and release_pages undeclared... */
 
-Thanks,
-Miklos
-
+It would be safer to convert free_page_and_swap_cache() and
+free_pages_and_swap_cache() into out-of-line C functions.  Or to
+explicitly include pagemap.h into the offending .c files.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
