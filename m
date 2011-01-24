@@ -1,110 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E67DA6B00E9
-	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 06:35:08 -0500 (EST)
-Date: Mon, 24 Jan 2011 12:34:58 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/7] memcg : comment, style fixes for recent patch of
- move_parent
-Message-ID: <20110124113458.GX2232@cmpxchg.org>
-References: <20110121153431.191134dd.kamezawa.hiroyu@jp.fujitsu.com>
- <20110121153726.54f4a159.kamezawa.hiroyu@jp.fujitsu.com>
- <20110124101402.GT2232@cmpxchg.org>
- <20110124191535.514ef2d9.kamezawa.hiroyu@jp.fujitsu.com>
- <20110124104510.GW2232@cmpxchg.org>
- <AANLkTi=sg5HpCTdXgEVYS5rCqtoVVho6dxn8giwZ4kmY@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTi=sg5HpCTdXgEVYS5rCqtoVVho6dxn8giwZ4kmY@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D54296B0092
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 07:21:19 -0500 (EST)
+Subject: Re: [PATCH 00/21] mm: Preemptibility -v6
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1295624034.28776.303.camel@laptop>
+References: <20101126143843.801484792@chello.nl>
+	 <alpine.LSU.2.00.1101172301340.2899@sister.anvils>
+	 <1295457039.28776.137.camel@laptop>
+	 <alpine.LSU.2.00.1101201052060.1603@sister.anvils>
+	 <1295624034.28776.303.camel@laptop>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 24 Jan 2011 13:21:54 +0100
+Message-ID: <1295871714.28776.406.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@kernel.dk>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 24, 2011 at 08:14:22PM +0900, Hiroyuki Kamezawa wrote:
-> 2011/1/24 Johannes Weiner <hannes@cmpxchg.org>:
-> > On Mon, Jan 24, 2011 at 07:15:35PM +0900, KAMEZAWA Hiroyuki wrote:
-> >> On Mon, 24 Jan 2011 11:14:02 +0100
-> >> Johannes Weiner <hannes@cmpxchg.org> wrote:
-> >>
-> >> > On Fri, Jan 21, 2011 at 03:37:26PM +0900, KAMEZAWA Hiroyuki wrote:
-> >> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >> > >
-> >> > > A fix for 987eba66e0e6aa654d60881a14731a353ee0acb4
-> >> > >
-> >> > > A clean up for mem_cgroup_move_parent().
-> >> > >  - remove unnecessary initialization of local variable.
-> >> > >  - rename charge_size -> page_size
-> >> > >  - remove unnecessary (wrong) comment.
-> >> > >
-> >> > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >> > > ---
-> >> > >  mm/memcontrol.c |   17 +++++++++--------
-> >> > >  1 file changed, 9 insertions(+), 8 deletions(-)
-> >> > >
-> >> > > Index: mmotm-0107/mm/memcontrol.c
-> >> > > ===================================================================
-> >> > > --- mmotm-0107.orig/mm/memcontrol.c
-> >> > > +++ mmotm-0107/mm/memcontrol.c
-> >> > > @@ -2265,7 +2265,7 @@ static int mem_cgroup_move_parent(struct
-> >> > >   struct cgroup *cg = child->css.cgroup;
-> >> > >   struct cgroup *pcg = cg->parent;
-> >> > >   struct mem_cgroup *parent;
-> >> > > - int charge = PAGE_SIZE;
-> >> > > + int page_size;
-> >> > >   unsigned long flags;
-> >> > >   int ret;
-> >> > >
-> >> > > @@ -2278,22 +2278,23 @@ static int mem_cgroup_move_parent(struct
-> >> > >           goto out;
-> >> > >   if (isolate_lru_page(page))
-> >> > >           goto put;
-> >> > > - /* The page is isolated from LRU and we have no race with splitting */
-> >> > > - charge = PAGE_SIZE << compound_order(page);
-> >> > > +
-> >> > > + page_size = PAGE_SIZE << compound_order(page);
-> >> >
-> >> > Okay, so you remove the wrong comment, but that does not make the code
-> >> > right.  What protects compound_order from reading garbage because the
-> >> > page is currently splitting?
-> >> >
-> >>
-> >> ==
-> >> static int mem_cgroup_move_account(struct page_cgroup *pc,
-> >>                 struct mem_cgroup *from, struct mem_cgroup *to,
-> >>                 bool uncharge, int charge_size)
-> >> {
-> >>         int ret = -EINVAL;
-> >>         unsigned long flags;
-> >>
-> >>         if ((charge_size > PAGE_SIZE) && !PageTransHuge(pc->page))
-> >>                 return -EBUSY;
-> >> ==
-> >>
-> >> This is called under compound_lock(). Then, if someone breaks THP,
-> >> -EBUSY and retry.
-> >
-> > This charge_size contains exactly the garbage you just read from an
-> > unprotected compound_order().  It could be anything if the page is
-> > split concurrently.
-> 
-> Then, my recent fix to LRU accounting which use compound_order() is racy, too ?
+On Fri, 2011-01-21 at 16:33 +0100, Peter Zijlstra wrote:
 
-In lru add/delete/move/rotate?  No, that should be safe because we
-have the lru lock there and __split_huge_page_refcount() takes the
-lock as well.
+> Index: linux-2.6/mm/rmap.c
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- linux-2.6.orig/mm/rmap.c
+> +++ linux-2.6/mm/rmap.c
+> @@ -1559,9 +1559,20 @@ void __put_anon_vma(struct anon_vma *ano
+>  	 * Synchronize against page_lock_anon_vma() such that
+>  	 * we can safely hold the lock without the anon_vma getting
+>  	 * freed.
+> +	 *
+> +	 * Relies on the full mb implied by the atomic_dec_and_test() from
+> +	 * put_anon_vma() against the full mb implied by mutex_trylock() from
+> +	 * page_lock_anon_vma(). This orders:
+> +	 *
+> +	 * page_lock_anon_vma()		VS	put_anon_vma()
+> +	 *   mutex_trylock()			  atomic_dec_and_test()
+> +	 *   smp_mb()				  smp_mb()
+> +	 *   atomic_read()			  mutex_is_locked()
 
-> I'll replace compound_order() with
->   if (PageTransHuge(page))
->       size = HPAGE_SIZE.
-> 
-> Does this work ?
+Bah!, I thought all mutex_trylock() implementations used an atomic op
+with return value (which implies a mb), but it looks like (at least*)
+PPC doesn't and only provides a LOCK barrier.
 
-Yes, I think this should work.  This gives a sane size for try_charge
-and we still catch a split under the compound_lock later in
-move_account as you described above.
+
+* possibly ARM and SH don't either, but I can't read either ASMs well
+enough to tell.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
