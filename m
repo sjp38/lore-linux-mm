@@ -1,95 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D2D16B00E7
-	for <linux-mm@kvack.org>; Sun, 23 Jan 2011 17:58:49 -0500 (EST)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id p0NMwjnE029689
-	for <linux-mm@kvack.org>; Sun, 23 Jan 2011 14:58:46 -0800
-Received: from iwn8 (iwn8.prod.google.com [10.241.68.72])
-	by wpaz1.hot.corp.google.com with ESMTP id p0NMwisL000991
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 23 Jan 2011 14:58:44 -0800
-Received: by iwn8 with SMTP id 8so3648657iwn.34
-        for <linux-mm@kvack.org>; Sun, 23 Jan 2011 14:58:43 -0800 (PST)
-Date: Sun, 23 Jan 2011 14:58:39 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm: clear pages_scanned only if draining a pcp adds pages
- to the buddy allocator
-Message-ID: <alpine.DEB.2.00.1101231457130.966@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E0D546B00E7
+	for <linux-mm@kvack.org>; Sun, 23 Jan 2011 19:14:51 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 26B1D3EE0B3
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 09:14:49 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0ED7445DE4F
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 09:14:49 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E790F45DE51
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 09:14:48 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DAD0F1DB803E
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 09:14:48 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A816F1DB8037
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 09:14:48 +0900 (JST)
+Date: Mon, 24 Jan 2011 09:08:44 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] Fix uninitialized variable use in
+ mm/memcontrol.c::mem_cgroup_move_parent()
+Message-Id: <20110124090844.e13e15af.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.LNX.2.00.1101222044580.7746@swampdragon.chaosbits.net>
+References: <alpine.LNX.2.00.1101222044580.7746@swampdragon.chaosbits.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
+To: Jesper Juhl <jj@chaosbits.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Pavel Emelianov <xemul@openvz.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
 List-ID: <linux-mm.kvack.org>
 
-0e093d99763e (writeback: do not sleep on the congestion queue if there
-are no congested BDIs or if significant congestion is not being
-encountered in the current zone) uncovered a livelock in the page
-allocator that resulted in tasks infinitely looping trying to find memory
-and kswapd running at 100% cpu.
+On Sat, 22 Jan 2011 20:51:32 +0100 (CET)
+Jesper Juhl <jj@chaosbits.net> wrote:
 
-The issue occurs because drain_all_pages() is called immediately
-following direct reclaim when no memory is freed and try_to_free_pages()
-returns non-zero because all zones in the zonelist do not have their
-all_unreclaimable flag set.
+> In mm/memcontrol.c::mem_cgroup_move_parent() there's a path that jumps to 
+> the 'put_back' label
+>   	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, charge);
+>   	if (ret || !parent)
+>   		goto put_back;
+>  where we'll 
+>   	if (charge > PAGE_SIZE)
+>   		compound_unlock_irqrestore(page, flags);
+> but, we have not assigned anything to 'flags' at this point, nor have we 
+> called 'compound_lock_irqsave()' (which is what sets 'flags').
+> So, I believe the 'put_back' label should be moved below the call to 
+> compound_unlock_irqrestore() as per this patch. 
+> 
+> Signed-off-by: Jesper Juhl <jj@chaosbits.net>
 
-When draining the per-cpu pagesets back to the buddy allocator for each
-zone, the zone->pages_scanned counter is cleared to avoid erroneously
-setting zone->all_unreclaimable later.  The problem is that no pages may
-actually be drained and, thus, the unreclaimable logic never fails direct
-reclaim so the oom killer may be invoked.
+Thank you.
 
-This apparently only manifested after wait_iff_congested() was introduced
-and the zone was full of anonymous memory that would not congest the
-backing store.  The page allocator would infinitely loop if there were no
-other tasks waiting to be scheduled and clear zone->pages_scanned because
-of drain_all_pages() as the result of this change before kswapd could
-scan enough pages to trigger the reclaim logic.  Additionally, with every
-loop of the page allocator and in the reclaim path, kswapd would be
-kicked and would end up running at 100% cpu.  In this scenario, current
-and kswapd are all running continuously with kswapd incrementing
-zone->pages_scanned and current clearing it.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-The problem is even more pronounced when current swaps some of its memory
-to swap cache and the reclaimable logic then considers all active
-anonymous memory in the all_unreclaimable logic, which requires a much
-higher zone->pages_scanned value for try_to_free_pages() to return zero
-that is never attainable in this scenario.
-
-Before wait_iff_congested(), the page allocator would incur an
-unconditional timeout and allow kswapd to elevate zone->pages_scanned to
-a level that the oom killer would be called the next time it loops.
-
-The fix is to only attempt to drain pcp pages if there is actually a
-quantity to be drained.  The unconditional clearing of
-zone->pages_scanned in free_pcppages_bulk() need not be changed since
-other callers already ensure that draining will occur.  This patch
-ensures that free_pcppages_bulk() will actually free memory before
-calling into it from drain_all_pages() so zone->pages_scanned is only
-cleared if appropriate.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/page_alloc.c |    6 ++++--
- 1 files changed, 4 insertions(+), 2 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1088,8 +1088,10 @@ static void drain_pages(unsigned int cpu)
- 		pset = per_cpu_ptr(zone->pageset, cpu);
- 
- 		pcp = &pset->pcp;
--		free_pcppages_bulk(zone, pcp->count, pcp);
--		pcp->count = 0;
-+		if (pcp->count) {
-+			free_pcppages_bulk(zone, pcp->count, pcp);
-+			pcp->count = 0;
-+		}
- 		local_irq_restore(flags);
- 	}
- }
+Andrew, I'll move my new patces onto this. So, please pick this one 1st.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
