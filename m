@@ -1,45 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 777676B0092
-	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 08:16:09 -0500 (EST)
-Received: from localhost.localdomain ([127.0.0.1]:49673 "EHLO
-        duck.linux-mips.net" rhost-flags-OK-OK-OK-FAIL)
-        by eddie.linux-mips.org with ESMTP id S1491048Ab1AXNQG (ORCPT
-        <rfc822;linux-mm@kvack.org>); Mon, 24 Jan 2011 14:16:06 +0100
-Date: Mon, 24 Jan 2011 14:15:36 +0100
-From: Ralf Baechle <ralf@linux-mips.org>
-Subject: Re: [PATCH] fix build error when CONFIG_SWAP is not set
-Message-ID: <20110124131536.GA6246@linux-mips.org>
-References: <20110124210813.ba743fc5.yuasa@linux-mips.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110124210813.ba743fc5.yuasa@linux-mips.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id B584F6B0092
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 09:24:05 -0500 (EST)
+Subject: Re: [PATCH 00/21] mm: Preemptibility -v6
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1295873131.28776.431.camel@laptop>
+References: <20101126143843.801484792@chello.nl>
+	 <alpine.LSU.2.00.1101172301340.2899@sister.anvils>
+	 <1295457039.28776.137.camel@laptop>
+	 <alpine.LSU.2.00.1101201052060.1603@sister.anvils>
+	 <1295873131.28776.431.camel@laptop>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 24 Jan 2011 15:24:44 +0100
+Message-ID: <1295879084.28776.432.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Yoichi Yuasa <yuasa@linux-mips.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mips <linux-mips@linux-mips.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@kernel.dk>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 24, 2011 at 09:08:13PM +0900, Yoichi Yuasa wrote:
+On Mon, 2011-01-24 at 13:45 +0100, Peter Zijlstra wrote:
+> The only significant loser, I think,
+> > would be page reclaim (when concurrent with truncation): could spin for=
+ a
+> > long time waiting for the i_mmap_mutex it expects would soon be dropped=
+?=20
 
-> In file included from
-> linux-2.6/arch/mips/include/asm/tlb.h:21,
->                  from mm/pgtable-generic.c:9:
-> include/asm-generic/tlb.h: In function 'tlb_flush_mmu':
-> include/asm-generic/tlb.h:76: error: implicit declaration of function
-> 'release_pages'
-> include/asm-generic/tlb.h: In function 'tlb_remove_page':
-> include/asm-generic/tlb.h:105: error: implicit declaration of function
-> 'page_cache_release'
-> make[1]: *** [mm/pgtable-generic.o] Error 1
-> 
-> Signed-off-by: Yoichi Yuasa <yuasa@linux-mips.org>
+Well it won't spin (much) but mostly go to sleep if it really takes very
+long, but then, could it really take much longer than say a lock_page()
+when reclaim hits a page under IO?
 
-Works as advertised for me.
-
-Tested-by: Ralf Baechle <ralf@linux-mips.org>
-
-  Ralf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
