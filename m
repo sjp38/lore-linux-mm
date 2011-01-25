@@ -1,197 +1,380 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 005586B0092
-	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 22:34:37 -0500 (EST)
-Date: Tue, 25 Jan 2011 14:34:14 +1100
-From: Anton Blanchard <anton@samba.org>
-Subject: [PATCH 2/2] hugepage: Allow parallelization of the hugepage fault
- path
-Message-ID: <20110125143414.1dbb150c@kryten>
-In-Reply-To: <20110125143226.37532ea2@kryten>
-References: <20110125143226.37532ea2@kryten>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FCC76B0092
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 23:54:08 -0500 (EST)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id p0P4s1Uu031818
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 20:54:03 -0800
+Received: from qwk4 (qwk4.prod.google.com [10.241.195.132])
+	by wpaz21.hot.corp.google.com with ESMTP id p0P4rdcq010737
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 20:53:59 -0800
+Received: by qwk4 with SMTP id 4so5078441qwk.18
+        for <linux-mm@kvack.org>; Mon, 24 Jan 2011 20:53:55 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <65587733.139133.1295920919846.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+References: <784488145.139125.1295920770779.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+	<65587733.139133.1295920919846.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Date: Mon, 24 Jan 2011 20:53:55 -0800
+Message-ID: <AANLkTi=bZ_CsPje30WgHXrkvRVv9yVmVCtufh4m=KjBj@mail.gmail.com>
+Subject: Re: ksmd hung tasks
+From: Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: dwg@au1.ibm.com, mel@csn.ul.ie, akpm@linux-foundation.org, hughd@google.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: CAI Qian <caiqian@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-From: David Gibson <dwg@au1.ibm.com>
+On Mon, Jan 24, 2011 at 6:01 PM, CAI Qian <caiqian@redhat.com> wrote:
+> This is not always reproducible so far but I thought it would send it out=
+ anyway in case someone could spot the problem. Running some memory allocat=
+ion using ksm with swapping workloads (like oom02 in LTP) caused hung tasks=
+ in 2.6.38-rc2 kernel.
+>
+> INFO: task ksmd:278 blocked for more than 120 seconds.
+> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> ksmd =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0D ffff88045ddab9e0 =C2=A0 =
+=C2=A0 0 =C2=A0 278 =C2=A0 =C2=A0 =C2=A02 0x00000000
+> =C2=A0ffff88045ddadc20 0000000000000046 0000000000000000 0000000100000000
+> =C2=A00000000000014d40 ffff88045ddab480 ffff88045ddab9e0 ffff88045ddadfd8
+> =C2=A0ffff88045ddab9e8 0000000000014d40 ffff88045ddac010 0000000000014d40
+> Call Trace:
+> =C2=A0[<ffffffff814a290d>] schedule_timeout+0x20d/0x2e0
+> =C2=A0[<ffffffff8104d08d>] ? task_rq_lock+0x5d/0xa0
+> =C2=A0[<ffffffff81058463>] ? try_to_wake_up+0xc3/0x420
+> =C2=A0[<ffffffff814a253d>] wait_for_common+0x11d/0x190
+> =C2=A0[<ffffffff810587c0>] ? default_wake_function+0x0/0x20
+> =C2=A0[<ffffffff814a268d>] wait_for_completion+0x1d/0x20
+> =C2=A0[<ffffffff81079530>] flush_work+0x30/0x40
+> =C2=A0[<ffffffff81078230>] ? wq_barrier_func+0x0/0x20
+> =C2=A0[<ffffffff81079603>] schedule_on_each_cpu+0xc3/0x110
+> =C2=A0[<ffffffff81100ac5>] lru_add_drain_all+0x15/0x20
+> =C2=A0[<ffffffff81137e58>] ksm_scan_thread+0x8e8/0xcb0
+> =C2=A0[<ffffffff8107fd50>] ? autoremove_wake_function+0x0/0x40
+> =C2=A0[<ffffffff81137570>] ? ksm_scan_thread+0x0/0xcb0
+> =C2=A0[<ffffffff8107f6c6>] kthread+0x96/0xa0
+> =C2=A0[<ffffffff8100cdc4>] kernel_thread_helper+0x4/0x10
+> =C2=A0[<ffffffff8107f630>] ? kthread+0x0/0xa0
+> =C2=A0[<ffffffff8100cdc0>] ? kernel_thread_helper+0x0/0x10
 
-At present, the page fault path for hugepages is serialized by a
-single mutex.  This is used to avoid spurious out-of-memory conditions
-when the hugepage pool is fully utilized (two processes or threads can
-race to instantiate the same mapping with the last hugepage from the
-pool, the race loser returning VM_FAULT_OOM).  This problem is
-specific to hugepages, because it is normal to want to use every
-single hugepage in the system - with normal pages we simply assume
-there will always be a few spare pages which can be used temporarily
-until the race is resolved.
+Oooh, that is unfair, I put that lru_add_drain_all() into ksmd just
+for you, and now you accuse it of hanging :)
 
-Unfortunately this serialization also means that clearing of hugepages
-cannot be parallelized across multiple CPUs, which can lead to very
-long process startup times when using large numbers of hugepages.
+More seriously, it looks like the draining never gets a chance to run
+on one (or more) of the cpus, presumably something else is keeping
+that cpu unnaturally busy.
 
-This patch improves the situation by replacing the single mutex with a
-table of mutexes, selected based on a hash of the address_space and
-file offset being faulted (or mm and virtual address for MAP_PRIVATE
-mappings).
+I think this is either another manifestation of the same problem as in
+your "kswapd hung tasks" posting, or an example of kswapd itself too
+busy, as reported by David: see his patch to linux-mm today,
 
+http://marc.info/?l=3Dlinux-mm&m=3D129582353117092&w=3D2
 
-From: Anton Blanchard <anton@samba.org>
+Or perhaps those two cases are themselves related, though kswapd
+appears to be too busy in one case, and prevented from getting busy in
+the other.
 
-Forward ported and made a few changes:
+Hugh
 
-- Use the Jenkins hash to scatter the hash, better than using just the
-  low bits.
-
-- Always round num_fault_mutexes to a power of two to avoid an expensive
-  modulus in the hash calculation.
-
-I also tested this patch on a 64 thread POWER6 box using a simple parallel
-fault testcase:
-
-http://ozlabs.org/~anton/junkcode/parallel_fault.c
-
-Command line options:
-
-parallel_fault <nr_threads> <size in kB> <skip in kB>
-
-First the time taken to fault 48GB of 16MB hugepages:
-# time hugectl --heap ./parallel_fault 1 50331648 16384
-11.1 seconds
-
-Now the same test with 64 concurrent threads:
-# time hugectl --heap ./parallel_fault 64 50331648 16384
-8.8 seconds
-
-Hardly any speedup. Finally the 64 concurrent threads test with this patch
-applied:
-# time hugectl --heap ./parallel_fault 64 50331648 16384
-0.7 seconds
-
-We go from 8.8 seconds to 0.7 seconds, an improvement of 12.6x.
-
-Signed-off-by: David Gibson <dwg@au1.ibm.com>
-Signed-off-by: Anton Blanchard <anton@samba.org>
----
-
-Index: powerpc.git/mm/hugetlb.c
-===================================================================
---- powerpc.git.orig/mm/hugetlb.c	2011-01-25 13:20:49.311405902 +1100
-+++ powerpc.git/mm/hugetlb.c	2011-01-25 13:45:54.437235053 +1100
-@@ -21,6 +21,7 @@
- #include <linux/rmap.h>
- #include <linux/swap.h>
- #include <linux/swapops.h>
-+#include <linux/jhash.h>
- 
- #include <asm/page.h>
- #include <asm/pgtable.h>
-@@ -54,6 +55,13 @@ static unsigned long __initdata default_
- static DEFINE_SPINLOCK(hugetlb_lock);
- 
- /*
-+ * Serializes faults on the same logical page.  This is used to
-+ * prevent spurious OOMs when the hugepage pool is fully utilized.
-+ */
-+static unsigned int num_fault_mutexes;
-+static struct mutex *htlb_fault_mutex_table;
-+
-+/*
-  * Region tracking -- allows tracking of reservations and instantiated pages
-  *                    across the pages in a mapping.
-  */
-@@ -1764,6 +1772,8 @@ module_exit(hugetlb_exit);
- 
- static int __init hugetlb_init(void)
- {
-+	int i;
-+
- 	/* Some platform decide whether they support huge pages at boot
- 	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
- 	 * there is no such support
-@@ -1790,6 +1800,12 @@ static int __init hugetlb_init(void)
- 
- 	hugetlb_register_all_nodes();
- 
-+	num_fault_mutexes = roundup_pow_of_two(2 * num_possible_cpus());
-+	htlb_fault_mutex_table =
-+		kmalloc(num_fault_mutexes * sizeof(struct mutex), GFP_KERNEL);
-+	for (i = 0; i < num_fault_mutexes; i++)
-+		mutex_init(&htlb_fault_mutex_table[i]);
-+
- 	return 0;
- }
- module_init(hugetlb_init);
-@@ -2616,6 +2632,27 @@ backout_unlocked:
- 	goto out;
- }
- 
-+static u32 fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
-+			    struct vm_area_struct *vma,
-+			    struct address_space *mapping,
-+			    unsigned long pagenum, unsigned long address)
-+{
-+	unsigned long key[2];
-+	u32 hash;
-+
-+	if ((vma->vm_flags & VM_SHARED)) {
-+		key[0] = (unsigned long)mapping;
-+		key[1] = pagenum;
-+	} else {
-+		key[0] = (unsigned long)mm;
-+		key[1] = address >> huge_page_shift(h);
-+	}
-+
-+	hash = jhash2((u32 *)&key, sizeof(key)/sizeof(u32), 0);
-+
-+	return hash & (num_fault_mutexes - 1);
-+}
-+
- int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long address, unsigned int flags)
- {
-@@ -2624,8 +2661,10 @@ int hugetlb_fault(struct mm_struct *mm,
- 	int ret;
- 	struct page *page = NULL;
- 	struct page *pagecache_page = NULL;
--	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
- 	struct hstate *h = hstate_vma(vma);
-+	struct address_space *mapping;
-+	unsigned long idx;
-+	u32 hash;
- 
- 	ptep = huge_pte_offset(mm, address);
- 	if (ptep) {
-@@ -2642,12 +2681,16 @@ int hugetlb_fault(struct mm_struct *mm,
- 	if (!ptep)
- 		return VM_FAULT_OOM;
- 
-+	mapping = vma->vm_file->f_mapping;
-+	idx = vma_hugecache_offset(h, vma, address);
-+
- 	/*
- 	 * Serialize hugepage allocation and instantiation, so that we don't
- 	 * get spurious allocation failures if two CPUs race to instantiate
- 	 * the same page in the page cache.
- 	 */
--	mutex_lock(&hugetlb_instantiation_mutex);
-+	hash = fault_mutex_hash(h, mm, vma, mapping, idx, address);
-+	mutex_lock(&htlb_fault_mutex_table[hash]);
- 	entry = huge_ptep_get(ptep);
- 	if (huge_pte_none(entry)) {
- 		ret = hugetlb_no_page(mm, vma, address, ptep, flags);
-@@ -2716,7 +2759,7 @@ out_page_table_lock:
- 		unlock_page(page);
- 
- out_mutex:
--	mutex_unlock(&hugetlb_instantiation_mutex);
-+	mutex_unlock(&htlb_fault_mutex_table[hash]);
- 
- 	return ret;
- }
+> INFO: task jbd2/dm-0-8:1179 blocked for more than 120 seconds.
+> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> jbd2/dm-0-8 =C2=A0 =C2=A0 D ffff88045d9a3120 =C2=A0 =C2=A0 0 =C2=A01179 =
+=C2=A0 =C2=A0 =C2=A02 0x00000000
+> =C2=A0ffff88045cd97c20 0000000000000046 ffff88045d4d4fc0 ffff88045de984f8
+> =C2=A00000000000014d40 ffff88045d9a2bc0 ffff88045d9a3120 ffff88045cd97fd8
+> =C2=A0ffff88045d9a3128 0000000000014d40 ffff88045cd96010 0000000000014d40
+> Call Trace:
+> =C2=A0[<ffffffff81175fb0>] ? sync_buffer+0x0/0x50
+> =C2=A0[<ffffffff814a2330>] io_schedule+0x70/0xc0
+> =C2=A0[<ffffffff81175ff0>] sync_buffer+0x40/0x50
+> =C2=A0[<ffffffff814a2bef>] __wait_on_bit+0x5f/0x90
+> =C2=A0[<ffffffff81175fb0>] ? sync_buffer+0x0/0x50
+> =C2=A0[<ffffffff814a2c98>] out_of_line_wait_on_bit+0x78/0x90
+> =C2=A0[<ffffffff8107fd90>] ? wake_bit_function+0x0/0x50
+> =C2=A0[<ffffffff81175fae>] __wait_on_buffer+0x2e/0x30
+> =C2=A0[<ffffffffa0082fe8>] jbd2_journal_commit_transaction+0x908/0x13f0 [=
+jbd2]
+> =C2=A0[<ffffffff8106e2a3>] ? try_to_del_timer_sync+0x83/0xe0
+> =C2=A0[<ffffffffa00882c8>] kjournald2+0xb8/0x220 [jbd2]
+> =C2=A0[<ffffffff8107fd50>] ? autoremove_wake_function+0x0/0x40
+> =C2=A0[<ffffffffa0088210>] ? kjournald2+0x0/0x220 [jbd2]
+> =C2=A0[<ffffffff8107f6c6>] kthread+0x96/0xa0
+> =C2=A0[<ffffffff8100cdc4>] kernel_thread_helper+0x4/0x10
+> =C2=A0[<ffffffff8107f630>] ? kthread+0x0/0xa0
+> =C2=A0[<ffffffff8100cdc0>] ? kernel_thread_helper+0x0/0x10
+> INFO: task irqbalance:3321 blocked for more than 120 seconds.
+> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> irqbalance =C2=A0 =C2=A0 =C2=A0D ffff880c5d995020 =C2=A0 =C2=A0 0 =C2=A03=
+321 =C2=A0 =C2=A0 =C2=A01 0x00000080
+> =C2=A0ffff880c5d4f7b08 0000000000000082 ffff880c5d4f7ab8 ffffffffffffffff
+> =C2=A00000000000014d40 ffff880c5d994ac0 ffff880c5d995020 ffff880c5d4f7fd8
+> =C2=A0ffff880c5d995028 0000000000014d40 ffff880c5d4f6010 0000000000014d40
+> Call Trace:
+> =C2=A0[<ffffffff810f5260>] ? sync_page+0x0/0x50
+> =C2=A0[<ffffffff814a2330>] io_schedule+0x70/0xc0
+> =C2=A0[<ffffffff810f52a0>] sync_page+0x40/0x50
+> =C2=A0[<ffffffff814a2bef>] __wait_on_bit+0x5f/0x90
+> =C2=A0[<ffffffff810f5463>] wait_on_page_bit+0x73/0x80
+> =C2=A0[<ffffffff8107fd90>] ? wake_bit_function+0x0/0x50
+> =C2=A0[<ffffffff810f550a>] __lock_page_or_retry+0x3a/0x60
+> =C2=A0[<ffffffff810f6537>] filemap_fault+0x2d7/0x4c0
+> =C2=A0[<ffffffff81119694>] __do_fault+0x54/0x570
+> =C2=A0[<ffffffff81141357>] ? mem_cgroup_uncharge_swap+0x27/0x80
+> =C2=A0[<ffffffff81119ca7>] handle_pte_fault+0xf7/0xb20
+> =C2=A0[<ffffffff81115727>] ? __pte_alloc+0xd7/0xf0
+> =C2=A0[<ffffffff8111a826>] handle_mm_fault+0x156/0x250
+> =C2=A0[<ffffffff814a7da3>] do_page_fault+0x143/0x4b0
+> =C2=A0[<ffffffff810848d4>] ? hrtimer_nanosleep+0xc4/0x180
+> =C2=A0[<ffffffff810836f0>] ? hrtimer_wakeup+0x0/0x30
+> =C2=A0[<ffffffff81084704>] ? hrtimer_start_range_ns+0x14/0x20
+> =C2=A0[<ffffffff814a4b15>] page_fault+0x25/0x30
+> INFO: task rpcbind:3335 blocked for more than 120 seconds.
+> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> rpcbind =C2=A0 =C2=A0 =C2=A0 =C2=A0 D ffff880c5dfc99a0 =C2=A0 =C2=A0 0 =
+=C2=A03335 =C2=A0 =C2=A0 =C2=A01 0x00000080
+> =C2=A0ffff880c7f4ab738 0000000000000082 000000000000001e 0000004000000000
+> =C2=A00000000000014d40 ffff880c5dfc9440 ffff880c5dfc99a0 ffff880c7f4abfd8
+> =C2=A0ffff880c5dfc99a8 0000000000014d40 ffff880c7f4aa010 0000000000014d40
+> Call Trace:
+> =C2=A0[<ffffffff810f5260>] ? sync_page+0x0/0x50
+> =C2=A0[<ffffffff814a2330>] io_schedule+0x70/0xc0
+> =C2=A0[<ffffffff810f52a0>] sync_page+0x40/0x50
+> =C2=A0[<ffffffff814a2bef>] __wait_on_bit+0x5f/0x90
+> =C2=A0[<ffffffff8112824f>] ? read_swap_cache_async+0x4f/0x140
+> =C2=A0[<ffffffff810f5463>] wait_on_page_bit+0x73/0x80
+> =C2=A0[<ffffffff8107fd90>] ? wake_bit_function+0x0/0x50
+> =C2=A0[<ffffffff810f550a>] __lock_page_or_retry+0x3a/0x60
+> =C2=A0[<ffffffff8111a673>] handle_pte_fault+0xac3/0xb20
+> =C2=A0[<ffffffff8111a826>] handle_mm_fault+0x156/0x250
+> =C2=A0[<ffffffff814a7da3>] do_page_fault+0x143/0x4b0
+> =C2=A0[<ffffffff81083af1>] ? lock_hrtimer_base+0x31/0x60
+> =C2=A0[<ffffffff8108474d>] ? hrtimer_try_to_cancel+0x3d/0xd0
+> =C2=A0[<ffffffff81084802>] ? hrtimer_cancel+0x22/0x30
+> =C2=A0[<ffffffff814a4b15>] page_fault+0x25/0x30
+> =C2=A0[<ffffffff8115be47>] ? do_sys_poll+0x357/0x540
+> =C2=A0[<ffffffff8115be2f>] ? do_sys_poll+0x33f/0x540
+> =C2=A0[<ffffffff8115b020>] ? __pollwait+0x0/0xf0
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8111a826>] ? handle_mm_fault+0x156/0x250
+> =C2=A0[<ffffffff814a7e38>] ? do_page_fault+0x1d8/0x4b0
+> =C2=A0[<ffffffff8116562f>] ? vfsmount_lock_global_unlock_online+0x4f/0x60
+> =C2=A0[<ffffffff8116604c>] ? mntput_no_expire+0x19c/0x1c0
+> =C2=A0[<ffffffff81013219>] ? read_tsc+0x9/0x20
+> =C2=A0[<ffffffff810899f3>] ? ktime_get_ts+0xb3/0xf0
+> =C2=A0[<ffffffff8115aecd>] ? poll_select_set_timeout+0x8d/0xa0
+> =C2=A0[<ffffffff8115c22c>] sys_poll+0x7c/0x110
+> =C2=A0[<ffffffff8100bf82>] system_call_fastpath+0x16/0x1b
+> INFO: task hald:6503 blocked for more than 120 seconds.
+> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> hald =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0D ffff88105d8f3a20 =C2=A0 =
+=C2=A0 0 =C2=A06503 =C2=A0 =C2=A0 =C2=A01 0x00000080
+> =C2=A0ffff88105d30d738 0000000000000086 000000005d30d698 0000004000000000
+> =C2=A00000000000014d40 ffff88105d8f34c0 ffff88105d8f3a20 ffff88105d30dfd8
+> =C2=A0ffff88105d8f3a28 0000000000014d40 ffff88105d30c010 0000000000014d40
+> Call Trace:
+> =C2=A0[<ffffffff810f5260>] ? sync_page+0x0/0x50
+> =C2=A0[<ffffffff814a2330>] io_schedule+0x70/0xc0
+> =C2=A0[<ffffffff810f52a0>] sync_page+0x40/0x50
+> =C2=A0[<ffffffff814a2bef>] __wait_on_bit+0x5f/0x90
+> =C2=A0[<ffffffff8112824f>] ? read_swap_cache_async+0x4f/0x140
+> =C2=A0[<ffffffff810f5463>] wait_on_page_bit+0x73/0x80
+> =C2=A0[<ffffffff8107fd90>] ? wake_bit_function+0x0/0x50
+> =C2=A0[<ffffffff810f550a>] __lock_page_or_retry+0x3a/0x60
+> =C2=A0[<ffffffff8111a673>] handle_pte_fault+0xac3/0xb20
+> =C2=A0[<ffffffff8111a826>] handle_mm_fault+0x156/0x250
+> =C2=A0[<ffffffff814a7da3>] do_page_fault+0x143/0x4b0
+> =C2=A0[<ffffffff81083af1>] ? lock_hrtimer_base+0x31/0x60
+> =C2=A0[<ffffffff8108474d>] ? hrtimer_try_to_cancel+0x3d/0xd0
+> =C2=A0[<ffffffff81084802>] ? hrtimer_cancel+0x22/0x30
+> =C2=A0[<ffffffff814a4b15>] page_fault+0x25/0x30
+> =C2=A0[<ffffffff8115be47>] ? do_sys_poll+0x357/0x540
+> =C2=A0[<ffffffff8115be2f>] ? do_sys_poll+0x33f/0x540
+> =C2=A0[<ffffffff8115b020>] ? __pollwait+0x0/0xf0
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff81013219>] ? read_tsc+0x9/0x20
+> =C2=A0[<ffffffff810899f3>] ? ktime_get_ts+0xb3/0xf0
+> =C2=A0[<ffffffff8115aecd>] ? poll_select_set_timeout+0x8d/0xa0
+> =C2=A0[<ffffffff8115c22c>] sys_poll+0x7c/0x110
+> =C2=A0[<ffffffff8100bf82>] system_call_fastpath+0x16/0x1b
+> INFO: task ntpd:6604 blocked for more than 120 seconds.
+> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> ntpd =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0D ffff8808563085e0 =C2=A0 =
+=C2=A0 0 =C2=A06604 =C2=A0 =C2=A0 =C2=A01 0x00000080
+> =C2=A0ffff88085d9f7958 0000000000000082 000000005df1eb40 00000040ffffffff
+> =C2=A00000000000014d40 ffff880856308080 ffff8808563085e0 ffff88085d9f7fd8
+> =C2=A0ffff8808563085e8 0000000000014d40 ffff88085d9f6010 0000000000014d40
+> Call Trace:
+> =C2=A0[<ffffffff810f5260>] ? sync_page+0x0/0x50
+> =C2=A0[<ffffffff814a2330>] io_schedule+0x70/0xc0
+> =C2=A0[<ffffffff810f52a0>] sync_page+0x40/0x50
+> =C2=A0[<ffffffff814a2bef>] __wait_on_bit+0x5f/0x90
+> =C2=A0[<ffffffff8112824f>] ? read_swap_cache_async+0x4f/0x140
+> =C2=A0[<ffffffff810f5463>] wait_on_page_bit+0x73/0x80
+> =C2=A0[<ffffffff8107fd90>] ? wake_bit_function+0x0/0x50
+> =C2=A0[<ffffffff810f550a>] __lock_page_or_retry+0x3a/0x60
+> =C2=A0[<ffffffff8111a673>] handle_pte_fault+0xac3/0xb20
+> =C2=A0[<ffffffff8111a826>] handle_mm_fault+0x156/0x250
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff814a7da3>] do_page_fault+0x143/0x4b0
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff814a4b15>] page_fault+0x25/0x30
+> =C2=A0[<ffffffff8122405d>] ? copy_user_generic_string+0x2d/0x40
+> =C2=A0[<ffffffff8115bad8>] ? set_fd_set+0x48/0x60
+> =C2=A0[<ffffffff8115c515>] core_sys_select+0x1f5/0x2f0
+> =C2=A0[<ffffffff81079025>] ? queue_work_on+0x25/0x30
+> =C2=A0[<ffffffff8107906f>] ? queue_work+0x1f/0x30
+> =C2=A0[<ffffffff8107986d>] ? queue_delayed_work+0x2d/0x40
+> =C2=A0[<ffffffff8107989b>] ? schedule_delayed_work+0x1b/0x20
+> =C2=A0[<ffffffff8108a51b>] ? do_adjtimex+0x1ab/0x670
+> =C2=A0[<ffffffff81013219>] ? read_tsc+0x9/0x20
+> =C2=A0[<ffffffff810899f3>] ? ktime_get_ts+0xb3/0xf0
+> =C2=A0[<ffffffff8115c867>] sys_select+0x47/0x110
+> =C2=A0[<ffffffff8100bf82>] system_call_fastpath+0x16/0x1b
+> INFO: task master:6680 blocked for more than 120 seconds.
+> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> master =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0D ffff88085cef2660 =C2=A0 =C2=A0=
+ 0 =C2=A06680 =C2=A0 =C2=A0 =C2=A01 0x00000080
+> =C2=A0ffff88085d0abb08 0000000000000086 ffff88085d0abab8 ffffffffffffffff
+> =C2=A00000000000014d40 ffff88085cef2100 ffff88085cef2660 ffff88085d0abfd8
+> =C2=A0ffff88085cef2668 0000000000014d40 ffff88085d0aa010 0000000000014d40
+> Call Trace:
+> =C2=A0[<ffffffff810f5260>] ? sync_page+0x0/0x50
+> =C2=A0[<ffffffff814a2330>] io_schedule+0x70/0xc0
+> =C2=A0[<ffffffff810f52a0>] sync_page+0x40/0x50
+> =C2=A0[<ffffffff814a2bef>] __wait_on_bit+0x5f/0x90
+> =C2=A0[<ffffffff810f5463>] wait_on_page_bit+0x73/0x80
+> =C2=A0[<ffffffff8107fd90>] ? wake_bit_function+0x0/0x50
+> =C2=A0[<ffffffff810f550a>] __lock_page_or_retry+0x3a/0x60
+> =C2=A0[<ffffffff810f6537>] filemap_fault+0x2d7/0x4c0
+> =C2=A0[<ffffffff81119694>] __do_fault+0x54/0x570
+> =C2=A0[<ffffffff81141357>] ? mem_cgroup_uncharge_swap+0x27/0x80
+> =C2=A0[<ffffffff81119ca7>] handle_pte_fault+0xf7/0xb20
+> =C2=A0[<ffffffff81115727>] ? __pte_alloc+0xd7/0xf0
+> =C2=A0[<ffffffff8111a826>] handle_mm_fault+0x156/0x250
+> =C2=A0[<ffffffff814a7da3>] do_page_fault+0x143/0x4b0
+> =C2=A0[<ffffffff81185100>] ? sys_epoll_wait+0xa0/0x450
+> =C2=A0[<ffffffff810587c0>] ? default_wake_function+0x0/0x20
+> =C2=A0[<ffffffff814a4b15>] page_fault+0x25/0x30
+> INFO: task abrtd:6689 blocked for more than 120 seconds.
+> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> abrtd =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 D ffff88045de2c660 =C2=A0 =C2=A0=
+ 0 =C2=A06689 =C2=A0 =C2=A0 =C2=A01 0x00000080
+> =C2=A0ffff88045e1f7738 0000000000000086 000000005e1f7698 0000004000000000
+> =C2=A00000000000014d40 ffff88045de2c100 ffff88045de2c660 ffff88045e1f7fd8
+> =C2=A0ffff88045de2c668 0000000000014d40 ffff88045e1f6010 0000000000014d40
+> Call Trace:
+> =C2=A0[<ffffffff810f5260>] ? sync_page+0x0/0x50
+> =C2=A0[<ffffffff814a2330>] io_schedule+0x70/0xc0
+> =C2=A0[<ffffffff810f52a0>] sync_page+0x40/0x50
+> =C2=A0[<ffffffff814a2bef>] __wait_on_bit+0x5f/0x90
+> =C2=A0[<ffffffff8112824f>] ? read_swap_cache_async+0x4f/0x140
+> =C2=A0[<ffffffff810f5463>] wait_on_page_bit+0x73/0x80
+> =C2=A0[<ffffffff8107fd90>] ? wake_bit_function+0x0/0x50
+> =C2=A0[<ffffffff810f550a>] __lock_page_or_retry+0x3a/0x60
+> =C2=A0[<ffffffff8111a673>] handle_pte_fault+0xac3/0xb20
+> =C2=A0[<ffffffff8111a826>] handle_mm_fault+0x156/0x250
+> =C2=A0[<ffffffff814a7da3>] do_page_fault+0x143/0x4b0
+> =C2=A0[<ffffffff81083af1>] ? lock_hrtimer_base+0x31/0x60
+> =C2=A0[<ffffffff8108474d>] ? hrtimer_try_to_cancel+0x3d/0xd0
+> =C2=A0[<ffffffff81084802>] ? hrtimer_cancel+0x22/0x30
+> =C2=A0[<ffffffff814a4b15>] page_fault+0x25/0x30
+> =C2=A0[<ffffffff8115be47>] ? do_sys_poll+0x357/0x540
+> =C2=A0[<ffffffff8115be2f>] ? do_sys_poll+0x33f/0x540
+> =C2=A0[<ffffffff8115b020>] ? __pollwait+0x0/0xf0
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff8115b110>] ? pollwake+0x0/0x60
+> =C2=A0[<ffffffff811d68f1>] ? inode_has_perm+0x51/0xa0
+> =C2=A0[<ffffffff8116608d>] ? mntput+0x1d/0x30
+> =C2=A0[<ffffffff811539e2>] ? path_put+0x22/0x30
+> =C2=A0[<ffffffff811543f7>] ? finish_open+0x117/0x1f0
+> =C2=A0[<ffffffff81157566>] ? do_path_lookup+0x76/0x130
+> =C2=A0[<ffffffff811d6e2b>] ? dentry_has_perm+0x5b/0x80
+> =C2=A0[<ffffffff8114db58>] ? cp_new_stat+0xf8/0x110
+> =C2=A0[<ffffffff81013219>] ? read_tsc+0x9/0x20
+> =C2=A0[<ffffffff810899f3>] ? ktime_get_ts+0xb3/0xf0
+> =C2=A0[<ffffffff8115aecd>] ? poll_select_set_timeout+0x8d/0xa0
+> =C2=A0[<ffffffff8115c22c>] sys_poll+0x7c/0x110
+> =C2=A0[<ffffffff8100bf82>] system_call_fastpath+0x16/0x1b
+> INFO: task qmgr:6691 blocked for more than 120 seconds.
+> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> qmgr =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0D ffff88105f9eb9a0 =C2=A0 =
+=C2=A0 0 =C2=A06691 =C2=A0 6680 0x00000084
+> =C2=A0ffff88105a74db08 0000000000000086 ffff88105a74dab8 ffffffff00000000
+> =C2=A00000000000014d40 ffff88105f9eb440 ffff88105f9eb9a0 ffff88105a74dfd8
+> =C2=A0ffff88105f9eb9a8 0000000000014d40 ffff88105a74c010 0000000000014d40
+> Call Trace:
+> =C2=A0[<ffffffff810f5260>] ? sync_page+0x0/0x50
+> =C2=A0[<ffffffff814a2330>] io_schedule+0x70/0xc0
+> =C2=A0[<ffffffff810f52a0>] sync_page+0x40/0x50
+> =C2=A0[<ffffffff814a2bef>] __wait_on_bit+0x5f/0x90
+> =C2=A0[<ffffffff810f5463>] wait_on_page_bit+0x73/0x80
+> =C2=A0[<ffffffff8107fd90>] ? wake_bit_function+0x0/0x50
+> =C2=A0[<ffffffff810f550a>] __lock_page_or_retry+0x3a/0x60
+> =C2=A0[<ffffffff810f6537>] filemap_fault+0x2d7/0x4c0
+> =C2=A0[<ffffffff81119694>] __do_fault+0x54/0x570
+> =C2=A0[<ffffffff81141357>] ? mem_cgroup_uncharge_swap+0x27/0x80
+> =C2=A0[<ffffffff81119ca7>] handle_pte_fault+0xf7/0xb20
+> =C2=A0[<ffffffff81115727>] ? __pte_alloc+0xd7/0xf0
+> =C2=A0[<ffffffff8111a826>] handle_mm_fault+0x156/0x250
+> =C2=A0[<ffffffff814a7da3>] do_page_fault+0x143/0x4b0
+> =C2=A0[<ffffffff81185100>] ? sys_epoll_wait+0xa0/0x450
+> =C2=A0[<ffffffff810587c0>] ? default_wake_function+0x0/0x20
+> =C2=A0[<ffffffff814a4b15>] page_fault+0x25/0x30
+> INFO: task oom02:7543 blocked for more than 120 seconds.
+> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> oom02 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 D ffff88085db07ae0 =C2=A0 =C2=A0=
+ 0 =C2=A07543 =C2=A0 7388 0x00000080
+> =C2=A0ffff880855de1518 0000000000000082 0000000000011210 ffff880600000000
+> =C2=A00000000000014d40 ffff88085db07580 ffff88085db07ae0 ffff880855de1fd8
+> =C2=A0ffff88085db07ae8 0000000000014d40 ffff880855de0010 0000000000014d40
+> Call Trace:
+> =C2=A0[<ffffffff814a2330>] io_schedule+0x70/0xc0
+> =C2=A0[<ffffffff8120463a>] get_request_wait+0xca/0x1a0
+> =C2=A0[<ffffffff8107fd50>] ? autoremove_wake_function+0x0/0x40
+> =C2=A0[<ffffffff811fd197>] ? elv_merge+0x1d7/0x210
+> =C2=A0[<ffffffff8120477b>] __make_request+0x6b/0x4d0
+> =C2=A0[<ffffffff8120259f>] generic_make_request+0x21f/0x5b0
+> =C2=A0[<ffffffff810f7885>] ? mempool_alloc_slab+0x15/0x20
+> =C2=A0[<ffffffff810f7a23>] ? mempool_alloc+0x63/0x150
+> =C2=A0[<ffffffff812029b6>] submit_bio+0x86/0x110
+> =C2=A0[<ffffffff810ffb96>] ? test_set_page_writeback+0x106/0x190
+> =C2=A0[<ffffffff81127f63>] swap_writepage+0x83/0xd0
+> =C2=A0[<ffffffff811048fe>] pageout+0x12e/0x310
+> =C2=A0[<ffffffff81104efa>] shrink_page_list+0x41a/0x5a0
+> =C2=A0[<ffffffff81105686>] shrink_inactive_list+0x166/0x480
+> =C2=A0[<ffffffff81106023>] shrink_zone+0x363/0x4d0
+> =C2=A0[<ffffffff8110470e>] ? shrink_slab+0x14e/0x180
+> =C2=A0[<ffffffff8110675f>] do_try_to_free_pages+0xaf/0x4a0
+> =C2=A0[<ffffffff81106dc2>] try_to_free_pages+0x92/0x130
+> =C2=A0[<ffffffff810fbc21>] ? get_page_from_freelist+0x3c1/0x810
+> =C2=A0[<ffffffff810fc46b>] __alloc_pages_nodemask+0x3fb/0x760
+> =C2=A0[<ffffffff81135313>] alloc_pages_vma+0x93/0x150
+> =C2=A0[<ffffffff8111a2e2>] handle_pte_fault+0x732/0xb20
+> =C2=A0[<ffffffff81115727>] ? __pte_alloc+0xd7/0xf0
+> =C2=A0[<ffffffff8111a826>] handle_mm_fault+0x156/0x250
+> =C2=A0[<ffffffff814a7da3>] do_page_fault+0x143/0x4b0
+> =C2=A0[<ffffffff814a1cfe>] ? schedule+0x44e/0xa10
+> =C2=A0[<ffffffff814a4b15>] page_fault+0x25/0x30
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
