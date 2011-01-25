@@ -1,43 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EB246B0092
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:37:28 -0500 (EST)
-Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p0PKbOgo023347
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 12:37:25 -0800
-Received: by iyj17 with SMTP id 17so5774554iyj.14
-        for <linux-mm@kvack.org>; Tue, 25 Jan 2011 12:37:24 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 40B7A6B0092
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:47:09 -0500 (EST)
+Message-ID: <4D3F36CB.6060505@linux.intel.com>
+Date: Tue, 25 Jan 2011 12:47:07 -0800
+From: Andi Kleen <ak@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1295987461.28776.1110.camel@laptop>
-References: <20110125173111.720927511@chello.nl> <20110125174908.262260777@chello.nl>
- <AANLkTikchW7Z6mSgcbt7wn9DWTeEGrKwfMwj1_WjMB5c@mail.gmail.com> <1295987461.28776.1110.camel@laptop>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 26 Jan 2011 06:37:00 +1000
-Message-ID: <AANLkTim_eF4xapv=4rSo=p5_KLGiHh315C=8CKCT-S9=@mail.gmail.com>
-Subject: Re: [PATCH 20/25] mm: Simplify anon_vma refcounts
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 00/25] mm: Preemptibility -v7
+References: <20110125173111.720927511@chello.nl>	 <m2ipxcsr6v.fsf@linux.intel.com> <1295987985.28776.1118.camel@laptop>
+In-Reply-To: <1295987985.28776.1118.camel@laptop>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Hugh Dickins <hughd@google.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 26, 2011 at 6:31 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
->
-> It relies on patch 19, which moves the anon_vma refcount out from under
-> CONFIG_goo.
->
-> If however you like it, I can move 19 and this patch up to the start and
-> have that go your way soon.
 
-So I'd prefer that, and keeping this issue separate. It seems like a
-rather independent cleanup to me (there may be others, this is the
-only one I reacted to when skimming through the series - reading email
-using my small laptop screen and a somewhat flaky 3g hotspot
-connection isn't exactly amenable to deep and careful thinking ;).
+> Its nesting hundreds of spinlocks (255+) make the preempt debug code
+> unhappy, it also causes fun latencies when you do start KVM/GRU
+> Although arguably that's the least convincing reason to do all this its
+> the one that got me to actually compose this series -- I really should
+> write a new leader..
+Least Convincing is a good description...
+Tuning operations which only happen once is not very interesting, 
+especially if that affects
+fast paths.
 
-             Linus
+> Making all this preemptible also allows making the whole mmu_gather
+> thing preemptible, which is something we've wanted to do for a long
+> while, it also allows XPMEM or whatever that thing was called (Andrea
+> knows) and of course, it moves a part of -rt upstream.
+
+I thought the reason for the preempt off inside the mmu gather region was
+to stay on the same CPU for local/remote flushes. How would it change that?
+
+> If we decide to keep patch 24, it also simplifies the truncate path
+> quite a bit.
+That sounds like a good thing. Making truncate simpler is always good.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
