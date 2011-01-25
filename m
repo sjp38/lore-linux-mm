@@ -1,40 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B560C6B0092
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:29:32 -0500 (EST)
-Date: Tue, 25 Jan 2011 12:30:05 -0800 (PST)
-Message-Id: <20110125.123005.193713229.davem@davemloft.net>
-Subject: Re: [PATCH 04/25] sparc: Preemptible mmu_gather
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20110125174907.390914415@chello.nl>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D956B6B00E8
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:30:32 -0500 (EST)
+Subject: Re: [PATCH 20/25] mm: Simplify anon_vma refcounts
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <AANLkTikchW7Z6mSgcbt7wn9DWTeEGrKwfMwj1_WjMB5c@mail.gmail.com>
 References: <20110125173111.720927511@chello.nl>
-	<20110125174907.390914415@chello.nl>
+	 <20110125174908.262260777@chello.nl>
+	 <AANLkTikchW7Z6mSgcbt7wn9DWTeEGrKwfMwj1_WjMB5c@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 25 Jan 2011 21:31:01 +0100
+Message-ID: <1295987461.28776.1110.camel@laptop>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: a.p.zijlstra@chello.nl
-Cc: aarcange@redhat.com, avi@redhat.com, tglx@linutronix.de, riel@redhat.com, mingo@elte.hu, akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, benh@kernel.crashing.org, hugh.dickins@tiscali.co.uk, mel@csn.ul.ie, npiggin@kernel.dk, paulmck@linux.vnet.ibm.com, yanmin_zhang@linux.intel.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Hugh Dickins <hughd@google.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Tue, 25 Jan 2011 18:31:15 +0100
+On Wed, 2011-01-26 at 06:16 +1000, Linus Torvalds wrote:
+> On Wed, Jan 26, 2011 at 3:31 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> =
+wrote:
+> >
+> > This patch changes the anon_vma refcount to be 0 when the object is
+> > free. It does this by adding 1 ref to being in use in the anon_vma
+> > structure (iow. the anon_vma->head list is not empty).
+>=20
+> Why is this patch part of this series, rather than being an
+> independent patch before the whole series?
+>=20
+> I think this part of the series is the only total no-brainer, ie we
+> should have done this from the beginning. The preemptability stuff I'm
+> more nervous about (performance issues? semantic differences?)
 
-> Rework the sparc mmu_gather usage to conform to the new world order :-)
-> 
-> Sparc mmu_gather does two things:
->  - tracks vaddrs to unhash
->  - tracks pages to free
-> 
-> Split these two things like powerpc has done and keep the vaddrs
-> in per-cpu data structures and flush them on context switch.
-> 
-> The remaining bits can then use the generic mmu_gather.
-> 
-> Cc: David Miller <davem@davemloft.net>
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+It relies on patch 19, which moves the anon_vma refcount out from under
+CONFIG_goo.
 
-Acked-by: David S. Miller <davem@davemloft.net>
+If however you like it, I can move 19 and this patch up to the start and
+have that go your way soon.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
