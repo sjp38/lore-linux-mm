@@ -1,125 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B5EFD6B0092
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 01:11:17 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 800F53EE0B5
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:11:15 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 641F645DE67
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:11:15 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 40DE545DE4E
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:11:15 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 30BD41DB803F
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:11:15 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DA7D31DB8038
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:11:14 +0900 (JST)
-Date: Tue, 25 Jan 2011 15:05:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 3/3] memcg: fix race at move_parent around compound_order()
-Message-Id: <20110125150516.fb2f5e06.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110125145720.cd0cbe16.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110125145720.cd0cbe16.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C15D06B0092
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 01:24:12 -0500 (EST)
+Received: by fxm12 with SMTP id 12so5276371fxm.14
+        for <linux-mm@kvack.org>; Mon, 24 Jan 2011 22:24:09 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20110124210752.GA10819@merkur.ravnborg.org>
+References: <20110124210813.ba743fc5.yuasa@linux-mips.org>
+	<4D3DD366.8000704@mvista.com>
+	<20110124124412.69a7c814.akpm@linux-foundation.org>
+	<20110124210752.GA10819@merkur.ravnborg.org>
+Date: Tue, 25 Jan 2011 07:24:09 +0100
+Message-ID: <AANLkTimdgYVpwbCAL96=1F+EtXyNxz5Swv32GN616mqP@mail.gmail.com>
+Subject: Re: [PATCH] fix build error when CONFIG_SWAP is not set
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sergei Shtylyov <sshtylyov@mvista.com>, Yoichi Yuasa <yuasa@linux-mips.org>, linux-mips <linux-mips@linux-mips.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Based on 
-2.6.38-rc2 + 
- mm-memcontrolc-fix-uninitialized-variable-use-in-mem_cgroup_move_parent.patch
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Mon, Jan 24, 2011 at 22:07, Sam Ravnborg <sam@ravnborg.org> wrote:
+> On Mon, Jan 24, 2011 at 12:44:12PM -0800, Andrew Morton wrote:
+>> On Mon, 24 Jan 2011 22:30:46 +0300
+>> Sergei Shtylyov <sshtylyov@mvista.com> wrote:
+>> > Yoichi Yuasa wrote:
+>> >
+>> > > In file included from
+>> > > linux-2.6/arch/mips/include/asm/tlb.h:21,
+>> > > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0from m=
+m/pgtable-generic.c:9:
+>> > > include/asm-generic/tlb.h: In function 'tlb_flush_mmu':
+>> > > include/asm-generic/tlb.h:76: error: implicit declaration of functio=
+n
+>> > > 'release_pages'
+>> > > include/asm-generic/tlb.h: In function 'tlb_remove_page':
+>> > > include/asm-generic/tlb.h:105: error: implicit declaration of functi=
+on
+>> > > 'page_cache_release'
+>> > > make[1]: *** [mm/pgtable-generic.o] Error 1
+>> > >
+>> > > Signed-off-by: Yoichi Yuasa <yuasa@linux-mips.org>
+>> > [...]
+>> >
+>> > > diff --git a/include/linux/swap.h b/include/linux/swap.h
+>> > > index 4d55932..92c1be6 100644
+>> > > --- a/include/linux/swap.h
+>> > > +++ b/include/linux/swap.h
+>> > > @@ -8,6 +8,7 @@
+>> > > =C2=A0#include <linux/memcontrol.h>
+>> > > =C2=A0#include <linux/sched.h>
+>> > > =C2=A0#include <linux/node.h>
+>> > > +#include <linux/pagemap.h>
+>> >
+>> > =C2=A0 =C2=A0 Hm, if the errors are in <asm-generic/tlb.h>, why add #i=
+nclude in
+>> > <linux/swap.h>?
+>> >
+>>
+>> The build error is caused by macros which are defined in swap.h.
+>>
+>> I worry about the effects of the patch - I don't know which of swap.h
+>> and pagemap.h is the "innermost" header file. =C2=A0There's potential fo=
+r
+>> new build errors due to strange inclusion graphs.
+>>
+>> err, there's also this, in swap.h:
+>>
+>> /* only sparc can not include linux/pagemap.h in this file
+>> =C2=A0* so leave page_cache_release and release_pages undeclared... */
 
-A fix up mem_cgroup_move_parent() which use compound_order() in
-asynchrnous manner. This compound_order() may return unknown value
-because we don't take lock. Use PageTransHuge() and HPAGE_SIZE instead of
-it.
+Yeah, I noticed this too a while ago, when trying to get m68k
+allnoconfig "working".
+Was wondering whether this was still true...
 
-Also clean up for mem_cgroup_move_parent(). 
- - remove unnecessary initialization of local variable.
- - rename charge_size -> page_size
- - remove unnecessary (wrong) comment.
- - added a comment about THP.
+> I just checked.
+> sparc32 with a defconfig barfed out like this:
+> =C2=A0CC =C2=A0 =C2=A0 =C2=A0arch/sparc/kernel/traps_32.o
+> In file included from /home/sam/kernel/linux-2.6.git/include/linux/pagema=
+p.h:7:0,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 from /home/sam/ke=
+rnel/linux-2.6.git/include/linux/swap.h:11,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 from /home/sam/ke=
+rnel/linux-2.6.git/arch/sparc/include/asm/pgtable_32.h:15,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 from /home/sam/ke=
+rnel/linux-2.6.git/arch/sparc/include/asm/pgtable.h:6,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 from /home/sam/ke=
+rnel/linux-2.6.git/arch/sparc/kernel/traps_32.c:23:
+> /home/sam/kernel/linux-2.6.git/include/linux/mm.h: In function 'is_vmallo=
+c_addr':
+> /home/sam/kernel/linux-2.6.git/include/linux/mm.h:301:17: error: 'VMALLOC=
+_START' undeclared (first use in this function)
+> /home/sam/kernel/linux-2.6.git/include/linux/mm.h:301:17: note: each unde=
+clared identifier is reported only once for each function it appears in
+> /home/sam/kernel/linux-2.6.git/include/linux/mm.h:301:41: error: 'VMALLOC=
+_END' undeclared (first use in this function)
+> /home/sam/kernel/linux-2.6.git/include/linux/mm.h: In function 'maybe_mkw=
+rite':
+> /home/sam/kernel/linux-2.6.git/include/linux/mm.h:483:3: error: implicit =
+declaration of function 'pte_mkwrite'
+>
+> When I removed the include it could build again.
 
-Changelog:
- - fixed page size calculation for avoiding race.
+... and so it is. Good to know, thanks for checking!
 
-Note:
- Current design take compound_page_lock() in caller of move_account().
- This should be revisited when we implement direct move_task of hugepage
- without splitting.
+Gr{oetje,eeting}s,
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |   25 ++++++++++++++++---------
- 1 file changed, 16 insertions(+), 9 deletions(-)
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 Geert
 
-Index: linux-2.6.38-rc2/mm/memcontrol.c
-===================================================================
---- linux-2.6.38-rc2.orig/mm/memcontrol.c
-+++ linux-2.6.38-rc2/mm/memcontrol.c
-@@ -2234,7 +2234,12 @@ static int mem_cgroup_move_account(struc
- {
- 	int ret = -EINVAL;
- 	unsigned long flags;
--
-+	/*
-+	 * The page is isolated from LRU. So, collapse function
-+ 	 * will not handle this page. But page splitting can happen.
-+ 	 * Do this check under compound_page_lock(). The caller should
-+ 	 * hold it.
-+ 	 */
- 	if ((charge_size > PAGE_SIZE) && !PageTransHuge(pc->page))
- 		return -EBUSY;
- 
-@@ -2266,7 +2271,7 @@ static int mem_cgroup_move_parent(struct
- 	struct cgroup *cg = child->css.cgroup;
- 	struct cgroup *pcg = cg->parent;
- 	struct mem_cgroup *parent;
--	int charge = PAGE_SIZE;
-+	int page_size = PAGE_SIZE;
- 	unsigned long flags;
- 	int ret;
- 
-@@ -2279,22 +2284,24 @@ static int mem_cgroup_move_parent(struct
- 		goto out;
- 	if (isolate_lru_page(page))
- 		goto put;
--	/* The page is isolated from LRU and we have no race with splitting */
--	charge = PAGE_SIZE << compound_order(page);
-+
-+	if (PageTransHuge(page))
-+		page_size = HPAGE_SIZE;
- 
- 	parent = mem_cgroup_from_cont(pcg);
--	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, charge);
-+	ret = __mem_cgroup_try_charge(NULL, gfp_mask,
-+				&parent, false, page_size);
- 	if (ret || !parent)
- 		goto put_back;
- 
--	if (charge > PAGE_SIZE)
-+	if (page_size > PAGE_SIZE)
- 		flags = compound_lock_irqsave(page);
- 
--	ret = mem_cgroup_move_account(pc, child, parent, true, charge);
-+	ret = mem_cgroup_move_account(pc, child, parent, true, page_size);
- 	if (ret)
--		mem_cgroup_cancel_charge(parent, charge);
-+		mem_cgroup_cancel_charge(parent, page_size);
- 
--	if (charge > PAGE_SIZE)
-+	if (page_size > PAGE_SIZE)
- 		compound_unlock_irqrestore(page, flags);
- put_back:
- 	putback_lru_page(page);
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k=
+.org
+
+In personal conversations with technical people, I call myself a hacker. Bu=
+t
+when I'm talking to journalists I just say "programmer" or something like t=
+hat.
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0=C2=A0 =C2=A0=C2=A0 -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
