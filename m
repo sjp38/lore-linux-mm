@@ -1,21 +1,23 @@
-From: Johannes Weiner <hannes@cmpxchg.org>
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Subject: Re: [PATCH 1/3] memcg: fix account leak at failure of memsw
  acconting.
-Date: Tue, 25 Jan 2011 08:07:26 +0100
-Message-ID: <20110125070726.GA2217@cmpxchg.org>
+Date: Tue, 25 Jan 2011 17:31:16 +0900
+Message-ID: <20110125173116.49490683.nishimura@mxp.nes.nec.co.jp>
 References: <20110125145720.cd0cbe16.kamezawa.hiroyu@jp.fujitsu.com>
- <20110125150042.fa7a9a9a.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110125150042.fa7a9a9a.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline
 In-Reply-To: <20110125150042.fa7a9a9a.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: linux-kernel-owner@vger.kernel.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, stable@kernel.org
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, stable@kernel.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-Id: linux-mm.kvack.org
 
-On Tue, Jan 25, 2011 at 03:00:42PM +0900, KAMEZAWA Hiroyuki wrote:
+On Tue, 25 Jan 2011 15:00:42 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
 > This is required for 2.6.36-stable and later.
 > ==
 > Commit 4b53433468c87794b523e4683fbd4e8e8aca1f63 removes
@@ -30,4 +32,6 @@ On Tue, Jan 25, 2011 at 03:00:42PM +0900, KAMEZAWA Hiroyuki wrote:
 > CC: stable@kernel.org
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+Nice catch.
+
+Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
