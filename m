@@ -1,52 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C7FD6B0092
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 02:07:49 -0500 (EST)
-Date: Tue, 25 Jan 2011 08:07:44 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3/3] memcg: fix race at move_parent around
- compound_order()
-Message-ID: <20110125070744.GB2217@cmpxchg.org>
-References: <20110125145720.cd0cbe16.kamezawa.hiroyu@jp.fujitsu.com>
- <20110125150516.fb2f5e06.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A26566B0092
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 02:42:00 -0500 (EST)
+Date: Tue, 25 Jan 2011 08:41:56 +0100
+From: Sam Ravnborg <sam@ravnborg.org>
+Subject: Re: [PATCH] fix build error when CONFIG_SWAP is not set
+Message-ID: <20110125074156.GA29709@merkur.ravnborg.org>
+References: <20110124210813.ba743fc5.yuasa@linux-mips.org> <4D3DD366.8000704@mvista.com> <20110124124412.69a7c814.akpm@linux-foundation.org> <20110124210752.GA10819@merkur.ravnborg.org> <AANLkTimdgYVpwbCAL96=1F+EtXyNxz5Swv32GN616mqP@mail.gmail.com> <20110124223347.ad6072f1.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110125150516.fb2f5e06.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110124223347.ad6072f1.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Sergei Shtylyov <sshtylyov@mvista.com>, Yoichi Yuasa <yuasa@linux-mips.org>, linux-mips <linux-mips@linux-mips.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 25, 2011 at 03:05:16PM +0900, KAMEZAWA Hiroyuki wrote:
-> Based on 
-> 2.6.38-rc2 + 
->  mm-memcontrolc-fix-uninitialized-variable-use-in-mem_cgroup_move_parent.patch
-> ==
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> From: Andrew Morton <akpm@linux-foundation.org>
 > 
-> A fix up mem_cgroup_move_parent() which use compound_order() in
-> asynchrnous manner. This compound_order() may return unknown value
-> because we don't take lock. Use PageTransHuge() and HPAGE_SIZE instead of
-> it.
+> mips:
 > 
-> Also clean up for mem_cgroup_move_parent(). 
->  - remove unnecessary initialization of local variable.
->  - rename charge_size -> page_size
->  - remove unnecessary (wrong) comment.
->  - added a comment about THP.
+> In file included from arch/mips/include/asm/tlb.h:21,
+>                  from mm/pgtable-generic.c:9:
+> include/asm-generic/tlb.h: In function `tlb_flush_mmu':
+> include/asm-generic/tlb.h:76: error: implicit declaration of function `release_pages'
+> include/asm-generic/tlb.h: In function `tlb_remove_page':
+> include/asm-generic/tlb.h:105: error: implicit declaration of function `page_cache_release'
 > 
-> Changelog:
->  - fixed page size calculation for avoiding race.
+> free_pages_and_swap_cache() and free_page_and_swap_cache() are macros
+> which call release_pages() and page_cache_release().  The obvious fix is
+> to include pagemap.h in swap.h, where those macros are defined.  But that
+> breaks sparc for weird reasons.
 > 
-> Note:
->  Current design take compound_page_lock() in caller of move_account().
->  This should be revisited when we implement direct move_task of hugepage
->  without splitting.
+> So fix it within mm/pgtable-generic.c instead.
 > 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Reported-by: Yoichi Yuasa <yuasa@linux-mips.org>
+> Cc: Geert Uytterhoeven <geert@linux-m68k.org>
+> Cc: Sam Ravnborg <sam@ravnborg.org>
+> Cc: Sergei Shtylyov <sshtylyov@mvista.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+I have succesfully build sparc32 allnoconfig + defconfig with this patch.
+Can you expand the changelog to specify that this fixes sparc32 allnoconfig
+as well?
+
+Consider it:
+Acked-by: Sam Ravnborg <sam@ravnborg.org>
+
+	Sam
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
