@@ -1,48 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 992A46B0092
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:50:14 -0500 (EST)
-Received: from list by lo.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1Phpq2-0003yG-0l
-	for linux-mm@kvack.org; Tue, 25 Jan 2011 21:50:06 +0100
-Received: from jfdmzpr02-ext.jf.intel.com ([134.134.137.71])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Tue, 25 Jan 2011 21:50:06 +0100
-Received: from ak by jfdmzpr02-ext.jf.intel.com with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Tue, 25 Jan 2011 21:50:06 +0100
-From: Andi Kleen <ak@linux.intel.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 0D4286B0092
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 16:08:45 -0500 (EST)
 Subject: Re: [PATCH 00/25] mm: Preemptibility -v7
-Date: Tue, 25 Jan 2011 11:45:28 -0800
-Message-ID: <m2ipxcsr6v.fsf@linux.intel.com>
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <4D3F36CB.6060505@linux.intel.com>
 References: <20110125173111.720927511@chello.nl>
+	 <m2ipxcsr6v.fsf@linux.intel.com> <1295987985.28776.1118.camel@laptop>
+	 <4D3F36CB.6060505@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 25 Jan 2011 22:09:30 +0100
+Message-ID: <1295989770.28776.1127.camel@laptop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org
+To: Andi Kleen <ak@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, benh <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra <a.p.zijlstra@chello.nl> writes:
+On Tue, 2011-01-25 at 12:47 -0800, Andi Kleen wrote:
+>=20
+> I thought the reason for the preempt off inside the mmu gather region was
+> to stay on the same CPU for local/remote flushes. How would it change tha=
+t?=20
 
-> This patch-set makes part of the mm a lot more preemptible. It converts
-> i_mmap_lock and anon_vma->lock to mutexes and makes mmu_gather fully
-> preemptible.
->
-> The main motivation was making mm_take_all_locks() preemptible, since it
-> appears people are nesting hundreds of spinlocks there.
+afaik its been preempt-off solely because it was always inside a number
+of spinlocks, I know both Hugh and BenH worked on making it preemptible
+far before I started this.
 
-Just curious: why is mm_take_all_locks() a problem? As far as I can see
-it's just used when starting KVM or GRU the first time. Is that a common
-situation?
+I remember Hugh and Nick talking about this at OLS'06 or 07, can't
+really remember.
 
--Andi
+As to local/remote flushes, there is no real saying where the pages came
+from due to on-demand paging and the scheduler never having had a notion
+of home-node. Therefore freeing them wouldn't be more of less local if
+that is exposed to the same migration as allocation was.
 
--- 
-Andi Kleen
-Intel Open Source Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
