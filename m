@@ -1,39 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 941626B00E9
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 14:41:16 -0500 (EST)
-Date: Tue, 25 Jan 2011 20:41:12 +0100
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [PATCH 00/25] mm: Preemptibility -v7
-Message-ID: <20110125194112.GA31419@merkur.ravnborg.org>
-References: <20110125173111.720927511@chello.nl> <20110125183240.GA31346@merkur.ravnborg.org> <1295983733.28776.1072.camel@laptop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A0EAD6B00E9
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 14:43:13 -0500 (EST)
+Received: by gxk5 with SMTP id 5so2068892gxk.14
+        for <linux-mm@kvack.org>; Tue, 25 Jan 2011 11:43:11 -0800 (PST)
+Date: Tue, 25 Jan 2011 12:43:05 -0700
+From: Eric B Munson <emunson@mgebm.net>
+Subject: Re: [PATCH 1/2] hugepage: Protect region tracking lists with its
+ own spinlock
+Message-ID: <20110125194305.GA3041@mgebm.net>
+References: <20110125143226.37532ea2@kryten>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="cWoXeonUoKmBZSoM"
 Content-Disposition: inline
-In-Reply-To: <1295983733.28776.1072.camel@laptop>
+In-Reply-To: <20110125143226.37532ea2@kryten>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>
+To: Anton Blanchard <anton@samba.org>
+Cc: dwg@au1.ibm.com, mel@csn.ul.ie, akpm@linux-foundation.org, hughd@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 25, 2011 at 08:28:53PM +0100, Peter Zijlstra wrote:
-> On Tue, 2011-01-25 at 19:32 +0100, Sam Ravnborg wrote:
-> 
-> > Foregive me my ignorance..
-> > Why is this relevant for sparc64 but not for sparc32?
-> > 
-> > A quick grep showed up only this in sparc32 specific files:
-> > 
-> > mm/init_32.c:DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-> > 
-> > Maybe this is just something sparc32 does not support?
-> 
-> sparc32 uses include/asm-generic/tlb.h, whereas sparc64 implements its
-> own variant.
 
-Ahh, thanks!
+--cWoXeonUoKmBZSoM
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-	Sam
+On Tue, 25 Jan 2011, Anton Blanchard wrote:
+
+>=20
+> In preparation for creating a hash of spinlocks to replace the global
+> hugetlb_instantiation_mutex, protect the region tracking code with
+> its own spinlock.
+>=20
+> Signed-off-by: Anton Blanchard <anton@samba.org>=20
+
+Reviewed-by: Eric B Munson <emunson@mgebm.net>
+
+--cWoXeonUoKmBZSoM
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iQEcBAEBAgAGBQJNPyfJAAoJEH65iIruGRnNwLQH/17T2WJC8w2z70KCfhHpNS1K
+5HoO+DTOw+a+j4tJ2STov2nPhv9g8L20dDuPq24EPBVbGuVSAbUXUSE4a44B2Is6
+thYdwq86uhQDJtaO/EWjW6ZgwxHjl1umAtKYE0tSyxoVQns5eKZw+qPH1x6ivuBn
+cTQKtvqNihul+avFuuAXR6EWA9pknAJlqR94ns4oH9lGDnd8rfAhGYT6ea9ETgKH
+UA2OC9eggYa7w7MnVrBao38n5QKVMX9oNXzmHe4WAHqa9xtY8HdR5fvLmm3+yOo0
+/Bom28ZI34HYPvKQPQv7/gqpBjpCazn58kB/5pLtxFSm2o5lcZfy/G6DbOBGwYo=
+=aOOG
+-----END PGP SIGNATURE-----
+
+--cWoXeonUoKmBZSoM--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
