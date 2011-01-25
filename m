@@ -1,54 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CFDA66B0092
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 13:33:43 -0500 (EST)
-Date: Tue, 25 Jan 2011 19:32:40 +0100
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [PATCH 00/25] mm: Preemptibility -v7
-Message-ID: <20110125183240.GA31346@merkur.ravnborg.org>
+	by kanga.kvack.org (Postfix) with ESMTP id D80BB6B0092
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 13:38:17 -0500 (EST)
+Message-Id: <20110125174907.220115681@chello.nl>
+Date: Tue, 25 Jan 2011 18:31:12 +0100
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [PATCH 01/25] tile: Fix __pte_free_tlb
 References: <20110125173111.720927511@chello.nl>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110125173111.720927511@chello.nl>
+Content-Disposition: inline; filename=tile-fix-pte_free_tlb.patch
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>
+To: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Chris Metcalf <cmetcalf@tilera.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 25, 2011 at 06:31:11PM +0100, Peter Zijlstra wrote:
-> 
-> This patch-set makes part of the mm a lot more preemptible. It converts
-> i_mmap_lock and anon_vma->lock to mutexes and makes mmu_gather fully
-> preemptible.
-> 
-> The main motivation was making mm_take_all_locks() preemptible, since it
-> appears people are nesting hundreds of spinlocks there.
-> 
-> The side-effects are that can finally make mmu_gather preemptible,
-> something which lots of people have wanted to do for a long time.
-> 
-> It also gets us anon_vma refcounting, which seems to result in a nice
-> cleanup of the anon_vma lifetime rules wrt KSM and compaction.
-> 
-> This patch-set is build and boot-tested on x86_64 (a previous version was
-> also tested on Dave's Niagra2 machines, and I suppose s390 was too when
-> Martin provided the conversion patch for his arch).
-> 
-> There are no known architectures left unconverted.
+Tile's __pte_free_tlb() implementation makes assumptions about the
+generic mmu_gather implementation, cure this ;-)
 
-Hi Peter.
+[ Chris, from a quick look L2_USER_PGTABLE_PAGES is something like:
+  1 << (24 - 16 + 3), which looks awefully large for an on-stack
+  array. ]
 
-Foregive me my ignorance..
-Why is this relevant for sparc64 but not for sparc32?
+Cc: Chris Metcalf <cmetcalf@tilera.com>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ arch/tile/mm/pgtable.c |   15 ++-------------
+ 1 file changed, 2 insertions(+), 13 deletions(-)
 
-A quick grep showed up only this in sparc32 specific files:
+Index: linux-2.6/arch/tile/mm/pgtable.c
+===================================================================
+--- linux-2.6.orig/arch/tile/mm/pgtable.c
++++ linux-2.6/arch/tile/mm/pgtable.c
+@@ -252,19 +252,8 @@ void __pte_free_tlb(struct mmu_gather *t
+ 	int i;
+ 
+ 	pgtable_page_dtor(pte);
+-	tlb->need_flush = 1;
+-	if (tlb_fast_mode(tlb)) {
+-		struct page *pte_pages[L2_USER_PGTABLE_PAGES];
+-		for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i)
+-			pte_pages[i] = pte + i;
+-		free_pages_and_swap_cache(pte_pages, L2_USER_PGTABLE_PAGES);
+-		return;
+-	}
+-	for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i) {
+-		tlb->pages[tlb->nr++] = pte + i;
+-		if (tlb->nr >= FREE_PTE_NR)
+-			tlb_flush_mmu(tlb, 0, 0);
+-	}
++	for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i)
++		tlb_remove_page(tlb, pte + i);
+ }
+ 
+ #ifndef __tilegx__
 
-mm/init_32.c:DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
-Maybe this is just something sparc32 does not support?
-
-	Sam
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
