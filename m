@@ -1,12 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E54DC6B0092
-	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 22:32:58 -0500 (EST)
-Date: Tue, 25 Jan 2011 14:32:26 +1100
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 005586B0092
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 22:34:37 -0500 (EST)
+Date: Tue, 25 Jan 2011 14:34:14 +1100
 From: Anton Blanchard <anton@samba.org>
-Subject: [PATCH 1/2] hugepage: Protect region tracking lists with its own
- spinlock
-Message-ID: <20110125143226.37532ea2@kryten>
+Subject: [PATCH 2/2] hugepage: Allow parallelization of the hugepage fault
+ path
+Message-ID: <20110125143414.1dbb150c@kryten>
+In-Reply-To: <20110125143226.37532ea2@kryten>
+References: <20110125143226.37532ea2@kryten>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -15,164 +17,181 @@ To: dwg@au1.ibm.com, mel@csn.ul.ie, akpm@linux-foundation.org, hughd@google.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+From: David Gibson <dwg@au1.ibm.com>
 
-In preparation for creating a hash of spinlocks to replace the global
-hugetlb_instantiation_mutex, protect the region tracking code with
-its own spinlock.
+At present, the page fault path for hugepages is serialized by a
+single mutex.  This is used to avoid spurious out-of-memory conditions
+when the hugepage pool is fully utilized (two processes or threads can
+race to instantiate the same mapping with the last hugepage from the
+pool, the race loser returning VM_FAULT_OOM).  This problem is
+specific to hugepages, because it is normal to want to use every
+single hugepage in the system - with normal pages we simply assume
+there will always be a few spare pages which can be used temporarily
+until the race is resolved.
 
-Signed-off-by: Anton Blanchard <anton@samba.org> 
+Unfortunately this serialization also means that clearing of hugepages
+cannot be parallelized across multiple CPUs, which can lead to very
+long process startup times when using large numbers of hugepages.
+
+This patch improves the situation by replacing the single mutex with a
+table of mutexes, selected based on a hash of the address_space and
+file offset being faulted (or mm and virtual address for MAP_PRIVATE
+mappings).
+
+
+From: Anton Blanchard <anton@samba.org>
+
+Forward ported and made a few changes:
+
+- Use the Jenkins hash to scatter the hash, better than using just the
+  low bits.
+
+- Always round num_fault_mutexes to a power of two to avoid an expensive
+  modulus in the hash calculation.
+
+I also tested this patch on a 64 thread POWER6 box using a simple parallel
+fault testcase:
+
+http://ozlabs.org/~anton/junkcode/parallel_fault.c
+
+Command line options:
+
+parallel_fault <nr_threads> <size in kB> <skip in kB>
+
+First the time taken to fault 48GB of 16MB hugepages:
+# time hugectl --heap ./parallel_fault 1 50331648 16384
+11.1 seconds
+
+Now the same test with 64 concurrent threads:
+# time hugectl --heap ./parallel_fault 64 50331648 16384
+8.8 seconds
+
+Hardly any speedup. Finally the 64 concurrent threads test with this patch
+applied:
+# time hugectl --heap ./parallel_fault 64 50331648 16384
+0.7 seconds
+
+We go from 8.8 seconds to 0.7 seconds, an improvement of 12.6x.
+
+Signed-off-by: David Gibson <dwg@au1.ibm.com>
+Signed-off-by: Anton Blanchard <anton@samba.org>
 ---
-
-The old code locked it with either:
-
-	down_write(&mm->mmap_sem);
-or
-	down_read(&mm->mmap_sem);
-	mutex_lock(&hugetlb_instantiation_mutex);
-
-I chose to keep things simple and wrap everything with a single lock.
-Do we need the parallelism the old code had in the down_write case?
-
 
 Index: powerpc.git/mm/hugetlb.c
 ===================================================================
---- powerpc.git.orig/mm/hugetlb.c	2011-01-07 12:50:52.090440484 +1100
-+++ powerpc.git/mm/hugetlb.c	2011-01-07 12:52:03.922704453 +1100
-@@ -56,16 +56,6 @@ static DEFINE_SPINLOCK(hugetlb_lock);
+--- powerpc.git.orig/mm/hugetlb.c	2011-01-25 13:20:49.311405902 +1100
++++ powerpc.git/mm/hugetlb.c	2011-01-25 13:45:54.437235053 +1100
+@@ -21,6 +21,7 @@
+ #include <linux/rmap.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
++#include <linux/jhash.h>
+ 
+ #include <asm/page.h>
+ #include <asm/pgtable.h>
+@@ -54,6 +55,13 @@ static unsigned long __initdata default_
+ static DEFINE_SPINLOCK(hugetlb_lock);
+ 
  /*
++ * Serializes faults on the same logical page.  This is used to
++ * prevent spurious OOMs when the hugepage pool is fully utilized.
++ */
++static unsigned int num_fault_mutexes;
++static struct mutex *htlb_fault_mutex_table;
++
++/*
   * Region tracking -- allows tracking of reservations and instantiated pages
   *                    across the pages in a mapping.
-- *
-- * The region data structures are protected by a combination of the mmap_sem
-- * and the hugetlb_instantion_mutex.  To access or modify a region the caller
-- * must either hold the mmap_sem for write, or the mmap_sem for read and
-- * the hugetlb_instantiation mutex:
-- *
-- * 	down_write(&mm->mmap_sem);
-- * or
-- * 	down_read(&mm->mmap_sem);
-- * 	mutex_lock(&hugetlb_instantiation_mutex);
   */
- struct file_region {
- 	struct list_head link;
-@@ -73,10 +63,14 @@ struct file_region {
- 	long to;
- };
+@@ -1764,6 +1772,8 @@ module_exit(hugetlb_exit);
  
-+static DEFINE_SPINLOCK(region_lock);
-+
- static long region_add(struct list_head *head, long f, long t)
+ static int __init hugetlb_init(void)
  {
- 	struct file_region *rg, *nrg, *trg;
- 
-+	spin_lock(&region_lock);
++	int i;
 +
- 	/* Locate the region we are either in or before. */
- 	list_for_each_entry(rg, head, link)
- 		if (f <= rg->to)
-@@ -106,6 +100,7 @@ static long region_add(struct list_head
- 	}
- 	nrg->from = f;
- 	nrg->to = t;
-+	spin_unlock(&region_lock);
+ 	/* Some platform decide whether they support huge pages at boot
+ 	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
+ 	 * there is no such support
+@@ -1790,6 +1800,12 @@ static int __init hugetlb_init(void)
+ 
+ 	hugetlb_register_all_nodes();
+ 
++	num_fault_mutexes = roundup_pow_of_two(2 * num_possible_cpus());
++	htlb_fault_mutex_table =
++		kmalloc(num_fault_mutexes * sizeof(struct mutex), GFP_KERNEL);
++	for (i = 0; i < num_fault_mutexes; i++)
++		mutex_init(&htlb_fault_mutex_table[i]);
++
  	return 0;
  }
- 
-@@ -114,6 +109,8 @@ static long region_chg(struct list_head
- 	struct file_region *rg, *nrg;
- 	long chg = 0;
- 
-+	spin_lock(&region_lock);
-+
- 	/* Locate the region we are before or in. */
- 	list_for_each_entry(rg, head, link)
- 		if (f <= rg->to)
-@@ -124,14 +121,17 @@ static long region_chg(struct list_head
- 	 * size such that we can guarantee to record the reservation. */
- 	if (&rg->link == head || t < rg->from) {
- 		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
--		if (!nrg)
--			return -ENOMEM;
-+		if (!nrg) {
-+			chg = -ENOMEM;
-+			goto out;
-+		}
- 		nrg->from = f;
- 		nrg->to   = f;
- 		INIT_LIST_HEAD(&nrg->link);
- 		list_add(&nrg->link, rg->link.prev);
- 
--		return t - f;
-+		chg = t - f;
-+		goto out;
- 	}
- 
- 	/* Round our left edge to the current segment if it encloses us. */
-@@ -144,7 +144,7 @@ static long region_chg(struct list_head
- 		if (&rg->link == head)
- 			break;
- 		if (rg->from > t)
--			return chg;
-+			goto out;
- 
- 		/* We overlap with this area, if it extends futher than
- 		 * us then we must extend ourselves.  Account for its
-@@ -155,6 +155,9 @@ static long region_chg(struct list_head
- 		}
- 		chg -= rg->to - rg->from;
- 	}
-+out:
-+
-+	spin_unlock(&region_lock);
- 	return chg;
+ module_init(hugetlb_init);
+@@ -2616,6 +2632,27 @@ backout_unlocked:
+ 	goto out;
  }
  
-@@ -163,12 +166,16 @@ static long region_truncate(struct list_
- 	struct file_region *rg, *trg;
- 	long chg = 0;
- 
-+	spin_lock(&region_lock);
++static u32 fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
++			    struct vm_area_struct *vma,
++			    struct address_space *mapping,
++			    unsigned long pagenum, unsigned long address)
++{
++	unsigned long key[2];
++	u32 hash;
 +
- 	/* Locate the region we are either in or before. */
- 	list_for_each_entry(rg, head, link)
- 		if (end <= rg->to)
- 			break;
--	if (&rg->link == head)
--		return 0;
-+	if (&rg->link == head) {
-+		chg = 0;
-+		goto out;
++	if ((vma->vm_flags & VM_SHARED)) {
++		key[0] = (unsigned long)mapping;
++		key[1] = pagenum;
++	} else {
++		key[0] = (unsigned long)mm;
++		key[1] = address >> huge_page_shift(h);
 +	}
- 
- 	/* If we are in the middle of a region then adjust it. */
- 	if (end > rg->from) {
-@@ -185,6 +192,9 @@ static long region_truncate(struct list_
- 		list_del(&rg->link);
- 		kfree(rg);
- 	}
 +
-+out:
-+	spin_unlock(&region_lock);
- 	return chg;
- }
- 
-@@ -193,6 +203,8 @@ static long region_count(struct list_hea
- 	struct file_region *rg;
- 	long chg = 0;
- 
-+	spin_lock(&region_lock);
++	hash = jhash2((u32 *)&key, sizeof(key)/sizeof(u32), 0);
 +
- 	/* Locate each segment we overlap with, and count that overlap. */
- 	list_for_each_entry(rg, head, link) {
- 		int seg_from;
-@@ -209,6 +221,7 @@ static long region_count(struct list_hea
- 		chg += seg_to - seg_from;
- 	}
++	return hash & (num_fault_mutexes - 1);
++}
++
+ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, unsigned int flags)
+ {
+@@ -2624,8 +2661,10 @@ int hugetlb_fault(struct mm_struct *mm,
+ 	int ret;
+ 	struct page *page = NULL;
+ 	struct page *pagecache_page = NULL;
+-	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
+ 	struct hstate *h = hstate_vma(vma);
++	struct address_space *mapping;
++	unsigned long idx;
++	u32 hash;
  
-+	spin_unlock(&region_lock);
- 	return chg;
+ 	ptep = huge_pte_offset(mm, address);
+ 	if (ptep) {
+@@ -2642,12 +2681,16 @@ int hugetlb_fault(struct mm_struct *mm,
+ 	if (!ptep)
+ 		return VM_FAULT_OOM;
+ 
++	mapping = vma->vm_file->f_mapping;
++	idx = vma_hugecache_offset(h, vma, address);
++
+ 	/*
+ 	 * Serialize hugepage allocation and instantiation, so that we don't
+ 	 * get spurious allocation failures if two CPUs race to instantiate
+ 	 * the same page in the page cache.
+ 	 */
+-	mutex_lock(&hugetlb_instantiation_mutex);
++	hash = fault_mutex_hash(h, mm, vma, mapping, idx, address);
++	mutex_lock(&htlb_fault_mutex_table[hash]);
+ 	entry = huge_ptep_get(ptep);
+ 	if (huge_pte_none(entry)) {
+ 		ret = hugetlb_no_page(mm, vma, address, ptep, flags);
+@@ -2716,7 +2759,7 @@ out_page_table_lock:
+ 		unlock_page(page);
+ 
+ out_mutex:
+-	mutex_unlock(&hugetlb_instantiation_mutex);
++	mutex_unlock(&htlb_fault_mutex_table[hash]);
+ 
+ 	return ret;
  }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
