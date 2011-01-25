@@ -1,134 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C727D6B00E7
-	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 19:34:01 -0500 (EST)
-Received: by yxl31 with SMTP id 31so1673045yxl.14
-        for <linux-mm@kvack.org>; Mon, 24 Jan 2011 16:33:59 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4C96B00E7
+	for <linux-mm@kvack.org>; Mon, 24 Jan 2011 20:31:03 -0500 (EST)
+Message-ID: <4D3E27B3.5050707@oracle.com>
+Date: Mon, 24 Jan 2011 17:30:27 -0800
+From: Andy Grover <andy.grover@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20110124175807.GA27427@n2100.arm.linux.org.uk>
-References: <1295516739-9839-1-git-send-email-pullip.cho@samsung.com>
-	<1295544047.9039.609.camel@nimitz>
-	<20110120180146.GH6335@n2100.arm.linux.org.uk>
-	<1295547087.9039.694.camel@nimitz>
-	<20110123180532.GA3509@n2100.arm.linux.org.uk>
-	<1295887937.11047.119.camel@nimitz>
-	<20110124175807.GA27427@n2100.arm.linux.org.uk>
-Date: Tue, 25 Jan 2011 09:33:59 +0900
-Message-ID: <AANLkTikK4oGx1dNTDfxketVr2kPdrg=WsrOXThVD6_U2@mail.gmail.com>
-Subject: Re: [PATCH] ARM: mm: Regarding section when dealing with meminfo
-From: KyongHo Cho <pullip.cho@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [RESEND PATCH] mm: Use spin_lock_irqsave in __set_page_dirty_nobuffers
+References: <1294726534-16438-1-git-send-email-andy.grover@oracle.com>	<20110121001804.413b3f6d.akpm@linux-foundation.org>	<4D39DDA6.1080604@oracle.com> <20110121120945.8d0e1010.akpm@linux-foundation.org>
+In-Reply-To: <20110121120945.8d0e1010.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Kukjin Kim <kgene.kim@samsung.com>, KeyYoung Park <keyyoung.park@samsung.com>, linux-kernel@vger.kernel.org, Ilho Lee <ilho215.lee@samsung.com>, linux-mm@kvack.org, linux-samsung-soc@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, rds-devel@oss.oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 25, 2011 at 2:58 AM, Russell King - ARM Linux
-<linux@arm.linux.org.uk> wrote:
-> On Mon, Jan 24, 2011 at 08:52:17AM -0800, Dave Hansen wrote:
->> On Sun, 2011-01-23 at 18:05 +0000, Russell King - ARM Linux wrote:
->> > On Thu, Jan 20, 2011 at 10:11:27AM -0800, Dave Hansen wrote:
->> > > On Thu, 2011-01-20 at 18:01 +0000, Russell King - ARM Linux wrote:
->> > > > > The x86 version of show_mem() actually manages to do this withou=
-t any
->> > > > > #ifdefs, and works for a ton of configuration options. =A0It use=
-s
->> > > > > pfn_valid() to tell whether it can touch a given pfn.
->> > > >
->> > > > x86 memory layout tends to be very simple as it expects memory to
->> > > > start at the beginning of every region described by a pgdat and ex=
-tend
->> > > > in one contiguous block. =A0I wish ARM was that simple.
->> > >
->> > > x86 memory layouts can be pretty funky and have been that way for a =
-long
->> > > time. =A0That's why we *have* to handle holes in x86's show_mem(). =
-=A0My
->> > > laptop even has a ~1GB hole in its ZONE_DMA32:
->> >
->> > If x86 is soo funky, I suggest you try the x86 version of show_mem()
->> > on an ARM platform with memory holes. =A0Make sure you try it with
->> > sparsemem as well...
->>
->> x86 uses the generic lib/ show_mem(). =A0It works for any holes, as long
->> as they're expressed in one of the memory models so that pfn_valid()
->> notices them.
->
-> I think that's what I said.
->
->> ARM looks like its pfn_valid() is backed up by searching the (ASM
->> arch-specific) memblocks. =A0That looks like it would be fairly slow
->> compared to the other pfn_valid() implementations and I can see why it's
->> being avoided in show_mem().
->
-> Wrong. =A0For flatmem, we have a pfn_valid() which is backed by doing a
-> one, two or maybe rarely three compare search of the memblocks. =A0Short
-> of having a bitmap of every page in the 4GB memory space, you can't
-> get more efficient than that.
->
-> For sparsemem, sparsemem provides its own pfn_valid() which is _far_
-> from what we require:
->
-> static inline int pfn_valid(unsigned long pfn)
-> {
-> =A0 =A0 =A0 =A0if (pfn_to_section_nr(pfn) >=3D NR_MEM_SECTIONS)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return 0;
-> =A0 =A0 =A0 =A0return valid_section(__nr_to_section(pfn_to_section_nr(pfn=
-)));
-> }
->
->> Maybe we should add either the MAX_ORDER or section_nr() trick to the
->> lib/ implementation. =A0I bet that would use pfn_valid() rarely enough t=
-o
->> meet any performance concerns.
->
-> No. =A0I think it's entirely possible that on some platforms we have hole=
-s
-> within sections. =A0Like I said, ours is more funky than x86.
->
-I don't think the improving performance can result the possibility of
-misbehavior.
+On 01/21/2011 12:09 PM, Andrew Morton wrote:
+> Andy Grover<andy.grover@oracle.com>  wrote:
+>> When doing an RDMA read into pinned pages, we get notified the operation
+>> is complete in a tasklet, and would like to mark the pages dirty and
+>> unpin in the same context.
 
-> The big problem we have on ARM is that the kernel sparsemem stuff doesn't
-> *actually* support sparse memory. =A0What it supports is fully populated
-> blocks of memory of fixed size (known at compile time) where some blocks
-> may be contiguous. =A0Blocks are assumed to be populated from physical
-> address zero.
+>> The issue was __set_page_dirty_buffers (via calling set_page_dirty)
+>> was unconditionally re-enabling irqs as a side-effect because it
+>> was using *_irq instead of *_irqsave/restore.
 >
-> It doesn't actually support partially populated blocks.
->
-> So, if your memory granule size is 4MB, and your memory starts at
-> 0xc0000000 physical, you're stuck with 768 unused sparsemem blocks
-> at the beginning of memory. =A0If it's 1MB, then you have 3072 unused
-> sparsemem blocks. =A0Each mem_section structure is 8 bytes, so that
-> could be 24K of zeros.
->
-> What we actually need is infrastructure in the kernel which can properly
-> handle sparse memory efficiently without causing such wastage. =A0If your
-> platform has four memory chunks, eg at 0xc0000000, 0xc4000000, 0xc8000000=
-,
-> and 0xcc000000, then you want to build the kernel to tell it "there may
-> be four chunks with a 64MB offset, each chunk may be partially populated.=
-"
->
-> It seems that Sparsemem can't do that efficiently.
->
+> Your patch patched __set_page_dirty_nobuffers()?
 
-If sparsemem is not the correct choice for ARM, why don't we go back
-to the  flatmem? Still, the flatmem has problem on wastage of memory
-because of memory holes. But it is more reliable for us, at least.
-I think the idea of sparsemem is not bad for ARM, though. The
-implementation is quite efficient. The problem is that we still
-believe that sparsemem needs more verification to prove its
-robustness.
+Yes, _nobuffers, sorry.
 
-Anyway, you told that we need to define NR_BANKS more that 8 to use
-larger memory than 2gb without worry about misbehavior in mem_init()
-and mem_show(). As i said before, I think that it is not reasonable to
-create a number of memory chunks to avoid the problem. Nowhere in the
-kernel code and descriptions informs that contiguous physical memory
-chunks must not cross sparsemem section's boundaries.
+> What you could perhaps do is to lock_page() all the pages and run
+> set_page_dirty() on them *before* setting up the IO operation, then run
+> unlock_page() from interrupt context.
+>
+> I assume that all these pages are mapped into userspace processes?  If
+> so, they're fully uptodate and we're OK.  If they're plain old
+> pagecache pages then we could have partially uptodate pages and things
+> get messier.
+>
+> Running lock_page() against multiple pages is problematic because it
+> introduces a risk of ab/ba deadlocks against another thread which is
+> also locking multiple pages.  Possible solutions are a) take some
+> higher-level mutex so that only one thread will ever be running the
+> lock_page()s at a time or b) lock all the pages in ascending
+> paeg_to_pfn() order.  Both of these are a PITA.
+
+Another problem may be that lock/unlock_page() doesn't nest. We need to 
+be able to handle multiple ops to the same page. So, sounds like we also 
+need to keep track of all pages we lock/dirty and make sure they aren't 
+unlocked as long as we have references against them?
+
+I just want to fully understand what's needed, before writing at least 2 
+PITA's worth of extra code :)
+
+> Some thought is needed regarding anonymous pages and swapcache pages.
+
+I think the common case for us is IO into anon pages.
+
+Regards -- Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
