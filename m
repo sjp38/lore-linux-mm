@@ -1,50 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A0EB6B00EB
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 00:15:33 -0500 (EST)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp08.in.ibm.com (8.14.4/8.13.1) with ESMTP id p0P4PdgO010539
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 09:55:39 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0P5FSFv3371050
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 10:45:28 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0P5FSj3014338
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 10:45:28 +0530
-Date: Tue, 25 Jan 2011 10:45:12 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/2] Refactor zone_reclaim code (v4)
-Message-ID: <20110125051512.GO2897@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20110125051003.13762.35120.stgit@localhost6.localdomain6>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20110125051003.13762.35120.stgit@localhost6.localdomain6>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 29F086B0092
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 01:03:39 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 46EC43EE0B6
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:03:34 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E95C45DE58
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:03:34 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 194B345DE54
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:03:34 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C4081DB8040
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:03:34 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CBDA21DB803B
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:03:33 +0900 (JST)
+Date: Tue, 25 Jan 2011 14:57:20 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/3] 3 bugfixes for memory cgroup (2.6.38-rc2)
+Message-Id: <20110125145720.cd0cbe16.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* Balbir Singh <balbir@linux.vnet.ibm.com> [2011-01-25 10:40:09]:
 
-> Changelog v3
-> 1. Renamed zone_reclaim_unmapped_pages to zone_reclaim_pages
-> 
-> Refactor zone_reclaim, move reusable functionality outside
-> of zone_reclaim. Make zone_reclaim_unmapped_pages modular
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> Reviewed-by: Christoph Lameter <cl@linux.com>
 
-I got the patch numbering wrong due to a internet connection going down
-in the middle of stg mail, restarting with specified patches goofed up
-the numbering. I can resend the patches with the correct numbering if
-desired. This patch should be numbered 2/3
+Hi, these are 3 bugfix patches for 2.6.38-rc2 + 
+ mm-memcontrolc-fix-uninitialized-variable-use-in-mem_cgroup_move_parent.patch
+in mm tree.
 
--- 
-	Three Cheers,
-	Balbir
+3 patches are independent from each other but [1/3] patch is for
+2.6.36-stable, tree.
+
+[1/3] fix account leak at failure of memsw acconting. (for 2.6.36 stable)
+[2/3] check mem_cgroup_disabled() at split fixup (for recent 2.6.38-git)
+[3/3] fix race at move_parent() (This depends on m-memcontrolc
+      fix-uninitialized-variable-use-in-mem_cgroup_move_parent.patch)
+
+I'll send other fixes for THP/memcg but this is an early cut for obvious bugs.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
