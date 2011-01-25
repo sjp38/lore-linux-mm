@@ -1,44 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 40B7A6B0092
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:47:09 -0500 (EST)
-Message-ID: <4D3F36CB.6060505@linux.intel.com>
-Date: Tue, 25 Jan 2011 12:47:07 -0800
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 992A46B0092
+	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 15:50:14 -0500 (EST)
+Received: from list by lo.gmane.org with local (Exim 4.69)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1Phpq2-0003yG-0l
+	for linux-mm@kvack.org; Tue, 25 Jan 2011 21:50:06 +0100
+Received: from jfdmzpr02-ext.jf.intel.com ([134.134.137.71])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Tue, 25 Jan 2011 21:50:06 +0100
+Received: from ak by jfdmzpr02-ext.jf.intel.com with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Tue, 25 Jan 2011 21:50:06 +0100
 From: Andi Kleen <ak@linux.intel.com>
-MIME-Version: 1.0
 Subject: Re: [PATCH 00/25] mm: Preemptibility -v7
-References: <20110125173111.720927511@chello.nl>	 <m2ipxcsr6v.fsf@linux.intel.com> <1295987985.28776.1118.camel@laptop>
-In-Reply-To: <1295987985.28776.1118.camel@laptop>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Tue, 25 Jan 2011 11:45:28 -0800
+Message-ID: <m2ipxcsr6v.fsf@linux.intel.com>
+References: <20110125173111.720927511@chello.nl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Peter Zijlstra <a.p.zijlstra@chello.nl> writes:
 
-> Its nesting hundreds of spinlocks (255+) make the preempt debug code
-> unhappy, it also causes fun latencies when you do start KVM/GRU
-> Although arguably that's the least convincing reason to do all this its
-> the one that got me to actually compose this series -- I really should
-> write a new leader..
-Least Convincing is a good description...
-Tuning operations which only happen once is not very interesting, 
-especially if that affects
-fast paths.
+> This patch-set makes part of the mm a lot more preemptible. It converts
+> i_mmap_lock and anon_vma->lock to mutexes and makes mmu_gather fully
+> preemptible.
+>
+> The main motivation was making mm_take_all_locks() preemptible, since it
+> appears people are nesting hundreds of spinlocks there.
 
-> Making all this preemptible also allows making the whole mmu_gather
-> thing preemptible, which is something we've wanted to do for a long
-> while, it also allows XPMEM or whatever that thing was called (Andrea
-> knows) and of course, it moves a part of -rt upstream.
-
-I thought the reason for the preempt off inside the mmu gather region was
-to stay on the same CPU for local/remote flushes. How would it change that?
-
-> If we decide to keep patch 24, it also simplifies the truncate path
-> quite a bit.
-That sounds like a good thing. Making truncate simpler is always good.
+Just curious: why is mm_take_all_locks() a problem? As far as I can see
+it's just used when starting KVM or GRU the first time. Is that a common
+situation?
 
 -Andi
+
+-- 
+Andi Kleen
+Intel Open Source Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
