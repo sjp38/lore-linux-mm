@@ -1,101 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 718D06B0092
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 03:51:33 -0500 (EST)
-Date: Wed, 26 Jan 2011 08:51:07 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [patch] mm: clear pages_scanned only if draining a pcp adds
-	pages to the buddy allocator
-Message-ID: <20110126085106.GP18984@csn.ul.ie>
-References: <alpine.DEB.2.00.1101231457130.966@chino.kir.corp.google.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6588E6B0092
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 03:58:48 -0500 (EST)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0Q8rh6K017611
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 01:53:43 -0700
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p0Q8weV1191024
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 01:58:40 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0Q8wb3r011069
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 01:58:40 -0700
+Date: Wed, 26 Jan 2011 14:22:03 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [RFC] [PATCH 2.6.37-rc5-tip 14/20] 14: uprobes: Handing int3
+ and singlestep exception.
+Message-ID: <20110126085203.GG19725@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20101216095714.23751.52601.sendpatchset@localhost6.localdomain6>
+ <20101216095957.23751.57040.sendpatchset@localhost6.localdomain6>
+ <1295963779.28776.1059.camel@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1101231457130.966@chino.kir.corp.google.com>
+In-Reply-To: <1295963779.28776.1059.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jan 23, 2011 at 02:58:39PM -0800, David Rientjes wrote:
-> 0e093d99763e (writeback: do not sleep on the congestion queue if there
-> are no congested BDIs or if significant congestion is not being
-> encountered in the current zone) uncovered a livelock in the page
-> allocator that resulted in tasks infinitely looping trying to find memory
-> and kswapd running at 100% cpu.
-> 
-> The issue occurs because drain_all_pages() is called immediately
-> following direct reclaim when no memory is freed and try_to_free_pages()
-> returns non-zero because all zones in the zonelist do not have their
-> all_unreclaimable flag set.
-> 
-> When draining the per-cpu pagesets back to the buddy allocator for each
-> zone, the zone->pages_scanned counter is cleared to avoid erroneously
-> setting zone->all_unreclaimable later.  The problem is that no pages may
-> actually be drained and, thus, the unreclaimable logic never fails direct
-> reclaim so the oom killer may be invoked.
-> 
-> This apparently only manifested after wait_iff_congested() was introduced
-> and the zone was full of anonymous memory that would not congest the
-> backing store.  The page allocator would infinitely loop if there were no
-> other tasks waiting to be scheduled and clear zone->pages_scanned because
-> of drain_all_pages() as the result of this change before kswapd could
-> scan enough pages to trigger the reclaim logic.  Additionally, with every
-> loop of the page allocator and in the reclaim path, kswapd would be
-> kicked and would end up running at 100% cpu.  In this scenario, current
-> and kswapd are all running continuously with kswapd incrementing
-> zone->pages_scanned and current clearing it.
-> 
-> The problem is even more pronounced when current swaps some of its memory
-> to swap cache and the reclaimable logic then considers all active
-> anonymous memory in the all_unreclaimable logic, which requires a much
-> higher zone->pages_scanned value for try_to_free_pages() to return zero
-> that is never attainable in this scenario.
-> 
-> Before wait_iff_congested(), the page allocator would incur an
-> unconditional timeout and allow kswapd to elevate zone->pages_scanned to
-> a level that the oom killer would be called the next time it loops.
-> 
-> The fix is to only attempt to drain pcp pages if there is actually a
-> quantity to be drained.  The unconditional clearing of
-> zone->pages_scanned in free_pcppages_bulk() need not be changed since
-> other callers already ensure that draining will occur.  This patch
-> ensures that free_pcppages_bulk() will actually free memory before
-> calling into it from drain_all_pages() so zone->pages_scanned is only
-> cleared if appropriate.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+* Peter Zijlstra <peterz@infradead.org> [2011-01-25 14:56:19]:
 
-Nice analysis and I cannot spot any flaw;
-
-Reviewed-by: Mel Gorman <mel@csn.ul.ie>
-
-> ---
->  mm/page_alloc.c |    6 ++++--
->  1 files changed, 4 insertions(+), 2 deletions(-)
+> On Thu, 2010-12-16 at 15:29 +0530, Srikar Dronamraju wrote:
+> > +               down_read(&mm->mmap_sem);
+> > +               for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> > +                       if (!valid_vma(vma))
+> > +                               continue;
+> > +                       if (probept < vma->vm_start || probept > vma->vm_end)
+> > +                               continue;
+> > +                       u = find_uprobe(vma->vm_file->f_mapping->host,
+> > +                                       probept - vma->vm_start);
+> > +                       if (u)
+> > +                               break;
+> > +               }
+> > +               up_read(&mm->mmap_sem); 
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1088,8 +1088,10 @@ static void drain_pages(unsigned int cpu)
->  		pset = per_cpu_ptr(zone->pageset, cpu);
->  
->  		pcp = &pset->pcp;
-> -		free_pcppages_bulk(zone, pcp->count, pcp);
-> -		pcp->count = 0;
-> +		if (pcp->count) {
-> +			free_pcppages_bulk(zone, pcp->count, pcp);
-> +			pcp->count = 0;
-> +		}
->  		local_irq_restore(flags);
->  	}
->  }
-> 
+> One has to ask, what's wrong with find_vma() ?
 
--- 
-Mel Gorman
-Linux Technology Center
-IBM Dublin Software Lab
+Are you looking for something like this.
+
+       down_read(&mm->mmap_sem);
+	for (vma = find_vma(mm, probept); ; vma = vma->vm_next) {
+	       if (!valid_vma(vma))
+		       continue;
+	       u = find_uprobe(vma->vm_file->f_mapping->host,
+			       probept - vma->vm_start);
+	       if (u)
+		       break;
+       }
+       up_read(&mm->mmap_sem); 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
