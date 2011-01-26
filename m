@@ -1,42 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 7612D6B0092
-	for <linux-mm@kvack.org>; Tue, 25 Jan 2011 20:38:54 -0500 (EST)
-Date: Tue, 25 Jan 2011 20:38:50 -0500 (EST)
-From: CAI Qian <caiqian@redhat.com>
-Message-ID: <1570419329.157209.1296005930142.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-In-Reply-To: <645973813.157189.1296005440082.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Subject: [LSF/MM TOPIC] sustainable upstream testing
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D7F6A6B0092
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:54:25 -0500 (EST)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0Q7jC3b002437
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:45:12 -0500
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 48183728047
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:54:15 -0500 (EST)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0Q7sEGY439718
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:54:15 -0500
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0Q7sDxu028940
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 00:54:14 -0700
+Date: Wed, 26 Jan 2011 13:17:37 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [RFC] [PATCH 2.6.37-rc5-tip 5/20]  5: Uprobes:
+ register/unregister probes.
+Message-ID: <20110126074737.GA19725@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20101216095714.23751.52601.sendpatchset@localhost6.localdomain6>
+ <20101216095817.23751.76989.sendpatchset@localhost6.localdomain6>
+ <1295957745.28776.723.camel@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1295957745.28776.723.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: lsf-pc@lists.linuxfoundation.org
-Cc: linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-The benefit:
-By regularly testing kernel upstream, we can identify problems and get the feeling of the status of enterprise user cases earlier before the bad code found a way into enterprise-distro kernel. We can also use this opportunity to drive a testing community around the kernel upstream which will even benefit enterprise-distro kernel further by gathering more testing knowledge, tools/testing code around features/subsystems, and establishing working relationships with upstream developers.
+* Peter Zijlstra <peterz@infradead.org> [2011-01-25 13:15:45]:
 
-The challenge:
-Upstream code have many different code bases (git trees) and release cycles. Internal automation system may not support easy installation/integration of upstream kernel yet. It could be time-consuming to clone those external upstream git trees. There is no guarantee that upstream developers will fix/debug bug/regression or help you to understand requirements for features. The requirement and usage documents for upstream code is more developer-bias and rely on code reading/work-through to understand. Those exposed new challenges for testers both technically and socially.
+> > +
+> > +       if (atomic_read(&uprobe->ref) == 1) {
+> > +               synchronize_sched();
+> > +               rb_erase(&uprobe->rb_node, &uprobes_tree);
+> 
+> How is that safe without holding the treelock?
 
-Main differences between upstream and enterprise-distro kernel testing:
-1) more chances to find regression upstream.
-2) more debugging, technical and communication skills required to get closures for the issues found.
-3) no fixable release cycles.
-4) different testing infrastructures upstream; hard to push/use internal tests upstream.
-5) some enterprise use-cases/features may not well-accepted upstream.
+Right, 
+Something like this should be good enuf right?
 
-Some sample questions to discuss:
-1) how to choose the right git tree as a base to test?
-2) how to efficiently/sustainably push more internal tests upstream?
-3) how to get more tests passed as a part of release criteria? 
-4) how to efficiently get the issues found upstream fixed?
+if (atomic_read(&uprobe->ref) == 1) {
+	synchronize_sched();
+	spin_lock_irqsave(&treelock, flags);
+	rb_erase(&uprobe->rb_node, &uprobes_tree);
+	spin_lock_irqrestore(&treelock, flags);
+	iput(uprobe->inode);
+}
+	
+-- 
+Thanks and Regards
+Srikar
 
-Thanks.
-
-CAI Qian
+PS: Last time I had goofed up with Linux-mm mailing alias. 
+Hopefully this time it goes to the right list.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
