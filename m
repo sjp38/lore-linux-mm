@@ -1,41 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 464366B0092
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 03:29:38 -0500 (EST)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH] oom: handle overflow in mem_cgroup_out_of_memory()
-Date: Wed, 26 Jan 2011 00:29:15 -0800
-Message-Id: <1296030555-3594-1-git-send-email-gthelen@google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5046D6B0092
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 03:44:23 -0500 (EST)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0Q8KhSH007068
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 03:20:43 -0500
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id BA90F728049
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 03:44:17 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0Q8iHaO2588904
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 03:44:17 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0Q8iFnW001661
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 03:44:17 -0500
+Date: Wed, 26 Jan 2011 14:07:43 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [RFC] [PATCH 2.6.37-rc5-tip 4/20]  4: uprobes: Adding and
+ remove a uprobe in a rb tree.
+Message-ID: <20110126083743.GC19725@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20101216095714.23751.52601.sendpatchset@localhost6.localdomain6>
+ <20101216095803.23751.41491.sendpatchset@localhost6.localdomain6>
+ <1295957740.28776.718.camel@laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1295957740.28776.718.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Linux-mm <linux-mm@kvack.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-mem_cgroup_get_limit() returns a byte limit as a unsigned 64 bit value,
-which is converted to a page count by mem_cgroup_out_of_memory().  Prior
-to this patch the conversion could overflow on 32 bit platforms
-yielding a limit of zero.
+> > +       spin_lock_irqsave(&treelock, flags);
+> > +       while (*p) {
+> > +               parent = *p;
+> > +               u = rb_entry(parent, struct uprobe, rb_node);
+> > +               if (u->inode > uprobe->inode)
+> > +                       p = &(*p)->rb_left;
+> > +               else if (u->inode < uprobe->inode)
+> > +                       p = &(*p)->rb_right;
+> > +               else {
+> > +                       if (u->offset > uprobe->offset)
+> > +                               p = &(*p)->rb_left;
+> > +                       else if (u->offset < uprobe->offset)
+> > +                               p = &(*p)->rb_right;
+> > +                       else {
+> > +                               atomic_inc(&u->ref);
+> 
+> If the lookup can find a 'dead' entry, then why can't we here?
+> 
 
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
- mm/oom_kill.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+If a new user of a uprobe comes up as when the last registered user was
+removing the uprobe, we keep the uprobe entry till the new user
+loses interest in that uprobe.
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 7dcca55..3fcac51 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -538,7 +538,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
- 	struct task_struct *p;
- 
- 	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, 0, NULL);
--	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
-+	limit = min(mem_cgroup_get_limit(mem) >> PAGE_SHIFT, (u64)ULONG_MAX);
- 	read_lock(&tasklist_lock);
- retry:
- 	p = select_bad_process(&points, limit, mem, NULL);
--- 
-1.7.3.1
+> > +                               goto unlock_return;
+> > +                       }
+> > +               }
+> > +       }
+> > +       u = NULL;
+> > +       rb_link_node(&uprobe->rb_node, parent, p);
+> > +       rb_insert_color(&uprobe->rb_node, &uprobes_tree);
+> > +       atomic_set(&uprobe->ref, 2);
+> > +
+> > +unlock_return:
+> > +       spin_unlock_irqrestore(&treelock, flags);
+> > +       return u;
+> > +} 
+> 
+> It would be nice if you could merge the find and 'acquire' thing, the
+> lookup is basically the same in both cases.
+> 
+> Also, I'm not quite sure on the name of that last function, its not a
+> strict insert and what's the trailing _rb_node about? That lookup isn't
+> called find_uprobe_rb_node() either is it?
+
+Since we already have a install_uprobe, register_uprobe, I thought
+insert_uprobe_rb_node would give context to that function that it was
+only inserting an rb_node but not installing the actual breakpoint.
+I am okay to rename it to insert_uprobe(). 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
