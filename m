@@ -1,50 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 98E346B0092
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 05:10:26 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 290D36B0092
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 05:11:14 -0500 (EST)
 Subject: Re: [RFC] [PATCH 2.6.37-rc5-tip 5/20]  5: Uprobes:
  register/unregister probes.
 From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110126074737.GA19725@linux.vnet.ibm.com>
+In-Reply-To: <20110126075558.GB19725@linux.vnet.ibm.com>
 References: 
 	 <20101216095714.23751.52601.sendpatchset@localhost6.localdomain6>
 	 <20101216095817.23751.76989.sendpatchset@localhost6.localdomain6>
-	 <1295957745.28776.723.camel@laptop>
-	 <20110126074737.GA19725@linux.vnet.ibm.com>
+	 <1295957744.28776.722.camel@laptop>
+	 <20110126075558.GB19725@linux.vnet.ibm.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Date: Wed, 26 Jan 2011 11:10:56 +0100
-Message-ID: <1296036656.28776.1137.camel@laptop>
+Date: Wed, 26 Jan 2011 11:11:48 +0100
+Message-ID: <1296036708.28776.1138.camel@laptop>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2011-01-26 at 13:17 +0530, Srikar Dronamraju wrote:
-> * Peter Zijlstra <peterz@infradead.org> [2011-01-25 13:15:45]:
+On Wed, 2011-01-26 at 13:25 +0530, Srikar Dronamraju wrote:
 >=20
 > > > +
-> > > +       if (atomic_read(&uprobe->ref) =3D=3D 1) {
-> > > +               synchronize_sched();
-> > > +               rb_erase(&uprobe->rb_node, &uprobes_tree);
+> > > +               list_add(&mm->uprobes_list, &tmp_list);
+> > > +               mm->uprobes_vaddr =3D vma->vm_start + offset;
+> > > +       }
+> > > +       spin_unlock(&mapping->i_mmap_lock);
 > >=20
-> > How is that safe without holding the treelock?
+> > Both this and unregister are racy, what is to say:
+> >  - the vma didn't get removed from the mm
+> >  - no new matching vma got added
+> >=20
 >=20
-> Right,=20
-> Something like this should be good enuf right?
+> register_uprobe, unregister_uprobe, uprobe_mmap are all synchronized by
+> uprobes_mutex. So I dont see one unregister_uprobe getting thro when
+> another register_uprobe is working with a vma.
 >=20
-> if (atomic_read(&uprobe->ref) =3D=3D 1) {
-> 	synchronize_sched();
-> 	spin_lock_irqsave(&treelock, flags);
-> 	rb_erase(&uprobe->rb_node, &uprobes_tree);
-> 	spin_lock_irqrestore(&treelock, flags);
-> 	iput(uprobe->inode);
-> }
-> =09
+> If I am missing something elementary, please explain a bit more.
 
-How is the atomic_read() not racy with a future increment, and what is
-that synchronize_sched() thing for?
+afaict you're not holding the mmap_sem, so userspace can simply unmap
+the vma.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
