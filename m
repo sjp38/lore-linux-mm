@@ -1,62 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E61226B00E9
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 05:20:27 -0500 (EST)
-Date: Wed, 26 Jan 2011 11:20:20 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch]
- epoll-fix-compiler-warning-and-optimize-the-non-blocking-path-fix
-Message-ID: <20110126102020.GA2244@cmpxchg.org>
-References: <201101260021.p0Q0LxsS016458@imap1.linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id EEE316B0092
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 05:45:47 -0500 (EST)
+Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
+	by smtp-out.google.com with ESMTP id p0QAjgTL016104
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:45:42 -0800
+Received: from iyj17 (iyj17.prod.google.com [10.241.51.81])
+	by kpbe20.cbf.corp.google.com with ESMTP id p0QAjc7c009519
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:45:40 -0800
+Received: by iyj17 with SMTP id 17so291221iyj.0
+        for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:45:38 -0800 (PST)
+Date: Wed, 26 Jan 2011 02:45:34 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: known oom issues on numa in -mm tree?
+In-Reply-To: <976317569.44499.1294739187129.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Message-ID: <alpine.DEB.2.00.1101260244310.27469@chino.kir.corp.google.com>
+References: <976317569.44499.1294739187129.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201101260021.p0Q0LxsS016458@imap1.linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: shawn.bohrer@gmail.com, davidel@xmailserver.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org
+To: CAI Qian <caiqian@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-The non-blocking ep_poll path optimization introduced skipping over
-the return value setup.
+On Tue, 11 Jan 2011, CAI Qian wrote:
 
-Initialize it properly, my userspace gets upset by epoll_wait()
-returning random things.
+> BTW, the latest linux-next also had the similar issue.
+> 
+> - kswapd was running for a long time.
+> 
 
-In addition, remove the reinitialization at the fetch_events label,
-the return value is garuanteed to be zero when execution reaches
-there.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shawn Bohrer <shawn.bohrer@gmail.com>
-Cc: Davide Libenzi <davidel@xmailserver.org>
----
- fs/eventpoll.c |    3 +--
- 1 files changed, 1 insertions(+), 2 deletions(-)
-
-diff --git a/fs/eventpoll.c b/fs/eventpoll.c
-index f7cb6cb..afe4238 100644
---- a/fs/eventpoll.c
-+++ b/fs/eventpoll.c
-@@ -1147,7 +1147,7 @@ static int ep_send_events(struct eventpoll *ep,
- static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
- 		   int maxevents, long timeout)
- {
--	int res, eavail, timed_out = 0;
-+	int res = 0, eavail, timed_out = 0;
- 	unsigned long flags;
- 	long slack = 0;
- 	wait_queue_t wait;
-@@ -1173,7 +1173,6 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
- fetch_events:
- 	spin_lock_irqsave(&ep->lock, flags);
- 
--	res = 0;
- 	if (!ep_events_available(ep)) {
- 		/*
- 		 * We don't have any available event to return to the caller.
--- 
-1.7.3.5
+I'd be interested to see if this is fixed now that 2ff754fa8f41 (mm: clear 
+pages_scanned only if draining a pcp adds pages to the buddy allocator) 
+has been merged in Linus' tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
