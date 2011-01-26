@@ -1,54 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B85048D0039
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 17:09:14 -0500 (EST)
-Date: Wed, 26 Jan 2011 14:06:18 -0800
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 05FB48D0039
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 17:29:54 -0500 (EST)
+Date: Wed, 26 Jan 2011 14:29:09 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memsw: handle swapaccount kernel parameter correctly
-Message-Id: <20110126140618.8e09cd23.akpm@linux-foundation.org>
-In-Reply-To: <20110126152158.GA4144@tiehlicka.suse.cz>
-References: <20110126152158.GA4144@tiehlicka.suse.cz>
+Subject: Re: [PATCH] oom: handle overflow in mem_cgroup_out_of_memory()
+Message-Id: <20110126142909.0b710a0c.akpm@linux-foundation.org>
+In-Reply-To: <xr9362tbl83f.fsf@gthelen.mtv.corp.google.com>
+References: <1296030555-3594-1-git-send-email-gthelen@google.com>
+	<20110126170713.GA2401@cmpxchg.org>
+	<xr93y667lgdm.fsf@gthelen.mtv.corp.google.com>
+	<20110126183023.GB2401@cmpxchg.org>
+	<xr9362tbl83f.fsf@gthelen.mtv.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, stable@kernel.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Jan 2011 16:21:58 +0100
-Michal Hocko <mhocko@suse.cz> wrote:
+On Wed, 26 Jan 2011 12:32:04 -0800
+Greg Thelen <gthelen@google.com> wrote:
 
-> I am sorry but the patch which added swapaccount parameter is not
-> correct (we have discussed it https://lkml.org/lkml/2010/11/16/103).
-> I didn't get the way how __setup parameters are handled correctly.
-> The patch bellow fixes that.
+> > That being said, does this have any practical impact at all?  I mean,
+> > this code runs when the cgroup limit is breached.  But if the number
+> > of allowed pages (not bytes!) can not fit into 32 bits, it means you
+> > have a group of processes using more than 16T.  On a 32-bit machine.
 > 
-> I am CCing stable as well because the patch got into .37 kernel.
-> 
-> ---
-> >From 144c2e8aed27d82d48217896ee1f58dbaa7f1f84 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Wed, 26 Jan 2011 14:12:41 +0100
-> Subject: [PATCH] memsw: handle swapaccount kernel parameter correctly
-> 
-> __setup based kernel command line parameters handled in
-> obsolete_checksetup provides the parameter value including = (more
-> precisely everything right after the parameter name) so we have to check
-> for =0 resp. =1 here. If no value is given then we get an empty string
-> rather then NULL.
+> The value of this patch is up for debate.  I do not have an example
+> situation where this truncation causes the wrong thing to happen.  I
+> suppose it might be possible for a racing update to
+> memory.limit_in_bytes which grows the limit from a reasonable (example:
+> 100M) limit to a large limit (example 1<<45) could benefit from this
+> patch.  I admit that this case seems pathological and may not be likely
+> or even worth bothering over.  If neither the memcg nor the oom
+> maintainers want the patch, then feel free to drop it.  I just noticed
+> the issue and thought it might be worth addressing.
 
-This doesn't provide a description of the bug which just got fixed.
+Ah.  I was scratching my head over that.
 
->From reading the code I think the current behaviour is
+In zillions of places the kernel assumes that a 32-bit kernel has less
+than 2^32 pages of memory, so the code as it stands is, umm, idiomatic.
 
-"swapaccount": works OK
-"noswapaccount": works OK
-"swapaccount=0": doesn't do anything
-"swapaccount=1": doesn't do anything
+But afaict the only way the patch makes a real-world difference is if
+res_counter_read_u64() is busted?
 
-but I might be wrong about that.  Please send a changelog update to
-clarify all this.
+And, as you point out, res_counter_read_u64() is indeed busted on
+32-bit machines.  It has 25 callsites in mm/memcontrol.c - has anyone
+looked at the implications of this?  What happens in all those
+callsites if the counter is read during a count rollover?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
