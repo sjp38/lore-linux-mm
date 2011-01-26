@@ -1,63 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D7F6A6B0092
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:54:25 -0500 (EST)
-Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
-	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0Q7jC3b002437
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:45:12 -0500
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 48183728047
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:54:15 -0500 (EST)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0Q7sEGY439718
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:54:15 -0500
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0Q7sDxu028940
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 00:54:14 -0700
-Date: Wed, 26 Jan 2011 13:17:37 +0530
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A4A8C6B0092
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 03:02:34 -0500 (EST)
+Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
+	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0Q7brG2006240
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:37:55 -0500
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 900E24DE8043
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:59:00 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0Q82VI4389938
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 03:02:31 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0Q82Umh014000
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 06:02:31 -0200
+Date: Wed, 26 Jan 2011 13:25:58 +0530
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Subject: Re: [RFC] [PATCH 2.6.37-rc5-tip 5/20]  5: Uprobes:
  register/unregister probes.
-Message-ID: <20110126074737.GA19725@linux.vnet.ibm.com>
+Message-ID: <20110126075558.GB19725@linux.vnet.ibm.com>
 Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 References: <20101216095714.23751.52601.sendpatchset@localhost6.localdomain6>
  <20101216095817.23751.76989.sendpatchset@localhost6.localdomain6>
- <1295957745.28776.723.camel@laptop>
+ <1295957744.28776.722.camel@laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1295957745.28776.723.camel@laptop>
+In-Reply-To: <1295957744.28776.722.camel@laptop>
 Sender: owner-linux-mm@kvack.org
 To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-* Peter Zijlstra <peterz@infradead.org> [2011-01-25 13:15:45]:
-
 > > +
-> > +       if (atomic_read(&uprobe->ref) == 1) {
-> > +               synchronize_sched();
-> > +               rb_erase(&uprobe->rb_node, &uprobes_tree);
+> > +               list_add(&mm->uprobes_list, &tmp_list);
+> > +               mm->uprobes_vaddr = vma->vm_start + offset;
+> > +       }
+> > +       spin_unlock(&mapping->i_mmap_lock);
 > 
-> How is that safe without holding the treelock?
+> Both this and unregister are racy, what is to say:
+>  - the vma didn't get removed from the mm
+>  - no new matching vma got added
+> 
 
-Right, 
-Something like this should be good enuf right?
+register_uprobe, unregister_uprobe, uprobe_mmap are all synchronized by
+uprobes_mutex. So I dont see one unregister_uprobe getting thro when
+another register_uprobe is working with a vma.
 
-if (atomic_read(&uprobe->ref) == 1) {
-	synchronize_sched();
-	spin_lock_irqsave(&treelock, flags);
-	rb_erase(&uprobe->rb_node, &uprobes_tree);
-	spin_lock_irqrestore(&treelock, flags);
-	iput(uprobe->inode);
-}
-	
+If I am missing something elementary, please explain a bit more.
+
+> > +       if (list_empty(&tmp_list)) {
+> > +               ret = 0;
+> > +               goto consumers_add;
+> > +       }
+> > +       list_for_each_entry_safe(mm, tmpmm, &tmp_list, uprobes_list) {
+> > +               if (!install_uprobe(mm, uprobe))
+> > +                       ret = 0;
+> > +               list_del(&mm->uprobes_list);
+> > +               mmput(mm);
+> > +       }
+> > +
+> > +consumers_add:
+> > +       add_consumer(uprobe, consumer);
+> > +       mutex_unlock(&uprobes_mutex);
+> > +       put_uprobe(uprobe);
+> > +       return ret;
+> > +}
+> > + 
+
 -- 
 Thanks and Regards
 Srikar
-
-PS: Last time I had goofed up with Linux-mm mailing alias. 
-Hopefully this time it goes to the right list.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
