@@ -1,102 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 03C938D0039
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 15:32:19 -0500 (EST)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH] oom: handle overflow in mem_cgroup_out_of_memory()
-References: <1296030555-3594-1-git-send-email-gthelen@google.com>
-	<20110126170713.GA2401@cmpxchg.org>
-	<xr93y667lgdm.fsf@gthelen.mtv.corp.google.com>
-	<20110126183023.GB2401@cmpxchg.org>
-Date: Wed, 26 Jan 2011 12:32:04 -0800
-In-Reply-To: <20110126183023.GB2401@cmpxchg.org> (Johannes Weiner's message of
-	"Wed, 26 Jan 2011 19:30:23 +0100")
-Message-ID: <xr9362tbl83f.fsf@gthelen.mtv.corp.google.com>
-MIME-Version: 1.0
+Date: Wed, 26 Jan 2011 15:46:07 -0500
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: @google.com, @googlemail.com, @gmail.com bounces
+Message-ID: <20110126204607.GG8066@kvack.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Johannes Weiner <hannes@cmpxchg.org> writes:
+Hi folks,
 
-> On Wed, Jan 26, 2011 at 09:33:09AM -0800, Greg Thelen wrote:
->> Johannes Weiner <hannes@cmpxchg.org> writes:
->> 
->> > On Wed, Jan 26, 2011 at 12:29:15AM -0800, Greg Thelen wrote:
->> >> mem_cgroup_get_limit() returns a byte limit as a unsigned 64 bit value,
->> >> which is converted to a page count by mem_cgroup_out_of_memory().  Prior
->> >> to this patch the conversion could overflow on 32 bit platforms
->> >> yielding a limit of zero.
->> >
->> > Balbir: It can truncate, because the conversion shrinks the required
->> > bits of this 64-bit number by only PAGE_SHIFT (12).  Trying to store
->> > the resulting up to 52 significant bits in a 32-bit integer will cut
->> > up to 20 significant bits off.
->> >
->> >> Signed-off-by: Greg Thelen <gthelen@google.com>
->> >> ---
->> >>  mm/oom_kill.c |    2 +-
->> >>  1 files changed, 1 insertions(+), 1 deletions(-)
->> >> 
->> >> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->> >> index 7dcca55..3fcac51 100644
->> >> --- a/mm/oom_kill.c
->> >> +++ b/mm/oom_kill.c
->> >> @@ -538,7 +538,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
->> >>  	struct task_struct *p;
->> >>  
->> >>  	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, 0, NULL);
->> >> -	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
->> >> +	limit = min(mem_cgroup_get_limit(mem) >> PAGE_SHIFT, (u64)ULONG_MAX);
->> >
->> > I would much prefer using min_t(u64, ...).  To make it really, really
->> > explicit that this is 64-bit arithmetic.  But that is just me, no
->> > correctness issue.
->> >
->> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
->> 
->> I agree that min_t() is clearer.  Does the following look better?
->
-> Sweet, thank you Greg!
->
->> Author: Greg Thelen <gthelen@google.com>
->> Date:   Wed Jan 26 00:05:59 2011 -0800
->> 
->>     oom: handle truncation in mem_cgroup_out_of_memory()
->>     
->>     mem_cgroup_get_limit() returns a byte limit as an unsigned 64 bit value.
->>     mem_cgroup_out_of_memory() converts this byte limit to an unsigned long
->>     page count.  Prior to this patch, the 32 bit version of
->>     mem_cgroup_out_of_memory() would silently truncate the most significant
->>     20 bits from byte limit when constructing the limit as a page count.
->>     For byte limits with the lowest 44 bits set to zero, this truncation
->>     would compute a page limit of zero.
->>     
->>     This patch checks for such large byte limits that cannot be converted to
->>     page counts without loosing information.  In such situations, where a 32
->>     bit page counter is too small to represent the corresponding byte count,
->>     select a maximal page count.
->>     
->>     Signed-off-by: Greg Thelen <gthelen@google.com>
->
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
->
-> That being said, does this have any practical impact at all?  I mean,
-> this code runs when the cgroup limit is breached.  But if the number
-> of allowed pages (not bytes!) can not fit into 32 bits, it means you
-> have a group of processes using more than 16T.  On a 32-bit machine.
+Just to let people know, Google appears to be dropping emails that users 
+of the domains in $SUBJ sent out.  Typical bounce messages are as follows:
 
-The value of this patch is up for debate.  I do not have an example
-situation where this truncation causes the wrong thing to happen.  I
-suppose it might be possible for a racing update to
-memory.limit_in_bytes which grows the limit from a reasonable (example:
-100M) limit to a large limit (example 1<<45) could benefit from this
-patch.  I admit that this case seems pathological and may not be likely
-or even worth bothering over.  If neither the memcg nor the oom
-maintainers want the patch, then feel free to drop it.  I just noticed
-the issue and thought it might be worth addressing.
+Final-Recipient: rfc822; XXX@gmail.com
+Original-Recipient: rfc822; linux-mm-outgoing
+Action: failed
+Status: 5.7.1
+Remote-MTA: dns; gmail-smtp-in.l.google.com
+Diagnostic-Code: smtp; 550 5.7.1 Unauthenticated email is not accepted from
+    this domain. u12si37691121ibe.45
+
+If someone at Google can get this investigated, it would be beneficial as 
+that currently accounts for about 50% of the mailing list subscribers users 
+of these domains are not reaching.
+
+		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
