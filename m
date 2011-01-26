@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A0B58D0039
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 18:30:18 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D6B38D0039
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 18:30:20 -0500 (EST)
 From: Mandeep Singh Baines <msb@chromium.org>
-Subject: [PATCH 5/6] fs: use appropriate printk priority level
-Date: Wed, 26 Jan 2011 15:29:29 -0800
-Message-Id: <1296084570-31453-6-git-send-email-msb@chromium.org>
+Subject: [PATCH 6/6] taskstats: use appropriate printk priority level
+Date: Wed, 26 Jan 2011 15:29:30 -0800
+Message-Id: <1296084570-31453-7-git-send-email-msb@chromium.org>
 In-Reply-To: <20110125235700.GR8008@google.com>
 References: <20110125235700.GR8008@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,51 +20,22 @@ dmesg warnings closely.
 
 Signed-off-by: Mandeep Singh Baines <msb@chromium.org>
 ---
- fs/bio.c         |    2 +-
- fs/namespace.c   |    2 +-
- init/do_mounts.c |    3 ++-
- 3 files changed, 4 insertions(+), 3 deletions(-)
+ kernel/taskstats.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/fs/bio.c b/fs/bio.c
-index 4bd454f..4cf2a52 100644
---- a/fs/bio.c
-+++ b/fs/bio.c
-@@ -111,7 +111,7 @@ static struct kmem_cache *bio_find_or_create_slab(unsigned int extra_size)
- 	if (!slab)
- 		goto out_unlock;
+diff --git a/kernel/taskstats.c b/kernel/taskstats.c
+index 3971c6b..9ffea36 100644
+--- a/kernel/taskstats.c
++++ b/kernel/taskstats.c
+@@ -685,7 +685,7 @@ static int __init taskstats_init(void)
+ 		goto err_cgroup_ops;
  
--	printk("bio: create slab <%s> at %d\n", bslab->name, entry);
-+	printk(KERN_INFO "bio: create slab <%s> at %d\n", bslab->name, entry);
- 	bslab->slab = slab;
- 	bslab->slab_ref = 1;
- 	bslab->slab_size = sz;
-diff --git a/fs/namespace.c b/fs/namespace.c
-index 7b0b953..c81bcd9 100644
---- a/fs/namespace.c
-+++ b/fs/namespace.c
-@@ -2594,7 +2594,7 @@ void __init mnt_init(void)
- 	if (!mount_hashtable)
- 		panic("Failed to allocate mount hash table\n");
- 
--	printk("Mount-cache hash table entries: %lu\n", HASH_SIZE);
-+	printk(KERN_INFO "Mount-cache hash table entries: %lu\n", HASH_SIZE);
- 
- 	for (u = 0; u < HASH_SIZE; u++)
- 		INIT_LIST_HEAD(&mount_hashtable[u]);
-diff --git a/init/do_mounts.c b/init/do_mounts.c
-index 2b54bef..3e01121 100644
---- a/init/do_mounts.c
-+++ b/init/do_mounts.c
-@@ -293,7 +293,8 @@ static int __init do_mount_root(char *name, char *fs, int flags, void *data)
- 
- 	sys_chdir((const char __user __force *)"/root");
- 	ROOT_DEV = current->fs->pwd.mnt->mnt_sb->s_dev;
--	printk("VFS: Mounted root (%s filesystem)%s on device %u:%u.\n",
-+	printk(KERN_INFO
-+	       "VFS: Mounted root (%s filesystem)%s on device %u:%u.\n",
- 	       current->fs->pwd.mnt->mnt_sb->s_type->name,
- 	       current->fs->pwd.mnt->mnt_sb->s_flags & MS_RDONLY ?
- 	       " readonly" : "", MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
+ 	family_registered = 1;
+-	printk("registered taskstats version %d\n", TASKSTATS_GENL_VERSION);
++	pr_info("registered taskstats version %d\n", TASKSTATS_GENL_VERSION);
+ 	return 0;
+ err_cgroup_ops:
+ 	genl_unregister_ops(&family, &taskstats_ops);
 -- 
 1.7.3.1
 
