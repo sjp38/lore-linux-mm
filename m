@@ -1,95 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 076076B0092
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 04:10:26 -0500 (EST)
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by e32.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0Q90F9u028483
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:00:15 -0700
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0Q9ALBO100990
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:10:21 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0Q9AJ59005743
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:10:21 -0700
-Date: Wed, 26 Jan 2011 14:33:46 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [RFC] [PATCH 2.6.37-rc5-tip 8/20]  8: uprobes: mmap and fork
- hooks.
-Message-ID: <20110126090346.GH19725@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20101216095714.23751.52601.sendpatchset@localhost6.localdomain6>
- <20101216095848.23751.73144.sendpatchset@localhost6.localdomain6>
- <1295957739.28776.717.camel@laptop>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 41BAB6B0092
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 04:25:24 -0500 (EST)
+Date: Wed, 26 Jan 2011 09:24:28 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 2/2] hugepage: Allow parallelization of the hugepage
+	fault path
+Message-ID: <20110126092428.GR18984@csn.ul.ie>
+References: <20110125143226.37532ea2@kryten> <20110125143414.1dbb150c@kryten>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1295957739.28776.717.camel@laptop>
+In-Reply-To: <20110125143414.1dbb150c@kryten>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Anton Blanchard <anton@samba.org>
+Cc: dwg@au1.ibm.com, akpm@linux-foundation.org, hughd@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, 2010-12-16 at 15:28 +0530, Srikar Dronamraju wrote:
-> > +void uprobe_mmap(struct vm_area_struct *vma)
-> > +{
-> > +       struct list_head tmp_list;
-> > +       struct uprobe *uprobe, *u;
-> > +       struct mm_struct *mm;
-> > +       struct inode *inode;
-> > +
-> > +       if (!valid_vma(vma))
-> > +               return;
-> > +
-> > +       INIT_LIST_HEAD(&tmp_list);
-> > +
-> > +       /*
-> > +        * The vma was just allocated and this routine gets called
-> > +        * while holding write lock for mmap_sem.  Function called
-> > +        * in context of a thread that has a reference to mm.
-> > +        * Hence no need to take a reference to mm
-> > +        */
-> > +       mm = vma->vm_mm;
-> > +       up_write(&mm->mmap_sem);
+On Tue, Jan 25, 2011 at 02:34:14PM +1100, Anton Blanchard wrote:
+> From: David Gibson <dwg@au1.ibm.com>
 > 
-> Are you very very sure its a good thing to simply drop the mmap_sem
-> here? Also, why?
+> At present, the page fault path for hugepages is serialized by a
+> single mutex.  This is used to avoid spurious out-of-memory conditions
+> when the hugepage pool is fully utilized (two processes or threads can
+> race to instantiate the same mapping with the last hugepage from the
+> pool, the race loser returning VM_FAULT_OOM). This problem is
+> specific to hugepages, because it is normal to want to use every
+> single hugepage in the system - with normal pages we simply assume
+> there will always be a few spare pages which can be used temporarily
+> until the race is resolved.
+> 
+> Unfortunately this serialization also means that clearing of hugepages
+> cannot be parallelized across multiple CPUs, which can lead to very
+> long process startup times when using large numbers of hugepages.
+> 
+> This patch improves the situation by replacing the single mutex with a
+> table of mutexes, selected based on a hash of the address_space and
+> file offset being faulted (or mm and virtual address for MAP_PRIVATE
+> mappings).
+> 
+> From: Anton Blanchard <anton@samba.org>
+> 
+> Forward ported and made a few changes:
+> 
+> - Use the Jenkins hash to scatter the hash, better than using just the
+>   low bits.
+> 
+> - Always round num_fault_mutexes to a power of two to avoid an expensive
+>   modulus in the hash calculation.
+> 
+> I also tested this patch on a 64 thread POWER6 box using a simple parallel
+> fault testcase:
+> 
+> http://ozlabs.org/~anton/junkcode/parallel_fault.c
+> 
+> Command line options:
+> 
+> parallel_fault <nr_threads> <size in kB> <skip in kB>
+> 
+> First the time taken to fault 48GB of 16MB hugepages:
+> # time hugectl --heap ./parallel_fault 1 50331648 16384
+> 11.1 seconds
+> 
+> Now the same test with 64 concurrent threads:
+> # time hugectl --heap ./parallel_fault 64 50331648 16384
+> 8.8 seconds
+> 
+> Hardly any speedup. Finally the 64 concurrent threads test with this patch
+> applied:
+> # time hugectl --heap ./parallel_fault 64 50331648 16384
+> 0.7 seconds
+> 
+> We go from 8.8 seconds to 0.7 seconds, an improvement of 12.6x.
+> 
+> Signed-off-by: David Gibson <dwg@au1.ibm.com>
+> Signed-off-by: Anton Blanchard <anton@samba.org>
+
+I haven't tested this patch yet but typically how I would test it is multiple
+parallel instances of make func from libhugetlbfs. In particular I would
+be looking out for counter corruption. Has something like this been done?
+I know hugetlb_lock protects the counters but the locking in there has turned
+into a bit of a mess so it's easy to miss something.
+
+> ---
+> 
+> Index: powerpc.git/mm/hugetlb.c
+> ===================================================================
+> --- powerpc.git.orig/mm/hugetlb.c	2011-01-25 13:20:49.311405902 +1100
+> +++ powerpc.git/mm/hugetlb.c	2011-01-25 13:45:54.437235053 +1100
+> @@ -21,6 +21,7 @@
+>  #include <linux/rmap.h>
+>  #include <linux/swap.h>
+>  #include <linux/swapops.h>
+> +#include <linux/jhash.h>
+>  
+>  #include <asm/page.h>
+>  #include <asm/pgtable.h>
+> @@ -54,6 +55,13 @@ static unsigned long __initdata default_
+>  static DEFINE_SPINLOCK(hugetlb_lock);
+>  
+>  /*
+> + * Serializes faults on the same logical page.  This is used to
+> + * prevent spurious OOMs when the hugepage pool is fully utilized.
+> + */
+> +static unsigned int num_fault_mutexes;
+> +static struct mutex *htlb_fault_mutex_table;
+> +
+> +/*
+>   * Region tracking -- allows tracking of reservations and instantiated pages
+>   *                    across the pages in a mapping.
+>   */
+> @@ -1764,6 +1772,8 @@ module_exit(hugetlb_exit);
+>  
+>  static int __init hugetlb_init(void)
+>  {
+> +	int i;
+> +
+>  	/* Some platform decide whether they support huge pages at boot
+>  	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
+>  	 * there is no such support
+> @@ -1790,6 +1800,12 @@ static int __init hugetlb_init(void)
+>  
+>  	hugetlb_register_all_nodes();
+>  
+> +	num_fault_mutexes = roundup_pow_of_two(2 * num_possible_cpus());
+> +	htlb_fault_mutex_table =
+> +		kmalloc(num_fault_mutexes * sizeof(struct mutex), GFP_KERNEL);
+
+and if this fails? It'd be unusual I know but num_possible_cpus() could
+conceivably be large enough to prevent kmalloc() granting the request.
+Do you need to do something similar to profile_init() here instead?
+
+> +	for (i = 0; i < num_fault_mutexes; i++)
+> +		mutex_init(&htlb_fault_mutex_table[i]);
+> +
+>  	return 0;
+>  }
+>  module_init(hugetlb_init);
+> @@ -2616,6 +2632,27 @@ backout_unlocked:
+>  	goto out;
+>  }
+>  
+> +static u32 fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
+> +			    struct vm_area_struct *vma,
+> +			    struct address_space *mapping,
+> +			    unsigned long pagenum, unsigned long address)
+
+pagenum could be anything. Leave it as idx or index because it's easier
+to guess it's the result of vma_hugecache_offset().
+
+> +{
+> +	unsigned long key[2];
+> +	u32 hash;
+> +
+> +	if ((vma->vm_flags & VM_SHARED)) {
+> +		key[0] = (unsigned long)mapping;
+> +		key[1] = pagenum;
+> +	} else {
+> +		key[0] = (unsigned long)mm;
+> +		key[1] = address >> huge_page_shift(h);
+> +	}
+> +
+> +	hash = jhash2((u32 *)&key, sizeof(key)/sizeof(u32), 0);
+> +
+> +	return hash & (num_fault_mutexes - 1);
+> +}
+> +
+>  int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			unsigned long address, unsigned int flags)
+>  {
+> @@ -2624,8 +2661,10 @@ int hugetlb_fault(struct mm_struct *mm,
+>  	int ret;
+>  	struct page *page = NULL;
+>  	struct page *pagecache_page = NULL;
+> -	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
+>  	struct hstate *h = hstate_vma(vma);
+> +	struct address_space *mapping;
+> +	unsigned long idx;
+> +	u32 hash;
+>  
+>  	ptep = huge_pte_offset(mm, address);
+>  	if (ptep) {
+> @@ -2642,12 +2681,16 @@ int hugetlb_fault(struct mm_struct *mm,
+>  	if (!ptep)
+>  		return VM_FAULT_OOM;
+>  
+> +	mapping = vma->vm_file->f_mapping;
+> +	idx = vma_hugecache_offset(h, vma, address);
+> +
+>  	/*
+>  	 * Serialize hugepage allocation and instantiation, so that we don't
+>  	 * get spurious allocation failures if two CPUs race to instantiate
+>  	 * the same page in the page cache.
+>  	 */
+> -	mutex_lock(&hugetlb_instantiation_mutex);
+> +	hash = fault_mutex_hash(h, mm, vma, mapping, idx, address);
+> +	mutex_lock(&htlb_fault_mutex_table[hash]);
+>  	entry = huge_ptep_get(ptep);
+>  	if (huge_pte_none(entry)) {
+>  		ret = hugetlb_no_page(mm, vma, address, ptep, flags);
+> @@ -2716,7 +2759,7 @@ out_page_table_lock:
+>  		unlock_page(page);
+>  
+>  out_mutex:
+> -	mutex_unlock(&hugetlb_instantiation_mutex);
+> +	mutex_unlock(&htlb_fault_mutex_table[hash]);
+>  
+>  	return ret;
+>  }
 > 
 
-I actually dont like to release the write_lock and then reacquire it.
-write_opcode, which is called thro install_uprobe, i.e to insert the
-actual breakpoint instruction takes a read lock on the mmap_sem.
-Hence uprobe_mmap gets called in context with write lock on mmap_sem
-held, I had to release it before calling install_uprobe.
+I didn't spot anything wrong but I'd be happier if I knew multiple parallel
+"make func" from libhugetlbfs tests were run as well.
 
-Another solution, I thought of was to pass a context to write_opcode to
-say that map-sem is already acquired by us. But I am not sure that
-idea is good enuf. 
-
-> > +       mutex_lock(&uprobes_mutex);
-> > +
-> > +       inode = vma->vm_file->f_mapping->host;
-> 
-> Since you just dropped the mmap_sem, what's keeping that vma from going
-> away?
-> 
-
-How about dropping the mmap_sem after add_to_temp_list and cachng the
-vma->vm_start value before calling add_to_temp_list?
-
-Or if you have better ideas, then that would be great.
-
-> > +       add_to_temp_list(vma, inode, &tmp_list);
-> > +
-> > +       list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
-> > +               mm->uprobes_vaddr = vma->vm_start + uprobe->offset;
-> > +               install_uprobe(mm, uprobe);
-> > +               list_del(&uprobe->pending_list);
-> > +       }
-> > +       mutex_unlock(&uprobes_mutex);
-> > +       down_write(&mm->mmap_sem);
-> > +} 
-> 
-> 
+-- 
+Mel Gorman
+Linux Technology Center
+IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
