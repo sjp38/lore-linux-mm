@@ -1,80 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A6146B0092
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 10:06:11 -0500 (EST)
-Received: from davide-MacBookPro
-	by x35.xmailserver.org with [XMail 1.27 ESMTP Server]
-	id <S37074E> for <linux-mm@kvack.org> from <davidel@xmailserver.org>;
-	Wed, 26 Jan 2011 10:05:19 -0500
-Date: Wed, 26 Jan 2011 07:05:07 -0800 (PST)
-From: Davide Libenzi <davidel@xmailserver.org>
-Subject: Re: [patch]
- epoll-fix-compiler-warning-and-optimize-the-non-blocking-path-fix
-In-Reply-To: <20110126102020.GA2244@cmpxchg.org>
-Message-ID: <alpine.DEB.2.00.1101260704050.1889@localhost6.localdomain6>
-References: <201101260021.p0Q0LxsS016458@imap1.linux-foundation.org> <20110126102020.GA2244@cmpxchg.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 94CE36B0092
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 10:12:45 -0500 (EST)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0QEs3DF015443
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 09:55:03 -0500
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id D9BF5728C71
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 10:06:40 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0QF6UP52216184
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 10:06:30 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0QF6Ssg011209
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 13:06:30 -0200
+Date: Wed, 26 Jan 2011 20:29:55 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [RFC] [PATCH 2.6.37-rc5-tip 8/20]  8: uprobes: mmap and fork
+ hooks.
+Message-ID: <20110126145955.GJ19725@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20101216095714.23751.52601.sendpatchset@localhost6.localdomain6>
+ <20101216095848.23751.73144.sendpatchset@localhost6.localdomain6>
+ <1295957739.28776.717.camel@laptop>
+ <20110126090346.GH19725@linux.vnet.ibm.com>
+ <1296037239.28776.1149.camel@laptop>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1296037239.28776.1149.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, shawn.bohrer@gmail.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, mm-commits@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Jan 2011, Johannes Weiner wrote:
+* Peter Zijlstra <peterz@infradead.org> [2011-01-26 11:20:39]:
 
-> The non-blocking ep_poll path optimization introduced skipping over
-> the return value setup.
+> On Wed, 2011-01-26 at 14:33 +0530, Srikar Dronamraju wrote:
+> > 
+> > 
+> > I actually dont like to release the write_lock and then reacquire it.
+> > write_opcode, which is called thro install_uprobe, i.e to insert the
+> > actual breakpoint instruction takes a read lock on the mmap_sem.
+> > Hence uprobe_mmap gets called in context with write lock on mmap_sem
+> > held, I had to release it before calling install_uprobe. 
 > 
-> Initialize it properly, my userspace gets upset by epoll_wait()
-> returning random things.
+> Ah, right, so that's going to give you a head-ache ;-)
 > 
-> In addition, remove the reinitialization at the fetch_events label,
-> the return value is garuanteed to be zero when execution reaches
-> there.
+> The moment you release this mmap_sem, the map you're going to install
+> the probe point in can go away.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Shawn Bohrer <shawn.bohrer@gmail.com>
-> Cc: Davide Libenzi <davidel@xmailserver.org>
+> The only way to make this work seems to start by holding the mmap_sem
+> for writing and make a breakpoint install function that assumes its
+> taken and doesn't try to acquire it again.
+> 
 
-Thank you for posting it. Obvious ACK.
 
+Yes, this can be done.
+I would have to do something like this in register_uprobe().
 
+list_for_each_entry_safe(mm, tmpmm, &tmp_list, uprobes_list) {
+		down_read(&mm->map_sem);
+                if (!install_uprobe(mm, uprobe))
+                        ret = 0;
+		up_read(&mm->map_sem);
+                list_del(&mm->uprobes_list);
+                mmput(mm);
+}
 
-> ---
->  fs/eventpoll.c |    3 +--
->  1 files changed, 1 insertions(+), 2 deletions(-)
-> 
-> diff --git a/fs/eventpoll.c b/fs/eventpoll.c
-> index f7cb6cb..afe4238 100644
-> --- a/fs/eventpoll.c
-> +++ b/fs/eventpoll.c
-> @@ -1147,7 +1147,7 @@ static int ep_send_events(struct eventpoll *ep,
->  static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
->  		   int maxevents, long timeout)
->  {
-> -	int res, eavail, timed_out = 0;
-> +	int res = 0, eavail, timed_out = 0;
->  	unsigned long flags;
->  	long slack = 0;
->  	wait_queue_t wait;
-> @@ -1173,7 +1173,6 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
->  fetch_events:
->  	spin_lock_irqsave(&ep->lock, flags);
->  
-> -	res = 0;
->  	if (!ep_events_available(ep)) {
->  		/*
->  		 * We don't have any available event to return to the caller.
-> -- 
-> 1.7.3.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Agree that this is much better than what we have now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
