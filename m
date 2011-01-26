@@ -1,64 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3056B6B0092
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 11:37:34 -0500 (EST)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0QGYx2I005800
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 09:34:59 -0700
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p0QGbSFu249968
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 09:37:28 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0QGbQfn014352
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 09:37:27 -0700
-Date: Wed, 26 Jan 2011 22:00:52 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [RFC] [PATCH 2.6.37-rc5-tip 8/20]  8: uprobes: mmap and fork
- hooks.
-Message-ID: <20110126163052.GO19725@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20101216095714.23751.52601.sendpatchset@localhost6.localdomain6>
- <20101216095848.23751.73144.sendpatchset@localhost6.localdomain6>
- <1295957739.28776.717.camel@laptop>
- <20110126090346.GH19725@linux.vnet.ibm.com>
- <1296037239.28776.1149.camel@laptop>
- <20110126145955.GJ19725@linux.vnet.ibm.com>
- <1296055009.28776.1202.camel@laptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A1666B00E8
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 11:37:47 -0500 (EST)
+Date: Wed, 26 Jan 2011 16:36:55 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: too big min_free_kbytes
+Message-ID: <20110126163655.GU18984@csn.ul.ie>
+References: <1295841406.1949.953.camel@sli10-conroe> <20110124150033.GB9506@random.random> <20110126141746.GS18984@csn.ul.ie> <20110126152302.GT18984@csn.ul.ie> <20110126154203.GS926@random.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1296055009.28776.1202.camel@laptop>
+In-Reply-To: <20110126154203.GS926@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-* Peter Zijlstra <peterz@infradead.org> [2011-01-26 16:16:49]:
-
-> On Wed, 2011-01-26 at 20:29 +0530, Srikar Dronamraju wrote:
-> > list_for_each_entry_safe(mm, tmpmm, &tmp_list, uprobes_list) {
-> >                 down_read(&mm->map_sem);
-> >                 if (!install_uprobe(mm, uprobe))
-> >                         ret = 0;
-> >                 up_read(&mm->map_sem);
-> >                 list_del(&mm->uprobes_list);
-> >                 mmput(mm);
-> > } 
+On Wed, Jan 26, 2011 at 04:42:03PM +0100, Andrea Arcangeli wrote:
+> On Wed, Jan 26, 2011 at 03:23:02PM +0000, Mel Gorman wrote:
+> > On Wed, Jan 26, 2011 at 02:17:46PM +0000, Mel Gorman wrote:
+> > > On Mon, Jan 24, 2011 at 04:00:34PM +0100, Andrea Arcangeli wrote:
+> > > > eOn Mon, Jan 24, 2011 at 11:56:46AM +0800, Shaohua Li wrote:
+> > > > > Hi,
+> > > > > With transparent huge page, min_free_kbytes is set too big.
+> > > > > Before:
+> > > > > Node 0, zone    DMA32
+> > > > >   pages free     1812
+> > > > >         min      1424
+> > > > >         low      1780
+> > > > >         high     2136
+> > > > >         scanned  0
+> > > > >         spanned  519168
+> > > > >         present  511496
+> > > > > 
+> > > > > After:
+> > > > > Node 0, zone    DMA32
+> > > > >   pages free     482708
+> > > > >         min      11178
+> > > > >         low      13972
+> > > > >         high     16767
+> > > > >         scanned  0
+> > > > >         spanned  519168
+> > > > >         present  511496
+> > > > > This caused different performance problems in our test. I wonder why we
+> > > > > set the value so big.
+> > > > 
+> > > > It's to enable Mel's anti-frag that keeps pageblocks with movable and
+> > > > unmovable stuff separated, same as "hugeadm
+> > > > --set-recommended-min_free_kbytes".
+> > > > 
+> > > > Now that I checked, I'm seeing quite too much free memory with only 4G
+> > > > of ram... You can see the difference with a "cp /dev/sda /dev/null" in
+> > > > background interleaving these two commands:
+> > > > 
+> > > 
+> > > What kernel is this and is commit
+> > > [99504748: mm: kswapd: stop high-order balancing when any suitable zone
+> > > is balanced] present in the kernel you are testing?
+> > > 
+> > > I'm having very little luck reproducing your scenario with
+> > > 2.6.38-rc2.
+> > 
+> > Scratch that, a machine with 4G does reproduce it. The machine I was
+> > trying was 2G. Will dig more.
 > 
-> and the tmp_list thing works because new mm's will hit the mmap callback
-> and you cannot loose mm's due to the refcount, right?
+> I can't reproduce on a 16G system (there I never get more than an
+> hundred mbyte free even with cp in background, which is very fine for
+> 16G).
 > 
 
-Right, In other words, the tmp_list has all mm's that have already
-running and have this inode mapped as executable text. Those process
-that are yet to start or yet to map the inode as executable text
-will hit mmap and then we look at inserting the probes thro
-uprobes_mmap. 
+It's a balancing problem in kswapd. From my preliminary examination
+using ftrace, I determined that kswapd is never trying to go to sleep
+and continually shrinking lists so it must be stuck in balance_pgdat().
+
+> I only reproduce on my 4G workstation, and it happens also after echo
+> never >enabled (so without THP). I was reproducing it with "cp" anyway
+> which isn't triggering THP allocations but I verified to be sure. When
+> I start cp kswapd wasn't running yet, so free levels go down to 170M,
+> then kswapd starts and it frees 700M and then 700m remains free
+> forever until I stop "cp".
+
+This has nothing to do with THP. It should be possible to trigger on any
+4G machine or specifically where the top zone is very small.
+
+> The high wmark are never set to more than
+> 85M for the normal zone, which is not excessively horrible. I'd still
+> like to lower the wmark though!  (there are 2 pageblocks reserved in
+> the min watermark for each type, why not just 1? removing that *2
+> would already halve it saving some 40M of ram!).
+
+This is a separate topic, lets not get side-tracked. Short answer, it
+comes down to at the time when no pageblock of the appropriate
+migratetype is free, we want on average one full pageblock to be free of
+another type so it can be converted. This limits the amount of "mixing"
+of pages of different migratetype in the same pageblock. The effect can
+be monitored using the extfrag tracepoint.
+
+> But the wmarks don't
+> seem the real offender, maybe it's something related to the tiny pci32
+> zone that materialize on 4g systems that relocate some little memory
+> over 4g to make space for the pci32 mmio. I didn't yet finish to debug
+> it.
+> 
+
+This has to be it. What I think is happening is that we're in balance_pgdat(),
+the "Normal" zone is never hitting the watermark and we constantly call
+"goto loop_again" trying to "rebalance" all zones.
+
+> However in presence of memory pressure the low wmark is the limit not
+> the high wmark (and when kswapd isn't running free levels already go
+> down to 170M even where I can reproduce). Maybe the failure with too
+> much memory free may be only because of the increased wmark from some
+> 20M to ~100M, and maybe I'm seeing something unrelated to that
+> problem.
+
+I very strongly suspect it's just because your Normal zone is never being
+balanced and kswapd is never breaking out of balance_pgdat() as a result. I
+hope to confirm before I get knocked back offline (my access to test machines
+is currently heavily disrupted).
+
+> __GFP_NO_KSWAPD I exclude is the issue as it happens without
+> THP too and there's just one place where huge_memory.c allocates
+> memory.
+
+Agreed, it's nothing to do with __GFP_NO_KSWAPD from what I've seen so
+far.
 
 -- 
-Thanks and Regards
-Srikar
-> 
+Mel Gorman
+Linux Technology Center
+IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
