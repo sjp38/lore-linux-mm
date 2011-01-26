@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B3DB8D0039
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 18:30:13 -0500 (EST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CAAD8D0039
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 18:30:17 -0500 (EST)
 From: Mandeep Singh Baines <msb@chromium.org>
-Subject: [PATCH 1/6] mm/page_alloc: use appropriate printk priority level
-Date: Wed, 26 Jan 2011 15:29:25 -0800
-Message-Id: <1296084570-31453-2-git-send-email-msb@chromium.org>
+Subject: [PATCH 2/6] arch/x86: use appropriate printk priority level
+Date: Wed, 26 Jan 2011 15:29:26 -0800
+Message-Id: <1296084570-31453-3-git-send-email-msb@chromium.org>
 In-Reply-To: <20110125235700.GR8008@google.com>
 References: <20110125235700.GR8008@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,77 +20,64 @@ dmesg warnings closely.
 
 Signed-off-by: Mandeep Singh Baines <msb@chromium.org>
 ---
- mm/page_alloc.c |   27 +++++++++++++++------------
- 1 files changed, 15 insertions(+), 12 deletions(-)
+ arch/x86/kernel/tsc.c       |    9 +++++----
+ arch/x86/platform/efi/efi.c |    2 +-
+ 2 files changed, 6 insertions(+), 5 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 90c1439..234c704 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3129,14 +3129,14 @@ void build_all_zonelists(void *data)
- 	else
- 		page_group_by_mobility_disabled = 0;
+diff --git a/arch/x86/kernel/tsc.c b/arch/x86/kernel/tsc.c
+index ffe5755..dbf2cbc 100644
+--- a/arch/x86/kernel/tsc.c
++++ b/arch/x86/kernel/tsc.c
+@@ -373,7 +373,7 @@ static unsigned long quick_pit_calibrate(void)
+ 			goto success;
+ 		}
+ 	}
+-	printk("Fast TSC calibration failed\n");
++	printk(KERN_WARNING "Fast TSC calibration failed\n");
+ 	return 0;
  
--	printk("Built %i zonelists in %s order, mobility grouping %s.  "
--		"Total pages: %ld\n",
-+	printk(KERN_INFO "Built %i zonelists in %s order, mobility grouping %s."
-+		"  Total pages: %ld\n",
- 			nr_online_nodes,
- 			zonelist_order_name[current_zonelist_order],
- 			page_group_by_mobility_disabled ? "off" : "on",
- 			vm_total_pages);
- #ifdef CONFIG_NUMA
--	printk("Policy zone: %s\n", zone_names[policy_zone]);
-+	printk(KERN_INFO "Policy zone: %s\n", zone_names[policy_zone]);
- #endif
+ success:
+@@ -395,7 +395,7 @@ success:
+ 	delta += (long)(d2 - d1)/2;
+ 	delta *= PIT_TICK_RATE;
+ 	do_div(delta, i*256*1000);
+-	printk("Fast TSC calibration using PIT\n");
++	printk(KERN_INFO "Fast TSC calibration using PIT\n");
+ 	return delta;
  }
  
-@@ -4700,33 +4700,36 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
- 	find_zone_movable_pfns_for_nodes(zone_movable_pfn);
+@@ -518,7 +518,8 @@ unsigned long native_calibrate_tsc(void)
  
- 	/* Print out the zone ranges */
--	printk("Zone PFN ranges:\n");
-+	printk(KERN_INFO "Zone PFN ranges:\n");
- 	for (i = 0; i < MAX_NR_ZONES; i++) {
- 		if (i == ZONE_MOVABLE)
- 			continue;
--		printk("  %-8s ", zone_names[i]);
-+		printk(KERN_INFO "  %-8s ", zone_names[i]);
- 		if (arch_zone_lowest_possible_pfn[i] ==
- 				arch_zone_highest_possible_pfn[i])
- 			printk("empty\n");
- 		else
--			printk("%0#10lx -> %0#10lx\n",
-+			printk(KERN_INFO "%0#10lx -> %0#10lx\n",
- 				arch_zone_lowest_possible_pfn[i],
- 				arch_zone_highest_possible_pfn[i]);
+ 		/* We don't have an alternative source, disable TSC */
+ 		if (!hpet && !ref1 && !ref2) {
+-			printk("TSC: No reference (HPET/PMTIMER) available\n");
++			printk(KERN_WARNING
++			       "TSC: No reference (HPET/PMTIMER) available\n");
+ 			return 0;
+ 		}
+ 
+@@ -1002,7 +1003,7 @@ void __init tsc_init(void)
+ 		return;
  	}
  
- 	/* Print out the PFNs ZONE_MOVABLE begins at in each node */
--	printk("Movable zone start PFN for each node\n");
-+	printk(KERN_INFO "Movable zone start PFN for each node\n");
- 	for (i = 0; i < MAX_NUMNODES; i++) {
- 		if (zone_movable_pfn[i])
--			printk("  Node %d: %lu\n", i, zone_movable_pfn[i]);
-+			printk(KERN_INFO "  Node %d: %lu\n", i,
-+			       zone_movable_pfn[i]);
- 	}
+-	printk("Detected %lu.%03lu MHz processor.\n",
++	printk(KERN_INFO "Detected %lu.%03lu MHz processor.\n",
+ 			(unsigned long)cpu_khz / 1000,
+ 			(unsigned long)cpu_khz % 1000);
  
- 	/* Print out the early_node_map[] */
--	printk("early_node_map[%d] active PFN ranges\n", nr_nodemap_entries);
-+	printk(KERN_INFO "early_node_map[%d] active PFN ranges\n",
-+	       nr_nodemap_entries);
- 	for (i = 0; i < nr_nodemap_entries; i++)
--		printk("  %3d: %0#10lx -> %0#10lx\n", early_node_map[i].nid,
--						early_node_map[i].start_pfn,
--						early_node_map[i].end_pfn);
-+		printk(KERN_INFO "  %3d: %0#10lx -> %0#10lx\n",
-+		       early_node_map[i].nid,
-+		       early_node_map[i].start_pfn,
-+		       early_node_map[i].end_pfn);
+diff --git a/arch/x86/platform/efi/efi.c b/arch/x86/platform/efi/efi.c
+index 0fe27d7..0da6907 100644
+--- a/arch/x86/platform/efi/efi.c
++++ b/arch/x86/platform/efi/efi.c
+@@ -376,7 +376,7 @@ void __init efi_init(void)
+ 	if (config_tables == NULL)
+ 		printk(KERN_ERR "Could not map EFI Configuration Table!\n");
  
- 	/* Initialise every node */
- 	mminit_verify_pageflags_layout();
+-	printk(KERN_INFO);
++	printk(KERN_INFO " ");
+ 	for (i = 0; i < efi.systab->nr_tables; i++) {
+ 		if (!efi_guidcmp(config_tables[i].guid, MPS_TABLE_GUID)) {
+ 			efi.mps = config_tables[i].table;
 -- 
 1.7.3.1
 
