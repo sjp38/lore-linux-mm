@@ -1,81 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B86C6B00E8
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 12:43:03 -0500 (EST)
-Date: Wed, 26 Jan 2011 17:42:37 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: too big min_free_kbytes
-Message-ID: <20110126174236.GV18984@csn.ul.ie>
-References: <1295841406.1949.953.camel@sli10-conroe> <20110124150033.GB9506@random.random> <20110126141746.GS18984@csn.ul.ie> <20110126152302.GT18984@csn.ul.ie> <20110126154203.GS926@random.random> <20110126163655.GU18984@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 06C558D0039
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 13:31:01 -0500 (EST)
+Date: Wed, 26 Jan 2011 19:30:23 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] oom: handle overflow in mem_cgroup_out_of_memory()
+Message-ID: <20110126183023.GB2401@cmpxchg.org>
+References: <1296030555-3594-1-git-send-email-gthelen@google.com>
+ <20110126170713.GA2401@cmpxchg.org>
+ <xr93y667lgdm.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110126163655.GU18984@csn.ul.ie>
+In-Reply-To: <xr93y667lgdm.fsf@gthelen.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 26, 2011 at 04:36:55PM +0000, Mel Gorman wrote:
-> > But the wmarks don't
-> > seem the real offender, maybe it's something related to the tiny pci32
-> > zone that materialize on 4g systems that relocate some little memory
-> > over 4g to make space for the pci32 mmio. I didn't yet finish to debug
-> > it.
-> > 
+On Wed, Jan 26, 2011 at 09:33:09AM -0800, Greg Thelen wrote:
+> Johannes Weiner <hannes@cmpxchg.org> writes:
 > 
-> This has to be it. What I think is happening is that we're in balance_pgdat(),
-> the "Normal" zone is never hitting the watermark and we constantly call
-> "goto loop_again" trying to "rebalance" all zones.
+> > On Wed, Jan 26, 2011 at 12:29:15AM -0800, Greg Thelen wrote:
+> >> mem_cgroup_get_limit() returns a byte limit as a unsigned 64 bit value,
+> >> which is converted to a page count by mem_cgroup_out_of_memory().  Prior
+> >> to this patch the conversion could overflow on 32 bit platforms
+> >> yielding a limit of zero.
+> >
+> > Balbir: It can truncate, because the conversion shrinks the required
+> > bits of this 64-bit number by only PAGE_SHIFT (12).  Trying to store
+> > the resulting up to 52 significant bits in a 32-bit integer will cut
+> > up to 20 significant bits off.
+> >
+> >> Signed-off-by: Greg Thelen <gthelen@google.com>
+> >> ---
+> >>  mm/oom_kill.c |    2 +-
+> >>  1 files changed, 1 insertions(+), 1 deletions(-)
+> >> 
+> >> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> >> index 7dcca55..3fcac51 100644
+> >> --- a/mm/oom_kill.c
+> >> +++ b/mm/oom_kill.c
+> >> @@ -538,7 +538,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
+> >>  	struct task_struct *p;
+> >>  
+> >>  	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, 0, NULL);
+> >> -	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
+> >> +	limit = min(mem_cgroup_get_limit(mem) >> PAGE_SHIFT, (u64)ULONG_MAX);
+> >
+> > I would much prefer using min_t(u64, ...).  To make it really, really
+> > explicit that this is 64-bit arithmetic.  But that is just me, no
+> > correctness issue.
+> >
+> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 > 
+> I agree that min_t() is clearer.  Does the following look better?
 
-Confirmed. The following "patch" should fix allow the number of free pages to
-drop to a sensible level. Note, this is not intended as a fix because it's
-the utterly wrong approach to take. It's only to illustrate where things
-are going wrong when the top-most zone is very small.
+Sweet, thank you Greg!
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f5d90de..477cb77 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2259,7 +2259,8 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
- 		}
- 
- 		if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone),
--							classzone_idx, 0))
-+							classzone_idx, 0) &&
-+				zone->present_pages >= pgdat->node_present_pages >> 2)
- 			all_zones_ok = false;
- 		else
- 			balanced += zone->present_pages;
-@@ -2446,15 +2447,18 @@ loop_again:
- 
- 			if (!zone_watermark_ok_safe(zone, order,
- 					high_wmark_pages(zone), end_zone, 0)) {
--				all_zones_ok = 0;
--				/*
--				 * We are still under min water mark.  This
--				 * means that we have a GFP_ATOMIC allocation
--				 * failure risk. Hurry up!
--				 */
--				if (!zone_watermark_ok_safe(zone, order,
--					    min_wmark_pages(zone), end_zone, 0))
--					has_under_min_watermark_zone = 1;
-+				if (zone->present_pages >= pgdat->node_present_pages >> 2) {
-+					all_zones_ok = 0;
-+
-+					/*
-+					 * We are still under min water mark.  This
-+					 * means that we have a GFP_ATOMIC allocation
-+					 * failure risk. Hurry up!
-+					 */
-+					if (!zone_watermark_ok_safe(zone, order,
-+						    min_wmark_pages(zone), end_zone, 0))
-+						has_under_min_watermark_zone = 1;
-+				}
- 			} else {
- 				/*
- 				 * If a zone reaches its high watermark,
+> Author: Greg Thelen <gthelen@google.com>
+> Date:   Wed Jan 26 00:05:59 2011 -0800
+> 
+>     oom: handle truncation in mem_cgroup_out_of_memory()
+>     
+>     mem_cgroup_get_limit() returns a byte limit as an unsigned 64 bit value.
+>     mem_cgroup_out_of_memory() converts this byte limit to an unsigned long
+>     page count.  Prior to this patch, the 32 bit version of
+>     mem_cgroup_out_of_memory() would silently truncate the most significant
+>     20 bits from byte limit when constructing the limit as a page count.
+>     For byte limits with the lowest 44 bits set to zero, this truncation
+>     would compute a page limit of zero.
+>     
+>     This patch checks for such large byte limits that cannot be converted to
+>     page counts without loosing information.  In such situations, where a 32
+>     bit page counter is too small to represent the corresponding byte count,
+>     select a maximal page count.
+>     
+>     Signed-off-by: Greg Thelen <gthelen@google.com>
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+That being said, does this have any practical impact at all?  I mean,
+this code runs when the cgroup limit is breached.  But if the number
+of allowed pages (not bytes!) can not fit into 32 bits, it means you
+have a group of processes using more than 16T.  On a 32-bit machine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
