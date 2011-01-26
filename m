@@ -1,39 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id EEE316B0092
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 05:45:47 -0500 (EST)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id p0QAjgTL016104
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:45:42 -0800
-Received: from iyj17 (iyj17.prod.google.com [10.241.51.81])
-	by kpbe20.cbf.corp.google.com with ESMTP id p0QAjc7c009519
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:45:40 -0800
-Received: by iyj17 with SMTP id 17so291221iyj.0
-        for <linux-mm@kvack.org>; Wed, 26 Jan 2011 02:45:38 -0800 (PST)
-Date: Wed, 26 Jan 2011 02:45:34 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: known oom issues on numa in -mm tree?
-In-Reply-To: <976317569.44499.1294739187129.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Message-ID: <alpine.DEB.2.00.1101260244310.27469@chino.kir.corp.google.com>
-References: <976317569.44499.1294739187129.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E1CB16B0092
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 06:00:33 -0500 (EST)
+Subject: Re: [PATCH 09/25] ia64: Preemptible mmu_gather
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <4d3f3f522012086c15@agluck-desktop.sc.intel.com>
+References: <4d3f3f522012086c15@agluck-desktop.sc.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Wed, 26 Jan 2011 12:01:05 +0100
+Message-ID: <1296039665.28776.1152.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: CAI Qian <caiqian@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: tony.luck@intel.com
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Jan 2011, CAI Qian wrote:
-
-> BTW, the latest linux-next also had the similar issue.
-> 
-> - kswapd was running for a long time.
-> 
-
-I'd be interested to see if this is fixed now that 2ff754fa8f41 (mm: clear 
-pages_scanned only if draining a pcp adds pages to the buddy allocator) 
-has been merged in Linus' tree.
+On Tue, 2011-01-25 at 13:23 -0800, tony.luck@intel.com wrote:
+> Okay ... then could you swap out your part 09/25 for this version that
+> has a #define and a comment.  You can add
+>=20
+> Acked-by: Tony Luck <tony.luck@intel.com>
+>=20
+Thanks Tony!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
