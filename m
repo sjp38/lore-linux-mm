@@ -1,117 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D5CDB8D0039
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 19:46:37 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 34EF13EE0B6
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 09:46:35 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E741E45DE4D
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 09:46:34 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CC15545DE52
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 09:46:34 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B7C311DB8037
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 09:46:34 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F5721DB8040
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 09:46:34 +0900 (JST)
-Date: Thu, 27 Jan 2011 09:40:31 +0900
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 1C5218D0039
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 19:59:52 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 466F93EE0C0
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 09:59:50 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 30F4545DE55
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 09:59:50 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EAF8745DE57
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 09:59:49 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DD1BDE08002
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 09:59:49 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 95AD01DB8038
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 09:59:49 +0900 (JST)
+Date: Thu, 27 Jan 2011 09:53:42 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] oom: handle overflow in mem_cgroup_out_of_memory()
-Message-Id: <20110127094031.04cc2be2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <xr93y667lgdm.fsf@gthelen.mtv.corp.google.com>
+Subject: [BUGFIX] memcg: fix res_counter_read_u64 lock aware (Was Re:
+ [PATCH] oom: handle overflow in mem_cgroup_out_of_memory()
+Message-Id: <20110127095342.3d81cf5f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110127092434.df18c7a6.kamezawa.hiroyu@jp.fujitsu.com>
 References: <1296030555-3594-1-git-send-email-gthelen@google.com>
 	<20110126170713.GA2401@cmpxchg.org>
 	<xr93y667lgdm.fsf@gthelen.mtv.corp.google.com>
+	<20110126183023.GB2401@cmpxchg.org>
+	<xr9362tbl83f.fsf@gthelen.mtv.corp.google.com>
+	<20110126142909.0b710a0c.akpm@linux-foundation.org>
+	<20110127092434.df18c7a6.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Jan 2011 09:33:09 -0800
-Greg Thelen <gthelen@google.com> wrote:
-
-> Johannes Weiner <hannes@cmpxchg.org> writes:
+On Thu, 27 Jan 2011 09:24:34 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote: > 
 > 
-> > On Wed, Jan 26, 2011 at 12:29:15AM -0800, Greg Thelen wrote:
-> >> mem_cgroup_get_limit() returns a byte limit as a unsigned 64 bit value,
-> >> which is converted to a page count by mem_cgroup_out_of_memory().  Prior
-> >> to this patch the conversion could overflow on 32 bit platforms
-> >> yielding a limit of zero.
-> >
-> > Balbir: It can truncate, because the conversion shrinks the required
-> > bits of this 64-bit number by only PAGE_SHIFT (12).  Trying to store
-> > the resulting up to 52 significant bits in a 32-bit integer will cut
-> > up to 20 significant bits off.
-> >
-> >> Signed-off-by: Greg Thelen <gthelen@google.com>
-> >> ---
-> >>  mm/oom_kill.c |    2 +-
-> >>  1 files changed, 1 insertions(+), 1 deletions(-)
-> >> 
-> >> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> >> index 7dcca55..3fcac51 100644
-> >> --- a/mm/oom_kill.c
-> >> +++ b/mm/oom_kill.c
-> >> @@ -538,7 +538,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
-> >>  	struct task_struct *p;
-> >>  
-> >>  	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, 0, NULL);
-> >> -	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
-> >> +	limit = min(mem_cgroup_get_limit(mem) >> PAGE_SHIFT, (u64)ULONG_MAX);
-> >
-> > I would much prefer using min_t(u64, ...).  To make it really, really
-> > explicit that this is 64-bit arithmetic.  But that is just me, no
-> > correctness issue.
-> >
-> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> I agree that min_t() is clearer.  Does the following look better?
-> 
-> Author: Greg Thelen <gthelen@google.com>
-> Date:   Wed Jan 26 00:05:59 2011 -0800
-> 
->     oom: handle truncation in mem_cgroup_out_of_memory()
->     
->     mem_cgroup_get_limit() returns a byte limit as an unsigned 64 bit value.
->     mem_cgroup_out_of_memory() converts this byte limit to an unsigned long
->     page count.  Prior to this patch, the 32 bit version of
->     mem_cgroup_out_of_memory() would silently truncate the most significant
->     20 bits from byte limit when constructing the limit as a page count.
->     For byte limits with the lowest 44 bits set to zero, this truncation
->     would compute a page limit of zero.
->     
->     This patch checks for such large byte limits that cannot be converted to
->     page counts without loosing information.  In such situations, where a 32
->     bit page counter is too small to represent the corresponding byte count,
->     select a maximal page count.
->     
->     Signed-off-by: Greg Thelen <gthelen@google.com>
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 7dcca55..0164060 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -538,7 +538,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
->  	struct task_struct *p;
->  
->  	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, 0, NULL);
-> -	limit = mem_cgroup_get_limit(mem) >> PAGE_SHIFT;
-> +	limit = min_t(u64, mem_cgroup_get_limit(mem) >> PAGE_SHIFT, ULONG_MAX);
->  	read_lock(&tasklist_lock);
->  retry:
->  	p = select_bad_process(&points, limit, mem, NULL);
+> I'll review. Against the roll-over, I think we just need to take lock.
+> So, res_counter_read_u64() implementation was wrong. It should take lock.
+> Please give me time.
 > 
 
-Thank you for catching.
+As far as I can see usages of return value of res_counter_read_u64()
+in memcontrol.c, all values are handle in u64 and no >> PAGE_SHIFT
+to 'int' is not done. I'll see usage of u64 return value to
+functions in other files from memcontrol.c
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+But, at least, this patch is required, I think. There are races.
 
+==
+res_counter_read_u64 reads u64 value without lock. It's dangerous
+in 32bit environment. This patch adds lock.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/res_counter.h |   13 ++++++++++++-
+ kernel/res_counter.c        |    2 +-
+ 2 files changed, 13 insertions(+), 2 deletions(-)
+
+Index: mmotm-0125/include/linux/res_counter.h
+===================================================================
+--- mmotm-0125.orig/include/linux/res_counter.h
++++ mmotm-0125/include/linux/res_counter.h
+@@ -68,7 +68,18 @@ struct res_counter {
+  * @pos:     and the offset.
+  */
+ 
+-u64 res_counter_read_u64(struct res_counter *counter, int member);
++u64 res_counter_read_u64_locked(struct res_counter *counter, int member);
++
++static inline u64 res_counter_read_u64(struct res_counter *counter, int member)
++{
++	unsigned long flags;
++	u64 ret;
++
++	spin_lock_irqsave(&counter->lock, flags);
++	ret = res_counter_read_u64_locked(counter, member);
++	spin_unlock_irqrestore(&counter->lock, flags);
++	return ret;
++}
+ 
+ ssize_t res_counter_read(struct res_counter *counter, int member,
+ 		const char __user *buf, size_t nbytes, loff_t *pos,
+Index: mmotm-0125/kernel/res_counter.c
+===================================================================
+--- mmotm-0125.orig/kernel/res_counter.c
++++ mmotm-0125/kernel/res_counter.c
+@@ -126,7 +126,7 @@ ssize_t res_counter_read(struct res_coun
+ 			pos, buf, s - buf);
+ }
+ 
+-u64 res_counter_read_u64(struct res_counter *counter, int member)
++u64 res_counter_read_u64_locked(struct res_counter *counter, int member)
+ {
+ 	return *res_counter_member(counter, member);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
