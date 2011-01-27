@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id DA9C18D0039
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 20:30:21 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 7D9963EE0C1
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 10:30:19 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 622FA45DE56
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 10:30:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 40F8345DE55
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 10:30:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 339A4E08004
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 10:30:19 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E2D13E08002
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 10:30:18 +0900 (JST)
-Date: Thu, 27 Jan 2011 10:24:18 +0900
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 8FD1C8D0039
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2011 20:42:46 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1FC143EE0C1
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 10:40:34 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0476345DE53
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 10:40:34 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D4AF345DE4F
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 10:40:33 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C684A1DB8044
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 10:40:33 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 73F341DB803F
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 10:40:33 +0900 (JST)
+Date: Thu, 27 Jan 2011 10:34:31 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [BUGFIX] memcg: fix res_counter_read_u64 lock aware (Was Re:
  [PATCH] oom: handle overflow in mem_cgroup_out_of_memory()
-Message-Id: <20110127102418.fc200c96.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20110127103431.04432944.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110126170824.ef2ab571.akpm@linux-foundation.org>
 References: <1296030555-3594-1-git-send-email-gthelen@google.com>
 	<20110126170713.GA2401@cmpxchg.org>
@@ -95,23 +95,21 @@ Andrew Morton <akpm@linux-foundation.org> wrote:
 > 
 > We don't need the lock on 64-bit platforms!
 > 
-All res_counter function doesn't handle 32/64 bit differences. So, I did 
-in this style for now.
-
 > And there's zero benefit to inlining the spin_lock/unlock(), given that
 > the function will always be making a function call anyway.
 > 
-Ok.
-
 > See i_size_read() for inspiration.
 > 
 
-I hate res_counter ;) I'll update patch.
+seq_counter can't be used for res_counter because I don't want to update
+seq_counter at changing ->usae of res_counter. So, I'd like to just add
+spinlock for this time.
+
+I wonder making memcg's counter to use 32bit and record usage in the number
+of pages may be a simple way...
 
 Thanks,
 -Kame
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
