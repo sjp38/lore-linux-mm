@@ -1,52 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E12928D0039
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 09:18:45 -0500 (EST)
-Date: Thu, 27 Jan 2011 15:18:37 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 4/7] memcg : fix charge function of THP allocation.
-Message-ID: <20110127141837.GB14512@cmpxchg.org>
-References: <20110121153431.191134dd.kamezawa.hiroyu@jp.fujitsu.com>
- <20110121154430.70d45f15.kamezawa.hiroyu@jp.fujitsu.com>
- <20110127103438.GC2401@cmpxchg.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id EB5B28D0039
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 10:28:23 -0500 (EST)
+Date: Thu, 27 Jan 2011 16:27:55 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: too big min_free_kbytes
+Message-ID: <20110127152755.GB30919@random.random>
+References: <1295841406.1949.953.camel@sli10-conroe>
+ <20110124150033.GB9506@random.random>
+ <20110126141746.GS18984@csn.ul.ie>
+ <20110126152302.GT18984@csn.ul.ie>
+ <20110126154203.GS926@random.random>
+ <20110126163655.GU18984@csn.ul.ie>
+ <20110126174236.GV18984@csn.ul.ie>
+ <20110127134057.GA32039@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110127103438.GC2401@cmpxchg.org>
+In-Reply-To: <20110127134057.GA32039@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 27, 2011 at 11:34:38AM +0100, Johannes Weiner wrote:
-> On Fri, Jan 21, 2011 at 03:44:30PM +0900, KAMEZAWA Hiroyuki wrote:
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Thu, Jan 27, 2011 at 01:40:58PM +0000, Mel Gorman wrote:
+> On Wed, Jan 26, 2011 at 05:42:37PM +0000, Mel Gorman wrote:
+> > On Wed, Jan 26, 2011 at 04:36:55PM +0000, Mel Gorman wrote:
+> > > > But the wmarks don't
+> > > > seem the real offender, maybe it's something related to the tiny pci32
+> > > > zone that materialize on 4g systems that relocate some little memory
+> > > > over 4g to make space for the pci32 mmio. I didn't yet finish to debug
+> > > > it.
+> > > > 
+> > > 
+> > > This has to be it. What I think is happening is that we're in balance_pgdat(),
+> > > the "Normal" zone is never hitting the watermark and we constantly call
+> > > "goto loop_again" trying to "rebalance" all zones.
+> > > 
 > > 
-> > When THP is used, Hugepage size charge can happen. It's not handled
-> > correctly in mem_cgroup_do_charge(). For example, THP can fallback
-> > to small page allocation when HUGEPAGE allocation seems difficult
-> > or busy, but memory cgroup doesn't understand it and continue to
-> > try HUGEPAGE charging. And the worst thing is memory cgroup
-> > believes 'memory reclaim succeeded' if limit - usage > PAGE_SIZE.
-> > 
-> > By this, khugepaged etc...can goes into inifinite reclaim loop
-> > if tasks in memcg are busy.
-> > 
-> > After this patch 
-> >  - Hugepage allocation will fail if 1st trial of page reclaim fails.
-> >  - distinguish THP allocaton from Bached allocation. 
+> > Confirmed.
+> > <SNIP>
 > 
-> This does too many things at once.  Can you split this into more
-> patches where each one has a single objective?  Thanks.
+> How about the following? Functionally it would work but I am concerned
+> that the logic in balance_pgdat() and kswapd() is getting out of hand
+> having being adjusted to work with a number of corner cases already. In
+> the next cycle, it could do with a "do-over" attempt to make it easier
+> to follow.
 
-So I sent three patches that, I think, fix the same issues this patch
-fixes, only they are much simpler.
+That number 8 is the problem, I don't think anybody was ever supposed
+to free 8*highwmark pages. kswapd must work in the hysteresis range
+low->high area and then sleep wait low to hit again before it gets
+wakenup. Not sure how that number 8 ever come up... but to be it looks
+like the real offender and I wouldn't work around it.
 
-The more I look at this code, though, the less confident I am in it..
-Can you guys give it a good look?
+totally untested... I will test....
 
-Thanks,
-	Hannes
+====
+Subject: vmscan: kswapd must not free more than high_wmark pages
+
+From: Andrea Arcangeli <aarcange@redhat.com>
+
+When the min_free_kbytes is set with `hugeadm
+--set-recommended-min_free_kbytes" or with THP enabled (which runs the
+equivalent of "hugeadm --set-recommended-min_free_kbytes" to activate
+anti-frag at full effectiveness automatically at boot) the high wmark
+of some zone is as high as ~88M. 88M free on a 4G system isn't
+horrible, but 88M*8 = 704M free on a 4G system is definitely
+unbearable. This only tends to be visible on 4G systems with tiny
+over-4g zone where kswapd insists to reach the high wmark on the
+over-4g zone but doing so it shrunk up to 704M from the normal zone by
+mistake.
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index f5d90de..9e3c78e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2407,7 +2407,7 @@ loop_again:
+ 			 * zone has way too many pages free already.
+ 			 */
+ 			if (!zone_watermark_ok_safe(zone, order,
+-					8*high_wmark_pages(zone), end_zone, 0))
++					high_wmark_pages(zone), end_zone, 0))
+ 				shrink_zone(priority, zone, &sc);
+ 			reclaim_state->reclaimed_slab = 0;
+ 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
