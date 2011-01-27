@@ -1,49 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4AE9F8D0039
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 02:55:07 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E97C48D0039
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 03:20:09 -0500 (EST)
 Received: from list by lo.gmane.org with local (Exim 4.69)
 	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1PiMh5-0004aw-Sh
-	for linux-mm@kvack.org; Thu, 27 Jan 2011 08:55:03 +0100
-Received: from 60.247.97.98 ([60.247.97.98])
+	id 1PiN5J-0005Yj-Dx
+	for linux-mm@kvack.org; Thu, 27 Jan 2011 09:20:05 +0100
+Received: from pool-98-117-134-162.sttlwa.fios.verizon.net ([98.117.134.162])
         by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
         id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Thu, 27 Jan 2011 08:55:03 +0100
-Received: from xiyou.wangcong by 60.247.97.98 with local (Gmexim 0.1 (Debian))
+        for <linux-mm@kvack.org>; Thu, 27 Jan 2011 09:20:05 +0100
+Received: from eternaleye by pool-98-117-134-162.sttlwa.fios.verizon.net with local (Gmexim 0.1 (Debian))
         id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Thu, 27 Jan 2011 08:55:03 +0100
-From: WANG Cong <xiyou.wangcong@gmail.com>
-Subject: Re: [PATCH v1 0/6] Set printk priority level
-Date: Thu, 27 Jan 2011 07:22:41 +0000 (UTC)
-Message-ID: <ihr6g0$qmm$3@dough.gmane.org>
-References: <20110125235700.GR8008@google.com>
-	<1296084570-31453-1-git-send-email-msb@chromium.org>
+        for <linux-mm@kvack.org>; Thu, 27 Jan 2011 09:20:05 +0100
+From: Alex Elsayed <eternaleye@gmail.com>
+Subject: Re: [PATCH V1 0/3] drivers/staging: kztmem: dynamic page =?utf-8?b?Y2FjaGUvc3dhcAljb21wcmVzc2lvbg==?=
+Date: Thu, 27 Jan 2011 08:02:47 +0000 (UTC)
+Message-ID: <loom.20110127T083126-210@post.gmane.org>
+References: <20110118171850.GA20439@ca-server1.us.oracle.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.orglinux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Jan 2011 15:29:24 -0800, Mandeep Singh Baines wrote:
-
-> We've been burned by regressions/bugs which we later realized could have
-> been triaged quicker if only we'd paid closer attention to dmesg.
+Dan Magenheimer <dan.magenheimer <at> oracle.com> writes:
+> Kztmem (see kztmem.c) provides both "host" services (setup and
+> core memory allocation) for a single client for the generic tmem
+> code plus two different PAM implementations:
 > 
-> This patch series fixes printk()s which appear in the logs of the device
-> I'm currently working on. I'd love to fix all such printks but there are
-> hundreds of files and thousands of LOC affected:
-> 
-> $ find . -name \*.c | xargs fgrep -c "printk(\"" | wc -l 16237
-> $ find . -name \*.c | xargs fgrep "printk(\"" | wc -l 20745
-> 
+> A. "compression buddies" ("zbud") which mates compression with a
+>    shrinker interface to store ephemeral pages so they can be
+>    easily reclaimed; compressed pages are paired and stored in
+>    a physical page, resulting in higher internal fragmentation
+> B. a shim to xvMalloc [8] which is more space-efficient but
+>    less receptive to page reclamation, so is fine for persistent
+>    pages
 
-Yes, this is the right approach, every printk should have a
-specified level.
+One feature that was present in compcache before it became zcache and zram
+was the ability to have a backing store on disk. I personally would find it
+interesting if:
+ - 'True' swap was reimplemented as a frontswap backend
+ - Multiple frontswap backends could be active at any time (Is this already
+possible?)
+ - Frontswap backends could provide a 'cost' metric, possibly based on
+latency
+ - Frontswap backends could 'delegate' pages to the backend with the
+next-highest cost
 
-Thanks.
+Thus, the core kernel could put pages into kztmem, which could then delegate
+to disk-based swap (possibly storing the buddy-compressed page, for IO and
+space reduction)
+
+A backend might 'hand off' a page if it is full, or for backend-specific
+reasons (like if it compressed badly).
+
+If a backend delegates pages which went a long time without being accessed,
+congratulations - you have a hierarchical storage manager. This bit makes me
+think the idea of delegation may be worth extending to cleancache.
+
+Implementing traditional disk-based swap as a frontswap backend would strike
+me as being a good way to test the flexibility (and performance) of
+frontswap, and the traditional 'priority' parameter for swap could probably
+be handled just by adding it to the base 'cost' of the swap backend.
+
+There is the question of what to do if two backends have the same cost.
+Using a round-robin system would probably be the simplest option, and
+hopefully not too far off from the 'striping' that goes on when a user
+specifies two swap devices with the same priority.
+
+Thoughts?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
