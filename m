@@ -1,85 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C9CBF8D0039
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 18:36:44 -0500 (EST)
-Date: Thu, 27 Jan 2011 15:36:42 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC] mm: Make vm_acct_memory scalable for large memory
- allocations
-Message-Id: <20110127153642.f022b51c.akpm@linux-foundation.org>
-In-Reply-To: <1296082319.2712.100.camel@schen9-DESK>
-References: <1296082319.2712.100.camel@schen9-DESK>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2DEC08D0039
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 18:43:12 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 8A06C3EE0B3
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 08:43:09 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 717BE45DE55
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 08:43:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 54BE545DE4E
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 08:43:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 48B041DB803E
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 08:43:09 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FBF71DB8038
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 08:43:09 +0900 (JST)
+Date: Fri, 28 Jan 2011 08:37:03 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memsw: Deprecate noswapaccount kernel parameter and
+ schedule it for removal
+Message-Id: <20110128083703.a154050b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110127104759.GA4301@tiehlicka.suse.cz>
+References: <20110126152158.GA4144@tiehlicka.suse.cz>
+	<20110126140618.8e09cd23.akpm@linux-foundation.org>
+	<20110127082320.GA15500@tiehlicka.suse.cz>
+	<20110127180330.78585085.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110127092951.GA8036@tiehlicka.suse.cz>
+	<20110127184827.a8927595.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110127104759.GA4301@tiehlicka.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Jan 2011 14:51:59 -0800
-Tim Chen <tim.c.chen@linux.intel.com> wrote:
+On Thu, 27 Jan 2011 11:47:59 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
 
-> During testing of concurrent malloc/free by multiple processes on a 8
-> socket NHM-EX machine (8cores/socket, 64 cores total), I noticed that
-> malloc of large memory (e.g. 32MB) did not scale well.  A test patch
-> included here increased 32MB mallocs/free with 64 concurrent processes
-> from 69K operations/sec to 4066K operations/sec on 2.6.37 kernel, and
-> eliminated the cpu cycles contending for spin_lock in the vm_commited_as
-> percpu_counter.
-
-This seems like a pretty dumb test case.  We have 64 cores sitting in a
-loop "allocating" 32MB of memory, not actually using that memory and
-then freeing it up again.
-
-Any not-completely-insane application would actually _use_ the memory. 
-Which involves pagefaults, page allocations and much memory traffic
-modifying the page contents.
-
-Do we actually care?
-
-> Spin lock contention occurs when vm_acct_memory increments/decrements
-> the percpu_counter vm_committed_as by the number of pages being
-> used/freed. Theoretically vm_committed_as is a percpu_counter and should
-> streamline the concurrent update by using the local counter in
-> vm_commited_as.  However, if the update is greater than
-> percpu_counter_batch limit, then it will overflow into the global count
-> in vm_commited_as.  Currently percpu_counter_batch is non-configurable
-> and hardcoded to 2*num_online_cpus.  So any update of vm_commited_as by
-> more than 256 pages will cause overflow in my test scenario which has
-> 128 logical cpus. 
+> On Thu 27-01-11 18:48:27, KAMEZAWA Hiroyuki wrote:
+> > Could you try to write a patch for feature-removal-schedule.txt
+> > and tries to remove noswapaccount and do clean up all ?
+> > (And add warning to noswapaccount will be removed.....in 2.6.40)
 > 
-> In the patch, I have set an enlargement multiplication factor for
-> vm_commited_as's batch limit. I limit the sum of all local counters up
-> to 5% of the total pages before overflowing into the global counter.
-> This will avoid the frequent contention of the spin_lock in
-> vm_commited_as. Some additional work will need to be done to make
-> setting of this multiplication factor cpu hotplug aware.  Advise on
-> better approaches are welcomed.
+> Sure, no problem. What do you think about the following patch?
+> ---
+> From a597421909a3291886345565c73102117a52301e Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Thu, 27 Jan 2011 11:41:01 +0100
+> Subject: [PATCH] memsw: Deprecate noswapaccount kernel parameter and schedule it for removal
 > 
-> ...
+> noswapaccount couldn't be used to control memsw for both on/off cases so
+> we have added swapaccount[=0|1] parameter. This way we can turn the
+> feature in two ways noswapaccount resp. swapaccount=0. We have kept the
+> original noswapaccount but I think we should remove it after some time
+> as it just makes more command line parameters without any advantages and
+> also the code to handle parameters is uglier if we want both parameters.
 > 
-> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
-> diff --git a/include/linux/percpu_counter.h b/include/linux/percpu_counter.h
-> index 46f6ba5..5a892d8 100644
-> --- a/include/linux/percpu_counter.h
-> +++ b/include/linux/percpu_counter.h
-> @@ -21,6 +21,7 @@ struct percpu_counter {
->  #ifdef CONFIG_HOTPLUG_CPU
->  	struct list_head list;	/* All percpu_counters are on a list */
->  #endif
-> +	u32 multibatch;
->  	s32 __percpu *counters;
->  };
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Requested-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-I dunno.  Wouldn't it be better to put a `batch' field into
-percpu_counter and then make the global percpu_counter_batch just go
-away?
+Nice!. Thank you.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-That would require modifying each counter's `batch' at cpuhotplug time,
-while somehow retaining the counter's user's intent.  So perhaps the
-counter would need two fields - original_batch and operating_batch or
-similar.
+Maybe other discussion as 2.6.40 is too early or some may happen.
+But Ack from me, at least.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
