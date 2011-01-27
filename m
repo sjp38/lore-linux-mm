@@ -1,7 +1,7 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id CD1498D0039
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 05:23:01 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0904F8D0039
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 05:28:58 -0500 (EST)
 Subject: Re: [RFC] [PATCH 2.6.37-rc5-tip 5/20]  5: Uprobes:
  register/unregister probes.
 From: Peter Zijlstra <peterz@infradead.org>
@@ -19,8 +19,8 @@ References:
 	 <20110127100157.GS19725@linux.vnet.ibm.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-Date: Thu, 27 Jan 2011 11:23:37 +0100
-Message-ID: <1296123817.15234.57.camel@laptop>
+Date: Thu, 27 Jan 2011 11:29:36 +0100
+Message-ID: <1296124176.15234.67.camel@laptop>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
@@ -28,31 +28,36 @@ Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm 
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 2011-01-27 at 15:31 +0530, Srikar Dronamraju wrote:
-> > > >  - validate that the vma is indeed a map of the right inode
-> > >=20
-> > > We can add a check in write_opcode( we need to pass the inode to
-> > > write_opcode).
-> >=20
-> > sure..
-> >=20
-> > > >  - validate that the offset of the probe corresponds with the store=
-d
-> > > > address
-> > >=20
-> > > I am not clear on this. We would have derived the address from the
-> > > offset. So is that we check for
-> > >  (vaddr =3D=3D vma->vm_start + uprobe->offset)
-> >=20
-> > Sure, but the vma might have changed since you computed the offset -)
 >=20
-> If the vma has changed then it would fail the 2nd validation i.e vma
-> corresponds to the uprobe inode right. If the vma was unmapped and
-> mapped back at the same place, then I guess we are okay to probe.
+> > You can, if only to wreck your thing, you can call mmap() as often as
+> > you like (until your virtual memory space runs out) and get many many
+> > mapping of the same file.
+> >=20
+> > It doesn't need to make sense to the linker, all it needs to do is
+> > confuse your code ;-)
+>=20
+> Currently if there are multiple mappings of the same executable
+> code, only one mapped area would have the breakpoint inserted.
 
-It can be unmapped and mapped back slightly different. A map of the same
-file doesn't need to mean its in the exact same location or has the
-exact same pgoffset.
+Right, so you could use it to make debugging harder..
 
+> If the code were to execute from some other mapping, then it would
+> work as if there are no probes.  However if the code from the
+> mapping that had the breakpoint executes then we would see the
+> probes.
+>=20
+> If we want to insert breakpoints in each of the maps then we
+> would have to extend mm->uprobes_vaddr.
+>=20
+> Do you have any other ideas to tackle this?
+
+Supposing I can get my preemptible mmu patches anywhere.. you could
+simply call install_uprobe() while holding the i_mmap_mutex ;-)
+
+> Infact do you think we should be handling this case?
+
+I'm really not sure how often this would happen, but dealing with it
+sure makes me feel better..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
