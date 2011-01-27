@@ -1,94 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A027A8D0039
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 04:55:06 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 0B70D3EE0BC
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 18:54:50 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6FE8945DE57
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 18:54:48 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D3B2B45DE53
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 18:54:46 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C0B431DB8040
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 18:54:46 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 821491DB803A
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 18:54:46 +0900 (JST)
-Date: Thu, 27 Jan 2011 18:48:27 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memsw: handle swapaccount kernel parameter correctly
-Message-Id: <20110127184827.a8927595.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110127092951.GA8036@tiehlicka.suse.cz>
-References: <20110126152158.GA4144@tiehlicka.suse.cz>
-	<20110126140618.8e09cd23.akpm@linux-foundation.org>
-	<20110127082320.GA15500@tiehlicka.suse.cz>
-	<20110127180330.78585085.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110127092951.GA8036@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id E852F8D0039
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 05:08:39 -0500 (EST)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0R9xGEG013235
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 04:59:32 -0500
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 6B346728051
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 05:08:37 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0RA8bCm332938
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 05:08:37 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0RA8Zfa020963
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 05:08:36 -0500
+Date: Thu, 27 Jan 2011 15:31:57 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [RFC] [PATCH 2.6.37-rc5-tip 5/20]  5: Uprobes:
+ register/unregister probes.
+Message-ID: <20110127100157.GS19725@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20101216095714.23751.52601.sendpatchset@localhost6.localdomain6>
+ <20101216095817.23751.76989.sendpatchset@localhost6.localdomain6>
+ <1295957744.28776.722.camel@laptop>
+ <20110126075558.GB19725@linux.vnet.ibm.com>
+ <1296036708.28776.1138.camel@laptop>
+ <20110126153036.GN19725@linux.vnet.ibm.com>
+ <1296056756.28776.1247.camel@laptop>
+ <20110126165645.GP19725@linux.vnet.ibm.com>
+ <1296061949.28776.1343.camel@laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1296061949.28776.1343.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, stable@kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 27 Jan 2011 10:29:51 +0100
-Michal Hocko <mhocko@suse.cz> wrote:
+* Peter Zijlstra <peterz@infradead.org> [2011-01-26 18:12:29]:
 
-> On Thu 27-01-11 18:03:30, KAMEZAWA Hiroyuki wrote:
-> > On Thu, 27 Jan 2011 09:23:20 +0100
-> > Michal Hocko <mhocko@suse.cz> wrote:
-> [...]
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index db76ef7..cea2be48 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -5013,9 +5013,9 @@ struct cgroup_subsys mem_cgroup_subsys = {
-> > >  static int __init enable_swap_account(char *s)
-> > >  {
-> > >  	/* consider enabled if no parameter or 1 is given */
-> > > -	if (!s || !strcmp(s, "1"))
-> > > +	if (!(*s) || !strcmp(s, "=1"))
-> > >  		really_do_swap_account = 1;
-> > > -	else if (!strcmp(s, "0"))
-> > > +	else if (!strcmp(s, "=0"))
-> > >  		really_do_swap_account = 0;
-> > >  	return 1;
-> > >  }
-> > 
-> > Hmm, usual callser of __setup() includes '=' to parameter name, as
-> > 
-> > mm/hugetlb.c:__setup("hugepages=", hugetlb_nrpages_setup);
-> > mm/hugetlb.c:__setup("default_hugepagesz=", hugetlb_default_setup);
-> > 
-> > How about moving "=" to __setup() ?
+> On Wed, 2011-01-26 at 22:26 +0530, Srikar Dronamraju wrote:
 > 
-> I have considered that as well but then we couldn't use swapaccount
-> parameter without any value because the parameter parsing matches the
-> whole string. 
-> I found it better to have consistent [no]swapaccount with the =0|1
-> extension rather than keeping = in the setup like other users.
+> > >  - lookup the vma relating to the address you stored,
+> > 
+> > We already do this thro get_user_pages in write_opcode().
 > 
-> Sounds reasonable?
+> Ah, I didn't read that far..
+> 
+> > >  - validate that the vma is indeed a map of the right inode
+> > 
+> > We can add a check in write_opcode( we need to pass the inode to
+> > write_opcode).
+> 
+> sure..
+> 
+> > >  - validate that the offset of the probe corresponds with the stored
+> > > address
+> > 
+> > I am not clear on this. We would have derived the address from the
+> > offset. So is that we check for
+> >  (vaddr == vma->vm_start + uprobe->offset)
+> 
+> Sure, but the vma might have changed since you computed the offset -)
 
-Hmm. ok for this time.
+If the vma has changed then it would fail the 2nd validation i.e vma
+corresponds to the uprobe inode right. If the vma was unmapped and
+mapped back at the same place, then I guess we are okay to probe.
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> > > 
+> > > Otherwise you can race with unmap/map and end up installing the probe in
+> > > a random location.
+> > > 
+> > > Also, I think the whole thing goes funny if someone maps the same text
+> > > twice ;-)
+> > 
+> > I am not sure if we can map the same text twice. If something like
+> > this is possible then we would have 2 addresses for each function.
+> > So how does the linker know which address to jump to out of the 2 or
+> > multiple matching addresses. What would be the usecases for same
+> > text being mapped multiple times and both being executable?
+> 
+> You can, if only to wreck your thing, you can call mmap() as often as
+> you like (until your virtual memory space runs out) and get many many
+> mapping of the same file.
+> 
+> It doesn't need to make sense to the linker, all it needs to do is
+> confuse your code ;-)
 
+Currently if there are multiple mappings of the same executable
+code, only one mapped area would have the breakpoint inserted.
 
-Could you try to write a patch for feature-removal-schedule.txt
-and tries to remove noswapaccount and do clean up all ?
-(And add warning to noswapaccount will be removed.....in 2.6.40)
+If the code were to execute from some other mapping, then it would
+work as if there are no probes.  However if the code from the
+mapping that had the breakpoint executes then we would see the
+probes.
 
+If we want to insert breakpoints in each of the maps then we
+would have to extend mm->uprobes_vaddr.
 
-Thanks,
--Kame
+Do you have any other ideas to tackle this?
+Infact do you think we should be handling this case?
 
-
-
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
