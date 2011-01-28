@@ -1,53 +1,258 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C4B68D0039
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 02:57:28 -0500 (EST)
-Date: Fri, 28 Jan 2011 08:57:24 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [BUGFIX][PATCH 2/4] memcg: fix charge path for THP and allow
- early retirement
-Message-ID: <20110128075724.GB2213@cmpxchg.org>
-References: <20110128122229.6a4c74a2.kamezawa.hiroyu@jp.fujitsu.com>
- <20110128122608.cf9be26b.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110128122608.cf9be26b.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 98FAE8D0039
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 03:02:12 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A43BE3EE0BC
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:02:08 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8209945DE69
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:02:08 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 675D145DE61
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:02:08 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B3C31DB803C
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:02:08 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A25C1DB8040
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:02:08 +0900 (JST)
+Date: Fri, 28 Jan 2011 16:56:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 3/3] Provide control over unmapped pages (v4)
+Message-Id: <20110128165605.3cbe5208.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <AANLkTikw_j0JJVqEsj1xThoashiOARg+8BgcLKrvkV3U@mail.gmail.com>
+References: <20110125051003.13762.35120.stgit@localhost6.localdomain6>
+	<20110125051015.13762.13429.stgit@localhost6.localdomain6>
+	<AANLkTikHLw0Qg+odOB-bDtBSB-5UbTJ5ZOM-ZAdMqXgh@mail.gmail.com>
+	<AANLkTi=qXsDjN5Jp4m3QMgVnckoAM7uE9_Hzn6CajP+c@mail.gmail.com>
+	<AANLkTinfxXc04S9VwQcJ9thFff=cP=icroaiVLkN-GeH@mail.gmail.com>
+	<20110128064851.GB5054@balbir.in.ibm.com>
+	<AANLkTikw_j0JJVqEsj1xThoashiOARg+8BgcLKrvkV3U@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 28, 2011 at 12:26:08PM +0900, KAMEZAWA Hiroyuki wrote:
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> When THP is used, Hugepage size charge can happen. It's not handled
-> correctly in mem_cgroup_do_charge(). For example, THP can fallback
-> to small page allocation when HUGEPAGE allocation seems difficult
-> or busy, but memory cgroup doesn't understand it and continue to
-> try HUGEPAGE charging. And the worst thing is memory cgroup
-> believes 'memory reclaim succeeded' if limit - usage > PAGE_SIZE.
-> 
-> By this, khugepaged etc...can goes into inifinite reclaim loop
-> if tasks in memcg are busy.
-> 
-> After this patch 
->  - Hugepage allocation will fail if 1st trial of page reclaim fails.
-> 
-> Changelog:
->  - make changes small. removed renaming codes.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   28 ++++++++++++++++++++++++----
->  1 file changed, 24 insertions(+), 4 deletions(-)
+On Fri, 28 Jan 2011 16:24:19 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-Was there something wrong with my oneline fix?
+> On Fri, Jan 28, 2011 at 3:48 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > * MinChan Kim <minchan.kim@gmail.com> [2011-01-28 14:44:50]:
+> >
+> >> On Fri, Jan 28, 2011 at 11:56 AM, Balbir Singh
+> >> <balbir@linux.vnet.ibm.com> wrote:
+> >> > On Thu, Jan 27, 2011 at 4:42 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> >> > [snip]
+> >> >
+> >> >>> index 7b56473..2ac8549 100644
+> >> >>> --- a/mm/page_alloc.c
+> >> >>> +++ b/mm/page_alloc.c
+> >> >>> @@ -1660,6 +1660,9 @@ zonelist_scan:
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A unsigned long mark;
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A int ret;
+> >> >>>
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  if (should_reclaim_unmapped_pages(zone))
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  wakeup_kswapd(zone, order, classzone_idx);
+> >> >>> +
+> >> >>
+> >> >> Do we really need the check in fastpath?
+> >> >> There are lost of caller of alloc_pages.
+> >> >> Many of them are not related to mapped pages.
+> >> >> Could we move the check into add_to_page_cache_locked?
+> >> >
+> >> > The check is a simple check to see if the unmapped pages need
+> >> > balancing, the reason I placed this check here is to allow other
+> >> > allocations to benefit as well, if there are some unmapped pages to be
+> >> > freed. add_to_page_cache_locked (check under a critical section) is
+> >> > even worse, IMHO.
+> >>
+> >> It just moves the overhead from general into specific case(ie,
+> >> allocates page for just page cache).
+> >> Another cases(ie, allocates pages for other purpose except page cache,
+> >> ex device drivers or fs allocation for internal using) aren't
+> >> affected.
+> >> So, It would be better.
+> >>
+> >> The goal in this patch is to remove only page cache page, isn't it?
+> >> So I think we could the balance check in add_to_page_cache and trigger reclaim.
+> >> If we do so, what's the problem?
+> >>
+> >
+> > I see it as a tradeoff of when to check? add_to_page_cache or when we
+> > are want more free memory (due to allocation). It is OK to wakeup
+> > kswapd while allocating memory, somehow for this purpose (global page
+> > cache), add_to_page_cache or add_to_page_cache_locked does not seem
+> > the right place to hook into. I'd be open to comments/suggestions
+> > though from others as well.
 
-Really, there is no way to make this a beautiful fix.  The way this
-function is split up makes no sense, and the constant addition of more
-and more flags just to correctly communicate with _one callsite_
-should be an obvious hint.
+I don't like add hook here.
+AND I don't want to run kswapd because 'kswapd' has been a sign as
+there are memory shortage. (reusing code is ok.)
+
+How about adding new daemon ? Recently, khugepaged, ksmd works for
+managing memory. Adding one more daemon for special purpose is not
+very bad, I think. Then, you can do
+ - wake up without hook
+ - throttle its work.
+ - balance the whole system rather than zone.
+   I think per-node balance is enough...
+
+
+
+
+
+
+
+
+> >
+> >> >
+> >> >
+> >> >>
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A if (zone_watermark_ok(zone, order, mark,
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A classzone_idx, alloc_flags))
+> >> >>> @@ -4167,8 +4170,12 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+> >> >>>
+> >> >>> A  A  A  A  A  A  A  A zone->spanned_pages = size;
+> >> >>> A  A  A  A  A  A  A  A zone->present_pages = realsize;
+> >> >>> +#if defined(CONFIG_UNMAPPED_PAGE_CONTROL) || defined(CONFIG_NUMA)
+> >> >>> A  A  A  A  A  A  A  A zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A / 100;
+> >> >>> + A  A  A  A  A  A  A  zone->max_unmapped_pages = (realsize*sysctl_max_unmapped_ratio)
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  / 100;
+> >> >>> +#endif
+> >> >>> A #ifdef CONFIG_NUMA
+> >> >>> A  A  A  A  A  A  A  A zone->node = nid;
+> >> >>> A  A  A  A  A  A  A  A zone->min_slab_pages = (realsize * sysctl_min_slab_ratio) / 100;
+> >> >>> @@ -5084,6 +5091,7 @@ int min_free_kbytes_sysctl_handler(ctl_table *table, int write,
+> >> >>> A  A  A  A return 0;
+> >> >>> A }
+> >> >>>
+> >> >>> +#if defined(CONFIG_UNMAPPED_PAGE_CONTROL) || defined(CONFIG_NUMA)
+> >> >>> A int sysctl_min_unmapped_ratio_sysctl_handler(ctl_table *table, int write,
+> >> >>> A  A  A  A void __user *buffer, size_t *length, loff_t *ppos)
+> >> >>> A {
+> >> >>> @@ -5100,6 +5108,23 @@ int sysctl_min_unmapped_ratio_sysctl_handler(ctl_table *table, int write,
+> >> >>> A  A  A  A return 0;
+> >> >>> A }
+> >> >>>
+> >> >>> +int sysctl_max_unmapped_ratio_sysctl_handler(ctl_table *table, int write,
+> >> >>> + A  A  A  void __user *buffer, size_t *length, loff_t *ppos)
+> >> >>> +{
+> >> >>> + A  A  A  struct zone *zone;
+> >> >>> + A  A  A  int rc;
+> >> >>> +
+> >> >>> + A  A  A  rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
+> >> >>> + A  A  A  if (rc)
+> >> >>> + A  A  A  A  A  A  A  return rc;
+> >> >>> +
+> >> >>> + A  A  A  for_each_zone(zone)
+> >> >>> + A  A  A  A  A  A  A  zone->max_unmapped_pages = (zone->present_pages *
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  sysctl_max_unmapped_ratio) / 100;
+> >> >>> + A  A  A  return 0;
+> >> >>> +}
+> >> >>> +#endif
+> >> >>> +
+> >> >>> A #ifdef CONFIG_NUMA
+> >> >>> A int sysctl_min_slab_ratio_sysctl_handler(ctl_table *table, int write,
+> >> >>> A  A  A  A void __user *buffer, size_t *length, loff_t *ppos)
+> >> >>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >> >>> index 02cc82e..6377411 100644
+> >> >>> --- a/mm/vmscan.c
+> >> >>> +++ b/mm/vmscan.c
+> >> >>> @@ -159,6 +159,29 @@ static DECLARE_RWSEM(shrinker_rwsem);
+> >> >>> A #define scanning_global_lru(sc) A  A  A  A (1)
+> >> >>> A #endif
+> >> >>>
+> >> >>> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
+> >> >>> +static unsigned long reclaim_unmapped_pages(int priority, struct zone *zone,
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  struct scan_control *sc);
+> >> >>> +static int unmapped_page_control __read_mostly;
+> >> >>> +
+> >> >>> +static int __init unmapped_page_control_parm(char *str)
+> >> >>> +{
+> >> >>> + A  A  A  unmapped_page_control = 1;
+> >> >>> + A  A  A  /*
+> >> >>> + A  A  A  A * XXX: Should we tweak swappiness here?
+> >> >>> + A  A  A  A */
+> >> >>> + A  A  A  return 1;
+> >> >>> +}
+> >> >>> +__setup("unmapped_page_control", unmapped_page_control_parm);
+> >> >>> +
+> >> >>> +#else /* !CONFIG_UNMAPPED_PAGECACHE_CONTROL */
+> >> >>> +static inline unsigned long reclaim_unmapped_pages(int priority,
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  struct zone *zone, struct scan_control *sc)
+> >> >>> +{
+> >> >>> + A  A  A  return 0;
+> >> >>> +}
+> >> >>> +#endif
+> >> >>> +
+> >> >>> A static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A struct scan_control *sc)
+> >> >>> A {
+> >> >>> @@ -2359,6 +2382,12 @@ loop_again:
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A shrink_active_list(SWAP_CLUSTER_MAX, zone,
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A &sc, priority, 0);
+> >> >>>
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  /*
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  A * We do unmapped page reclaim once here and once
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  A * below, so that we don't lose out
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  A */
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  reclaim_unmapped_pages(priority, zone, &sc);
+> >> >>> +
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A if (!zone_watermark_ok_safe(zone, order,
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A high_wmark_pages(zone), 0, 0)) {
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A end_zone = i;
+> >> >>> @@ -2396,6 +2425,11 @@ loop_again:
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A continue;
+> >> >>>
+> >> >>> A  A  A  A  A  A  A  A  A  A  A  A sc.nr_scanned = 0;
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  /*
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  A * Reclaim unmapped pages upfront, this should be
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  A * really cheap
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  A */
+> >> >>> + A  A  A  A  A  A  A  A  A  A  A  reclaim_unmapped_pages(priority, zone, &sc);
+> >> >>
+> >> >> Why should we do by two phase?
+> >> >> It's not a direct reclaim path. I mean it doesn't need to reclaim tighly
+> >> >> If we can't reclaim enough, next allocation would wake up kswapd again
+> >> >> and kswapd try it again.
+> >> >>
+> >> >
+> >> > I am not sure I understand, the wakeup will occur only if the unmapped
+> >> > pages are still above the max_unmapped_ratio. They are tunable control
+> >> > points.
+> >>
+> >> I mean you try to reclaim twice in one path.
+> >> one is when select highest zone to reclaim.
+> >> one is when VM reclaim the zone.
+> >>
+> >> What's your intention?
+> >>
+> >
+> > That is because some zones can be skipped, we need to ensure we go
+> > through all zones, rather than selective zones (limited via search for
+> > end_zone).
+> 
+> If kswapd is wake up by unmapped memory of some zone, we have to
+> include the zone while selective victim zones to prevent miss the
+> zone.
+> I think it would be better than reclaiming twice
+> 
+
+That sounds checking all zones and loop again is enough.
+
+
+BTW, it seems this doesn't work when some apps use huge shmem.
+How to handle the issue ?
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
