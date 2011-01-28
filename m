@@ -1,77 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D93DD8D0039
-	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 19:19:27 -0500 (EST)
-Date: Thu, 27 Jan 2011 16:18:17 -0800
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CB3C48D0039
+	for <linux-mm@kvack.org>; Thu, 27 Jan 2011 19:26:57 -0500 (EST)
+Date: Thu, 27 Jan 2011 16:26:26 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/9] Add apply_to_page_range_batch() and use it
-Message-Id: <20110127161817.9cbcae91.akpm@linux-foundation.org>
-In-Reply-To: <cover.1295653400.git.jeremy.fitzhardinge@citrix.com>
-References: <cover.1295653400.git.jeremy.fitzhardinge@citrix.com>
+Subject: Re: [RFC] mm: Make vm_acct_memory scalable for large memory
+ allocations
+Message-Id: <20110127162626.8b38145b.akpm@linux-foundation.org>
+In-Reply-To: <4D420A89.3050906@linux.intel.com>
+References: <1296082319.2712.100.camel@schen9-DESK>
+	<20110127153642.f022b51c.akpm@linux-foundation.org>
+	<4D420A89.3050906@linux.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Haavard Skinnemoen <hskinnemoen@atmel.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@kernel.dk>, Xen-devel <xen-devel@lists.xensource.com>, Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 24 Jan 2011 14:55:58 -0800
-Jeremy Fitzhardinge <jeremy@goop.org> wrote:
+On Thu, 27 Jan 2011 16:15:05 -0800
+Andi Kleen <ak@linux.intel.com> wrote:
 
-> From: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 > 
-> I'm proposing this series for 2.6.39.
+> > This seems like a pretty dumb test case.  We have 64 cores sitting in a
+> > loop "allocating" 32MB of memory, not actually using that memory and
+> > then freeing it up again.
+> >
+> > Any not-completely-insane application would actually _use_ the memory.
+> > Which involves pagefaults, page allocations and much memory traffic
+> > modifying the page contents.
+> >
+> > Do we actually care?
 > 
-> We've had apply_to_page_range() for a while, which is a general way to
-> apply a function to ptes across a range of addresses - including
-> allocating any missing parts of the pagetable as needed.  This logic
-> is replicated in a number of places throughout the kernel, but it
-> hasn't been widely replaced by this function, partly because of
-> concerns about the overhead of calling the function once per pte.
+> It's a bit like a poorly tuned malloc. From what I heard poorly tuned 
+> mallocs are quite
+> common in the field, also with lots of custom ones around.
 > 
-> This series adds apply_to_page_range_batch() (and reimplements
-> apply_to_page_range() in terms of it), which calls the pte operation
-> function once per pte page, moving the inner loop into the callback
-> function.
+> While it would be good to tune them better the kernel should also have 
+> reasonable performance
+> for this case.
 > 
-> apply_to_page_range(_batch) also calls its callback with lazy mmu
-> updates enabled, which allows batching of the operations in
-> environments where this is beneficial (ie, virtualization).  The only
-> caveat this introduces is callbacks can't expect to immediately see
-> the effects of the pte updates in memory.
+> The poorly tuned malloc has other problems too, but this addresses at 
+> least one
+> of them.
 > 
-> Since this is effectively identical to the code in lib/ioremap.c and
-> mm/vmalloc.c (twice!), I replace their open-coded variants.  I'm sure
-> there are others places in the kernel which could do with this (I only
-> stumbled over ioremap by accident).
+> Also I think Tim's patch is a general improvement to a somewhat dumb 
+> code path.
 > 
-> I also add a minor optimisation to vunmap_page_range() to use a
-> plain pte_clear() rather than the more expensive and unnecessary
-> ptep_get_and_clear().
-> 
-> Jeremy Fitzhardinge (9):
->   mm: remove unused "token" argument from apply_to_page_range callback.
->   mm: add apply_to_page_range_batch()
->   ioremap: use apply_to_page_range_batch() for ioremap_page_range()
->   vmalloc: use plain pte_clear() for unmaps
->   vmalloc: use apply_to_page_range_batch() for vunmap_page_range()
->   vmalloc: use apply_to_page_range_batch() for
->     vmap_page_range_noflush()
->   vmalloc: use apply_to_page_range_batch() in alloc_vm_area()
->   xen/mmu: use apply_to_page_range_batch() in
->     xen_remap_domain_mfn_range()
->   xen/grant-table: use apply_to_page_range_batch()
-> 
->  arch/x86/xen/grant-table.c |   30 +++++----
->  arch/x86/xen/mmu.c         |   18 +++--
->  include/linux/mm.h         |    9 ++-
->  lib/ioremap.c              |   85 +++++++------------------
->  mm/memory.c                |   57 ++++++++++++-----
->  mm/vmalloc.c               |  150 ++++++++++++--------------------------------
->  6 files changed, 140 insertions(+), 209 deletions(-)
 
-That all looks good to me.
+I guess another approach to this would be change the way in which we
+decide to update the central counter.
+
+At present we'll spill the per-cpu counter into the central counter
+when the per-cpu counter exceeds some fixed threshold.  But that's
+dumb, because the error factor is relatively large for small values of
+the counter, and relatively small for large values of the counter.
+
+So instead, we should spill the per-cpu counter into the central
+counter when the per-cpu counter exceeds some proportion of the central
+counter (eg, 1%?).  That way the inaccuracy is largely independent of
+the counter value and the lock-taking frequency decreases for large
+counter values.
+
+And given that "large cpu count" and "lots of memory" correlate pretty
+well, I suspect such a change would fix up the contention which is
+being seen here without magical startup-time tuning heuristics.
+
+This again will require moving the batch threshold into the counter
+itself and also recalculating it when the central counter is updated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
