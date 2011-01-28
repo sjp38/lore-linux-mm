@@ -1,75 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id CFC238D0039
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 03:24:19 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9685B3EE0B5
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:24:17 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D4FF45DE50
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:24:14 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 09AA245DE5D
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:24:14 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D63EE1DB8043
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:24:13 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 73EBB1DB803A
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:24:13 +0900 (JST)
-Date: Fri, 28 Jan 2011 17:17:44 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] Provide control over unmapped pages (v4)
-Message-Id: <20110128171744.b7b37703.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110128081928.GC5054@balbir.in.ibm.com>
-References: <20110125051003.13762.35120.stgit@localhost6.localdomain6>
-	<20110125051015.13762.13429.stgit@localhost6.localdomain6>
-	<AANLkTikHLw0Qg+odOB-bDtBSB-5UbTJ5ZOM-ZAdMqXgh@mail.gmail.com>
-	<AANLkTi=qXsDjN5Jp4m3QMgVnckoAM7uE9_Hzn6CajP+c@mail.gmail.com>
-	<AANLkTinfxXc04S9VwQcJ9thFff=cP=icroaiVLkN-GeH@mail.gmail.com>
-	<20110128064851.GB5054@balbir.in.ibm.com>
-	<AANLkTikw_j0JJVqEsj1xThoashiOARg+8BgcLKrvkV3U@mail.gmail.com>
-	<20110128165605.3cbe5208.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110128081928.GC5054@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 75C8F8D0039
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 03:26:00 -0500 (EST)
+Received: by iwn40 with SMTP id 40so2990938iwn.14
+        for <linux-mm@kvack.org>; Fri, 28 Jan 2011 00:25:58 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20110128081723.GD2213@cmpxchg.org>
+References: <20110128122229.6a4c74a2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110128122449.e4bb0e5f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110128134019.27abcfe2.nishimura@mxp.nes.nec.co.jp>
+	<20110128135839.d53422e8.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTikCjKCtjhRH-ZVsEQN-Luz==8g8e60uxhCTeD2w@mail.gmail.com>
+	<20110128081723.GD2213@cmpxchg.org>
+Date: Fri, 28 Jan 2011 17:25:58 +0900
+Message-ID: <AANLkTinikUM09bXbLZ5zU1gdgfdPZSQmbycbbeSyGk59@mail.gmail.com>
+Subject: Re: [BUGFIX][PATCH 1/4] memcg: fix limit estimation at reclaim for hugepage
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Jan 2011 13:49:28 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+Hi Hannes,
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2011-01-28 16:56:05]:
- 
-> > BTW, it seems this doesn't work when some apps use huge shmem.
-> > How to handle the issue ?
-> >
-> 
-> Could you elaborate further? 
-> 
-==
-static inline unsigned long zone_unmapped_file_pages(struct zone *zone)
-{
-        unsigned long file_mapped = zone_page_state(zone, NR_FILE_MAPPED);
-        unsigned long file_lru = zone_page_state(zone, NR_INACTIVE_FILE) +
-                zone_page_state(zone, NR_ACTIVE_FILE);
+On Fri, Jan 28, 2011 at 5:17 PM, Johannes Weiner <hannes@cmpxchg.org> wrote=
+:
+> On Fri, Jan 28, 2011 at 05:04:16PM +0900, Minchan Kim wrote:
+>> Hi Kame,
+>>
+>> On Fri, Jan 28, 2011 at 1:58 PM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> > How about this ?
+>> > =3D=3D
+>> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> >
+>> > Current memory cgroup's code tends to assume page_size =3D=3D PAGE_SIZ=
+E
+>> > and arrangement for THP is not enough yet.
+>> >
+>> > This is one of fixes for supporing THP. This adds
+>> > mem_cgroup_check_margin() and checks whether there are required amount=
+ of
+>> > free resource after memory reclaim. By this, THP page allocation
+>> > can know whether it really succeeded or not and avoid infinite-loop
+>> > and hangup.
+>> >
+>> > Total fixes for do_charge()/reclaim memory will follow this patch.
+>>
+>> If this patch is only related to THP, I think patch order isn't good.
+>> Before applying [2/4], huge page allocation will retry without
+>> reclaiming and loop forever by below part.
+>>
+>> @@ -1854,9 +1858,6 @@ static int __mem_cgroup_do_charge(struct
+>> =C2=A0 =C2=A0 =C2=A0 } else
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_over_limit =3D mem_=
+cgroup_from_res_counter(fail_res, res);
+>>
+>> - =C2=A0 =C2=A0 if (csize > PAGE_SIZE) /* change csize and retry */
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return CHARGE_RETRY;
+>> -
+>> =C2=A0 =C2=A0 =C2=A0 if (!(gfp_mask & __GFP_WAIT))
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return CHARGE_WOULDBLOC=
+K;
+>>
+>> Am I missing something?
+>
+> No, you are correct. =C2=A0But I am not sure the order really matters in
+> theory: you have two endless loops that need independent fixing.
 
-        /*
-         * It's possible for there to be more file mapped pages than
-         * accounted for by the pages on the file LRU lists because
-         * tmpfs pages accounted for as ANON can also be FILE_MAPPED
-         */
-        return (file_lru > file_mapped) ? (file_lru - file_mapped) : 0;
-}
-==
+That's why I ask a question.
+Two endless loop?
 
-Did you read ?
+One is what I mentioned. The other is what?
+Maybe this patch solve the other.
+But I can't guess it by only this description. Stupid..
 
-Thanks,
--Kame
+Please open my eyes.
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
