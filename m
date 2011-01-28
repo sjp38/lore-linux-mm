@@ -1,46 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 8D7F98D0039
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 03:43:00 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5578E3EE0C0
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:42:58 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3CB5145DE5C
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:42:58 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B43F45DE59
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:42:58 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E6211DB804B
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:42:58 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BA6221DB8047
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 17:42:57 +0900 (JST)
-Date: Fri, 28 Jan 2011 17:36:55 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CEFA8D0039
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 03:44:27 -0500 (EST)
+Date: Fri, 28 Jan 2011 09:41:21 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [BUGFIX][PATCH 1/4] memcg: fix limit estimation at reclaim for
  hugepage
-Message-Id: <20110128173655.7c1d9ebd.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <AANLkTinikUM09bXbLZ5zU1gdgfdPZSQmbycbbeSyGk59@mail.gmail.com>
+Message-ID: <20110128084121.GE2213@cmpxchg.org>
 References: <20110128122229.6a4c74a2.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110128122449.e4bb0e5f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110128134019.27abcfe2.nishimura@mxp.nes.nec.co.jp>
-	<20110128135839.d53422e8.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTikCjKCtjhRH-ZVsEQN-Luz==8g8e60uxhCTeD2w@mail.gmail.com>
-	<20110128081723.GD2213@cmpxchg.org>
-	<AANLkTinikUM09bXbLZ5zU1gdgfdPZSQmbycbbeSyGk59@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+ <20110128122449.e4bb0e5f.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110128134019.27abcfe2.nishimura@mxp.nes.nec.co.jp>
+ <20110128135839.d53422e8.kamezawa.hiroyu@jp.fujitsu.com>
+ <AANLkTikCjKCtjhRH-ZVsEQN-Luz==8g8e60uxhCTeD2w@mail.gmail.com>
+ <20110128081723.GD2213@cmpxchg.org>
+ <AANLkTinikUM09bXbLZ5zU1gdgfdPZSQmbycbbeSyGk59@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTinikUM09bXbLZ5zU1gdgfdPZSQmbycbbeSyGk59@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Jan 2011 17:25:58 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
-
+On Fri, Jan 28, 2011 at 05:25:58PM +0900, Minchan Kim wrote:
 > Hi Hannes,
 > 
 > On Fri, Jan 28, 2011 at 5:17 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
@@ -69,68 +53,38 @@ Minchan Kim <minchan.kim@gmail.com> wrote:
 > >> reclaiming and loop forever by below part.
 > >>
 > >> @@ -1854,9 +1858,6 @@ static int __mem_cgroup_do_charge(struct
-> >> A  A  A  } else
-> >> A  A  A  A  A  A  A  mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+> >>       } else
+> >>               mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
 > >>
-> >> - A  A  if (csize > PAGE_SIZE) /* change csize and retry */
-> >> - A  A  A  A  A  A  return CHARGE_RETRY;
+> >> -     if (csize > PAGE_SIZE) /* change csize and retry */
+> >> -             return CHARGE_RETRY;
 > >> -
-> >> A  A  A  if (!(gfp_mask & __GFP_WAIT))
-> >> A  A  A  A  A  A  A  return CHARGE_WOULDBLOCK;
+> >>       if (!(gfp_mask & __GFP_WAIT))
+> >>               return CHARGE_WOULDBLOCK;
 > >>
 > >> Am I missing something?
 > >
-> > No, you are correct. A But I am not sure the order really matters in
+> > No, you are correct.  But I am not sure the order really matters in
 > > theory: you have two endless loops that need independent fixing.
 > 
 > That's why I ask a question.
 > Two endless loop?
 > 
 > One is what I mentioned. The other is what?
-> Maybe this patch solve the other.
-> But I can't guess it by only this description. Stupid..
-> 
-> Please open my eyes.
-> 
 
-One is.
+The other is
 
-  if (csize > PAGE_SIZE)
-	return CHARGE_RETRY;
+1. huge page charge, fail
+2. reclaim
+3. limit is ok, retry at 1.
 
-By this, reclaim will never be called.
+The problem is that the limit will be okay for regular pages, but not
+huge pages.
 
+Currently, this code is never reached due to the endless loop you
+already spotted.
 
-Another is a check after memory reclaim.
-==
-       ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
-                                        gfp_mask, flags);
-        /*
-         * try_to_free_mem_cgroup_pages() might not give us a full
-         * picture of reclaim. Some pages are reclaimed and might be
-         * moved to swap cache or just unmapped from the cgroup.
-         * Check the limit again to see if the reclaim reduced the
-         * current usage of the cgroup before giving up
-         */
-        if (ret || mem_cgroup_check_under_limit(mem_over_limit))
-                return CHARGE_RETRY;
-==
-
-ret != 0 if one page is reclaimed. Then, khupaged will retry charge and 
-cannot get enough room, reclaim, one page -> again. SO, in busy memcg,
-HPAGE_SIZE allocation never fails.
-
-Even if khupaged luckly allocates HPAGE_SIZE, because khugepaged walks vmas
-one by one and try to collapse each pmd, under mmap_sem(), this seems a hang by
-khugepaged, infinite loop.
-
-
-Thanks,
--Kame
-
-
-
-
+HTH
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
