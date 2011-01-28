@@ -1,135 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id BC3028D0039
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 04:22:57 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 7C6033EE0BD
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 18:22:55 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 64C5045DE55
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 18:22:55 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 43A5C45DE4D
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 18:22:55 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 371141DB8038
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 18:22:55 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E939E1DB8037
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 18:22:54 +0900 (JST)
-Date: Fri, 28 Jan 2011 18:16:53 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH 2/4] memcg: fix charge path for THP and allow
- early retirement
-Message-Id: <20110128181653.240c73a0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110128090242.GF2213@cmpxchg.org>
-References: <20110128122229.6a4c74a2.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110128122608.cf9be26b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110128075724.GB2213@cmpxchg.org>
-	<20110128171447.1b5b19f3.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110128090242.GF2213@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 370728D0039
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 05:31:41 -0500 (EST)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id p0SAVamC003820
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 02:31:39 -0800
+Received: from pzk37 (pzk37.prod.google.com [10.243.19.165])
+	by kpbe17.cbf.corp.google.com with ESMTP id p0SAVUv3011730
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 02:31:35 -0800
+Received: by pzk37 with SMTP id 37so932506pzk.40
+        for <linux-mm@kvack.org>; Fri, 28 Jan 2011 02:31:30 -0800 (PST)
+Date: Fri, 28 Jan 2011 02:31:28 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: known oom issues on numa in -mm tree?
+In-Reply-To: <1830247931.201921.1296197255760.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Message-ID: <alpine.DEB.2.00.1101280227440.28081@chino.kir.corp.google.com>
+References: <1830247931.201921.1296197255760.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: CAI Qian <caiqian@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Jan 2011 10:02:42 +0100
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Fri, 28 Jan 2011, CAI Qian wrote:
 
-> On Fri, Jan 28, 2011 at 05:14:47PM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Fri, 28 Jan 2011 08:57:24 +0100
-> > Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > 
-> > > On Fri, Jan 28, 2011 at 12:26:08PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > 
-> > > > When THP is used, Hugepage size charge can happen. It's not handled
-> > > > correctly in mem_cgroup_do_charge(). For example, THP can fallback
-> > > > to small page allocation when HUGEPAGE allocation seems difficult
-> > > > or busy, but memory cgroup doesn't understand it and continue to
-> > > > try HUGEPAGE charging. And the worst thing is memory cgroup
-> > > > believes 'memory reclaim succeeded' if limit - usage > PAGE_SIZE.
-> > > > 
-> > > > By this, khugepaged etc...can goes into inifinite reclaim loop
-> > > > if tasks in memcg are busy.
-> > > > 
-> > > > After this patch 
-> > > >  - Hugepage allocation will fail if 1st trial of page reclaim fails.
-> > > > 
-> > > > Changelog:
-> > > >  - make changes small. removed renaming codes.
-> > > > 
-> > > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > ---
-> > > >  mm/memcontrol.c |   28 ++++++++++++++++++++++++----
-> > > >  1 file changed, 24 insertions(+), 4 deletions(-)
-> > > 
-> > > Was there something wrong with my oneline fix?
-> > > 
-> > I thought your patch was against RHEL6.
+> I can still reproduce this similar failure on both AMD and Intel NUMA
+> systems using the latest linus tree with the commit you mentioned.
+> Unfortunately, I can't get a clear sysrq/console output of it but only
+> a part of it (screenshot attached).
 > 
-> Sorry, this was a misunderstanding.  All three patches I sent
-> yesterday were based on the latest mmotm.
-> 
-I misunderstand your e-mail.
-
-
-> > > Really, there is no way to make this a beautiful fix.  The way this
-> > > function is split up makes no sense, and the constant addition of more
-> > > and more flags just to correctly communicate with _one callsite_
-> > > should be an obvious hint.
-> > > 
-> > 
-> > Your version has to depend on oom_check flag to work fine.
-> > I think it's complicated.
-> 
-> I don't understand.  We want to retry when batching fails, but not
-> when huge page charging fails.  This is exactly what my patch does.
-> 
-> This function has 3 steps:
-> 
-> 1. charge
-> 2. reclaim
-> 3. handle out of memory
-> 
-> Between all those steps, there are defined break-out points.  Between
-> 1. and 2. there is the check for batching.  Between 2. and 3. is the
-> check for whether we should OOM directly or let it be handled by the
-> caller.
-> 
-> These break points make perferct sense, because when batching we want
-> to charge but not reclaim.  With huge pages we want to charge,
-> rcelaim, but not OOM.  This is straight-forward exactly what my
-> patches implement.  Not by introducing new break points, but by fixing
-> those that are already there!
-> 
-> I resent your patch because you mess up this logic by moving the break
-> point between 1. and 2. between 2. and 3. where it is not intuitive to
-> understand anymore.  And your argument is that you don't want to trust
-> your own code to function correctly (oom_check).  This is insane.
+> It at least very easy to reproduce it for me by running LTP oom01 test
+> for both Magny-Cours and Nehalem-EX NUMA systems.
 > 
 
-oom_check is not for contorlling 'how we retry'.
+Are you sure this is the same issue?  The picture you provided doesn't 
+show the top of the stack so I don't know what it's doing, but the 
+original report had this:
 
-But I'm getting tired at handling this breakage caused by THP.
-Please post your patch again, I'll ack all in the next week.
-Andrew, please pick up Johannes's patch when psoted.
+oom02           R  running task        0  2023   1969 0x00000088
+ 0000000000000282 ffff88041d219df0 ffff88041fbf8ef0 ffffffff81100800
+ ffff880418ab5b18 0000000000000282 ffffffff8100c9ee ffff880418ab5ba8
+ 0000000087654321 0000000000000000 ffff880000000000 0000000000000001
+Call Trace:
+ [<ffffffff81100800>] ? drain_local_pages+0x0/0x20
+ [<ffffffff8100c9ee>] ? apic_timer_interrupt+0xe/0x20
+ [<ffffffff81097ea6>] ? smp_call_function_many+0x1b6/0x210
+ [<ffffffff81097e82>] ? smp_call_function_many+0x192/0x210
+ [<ffffffff81100800>] ? drain_local_pages+0x0/0x20
+ [<ffffffff81097f22>] ? smp_call_function+0x22/0x30
+ [<ffffffff81068184>] ? on_each_cpu+0x24/0x50
+ [<ffffffff810fe68c>] ? drain_all_pages+0x1c/0x20
+ [<ffffffff81100d04>] ? __alloc_pages_nodemask+0x4e4/0x840
+ [<ffffffff81138e09>] ? alloc_page_vma+0x89/0x140
+ [<ffffffff8111c481>] ? handle_mm_fault+0x871/0xd80
+ [<ffffffff814a4ecd>] ? schedule+0x3fd/0x980
+ [<ffffffff8100c9ee>] ? apic_timer_interrupt+0xe/0x20
+ [<ffffffff8100c9ee>] ? apic_timer_interrupt+0xe/0x20
+ [<ffffffff814aadd3>] ? do_page_fault+0x143/0x4b0
+ [<ffffffff8100a7b4>] ? __switch_to+0x194/0x320
+ [<ffffffff814a4ecd>] ? schedule+0x3fd/0x980
+ [<ffffffff814a7ad5>] ? page_fault+0x25/0x30
 
-I hope all issues are fixed in the next week and we can go ahead,
-implenting dirty_ratio.
+and the reported symptom was kswapd running excessively.  I'm pretty sure 
+I fixed that with 2ff754fa8f41 (mm: clear pages_scanned only if draining a 
+pcp adds pages to the buddy allocator).
 
-Bye.
--Kame
-
-
-
-
-
-
-
+Absent the dmesg, it's going to be very difficult to diagnose an issue 
+that isn't a panic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
