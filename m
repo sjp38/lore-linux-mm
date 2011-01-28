@@ -1,74 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 370728D0039
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 05:31:41 -0500 (EST)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id p0SAVamC003820
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 02:31:39 -0800
-Received: from pzk37 (pzk37.prod.google.com [10.243.19.165])
-	by kpbe17.cbf.corp.google.com with ESMTP id p0SAVUv3011730
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 02:31:35 -0800
-Received: by pzk37 with SMTP id 37so932506pzk.40
-        for <linux-mm@kvack.org>; Fri, 28 Jan 2011 02:31:30 -0800 (PST)
-Date: Fri, 28 Jan 2011 02:31:28 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: known oom issues on numa in -mm tree?
-In-Reply-To: <1830247931.201921.1296197255760.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Message-ID: <alpine.DEB.2.00.1101280227440.28081@chino.kir.corp.google.com>
-References: <1830247931.201921.1296197255760.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BC69C8D0039
+	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 05:36:06 -0500 (EST)
+Date: Fri, 28 Jan 2011 10:35:39 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: too big min_free_kbytes
+Message-ID: <20110128103539.GA14669@csn.ul.ie>
+References: <20110126152302.GT18984@csn.ul.ie> <20110126154203.GS926@random.random> <20110126163655.GU18984@csn.ul.ie> <20110126174236.GV18984@csn.ul.ie> <20110127134057.GA32039@csn.ul.ie> <20110127152755.GB30919@random.random> <20110127160301.GA29291@csn.ul.ie> <20110127185215.GE16981@random.random> <20110127213106.GA25933@csn.ul.ie> <4D41FD2F.3050006@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4D41FD2F.3050006@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: CAI Qian <caiqian@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Jan 2011, CAI Qian wrote:
+On Thu, Jan 27, 2011 at 06:18:07PM -0500, Rik van Riel wrote:
+> On 01/27/2011 04:31 PM, Mel Gorman wrote:
+>
+>> Whatever the final solution, it both needs to prevent too much memory
+>> being reclaimed and allow kswapd to go to sleep if there is no
+>> indication from the page allocator that it should stay awake.
+>
+> A third requirement:
+>
+> If one zone has a lot lower memory pressure than another zone,
+> we want to do relatively more memory allocations from that zone,
+> than from a zone where the memory is heavily used.
+>
 
-> I can still reproduce this similar failure on both AMD and Intel NUMA
-> systems using the latest linus tree with the commit you mentioned.
-> Unfortunately, I can't get a clear sysrq/console output of it but only
-> a part of it (screenshot attached).
-> 
-> It at least very easy to reproduce it for me by running LTP oom01 test
-> for both Magny-Cours and Nehalem-EX NUMA systems.
-> 
+Risky. Allocations could end up using a lower zone than required causing
+a form of lowmem pressure when highmem should have been used. Worse,
+it'll be unnoticable on x86-64 but potentially cause problems on x86-32
+that are easily missed.
 
-Are you sure this is the same issue?  The picture you provided doesn't 
-show the top of the stack so I don't know what it's doing, but the 
-original report had this:
+> If kswapd only ever goes up to the high watermark, and also uses
+> that as its sleep point, the allocations end up corresponding to
+> zone size alone and not to memory pressure.
+>
 
-oom02           R  running task        0  2023   1969 0x00000088
- 0000000000000282 ffff88041d219df0 ffff88041fbf8ef0 ffffffff81100800
- ffff880418ab5b18 0000000000000282 ffffffff8100c9ee ffff880418ab5ba8
- 0000000087654321 0000000000000000 ffff880000000000 0000000000000001
-Call Trace:
- [<ffffffff81100800>] ? drain_local_pages+0x0/0x20
- [<ffffffff8100c9ee>] ? apic_timer_interrupt+0xe/0x20
- [<ffffffff81097ea6>] ? smp_call_function_many+0x1b6/0x210
- [<ffffffff81097e82>] ? smp_call_function_many+0x192/0x210
- [<ffffffff81100800>] ? drain_local_pages+0x0/0x20
- [<ffffffff81097f22>] ? smp_call_function+0x22/0x30
- [<ffffffff81068184>] ? on_each_cpu+0x24/0x50
- [<ffffffff810fe68c>] ? drain_all_pages+0x1c/0x20
- [<ffffffff81100d04>] ? __alloc_pages_nodemask+0x4e4/0x840
- [<ffffffff81138e09>] ? alloc_page_vma+0x89/0x140
- [<ffffffff8111c481>] ? handle_mm_fault+0x871/0xd80
- [<ffffffff814a4ecd>] ? schedule+0x3fd/0x980
- [<ffffffff8100c9ee>] ? apic_timer_interrupt+0xe/0x20
- [<ffffffff8100c9ee>] ? apic_timer_interrupt+0xe/0x20
- [<ffffffff814aadd3>] ? do_page_fault+0x143/0x4b0
- [<ffffffff8100a7b4>] ? __switch_to+0x194/0x320
- [<ffffffff814a4ecd>] ? schedule+0x3fd/0x980
- [<ffffffff814a7ad5>] ? page_fault+0x25/0x30
+hmm.
 
-and the reported symptom was kswapd running excessively.  I'm pretty sure 
-I fixed that with 2ff754fa8f41 (mm: clear pages_scanned only if draining a 
-pcp adds pages to the buddy allocator).
+> Going a little bit above the high watermark (1% of zone size?
+> high + min watermark?) will help balance things out between zones.
+>
+>>>   			if (!zone_watermark_ok_safe(zone, order,
+>>> -					8*high_wmark_pages(zone), end_zone, 0))
+>>> +					(zone->present_pages +
+>>> +					 KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
+>>> +					 KSWAPD_ZONE_BALANCE_GAP_RATIO +
+>>> +					high_wmark_pages(zone), end_zone, 0))
+>>
+>> Rik has already pointed out that this potentially is a very large gap
+>> but that is an addressable problem if the final decision goes this
+>> direction.
+>
+> I was wrong.  I guess on some systems the min watermark can be less
+> than 1% and (high + min) may be better, but on most systems the
+> number of pages should be about the same.
+>
+> Maybe we should use high_wmark_pages(zone) + low_wmark_pages(zone)
+> for easy readability?
+>
 
-Absent the dmesg, it's going to be very difficult to diagnose an issue 
-that isn't a panic.
+I'd be ok with high+low as a starting point to solve the immediate
+problem of way too much memory being free and then treat "kswapd must go
+to sleep" as a separate problem. I'm less keen on 1% but only because it
+could be too large a value.
+
+-- 
+Mel Gorman
+Linux Technology Center
+IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
