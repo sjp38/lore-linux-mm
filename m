@@ -1,43 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 65F998D0039
-	for <linux-mm@kvack.org>; Fri, 28 Jan 2011 15:55:37 -0500 (EST)
-Message-ID: <4D432D2D.4020504@redhat.com>
-Date: Fri, 28 Jan 2011 15:55:09 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D23EE8D0039
+	for <linux-mm@kvack.org>; Sat, 29 Jan 2011 07:47:58 -0500 (EST)
+Received: by pzk27 with SMTP id 27so735192pzk.14
+        for <linux-mm@kvack.org>; Sat, 29 Jan 2011 04:47:56 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: too big min_free_kbytes
-References: <20110127213106.GA25933@csn.ul.ie> <4D41FD2F.3050006@redhat.com> <20110128103539.GA14669@csn.ul.ie> <20110128162831.GH16981@random.random> <20110128164624.GA23905@csn.ul.ie> <4D42F9E3.2010605@redhat.com> <20110128174644.GM16981@random.random> <4D430506.2070502@redhat.com> <20110128182407.GO16981@random.random> <4D431A47.90408@redhat.com> <20110128194542.GV16981@random.random>
-In-Reply-To: <20110128194542.GV16981@random.random>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20110128122229.6a4c74a2.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110128122229.6a4c74a2.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Sat, 29 Jan 2011 18:17:56 +0530
+Message-ID: <AANLkTiktzgxEVROyB=-0ZNq5xzao1Q-Cu3xpGqhx0gxm@mail.gmail.com>
+Subject: Re: [BUGFIX][PATCH 0/4] Fixes for memcg with THP
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On 01/28/2011 02:45 PM, Andrea Arcangeli wrote:
-> On Fri, Jan 28, 2011 at 02:34:31PM -0500, Rik van Riel wrote:
->> It will block at high+gap only when one zone has really
->> easily reclaimable memory, and another zone has difficult
->> to free memory.
+On Fri, Jan 28, 2011 at 8:52 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
 >
-> The other zone doesn't need to be difficult to free up. All ram in
-> immediately freeable clean cache is the most common case there is. And
-> it's more than enough to trigger the scenario in prev email.
+> On recent -mm, when I run make -j 8 under 200M limit of memcg, as
+> ==
+> # mount -t cgroup none /cgroup/memory -o memory
+> # mkdir /cgroup/memory/A
+> # echo 200M > /cgroup/memory/A/memory.limit_in_bytes
+> # echo $$ > /cgroup/memory/A/tasks
+> # make -j 8 kernel
+> ==
 >
->> That creates a free memory differential between the
->> easy to free and difficult to free memory zones.
+> I see hangs with khugepaged. That's because memcg's memory reclaim
+> routine doesn't handle HUGE_PAGE request in proper way. And khugepaged
+> doesn't know about memcg.
 >
-> There's no difficult to free zone in this scenario.
+> This patch set is for fixing above hang. Patch 1-3 seems obvious and
+> has the same concept as patches in RHEL.
 
-In that case, every zone will go down to the low watermark
-before kswapd is woken up.
+Do you have any backtraces? Are they in the specific patches?
 
-At that point, kswapd will reclaim until every zone is at
-the high watermark, and go back to sleep.
-
-There is no "free up to high + gap" in your scenario.
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
