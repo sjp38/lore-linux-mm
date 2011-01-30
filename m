@@ -1,96 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1E21E8D0039
-	for <linux-mm@kvack.org>; Sun, 30 Jan 2011 02:15:56 -0500 (EST)
-From: Tao Ma <tm@tao.ma>
-Subject: [PATCH] mlock: revert the optimization for dirtying pages and triggering writeback.
-Date: Sun, 30 Jan 2011 15:15:20 +0800
-Message-Id: <1296371720-4176-1-git-send-email-tm@tao.ma>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id F359C8D0039
+	for <linux-mm@kvack.org>; Sun, 30 Jan 2011 05:26:34 -0500 (EST)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
+	by smtp-out.google.com with ESMTP id p0UAQUct031372
+	for <linux-mm@kvack.org>; Sun, 30 Jan 2011 02:26:33 -0800
+Received: from qyk33 (qyk33.prod.google.com [10.241.83.161])
+	by hpaq14.eem.corp.google.com with ESMTP id p0UAQSi5012142
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 30 Jan 2011 02:26:29 -0800
+Received: by qyk33 with SMTP id 33so4757466qyk.2
+        for <linux-mm@kvack.org>; Sun, 30 Jan 2011 02:26:28 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1296371720-4176-1-git-send-email-tm@tao.ma>
+References: <1296371720-4176-1-git-send-email-tm@tao.ma>
+Date: Sun, 30 Jan 2011 02:26:27 -0800
+Message-ID: <AANLkTik1dt1Q9TA+JmdvkuOqmt5LB2iZ1X2B5GbBFx1+@mail.gmail.com>
+Subject: Re: [PATCH] mlock: revert the optimization for dirtying pages and
+ triggering writeback.
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Tao Ma <tm@tao.ma>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Tao Ma <boyu.mt@taobao.com>
+On Sat, Jan 29, 2011 at 11:15 PM, Tao Ma <tm@tao.ma> wrote:
+> =A0 =A0 =A0 =A0buf =3D mmap(NULL, file_len, PROT_WRITE, MAP_SHARED, fd, 0=
+);
+> =A0 =A0 =A0 =A0if (buf =3D=3D MAP_FAILED) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0perror("mmap");
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto out;
+> =A0 =A0 =A0 =A0}
+>
+> =A0 =A0 =A0 =A0if (mlock(buf, file_len) < 0) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0perror("mlock");
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto out;
+> =A0 =A0 =A0 =A0}
 
-In 5ecfda0, we do some optimization in mlock, but it causes
-a very basic test case(attached below) of mlock to fail. So
-this patch revert it with some tiny modification so that it
-apply successfully with the lastest 38-rc2 kernel.
-The test program is attached below.
+Thanks Tao for tracing this to an individual change. I can reproduce
+this on my system. The issue is that the file is mapped without the
+PROT_READ permission, so mlock can't fault in the pages. Up to 2.6.37
+this worked because mlock was using a write.
 
-#include <sys/mman.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/types.h>
+The test case does show there was a behavior change; however it's not
+clear to me that the tested behavior is valid.
 
-int main()
-{
-	char *buf, *testfile = "test_mmap";
-	int fd, file_len = 40960, ret = -1;
+I can see two possible resolutions:
 
-	fd = open(testfile, O_RDWR);
-	if (fd < 0) {
-		perror("open");
-		return -1;
-	}
+1- do nothing, if we can agree that the test case is invalid
 
-	if (ftruncate(fd, file_len) < 0) {
-		perror("ftruncate");
-		goto out;
-	}
+2- restore the previous behavior for writable, non-readable, shared
+mappings while preserving the optimization for read/write shared
+mappings. The test would then look like:
+        if ((vma->vm_flags & VM_WRITE) && (vma->vm_flags & (VM_READ |
+VM_SHARED)) !=3D VM_SHARED)
+                gup_flags |=3D FOLL_WRITE;
 
-	buf = mmap(NULL, file_len, PROT_WRITE, MAP_SHARED, fd, 0);
-	if (buf == MAP_FAILED) {
-		perror("mmap");
-		goto out;
-	}
-
-	if (mlock(buf, file_len) < 0) {
-		perror("mlock");
-		goto out;
-	}
-
-	munlock(buf, file_len);
-	munmap(buf, file_len);
-	ret = 0;
-out:
-	close(fd);
-	return ret;
-}
-
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Tao Ma <boyu.mt@taobao.com>
----
- mm/mlock.c |    8 ++------
- 1 files changed, 2 insertions(+), 6 deletions(-)
-
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 13e81ee..76e106c 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -170,12 +170,8 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
- 	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
- 
- 	gup_flags = FOLL_TOUCH;
--	/*
--	 * We want to touch writable mappings with a write fault in order
--	 * to break COW, except for shared mappings because these don't COW
--	 * and we would not want to dirty them for nothing.
--	 */
--	if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
-+
-+	if (vma->vm_flags & VM_WRITE)
- 		gup_flags |= FOLL_WRITE;
- 
- 	if (vma->vm_flags & VM_LOCKED)
--- 
-1.6.3.GIT
+--=20
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
