@@ -1,59 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 06CFF8D0039
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 17:40:27 -0500 (EST)
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0VMbmwC030852
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 15:37:48 -0700
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0VMeHOI112580
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 15:40:17 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0VMeHSj020383
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 15:40:17 -0700
-Subject: Re: kswapd hung tasks in 2.6.38-rc1
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1296507528.7797.4609.camel@nimitz>
-References: 
-	 <1150342867.83404.1295513748640.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-	 <1296507528.7797.4609.camel@nimitz>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Mon, 31 Jan 2011 14:40:16 -0800
-Message-ID: <1296513616.7797.4929.camel@nimitz>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B6FD08D0039
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 17:42:13 -0500 (EST)
+Date: Mon, 31 Jan 2011 14:41:31 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 2/3] memcg: prevent endless loop when charging huge
+ pages to near-limit group
+Message-Id: <20110131144131.6733aa3a.akpm@linux-foundation.org>
+In-Reply-To: <1296482635-13421-3-git-send-email-hannes@cmpxchg.org>
+References: <1296482635-13421-1-git-send-email-hannes@cmpxchg.org>
+	<1296482635-13421-3-git-send-email-hannes@cmpxchg.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: CAI Qian <caiqian@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, aarcange <aarcange@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, balbir@linux.vnet.ibm.com, minchan.kim@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2011-01-31 at 12:58 -0800, Dave Hansen wrote:
-> On Thu, 2011-01-20 at 03:55 -0500, CAI Qian wrote:
-> > When running LTP oom01 [1] testing, the allocation process stopped
-> > processing right after starting to swap.
-> 
-> I'm seeing the same stuff, but on -rc2.  I thought it was
-> transparent-hugepage-related, but I don't see much of a trace of it in
-> the stack dumps.
-> 
-> http://sr71.net/~dave/ibm/config-v2.6.38-rc2
-> 
-> It happened to me as well around the time that things started to hit
-> swap.
+On Mon, 31 Jan 2011 15:03:54 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-Still not a very good data point, but I ran a heavy swap load for an
-hour or so without reproducing this.  But, it happened again after I
-enabled transparent huge pages.  I managed to get a sysrq-t dump out of
-it:
+> +static inline bool res_counter_check_margin(struct res_counter *cnt,
+> +					    unsigned long bytes)
+> +{
+> +	bool ret;
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&cnt->lock, flags);
+> +	ret = cnt->limit - cnt->usage >= bytes;
+> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +	return ret;
+> +}
+> +
+>  static inline bool res_counter_check_under_soft_limit(struct res_counter *cnt)
+>  {
+>  	bool ret;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 73ea323..c28072f 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1111,6 +1111,15 @@ static bool mem_cgroup_check_under_limit(struct mem_cgroup *mem)
+>  	return false;
+>  }
+>  
+> +static bool mem_cgroup_check_margin(struct mem_cgroup *mem, unsigned long bytes)
+> +{
+> +	if (!res_counter_check_margin(&mem->res, bytes))
+> +		return false;
+> +	if (do_swap_account && !res_counter_check_margin(&mem->memsw, bytes))
+> +		return false;
+> +	return true;
+> +}
 
-	http://sr71.net/~dave/ibm/2.6.38-rc2-hang-0.txt
+argh.
 
-khugepaged is one of the three running tasks.  Note, I set both its
-sleep timeouts to zero to stress it out a bit.
+If you ever have a function with the string "check" in its name, it's a
+good sign that you did something wrong.
 
-I'll keep trying to reproduce without THP.
+Check what?  Against what?  Returning what?
 
--- Dave
+mem_cgroup_check_under_limit() isn't toooo bad - the name tells you
+what's being checked and tells you what to expect the return value to
+mean.
+
+But "res_counter_check_margin" and "mem_cgroup_check_margin" are just
+awful.  Something like
+
+	bool res_counter_may_charge(counter, bytes)
+
+would be much clearer.
+
+If we really want to stick with the "check" names (perhaps as an ironic
+reference to res_counter's past mistakes) then please at least document
+the sorry things?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
