@@ -1,111 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 86F4F8D0039
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 10:30:59 -0500 (EST)
-Subject: RE: [RFC - CFP] Linux Storage and Filesystems Workshop (April 4-5)
-From: Trond Myklebust <Trond.Myklebust@netapp.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Mon, 31 Jan 2011 10:30:54 -0500
-Message-ID: <1296487854.9360.10.camel@heimdal.trondhjem.org>
-Mime-Version: 1.0
+	by kanga.kvack.org (Postfix) with SMTP id 8832A8D0039
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 10:41:24 -0500 (EST)
+From: Tao Ma <tm@tao.ma>
+Subject: [PATCH v2] mlock: set VM_WRITE in case we don't have read permission.
+Date: Mon, 31 Jan 2011 23:41:03 +0800
+Message-Id: <1296488463-15179-1-git-send-email-tm@tao.ma>
+In-Reply-To: <20110131203943.4C77.A69D9226@jp.fujitsu.com>
+References: <20110131203943.4C77.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, Linux Filesystem Development <linux-fsdevel@vger.kernel.org>, linux-scsi@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+From: Tao Ma <boyu.mt@taobao.com>
 
-Just a reminder to everyone that the deadline for suggesting discussion
-topics (and for requesting attendance) at the LSF/MM 2011 is next Monday
-6th of February.
+In 5ecfda0, we do some optimization in mlock, but it causes
+a very basic test case(attached below) of mlock to fail. So
+this patch add another check that if we don't have read permission,
+still set FOLL_WRITE flag. Thank KOSAKI for the suggestion.
+The test program is attached below.
 
-We will start sending out invitations this week to ensure that those of
-you who need visas have enough time to apply. Please do send a note to
-lsf-pc@lists.linuxfoundation.org if you require a formal letter of
-invitation in order to apply for a US visa.
+#include <sys/mman.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
 
-Cheers,
-   Trond Myklebust (on behalf of the program committee)
+int main()
+{
+	char *buf, *testfile = "test_mmap";
+	int fd, file_len = 40960, ret = -1;
 
----------------------------------------------------------------------------=
-----=20
+	fd = open(testfile, O_RDWR);
+	if (fd < 0) {
+		perror("open");
+		return -1;
+	}
 
-The annual Linux Storage, Filesystem and Memory Management Workshop for
-2011 will be held on the 2 days preceding the Linux Foundation
-Collaboration Summit at Hotel Kabuki in the Japantown area of San
-Francisco:
+	if (ftruncate(fd, file_len) < 0) {
+		perror("ftruncate");
+		goto out;
+	}
 
-   http://events.linuxfoundation.org/events/collaboration-summit
+	buf = mmap(NULL, file_len, PROT_WRITE, MAP_SHARED, fd, 0);
+	if (buf == MAP_FAILED) {
+		perror("mmap");
+		goto out;
+	}
 
-Given the success of last year's 3 track experiment, we are once again
-planning to hold some joint sessions and the rest split into separate
-Storage, Filesystem and Memory Management breakout sessions. We'd
-therefore like to issue a call for agenda proposals that are suitable
-for cross-track discussion as well as more technical subjects for
-discussion in the breakout sessions.
+	if (mlock(buf, file_len) < 0) {
+		perror("mlock");
+		goto out;
+	}
 
-Suggestions for agenda topics should be sent before February 6th to
+	munlock(buf, file_len);
+	munmap(buf, file_len);
+	ret = 0;
+out:
+	close(fd);
+	return ret;
+}
 
-lsf-pc@lists.linuxfoundation.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Michel Lespinasse <walken@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Tao Ma <boyu.mt@taobao.com>
+---
+ mm/mlock.c |    7 +++++++
+ 1 files changed, 7 insertions(+), 0 deletions(-)
 
-and optionally cc the Linux list which would be most interested in it:
-
-SCSI: linux-scsi@vger.kernel.org
-FS: linux-fsdevel@vger.kernel.org
-MM: linux-mm@kvack.org
-
-Please remember to tag your subject with [LSF/MM TOPIC] to make it
-easier to track. Agenda topics and attendees will be selected by the
-programme committee, but the final agenda will be by formed by consensus
-of the attendees on the day.
-
-We'll try to cap attendance at around 25-30 per track to facilitate
-discussions although the final numbers will depend on the room sizes at
-the venue.
-
-Requests to attend should be sent to:
-
-lsf-pc@lists.linuxfoundation.org
-
-please summarize what expertise you will bring to the meeting, and what
-you'd like to discuss.  please also tag your email with [ATTEND] so
-there's less chance of it getting lost in the large mail pile.
-
-Presentations are allowed to guide discussion, but are strongly
-discouraged.  There will be no recording or audio bridge, however
-written minutes will be published as in previous years:
-
-2010:
-http://lwn.net/Articles/399148/
-http://lwn.net/Articles/399313/
-http://lwn.net/Articles/400589/
-
-2009:
-http://lwn.net/Articles/327601/
-http://lwn.net/Articles/327740/
-http://lwn.net/Articles/328347/
-
-Prior years:
-http://www.usenix.org/events/lsf08/tech/lsf08sums.pdf
-http://www.usenix.org/publications/login/2007-06/openpdfs/lsf07sums.pdf
-
-If you have feedback on last year's meeting that we can use to improve
-this year's, please also send that to:
-
-lsf-pc@lists.linuxfoundation.org
-
-On behalf of the Program Committee, Thanks,
-
-.........
-
-
---=20
-Trond Myklebust
-Linux NFS client maintainer
-
-NetApp
-Trond.Myklebust@netapp.com
-www.netapp.com
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 13e81ee..8508c5a 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -178,6 +178,13 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
+ 	if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
+ 		gup_flags |= FOLL_WRITE;
+ 
++	/*
++	 * We don't have readable permission. Therefore we can't use read
++	 * operation even though it's faster.
++	 */
++	if ((vma->vm_flags & (VM_READ|VM_WRITE)) == VM_WRITE)
++		gup_flags |= FOLL_WRITE;
++
+ 	if (vma->vm_flags & VM_LOCKED)
+ 		gup_flags |= FOLL_MLOCK;
+ 
+-- 
+1.6.3.GIT
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
