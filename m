@@ -1,98 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8832A8D0039
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 10:41:24 -0500 (EST)
-From: Tao Ma <tm@tao.ma>
-Subject: [PATCH v2] mlock: set VM_WRITE in case we don't have read permission.
-Date: Mon, 31 Jan 2011 23:41:03 +0800
-Message-Id: <1296488463-15179-1-git-send-email-tm@tao.ma>
-In-Reply-To: <20110131203943.4C77.A69D9226@jp.fujitsu.com>
-References: <20110131203943.4C77.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id EBBD08D0039
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 11:55:32 -0500 (EST)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0VGVbOW027226
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 11:31:39 -0500
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 064FC728063
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 11:55:25 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0VGtO4f392818
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 11:55:24 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0VGtOZn025469
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 11:55:24 -0500
+Message-ID: <4D46E97B.4060604@austin.ibm.com>
+Date: Mon, 31 Jan 2011 10:55:23 -0600
+From: Nathan Fontenot <nfont@austin.ibm.com>
+MIME-Version: 1.0
+Subject: [PATCH] sysfs probe routine should add all memory sections
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Greg KH <greg@kroah.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Robin Holt <holt@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Tao Ma <boyu.mt@taobao.com>
+As a follow-on to the recent patches I submitted that allowed for a sysfs
+memory block to span multiple memory sections, we should also update the
+probe routine to online all of the memory sections in a memory block.  Without
+this patch the current code will only add a single memory section.  I think
+the probe routine should add all of the memory sections in the specified memory
+block so that its behavior is in line with memory hotplug actions through
+the sysfs interfaces.
 
-In 5ecfda0, we do some optimization in mlock, but it causes
-a very basic test case(attached below) of mlock to fail. So
-this patch add another check that if we don't have read permission,
-still set FOLL_WRITE flag. Thank KOSAKI for the suggestion.
-The test program is attached below.
+This patch applies on top of the previous sysfs memory updates to allow
+a sysfs directory o span multiple memory sections.
 
-#include <sys/mman.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/types.h>
+https://lkml.org/lkml/2011/1/20/245
 
-int main()
-{
-	char *buf, *testfile = "test_mmap";
-	int fd, file_len = 40960, ret = -1;
-
-	fd = open(testfile, O_RDWR);
-	if (fd < 0) {
-		perror("open");
-		return -1;
-	}
-
-	if (ftruncate(fd, file_len) < 0) {
-		perror("ftruncate");
-		goto out;
-	}
-
-	buf = mmap(NULL, file_len, PROT_WRITE, MAP_SHARED, fd, 0);
-	if (buf == MAP_FAILED) {
-		perror("mmap");
-		goto out;
-	}
-
-	if (mlock(buf, file_len) < 0) {
-		perror("mlock");
-		goto out;
-	}
-
-	munlock(buf, file_len);
-	munmap(buf, file_len);
-	ret = 0;
-out:
-	close(fd);
-	return ret;
-}
-
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Tao Ma <boyu.mt@taobao.com>
+Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
 ---
- mm/mlock.c |    7 +++++++
- 1 files changed, 7 insertions(+), 0 deletions(-)
+ drivers/base/memory.c |   13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
 
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 13e81ee..8508c5a 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -178,6 +178,13 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
- 	if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
- 		gup_flags |= FOLL_WRITE;
+Index: linux-next/drivers/base/memory.c
+===================================================================
+--- linux-next.orig/drivers/base/memory.c	2011-01-28 14:14:20.000000000 -0600
++++ linux-next/drivers/base/memory.c	2011-01-31 09:10:11.000000000 -0600
+@@ -387,12 +387,19 @@ memory_probe_store(struct class *class,
+ {
+ 	u64 phys_addr;
+ 	int nid;
+-	int ret;
++	int i, ret;
  
-+	/*
-+	 * We don't have readable permission. Therefore we can't use read
-+	 * operation even though it's faster.
-+	 */
-+	if ((vma->vm_flags & (VM_READ|VM_WRITE)) == VM_WRITE)
-+		gup_flags |= FOLL_WRITE;
+ 	phys_addr = simple_strtoull(buf, NULL, 0);
+ 
+-	nid = memory_add_physaddr_to_nid(phys_addr);
+-	ret = add_memory(nid, phys_addr, PAGES_PER_SECTION << PAGE_SHIFT);
++	for (i = 0; i < sections_per_block; i++) {
++		nid = memory_add_physaddr_to_nid(phys_addr);
++		ret = add_memory(nid, phys_addr,
++				 PAGES_PER_SECTION << PAGE_SHIFT);
++		if (ret)
++			break;
 +
- 	if (vma->vm_flags & VM_LOCKED)
- 		gup_flags |= FOLL_MLOCK;
++		phys_addr += MIN_MEMORY_BLOCK_SIZE;
++	}
  
--- 
-1.6.3.GIT
+ 	if (ret)
+ 		count = ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
