@@ -1,66 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 40D418D0039
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 18:20:09 -0500 (EST)
-Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0VN1iCL024634
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 18:01:45 -0500
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 99A2572805B
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 18:20:06 -0500 (EST)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0VNK6nt336396
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 18:20:06 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0VNK6UR031505
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 18:20:06 -0500
-Subject: Re: kswapd hung tasks in 2.6.38-rc1
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E9EFB8D0039
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 18:31:19 -0500 (EST)
+Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p0VNCutG001610
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 18:12:56 -0500
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 02B334DE803F
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 18:30:46 -0500 (EST)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p0VNVH4b380940
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 18:31:17 -0500
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p0VNVH5M009277
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 16:31:17 -0700
+Subject: wait_split_huge_page() dependence on rmap.h
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110131231301.GP16981@random.random>
-References: 
-	 <1150342867.83404.1295513748640.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-	 <1296507528.7797.4609.camel@nimitz> <1296513616.7797.4929.camel@nimitz>
-	 <20110131231301.GP16981@random.random>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Mon, 31 Jan 2011 15:20:03 -0800
-Message-ID: <1296516003.7797.5061.camel@nimitz>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 31 Jan 2011 15:31:15 -0800
+Message-ID: <1296516675.7797.5110.camel@nimitz>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: CAI Qian <caiqian@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: linux-mm <linux-mm@kvack.org>
+Cc: aarcange <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2011-02-01 at 00:13 +0100, Andrea Arcangeli wrote:
-> On Mon, Jan 31, 2011 at 02:40:16PM -0800, Dave Hansen wrote:
-> > Still not a very good data point, but I ran a heavy swap load for an
-> > hour or so without reproducing this.  But, it happened again after I
-> > enabled transparent huge pages.  I managed to get a sysrq-t dump out of
-> > it:
-> > 
-> > 	http://sr71.net/~dave/ibm/2.6.38-rc2-hang-0.txt
-> > 
-> > khugepaged is one of the three running tasks.  Note, I set both its
-> > sleep timeouts to zero to stress it out a bit.
-> 
-> sysrq+l? sysrq+t doesn't provide interesting info for running tasks.
+wait_split_huge_page() is really only used in a few spots at the moment.
+I was trying to use it in fs/proc/task_mmu.c, but simply including
+huge_mm.h gets this:
 
-I'll try to get a sysrq-l dump.
+fs/proc/task_mmu.c: In function a??smaps_pte_rangea??:
+fs/proc/task_mmu.c:392: error: dereferencing pointer to incomplete type
 
-> > I'll keep trying to reproduce without THP.
-> 
-> BTW, do you have prove locking enabled? With recent git I get a
-> deadlock inside _raw_spin_unlock_irq with prove locking enabled and it
-> goes away when I disable it.
+I think it's due to the __anon_vma dereference below.  #including rmap.h
+makes it go away, but I don't think it's really the correct thing to do
+here.  Directly including rmap.h in huge_mm.h ends up with some really
+interesting header dependencies and does not work either.
 
-Nope:
+Any ideas?  Should we move the existing huge_mm.h stuff to a private
+header and have a more public one that also brings in rmap.h?
 
-$ grep PROVE ../mhp-build/x86_64-elm3b82/.config
-# CONFIG_PROVE_LOCKING is not set
+#define wait_split_huge_page(__anon_vma, __pmd)                         \
+        do {                                                            \
+                pmd_t *____pmd = (__pmd);                               \
+                spin_unlock_wait(&(__anon_vma)->root->lock);            \
+                /*                                                      \
+                 * spin_unlock_wait() is just a loop in C and so the    \
+                 * CPU can reorder anything around it.                  \
+                 */                                                     \
+                smp_mb();                                               \
+                BUG_ON(pmd_trans_splitting(*____pmd) ||                 \
+                       pmd_trans_huge(*____pmd));                       \
+        } while (0)
 
-Full .config is here
-
-	http://sr71.net/~dave/ibm/config-v2.6.38-rc2
 
 -- Dave
 
