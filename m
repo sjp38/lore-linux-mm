@@ -1,93 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 49CDB8D0039
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 18:54:40 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id DC89A3EE0B3
-	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 08:54:36 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C177245DE57
-	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 08:54:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A8A4945DE4D
-	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 08:54:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A97B1DB803C
-	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 08:54:36 +0900 (JST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C1C778D0039
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 18:56:26 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E0D143EE0B3
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 08:56:23 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C597345DE61
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 08:56:23 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id ABBFB45DE4E
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 08:56:23 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9ED911DB803E
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 08:56:23 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AA401DB8037
-	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 08:54:36 +0900 (JST)
-Date: Tue, 1 Feb 2011 08:48:29 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 692A01DB8038
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 08:56:23 +0900 (JST)
+Date: Tue, 1 Feb 2011 08:50:21 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 1/3] memcg: prevent endless loop when charging huge
- pages
-Message-Id: <20110201084829.86b7290c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1296482635-13421-2-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch 2/3] memcg: prevent endless loop when charging huge
+ pages to near-limit group
+Message-Id: <20110201085021.fa975a56.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110131144131.6733aa3a.akpm@linux-foundation.org>
 References: <1296482635-13421-1-git-send-email-hannes@cmpxchg.org>
-	<1296482635-13421-2-git-send-email-hannes@cmpxchg.org>
+	<1296482635-13421-3-git-send-email-hannes@cmpxchg.org>
+	<20110131144131.6733aa3a.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: akpm@linux-foundation.org, nishimura@mxp.nes.nec.co.jp, balbir@linux.vnet.ibm.com, minchan.kim@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, nishimura@mxp.nes.nec.co.jp, balbir@linux.vnet.ibm.com, minchan.kim@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 31 Jan 2011 15:03:53 +0100
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Mon, 31 Jan 2011 14:41:31 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> The charging code can encounter a charge size that is bigger than a
-> regular page in two situations: one is a batched charge to fill the
-> per-cpu stocks, the other is a huge page charge.
+> On Mon, 31 Jan 2011 15:03:54 +0100
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> This code is distributed over two functions, however, and only the
-> outer one is aware of huge pages.  In case the charging fails, the
-> inner function will tell the outer function to retry if the charge
-> size is bigger than regular pages--assuming batched charging is the
-> only case.  And the outer function will retry forever charging a huge
-> page.
+> > +static inline bool res_counter_check_margin(struct res_counter *cnt,
+> > +					    unsigned long bytes)
+> > +{
+> > +	bool ret;
+> > +	unsigned long flags;
+> > +
+> > +	spin_lock_irqsave(&cnt->lock, flags);
+> > +	ret = cnt->limit - cnt->usage >= bytes;
+> > +	spin_unlock_irqrestore(&cnt->lock, flags);
+> > +	return ret;
+> > +}
+> > +
+> >  static inline bool res_counter_check_under_soft_limit(struct res_counter *cnt)
+> >  {
+> >  	bool ret;
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 73ea323..c28072f 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -1111,6 +1111,15 @@ static bool mem_cgroup_check_under_limit(struct mem_cgroup *mem)
+> >  	return false;
+> >  }
+> >  
+> > +static bool mem_cgroup_check_margin(struct mem_cgroup *mem, unsigned long bytes)
+> > +{
+> > +	if (!res_counter_check_margin(&mem->res, bytes))
+> > +		return false;
+> > +	if (do_swap_account && !res_counter_check_margin(&mem->memsw, bytes))
+> > +		return false;
+> > +	return true;
+> > +}
 > 
-> This patch makes sure the inner function can distinguish between batch
-> charging and a single huge page charge.  It will only signal another
-> attempt if batch charging failed, and go into regular reclaim when it
-> is called on behalf of a huge page.
+> argh.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> If you ever have a function with the string "check" in its name, it's a
+> good sign that you did something wrong.
+> 
+> Check what?  Against what?  Returning what?
+> 
+> mem_cgroup_check_under_limit() isn't toooo bad - the name tells you
+> what's being checked and tells you what to expect the return value to
+> mean.
+> 
+> But "res_counter_check_margin" and "mem_cgroup_check_margin" are just
+> awful.  Something like
+> 
+> 	bool res_counter_may_charge(counter, bytes)
+> 
+> would be much clearer.
+> 
+> If we really want to stick with the "check" names (perhaps as an ironic
+> reference to res_counter's past mistakes) then please at least document
+> the sorry things?
+> 
 
-Thank you very much.
+Ah, I ack the concept of patch.
 
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> ---
->  mm/memcontrol.c |   11 +++++++++--
->  1 files changed, 9 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index d572102..73ea323 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1837,8 +1837,15 @@ static int __mem_cgroup_do_charge(struct mem_cgroup *mem, gfp_t gfp_mask,
->  		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
->  	} else
->  		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
-> -
-> -	if (csize > PAGE_SIZE) /* change csize and retry */
-> +	/*
-> +	 * csize can be either a huge page (HPAGE_SIZE), a batch of
-> +	 * regular pages (CHARGE_SIZE), or a single regular page
-> +	 * (PAGE_SIZE).
-> +	 *
-> +	 * Never reclaim on behalf of optional batching, retry with a
-> +	 * single page instead.
-> +	 */
-> +	if (csize == CHARGE_SIZE)
->  		return CHARGE_RETRY;
->  
->  	if (!(gfp_mask & __GFP_WAIT))
-> -- 
-> 1.7.3.5
-> 
-> 
+Johannes, could you change name ? I'm sorry.
+
+
+
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
