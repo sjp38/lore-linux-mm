@@ -1,113 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 774048D0039
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:55:51 -0500 (EST)
-Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
-	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p110aTeZ014309
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:36:30 -0500
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 541984DE803F
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:55:17 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p110tnGw400756
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:55:49 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p110tmOo026949
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:55:48 -0500
-Subject: [RFC][PATCH] trace transparent huge page splits
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Mon, 31 Jan 2011 16:55:47 -0800
-Message-Id: <20110201005547.85774260@kernel>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A3FBA8D0039
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 20:03:52 -0500 (EST)
+Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
+	by smtp-out.google.com with ESMTP id p1113mLe013725
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 17:03:49 -0800
+Received: from gxk25 (gxk25.prod.google.com [10.202.11.25])
+	by kpbe11.cbf.corp.google.com with ESMTP id p1113FDb012666
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 17:03:46 -0800
+Received: by gxk25 with SMTP id 25so2681666gxk.37
+        for <linux-mm@kvack.org>; Mon, 31 Jan 2011 17:03:46 -0800 (PST)
+Date: Mon, 31 Jan 2011 17:03:41 -0800
+From: Michel Lespinasse <walken@google.com>
+Subject: [PATCH] mlock: operate on any regions with protection != PROT_NONE
+Message-ID: <20110201010341.GA21676@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Tao Ma <tm@tao.ma>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 List-ID: <linux-mm.kvack.org>
 
+As Tao Ma noticed, change 5ecfda0 breaks blktrace. This is because
+blktrace mmaps a file with PROT_WRITE permissions but without PROT_READ,
+so my attempt to not unnecessarity break COW during mlock ended up
+causing mlock to fail with a permission problem.
 
-When we see transparent huge pages being broken down, we generally
-have no idea of finding anything out about how it happened, or what
-it affected.
+I am proposing to let mlock ignore vma protection in all cases except
+PROT_NONE. In particular, mlock should not fail for PROT_WRITE regions
+(as in the blktrace case, which broke at 5ecfda0) or for PROT_EXEC
+regions (which seem to me like they were always broken).
 
-A simple static tracepoint like this should at least get us some
-minimal information like a stack trace, the virtual address, and
-the mm that it happened to.
+Please review. I am proposing this as a candidate for 2.6.38 inclusion,
+because of the behavior change with blktrace.
 
-I'm not sure if there is a better way to do this with any of the
-other tracing mechanisms, but this seems to work at least for me.
-Does anybody else have a better way?  Is it worth merging this
-kind of stuff, or is it best left out of tree as a debugging
-patch?
-
-Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
----
-
- linux-2.6.git-dave/include/trace/events/huge_memory.h |   32 ++++++++++++++++++
- linux-2.6.git-dave/mm/huge_memory.c                   |    5 ++
- 2 files changed, 37 insertions(+)
-
-diff -puN /dev/null include/trace/events/huge_memory.h
---- /dev/null	2011-01-21 14:16:26.635488000 -0800
-+++ linux-2.6.git-dave/include/trace/events/huge_memory.h	2011-01-31 16:42:37.607926454 -0800
-@@ -0,0 +1,32 @@
-+#undef TRACE_SYSTEM
-+#define TRACE_SYSTEM huge_memory
-+
-+#if !defined(_TRACE_HUGE_MEMORY_H) || defined(TRACE_HEADER_MULTI_READ)
-+#define _TRACE_HUGE_MEMORY_H
-+
-+#include <linux/types.h>
-+#include <linux/tracepoint.h>
-+
-+TRACE_EVENT(mm_huge_memory_split,
-+
-+	TP_PROTO(struct mm_struct *mm, unsigned long address),
-+
-+	TP_ARGS(mm, address),
-+
-+	TP_STRUCT__entry(
-+		__field(struct mm_struct *, mm)
-+		__field(unsigned long,	    address)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->mm	 = mm;
-+		__entry->address = address;
-+	),
-+
-+	TP_printk("mm=%p address=%p", __entry->mm, (void *)__entry->address)
-+);
-+
-+#endif /* _TRACE_HUGE_MEMORY_H */
-+
-+/* This part must be outside protection */
-+#include <trace/define_trace.h>
-diff -puN include/linux/huge_mm.h~huge_mem_trace include/linux/huge_mm.h
-diff -puN mm/huge_memory.c~huge_mem_trace mm/huge_memory.c
---- linux-2.6.git/mm/huge_memory.c~huge_mem_trace	2011-01-31 16:40:38.752014520 -0800
-+++ linux-2.6.git-dave/mm/huge_memory.c	2011-01-31 16:41:15.671987202 -0800
-@@ -21,6 +21,9 @@
- #include <asm/pgalloc.h>
- #include "internal.h"
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 13e81ee..c3924c7f 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -178,6 +178,13 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
+ 	if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
+ 		gup_flags |= FOLL_WRITE;
  
-+#define CREATE_TRACE_POINTS
-+#include <trace/events/huge_memory.h>
++	/*
++	 * We want mlock to succeed for regions that have any permissions
++	 * other than PROT_NONE.
++	 */
++	if (vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC))
++		gup_flags |= FOLL_FORCE;
 +
- /*
-  * By default transparent hugepage support is enabled for all mappings
-  * and khugepaged scans all mappings. Defrag is only invoked by
-@@ -1254,6 +1257,8 @@ static int __split_huge_page_map(struct 
- 	pgtable_t pgtable;
- 	unsigned long haddr;
+ 	if (vma->vm_flags & VM_LOCKED)
+ 		gup_flags |= FOLL_MLOCK;
  
-+	trace_mm_huge_memory_split(vma->vm_mm, address);
-+
- 	spin_lock(&mm->page_table_lock);
- 	pmd = page_check_address_pmd(page, mm, address,
- 				     PAGE_CHECK_ADDRESS_PMD_SPLITTING_FLAG);
-diff -puN mm/vmscan.c~huge_mem_trace mm/vmscan.c
-diff -puN mm/page_io.c~huge_mem_trace mm/page_io.c
-diff -puN block/blk-core.c~huge_mem_trace block/blk-core.c
-_
+
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
