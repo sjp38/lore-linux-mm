@@ -1,106 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B77448D0039
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:35:23 -0500 (EST)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p110T4R1018082
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 17:29:04 -0700
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p110Y3xs071746
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 17:34:03 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p110Y33t006333
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 17:34:03 -0700
-Subject: [RFC][PATCH 4/6] pass pte size argument in to smaps_pte_entry()
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 774048D0039
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:55:51 -0500 (EST)
+Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
+	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p110aTeZ014309
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:36:30 -0500
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 541984DE803F
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:55:17 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p110tnGw400756
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:55:49 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p110tmOo026949
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:55:48 -0500
+Subject: [RFC][PATCH] trace transparent huge page splits
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Mon, 31 Jan 2011 16:34:02 -0800
-References: <20110201003357.D6F0BE0D@kernel>
-In-Reply-To: <20110201003357.D6F0BE0D@kernel>
-Message-Id: <20110201003402.5FFC58F0@kernel>
+Date: Mon, 31 Jan 2011 16:55:47 -0800
+Message-Id: <20110201005547.85774260@kernel>
 Sender: owner-linux-mm@kvack.org
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
 
-This patch adds an argument to the new smaps_pte_entry()
-function to let it account in things other than PAGE_SIZE
-units.  I changed all of the PAGE_SIZE sites, even though
-not all of them can be reached for transparent huge pages,
-just so this will continue to work without changes as THPs
-are improved.
+When we see transparent huge pages being broken down, we generally
+have no idea of finding anything out about how it happened, or what
+it affected.
 
+A simple static tracepoint like this should at least get us some
+minimal information like a stack trace, the virtual address, and
+the mm that it happened to.
 
+I'm not sure if there is a better way to do this with any of the
+other tracing mechanisms, but this seems to work at least for me.
+Does anybody else have a better way?  Is it worth merging this
+kind of stuff, or is it best left out of tree as a debugging
+patch?
+
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 ---
 
- linux-2.6.git-dave/fs/proc/task_mmu.c |   24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ linux-2.6.git-dave/include/trace/events/huge_memory.h |   32 ++++++++++++++++++
+ linux-2.6.git-dave/mm/huge_memory.c                   |    5 ++
+ 2 files changed, 37 insertions(+)
 
-diff -puN fs/proc/task_mmu.c~give-smaps_pte_range-a-size-arg fs/proc/task_mmu.c
---- linux-2.6.git/fs/proc/task_mmu.c~give-smaps_pte_range-a-size-arg	2011-01-31 11:14:20.400194563 -0800
-+++ linux-2.6.git-dave/fs/proc/task_mmu.c	2011-01-31 11:15:02.680162163 -0800
-@@ -335,7 +335,7 @@ struct mem_size_stats {
+diff -puN /dev/null include/trace/events/huge_memory.h
+--- /dev/null	2011-01-21 14:16:26.635488000 -0800
++++ linux-2.6.git-dave/include/trace/events/huge_memory.h	2011-01-31 16:42:37.607926454 -0800
+@@ -0,0 +1,32 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM huge_memory
++
++#if !defined(_TRACE_HUGE_MEMORY_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_HUGE_MEMORY_H
++
++#include <linux/types.h>
++#include <linux/tracepoint.h>
++
++TRACE_EVENT(mm_huge_memory_split,
++
++	TP_PROTO(struct mm_struct *mm, unsigned long address),
++
++	TP_ARGS(mm, address),
++
++	TP_STRUCT__entry(
++		__field(struct mm_struct *, mm)
++		__field(unsigned long,	    address)
++	),
++
++	TP_fast_assign(
++		__entry->mm	 = mm;
++		__entry->address = address;
++	),
++
++	TP_printk("mm=%p address=%p", __entry->mm, (void *)__entry->address)
++);
++
++#endif /* _TRACE_HUGE_MEMORY_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+diff -puN include/linux/huge_mm.h~huge_mem_trace include/linux/huge_mm.h
+diff -puN mm/huge_memory.c~huge_mem_trace mm/huge_memory.c
+--- linux-2.6.git/mm/huge_memory.c~huge_mem_trace	2011-01-31 16:40:38.752014520 -0800
++++ linux-2.6.git-dave/mm/huge_memory.c	2011-01-31 16:41:15.671987202 -0800
+@@ -21,6 +21,9 @@
+ #include <asm/pgalloc.h>
+ #include "internal.h"
  
++#define CREATE_TRACE_POINTS
++#include <trace/events/huge_memory.h>
++
+ /*
+  * By default transparent hugepage support is enabled for all mappings
+  * and khugepaged scans all mappings. Defrag is only invoked by
+@@ -1254,6 +1257,8 @@ static int __split_huge_page_map(struct 
+ 	pgtable_t pgtable;
+ 	unsigned long haddr;
  
- static void smaps_pte_entry(pte_t ptent, unsigned long addr,
--		struct mm_walk *walk)
-+		unsigned long ptent_size, struct mm_walk *walk)
- {
- 	struct mem_size_stats *mss = walk->private;
- 	struct vm_area_struct *vma = mss->vma;
-@@ -343,7 +343,7 @@ static void smaps_pte_entry(pte_t ptent,
- 	int mapcount;
- 
- 	if (is_swap_pte(ptent)) {
--		mss->swap += PAGE_SIZE;
-+		mss->swap += ptent_size;
- 		return;
- 	}
- 
-@@ -355,25 +355,25 @@ static void smaps_pte_entry(pte_t ptent,
- 		return;
- 
- 	if (PageAnon(page))
--		mss->anonymous += PAGE_SIZE;
-+		mss->anonymous += ptent_size;
- 
--	mss->resident += PAGE_SIZE;
-+	mss->resident += ptent_size;
- 	/* Accumulate the size in pages that have been accessed. */
- 	if (pte_young(ptent) || PageReferenced(page))
--		mss->referenced += PAGE_SIZE;
-+		mss->referenced += ptent_size;
- 	mapcount = page_mapcount(page);
- 	if (mapcount >= 2) {
- 		if (pte_dirty(ptent) || PageDirty(page))
--			mss->shared_dirty += PAGE_SIZE;
-+			mss->shared_dirty += ptent_size;
- 		else
--			mss->shared_clean += PAGE_SIZE;
--		mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
-+			mss->shared_clean += ptent_size;
-+		mss->pss += (ptent_size << PSS_SHIFT) / mapcount;
- 	} else {
- 		if (pte_dirty(ptent) || PageDirty(page))
--			mss->private_dirty += PAGE_SIZE;
-+			mss->private_dirty += ptent_size;
- 		else
--			mss->private_clean += PAGE_SIZE;
--		mss->pss += (PAGE_SIZE << PSS_SHIFT);
-+			mss->private_clean += ptent_size;
-+		mss->pss += (ptent_size << PSS_SHIFT);
- 	}
- }
- 
-@@ -389,7 +389,7 @@ static int smaps_pte_range(pmd_t *pmd, u
- 
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	for (; addr != end; pte++, addr += PAGE_SIZE)
--		smaps_pte_entry(*pte, addr, walk);
-+		smaps_pte_entry(*pte, addr, PAGE_SIZE, walk);
- 	pte_unmap_unlock(pte - 1, ptl);
- 	cond_resched();
- 	return 0;
++	trace_mm_huge_memory_split(vma->vm_mm, address);
++
+ 	spin_lock(&mm->page_table_lock);
+ 	pmd = page_check_address_pmd(page, mm, address,
+ 				     PAGE_CHECK_ADDRESS_PMD_SPLITTING_FLAG);
+diff -puN mm/vmscan.c~huge_mem_trace mm/vmscan.c
+diff -puN mm/page_io.c~huge_mem_trace mm/page_io.c
+diff -puN block/blk-core.c~huge_mem_trace block/blk-core.c
 _
 
 --
