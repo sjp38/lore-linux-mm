@@ -1,58 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 189288D0039
-	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 04:58:17 -0500 (EST)
-Date: Tue, 1 Feb 2011 10:58:08 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 630F58D0039
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 05:04:40 -0500 (EST)
+Date: Tue, 1 Feb 2011 11:04:34 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC][PATCH 1/6] count transparent hugepage splits
-Message-ID: <20110201095808.GG19534@cmpxchg.org>
+Subject: Re: [RFC][PATCH 2/6] pagewalk: only split huge pages when necessary
+Message-ID: <20110201100433.GH19534@cmpxchg.org>
 References: <20110201003357.D6F0BE0D@kernel>
- <20110201003358.98826457@kernel>
+ <20110201003359.8DDFF665@kernel>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110201003358.98826457@kernel>
+In-Reply-To: <20110201003359.8DDFF665@kernel>
 Sender: owner-linux-mm@kvack.org
 To: Dave Hansen <dave@linux.vnet.ibm.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 31, 2011 at 04:33:58PM -0800, Dave Hansen wrote:
+On Mon, Jan 31, 2011 at 04:33:59PM -0800, Dave Hansen wrote:
 > 
-> The khugepaged process collapses transparent hugepages for us.  Whenever
-> it collapses a page into a transparent hugepage, we increment a nice
-> global counter exported in sysfs:
+> Right now, if a mm_walk has either ->pte_entry or ->pmd_entry
+> set, it will unconditionally split and transparent huge pages
+> it runs in to.  In practice, that means that anyone doing a
 > 
-> 	/sys/kernel/mm/transparent_hugepage/khugepaged/pages_collapsed
+> 	cat /proc/$pid/smaps
 > 
-> But, transparent hugepages also get broken down in quite a few
-> places in the kernel.  We do not have a good idea how how many of
-> those collpased pages are "new" versus how many are just fixing up
-> spots that got split a moment before.
+> will unconditionally break down every huge page in the process
+> and depend on khugepaged to re-collapse it later.  This is
+> fairly suboptimal.
 > 
-> Note: "splits" and "collapses" are opposites in this context.
+> This patch changes that behavior.  It teaches each ->pmd_entry
+> handler (there are three) that they must break down the THPs
+> themselves.  Also, the _generic_ code will never break down
+> a THP unless a ->pte_entry handler is actually set.
 > 
-> This patch adds a new sysfs file:
-> 
-> 	/sys/kernel/mm/transparent_hugepage/pages_split
-> 
-> It is global, like "pages_collapsed", and is incremented whenever any
-> transparent hugepage on the system has been broken down in to normal
-> PAGE_SIZE base pages.  This way, we can get an idea how well khugepaged
-> is keeping up collapsing pages that have been split.
-> 
-> I put it under /sys/kernel/mm/transparent_hugepage/ instead of the
-> khugepaged/ directory since it is not strictly related to
-> khugepaged; it can get incremented on pages other than those
-> collapsed by khugepaged.
-> 
-> The variable storing this is a plain integer.  I needs the same
-> amount of locking that 'khugepaged_pages_collapsed' has, for
-> instance.
-> 
-> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+> This means that the ->pmd_entry handlers can now choose to
+> deal with THPs without breaking them down.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Makes perfect sense.  But you forgot to push down the splitting into
+the two handlers in mm/memcontrol.c.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
