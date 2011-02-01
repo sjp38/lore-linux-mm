@@ -1,34 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1973E8D0039
-	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 05:12:11 -0500 (EST)
-Date: Tue, 1 Feb 2011 11:12:07 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC][PATCH 6/6] have smaps show transparent huge pages
-Message-ID: <20110201101207.GL19534@cmpxchg.org>
-References: <20110201003357.D6F0BE0D@kernel>
- <20110201003405.FC58B813@kernel>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110201003405.FC58B813@kernel>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 658EC8D0039
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 06:21:51 -0500 (EST)
+From: Gleb Natapov <gleb@redhat.com>
+Subject: [PATCH 0/2] KVM: enable asynchronous page faults
+Date: Tue,  1 Feb 2011 13:21:45 +0200
+Message-Id: <1296559307-14637-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: avi@redhat.com, mtosatti@redhat.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 31, 2011 at 04:34:05PM -0800, Dave Hansen wrote:
-> 
-> Now that the mere act of _looking_ at /proc/$pid/smaps will not
-> destroy transparent huge pages, tell how much of the VMA is
-> actually mapped with them.
-> 
-> This way, we can make sure that we're getting THPs where we
-> expect to see them.
-> 
-> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+This patch series is on top of Huang Ying "Replace is_hwpoison_address with
+__get_user_pages" series: http://www.mail-archive.com/kvm@vger.kernel.org/msg48776.html
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Gleb Natapov (2):
+  Allow GUP to fail instead of waiting on a page.
+  KVM: Enable async page fault processing.
+
+ include/linux/mm.h  |    2 ++
+ mm/filemap.c        |    6 ++++--
+ mm/memory.c         |    5 ++++-
+ virt/kvm/kvm_main.c |   23 +++++++++++++++++++++--
+ 4 files changed, 31 insertions(+), 5 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
