@@ -1,57 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 719FF8D0041
-	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 10:04:42 -0500 (EST)
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by e33.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p11EvlXN030346
-	for <linux-mm@kvack.org>; Tue, 1 Feb 2011 07:57:47 -0700
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p11F3wTQ123364
-	for <linux-mm@kvack.org>; Tue, 1 Feb 2011 08:03:58 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p11F3vN4030894
-	for <linux-mm@kvack.org>; Tue, 1 Feb 2011 08:03:57 -0700
-Subject: Re: [RFC][PATCH 2/6] pagewalk: only split huge pages when necessary
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110201100433.GH19534@cmpxchg.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id BEF588D0041
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 10:39:00 -0500 (EST)
+Date: Tue, 1 Feb 2011 16:38:57 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC][PATCH 0/6] more detailed per-process transparent
+ hugepage statistics
+Message-ID: <20110201153857.GA18740@random.random>
 References: <20110201003357.D6F0BE0D@kernel>
-	 <20110201003359.8DDFF665@kernel>  <20110201100433.GH19534@cmpxchg.org>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Tue, 01 Feb 2011 07:03:56 -0800
-Message-ID: <1296572636.27022.2870.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110201003357.D6F0BE0D@kernel>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2011-02-01 at 11:04 +0100, Johannes Weiner wrote:
-> On Mon, Jan 31, 2011 at 04:33:59PM -0800, Dave Hansen wrote:
-> > Right now, if a mm_walk has either ->pte_entry or ->pmd_entry
-> > set, it will unconditionally split and transparent huge pages
-> > it runs in to.  In practice, that means that anyone doing a
-> > 
-> >       cat /proc/$pid/smaps
-> > 
-> > will unconditionally break down every huge page in the process
-> > and depend on khugepaged to re-collapse it later.  This is
-> > fairly suboptimal.
-> > 
-> > This patch changes that behavior.  It teaches each ->pmd_entry
-> > handler (there are three) that they must break down the THPs
-> > themselves.  Also, the _generic_ code will never break down
-> > a THP unless a ->pte_entry handler is actually set.
-> > 
-> > This means that the ->pmd_entry handlers can now choose to
-> > deal with THPs without breaking them down.
+On Mon, Jan 31, 2011 at 04:33:57PM -0800, Dave Hansen wrote:
+> I'm working on some more reports that transparent huge pages and
+> KSM do not play nicely together.  Basically, whenever THP's are
+> present along with KSM, there is a lot of attrition over time,
+> and we do not see much overall progress keeping THP's around:
 > 
-> Makes perfect sense.  But you forgot to push down the splitting into
-> the two handlers in mm/memcontrol.c. 
+> 	http://sr71.net/~dave/ibm/038_System_Anonymous_Pages.png
+> 
+> (That's Karl Rister's graph, thanks Karl!)
 
-I did indeed.  I'll go fix those up.  Thanks for the review!
+Well if the pages_sharing/pages_shared count goes up, this is a
+feature not a bug.... You need to print that too in the chart to show
+this is not ok.
 
--- Dave
+KSM will slowdown performance also during copy-on-writes when
+pages_sharing goes up, not only because of creating non-linearity
+inside 2m chunks (which makes mandatory to use ptes and not hugepmd,
+it's not an inefficiency of some sort that can be optimized away
+unfortunately). We sure could change KSM to merge 2M pages instead of
+4k pages, but then the memory-density would decrease of several order
+of magnitudes making the KSM scan almost useless (ok, with guest
+heavily using THP that may change, but all pagecache is still 4k... so
+for now it'd be next to useless).
+
+I'm in the process of adding a no-ksm option to qemu-kvm command line
+so you can selectively choose which VM runs with KSM or not (otherwise
+you can switch ksm off globally to be sure not to degrade
+performance).
+
+> However, I realized that we do not currently have a nice way to find
+> out where individual THP's might be on the system.  We have an
+> overall count, but no way of telling which processes or VMAs they
+> might be in.
+> 
+> I started to implement this in the /proc/$pid/smaps code, but
+> quickly realized that the lib/pagewalk.c code unconditionally
+> splits THPs up.  This set reworks that code a bit and, in the
+> end, gives you a per-map count of the numbers of huge pages.
+> It also makes it possible for page walks to _not_ split THPs.
+
+That's something in the TODO list indeed thanks a lot for working on
+this (I think we discussed this earlier too).
+
+I would prefer to close the issues that you just previously reported,
+sometime with mmap_sem and issues like that, before adding more
+features though but I don't want to defer things either so it's up to
+you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
