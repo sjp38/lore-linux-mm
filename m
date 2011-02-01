@@ -1,101 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E2A848D0039
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:05:10 -0500 (EST)
-Date: Tue, 1 Feb 2011 01:04:55 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 2/3] memcg: prevent endless loop when charging huge pages
- to near-limit group
-Message-ID: <20110201000455.GB19534@cmpxchg.org>
-References: <1296482635-13421-1-git-send-email-hannes@cmpxchg.org>
- <1296482635-13421-3-git-send-email-hannes@cmpxchg.org>
- <20110131144131.6733aa3a.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110131144131.6733aa3a.akpm@linux-foundation.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 465EE8D0039
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:18:12 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 379BA3EE0B3
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 09:18:10 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BD1345DE59
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 09:18:10 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F183A45DE4D
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 09:18:09 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E10CD1DB803F
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 09:18:09 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A93DF1DB8038
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 09:18:09 +0900 (JST)
+Date: Tue, 1 Feb 2011 09:12:08 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] memcg: fix event counting breakage by recent THP update
+Message-Id: <20110201091208.b2088800.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, balbir@linux.vnet.ibm.com, minchan.kim@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 31, 2011 at 02:41:31PM -0800, Andrew Morton wrote:
-> On Mon, 31 Jan 2011 15:03:54 +0100
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > @@ -1111,6 +1111,15 @@ static bool mem_cgroup_check_under_limit(struct mem_cgroup *mem)
-> >  	return false;
-> >  }
-> >  
-> > +static bool mem_cgroup_check_margin(struct mem_cgroup *mem, unsigned long bytes)
-> > +{
-> > +	if (!res_counter_check_margin(&mem->res, bytes))
-> > +		return false;
-> > +	if (do_swap_account && !res_counter_check_margin(&mem->memsw, bytes))
-> > +		return false;
-> > +	return true;
-> > +}
-> 
-> argh.
-> 
-> If you ever have a function with the string "check" in its name, it's a
-> good sign that you did something wrong.
-> 
-> Check what?  Against what?  Returning what?
-> 
-> mem_cgroup_check_under_limit() isn't toooo bad - the name tells you
-> what's being checked and tells you what to expect the return value to
-> mean.
-> 
-> But "res_counter_check_margin" and "mem_cgroup_check_margin" are just
-> awful.  Something like
-> 
-> 	bool res_counter_may_charge(counter, bytes)
-> 
-> would be much clearer.
 
-That makes sense for the hard limit.  But the oh-so-generic resource
-counters also have a soft limit, and you don't ask for that when you
-want to charge.  Right now, I do not feel creative enough to come up
-with a symmetric-sounding counterpart.
+Thanks to Johannes for catching this.
+And sorry for my patch, I'd like to consinder some debug check..
+=
+Changes in commit e401f1761c0b01966e36e41e2c385d455a7b44ee
+adds nr_pages to support multiple page size in memory_cgroup_charge_statistics.
 
-> If we really want to stick with the "check" names (perhaps as an ironic
-> reference to res_counter's past mistakes) then please at least document
-> the sorry things?
+But counting the number of event nees abs(nr_pages) for increasing
+counters. This patch fixes event counting.
 
-I cowardly went with this option and have a patch below to fold into
-this fix.
-
-Maybe it would be better to use res_counter_margin(cnt) >= wanted
-throughout the code.  Or still better, make memcg work on pages and
-res_counters on unsigned longs so the locking is no longer needed,
-together with an API for most obvious maths.  I will work something
-out and submit it separately.
-
+Reported-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
-Subject: [patch fixup] res_counter: document res_counter_check_margin()
+ mm/memcontrol.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
-
-diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-index 5cfd78a..a5930cb 100644
---- a/include/linux/res_counter.h
-+++ b/include/linux/res_counter.h
-@@ -182,6 +182,14 @@ static inline bool res_counter_check_under_limit(struct res_counter *cnt)
- 	return ret;
- }
+Index: mmotm-0125/mm/memcontrol.c
+===================================================================
+--- mmotm-0125.orig/mm/memcontrol.c
++++ mmotm-0125/mm/memcontrol.c
+@@ -612,8 +612,10 @@ static void mem_cgroup_charge_statistics
+ 	/* pagein of a big page is an event. So, ignore page size */
+ 	if (nr_pages > 0)
+ 		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGIN_COUNT]);
+-	else
++	else {
+ 		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGOUT_COUNT]);
++		nr_pages = -nr_pages; /* for event */
++	}
  
-+/**
-+ * res_counter_check_margin - check if the counter allows charging
-+ * @cnt: the resource counter to check
-+ * @bytes: the number of bytes to check the remaining space against
-+ *
-+ * Returns a boolean value on whether the counter can be charged
-+ * @bytes or whether this would exceed the limit.
-+ */
- static inline bool res_counter_check_margin(struct res_counter *cnt,
- 					    unsigned long bytes)
- {
+ 	__this_cpu_add(mem->stat->count[MEM_CGROUP_EVENTS], nr_pages);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
