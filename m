@@ -1,69 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id BEF588D0041
-	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 10:39:00 -0500 (EST)
-Date: Tue, 1 Feb 2011 16:38:57 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id EC85E8D0041
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 11:10:01 -0500 (EST)
+Date: Tue, 1 Feb 2011 17:09:32 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC][PATCH 0/6] more detailed per-process transparent
- hugepage statistics
-Message-ID: <20110201153857.GA18740@random.random>
+Subject: Re: [RFC][PATCH 5/6] teach smaps_pte_range() about THP pmds
+Message-ID: <20110201160932.GY16981@random.random>
 References: <20110201003357.D6F0BE0D@kernel>
+ <20110201003403.736A24DF@kernel>
+ <20110201101111.GK19534@cmpxchg.org>
+ <1296572550.27022.2862.camel@nimitz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110201003357.D6F0BE0D@kernel>
+In-Reply-To: <1296572550.27022.2862.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 31, 2011 at 04:33:57PM -0800, Dave Hansen wrote:
-> I'm working on some more reports that transparent huge pages and
-> KSM do not play nicely together.  Basically, whenever THP's are
-> present along with KSM, there is a lot of attrition over time,
-> and we do not see much overall progress keeping THP's around:
+On Tue, Feb 01, 2011 at 07:02:30AM -0800, Dave Hansen wrote:
+> On Tue, 2011-02-01 at 11:11 +0100, Johannes Weiner wrote:
+> > On Mon, Jan 31, 2011 at 04:34:03PM -0800, Dave Hansen wrote:
+> > > +	if (pmd_trans_huge(*pmd)) {
+> > > +		if (pmd_trans_splitting(*pmd)) {
+> > > +			spin_unlock(&walk->mm->page_table_lock);
+> > > +			wait_split_huge_page(vma->anon_vma, pmd);
+> > > +			spin_lock(&walk->mm->page_table_lock);
+> > > +			goto normal_ptes;
+> > > +		}
+> > > +		smaps_pte_entry(*(pte_t *)pmd, addr, HPAGE_SIZE, walk);
+> > > +		return 0;
+> > > +	}
+> > > +normal_ptes:
+> > >  	split_huge_page_pmd(walk->mm, pmd);
+> > 
+> > This line can go away now...?
 > 
-> 	http://sr71.net/~dave/ibm/038_System_Anonymous_Pages.png
-> 
-> (That's Karl Rister's graph, thanks Karl!)
+> I did this because I was unsure what keeps khugepaged away from the
+> newly-split ptes between the wait_split_huge_page() and the
+> reacquisition of the mm->page_table_lock.  mmap_sem, perhaps?
 
-Well if the pages_sharing/pages_shared count goes up, this is a
-feature not a bug.... You need to print that too in the chart to show
-this is not ok.
+Any of mmap_sem read mode, PG_lock and anon_vma_lock keeps khugepaged
+away.
 
-KSM will slowdown performance also during copy-on-writes when
-pages_sharing goes up, not only because of creating non-linearity
-inside 2m chunks (which makes mandatory to use ptes and not hugepmd,
-it's not an inefficiency of some sort that can be optimized away
-unfortunately). We sure could change KSM to merge 2M pages instead of
-4k pages, but then the memory-density would decrease of several order
-of magnitudes making the KSM scan almost useless (ok, with guest
-heavily using THP that may change, but all pagecache is still 4k... so
-for now it'd be next to useless).
+> Looking at follow_page() and some of the other wait_split_huge_page(),
+> it looks like this is unnecessary.  
 
-I'm in the process of adding a no-ksm option to qemu-kvm command line
-so you can selectively choose which VM runs with KSM or not (otherwise
-you can switch ksm off globally to be sure not to degrade
-performance).
-
-> However, I realized that we do not currently have a nice way to find
-> out where individual THP's might be on the system.  We have an
-> overall count, but no way of telling which processes or VMAs they
-> might be in.
-> 
-> I started to implement this in the /proc/$pid/smaps code, but
-> quickly realized that the lib/pagewalk.c code unconditionally
-> splits THPs up.  This set reworks that code a bit and, in the
-> end, gives you a per-map count of the numbers of huge pages.
-> It also makes it possible for page walks to _not_ split THPs.
-
-That's something in the TODO list indeed thanks a lot for working on
-this (I think we discussed this earlier too).
-
-I would prefer to close the issues that you just previously reported,
-sometime with mmap_sem and issues like that, before adding more
-features though but I don't want to defer things either so it's up to
-you.
+When wait_split_huge_page returns after the pmd was splitting, the pmd
+can't return huge under you as long as you hold any of the above.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
