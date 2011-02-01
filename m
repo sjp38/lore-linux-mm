@@ -1,43 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C3D6D8D0048
-	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 12:57:16 -0500 (EST)
-Message-ID: <4D484973.6080603@redhat.com>
-Date: Tue, 01 Feb 2011 12:57:07 -0500
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1B6758D0048
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 12:58:07 -0500 (EST)
+Message-ID: <4D48498A.9040606@redhat.com>
+Date: Tue, 01 Feb 2011 12:57:30 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] mlock: operate on any regions with protection != PROT_NONE
-References: <20110201010341.GA21676@google.com> <AANLkTinG7eHR1_kfEyvJYw52ngyvqv5UzigEOddsi9ye@mail.gmail.com>
-In-Reply-To: <AANLkTinG7eHR1_kfEyvJYw52ngyvqv5UzigEOddsi9ye@mail.gmail.com>
+References: <20110201010341.GA21676@google.com>
+In-Reply-To: <20110201010341.GA21676@google.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tao Ma <tm@tao.ma>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tao Ma <tm@tao.ma>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On 02/01/2011 12:59 AM, Linus Torvalds wrote:
-> On Tue, Feb 1, 2011 at 11:03 AM, Michel Lespinasse<walken@google.com>  wrote:
->>
->> I am proposing to let mlock ignore vma protection in all cases except
->> PROT_NONE.
+On 01/31/2011 08:03 PM, Michel Lespinasse wrote:
+> As Tao Ma noticed, change 5ecfda0 breaks blktrace. This is because
+> blktrace mmaps a file with PROT_WRITE permissions but without PROT_READ,
+> so my attempt to not unnecessarity break COW during mlock ended up
+> causing mlock to fail with a permission problem.
 >
-> What's so special about PROT_NONE? If you want to mlock something
-> without actually being able to then fault that in, why not?
+> I am proposing to let mlock ignore vma protection in all cases except
+> PROT_NONE. In particular, mlock should not fail for PROT_WRITE regions
+> (as in the blktrace case, which broke at 5ecfda0) or for PROT_EXEC
+> regions (which seem to me like they were always broken).
 >
-> IOW, why wouldn't it be right to just make FOLL_FORCE be unconditional in mlock?
+> Please review. I am proposing this as a candidate for 2.6.38 inclusion,
+> because of the behavior change with blktrace.
 
-I could think of a combination of reasons.
-
-Specifically, some libc/linker magic will set up PROT_NONE
-areas for programs automatically.
-
-Some programs use mlockall to lock themselves into memory,
-with no idea that PROT_NONE areas were set up behind its
-back.
-
-Faulting in the PROT_NONE memory will result is wasted
-memory, without the application even realizing it.
+Acked-by: Rik van Riel <riel@redhat.com>
 
 -- 
 All rights reversed
