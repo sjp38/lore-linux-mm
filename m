@@ -1,36 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D26BD8D0039
-	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 04:34:45 -0500 (EST)
-Date: Tue, 1 Feb 2011 10:34:30 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 189288D0039
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 04:58:17 -0500 (EST)
+Date: Tue, 1 Feb 2011 10:58:08 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memcg: fix event counting breakage by recent THP update
-Message-ID: <20110201093430.GF19534@cmpxchg.org>
-References: <20110201091208.b2088800.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 1/6] count transparent hugepage splits
+Message-ID: <20110201095808.GG19534@cmpxchg.org>
+References: <20110201003357.D6F0BE0D@kernel>
+ <20110201003358.98826457@kernel>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110201091208.b2088800.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110201003358.98826457@kernel>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 01, 2011 at 09:12:08AM +0900, KAMEZAWA Hiroyuki wrote:
+On Mon, Jan 31, 2011 at 04:33:58PM -0800, Dave Hansen wrote:
 > 
-> Thanks to Johannes for catching this.
-> And sorry for my patch, I'd like to consinder some debug check..
-> =
-> Changes in commit e401f1761c0b01966e36e41e2c385d455a7b44ee
-> adds nr_pages to support multiple page size in memory_cgroup_charge_statistics.
+> The khugepaged process collapses transparent hugepages for us.  Whenever
+> it collapses a page into a transparent hugepage, we increment a nice
+> global counter exported in sysfs:
 > 
-> But counting the number of event nees abs(nr_pages) for increasing
-> counters. This patch fixes event counting.
+> 	/sys/kernel/mm/transparent_hugepage/khugepaged/pages_collapsed
 > 
-> Reported-by: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> But, transparent hugepages also get broken down in quite a few
+> places in the kernel.  We do not have a good idea how how many of
+> those collpased pages are "new" versus how many are just fixing up
+> spots that got split a moment before.
+> 
+> Note: "splits" and "collapses" are opposites in this context.
+> 
+> This patch adds a new sysfs file:
+> 
+> 	/sys/kernel/mm/transparent_hugepage/pages_split
+> 
+> It is global, like "pages_collapsed", and is incremented whenever any
+> transparent hugepage on the system has been broken down in to normal
+> PAGE_SIZE base pages.  This way, we can get an idea how well khugepaged
+> is keeping up collapsing pages that have been split.
+> 
+> I put it under /sys/kernel/mm/transparent_hugepage/ instead of the
+> khugepaged/ directory since it is not strictly related to
+> khugepaged; it can get incremented on pages other than those
+> collapsed by khugepaged.
+> 
+> The variable storing this is a plain integer.  I needs the same
+> amount of locking that 'khugepaged_pages_collapsed' has, for
+> instance.
+> 
+> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
