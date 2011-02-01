@@ -1,398 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 204C08D0048
-	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 11:56:07 -0500 (EST)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp06.au.ibm.com (8.14.4/8.13.1) with ESMTP id p11Gtq8l026565
-	for <linux-mm@kvack.org>; Wed, 2 Feb 2011 03:55:52 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p11Gttro2449640
-	for <linux-mm@kvack.org>; Wed, 2 Feb 2011 03:55:55 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p11Gts98026438
-	for <linux-mm@kvack.org>; Wed, 2 Feb 2011 03:55:55 +1100
-Subject: [PATCH 3/3][RESEND] Provide control over unmapped pages (v4)
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Tue, 01 Feb 2011 22:25:45 +0530
-Message-ID: <20110201165533.12377.11775.stgit@localhost6.localdomain6>
-In-Reply-To: <20110201165329.12377.13683.stgit@localhost6.localdomain6>
-References: <20110201165329.12377.13683.stgit@localhost6.localdomain6>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 44B178D0048
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 12:16:00 -0500 (EST)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p11CuSvh031905
+	for <linux-mm@kvack.org>; Tue, 1 Feb 2011 07:58:08 -0500
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id D460E728084
+	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 12:15:50 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p11HFoV1138356
+	for <linux-mm@kvack.org>; Tue, 1 Feb 2011 12:15:50 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p11HFoCf029581
+	for <linux-mm@kvack.org>; Tue, 1 Feb 2011 12:15:50 -0500
+Subject: Re: [RFC][PATCH 0/6] more detailed per-process transparent
+ hugepage statistics
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20110201153857.GA18740@random.random>
+References: <20110201003357.D6F0BE0D@kernel>
+	 <20110201153857.GA18740@random.random>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Tue, 01 Feb 2011 09:15:47 -0800
+Message-ID: <1296580547.27022.3370.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Changelog v4
-1. Add max_unmapped_ratio and use that as the upper limit
-to check when to shrink the unmapped page cache (Christoph
-Lameter)
+On Tue, 2011-02-01 at 16:38 +0100, Andrea Arcangeli wrote:
+> On Mon, Jan 31, 2011 at 04:33:57PM -0800, Dave Hansen wrote:
+> > I'm working on some more reports that transparent huge pages and
+> > KSM do not play nicely together.  Basically, whenever THP's are
+> > present along with KSM, there is a lot of attrition over time,
+> > and we do not see much overall progress keeping THP's around:
+> > 
+> > 	http://sr71.net/~dave/ibm/038_System_Anonymous_Pages.png
+> > 
+> > (That's Karl Rister's graph, thanks Karl!)
+> 
+> Well if the pages_sharing/pages_shared count goes up, this is a
+> feature not a bug.... You need to print that too in the chart to show
+> this is not ok
 
-Changelog v2
-1. Use a config option to enable the code (Andrew Morton)
-2. Explain the magic tunables in the code or at-least attempt
-   to explain them (General comment)
-3. Hint uses of the boot parameter with unlikely (Andrew Morton)
-4. Use better names (balanced is not a good naming convention)
+Here are the KSM sharing bits for the same run:
 
-Provide control using zone_reclaim() and a boot parameter. The
-code reuses functionality from zone_reclaim() to isolate unmapped
-pages and reclaim them as a priority, ahead of other mapped pages.
-A new sysctl for max_unmapped_ratio is provided and set to 16,
-indicating 16% of the total zone pages are unmapped, we start
-shrinking unmapped page cache.
+	http://sr71.net/~dave/ibm/009_KSM_Pages.png
 
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reviewed-by: Christoph Lameter <cl@linux.com>
----
- Documentation/kernel-parameters.txt |    8 +++
- include/linux/mmzone.h              |    5 ++
- include/linux/swap.h                |   23 ++++++++-
- init/Kconfig                        |   12 +++++
- kernel/sysctl.c                     |   11 ++++
- mm/page_alloc.c                     |   25 ++++++++++
- mm/vmscan.c                         |   87 +++++++++++++++++++++++++++++++++++
- 7 files changed, 166 insertions(+), 5 deletions(-)
+It bounces around a little bit on the ends, but it's fairly static
+during the test, even when there's a good downward slope on the THP's.
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index fee5f57..65a4ee6 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -2500,6 +2500,14 @@ and is between 256 and 4096 characters. It is defined in the file
- 			[X86]
- 			Set unknown_nmi_panic=1 early on boot.
- 
-+	unmapped_page_control
-+			[KNL] Available if CONFIG_UNMAPPED_PAGECACHE_CONTROL
-+			is enabled. It controls the amount of unmapped memory
-+			that is present in the system. This boot option plus
-+			vm.min_unmapped_ratio (sysctl) provide granular control
-+			over how much unmapped page cache can exist in the system
-+			before kswapd starts reclaiming unmapped page cache pages.
-+
- 	usbcore.autosuspend=
- 			[USB] The autosuspend time delay (in seconds) used
- 			for newly-detected USB devices (default 2).  This
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 2485acc..18f0f09 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -306,7 +306,10 @@ struct zone {
- 	/*
- 	 * zone reclaim becomes active if more unmapped pages exist.
- 	 */
-+#if defined(CONFIG_UNMAPPED_PAGE_CONTROL) || defined(CONFIG_NUMA)
- 	unsigned long		min_unmapped_pages;
-+	unsigned long		max_unmapped_pages;
-+#endif
- #ifdef CONFIG_NUMA
- 	int node;
- 	unsigned long		min_slab_pages;
-@@ -773,6 +776,8 @@ int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *, int,
- 					void __user *, size_t *, loff_t *);
- int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *, int,
- 			void __user *, size_t *, loff_t *);
-+int sysctl_max_unmapped_ratio_sysctl_handler(struct ctl_table *, int,
-+			void __user *, size_t *, loff_t *);
- int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
- 			void __user *, size_t *, loff_t *);
- 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 7b75626..ae62a03 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -255,19 +255,34 @@ extern int vm_swappiness;
- extern int remove_mapping(struct address_space *mapping, struct page *page);
- extern long vm_total_pages;
- 
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
- extern int sysctl_min_unmapped_ratio;
-+extern int sysctl_max_unmapped_ratio;
-+
- extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
--#ifdef CONFIG_NUMA
--extern int zone_reclaim_mode;
--extern int sysctl_min_slab_ratio;
- #else
--#define zone_reclaim_mode 0
- static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
- {
- 	return 0;
- }
- #endif
- 
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+extern bool should_reclaim_unmapped_pages(struct zone *zone);
-+#else
-+static inline bool should_reclaim_unmapped_pages(struct zone *zone)
-+{
-+	return false;
-+}
-+#endif
-+
-+#ifdef CONFIG_NUMA
-+extern int zone_reclaim_mode;
-+extern int sysctl_min_slab_ratio;
-+#else
-+#define zone_reclaim_mode 0
-+#endif
-+
- extern int page_evictable(struct page *page, struct vm_area_struct *vma);
- extern void scan_mapping_unevictable_pages(struct address_space *);
- 
-diff --git a/init/Kconfig b/init/Kconfig
-index 4f6cdbf..2dfbc09 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -828,6 +828,18 @@ config SCHED_AUTOGROUP
- config MM_OWNER
- 	bool
- 
-+config UNMAPPED_PAGECACHE_CONTROL
-+	bool "Provide control over unmapped page cache"
-+	default n
-+	help
-+	  This option adds support for controlling unmapped page cache
-+	  via a boot parameter (unmapped_page_control). The boot parameter
-+	  with sysctl (vm.min_unmapped_ratio) control the total number
-+	  of unmapped pages in the system. This feature is useful if
-+	  you want to limit the amount of unmapped page cache or want
-+	  to reduce page cache duplication in a virtualized environment.
-+	  If unsure say 'N'
-+
- config SYSFS_DEPRECATED
- 	bool "enable deprecated sysfs features to support old userspace tools"
- 	depends on SYSFS
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 12e8f26..63dbba6 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1224,6 +1224,7 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &zero,
- 	},
- #endif
-+#if defined(CONFIG_UNMAPPED_PAGE_CONTROL) || defined(CONFIG_NUMA)
- 	{
- 		.procname	= "min_unmapped_ratio",
- 		.data		= &sysctl_min_unmapped_ratio,
-@@ -1233,6 +1234,16 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &zero,
- 		.extra2		= &one_hundred,
- 	},
-+	{
-+		.procname	= "max_unmapped_ratio",
-+		.data		= &sysctl_max_unmapped_ratio,
-+		.maxlen		= sizeof(sysctl_max_unmapped_ratio),
-+		.mode		= 0644,
-+		.proc_handler	= sysctl_max_unmapped_ratio_sysctl_handler,
-+		.extra1		= &zero,
-+		.extra2		= &one_hundred,
-+	},
-+#endif
- #ifdef CONFIG_NUMA
- 	{
- 		.procname	= "zone_reclaim_mode",
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7b56473..2ac8549 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1660,6 +1660,9 @@ zonelist_scan:
- 			unsigned long mark;
- 			int ret;
- 
-+			if (should_reclaim_unmapped_pages(zone))
-+				wakeup_kswapd(zone, order, classzone_idx);
-+
- 			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
- 			if (zone_watermark_ok(zone, order, mark,
- 				    classzone_idx, alloc_flags))
-@@ -4167,8 +4170,12 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 
- 		zone->spanned_pages = size;
- 		zone->present_pages = realsize;
-+#if defined(CONFIG_UNMAPPED_PAGE_CONTROL) || defined(CONFIG_NUMA)
- 		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
- 						/ 100;
-+		zone->max_unmapped_pages = (realsize*sysctl_max_unmapped_ratio)
-+						/ 100;
-+#endif
- #ifdef CONFIG_NUMA
- 		zone->node = nid;
- 		zone->min_slab_pages = (realsize * sysctl_min_slab_ratio) / 100;
-@@ -5084,6 +5091,7 @@ int min_free_kbytes_sysctl_handler(ctl_table *table, int write,
- 	return 0;
- }
- 
-+#if defined(CONFIG_UNMAPPED_PAGE_CONTROL) || defined(CONFIG_NUMA)
- int sysctl_min_unmapped_ratio_sysctl_handler(ctl_table *table, int write,
- 	void __user *buffer, size_t *length, loff_t *ppos)
- {
-@@ -5100,6 +5108,23 @@ int sysctl_min_unmapped_ratio_sysctl_handler(ctl_table *table, int write,
- 	return 0;
- }
- 
-+int sysctl_max_unmapped_ratio_sysctl_handler(ctl_table *table, int write,
-+	void __user *buffer, size_t *length, loff_t *ppos)
-+{
-+	struct zone *zone;
-+	int rc;
-+
-+	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
-+	if (rc)
-+		return rc;
-+
-+	for_each_zone(zone)
-+		zone->max_unmapped_pages = (zone->present_pages *
-+				sysctl_max_unmapped_ratio) / 100;
-+	return 0;
-+}
-+#endif
-+
- #ifdef CONFIG_NUMA
- int sysctl_min_slab_ratio_sysctl_handler(ctl_table *table, int write,
- 	void __user *buffer, size_t *length, loff_t *ppos)
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 02cc82e..6377411 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -159,6 +159,29 @@ static DECLARE_RWSEM(shrinker_rwsem);
- #define scanning_global_lru(sc)	(1)
- #endif
- 
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+static unsigned long reclaim_unmapped_pages(int priority, struct zone *zone,
-+						struct scan_control *sc);
-+static int unmapped_page_control __read_mostly;
-+
-+static int __init unmapped_page_control_parm(char *str)
-+{
-+	unmapped_page_control = 1;
-+	/*
-+	 * XXX: Should we tweak swappiness here?
-+	 */
-+	return 1;
-+}
-+__setup("unmapped_page_control", unmapped_page_control_parm);
-+
-+#else /* !CONFIG_UNMAPPED_PAGECACHE_CONTROL */
-+static inline unsigned long reclaim_unmapped_pages(int priority,
-+				struct zone *zone, struct scan_control *sc)
-+{
-+	return 0;
-+}
-+#endif
-+
- static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
- 						  struct scan_control *sc)
- {
-@@ -2359,6 +2382,12 @@ loop_again:
- 				shrink_active_list(SWAP_CLUSTER_MAX, zone,
- 							&sc, priority, 0);
- 
-+			/*
-+			 * We do unmapped page reclaim once here and once
-+			 * below, so that we don't lose out
-+			 */
-+			reclaim_unmapped_pages(priority, zone, &sc);
-+
- 			if (!zone_watermark_ok_safe(zone, order,
- 					high_wmark_pages(zone), 0, 0)) {
- 				end_zone = i;
-@@ -2396,6 +2425,11 @@ loop_again:
- 				continue;
- 
- 			sc.nr_scanned = 0;
-+			/*
-+			 * Reclaim unmapped pages upfront, this should be
-+			 * really cheap
-+			 */
-+			reclaim_unmapped_pages(priority, zone, &sc);
- 
- 			/*
- 			 * Call soft limit reclaim before calling shrink_zone.
-@@ -2715,7 +2749,8 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
- 	}
- 	if (!waitqueue_active(&pgdat->kswapd_wait))
- 		return;
--	if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zone), 0, 0))
-+	if (zone_watermark_ok_safe(zone, order, low_wmark_pages(zone), 0, 0) &&
-+		!should_reclaim_unmapped_pages(zone))
- 		return;
- 
- 	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
-@@ -2868,6 +2903,7 @@ static int __init kswapd_init(void)
- 
- module_init(kswapd_init)
- 
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL) || defined(CONFIG_NUMA)
- /*
-  * Zone reclaim mode
-  *
-@@ -2893,6 +2929,7 @@ int zone_reclaim_mode __read_mostly;
-  * occur.
-  */
- int sysctl_min_unmapped_ratio = 1;
-+int sysctl_max_unmapped_ratio = 16;
- 
- /*
-  * If the number of slab pages in a zone grows beyond this percentage then
-@@ -3088,6 +3125,54 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 
- 	return ret;
- }
-+#endif
-+
-+#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
-+/*
-+ * Routine to reclaim unmapped pages, inspired from the code under
-+ * CONFIG_NUMA that does unmapped page and slab page control by keeping
-+ * min_unmapped_pages in the zone. We currently reclaim just unmapped
-+ * pages, slab control will come in soon, at which point this routine
-+ * should be called reclaim cached pages
-+ */
-+unsigned long reclaim_unmapped_pages(int priority, struct zone *zone,
-+						struct scan_control *sc)
-+{
-+	if (unlikely(unmapped_page_control) &&
-+		(zone_unmapped_file_pages(zone) > zone->min_unmapped_pages)) {
-+		struct scan_control nsc;
-+		unsigned long nr_pages;
-+
-+		nsc = *sc;
-+
-+		nsc.swappiness = 0;
-+		nsc.may_writepage = 0;
-+		nsc.may_unmap = 0;
-+		nsc.nr_reclaimed = 0;
-+
-+		nr_pages = zone_unmapped_file_pages(zone) -
-+				zone->min_unmapped_pages;
-+		/*
-+		 * We don't want to be too aggressive with our
-+		 * reclaim, it is our best effort to control
-+		 * unmapped pages
-+		 */
-+		nr_pages >>= 3;
-+
-+		zone_reclaim_pages(zone, &nsc, nr_pages);
-+		return nsc.nr_reclaimed;
-+	}
-+	return 0;
-+}
-+
-+bool should_reclaim_unmapped_pages(struct zone *zone)
-+{
-+	if (unlikely(unmapped_page_control) &&
-+		(zone_unmapped_file_pages(zone) > zone->max_unmapped_pages))
-+		return true;
-+	return false;
-+}
-+#endif
- 
- /*
-  * page_evictable - test whether a page is evictable
+Hot of the presses, Karl also managed to do a run last night with the
+khugepaged scanning rates turned all the way up:
+
+	http://sr71.net/~dave/ibm/038_System_Anonymous_Pages-scan-always.png
+
+The THP's there are a lot more stable.  I'd read that as saying that the
+scanning probably just isn't keeping up with whatever is breaking the
+pages up.
+
+> KSM will slowdown performance also during copy-on-writes when
+> pages_sharing goes up, not only because of creating non-linearity
+> inside 2m chunks (which makes mandatory to use ptes and not hugepmd,
+> it's not an inefficiency of some sort that can be optimized away
+> unfortunately). We sure could change KSM to merge 2M pages instead of
+> 4k pages, but then the memory-density would decrease of several order
+> of magnitudes making the KSM scan almost useless (ok, with guest
+> heavily using THP that may change, but all pagecache is still 4k... so
+> for now it'd be next to useless).
+
+Yup, unless we do something special, the odds of sharing those 2MB
+suckers are near zero.
+
+> I would prefer to close the issues that you just previously reported,
+> sometime with mmap_sem and issues like that, before adding more
+> features though but I don't want to defer things either so it's up to
+> you.
+
+I'm happy to hold on to them for another release.  I'm actually going to
+go look at the freezes I saw now that I have these out in the wild.
+I'll probably stick them in a git tree and keep them up to date.
+
+Are there any other THP issues you're chasing at the moment?
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
