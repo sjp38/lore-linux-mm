@@ -1,127 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3223C8D0039
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B96CB8D0039
 	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:34:07 -0500 (EST)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e31.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p110JUoF018210
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 17:19:30 -0700
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p110XxLH122022
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 17:33:59 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p110XxBK018515
-	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 17:33:59 -0700
-Subject: [RFC][PATCH 1/6] count transparent hugepage splits
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p110AGGP000937
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:10:18 -0500
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 5BEC772804D
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:34:05 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p110Y4242371712
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 19:34:04 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p110Y4al019578
+	for <linux-mm@kvack.org>; Mon, 31 Jan 2011 22:34:04 -0200
+Subject: [RFC][PATCH 5/6] teach smaps_pte_range() about THP pmds
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Mon, 31 Jan 2011 16:33:58 -0800
+Date: Mon, 31 Jan 2011 16:34:03 -0800
 References: <20110201003357.D6F0BE0D@kernel>
 In-Reply-To: <20110201003357.D6F0BE0D@kernel>
-Message-Id: <20110201003358.98826457@kernel>
+Message-Id: <20110201003403.736A24DF@kernel>
 Sender: owner-linux-mm@kvack.org
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
 
-The khugepaged process collapses transparent hugepages for us.  Whenever
-it collapses a page into a transparent hugepage, we increment a nice
-global counter exported in sysfs:
+This adds code to explicitly detect  and handle
+pmd_trans_huge() pmds.  It then passes HPAGE_SIZE units
+in to the smap_pte_entry() function instead of PAGE_SIZE.
 
-	/sys/kernel/mm/transparent_hugepage/khugepaged/pages_collapsed
-
-But, transparent hugepages also get broken down in quite a few
-places in the kernel.  We do not have a good idea how how many of
-those collpased pages are "new" versus how many are just fixing up
-spots that got split a moment before.
-
-Note: "splits" and "collapses" are opposites in this context.
-
-This patch adds a new sysfs file:
-
-	/sys/kernel/mm/transparent_hugepage/pages_split
-
-It is global, like "pages_collapsed", and is incremented whenever any
-transparent hugepage on the system has been broken down in to normal
-PAGE_SIZE base pages.  This way, we can get an idea how well khugepaged
-is keeping up collapsing pages that have been split.
-
-I put it under /sys/kernel/mm/transparent_hugepage/ instead of the
-khugepaged/ directory since it is not strictly related to
-khugepaged; it can get incremented on pages other than those
-collapsed by khugepaged.
-
-The variable storing this is a plain integer.  I needs the same
-amount of locking that 'khugepaged_pages_collapsed' has, for
-instance.
+This means that using /proc/$pid/smaps now will no longer
+cause THPs to be broken down in to small pages.
 
 Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 ---
 
- linux-2.6.git-dave/Documentation/vm/transhuge.txt |    8 ++++++++
- linux-2.6.git-dave/mm/huge_memory.c               |   12 ++++++++++++
- 2 files changed, 20 insertions(+)
+ linux-2.6.git-dave/fs/proc/task_mmu.c |   12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
-diff -puN mm/huge_memory.c~count-thp-splits mm/huge_memory.c
---- linux-2.6.git/mm/huge_memory.c~count-thp-splits	2011-01-31 11:05:51.484526127 -0800
-+++ linux-2.6.git-dave/mm/huge_memory.c	2011-01-31 11:05:51.508526113 -0800
-@@ -38,6 +38,8 @@ unsigned long transparent_hugepage_flags
- 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)|
- 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG);
+diff -puN fs/proc/task_mmu.c~teach-smaps_pte_range-about-thp-pmds fs/proc/task_mmu.c
+--- linux-2.6.git/fs/proc/task_mmu.c~teach-smaps_pte_range-about-thp-pmds	2011-01-31 15:10:55.387856566 -0800
++++ linux-2.6.git-dave/fs/proc/task_mmu.c	2011-01-31 15:25:12.231239775 -0800
+@@ -1,5 +1,6 @@
+ #include <linux/mm.h>
+ #include <linux/hugetlb.h>
++#include <linux/huge_mm.h>
+ #include <linux/mount.h>
+ #include <linux/seq_file.h>
+ #include <linux/highmem.h>
+@@ -385,6 +386,17 @@ static int smaps_pte_range(pmd_t *pmd, u
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
  
-+static unsigned int huge_pages_split;
-+
- /* default scan 8*512 pte (or vmas) every 30 second */
- static unsigned int khugepaged_pages_to_scan __read_mostly = HPAGE_PMD_NR*8;
- static unsigned int khugepaged_pages_collapsed;
-@@ -307,12 +309,20 @@ static struct kobj_attribute debug_cow_a
- 	__ATTR(debug_cow, 0644, debug_cow_show, debug_cow_store);
- #endif /* CONFIG_DEBUG_VM */
++	if (pmd_trans_huge(*pmd)) {
++		if (pmd_trans_splitting(*pmd)) {
++			spin_unlock(&walk->mm->page_table_lock);
++			wait_split_huge_page(vma->anon_vma, pmd);
++			spin_lock(&walk->mm->page_table_lock);
++			goto normal_ptes;
++		}
++		smaps_pte_entry(*(pte_t *)pmd, addr, HPAGE_SIZE, walk);
++		return 0;
++	}
++normal_ptes:
+ 	split_huge_page_pmd(walk->mm, pmd);
  
-+static ssize_t pages_split_show(struct kobject *kobj,
-+				struct kobj_attribute *attr, char *buf)
-+{
-+	return sprintf(buf, "%u\n", huge_pages_split);
-+}
-+static struct kobj_attribute pages_split_attr = __ATTR_RO(pages_split);
-+
- static struct attribute *hugepage_attr[] = {
- 	&enabled_attr.attr,
- 	&defrag_attr.attr,
- #ifdef CONFIG_DEBUG_VM
- 	&debug_cow_attr.attr,
- #endif
-+	&pages_split_attr.attr,
- 	NULL,
- };
- 
-@@ -1314,6 +1324,8 @@ static int __split_huge_page_map(struct 
- 	}
- 	spin_unlock(&mm->page_table_lock);
- 
-+	if (ret)
-+		huge_pages_split++;
- 	return ret;
- }
- 
-diff -puN fs/proc/meminfo.c~count-thp-splits fs/proc/meminfo.c
-diff -puN Documentation/vm/transhuge.txt~count-thp-splits Documentation/vm/transhuge.txt
---- linux-2.6.git/Documentation/vm/transhuge.txt~count-thp-splits	2011-01-31 11:05:51.500526118 -0800
-+++ linux-2.6.git-dave/Documentation/vm/transhuge.txt	2011-01-31 11:05:51.508526113 -0800
-@@ -120,6 +120,14 @@ khugepaged will be automatically started
- transparent_hugepage/enabled is set to "always" or "madvise, and it'll
- be automatically shutdown if it's set to "never".
- 
-+Not all kernel code is aware of transparent hugepages.  Sometimes,
-+it is necessary to fall back to small pages so that this kernel
-+code can deal with small pages.  This might also happen if, for
-+instance, munmap() was called in the middle of a transparent huge
-+page.  We track these splits in:
-+
-+	/sys/kernel/mm/transparent_hugepage/pages_split
-+
- khugepaged runs usually at low frequency so while one may not want to
- invoke defrag algorithms synchronously during the page faults, it
- should be worth invoking defrag at least in khugepaged. However it's
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+diff -puN mm/vmscan.c~teach-smaps_pte_range-about-thp-pmds mm/vmscan.c
+diff -puN include/trace/events/vmscan.h~teach-smaps_pte_range-about-thp-pmds include/trace/events/vmscan.h
+diff -puN mm/pagewalk.c~teach-smaps_pte_range-about-thp-pmds mm/pagewalk.c
+diff -puN mm/huge_memory.c~teach-smaps_pte_range-about-thp-pmds mm/huge_memory.c
+diff -puN mm/memory.c~teach-smaps_pte_range-about-thp-pmds mm/memory.c
+diff -puN include/linux/huge_mm.h~teach-smaps_pte_range-about-thp-pmds include/linux/huge_mm.h
+diff -puN mm/internal.h~teach-smaps_pte_range-about-thp-pmds mm/internal.h
 _
 
 --
