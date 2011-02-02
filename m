@@ -1,63 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 88B228D0039
-	for <linux-mm@kvack.org>; Tue,  1 Feb 2011 19:43:17 -0500 (EST)
-Date: Tue, 1 Feb 2011 16:42:40 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] Allow GUP to fail instead of waiting on a page.
-Message-Id: <20110201164240.9a5c06e9.akpm@linux-foundation.org>
-In-Reply-To: <1296559307-14637-2-git-send-email-gleb@redhat.com>
-References: <1296559307-14637-1-git-send-email-gleb@redhat.com>
-	<1296559307-14637-2-git-send-email-gleb@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 02EA48D0039
+	for <linux-mm@kvack.org>; Wed,  2 Feb 2011 07:43:53 -0500 (EST)
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
+	by e23smtp07.au.ibm.com (8.14.4/8.13.1) with ESMTP id p12ChhvC003527
+	for <linux-mm@kvack.org>; Wed, 2 Feb 2011 23:43:43 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p12ChdRU1830974
+	for <linux-mm@kvack.org>; Wed, 2 Feb 2011 23:43:43 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p12ChcCN025845
+	for <linux-mm@kvack.org>; Wed, 2 Feb 2011 23:43:39 +1100
+Date: Wed, 2 Feb 2011 18:13:33 +0530
+From: Ankita Garg <ankita@in.ibm.com>
+Subject: Re: [PATCHv8 07/12] mm: cma: Contiguous Memory Allocator added
+Message-ID: <20110202124333.GB26396@in.ibm.com>
+Reply-To: Ankita Garg <ankita@in.ibm.com>
+References: <cover.1292443200.git.m.nazarewicz@samsung.com>
+ <eb8f43235c8ff2816ada7b56ffe371ea6140cae8.1292443200.git.m.nazarewicz@samsung.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <eb8f43235c8ff2816ada7b56ffe371ea6140cae8.1292443200.git.m.nazarewicz@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gleb Natapov <gleb@redhat.com>
-Cc: avi@redhat.com, mtosatti@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Cc: Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>, Daniel Walker <dwalker@codeaurora.org>, Johan MOSSBERG <johan.xx.mossberg@stericsson.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mm@kvack.org
 
-On Tue,  1 Feb 2011 13:21:46 +0200
-Gleb Natapov <gleb@redhat.com> wrote:
+Hi Michal,
 
-> GUP user may want to try to acquire a reference to a page if it is already
-> in memory, but not if IO, to bring it in, is needed. For example KVM may
-> tell vcpu to schedule another guest process if current one is trying to
-> access swapped out page. Meanwhile, the page will be swapped in and the
-> guest process, that depends on it, will be able to run again.
+On Wed, Dec 15, 2010 at 09:34:27PM +0100, Michal Nazarewicz wrote:
+> The Contiguous Memory Allocator is a set of functions that lets
+> one initialise a region of memory which then can be used to perform
+> allocations of contiguous memory chunks from.
 > 
-> This patch adds FAULT_FLAG_RETRY_NOWAIT (suggested by Linus) and
-> FOLL_NOWAIT follow_page flags. FAULT_FLAG_RETRY_NOWAIT, when used in
-> conjunction with VM_FAULT_ALLOW_RETRY, indicates to handle_mm_fault that
-> it shouldn't drop mmap_sem and wait on a page, but return VM_FAULT_RETRY
-> instead.
->
-> ...
->
-> +#define FOLL_NOWAIT	0x20	/* return if disk transfer is needed */
+> CMA allows for creation of private and non-private contexts.
+> The former is reserved for CMA and no other kernel subsystem can
+> use it.  The latter allows for movable pages to be allocated within
+> CMA's managed memory so that it can be used for page cache when
+> CMA devices do not use it.
+> 
+> Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> ---
+> 
 
-The comment is a little misleading.  Or incomplete.
+<snip>
 
-For both swap-backed and file-backed pages, the code will initiate the
-disk transfer and will then return without waiting for it to complete. 
-This (important!) information isn't really presented in either the
-changelog or the code itself.
+> +/************************* Initialise CMA *************************/
+> +
+> +unsigned long cma_reserve(unsigned long start, unsigned long size,
+> +			  unsigned long alignment)
+> +{
+> +	pr_debug("%s(%p+%p/%p)\n", __func__, (void *)start, (void *)size,
+> +		 (void *)alignment);
+> +
+> +	/* Sanity checks */
+> +	if (!size || (alignment & (alignment - 1)))
+> +		return (unsigned long)-EINVAL;
+> +
+> +	/* Sanitise input arguments */
+> +	start = PAGE_ALIGN(start);
+> +	size  = PAGE_ALIGN(size);
+> +	if (alignment < PAGE_SIZE)
+> +		alignment = PAGE_SIZE;
+> +
+> +	/* Reserve memory */
+> +	if (start) {
+> +		if (memblock_is_region_reserved(start, size) ||
+> +		    memblock_reserve(start, size) < 0)
+> +			return (unsigned long)-EBUSY;
+> +	} else {
+> +		/*
+> +		 * Use __memblock_alloc_base() since
+> +		 * memblock_alloc_base() panic()s.
+> +		 */
+> +		u64 addr = __memblock_alloc_base(size, alignment, 0);
+> +		if (!addr) {
+> +			return (unsigned long)-ENOMEM;
+> +		} else if (addr + size > ~(unsigned long)0) {
+> +			memblock_free(addr, size);
+> +			return (unsigned long)-EOVERFLOW;
+> +		} else {
+> +			start = addr;
+> +		}
+> +	}
+> +
 
-This?
+Reserving the areas of memory belonging to CMA using memblock_reserve,
+would preclude that range from the zones, due to which it would not be
+available for buddy allocations right ?
 
---- a/include/linux/mm.h~mm-allow-gup-to-fail-instead-of-waiting-on-a-page-fix
-+++ a/include/linux/mm.h
-@@ -1537,7 +1537,8 @@ struct page *follow_page(struct vm_area_
- #define FOLL_GET	0x04	/* do get_page on page */
- #define FOLL_DUMP	0x08	/* give error on hole if it would be zero */
- #define FOLL_FORCE	0x10	/* get_user_pages read/write w/o permission */
--#define FOLL_NOWAIT	0x20	/* return if disk transfer is needed */
-+#define FOLL_NOWAIT	0x20	/* if a disk transfer is needed, start the IO
-+				 * and return without waiting upon it */
- #define FOLL_MLOCK	0x40	/* mark page as mlocked */
- #define FOLL_SPLIT	0x80	/* don't return transhuge pages, split them */
- 
-_
+> +	return start;
+> +}
+> +
+> +
+
+-- 
+Regards,
+Ankita Garg (ankita@in.ibm.com)
+Linux Technology Center
+IBM India Systems & Technology Labs,
+Bangalore, India
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
