@@ -1,39 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 77B298D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 09:37:16 -0500 (EST)
-Message-ID: <4D4ABD7F.2060208@redhat.com>
-Date: Thu, 03 Feb 2011 09:36:47 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id ADED88D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 10:03:13 -0500 (EST)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp01.in.ibm.com (8.14.4/8.13.1) with ESMTP id p13F386N002291
+	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 20:33:08 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p13F2nUS1867988
+	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 20:32:49 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p13F2nR0013773
+	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 20:32:49 +0530
+Date: Thu, 3 Feb 2011 20:32:47 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: memcg: save 20% of per-page memcg memory overhead
+Message-ID: <20110203150247.GD16409@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1296743166-9412-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: too big min_free_kbytes
-References: <1295841406.1949.953.camel@sli10-conroe> <20110124150033.GB9506@random.random> <20110126141746.GS18984@csn.ul.ie> <20110126152302.GT18984@csn.ul.ie> <20110126154203.GS926@random.random> <20110126163655.GU18984@csn.ul.ie> <20110126174236.GV18984@csn.ul.ie> <20110127134057.GA32039@csn.ul.ie> <20110127152755.GB30919@random.random> <20110203025808.GJ5843@random.random>
-In-Reply-To: <20110203025808.GJ5843@random.random>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1296743166-9412-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 02/02/2011 09:58 PM, Andrea Arcangeli wrote:
+* Johannes Weiner <hannes@cmpxchg.org> [2011-02-03 15:26:01]:
 
-> Comments welcome,
-> Thanks!
-> Andrea
->
->> ====
->> Subject: vmscan: kswapd must not free more than high_wmark pages
+> This patch series removes the direct page pointer from struct
+> page_cgroup, which saves 20% of per-page memcg memory overhead (Fedora
+> and Ubuntu enable memcg per default, openSUSE apparently too).
+> 
+> The node id or section number is encoded in the remaining free bits of
+> pc->flags which allows calculating the corresponding page without the
+> extra pointer.
+> 
+> I ran, what I think is, a worst-case microbenchmark that just cats a
+> large sparse file to /dev/null, because it means that walking the LRU
+> list on behalf of per-cgroup reclaim and looking up pages from
+> page_cgroups is happening constantly and at a high rate.  But it made
+> no measurable difference.  A profile reported a 0.11% share of the new
+> lookup_cgroup_page() function in this benchmark.
 
-NAK
+Wow! defintely worth a deeper look.
 
-I believe we need a little bit of slack above high_wmark_pages,
-to be able to even out memory pressure between zones.
-
-Maybe free up to high_wmark_pages + min_wmark_pages ?
+> 
+> 	Hannes
 
 -- 
-All rights reversed
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
