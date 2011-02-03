@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A86C48D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 11:24:53 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A28048D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 11:27:05 -0500 (EST)
 Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
 	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1575362Ab1BCQXp (ORCPT <rfc822;linux-mm@kvack.org>);
-	Thu, 3 Feb 2011 17:23:45 +0100
-Date: Thu, 3 Feb 2011 17:23:45 +0100
+	id S1576021Ab1BCQZO (ORCPT <rfc822;linux-mm@kvack.org>);
+	Thu, 3 Feb 2011 17:25:14 +0100
+Date: Thu, 3 Feb 2011 17:25:14 +0100
 From: Daniel Kiper <dkiper@net-space.pl>
-Subject: [PATCH R3 0/7] xen/balloon: Memory hotplug support for Xen balloon driver
-Message-ID: <20110203162345.GC1364@router-fw-old.local.net-space.pl>
+Subject: [PATCH R3 1/7] mm: Add add_registered_memory() to memory hotplug API
+Message-ID: <20110203162514.GD1364@router-fw-old.local.net-space.pl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -17,39 +17,109 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi,
+add_registered_memory() adds memory ealier registered
+as memory resource. It is required by memory hotplug
+for Xen guests, however it could be used also by other
+modules.
 
-I am sending next version of memory hotplug
-support for Xen balloon driver patch. It applies
-to Linus' git tree, v2.6.38-rc3 tag. Most of
-suggestions were taken into account. Thanks for
-everybody who tested and/or sent suggestions
-to my work.
+Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
+---
+ include/linux/memory_hotplug.h |    1 +
+ mm/memory_hotplug.c            |   50 ++++++++++++++++++++++++++++++---------
+ 2 files changed, 39 insertions(+), 12 deletions(-)
 
-There are a few prerequisite patches which fixes
-some problems found during work on memory hotplug
-patch or add some futures which are needed by
-memory hotplug patch.
-
-Full list of fixes/futures:
-  - mm: Add add_registered_memory() to memory hotplug API,
-  - xen/balloon: Removal of driver_pages,
-  - xen/balloon: HVM mode support,
-  - xen/balloon: Migration from mod_timer() to schedule_delayed_work(),
-  - xen/balloon: Protect against CPU exhaust by event/x process,
-  - xen/balloon: Minor notation fixes,
-  - xen/balloon: Memory hotplug support for Xen balloon driver.
-
-Additionally, I suggest to apply patch prepared by Steffano Stabellini
-(https://lkml.org/lkml/2011/1/31/232) which fixes memory management
-issue in Xen guest. I was not able boot guest machine without
-above mentioned patch.
-
-I have received notice that this series of patches broke
-machine migration under Xen. I am going to solve that problem ASAP.
-I do not have received any notices about other problems till now.
-
-Daniel
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 8122018..fe63912 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -223,6 +223,7 @@ static inline int is_mem_section_removable(unsigned long pfn,
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+ extern int mem_online_node(int nid);
++extern int add_registered_memory(int nid, u64 start, u64 size);
+ extern int add_memory(int nid, u64 start, u64 size);
+ extern int arch_add_memory(int nid, u64 start, u64 size);
+ extern int remove_memory(u64 start, u64 size);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 321fc74..7947bdf 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -532,20 +532,12 @@ out:
+ }
+ 
+ /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+-int __ref add_memory(int nid, u64 start, u64 size)
++static int __ref __add_memory(int nid, u64 start, u64 size)
+ {
+ 	pg_data_t *pgdat = NULL;
+ 	int new_pgdat = 0;
+-	struct resource *res;
+ 	int ret;
+ 
+-	lock_memory_hotplug();
+-
+-	res = register_memory_resource(start, size);
+-	ret = -EEXIST;
+-	if (!res)
+-		goto out;
+-
+ 	if (!node_online(nid)) {
+ 		pgdat = hotadd_new_pgdat(nid, start);
+ 		ret = -ENOMEM;
+@@ -579,14 +571,48 @@ int __ref add_memory(int nid, u64 start, u64 size)
+ 	goto out;
+ 
+ error:
+-	/* rollback pgdat allocation and others */
++	/* rollback pgdat allocation */
+ 	if (new_pgdat)
+ 		rollback_node_hotadd(nid, pgdat);
+-	if (res)
+-		release_memory_resource(res);
++
++out:
++	return ret;
++}
++
++int add_registered_memory(int nid, u64 start, u64 size)
++{
++	int ret;
++
++	lock_memory_hotplug();
++	ret = __add_memory(nid, start, size);
++	unlock_memory_hotplug();
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(add_registered_memory);
++
++int add_memory(int nid, u64 start, u64 size)
++{
++	int ret = -EEXIST;
++	struct resource *res;
++
++	lock_memory_hotplug();
++
++	res = register_memory_resource(start, size);
++
++	if (!res)
++		goto out;
++
++	ret = __add_memory(nid, start, size);
++
++	if (!ret)
++		goto out;
++
++	release_memory_resource(res);
+ 
+ out:
+ 	unlock_memory_hotplug();
++
+ 	return ret;
+ }
+ EXPORT_SYMBOL_GPL(add_memory);
+-- 
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
