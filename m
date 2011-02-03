@@ -1,128 +1,89 @@
 From: Daniel Kiper <dkiper@net-space.pl>
-Subject: [PATCH R3 1/7] mm: Add add_registered_memory() to memory hotplug API
-Date: Thu, 3 Feb 2011 17:25:14 +0100
-Message-ID: <20110203162514.GD1364__27501.4268620454$1296750434$gmane$org@router-fw-old.local.net-space.pl>
+Subject: [PATCH R3 4/7] xen/balloon: Migration from mod_timer() to schedule_delayed_work()
+Date: Thu, 3 Feb 2011 17:27:32 +0100
+Message-ID: <20110203162732.GG1364__13452.8156639592$1296750520$gmane$org@router-fw-old.local.net-space.pl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Pl21T-0006M7-Gf
-	for glkm-linux-mm-2@m.gmane.org; Thu, 03 Feb 2011 17:27:07 +0100
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A28048D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 11:27:05 -0500 (EST)
+	id 1Pl22n-000781-At
+	for glkm-linux-mm-2@m.gmane.org; Thu, 03 Feb 2011 17:28:29 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D77B68D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 11:28:27 -0500 (EST)
 Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
 	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1576021Ab1BCQZO (ORCPT <rfc822;linux-mm@kvack.org>);
-	Thu, 3 Feb 2011 17:25:14 +0100
+	id S1576249Ab1BCQ1c (ORCPT <rfc822;linux-mm@kvack.org>);
+	Thu, 3 Feb 2011 17:27:32 +0100
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer
 
-add_registered_memory() adds memory ealier registered
-as memory resource. It is required by memory hotplug
-for Xen guests, however it could be used also by other
-modules.
+Migration from mod_timer() to schedule_delayed_work().
 
 Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
 ---
- include/linux/memory_hotplug.h |    1 +
- mm/memory_hotplug.c            |   50 ++++++++++++++++++++++++++++++---------
- 2 files changed, 39 insertions(+), 12 deletions(-)
+ drivers/xen/balloon.c |   16 +++-------------
+ 1 files changed, 3 insertions(+), 13 deletions(-)
 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 8122018..fe63912 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -223,6 +223,7 @@ static inline int is_mem_section_removable(unsigned long pfn,
- #endif /* CONFIG_MEMORY_HOTREMOVE */
+diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+index 952cfe2..4223f64 100644
+--- a/drivers/xen/balloon.c
++++ b/drivers/xen/balloon.c
+@@ -99,8 +99,7 @@ static LIST_HEAD(ballooned_pages);
  
- extern int mem_online_node(int nid);
-+extern int add_registered_memory(int nid, u64 start, u64 size);
- extern int add_memory(int nid, u64 start, u64 size);
- extern int arch_add_memory(int nid, u64 start, u64 size);
- extern int remove_memory(u64 start, u64 size);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 321fc74..7947bdf 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -532,20 +532,12 @@ out:
+ /* Main work function, always executed in process context. */
+ static void balloon_process(struct work_struct *work);
+-static DECLARE_WORK(balloon_worker, balloon_process);
+-static struct timer_list balloon_timer;
++static DECLARE_DELAYED_WORK(balloon_worker, balloon_process);
+ 
+ /* When ballooning out (allocating memory to return to Xen) we don't really
+    want the kernel to try too hard since that can trigger the oom killer. */
+@@ -172,11 +171,6 @@ static struct page *balloon_next_page(struct page *page)
+ 	return list_entry(next, struct page, lru);
  }
  
- /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
--int __ref add_memory(int nid, u64 start, u64 size)
-+static int __ref __add_memory(int nid, u64 start, u64 size)
+-static void balloon_alarm(unsigned long unused)
+-{
+-	schedule_work(&balloon_worker);
+-}
+-
+ static unsigned long current_target(void)
  {
- 	pg_data_t *pgdat = NULL;
- 	int new_pgdat = 0;
--	struct resource *res;
- 	int ret;
+ 	unsigned long target = balloon_stats.target_pages;
+@@ -333,7 +327,7 @@ static void balloon_process(struct work_struct *work)
  
--	lock_memory_hotplug();
--
--	res = register_memory_resource(start, size);
--	ret = -EEXIST;
--	if (!res)
--		goto out;
--
- 	if (!node_online(nid)) {
- 		pgdat = hotadd_new_pgdat(nid, start);
- 		ret = -ENOMEM;
-@@ -579,14 +571,48 @@ int __ref add_memory(int nid, u64 start, u64 size)
- 	goto out;
+ 	/* Schedule more work if there is some still to be done. */
+ 	if (current_target() != balloon_stats.current_pages)
+-		mod_timer(&balloon_timer, jiffies + HZ);
++		schedule_delayed_work(&balloon_worker, HZ);
  
- error:
--	/* rollback pgdat allocation and others */
-+	/* rollback pgdat allocation */
- 	if (new_pgdat)
- 		rollback_node_hotadd(nid, pgdat);
--	if (res)
--		release_memory_resource(res);
-+
-+out:
-+	return ret;
-+}
-+
-+int add_registered_memory(int nid, u64 start, u64 size)
-+{
-+	int ret;
-+
-+	lock_memory_hotplug();
-+	ret = __add_memory(nid, start, size);
-+	unlock_memory_hotplug();
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(add_registered_memory);
-+
-+int add_memory(int nid, u64 start, u64 size)
-+{
-+	int ret = -EEXIST;
-+	struct resource *res;
-+
-+	lock_memory_hotplug();
-+
-+	res = register_memory_resource(start, size);
-+
-+	if (!res)
-+		goto out;
-+
-+	ret = __add_memory(nid, start, size);
-+
-+	if (!ret)
-+		goto out;
-+
-+	release_memory_resource(res);
- 
- out:
- 	unlock_memory_hotplug();
-+
- 	return ret;
+ 	mutex_unlock(&balloon_mutex);
  }
- EXPORT_SYMBOL_GPL(add_memory);
+@@ -343,7 +337,7 @@ static void balloon_set_new_target(unsigned long target)
+ {
+ 	/* No need for lock. Not read-modify-write updates. */
+ 	balloon_stats.target_pages = target;
+-	schedule_work(&balloon_worker);
++	schedule_delayed_work(&balloon_worker, 0);
+ }
+ 
+ static struct xenbus_watch target_watch =
+@@ -400,10 +394,6 @@ static int __init balloon_init(void)
+ 	balloon_stats.balloon_low   = 0;
+ 	balloon_stats.balloon_high  = 0;
+ 
+-	init_timer(&balloon_timer);
+-	balloon_timer.data = 0;
+-	balloon_timer.function = balloon_alarm;
+-
+ 	register_balloon(&balloon_sysdev);
+ 
+ 	/*
 -- 
 1.5.6.5
 
