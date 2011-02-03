@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 552FA8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 16:22:28 -0500 (EST)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id p13LMPLu026082
-	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 13:22:25 -0800
-Received: from pwj6 (pwj6.prod.google.com [10.241.219.70])
-	by wpaz5.hot.corp.google.com with ESMTP id p13LMObg020913
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AD4BC8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 16:22:34 -0500 (EST)
+Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
+	by smtp-out.google.com with ESMTP id p13LMVek021873
+	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 13:22:31 -0800
+Received: from pvg13 (pvg13.prod.google.com [10.241.210.141])
+	by hpaq13.eem.corp.google.com with ESMTP id p13LM4p6010399
 	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 13:22:24 -0800
-Received: by pwj6 with SMTP id 6so686268pwj.40
-        for <linux-mm@kvack.org>; Thu, 03 Feb 2011 13:22:23 -0800 (PST)
-Date: Thu, 3 Feb 2011 13:22:21 -0800 (PST)
+	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 13:22:29 -0800
+Received: by pvg13 with SMTP id 13so351815pvg.38
+        for <linux-mm@kvack.org>; Thu, 03 Feb 2011 13:22:29 -0800 (PST)
+Date: Thu, 3 Feb 2011 13:22:26 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC][PATCH 2/6] pagewalk: only split huge pages when
- necessary
-In-Reply-To: <20110201003359.8DDFF665@kernel>
-Message-ID: <alpine.DEB.2.00.1102031257490.948@chino.kir.corp.google.com>
-References: <20110201003357.D6F0BE0D@kernel> <20110201003359.8DDFF665@kernel>
+Subject: Re: [RFC][PATCH 3/6] break out smaps_pte_entry() from
+ smaps_pte_range()
+In-Reply-To: <20110201003401.95CFBFA6@kernel>
+Message-ID: <alpine.DEB.2.00.1102031315080.1307@chino.kir.corp.google.com>
+References: <20110201003357.D6F0BE0D@kernel> <20110201003401.95CFBFA6@kernel>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -28,117 +28,133 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.
 On Mon, 31 Jan 2011, Dave Hansen wrote:
 
 > 
-> Right now, if a mm_walk has either ->pte_entry or ->pmd_entry
-> set, it will unconditionally split and transparent huge pages
-> it runs in to.  In practice, that means that anyone doing a
-> 
-> 	cat /proc/$pid/smaps
-> 
-> will unconditionally break down every huge page in the process
-> and depend on khugepaged to re-collapse it later.  This is
-> fairly suboptimal.
-> 
-> This patch changes that behavior.  It teaches each ->pmd_entry
-> handler (there are three) that they must break down the THPs
-> themselves.  Also, the _generic_ code will never break down
-> a THP unless a ->pte_entry handler is actually set.
-> 
-> This means that the ->pmd_entry handlers can now choose to
-> deal with THPs without breaking them down.
-> 
+> We will use smaps_pte_entry() in a moment to handle both small
+> and transparent large pages.  But, we must break it out of
+> smaps_pte_range() first.
 > 
 
-No sign-off (goes for patches 3 and 4, as well)?
+The extraction from smaps_pte_range() looks good.  What's the performance 
+impact on very frequent consumers of /proc/pid/smaps, though, as the 
+result of the calls throughout the iteration if smaps_pte_entry() doesn't 
+get inlined (supposedly because you'll be reusing the extracted function 
+again elsewhere)?
 
+> 
 > ---
 > 
->  linux-2.6.git-dave/fs/proc/task_mmu.c |    6 ++++++
->  linux-2.6.git-dave/mm/pagewalk.c      |   24 ++++++++++++++++++++----
->  2 files changed, 26 insertions(+), 4 deletions(-)
+>  linux-2.6.git-dave/fs/proc/task_mmu.c |   85 ++++++++++++++++++----------------
+>  1 file changed, 46 insertions(+), 39 deletions(-)
 > 
-> diff -puN mm/pagewalk.c~pagewalk-dont-always-split-thp mm/pagewalk.c
-> --- linux-2.6.git/mm/pagewalk.c~pagewalk-dont-always-split-thp	2011-01-27 10:57:02.309914973 -0800
-> +++ linux-2.6.git-dave/mm/pagewalk.c	2011-01-27 10:57:02.317914965 -0800
-> @@ -33,19 +33,35 @@ static int walk_pmd_range(pud_t *pud, un
+> diff -puN fs/proc/task_mmu.c~break-out-smaps_pte_entry fs/proc/task_mmu.c
+> --- linux-2.6.git/fs/proc/task_mmu.c~break-out-smaps_pte_entry	2011-01-27 11:03:06.761548697 -0800
+> +++ linux-2.6.git-dave/fs/proc/task_mmu.c	2011-01-27 11:03:06.773548685 -0800
+> @@ -333,56 +333,63 @@ struct mem_size_stats {
+>  	u64 pss;
+>  };
 >  
->  	pmd = pmd_offset(pud, addr);
->  	do {
-> +	again:
-
-checkpatch will warn about the indent.
-
->  		next = pmd_addr_end(addr, end);
-> -		split_huge_page_pmd(walk->mm, pmd);
-> -		if (pmd_none_or_clear_bad(pmd)) {
-> +		if (pmd_none(*pmd)) {
-
-Not sure why this has been changed from pmd_none_or_clear_bad(), that's 
-been done even prior to THP.
-
->  			if (walk->pte_hole)
->  				err = walk->pte_hole(addr, next, walk);
->  			if (err)
->  				break;
->  			continue;
->  		}
-> +		/*
-> +		 * This implies that each ->pmd_entry() handler
-> +		 * needs to know about pmd_trans_huge() pmds
-> +		 */
-
-Probably needs to be documented somewhere for users of pagewalk?
-
->  		if (walk->pmd_entry)
->  			err = walk->pmd_entry(pmd, addr, next, walk);
-> -		if (!err && walk->pte_entry)
-> -			err = walk_pte_range(pmd, addr, next, walk);
-> +		if (err)
-> +			break;
+> -static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+> -			   struct mm_walk *walk)
 > +
-> +		/*
-> +		 * Check this here so we only break down trans_huge
-> +		 * pages when we _need_ to
-> +		 */
-> +		if (!walk->pte_entry)
-> +			continue;
-> +
-> +		split_huge_page_pmd(walk->mm, pmd);
-> +		if (pmd_none_or_clear_bad(pmd))
-> +			goto again;
-> +		err = walk_pte_range(pmd, addr, next, walk);
->  		if (err)
->  			break;
->  	} while (pmd++, addr = next, addr != end);
-> diff -puN fs/proc/task_mmu.c~pagewalk-dont-always-split-thp fs/proc/task_mmu.c
-> --- linux-2.6.git/fs/proc/task_mmu.c~pagewalk-dont-always-split-thp	2011-01-27 10:57:02.313914969 -0800
-> +++ linux-2.6.git-dave/fs/proc/task_mmu.c	2011-01-27 10:57:02.321914961 -0800
-> @@ -343,6 +343,8 @@ static int smaps_pte_range(pmd_t *pmd, u
+> +static void smaps_pte_entry(pte_t ptent, unsigned long addr,
+> +		struct mm_walk *walk)
+>  {
+>  	struct mem_size_stats *mss = walk->private;
+>  	struct vm_area_struct *vma = mss->vma;
+> -	pte_t *pte, ptent;
+> -	spinlock_t *ptl;
 >  	struct page *page;
 >  	int mapcount;
 >  
-> +	split_huge_page_pmd(walk->mm, pmd);
-> +
->  	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
->  	for (; addr != end; pte++, addr += PAGE_SIZE) {
->  		ptent = *pte;
-> @@ -467,6 +469,8 @@ static int clear_refs_pte_range(pmd_t *p
->  	spinlock_t *ptl;
->  	struct page *page;
+> -	split_huge_page_pmd(walk->mm, pmd);
+> -
+> -	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> -	for (; addr != end; pte++, addr += PAGE_SIZE) {
+> -		ptent = *pte;
+> +	if (is_swap_pte(ptent)) {
+> +		mss->swap += PAGE_SIZE;
+> +		return;
+> +	}
 >  
-> +	split_huge_page_pmd(walk->mm, pmd);
-> +
->  	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
->  	for (; addr != end; pte++, addr += PAGE_SIZE) {
->  		ptent = *pte;
-> @@ -623,6 +627,8 @@ static int pagemap_pte_range(pmd_t *pmd,
->  	pte_t *pte;
->  	int err = 0;
+> -		if (is_swap_pte(ptent)) {
+> -			mss->swap += PAGE_SIZE;
+> -			continue;
+> -		}
+> +	if (!pte_present(ptent))
+> +		return;
 >  
-> +	split_huge_page_pmd(walk->mm, pmd);
+> -		if (!pte_present(ptent))
+> -			continue;
+> +	page = vm_normal_page(vma, addr, ptent);
+> +	if (!page)
+> +		return;
 > +
->  	/* find the first VMA at or above 'addr' */
->  	vma = find_vma(walk->mm, addr);
->  	for (; addr != end; addr += PAGE_SIZE) {
+> +	if (PageAnon(page))
+> +		mss->anonymous += PAGE_SIZE;
+> +
+> +	mss->resident += PAGE_SIZE;
+> +	/* Accumulate the size in pages that have been accessed. */
+> +	if (pte_young(ptent) || PageReferenced(page))
+> +		mss->referenced += PAGE_SIZE;
+> +	mapcount = page_mapcount(page);
+> +	if (mapcount >= 2) {
+> +		if (pte_dirty(ptent) || PageDirty(page))
+> +			mss->shared_dirty += PAGE_SIZE;
+> +		else
+> +			mss->shared_clean += PAGE_SIZE;
+> +		mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
+> +	} else {
+> +		if (pte_dirty(ptent) || PageDirty(page))
+> +			mss->private_dirty += PAGE_SIZE;
+> +		else
+> +			mss->private_clean += PAGE_SIZE;
+> +		mss->pss += (PAGE_SIZE << PSS_SHIFT);
+> +	}
+> +}
+>  
+> -		page = vm_normal_page(vma, addr, ptent);
+> -		if (!page)
+> -			continue;
+> +static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+> +			   struct mm_walk *walk)
+> +{
+> +	struct mem_size_stats *mss = walk->private;
+> +	struct vm_area_struct *vma = mss->vma;
+> +	pte_t *pte;
+> +	spinlock_t *ptl;
+>  
+> -		if (PageAnon(page))
+> -			mss->anonymous += PAGE_SIZE;
+> +	split_huge_page_pmd(walk->mm, pmd);
+>  
+> -		mss->resident += PAGE_SIZE;
+> -		/* Accumulate the size in pages that have been accessed. */
+> -		if (pte_young(ptent) || PageReferenced(page))
+> -			mss->referenced += PAGE_SIZE;
+> -		mapcount = page_mapcount(page);
+> -		if (mapcount >= 2) {
+> -			if (pte_dirty(ptent) || PageDirty(page))
+> -				mss->shared_dirty += PAGE_SIZE;
+> -			else
+> -				mss->shared_clean += PAGE_SIZE;
+> -			mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
+> -		} else {
+> -			if (pte_dirty(ptent) || PageDirty(page))
+> -				mss->private_dirty += PAGE_SIZE;
+> -			else
+> -				mss->private_clean += PAGE_SIZE;
+> -			mss->pss += (PAGE_SIZE << PSS_SHIFT);
+> -		}
+> -	}
+> +	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> +	for (; addr != end; pte++, addr += PAGE_SIZE)
+> +		smaps_pte_entry(*pte, addr, walk);
+>  	pte_unmap_unlock(pte - 1, ptl);
+>  	cond_resched();
+>  	return 0;
+> diff -puN mm/huge_memory.c~break-out-smaps_pte_entry mm/huge_memory.c
+> _
+
+Is there a missing change to mm/huge_memory.c?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
