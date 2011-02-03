@@ -1,41 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CD0198D0039
-	for <linux-mm@kvack.org>; Wed,  2 Feb 2011 14:38:00 -0500 (EST)
-Date: Wed, 2 Feb 2011 11:37:50 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] Allow GUP to fail instead of waiting on a page.
-Message-Id: <20110202113750.367a6fda.akpm@linux-foundation.org>
-In-Reply-To: <20110202133157.GI14984@redhat.com>
-References: <1296559307-14637-1-git-send-email-gleb@redhat.com>
-	<1296559307-14637-2-git-send-email-gleb@redhat.com>
-	<20110201164240.9a5c06e9.akpm@linux-foundation.org>
-	<20110202133157.GI14984@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0CDA98D0039
+	for <linux-mm@kvack.org>; Wed,  2 Feb 2011 19:57:38 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A5E5A3EE0B3
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 09:57:35 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A2DC45DE5B
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 09:57:35 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 70C6C45DE59
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 09:57:35 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A750E08002
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 09:57:35 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 129951DB8037
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 09:57:35 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mlock: operate on any regions with protection != PROT_NONE
+In-Reply-To: <4D48498A.9040606@redhat.com>
+References: <20110201010341.GA21676@google.com> <4D48498A.9040606@redhat.com>
+Message-Id: <20110203095757.939F.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Thu,  3 Feb 2011 09:57:34 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gleb Natapov <gleb@redhat.com>
-Cc: avi@redhat.com, mtosatti@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tao Ma <tm@tao.ma>, Hugh Dickins <hughd@google.com>
 
-On Wed, 2 Feb 2011 15:31:57 +0200
-Gleb Natapov <gleb@redhat.com> wrote:
+> On 01/31/2011 08:03 PM, Michel Lespinasse wrote:
+> > As Tao Ma noticed, change 5ecfda0 breaks blktrace. This is because
+> > blktrace mmaps a file with PROT_WRITE permissions but without PROT_READ,
+> > so my attempt to not unnecessarity break COW during mlock ended up
+> > causing mlock to fail with a permission problem.
+> >
+> > I am proposing to let mlock ignore vma protection in all cases except
+> > PROT_NONE. In particular, mlock should not fail for PROT_WRITE regions
+> > (as in the blktrace case, which broke at 5ecfda0) or for PROT_EXEC
+> > regions (which seem to me like they were always broken).
+> >
+> > Please review. I am proposing this as a candidate for 2.6.38 inclusion,
+> > because of the behavior change with blktrace.
+> 
+> Acked-by: Rik van Riel <riel@redhat.com>
 
-> > This?
-> > 
-> Yes, this is better. Thanks you. I see that the patch below is in your queue
-> already. Should I re-spin my patch with improved comment anyway?
+Reviewed-by :KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Nope, that's OK - I fold fixup patches into the base patch before
-sending them onwards.
 
-There's always a risk that someone will get a hold of an earlier
-version of the patch, but a) sending out a v2 doesn't eliminate that
-risk and b) it's not very important anyway (in this case) and c)
-because I separate the base patch from the fixup patches, I'll easily
-notice if someone merges an earlier patch, because I'm left holding
-stray fixup patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
