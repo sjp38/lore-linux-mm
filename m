@@ -1,108 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 139518D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 16:18:51 -0500 (EST)
-Date: Thu, 3 Feb 2011 22:17:53 +0100 (CET)
-From: Jesper Juhl <jj@chaosbits.net>
-Subject: Re: [PATCH] Huge TLB: Potential NULL deref in
- arch/x86/mm/hugetlbpage.c:huge_pmd_share()
-In-Reply-To: <20110203130150.7031c61f.akpm@linux-foundation.org>
-Message-ID: <alpine.LNX.2.00.1102032214350.1369@swampdragon.chaosbits.net>
-References: <alpine.LNX.2.00.1102032142580.15101@swampdragon.chaosbits.net> <20110203130150.7031c61f.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F4C78D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 16:22:02 -0500 (EST)
+Subject: Re: [Xen-devel] [PATCH R3 0/7] xen/balloon: Memory hotplug support
+ for Xen balloon driver
+From: Vasiliy G Tolstov <v.tolstov@selfip.ru>
+Reply-To: v.tolstov@selfip.ru
+In-Reply-To: <20110203162345.GC1364@router-fw-old.local.net-space.pl>
+References: <20110203162345.GC1364@router-fw-old.local.net-space.pl>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 04 Feb 2011 00:20:09 +0300
+Message-ID: <1296768009.2346.7.camel@mobile>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rohit Seth <rohit.seth@intel.com>
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 3 Feb 2011, Andrew Morton wrote:
-
-> On Thu, 3 Feb 2011 21:50:04 +0100 (CET)
-> Jesper Juhl <jj@chaosbits.net> wrote:
+On Thu, 2011-02-03 at 17:23 +0100, Daniel Kiper wrote:
+> Hi,
 > 
-> > In arch/x86/mm/hugetlbpage.c:huge_pmd_share() we call find_vma(mm, addr) 
-> > and then subsequently dereference the pointer returned without checking if 
-> > it was NULL. I can't find anything that guarantees that find_vma() will 
-> > never return NULL in this case, so I believe there's a genuine bug. 
-> > However, I'd greatly appreciate it if someone would take the time to 
-> > double check me.
-> > This patch implements what I believe to be the correct handling of a NULL 
-> > return from find_vma(). Please consider for inclusion.
-> > 
-> > Signed-off-by: Jesper Juhl <jj@chaosbits.net>
-> > ---
-> >  hugetlbpage.c |   11 ++++++++---
-> >  1 file changed, 8 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> > index 069ce7c..0ebd3d0 100644
-> > --- a/arch/x86/mm/hugetlbpage.c
-> > +++ b/arch/x86/mm/hugetlbpage.c
-> > @@ -61,14 +61,19 @@ static int vma_shareable(struct vm_area_struct *vma, unsigned long addr)
-> >  static void huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
-> >  {
-> >  	struct vm_area_struct *vma = find_vma(mm, addr);
-> > -	struct address_space *mapping = vma->vm_file->f_mapping;
-> > -	pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
-> > -			vma->vm_pgoff;
-> > +	struct address_space *mapping;
-> > +	pgoff_t idx;
-> >  	struct prio_tree_iter iter;
-> >  	struct vm_area_struct *svma;
-> >  	unsigned long saddr;
-> >  	pte_t *spte = NULL;
-> >  
-> > +	if (!vma)
-> > +		return;
-> > +
-> > +	mapping = vma->vm_file->f_mapping;
-> > +	idx = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-> > +
-> >  	if (!vma_shareable(vma, addr))
-> >  		return;
+> I am sending next version of memory hotplug
+> support for Xen balloon driver patch. It applies
+> to Linus' git tree, v2.6.38-rc3 tag. Most of
+> suggestions were taken into account. Thanks for
+> everybody who tested and/or sent suggestions
+> to my work.
 > 
-> mmap_sem is held and the caller (copy_hugetlb_page_range) knows that
-> the virtual address at `addr' is within a vma.  So it's a "can't happen".
+> There are a few prerequisite patches which fixes
+> some problems found during work on memory hotplug
+> patch or add some futures which are needed by
+> memory hotplug patch.
 > 
-> The code's all undocumented and you got fooled.  Cause, effect.
+> Full list of fixes/futures:
+>   - mm: Add add_registered_memory() to memory hotplug API,
+>   - xen/balloon: Removal of driver_pages,
+>   - xen/balloon: HVM mode support,
+>   - xen/balloon: Migration from mod_timer() to schedule_delayed_work(),
+>   - xen/balloon: Protect against CPU exhaust by event/x process,
+>   - xen/balloon: Minor notation fixes,
+>   - xen/balloon: Memory hotplug support for Xen balloon driver.
+> 
+> Additionally, I suggest to apply patch prepared by Steffano Stabellini
+> (https://lkml.org/lkml/2011/1/31/232) which fixes memory management
+> issue in Xen guest. I was not able boot guest machine without
+> above mentioned patch.
+> 
+> I have received notice that this series of patches broke
+> machine migration under Xen. I am going to solve that problem ASAP.
+> I do not have received any notices about other problems till now.
+> 
+> Daniel
 
-Thank you very much for taking the time to check and explain.
-
-How about we then merge the following patch instead, so noone else gets 
-fooled in the future?
-
-
-Document that NULL deref will never happen post find_vma() in 
-huge_pmd_share().
-
-Signed-off-by: Jesper Juhl <jj@chaosbits.net>
----
- hugetlbpage.c |    5 +++++
- 1 file changed, 5 insertions(+)
-
-diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-index 069ce7c..7dd2d5f 100644
---- a/arch/x86/mm/hugetlbpage.c
-+++ b/arch/x86/mm/hugetlbpage.c
-@@ -61,6 +61,11 @@ static int vma_shareable(struct vm_area_struct *vma, unsigned long addr)
- static void huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- {
- 	struct vm_area_struct *vma = find_vma(mm, addr);
-+	/*
-+	 * There is no potential NULL deref here. mmap_sem is held and
-+	 * caller knows that the virtual address at `addr' is within a
-+	 * vma, so find_vma() will never return NULL here.
-+	 */
- 	struct address_space *mapping = vma->vm_file->f_mapping;
- 	pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
- 			vma->vm_pgoff;
-
-
--- 
-Jesper Juhl <jj@chaosbits.net>            http://www.chaosbits.net/
-Don't top-post http://www.catb.org/~esr/jargon/html/T/top-post.html
-Plain text mails only, please.
+Thank You very much for work. I'm try this patch for migration issues
+and send comments. 
+I have some may be offtopic question: Is that possible to export balloon
+function balloon_set_new_target to GPL modules (EXPORT_SYMBOL_GPL) ? 
+This helps to kernel modules (not in kernel tree) to contol balloonin
+(for example autoballoon or something else) without needing to write so
+sysfs. (Writing files from kernel module is bad, this says Linux Kernel
+Faq).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
