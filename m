@@ -1,73 +1,130 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EFB2F8D0039
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 23:56:20 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A7B003EE0C1
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 13:56:16 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DDFF45DE51
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 13:56:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7492F45DE4E
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 13:56:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E7A41DB803F
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 13:56:16 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 28E4B1DB8037
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 13:56:16 +0900 (JST)
-Date: Tue, 1 Mar 2011 13:49:25 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2] mm: compaction: Minimise the time IRQs are disabled
- while isolating pages for migration
-Message-Id: <20110301134925.59bcff0d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110301041146.GA2107@barrios-desktop>
-References: <1298664299-10270-1-git-send-email-mel@csn.ul.ie>
-	<1298664299-10270-3-git-send-email-mel@csn.ul.ie>
-	<20110228111746.34f3f3e0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110228054818.GF22700@random.random>
-	<20110228145402.65e6f200.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110228092814.GC9548@csn.ul.ie>
-	<20110228184230.7c2eefb7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110228101827.GE9548@csn.ul.ie>
-	<20110301084209.2cfbd063.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110301041146.GA2107@barrios-desktop>
+From: Daniel Kiper <dkiper@net-space.pl>
+Subject: [PATCH R3 1/7] mm: Add add_registered_memory() to memory hotplug API
+Date: Thu, 3 Feb 2011 17:25:14 +0100
+Message-ID: <20110203162514.GD1364__27501.4268620454$1296750434$gmane$org@router-fw-old.local.net-space.pl>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by lo.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1Pl21T-0006M7-Gf
+	for glkm-linux-mm-2@m.gmane.org; Thu, 03 Feb 2011 17:27:07 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A28048D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 11:27:05 -0500 (EST)
+Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
+	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
+	id S1576021Ab1BCQZO (ORCPT <rfc822;linux-mm@kvack.org>);
+	Thu, 3 Feb 2011 17:25:14 +0100
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arthur Marsh <arthur.marsh@internode.on.net>, Clemens Ladisch <cladisch@googlemail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer
 
-On Tue, 1 Mar 2011 13:11:46 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+add_registered_memory() adds memory ealier registered
+as memory resource. It is required by memory hotplug
+for Xen guests, however it could be used also by other
+modules.
 
-> On Tue, Mar 01, 2011 at 08:42:09AM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Mon, 28 Feb 2011 10:18:27 +0000
-> > Mel Gorman <mel@csn.ul.ie> wrote:
-> > 
-> > > > BTW, can't we drop disable_irq() from all lru_lock related codes ?
-> > > > 
-> > > 
-> > > I don't think so - at least not right now. Some LRU operations such as LRU
-> > > pagevec draining are run from IPI which is running from an interrupt so
-> > > minimally spin_lock_irq is necessary.
-> > > 
-> > 
-> > pagevec draining is done by workqueue(schedule_on_each_cpu()). 
-> > I think only racy case is just lru rotation after writeback.
-> 
-> put_page still need irq disable.
-> 
+Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
+---
+ include/linux/memory_hotplug.h |    1 +
+ mm/memory_hotplug.c            |   50 ++++++++++++++++++++++++++++++---------
+ 2 files changed, 39 insertions(+), 12 deletions(-)
 
-Aha..ok. put_page() removes a page from LRU via __page_cache_release().
-Then, we may need to remove a page from LRU under irq context.
-Hmm...
-
-Thanks,
--Kame
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 8122018..fe63912 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -223,6 +223,7 @@ static inline int is_mem_section_removable(unsigned long pfn,
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+ extern int mem_online_node(int nid);
++extern int add_registered_memory(int nid, u64 start, u64 size);
+ extern int add_memory(int nid, u64 start, u64 size);
+ extern int arch_add_memory(int nid, u64 start, u64 size);
+ extern int remove_memory(u64 start, u64 size);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 321fc74..7947bdf 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -532,20 +532,12 @@ out:
+ }
+ 
+ /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+-int __ref add_memory(int nid, u64 start, u64 size)
++static int __ref __add_memory(int nid, u64 start, u64 size)
+ {
+ 	pg_data_t *pgdat = NULL;
+ 	int new_pgdat = 0;
+-	struct resource *res;
+ 	int ret;
+ 
+-	lock_memory_hotplug();
+-
+-	res = register_memory_resource(start, size);
+-	ret = -EEXIST;
+-	if (!res)
+-		goto out;
+-
+ 	if (!node_online(nid)) {
+ 		pgdat = hotadd_new_pgdat(nid, start);
+ 		ret = -ENOMEM;
+@@ -579,14 +571,48 @@ int __ref add_memory(int nid, u64 start, u64 size)
+ 	goto out;
+ 
+ error:
+-	/* rollback pgdat allocation and others */
++	/* rollback pgdat allocation */
+ 	if (new_pgdat)
+ 		rollback_node_hotadd(nid, pgdat);
+-	if (res)
+-		release_memory_resource(res);
++
++out:
++	return ret;
++}
++
++int add_registered_memory(int nid, u64 start, u64 size)
++{
++	int ret;
++
++	lock_memory_hotplug();
++	ret = __add_memory(nid, start, size);
++	unlock_memory_hotplug();
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(add_registered_memory);
++
++int add_memory(int nid, u64 start, u64 size)
++{
++	int ret = -EEXIST;
++	struct resource *res;
++
++	lock_memory_hotplug();
++
++	res = register_memory_resource(start, size);
++
++	if (!res)
++		goto out;
++
++	ret = __add_memory(nid, start, size);
++
++	if (!ret)
++		goto out;
++
++	release_memory_resource(res);
+ 
+ out:
+ 	unlock_memory_hotplug();
++
+ 	return ret;
+ }
+ EXPORT_SYMBOL_GPL(add_memory);
+-- 
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
