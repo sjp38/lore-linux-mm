@@ -1,83 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1BE3E8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 16:44:49 -0500 (EST)
-Date: Thu, 3 Feb 2011 22:43:49 +0100 (CET)
-From: Jesper Juhl <jj@chaosbits.net>
-Subject: Re: [PATCH] Huge TLB: Potential NULL deref in
- arch/x86/mm/hugetlbpage.c:huge_pmd_share()
-In-Reply-To: <20110203133624.cd353dd6.akpm@linux-foundation.org>
-Message-ID: <alpine.LNX.2.00.1102032241520.1369@swampdragon.chaosbits.net>
-References: <alpine.LNX.2.00.1102032142580.15101@swampdragon.chaosbits.net> <20110203130150.7031c61f.akpm@linux-foundation.org> <alpine.LNX.2.00.1102032214350.1369@swampdragon.chaosbits.net> <20110203133624.cd353dd6.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id AB1548D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 16:46:34 -0500 (EST)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id p13LkWkW005069
+	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 13:46:32 -0800
+Received: from pvh11 (pvh11.prod.google.com [10.241.210.203])
+	by hpaq2.eem.corp.google.com with ESMTP id p13LkTVm020278
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 13:46:31 -0800
+Received: by pvh11 with SMTP id 11so371525pvh.18
+        for <linux-mm@kvack.org>; Thu, 03 Feb 2011 13:46:29 -0800 (PST)
+Date: Thu, 3 Feb 2011 13:46:26 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC][PATCH 2/6] pagewalk: only split huge pages when
+ necessary
+In-Reply-To: <1296768812.8299.1644.camel@nimitz>
+Message-ID: <alpine.DEB.2.00.1102031343530.1307@chino.kir.corp.google.com>
+References: <20110201003357.D6F0BE0D@kernel> <20110201003359.8DDFF665@kernel> <alpine.DEB.2.00.1102031257490.948@chino.kir.corp.google.com> <1296768812.8299.1644.camel@nimitz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rohit Seth <rohit.seth@intel.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Thu, 3 Feb 2011, Andrew Morton wrote:
+On Thu, 3 Feb 2011, Dave Hansen wrote:
 
-> On Thu, 3 Feb 2011 22:17:53 +0100 (CET)
-> Jesper Juhl <jj@chaosbits.net> wrote:
-> 
-> > Document that NULL deref will never happen post find_vma() in 
-> > huge_pmd_share().
+> > > diff -puN mm/pagewalk.c~pagewalk-dont-always-split-thp mm/pagewalk.c
+> > > --- linux-2.6.git/mm/pagewalk.c~pagewalk-dont-always-split-thp	2011-01-27 10:57:02.309914973 -0800
+> > > +++ linux-2.6.git-dave/mm/pagewalk.c	2011-01-27 10:57:02.317914965 -0800
+> > > @@ -33,19 +33,35 @@ static int walk_pmd_range(pud_t *pud, un
+> > >  
+> > >  	pmd = pmd_offset(pud, addr);
+> > >  	do {
+> > > +	again:
 > > 
-> > Signed-off-by: Jesper Juhl <jj@chaosbits.net>
-> > ---
-> >  hugetlbpage.c |    5 +++++
-> >  1 file changed, 5 insertions(+)
+> > checkpatch will warn about the indent.
 > > 
-> > diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> > index 069ce7c..7dd2d5f 100644
-> > --- a/arch/x86/mm/hugetlbpage.c
-> > +++ b/arch/x86/mm/hugetlbpage.c
-> > @@ -61,6 +61,11 @@ static int vma_shareable(struct vm_area_struct *vma, unsigned long addr)
-> >  static void huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
-> >  {
-> >  	struct vm_area_struct *vma = find_vma(mm, addr);
-> > +	/*
-> > +	 * There is no potential NULL deref here. mmap_sem is held and
-> > +	 * caller knows that the virtual address at `addr' is within a
-> > +	 * vma, so find_vma() will never return NULL here.
-> > +	 */
-> >  	struct address_space *mapping = vma->vm_file->f_mapping;
-> >  	pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
-> >  			vma->vm_pgoff;
+> > >  		next = pmd_addr_end(addr, end);
+> > > -		split_huge_page_pmd(walk->mm, pmd);
+> > > -		if (pmd_none_or_clear_bad(pmd)) {
+> > > +		if (pmd_none(*pmd)) {
+> > 
+> > Not sure why this has been changed from pmd_none_or_clear_bad(), that's 
+> > been done even prior to THP.
 > 
-> Not really.
-> 
-> That mmap_sem is held and that `addr' refers to a known-to-be-present
-> VMA are part of huge_pmd_share()'s interface.  They are preconditions
-> which must be satisfied before the function can be used.
-> 
-> So they should be documented as such, in the function's documentation. 
-> In fact they're the *most important* thing to document about the
-> function because they are subtle and unobvious from the implementation
-> and from the function signature and name.
-> 
-> >From an understandability/maintainability POV the code is crap.  It's yet
-> another example of kernel developers' liking for pointing machine guns
-> at each other's feet.
-> 
-> Really, some poor schmuck needs to go in and reverse-engineer all the
-> secret interface requirements and document them.  But we shouldn't let
-> a chance go by - a nice kerneldoc description for huge_pmd_share()
-> would be appreciated.  One which documents both the explicit and the
-> implicit calling conventions.
+> The bad check will trigger on huge pmds.  We can not use it here.  We
+> can, however, use pmd_none().  The bad check was moved below to where we
+> actually dereference the pmd.
 > 
 
-Ok. I'm not sure that I'm the right person to actually do this since my 
-knowledge of this code is quite limited, but I'll give it a shot tomorrow 
-evening (off to get some sleep soon, so now is not the time).
-I'll get back to you on this tomorrow or during the weekend (and if 
-someone else beats me to it - just fine ;).
+Ah, right, thanks.
 
--- 
-Jesper Juhl <jj@chaosbits.net>            http://www.chaosbits.net/
-Don't top-post http://www.catb.org/~esr/jargon/html/T/top-post.html
-Plain text mails only, please.
+> > >  			if (walk->pte_hole)
+> > >  				err = walk->pte_hole(addr, next, walk);
+> > >  			if (err)
+> > >  				break;
+> > >  			continue;
+> > >  		}
+> > > +		/*
+> > > +		 * This implies that each ->pmd_entry() handler
+> > > +		 * needs to know about pmd_trans_huge() pmds
+> > > +		 */
+> > 
+> > Probably needs to be documented somewhere for users of pagewalk?
+> 
+> Probably, but we don't currently have any central documentation for it.
+> Guess we could make some, or just ensure that all the users got updated.
+> Any ideas where to put it other than the mm_walk struct?
+> 
+
+I think noting it where struct mm_walk is declared would be best (just a 
+"/* must handle pmd_trans_huge() */" would be sufficient) although 
+eventually it might be cleaner to add a ->pmd_huge_entry().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
