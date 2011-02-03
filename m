@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 131CD8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 11:27:07 -0500 (EST)
+	by kanga.kvack.org (Postfix) with ESMTP id DBBCF8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 11:27:11 -0500 (EST)
 Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
 	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1574992Ab1BCQZx (ORCPT <rfc822;linux-mm@kvack.org>);
-	Thu, 3 Feb 2011 17:25:53 +0100
-Date: Thu, 3 Feb 2011 17:25:53 +0100
+	id S1576240Ab1BCQ0g (ORCPT <rfc822;linux-mm@kvack.org>);
+	Thu, 3 Feb 2011 17:26:36 +0100
+Date: Thu, 3 Feb 2011 17:26:36 +0100
 From: Daniel Kiper <dkiper@net-space.pl>
-Subject: [PATCH R3 2/7] xen/balloon: Removal of driver_pages
-Message-ID: <20110203162553.GE1364@router-fw-old.local.net-space.pl>
+Subject: [PATCH R3 3/7] xen/balloon: HVM mode support
+Message-ID: <20110203162636.GF1364@router-fw-old.local.net-space.pl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -17,68 +17,50 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Removal of driver_pages (I do not have seen any references to it).
+HVM mode support.
 
 Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
 ---
- arch/x86/xen/mmu.c    |    3 +--
- drivers/xen/balloon.c |    8 --------
- 2 files changed, 1 insertions(+), 10 deletions(-)
+ drivers/xen/balloon.c |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
-index 5e92b61..e7c378e 100644
---- a/arch/x86/xen/mmu.c
-+++ b/arch/x86/xen/mmu.c
-@@ -78,8 +78,7 @@
- 
- /*
-  * Protects atomic reservation decrease/increase against concurrent increases.
-- * Also protects non-atomic updates of current_pages and driver_pages, and
-- * balloon lists.
-+ * Also protects non-atomic updates of current_pages and balloon lists.
-  */
- DEFINE_SPINLOCK(xen_reservation_lock);
- 
 diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index 43f9f02..b4206fd 100644
+index b4206fd..952cfe2 100644
 --- a/drivers/xen/balloon.c
 +++ b/drivers/xen/balloon.c
-@@ -70,11 +70,6 @@ struct balloon_stats {
- 	/* We aim for 'current allocation' == 'target allocation'. */
- 	unsigned long current_pages;
- 	unsigned long target_pages;
--	/*
--	 * Drivers may alter the memory reservation independently, but they
--	 * must inform the balloon driver so we avoid hitting the hard limit.
--	 */
--	unsigned long driver_pages;
- 	/* Number of pages in high- and low-memory balloons. */
- 	unsigned long balloon_low;
- 	unsigned long balloon_high;
-@@ -404,7 +399,6 @@ static int __init balloon_init(void)
+@@ -227,7 +227,7 @@ static int increase_reservation(unsigned long nr_pages)
+ 		set_phys_to_machine(pfn, frame_list[i]);
+ 
+ 		/* Link back into the page tables if not highmem. */
+-		if (pfn < max_low_pfn) {
++		if (xen_pv_domain() && !PageHighMem(page)) {
+ 			int ret;
+ 			ret = HYPERVISOR_update_va_mapping(
+ 				(unsigned long)__va(pfn << PAGE_SHIFT),
+@@ -275,7 +275,7 @@ static int decrease_reservation(unsigned long nr_pages)
+ 
+ 		scrub_page(page);
+ 
+-		if (!PageHighMem(page)) {
++		if (xen_pv_domain() && !PageHighMem(page)) {
+ 			ret = HYPERVISOR_update_va_mapping(
+ 				(unsigned long)__va(pfn << PAGE_SHIFT),
+ 				__pte_ma(0), 0);
+@@ -390,12 +390,12 @@ static int __init balloon_init(void)
+ 	unsigned long pfn, extra_pfn_end;
+ 	struct page *page;
+ 
+-	if (!xen_pv_domain())
++	if (!xen_domain())
+ 		return -ENODEV;
+ 
+ 	pr_info("xen_balloon: Initialising balloon driver.\n");
+ 
+-	balloon_stats.current_pages = min(xen_start_info->nr_pages, max_pfn);
++	balloon_stats.current_pages = xen_pv_domain() ? min(xen_start_info->nr_pages, max_pfn) : max_pfn;
  	balloon_stats.target_pages  = balloon_stats.current_pages;
  	balloon_stats.balloon_low   = 0;
  	balloon_stats.balloon_high  = 0;
--	balloon_stats.driver_pages  = 0UL;
- 
- 	init_timer(&balloon_timer);
- 	balloon_timer.data = 0;
-@@ -462,7 +456,6 @@ module_exit(balloon_exit);
- BALLOON_SHOW(current_kb, "%lu\n", PAGES2KB(balloon_stats.current_pages));
- BALLOON_SHOW(low_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_low));
- BALLOON_SHOW(high_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_high));
--BALLOON_SHOW(driver_kb, "%lu\n", PAGES2KB(balloon_stats.driver_pages));
- 
- static ssize_t show_target_kb(struct sys_device *dev, struct sysdev_attribute *attr,
- 			      char *buf)
-@@ -531,7 +524,6 @@ static struct attribute *balloon_info_attrs[] = {
- 	&attr_current_kb.attr,
- 	&attr_low_kb.attr,
- 	&attr_high_kb.attr,
--	&attr_driver_kb.attr,
- 	NULL
- };
- 
 -- 
 1.5.6.5
 
