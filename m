@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 31DF58D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 09:11:19 -0500 (EST)
-Date: Thu, 3 Feb 2011 15:11:10 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C2B568D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 09:12:42 -0500 (EST)
+Date: Thu, 3 Feb 2011 15:12:30 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] memcg: remove impossible conditional when committing
-Message-ID: <20110203141110.GF2286@cmpxchg.org>
+Subject: [patch rfc] memcg: remove NULL check from lookup_page_cgroup() result
+Message-ID: <20110203141230.GG2286@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -14,29 +14,30 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-No callsite ever passes a NULL pointer for a struct mem_cgroup * to
-the committing function.  There is no need to check for it.
+The page_cgroup array is set up before even fork is initialized.  I
+seriously doubt that this code executes before the array is alloc'd.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/memcontrol.c |    4 ----
- 1 files changed, 0 insertions(+), 4 deletions(-)
+ mm/memcontrol.c |    5 +----
+ 1 files changed, 1 insertions(+), 4 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 031ff07..a145c9e 100644
+index a145c9e..6abaa10 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2092,10 +2092,6 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
- {
- 	int nr_pages = page_size >> PAGE_SHIFT;
+@@ -2343,10 +2343,7 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+ 	}
  
--	/* try_charge() can return NULL to *memcg, taking care of it. */
--	if (!mem)
--		return;
--
- 	lock_page_cgroup(pc);
- 	if (unlikely(PageCgroupUsed(pc))) {
- 		unlock_page_cgroup(pc);
+ 	pc = lookup_page_cgroup(page);
+-	/* can happen at boot */
+-	if (unlikely(!pc))
+-		return 0;
+-	prefetchw(pc);
++	BUG_ON(!pc); /* XXX: remove this and move pc lookup into commit */
+ 
+ 	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, oom, page_size);
+ 	if (ret || !mem)
 -- 
 1.7.4
 
