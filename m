@@ -1,71 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2543F8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 16:40:30 -0500 (EST)
-Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p13LL9Si027025
-	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 16:22:02 -0500
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 56F41728067
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 16:40:27 -0500 (EST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p13LeQIQ120560
-	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 16:40:27 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p13LeQZ0025423
-	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 19:40:26 -0200
-Subject: Re: [RFC][PATCH 3/6] break out smaps_pte_entry() from
- smaps_pte_range()
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <alpine.DEB.2.00.1102031315080.1307@chino.kir.corp.google.com>
-References: <20110201003357.D6F0BE0D@kernel>
-	 <20110201003401.95CFBFA6@kernel>
-	 <alpine.DEB.2.00.1102031315080.1307@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Thu, 03 Feb 2011 13:40:23 -0800
-Message-ID: <1296769223.8299.1658.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1BE3E8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 16:44:49 -0500 (EST)
+Date: Thu, 3 Feb 2011 22:43:49 +0100 (CET)
+From: Jesper Juhl <jj@chaosbits.net>
+Subject: Re: [PATCH] Huge TLB: Potential NULL deref in
+ arch/x86/mm/hugetlbpage.c:huge_pmd_share()
+In-Reply-To: <20110203133624.cd353dd6.akpm@linux-foundation.org>
+Message-ID: <alpine.LNX.2.00.1102032241520.1369@swampdragon.chaosbits.net>
+References: <alpine.LNX.2.00.1102032142580.15101@swampdragon.chaosbits.net> <20110203130150.7031c61f.akpm@linux-foundation.org> <alpine.LNX.2.00.1102032214350.1369@swampdragon.chaosbits.net> <20110203133624.cd353dd6.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rohit Seth <rohit.seth@intel.com>
 
-On Thu, 2011-02-03 at 13:22 -0800, David Rientjes wrote:
-> On Mon, 31 Jan 2011, Dave Hansen wrote:
-> > We will use smaps_pte_entry() in a moment to handle both small
-> > and transparent large pages.  But, we must break it out of
-> > smaps_pte_range() first.
+On Thu, 3 Feb 2011, Andrew Morton wrote:
+
+> On Thu, 3 Feb 2011 22:17:53 +0100 (CET)
+> Jesper Juhl <jj@chaosbits.net> wrote:
 > 
-> The extraction from smaps_pte_range() looks good.  What's the performance 
-> impact on very frequent consumers of /proc/pid/smaps, though, as the 
-> result of the calls throughout the iteration if smaps_pte_entry() doesn't 
-> get inlined (supposedly because you'll be reusing the extracted function 
-> again elsewhere)?
-
-We could try and coerce it in to always inlining it, I guess.  I just
-can't imagine this changes the cost _that_ much.  Unless I have some
-specific concers, I tend to leave this up to the compiler, and none of
-the users look particularly fastpathy or performance sensitive to me.
-
-...
-> > -	}
-> > +	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-> > +	for (; addr != end; pte++, addr += PAGE_SIZE)
-> > +		smaps_pte_entry(*pte, addr, walk);
-> >  	pte_unmap_unlock(pte - 1, ptl);
-> >  	cond_resched();
-> >  	return 0;
-> > diff -puN mm/huge_memory.c~break-out-smaps_pte_entry mm/huge_memory.c
-> > _
+> > Document that NULL deref will never happen post find_vma() in 
+> > huge_pmd_share().
+> > 
+> > Signed-off-by: Jesper Juhl <jj@chaosbits.net>
+> > ---
+> >  hugetlbpage.c |    5 +++++
+> >  1 file changed, 5 insertions(+)
+> > 
+> > diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+> > index 069ce7c..7dd2d5f 100644
+> > --- a/arch/x86/mm/hugetlbpage.c
+> > +++ b/arch/x86/mm/hugetlbpage.c
+> > @@ -61,6 +61,11 @@ static int vma_shareable(struct vm_area_struct *vma, unsigned long addr)
+> >  static void huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+> >  {
+> >  	struct vm_area_struct *vma = find_vma(mm, addr);
+> > +	/*
+> > +	 * There is no potential NULL deref here. mmap_sem is held and
+> > +	 * caller knows that the virtual address at `addr' is within a
+> > +	 * vma, so find_vma() will never return NULL here.
+> > +	 */
+> >  	struct address_space *mapping = vma->vm_file->f_mapping;
+> >  	pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
+> >  			vma->vm_pgoff;
 > 
-> Is there a missing change to mm/huge_memory.c?
+> Not really.
+> 
+> That mmap_sem is held and that `addr' refers to a known-to-be-present
+> VMA are part of huge_pmd_share()'s interface.  They are preconditions
+> which must be satisfied before the function can be used.
+> 
+> So they should be documented as such, in the function's documentation. 
+> In fact they're the *most important* thing to document about the
+> function because they are subtle and unobvious from the implementation
+> and from the function signature and name.
+> 
+> >From an understandability/maintainability POV the code is crap.  It's yet
+> another example of kernel developers' liking for pointing machine guns
+> at each other's feet.
+> 
+> Really, some poor schmuck needs to go in and reverse-engineer all the
+> secret interface requirements and document them.  But we shouldn't let
+> a chance go by - a nice kerneldoc description for huge_pmd_share()
+> would be appreciated.  One which documents both the explicit and the
+> implicit calling conventions.
+> 
 
-Nope, it was just more of those empty diffs like in the last patch.
-It's cruft from patch-scripts and some code that I use to ensure I don't
-miss file edits when making patches.  I'll pull them out.
+Ok. I'm not sure that I'm the right person to actually do this since my 
+knowledge of this code is quite limited, but I'll give it a shot tomorrow 
+evening (off to get some sleep soon, so now is not the time).
+I'll get back to you on this tomorrow or during the weekend (and if 
+someone else beats me to it - just fine ;).
 
--- Dave
+-- 
+Jesper Juhl <jj@chaosbits.net>            http://www.chaosbits.net/
+Don't top-post http://www.catb.org/~esr/jargon/html/T/top-post.html
+Plain text mails only, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
