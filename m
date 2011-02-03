@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 91ED08D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 09:10:10 -0500 (EST)
-Date: Thu, 3 Feb 2011 15:10:00 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 31DF58D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 09:11:19 -0500 (EST)
+Date: Thu, 3 Feb 2011 15:11:10 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] memcg: remove unused page flag bitfield defines
-Message-ID: <20110203141000.GE2286@cmpxchg.org>
+Subject: [patch] memcg: remove impossible conditional when committing
+Message-ID: <20110203141110.GF2286@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -14,34 +14,29 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-These definitions have been unused since '4b3bde4 memcg: remove the
-overhead associated with the root cgroup'.
+No callsite ever passes a NULL pointer for a struct mem_cgroup * to
+the committing function.  There is no need to check for it.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/memcontrol.c |    7 -------
- 1 files changed, 0 insertions(+), 7 deletions(-)
-
-(sorry, resend with lists in CC)
+ mm/memcontrol.c |    4 ----
+ 1 files changed, 0 insertions(+), 4 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e1ab9c3..031ff07 100644
+index 031ff07..a145c9e 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -327,13 +327,6 @@ enum charge_type {
- 	NR_CHARGE_TYPE,
- };
+@@ -2092,10 +2092,6 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+ {
+ 	int nr_pages = page_size >> PAGE_SHIFT;
  
--/* only for here (for easy reading.) */
--#define PCGF_CACHE	(1UL << PCG_CACHE)
--#define PCGF_USED	(1UL << PCG_USED)
--#define PCGF_LOCK	(1UL << PCG_LOCK)
--/* Not used, but added here for completeness */
--#define PCGF_ACCT	(1UL << PCG_ACCT)
+-	/* try_charge() can return NULL to *memcg, taking care of it. */
+-	if (!mem)
+-		return;
 -
- /* for encoding cft->private value on file */
- #define _MEM			(0)
- #define _MEMSWAP		(1)
+ 	lock_page_cgroup(pc);
+ 	if (unlikely(PageCgroupUsed(pc))) {
+ 		unlock_page_cgroup(pc);
 -- 
 1.7.4
 
