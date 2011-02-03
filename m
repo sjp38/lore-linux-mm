@@ -1,56 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id ADED88D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 10:03:13 -0500 (EST)
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by e28smtp01.in.ibm.com (8.14.4/8.13.1) with ESMTP id p13F386N002291
-	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 20:33:08 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p13F2nUS1867988
-	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 20:32:49 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p13F2nR0013773
-	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 20:32:49 +0530
-Date: Thu, 3 Feb 2011 20:32:47 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: memcg: save 20% of per-page memcg memory overhead
-Message-ID: <20110203150247.GD16409@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1296743166-9412-1-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1296743166-9412-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 37AD08D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 10:04:33 -0500 (EST)
+Subject: Re: [PATCH 22/25] mm: Convert anon_vma->lock to a mutex
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20110203142716.93C5.A69D9226@jp.fujitsu.com>
+References: <20110125173111.720927511@chello.nl>
+	 <20110125174908.372425841@chello.nl>
+	 <20110203142716.93C5.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Thu, 03 Feb 2011 16:04:55 +0100
+Message-ID: <1296745495.26581.370.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Hugh Dickins <hughd@google.com>
 
-* Johannes Weiner <hannes@cmpxchg.org> [2011-02-03 15:26:01]:
+On Thu, 2011-02-03 at 14:27 +0900, KOSAKI Motohiro wrote:
+> > Straight fwd conversion of anon_vma->lock to a mutex.
+> >=20
+> > Acked-by: Hugh Dickins <hughd@google.com>
+> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+>=20
+> Don't I ack this series at previous iteration? If not, Hmmm.. I haven't r=
+emenber
+> the reason.
 
-> This patch series removes the direct page pointer from struct
-> page_cgroup, which saves 20% of per-page memcg memory overhead (Fedora
-> and Ubuntu enable memcg per default, openSUSE apparently too).
-> 
-> The node id or section number is encoded in the remaining free bits of
-> pc->flags which allows calculating the corresponding page without the
-> extra pointer.
-> 
-> I ran, what I think is, a worst-case microbenchmark that just cats a
-> large sparse file to /dev/null, because it means that walking the LRU
-> list on behalf of per-cgroup reclaim and looking up pages from
-> page_cgroups is happening constantly and at a high rate.  But it made
-> no measurable difference.  A profile reported a 0.11% share of the new
-> lookup_cgroup_page() function in this benchmark.
+I got a +1 email from you on the spinlock to mutex conversion patch, I
+wasn't quite sure to what tag that translated.
 
-Wow! defintely worth a deeper look.
+>  Anyway
+> 	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-> 
-> 	Hannes
-
--- 
-	Three Cheers,
-	Balbir
+Is this for this particular patch, or for the series?=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
