@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 174008D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 16:22:48 -0500 (EST)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id p13LMiOQ003497
-	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 13:22:44 -0800
-Received: from pvg2 (pvg2.prod.google.com [10.241.210.130])
-	by hpaq1.eem.corp.google.com with ESMTP id p13LMdGh018895
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E0B98D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 16:22:55 -0500 (EST)
+Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
+	by smtp-out.google.com with ESMTP id p13LMaIr007081
+	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 13:22:36 -0800
+Received: from pzk30 (pzk30.prod.google.com [10.243.19.158])
+	by wpaz33.hot.corp.google.com with ESMTP id p13LMYIf001688
 	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 13:22:43 -0800
-Received: by pvg2 with SMTP id 2so267836pvg.16
-        for <linux-mm@kvack.org>; Thu, 03 Feb 2011 13:22:43 -0800 (PST)
-Date: Thu, 3 Feb 2011 13:22:41 -0800 (PST)
+	for <linux-mm@kvack.org>; Thu, 3 Feb 2011 13:22:34 -0800
+Received: by pzk30 with SMTP id 30so436155pzk.22
+        for <linux-mm@kvack.org>; Thu, 03 Feb 2011 13:22:34 -0800 (PST)
+Date: Thu, 3 Feb 2011 13:22:31 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC][PATCH 6/6] have smaps show transparent huge pages
-In-Reply-To: <20110201003405.FC58B813@kernel>
-Message-ID: <alpine.DEB.2.00.1102031321330.1307@chino.kir.corp.google.com>
-References: <20110201003357.D6F0BE0D@kernel> <20110201003405.FC58B813@kernel>
+Subject: Re: [RFC][PATCH 4/6] pass pte size argument in to
+ smaps_pte_entry()
+In-Reply-To: <20110201003402.5FFC58F0@kernel>
+Message-ID: <alpine.DEB.2.00.1102031318040.1307@chino.kir.corp.google.com>
+References: <20110201003357.D6F0BE0D@kernel> <20110201003402.5FFC58F0@kernel>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,14 +28,15 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.
 On Mon, 31 Jan 2011, Dave Hansen wrote:
 
 > 
-> Now that the mere act of _looking_ at /proc/$pid/smaps will not
-> destroy transparent huge pages, tell how much of the VMA is
-> actually mapped with them.
+> This patch adds an argument to the new smaps_pte_entry()
+> function to let it account in things other than PAGE_SIZE
+> units.  I changed all of the PAGE_SIZE sites, even though
+> not all of them can be reached for transparent huge pages,
+> just so this will continue to work without changes as THPs
+> are improved.
 > 
-> This way, we can make sure that we're getting THPs where we
-> expect to see them.
-> 
-> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+
+When signed-off:
 
 Acked-by: David Rientjes <rientjes@google.com>
 
