@@ -1,58 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BBE918D0040
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 12:19:18 -0500 (EST)
-Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p14GxPIh016291
-	for <linux-mm@kvack.org>; Fri, 4 Feb 2011 12:00:49 -0500
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 810664DE8050
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 12:18:35 -0500 (EST)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p14HJEoL128004
-	for <linux-mm@kvack.org>; Fri, 4 Feb 2011 12:19:14 -0500
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p14HJEgf005134
-	for <linux-mm@kvack.org>; Fri, 4 Feb 2011 10:19:14 -0700
-Subject: Re: [RFC][PATCH 2/6] pagewalk: only split huge pages when necessary
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <alpine.DEB.2.00.1102031343530.1307@chino.kir.corp.google.com>
-References: <20110201003357.D6F0BE0D@kernel>
-	 <20110201003359.8DDFF665@kernel>
-	 <alpine.DEB.2.00.1102031257490.948@chino.kir.corp.google.com>
-	 <1296768812.8299.1644.camel@nimitz>
-	 <alpine.DEB.2.00.1102031343530.1307@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Fri, 04 Feb 2011 09:19:12 -0800
-Message-ID: <1296839952.6737.2316.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4658D0048
+	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 13:06:52 -0500 (EST)
+Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
+	by smtp-out.google.com with ESMTP id p14I6nL9005398
+	for <linux-mm@kvack.org>; Fri, 4 Feb 2011 10:06:49 -0800
+Received: from qwe5 (qwe5.prod.google.com [10.241.194.5])
+	by kpbe11.cbf.corp.google.com with ESMTP id p14I6KDl032028
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 4 Feb 2011 10:06:47 -0800
+Received: by qwe5 with SMTP id 5so2037217qwe.12
+        for <linux-mm@kvack.org>; Fri, 04 Feb 2011 10:06:45 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20110204164222.GG4104@quack.suse.cz>
+References: <20110204164222.GG4104@quack.suse.cz>
+Date: Fri, 4 Feb 2011 10:06:45 -0800
+Message-ID: <AANLkTikUwWOrz_LF1nO=y9cE=Ndt_CUMH-HwH244z6n0@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC] Writeback - current state and future
+From: Curt Wohlgemuth <curtw@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Jan Kara <jack@suse.cz>
+Cc: lsf-pc@lists.linuxfoundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 2011-02-03 at 13:46 -0800, David Rientjes wrote:
-> > Probably, but we don't currently have any central documentation for it.
-> > Guess we could make some, or just ensure that all the users got updated.
-> > Any ideas where to put it other than the mm_walk struct?
-> 
-> I think noting it where struct mm_walk is declared would be best (just a 
-> "/* must handle pmd_trans_huge() */" would be sufficient) although 
-> eventually it might be cleaner to add a ->pmd_huge_entry(). 
+I think it would also be valuable to include a discussion of writeback
+testing, so perhaps we can go beyond simply large numbers of dd
+processes.
 
-For code maintenance, I really like _not_ hiding this in the API
-somewhere.  This way, we have a great, self-explanatory tag wherever
-code (possibly) hasn't properly dealt with THPs.  We get a nice,
-greppable, cscope'able:
-
-	split_huge_page_pmd()
-
-wherever we need to "teach" the code about THP.
-
-It's kinda like the BKL. :)
-
--- Dave
+On Fri, Feb 4, 2011 at 8:42 AM, Jan Kara <jack@suse.cz> wrote:
+> =A0Hi,
+>
+> =A0I'd like to have one session about writeback. The content would highly
+> depend on the current state of things but on a general level, I'd like to
+> quickly sum up what went into the kernel (or is mostly ready to go) since
+> last LSF (handling of background writeback, livelock avoidance), what is
+> being worked on - IO-less balance_dirty_pages() (if it won't be in the
+> mostly done section), what other things need to be improved (kswapd
+> writeout, writeback_inodes_sb_if_idle() mess, come to my mind now)
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Honza
+> --
+> Jan Kara <jack@suse.cz>
+> SUSE Labs, CR
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" =
+in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
