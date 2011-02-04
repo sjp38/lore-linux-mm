@@ -1,36 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CC0A8D0040
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 14:06:48 -0500 (EST)
-From: Greg Thelen <gthelen@google.com>
-Subject: [LSF/MM TOPIC] memcg aware writeback
-Date: Fri, 04 Feb 2011 11:06:33 -0800
-Message-ID: <xr937hdf39hi.fsf@gthelen.mtv.corp.google.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 178BC8D003B
+	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 15:39:14 -0500 (EST)
+Message-ID: <4D4C63ED.6060104@tilera.com>
+Date: Fri, 4 Feb 2011 15:39:09 -0500
+From: Chris Metcalf <cmetcalf@tilera.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH 01/25] tile: Fix __pte_free_tlb
+References: <20110125173111.720927511@chello.nl> <20110125174907.220115681@chello.nl>
+In-Reply-To: <20110125174907.220115681@chello.nl>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linuxfoundation.org
-Cc: linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>
 
-In the MM Summit I would like to discuss pending memcg dirty limits changes and
-especially how they will interact with writeback.
+On 1/25/2011 12:31 PM, Peter Zijlstra wrote:
+> Tile's __pte_free_tlb() implementation makes assumptions about the
+> generic mmu_gather implementation, cure this ;-)
 
-Once we have memcg dirty limits, we will face a new issue.  When a memcg
-dirty limit is crossed, writeback needs to bring the memcg back under
-its dirty limit.  Currently, writeback is unaware of memory controller.
-Therefore writeback assumes that all dirty inodes are candidates for
-memcg writeback.  Our experience in Google production shows that doing
-global (non cgroup aware) writeback substantially reduces isolation
-between memory-hungry jobs.
+I assume you will take this patch into your tree?  If so:
 
-If there was a way for memcg writeback to either avoid irrelevant inodes
-or avoid irrelevant pages, then better isolation could be achieved.
+Acked-by: Chris Metcalf <cmetcalf@tilera.com>
 
-We have been working on various designs to allow either page or inode
-level filtering in the writeback code to achieve memcg-aware writeback.
-I would like to have a discussion about these designs and see what
-interest there is in this topic.
+> [ Chris, from a quick look L2_USER_PGTABLE_PAGES is something like:
+>   1 << (24 - 16 + 3), which looks awefully large for an on-stack
+>   array. ]
+
+Yes, the pte_pages[] array in this routine is 2KB currently.  Currently we
+ship with 64KB pagesize, so the kernel stack has plenty of room.  I do like
+that your patch removes this buffer, however, since we're currently looking
+into (re-)supporting 4KB pages, which would totally blow the kernel stack
+in this routine.
+
+> Cc: Chris Metcalf <cmetcalf@tilera.com>
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> ---
+>  arch/tile/mm/pgtable.c |   15 ++-------------
+>  1 file changed, 2 insertions(+), 13 deletions(-)
+>
+> Index: linux-2.6/arch/tile/mm/pgtable.c
+> ===================================================================
+> --- linux-2.6.orig/arch/tile/mm/pgtable.c
+> +++ linux-2.6/arch/tile/mm/pgtable.c
+> @@ -252,19 +252,8 @@ void __pte_free_tlb(struct mmu_gather *t
+>  	int i;
+>  
+>  	pgtable_page_dtor(pte);
+> -	tlb->need_flush = 1;
+> -	if (tlb_fast_mode(tlb)) {
+> -		struct page *pte_pages[L2_USER_PGTABLE_PAGES];
+> -		for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i)
+> -			pte_pages[i] = pte + i;
+> -		free_pages_and_swap_cache(pte_pages, L2_USER_PGTABLE_PAGES);
+> -		return;
+> -	}
+> -	for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i) {
+> -		tlb->pages[tlb->nr++] = pte + i;
+> -		if (tlb->nr >= FREE_PTE_NR)
+> -			tlb_flush_mmu(tlb, 0, 0);
+> -	}
+> +	for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i)
+> +		tlb_remove_page(tlb, pte + i);
+>  }
+>  
+>  #ifndef __tilegx__
+>
+>
+
+-- 
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
