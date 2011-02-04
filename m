@@ -1,56 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F4658D0048
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 13:06:52 -0500 (EST)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id p14I6nL9005398
-	for <linux-mm@kvack.org>; Fri, 4 Feb 2011 10:06:49 -0800
-Received: from qwe5 (qwe5.prod.google.com [10.241.194.5])
-	by kpbe11.cbf.corp.google.com with ESMTP id p14I6KDl032028
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 4 Feb 2011 10:06:47 -0800
-Received: by qwe5 with SMTP id 5so2037217qwe.12
-        for <linux-mm@kvack.org>; Fri, 04 Feb 2011 10:06:45 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id D6E758D0040
+	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 13:17:35 -0500 (EST)
 MIME-Version: 1.0
-In-Reply-To: <20110204164222.GG4104@quack.suse.cz>
-References: <20110204164222.GG4104@quack.suse.cz>
-Date: Fri, 4 Feb 2011 10:06:45 -0800
-Message-ID: <AANLkTikUwWOrz_LF1nO=y9cE=Ndt_CUMH-HwH244z6n0@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] Writeback - current state and future
-From: Curt Wohlgemuth <curtw@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-ID: <85990ed5-f5d4-4ab2-809c-d181c865e86d@default>
+Date: Fri, 4 Feb 2011 10:16:49 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [LSF/MM TOPIC] improving in-kernel transcendent memory
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: lsf-pc@lists.linuxfoundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: lsf-pc@linuxfoundation.org
+Cc: linux-mm@kvack.org
 
-I think it would also be valuable to include a discussion of writeback
-testing, so perhaps we can go beyond simply large numbers of dd
-processes.
+The concepts of transcendent memory, including cleancache and frontswap,
+have now graduated beyond virtualization to have real value in a
+standalone kernel.  See the proposed kztmem patch:
 
-On Fri, Feb 4, 2011 at 8:42 AM, Jan Kara <jack@suse.cz> wrote:
-> =A0Hi,
->
-> =A0I'd like to have one session about writeback. The content would highly
-> depend on the current state of things but on a general level, I'd like to
-> quickly sum up what went into the kernel (or is mostly ready to go) since
-> last LSF (handling of background writeback, livelock avoidance), what is
-> being worked on - IO-less balance_dirty_pages() (if it won't be in the
-> mostly done section), what other things need to be improved (kswapd
-> writeout, writeback_inodes_sb_if_idle() mess, come to my mind now)
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Honza
-> --
-> Jan Kara <jack@suse.cz>
-> SUSE Labs, CR
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" =
-in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
->
+http://lwn.net/Articles/423540/=20
+
+For the page cache, this effectively extends the split LRU (active/inactive=
+)
+page queues to now include a new "queue" containing compressed clean page
+cache pages.
+
+For swap (as with ramzswap/zram), compressed in-memory swap pages may
+negatively impact memory pressure in some workloads and a method
+needs to be contrived to move these pages to a physical swap disk.
+
+Some things to discuss:
+1) What is the appropriate page count balance between the active queue,
+   the inactive queue, and cleancache-compressed pages?
+2) What triggers can be used for rebalancing?
+3) Is there a better "source" for cleancache than pages reclaimed from
+   the inactive queue?
+4) Under what conditions should frontswap-compressed pages be "repatriated"
+   to normal kernel memory (and possibly to disk)?
+
+I also hope to also be able to describe and possibly demo a brand new in-ke=
+rnel
+(non-virtualization) user of transcendent memory (including both cleancache
+and frontswap) that I think attendees in ALL tracks will find intriguing, b=
+ut
+I'm not ready to talk about until closer to LSF/MM workshop.  (Hopefully,
+this will make a good lightning talk.)
+
+Thanks,
+Dan Magenheimer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
