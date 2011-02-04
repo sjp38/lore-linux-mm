@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 17B0C8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 19:13:46 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F1DF83EE0BD
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 09:13:44 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DAE7645DE5A
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 09:13:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C258145DE59
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 09:13:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B4EA7E08003
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 09:13:44 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F885E08002
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 09:13:44 +0900 (JST)
-Date: Fri, 4 Feb 2011 09:07:38 +0900
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B3CB28D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 19:17:07 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id AA8AB3EE0BC
+	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 09:17:05 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F10845DE67
+	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 09:17:05 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7544245DE61
+	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 09:17:05 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5CA021DB803F
+	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 09:17:05 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 28DE01DB8038
+	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 09:17:05 +0900 (JST)
+Date: Fri, 4 Feb 2011 09:10:58 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch 3/5] memcg: fold __mem_cgroup_move_account into caller
-Message-Id: <20110204090738.4eb6d766.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1296743166-9412-4-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch 4/5] memcg: condense page_cgroup-to-page lookup points
+Message-Id: <20110204091058.2a733a1a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1296743166-9412-5-git-send-email-hannes@cmpxchg.org>
 References: <1296743166-9412-1-git-send-email-hannes@cmpxchg.org>
-	<1296743166-9412-4-git-send-email-hannes@cmpxchg.org>
+	<1296743166-9412-5-git-send-email-hannes@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -32,20 +32,28 @@ List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu,  3 Feb 2011 15:26:04 +0100
+On Thu,  3 Feb 2011 15:26:05 +0100
 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> It is one logical function, no need to have it split up.
+> The per-cgroup LRU lists string up 'struct page_cgroup's.  To get from
+> those structures to the page they represent, a lookup is required.
+> Currently, the lookup is done through a direct pointer in struct
+> page_cgroup, so a lot of functions down the callchain do this lookup
+> by themselves instead of receiving the page pointer from their
+> callers.
 > 
-> Also, get rid of some checks from the inner function that ensured the
-> sanity of the outer function.
+> The next patch removes this pointer, however, and the lookup is no
+> longer that straight-forward.  In preparation for that, this patch
+> only leaves the non-optional lookups when coming directly from the LRU
+> list and passes the page down the stack.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-I think there was a reason to split them...but it seems I forget it..
+Maybe good.
 
-The patch seems good.
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
