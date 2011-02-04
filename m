@@ -1,35 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A2348D0040
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 08:18:52 -0500 (EST)
-Received: from j77219.upc-j.chello.nl ([24.132.77.219] helo=dyad.programming.kicks-ass.net)
-	by casper.infradead.org with esmtpsa (Exim 4.72 #1 (Red Hat Linux))
-	id 1PlLYn-0003me-F4
-	for linux-mm@kvack.org; Fri, 04 Feb 2011 13:18:49 +0000
-Subject: Re: [PATCH 3/5] mm: Implement IO-less balance_dirty_pages()
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1296824956.26581.649.camel@laptop>
-References: <1296783534-11585-1-git-send-email-jack@suse.cz>
-	 <1296783534-11585-4-git-send-email-jack@suse.cz>
-	 <1296824956.26581.649.camel@laptop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 04 Feb 2011 14:19:52 +0100
-Message-ID: <1296825592.26581.654.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E5D788D0040
+	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 11:31:11 -0500 (EST)
+MIME-Version: 1.0
+Message-ID: <7bdfb0e2-fcfd-478f-b9fa-acb90c2ef550@default>
+Date: Fri, 4 Feb 2011 08:29:25 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [Xen-devel] [PATCH R3 0/7] xen/balloon: Memory hotplug support
+ for Xen balloon driver
+References: <20110203162345.GC1364@router-fw-old.local.net-space.pl>
+ <1296768009.2346.7.camel@mobile
+ 1296810682.13091.571.camel@zakaz.uk.xensource.com>
+In-Reply-To: <1296810682.13091.571.camel@zakaz.uk.xensource.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: Ian Campbell <Ian.Campbell@eu.citrix.com>, v.tolstov@selfip.ru
+Cc: Daniel Kiper <dkiper@net-space.pl>, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, Konrad Wilk <konrad.wilk@oracle.com>, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 2011-02-04 at 14:09 +0100, Peter Zijlstra wrote:
-> 
-> You can do that by keeping ->bw_to_write in task_struct and normalize it
-> by the estimated bdi bandwidth (patch 5), that way, when you next
-> increment it it will turn out to be lower and the wait will be shorter.
+> From: Ian Campbell [mailto:Ian.Campbell@eu.citrix.com]
+> Sent: Friday, February 04, 2011 2:11 AM
+>=20
+> On Thu, 2011-02-03 at 21:20 +0000, Vasiliy G Tolstov wrote:
+> > I have some may be offtopic question: Is that possible to export
+> balloon
+> > function balloon_set_new_target to GPL modules (EXPORT_SYMBOL_GPL) ?
+> > This helps to kernel modules (not in kernel tree) to contol balloonin
+> > (for example autoballoon or something else) without needing to write
+> so
+> > sysfs. (Writing files from kernel module is bad, this says Linux
+> Kernel
+> > Faq).
+>=20
+> Is there a reason to do it from kernel space in the first place? auto
+> ballooning can be done by a userspace daemon, can't it?
 
-The down-side is of course that time will leak from the system on exit,
-since its impossible to map back to a bdi.
+The whole point of self-ballooning is to teach an OS kernel to
+be more aggressive about "surrendering" memory that it isn't
+using efficiently.  I've called this "memory asceticism".  See
+slide 12 in
+
+http://oss.oracle.com/projects/tmem/dist/documentation/presentations/MemMgm=
+tVirtEnv-LPC2010-Final.pdf=20
+
+as well as the issues/solutions slides later in that presentation.
+
+And for anyone on this dist list seeing these slides and
+concepts for the first time, you can "read" the presentation
+with the speaker notes here:
+
+http://oss.oracle.com/projects/tmem/dist/documentation/presentations/MemMgm=
+tVirtEnv-LPC2010-SpkNotes.pdf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
