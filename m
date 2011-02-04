@@ -1,48 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B6C88D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 20:39:06 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id F1FE38D003B
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 20:39:20 -0500 (EST)
 From: Jan Kara <jack@suse.cz>
-Subject: [RFC PATCH 0/5] IO-less balance dirty pages
-Date: Fri,  4 Feb 2011 02:38:49 +0100
-Message-Id: <1296783534-11585-1-git-send-email-jack@suse.cz>
+Subject: [PATCH 2/5] mm: Properly reflect task dirty limits in dirty_exceeded logic
+Date: Fri,  4 Feb 2011 02:38:51 +0100
+Message-Id: <1296783534-11585-3-git-send-email-jack@suse.cz>
+In-Reply-To: <1296783534-11585-1-git-send-email-jack@suse.cz>
+References: <1296783534-11585-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
-Cc: linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
+We set bdi->dirty_exceeded (and thus ratelimiting code starts to
+call balance_dirty_pages() every 8 pages) when a per-bdi limit is
+exceeded or global limit is exceeded. But per-bdi limit also depends
+on the task. Thus different tasks reach the limit on that bdi at
+different levels of dirty pages. The result is that with current code
+bdi->dirty_exceeded ping-ponged between 1 and 0 depending on which task
+just got into balance_dirty_pages().
 
-  Hi,
+We fix the issue by clearing bdi->dirty_exceeded only when per-bdi amount
+of dirty pages drops below the threshold (7/8 * bdi_dirty_limit) where task
+limits already do not have any influence.
 
-  I've decided to take my stab at trying to make balance_dirty_pages() not
-submit IO :). I hoped to have something simpler than Fengguang and we'll see
-whether it is good enough.
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: Christoph Hellwig <hch@infradead.org>
+CC: Dave Chinner <david@fromorbit.com>
+CC: Wu Fengguang <fengguang.wu@intel.com>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ mm/page-writeback.c |   18 ++++++++++++++++--
+ 1 files changed, 16 insertions(+), 2 deletions(-)
 
-The basic idea (implemented in the third patch) is that processes throttled
-in balance_dirty_pages() wait for enough IO to complete. The waiting is
-implemented as follows: Whenever we decide to throttle a task in
-balance_dirty_pages(), task adds itself to a list of tasks that are throttled
-against that bdi and goes to sleep waiting to receive specified amount of page
-IO completions. Once in a while (currently HZ/10, in patch 5 the interval is
-autotuned based on observed IO rate), accumulated page IO completions are
-distributed equally among waiting tasks.
-
-This waiting scheme has been chosen so that waiting time in
-balance_dirty_pages() is proportional to
-  number_waited_pages * number_of_waiters.
-In particular it does not depend on the total number of pages being waited for,
-thus providing possibly a fairer results.
-
-I gave the patches some basic testing (multiple parallel dd's to a single
-drive) and they seem to work OK. The dd's get equal share of the disk
-throughput (about 10.5 MB/s, which is nice result given the disk can do
-about 87 MB/s when writing single-threaded), and dirty limit does not get
-exceeded. Of course much more testing needs to be done but I hope it's fine
-for the first posting :).
-
-Comments welcome.
-
-								Honza
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index c472c1c..f388f70 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -275,12 +275,13 @@ static inline void task_dirties_fraction(struct task_struct *tsk,
+  * effectively curb the growth of dirty pages. Light dirtiers with high enough
+  * dirty threshold may never get throttled.
+  */
++#define TASK_LIMIT_FRACTION 8
+ static unsigned long task_dirty_limit(struct task_struct *tsk,
+ 				       unsigned long bdi_dirty)
+ {
+ 	long numerator, denominator;
+ 	unsigned long dirty = bdi_dirty;
+-	u64 inv = dirty >> 3;
++	u64 inv = dirty / TASK_LIMIT_FRACTION;
+ 
+ 	task_dirties_fraction(tsk, &numerator, &denominator);
+ 	inv *= numerator;
+@@ -291,6 +292,12 @@ static unsigned long task_dirty_limit(struct task_struct *tsk,
+ 	return max(dirty, bdi_dirty/2);
+ }
+ 
++/* Minimum limit for any task */
++static unsigned long task_min_dirty_limit(unsigned long bdi_dirty)
++{
++	return bdi_dirty - bdi_dirty / TASK_LIMIT_FRACTION;
++}
++
+ /*
+  *
+  */
+@@ -484,9 +491,11 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 	unsigned long background_thresh;
+ 	unsigned long dirty_thresh;
+ 	unsigned long bdi_thresh;
++	unsigned long min_bdi_thresh = ULONG_MAX;
+ 	unsigned long pages_written = 0;
+ 	unsigned long pause = 1;
+ 	bool dirty_exceeded = false;
++	bool min_dirty_exceeded = false;
+ 	struct backing_dev_info *bdi = mapping->backing_dev_info;
+ 
+ 	for (;;) {
+@@ -513,6 +522,7 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 			break;
+ 
+ 		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
++		min_bdi_thresh = task_min_dirty_limit(bdi_thresh);
+ 		bdi_thresh = task_dirty_limit(current, bdi_thresh);
+ 
+ 		/*
+@@ -542,6 +552,9 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 		dirty_exceeded =
+ 			(bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
+ 			|| (nr_reclaimable + nr_writeback > dirty_thresh);
++		min_dirty_exceeded =
++			(bdi_nr_reclaimable + bdi_nr_writeback > min_bdi_thresh)
++			|| (nr_reclaimable + nr_writeback > dirty_thresh);
+ 
+ 		if (!dirty_exceeded)
+ 			break;
+@@ -579,7 +592,8 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 			pause = HZ / 10;
+ 	}
+ 
+-	if (!dirty_exceeded && bdi->dirty_exceeded)
++	/* Clear dirty_exceeded flag only when no task can exceed the limit */
++	if (!min_dirty_exceeded && bdi->dirty_exceeded)
+ 		bdi->dirty_exceeded = 0;
+ 
+ 	if (writeback_in_progress(bdi))
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
