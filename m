@@ -1,56 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 874E38D0039
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 037CB8D003B
 	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 20:39:21 -0500 (EST)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 4/5] mm: Remove low limit from sync_writeback_pages()
-Date: Fri,  4 Feb 2011 02:38:53 +0100
-Message-Id: <1296783534-11585-5-git-send-email-jack@suse.cz>
+Subject: [PATCH 1/5] writeback: account per-bdi accumulated written pages
+Date: Fri,  4 Feb 2011 02:38:50 +0100
+Message-Id: <1296783534-11585-2-git-send-email-jack@suse.cz>
 In-Reply-To: <1296783534-11585-1-git-send-email-jack@suse.cz>
 References: <1296783534-11585-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
-Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>
 
-sync_writeback_pages() limited minimal amount of pages to write
-in balance_dirty_pages() to 3/2*ratelimit_pages (6 MB) to submit
-reasonably sized IO. Since we do not submit any IO anymore, be more
-fair and let the task wait only for 3/2*(the amount dirtied).
+Introduce the BDI_WRITTEN counter. It will be used for waking up
+waiters in balance_dirty_pages().
+
+Peter Zijlstra <a.p.zijlstra@chello.nl>:
+Move BDI_WRITTEN accounting into __bdi_writeout_inc().
+This will cover and fix fuse, which only calls bdi_writeout_inc().
 
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: Christoph Hellwig <hch@infradead.org>
 CC: Dave Chinner <david@fromorbit.com>
-CC: Wu Fengguang <fengguang.wu@intel.com>
 CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/page-writeback.c |    9 ++-------
- 1 files changed, 2 insertions(+), 7 deletions(-)
+ include/linux/backing-dev.h |    1 +
+ mm/backing-dev.c            |    6 ++++--
+ mm/page-writeback.c         |    1 +
+ 3 files changed, 6 insertions(+), 2 deletions(-)
 
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 4ce34fa..63ab4a5 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -40,6 +40,7 @@ typedef int (congested_fn)(void *, int);
+ enum bdi_stat_item {
+ 	BDI_RECLAIMABLE,
+ 	BDI_WRITEBACK,
++	BDI_WRITTEN,
+ 	NR_BDI_STAT_ITEMS
+ };
+ 
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 027100d..4d14072 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -92,6 +92,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ 		   "BdiDirtyThresh:   %8lu kB\n"
+ 		   "DirtyThresh:      %8lu kB\n"
+ 		   "BackgroundThresh: %8lu kB\n"
++		   "BdiWritten:       %8lu kB\n"
+ 		   "b_dirty:          %8lu\n"
+ 		   "b_io:             %8lu\n"
+ 		   "b_more_io:        %8lu\n"
+@@ -99,8 +100,9 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ 		   "state:            %8lx\n",
+ 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
+ 		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
+-		   K(bdi_thresh), K(dirty_thresh),
+-		   K(background_thresh), nr_dirty, nr_io, nr_more_io,
++		   K(bdi_thresh), K(dirty_thresh), K(background_thresh),
++		   (unsigned long) K(bdi_stat(bdi, BDI_WRITTEN)),
++		   nr_dirty, nr_io, nr_more_io,
+ 		   !list_empty(&bdi->bdi_list), bdi->state);
+ #undef K
+ 
 diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 8533032..b855973 100644
+index 2cb01f6..c472c1c 100644
 --- a/mm/page-writeback.c
 +++ b/mm/page-writeback.c
-@@ -43,16 +43,11 @@
- static long ratelimit_pages = 32;
- 
- /*
-- * When balance_dirty_pages decides that the caller needs to perform some
-- * non-background writeback, this is how many pages it will attempt to write.
-- * It should be somewhat larger than dirtied pages to ensure that reasonably
-- * large amounts of I/O are submitted.
-+ * When balance_dirty_pages decides that the caller needs to wait for some
-+ * writeback to happen, this is how many pages it will attempt to write.
+@@ -219,6 +219,7 @@ int dirty_bytes_handler(struct ctl_table *table, int write,
   */
- static inline long sync_writeback_pages(unsigned long dirtied)
+ static inline void __bdi_writeout_inc(struct backing_dev_info *bdi)
  {
--	if (dirtied < ratelimit_pages)
--		dirtied = ratelimit_pages;
--
- 	return dirtied + dirtied / 2;
++	__inc_bdi_stat(bdi, BDI_WRITTEN);
+ 	__prop_inc_percpu_max(&vm_completions, &bdi->completions,
+ 			      bdi->max_prop_frac);
  }
- 
 -- 
 1.7.1
 
