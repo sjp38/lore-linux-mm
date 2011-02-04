@@ -1,50 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id BB3FA8D003B
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 16:28:33 -0500 (EST)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e34.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p14LHCgR006664
-	for <linux-mm@kvack.org>; Fri, 4 Feb 2011 14:17:12 -0700
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p14LSSlG157514
-	for <linux-mm@kvack.org>; Fri, 4 Feb 2011 14:28:28 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p14LSRE0006667
-	for <linux-mm@kvack.org>; Fri, 4 Feb 2011 14:28:27 -0700
-Subject: Re: [RFC][PATCH 1/6] count transparent hugepage splits
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110204211825.GJ30909@random.random>
-References: <20110201003357.D6F0BE0D@kernel>
-	 <20110201003358.98826457@kernel>
-	 <alpine.DEB.2.00.1102031235100.453@chino.kir.corp.google.com>
-	 <20110204211825.GJ30909@random.random>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Fri, 04 Feb 2011 13:28:25 -0800
-Message-ID: <1296854905.6737.2631.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 97A288D003B
+	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 16:29:29 -0500 (EST)
+Date: Fri, 4 Feb 2011 13:28:43 -0800
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH V1 3/3] drivers/staging: kztmem: misc build/config
+Message-ID: <20110204212843.GA18924@kroah.com>
+References: <20110118172151.GA20507@ca-server1.us.oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20110118172151.GA20507@ca-server1.us.oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: gregkh@suse.de, chris.mason@oracle.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, kurt.hackel@oracle.com, npiggin@kernel.dk, riel@redhat.com, konrad.wilk@oracle.com, mel@csn.ul.ie, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, sfr@canb.auug.org.au, wfg@mail.ustc.edu.cn, tytso@mit.edu, viro@ZenIV.linux.org.uk, hughd@google.com, hannes@cmpxchg.org
 
-On Fri, 2011-02-04 at 22:18 +0100, Andrea Arcangeli wrote:
-> On Thu, Feb 03, 2011 at 01:22:14PM -0800, David Rientjes wrote:
-> > i.e. no global locking, but we've accepted the occassional off-by-one 
-> > error (even though splitting of hugepages isn't by any means lightning 
-> > fast and the overhead of atomic ops would be negligible).
+On Tue, Jan 18, 2011 at 09:21:51AM -0800, Dan Magenheimer wrote:
+> [PATCH V1 3/3] drivers/staging: kztmem: misc build/config
 > 
-> Agreed losing an increment is not a problem, but in very large systems
-> it will become a bottleneck. It's not super urgent, but I think it
-> needs to become a per-cpu counter sooner than later (not needed
-> immediately but I would appreciate an incremental patch soon to
-> address that). 
+> Makefiles and Kconfigs to build kztmem in drivers/staging
+> 
+> There is a dependency on xvmalloc.* which in 2.6.37 resides
+> in drivers/staging/zram.  Should this move or disappear,
+> some Makefile/Kconfig changes will be required.
 
-Seems like something that would be fairly trivial with the existing
-count_vm_event() infrastructure.  Any reason not to use that?  I'll be
-happy to tack a patch on to my series.
+There is some other kind of dependancy as well, because I get the
+following errors when building:
 
--- Dave
+drivers/staging/kztmem/kztmem.c:34:2: error: #error "kztmem is useless without CONFIG_CLEANCACHE or CONFIG_FRONTSWAP"
+drivers/staging/kztmem/kztmem.c:531:13: warning: a??zbud_inita?? defined but not used
+drivers/staging/kztmem/kztmem.c:883:28: warning: a??kztmem_hostopsa?? defined but not used
+drivers/staging/kztmem/kztmem.c:988:27: warning: a??kztmem_pamopsa?? defined but not used
+drivers/staging/kztmem/kztmem.c:1063:30: warning: a??kztmem_cpu_notifier_blocka?? defined but not used
+drivers/staging/kztmem/kztmem.c:1201:24: warning: a??kztmem_shrinkera?? defined but not used
+drivers/staging/kztmem/kztmem.c:1210:12: warning: a??kztmem_put_pagea?? defined but not used
+drivers/staging/kztmem/kztmem.c:1242:12: warning: a??kztmem_get_pagea?? defined but not used
+drivers/staging/kztmem/kztmem.c:1259:12: warning: a??kztmem_flush_pagea?? defined but not used
+drivers/staging/kztmem/kztmem.c:1278:12: warning: a??kztmem_flush_objecta?? defined but not used
+drivers/staging/kztmem/kztmem.c:1297:12: warning: a??kztmem_destroy_poola?? defined but not used
+drivers/staging/kztmem/kztmem.c:1320:12: warning: a??kztmem_new_poola?? defined but not used
+drivers/staging/kztmem/kztmem.c:1558:19: warning: a??enable_kztmema?? defined but not used
+drivers/staging/kztmem/kztmem.c:1569:19: warning: a??no_cleancachea?? defined but not used
+drivers/staging/kztmem/kztmem.c:1579:19: warning: a??no_frontswapa?? defined but not used
+
+If you require a kbuild dependancy, then put it in your Kconfig file
+please, don't break the build.
+
+I'll not apply these patches for now until that's fixed up.
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
