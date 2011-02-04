@@ -1,53 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 5958F8D003B
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 16:10:21 -0500 (EST)
-Date: Fri, 4 Feb 2011 22:10:13 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 83BC38D003B
+	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 16:18:33 -0500 (EST)
+Date: Fri, 4 Feb 2011 22:18:25 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC][PATCH 2/6] pagewalk: only split huge pages when necessary
-Message-ID: <20110204211013.GI30909@random.random>
+Subject: Re: [RFC][PATCH 1/6] count transparent hugepage splits
+Message-ID: <20110204211825.GJ30909@random.random>
 References: <20110201003357.D6F0BE0D@kernel>
- <20110201003359.8DDFF665@kernel>
- <alpine.DEB.2.00.1102031257490.948@chino.kir.corp.google.com>
- <1296768812.8299.1644.camel@nimitz>
- <alpine.DEB.2.00.1102031343530.1307@chino.kir.corp.google.com>
- <1296839952.6737.2316.camel@nimitz>
+ <20110201003358.98826457@kernel>
+ <alpine.DEB.2.00.1102031235100.453@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1296839952.6737.2316.camel@nimitz>
+In-Reply-To: <alpine.DEB.2.00.1102031235100.453@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>
 
-On Fri, Feb 04, 2011 at 09:19:12AM -0800, Dave Hansen wrote:
-> For code maintenance, I really like _not_ hiding this in the API
-> somewhere.  This way, we have a great, self-explanatory tag wherever
-> code (possibly) hasn't properly dealt with THPs.  We get a nice,
-> greppable, cscope'able:
-> 
-> 	split_huge_page_pmd()
-> 
-> wherever we need to "teach" the code about THP.
-> 
-> It's kinda like the BKL. :)
+On Thu, Feb 03, 2011 at 01:22:14PM -0800, David Rientjes wrote:
+> i.e. no global locking, but we've accepted the occassional off-by-one 
+> error (even though splitting of hugepages isn't by any means lightning 
+> fast and the overhead of atomic ops would be negligible).
 
-It is in my view too ;).
-
-However currently it's not greppable if we don't differentiate it a
-bit from the legitimate/optimal usages. split_huge_page_pmd currently
-isn't always sign of code not THP aware. It's sign of not THP aware
-code only for cases like smaps that is readonly in terms of vma/pte
-mangling, but for example mprotect isn't a readonly thing and it's
-already fully mprotect aware, but split_huge_page_pmd still comes very
-handy when userland asks to create a vma that can't fit an hugepmd
-(there are several other places like that). When that ever happens
-(like changing protection of only the last 4k of an hugepage backed
-mapping) replacing the hugepmd with a regular pmd pointing to a pte
-(where we can alter the protection of only the last 4k) becomes
-compulsory. So it's not always a sign of lack of optimization,
-sometime it's needed and userland should be optimized instead ;).
+Agreed losing an increment is not a problem, but in very large systems
+it will become a bottleneck. It's not super urgent, but I think it
+needs to become a per-cpu counter sooner than later (not needed
+immediately but I would appreciate an incremental patch soon to
+address that). split_huge_page is already fully SMP scalable if the
+rmap isn't shared (i.e. fully SMP scalable across different execve)
+and I'd like it to stay that way because split_huge_page can run at
+high frequency at times from different processes, so in very large
+systems it may be measurable, with that cacheline bouncing around 1024
+cpus. pages_collapsed is not a problem because it's only used by one
+kernel thread so it can't be contended. Again not super urgent but
+better to optimize it ;).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
