@@ -1,53 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B0B168D0039
-	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 20:02:24 -0500 (EST)
-Date: Fri, 4 Feb 2011 09:53:54 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [patch 3/5] memcg: fold __mem_cgroup_move_account into caller
-Message-Id: <20110204095354.7332d8d4.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20110204090738.4eb6d766.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1296743166-9412-1-git-send-email-hannes@cmpxchg.org>
-	<1296743166-9412-4-git-send-email-hannes@cmpxchg.org>
-	<20110204090738.4eb6d766.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B6C88D0039
+	for <linux-mm@kvack.org>; Thu,  3 Feb 2011 20:39:06 -0500 (EST)
+From: Jan Kara <jack@suse.cz>
+Subject: [RFC PATCH 0/5] IO-less balance dirty pages
+Date: Fri,  4 Feb 2011 02:38:49 +0100
+Message-Id: <1296783534-11585-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: linux-fsdevel@vger.kernel.org
+Cc: linux-mm@kvack.org
 
-On Fri, 4 Feb 2011 09:07:38 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> On Thu,  3 Feb 2011 15:26:04 +0100
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > It is one logical function, no need to have it split up.
-> > 
-> > Also, get rid of some checks from the inner function that ensured the
-> > sanity of the outer function.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> I think there was a reason to split them...but it seems I forget it..
-> 
-IIRC, it's me who split them up in commit 57f9fd7d.
+  Hi,
 
-But the purpose of the commit was cleanup move_parent() and move_account()
-to use move_accout() in move_charge() later.
-So, there was no technical reason why I split move_account() and __move_account().
-It was just because I liked to make each functions do one thing: check validness
-and actually move account.
+  I've decided to take my stab at trying to make balance_dirty_pages() not
+submit IO :). I hoped to have something simpler than Fengguang and we'll see
+whether it is good enough.
 
-Anyway, I don't have any objection to folding them. page_is_cgroup_locked()
-can be removed by this change.
+The basic idea (implemented in the third patch) is that processes throttled
+in balance_dirty_pages() wait for enough IO to complete. The waiting is
+implemented as follows: Whenever we decide to throttle a task in
+balance_dirty_pages(), task adds itself to a list of tasks that are throttled
+against that bdi and goes to sleep waiting to receive specified amount of page
+IO completions. Once in a while (currently HZ/10, in patch 5 the interval is
+autotuned based on observed IO rate), accumulated page IO completions are
+distributed equally among waiting tasks.
 
-Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+This waiting scheme has been chosen so that waiting time in
+balance_dirty_pages() is proportional to
+  number_waited_pages * number_of_waiters.
+In particular it does not depend on the total number of pages being waited for,
+thus providing possibly a fairer results.
 
-Thanks,
-Daisuke Nishimura.
+I gave the patches some basic testing (multiple parallel dd's to a single
+drive) and they seem to work OK. The dd's get equal share of the disk
+throughput (about 10.5 MB/s, which is nice result given the disk can do
+about 87 MB/s when writing single-threaded), and dirty limit does not get
+exceeded. Of course much more testing needs to be done but I hope it's fine
+for the first posting :).
+
+Comments welcome.
+
+								Honza
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
