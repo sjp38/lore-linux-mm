@@ -1,53 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D6E758D0040
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 13:17:35 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CC0A8D0040
+	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 14:06:48 -0500 (EST)
+From: Greg Thelen <gthelen@google.com>
+Subject: [LSF/MM TOPIC] memcg aware writeback
+Date: Fri, 04 Feb 2011 11:06:33 -0800
+Message-ID: <xr937hdf39hi.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Message-ID: <85990ed5-f5d4-4ab2-809c-d181c865e86d@default>
-Date: Fri, 4 Feb 2011 10:16:49 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [LSF/MM TOPIC] improving in-kernel transcendent memory
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@linuxfoundation.org
+To: lsf-pc@lists.linuxfoundation.org
 Cc: linux-mm@kvack.org
 
-The concepts of transcendent memory, including cleancache and frontswap,
-have now graduated beyond virtualization to have real value in a
-standalone kernel.  See the proposed kztmem patch:
+In the MM Summit I would like to discuss pending memcg dirty limits changes and
+especially how they will interact with writeback.
 
-http://lwn.net/Articles/423540/=20
+Once we have memcg dirty limits, we will face a new issue.  When a memcg
+dirty limit is crossed, writeback needs to bring the memcg back under
+its dirty limit.  Currently, writeback is unaware of memory controller.
+Therefore writeback assumes that all dirty inodes are candidates for
+memcg writeback.  Our experience in Google production shows that doing
+global (non cgroup aware) writeback substantially reduces isolation
+between memory-hungry jobs.
 
-For the page cache, this effectively extends the split LRU (active/inactive=
-)
-page queues to now include a new "queue" containing compressed clean page
-cache pages.
+If there was a way for memcg writeback to either avoid irrelevant inodes
+or avoid irrelevant pages, then better isolation could be achieved.
 
-For swap (as with ramzswap/zram), compressed in-memory swap pages may
-negatively impact memory pressure in some workloads and a method
-needs to be contrived to move these pages to a physical swap disk.
-
-Some things to discuss:
-1) What is the appropriate page count balance between the active queue,
-   the inactive queue, and cleancache-compressed pages?
-2) What triggers can be used for rebalancing?
-3) Is there a better "source" for cleancache than pages reclaimed from
-   the inactive queue?
-4) Under what conditions should frontswap-compressed pages be "repatriated"
-   to normal kernel memory (and possibly to disk)?
-
-I also hope to also be able to describe and possibly demo a brand new in-ke=
-rnel
-(non-virtualization) user of transcendent memory (including both cleancache
-and frontswap) that I think attendees in ALL tracks will find intriguing, b=
-ut
-I'm not ready to talk about until closer to LSF/MM workshop.  (Hopefully,
-this will make a good lightning talk.)
-
-Thanks,
-Dan Magenheimer
+We have been working on various designs to allow either page or inode
+level filtering in the writeback code to achieve memcg-aware writeback.
+I would like to have a discussion about these designs and see what
+interest there is in this topic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
