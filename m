@@ -1,65 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BBF668D0039
-	for <linux-mm@kvack.org>; Sat,  5 Feb 2011 12:36:57 -0500 (EST)
-Date: Sat, 5 Feb 2011 09:36:32 -0800
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 026458D0039
+	for <linux-mm@kvack.org>; Sat,  5 Feb 2011 13:05:50 -0500 (EST)
+Message-ID: <4D4D911A.5080001@oracle.com>
+Date: Sat, 05 Feb 2011 10:04:10 -0800
 From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: [PATCH -mmotm] staging/easycap: fix build when SND is not enabled
-Message-Id: <20110205093632.b76be846.randy.dunlap@oracle.com>
-In-Reply-To: <201102042349.p14NnQEm025834@imap1.linux-foundation.org>
-References: <201102042349.p14NnQEm025834@imap1.linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+MIME-Version: 1.0
+Subject: Re: [patch fixup] memcg: remove direct page_cgroup-to-page pointer
+ fix
+References: <201102042349.p14NnQEm025834@imap1.linux-foundation.org> <20110204183810.76baf8f0.randy.dunlap@oracle.com> <20110205090451.GA2315@cmpxchg.org>
+In-Reply-To: <20110205090451.GA2315@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, rmthomas@sciolus.org, driverdevel <devel@driverdev.osuosl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, gregkh <greg@kroah.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-From: Randy Dunlap <randy.dunlap@oracle.com>
+On 02/05/11 01:04, Johannes Weiner wrote:
+> On Fri, Feb 04, 2011 at 06:38:10PM -0800, Randy Dunlap wrote:
+>> On Fri, 04 Feb 2011 15:15:17 -0800 akpm@linux-foundation.org wrote:
+>>
+>>> The mm-of-the-moment snapshot 2011-02-04-15-15 has been uploaded to
+>>>
+>>>    http://userweb.kernel.org/~akpm/mmotm/
+>>>
+>>> and will soon be available at
+>>>
+>>>    git://zen-kernel.org/kernel/mmotm.git
+>>>
+>>> It contains the following patches against 2.6.38-rc3:
+>>
+>>
+>> Lots of these warnings in some kernel configs:
+>>
+>> mmotm-2011-0204-1515/include/linux/page_cgroup.h:144: warning: left shift count >= width of type
+>> mmotm-2011-0204-1515/include/linux/page_cgroup.h:145: warning: left shift count >= width of type
+>> mmotm-2011-0204-1515/include/linux/page_cgroup.h:150: warning: right shift count >= width of type
+> 
+> Thanks for the report, Randy, and sorry for the breakage.  Here is the
+> fixup:
+> 
+> ---
+> Since the non-flags field for pc array ids in pc->flags is offset from
+> the end of the word, we end up with a shift count of BITS_PER_LONG in
+> case the field width is zero.
+> 
+> This results in a compiler warning as we shift in both directions a
+> long int by BITS_PER_LONG.
+> 
+> There is no real harm -- the mask is zero -- but fix up the compiler
+> warning by also making the shift count zero for a non-existant field.
+> 
+> Reported-by: Randy Dunlap <randy.dunlap@oracle.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
 
-Fix easycap build when CONFIG_SOUND is enabled but CONFIG_SND is
-not enabled.
+Acked-by: Randy Dunlap <randy.dunlap@oracle.com>
 
-These functions are only built when CONFIG_SND is enabled, so the
-driver should depend on SND.
-This means that having SND enabled is required for the (obsolete)
-EASYCAP_OSS config option.
+Thanks.
 
-drivers/built-in.o: In function `easycap_usb_disconnect':
-easycap_main.c:(.text+0x2aba20): undefined reference to `snd_card_free'
-drivers/built-in.o: In function `easycap_alsa_probe':
-(.text+0x2b784b): undefined reference to `snd_card_create'
-drivers/built-in.o: In function `easycap_alsa_probe':
-(.text+0x2b78fb): undefined reference to `snd_pcm_new'
-drivers/built-in.o: In function `easycap_alsa_probe':
-(.text+0x2b7916): undefined reference to `snd_pcm_set_ops'
-drivers/built-in.o: In function `easycap_alsa_probe':
-(.text+0x2b795b): undefined reference to `snd_card_register'
-drivers/built-in.o: In function `easycap_alsa_probe':
-(.text+0x2b79d8): undefined reference to `snd_card_free'
-drivers/built-in.o: In function `easycap_alsa_probe':
-(.text+0x2b7a78): undefined reference to `snd_card_free'
-drivers/built-in.o: In function `easycap_alsa_complete':
-(.text+0x2b7e68): undefined reference to `snd_pcm_period_elapsed'
-drivers/built-in.o:(.data+0x2cae8): undefined reference to `snd_pcm_lib_ioctl'
-
-Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: R.M. Thomas <rmthomas@sciolus.org>
----
- drivers/staging/easycap/Kconfig |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
---- mmotm-2011-0204-1515.orig/drivers/staging/easycap/Kconfig
-+++ mmotm-2011-0204-1515/drivers/staging/easycap/Kconfig
-@@ -1,6 +1,6 @@
- config EASYCAP
- 	tristate "EasyCAP USB ID 05e1:0408 support"
--	depends on USB && VIDEO_DEV && SOUND
-+	depends on USB && VIDEO_DEV && SND
- 
- 	---help---
- 	  This is an integrated audio/video driver for EasyCAP cards with
+-- 
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
