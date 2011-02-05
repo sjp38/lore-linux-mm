@@ -1,59 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A2D28D003B
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 19:10:02 -0500 (EST)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id p1509xLN011165
-	for <linux-mm@kvack.org>; Fri, 4 Feb 2011 16:09:59 -0800
-Received: from vws14 (vws14.prod.google.com [10.241.21.142])
-	by wpaz37.hot.corp.google.com with ESMTP id p1509tTF024464
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 4 Feb 2011 16:09:58 -0800
-Received: by vws14 with SMTP id 14so1904355vws.23
-        for <linux-mm@kvack.org>; Fri, 04 Feb 2011 16:09:57 -0800 (PST)
-MIME-Version: 1.0
-Date: Fri, 4 Feb 2011 16:09:57 -0800
-Message-ID: <AANLkTi=bMvdnxJOJTsNpg=KCSG40cgDkx+ZMPXXJh8UN@mail.gmail.com>
-Subject: [LSF/MM TOPIC] Kernel memory tracking in memcg
-From: Suleiman Souhlal <suleiman@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id E4FF58D0039
+	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 21:32:58 -0500 (EST)
+Date: Fri, 4 Feb 2011 18:31:26 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: mmotm 2011-02-04-15-15 uploaded (printk
+ DEFAULT_MESSAGE_LOGLEVEL)
+Message-Id: <20110204183126.ac5c2d66.randy.dunlap@oracle.com>
+In-Reply-To: <201102042349.p14NnQEm025834@imap1.linux-foundation.org>
+References: <201102042349.p14NnQEm025834@imap1.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linuxfoundation.org
-Cc: linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, Mandeep Singh Baines <msb@chromium.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-Hi,
+On Fri, 04 Feb 2011 15:15:17 -0800 akpm@linux-foundation.org wrote:
 
-Currently, memcg only tracks user memory.
+> The mm-of-the-moment snapshot 2011-02-04-15-15 has been uploaded to
+> 
+>    http://userweb.kernel.org/~akpm/mmotm/
+> 
+> and will soon be available at
+> 
+>    git://zen-kernel.org/kernel/mmotm.git
+> 
+> It contains the following patches against 2.6.38-rc3:
 
-However, some workloads can cause heavy kernel memory use (for
-example, when doing a lot of network I/O), which would ideally be
-counted towards the limit in memory cgroup.
+When CONFIG_PRINTK is not enabled:
 
-Without this, memory isolation could be damaged, as one cgroup using a
-lot of kernel memory could penalize other cgroups by causing global
-reclaim on the machine.
+mmotm-2011-0204-1515/kernel/printk.c:66: error: 'CONFIG_DEFAULT_MESSAGE_LOGLEVEL' undeclared here (not in a function)
 
-Things that could potentially be discussed:
-- Should all kinds of kernel allocations be accounted (get_free_pages,
-slab, vmalloc)?
-- Should every allocation done in a process context be accounted?
-- Should kernel memory be counted towards the memcg limit, or should a
-different limit be used?
-- Implementation.
-
-Is this worth discussing?
-
-[ My initial thoughts on the issue: Slab makes for the bulk of kernel
-allocations, and any solution would need a slab component, so it's a
-good starting point.
-Also, most kernel allocations in process context belong to that
-process (although there are some exceptions), so it should be mostly
-ok to account every allocation in process context.
-For slab, we can do tracking per slab (instead of per-object), by
-making sure objects from a slab are only used by one cgroup. ]
-
--- Suleiman
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
