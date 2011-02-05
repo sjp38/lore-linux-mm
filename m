@@ -1,106 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 95EEC8D0039
-	for <linux-mm@kvack.org>; Sat,  5 Feb 2011 06:40:55 -0500 (EST)
-Date: Sat, 5 Feb 2011 12:40:44 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: mmotm 2011-02-04-15-15 uploaded
-Message-ID: <20110205114044.GA2317@cmpxchg.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BBF668D0039
+	for <linux-mm@kvack.org>; Sat,  5 Feb 2011 12:36:57 -0500 (EST)
+Date: Sat, 5 Feb 2011 09:36:32 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: [PATCH -mmotm] staging/easycap: fix build when SND is not enabled
+Message-Id: <20110205093632.b76be846.randy.dunlap@oracle.com>
+In-Reply-To: <201102042349.p14NnQEm025834@imap1.linux-foundation.org>
 References: <201102042349.p14NnQEm025834@imap1.linux-foundation.org>
- <20110205133450.0204834f.sfr@canb.auug.org.au>
- <20110204184300.ebcddedb.akpm@linux-foundation.org>
- <20110205104430.GB2315@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110205104430.GB2315@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: akpm@linux-foundation.org, rmthomas@sciolus.org, driverdevel <devel@driverdev.osuosl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, gregkh <greg@kroah.com>
 
-On Sat, Feb 05, 2011 at 11:44:30AM +0100, Johannes Weiner wrote:
-> On Fri, Feb 04, 2011 at 06:43:00PM -0800, Andrew Morton wrote:
-> > On Sat, 5 Feb 2011 13:34:50 +1100 Stephen Rothwell <sfr@canb.auug.org.au> wrote:
-> > > On Fri, 04 Feb 2011 15:15:17 -0800 akpm@linux-foundation.org wrote:
-> > > >
-> > > > The mm-of-the-moment snapshot 2011-02-04-15-15 has been uploaded to
-> > > > 
-> > > >    http://userweb.kernel.org/~akpm/mmotm/
-> > > > 
-> > > > and will soon be available at
-> > > > 
-> > > >    git://zen-kernel.org/kernel/mmotm.git
-> > > 
-> > > Just an FYI (origin is the above git repo):
-> > > 
-> > > $ git remote update origin
-> > > Fetching origin
-> > > fatal: read error: Connection reset by peer
-> > > error: Could not fetch origin
-> > 
-> > Yes, that's been dead for a while and James isn't responding to email.
-> 
-> I created an automated tree for myself a while ago.  It has been
-> working fine for the last few -mmotm snapshots:
-> 
-> 	http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
-> 
-> Feel free to use that and let me know if something is not right.
+From: Randy Dunlap <randy.dunlap@oracle.com>
 
-Here is the script I use for tree generation, btw:
+Fix easycap build when CONFIG_SOUND is enabled but CONFIG_SND is
+not enabled.
 
+These functions are only built when CONFIG_SND is enabled, so the
+driver should depend on SND.
+This means that having SND enabled is required for the (obsolete)
+EASYCAP_OSS config option.
+
+drivers/built-in.o: In function `easycap_usb_disconnect':
+easycap_main.c:(.text+0x2aba20): undefined reference to `snd_card_free'
+drivers/built-in.o: In function `easycap_alsa_probe':
+(.text+0x2b784b): undefined reference to `snd_card_create'
+drivers/built-in.o: In function `easycap_alsa_probe':
+(.text+0x2b78fb): undefined reference to `snd_pcm_new'
+drivers/built-in.o: In function `easycap_alsa_probe':
+(.text+0x2b7916): undefined reference to `snd_pcm_set_ops'
+drivers/built-in.o: In function `easycap_alsa_probe':
+(.text+0x2b795b): undefined reference to `snd_card_register'
+drivers/built-in.o: In function `easycap_alsa_probe':
+(.text+0x2b79d8): undefined reference to `snd_card_free'
+drivers/built-in.o: In function `easycap_alsa_probe':
+(.text+0x2b7a78): undefined reference to `snd_card_free'
+drivers/built-in.o: In function `easycap_alsa_complete':
+(.text+0x2b7e68): undefined reference to `snd_pcm_period_elapsed'
+drivers/built-in.o:(.data+0x2cae8): undefined reference to `snd_pcm_lib_ioctl'
+
+Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: R.M. Thomas <rmthomas@sciolus.org>
 ---
-#!/bin/bash
+ drivers/staging/easycap/Kconfig |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-set -e
-
-cd `dirname $0`
-CWD="`pwd`"
-
-TAR="broken-out.tar.gz"
-URL="http://kernel.org/~akpm/mmotm/$TAR"
-TREE_PRIVATE="$CWD/linux-2.6"
-TREE_PUBLIC="/pub/git/linux-mmotm.git"
-
-mtime()
-{
-    stat --printf='%Y' "$@"
-}
-
-prepare()
-{
-    if [ -f "$TAR" ]
-    then
-	ORG="`mtime $TAR`"
-	wget -qN "$URL"
-	[ "$ORG" = "`mtime $TAR`" ] && exit 0
-    else
-	wget -q "$URL"
-    fi
-
-    rm -rf broken-out
-    tar -xf "$TAR"
-    mv .DATE* series broken-out/
-
-    # fix empty binary hunks so git will eat them
-    sed -i '/^Binary files.*differ/d' broken-out/*.patch
-}
-
-[ "$1" = "-r" ] || prepare
-
-LTAG="v`sed -n 2p broken-out/.DATE`"
-ATAG="$LTAG-mmotm-`sed -n 1p broken-out/.DATE`"
-
-cd "$TREE_PRIVATE"
-git fetch --tags
-git reset --quiet --hard "$LTAG"
-git clean --quiet -fdx
-rm -rf .git/rebase-apply
-git quiltimport --author "mmotm auto import <mm-commits@vger.kernel.org>" --patches "$CWD/broken-out"
-git tag -f "$ATAG"
-git push --force "$TREE_PUBLIC" --tags
-git push --force "$TREE_PUBLIC" --all
+--- mmotm-2011-0204-1515.orig/drivers/staging/easycap/Kconfig
++++ mmotm-2011-0204-1515/drivers/staging/easycap/Kconfig
+@@ -1,6 +1,6 @@
+ config EASYCAP
+ 	tristate "EasyCAP USB ID 05e1:0408 support"
+-	depends on USB && VIDEO_DEV && SOUND
++	depends on USB && VIDEO_DEV && SND
+ 
+ 	---help---
+ 	  This is an integrated audio/video driver for EasyCAP cards with
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
