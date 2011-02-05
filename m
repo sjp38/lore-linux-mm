@@ -1,63 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 33A2D8D0039
-	for <linux-mm@kvack.org>; Sat,  5 Feb 2011 02:56:04 -0500 (EST)
-Message-ID: <4D4D0289.2030900@tao.ma>
-Date: Sat, 05 Feb 2011 15:55:53 +0800
-From: Tao Ma <tm@tao.ma>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 845428D0039
+	for <linux-mm@kvack.org>; Sat,  5 Feb 2011 04:05:01 -0500 (EST)
+Date: Sat, 5 Feb 2011 10:04:51 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch fixup] memcg: remove direct page_cgroup-to-page pointer fix
+Message-ID: <20110205090451.GA2315@cmpxchg.org>
+References: <201102042349.p14NnQEm025834@imap1.linux-foundation.org>
+ <20110204183810.76baf8f0.randy.dunlap@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [LSF/MM TOPIC] Writeback - current state and future
-References: <20110204164222.GG4104@quack.suse.cz> <AANLkTikUwWOrz_LF1nO=y9cE=Ndt_CUMH-HwH244z6n0@mail.gmail.com>
-In-Reply-To: <AANLkTikUwWOrz_LF1nO=y9cE=Ndt_CUMH-HwH244z6n0@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110204183810.76baf8f0.randy.dunlap@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Curt Wohlgemuth <curtw@google.com>
-Cc: Jan Kara <jack@suse.cz>, lsf-pc@lists.linuxfoundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On 02/05/2011 02:06 AM, Curt Wohlgemuth wrote:
-> I think it would also be valuable to include a discussion of writeback
-> testing, so perhaps we can go beyond simply large numbers of dd
-> processes.
->    
-yeah, I guess a good test case is really needed here.
-We are trying to use the new writeback, but can't find some good test 
-cases that t can be used.
-A good number is always needed when we prompt new kernel features to my 
-employer. ;)
+On Fri, Feb 04, 2011 at 06:38:10PM -0800, Randy Dunlap wrote:
+> On Fri, 04 Feb 2011 15:15:17 -0800 akpm@linux-foundation.org wrote:
+> 
+> > The mm-of-the-moment snapshot 2011-02-04-15-15 has been uploaded to
+> > 
+> >    http://userweb.kernel.org/~akpm/mmotm/
+> > 
+> > and will soon be available at
+> > 
+> >    git://zen-kernel.org/kernel/mmotm.git
+> > 
+> > It contains the following patches against 2.6.38-rc3:
+> 
+> 
+> Lots of these warnings in some kernel configs:
+> 
+> mmotm-2011-0204-1515/include/linux/page_cgroup.h:144: warning: left shift count >= width of type
+> mmotm-2011-0204-1515/include/linux/page_cgroup.h:145: warning: left shift count >= width of type
+> mmotm-2011-0204-1515/include/linux/page_cgroup.h:150: warning: right shift count >= width of type
 
-Regards,
-Tao
-> On Fri, Feb 4, 2011 at 8:42 AM, Jan Kara<jack@suse.cz>  wrote:
->    
->>   Hi,
->>
->>   I'd like to have one session about writeback. The content would highly
->> depend on the current state of things but on a general level, I'd like to
->> quickly sum up what went into the kernel (or is mostly ready to go) since
->> last LSF (handling of background writeback, livelock avoidance), what is
->> being worked on - IO-less balance_dirty_pages() (if it won't be in the
->> mostly done section), what other things need to be improved (kswapd
->> writeout, writeback_inodes_sb_if_idle() mess, come to my mind now)
->>
->>                                                                 Honza
->> --
->> Jan Kara<jack@suse.cz>
->> SUSE Labs, CR
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>
->>      
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-> Don't email:<a href=ilto:"dont@kvack.org">  email@kvack.org</a>
->    
+Thanks for the report, Randy, and sorry for the breakage.  Here is the
+fixup:
+
+---
+Since the non-flags field for pc array ids in pc->flags is offset from
+the end of the word, we end up with a shift count of BITS_PER_LONG in
+case the field width is zero.
+
+This results in a compiler warning as we shift in both directions a
+long int by BITS_PER_LONG.
+
+There is no real harm -- the mask is zero -- but fix up the compiler
+warning by also making the shift count zero for a non-existant field.
+
+Reported-by: Randy Dunlap <randy.dunlap@oracle.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+
+diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+index 05d8618..f5de21d 100644
+--- a/include/linux/page_cgroup.h
++++ b/include/linux/page_cgroup.h
+@@ -123,31 +123,36 @@ static inline void move_unlock_page_cgroup(struct page_cgroup *pc,
+ }
+ 
+ #ifdef CONFIG_SPARSEMEM
+-#define PCG_ARRAYID_SHIFT	SECTIONS_SHIFT
++#define PCG_ARRAYID_WIDTH	SECTIONS_SHIFT
+ #else
+-#define PCG_ARRAYID_SHIFT	NODES_SHIFT
++#define PCG_ARRAYID_WIDTH	NODES_SHIFT
+ #endif
+ 
+-#if (PCG_ARRAYID_SHIFT > BITS_PER_LONG - NR_PCG_FLAGS)
++#if (PCG_ARRAYID_WIDTH > BITS_PER_LONG - NR_PCG_FLAGS)
+ #error Not enough space left in pc->flags to store page_cgroup array IDs
+ #endif
+ 
+ /* pc->flags: ARRAY-ID | FLAGS */
+ 
+-#define PCG_ARRAYID_MASK	((1UL << PCG_ARRAYID_SHIFT) - 1)
++#define PCG_ARRAYID_MASK	((1UL << PCG_ARRAYID_WIDTH) - 1)
+ 
+-#define PCG_ARRAYID_OFFSET	(sizeof(unsigned long) * 8 - PCG_ARRAYID_SHIFT)
++#define PCG_ARRAYID_OFFSET	(BITS_PER_LONG - PCG_ARRAYID_WIDTH)
++/*
++ * Zero the shift count for non-existant fields, to prevent compiler
++ * warnings and ensure references are optimized away.
++ */
++#define PCG_ARRAYID_SHIFT	(PCG_ARRAYID_OFFSET * (PCG_ARRAYID_WIDTH != 0))
+ 
+ static inline void set_page_cgroup_array_id(struct page_cgroup *pc,
+ 					    unsigned long id)
+ {
+-	pc->flags &= ~(PCG_ARRAYID_MASK << PCG_ARRAYID_OFFSET);
+-	pc->flags |= (id & PCG_ARRAYID_MASK) << PCG_ARRAYID_OFFSET;
++	pc->flags &= ~(PCG_ARRAYID_MASK << PCG_ARRAYID_SHIFT);
++	pc->flags |= (id & PCG_ARRAYID_MASK) << PCG_ARRAYID_SHIFT;
+ }
+ 
+ static inline unsigned long page_cgroup_array_id(struct page_cgroup *pc)
+ {
+-	return (pc->flags >> PCG_ARRAYID_OFFSET) & PCG_ARRAYID_MASK;
++	return (pc->flags >> PCG_ARRAYID_SHIFT) & PCG_ARRAYID_MASK;
+ }
+ 
+ #else /* CONFIG_CGROUP_MEM_RES_CTLR */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
