@@ -1,52 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DE5D8D0039
-	for <linux-mm@kvack.org>; Fri,  4 Feb 2011 21:43:07 -0500 (EST)
-Date: Fri, 4 Feb 2011 18:43:00 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mmotm 2011-02-04-15-15 uploaded
-Message-Id: <20110204184300.ebcddedb.akpm@linux-foundation.org>
-In-Reply-To: <20110205133450.0204834f.sfr@canb.auug.org.au>
-References: <201102042349.p14NnQEm025834@imap1.linux-foundation.org>
-	<20110205133450.0204834f.sfr@canb.auug.org.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 33A2D8D0039
+	for <linux-mm@kvack.org>; Sat,  5 Feb 2011 02:56:04 -0500 (EST)
+Message-ID: <4D4D0289.2030900@tao.ma>
+Date: Sat, 05 Feb 2011 15:55:53 +0800
+From: Tao Ma <tm@tao.ma>
+MIME-Version: 1.0
+Subject: Re: [LSF/MM TOPIC] Writeback - current state and future
+References: <20110204164222.GG4104@quack.suse.cz> <AANLkTikUwWOrz_LF1nO=y9cE=Ndt_CUMH-HwH244z6n0@mail.gmail.com>
+In-Reply-To: <AANLkTikUwWOrz_LF1nO=y9cE=Ndt_CUMH-HwH244z6n0@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Curt Wohlgemuth <curtw@google.com>
+Cc: Jan Kara <jack@suse.cz>, lsf-pc@lists.linuxfoundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, 5 Feb 2011 13:34:50 +1100 Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+On 02/05/2011 02:06 AM, Curt Wohlgemuth wrote:
+> I think it would also be valuable to include a discussion of writeback
+> testing, so perhaps we can go beyond simply large numbers of dd
+> processes.
+>    
+yeah, I guess a good test case is really needed here.
+We are trying to use the new writeback, but can't find some good test 
+cases that t can be used.
+A good number is always needed when we prompt new kernel features to my 
+employer. ;)
 
-> Hi Andrew,
-> 
-> On Fri, 04 Feb 2011 15:15:17 -0800 akpm@linux-foundation.org wrote:
-> >
-> > The mm-of-the-moment snapshot 2011-02-04-15-15 has been uploaded to
-> > 
-> >    http://userweb.kernel.org/~akpm/mmotm/
-> > 
-> > and will soon be available at
-> > 
-> >    git://zen-kernel.org/kernel/mmotm.git
-> 
-> Just an FYI (origin is the above git repo):
-> 
-> $ git remote update origin
-> Fetching origin
-> fatal: read error: Connection reset by peer
-> error: Could not fetch origin
-
-Yes, that's been dead for a while and James isn't responding to email.
-
-> Also, I create a similar git tree myself and two of the patches would not
-> import using "git am" due to missing "From:" lines:
-> 
-> drivers-gpio-pca953xc-add-a-mutex-to-fix-race-condition.patch
-> memcg-remove-direct-page_cgroup-to-page-pointer-fix.patch
-
-Thanks, I fixed those up.
+Regards,
+Tao
+> On Fri, Feb 4, 2011 at 8:42 AM, Jan Kara<jack@suse.cz>  wrote:
+>    
+>>   Hi,
+>>
+>>   I'd like to have one session about writeback. The content would highly
+>> depend on the current state of things but on a general level, I'd like to
+>> quickly sum up what went into the kernel (or is mostly ready to go) since
+>> last LSF (handling of background writeback, livelock avoidance), what is
+>> being worked on - IO-less balance_dirty_pages() (if it won't be in the
+>> mostly done section), what other things need to be improved (kswapd
+>> writeout, writeback_inodes_sb_if_idle() mess, come to my mind now)
+>>
+>>                                                                 Honza
+>> --
+>> Jan Kara<jack@suse.cz>
+>> SUSE Labs, CR
+>> --
+>> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>>
+>>      
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email:<a href=ilto:"dont@kvack.org">  email@kvack.org</a>
+>    
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
