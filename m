@@ -1,45 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 51EC18D0039
-	for <linux-mm@kvack.org>; Sat,  5 Feb 2011 15:13:05 -0500 (EST)
-Received: by vxb41 with SMTP id 41so1104924vxb.14
-        for <linux-mm@kvack.org>; Sat, 05 Feb 2011 12:13:03 -0800 (PST)
-Message-ID: <4D4DAF75.5090607@vflare.org>
-Date: Sat, 05 Feb 2011 15:13:41 -0500
-From: Nitin Gupta <ngupta@vflare.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 7AAA38D0039
+	for <linux-mm@kvack.org>; Sun,  6 Feb 2011 02:25:33 -0500 (EST)
+Received: by wwb29 with SMTP id 29so3701808wwb.26
+        for <linux-mm@kvack.org>; Sat, 05 Feb 2011 23:25:30 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: zcache and kztmem combine to become the new zcache
-References: <4D4D95C6.20505@vflare.org>
-In-Reply-To: <4D4D95C6.20505@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20110205093632.b76be846.randy.dunlap@oracle.com>
+References: <201102042349.p14NnQEm025834@imap1.linux-foundation.org>
+	<20110205093632.b76be846.randy.dunlap@oracle.com>
+Date: Sun, 6 Feb 2011 09:25:28 +0200
+Message-ID: <AANLkTikt=Ytey-n-YYGuXzJWNprEb-_zjuP5YjJGuvgK@mail.gmail.com>
+Subject: Re: [PATCH -mmotm] staging/easycap: fix build when SND is not enabled
+From: Tomas Winkler <tomasw@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: akpm@linux-foundation.org, rmthomas@sciolus.org, driverdevel <devel@driverdev.osuosl.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-(Sorry, forgot to CC Dan)
+On Sat, Feb 5, 2011 at 7:36 PM, Randy Dunlap <randy.dunlap@oracle.com> wrot=
+e:
+> From: Randy Dunlap <randy.dunlap@oracle.com>
+>
+> Fix easycap build when CONFIG_SOUND is enabled but CONFIG_SND is
+> not enabled.
+>
+> These functions are only built when CONFIG_SND is enabled, so the
+> driver should depend on SND.
+> This means that having SND enabled is required for the (obsolete)
+> EASYCAP_OSS config option.
 
-On 02/05/2011 01:24 PM, Nitin Gupta wrote:
-> To zcache and kztmem users/reviewers --
+Actually SND enabled is needed when EASYCAP_OSS is NOT set.
+I'm not sure, though how to force it in Kconfig,
+I didn't want to use choice ALSA, OSS as the OSS will be removed later.
+
+Unfortunately I cannot do something like
+if EASYCAP_OSS =3D=3D n
+    select SND
+endif
+
+I will try to come with proper fix
+
+Thanks
+Tomas
+
+
+
+
 >
-> We, Nitin and Dan, have decided to combine zcache and kztmem and
-> call the resulting work as zcache.
+> drivers/built-in.o: In function `easycap_usb_disconnect':
+> easycap_main.c:(.text+0x2aba20): undefined reference to `snd_card_free'
+> drivers/built-in.o: In function `easycap_alsa_probe':
+> (.text+0x2b784b): undefined reference to `snd_card_create'
+> drivers/built-in.o: In function `easycap_alsa_probe':
+> (.text+0x2b78fb): undefined reference to `snd_pcm_new'
+> drivers/built-in.o: In function `easycap_alsa_probe':
+> (.text+0x2b7916): undefined reference to `snd_pcm_set_ops'
+> drivers/built-in.o: In function `easycap_alsa_probe':
+> (.text+0x2b795b): undefined reference to `snd_card_register'
+> drivers/built-in.o: In function `easycap_alsa_probe':
+> (.text+0x2b79d8): undefined reference to `snd_card_free'
+> drivers/built-in.o: In function `easycap_alsa_probe':
+> (.text+0x2b7a78): undefined reference to `snd_card_free'
+> drivers/built-in.o: In function `easycap_alsa_complete':
+> (.text+0x2b7e68): undefined reference to `snd_pcm_period_elapsed'
+> drivers/built-in.o:(.data+0x2cae8): undefined reference to `snd_pcm_lib_i=
+octl'
 >
-> Since kztmem has evolved further than zcache, we have agreed to
-> use the kztmem code as the foundation for future work, so Dan will
-> resubmit the kztmem patchset soon with the name changed to zcache.
+> Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
+> Cc: R.M. Thomas <rmthomas@sciolus.org>
+> ---
+> =C2=A0drivers/staging/easycap/Kconfig | =C2=A0 =C2=A02 +-
+> =C2=A01 file changed, 1 insertion(+), 1 deletion(-)
 >
-> Since both the "old zcache" and "new zcache" depend on the proposed
-> cleancache patch, Nitin and Dan will jointly work with the Linux
-> maintainers to support merging of cleancache, and also work together
-> on possibilities for merging frontswap and zram, since they serve
-> a similar function.
+> --- mmotm-2011-0204-1515.orig/drivers/staging/easycap/Kconfig
+> +++ mmotm-2011-0204-1515/drivers/staging/easycap/Kconfig
+> @@ -1,6 +1,6 @@
+> =C2=A0config EASYCAP
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0tristate "EasyCAP USB ID 05e1:0408 support"
+> - =C2=A0 =C2=A0 =C2=A0 depends on USB && VIDEO_DEV && SOUND
+> + =C2=A0 =C2=A0 =C2=A0 depends on USB && VIDEO_DEV && SND
 >
-> If you have any questions or concerns, please ensure you reply
-> to both of us.
->
-> Nitin Gupta and Dan Magenheimer
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0---help---
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0This is an integrated audio/video drive=
+r for EasyCAP cards with
+> _______________________________________________
+> devel mailing list
+> devel@linuxdriverproject.org
+> http://driverdev.linuxdriverproject.org/mailman/listinfo/devel
 >
 
 --
