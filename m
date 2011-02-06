@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D7C278D0039
-	for <linux-mm@kvack.org>; Sun,  6 Feb 2011 10:45:18 -0500 (EST)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id p16Fj96p013090
-	for <linux-mm@kvack.org>; Sun, 6 Feb 2011 07:45:09 -0800
-Received: from qwe4 (qwe4.prod.google.com [10.241.194.4])
-	by wpaz13.hot.corp.google.com with ESMTP id p16Fj5su024347
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 6 Feb 2011 07:45:08 -0800
-Received: by qwe4 with SMTP id 4so3858171qwe.15
-        for <linux-mm@kvack.org>; Sun, 06 Feb 2011 07:45:05 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20110117191359.GI2212@cmpxchg.org>
-References: <20110117191359.GI2212@cmpxchg.org>
-Date: Sun, 6 Feb 2011 07:45:05 -0800
-Message-ID: <AANLkTin9EwgBRbmrDGcOKV35Z62xHb_T9Z4XPVVgxsao@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] memory control groups
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DAB28D0039
+	for <linux-mm@kvack.org>; Sun,  6 Feb 2011 11:02:56 -0500 (EST)
+Date: Sun, 6 Feb 2011 08:01:12 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: [PATCH -mmotm] staging/easycap: fix build when SND is not
+ enabled
+Message-Id: <20110206080112.22f858e6.randy.dunlap@oracle.com>
+In-Reply-To: <AANLkTikt=Ytey-n-YYGuXzJWNprEb-_zjuP5YjJGuvgK@mail.gmail.com>
+References: <201102042349.p14NnQEm025834@imap1.linux-foundation.org>
+	<20110205093632.b76be846.randy.dunlap@oracle.com>
+	<AANLkTikt=Ytey-n-YYGuXzJWNprEb-_zjuP5YjJGuvgK@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>
+To: Tomas Winkler <tomasw@gmail.com>
+Cc: akpm@linux-foundation.org, rmthomas@sciolus.org, driverdevel <devel@driverdev.osuosl.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jan 17, 2011 at 11:14 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> on the MM summit, I would like to talk about the current state of
-> memory control groups, the features and extensions that are currently
-> being developed for it, and what their status is.
->
-> I am especially interested in talking about the current runtime memory
-> overhead memcg comes with (1% of ram) and what we can do to shrink it.
-> [...]
-> Would other people be interested in discussing this?
+On Sun, 6 Feb 2011 09:25:28 +0200 Tomas Winkler wrote:
 
-Well, YES :)
+> On Sat, Feb 5, 2011 at 7:36 PM, Randy Dunlap <randy.dunlap@oracle.com> wrote:
+> > From: Randy Dunlap <randy.dunlap@oracle.com>
+> >
+> > Fix easycap build when CONFIG_SOUND is enabled but CONFIG_SND is
+> > not enabled.
+> >
+> > These functions are only built when CONFIG_SND is enabled, so the
+> > driver should depend on SND.
+> > This means that having SND enabled is required for the (obsolete)
+> > EASYCAP_OSS config option.
+> 
+> Actually SND enabled is needed when EASYCAP_OSS is NOT set.
 
-In addition to what you mentioned, I believe it would be possible to
-avoid the duplication of global vs per-cgroup LRU lists. global
-scanning would translate into proportional scanning of all per-cgroup
-lists. If we could get that done, it would IMO become reasonable to
-integrate back the remaining few page_cgroup fields into struct page
-itself...
+I suspected that might be the case.
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+> I'm not sure, though how to force it in Kconfig,
+> I didn't want to use choice ALSA, OSS as the OSS will be removed later.
+> 
+> Unfortunately I cannot do something like
+> if EASYCAP_OSS == n
+>     select SND
+> endif
+
+You can do
+	select SND if !EASYCAP_OSS
+but that may be too late or in the wrong location.
+
+> I will try to come with proper fix
+
+Thanks.
+
+---
+~Randy
+*** Remember to use Documentation/SubmitChecklist when testing your code ***
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
