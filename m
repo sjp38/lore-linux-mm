@@ -1,85 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id CD81A8D0039
-	for <linux-mm@kvack.org>; Sun,  6 Feb 2011 05:43:24 -0500 (EST)
-Message-ID: <4D4E7B48.9020500@panasas.com>
-Date: Sun, 06 Feb 2011 12:43:20 +0200
-From: Boaz Harrosh <bharrosh@panasas.com>
-MIME-Version: 1.0
-Subject: Re: [LSF/MM TOPIC] Writeback - current state and future
-References: <20110204164222.GG4104@quack.suse.cz>
-In-Reply-To: <20110204164222.GG4104@quack.suse.cz>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 68F598D0039
+	for <linux-mm@kvack.org>; Sun,  6 Feb 2011 05:48:59 -0500 (EST)
+Received: by pwj8 with SMTP id 8so904564pwj.14
+        for <linux-mm@kvack.org>; Sun, 06 Feb 2011 02:48:57 -0800 (PST)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH v4 0/6] Change page reference handling semantic of page cache
+Date: Sun,  6 Feb 2011 19:47:59 +0900
+Message-Id: <cover.1296987110.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: lsf-pc@lists.linuxfoundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>
 
-On 02/04/2011 06:42 PM, Jan Kara wrote:
->   Hi,
-> 
->   I'd like to have one session about writeback. The content would highly
-> depend on the current state of things but on a general level, I'd like to
-> quickly sum up what went into the kernel (or is mostly ready to go) since
-> last LSF (handling of background writeback, livelock avoidance), what is
-> being worked on - IO-less balance_dirty_pages() (if it won't be in the
-> mostly done section), what other things need to be improved (kswapd
-> writeout, writeback_inodes_sb_if_idle() mess, come to my mind now)
-> 
-> 								Honza
+Now we increase page reference on add_to_page_cache but don't decrease it
+in remove_from_page_cache. Such asymmetric rule makes confusing about
+page reference so that caller should notice it and comment why they
+release page reference. It's not good API.
 
-Ha, I most certainly want to participate in this talk. I wanted to
-suggest it myself.
+Long time ago, Hugh tried it[1] but gave up of reason which
+reiser4's drop_page had to unlock the page between removing it from
+page cache and doing the page_cache_release. But now the situation is
+changed. I think at least things in current mainline doesn't have any
+obstacles. The problem is fs or somethings out of mainline.
+If it has done such thing like reiser4, this patch could be a problem but
+they found it when compile time since we remove remove_from_page_cache.
 
-Topics that I would like to raise on the matter.
+[1] http://lkml.org/lkml/2004/10/24/140
 
-[IO-less balance_dirty_pages]
-As said, I'd really like if Wu or Jan could explain more about the math
-and IO patterns that went into this tremendous work, and how it should
-affect us fs maintainers in means of advantages and disadvantages. If
-digging too deeply into this is not interesting for every body, perhaps
-a side meeting with fewer people is also possible.
+The series configuration is following as. 
 
-[Aligned write-back]
-I have just finished raid5/6 support in my filesystem and will be sending
-a patch that tries very aggressively to align IO on stripe boundaries.
-I did not take the btrfs way of cut/paste of the write_cache_pages() function
-to better fit the bill. I used the wbc->nr_to_write to trim down IO on stripe
-alignment. Together with some internal structure games, I now have a much
-better situation then untouched code. Better I mean that if I have simple
-linear dd IO on a file, I can see o(90%) aligned IOs as opposed to 20% before
-that patch. The only remaining issue, I think I have not fully investigated
-it yet, is that: because I do not want any residues left from outside the
-writepages() call so I do not need to sync and lock with flush, and have a
-"flushing" flag in my writeout path. So what I still get is that sometimes
-the writeback is able to catch up with dd and I get short writes at the
-reminder, which makes the end of this call and the start of the next call
-unaligned.
+[1/6] : This patch introduces new API delete_from_page_cache.
+[2,3,4/6] : Change remove_from_page_cache with delete_from_page_cache.
+Intentionally I divide patch per file since someone might have a concern 
+about releasing page reference of delete_from_page_cache in 
+somecase (ex, truncate.c)
+[5/6] : Remove old API so out of fs can meet compile error when build time
+and can notice it.
+[6/6] : Change __remove_from_page_cache with __delete_from_page_cache, too.
+In this time, I made all-in-one patch because it doesn't change old behavior
+so it has no concern. Just clean up patch.
 
-I envision a simple BDI members just like ra_pages for readahead that better
-govern the writeback chunking. (And is accounted for in the fairness).
+This patch series pass LTP test on mm and fs.
 
-[Smarter/more cache eviction patterns]
-I love it when I do a simple dd test in a UML (300Mg of ram) and half way down
-I get these fat WARN_ONs of the iscsi tcp writeback failing to allocate network
-buffers. And I did lower the writeback ratio a lot because the default of 20% does
-not work for a long time, like since 35 or 36. The UML is not the only affected
-system any low-memory embedded-like but 64 bit system would be. Now the IO does
-complete eventually but the performance is down to 20%.
+from v3
+ - Add Acked-by
+ - rebase on mmotm-02-04
+ - remove the patch about fuse
 
-Now for a dd or cp like work pattern I would like the pages be freed much more
-aggressively, like right after IO completion because I most certainly will not
-use them again. On the other side git for example will write a big sequential
-file then immediately turn and read it, so cache presence is a win. But I think
-we can still come up with good patterns that take into account the number of
-fileh opened on an inode, and some hot inode history to come up with better
-patterns. (Some of this history we already have with the security plugins)
+from v2
+ - Add Acked-by
+ - rebase on mmotm-01-06
+ - change title of some patch
 
-And there are other topics that I had, but can remember right now.
+from v1
+ - Add Acked-by
+ - rebase on mmotm-12-23
 
-Thanks
-Boaz
+Minchan Kim (6):
+  [1/6] Introduce delete_from_page_cache
+  [2/6] hugetlbfs: Change remove_from_page_cache
+  [3/6] shmem: Change remove_from_page_cache
+  [4/6] truncate: Change remove_from_page_cache
+  [5/6] Good bye remove_from_page_cache
+  [6/6] Change __remove_from_page_cache
+
+ fs/hugetlbfs/inode.c    |    3 +--
+ include/linux/pagemap.h |    4 ++--
+ mm/filemap.c            |   22 ++++++++++++++++------
+ mm/memory-failure.c     |    2 +-
+ mm/shmem.c              |    3 +--
+ mm/truncate.c           |    7 +++----
+ mm/vmscan.c             |    2 +-
+ 7 files changed, 25 insertions(+), 18 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
