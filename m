@@ -1,64 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DFC4E8D0039
-	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 00:28:29 -0500 (EST)
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp04.au.ibm.com (8.14.4/8.13.1) with ESMTP id p175N0XY005778
-	for <linux-mm@kvack.org>; Mon, 7 Feb 2011 16:23:00 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p175SIsA1704154
-	for <linux-mm@kvack.org>; Mon, 7 Feb 2011 16:28:23 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p175SITT014154
-	for <linux-mm@kvack.org>; Mon, 7 Feb 2011 16:28:18 +1100
-Date: Mon, 7 Feb 2011 10:57:44 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [LSF/MM TOPIC] memory control groups
-Message-ID: <20110207052744.GG27729@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20110117191359.GI2212@cmpxchg.org>
- <AANLkTim_eDn-BS5OwmdowXMX75XgFWdcUepMJ5YBX1R7@mail.gmail.com>
- <20110118174523.5c79a032.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20110118174523.5c79a032.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id ABD688D0039
+	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 04:37:10 -0500 (EST)
+Subject: Re: [PATCH] mm: Add hook of freepage
+From: Miklos Szeredi <mszeredi@suse.cz>
+In-Reply-To: <1297004934-4605-1-git-send-email-minchan.kim@gmail.com>
+References: <1297004934-4605-1-git-send-email-minchan.kim@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 07 Feb 2011 10:37:01 +0100
+Message-ID: <1297071421.25994.58.camel@tucsk.pomaz.szeredi.hu>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2011-01-18 17:45:23]:
-
-> On Tue, 18 Jan 2011 00:17:53 -0800
-> Michel Lespinasse <walken@google.com> wrote:
+On Mon, 2011-02-07 at 00:08 +0900, Minchan Kim wrote:
+> Recently, "Call the filesystem back whenever a page is removed from
+> the page cache(6072d13c)" added new freepage hook in page cache
+> drop function.
 > 
-> 
-> > > The per-memcg dirty accounting work e.g. allocates a bunch of new bits
-> > > in pc->flags and I'd like to hash out if this leaves enough room for
-> > > the structure packing I described, or whether we can come up with a
-> > > different way of tracking state.
-> > 
-> > This is probably longer term, but I would love to get rid of the
-> > duplication between global LRU and per-cgroup LRU. Global LRU could be
-> > approximated by scanning all per-cgroup LRU lists (in mounts
-> > proportional to the list lengths).
-> > 
-> 
-> I can't answer why the design, which memory cgroup's meta-page has its own LRU
-> rather than reusing page->lru, is selected at 1st implementation because I didn't
-> join the birth of memcg. Does anyone remember the reason or discussion ? 
->
+> So, replace_page_cache_page should call freepage to support
+> page cleanup to fs.
 
-The discussions can be found on LKML, some happened during OLS.
-Keeping local LRU and global LRU was very important because we wanted
-to make sure global reclaim is not broken or affected. We can discuss
-this further.
- 
+Thanks Minchan for fixing this.
 
--- 
-	Three Cheers,
-	Balbir
+Acked-by: Miklos Szeredi <mszeredi@suse.cz>
+
+> 
+> Cc: Miklos Szeredi <mszeredi@suse.cz>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> ---
+>  mm/filemap.c |    5 +++++
+>  1 files changed, 5 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 3c89c96..a25c898 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -436,7 +436,10 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+>  	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+>  	if (!error) {
+>  		struct address_space *mapping = old->mapping;
+> +		void (*freepage)(struct page *);
+> +
+>  		pgoff_t offset = old->index;
+> +		freepage = mapping->a_ops->freepage;
+>  
+>  		page_cache_get(new);
+>  		new->mapping = mapping;
+> @@ -452,6 +455,8 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+>  			__inc_zone_page_state(new, NR_SHMEM);
+>  		spin_unlock_irq(&mapping->tree_lock);
+>  		radix_tree_preload_end();
+> +		if (freepage)
+> +			freepage(old);
+>  		page_cache_release(old);
+>  		mem_cgroup_end_migration(memcg, old, new, true);
+>  	} else {
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
