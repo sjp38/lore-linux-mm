@@ -1,1018 +1,1062 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E49428D0039
-	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 12:31:06 -0500 (EST)
-Date: Mon, 7 Feb 2011 11:02:53 -0500
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH V1 1/3] drivers/staging: kztmem: in-kernel tmem code
-Message-ID: <20110207160253.GA18151@dumpdata.com>
-References: <20110118171950.GA20460@ca-server1.us.oracle.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 325928D0039
+	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 13:45:27 -0500 (EST)
+Received: by qyk7 with SMTP id 7so1535768qyk.14
+        for <linux-mm@kvack.org>; Mon, 07 Feb 2011 10:45:24 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110118171950.GA20460@ca-server1.us.oracle.com>
+In-Reply-To: <1297092614-1906-1-git-send-email-namhyung@gmail.com>
+References: <1297092614-1906-1-git-send-email-namhyung@gmail.com>
+Date: Mon, 7 Feb 2011 10:45:23 -0800
+Message-ID: <AANLkTim2GcBMMMr0tABf=3GwHX8oX05-Dn8tdZbYpt_b@mail.gmail.com>
+Subject: Re: [RFC] Split up mm/bootmem.c
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: gregkh@suse.de, chris.mason@oracle.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, kurt.hackel@oracle.com, npiggin@kernel.dk, riel@redhat.com, mel@csn.ul.ie, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, sfr@canb.auug.org.au, wfg@mail.ustc.edu.cn, tytso@mit.edu, viro@ZenIV.linux.org.uk, hughd@google.com, hannes@cmpxchg.org
+To: Namhyung Kim <namhyung@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jan 18, 2011 at 09:19:50AM -0800, Dan Magenheimer wrote:
-> [PATCH V1 1/3] drivers/staging: kztmem: in-kernel tmem code
+On Mon, Feb 7, 2011 at 7:30 AM, Namhyung Kim <namhyung@gmail.com> wrote:
+> The bootmem code contained many #ifdefs in it so that it could be
+> splitted into two files for the readability. The split was quite
+> mechanical and only function need to be shared was free_bootmem_late.
+>
+> Tested on x86-64 and um which use nobootmem and bootmem respectively.
+>
+> Signed-off-by: Namhyung Kim <namhyung@gmail.com>
 
-Hey Dan,
 
-I never finished this review, but sending my fragmented comments
-in case the one you posted has overlap.
+https://lkml.org/lkml/2010/6/16/44
+...
 
-> 
-> Transcendent memory ("tmem") is a clean API/ABI that provides
-> for an efficient address translation and a set of highly
-> concurrent access methods to copy data between a page-oriented
-> data source (e.g. cleancache or frontswap) and a page-addressable
-> memory ("PAM") data store.  Of critical importance, the PAM data
-> store is of unknown (and possibly varying) size so any individual
-> access may succeed or fail as defined by the API/ABI.
-> 
-> Tmem exports a basic set of access methods (e.g. put, get,
-> flush, flush object, new pool, and destroy pool) which are
-> normally called from a "host" (e.g. kztmem).
-> 
-> To be functional, two sets of "ops" must be registered by the
-> host, one to provide "host services" (memory allocation) and
-> one to provide page-addressable memory ("PAM") hooks.
-> 
-> Tmem supports one or more "clients", each which can provide
-> a set of "pools" to partition pages.  Each pool contains
-> a set of "objects"; each object holds pointers to some number
-> of PAM page descriptors ("pampd"), indexed by an "index" number.
-> This triple <pool id, object id, index> is sometimes referred
-> to as a "handle".  Tmem's primary function is to essentially
-> provide address translation of handles into pampds and move
-> data appropriately.
-> 
-> As an example, for cleancache, a pool maps to a filesystem,
-> an object maps to a file, and the index is the page offset
-> into the file.  And in this patch, kztmem is the host and
-> each PAM descriptor points to a compressed page of data.
-> 
-> Tmem supports two kinds of pages: "ephemeral" and "persistent".
-> Ephemeral pages may be asynchronously reclaimed "bottoms up"
-> so the data structures and concurrency model must allow for
-> this.  For example, each pampd must retain sufficient information
-> to invalidate tmem's handle-to-pampd translation.
-> its containing object so that, on reclaim, all tmem data
-> structures can be made consistent.
-> 
-> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-> 
+
+
 > ---
-> 
-> Diffstat:
->  drivers/staging/kztmem/tmem.c            |  710 +++++++++++++++++++++
->  drivers/staging/kztmem/tmem.h            |  195 +++++
->  2 files changed, 905 insertions(+)
-> --- linux-2.6.37/drivers/staging/kztmem/tmem.c	1969-12-31 17:00:00.000000000 -0700
-> +++ linux-2.6.37-kztmem/drivers/staging/kztmem/tmem.c	2011-01-14 10:34:38.000000000 -0700
-> @@ -0,0 +1,710 @@
+> =A0mm/Makefile =A0 =A0| =A0 =A08 +-
+> =A0mm/bootmem.c =A0 | =A0164 +--------------------
+> =A0mm/nobootmem.c | =A0445 ++++++++++++++++++++++++++++++++++++++++++++++=
+++++++++++
+> =A03 files changed, 454 insertions(+), 163 deletions(-)
+> =A0create mode 100644 mm/nobootmem.c
+>
+> diff --git a/mm/Makefile b/mm/Makefile
+> index 2b1b575ae712..e9a074dbad15 100644
+> --- a/mm/Makefile
+> +++ b/mm/Makefile
+> @@ -7,7 +7,7 @@ mmu-$(CONFIG_MMU) =A0 =A0 =A0 :=3D fremap.o highmem.o mad=
+vise.o memory.o mincore.o \
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mlock.o mmap.o mprote=
+ct.o mremap.o msync.o rmap.o \
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 vmalloc.o pagewalk.o =
+pgtable-generic.o
+>
+> -obj-y =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0:=3D bootmem.o filemap.o mempoo=
+l.o oom_kill.o fadvise.o \
+> +obj-y =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0:=3D filemap.o mempool.o oom_ki=
+ll.o fadvise.o \
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 maccess.o page_alloc.=
+o page-writeback.o \
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 readahead.o swap.o tr=
+uncate.o vmscan.o shmem.o \
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 prio_tree.o util.o mm=
+zone.o vmstat.o backing-dev.o \
+> @@ -15,6 +15,12 @@ obj-y =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0:=
+=3D bootmem.o filemap.o mempool.o oom_kill.o fadvise.o \
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 $(mmu-y)
+> =A0obj-y +=3D init-mm.o
+>
+> +ifeq ($(CONFIG_NO_BOOTMEM),y)
+> +obj-y +=3D nobootmem.o
+> +else
+> +obj-y +=3D bootmem.o
+> +endif
+> +
+> =A0obj-$(CONFIG_HAVE_MEMBLOCK) +=3D memblock.o
+>
+> =A0obj-$(CONFIG_BOUNCE) =A0 +=3D bounce.o
+> diff --git a/mm/bootmem.c b/mm/bootmem.c
+> index 13b0caa9793c..209be265ad94 100644
+> --- a/mm/bootmem.c
+> +++ b/mm/bootmem.c
+> @@ -35,7 +35,6 @@ unsigned long max_pfn;
+> =A0unsigned long saved_max_pfn;
+> =A0#endif
+>
+> -#ifndef CONFIG_NO_BOOTMEM
+> =A0bootmem_data_t bootmem_node_data[MAX_NUMNODES] __initdata;
+>
+> =A0static struct list_head bdata_list __initdata =3D LIST_HEAD_INIT(bdata=
+_list);
+> @@ -146,8 +145,8 @@ unsigned long __init init_bootmem(unsigned long start=
+, unsigned long pages)
+> =A0 =A0 =A0 =A0min_low_pfn =3D start;
+> =A0 =A0 =A0 =A0return init_bootmem_core(NODE_DATA(0)->bdata, start, 0, pa=
+ges);
+> =A0}
+> -#endif
+> -/*
+> +
+> +/**
+> =A0* free_bootmem_late - free bootmem pages directly to page allocator
+> =A0* @addr: starting address of the range
+> =A0* @size: size of the range in bytes
+> @@ -171,53 +170,6 @@ void __init free_bootmem_late(unsigned long addr, un=
+signed long size)
+> =A0 =A0 =A0 =A0}
+> =A0}
+>
+> -#ifdef CONFIG_NO_BOOTMEM
+> -static void __init __free_pages_memory(unsigned long start, unsigned lon=
+g end)
+> -{
+> - =A0 =A0 =A0 int i;
+> - =A0 =A0 =A0 unsigned long start_aligned, end_aligned;
+> - =A0 =A0 =A0 int order =3D ilog2(BITS_PER_LONG);
+> -
+> - =A0 =A0 =A0 start_aligned =3D (start + (BITS_PER_LONG - 1)) & ~(BITS_PE=
+R_LONG - 1);
+> - =A0 =A0 =A0 end_aligned =3D end & ~(BITS_PER_LONG - 1);
+> -
+> - =A0 =A0 =A0 if (end_aligned <=3D start_aligned) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 for (i =3D start; i < end; i++)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __free_pages_bootmem(pfn_to=
+_page(i), 0);
+> -
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;
+> - =A0 =A0 =A0 }
+> -
+> - =A0 =A0 =A0 for (i =3D start; i < start_aligned; i++)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 __free_pages_bootmem(pfn_to_page(i), 0);
+> -
+> - =A0 =A0 =A0 for (i =3D start_aligned; i < end_aligned; i +=3D BITS_PER_=
+LONG)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 __free_pages_bootmem(pfn_to_page(i), order)=
+;
+> -
+> - =A0 =A0 =A0 for (i =3D end_aligned; i < end; i++)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 __free_pages_bootmem(pfn_to_page(i), 0);
+> -}
+> -
+> -unsigned long __init free_all_memory_core_early(int nodeid)
+> -{
+> - =A0 =A0 =A0 int i;
+> - =A0 =A0 =A0 u64 start, end;
+> - =A0 =A0 =A0 unsigned long count =3D 0;
+> - =A0 =A0 =A0 struct range *range =3D NULL;
+> - =A0 =A0 =A0 int nr_range;
+> -
+> - =A0 =A0 =A0 nr_range =3D get_free_all_memory_range(&range, nodeid);
+> -
+> - =A0 =A0 =A0 for (i =3D 0; i < nr_range; i++) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 start =3D range[i].start;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 end =3D range[i].end;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 count +=3D end - start;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 __free_pages_memory(start, end);
+> - =A0 =A0 =A0 }
+> -
+> - =A0 =A0 =A0 return count;
+> -}
+> -#else
+> =A0static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdat=
+a)
+> =A0{
+> =A0 =A0 =A0 =A0int aligned;
+> @@ -278,7 +230,6 @@ static unsigned long __init free_all_bootmem_core(boo=
+tmem_data_t *bdata)
+>
+> =A0 =A0 =A0 =A0return count;
+> =A0}
+> -#endif
+>
+> =A0/**
+> =A0* free_all_bootmem_node - release a node's free pages to the buddy all=
+ocator
+> @@ -289,12 +240,7 @@ static unsigned long __init free_all_bootmem_core(bo=
+otmem_data_t *bdata)
+> =A0unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
+> =A0{
+> =A0 =A0 =A0 =A0register_page_bootmem_info_node(pgdat);
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 /* free_all_memory_core_early(MAX_NUMNODES) will be called =
+later */
+> - =A0 =A0 =A0 return 0;
+> -#else
+> =A0 =A0 =A0 =A0return free_all_bootmem_core(pgdat->bdata);
+> -#endif
+> =A0}
+>
+> =A0/**
+> @@ -304,16 +250,6 @@ unsigned long __init free_all_bootmem_node(pg_data_t=
+ *pgdat)
+> =A0*/
+> =A0unsigned long __init free_all_bootmem(void)
+> =A0{
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 /*
+> - =A0 =A0 =A0 =A0* We need to use MAX_NUMNODES instead of NODE_DATA(0)->n=
+ode_id
+> - =A0 =A0 =A0 =A0* =A0because in some case like Node0 doesnt have RAM ins=
+talled
+> - =A0 =A0 =A0 =A0* =A0low ram will be on Node1
+> - =A0 =A0 =A0 =A0* Use MAX_NUMNODES will make sure all ranges in early_no=
+de_map[]
+> - =A0 =A0 =A0 =A0* =A0will be used instead of only Node0 related
+> - =A0 =A0 =A0 =A0*/
+> - =A0 =A0 =A0 return free_all_memory_core_early(MAX_NUMNODES);
+> -#else
+> =A0 =A0 =A0 =A0unsigned long total_pages =3D 0;
+> =A0 =A0 =A0 =A0bootmem_data_t *bdata;
+>
+> @@ -321,10 +257,8 @@ unsigned long __init free_all_bootmem(void)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0total_pages +=3D free_all_bootmem_core(bda=
+ta);
+>
+> =A0 =A0 =A0 =A0return total_pages;
+> -#endif
+> =A0}
+>
+> -#ifndef CONFIG_NO_BOOTMEM
+> =A0static void __init __free(bootmem_data_t *bdata,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long sidx, unsign=
+ed long eidx)
+> =A0{
+> @@ -419,7 +353,6 @@ static int __init mark_bootmem(unsigned long start, u=
+nsigned long end,
+> =A0 =A0 =A0 =A0}
+> =A0 =A0 =A0 =A0BUG();
+> =A0}
+> -#endif
+>
+> =A0/**
+> =A0* free_bootmem_node - mark a page range as usable
+> @@ -434,10 +367,6 @@ static int __init mark_bootmem(unsigned long start, =
+unsigned long end,
+> =A0void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr=
+,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long =
+size)
+> =A0{
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 kmemleak_free_part(__va(physaddr), size);
+> - =A0 =A0 =A0 memblock_x86_free_range(physaddr, physaddr + size);
+> -#else
+> =A0 =A0 =A0 =A0unsigned long start, end;
+>
+> =A0 =A0 =A0 =A0kmemleak_free_part(__va(physaddr), size);
+> @@ -446,7 +375,6 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsig=
+ned long physaddr,
+> =A0 =A0 =A0 =A0end =3D PFN_DOWN(physaddr + size);
+>
+> =A0 =A0 =A0 =A0mark_bootmem_node(pgdat->bdata, start, end, 0, 0);
+> -#endif
+> =A0}
+>
+> =A0/**
+> @@ -460,10 +388,6 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsi=
+gned long physaddr,
+> =A0*/
+> =A0void __init free_bootmem(unsigned long addr, unsigned long size)
+> =A0{
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 kmemleak_free_part(__va(addr), size);
+> - =A0 =A0 =A0 memblock_x86_free_range(addr, addr + size);
+> -#else
+> =A0 =A0 =A0 =A0unsigned long start, end;
+>
+> =A0 =A0 =A0 =A0kmemleak_free_part(__va(addr), size);
+> @@ -472,7 +396,6 @@ void __init free_bootmem(unsigned long addr, unsigned=
+ long size)
+> =A0 =A0 =A0 =A0end =3D PFN_DOWN(addr + size);
+>
+> =A0 =A0 =A0 =A0mark_bootmem(start, end, 0, 0);
+> -#endif
+> =A0}
+>
+> =A0/**
+> @@ -489,17 +412,12 @@ void __init free_bootmem(unsigned long addr, unsign=
+ed long size)
+> =A0int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physad=
+dr,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned =
+long size, int flags)
+> =A0{
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 panic("no bootmem");
+> - =A0 =A0 =A0 return 0;
+> -#else
+> =A0 =A0 =A0 =A0unsigned long start, end;
+>
+> =A0 =A0 =A0 =A0start =3D PFN_DOWN(physaddr);
+> =A0 =A0 =A0 =A0end =3D PFN_UP(physaddr + size);
+>
+> =A0 =A0 =A0 =A0return mark_bootmem_node(pgdat->bdata, start, end, 1, flag=
+s);
+> -#endif
+> =A0}
+>
+> =A0/**
+> @@ -515,20 +433,14 @@ int __init reserve_bootmem_node(pg_data_t *pgdat, u=
+nsigned long physaddr,
+> =A0int __init reserve_bootmem(unsigned long addr, unsigned long size,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0int flags)
+> =A0{
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 panic("no bootmem");
+> - =A0 =A0 =A0 return 0;
+> -#else
+> =A0 =A0 =A0 =A0unsigned long start, end;
+>
+> =A0 =A0 =A0 =A0start =3D PFN_DOWN(addr);
+> =A0 =A0 =A0 =A0end =3D PFN_UP(addr + size);
+>
+> =A0 =A0 =A0 =A0return mark_bootmem(start, end, 1, flags);
+> -#endif
+> =A0}
+>
+> -#ifndef CONFIG_NO_BOOTMEM
+> =A0int __weak __init reserve_bootmem_generic(unsigned long phys, unsigned=
+ long len,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 int f=
+lags)
+> =A0{
+> @@ -685,33 +597,12 @@ static void * __init alloc_arch_preferred_bootmem(b=
+ootmem_data_t *bdata,
+> =A0#endif
+> =A0 =A0 =A0 =A0return NULL;
+> =A0}
+> -#endif
+>
+> =A0static void * __init ___alloc_bootmem_nopanic(unsigned long size,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0unsigned long align,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0unsigned long goal,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0unsigned long limit)
+> =A0{
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 void *ptr;
+> -
+> - =A0 =A0 =A0 if (WARN_ON_ONCE(slab_is_available()))
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return kzalloc(size, GFP_NOWAIT);
+> -
+> -restart:
+> -
+> - =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(MAX_NUMNODES, size, align=
+, goal, limit);
+> -
+> - =A0 =A0 =A0 if (ptr)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> -
+> - =A0 =A0 =A0 if (goal !=3D 0) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 goal =3D 0;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto restart;
+> - =A0 =A0 =A0 }
+> -
+> - =A0 =A0 =A0 return NULL;
+> -#else
+> =A0 =A0 =A0 =A0bootmem_data_t *bdata;
+> =A0 =A0 =A0 =A0void *region;
+>
+> @@ -737,7 +628,6 @@ restart:
+> =A0 =A0 =A0 =A0}
+>
+> =A0 =A0 =A0 =A0return NULL;
+> -#endif
+> =A0}
+>
+> =A0/**
+> @@ -758,10 +648,6 @@ void * __init __alloc_bootmem_nopanic(unsigned long =
+size, unsigned long align,
+> =A0{
+> =A0 =A0 =A0 =A0unsigned long limit =3D 0;
+>
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 limit =3D -1UL;
+> -#endif
+> -
+> =A0 =A0 =A0 =A0return ___alloc_bootmem_nopanic(size, align, goal, limit);
+> =A0}
+>
+> @@ -798,14 +684,9 @@ void * __init __alloc_bootmem(unsigned long size, un=
+signed long align,
+> =A0{
+> =A0 =A0 =A0 =A0unsigned long limit =3D 0;
+>
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 limit =3D -1UL;
+> -#endif
+> -
+> =A0 =A0 =A0 =A0return ___alloc_bootmem(size, align, goal, limit);
+> =A0}
+>
+> -#ifndef CONFIG_NO_BOOTMEM
+> =A0static void * __init ___alloc_bootmem_node(bootmem_data_t *bdata,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned l=
+ong size, unsigned long align,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned l=
+ong goal, unsigned long limit)
+> @@ -822,7 +703,6 @@ static void * __init ___alloc_bootmem_node(bootmem_da=
+ta_t *bdata,
+>
+> =A0 =A0 =A0 =A0return ___alloc_bootmem(size, align, goal, limit);
+> =A0}
+> -#endif
+>
+> =A0/**
+> =A0* __alloc_bootmem_node - allocate boot memory from a specific node
+> @@ -847,17 +727,7 @@ void * __init __alloc_bootmem_node(pg_data_t *pgdat,=
+ unsigned long size,
+> =A0 =A0 =A0 =A0if (WARN_ON_ONCE(slab_is_available()))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return kzalloc_node(size, GFP_NOWAIT, pgda=
+t->node_id);
+>
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(pgdat->node_id, size, ali=
+gn,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0goal, -1ULL);
+> - =A0 =A0 =A0 if (ptr)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> -
+> - =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(MAX_NUMNODES, size, align=
+,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0goal, -1ULL);
+> -#else
+> =A0 =A0 =A0 =A0ptr =3D ___alloc_bootmem_node(pgdat->bdata, size, align, g=
+oal, 0);
+> -#endif
+>
+> =A0 =A0 =A0 =A0return ptr;
+> =A0}
+> @@ -880,13 +750,8 @@ void * __init __alloc_bootmem_node_high(pg_data_t *p=
+gdat, unsigned long size,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long new_goal;
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0new_goal =3D MAX_DMA32_PFN << PAGE_SHIFT;
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 ptr =3D =A0__alloc_memory_core_early(pgdat-=
+>node_id, size, align,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0new_goal, -1ULL);
+> -#else
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ptr =3D alloc_bootmem_core(pgdat->bdata, s=
+ize, align,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 new_goal, 0);
+> -#endif
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (ptr)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return ptr;
+> =A0 =A0 =A0 =A0}
+> @@ -907,16 +772,6 @@ void * __init __alloc_bootmem_node_high(pg_data_t *p=
+gdat, unsigned long size,
+> =A0void * __init alloc_bootmem_section(unsigned long size,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0un=
+signed long section_nr)
+> =A0{
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 unsigned long pfn, goal, limit;
+> -
+> - =A0 =A0 =A0 pfn =3D section_nr_to_pfn(section_nr);
+> - =A0 =A0 =A0 goal =3D pfn << PAGE_SHIFT;
+> - =A0 =A0 =A0 limit =3D section_nr_to_pfn(section_nr + 1) << PAGE_SHIFT;
+> -
+> - =A0 =A0 =A0 return __alloc_memory_core_early(early_pfn_to_nid(pfn), siz=
+e,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0SMP_CACHE_BYTES, goal, limit);
+> -#else
+> =A0 =A0 =A0 =A0bootmem_data_t *bdata;
+> =A0 =A0 =A0 =A0unsigned long pfn, goal, limit;
+>
+> @@ -926,7 +781,6 @@ void * __init alloc_bootmem_section(unsigned long siz=
+e,
+> =A0 =A0 =A0 =A0bdata =3D &bootmem_node_data[early_pfn_to_nid(pfn)];
+>
+> =A0 =A0 =A0 =A0return alloc_bootmem_core(bdata, size, SMP_CACHE_BYTES, go=
+al, limit);
+> -#endif
+> =A0}
+> =A0#endif
+>
+> @@ -938,16 +792,11 @@ void * __init __alloc_bootmem_node_nopanic(pg_data_=
+t *pgdat, unsigned long size,
+> =A0 =A0 =A0 =A0if (WARN_ON_ONCE(slab_is_available()))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return kzalloc_node(size, GFP_NOWAIT, pgda=
+t->node_id);
+>
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 ptr =3D =A0__alloc_memory_core_early(pgdat->node_id, size, =
+align,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0goal, -1ULL);
+> -#else
+> =A0 =A0 =A0 =A0ptr =3D alloc_arch_preferred_bootmem(pgdat->bdata, size, a=
+lign, goal, 0);
+> =A0 =A0 =A0 =A0if (ptr)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return ptr;
+>
+> =A0 =A0 =A0 =A0ptr =3D alloc_bootmem_core(pgdat->bdata, size, align, goal=
+, 0);
+> -#endif
+> =A0 =A0 =A0 =A0if (ptr)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return ptr;
+>
+> @@ -1000,16 +849,7 @@ void * __init __alloc_bootmem_low_node(pg_data_t *p=
+gdat, unsigned long size,
+> =A0 =A0 =A0 =A0if (WARN_ON_ONCE(slab_is_available()))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return kzalloc_node(size, GFP_NOWAIT, pgda=
+t->node_id);
+>
+> -#ifdef CONFIG_NO_BOOTMEM
+> - =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(pgdat->node_id, size, ali=
+gn,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goal, ARCH_=
+LOW_ADDRESS_LIMIT);
+> - =A0 =A0 =A0 if (ptr)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> - =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(MAX_NUMNODES, size, align=
+,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goal, ARCH_=
+LOW_ADDRESS_LIMIT);
+> -#else
+> =A0 =A0 =A0 =A0ptr =3D ___alloc_bootmem_node(pgdat->bdata, size, align,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goal, ARCH=
+_LOW_ADDRESS_LIMIT);
+> -#endif
+> =A0 =A0 =A0 =A0return ptr;
+> =A0}
+> diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+> new file mode 100644
+> index 000000000000..e93c3475011b
+> --- /dev/null
+> +++ b/mm/nobootmem.c
+> @@ -0,0 +1,445 @@
 > +/*
-> + * In-kernel transcendent memory (generic implementation)
+> + * =A0nobootmem - A boot-time physical memory allocator and configurator
 > + *
-> + * Copyright (c) 2009-2011, Dan Magenheimer, Oracle Corp.
+> + * =A0Copyright (C) 1999 Ingo Molnar
+> + * =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A01999 Kanoj Sarcar, SGI
+> + * =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A02008 Johannes Weiner
 > + *
-> + * The primary purpose of Transcedent Memory ("tmem") is to map object-oriented
-> + * "handles" (triples containing a pool id, and object id, and an index), to
-> + * pages in a page-accessible memory (PAM).  Tmem references the PAM pages via
-> + * an abstract "pampd" (PAM page-descriptor), which can be operated on by a
-> + * set of functions (pamops).  Each pampd contains some representation of
-> + * PAGE_SIZE bytes worth of data. Tmem must support potentially millions of
-> + * pages and must be able to insert, find, and delete these pages at a
-> + * potential frequency of thousands per second concurrently across many CPUs,
-> + * (and, if used with KVM, across many vcpus across many guests).
-> + * Tmem is tracked with a hierarchy of data structures, organized by
-> + * the elements in a handle-tuple: pool_id, object_id, and page index.
-> + * One or more "clients" (e.g. guests) each provide one or more tmem_pools.
-> + * Each pool, contains a hash table of rb_trees of tmem_objs.  Each
-> + * tmem_obj contains a radix-tree-like tree of pointers, with intermediate
-> + * nodes called tmem_objnodes.  Each leaf pointer in this tree points to
-> + * a pampd, which is accessible only through a small set of callbacks
-> + * registered by the PAM implementation (see tmem_register_pamops). Tmem
-> + * does all memory allocation via a set of callbacks registered by the tmem
-> + * host implementation (e.g. see tmem_register_hostops).
-> + */
-> +
-> +#include <linux/list.h>
-> +#include <linux/spinlock.h>
-> +#include <linux/atomic.h>
-> +
-> +#include "tmem.h"
-> +
-> +/* data structure sentinels used for debugging... see tmem.h */
-> +#define POOL_SENTINEL 0x87658765
-> +#define OBJ_SENTINEL 0x12345678
-> +#define OBJNODE_SENTINEL 0xfedcba09
-> +
-> +/*
-> + * A tmem host implementation must use this function to register callbacks
-> + * for memory allocation.
-> + */
-> +static struct tmem_hostops tmem_hostops;
-> +
-> +static void tmem_objnode_tree_init(void);
-> +
-> +void tmem_register_hostops(struct tmem_hostops *m)
-> +{
-> +	tmem_objnode_tree_init();
-> +	tmem_hostops = *m;
-> +}
-> +
-> +/*
-> + * A tmem host implementation must use this function to register
-> + * callbacks for a page-accessible memory (PAM) implementation
-> + */
-> +static struct tmem_pamops tmem_pamops;
-> +
-> +void tmem_register_pamops(struct tmem_pamops *m)
-> +{
-> +	tmem_pamops = *m;
-> +}
-> +
-> +/*
-> + * Oid's are potentially very sparse and tmem_objs may have an indeterminately
-> + * short life, being added and deleted at a relatively high frequency.
-> + * So an rb_tree is an ideal data structure to manage tmem_objs.  But because
-> + * of the potentially huge number of tmem_objs, each pool manages a hashtable
-> + * of rb_trees to reduce search, insert, delete, and rebalancing time.
-> + * Each hashbucket also has a lock to manage concurrent access.
+> + * =A0Split out of bootmem.c by Namhyung Kim <namhyung@gmail.com>
 > + *
-> + * The following routines manage tmem_objs.  When any tmem_obj is accessed,
-> + * the hashbucket lock must be held.
+> + * Access to this subsystem has to be serialized externally (which is tr=
+ue
+> + * for the boot process anyway).
 > + */
+> +#include <linux/init.h>
+> +#include <linux/pfn.h>
+> +#include <linux/slab.h>
+> +#include <linux/bootmem.h>
+> +#include <linux/module.h>
+> +#include <linux/kmemleak.h>
+> +#include <linux/range.h>
+> +#include <linux/memblock.h>
 > +
-> +/* searches for object==oid in pool, returns locked object if found */
-> +static struct tmem_obj *tmem_obj_find(struct tmem_hashbucket *hb,
-> +					struct tmem_oid *oidp)
-> +{
-> +	struct rb_node *rbnode;
-> +	struct tmem_obj *obj;
+> +#include <asm/bug.h>
+> +#include <asm/io.h>
+> +#include <asm/processor.h>
 > +
-> +	rbnode = hb->obj_rb_root.rb_node;
-> +	while (rbnode) {
-> +		BUG_ON(RB_EMPTY_NODE(rbnode));
-> +		obj = rb_entry(rbnode, struct tmem_obj, rb_tree_node);
-> +		switch (tmem_oid_compare(oidp, &obj->oid)) {
-> +		case 0: /* equal */
-> +			goto out;
-> +		case -1:
-> +			rbnode = rbnode->rb_left;
-> +			break;
-> +		case 1:
-> +			rbnode = rbnode->rb_right;
-> +			break;
-> +		}
-> +	}
-> +	obj = NULL;
-> +out:
-> +	return obj;
-> +}
+> +#include "internal.h"
 > +
-> +static void tmem_pampd_destroy_all_in_obj(struct tmem_obj *);
+> +unsigned long max_low_pfn;
+> +unsigned long min_low_pfn;
+> +unsigned long max_pfn;
 > +
-> +/* free an object that has no more pampds in it */
-> +static void tmem_obj_free(struct tmem_obj *obj, struct tmem_hashbucket *hb)
-> +{
-> +	struct tmem_pool *pool;
-> +
-> +	BUG_ON(obj == NULL);
-> +	ASSERT_SENTINEL(obj, OBJ);
-> +	BUG_ON(obj->pampd_count > 0);
-> +	pool = obj->pool;
-> +	BUG_ON(pool == NULL);
-> +	if (obj->objnode_tree_root != NULL) /* may be "stump" with no leaves */
-> +		tmem_pampd_destroy_all_in_obj(obj);
-> +	BUG_ON(obj->objnode_tree_root != NULL);
-> +	BUG_ON((long)obj->objnode_count != 0);
-> +	atomic_dec(&pool->obj_count);
-> +	BUG_ON(atomic_read(&pool->obj_count) < 0);
-> +	INVERT_SENTINEL(obj, OBJ);
-> +	obj->pool = NULL;
-> +	tmem_oid_set_invalid(&obj->oid);
-> +	rb_erase(&obj->rb_tree_node, &hb->obj_rb_root);
-> +}
-> +
+> +#ifdef CONFIG_CRASH_DUMP
 > +/*
-> + * initialize, and insert an tmem_object_root (called only if find failed)
+> + * If we have booted due to a crash, max_pfn will be a very low value. W=
+e need
+> + * to know the amount of memory that the previous kernel used.
 > + */
-> +static void tmem_obj_init(struct tmem_obj *obj, struct tmem_hashbucket *hb,
-> +					struct tmem_pool *pool,
-> +					struct tmem_oid *oidp)
-> +{
-> +	struct rb_root *root = &hb->obj_rb_root;
-> +	struct rb_node **new = &(root->rb_node), *parent = NULL;
-> +	struct tmem_obj *this;
-> +
-> +	BUG_ON(pool == NULL);
-> +	atomic_inc(&pool->obj_count);
-> +	obj->objnode_tree_height = 0;
-> +	obj->objnode_tree_root = NULL;
-> +	obj->pool = pool;
-> +	obj->oid = *oidp;
-> +	obj->objnode_count = 0;
-> +	obj->pampd_count = 0;
-> +	SET_SENTINEL(obj, OBJ);
-> +	while (*new) {
-> +		BUG_ON(RB_EMPTY_NODE(*new));
-> +		this = rb_entry(*new, struct tmem_obj, rb_tree_node);
-> +		parent = *new;
-> +		switch (tmem_oid_compare(oidp, &this->oid)) {
-> +		case 0:
-> +			BUG(); /* already present; should never happen! */
-> +			break;
-> +		case -1:
-> +			new = &(*new)->rb_left;
-> +			break;
-> +		case 1:
-> +			new = &(*new)->rb_right;
-> +			break;
-> +		}
-> +	}
-> +	rb_link_node(&obj->rb_tree_node, parent, new);
-> +	rb_insert_color(&obj->rb_tree_node, root);
-> +}
-> +
-> +/*
-> + * Tmem is managed as a set of tmem_pools with certain attributes, such as
-> + * "ephemeral" vs "persistent".  These attributes apply to all tmem_objs
-> + * and all pampds that belong to a tmem_pool.  A tmem_pool is created
-> + * or deleted relatively rarely (for example, when a filesystem is
-> + * mounted or unmounted.
-> + */
-> +
-> +/* flush all data from a pool and, optionally, free it */
-> +static void tmem_pool_flush(struct tmem_pool *pool, bool destroy)
-> +{
-> +	struct rb_node *rbnode;
-> +	struct tmem_obj *obj;
-> +	struct tmem_hashbucket *hb = &pool->hashbucket[0];
-> +	int i;
-> +
-> +	BUG_ON(pool == NULL);
-> +	for (i = 0; i < TMEM_HASH_BUCKETS; i++, hb++) {
-> +		spin_lock(&hb->lock);
-> +		rbnode = rb_first(&hb->obj_rb_root);
-> +		while (rbnode != NULL) {
-> +			obj = rb_entry(rbnode, struct tmem_obj, rb_tree_node);
-> +			rbnode = rb_next(rbnode);
-> +			tmem_pampd_destroy_all_in_obj(obj);
-> +			tmem_obj_free(obj, hb);
-> +			(*tmem_hostops.obj_free)(obj, pool);
-> +		}
-> +		spin_unlock(&hb->lock);
-> +	}
-> +	if (destroy)
-> +		list_del(&pool->pool_list);
-> +}
-> +
-> +/*
-> + * A tmem_obj contains a radix-tree-like tree in which the intermediate
-> + * nodes are called tmem_objnodes.  (The kernel lib/radix-tree.c implementation
-> + * is very specialized and tuned for specific uses and is not particularly
-> + * suited for use from this code, though some code from the core algorithms has
-> + * been reused, thus the copyright notices below).  Each tmem_objnode contains
-> + * a set of pointers which point to either a set of intermediate tmem_objnodes
-> + * or a set of of pampds.
-> + *
-> + * Portions Copyright (C) 2001 Momchil Velikov
-> + * Portions Copyright (C) 2001 Christoph Hellwig
-> + * Portions Copyright (C) 2005 SGI, Christoph Lameter <clameter@sgi.com>
-> + */
-> +
-> +struct tmem_objnode_tree_path {
-> +	struct tmem_objnode *objnode;
-> +	int offset;
-> +};
-> +
-> +/* objnode height_to_maxindex translation */
-> +static unsigned long tmem_objnode_tree_h2max[OBJNODE_TREE_MAX_PATH + 1];
-> +
-> +static void tmem_objnode_tree_init(void)
-> +{
-> +	unsigned int ht, tmp;
-> +
-> +	for (ht = 0; ht < ARRAY_SIZE(tmem_objnode_tree_h2max); ht++) {
-> +		tmp = ht * OBJNODE_TREE_MAP_SHIFT;
-> +		if (tmp >= OBJNODE_TREE_INDEX_BITS)
-> +			tmem_objnode_tree_h2max[ht] = ~0UL;
-> +		else
-> +			tmem_objnode_tree_h2max[ht] =
-> +			    (~0UL >> (OBJNODE_TREE_INDEX_BITS - tmp - 1)) >> 1;
-> +	}
-> +}
-> +
-> +static struct tmem_objnode *tmem_objnode_alloc(struct tmem_obj *obj)
-> +{
-> +	struct tmem_objnode *objnode;
-> +
-> +	ASSERT_SENTINEL(obj, OBJ);
-> +	BUG_ON(obj->pool == NULL);
-> +	ASSERT_SENTINEL(obj->pool, POOL);
-> +	objnode = (*tmem_hostops.objnode_alloc)(obj->pool);
-> +	if (unlikely(objnode == NULL))
-> +		goto out;
-> +	objnode->obj = obj;
-> +	SET_SENTINEL(objnode, OBJNODE);
-> +	memset(&objnode->slots, 0, sizeof(objnode->slots));
-> +	objnode->slots_in_use = 0;
-> +	obj->objnode_count++;
-> +out:
-> +	return objnode;
-> +}
-> +
-> +static void tmem_objnode_free(struct tmem_objnode *objnode)
-> +{
-> +	struct tmem_pool *pool;
-> +	int i;
-> +
-> +	BUG_ON(objnode == NULL);
-> +	for (i = 0; i < OBJNODE_TREE_MAP_SIZE; i++)
-> +		BUG_ON(objnode->slots[i] != NULL);
-> +	ASSERT_SENTINEL(objnode, OBJNODE);
-> +	INVERT_SENTINEL(objnode, OBJNODE);
-> +	BUG_ON(objnode->obj == NULL);
-> +	ASSERT_SENTINEL(objnode->obj, OBJ);
-> +	pool = objnode->obj->pool;
-> +	BUG_ON(pool == NULL);
-> +	ASSERT_SENTINEL(pool, POOL);
-> +	objnode->obj->objnode_count--;
-> +	objnode->obj = NULL;
-> +	(*tmem_hostops.objnode_free)(objnode, pool);
-> +}
-> +
-> +/*
-> + * lookup index in object and return associated pampd (or NULL if not found)
-> + */
-> +static void *tmem_pampd_lookup_in_obj(struct tmem_obj *obj, uint32_t index)
-> +{
-> +	unsigned int height, shift;
-> +	struct tmem_objnode **slot = NULL;
-> +
-> +	BUG_ON(obj == NULL);
-> +	ASSERT_SENTINEL(obj, OBJ);
-> +	BUG_ON(obj->pool == NULL);
-> +	ASSERT_SENTINEL(obj->pool, POOL);
-> +
-> +	height = obj->objnode_tree_height;
-> +	if (index > tmem_objnode_tree_h2max[obj->objnode_tree_height])
-> +		goto out;
-> +	if (height == 0 && obj->objnode_tree_root) {
-> +		slot = &obj->objnode_tree_root;
-> +		goto out;
-> +	}
-> +	shift = (height-1) * OBJNODE_TREE_MAP_SHIFT;
-> +	slot = &obj->objnode_tree_root;
-> +	while (height > 0) {
-> +		if (*slot == NULL)
-> +			goto out;
-> +		slot = (struct tmem_objnode **)
-> +			((*slot)->slots +
-> +			 ((index >> shift) & OBJNODE_TREE_MAP_MASK));
-> +		shift -= OBJNODE_TREE_MAP_SHIFT;
-> +		height--;
-> +	}
-> +out:
-> +	return slot != NULL ? *slot : NULL;
-> +}
-> +
-> +static int tmem_pampd_add_to_obj(struct tmem_obj *obj, uint32_t index,
-> +					void *pampd)
-> +{
-> +	int ret = 0;
-> +	struct tmem_objnode *objnode = NULL, *newnode, *slot;
-> +	unsigned int height, shift;
-> +	int offset = 0;
-> +
-> +	/* if necessary, extend the tree to be higher  */
-> +	if (index > tmem_objnode_tree_h2max[obj->objnode_tree_height]) {
-> +		height = obj->objnode_tree_height + 1;
-> +		if (index > tmem_objnode_tree_h2max[height])
-> +			while (index > tmem_objnode_tree_h2max[height])
-> +				height++;
-> +		if (obj->objnode_tree_root == NULL) {
-> +			obj->objnode_tree_height = height;
-> +			goto insert;
-> +		}
-> +		do {
-> +			newnode = tmem_objnode_alloc(obj);
-> +			if (!newnode) {
-> +				ret = -ENOMEM;
-> +				goto out;
-> +			}
-> +			newnode->slots[0] = obj->objnode_tree_root;
-> +			newnode->slots_in_use = 1;
-> +			obj->objnode_tree_root = newnode;
-> +			obj->objnode_tree_height++;
-> +		} while (height > obj->objnode_tree_height);
-> +	}
-> +insert:
-> +	slot = obj->objnode_tree_root;
-> +	height = obj->objnode_tree_height;
-> +	shift = (height-1) * OBJNODE_TREE_MAP_SHIFT;
-> +	while (height > 0) {
-> +		if (slot == NULL) {
-> +			/* add a child objnode.  */
-> +			slot = tmem_objnode_alloc(obj);
-> +			if (!slot) {
-> +				ret = -ENOMEM;
-> +				goto out;
-> +			}
-> +			if (objnode) {
-> +
-> +				objnode->slots[offset] = slot;
-> +				objnode->slots_in_use++;
-> +			} else
-> +				obj->objnode_tree_root = slot;
-> +		}
-> +		/* go down a level */
-> +		offset = (index >> shift) & OBJNODE_TREE_MAP_MASK;
-> +		objnode = slot;
-> +		slot = objnode->slots[offset];
-> +		shift -= OBJNODE_TREE_MAP_SHIFT;
-> +		height--;
-> +	}
-> +	BUG_ON(slot != NULL);
-> +	if (objnode) {
-> +		objnode->slots_in_use++;
-> +		objnode->slots[offset] = pampd;
-> +	} else
-> +		obj->objnode_tree_root = pampd;
-> +	obj->pampd_count++;
-> +out:
-> +	return ret;
-> +}
-> +
-> +static void *tmem_pampd_delete_from_obj(struct tmem_obj *obj, uint32_t index)
-> +{
-> +	struct tmem_objnode_tree_path path[OBJNODE_TREE_MAX_PATH + 1];
-> +	struct tmem_objnode_tree_path *pathp = path;
-> +	struct tmem_objnode *slot = NULL;
-> +	unsigned int height, shift;
-> +	int offset;
-> +
-> +	BUG_ON(obj == NULL);
-> +	ASSERT_SENTINEL(obj, OBJ);
-> +	BUG_ON(obj->pool == NULL);
-
-You could roll those two BUG_ON together.
-
-> +	ASSERT_SENTINEL(obj->pool, POOL);
-> +	height = obj->objnode_tree_height;
-> +	if (index > tmem_objnode_tree_h2max[height])
-> +		goto out;
-> +	slot = obj->objnode_tree_root;
-> +	if (height == 0 && obj->objnode_tree_root) {
-> +		obj->objnode_tree_root = NULL;
-> +		goto out;
-> +	}
-> +	shift = (height - 1) * OBJNODE_TREE_MAP_SHIFT;
-> +	pathp->objnode = NULL;
-> +	do {
-> +		if (slot == NULL)
-> +			goto out;
-> +		pathp++;
-> +		offset = (index >> shift) & OBJNODE_TREE_MAP_MASK;
-> +		pathp->offset = offset;
-> +		pathp->objnode = slot;
-> +		slot = slot->slots[offset];
-> +		shift -= OBJNODE_TREE_MAP_SHIFT;
-
-> +		height--;
-> +	} while (height > 0);
-> +	if (slot == NULL)
-> +		goto out;
-> +	while (pathp->objnode) {
-> +		pathp->objnode->slots[pathp->offset] = NULL;
-> +		pathp->objnode->slots_in_use--;
-> +		if (pathp->objnode->slots_in_use) {
-> +			if (pathp->objnode == obj->objnode_tree_root) {
-> +				while (obj->objnode_tree_height > 0 &&
-> +				  obj->objnode_tree_root->slots_in_use == 1 &&
-> +				  obj->objnode_tree_root->slots[0]) {
-> +					struct tmem_objnode *to_free =
-> +						obj->objnode_tree_root;
-> +
-> +					obj->objnode_tree_root =
-> +							to_free->slots[0];
-> +					obj->objnode_tree_height--;
-> +					to_free->slots[0] = NULL;
-> +					to_free->slots_in_use = 0;
-> +					tmem_objnode_free(to_free);
-> +				}
-> +			}
-> +			goto out;
-> +		}
-> +		tmem_objnode_free(pathp->objnode); /* 0 slots used, free it */
-> +		pathp--;
-> +	}
-> +	obj->objnode_tree_height = 0;
-> +	obj->objnode_tree_root = NULL;
-> +
-> +out:
-> +	if (slot != NULL)
-> +		obj->pampd_count--;
-> +	BUG_ON(obj->pampd_count < 0);
-> +	return slot;
-> +}
-> +
-> +/* recursively walk the objnode_tree destroying pampds and objnodes */
-> +static void tmem_objnode_node_destroy(struct tmem_obj *obj,
-> +					struct tmem_objnode *objnode,
-> +					unsigned int ht)
-> +{
-> +	int i;
-> +
-> +	if (ht == 0)
-> +		return;
-> +	for (i = 0; i < OBJNODE_TREE_MAP_SIZE; i++) {
-> +		if (objnode->slots[i]) {
-> +			if (ht == 1) {
-> +				obj->pampd_count--;
-> +				(*tmem_pamops.free)(objnode->slots[i],
-> +								obj->pool);
-> +				objnode->slots[i] = NULL;
-> +				continue;
-> +			}
-> +			tmem_objnode_node_destroy(obj, objnode->slots[i], ht-1);
-> +			tmem_objnode_free(objnode->slots[i]);
-> +			objnode->slots[i] = NULL;
-> +		}
-> +	}
-> +}
-> +
-> +static void tmem_pampd_destroy_all_in_obj(struct tmem_obj *obj)
-> +{
-> +	if (obj->objnode_tree_root == NULL)
-> +		return;
-> +	if (obj->objnode_tree_height == 0) {
-> +		obj->pampd_count--;
-> +		(*tmem_pamops.free)(obj->objnode_tree_root, obj->pool);
-> +	} else {
-> +		tmem_objnode_node_destroy(obj, obj->objnode_tree_root,
-> +					obj->objnode_tree_height);
-> +		tmem_objnode_free(obj->objnode_tree_root);
-> +		obj->objnode_tree_height = 0;
-> +	}
-> +	obj->objnode_tree_root = NULL;
-> +}
-> +
-> +/*
-> + * Tmem is operated on by a set of well-defined actions:
-> + * "put", "get", "flush", "flush_object", "new pool" and "destroy pool".
-> + * (The tmem ABI allows for subpages and exchanges but these operations
-> + * are not included in this implementation.)
-> + *
-> + * These "tmem core" operations are implemented in the following functions.
-> + */
-> +
-> +/*
-> + * "Put" a page, e.g. copy a page from the kernel into newly allocated
-> + * PAM space (if such space is available).  Tmem_put is complicated by
-> + * a corner case: What if a page with matching handle already exists in
-> + * tmem?  To guarantee coherency, one of two actions is necessary: Either
-> + * the data for the page must be overwritten, or the page must be
-> + * "flushed" so that the data is not accessible to a subsequent "get".
-> + * Since these "duplicate puts" are relatively rare, this implementation
-> + * always flushes for simplicity.
-> + */
-> +int tmem_put(struct tmem_pool *pool, struct tmem_oid *oidp, uint32_t index,
-> +		struct page *page)
-> +{
-> +	struct tmem_obj *obj = NULL, *objfound = NULL, *objnew = NULL;
-> +	void *pampd = NULL, *pampd_del = NULL;
-> +	int ret = -ENOMEM;
-> +	bool ephemeral;
-> +	struct tmem_hashbucket *hb;
-> +
-> +	ephemeral = is_ephemeral(pool);
-> +	hb = &pool->hashbucket[tmem_oid_hash(oidp)];
-> +	spin_lock(&hb->lock);
-> +	obj = objfound = tmem_obj_find(hb, oidp);
-> +	if (obj != NULL) {
-> +		pampd = tmem_pampd_lookup_in_obj(objfound, index);
-> +		if (pampd != NULL) {
-> +			/* if found, is a dup put, flush the old one */
-> +			pampd_del = tmem_pampd_delete_from_obj(obj, index);
-> +			BUG_ON(pampd_del != pampd);
-> +			(*tmem_pamops.free)(pampd, pool);
-> +			if (obj->pampd_count == 0) {
-> +				objnew = obj;
-> +				objfound = NULL;
-> +			}
-> +			pampd = NULL;
-> +		}
-> +	} else {
-> +		obj = objnew = (*tmem_hostops.obj_alloc)(pool);
-> +		if (unlikely(obj == NULL)) {
-> +			ret = -ENOMEM;
-> +			goto out;
-> +		}
-> +		tmem_obj_init(obj, hb, pool, oidp);
-> +	}
-> +	BUG_ON(obj == NULL);
-> +	BUG_ON(((objnew != obj) && (objfound != obj)) || (objnew == objfound));
-> +	pampd = (*tmem_pamops.create)(obj->pool, &obj->oid, index, page);
-> +	if (unlikely(pampd == NULL))
-> +		goto free;
-> +	ret = tmem_pampd_add_to_obj(obj, index, pampd);
-> +	if (unlikely(ret == -ENOMEM))
-> +		/* may have partially built objnode tree ("stump") */
-> +		goto delete_and_free;
-> +	goto out;
-> +
-> +delete_and_free:
-> +	(void)tmem_pampd_delete_from_obj(obj, index);
-> +free:
-> +	if (pampd)
-> +		(*tmem_pamops.free)(pampd, pool);
-> +	if (objnew) {
-> +		tmem_obj_free(objnew, hb);
-> +		(*tmem_hostops.obj_free)(objnew, pool);
-> +	}
-> +out:
-> +	spin_unlock(&hb->lock);
-> +	return ret;
-> +}
-> +
-> +/*
-> + * "Get" a page, e.g. if one can be found, copy the tmem page with the
-> + * matching handle from PAM space to the kernel.  By tmem definition,
-> + * when a "get" is successful on an ephemeral page, the page is "flushed",
-> + * and when a "get" is successful on a persistent page, the page is retained
-
-persistent and ephemeral pages can both be in PAM space?
-
-> + * in tmem.  Note that to preserve
-> + * coherency, "get" can never be skipped if tmem contains the data.
-> + * That is, if a get is done with a certain handle and fails, any
-> + * subsequent "get" must also fail (unless of course there is a
-> + * "put" done with the same handle).
-> +
-> + */
-> +int tmem_get(struct tmem_pool *pool, struct tmem_oid *oidp,
-> +				uint32_t index, struct page *page)
-> +{
-> +	struct tmem_obj *obj;
-> +	void *pampd;
-> +	bool ephemeral = is_ephemeral(pool);
-> +	uint32_t ret = -1;
-
-Hmm, uint32_t and -1 ? I think you meant 'int'
-
-> +	struct tmem_hashbucket *hb;
-> +
-> +	hb = &pool->hashbucket[tmem_oid_hash(oidp)];
-> +	spin_lock(&hb->lock);
-> +	obj = tmem_obj_find(hb, oidp);
-> +	if (obj == NULL)
-> +		goto out;
-> +	ephemeral = is_ephemeral(pool);
-
-Didn't you alrady check for that earlier?
-
-> +	if (ephemeral)
-> +		pampd = tmem_pampd_delete_from_obj(obj, index);
-> +	else
-> +		pampd = tmem_pampd_lookup_in_obj(obj, index);
-> +	if (pampd == NULL)
-> +		goto out;
-> +	ret = (*tmem_pamops.get_data)(page, pampd, pool);
-> +	if (ret < 0)
-> +		goto out;
-> +	if (ephemeral) {
-> +		(*tmem_pamops.free)(pampd, pool);
-> +		if (obj->pampd_count == 0) {
-> +			tmem_obj_free(obj, hb);
-> +			(*tmem_hostops.obj_free)(obj, pool);
-> +			obj = NULL;
-> +		}
-> +	}
-> +	ret = 0;
-> +out:
-> +	spin_unlock(&hb->lock);
-> +	return ret;
-> +}
-> +
-> +/*
-> + * If a page in tmem matches the handle, "flush" this page from tmem such
-> + * that any subsequent "get" does not succeed (unless, of course, there
-> + * was another "put" with the same handle).
-> + */
-> +int tmem_flush_page(struct tmem_pool *pool,
-> +				struct tmem_oid *oidp, uint32_t index)
-> +{
-> +	struct tmem_obj *obj;
-> +	void *pampd;
-> +	int ret = -1;
--ENODEV?
-> +	struct tmem_hashbucket *hb;
-> +
-> +	hb = &pool->hashbucket[tmem_oid_hash(oidp)];
-> +	spin_lock(&hb->lock);
-> +	obj = tmem_obj_find(hb, oidp);
-> +	if (obj == NULL)
-> +		goto out;
-> +	pampd = tmem_pampd_delete_from_obj(obj, index);
-> +	if (pampd == NULL)
-> +		goto out;
-> +	(*tmem_pamops.free)(pampd, pool);
-> +	if (obj->pampd_count == 0) {
-> +		tmem_obj_free(obj, hb);
-> +		(*tmem_hostops.obj_free)(obj, pool);
-> +	}
-> +	ret = 0;
-> +
-> +out:
-> +	spin_unlock(&hb->lock);
-> +	return ret;
-> +}
-> +
-> +/*
-> + * "Flush" all pages in tmem matching this oid.
-> + */
-> +int tmem_flush_object(struct tmem_pool *pool, struct tmem_oid *oidp)
-> +{
-> +	struct tmem_obj *obj;
-> +	struct tmem_hashbucket *hb;
-> +	int ret = -1;
-
-How about -ENODEV?
-
-We don't want to check the oidp using the  tmem_oid_valid
-just in case the value provided is bogus? This way we
-can omit using the spin_lock and right away quit?
-
-I guess it would not matter much as we would still
-> +
-> +	hb = &pool->hashbucket[tmem_oid_hash(oidp)];
-> +	spin_lock(&hb->lock);
-> +	obj = tmem_obj_find(hb, oidp);
-> +	if (obj == NULL)
-
-..get to here and goto out..
-> +		goto out;
-> +	tmem_pampd_destroy_all_in_obj(obj);
-> +	tmem_obj_free(obj, hb);
-> +	(*tmem_hostops.obj_free)(obj, pool);
-> +	ret = 0;
-> +
-> +out:
-> +	spin_unlock(&hb->lock);
-> +	return ret;
-> +}
-> +
-> +/*
-> + * "Flush" all pages (and tmem_objs) from this tmem_pool and disable
-> + * all subsequent access to this tmem_pool.
-
-Take the 'all' out.
-
-> + */
-> +int tmem_destroy_pool(struct tmem_pool *pool)
-> +{
-> +	int ret = -1;
-
-Hmm, -ENODEV?
-> +
-> +	if (pool == NULL)
-> +		goto out;
-> +	tmem_pool_flush(pool, 1);
-> +	ret = 0;
-> +out:
-> +	return ret;
-> +}
-> +
-> +static LIST_HEAD(tmem_global_pool_list);
-> +
-> +/*
-> + * Create a new tmem_pool with the provided flag and return
-> + * a pool id provided by the tmem host implementation.
-
-Not seeing the return.
-> + */
-> +void tmem_new_pool(struct tmem_pool *pool, uint32_t flags)
-> +{
-> +	int persistent = flags & TMEM_POOL_PERSIST;
-> +	int shared = flags & TMEM_POOL_SHARED;
-> +	struct tmem_hashbucket *hb = &pool->hashbucket[0];
-> +	int i;
-> +
-> +	for (i = 0; i < TMEM_HASH_BUCKETS; i++, hb++) {
-> +		hb->obj_rb_root = RB_ROOT;
-> +		spin_lock_init(&hb->lock);
-> +	}
-> +	INIT_LIST_HEAD(&pool->pool_list);
-> +	atomic_set(&pool->obj_count, 0);
-> +	SET_SENTINEL(pool, POOL);
-> +	list_add_tail(&pool->pool_list, &tmem_global_pool_list);
-> +	pool->persistent = persistent;
-> +	pool->shared = shared;
-> +}
-> --- linux-2.6.37/drivers/staging/kztmem/tmem.h	1969-12-31 17:00:00.000000000 -0700
-> +++ linux-2.6.37-kztmem/drivers/staging/kztmem/tmem.h	2011-01-14 10:34:32.000000000 -0700
-> @@ -0,0 +1,195 @@
-> +/*
-> + * tmem.h
-> + *
-> + * Transcendent memory
-> + *
-> + * Copyright (c) 2009-2011, Dan Magenheimer, Oracle Corp.
-> + */
-> +
-> +#ifndef _TMEM_H_
-> +#define _TMEM_H_
-> +
-> +#include <linux/types.h>
-> +#include <linux/highmem.h>
-> +#include <linux/hash.h>
-> +#include <linux/atomic.h>
-> +
-> +/*
-> + * These are pre-defined by the Xen<->Linux ABI
-> + */
-> +#define TMEM_PUT_PAGE			4
-> +#define TMEM_GET_PAGE			5
-> +#define TMEM_FLUSH_PAGE			6
-> +#define TMEM_FLUSH_OBJECT		7
-> +#define TMEM_POOL_PERSIST		1
-> +#define TMEM_POOL_SHARED		2
-> +#define TMEM_POOL_PRECOMPRESSED		4
-> +#define TMEM_POOL_PAGESIZE_SHIFT	4
-> +#define TMEM_POOL_PAGESIZE_MASK		0xf
-> +#define TMEM_POOL_RESERVED_BITS		0x00ffff00
-> +
-> +/*
-> + * sentinels have proven very useful for debugging but can be removed
-> + * or disabled before final merge.
-> + */
-> +#define SENTINELS
-> +#ifdef SENTINELS
-> +#define DECL_SENTINEL uint32_t sentinel;
-> +#define SET_SENTINEL(_x, _y) (_x->sentinel = _y##_SENTINEL)
-> +#define INVERT_SENTINEL(_x, _y) (_x->sentinel = ~_y##_SENTINEL)
-> +#define ASSERT_SENTINEL(_x, _y) WARN_ON(_x->sentinel != _y##_SENTINEL)
-> +#define ASSERT_INVERTED_SENTINEL(_x, _y) WARN_ON(_x->sentinel != ~_y##_SENTINEL)
-> +#else
-> +#define DECL_SENTINEL
-> +#define SET_SENTINEL(_x, _y) do { } while (0)
-> +#define INVERT_SENTINEL(_x, _y) do { } while (0)
-> +#define ASSERT_SENTINEL(_x, _y) do { } while (0)
-> +#define ASSERT_INVERTED_SENTINEL(_x, _y) do { } while (0)
+> +unsigned long saved_max_pfn;
 > +#endif
 > +
-> +#define ASSERT_SPINLOCK(_l)	WARN_ON(!spin_is_locked(_l))
-> +
-> +/*
-> + * A pool is the highest-level data structure managed by tmem and
-> + * usually corresponds to a large independent set of pages such as
-> + * a filesystem.  Each pool has an id, and certain attributes and counters.
-> + * It also contains a set of hash buckets, each of which contains an rbtree
-> + * of objects and a lock to manage concurrency within the pool.
+> +/**
+> + * free_bootmem_late - free bootmem pages directly to page allocator
+> + * @addr: starting address of the range
+> + * @size: size of the range in bytes
+> + *
+> + * This is only useful when the bootmem allocator has already been torn
+> + * down, but we are still initializing the system. =A0Pages are given di=
+rectly
+> + * to the page allocator, no bootmem metadata is updated because it is g=
+one.
 > + */
+> +void __init free_bootmem_late(unsigned long addr, unsigned long size)
+> +{
+> + =A0 =A0 =A0 unsigned long cursor, end;
 > +
-> +#define TMEM_HASH_BUCKET_BITS	8
-> +#define TMEM_HASH_BUCKETS	(1<<TMEM_HASH_BUCKET_BITS)
+> + =A0 =A0 =A0 kmemleak_free_part(__va(addr), size);
 > +
-> +struct tmem_hashbucket {
-> +	struct rb_root obj_rb_root;
-> +	spinlock_t lock;
-> +};
+> + =A0 =A0 =A0 cursor =3D PFN_UP(addr);
+> + =A0 =A0 =A0 end =3D PFN_DOWN(addr + size);
 > +
-> +struct tmem_pool {
-> +	void *client; /* "up" for some clients, avoids table lookup */
-> +	struct list_head pool_list;
-> +	uint32_t pool_id;
-> +	bool persistent;
-> +	bool shared;
-> +	atomic_t obj_count;
-> +	atomic_t refcount;
-> +	struct tmem_hashbucket hashbucket[TMEM_HASH_BUCKETS];
-> +	DECL_SENTINEL
-> +};
+> + =A0 =A0 =A0 for (; cursor < end; cursor++) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __free_pages_bootmem(pfn_to_page(cursor), 0=
+);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 totalram_pages++;
+> + =A0 =A0 =A0 }
+> +}
 > +
-> +#define is_persistent(_p)  (_p->persistent)
-> +#define is_ephemeral(_p)   (!(_p->persistent))
+> +static void __init __free_pages_memory(unsigned long start, unsigned lon=
+g end)
+> +{
+> + =A0 =A0 =A0 int i;
+> + =A0 =A0 =A0 unsigned long start_aligned, end_aligned;
+> + =A0 =A0 =A0 int order =3D ilog2(BITS_PER_LONG);
 > +
-> +/*
-> + * An object id ("oid") is large: 192-bits (to ensure, for example, files
-> + * in a modern filesystem can be uniquely identified).
+> + =A0 =A0 =A0 start_aligned =3D (start + (BITS_PER_LONG - 1)) & ~(BITS_PE=
+R_LONG - 1);
+> + =A0 =A0 =A0 end_aligned =3D end & ~(BITS_PER_LONG - 1);
+> +
+> + =A0 =A0 =A0 if (end_aligned <=3D start_aligned) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 for (i =3D start; i < end; i++)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __free_pages_bootmem(pfn_to=
+_page(i), 0);
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;
+> + =A0 =A0 =A0 }
+> +
+> + =A0 =A0 =A0 for (i =3D start; i < start_aligned; i++)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __free_pages_bootmem(pfn_to_page(i), 0);
+> +
+> + =A0 =A0 =A0 for (i =3D start_aligned; i < end_aligned; i +=3D BITS_PER_=
+LONG)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __free_pages_bootmem(pfn_to_page(i), order)=
+;
+> +
+> + =A0 =A0 =A0 for (i =3D end_aligned; i < end; i++)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __free_pages_bootmem(pfn_to_page(i), 0);
+> +}
+> +
+> +unsigned long __init free_all_memory_core_early(int nodeid)
+> +{
+> + =A0 =A0 =A0 int i;
+> + =A0 =A0 =A0 u64 start, end;
+> + =A0 =A0 =A0 unsigned long count =3D 0;
+> + =A0 =A0 =A0 struct range *range =3D NULL;
+> + =A0 =A0 =A0 int nr_range;
+> +
+> + =A0 =A0 =A0 nr_range =3D get_free_all_memory_range(&range, nodeid);
+> +
+> + =A0 =A0 =A0 for (i =3D 0; i < nr_range; i++) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 start =3D range[i].start;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 end =3D range[i].end;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 count +=3D end - start;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __free_pages_memory(start, end);
+> + =A0 =A0 =A0 }
+> +
+> + =A0 =A0 =A0 return count;
+> +}
+> +
+> +/**
+> + * free_all_bootmem_node - release a node's free pages to the buddy allo=
+cator
+> + * @pgdat: node to be released
+> + *
+> + * Returns the number of pages actually released.
 > + */
-> +
-> +struct tmem_oid {
-> +	uint64_t oid[3];
-> +};
-> +
-> +static inline void tmem_oid_set_invalid(struct tmem_oid *oidp)
+> +unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
 > +{
-> +	oidp->oid[0] = oidp->oid[1] = oidp->oid[2] = -1UL;
+> + =A0 =A0 =A0 register_page_bootmem_info_node(pgdat);
+> +
+> + =A0 =A0 =A0 /* free_all_memory_core_early(MAX_NUMNODES) will be called =
+later */
+> + =A0 =A0 =A0 return 0;
 > +}
 > +
-> +static inline bool tmem_oid_valid(struct tmem_oid *oidp)
-> +{
-> +	return oidp->oid[0] != -1UL || oidp->oid[1] != -1UL ||
-> +		oidp->oid[2] != -1UL;
-> +}
-> +
-> +static inline int tmem_oid_compare(struct tmem_oid *left,
-> +					struct tmem_oid *right)
-> +{
-> +	int ret;
-> +
-> +	if (left->oid[2] == right->oid[2]) {
-> +		if (left->oid[1] == right->oid[1]) {
-> +			if (left->oid[0] == right->oid[0])
-> +				ret = 0;
-> +			else if (left->oid[0] < right->oid[0])
-> +				ret = -1;
-> +			else
-> +				return 1;
-> +		} else if (left->oid[1] < right->oid[1])
-> +			ret = -1;
-> +		else
-> +			ret = 1;
-> +	} else if (left->oid[2] < right->oid[2])
-> +		ret = -1;
-> +	else
-> +		ret = 1;
-> +	return ret;
-> +}
-> +
-> +static inline unsigned tmem_oid_hash(struct tmem_oid *oidp)
-> +{
-> +	return hash_long(oidp->oid[0] ^ oidp->oid[1] ^ oidp->oid[2],
-> +				TMEM_HASH_BUCKET_BITS);
-> +}
-> +
-> +/*
-> + * A tmem_obj contains an identifier (oid), pointers to the parent
-> + * pool and the rb_tree to which it belongs, counters, and an ordered
-> + * set of pampds, structured in a radix-tree-like tree.  The intermediate
-> + * nodes of the tree are called tmem_objnodes.
+> +/**
+> + * free_all_bootmem - release free pages to the buddy allocator
+> + *
+> + * Returns the number of pages actually released.
 > + */
+> +unsigned long __init free_all_bootmem(void)
+> +{
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* We need to use MAX_NUMNODES instead of NODE_DATA(0)->n=
+ode_id
+> + =A0 =A0 =A0 =A0* =A0because in some case like Node0 doesnt have RAM ins=
+talled
+> + =A0 =A0 =A0 =A0* =A0low ram will be on Node1
+> + =A0 =A0 =A0 =A0* Use MAX_NUMNODES will make sure all ranges in early_no=
+de_map[]
+> + =A0 =A0 =A0 =A0* =A0will be used instead of only Node0 related
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 return free_all_memory_core_early(MAX_NUMNODES);
+> +}
 > +
-> +struct tmem_objnode;
+> +/**
+> + * free_bootmem_node - mark a page range as usable
+> + * @pgdat: node the range resides on
+> + * @physaddr: starting address of the range
+> + * @size: size of the range in bytes
+> + *
+> + * Partial pages will be considered reserved and left as they are.
+> + *
+> + * The range must reside completely on the specified node.
+> + */
+> +void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long s=
+ize)
+> +{
+> + =A0 =A0 =A0 kmemleak_free_part(__va(physaddr), size);
+> + =A0 =A0 =A0 memblock_x86_free_range(physaddr, physaddr + size);
+> +}
 > +
-> +struct tmem_obj {
-> +	struct tmem_oid oid;
-> +	struct tmem_pool *pool;
-> +	struct rb_node rb_tree_node;
-> +	struct tmem_objnode *objnode_tree_root;
-> +	unsigned int objnode_tree_height;
-> +	unsigned long objnode_count;
-> +	long pampd_count;
-> +	DECL_SENTINEL
-> +};
+> +/**
+> + * free_bootmem - mark a page range as usable
+> + * @addr: starting address of the range
+> + * @size: size of the range in bytes
+> + *
+> + * Partial pages will be considered reserved and left as they are.
+> + *
+> + * The range must be contiguous but may span node boundaries.
+> + */
+> +void __init free_bootmem(unsigned long addr, unsigned long size)
+> +{
+> + =A0 =A0 =A0 kmemleak_free_part(__va(addr), size);
+> + =A0 =A0 =A0 memblock_x86_free_range(addr, addr + size);
+> +}
 > +
-> +#define OBJNODE_TREE_MAP_SHIFT 6
-> +#define OBJNODE_TREE_MAP_SIZE (1UL << OBJNODE_TREE_MAP_SHIFT)
-> +#define OBJNODE_TREE_MAP_MASK (OBJNODE_TREE_MAP_SIZE-1)
-> +#define OBJNODE_TREE_INDEX_BITS (8 /* CHAR_BIT */ * sizeof(unsigned long))
-> +#define OBJNODE_TREE_MAX_PATH \
-> +		(OBJNODE_TREE_INDEX_BITS/OBJNODE_TREE_MAP_SHIFT + 2)
+> +/**
+> + * reserve_bootmem_node - mark a page range as reserved
+> + * @pgdat: node the range resides on
+> + * @physaddr: starting address of the range
+> + * @size: size of the range in bytes
+> + * @flags: reservation flags (see linux/bootmem.h)
+> + *
+> + * Partial pages will be reserved.
+> + *
+> + * The range must reside completely on the specified node.
+> + */
+> +int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr=
+,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned=
+ long size, int flags)
+> +{
+> + =A0 =A0 =A0 panic("no bootmem");
+> + =A0 =A0 =A0 return 0;
+> +}
 > +
-> +struct tmem_objnode {
-> +	struct tmem_obj *obj;
-> +	DECL_SENTINEL
-> +	void *slots[OBJNODE_TREE_MAP_SIZE];
-> +	unsigned int slots_in_use;
-> +};
+> +/**
+> + * reserve_bootmem - mark a page range as usable
+> + * @addr: starting address of the range
+> + * @size: size of the range in bytes
+> + * @flags: reservation flags (see linux/bootmem.h)
+> + *
+> + * Partial pages will be reserved.
+> + *
+> + * The range must be contiguous but may span node boundaries.
+> + */
+> +int __init reserve_bootmem(unsigned long addr, unsigned long size,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 int flags)
+> +{
+> + =A0 =A0 =A0 panic("no bootmem");
+> + =A0 =A0 =A0 return 0;
+> +}
 > +
-> +/* pampd abstract datatype methods provided by the PAM implementation */
-> +struct tmem_pamops {
-> +	void *(*create)(struct tmem_pool *, struct tmem_oid *, uint32_t,
-> +			struct page *);
-> +	int (*get_data)(struct page *, void *, struct tmem_pool *);
-> +	void (*free)(void *, struct tmem_pool *);
-> +};
-> +extern void tmem_register_pamops(struct tmem_pamops *m);
+> +static void * __init ___alloc_bootmem_nopanic(unsigned long size,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 unsigned long align,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 unsigned long goal,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 unsigned long limit)
+> +{
+> + =A0 =A0 =A0 void *ptr;
 > +
-> +/* memory allocation methods provided by the host implementation */
-> +struct tmem_hostops {
-> +	struct tmem_obj *(*obj_alloc)(struct tmem_pool *);
-> +	void (*obj_free)(struct tmem_obj *, struct tmem_pool *);
-> +	struct tmem_objnode *(*objnode_alloc)(struct tmem_pool *);
-> +	void (*objnode_free)(struct tmem_objnode *, struct tmem_pool *);
-> +};
-> +extern void tmem_register_hostops(struct tmem_hostops *m);
+> + =A0 =A0 =A0 if (WARN_ON_ONCE(slab_is_available()))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return kzalloc(size, GFP_NOWAIT);
 > +
-> +/* core tmem accessor functions */
-> +extern int tmem_put(struct tmem_pool *, struct tmem_oid *, uint32_t index,
-> +			struct page *page);
-> +extern int tmem_get(struct tmem_pool *, struct tmem_oid *, uint32_t index,
-> +			struct page *page);
-> +extern int tmem_flush_page(struct tmem_pool *, struct tmem_oid *,
-> +			uint32_t index);
-> +extern int tmem_flush_object(struct tmem_pool *, struct tmem_oid *);
-> +extern int tmem_destroy_pool(struct tmem_pool *);
-> +extern void tmem_new_pool(struct tmem_pool *, uint32_t);
-> +#endif /* _TMEM_H */
+> +restart:
+> +
+> + =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(MAX_NUMNODES, size, align=
+, goal, limit);
+> +
+> + =A0 =A0 =A0 if (ptr)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> +
+> + =A0 =A0 =A0 if (goal !=3D 0) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goal =3D 0;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto restart;
+> + =A0 =A0 =A0 }
+> +
+> + =A0 =A0 =A0 return NULL;
+> +}
+> +
+> +/**
+> + * __alloc_bootmem_nopanic - allocate boot memory without panicking
+> + * @size: size of the request in bytes
+> + * @align: alignment of the region
+> + * @goal: preferred starting address of the region
+> + *
+> + * The goal is dropped if it can not be satisfied and the allocation wil=
+l
+> + * fall back to memory below @goal.
+> + *
+> + * Allocation may happen on any node in the system.
+> + *
+> + * Returns NULL on failure.
+> + */
+> +void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long =
+align,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 unsigned long goal)
+> +{
+> + =A0 =A0 =A0 unsigned long limit =3D -1UL;
+> +
+> + =A0 =A0 =A0 return ___alloc_bootmem_nopanic(size, align, goal, limit);
+> +}
+> +
+> +static void * __init ___alloc_bootmem(unsigned long size, unsigned long =
+align,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 unsigned long goal, unsigned long limit)
+> +{
+> + =A0 =A0 =A0 void *mem =3D ___alloc_bootmem_nopanic(size, align, goal, l=
+imit);
+> +
+> + =A0 =A0 =A0 if (mem)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return mem;
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* Whoops, we cannot satisfy the allocation request.
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 printk(KERN_ALERT "bootmem alloc of %lu bytes failed!\n", s=
+ize);
+> + =A0 =A0 =A0 panic("Out of memory");
+> + =A0 =A0 =A0 return NULL;
+> +}
+> +
+> +/**
+> + * __alloc_bootmem - allocate boot memory
+> + * @size: size of the request in bytes
+> + * @align: alignment of the region
+> + * @goal: preferred starting address of the region
+> + *
+> + * The goal is dropped if it can not be satisfied and the allocation wil=
+l
+> + * fall back to memory below @goal.
+> + *
+> + * Allocation may happen on any node in the system.
+> + *
+> + * The function panics if the request can not be satisfied.
+> + */
+> +void * __init __alloc_bootmem(unsigned long size, unsigned long align,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long g=
+oal)
+> +{
+> + =A0 =A0 =A0 unsigned long limit =3D -1UL;
+> +
+> + =A0 =A0 =A0 return ___alloc_bootmem(size, align, goal, limit);
+> +}
+> +
+> +/**
+> + * __alloc_bootmem_node - allocate boot memory from a specific node
+> + * @pgdat: node to allocate from
+> + * @size: size of the request in bytes
+> + * @align: alignment of the region
+> + * @goal: preferred starting address of the region
+> + *
+> + * The goal is dropped if it can not be satisfied and the allocation wil=
+l
+> + * fall back to memory below @goal.
+> + *
+> + * Allocation may fall back to any node in the system if the specified n=
+ode
+> + * can not hold the requested memory.
+> + *
+> + * The function panics if the request can not be satisfied.
+> + */
+> +void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsi=
+gned long align, unsigned long goal)
+> +{
+> + =A0 =A0 =A0 void *ptr;
+> +
+> + =A0 =A0 =A0 if (WARN_ON_ONCE(slab_is_available()))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return kzalloc_node(size, GFP_NOWAIT, pgdat=
+->node_id);
+> +
+> + =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(pgdat->node_id, size, ali=
+gn,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0goal, -1ULL);
+> + =A0 =A0 =A0 if (ptr)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> +
+> + =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(MAX_NUMNODES, size, align=
+,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0goal, -1ULL);
+> +
+> + =A0 =A0 =A0 return ptr;
+> +}
+> +
+> +void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long =
+size,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsi=
+gned long align, unsigned long goal)
+> +{
+> +#ifdef MAX_DMA32_PFN
+> + =A0 =A0 =A0 unsigned long end_pfn;
+> +
+> + =A0 =A0 =A0 if (WARN_ON_ONCE(slab_is_available()))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return kzalloc_node(size, GFP_NOWAIT, pgdat=
+->node_id);
+> +
+> + =A0 =A0 =A0 /* update goal according ...MAX_DMA32_PFN */
+> + =A0 =A0 =A0 end_pfn =3D pgdat->node_start_pfn + pgdat->node_spanned_pag=
+es;
+> +
+> + =A0 =A0 =A0 if (end_pfn > MAX_DMA32_PFN + (128 >> (20 - PAGE_SHIFT)) &&
+> + =A0 =A0 =A0 =A0 =A0 (goal >> PAGE_SHIFT) < MAX_DMA32_PFN) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 void *ptr;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long new_goal;
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 new_goal =3D MAX_DMA32_PFN << PAGE_SHIFT;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 ptr =3D =A0__alloc_memory_core_early(pgdat-=
+>node_id, size, align,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0new_goal, -1ULL);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ptr)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> + =A0 =A0 =A0 }
+> +#endif
+> +
+> + =A0 =A0 =A0 return __alloc_bootmem_node(pgdat, size, align, goal);
+> +
+> +}
+> +
+> +#ifdef CONFIG_SPARSEMEM
+> +/**
+> + * alloc_bootmem_section - allocate boot memory from a specific section
+> + * @size: size of the request in bytes
+> + * @section_nr: sparse map section to allocate from
+> + *
+> + * Return NULL on failure.
+> + */
+> +void * __init alloc_bootmem_section(unsigned long size,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 uns=
+igned long section_nr)
+> +{
+> + =A0 =A0 =A0 unsigned long pfn, goal, limit;
+> +
+> + =A0 =A0 =A0 pfn =3D section_nr_to_pfn(section_nr);
+> + =A0 =A0 =A0 goal =3D pfn << PAGE_SHIFT;
+> + =A0 =A0 =A0 limit =3D section_nr_to_pfn(section_nr + 1) << PAGE_SHIFT;
+> +
+> + =A0 =A0 =A0 return __alloc_memory_core_early(early_pfn_to_nid(pfn), siz=
+e,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0SMP_CACHE_BYTES, goal, limit);
+> +}
+> +#endif
+> +
+> +void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned lo=
+ng size,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsi=
+gned long align, unsigned long goal)
+> +{
+> + =A0 =A0 =A0 void *ptr;
+> +
+> + =A0 =A0 =A0 if (WARN_ON_ONCE(slab_is_available()))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return kzalloc_node(size, GFP_NOWAIT, pgdat=
+->node_id);
+> +
+> + =A0 =A0 =A0 ptr =3D =A0__alloc_memory_core_early(pgdat->node_id, size, =
+align,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0goal, -1ULL);
+> + =A0 =A0 =A0 if (ptr)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> +
+> + =A0 =A0 =A0 return __alloc_bootmem_nopanic(size, align, goal);
+> +}
+> +
+> +#ifndef ARCH_LOW_ADDRESS_LIMIT
+> +#define ARCH_LOW_ADDRESS_LIMIT 0xffffffffUL
+> +#endif
+> +
+> +/**
+> + * __alloc_bootmem_low - allocate low boot memory
+> + * @size: size of the request in bytes
+> + * @align: alignment of the region
+> + * @goal: preferred starting address of the region
+> + *
+> + * The goal is dropped if it can not be satisfied and the allocation wil=
+l
+> + * fall back to memory below @goal.
+> + *
+> + * Allocation may happen on any node in the system.
+> + *
+> + * The function panics if the request can not be satisfied.
+> + */
+> +void * __init __alloc_bootmem_low(unsigned long size, unsigned long alig=
+n,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigne=
+d long goal)
+> +{
+> + =A0 =A0 =A0 return ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS=
+_LIMIT);
+> +}
+> +
+> +/**
+> + * __alloc_bootmem_low_node - allocate low boot memory from a specific n=
+ode
+> + * @pgdat: node to allocate from
+> + * @size: size of the request in bytes
+> + * @align: alignment of the region
+> + * @goal: preferred starting address of the region
+> + *
+> + * The goal is dropped if it can not be satisfied and the allocation wil=
+l
+> + * fall back to memory below @goal.
+> + *
+> + * Allocation may fall back to any node in the system if the specified n=
+ode
+> + * can not hold the requested memory.
+> + *
+> + * The function panics if the request can not be satisfied.
+> + */
+> +void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long s=
+ize,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0unsigned long align, unsigned long goal)
+> +{
+> + =A0 =A0 =A0 void *ptr;
+> +
+> + =A0 =A0 =A0 if (WARN_ON_ONCE(slab_is_available()))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return kzalloc_node(size, GFP_NOWAIT, pgdat=
+->node_id);
+> +
+> + =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(pgdat->node_id, size, ali=
+gn,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goal, ARCH_=
+LOW_ADDRESS_LIMIT);
+> + =A0 =A0 =A0 if (ptr)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ptr;
+> +
+> + =A0 =A0 =A0 ptr =3D __alloc_memory_core_early(MAX_NUMNODES, size, align=
+,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goal, ARCH_=
+LOW_ADDRESS_LIMIT);
+> + =A0 =A0 =A0 return ptr;
+> +}
+> --
+> 1.7.3.4.600.g982838b0
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
+n
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at =A0http://www.tux.org/lkml/
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
