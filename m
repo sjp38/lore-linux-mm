@@ -1,47 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 047388D0039
-	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 17:35:21 -0500 (EST)
-Received: by iwc10 with SMTP id 10so5257616iwc.14
-        for <linux-mm@kvack.org>; Mon, 07 Feb 2011 14:35:20 -0800 (PST)
-Subject: Re: [RFC] Split up mm/bootmem.c
-From: Namhyung Kim <namhyung@gmail.com>
-In-Reply-To: <AANLkTim2GcBMMMr0tABf=3GwHX8oX05-Dn8tdZbYpt_b@mail.gmail.com>
-References: <1297092614-1906-1-git-send-email-namhyung@gmail.com>
-	 <AANLkTim2GcBMMMr0tABf=3GwHX8oX05-Dn8tdZbYpt_b@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 08 Feb 2011 07:35:13 +0900
-Message-ID: <1297118113.1808.2.camel@leonhard>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3631C8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 18:12:32 -0500 (EST)
+Date: Tue, 8 Feb 2011 00:12:28 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: khugepaged eating 100%CPU
+Message-ID: <20110207231228.GI3347@random.random>
+References: <20110207210517.GA24837@tiehlicka.suse.cz>
+ <20110207211601.GA25665@tiehlicka.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110207211601.GA25665@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-2011-02-07 (i??), 10:45 -0800, Yinghai Lu:
-> On Mon, Feb 7, 2011 at 7:30 AM, Namhyung Kim <namhyung@gmail.com> wrote:
-> > The bootmem code contained many #ifdefs in it so that it could be
-> > splitted into two files for the readability. The split was quite
-> > mechanical and only function need to be shared was free_bootmem_late.
-> >
-> > Tested on x86-64 and um which use nobootmem and bootmem respectively.
-> >
-> > Signed-off-by: Namhyung Kim <namhyung@gmail.com>
+Hello Michal,
+
+On Mon, Feb 07, 2011 at 10:16:01PM +0100, Michal Hocko wrote:
+> On Mon 07-02-11 22:06:54, Michal Hocko wrote:
+> > Hi Andrea,
+> > 
+> > I am currently running into an issue when khugepaged is running 100% on
+> > one of my CPUs for a long time (at least one hour as I am writing the
+> > email). The kernel is the clean 2.6.38-rc3 (i386) vanilla kernel.
+> > 
+> > I have tried to disable defrag but it didn't help (I haven't rebooted
+> > after setting the value). I am not sure what information is helpful and
+> > also not sure whether I am able to reproduce it after restart (it is the
+> > first time I can see this problem) so sorry for the poor report.
+> > 
+> > Here is some basic info which might be useful (config and sysrq+t are
+> > attached):
+> > =========
 > 
-> 
-> https://lkml.org/lkml/2010/6/16/44
-> ...
-> 
+> And I have just realized that I forgot about the daemon stack:
+> # cat /proc/573/stack 
+> [<c019c981>] shrink_zone+0x1b9/0x455
+> [<c019d462>] do_try_to_free_pages+0x9d/0x301
+> [<c019d803>] try_to_free_pages+0xb3/0x104
+> [<c01966d7>] __alloc_pages_nodemask+0x358/0x589
+> [<c01bf314>] khugepaged+0x13f/0xc60
+> [<c014c301>] kthread+0x67/0x6c
+> [<c0102db6>] kernel_thread_helper+0x6/0x10
+> [<ffffffff>] 0xffffffff
 
-Ah, you already made same patch before. OK, I'll drop mine then.
-Thanks.
+It would be great to know if __alloc_pages_nodemask returned or if it
+was calling it in a loop.
 
+When __alloc_pages_nodemask fails in collapse_huge_page, hpage is set
+to ERR_PTR(-ENOMEM), then khugepaged_scan_pmd returns 1, then
+khugepaged_scan_mm_slot goto breakouterloop_mmap_sem and return
+progress, then the khugepaged_do_scan main loop should notice that
+IS_ERR(*hpage) is set and break out of the loop and return void, then
+khugepaged_loop should notice that IS_ERR(hpage) is set and it should
+throttle for alloc_sleep_millisecs inside khugepaged_alloc_sleep
+before setting hpage to NULL and trying again to allocate. I wonder
+what could be going wrong in khugepaged.. I wonder if it's a bug inside
+__alloc_pages_nodemask and not a khugepaged issue. Best would be if
+you run SYSRQ+l several times (/proc/*/stack don't seem to be the best
+for running tasks even if it should be accurate enough already, but if
+you run it often and with sysrq+l it'll be more clear what is
+running).
 
--- 
-Regards,
-Namhyung Kim
+I hope you can reproduce, if it's an allocator issue you should notice
+it again by keeping the same workload on that same system. I doubt I
+can reproduce at the moment as I don't know what's going on to
+simulate your load.
 
+Thanks a lot,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
