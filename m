@@ -1,68 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id ABD688D0039
-	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 04:37:10 -0500 (EST)
-Subject: Re: [PATCH] mm: Add hook of freepage
-From: Miklos Szeredi <mszeredi@suse.cz>
-In-Reply-To: <1297004934-4605-1-git-send-email-minchan.kim@gmail.com>
-References: <1297004934-4605-1-git-send-email-minchan.kim@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 07 Feb 2011 10:37:01 +0100
-Message-ID: <1297071421.25994.58.camel@tucsk.pomaz.szeredi.hu>
-Mime-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A57FD8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 07:40:53 -0500 (EST)
+Message-ID: <4D4FE849.5070004@parallels.com>
+Date: Mon, 07 Feb 2011 15:40:41 +0300
+From: Pavel Emelyanov <xemul@parallels.com>
+MIME-Version: 1.0
+Subject: [LSF/MM TOPIC] Memory controller discussions
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
+To: lsf-pc@lists.linuxfoundation.org
+Cc: James Bottomley <James.Bottomley@suse.de>, Linux MM <linux-mm@kvack.org>
 
-On Mon, 2011-02-07 at 00:08 +0900, Minchan Kim wrote:
-> Recently, "Call the filesystem back whenever a page is removed from
-> the page cache(6072d13c)" added new freepage hook in page cache
-> drop function.
-> 
-> So, replace_page_cache_page should call freepage to support
-> page cleanup to fs.
+Hi.
 
-Thanks Minchan for fixing this.
+On the MM sessions I'd like to participate in the memcg discussions.
 
-Acked-by: Miklos Szeredi <mszeredi@suse.cz>
+Topics that are of the most interest to me are:
 
-> 
-> Cc: Miklos Szeredi <mszeredi@suse.cz>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> ---
->  mm/filemap.c |    5 +++++
->  1 files changed, 5 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 3c89c96..a25c898 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -436,7 +436,10 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
->  	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
->  	if (!error) {
->  		struct address_space *mapping = old->mapping;
-> +		void (*freepage)(struct page *);
-> +
->  		pgoff_t offset = old->index;
-> +		freepage = mapping->a_ops->freepage;
->  
->  		page_cache_get(new);
->  		new->mapping = mapping;
-> @@ -452,6 +455,8 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
->  			__inc_zone_page_state(new, NR_SHMEM);
->  		spin_unlock_irq(&mapping->tree_lock);
->  		radix_tree_preload_end();
-> +		if (freepage)
-> +			freepage(old);
->  		page_cache_release(old);
->  		mem_cgroup_end_migration(memcg, old, new, true);
->  	} else {
+* kernel memory accounting
+* dirty set management
+* VM overcommit management
+* LRU lists management
 
+The first two issues are already described in respectively [1] and [2].
+The 3rd issue was raised many times on the mailing lists, but I haven't
+seen whether it was resolved finally and  would like to bring it up again.
+
+Now about the 4th one (LRU lists management).
+
+The existing memcg model uses page_cgroup object to track the page to 
+memcg relation. Each page that belongs to some memcg has that object
+allocated.
+
+Such a design doesn't look very elegant from my POV, provides a memory
+overhead and makes the mm/vmscan.c code looks not very nice, since each
+page lives in up to two LRU lists :\
+
+I wanted to propose the scheme used in the OpenVZ RHEL6-based kernel [3].
+Briefly - in that scheme we introduce a lru_lists object which contains
+the LRU list heads and statistics for that lists and each page belong so
+some lru_list. A new memcg should allocate and use its own new lru_list.
+
+
+[1] http://marc.info/?l=linux-mm&m=129686460401990
+[2] http://marc.info/?l=linux-mm&m=129684641013000
+[3] http://community.livejournal.com/openvz/34522.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
