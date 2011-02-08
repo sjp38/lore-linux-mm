@@ -1,58 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FE3F8D003B
-	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 19:48:03 -0500 (EST)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id p180m2Rg024160
-	for <linux-mm@kvack.org>; Mon, 7 Feb 2011 16:48:02 -0800
-Received: from yia25 (yia25.prod.google.com [10.243.65.25])
-	by kpbe16.cbf.corp.google.com with ESMTP id p180m0iE025333
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 7 Feb 2011 16:48:01 -0800
-Received: by yia25 with SMTP id 25so2039075yia.28
-        for <linux-mm@kvack.org>; Mon, 07 Feb 2011 16:48:00 -0800 (PST)
-From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH 2/2] mlock: do not munlock pages in __do_fault()
-Date: Mon,  7 Feb 2011 16:47:36 -0800
-Message-Id: <1297126056-14322-3-git-send-email-walken@google.com>
-In-Reply-To: <1297126056-14322-1-git-send-email-walken@google.com>
-References: <1297126056-14322-1-git-send-email-walken@google.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id D11618D0039
+	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 20:33:28 -0500 (EST)
+Date: Mon, 7 Feb 2011 17:28:06 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Add hook of freepage
+Message-Id: <20110207172806.dbca2cae.akpm@linux-foundation.org>
+In-Reply-To: <1297071421.25994.58.camel@tucsk.pomaz.szeredi.hu>
+References: <1297004934-4605-1-git-send-email-minchan.kim@gmail.com>
+	<1297071421.25994.58.camel@tucsk.pomaz.szeredi.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
+To: Miklos Szeredi <mszeredi@suse.cz>
+Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
 
-If the page is going to be written to, __do_page needs to break COW.
-However, the old page (before breaking COW) was never mapped mapped into
-the current pte (__do_fault is only called when the pte is not present),
-so vmscan can't have marked the old page as PageMlocked due to being
-mapped in __do_fault's VMA. Therefore, __do_fault() does not need to worry
-about clearing PageMlocked() on the old page.
+On Mon, 07 Feb 2011 10:37:01 +0100
+Miklos Szeredi <mszeredi@suse.cz> wrote:
 
-Signed-off-by: Michel Lespinasse <walken@google.com>
----
- mm/memory.c |    6 ------
- 1 files changed, 0 insertions(+), 6 deletions(-)
+> On Mon, 2011-02-07 at 00:08 +0900, Minchan Kim wrote:
+> > Recently, "Call the filesystem back whenever a page is removed from
+> > the page cache(6072d13c)" added new freepage hook in page cache
+> > drop function.
+> > 
+> > So, replace_page_cache_page should call freepage to support
+> > page cleanup to fs.
+> 
+> Thanks Minchan for fixing this.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 32df03c..8e8c1832 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3051,12 +3051,6 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 				goto out;
- 			}
- 			charged = 1;
--			/*
--			 * Don't let another task, with possibly unlocked vma,
--			 * keep the mlocked page.
--			 */
--			if (vma->vm_flags & VM_LOCKED)
--				clear_page_mlock(vmf.page);
- 			copy_user_highpage(page, vmf.page, address, vma);
- 			__SetPageUptodate(page);
- 		} else {
--- 
-1.7.3.1
+What's happening with mm-add-replace_page_cache_page-function.patch,
+btw?  When last discussed nearly three weeks ago we had identified:
+
+1) remove radix_tree_preload
+2) single radix_tree_lookup_slot and replace radix tree slot
+3) page accounting optimization if both pages are in same zone.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
