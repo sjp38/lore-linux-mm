@@ -1,77 +1,226 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3631C8D0039
-	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 18:12:32 -0500 (EST)
-Date: Tue, 8 Feb 2011 00:12:28 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: khugepaged eating 100%CPU
-Message-ID: <20110207231228.GI3347@random.random>
-References: <20110207210517.GA24837@tiehlicka.suse.cz>
- <20110207211601.GA25665@tiehlicka.suse.cz>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C06498D0039
+	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 19:24:34 -0500 (EST)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id p180OGLK002184
+	for <linux-mm@kvack.org>; Mon, 7 Feb 2011 16:24:16 -0800
+Received: from pzk9 (pzk9.prod.google.com [10.243.19.137])
+	by hpaq7.eem.corp.google.com with ESMTP id p180ODaN029862
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 7 Feb 2011 16:24:14 -0800
+Received: by pzk9 with SMTP id 9so892765pzk.1
+        for <linux-mm@kvack.org>; Mon, 07 Feb 2011 16:24:12 -0800 (PST)
+Date: Mon, 7 Feb 2011 16:24:08 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] memcg: add oom killer delay
+Message-ID: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110207211601.GA25665@tiehlicka.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
 
-Hello Michal,
+Completely disabling the oom killer for a memcg is problematic if
+userspace is unable to address the condition itself, usually because it
+is unresponsive.  This scenario creates a memcg deadlock: tasks are
+sitting in TASK_KILLABLE waiting for the limit to be increased, a task to
+exit or move, or the oom killer reenabled and userspace is unable to do
+so.
 
-On Mon, Feb 07, 2011 at 10:16:01PM +0100, Michal Hocko wrote:
-> On Mon 07-02-11 22:06:54, Michal Hocko wrote:
-> > Hi Andrea,
-> > 
-> > I am currently running into an issue when khugepaged is running 100% on
-> > one of my CPUs for a long time (at least one hour as I am writing the
-> > email). The kernel is the clean 2.6.38-rc3 (i386) vanilla kernel.
-> > 
-> > I have tried to disable defrag but it didn't help (I haven't rebooted
-> > after setting the value). I am not sure what information is helpful and
-> > also not sure whether I am able to reproduce it after restart (it is the
-> > first time I can see this problem) so sorry for the poor report.
-> > 
-> > Here is some basic info which might be useful (config and sysrq+t are
-> > attached):
-> > =========
-> 
-> And I have just realized that I forgot about the daemon stack:
-> # cat /proc/573/stack 
-> [<c019c981>] shrink_zone+0x1b9/0x455
-> [<c019d462>] do_try_to_free_pages+0x9d/0x301
-> [<c019d803>] try_to_free_pages+0xb3/0x104
-> [<c01966d7>] __alloc_pages_nodemask+0x358/0x589
-> [<c01bf314>] khugepaged+0x13f/0xc60
-> [<c014c301>] kthread+0x67/0x6c
-> [<c0102db6>] kernel_thread_helper+0x6/0x10
-> [<ffffffff>] 0xffffffff
+An additional possible use case is to defer oom killing within a memcg
+for a set period of time, probably to prevent unnecessary kills due to
+temporary memory spikes, before allowing the kernel to handle the
+condition.
 
-It would be great to know if __alloc_pages_nodemask returned or if it
-was calling it in a loop.
+This patch adds an oom killer delay so that a memcg may be configured to
+wait at least a pre-defined number of milliseconds before calling the oom
+killer.  If the oom condition persists for this number of milliseconds,
+the oom killer will be called the next time the memory controller
+attempts to charge a page (and memory.oom_control is set to 0).  This
+allows userspace to have a short period of time to respond to the
+condition before deferring to the kernel to kill a task.
 
-When __alloc_pages_nodemask fails in collapse_huge_page, hpage is set
-to ERR_PTR(-ENOMEM), then khugepaged_scan_pmd returns 1, then
-khugepaged_scan_mm_slot goto breakouterloop_mmap_sem and return
-progress, then the khugepaged_do_scan main loop should notice that
-IS_ERR(*hpage) is set and break out of the loop and return void, then
-khugepaged_loop should notice that IS_ERR(hpage) is set and it should
-throttle for alloc_sleep_millisecs inside khugepaged_alloc_sleep
-before setting hpage to NULL and trying again to allocate. I wonder
-what could be going wrong in khugepaged.. I wonder if it's a bug inside
-__alloc_pages_nodemask and not a khugepaged issue. Best would be if
-you run SYSRQ+l several times (/proc/*/stack don't seem to be the best
-for running tasks even if it should be accurate enough already, but if
-you run it often and with sysrq+l it'll be more clear what is
-running).
+Admins may set the oom killer delay using the new interface:
 
-I hope you can reproduce, if it's an allocator issue you should notice
-it again by keeping the same workload on that same system. I doubt I
-can reproduce at the moment as I don't know what's going on to
-simulate your load.
+	# echo 60000 > memory.oom_delay_millisecs
 
-Thanks a lot,
-Andrea
+This will defer oom killing to the kernel only after 60 seconds has
+elapsed by putting the task to sleep for 60 seconds.  When setting
+memory.oom_delay_millisecs, all pending delays have their charges retried
+and, if necessary, the new delay is then enforced.
+
+The delay is cleared the first time the memcg is oom to avoid unnecessary
+waiting when userspace is unresponsive for future oom conditions.  It may
+be set again using the above interface to enforce a delay on the next
+oom.
+
+When a memory.oom_delay_millisecs is set for a cgroup, it is propagated
+to all children memcg as well and is inherited when a new memcg is
+created.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ Documentation/cgroups/memory.txt |   28 ++++++++++++++++++++++
+ mm/memcontrol.c                  |   48 ++++++++++++++++++++++++++++++++++---
+ 2 files changed, 72 insertions(+), 4 deletions(-)
+
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -68,6 +68,7 @@ Brief summary of control files.
+ 				 (See sysctl's vm.swappiness)
+  memory.move_charge_at_immigrate # set/show controls of moving charges
+  memory.oom_control		 # set/show oom controls.
++ memory.oom_delay_millisecs	 # set/show millisecs to wait before oom kill
+ 
+ 1. History
+ 
+@@ -640,6 +641,33 @@ At reading, current status of OOM is shown.
+ 	under_oom	 0 or 1 (if 1, the memory cgroup is under OOM, tasks may
+ 				 be stopped.)
+ 
++It is also possible to configure an oom killer timeout to prevent the
++possibility that the memcg will deadlock looking for memory if userspace
++has disabled the oom killer with oom_control but cannot act to fix the
++condition itself (usually because userspace has become unresponsive).
++
++To set an oom killer timeout for a memcg, write the number of milliseconds
++to wait before killing a task to memory.oom_delay_millisecs:
++
++	# echo 60000 > memory.oom_delay_millisecs	# 60 seconds before kill
++
++This timeout is reset the first time the memcg is oom to prevent needlessly
++waiting for the next oom when userspace is truly unresponsive.  It may be
++set again using the above interface to defer killing a task the next time
++the memcg is oom.
++
++Disabling the oom killer for a memcg with memory.oom_control takes
++precedence over memory.oom_delay_millisecs, so it must be set to 0
++(default) to allow the oom kill after the delay has expired.
++
++This value is inherited from the memcg's parent on creation.  Setting
++a delay for a memcg sets the same delay for all children, as well.
++
++There is no delay if memory.oom_delay_millisecs is set to 0 (default).
++This tunable's upper bound is MAX_SCHEDULE_TIMEOUT (about 24 days on
++32-bit and a lifetime on 64-bit).
++
++
+ 11. TODO
+ 
+ 1. Add support for accounting huge pages (as a separate controller)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -239,6 +239,8 @@ struct mem_cgroup {
+ 	unsigned int	swappiness;
+ 	/* OOM-Killer disable */
+ 	int		oom_kill_disable;
++	/* number of ticks to stall before calling oom killer */
++	int		oom_delay;
+ 
+ 	/* set when res.limit == memsw.limit */
+ 	bool		memsw_is_minimum;
+@@ -1541,10 +1543,11 @@ static void memcg_oom_recover(struct mem_cgroup *mem)
+ /*
+  * try to call OOM killer. returns false if we should exit memory-reclaim loop.
+  */
+-bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
++static bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+ {
+ 	struct oom_wait_info owait;
+ 	bool locked, need_to_kill;
++	long timeout = MAX_SCHEDULE_TIMEOUT;
+ 
+ 	owait.mem = mem;
+ 	owait.wait.flags = 0;
+@@ -1563,15 +1566,21 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+ 	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
+ 	if (!locked || mem->oom_kill_disable)
+ 		need_to_kill = false;
+-	if (locked)
++	if (locked) {
++		if (mem->oom_delay) {
++			need_to_kill = false;
++			timeout = mem->oom_delay;
++			mem->oom_delay = 0;
++		}
+ 		mem_cgroup_oom_notify(mem);
++	}
+ 	mutex_unlock(&memcg_oom_mutex);
+ 
+ 	if (need_to_kill) {
+ 		finish_wait(&memcg_oom_waitq, &owait.wait);
+ 		mem_cgroup_out_of_memory(mem, mask);
+ 	} else {
+-		schedule();
++		schedule_timeout(timeout);
+ 		finish_wait(&memcg_oom_waitq, &owait.wait);
+ 	}
+ 	mutex_lock(&memcg_oom_mutex);
+@@ -1582,7 +1591,8 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+ 	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
+ 		return false;
+ 	/* Give chance to dying process */
+-	schedule_timeout(1);
++	if (timeout == MAX_SCHEDULE_TIMEOUT)
++		schedule_timeout(1);
+ 	return true;
+ }
+ 
+@@ -4168,6 +4178,30 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
+ 	return 0;
+ }
+ 
++static u64 mem_cgroup_oom_delay_millisecs_read(struct cgroup *cgrp,
++					struct cftype *cft)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++
++	return jiffies_to_msecs(memcg->oom_delay);
++}
++
++static int mem_cgroup_oom_delay_millisecs_write(struct cgroup *cgrp,
++					struct cftype *cft, u64 val)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++	struct mem_cgroup *iter;
++
++	if (val > MAX_SCHEDULE_TIMEOUT)
++		return -EINVAL;
++
++	for_each_mem_cgroup_tree(iter, memcg) {
++		iter->oom_delay = msecs_to_jiffies(val);
++		memcg_oom_recover(iter);
++	}
++	return 0;
++}
++
+ static struct cftype mem_cgroup_files[] = {
+ 	{
+ 		.name = "usage_in_bytes",
+@@ -4231,6 +4265,11 @@ static struct cftype mem_cgroup_files[] = {
+ 		.unregister_event = mem_cgroup_oom_unregister_event,
+ 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
+ 	},
++	{
++		.name = "oom_delay_millisecs",
++		.read_u64 = mem_cgroup_oom_delay_millisecs_read,
++		.write_u64 = mem_cgroup_oom_delay_millisecs_write,
++	},
+ };
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+@@ -4469,6 +4508,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 		parent = mem_cgroup_from_cont(cont->parent);
+ 		mem->use_hierarchy = parent->use_hierarchy;
+ 		mem->oom_kill_disable = parent->oom_kill_disable;
++		mem->oom_delay = parent->oom_delay;
+ 	}
+ 
+ 	if (parent && parent->use_hierarchy) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
