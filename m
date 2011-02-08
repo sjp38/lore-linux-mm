@@ -1,46 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E2F398D0039
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 13:17:13 -0500 (EST)
-Date: Tue, 8 Feb 2011 19:17:09 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC][PATCH 0/6] more detailed per-process transparent
- hugepage statistics
-Message-ID: <20110208181709.GL3347@random.random>
-References: <20110201003357.D6F0BE0D@kernel>
- <20110201153857.GA18740@random.random>
- <1296580547.27022.3370.camel@nimitz>
- <20110201203936.GB16981@random.random>
- <1296593801.27022.3920.camel@nimitz>
- <20110202000750.GC16981@random.random>
- <1297187674.6737.12145.camel@nimitz>
+	by kanga.kvack.org (Postfix) with ESMTP id BA2908D003A
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 13:28:26 -0500 (EST)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id p18ISElW004770
+	for <linux-mm@kvack.org>; Tue, 8 Feb 2011 10:28:15 -0800
+Received: from vxc38 (vxc38.prod.google.com [10.241.33.166])
+	by wpaz9.hot.corp.google.com with ESMTP id p18IRHnv018591
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 8 Feb 2011 10:28:13 -0800
+Received: by vxc38 with SMTP id 38so2635738vxc.1
+        for <linux-mm@kvack.org>; Tue, 08 Feb 2011 10:28:13 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1297187674.6737.12145.camel@nimitz>
+In-Reply-To: <1297126056-14322-2-git-send-email-walken@google.com>
+References: <1297126056-14322-1-git-send-email-walken@google.com>
+	<1297126056-14322-2-git-send-email-walken@google.com>
+Date: Tue, 8 Feb 2011 10:28:12 -0800
+Message-ID: <AANLkTi=iYQCmKsE_xR4x0h-6BiVkpD3R2y6pKa1b9K0+@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mlock: fix race when munlocking pages in do_wp_page()
+From: Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
 
-Hello,
+On Mon, Feb 7, 2011 at 4:47 PM, Michel Lespinasse <walken@google.com> wrote:
+>
+> vmscan can lazily find pages that are mapped within VM_LOCKED vmas,
+> and set the PageMlocked bit on these pages, transfering them onto the
+> unevictable list. When do_wp_page() breaks COW within a VM_LOCKED vma,
+> it may need to clear PageMlocked on the old page and set it on the
+> new page instead.
+>
+> This change fixes an issue where do_wp_page() was clearing PageMlocked on
+> the old page while the pte was still pointing to it (as well as rmap).
+> Therefore, we were not protected against vmscan immediately trasnfering
+> the old page back onto the unevictable list. This could cause pages to
+> get stranded there forever.
+>
+> I propose to move the corresponding code to the end of do_wp_page(),
+> after the pte (and rmap) have been pointed to the new page. Additionally,
+> we can use munlock_vma_page() instead of clear_page_mlock(), so that
+> the old page stays mlocked if there are still other VM_LOCKED vmas
+> mapping it.
+>
+> Signed-off-by: Michel Lespinasse <walken@google.com>
 
-On Tue, Feb 08, 2011 at 09:54:34AM -0800, Dave Hansen wrote:
-> Just FYI, I did some profiling on a workload that constantly split and
-> joined pages.  Very little of the overhead was in the scanning itself,
-> so I think you're dead-on here.
+Acked-by: Hugh Dickins <hughd@google.com>
 
-Yep, my way to deduce it has been to set both to 100%, and check the
-rate of increase of
-/sys/kernel/mm/transparent_hugepage/khugepaged/full_scans vs
-/sys/kernel/mm/ksm/full_scans and the differences is enormous. So a
-100% CPU ksmd scan can probably be followed more than well with a 1%
-CPU khugepaged scan and probably achieve the exact same hugepage ratio
-of a 100% khugepaged scan. The default khugepaged scan is super
-paranoid (it has to be, considering the default ksm scan is
-zero). Maybe we can still increase the default pages_to_scan a bit. I
-suspect most of the current cost should be in the scheduler and that
-only accounts for 1 kthread schedule event every 10 sec.
+(but I have to say, do_wp_page() grows even ughlier!)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
