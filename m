@@ -1,76 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 595CE8D0039
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 07:00:51 -0500 (EST)
-In-reply-to: <4D512E63.1040202@oracle.com> (message from Gurudas Pai on Tue,
-	08 Feb 2011 17:22:03 +0530)
-Subject: Re: [PATCH] mm: prevent concurrent unmap_mapping_range() on the same
- inode
-References: <E1PftfG-0007w1-Ek@pomaz-ex.szeredi.hu>	<20110120124043.GA4347@infradead.org>	<E1PfvGx-00086O-IA@pomaz-ex.szeredi.hu>	<alpine.LSU.2.00.1101212014330.4301@sister.anvils>	<E1PhSO8-0005yN-Dp@pomaz-ex.szeredi.hu> <AANLkTimBR=CuMpWE2juJG2jsLsTqK=tc00sRrEjhkHg=@mail.gmail.com> <E1Pmkpt-0006Cd-Q6@pomaz-ex.szeredi.hu> <4D512E63.1040202@oracle.com>
-Message-Id: <E1PmmEZ-0006JD-7v@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 08 Feb 2011 12:59:51 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 10D348D0039
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:46:19 -0500 (EST)
+MIME-Version: 1.0
+Message-ID: <e908a602-35b8-4ecc-aad2-8973da171161@default>
+Date: Tue, 8 Feb 2011 08:30:57 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V1 3/3] drivers/staging: kztmem: misc build/config
+References: <20110118172151.GA20507@ca-server1.us.oracle.com
+ 20110204212843.GA18924@kroah.com>
+In-Reply-To: <20110204212843.GA18924@kroah.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gurudas Pai <gurudas.pai@oracle.com>
-Cc: Trond.Myklebust@netapp.com, miklos@szeredi.hu, hughd@google.com, hch@infradead.org, akpm@linux-foundation.org, lkml20101129@newton.leun.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Greg KH <greg@kroah.com>
+Cc: gregkh@suse.de, Chris Mason <chris.mason@oracle.com>, akpm@linux-foundation.org, torvalds@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, riel@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, sfr@canb.auug.org.au, wfg@mail.ustc.edu.cn, tytso@mit.edu, viro@ZenIV.linux.org.uk, hughd@google.com, hannes@cmpxchg.org
 
-On Tue, 08 Feb 2011, Gurudas Pai wrote:
-> > On Wed, 26 Jan 2011, Hugh Dickins wrote:
-> >> I had wanted to propose that for now you modify just fuse to use
-> >> i_alloc_sem for serialization there, and I provide a patch to
-> >> unmap_mapping_range() to give safety to whatever other cases there are
-> >> (I'm now sure there are other cases, but also sure that I cannot
-> >> safely identify them all and fix them correctly at source myself -
-> >> even if I found time to do the patches, they'd need at least a release
-> >> cycle to bed in with BUG_ONs).
-> > 
-> > Since fuse is the only one where the BUG has actually been triggered,
-> > and since there are problems with all the proposed generic approaches,
-> > I concur.  I didn't want to use i_alloc_sem here as it's more
-> > confusing than a new mutex.
-> > 
-> > Gurudas, could you please give this patch a go in your testcase?
-> I found this BUG with nfs, so trying with current patch may not help.
-> https://lkml.org/lkml/2010/12/29/9
-> 
-> Let me know if I have to run this
+> From: Greg KH [mailto:greg@kroah.com]
+> Subject: Re: [PATCH V1 3/3] drivers/staging: kztmem: misc build/config
+>=20
+> On Tue, Jan 18, 2011 at 09:21:51AM -0800, Dan Magenheimer wrote:
+> > [PATCH V1 3/3] drivers/staging: kztmem: misc build/config
+> >
+> > Makefiles and Kconfigs to build kztmem in drivers/staging
+> >
+> > There is a dependency on xvmalloc.* which in 2.6.37 resides
+> > in drivers/staging/zram.  Should this move or disappear,
+> > some Makefile/Kconfig changes will be required.
+>=20
+> There is some other kind of dependancy as well, because I get the
+> following errors when building:
+> :=20
+> If you require a kbuild dependancy, then put it in your Kconfig file
+> please, don't break the build.
+>=20
+> I'll not apply these patches for now until that's fixed up.
+>=20
+> thanks,
+> greg k-h
 
-Ahh, I was not aware of that.  No, in that case there's not much point
-in trying this patch for you as it only fixes the issue in fuse. I
-haven't looked at the NFS side of it yet.
+Hi Greg --
 
-Added Trond to the Cc.
+Just wanted to confirm that this is now fixed and hope that you
+can now apply BUT note that per agreement with Nitin Gupta [1]
+the patchset has been modified to be named zcache and the
+renamed patchset (with the proper kbuild dependency) has been
+posted at [2].
+
+ALSO, could you please confirm the path by which this patchset
+will find its way upstream?  I see from your blog [3] that after
+you apply it, I should be able to see it in sfr's linux-next
+tree [4] which IIUC sfr pulls regularly from your staging-next
+tree [5].  And I think at the next merge window, YOU will
+provide the pull request to Linus included with any other
+staging drivers?  Is this all correct?
+
+Sorry for the driver-staging-newbie question but your blog
+entry is 2 years old and I'd like to (1) ensure that I don't
+drop some important task *I* still need to do and (2) be able
+to track the progress of zcache through the various trees as
+a self-educational exercise.
 
 Thanks,
-Miklos
+Dan
 
-
-> > 
-> > From: Miklos Szeredi <mszeredi@suse.cz>
-> > Subject: fuse: prevent concurrent unmap on the same inode
-> > 
-> > Running a fuse filesystem with multiple open()'s in parallel can
-> > trigger a "kernel BUG at mm/truncate.c:475"
-> > 
-> > The reason is, unmap_mapping_range() is not prepared for more than
-> > one concurrent invocation per inode.
-> > 
-> > Truncate and hole punching already serialize with i_mutex.  Other
-> > callers of unmap_mapping_range() do not, and it's difficult to get
-> > i_mutex protection for all callers.  In particular ->d_revalidate(),
-> > which calls invalidate_inode_pages2_range() in fuse, may be called
-> > with or without i_mutex.
-> > 
-> > This patch adds a new mutex to fuse_inode to prevent running multiple
-> > concurrent unmap_mapping_range() on the same mapping.
-> 
-> Thanks,
-> -Guru
-> 
-> 
-> 
-> 
+[1] https://lkml.org/lkml/2011/2/5/181=20
+[2] https://lkml.org/lkml/2011/2/6/346
+    https://lkml.org/lkml/2011/2/6/345=20
+    https://lkml.org/lkml/2011/2/6/344=20
+    https://lkml.org/lkml/2011/2/6/343=20
+[3] http://www.kroah.com/log/linux/linux-staging-update.html=20
+[4] http://git.kernel.org/?p=3Dlinux/kernel/git/sfr/linux-next.git=20
+[5] http://git.kernel.org/?p=3Dlinux/kernel/git/gregkh/staging-2.6.git;a=3D=
+shortlog;h=3Drefs/heads/staging-next
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
