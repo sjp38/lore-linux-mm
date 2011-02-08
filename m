@@ -1,93 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C7CBF8D0039
-	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 21:20:00 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 2B35A3EE0B3
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:19:58 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1189A45DE4E
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:19:58 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EED4145DE4D
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:19:57 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C5492E08002
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:19:57 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 70A8D1DB803A
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:19:57 +0900 (JST)
-Date: Tue, 8 Feb 2011 11:13:51 +0900
+	by kanga.kvack.org (Postfix) with SMTP id 88C258D0039
+	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 21:26:50 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 27BD83EE0BC
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:26:48 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EFB9645DE4E
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:26:47 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C16F345DE4F
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:26:47 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 62ED5EF8002
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:26:47 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A96AEF8004
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:26:46 +0900 (JST)
+Date: Tue, 8 Feb 2011 11:20:41 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [patch] memcg: add oom killer delay
-Message-Id: <20110208111351.93c6d048.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1102071808280.16931@chino.kir.corp.google.com>
+Message-Id: <20110208112041.a9986f09.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110208111351.93c6d048.kamezawa.hiroyu@jp.fujitsu.com>
 References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com>
 	<20110208105553.76cfe424.kamezawa.hiroyu@jp.fujitsu.com>
 	<alpine.DEB.2.00.1102071808280.16931@chino.kir.corp.google.com>
+	<20110208111351.93c6d048.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
 
-On Mon, 7 Feb 2011 18:13:22 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+On Tue, 8 Feb 2011 11:13:51 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> On Tue, 8 Feb 2011, KAMEZAWA Hiroyuki wrote:
+> On Mon, 7 Feb 2011 18:13:22 -0800 (PST)
+> David Rientjes <rientjes@google.com> wrote:
 > 
-> > > +static int mem_cgroup_oom_delay_millisecs_write(struct cgroup *cgrp,
-> > > +					struct cftype *cft, u64 val)
-> > > +{
-> > > +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-> > > +	struct mem_cgroup *iter;
-> > > +
-> > > +	if (val > MAX_SCHEDULE_TIMEOUT)
-> > > +		return -EINVAL;
-> > > +
-> > > +	for_each_mem_cgroup_tree(iter, memcg) {
-> > > +		iter->oom_delay = msecs_to_jiffies(val);
-> > > +		memcg_oom_recover(iter);
-> > > +	}
-> > > +	return 0;
+> > On Tue, 8 Feb 2011, KAMEZAWA Hiroyuki wrote:
 > > 
-> > Seems nicer and it seems you tries to update all children cgroups.
+> > > > +static int mem_cgroup_oom_delay_millisecs_write(struct cgroup *cgrp,
+> > > > +					struct cftype *cft, u64 val)
+> > > > +{
+> > > > +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> > > > +	struct mem_cgroup *iter;
+> > > > +
+> > > > +	if (val > MAX_SCHEDULE_TIMEOUT)
+> > > > +		return -EINVAL;
+> > > > +
+> > > > +	for_each_mem_cgroup_tree(iter, memcg) {
+> > > > +		iter->oom_delay = msecs_to_jiffies(val);
+> > > > +		memcg_oom_recover(iter);
+> > > > +	}
+> > > > +	return 0;
+> > > 
+> > > Seems nicer and it seems you tries to update all children cgroups.
+> > > 
+> > > BTW, with above code, with following heirarchy,
+> > > 
+> > >     A
+> > >    /
+> > >   B  
+> > >  /
+> > > C
+> > > 
+> > > When a user set oom_delay in order as A->B->C, A,B,C can have 'different' numbers.
+> > > When a user set oom_delay in order as C->B->A, A,B,C will have the same numbers.
+> > > 
+> > > This intreface seems magical, or broken.
+> > > 
 > > 
-> > BTW, with above code, with following heirarchy,
+> > It's not really magical, it just means that if you change the delay for a 
+> > memcg that you do so for all of its children implicitly as well.
 > > 
-> >     A
-> >    /
-> >   B  
-> >  /
-> > C
-> > 
-> > When a user set oom_delay in order as A->B->C, A,B,C can have 'different' numbers.
-> > When a user set oom_delay in order as C->B->A, A,B,C will have the same numbers.
-> > 
-> > This intreface seems magical, or broken.
-> > 
+> But you didn't explain the bahavior in Documenation.
 > 
-> It's not really magical, it just means that if you change the delay for a 
-> memcg that you do so for all of its children implicitly as well.
-> 
-But you didn't explain the bahavior in Documenation.
+And write this fact:
 
-> An alternative would be to ensure that a child memcg may never have a 
-> delay greater than the delay of its parent.  Would you prefer that 
-> instead?
-> 
-I don't think such limitation makes sense.
+     A
+    /
+   B
+  /
+ C
 
-My point is just that the behavior is very special in current memcg interfaces. 
-They do
- - It's not allowed to set attribute to no-children, no-parent cgroup
+When 
+  A.memory_oom_delay=1sec. 
+  B.memory_oom_delay=500msec
+  C.memory_oom_delay=200msec
 
-So, please explain above behavior in Documenation.
+If there are OOM in group C, C's oom_kill will be delayed for 200msec and
+a task in group C will be killed. 
+
+If there are OOM in group B, B's oom_kill will be delayed for 200msec and
+a task in group B or C will be killed.
+
+If there are OOM in group A, A's oom_kill will be delayed for 1sec and
+a task in group A,B or C will be killed.
+
+oom_killer in the hierarchy is serialized by lock and happens one-by-one
+for avoiding a serial kill. So, above delay can be stacked. 
 
 Thanks,
 -Kame
+
+
+
 
 
 --
