@@ -1,108 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F1B278D0039
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 18:56:09 -0500 (EST)
-Received: by iwc10 with SMTP id 10so6456883iwc.14
-        for <linux-mm@kvack.org>; Tue, 08 Feb 2011 15:56:07 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <0d1aa13e-be1f-4e21-adf2-f0162c67ede3@default>
-References: <AANLkTi=CEXiOdqPZgQZmQwatHqZ_nsnmnVhwpdt=7q3f@mail.gmail.com>
-	<0d1aa13e-be1f-4e21-adf2-f0162c67ede3@default>
-Date: Wed, 9 Feb 2011 08:56:07 +0900
-Message-ID: <AANLkTimm8o6FnDon=eMTepDaoViU9tjteAYE9kmJhMsx@mail.gmail.com>
-Subject: Re: [PATCH V2 2/3] drivers/staging: zcache: host services and PAM services
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5873B8D0039
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 18:58:02 -0500 (EST)
+Date: Tue, 8 Feb 2011 15:57:56 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/3][RESEND] Provide control over unmapped pages (v4)
+Message-Id: <20110208155756.e149c3b6.akpm@linux-foundation.org>
+In-Reply-To: <20110201165533.12377.11775.stgit@localhost6.localdomain6>
+References: <20110201165329.12377.13683.stgit@localhost6.localdomain6>
+	<20110201165533.12377.11775.stgit@localhost6.localdomain6>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: gregkh@suse.de, Chris Mason <chris.mason@oracle.com>, akpm@linux-foundation.org, torvalds@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, riel@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, kosaki.motohiro@jp.fujitsu.com, sfr@canb.auug.org.au, wfg@mail.ustc.edu.cn, tytso@mit.edu, viro@zeniv.linux.org.uk, hughd@google.com, hannes@cmpxchg.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
 
-On Wed, Feb 9, 2011 at 8:27 AM, Dan Magenheimer
-<dan.magenheimer@oracle.com> wrote:
-> Hi Minchan --
->
->> First of all, thanks for endless effort.
->
-> Sometimes it does seem endless ;-)
->
->> I didn't look at code entirely but it seems this series includes
->> frontswap.
->
-> The "new zcache" optionally depends on frontswap, but frontswap is
-> a separate patchset. =C2=A0If the frontswap patchset is present
-> and configured, zcache will use it to dynamically compress swap pages.
-> If frontswap is not present or not configured, zcache will only
-> use cleancache to dynamically compress clean page cache pages.
-> For best results, both frontswap and cleancache should be enabled.
-> (and see the link in PATCH V2 0/3 for a monolithic patch against
-> 2.6.37 that enabled both).
->
->> Finally frontswap is to replace zram?
->
-> Nitin and I have agreed that, for now, both frontswap and zram
-> should continue to exist. =C2=A0They have similar functionality but
-> different use models. =C2=A0Over time we will see if they can be merged.
->
-> Nitin and I agreed offlist that the following summarizes the
-> differences between zram and frontswap:
->
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->
-> Zram uses an asynchronous model (e.g. uses the block I/O subsystem)
-> and requires a device to be explicitly created. =C2=A0When used for
-> swap, mkswap creates a fixed-size swap device (usually with higher
-> priority than any disk-based swap device) and zram is filled
-> until it is full, at which point other lower-priority (disk-based)
-> swap devices are then used. =C2=A0So zram is well-suited for a fixed-
-> size-RAM machine with a known workload where an administrator
-> can pre-configure a zram device to improve RAM efficiency during
-> peak memory load.
->
-> Frontswap uses a synchronous model, circumventing the block I/O
-> subsystem. =C2=A0The frontswap "device" is completely dynamic in size,
-> e.g. frontswap is queried for every individual page-to-be-swapped
-> and, if rejected, the page is swapped to the "real" swap device.
-> So frontswap is well-suited for highly dynamic conditions where
-> workload is unpredictable and/or RAM size may "vary" due to
-> circumstances not entirely within the kernel's control.
->
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->
-> Does that make sense?
+On Tue, 01 Feb 2011 22:25:45 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-Thanks for the quick reply.
-As I read your comment, I can't find the benefit of zram compared to fronts=
-wap.
+> Changelog v4
+> 1. Add max_unmapped_ratio and use that as the upper limit
+> to check when to shrink the unmapped page cache (Christoph
+> Lameter)
+> 
+> Changelog v2
+> 1. Use a config option to enable the code (Andrew Morton)
+> 2. Explain the magic tunables in the code or at-least attempt
+>    to explain them (General comment)
+> 3. Hint uses of the boot parameter with unlikely (Andrew Morton)
+> 4. Use better names (balanced is not a good naming convention)
+> 
+> Provide control using zone_reclaim() and a boot parameter. The
+> code reuses functionality from zone_reclaim() to isolate unmapped
+> pages and reclaim them as a priority, ahead of other mapped pages.
+> A new sysctl for max_unmapped_ratio is provided and set to 16,
+> indicating 16% of the total zone pages are unmapped, we start
+> shrinking unmapped page cache.
 
-1. asynchronous model
-2. usability
-3. adaptive dynamic ram size
+We'll need some documentation for sysctl_max_unmapped_ratio, please. 
+In Documentation/sysctl/vm.txt, I suppose.
 
-If I consider your statement, with 2, 3, zram isn't better than
-fronswap, I think.
-1 on zram may be good than frontswap but I doubt how much we have a
-big benefit on async operation in ramdisk model.
+It will be interesting to find out what this ratio refers to.  it
+apears to be a percentage.  We've had problem in the past where 1% was
+way too much and we had to change the kernel to provide much
+finer-grained control.
 
-If we have a big overhead of block stuff in such a model, couldn't we
-remove the overhead generally?
+>
+> ...
+>
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -306,7 +306,10 @@ struct zone {
+>  	/*
+>  	 * zone reclaim becomes active if more unmapped pages exist.
+>  	 */
+> +#if defined(CONFIG_UNMAPPED_PAGE_CONTROL) || defined(CONFIG_NUMA)
+>  	unsigned long		min_unmapped_pages;
+> +	unsigned long		max_unmapped_pages;
+> +#endif
 
-What I can think of benefit is that zram export interface to block
-device so someone can use compressed block device.
-Block device interface exporting is enough to live zram in there?
+This change breaks the connection between min_unmapped_pages and its
+documentation, and fails to document max_unmapped_pages.
 
-Maybe I miss something of zram's benefits.
-At least, I can't convince why zram and frontswap should coexist.
-AFAIK, Nitin and you discussed it many times long time ago but I
-didn't follow up it.  Sorry if I am missing something.
+Also, afacit if CONFIG_NUMA=y and CONFIG_UNMAPPED_PAGE_CONTROL=n,
+max_unmapped_pages will be present in the kernel image and will appear
+in /proc but it won't actually do anything.  Seems screwed up and
+misleading.
 
-Thanks.
+>
+> ...
+>
+> +#if defined(CONFIG_UNMAPPED_PAGECACHE_CONTROL)
+> +/*
+> + * Routine to reclaim unmapped pages, inspired from the code under
+> + * CONFIG_NUMA that does unmapped page and slab page control by keeping
+> + * min_unmapped_pages in the zone. We currently reclaim just unmapped
+> + * pages, slab control will come in soon, at which point this routine
+> + * should be called reclaim cached pages
+> + */
+> +unsigned long reclaim_unmapped_pages(int priority, struct zone *zone,
+> +						struct scan_control *sc)
+> +{
+> +	if (unlikely(unmapped_page_control) &&
+> +		(zone_unmapped_file_pages(zone) > zone->min_unmapped_pages)) {
+> +		struct scan_control nsc;
+> +		unsigned long nr_pages;
+> +
+> +		nsc = *sc;
+> +
+> +		nsc.swappiness = 0;
+> +		nsc.may_writepage = 0;
+> +		nsc.may_unmap = 0;
+> +		nsc.nr_reclaimed = 0;
+> +
+> +		nr_pages = zone_unmapped_file_pages(zone) -
+> +				zone->min_unmapped_pages;
+> +		/*
+> +		 * We don't want to be too aggressive with our
+> +		 * reclaim, it is our best effort to control
+> +		 * unmapped pages
+> +		 */
+> +		nr_pages >>= 3;
+> +
+> +		zone_reclaim_pages(zone, &nsc, nr_pages);
+> +		return nsc.nr_reclaimed;
+> +	}
+> +	return 0;
+> +}
 
+This returns an undocumented ulong which is never used by callers.
 
---=20
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
