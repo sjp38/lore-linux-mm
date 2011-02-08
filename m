@@ -1,41 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 69C8F8D0039
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 13:29:22 -0500 (EST)
-Received: from kpbe18.cbf.corp.google.com (kpbe18.cbf.corp.google.com [172.25.105.82])
-	by smtp-out.google.com with ESMTP id p18ITIlN025607
-	for <linux-mm@kvack.org>; Tue, 8 Feb 2011 10:29:19 -0800
-Received: from vxb37 (vxb37.prod.google.com [10.241.33.101])
-	by kpbe18.cbf.corp.google.com with ESMTP id p18IPP47031549
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 8 Feb 2011 10:29:17 -0800
-Received: by vxb37 with SMTP id 37so2745001vxb.7
-        for <linux-mm@kvack.org>; Tue, 08 Feb 2011 10:29:17 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3357C8D0039
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 17:48:28 -0500 (EST)
+Received: by iwc10 with SMTP id 10so6412379iwc.14
+        for <linux-mm@kvack.org>; Tue, 08 Feb 2011 14:48:23 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1297126056-14322-3-git-send-email-walken@google.com>
-References: <1297126056-14322-1-git-send-email-walken@google.com>
-	<1297126056-14322-3-git-send-email-walken@google.com>
-Date: Tue, 8 Feb 2011 10:29:16 -0800
-Message-ID: <AANLkTimXQJxFHC_NcBJkutiv9N_57DDHBUGawdKrt2xH@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mlock: do not munlock pages in __do_fault()
-From: Hugh Dickins <hughd@google.com>
+In-Reply-To: <20110207032608.GA27453@ca-server1.us.oracle.com>
+References: <20110207032608.GA27453@ca-server1.us.oracle.com>
+Date: Wed, 9 Feb 2011 07:48:22 +0900
+Message-ID: <AANLkTi=CEXiOdqPZgQZmQwatHqZ_nsnmnVhwpdt=7q3f@mail.gmail.com>
+Subject: Re: [PATCH V2 2/3] drivers/staging: zcache: host services and PAM services
+From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: gregkh@suse.de, chris.mason@oracle.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, kurt.hackel@oracle.com, npiggin@kernel.dk, riel@redhat.com, konrad.wilk@oracle.com, mel@csn.ul.ie, kosaki.motohiro@jp.fujitsu.com, sfr@canb.auug.org.au, wfg@mail.ustc.edu.cn, tytso@mit.edu, viro@zeniv.linux.org.uk, hughd@google.com, hannes@cmpxchg.org
 
-On Mon, Feb 7, 2011 at 4:47 PM, Michel Lespinasse <walken@google.com> wrote:
-> If the page is going to be written to, __do_page needs to break COW.
-> However, the old page (before breaking COW) was never mapped mapped into
-> the current pte (__do_fault is only called when the pte is not present),
-> so vmscan can't have marked the old page as PageMlocked due to being
-> mapped in __do_fault's VMA. Therefore, __do_fault() does not need to worry
-> about clearing PageMlocked() on the old page.
+On Mon, Feb 7, 2011 at 12:26 PM, Dan Magenheimer
+<dan.magenheimer@oracle.com> wrote:
+> [PATCH V2 2/3] drivers/staging: zcache: host services and PAM services
 >
-> Signed-off-by: Michel Lespinasse <walken@google.com>
+> Zcache provides host services (memory allocation) for tmem,
+> a "shim" to interface cleancache and frontswap to tmem, and
+> two different page-addressable memory implemenations using
+> lzo1x compression. =C2=A0The first, "compression buddies" ("zbud")
+> compresses pairs of pages and supplies a shrinker interface
+> that allows entire pages to be reclaimed. =C2=A0The second is
+> a shim to xvMalloc which is more space-efficient but
+> less receptive to page reclamation. =C2=A0The first is used
+> for ephemeral pools and the second for persistent pools.
+> All ephemeral pools share the same memory, that is, even
+> pages from different pools can share the same page.
+>
+> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Signed-off-by: Nitin Gupta <ngupta@vflare.org>
 
-Acked-by: Hugh Dickins <hughd@google.com>
+Hi Dan,
+First of all, thanks for endless effort.
+
+I didn't look at code entirely but it seems this series includes frontswap.
+Finally frontswap is to replace zram?
+
+If it is right, how about approaching one by one for easy review and mergin=
+g?
+I mean firstly we replace zram into frontswap and tmem and then zcache.
+Regardless of my suggestion, I will look at the this series in my spare tim=
+e.
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
