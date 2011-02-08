@@ -1,236 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 196948D0039
-	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 21:02:01 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id B33823EE0B3
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:01:58 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 99F5145DE6B
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:01:58 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F7D145DE67
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:01:58 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D71B1DB803E
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:01:58 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D7901DB803B
-	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 11:01:58 +0900 (JST)
-Date: Tue, 8 Feb 2011 10:55:53 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C799A8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 21:13:32 -0500 (EST)
+Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
+	by smtp-out.google.com with ESMTP id p182DSPW008090
+	for <linux-mm@kvack.org>; Mon, 7 Feb 2011 18:13:29 -0800
+Received: from pwj9 (pwj9.prod.google.com [10.241.219.73])
+	by kpbe11.cbf.corp.google.com with ESMTP id p182DNDA012768
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 7 Feb 2011 18:13:27 -0800
+Received: by pwj9 with SMTP id 9so1638815pwj.7
+        for <linux-mm@kvack.org>; Mon, 07 Feb 2011 18:13:27 -0800 (PST)
+Date: Mon, 7 Feb 2011 18:13:22 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [patch] memcg: add oom killer delay
-Message-Id: <20110208105553.76cfe424.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20110208105553.76cfe424.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1102071808280.16931@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com> <20110208105553.76cfe424.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
 
-On Mon, 7 Feb 2011 16:24:08 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+On Tue, 8 Feb 2011, KAMEZAWA Hiroyuki wrote:
 
-> Completely disabling the oom killer for a memcg is problematic if
-> userspace is unable to address the condition itself, usually because it
-> is unresponsive.  This scenario creates a memcg deadlock: tasks are
-> sitting in TASK_KILLABLE waiting for the limit to be increased, a task to
-> exit or move, or the oom killer reenabled and userspace is unable to do
-> so.
+> > +static int mem_cgroup_oom_delay_millisecs_write(struct cgroup *cgrp,
+> > +					struct cftype *cft, u64 val)
+> > +{
+> > +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> > +	struct mem_cgroup *iter;
+> > +
+> > +	if (val > MAX_SCHEDULE_TIMEOUT)
+> > +		return -EINVAL;
+> > +
+> > +	for_each_mem_cgroup_tree(iter, memcg) {
+> > +		iter->oom_delay = msecs_to_jiffies(val);
+> > +		memcg_oom_recover(iter);
+> > +	}
+> > +	return 0;
 > 
-> An additional possible use case is to defer oom killing within a memcg
-> for a set period of time, probably to prevent unnecessary kills due to
-> temporary memory spikes, before allowing the kernel to handle the
-> condition.
+> Seems nicer and it seems you tries to update all children cgroups.
 > 
-> This patch adds an oom killer delay so that a memcg may be configured to
-> wait at least a pre-defined number of milliseconds before calling the oom
-> killer.  If the oom condition persists for this number of milliseconds,
-> the oom killer will be called the next time the memory controller
-> attempts to charge a page (and memory.oom_control is set to 0).  This
-> allows userspace to have a short period of time to respond to the
-> condition before deferring to the kernel to kill a task.
+> BTW, with above code, with following heirarchy,
 > 
-> Admins may set the oom killer delay using the new interface:
+>     A
+>    /
+>   B  
+>  /
+> C
 > 
-> 	# echo 60000 > memory.oom_delay_millisecs
+> When a user set oom_delay in order as A->B->C, A,B,C can have 'different' numbers.
+> When a user set oom_delay in order as C->B->A, A,B,C will have the same numbers.
 > 
-> This will defer oom killing to the kernel only after 60 seconds has
-> elapsed by putting the task to sleep for 60 seconds.  When setting
-> memory.oom_delay_millisecs, all pending delays have their charges retried
-> and, if necessary, the new delay is then enforced.
+> This intreface seems magical, or broken.
 > 
-> The delay is cleared the first time the memcg is oom to avoid unnecessary
-> waiting when userspace is unresponsive for future oom conditions.  It may
-> be set again using the above interface to enforce a delay on the next
-> oom.
-> 
-> When a memory.oom_delay_millisecs is set for a cgroup, it is propagated
-> to all children memcg as well and is inherited when a new memcg is
-> created.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  Documentation/cgroups/memory.txt |   28 ++++++++++++++++++++++
->  mm/memcontrol.c                  |   48 ++++++++++++++++++++++++++++++++++---
->  2 files changed, 72 insertions(+), 4 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -68,6 +68,7 @@ Brief summary of control files.
->  				 (See sysctl's vm.swappiness)
->   memory.move_charge_at_immigrate # set/show controls of moving charges
->   memory.oom_control		 # set/show oom controls.
-> + memory.oom_delay_millisecs	 # set/show millisecs to wait before oom kill
->  
->  1. History
->  
-> @@ -640,6 +641,33 @@ At reading, current status of OOM is shown.
->  	under_oom	 0 or 1 (if 1, the memory cgroup is under OOM, tasks may
->  				 be stopped.)
->  
-> +It is also possible to configure an oom killer timeout to prevent the
-> +possibility that the memcg will deadlock looking for memory if userspace
-> +has disabled the oom killer with oom_control but cannot act to fix the
-> +condition itself (usually because userspace has become unresponsive).
-> +
-> +To set an oom killer timeout for a memcg, write the number of milliseconds
-> +to wait before killing a task to memory.oom_delay_millisecs:
-> +
-> +	# echo 60000 > memory.oom_delay_millisecs	# 60 seconds before kill
-> +
-> +This timeout is reset the first time the memcg is oom to prevent needlessly
-> +waiting for the next oom when userspace is truly unresponsive.  It may be
-> +set again using the above interface to defer killing a task the next time
-> +the memcg is oom.
-> +
-> +Disabling the oom killer for a memcg with memory.oom_control takes
-> +precedence over memory.oom_delay_millisecs, so it must be set to 0
-> +(default) to allow the oom kill after the delay has expired.
-> +
-> +This value is inherited from the memcg's parent on creation.  Setting
-> +a delay for a memcg sets the same delay for all children, as well.
-> +
-> +There is no delay if memory.oom_delay_millisecs is set to 0 (default).
-> +This tunable's upper bound is MAX_SCHEDULE_TIMEOUT (about 24 days on
-> +32-bit and a lifetime on 64-bit).
-> +
-> +
->  11. TODO
->  
->  1. Add support for accounting huge pages (as a separate controller)
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -239,6 +239,8 @@ struct mem_cgroup {
->  	unsigned int	swappiness;
->  	/* OOM-Killer disable */
->  	int		oom_kill_disable;
-> +	/* number of ticks to stall before calling oom killer */
-> +	int		oom_delay;
->  
->  	/* set when res.limit == memsw.limit */
->  	bool		memsw_is_minimum;
-> @@ -1541,10 +1543,11 @@ static void memcg_oom_recover(struct mem_cgroup *mem)
->  /*
->   * try to call OOM killer. returns false if we should exit memory-reclaim loop.
->   */
-> -bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
-> +static bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
->  {
->  	struct oom_wait_info owait;
->  	bool locked, need_to_kill;
-> +	long timeout = MAX_SCHEDULE_TIMEOUT;
->  
->  	owait.mem = mem;
->  	owait.wait.flags = 0;
-> @@ -1563,15 +1566,21 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
->  	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
->  	if (!locked || mem->oom_kill_disable)
->  		need_to_kill = false;
-> -	if (locked)
-> +	if (locked) {
-> +		if (mem->oom_delay) {
-> +			need_to_kill = false;
-> +			timeout = mem->oom_delay;
-> +			mem->oom_delay = 0;
-> +		}
->  		mem_cgroup_oom_notify(mem);
-> +	}
->  	mutex_unlock(&memcg_oom_mutex);
->  
->  	if (need_to_kill) {
->  		finish_wait(&memcg_oom_waitq, &owait.wait);
->  		mem_cgroup_out_of_memory(mem, mask);
->  	} else {
-> -		schedule();
-> +		schedule_timeout(timeout);
->  		finish_wait(&memcg_oom_waitq, &owait.wait);
->  	}
->  	mutex_lock(&memcg_oom_mutex);
-> @@ -1582,7 +1591,8 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
->  	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
->  		return false;
->  	/* Give chance to dying process */
-> -	schedule_timeout(1);
-> +	if (timeout == MAX_SCHEDULE_TIMEOUT)
-> +		schedule_timeout(1);
->  	return true;
->  }
->  
-> @@ -4168,6 +4178,30 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
->  	return 0;
->  }
->  
-> +static u64 mem_cgroup_oom_delay_millisecs_read(struct cgroup *cgrp,
-> +					struct cftype *cft)
-> +{
-> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-> +
-> +	return jiffies_to_msecs(memcg->oom_delay);
-> +}
-> +
-> +static int mem_cgroup_oom_delay_millisecs_write(struct cgroup *cgrp,
-> +					struct cftype *cft, u64 val)
-> +{
-> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-> +	struct mem_cgroup *iter;
-> +
-> +	if (val > MAX_SCHEDULE_TIMEOUT)
-> +		return -EINVAL;
-> +
-> +	for_each_mem_cgroup_tree(iter, memcg) {
-> +		iter->oom_delay = msecs_to_jiffies(val);
-> +		memcg_oom_recover(iter);
-> +	}
-> +	return 0;
 
-Seems nicer and it seems you tries to update all children cgroups.
+It's not really magical, it just means that if you change the delay for a 
+memcg that you do so for all of its children implicitly as well.
 
-BTW, with above code, with following heirarchy,
+An alternative would be to ensure that a child memcg may never have a 
+delay greater than the delay of its parent.  Would you prefer that 
+instead?
 
-    A
-   /
-  B  
- /
-C
+> So, my recomendation is 'just allow to set value a cgroup which has no children/parent'.
+> Or 'just allo to se value a cgroup which is a root of a hierarchy'.
+> Could you add a check ? Inheritance at mkdir() is okay to me.
+> 
 
-When a user set oom_delay in order as A->B->C, A,B,C can have 'different' numbers.
-When a user set oom_delay in order as C->B->A, A,B,C will have the same numbers.
-
-This intreface seems magical, or broken.
-
-So, my recomendation is 'just allow to set value a cgroup which has no children/parent'.
-Or 'just allo to se value a cgroup which is a root of a hierarchy'.
-Could you add a check ? Inheritance at mkdir() is okay to me.
-
-Thanks,
--Kame
-
+I'm trying to get away from this only because it doesn't seem very logical 
+that creating a child memcg within a parent means that the parent is now 
+locked out of setting memory.oom_delay_millisecs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
