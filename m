@@ -1,41 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D11618D0039
-	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 20:33:28 -0500 (EST)
-Date: Mon, 7 Feb 2011 17:28:06 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Add hook of freepage
-Message-Id: <20110207172806.dbca2cae.akpm@linux-foundation.org>
-In-Reply-To: <1297071421.25994.58.camel@tucsk.pomaz.szeredi.hu>
-References: <1297004934-4605-1-git-send-email-minchan.kim@gmail.com>
-	<1297071421.25994.58.camel@tucsk.pomaz.szeredi.hu>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 11AB68D0039
+	for <linux-mm@kvack.org>; Mon,  7 Feb 2011 20:51:28 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AE1583EE0C0
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 10:51:21 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9318B45DE52
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 10:51:21 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F15C45DE4F
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 10:51:21 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6340AEF8002
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 10:51:21 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 30814EF8006
+	for <linux-mm@kvack.org>; Tue,  8 Feb 2011 10:51:21 +0900 (JST)
+Date: Tue, 8 Feb 2011 10:45:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] mlock: fix race when munlocking pages in
+ do_wp_page()
+Message-Id: <20110208104505.a737d179.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1297126056-14322-2-git-send-email-walken@google.com>
+References: <1297126056-14322-1-git-send-email-walken@google.com>
+	<1297126056-14322-2-git-send-email-walken@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miklos Szeredi <mszeredi@suse.cz>
-Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
 
-On Mon, 07 Feb 2011 10:37:01 +0100
-Miklos Szeredi <mszeredi@suse.cz> wrote:
+On Mon,  7 Feb 2011 16:47:35 -0800
+Michel Lespinasse <walken@google.com> wrote:
 
-> On Mon, 2011-02-07 at 00:08 +0900, Minchan Kim wrote:
-> > Recently, "Call the filesystem back whenever a page is removed from
-> > the page cache(6072d13c)" added new freepage hook in page cache
-> > drop function.
-> > 
-> > So, replace_page_cache_page should call freepage to support
-> > page cleanup to fs.
+> vmscan can lazily find pages that are mapped within VM_LOCKED vmas,
+> and set the PageMlocked bit on these pages, transfering them onto the
+> unevictable list. When do_wp_page() breaks COW within a VM_LOCKED vma,
+> it may need to clear PageMlocked on the old page and set it on the
+> new page instead.
 > 
-> Thanks Minchan for fixing this.
+> This change fixes an issue where do_wp_page() was clearing PageMlocked on
+> the old page while the pte was still pointing to it (as well as rmap).
+> Therefore, we were not protected against vmscan immediately trasnfering
+> the old page back onto the unevictable list. This could cause pages to
+> get stranded there forever.
+> 
+> I propose to move the corresponding code to the end of do_wp_page(),
+> after the pte (and rmap) have been pointed to the new page. Additionally,
+> we can use munlock_vma_page() instead of clear_page_mlock(), so that
+> the old page stays mlocked if there are still other VM_LOCKED vmas
+> mapping it.
+> 
+> Signed-off-by: Michel Lespinasse <walken@google.com>
 
-What's happening with mm-add-replace_page_cache_page-function.patch,
-btw?  When last discussed nearly three weeks ago we had identified:
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-1) remove radix_tree_preload
-2) single radix_tree_lookup_slot and replace radix tree slot
-3) page accounting optimization if both pages are in same zone.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
