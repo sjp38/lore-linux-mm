@@ -1,63 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B2E828D0039
-	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 11:40:56 -0500 (EST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id EF09C8D0039
+	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 11:47:25 -0500 (EST)
+Date: Wed, 9 Feb 2011 16:46:56 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [patch] vmscan: fix zone shrinking exit when scan work is done
+Message-ID: <20110209164656.GA1063@csn.ul.ie>
+References: <20110209154606.GJ27110@cmpxchg.org>
 MIME-Version: 1.0
-Message-ID: <5c529b08-cf36-43c7-b368-f3f602faf358@default>
-Date: Wed, 9 Feb 2011 08:39:37 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH V2 2/3] drivers/staging: zcache: host services and PAM
- services
-References: <AANLkTi=CEXiOdqPZgQZmQwatHqZ_nsnmnVhwpdt=7q3f@mail.gmail.com>
- <0d1aa13e-be1f-4e21-adf2-f0162c67ede3@default
- AANLkTimm8o6FnDon=eMTepDaoViU9tjteAYE9kmJhMsx@mail.gmail.com>
-In-Reply-To: <AANLkTimm8o6FnDon=eMTepDaoViU9tjteAYE9kmJhMsx@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110209154606.GJ27110@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: gregkh@suse.de, Chris Mason <chris.mason@oracle.com>, akpm@linux-foundation.org, torvalds@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, riel@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, kosaki.motohiro@jp.fujitsu.com, sfr@canb.auug.org.au, wfg@mail.ustc.edu.cn, tytso@mit.edu, viro@zeniv.linux.org.uk, hughd@google.com, hannes@cmpxchg.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Kent Overstreet <kent.overstreet@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Wed, Feb 09, 2011 at 04:46:06PM +0100, Johannes Weiner wrote:
+> Hi,
+> 
+> I think this should fix the problem of processes getting stuck in
+> reclaim that has been reported several times.
 
+I don't think it's the only source but I'm basing this on seeing
+constant looping in balance_pgdat() and calling congestion_wait() a few
+weeks ago that I haven't rechecked since. However, this looks like a
+real fix for a real problem.
 
-> From: Minchan Kim [mailto:minchan.kim@gmail.com]
+> Kent actually
+> single-stepped through this code and noted that it was never exiting
+> shrink_zone(), which really narrowed it down a lot, considering the
+> tons of nested loops from the allocator down to the list shrinking.
+> 
+> 	Hannes
+> 
+> ---
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: vmscan: fix zone shrinking exit when scan work is done
+> 
+> '3e7d344 mm: vmscan: reclaim order-0 and use compaction instead of
+> lumpy reclaim' introduced an indefinite loop in shrink_zone().
+> 
+> It meant to break out of this loop when no pages had been reclaimed
+> and not a single page was even scanned.  The way it would detect the
+> latter is by taking a snapshot of sc->nr_scanned at the beginning of
+> the function and comparing it against the new sc->nr_scanned after the
+> scan loop.  But it would re-iterate without updating that snapshot,
+> looping forever if sc->nr_scanned changed at least once since
+> shrink_zone() was invoked.
+> 
+> This is not the sole condition that would exit that loop, but it
+> requires other processes to change the zone state, as the reclaimer
+> that is stuck obviously can not anymore.
+> 
+> This is only happening for higher-order allocations, where reclaim is
+> run back to back with compaction.
+> 
+> Reported-by: Michal Hocko <mhocko@suse.cz>
+> Reported-by: Kent Overstreet <kent.overstreet@gmail.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-> As I read your comment, I can't find the benefit of zram compared to
-> frontswap.
+Well spotted.
 
-Well, I am biased, but I agree that frontswap is a better technical
-solution than zram. ;-)  But "dynamic-ity" is very important to
-me and may be less important to others.
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-I thought of these other differences, both technical and
-non-technical:
-
-- Zram is minimally invasive to the swap subsystem, requiring only
-  one hook which is already upstream (though see below) and is
-  apparently already used by some Linux users.  Frontswap is somewhat
-  more invasive and, UNTIL zcache-was-kztmem was posted a few weeks
-  ago, had no non-Xen users (though some distros are already shipping
-  the hooks in their kernels because Xen supports it); as a result,
-  frontswap has gotten almost no review by kernel swap subsystem
-  experts who I'm guessing weren't interested in anything that
-  required Xen to use... hopefully that barrier is now resolved
-  (but bottom line is frontswap is not yet upstream).
-
-- Zram has one-byte of overhead per page in every explicitly configured
-  zram swap, the same as any real swap device.  Frontswap has one-BIT
-  of overhead per page for every configured (real) swap device.
-
-- Frontswap requires several hooks scattered through the swap subsystem:
-  a) init, put, get, flush, and destroy
-  b) a bit-per-page map to record whether a swapped page is in
-     frontswap or on the real device
-  c) a "partial swapoff" to suck stale pages out of frontswap
-  Zram's one flush hook is upstream, though IMHO to be fully functional
-  in the real world, it needs some form of (c) also.
-
-Thanks,
-Dan
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
