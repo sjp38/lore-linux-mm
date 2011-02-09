@@ -1,35 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 920918D003A
-	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 02:52:51 -0500 (EST)
-Date: Wed, 9 Feb 2011 16:51:31 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH][BUGFIX] memcg: fix leak of accounting at failure path
- of hugepage collapsing.
-Message-Id: <20110209165131.a801feb5.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20110209162324.ea7e2e52.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B6C78D003A
+	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 04:51:30 -0500 (EST)
+Date: Wed, 9 Feb 2011 10:51:22 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH][BUGFIX] memcg: fix leak of accounting at failure path of
+ hugepage collapsing.
+Message-ID: <20110209095122.GG27110@cmpxchg.org>
 References: <20110209151036.f24a36a6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110209162324.ea7e2e52.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20110209162324.ea7e2e52.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110209162324.ea7e2e52.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
-On Wed, 9 Feb 2011 16:23:24 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
+On Wed, Feb 09, 2011 at 04:23:24PM +0900, KAMEZAWA Hiroyuki wrote:
 > There was a big bug. Anyway, thank you for adding new bad_page for memcg.
-I hope this is the last time we'd see the bad_page for memcg ;)
 
-> ==
-> 
+That check is really awesome :-)
+
 > mem_cgroup_uncharge_page() should be called in all failure case
 > after mem_cgroup_charge_newpage() is called in 
 > huge_memory.c::collapse_huge_page()
-> 
+>
 >  [ 4209.076861] BUG: Bad page state in process khugepaged  pfn:1e9800
 >  [ 4209.077601] page:ffffea0006b14000 count:0 mapcount:0 mapping:          (null) index:0x2800
 >  [ 4209.078674] page flags: 0x40000000004000(head)
@@ -56,10 +53,9 @@ I hope this is the last time we'd see the bad_page for memcg ;)
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Thanks,
-Daisuke Nishimura.
+Thanks for debugging this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
