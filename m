@@ -1,34 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CD438D0039
-	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 11:51:54 -0500 (EST)
-Date: Wed, 9 Feb 2011 08:51:23 -0800
-From: Greg KH <gregkh@suse.de>
-Subject: Re: [RFC][PATCH v2] Controlling kexec behaviour when hardware
- error happened.
-Message-ID: <20110209165123.GA30346@suse.de>
-References: <5C4C569E8A4B9B42A84A977CF070A35B2C1494DBE0@USINDEVS01.corp.hds.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C6A28D0039
+	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 11:58:42 -0500 (EST)
 MIME-Version: 1.0
+Message-ID: <d21f1970-225e-4f5a-9e72-97991bd1a2c0@default>
+Date: Wed, 9 Feb 2011 08:55:50 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V1 1/3] drivers/staging: kztmem: in-kernel tmem code
+References: <20110118171950.GA20460@ca-server1.us.oracle.com
+ 20110207160253.GA18151@dumpdata.com>
+In-Reply-To: <20110207160253.GA18151@dumpdata.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5C4C569E8A4B9B42A84A977CF070A35B2C1494DBE0@USINDEVS01.corp.hds.com>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seiji Aguchi <seiji.aguchi@hds.com>
-Cc: "hpa@zytor.com" <hpa@zytor.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "ebiederm@xmission.com" <ebiederm@xmission.com>, "bp@alien8.de" <bp@alien8.de>, "seto.hidetoshi@jp.fujitsu.com" <seto.hidetoshi@jp.fujitsu.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, "amwang@redhat.com" <amwang@redhat.com>, Satoru Moriya <satoru.moriya@hds.com>
+To: Konrad Wilk <konrad.wilk@oracle.com>
+Cc: gregkh@suse.de, Chris Mason <chris.mason@oracle.com>, akpm@linux-foundation.org, torvalds@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, riel@redhat.com, mel@csn.ul.ie, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, sfr@canb.auug.org.au, wfg@mail.ustc.edu.cn, tytso@mit.edu, viro@ZenIV.linux.org.uk, hughd@google.com, hannes@cmpxchg.org
 
-On Wed, Feb 09, 2011 at 11:35:43AM -0500, Seiji Aguchi wrote:
-> --- a/include/linux/sysctl.h
-> +++ b/include/linux/sysctl.h
-> @@ -153,6 +153,7 @@ enum
->  	KERN_MAX_LOCK_DEPTH=74, /* int: rtmutex's maximum lock depth */
->  	KERN_NMI_WATCHDOG=75, /* int: enable/disable nmi watchdog */
->  	KERN_PANIC_ON_NMI=76, /* int: whether we will panic on an unrecovered */
-> +	KERN_KEXEC_ON_HWERR=77, /* int: bevaviour of kexec for hardware error 
-> +*/
+> From: Konrad Rzeszutek Wilk
+> Subject: Re: [PATCH V1 1/3] drivers/staging: kztmem: in-kernel tmem
+> code
+>=20
+> On Tue, Jan 18, 2011 at 09:19:50AM -0800, Dan Magenheimer wrote:
+> > [PATCH V1 1/3] drivers/staging: kztmem: in-kernel tmem code
+>=20
+> Hey Dan,
+>=20
+> I never finished this review, but sending my fragmented comments
+> in case the one you posted has overlap.
 
-Odd trailing comment on the next line.
+Thanks Konrad for the thorough review!  I'll fix the nits at the
+next version of zcache but will assume (unless you feel otherwise)
+that none of these is a showstopper for zcache to be accepted as
+a staging driver.
 
+To answer your one question:
+
+> persistent and ephemeral pages can both be in PAM space?
+
+Yes, persistent vs ephemeral is an attribute of the
+"struct tmem_pool" and a pointer to the pool is passed
+to all PAM callbacks.
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
