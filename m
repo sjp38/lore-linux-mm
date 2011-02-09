@@ -1,51 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 25A2F8D0039
-	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 15:00:40 -0500 (EST)
-Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
-	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p19Jexru027998
-	for <linux-mm@kvack.org>; Wed, 9 Feb 2011 14:41:06 -0500
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 113BD728059
-	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 15:00:38 -0500 (EST)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p19K0bI5435596
-	for <linux-mm@kvack.org>; Wed, 9 Feb 2011 15:00:37 -0500
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p19K0aoO016209
-	for <linux-mm@kvack.org>; Wed, 9 Feb 2011 13:00:36 -0700
-Date: Wed, 9 Feb 2011 12:00:35 -0800
-From: "Darrick J. Wong" <djwong@us.ibm.com>
-Subject: [LSF/MM TOPIC] Utilizing T10/DIF in Filesystems
-Message-ID: <20110209200035.GG27190@tux1.beaverton.ibm.com>
-Reply-To: djwong@us.ibm.com
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id E31EF8D0039
+	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 15:06:28 -0500 (EST)
+Date: Wed, 9 Feb 2011 12:05:50 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] vmscan: fix zone shrinking exit when scan work is done
+Message-Id: <20110209120550.2bd18590.akpm@linux-foundation.org>
+In-Reply-To: <20110209182846.GN3347@random.random>
+References: <20110209154606.GJ27110@cmpxchg.org>
+	<20110209164656.GA1063@csn.ul.ie>
+	<20110209182846.GN3347@random.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Kent Overstreet <kent.overstreet@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-I would like to talk about the status and future direction of T10/DIF support
-in the kernel.  Here's something resembling an abstract:
+On Wed, 9 Feb 2011 19:28:46 +0100
+Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-Utilizing T10/DIF in Filesystems
+> On Wed, Feb 09, 2011 at 04:46:56PM +0000, Mel Gorman wrote:
+> > On Wed, Feb 09, 2011 at 04:46:06PM +0100, Johannes Weiner wrote:
+> > > Hi,
+> > > 
+> > > I think this should fix the problem of processes getting stuck in
+> > > reclaim that has been reported several times.
+> > 
+> > I don't think it's the only source but I'm basing this on seeing
+> > constant looping in balance_pgdat() and calling congestion_wait() a few
+> > weeks ago that I haven't rechecked since. However, this looks like a
+> > real fix for a real problem.
+> 
+> Agreed. Just yesterday I spent some time on the lumpy compaction
+> changes after wondering about Michal's khugepaged 100% report, and I
+> expected some fix was needed in this area (as I couldn't find any bug
+> in khugepaged yet, so the lumpy compaction looked the next candidate
+> for bugs).
+> 
+> I've also been wondering about the !nr_scanned check in
+> should_continue_reclaim too but I didn't look too much into the caller
+> (I was tempted to remove it all together). I don't see how checking
+> nr_scanned can be safe even after we fix the caller to avoid passing
+> non-zero values if "goto restart".
+> 
+> nr_scanned is incremented even for !page_evictable... so it's not
+> really useful to insist, just because we scanned something, in my
+> view. It looks bogus... So my proposal would be below.
+> 
+> ====
+> Subject: mm: stop checking nr_scanned in should_continue_reclaim
+> 
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> 
+> nr_scanned is incremented even for !page_evictable... so it's not
+> really useful to insist, just because we scanned something.
 
-For quite some time, we've been discussing the inclusion of T10/DIF
-functionality into the kernel to associate a small amount of checksum/integrity
-data with each sector.  Now that actual hardware is appearing on the market, it
-is time to take another look at what we can do with this feature.
+So if reclaim has scanned 100% !page_evictable pages,
+should_continue_reclaim() can return true and we keep on scanning?
 
-We'd like to discuss at least a few specific topics:
+That sounds like it's both good and bad :( Is this actually a problem? 
+What sort of behaviour could it cause and under what circumstances?
 
-1. How to resolve the write-after-checksum problem (if we haven't fixed it by then).
-2. How do we expose a API that enables userspace to read and write  application
-   tags that go with a file's data blocks?
-3. How could we make use of the application tag for metadata blocks?
-4. A 16-bit application tag is rather small.  What could we do with DIF if that
-   tag were bigger, and how could we make that happen?
-
---D
+Johannes's patch is an obvious bugfix and I'll run with it for now, but
+please let's have a further think abut the impact of the
+!page_evictable pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
