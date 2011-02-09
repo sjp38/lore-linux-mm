@@ -1,72 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id EF09C8D0039
-	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 11:47:25 -0500 (EST)
-Date: Wed, 9 Feb 2011 16:46:56 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [patch] vmscan: fix zone shrinking exit when scan work is done
-Message-ID: <20110209164656.GA1063@csn.ul.ie>
-References: <20110209154606.GJ27110@cmpxchg.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CD438D0039
+	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 11:51:54 -0500 (EST)
+Date: Wed, 9 Feb 2011 08:51:23 -0800
+From: Greg KH <gregkh@suse.de>
+Subject: Re: [RFC][PATCH v2] Controlling kexec behaviour when hardware
+ error happened.
+Message-ID: <20110209165123.GA30346@suse.de>
+References: <5C4C569E8A4B9B42A84A977CF070A35B2C1494DBE0@USINDEVS01.corp.hds.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110209154606.GJ27110@cmpxchg.org>
+In-Reply-To: <5C4C569E8A4B9B42A84A977CF070A35B2C1494DBE0@USINDEVS01.corp.hds.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Kent Overstreet <kent.overstreet@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Seiji Aguchi <seiji.aguchi@hds.com>
+Cc: "hpa@zytor.com" <hpa@zytor.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "ebiederm@xmission.com" <ebiederm@xmission.com>, "bp@alien8.de" <bp@alien8.de>, "seto.hidetoshi@jp.fujitsu.com" <seto.hidetoshi@jp.fujitsu.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, "amwang@redhat.com" <amwang@redhat.com>, Satoru Moriya <satoru.moriya@hds.com>
 
-On Wed, Feb 09, 2011 at 04:46:06PM +0100, Johannes Weiner wrote:
-> Hi,
-> 
-> I think this should fix the problem of processes getting stuck in
-> reclaim that has been reported several times.
+On Wed, Feb 09, 2011 at 11:35:43AM -0500, Seiji Aguchi wrote:
+> --- a/include/linux/sysctl.h
+> +++ b/include/linux/sysctl.h
+> @@ -153,6 +153,7 @@ enum
+>  	KERN_MAX_LOCK_DEPTH=74, /* int: rtmutex's maximum lock depth */
+>  	KERN_NMI_WATCHDOG=75, /* int: enable/disable nmi watchdog */
+>  	KERN_PANIC_ON_NMI=76, /* int: whether we will panic on an unrecovered */
+> +	KERN_KEXEC_ON_HWERR=77, /* int: bevaviour of kexec for hardware error 
+> +*/
 
-I don't think it's the only source but I'm basing this on seeing
-constant looping in balance_pgdat() and calling congestion_wait() a few
-weeks ago that I haven't rechecked since. However, this looks like a
-real fix for a real problem.
+Odd trailing comment on the next line.
 
-> Kent actually
-> single-stepped through this code and noted that it was never exiting
-> shrink_zone(), which really narrowed it down a lot, considering the
-> tons of nested loops from the allocator down to the list shrinking.
-> 
-> 	Hannes
-> 
-> ---
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: vmscan: fix zone shrinking exit when scan work is done
-> 
-> '3e7d344 mm: vmscan: reclaim order-0 and use compaction instead of
-> lumpy reclaim' introduced an indefinite loop in shrink_zone().
-> 
-> It meant to break out of this loop when no pages had been reclaimed
-> and not a single page was even scanned.  The way it would detect the
-> latter is by taking a snapshot of sc->nr_scanned at the beginning of
-> the function and comparing it against the new sc->nr_scanned after the
-> scan loop.  But it would re-iterate without updating that snapshot,
-> looping forever if sc->nr_scanned changed at least once since
-> shrink_zone() was invoked.
-> 
-> This is not the sole condition that would exit that loop, but it
-> requires other processes to change the zone state, as the reclaimer
-> that is stuck obviously can not anymore.
-> 
-> This is only happening for higher-order allocations, where reclaim is
-> run back to back with compaction.
-> 
-> Reported-by: Michal Hocko <mhocko@suse.cz>
-> Reported-by: Kent Overstreet <kent.overstreet@gmail.com>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-
-Well spotted.
-
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
