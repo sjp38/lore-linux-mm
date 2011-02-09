@@ -1,82 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AF0078D0039
-	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 18:46:42 -0500 (EST)
-Received: by iwc10 with SMTP id 10so704537iwc.14
-        for <linux-mm@kvack.org>; Wed, 09 Feb 2011 15:46:40 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <4D52D091.1000504@vflare.org>
-References: <AANLkTi=CEXiOdqPZgQZmQwatHqZ_nsnmnVhwpdt=7q3f@mail.gmail.com>
-	<5c529b08-cf36-43c7-b368-f3f602faf358@default>
-	<4D52D091.1000504@vflare.org>
-Date: Thu, 10 Feb 2011 08:46:40 +0900
-Message-ID: <AANLkTimuivx6kroZ0v0J8GZQmBngHHDTfztGamnp2UJk@mail.gmail.com>
-Subject: Re: [PATCH V2 2/3] drivers/staging: zcache: host services and PAM services
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 15B568D0039
+	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 18:49:19 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4A6223EE0BD
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:49:16 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 32AA645DD74
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:49:16 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 119C145DE4D
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:49:16 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 026261DB8038
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:49:16 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C34A91DB803A
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:49:15 +0900 (JST)
+Date: Thu, 10 Feb 2011 08:42:58 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch] memcg: charged pages always have valid per-memcg zone
+ info
+Message-Id: <20110210084258.55e158fe.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1297248275-23521-1-git-send-email-hannes@cmpxchg.org>
+References: <1297248275-23521-1-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, gregkh@suse.de, Chris Mason <chris.mason@oracle.com>, akpm@linux-foundation.org, torvalds@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, riel@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, kosaki.motohiro@jp.fujitsu.com, sfr@canb.auug.org.au, wfg@mail.ustc.edu.cn, tytso@mit.edu, viro@zeniv.linux.org.uk, hughd@google.com, hannes@cmpxchg.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Nitin,
+On Wed,  9 Feb 2011 11:44:35 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-Sorry for late response.
+> page_cgroup_zoneinfo() will never return NULL for a charged page,
+> remove the check for it in mem_cgroup_get_reclaim_stat_from_page().
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-On Thu, Feb 10, 2011 at 2:36 AM, Nitin Gupta <ngupta@vflare.org> wrote:
-> On 02/09/2011 11:39 AM, Dan Magenheimer wrote:
->>
->>
->>> From: Minchan Kim [mailto:minchan.kim@gmail.com]
->>
->>> As I read your comment, I can't find the benefit of zram compared to
->>> frontswap.
->>
->> Well, I am biased, but I agree that frontswap is a better technical
->> solution than zram. ;-) =C2=A0But "dynamic-ity" is very important to
->> me and may be less important to others.
->>
->
->
-> I agree that frontswap is better than zram when considering swap as the u=
-se
-> case - no bio overhead, dynamic resizing. However, zram being a *generic*
-> block-device has some unique cases too like hosting files on /tmp, variou=
-s
-> caches under /var or any place where a compressed in-memory block device =
-can
-> help.
+IIUC, this _was_ required when force_empty() had troubles.
+But now, not required.
 
-Yes. I mentioned that benefit but I am not sure the reason is enough.
-What I had in mind long time ago is that zram's functionality into brd.
-So someone who want to compress contents could use it with some mount
-option to enable compression.
-By such way, many ramdisk user can turn it on easily.
-If many user begin using the brd, we can see many report about
-performance then solve brd performance s as well as zcache world-wide
-usage.
-
-Hmm,  the idea is too late?
-
->
-> So, frontswap and zram have overlapping use case of swap but are not the
-> same.
-
-If we can insert zram's functionality into brd, maybe there is no
-reason to coexist.
-
-
->
-> Thanks,
-> Nitin
->
-
-
-
---=20
-Kind regards,
-Minchan Kim
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
