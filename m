@@ -1,159 +1,232 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AA858D0039
-	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 16:49:55 -0500 (EST)
-Date: Wed, 9 Feb 2011 13:47:54 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: batch-free pcp list if possible
-Message-Id: <20110209134754.d28f018c.akpm@linux-foundation.org>
-In-Reply-To: <20110209213338.GK27110@cmpxchg.org>
-References: <1297257677-12287-1-git-send-email-namhyung@gmail.com>
-	<20110209123803.4bb6291c.akpm@linux-foundation.org>
-	<20110209213338.GK27110@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 431868D0039
+	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 17:20:04 -0500 (EST)
+Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
+	by smtp-out.google.com with ESMTP id p19MK0mD000372
+	for <linux-mm@kvack.org>; Wed, 9 Feb 2011 14:20:00 -0800
+Received: from pxi9 (pxi9.prod.google.com [10.243.27.9])
+	by kpbe15.cbf.corp.google.com with ESMTP id p19MJbGv023208
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 9 Feb 2011 14:19:57 -0800
+Received: by pxi9 with SMTP id 9so115734pxi.9
+        for <linux-mm@kvack.org>; Wed, 09 Feb 2011 14:19:55 -0800 (PST)
+Date: Wed, 9 Feb 2011 14:19:50 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] memcg: add oom killer delay
+In-Reply-To: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1102091417410.5697@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Namhyung Kim <namhyung@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
 
-On Wed, 9 Feb 2011 22:33:38 +0100
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+Completely disabling the oom killer for a memcg is problematic if
+userspace is unable to address the condition itself, usually because it
+is unresponsive.  This scenario creates a memcg deadlock: tasks are
+sitting in TASK_KILLABLE waiting for the limit to be increased, a task to
+exit or move, or the oom killer reenabled and userspace is unable to do
+so.
 
-> On Wed, Feb 09, 2011 at 12:38:03PM -0800, Andrew Morton wrote:
-> > On Wed,  9 Feb 2011 22:21:17 +0900
-> > Namhyung Kim <namhyung@gmail.com> wrote:
-> > 
-> > > free_pcppages_bulk() frees pages from pcp lists in a round-robin
-> > > fashion by keeping batch_free counter. But it doesn't need to spin
-> > > if there is only one non-empty list. This can be checked by
-> > > batch_free == MIGRATE_PCPTYPES.
-> > > 
-> > > Signed-off-by: Namhyung Kim <namhyung@gmail.com>
-> > > ---
-> > >  mm/page_alloc.c |    4 ++++
-> > >  1 files changed, 4 insertions(+), 0 deletions(-)
-> > > 
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > index a873e61e312e..470fb42e303c 100644
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -614,6 +614,10 @@ static void free_pcppages_bulk(struct zone *zone, int count,
-> > >  			list = &pcp->lists[migratetype];
-> > >  		} while (list_empty(list));
-> > >  
-> > > +		/* This is an only non-empty list. Free them all. */
-> > > +		if (batch_free == MIGRATE_PCPTYPES)
-> > > +			batch_free = to_free;
-> > > +
-> > >  		do {
-> > >  			page = list_entry(list->prev, struct page, lru);
-> > >  			/* must delete as __free_one_page list manipulates */
-> > 
-> > free_pcppages_bulk() hurts my brain.
-> 
-> Thanks for saying that ;-)
+An additional possible use case is to defer oom killing within a memcg
+for a set period of time, probably to prevent unnecessary kills due to
+temporary memory spikes, before allowing the kernel to handle the
+condition.
 
-My brain has a lot of scar tissue.
+This patch adds an oom killer delay so that a memcg may be configured to
+wait at least a pre-defined number of milliseconds before calling the oom
+killer.  If the oom condition persists for this number of milliseconds,
+the oom killer will be called the next time the memory controller
+attempts to charge a page (and memory.oom_control is set to 0).  This
+allows userspace to have a short period of time to respond to the
+condition before deferring to the kernel to kill a task.
 
-> > What is it actually trying to do, and why?  It counts up the number of
-> > contiguous empty lists and then frees that number of pages from the
-> > first-encountered non-empty list and then advances onto the next list?
-> > 
-> > What's the point in that?  What relationship does the number of
-> > contiguous empty lists have with the number of pages to free from one
-> > list?
-> 
-> It at least recovers some of the otherwise wasted effort of looking at
-> an empty list, by flushing more pages once it encounters a non-empty
-> list.  After all, freeing to_free pages is the goal.
-> 
-> That breaks the round-robin fashion, though.  If list-1 has pages,
-> list-2 is empty and list-3 has pages, it will repeatedly free one page
-> from list-1 and two pages from list-3.
-> 
-> My initial response to Namhyung's patch was to write up a version that
-> used a bitmap for all lists.  It starts with all lists set and clears
-> their respective bit once the list is empty, so it would never
-> consider them again.  But it looked a bit over-engineered for 3 lists
-> and the resulting object code was bigger than what we have now.
-> Though, it would be more readable.  Attached for reference (untested
-> and all).
-> 
-> 	Hannes
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 60e58b0..c77ab28 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -590,8 +590,7 @@ static inline int free_pages_check(struct page *page)
->  static void free_pcppages_bulk(struct zone *zone, int count,
->  					struct per_cpu_pages *pcp)
->  {
-> -	int migratetype = 0;
-> -	int batch_free = 0;
-> +	unsigned long listmap = (1 << MIGRATE_PCPTYPES) - 1;
->  	int to_free = count;
->  
->  	spin_lock(&zone->lock);
-> @@ -599,31 +598,29 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->  	zone->pages_scanned = 0;
->  
->  	while (to_free) {
-> -		struct page *page;
-> -		struct list_head *list;
-> -
-> +		int migratetype;
->  		/*
-> -		 * Remove pages from lists in a round-robin fashion. A
-> -		 * batch_free count is maintained that is incremented when an
-> -		 * empty list is encountered.  This is so more pages are freed
-> -		 * off fuller lists instead of spinning excessively around empty
-> -		 * lists
-> +		 * Remove pages from lists in a round-robin fashion.
-> +		 * Empty lists are excluded from subsequent rounds.
->  		 */
-> -		do {
-> -			batch_free++;
-> -			if (++migratetype == MIGRATE_PCPTYPES)
-> -				migratetype = 0;
-> -			list = &pcp->lists[migratetype];
-> -		} while (list_empty(list));
-> +		for_each_set_bit (migratetype, &listmap, MIGRATE_PCPTYPES) {
-> +			struct list_head *list;
-> +			struct page *page;
->  
-> -		do {
-> +			list = &pcp->lists[migratetype];
-> +			if (list_empty(list)) {
-> +				listmap &= ~(1 << migratetype);
-> +				continue;
-> +			}
-> +			if (!to_free--)
-> +				break;
->  			page = list_entry(list->prev, struct page, lru);
->  			/* must delete as __free_one_page list manipulates */
->  			list_del(&page->lru);
->  			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
->  			__free_one_page(page, zone, 0, page_private(page));
->  			trace_mm_page_pcpu_drain(page, 0, page_private(page));
-> -		} while (--to_free && --batch_free && !list_empty(list));
-> +		}
->  	}
->  	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
->  	spin_unlock(&zone->lock);
+Admins may set the oom killer delay using the new interface:
 
-Well, it replaces one linear search with another one.  If you really
-want to avoid repeated walking over empty lists then create a local
-array `list_head *lists[MIGRATE_PCPTYPES]' (or MIGRATE_PCPTYPES+1 for
-null-termination), populate it on entry and compact it as lists fall
-empty.  Then the code can simply walk around the lists until to_free is
-satisfied or list_empty(lists[0]).  It's not obviously worth the effort
-though - the empty list_heads will be cache-hot and all the cost will
-be in hitting cache-cold pageframes.
+	# echo 60000 > memory.oom_delay_millisecs
 
+This will defer oom killing to the kernel only after 60 seconds has
+elapsed by putting the task to sleep for 60 seconds.  When setting
+memory.oom_delay_millisecs, all pending delays have their charges retried
+and, if necessary, the new delay is then enforced.
 
+The delay is cleared the first time the memcg is oom to avoid unnecessary
+waiting when userspace is unresponsive for future oom conditions.  It may
+be set again using the above interface to enforce a delay on the next
+oom.
+
+When a memory.oom_delay_millisecs is set for a cgroup, it is propagated
+to all children memcg as well and is inherited when a new memcg is
+created.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ Documentation/cgroups/memory.txt |   32 +++++++++++++++++++++++++
+ mm/memcontrol.c                  |   48 ++++++++++++++++++++++++++++++++++---
+ 2 files changed, 76 insertions(+), 4 deletions(-)
+
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -68,6 +68,7 @@ Brief summary of control files.
+ 				 (See sysctl's vm.swappiness)
+  memory.move_charge_at_immigrate # set/show controls of moving charges
+  memory.oom_control		 # set/show oom controls.
++ memory.oom_delay_millisecs	 # set/show millisecs to wait before oom kill
+ 
+ 1. History
+ 
+@@ -640,6 +641,37 @@ At reading, current status of OOM is shown.
+ 	under_oom	 0 or 1 (if 1, the memory cgroup is under OOM, tasks may
+ 				 be stopped.)
+ 
++It is also possible to configure an oom killer timeout to prevent the
++possibility that the memcg will deadlock looking for memory if userspace
++has disabled the oom killer with oom_control but cannot act to fix the
++condition itself (usually because userspace has become unresponsive).
++
++To set an oom killer timeout for a memcg, write the number of milliseconds
++to wait before killing a task to memory.oom_delay_millisecs:
++
++	# echo 60000 > memory.oom_delay_millisecs	# 60 seconds before kill
++
++When this memcg is oom, it is guaranteed that this delay will be incurred
++before the kernel kills a task.  The task chosen may either be from this
++memcg or its child memcgs, if any.
++
++This timeout is reset the first time the memcg is oom to prevent needlessly
++waiting for the next oom when userspace is truly unresponsive.  It may be
++set again using the above interface to defer killing a task the next time
++the memcg is oom.
++
++Disabling the oom killer for a memcg with memory.oom_control takes
++precedence over memory.oom_delay_millisecs, so it must be set to 0
++(default) to allow the oom kill after the delay has expired.
++
++This value is inherited from the memcg's parent on creation.  Setting a
++delay for a memcg sets the same delay for all children, as well.
++
++There is no delay if memory.oom_delay_millisecs is set to 0 (default).
++This tunable's upper bound is MAX_SCHEDULE_TIMEOUT (about 24 days on
++32-bit and a lifetime on 64-bit).
++
++
+ 11. TODO
+ 
+ 1. Add support for accounting huge pages (as a separate controller)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -239,6 +239,8 @@ struct mem_cgroup {
+ 	unsigned int	swappiness;
+ 	/* OOM-Killer disable */
+ 	int		oom_kill_disable;
++	/* number of ticks to stall before calling oom killer */
++	int		oom_delay;
+ 
+ 	/* set when res.limit == memsw.limit */
+ 	bool		memsw_is_minimum;
+@@ -1541,10 +1543,11 @@ static void memcg_oom_recover(struct mem_cgroup *mem)
+ /*
+  * try to call OOM killer. returns false if we should exit memory-reclaim loop.
+  */
+-bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
++static bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+ {
+ 	struct oom_wait_info owait;
+ 	bool locked, need_to_kill;
++	long timeout = MAX_SCHEDULE_TIMEOUT;
+ 
+ 	owait.mem = mem;
+ 	owait.wait.flags = 0;
+@@ -1563,15 +1566,21 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+ 	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
+ 	if (!locked || mem->oom_kill_disable)
+ 		need_to_kill = false;
+-	if (locked)
++	if (locked) {
++		if (mem->oom_delay) {
++			need_to_kill = false;
++			timeout = mem->oom_delay;
++			mem->oom_delay = 0;
++		}
+ 		mem_cgroup_oom_notify(mem);
++	}
+ 	mutex_unlock(&memcg_oom_mutex);
+ 
+ 	if (need_to_kill) {
+ 		finish_wait(&memcg_oom_waitq, &owait.wait);
+ 		mem_cgroup_out_of_memory(mem, mask);
+ 	} else {
+-		schedule();
++		schedule_timeout(timeout);
+ 		finish_wait(&memcg_oom_waitq, &owait.wait);
+ 	}
+ 	mutex_lock(&memcg_oom_mutex);
+@@ -1582,7 +1591,8 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+ 	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
+ 		return false;
+ 	/* Give chance to dying process */
+-	schedule_timeout(1);
++	if (timeout == MAX_SCHEDULE_TIMEOUT)
++		schedule_timeout(1);
+ 	return true;
+ }
+ 
+@@ -4168,6 +4178,30 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
+ 	return 0;
+ }
+ 
++static u64 mem_cgroup_oom_delay_millisecs_read(struct cgroup *cgrp,
++					struct cftype *cft)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++
++	return jiffies_to_msecs(memcg->oom_delay);
++}
++
++static int mem_cgroup_oom_delay_millisecs_write(struct cgroup *cgrp,
++					struct cftype *cft, u64 val)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++	struct mem_cgroup *iter;
++
++	if (val > MAX_SCHEDULE_TIMEOUT)
++		return -EINVAL;
++
++	for_each_mem_cgroup_tree(iter, memcg) {
++		iter->oom_delay = msecs_to_jiffies(val);
++		memcg_oom_recover(iter);
++	}
++	return 0;
++}
++
+ static struct cftype mem_cgroup_files[] = {
+ 	{
+ 		.name = "usage_in_bytes",
+@@ -4231,6 +4265,11 @@ static struct cftype mem_cgroup_files[] = {
+ 		.unregister_event = mem_cgroup_oom_unregister_event,
+ 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
+ 	},
++	{
++		.name = "oom_delay_millisecs",
++		.read_u64 = mem_cgroup_oom_delay_millisecs_read,
++		.write_u64 = mem_cgroup_oom_delay_millisecs_write,
++	},
+ };
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+@@ -4469,6 +4508,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 		parent = mem_cgroup_from_cont(cont->parent);
+ 		mem->use_hierarchy = parent->use_hierarchy;
+ 		mem->oom_kill_disable = parent->oom_kill_disable;
++		mem->oom_delay = parent->oom_delay;
+ 	}
+ 
+ 	if (parent && parent->use_hierarchy) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
