@@ -1,69 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 64D248D0039
-	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 18:58:21 -0500 (EST)
-Received: by iwc10 with SMTP id 10so712252iwc.14
-        for <linux-mm@kvack.org>; Wed, 09 Feb 2011 15:58:19 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTinwZJrAWo_Fat3e6WwLn+MPdZyFVgT6sckLCUo3@mail.gmail.com>
-References: <AANLkTi=CEXiOdqPZgQZmQwatHqZ_nsnmnVhwpdt=7q3f@mail.gmail.com>
-	<AANLkTimm8o6FnDon=eMTepDaoViU9tjteAYE9kmJhMsx@mail.gmail.com>
-	<5c529b08-cf36-43c7-b368-f3f602faf358@default>
-	<AANLkTinwZJrAWo_Fat3e6WwLn+MPdZyFVgT6sckLCUo3@mail.gmail.com>
-Date: Thu, 10 Feb 2011 08:58:19 +0900
-Message-ID: <AANLkTi=XZ55feAHHfV0GbzG6dhYFj_E0TdnH8JHQe6rJ@mail.gmail.com>
-Subject: Re: [PATCH V2 2/3] drivers/staging: zcache: host services and PAM services
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C46198D0039
+	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 18:58:35 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E24493EE0B5
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:58:33 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C7E4245DE58
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:58:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B07D245DE54
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:58:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A4453E08004
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:58:33 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F604E08001
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:58:33 +0900 (JST)
+Date: Thu, 10 Feb 2011 08:52:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 2/4] memcg: convert per-cpu stock from bytes to page
+ granularity
+Message-Id: <20110210085226.6dfa6305.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1297249313-23746-3-git-send-email-hannes@cmpxchg.org>
+References: <1297249313-23746-1-git-send-email-hannes@cmpxchg.org>
+	<1297249313-23746-3-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: gregkh@suse.de, Chris Mason <chris.mason@oracle.com>, akpm@linux-foundation.org, torvalds@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, riel@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, kosaki.motohiro@jp.fujitsu.com, sfr@canb.auug.org.au, wfg@mail.ustc.edu.cn, tytso@mit.edu, viro@zeniv.linux.org.uk, hughd@google.com, hannes@cmpxchg.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Feb 10, 2011 at 8:57 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> On Thu, Feb 10, 2011 at 1:39 AM, Dan Magenheimer
-> <dan.magenheimer@oracle.com> wrote:
->>
->>
->>> From: Minchan Kim [mailto:minchan.kim@gmail.com]
->>
->>> As I read your comment, I can't find the benefit of zram compared to
->>> frontswap.
->>
->> Well, I am biased, but I agree that frontswap is a better technical
->> solution than zram. ;-) =C2=A0But "dynamic-ity" is very important to
->> me and may be less important to others.
->>
->> I thought of these other differences, both technical and
->> non-technical:
->>
->> - Zram is minimally invasive to the swap subsystem, requiring only
->> =C2=A0one hook which is already upstream (though see below) and is
->> =C2=A0apparently already used by some Linux users. =C2=A0Frontswap is so=
-mewhat
->
-> Yes. I think what someone is using it is a problem.
->
->> =C2=A0more invasive and, UNTIL zcache-was-kztmem was posted a few weeks
->> =C2=A0ago, had no non-Xen users (though some distros are already shippin=
-g
->> =C2=A0the hooks in their kernels because Xen supports it); as a result,
->> =C2=A0frontswap has gotten almost no review by kernel swap subsystem
->> =C2=A0experts who I'm guessing weren't interested in anything that
->> =C2=A0required Xen to use... hopefully that barrier is now resolved
->> =C2=A0(but bottom line is frontswap is not yet upstream).
->
-> That's why I suggested to remove frontswap in this turn.
-> If any swap experts has a interest, maybe you can't receive any ack or
+On Wed,  9 Feb 2011 12:01:51 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-Typo.
-If any swap experts don't have a interest,
+> We never keep subpage quantities in the per-cpu stock.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-
---=20
-Kind regards,
-Minchan Kim
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
