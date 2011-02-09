@@ -1,29 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 15B568D0039
-	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 18:49:19 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6486E8D0039
+	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 18:50:34 -0500 (EST)
 Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4A6223EE0BD
-	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:49:16 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 298FF3EE0BD
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:50:21 +0900 (JST)
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 32AA645DD74
-	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:49:16 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 09DAF45DE61
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:50:21 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 119C145DE4D
-	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:49:16 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E4CCF45DD74
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:50:20 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 026261DB8038
-	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:49:16 +0900 (JST)
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D67201DB803C
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:50:20 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C34A91DB803A
-	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:49:15 +0900 (JST)
-Date: Thu, 10 Feb 2011 08:42:58 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A0BE81DB8038
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:50:20 +0900 (JST)
+Date: Thu, 10 Feb 2011 08:44:11 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] memcg: charged pages always have valid per-memcg zone
- info
-Message-Id: <20110210084258.55e158fe.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1297248275-23521-1-git-send-email-hannes@cmpxchg.org>
-References: <1297248275-23521-1-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch] memcg: remove memcg->reclaim_param_lock
+Message-Id: <20110210084411.d2523c73.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1297248362-23579-1-git-send-email-hannes@cmpxchg.org>
+References: <1297248362-23579-1-git-send-email-hannes@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -32,16 +31,13 @@ List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed,  9 Feb 2011 11:44:35 +0100
+On Wed,  9 Feb 2011 11:46:02 +0100
 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> page_cgroup_zoneinfo() will never return NULL for a charged page,
-> remove the check for it in mem_cgroup_get_reclaim_stat_from_page().
+> The reclaim_param_lock is only taken around single reads and writes to
+> integer variables and is thus superfluous.  Drop it.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-
-IIUC, this _was_ required when force_empty() had troubles.
-But now, not required.
 
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
