@@ -1,49 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B8EAF8D0039
-	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:19:00 -0500 (EST)
-Received: by pxi12 with SMTP id 12so271868pxi.14
-        for <linux-mm@kvack.org>; Thu, 10 Feb 2011 05:18:58 -0800 (PST)
-Subject: Re: [RFC PATCH] mm: handle simple case in free_pcppages_bulk()
-From: Namhyung Kim <namhyung@gmail.com>
-In-Reply-To: <AANLkTikEigbPsNMqqkmixYbCfD7Dz12YMcW2+GZbhUQq@mail.gmail.com>
-References: <1297338408-3590-1-git-send-email-namhyung@gmail.com>
-	 <AANLkTikEigbPsNMqqkmixYbCfD7Dz12YMcW2+GZbhUQq@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 10 Feb 2011 22:18:49 +0900
-Message-ID: <1297343929.1449.3.camel@leonhard>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+	by kanga.kvack.org (Postfix) with SMTP id 58FF88D0039
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 08:19:53 -0500 (EST)
+Date: Thu, 10 Feb 2011 14:19:28 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/5] pagewalk: only split huge pages when necessary
+Message-ID: <20110210131928.GV3347@random.random>
+References: <20110209195406.B9F23C9F@kernel>
+ <20110209195407.2CE28EA0@kernel>
+ <20110210111125.GC17873@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110210111125.GC17873@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>
 
-2011-02-10 (ea(C)), 22:10 +0900, Minchan Kim:
-> Hello Namhyung,
-> 
+On Thu, Feb 10, 2011 at 11:11:25AM +0000, Mel Gorman wrote:
+> Before we goto this retry, there is at a cond_resched(). Just to confirm,
+> we are depending on mmap_sem to prevent khugepaged promoting this back to
+> a hugepage, right? I don't see a problem with that but I want to be
+> sure.
 
-Hi Minchan,
-
-
-> On Thu, Feb 10, 2011 at 8:46 PM, Namhyung Kim <namhyung@gmail.com> wrote:
-> > Now I'm seeing that there are some cases to free all pages in a
-> > pcp lists. In that case, just frees all pages in the lists instead
-> > of being bothered with round-robin lists traversal.
-> 
-> I though about that but I didn't send the patch.
-> That's because many cases which calls free_pcppages_bulk(,
-> pcp->count,..) are slow path so it adds comparison overhead on fast
-> path while it loses the effectiveness in slow path.
-> 
-
-Hmm.. How about adding unlikely() then? Doesn't it help much here?
-
-
--- 
-Regards,
-Namhyung Kim
-
+Correct, and we depend on that everywhere as wait_split_huge_page has
+to run without holding spinlocks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
