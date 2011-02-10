@@ -1,115 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DDAF78D0039
-	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 00:41:46 -0500 (EST)
-Received: by iyi20 with SMTP id 20so977317iyi.14
-        for <linux-mm@kvack.org>; Wed, 09 Feb 2011 21:41:45 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 839188D0039
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 03:37:50 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 86B2C3EE0BD
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 17:37:47 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A71845DE6D
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 17:37:47 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4089F45DE67
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 17:37:47 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 302881DB8038
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 17:37:47 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E02461DB8043
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 17:37:46 +0900 (JST)
+Message-ID: <4D53A3AA.5050908@jp.fujitsu.com>
+Date: Thu, 10 Feb 2011 17:36:58 +0900
+From: Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <AANLkTin4JM6phwy0wuV6fV-i-3UwP_GGmXh1vN=Wz2u=@mail.gmail.com>
-References: <20110125051003.13762.35120.stgit@localhost6.localdomain6>
-	<20110125051015.13762.13429.stgit@localhost6.localdomain6>
-	<AANLkTikHLw0Qg+odOB-bDtBSB-5UbTJ5ZOM-ZAdMqXgh@mail.gmail.com>
-	<AANLkTi=qXsDjN5Jp4m3QMgVnckoAM7uE9_Hzn6CajP+c@mail.gmail.com>
-	<AANLkTinfxXc04S9VwQcJ9thFff=cP=icroaiVLkN-GeH@mail.gmail.com>
-	<20110128064851.GB5054@balbir.in.ibm.com>
-	<AANLkTikw_j0JJVqEsj1xThoashiOARg+8BgcLKrvkV3U@mail.gmail.com>
-	<20110128111833.GD5054@balbir.in.ibm.com>
-	<AANLkTin4JM6phwy0wuV6fV-i-3UwP_GGmXh1vN=Wz2u=@mail.gmail.com>
-Date: Thu, 10 Feb 2011 14:41:44 +0900
-Message-ID: <AANLkTi=hhKJGXwe1OyFsGF9StLJnYFX+QqUpNLXmfVc=@mail.gmail.com>
-Subject: Re: [PATCH 3/3] Provide control over unmapped pages (v4)
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [RFC][PATCH v2] Controlling kexec behaviour when hardware error
+ happened.
+References: <5C4C569E8A4B9B42A84A977CF070A35B2C1494DBE0@USINDEVS01.corp.hds.com>
+In-Reply-To: <5C4C569E8A4B9B42A84A977CF070A35B2C1494DBE0@USINDEVS01.corp.hds.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Seiji Aguchi <seiji.aguchi@hds.com>
+Cc: "hpa@zytor.com" <hpa@zytor.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "ebiederm@xmission.com" <ebiederm@xmission.com>, "bp@alien8.de" <bp@alien8.de>, "gregkh@suse.de" <gregkh@suse.de>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, "amwang@redhat.com" <amwang@redhat.com>, Satoru Moriya <satoru.moriya@hds.com>
 
-I don't know why the part of message is deleted only when I send you.
-Maybe it's gmail bug.
+(2011/02/10 1:35), Seiji Aguchi wrote:
+> Hi,
+> 
+> I submitted a quite similar patch last December.
+> 
+> http://www.spinics.net/lists/linux-mm/msg13157.html
+> 
+> I retry it with different description of the purpose.
+> 
+> [Changelog]
+> from v1:
+>     - Change name of sysctl parameter ,kexec_on_mce, to kexec_on_hwerr. 
+>     - Move variable declaration from <asm/mce.h> to <kernel/panic.h>.
+>     - Remove CONFIG_X86_MCE in *.c files.
+>     - Modify [Purpose]/[Patch Description].
+> 
+> [Purpose]
+> There are some logging features of firmware/hardware, SEL,BMC, etc, in enterprise servers.
+> We investigate the firmware/hardware logs first when MCE occurred and replace the broken hardware.
+> So, memory dump is not necessary for detecting root cause of machine check.
+> Also, we can reduce down-time by skipping kdump.
+> 
+> Of course, there are a lot of servers which don't have logging features of firmware/hardware.
+> So, I proposed a option controlling kexec behaviour when hardware error occurred. 
+> 
+> [Patch Description]
+> This patch adds a sysctl option ,kernel.kexec_on_hwerr, controlling kexec behaviour when hardware error occurred.
+> 
+>  - Permission
+> 　　- 0644
+>  - Value(default is "1")
+>    - non-zero: Kexec is enabled regardless of hardware error.
+>    - 0: Kexec is disabled when MCE occurred.
+>    
+> 
+> Matrix of kernel.kexec_on_hwerr value ,hardware error and kexec
+> 
+> --------------------------------------------------
+> kernel.kexec_on_hwerr| hardware error | kexec
+> --------------------------------------------------
+> non-zero             | occurred       | enabled
+>                      -----------------------------
+>                      | not occurred   | enabled
+> --------------------------------------------------
+> 0                    | occurred       | disabled
+>                      |----------------------------
+>                      | not occurred   | enabled
+> --------------------------------------------------
+> 
+> 
+> Any comments and suggestions are welcome.
+> 
+>  Signed-off-by: Seiji Aguchi <seiji.aguchi@hds.com>
+> 
+> ---
+>  Documentation/sysctl/kernel.txt  |   11 +++++++++++
+>  arch/x86/kernel/cpu/mcheck/mce.c |    2 ++
+>  include/linux/kernel.h           |    2 ++
+>  include/linux/sysctl.h           |    1 +
+>  kernel/panic.c                   |   15 ++++++++++++++-
+>  kernel/sysctl.c                  |    8 ++++++++
+>  kernel/sysctl_binary.c           |    1 +
+>  mm/memory-failure.c              |    2 ++
+>  8 files changed, 41 insertions(+), 1 deletions(-)
+> 
+> diff --git a/Documentation/sysctl/kernel.txt b/Documentation/sysctl/kernel.txt index 11d5ced..3159111 100644
+> --- a/Documentation/sysctl/kernel.txt
+> +++ b/Documentation/sysctl/kernel.txt
+> @@ -34,6 +34,7 @@ show up in /proc/sys/kernel:
+>  - hotplug
+>  - java-appletviewer           [ binfmt_java, obsolete ]
+>  - java-interpreter            [ binfmt_java, obsolete ]
+> +- kexec_on_hwerr              [ x86 only ]
+>  - kptr_restrict
+>  - kstack_depth_to_print       [ X86 only ]
+>  - l2cr                        [ PPC only ]
+> @@ -261,6 +262,16 @@ This flag controls the L2 cache of G3 processor boards. If  0, the cache is disabled. Enabled if nonzero.
+>  
+>  ==============================================================
+> +kexec_on_hwerr: (X86 only)
+> +
+> +Controls the behaviour of kexec when panic occurred due to hardware 
+> +error.
+> +Default value is 1.
+> +
+> +0: Kexec is disabled.
+> +non-zero: Kexec is enabled.
+> +
+> +==============================================================
+>  
+>  kptr_restrict:
+>  
+> diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
+> index d916183..e76b47b 100644
+> --- a/arch/x86/kernel/cpu/mcheck/mce.c
+> +++ b/arch/x86/kernel/cpu/mcheck/mce.c
+> @@ -944,6 +944,8 @@ void do_machine_check(struct pt_regs *regs, long error_code)
+>  
+>  	percpu_inc(mce_exception_count);
+>  
+> +	hwerr_flag = 1;
+> +
+>  	if (notify_die(DIE_NMI, "machine check", regs, error_code,
+>  			   18, SIGKILL) == NOTIFY_STOP)
+>  		goto out;
 
-I hope mail sending is successful in this turn. :)
+Now x86 supports some recoverable machine check, so setting
+flag here will prevent running kexec on systems that have
+encountered such recoverable machine check and recovered.
 
-On Thu, Feb 10, 2011 at 2:33 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> Sorry for late response.
->
-> On Fri, Jan 28, 2011 at 8:18 PM, Balbir Singh <balbir@linux.vnet.ibm.com>=
- wrote:
->> * MinChan Kim <minchan.kim@gmail.com> [2011-01-28 16:24:19]:
->>
->>> >
->>> > But the assumption for LRU order to change happens only if the page
->>> > cannot be successfully freed, which means it is in some way active..
->>> > and needs to be moved no?
->>>
->>> 1. holded page by someone
->>> 2. mapped pages
->>> 3. active pages
->>>
->>> 1 is rare so it isn't the problem.
->>> Of course, in case of 3, we have to activate it so no problem.
->>> The problem is 2.
->>>
->>
->> 2 is a problem, but due to the size aspects not a big one. Like you
->> said even lumpy reclaim affects it. May be the reclaim code could
->> honour may_unmap much earlier.
->
-> Even if it is, it's a trade-off to get a big contiguous memory. I
-> don't want to add new mess. (In addition, lumpy is weak by compaction
-> as time goes by)
-> What I have in mind for preventing LRU ignore is that put the page
-> into original position instead of head of lru. Maybe it can help the
-> situation both lumpy and your case. But it's another story.
->
-> How about the idea?
->
-> I borrow the idea from CFLRU[1]
-> - PCFLRU(Page-Cache First LRU)
->
-> When we allocates new page for page cache, we adds the page into LRU's ta=
-il.
-> When we map the page cache into page table, we rotate the page into LRU's=
- head.
->
-> So, inactive list's result is following as.
->
-> M.P : mapped page
-> N.P : none-mapped page
->
-> HEAD-M.P-M.P-M.P-M.P-N.P-N.P-N.P-N.P-N.P-TAIL
->
-> Admin can set threshold window size which determines stop reclaiming
-> none-mapped page contiguously.
->
-> I think it needs some tweak of page cache/page mapping functions but
-> we can use kswapd/direct reclaim without change.
->
-> Also, it can change page reclaim policy totally but it's just what you
-> want, I think.
->
-> [1] http://citeseerx.ist.psu.edu/viewdoc/download?doi=3D10.1.1.100.6188&r=
-ep=3Drep1&type=3Dpdf
->
->>
->> --
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0Three Cheers,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0Balbir
->>
->
->
->
-> --
-> Kind regards,
-> Minchan Kim
->
+I think mce_panic() is proper place to set this flag "hwerr_flag".
 
+> diff --git a/include/linux/kernel.h b/include/linux/kernel.h index 2fe6e84..c2fba7c 100644
+> --- a/include/linux/kernel.h
+> +++ b/include/linux/kernel.h
+> @@ -242,6 +242,8 @@ extern void add_taint(unsigned flag);  extern int test_taint(unsigned flag);  extern unsigned long get_taint(void);  extern int root_mountflags;
+> +extern int kexec_on_hwerr;
+> +extern int hwerr_flag;
+>  
+>  extern bool early_boot_irqs_disabled;
+>  
+> diff --git a/include/linux/sysctl.h b/include/linux/sysctl.h index 7bb5cb6..8ae5bfe 100644
+> --- a/include/linux/sysctl.h
+> +++ b/include/linux/sysctl.h
+> @@ -153,6 +153,7 @@ enum
+>  	KERN_MAX_LOCK_DEPTH=74, /* int: rtmutex's maximum lock depth */
+>  	KERN_NMI_WATCHDOG=75, /* int: enable/disable nmi watchdog */
+>  	KERN_PANIC_ON_NMI=76, /* int: whether we will panic on an unrecovered */
+> +	KERN_KEXEC_ON_HWERR=77, /* int: bevaviour of kexec for hardware error 
+> +*/
+>  };
+>  
+>  
+> diff --git a/kernel/panic.c b/kernel/panic.c index 991bb87..84c1d2e 100644
+> --- a/kernel/panic.c
+> +++ b/kernel/panic.c
+> @@ -28,6 +28,8 @@
+>  #define PANIC_BLINK_SPD 18
+>  
+>  int panic_on_oops;
+> +int kexec_on_hwerr = 1;
+> +int hwerr_flag;
+>  static unsigned long tainted_mask;
+>  static int pause_on_oops;
+>  static int pause_on_oops_flag;
+> @@ -45,6 +47,16 @@ static long no_blink(int state)
+>  	return 0;
+>  }
+>  
+> +static int kexec_should_skip(void)
+> +{
+> +	if (!kexec_on_hwerr && hwerr_flag) {
+> +		printk(KERN_WARNING "Kexec is skipped because hardware error "
+> +		       "occurred.\n");
+> +		return 1;
+> +	}
+> +	return 0;
+> +}
+> +
+>  /* Returns how long it waited in ms */
+>  long (*panic_blink)(int state);
+>  EXPORT_SYMBOL(panic_blink);
+> @@ -86,7 +98,8 @@ NORET_TYPE void panic(const char * fmt, ...)
+>  	 * everything else.
+>  	 * Do we want to call this before we try to display a message?
+>  	 */
+> -	crash_kexec(NULL);
+> +	if (!kexec_should_skip())
+> +		crash_kexec(NULL);
+>  
+>  	kmsg_dump(KMSG_DUMP_PANIC);
+>  
+> diff --git a/kernel/sysctl.c b/kernel/sysctl.c index 0f1bd83..f78edd8 100644
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -811,6 +811,14 @@ static struct ctl_table kern_table[] = {
+>  		.mode		= 0644,
+>  		.proc_handler	= proc_dointvec,
+>  	},
+> +	{
+> +		.procname	= "kexec_on_hwerr",
+> +		.data		= &kexec_on_hwerr,
+> +		.maxlen		= sizeof(int),
+> +		.mode		= 0644,
+> +		.proc_handler	= proc_dointvec,
+> +	},
+> +
+>  #endif
+>  #if defined(CONFIG_MMU)
+>  	{
+> diff --git a/kernel/sysctl_binary.c b/kernel/sysctl_binary.c index b875bed..8d572ca 100644
+> --- a/kernel/sysctl_binary.c
+> +++ b/kernel/sysctl_binary.c
+> @@ -137,6 +137,7 @@ static const struct bin_table bin_kern_table[] = {
+>  	{ CTL_INT,	KERN_COMPAT_LOG,		"compat-log" },
+>  	{ CTL_INT,	KERN_MAX_LOCK_DEPTH,		"max_lock_depth" },
+>  	{ CTL_INT,	KERN_PANIC_ON_NMI,		"panic_on_unrecovered_nmi" },
+> +	{ CTL_INT,	KERN_KEXEC_ON_HWERR,		"kexec_on_hwerr" },
+>  	{}
+>  };
+>  
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c index 0207c2f..0178f47 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -994,6 +994,8 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
+>  	int res;
+>  	unsigned int nr_pages;
+>  
+> +	hwerr_flag = 1;
+> +
+>  	if (!sysctl_memory_failure_recovery)
+>  		panic("Memory failure from trap %d on page %lx", trapno, pfn);
+>  
 
+For similar reason, setting flag here is not good for
+systems working after isolating some poisoned memory page.
 
---=20
-Kind regards,
-Minchan Kim
+Why not:
+ if (!sysctl_memory_failure_recovery) {
+ 	hwerr_flag = 1;
+ 	panic("Memory failure from trap %d on page %lx", trapno, pfn);
+ }
+
+Thanks,
+H.Seto
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
