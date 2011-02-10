@@ -1,107 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5458E8D0039
-	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 22:58:45 -0500 (EST)
-Received: by wwb29 with SMTP id 29so924342wwb.26
-        for <linux-mm@kvack.org>; Wed, 09 Feb 2011 19:58:42 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A66C8D0039
+	for <linux-mm@kvack.org>; Wed,  9 Feb 2011 23:04:53 -0500 (EST)
+Received: by iwc10 with SMTP id 10so881448iwc.14
+        for <linux-mm@kvack.org>; Wed, 09 Feb 2011 20:04:51 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20110210085823.2f99b81c.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1297262537-7425-1-git-send-email-ozaki.ryota@gmail.com> <20110210085823.2f99b81c.kamezawa.hiroyu@jp.fujitsu.com>
-From: Ryota Ozaki <ozaki.ryota@gmail.com>
-Date: Thu, 10 Feb 2011 12:58:21 +0900
-Message-ID: <AANLkTikdBhSWAoP6TDRExSV2rHmWDkEc0foSKvqJt=tx@mail.gmail.com>
-Subject: Re: [PATCH] mm: Fix out-of-date comments which refers non-existent functions
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <20110209154606.GJ27110@cmpxchg.org>
+References: <20110209154606.GJ27110@cmpxchg.org>
+Date: Thu, 10 Feb 2011 13:04:51 +0900
+Message-ID: <AANLkTikY8Z5K=ydaN7+1QXi-ofLYgV0Vhw0u-4B=Q9Hg@mail.gmail.com>
+Subject: Re: [patch] vmscan: fix zone shrinking exit when scan work is done
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Kent Overstreet <kent.overstreet@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Feb 10, 2011 at 8:58 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Wed, =A09 Feb 2011 23:42:17 +0900
-> Ryota Ozaki <ozaki.ryota@gmail.com> wrote:
+On Thu, Feb 10, 2011 at 12:46 AM, Johannes Weiner <hannes@cmpxchg.org> wrot=
+e:
+> Hi,
 >
->> From: Ryota Ozaki <ozaki.ryota@gmail.com>
->>
->> do_file_page and do_no_page don't exist anymore, but some comments
->> still refers them. The patch fixes them by replacing them with
->> existing ones.
->>
->> Signed-off-by: Ryota Ozaki <ozaki.ryota@gmail.com>
+> I think this should fix the problem of processes getting stuck in
+> reclaim that has been reported several times. =C2=A0Kent actually
+> single-stepped through this code and noted that it was never exiting
+> shrink_zone(), which really narrowed it down a lot, considering the
+> tons of nested loops from the allocator down to the list shrinking.
 >
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0Hannes
+>
+> ---
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: vmscan: fix zone shrinking exit when scan work is done
+>
+> '3e7d344 mm: vmscan: reclaim order-0 and use compaction instead of
+> lumpy reclaim' introduced an indefinite loop in shrink_zone().
+>
+> It meant to break out of this loop when no pages had been reclaimed
+> and not a single page was even scanned. =C2=A0The way it would detect the
+> latter is by taking a snapshot of sc->nr_scanned at the beginning of
+> the function and comparing it against the new sc->nr_scanned after the
+> scan loop. =C2=A0But it would re-iterate without updating that snapshot,
+> looping forever if sc->nr_scanned changed at least once since
+> shrink_zone() was invoked.
+>
+> This is not the sole condition that would exit that loop, but it
+> requires other processes to change the zone state, as the reclaimer
+> that is stuck obviously can not anymore.
+>
+> This is only happening for higher-order allocations, where reclaim is
+> run back to back with compaction.
+>
+> Reported-by: Michal Hocko <mhocko@suse.cz>
+> Reported-by: Kent Overstreet <kent.overstreet@gmail.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-Thanks, Kamezawa-san.
-
->
-> It seems there are other ones ;)
-> =3D=3D
-> =A0 =A0Searched full:do_no_page (Results 1 - 3 of 3) sorted by relevancy
->
-> =A0/linux-2.6-git/arch/alpha/include/asm/
-> H A D =A0 cacheflush.h =A0 =A066 /* This is used only in do_no_page and d=
-o_swap_page. */
-> =A0/linux-2.6-git/arch/avr32/mm/
-> H A D =A0 cache.c =A0 =A0 =A0 =A0 116 * This one is called from do_no_pag=
-e(), do_swap_page() and install_page().
-> =A0/linux-2.6-git/mm/
-> H A D =A0 memory.c =A0 =A0 =A0 =A02121 * and do_anonymous_page and do_no_=
-page can safely check later on).
-> 2319 * do_no_page is protected similarly.
-
-Nice catch :-) Cloud I assemble all fixes into one patch?
-
-  ozaki-r
-
->
->
->
->
->
->> ---
->> =A0mm/memory.c | =A0 =A06 +++---
->> =A01 files changed, 3 insertions(+), 3 deletions(-)
->>
->> I'm not familiar with the codes very much, so the fix may be wrong.
->>
->> diff --git a/mm/memory.c b/mm/memory.c
->> index 31250fa..3fbf32a 100644
->> --- a/mm/memory.c
->> +++ b/mm/memory.c
->> @@ -2115,10 +2115,10 @@ EXPORT_SYMBOL_GPL(apply_to_page_range);
->> =A0 * handle_pte_fault chooses page fault handler according to an entry
->> =A0 * which was read non-atomically. =A0Before making any commitment, on
->> =A0 * those architectures or configurations (e.g. i386 with PAE) which
->> - * might give a mix of unmatched parts, do_swap_page and do_file_page
->> + * might give a mix of unmatched parts, do_swap_page and do_nonlinear_f=
-ault
->> =A0 * must check under lock before unmapping the pte and proceeding
->> =A0 * (but do_wp_page is only called after already making such a check;
->> - * and do_anonymous_page and do_no_page can safely check later on).
->> + * and do_anonymous_page can safely check later on).
->> =A0 */
->> =A0static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pte_t *page_=
-table, pte_t orig_pte)
->> @@ -2316,7 +2316,7 @@ reuse:
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* bit after it clear all dirty ptes, but =
-before a racing
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* do_wp_page installs a dirty pte.
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0* do_no_page is protected similarly.
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0* __do_fault is protected similarly.
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!page_mkwrite) {
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 wait_on_page_locked(dirty_pa=
-ge);
->> --
->> 1.7.2.3
->>
->>
->
->
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
