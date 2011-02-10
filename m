@@ -1,108 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EE3F78D0039
-	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 05:31:29 -0500 (EST)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1541592Ab1BJKag (ORCPT <rfc822;linux-mm@kvack.org>);
-	Thu, 10 Feb 2011 11:30:36 +0100
-Date: Thu, 10 Feb 2011 11:30:36 +0100
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: Re: [PATCH R3 1/7] mm: Add add_registered_memory() to memory hotplug API
-Message-ID: <20110210103036.GA22430@router-fw-old.local.net-space.pl>
-References: <20110203162514.GD1364@router-fw-old.local.net-space.pl> <20110208232538.GB9857@dumpdata.com>
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 896598D0039
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 05:41:14 -0500 (EST)
+Date: Thu, 10 Feb 2011 11:41:11 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch] vmscan: fix zone shrinking exit when scan work is done
+Message-ID: <20110210104111.GD26653@tiehlicka.suse.cz>
+References: <20110209154606.GJ27110@cmpxchg.org>
+ <20110209164656.GA1063@csn.ul.ie>
+ <20110209182846.GN3347@random.random>
+ <20110210102109.GB17873@csn.ul.ie>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110208232538.GB9857@dumpdata.com>
+In-Reply-To: <20110210102109.GB17873@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Daniel Kiper <dkiper@net-space.pl>, ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Feb 08, 2011 at 06:25:38PM -0500, Konrad Rzeszutek Wilk wrote:
-> On Thu, Feb 03, 2011 at 05:25:14PM +0100, Daniel Kiper wrote:
-> > add_registered_memory() adds memory ealier registered
-> > as memory resource. It is required by memory hotplug
-> > for Xen guests, however it could be used also by other
-> > modules.
+On Thu 10-02-11 10:21:10, Mel Gorman wrote:
+> On Wed, Feb 09, 2011 at 07:28:46PM +0100, Andrea Arcangeli wrote:
+> > On Wed, Feb 09, 2011 at 04:46:56PM +0000, Mel Gorman wrote:
+> > > On Wed, Feb 09, 2011 at 04:46:06PM +0100, Johannes Weiner wrote:
+> > > > Hi,
+> > > > 
+> > > > I think this should fix the problem of processes getting stuck in
+> > > > reclaim that has been reported several times.
+> > > 
+> > > I don't think it's the only source but I'm basing this on seeing
+> > > constant looping in balance_pgdat() and calling congestion_wait() a few
+> > > weeks ago that I haven't rechecked since. However, this looks like a
+> > > real fix for a real problem.
 > > 
-> > Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
-> > ---
-> >  include/linux/memory_hotplug.h |    1 +
-> >  mm/memory_hotplug.c            |   50 ++++++++++++++++++++++++++++++---------
-> >  2 files changed, 39 insertions(+), 12 deletions(-)
+> > Agreed. Just yesterday I spent some time on the lumpy compaction
+> > changes after wondering about Michal's khugepaged 100% report, and I
+> > expected some fix was needed in this area (as I couldn't find any bug
+> > in khugepaged yet, so the lumpy compaction looked the next candidate
+> > for bugs).
 > > 
-> > diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> > index 8122018..fe63912 100644
-> > --- a/include/linux/memory_hotplug.h
-> > +++ b/include/linux/memory_hotplug.h
-> > @@ -223,6 +223,7 @@ static inline int is_mem_section_removable(unsigned long pfn,
-> >  #endif /* CONFIG_MEMORY_HOTREMOVE */
-> >  
-> >  extern int mem_online_node(int nid);
-> > +extern int add_registered_memory(int nid, u64 start, u64 size);
-> >  extern int add_memory(int nid, u64 start, u64 size);
-> >  extern int arch_add_memory(int nid, u64 start, u64 size);
-> >  extern int remove_memory(u64 start, u64 size);
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index 321fc74..7947bdf 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -532,20 +532,12 @@ out:
-> >  }
-> >  
-> >  /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
-> > -int __ref add_memory(int nid, u64 start, u64 size)
-> > +static int __ref __add_memory(int nid, u64 start, u64 size)
-> >  {
-> >  	pg_data_t *pgdat = NULL;
-> >  	int new_pgdat = 0;
-> > -	struct resource *res;
-> >  	int ret;
-> >  
-> > -	lock_memory_hotplug();
-> > -
-> > -	res = register_memory_resource(start, size);
-> > -	ret = -EEXIST;
-> > -	if (!res)
-> > -		goto out;
-> > -
-> >  	if (!node_online(nid)) {
-> >  		pgdat = hotadd_new_pgdat(nid, start);
-> >  		ret = -ENOMEM;
-> > @@ -579,14 +571,48 @@ int __ref add_memory(int nid, u64 start, u64 size)
-> >  	goto out;
-> >  
-> >  error:
-> > -	/* rollback pgdat allocation and others */
-> > +	/* rollback pgdat allocation */
-> >  	if (new_pgdat)
-> >  		rollback_node_hotadd(nid, pgdat);
-> > -	if (res)
-> > -		release_memory_resource(res);
-> > +
-> > +out:
-> > +	return ret;
-> > +}
-> > +
-> > +int add_registered_memory(int nid, u64 start, u64 size)
-> > +{
-> > +	int ret;
-> > +
-> > +	lock_memory_hotplug();
-> > +	ret = __add_memory(nid, start, size);
-> > +	unlock_memory_hotplug();
 > 
-> Isn't this a duplicate call to the mutex?
-> The __add_memory does an unlock_memory_hotplug when it finishes
-> and then you do another unlock_memory_hotplug here too.
+> Michal did report that disabling defrag did not help but the stack trace
+> also showed that it was stuck in shrink_zone() which is what Johannes'
+> patch targets. It's not unreasonable to test if Johannes' patch solves
+> Michal's problem. Michal, I know that your workload is a bit random and
+> may not be reproducible but do you think it'd be possible to determine
+> if Johannes' patch helps?
 
-No. Calls to lock_memory_hotplug()/unlock_memory_hotplug() were
-moved from original add_memory() to add_registered_memory()
-and new add_memory().
+Sure, I can test it. Nevertheless, I haven't seen the problem again. I
+have tried to make some memory pressure on the machine but no "luck".
 
-Daniel
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
