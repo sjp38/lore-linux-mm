@@ -1,42 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C84C08D0039
-	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 00:07:46 -0500 (EST)
-Received: by iyi20 with SMTP id 20so957147iyi.14
-        for <linux-mm@kvack.org>; Wed, 09 Feb 2011 21:07:43 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A38B8D0039
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 00:33:04 -0500 (EST)
+Received: by iyi20 with SMTP id 20so972271iyi.14
+        for <linux-mm@kvack.org>; Wed, 09 Feb 2011 21:33:02 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1297313788-10905-1-git-send-email-ozaki.ryota@gmail.com>
-References: <1297313788-10905-1-git-send-email-ozaki.ryota@gmail.com>
-Date: Thu, 10 Feb 2011 14:07:43 +0900
-Message-ID: <AANLkTikFEjeVJ2HY_KTv29y63bt_+8SwWm7K3Ywdw570@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: Fix out-of-date comments which refers non-existent functions
+In-Reply-To: <20110128111833.GD5054@balbir.in.ibm.com>
+References: <20110125051003.13762.35120.stgit@localhost6.localdomain6>
+	<20110125051015.13762.13429.stgit@localhost6.localdomain6>
+	<AANLkTikHLw0Qg+odOB-bDtBSB-5UbTJ5ZOM-ZAdMqXgh@mail.gmail.com>
+	<AANLkTi=qXsDjN5Jp4m3QMgVnckoAM7uE9_Hzn6CajP+c@mail.gmail.com>
+	<AANLkTinfxXc04S9VwQcJ9thFff=cP=icroaiVLkN-GeH@mail.gmail.com>
+	<20110128064851.GB5054@balbir.in.ibm.com>
+	<AANLkTikw_j0JJVqEsj1xThoashiOARg+8BgcLKrvkV3U@mail.gmail.com>
+	<20110128111833.GD5054@balbir.in.ibm.com>
+Date: Thu, 10 Feb 2011 14:33:00 +0900
+Message-ID: <AANLkTin4JM6phwy0wuV6fV-i-3UwP_GGmXh1vN=Wz2u=@mail.gmail.com>
+Subject: Re: [PATCH 3/3] Provide control over unmapped pages (v4)
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ryota Ozaki <ozaki.ryota@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Jiri Kosina <trivial@kernel.org>
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
 
-On Thu, Feb 10, 2011 at 1:56 PM, Ryota Ozaki <ozaki.ryota@gmail.com> wrote:
-> From: Ryota Ozaki <ozaki.ryota@gmail.com>
+Sorry for late response.
+
+On Fri, Jan 28, 2011 at 8:18 PM, Balbir Singh <balbir@linux.vnet.ibm.com> w=
+rote:
+> * MinChan Kim <minchan.kim@gmail.com> [2011-01-28 16:24:19]:
 >
-> do_file_page and do_no_page don't exist anymore, but some comments
-> still refers them. The patch fixes them by replacing them with
-> existing ones.
+>> >
+>> > But the assumption for LRU order to change happens only if the page
+>> > cannot be successfully freed, which means it is in some way active..
+>> > and needs to be moved no?
+>>
+>> 1. holded page by someone
+>> 2. mapped pages
+>> 3. active pages
+>>
+>> 1 is rare so it isn't the problem.
+>> Of course, in case of 3, we have to activate it so no problem.
+>> The problem is 2.
+>>
 >
-> Signed-off-by: Ryota Ozaki <ozaki.ryota@gmail.com>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Jiri Kosina <trivial@kernel.org>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> 2 is a problem, but due to the size aspects not a big one. Like you
+> said even lumpy reclaim affects it. May be the reclaim code could
+> honour may_unmap much earlier.
 
-Thanks.
--- 
-Kind regards,
-Minchan Kim
+Even if it is, it's a trade-off to get a big contiguous memory. I
+don't want to add new mess. (In addition, lumpy is weak by compaction
+as time goes by)
+What I have in mind for preventing LRU ignore is that put the page
+into original position instead of head of lru. Maybe it can help the
+situation both lumpy and your case. But it's another story.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+How about the idea?
+
+I borrow the idea from CFLRU[1]
+- PCFLRU(Page-Cache First LRU)
+
+When we allocates new page for page cache, we adds the page into LRU's tail=
