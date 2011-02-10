@@ -1,81 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 345508D0039
-	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 13:34:02 -0500 (EST)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Date: Thu, 10 Feb 2011 13:30:13 -0500
-Subject: RE: [RFC][PATCH 0/2] Tunable watermark
-Message-ID: <65795E11DBF1E645A09CEC7EAEE94B9C3BCD59E6@USINDEVS02.corp.hds.com>
-References: <65795E11DBF1E645A09CEC7EAEE94B9C3A30A295@USINDEVS02.corp.hds.com>
- <4D38D070.2050802@redhat.com>
-In-Reply-To: <4D38D070.2050802@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 8D34B8D0039
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 13:40:03 -0500 (EST)
+Date: Thu, 10 Feb 2011 19:39:31 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 5/5] have smaps show transparent huge pages
+Message-ID: <20110210183931.GC3347@random.random>
+References: <20110209195406.B9F23C9F@kernel>
+ <20110209195413.6D3CB37F@kernel>
+ <20110210112032.GG17873@csn.ul.ie>
+ <1297350115.6737.14208.camel@nimitz>
+ <20110210150942.GL17873@csn.ul.ie>
+ <20110210180924.GB3347@random.random>
+ <1297362032.6737.14622.camel@nimitz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1297362032.6737.14622.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "rdunlap@xenotime.net" <rdunlap@xenotime.net>, "dle-develop@lists.sourceforge.net" <dle-develop@lists.sourceforge.net>, Seiji Aguchi <seiji.aguchi@hds.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>
 
-T24gMDEvMjAvMjAxMSAwNzoxNiBQTSwgUmlrIHZhbiBSaWVsIHdyb3RlOg0KPiBPbiAwMS8wNy8y
-MDExIDA1OjAzIFBNLCBTYXRvcnUgTW9yaXlhIHdyb3RlOg0KPiANCj4gPiBUaGUgcmVzdWx0IGlz
-IGZvbGxvd2luZy4NCj4gPg0KPiA+ICAgICAgICAgICAgICAgICAgIHwgZGVmYXVsdCB8ICBjYXNl
-IDEgICB8ICBjYXNlIDIgfA0KPiA+IC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0NCj4gPiB3bWFya19taW5fa2J5dGVzICB8ICA1NzUyICAg
-fCAgICA1NzUyICAgfCAgIDU3NTIgIHwNCj4gPiB3bWFya19sb3dfa2J5dGVzICB8ICA3MTkwICAg
-fCAgIDE2Mzg0ICAgfCAgMzI3NjggIHwgKEtCKQ0KPiA+IHdtYXJrX2hpZ2hfa2J5dGVzIHwgIDg2
-MjggICB8ICAgMjA0ODAgICB8ICA0MDk2MCAgfA0KPiA+IC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0NCj4gPiByZWFsICAgICAgICAgICAg
-ICB8ICAgNTAzICAgfCAgICAzNjQgICAgfCAgICAzMzcgIHwNCj4gPiB1c2VyICAgICAgICAgICAg
-ICB8ICAgICAzICAgfCAgICAgIDUgICAgfCAgICAgIDQgIHwgKG1zZWMpDQo+ID4gc3lzICAgICAg
-ICAgICAgICAgfCAgIDE1MyAgIHwgICAgMTQ5ICAgIHwgICAgMTQ2ICB8DQo+ID4gLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQ0KPiA+IHBh
-Z2UgZmF1bHQgICAgICAgIHwgIDMyNzY4ICB8ICAzMjc2OCAgICB8ICAzMjc2OCAgfA0KPiA+IGtz
-d2FwZF93YWtldXAgICAgIHwgICAxODA5ICB8ICAgIDMzNSAgICB8ICAgIDIyOCAgfCAodGltZXMp
-DQo+ID4gZGlyZWN0IHJlY2xhaW0gICAgfCAgICAgIDUgIHwgICAgICAwICAgIHwgICAgICAwICB8
-DQo+ID4NCj4gPiBBcyB5b3UgY2FuIHNlZSwgZGlyZWN0IHJlY2xhaW0gd2FzIHBlcmZvcm1lZCA1
-IHRpbWVzIGFuZA0KPiA+IGl0cyBleGVjIHRpbWUgd2FzIDUwMyBtc2VjIGluIHRoZSBkZWZhdWx0
-IGNhc2UuIE9uIHRoZSBvdGhlcg0KPiA+IGhhbmQsIGluIGNhc2UgMSAobGFyZ2UgZGVsdGEgY2Fz
-ZSApIG5vIGRpcmVjdCByZWNsYWltIHdhcw0KPiA+IHBlcmZvcm1lZCBhbmQgaXRzIGV4ZWMgdGlt
-ZSB3YXMgMzY0IG1zZWMuDQo+IA0KPiBTYXZpbmcgMS41IHNlY29uZHMgb24gYSBvbmUtb2ZmIHdv
-cmtsb2FkIGlzIHByb2JhYmx5IG5vdA0KPiB3b3J0aCB0aGUgY29tcGxleGl0eSBvZiBnaXZpbmcg
-YSBzeXN0ZW0gYWRtaW5pc3RyYXRvcg0KPiB5ZXQgYW5vdGhlciBzZXQgb2YgdHVuYWJsZXMgdG8g
-bWVzcyB3aXRoLg0KDQpBYm92ZSB0YWJsZSBzaG93cyBhdmVyYWdlIGRhdGEgYnV0IHRoZXkgbWln
-aHQgbm90IGJlIGVub3VnaC4NCkluIGEgbG93LWxhdGVuY3kgZW50ZXJwcmlzZSBzeXN0ZW0sIHdv
-cnN0IGxhdGVuY3kgaXMgdGhlIG1vc3QNCmltcG9ydGFudC4gSSByZWNvcmRlZCB3b3JzdCBsYXRl
-bmN5IGRhdGEgcGVyIG9uZSBwYWdlIGFsbG9jYXRpb24NCmFuZCBoZXJlIGl0IGlzLg0KDQogICAg
-ICAgICAgICAgICAgICAgIHwgZGVmYXVsdCB8ICBjYXNlIDEgICB8ICBjYXNlIDIgfA0KLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQ0Kd29y
-c3QgbGF0ZW5jeSAgICAgICB8ICAgMjIzICAgfCAgICA3NSAgICAgfCAgICA1MCAgIHwgKHVzZWMp
-ICANCiBwZXIgb25lIHBhZ2UgYWxsb2MgfCAgICAgICAgIHwgICAgICAgICAgIHwgICAgICAgICB8
-DQoNCkluIHRoZSBkZWZhdWx0IGNhc2UsIHRoZSB3b3JzdCBsYXRlbmN5IGlzIDIyMyB1c2VjIGFu
-ZCBhdCB0aGF0IHRpbWUNCmRpcmVjdCByZWNsYWltIG9jY3VycmVkLiBPVE9IIG91ciB0YXJnZXQg
-bGF0ZW5jeSBpcyB1bmRlciAxMDAgdXNlYy4NClNvIEknZCBsaWtlIHRvIGVuc3VyZSB0aGF0IGRp
-cmVjdCByZWNsYWltIGlzIG5ldmVyIGV4ZWN1dGVkIGluIGEgY2VydGFpbg0Kc2l0dWF0aW9uLg0K
-DQo+IEhvd2V2ZXIsIEkgc3VzcGVjdCBpdCBtYXkgYmUgYSBnb29kIGlkZWEgaWYgdGhlIGtlcm5l
-bA0KPiBjb3VsZCBhZGp1c3QgdGhlc2Ugd2F0ZXJtYXJrcyBhdXRvbWF0aWNhbGx5LCBzaW5jZSBk
-aXJlY3QNCj4gcmVjbGFpbSBjb3VsZCBsZWFkIHRvIHF1aXRlIGEgYmlnIHBlcmZvcm1hbmNlIHBl
-bmFsdHkuDQo+IA0KPiBJIGRvIG5vdCBrbm93IHdoaWNoIGV2ZW50cyBzaG91bGQgYmUgdXNlZCB0
-byBpbmNyZWFzZSBhbmQNCj4gZGVjcmVhc2UgdGhlIHdhdGVybWFya3MsIGJ1dCBJIGhhdmUgc29t
-ZSBpZGVhczoNCj4gLSBkaXJlY3QgcmVjbGFpbSAoaW5jcmVhc2UpDQo+IC0ga3N3YXBkIGhhcyB0
-cm91YmxlIGZyZWVpbmcgcGFnZXMgKGluY3JlYXNlKQ0KPiAtIGtzd2FwZCBmcmVlcyBlbm91Z2gg
-bWVtb3J5IGF0IERFRl9QUklPUklUWSAoZGVjcmVhc2UpDQo+IC0gbmV4dCB0byBubyBkaXJlY3Qg
-cmVjbGFpbSBldmVudHMgaW4gdGhlIGxhc3QgTiAoMTAwMD8pDQo+ICAgIHJlY2xhaW0gZXZlbnRz
-IChkZWNyZWFzZSkNCg0KSSB0aGluayBpdCBtaWdodCBiZSBnb29kIGlkZWEgYnV0IG5vdCBlbm91
-Z2ggYmVjYXVzZSB3ZSBjYW4ndCBhdm9pZA0KZGlyZWN0IHJlY2xhaW0gY29tcGxldGVseS4gU28g
-d2hhdCBkbyB5b3UgdGhpbmsgb2YgaW50cm9kdWNpbmcgYSBsZWFybmluZw0KbW9kZSB0byB5b3Vy
-IGlkZWE/IEluIHRoZSBsZWFybmluZyBtb2RlLCBrZXJuZWwgY2FsY3VsYXRlcyBhcHByb3ByaWF0
-ZQ0Kd2F0ZXJtYXJrcyBhbmQgbmV4dCBib290IHVzZXJzIHVzZSB0aGVtLg0KDQpJdCBpcyB1c2Vm
-dWwgZm9yIGEgZW50ZXJwcmlzZSBzeXN0ZW0gYmVjYXVzZSB3ZSBub3JtYWxseSBkbyBwZXJmb3Jt
-YW5jZS9zdHJlc3MNCnRlc3RzIGFuZCB0dW5lIGl0IGJlZm9yZSByZWxlYXNlLiBJZiB3ZSBydW4g
-c3RyZXNzIHRlc3RzIHVuZGVyIHRoZSBsZWFybmluZyBtb2RlLA0Kd2UgY2FuIGdldCB0aGUgYXBw
-cm9wcmlhdGUgd2F0ZXJtYXJrcyBmb3IgdGhhdCBzeXN0ZW0uIEJ5IHVzaW5nIHRoZW0gd2UgY2Fu
-IGF2b2lkDQpkaXJlY3QgcmVjbGFpbSBhbmQga2VlcCBsYXRlbmN5IGxvdyBlbm91Z2ggaW4gYSBw
-cm9kdWN0IHN5c3RlbS4NCg0KPiBJIGd1ZXNzIHdlIHdpbGwgYWxzbyBuZWVkIHRvIGJlIHN1cmUg
-dGhhdCB0aGUgd2F0ZXJtYXJrcw0KPiBhcmUgbmV2ZXIgcmFpc2VkIGFib3ZlIHNvbWUgc2FuZSB1
-cHBlciB0aHJlc2hvbGQuICBNYXliZQ0KPiA0eCBvciA1eCB0aGUgZGVmYXVsdD8NCj4gDQo+IA0K
-PiAtLQ0KPiBBbGwgcmlnaHRzIHJldmVyc2VkDQo=
+On Thu, Feb 10, 2011 at 10:20:32AM -0800, Dave Hansen wrote:
+> On Thu, 2011-02-10 at 19:09 +0100, Andrea Arcangeli wrote:
+> > Maybe it'd be cleaner if we didn't need to cast the pmd to pte_t but I
+> > guess this makes things simpler. 
+> 
+> Yeah, I'm not a huge fan of doing that, either.  But, I'm not sure what
+> the alternatives are.  We could basically copy smaps_pte_entry() to
+> smaps_pmd_entry(), and then try to make pmd variants of all of the pte
+> functions and macros we call in there.
+
+I thought at the smaps_pmd_entry possibility too, but I would expect
+it to plain duplicate a bit of code just to avoid a single cast, which
+is why I thought the cast was ok in this case.
+
+> I know there's a least a bit of precedent in the hugetlbfs code for
+> doing things like this, but it's not a _great_ excuse. :)
+
+;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
