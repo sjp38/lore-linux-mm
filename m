@@ -1,62 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F26108D0039
-	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 06:46:55 -0500 (EST)
-Received: by pvc30 with SMTP id 30so254786pvc.14
-        for <linux-mm@kvack.org>; Thu, 10 Feb 2011 03:46:53 -0800 (PST)
-From: Namhyung Kim <namhyung@gmail.com>
-Subject: [RFC PATCH] mm: handle simple case in free_pcppages_bulk()
-Date: Thu, 10 Feb 2011 20:46:48 +0900
-Message-Id: <1297338408-3590-1-git-send-email-namhyung@gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 76F508D0039
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 07:09:05 -0500 (EST)
+Message-ID: <4D53D55B.2040202@panasas.com>
+Date: Thu, 10 Feb 2011 14:08:59 +0200
+From: Boaz Harrosh <bharrosh@panasas.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH 0/5] IO-less balance dirty pages
+References: <1296783534-11585-1-git-send-email-jack@suse.cz> <4D4EE05D.4050906@panasas.com> <20110209233006.GC3064@quack.suse.cz>
+In-Reply-To: <20110209233006.GC3064@quack.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
 
-Now I'm seeing that there are some cases to free all pages in a
-pcp lists. In that case, just frees all pages in the lists instead
-of being bothered with round-robin lists traversal.
+On 02/10/2011 01:30 AM, Jan Kara wrote:
+> On Sun 06-02-11 19:54:37, Boaz Harrosh wrote:
+>> On 02/04/2011 03:38 AM, Jan Kara wrote:
+>>> The basic idea (implemented in the third patch) is that processes throttled
+>>> in balance_dirty_pages() wait for enough IO to complete. The waiting is
+>>> implemented as follows: Whenever we decide to throttle a task in
+>>> balance_dirty_pages(), task adds itself to a list of tasks that are throttled
+>>> against that bdi and goes to sleep waiting to receive specified amount of page
+>>> IO completions. Once in a while (currently HZ/10, in patch 5 the interval is
+>>> autotuned based on observed IO rate), accumulated page IO completions are
+>>> distributed equally among waiting tasks.
+>>>
+>>> This waiting scheme has been chosen so that waiting time in
+>>> balance_dirty_pages() is proportional to
+>>>   number_waited_pages * number_of_waiters.
+>>> In particular it does not depend on the total number of pages being waited for,
+>>> thus providing possibly a fairer results.
+>>>
+>>> I gave the patches some basic testing (multiple parallel dd's to a single
+>>> drive) and they seem to work OK. The dd's get equal share of the disk
+>>> throughput (about 10.5 MB/s, which is nice result given the disk can do
+>>> about 87 MB/s when writing single-threaded), and dirty limit does not get
+>>> exceeded. Of course much more testing needs to be done but I hope it's fine
+>>> for the first posting :).
+>>
+>> So what is the disposition of Wu's patches in light of these ones?
+>> * Do they replace Wu's, or Wu's just get rebased ontop of these at a
+>>   later stage?
+>   They are meant as a replacement.
+> 
+>> * Did you find any hard problems with Wu's patches that delay them for
+>>   a long time?
+>   Wu himself wrote that the current patchset probably won't fly because it
+> fluctuates too much. So he decided to try to rewrite patches from per-bdi
+> limits to global limits when he has time...
+> 
+>> * Some of the complicated stuff in Wu's patches are the statistics and
+>>   rate control mechanics. Are these the troubled area? Because some of
+>>   these are actually some things that I'm interested in, and that appeal
+>>   to me the most.
+>   Basically yes, this logic seems to be the problematic one.
+> 
+> 								Honza
 
-Signed-off-by: Namhyung Kim <namhyung@gmail.com>
----
- mm/page_alloc.c |   22 ++++++++++++++++++++++
- 1 files changed, 22 insertions(+), 0 deletions(-)
+Thanks dear Jan for you reply. I would love to talk about all this
+in LSF, and other writeback issues. Keep us posted with results of
+of your investigations.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e8b02771ccea..959c54450ddf 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -596,6 +596,28 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 	zone->all_unreclaimable = 0;
- 	zone->pages_scanned = 0;
- 
-+	/* Simple case: Free all */
-+	if (to_free == pcp->count) {
-+		LIST_HEAD(freelist);
-+
-+		for (; migratetype < MIGRATE_PCPTYPES; migratetype++)
-+			if (!list_empty(&pcp->lists[migratetype]))
-+				list_move(&pcp->lists[migratetype], &freelist);
-+
-+		while (!list_empty(&freelist)) {
-+			struct page *page;
-+
-+			page = list_first_entry(&freelist, struct page, lru);
-+			/* must delete as __free_one_page list manipulates */
-+			list_del(&page->lru);
-+			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
-+			__free_one_page(page, zone, 0, page_private(page));
-+			trace_mm_page_pcpu_drain(page, 0, page_private(page));
-+			to_free--;
-+		}
-+		VM_BUG_ON(to_free);
-+	}
-+
- 	while (to_free) {
- 		struct page *page;
- 		struct list_head *list;
--- 
-1.7.4
+Cheers
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
