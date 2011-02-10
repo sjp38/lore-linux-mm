@@ -1,55 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 8EBAA8D0039
-	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 13:09:56 -0500 (EST)
-Date: Thu, 10 Feb 2011 19:09:24 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F6CB8D0039
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 13:20:39 -0500 (EST)
+Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p1AI1gPt030881
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 13:02:43 -0500
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 618E34DE804A
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 13:19:45 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p1AIKa8l322160
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 13:20:36 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p1AIKZDn021446
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 13:20:36 -0500
 Subject: Re: [PATCH 5/5] have smaps show transparent huge pages
-Message-ID: <20110210180924.GB3347@random.random>
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20110210180924.GB3347@random.random>
 References: <20110209195406.B9F23C9F@kernel>
- <20110209195413.6D3CB37F@kernel>
- <20110210112032.GG17873@csn.ul.ie>
- <1297350115.6737.14208.camel@nimitz>
- <20110210150942.GL17873@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110210150942.GL17873@csn.ul.ie>
+	 <20110209195413.6D3CB37F@kernel> <20110210112032.GG17873@csn.ul.ie>
+	 <1297350115.6737.14208.camel@nimitz> <20110210150942.GL17873@csn.ul.ie>
+	 <20110210180924.GB3347@random.random>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Thu, 10 Feb 2011 10:20:32 -0800
+Message-ID: <1297362032.6737.14622.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>
 
-On Thu, Feb 10, 2011 at 03:09:42PM +0000, Mel Gorman wrote:
-> On Thu, Feb 10, 2011 at 07:01:55AM -0800, Dave Hansen wrote:
-> > On Thu, 2011-02-10 at 11:20 +0000, Mel Gorman wrote:
-> > > > @@ -394,6 +395,7 @@ static int smaps_pte_range(pmd_t *pmd, u
-> > > >                       spin_lock(&walk->mm->page_table_lock);
-> > > >               } else {
-> > > >                       smaps_pte_entry(*(pte_t *)pmd, addr, HPAGE_SIZE, walk);
-> > > > +                     mss->anonymous_thp += HPAGE_SIZE;
-> > > 
-> > > I should have thought of this for the previous patch but should this be
-> > > HPAGE_PMD_SIZE instead of HPAGE_SIZE? Right now, they are the same value
-> > > but they are not the same thing.
-> > 
-> > Probably.  There's also a nice BUG() in HPAGE_PMD_SIZE if the THP config
-> > option is off, which is an added bonus.
-> > 
-> 
-> Unless Andrea has an objection, I'd prefer to see HPAGE_PMD_SIZE.
+On Thu, 2011-02-10 at 19:09 +0100, Andrea Arcangeli wrote:
+> Maybe it'd be cleaner if we didn't need to cast the pmd to pte_t but I
+> guess this makes things simpler. 
 
-We get there only through pmd_trans_huge, so HPAGE_PMD_SIZE is
-certainly more correct, agreed.
+Yeah, I'm not a huge fan of doing that, either.  But, I'm not sure what
+the alternatives are.  We could basically copy smaps_pte_entry() to
+smaps_pmd_entry(), and then try to make pmd variants of all of the pte
+functions and macros we call in there.
 
-I also think this can go in -mm after s/HPAGE_SIZE/HPAGE_PMD_SIZE/ and
-after correcting the locking (see other email).
+I know there's a least a bit of precedent in the hugetlbfs code for
+doing things like this, but it's not a _great_ excuse. :)
 
-Maybe it'd be cleaner if we didn't need to cast the pmd to pte_t but I
-guess this makes things simpler.
-
-Thanks!
-Andrea
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
