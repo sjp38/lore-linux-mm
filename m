@@ -1,56 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 430628D0039
-	for <linux-mm@kvack.org>; Fri, 11 Feb 2011 15:24:46 -0500 (EST)
-Date: Fri, 11 Feb 2011 21:24:31 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [mmotm] BUG: Bad page state in process khugepaged ?
-Message-ID: <20110211202431.GJ3347@random.random>
-References: <20110209151036.f24a36a6.kamezawa.hiroyu@jp.fujitsu.com>
- <20110209155001.0e369475.nishimura@mxp.nes.nec.co.jp>
- <20110209155246.69a7f3a1.kamezawa.hiroyu@jp.fujitsu.com>
- <20110209200728.GQ3347@random.random>
- <alpine.LSU.2.00.1102102243160.2331@sister.anvils>
- <20110211104906.GE3347@random.random>
- <alpine.LSU.2.00.1102111132560.3814@sister.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1102111132560.3814@sister.anvils>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 891108D0039
+	for <linux-mm@kvack.org>; Fri, 11 Feb 2011 16:52:40 -0500 (EST)
+Subject: Re: mmotm 2011-02-10-16-26 uploaded
+In-Reply-To: Your message of "Thu, 10 Feb 2011 16:26:36 PST."
+             <201102110100.p1B10sDx029244@imap1.linux-foundation.org>
+From: Valdis.Kletnieks@vt.edu
+References: <201102110100.p1B10sDx029244@imap1.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1297461155_5044P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 11 Feb 2011 16:52:35 -0500
+Message-ID: <53491.1297461155@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: akpm@linux-foundation.org, Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Fri, Feb 11, 2011 at 11:58:58AM -0800, Hugh Dickins wrote:
-> Oh, I hadn't realized Fedora use it.  I wonder if that's wise, I thought
-> Nick introduced it partly for the more expensive checks, and there might
-> be one or two of those around - those bad_range()s in page_alloc.c?
+--==_Exmh_1297461155_5044P
+Content-Type: text/plain; charset=us-ascii
 
-I doubt the more expensive checks are very measurable.. benchmarks
-usually run on enterprise distro. I'm sure when they enabled, they
-were aware of having to run more expensive runtime checks.
+On Thu, 10 Feb 2011 16:26:36 PST, akpm@linux-foundation.org said:
+> The mm-of-the-moment snapshot 2011-02-10-16-26 has been uploaded to
+> 
+>    http://userweb.kernel.org/~akpm/mmotm/
 
-> But the patch actually says -1024*1024: either would do.
+CONFIG_ZCACHE=m dies a horrid death:
 
-I actually increased it to -1024*1024 after writing the email ;) sorry
-the for the confusion.
+  MODPOST 257 modules
+ERROR: "xv_malloc" [drivers/staging/zcache/zcache.ko] undefined!
+ERROR: "tmem_new_pool" [drivers/staging/zcache/zcache.ko] undefined!
+ERROR: "tmem_put" [drivers/staging/zcache/zcache.ko] undefined!
+ERROR: "tmem_destroy_pool" [drivers/staging/zcache/zcache.ko] undefined!
+ERROR: "xv_free" [drivers/staging/zcache/zcache.ko] undefined!
+ERROR: "xv_get_object_size" [drivers/staging/zcache/zcache.ko] undefined!
+ERROR: "tmem_get" [drivers/staging/zcache/zcache.ko] undefined!
+ERROR: "tmem_flush_object" [drivers/staging/zcache/zcache.ko] undefined!
+ERROR: "tmem_flush_page" [drivers/staging/zcache/zcache.ko] undefined!
+make[1]: *** [__modpost] Error 1
 
-> Yes, that's fine, 0xfff00000 looks unlikely enough (and my
-> imagination for "deadbeef"-like magic is too drowsy today).
+Looks like none of those have EXPORT_SYMBOL on them.
 
-I used a negative power of two even if I doubt the compiler can make
-much use of it.
 
-> Okay I suppose: it seems rather laboured to me, I think I'd have just
-> moved the VM_BUG_ON into rmv_page_order() if I'd done the patch; but
-> since I was too lazy to do it, I'd better be grateful for yours!
+--==_Exmh_1297461155_5044P
+Content-Type: application/pgp-signature
 
-Ok the reason I didn't move the VM_BUG_ON is to be stricter in case
-there are more usages of __ClearPageBuddy in the future. I guess it's
-not so important, but when I initially implemented it, it wasn't
-entirely obvious it would work safe with memory hotplug, compaction
-and all other bits using PageBuddy, so...
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFNVa+jcC3lWbTT17ARAqUeAJ9PLoPrw+ZOUe8hL90Xa3ZfHnkNuQCfbkQP
+kdW3CG+FiiGg8FrWeZC8tfU=
+=QNea
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1297461155_5044P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
