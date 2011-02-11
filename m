@@ -1,177 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A7AC78D0039
-	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 18:07:37 -0500 (EST)
-Date: Thu, 10 Feb 2011 15:07:26 -0800
-From: Joel Becker <jlbec@evilplan.org>
-Subject: Re: [LSF/MM TOPIC] Utilizing T10/DIF in Filesystems
-Message-ID: <20110210230725.GA18007@noexit>
-References: <20110209200035.GG27190@tux1.beaverton.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110209200035.GG27190@tux1.beaverton.ibm.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DA1578D0039
+	for <linux-mm@kvack.org>; Thu, 10 Feb 2011 19:48:48 -0500 (EST)
+Date: Thu, 10 Feb 2011 16:48:45 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Fw: I have a blaze of 353 page allocation failures, all alike
+Message-Id: <20110210164845.16ae64af.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/mixed;
+ boundary="Multipart=_Thu__10_Feb_2011_16_48_45_-0800_C=+fMws77XyIT3C2"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <djwong@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, martin.petersen@oracle.com
+To: linux-mm@kvack.org
+Cc: Peter Kruse <pk@q-leap.com>
 
-On Wed, Feb 09, 2011 at 12:00:35PM -0800, Darrick J. Wong wrote:
-> I would like to talk about the status and future direction of T10/DIF support
-> in the kernel.  Here's something resembling an abstract:
-> 
-> Utilizing T10/DIF in Filesystems
-> 
-> For quite some time, we've been discussing the inclusion of T10/DIF
-> functionality into the kernel to associate a small amount of checksum/integrity
-> data with each sector.  Now that actual hardware is appearing on the market, it
-> is time to take another look at what we can do with this feature.
+This is a multi-part message in MIME format.
 
-	I like it.
-
-> 2. How do we expose a API that enables userspace to read and write  application
->    tags that go with a file's data blocks?
-
-	Martin and I have been working on an interface for this.  I was
-going to propose it for LSF, but since I haven't had time to put
-together code, I figured it could wait.  However, it might be worth
-discussing under this umbrella, as it can easily fit the DIF/DIX stuff.
-
-Joel
-
---------------------------
-
-sys_dio_*() - A direct interface to batched direct I/O.
-
-Joel Becker
-Martin Petersen
+--Multipart=_Thu__10_Feb_2011_16_48_45_-0800_C=+fMws77XyIT3C2
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 
 
-[Introduction]
-
-Direct I/O has a problem: it's coupled to the buffered I/O API.  It's an
-advisory layer atop POSIX semantics.  The POSIX calls are fine for what
-they are, but they interact with direct I/O in ways that are not
-predictable.  In addition, asynchronous operations require a specialized
-interface that frees some restrictions while imposing others.
-
-Finally, the classic interfaces do not allow for expansion.  This
-affects us directly when trying to pass Integrity information from an
-application through to the hardware.  Currently there is no generic
-facility to do so; Integrity can be attached after the payload has
-entered the kernel, but not before.
-
-We propose a new set of system calls, sys_dio_*(), that isolate direct
-I/O in a new, batched API.  sys_dio_*() leverages various things we've
-learned with block I/O.  It can batch up synchronous and asynchronous
-operations, share file handles, and attach Integrity information to
-operations.
-
-The initial implementation works directly on block devices, bypassing
-the pagecache completely.  This allows the most efficient operation for
-block devices.  It does not preclude adding file operations later.
+That sounds a bit excessive?
 
 
-[The I/O Interface]
+Begin forwarded message:
 
-The I/O interface for sys_dio_*() is simple.  There are only three
-actual I/O calls, sys_dio_submit(), sys_dio_wait(), and
-sys_dio_collect().  They all work on a batch of requests.
-
-All I/Os must be submitted at some point, so there is but one submission
-interface, sys_dio_submit().  Any number of dios can be sent in one
-batch.  These submissions are asynchronous and will be queued for
-processing (or even perhaps complete) when sys_dio_submit() returns.
-
-The sys_dio_wait() and sys_dio_collect() APIs handle synchronous and
-asynchronous completion respectively.  If a process wishes to block for
-one or more submitted I/Os, it passes a list to sys_dio_wait().  It will
-not return until all I/Os in the list have completed.  Conversely,
-sys_dio_collect() takes an empty array of request pointers.  It blocks
-until some min_nr have been filled in by completed requests.
+Date: Thu, 10 Feb 2011 16:03:31 +0100
+From: Peter Kruse <pk@q-leap.com>
+To: linux-kernel@vger.kernel.org
+Subject: I have a blaze of 353 page allocation failures, all alike
 
 
-[Handles]
+Hello,
 
-In today's world of thousands of disks, it is a significant penalty for
-every process sharing disks to hold their own open descriptors.  It
-takes up a lot of kernel memory.  sys_dio_*() contains an interface to
-share handles among processes.
+today one of our servers went berserk and produced literally 353
+page allocation failures in 7 minutes until it was reset
+(sysrq was still working).  I attach one of them as an example.
+The failures happened for different processes ranging from
+sshd, top, java, tclsh, ypserv, smbd, portmap, kswapd to Xvnc4.
+I already reported about an incidence with this server here:
+https://lkml.org/lkml/2011/1/19/145
+we have set vm.min_free_kbytes = 2097152 but the problem
+obviously did not go away.
+All traces start with one of these three beginnings:
 
-More specifically, sys_dio_open() converts a block device fd into a
-sys_dio handle.  This handle is what gets passed to sys_dio_submit().
-Thus, one process can open a block device and any coordinating
-processes can use the handle however they wish to communicate it: shm,
-tcp, $dontcare.  Unlike fd passing, it does not bloat each process's
-task structures.
+Call Trace:
+  <IRQ>  [<ffffffff81071f46>] __alloc_pages_nodemask+0x5ca/0x600
+  [<ffffffff81344127>] ? skb_dma_map+0xd2/0x23f
 
-If more than one process in a context opens the same block device, they
-will get the same handle.  The handle is just reference counted.  More
-on contexts below.  In addition, the block device is claimed with
-bd_claim(), giving the users of the context sole access to their device
-(XXX should this be a flag to sys_dio_open()?).
+Call Trace:
+  <IRQ>  [<ffffffff81071f46>] __alloc_pages_nodemask+0x5ca/0x600
+  [<ffffffff8109428b>] kmem_getpages+0x5c/0x127
 
-The original fd can be closed as soon as sys_dio_open() has a reference.
-The handle is released with sys_dio_close().  These handles are
-automatically released when the opening process exits.  Note that the
-lifetime of the handle is tied to the processes on the context that have
-actually opened it.  If the opening process exits, other processes will
-get errors from future submissions.
+Call Trace:
+  <IRQ>  [<ffffffff81071f46>] __alloc_pages_nodemask+0x5ca/0x600
+  [<ffffffffa01418fd>] ? tcp_packet+0xc87/0xcb2 [nf_conntrack]
 
+Please anybody, what is the cause of these failures?
 
-[Contexts]
+Thanks,
 
-We don't want all processes in the system sharing everything.  Instead,
-sys_dio_*() defines a context.  All processes requesting the same
-context will share handles.
+   Peter
 
-But wait, there's more!  A context is requested via a unsigned int key,
-but the actual context returned is a file descriptor.  This file
-descriptor can be polled for completions.  This way sys_dio operations
-can be added to the poll loop.
+--Multipart=_Thu__10_Feb_2011_16_48_45_-0800_C=+fMws77XyIT3C2
+Content-Type: text/plain;
+ name="calltrace.1"
+Content-Disposition: attachment;
+ filename="calltrace.1"
+Content-Transfer-Encoding: 7bit
 
-	if (pollfd.fd == context_fd)
-		sys_dio_collect(context_fd, collect_list, sizeof(collect_list)); 
+Call Trace:
+ <IRQ>  [<ffffffff81071f46>] __alloc_pages_nodemask+0x5ca/0x600
+ [<ffffffff8109428b>] kmem_getpages+0x5c/0x127
+ [<ffffffff81094475>] fallback_alloc+0x11f/0x195
+ [<ffffffff81094614>] ____cache_alloc_node+0x129/0x138
+ [<ffffffff81094fdd>] kmem_cache_alloc+0xd1/0xfe
+ [<ffffffff8133c2f9>] sk_prot_alloc+0x2c/0xcd
+ [<ffffffff8133c427>] sk_clone+0x1b/0x24b
+ [<ffffffff81369ce2>] inet_csk_clone+0x13/0x81
+ [<ffffffff8137d698>] tcp_create_openreq_child+0x1d/0x39c
+ [<ffffffff8137c309>] tcp_v4_syn_recv_sock+0x57/0x1bc
+ [<ffffffff8137d50f>] tcp_check_req+0x210/0x37c
+ [<ffffffffa0154423>] ? ipv4_confirm+0x161/0x179 [nf_conntrack_ipv4]
+ [<ffffffff8137ba63>] tcp_v4_do_rcv+0xc1/0x1d7
+ [<ffffffff8137c021>] tcp_v4_rcv+0x4a8/0x739
+ [<ffffffff8135ba27>] ? nf_hook_slow+0x63/0xc3
+ [<ffffffff81361bb0>] ? ip_local_deliver_finish+0x0/0x1d0
+ [<ffffffff81361ca8>] ip_local_deliver_finish+0xf8/0x1d0
+ [<ffffffff81361df2>] ip_local_deliver+0x72/0x7a
+ [<ffffffff813618ac>] ip_rcv_finish+0x33c/0x356
+ [<ffffffff81361b79>] ip_rcv+0x2b3/0x2ea
+ [<ffffffff813a2861>] ? packet_rcv_spkt+0x10f/0x11a
+ [<ffffffff8134660a>] netif_receive_skb+0x2cb/0x2ed
+ [<ffffffff81346767>] napi_skb_finish+0x28/0x40
+ [<ffffffff81346ba5>] napi_gro_receive+0x2a/0x2f
+ [<ffffffffa001669d>] igb_poll+0x507/0x86a [igb]
+ [<ffffffffa0015ef8>] ? igb_clean_tx_irq+0x1dd/0x47b [igb]
+ [<ffffffff81346cb6>] net_rx_action+0xa7/0x178
+ [<ffffffff8103bd21>] __do_softirq+0x96/0x119
+ [<ffffffff8100bf5c>] call_softirq+0x1c/0x28
+ [<ffffffff8100d9e7>] do_softirq+0x33/0x6b
+ [<ffffffff8103b844>] irq_exit+0x36/0x38
+ [<ffffffff8100d0e9>] do_IRQ+0xa3/0xba
+ [<ffffffff8100b7d3>] ret_from_intr+0x0/0xa
+ <EOI>  [<ffffffffa00f046f>] ? xfs_reclaim_inode_shrink+0xc3/0x112 [xfs]
+ [<ffffffffa00f0451>] ? xfs_reclaim_inode_shrink+0xa5/0x112 [xfs]
+ [<ffffffffa00f04bd>] ? xfs_reclaim_inode_shrink+0x111/0x112 [xfs]
+ [<ffffffff810770fc>] ? shrink_slab+0xd2/0x154
+ [<ffffffff81077e00>] ? try_to_free_pages+0x221/0x31c
+ [<ffffffff81074f4a>] ? isolate_pages_global+0x0/0x1f0
+ [<ffffffff81071d79>] ? __alloc_pages_nodemask+0x3fd/0x600
+ [<ffffffff8109428b>] ? kmem_getpages+0x5c/0x127
+ [<ffffffff81094475>] ? fallback_alloc+0x11f/0x195
+ [<ffffffff81094614>] ? ____cache_alloc_node+0x129/0x138
+ [<ffffffff810a9055>] ? pollwake+0x0/0x5b
+ [<ffffffff810946bf>] ? kmem_cache_alloc_node+0x9c/0xc7
+ [<ffffffff8109472d>] ? __kmalloc_node+0x43/0x45
+ [<ffffffff81340625>] ? __alloc_skb+0x6b/0x164
+ [<ffffffff8133bcc1>] ? sock_alloc_send_pskb+0xdd/0x31c
+ [<ffffffff8133bf10>] ? sock_alloc_send_skb+0x10/0x12
+ [<ffffffff8139e4c2>] ? unix_stream_sendmsg+0x180/0x312
+ [<ffffffff81338270>] ? sock_aio_write+0x109/0x122
+ [<ffffffff8100b7ce>] ? common_interrupt+0xe/0x13
+ [<ffffffff8109a41a>] ? do_sync_write+0xe7/0x12d
+ [<ffffffff81049208>] ? autoremove_wake_function+0x0/0x38
+ [<ffffffff8100b7ce>] ? common_intreclaimable:78357
+ mapped:11679 shmem:26799 pagetables:13497 bounce:0
 
-
-[The API]
-
-/*
- * XXX Should we have flags?  What about O_CREAT|O_EXCL semantics on
- * key->context?
- */
-int sys_dio_init(unsigned int key, unsigned int flags);
-int sys_dio_exit(int context);
-
-/*
- * XXX I'm providing int as the handle type because of my idea to have a
- * fd_table hanging off of the context.  But perhaps the handles should
- * be unsigned long or __u64 for future proofing?
- */
-int sys_dio_open(int context, int fd, int flags);
-int sys_dio_close(int context, int handle);
-
-/*
- * All of these calls have read(2) semantics.  They return the number of
- * I/Os submitted/waited on/collected.  If they return less then
- * submitted, it means error (or possibly no more outstanding for
- * sys_dio_collect()).
- *
- * XXX struct dio_request *requests or **requests?  The former is easy
- * to set up but a pain to use later.  The latter is a pain to set up
- * for submission but much nicer later.  I'm thinking most users would
- * have the requests independent in memory, so I chose **requests.
- */
-int sys_dio_submit(int context, struct dio_request **requests, int nr_requests);
-int sys_dio_wait(int context, struct dio_request **waits, int nr_waits);
-int sys_dio_collect(int context, struct dio_request **collects, int nr_collects);
--- 
-
-"You look in her eyes, the music begins to play.
- Hopeless romantics, here we go again."
-
-			http://www.jlbec.org/
-			jlbec@evilplan.org
+--Multipart=_Thu__10_Feb_2011_16_48_45_-0800_C=+fMws77XyIT3C2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
