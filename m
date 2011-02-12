@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 241808D0041
+	by kanga.kvack.org (Postfix) with ESMTP id E23308D004A
 	for <linux-mm@kvack.org>; Sat, 12 Feb 2011 13:49:48 -0500 (EST)
 Received: from unknown (HELO localhost.localdomain) (zcncxNmDysja2tXBptWToZWJlF6Wp6IuYnI=@[200.157.204.20])
           (envelope-sender <cesarb@cesarb.net>)
           by smtp-01.mandic.com.br (qmail-ldap-1.03) with AES256-SHA encrypted SMTP
-          for <linux-mm@kvack.org>; 12 Feb 2011 18:49:44 -0000
+          for <linux-mm@kvack.org>; 12 Feb 2011 18:49:45 -0000
 From: Cesar Eduardo Barros <cesarb@cesarb.net>
-Subject: [PATCH 14/24] sys_swapon: simplify error flow in claim_swapfile
-Date: Sat, 12 Feb 2011 16:49:15 -0200
-Message-Id: <1297536565-8059-14-git-send-email-cesarb@cesarb.net>
+Subject: [PATCH 17/24] sys_swapon: simplify error flow in read_swap_header
+Date: Sat, 12 Feb 2011 16:49:18 -0200
+Message-Id: <1297536565-8059-17-git-send-email-cesarb@cesarb.net>
 In-Reply-To: <4D56D5F9.8000609@cesarb.net>
 References: <4D56D5F9.8000609@cesarb.net>
 Sender: owner-linux-mm@kvack.org
@@ -22,47 +22,55 @@ Return directly instead.
 
 Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 ---
- mm/swapfile.c |   20 ++++++--------------
- 1 files changed, 6 insertions(+), 14 deletions(-)
+ mm/swapfile.c |   15 ++++++---------
+ 1 files changed, 6 insertions(+), 9 deletions(-)
 
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index db772e4..f5fe484 100644
+index 314fb21..33c939d 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -1900,30 +1900,22 @@ static int claim_swapfile(struct swap_info_struct *p, struct inode *inode)
- 				   sys_swapon);
- 		if (error < 0) {
- 			p->bdev = NULL;
--			error = -EINVAL;
--			goto bad_swap;
-+			return -EINVAL;
- 		}
- 		p->old_block_size = block_size(p->bdev);
- 		error = set_blocksize(p->bdev, PAGE_SIZE);
- 		if (error < 0)
--			goto bad_swap;
-+			return error;
- 		p->flags |= SWP_BLKDEV;
- 	} else if (S_ISREG(inode->i_mode)) {
- 		p->bdev = inode->i_sb->s_bdev;
- 		mutex_lock(&inode->i_mutex);
--		if (IS_SWAPFILE(inode)) {
--			error = -EBUSY;
--			goto bad_swap;
--		}
--	} else {
--		error = -EINVAL;
--		goto bad_swap;
--	}
-+		if (IS_SWAPFILE(inode))
-+			return -EBUSY;
-+	} else
-+		return -EINVAL;
+@@ -1928,7 +1928,7 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
  
- 	return 0;
+ 	if (memcmp("SWAPSPACE2", swap_header->magic.magic, 10)) {
+ 		printk(KERN_ERR "Unable to find swap-space signature\n");
+-		goto bad_swap;
++		return 0;
+ 	}
+ 
+ 	/* swap partition endianess hack... */
+@@ -1944,7 +1944,7 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
+ 		printk(KERN_WARNING
+ 		       "Unable to handle swap header version %d\n",
+ 		       swap_header->info.version);
+-		goto bad_swap;
++		return 0;
+ 	}
+ 
+ 	p->lowest_bit  = 1;
+@@ -1976,22 +1976,19 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
+ 	p->highest_bit = maxpages - 1;
+ 
+ 	if (!maxpages)
+-		goto bad_swap;
++		return 0;
+ 	swapfilepages = i_size_read(inode) >> PAGE_SHIFT;
+ 	if (swapfilepages && maxpages > swapfilepages) {
+ 		printk(KERN_WARNING
+ 		       "Swap area shorter than signature indicates\n");
+-		goto bad_swap;
++		return 0;
+ 	}
+ 	if (swap_header->info.nr_badpages && S_ISREG(inode->i_mode))
+-		goto bad_swap;
++		return 0;
+ 	if (swap_header->info.nr_badpages > MAX_SWAP_BADPAGES)
+-		goto bad_swap;
++		return 0;
+ 
+ 	return maxpages;
 -
 -bad_swap:
--	return error;
+-	return 0;
  }
  
  SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
