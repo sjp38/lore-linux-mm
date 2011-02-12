@@ -1,69 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 65D178D0039
-	for <linux-mm@kvack.org>; Fri, 11 Feb 2011 19:50:21 -0500 (EST)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1578148Ab1BLAuE (ORCPT <rfc822;linux-mm@kvack.org>);
-	Sat, 12 Feb 2011 01:50:04 +0100
-Date: Sat, 12 Feb 2011 01:50:04 +0100
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: Re: [Xen-devel] Re: [PATCH R3 5/7] xen/balloon: Protect against CPU exhaust by event/x proces
-Message-ID: <20110212005004.GA10853@router-fw-old.local.net-space.pl>
-References: <20110203162851.GH1364@router-fw-old.local.net-space.pl> <20110210155142.GC12087@dumpdata.com> <20110210171020.GB3993@dumpdata.com>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 372668D0039
+	for <linux-mm@kvack.org>; Fri, 11 Feb 2011 20:28:56 -0500 (EST)
+Date: Fri, 11 Feb 2011 17:28:50 -0800
+From: Simon Kirby <sim@hostway.ca>
+Subject: Re: too big min_free_kbytes
+Message-ID: <20110212012850.GA4179@hostway.ca>
+References: <20110126141746.GS18984@csn.ul.ie> <20110126152302.GT18984@csn.ul.ie> <20110126154203.GS926@random.random> <20110126163655.GU18984@csn.ul.ie> <20110126174236.GV18984@csn.ul.ie> <20110127134057.GA32039@csn.ul.ie> <20110127152755.GB30919@random.random> <20110203025808.GJ5843@random.random> <4D4ABD7F.2060208@redhat.com> <20110203191157.GN5843@random.random>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110210171020.GB3993@dumpdata.com>
+In-Reply-To: <20110203191157.GN5843@random.random>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Daniel Kiper <dkiper@net-space.pl>, jeremy@goop.org, xen-devel@lists.xensource.com, ian.campbell@citrix.com, haicheng.li@linux.intel.com, linux-kernel@vger.kernel.org, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, dave@linux.vnet.ibm.com, linux-mm@kvack.org, rientjes@google.com, andi.kleen@intel.com, akpm@linux-foundation.org, fengguang.wu@intel.com, wdauchy@gmail.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>
 
-On Thu, Feb 10, 2011 at 12:10:20PM -0500, Konrad Rzeszutek Wilk wrote:
-> On Thu, Feb 10, 2011 at 10:51:42AM -0500, Konrad Rzeszutek Wilk wrote:
-> > On Thu, Feb 03, 2011 at 05:28:51PM +0100, Daniel Kiper wrote:
-> > > Protect against CPU exhaust by event/x process during
-> > > errors by adding some delays in scheduling next event.
-> > >
-> > > Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
-> > > ---
-> > >  drivers/xen/balloon.c |   99 +++++++++++++++++++++++++++++++++++++++---------
-> > >  1 files changed, 80 insertions(+), 19 deletions(-)
-> > >
-> > > diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-> > > index 4223f64..ed103d4 100644
-> > > --- a/drivers/xen/balloon.c
-> > > +++ b/drivers/xen/balloon.c
-> > > @@ -66,6 +66,20 @@
-> > >
-> > >  #define BALLOON_CLASS_NAME "xen_memory"
-> > >
-> > > +/*
-> > > + * balloon_process() state:
-> > > + *
-> > > + * BP_ERROR: error, go to sleep,
-> > > + * BP_DONE: done or nothing to do,
-> > > + * BP_HUNGRY: hungry.
-> > > + */
-> > > +
-> > > +enum bp_state {
-> > > +	BP_ERROR,
-> >
-> > BP_EAGAIN?
-> >
-> > So if we fail to increase the first hour, we would keep on trying to
-> > increase forever (with a 32 second delay between each call). Do you
-> > think it makes sense (as a future patch, not tied in with this patchset)
-> > to printout a printk(KERN_INFO that we have been trying to increase
-> > for the last X hours, seconds and have not gone anywhere (and perhaps
-> > stop trying to allocate more memory?).
->
-> Duh, you did that in the next patch with the mh_policy.
+On Thu, Feb 03, 2011 at 08:11:57PM +0100, Andrea Arcangeli wrote:
 
-No problem. You showed me that I could improve that. Thx.
+> On Thu, Feb 03, 2011 at 09:36:47AM -0500, Rik van Riel wrote:
+> > On 02/02/2011 09:58 PM, Andrea Arcangeli wrote:
+> > 
+> > >> Subject: vmscan: kswapd must not free more than high_wmark pages
+> > 
+> > NAK
+> > 
+> > I believe we need a little bit of slack above high_wmark_pages,
+> > to be able to even out memory pressure between zones.
+> > 
+> > Maybe free up to high_wmark_pages + min_wmark_pages ?
+> 
+> If this can only go in with high+min that's still better than *8, but
+> in prev email on this thread I explained why I think it's not
+> beneficial for lru balancing and this level can't affect kswapd wakeup
+> times either, so I personally prefer just "high". I don't think out of
+> memory has anything to do with this the "min" level is all about the
+> PF_MEMALLOC and OOM levels. The zone balancing as well has nothing to
+> do with this and the only "hard" thing that guarantees balancing is
+> the lowmem reserve ratio (high ptes allocated in lowmem zones aren't
+> relocatable etc..).
 
-Daniel
+I was proposing before that the allocator fast path should use a weighted
+(by zone size) round robin approach to the available zones, rather than
+allocating from top down, so that reclaim would be fair rather than small
+zones reclaiming stuff earlier than larger zones.
+
+Riel pointed out that this 8*high_wmark_pages thing helped free a
+proportional amount of stuff from the zone once the high_wmark was
+breached, eventually causing allocation rates for each zone to end up
+being close to the actual size of the zone. This happens because the
+watermark values are set based on the size of the zone.
+
+I still think this approach is a bit odd, since when kswapd first wakes
+up, systems with multiple zones will reclaim things that aren't as old as
+the stuff in the highest zone, until the system runs for a while and this
+watermark thing balances the allocation rates. OTOH, changing the
+allocator increases the possibility of some high-order DMA zone
+allocation failing during boot that otherwise wouldn't.
+
+Simon-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
