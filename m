@@ -1,64 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 372668D0039
-	for <linux-mm@kvack.org>; Fri, 11 Feb 2011 20:28:56 -0500 (EST)
-Date: Fri, 11 Feb 2011 17:28:50 -0800
-From: Simon Kirby <sim@hostway.ca>
-Subject: Re: too big min_free_kbytes
-Message-ID: <20110212012850.GA4179@hostway.ca>
-References: <20110126141746.GS18984@csn.ul.ie> <20110126152302.GT18984@csn.ul.ie> <20110126154203.GS926@random.random> <20110126163655.GU18984@csn.ul.ie> <20110126174236.GV18984@csn.ul.ie> <20110127134057.GA32039@csn.ul.ie> <20110127152755.GB30919@random.random> <20110203025808.GJ5843@random.random> <4D4ABD7F.2060208@redhat.com> <20110203191157.GN5843@random.random>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DD3568D0039
+	for <linux-mm@kvack.org>; Fri, 11 Feb 2011 21:49:07 -0500 (EST)
+Message-ID: <4D55F4B6.8040801@oracle.com>
+Date: Fri, 11 Feb 2011 18:47:18 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110203191157.GN5843@random.random>
+Subject: Re: mmotm 2011-02-10-16-26 uploaded (zcache')
+References: <201102110100.p1B10sDx029244@imap1.linux-foundation.org 53491.1297461155@localhost> <b4feb995-1e73-4c12-8c58-ad0c2252233c@default>
+In-Reply-To: <b4feb995-1e73-4c12-8c58-ad0c2252233c@default>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Valdis.Kletnieks@vt.edu, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>
 
-On Thu, Feb 03, 2011 at 08:11:57PM +0100, Andrea Arcangeli wrote:
+On 2/11/2011 2:09 PM, Dan Magenheimer wrote:
+>> From: Valdis.Kletnieks@vt.edu [mailto:Valdis.Kletnieks@vt.edu]
+>> Sent: Friday, February 11, 2011 2:53 PM
+>> To: akpm@linux-foundation.org; Dan Magenheimer
+>> Cc: mm-commits@vger.kernel.org; linux-kernel@vger.kernel.org; linux-
+>> mm@kvack.org; linux-fsdevel@vger.kernel.org
+>> Subject: Re: mmotm 2011-02-10-16-26 uploaded
+>>
+>> On Thu, 10 Feb 2011 16:26:36 PST, akpm@linux-foundation.org said:
+>>> The mm-of-the-moment snapshot 2011-02-10-16-26 has been uploaded to
+>>>
+>>>     http://userweb.kernel.org/~akpm/mmotm/
+>>
+>> CONFIG_ZCACHE=m dies a horrid death:
+>
+> Thanks Valdis.  A fix for this has already been posted by
+> Nitin Gupta and Randy Dunlap here:
+>
+> https://lkml.org/lkml/2011/2/10/383
+>
+> Another patch for a zcache memory leak has been posted here:
+>
+> https://lkml.org/lkml/2011/2/10/306
+>
+> I'm sorry that multiple people have run into this in
+> multiple trees.
+> I have to admit I am a bit baffled as to what the proper
+> tree flow is for bug fixes like this, but would be happy
+> to "follow the process" if I am told what it is or if
+> someone can point me to a document describing it.
+>
+> (Clearly making sure there are no bugs at all in a
+> submission is the best way to go, but I'm afraid
+> I can't claim to be perfect :-)
 
-> On Thu, Feb 03, 2011 at 09:36:47AM -0500, Rik van Riel wrote:
-> > On 02/02/2011 09:58 PM, Andrea Arcangeli wrote:
-> > 
-> > >> Subject: vmscan: kswapd must not free more than high_wmark pages
-> > 
-> > NAK
-> > 
-> > I believe we need a little bit of slack above high_wmark_pages,
-> > to be able to even out memory pressure between zones.
-> > 
-> > Maybe free up to high_wmark_pages + min_wmark_pages ?
-> 
-> If this can only go in with high+min that's still better than *8, but
-> in prev email on this thread I explained why I think it's not
-> beneficial for lru balancing and this level can't affect kswapd wakeup
-> times either, so I personally prefer just "high". I don't think out of
-> memory has anything to do with this the "min" level is all about the
-> PF_MEMALLOC and OOM levels. The zone balancing as well has nothing to
-> do with this and the only "hard" thing that guarantees balancing is
-> the lowmem reserve ratio (high ptes allocated in lowmem zones aren't
-> relocatable etc..).
+When CONFIG_SYSFS is not enabled:
 
-I was proposing before that the allocator fast path should use a weighted
-(by zone size) round robin approach to the available zones, rather than
-allocating from top down, so that reclaim would be fair rather than small
-zones reclaiming stuff earlier than larger zones.
-
-Riel pointed out that this 8*high_wmark_pages thing helped free a
-proportional amount of stuff from the zone once the high_wmark was
-breached, eventually causing allocation rates for each zone to end up
-being close to the actual size of the zone. This happens because the
-watermark values are set based on the size of the zone.
-
-I still think this approach is a bit odd, since when kswapd first wakes
-up, systems with multiple zones will reclaim things that aren't as old as
-the stuff in the highest zone, until the system runs for a while and this
-watermark thing balances the allocation rates. OTOH, changing the
-allocator increases the possibility of some high-order DMA zone
-allocation failing during boot that otherwise wouldn't.
-
-Simon-
+mmotm-2011-0210-1626/drivers/staging/zcache/zcache.c:1608: error: 'ret' 
+undeclared (first use in this function)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
