@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5035C8D0044
+	by kanga.kvack.org (Postfix) with ESMTP id 4DAB98D0043
 	for <linux-mm@kvack.org>; Sat, 12 Feb 2011 13:49:47 -0500 (EST)
 Received: from unknown (HELO localhost.localdomain) (zcncxNmDysja2tXBptWToZWJlF6Wp6IuYnI=@[200.157.204.20])
           (envelope-sender <cesarb@cesarb.net>)
           by smtp-01.mandic.com.br (qmail-ldap-1.03) with AES256-SHA encrypted SMTP
-          for <linux-mm@kvack.org>; 12 Feb 2011 18:49:43 -0000
+          for <linux-mm@kvack.org>; 12 Feb 2011 18:49:42 -0000
 From: Cesar Eduardo Barros <cesarb@cesarb.net>
-Subject: [PATCH 08/24] sys_swapon: move setting of error nearer use
-Date: Sat, 12 Feb 2011 16:49:09 -0200
-Message-Id: <1297536565-8059-8-git-send-email-cesarb@cesarb.net>
+Subject: [PATCH 01/24] sys_swapon: use vzalloc instead of vmalloc/memset
+Date: Sat, 12 Feb 2011 16:49:02 -0200
+Message-Id: <1297536565-8059-1-git-send-email-cesarb@cesarb.net>
 In-Reply-To: <4D56D5F9.8000609@cesarb.net>
 References: <4D56D5F9.8000609@cesarb.net>
 Sender: owner-linux-mm@kvack.org
@@ -17,66 +17,30 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Cesar Eduardo Barros <cesarb@cesarb.net>
 
-Move the setting of the error variable nearer the goto in a few places.
-
-Avoids calling PTR_ERR() if not IS_ERR() in two places, and makes the
-error condition more explicit in two other places.
-
 Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 ---
- mm/swapfile.c |   11 ++++++-----
- 1 files changed, 6 insertions(+), 5 deletions(-)
+ mm/swapfile.c |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
 
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index e21602c..340537d 100644
+index 07a458d..69a1f90 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -1917,14 +1917,14 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		return PTR_ERR(p);
+@@ -2047,13 +2047,12 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 		goto bad_swap;
  
- 	name = getname(specialfile);
--	error = PTR_ERR(name);
- 	if (IS_ERR(name)) {
-+		error = PTR_ERR(name);
- 		name = NULL;
- 		goto bad_swap_2;
- 	}
- 	swap_file = filp_open(name, O_RDWR|O_LARGEFILE, 0);
--	error = PTR_ERR(swap_file);
- 	if (IS_ERR(swap_file)) {
-+		error = PTR_ERR(swap_file);
- 		swap_file = NULL;
- 		goto bad_swap_2;
- 	}
-@@ -1933,17 +1933,17 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	mapping = swap_file->f_mapping;
- 	inode = mapping->host;
- 
--	error = -EBUSY;
- 	for (i = 0; i < nr_swapfiles; i++) {
- 		struct swap_info_struct *q = swap_info[i];
- 
- 		if (q == p || !q->swap_file)
- 			continue;
--		if (mapping == q->swap_file->f_mapping)
-+		if (mapping == q->swap_file->f_mapping) {
-+			error = -EBUSY;
- 			goto bad_swap;
-+		}
- 	}
- 
--	error = -EINVAL;
- 	if (S_ISBLK(inode->i_mode)) {
- 		bdev = I_BDEV(inode);
- 		error = blkdev_get(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL,
-@@ -1968,6 +1968,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 			goto bad_swap;
- 		}
- 	} else {
-+		error = -EINVAL;
+ 	/* OK, set up the swap map and apply the bad block list */
+-	swap_map = vmalloc(maxpages);
++	swap_map = vzalloc(maxpages);
+ 	if (!swap_map) {
+ 		error = -ENOMEM;
  		goto bad_swap;
  	}
  
+-	memset(swap_map, 0, maxpages);
+ 	nr_good_pages = maxpages - 1;	/* omit header page */
+ 
+ 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
 -- 
 1.7.4
 
