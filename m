@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B59548D003E
+	by kanga.kvack.org (Postfix) with ESMTP id CECAD8D003F
 	for <linux-mm@kvack.org>; Sat, 12 Feb 2011 13:49:46 -0500 (EST)
 Received: from unknown (HELO localhost.localdomain) (zcncxNmDysja2tXBptWToZWJlF6Wp6IuYnI=@[200.157.204.20])
           (envelope-sender <cesarb@cesarb.net>)
           by smtp-01.mandic.com.br (qmail-ldap-1.03) with AES256-SHA encrypted SMTP
-          for <linux-mm@kvack.org>; 12 Feb 2011 18:49:42 -0000
+          for <linux-mm@kvack.org>; 12 Feb 2011 18:49:43 -0000
 From: Cesar Eduardo Barros <cesarb@cesarb.net>
-Subject: [PATCH 05/24] sys_swapon: simplify error return from swap_info allocation
-Date: Sat, 12 Feb 2011 16:49:06 -0200
-Message-Id: <1297536565-8059-5-git-send-email-cesarb@cesarb.net>
+Subject: [PATCH 07/24] sys_swapon: remove initial value of name variable
+Date: Sat, 12 Feb 2011 16:49:08 -0200
+Message-Id: <1297536565-8059-7-git-send-email-cesarb@cesarb.net>
 In-Reply-To: <4D56D5F9.8000609@cesarb.net>
 References: <4D56D5F9.8000609@cesarb.net>
 Sender: owner-linux-mm@kvack.org
@@ -17,31 +17,27 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Cesar Eduardo Barros <cesarb@cesarb.net>
 
-At this point in sys_swapon, there is nothing to free. Return directly
-instead of jumping to the cleanup block at the end of the function.
+Now there is nothing which jumps to the cleanup blocks before the name
+variable is set. There is no need to set it initially to NULL anymore.
 
 Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 ---
- mm/swapfile.c |    6 ++----
- 1 files changed, 2 insertions(+), 4 deletions(-)
+ mm/swapfile.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 837e40f..be728e3 100644
+index 5538c77..e21602c 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -1918,10 +1918,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		return -EPERM;
- 
- 	p = alloc_swap_info();
--	if (IS_ERR(p)) {
--		error = PTR_ERR(p);
--		goto out;
--	}
-+	if (IS_ERR(p))
-+		return PTR_ERR(p);
- 
- 	name = getname(specialfile);
- 	error = PTR_ERR(name);
+@@ -1892,7 +1892,7 @@ static struct swap_info_struct *alloc_swap_info(void)
+ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ {
+ 	struct swap_info_struct *p;
+-	char *name = NULL;
++	char *name;
+ 	struct block_device *bdev = NULL;
+ 	struct file *swap_file = NULL;
+ 	struct address_space *mapping;
 -- 
 1.7.4
 
