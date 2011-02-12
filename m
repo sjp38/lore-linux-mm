@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DAB98D0043
+	by kanga.kvack.org (Postfix) with ESMTP id 85CA98D0045
 	for <linux-mm@kvack.org>; Sat, 12 Feb 2011 13:49:47 -0500 (EST)
 Received: from unknown (HELO localhost.localdomain) (zcncxNmDysja2tXBptWToZWJlF6Wp6IuYnI=@[200.157.204.20])
           (envelope-sender <cesarb@cesarb.net>)
           by smtp-01.mandic.com.br (qmail-ldap-1.03) with AES256-SHA encrypted SMTP
-          for <linux-mm@kvack.org>; 12 Feb 2011 18:49:42 -0000
+          for <linux-mm@kvack.org>; 12 Feb 2011 18:49:44 -0000
 From: Cesar Eduardo Barros <cesarb@cesarb.net>
-Subject: [PATCH 01/24] sys_swapon: use vzalloc instead of vmalloc/memset
-Date: Sat, 12 Feb 2011 16:49:02 -0200
-Message-Id: <1297536565-8059-1-git-send-email-cesarb@cesarb.net>
+Subject: [PATCH 11/24] sys_swapon: do only cleanup in the cleanup blocks
+Date: Sat, 12 Feb 2011 16:49:12 -0200
+Message-Id: <1297536565-8059-11-git-send-email-cesarb@cesarb.net>
 In-Reply-To: <4D56D5F9.8000609@cesarb.net>
 References: <4D56D5F9.8000609@cesarb.net>
 Sender: owner-linux-mm@kvack.org
@@ -17,30 +17,45 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Cesar Eduardo Barros <cesarb@cesarb.net>
 
+The only way error is 0 in the cleanup blocks is when the function is
+returning successfully. In this case, the cleanup blocks were setting
+S_SWAPFILE in the S_ISREG case. But this is not a cleanup.
+
+Move the setting of S_SWAPFILE to just before the "goto out;" to make
+this more clear. At this point, we do not need to test for inode because
+it will never be NULL.
+
 Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 ---
- mm/swapfile.c |    3 +--
- 1 files changed, 1 insertions(+), 2 deletions(-)
+ mm/swapfile.c |    7 +++----
+ 1 files changed, 3 insertions(+), 4 deletions(-)
 
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 07a458d..69a1f90 100644
+index 58fa178..f122f4a 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -2047,13 +2047,12 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		goto bad_swap;
+@@ -2136,6 +2136,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 	atomic_inc(&proc_poll_event);
+ 	wake_up_interruptible(&proc_poll_wait);
  
- 	/* OK, set up the swap map and apply the bad block list */
--	swap_map = vmalloc(maxpages);
-+	swap_map = vzalloc(maxpages);
- 	if (!swap_map) {
- 		error = -ENOMEM;
- 		goto bad_swap;
++	if (S_ISREG(inode->i_mode))
++		inode->i_flags |= S_SWAPFILE;
+ 	error = 0;
+ 	goto out;
+ bad_swap:
+@@ -2160,11 +2162,8 @@ out:
  	}
+ 	if (name)
+ 		putname(name);
+-	if (inode && S_ISREG(inode->i_mode)) {
+-		if (!error)
+-			inode->i_flags |= S_SWAPFILE;
++	if (inode && S_ISREG(inode->i_mode))
+ 		mutex_unlock(&inode->i_mutex);
+-	}
+ 	return error;
+ }
  
--	memset(swap_map, 0, maxpages);
- 	nr_good_pages = maxpages - 1;	/* omit header page */
- 
- 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
 -- 
 1.7.4
 
