@@ -1,440 +1,570 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AFE628D0039
-	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 10:16:40 -0500 (EST)
-Date: Tue, 15 Feb 2011 16:16:33 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [2.6.32 ubuntu] I/O hang at start_this_handle
-Message-ID: <20110215151633.GG17313@quack.suse.cz>
-References: <201102080526.p185Q0mL034909@www262.sakura.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201102080526.p185Q0mL034909@www262.sakura.ne.jp>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A5388D0039
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 10:39:49 -0500 (EST)
+Received: from d06nrmr1707.portsmouth.uk.ibm.com (d06nrmr1707.portsmouth.uk.ibm.com [9.149.39.225])
+	by mtagate7.uk.ibm.com (8.13.1/8.13.1) with ESMTP id p1FFdjnj027763
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 15:39:45 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by d06nrmr1707.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p1FFdgvS1900558
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 15:39:51 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p1FFdaod008141
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 08:39:36 -0700
+Date: Tue, 15 Feb 2011 16:39:48 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH 00/21] mm: Preemptibility -v6
+Message-ID: <20110215163948.429be561@mschwide.boeblingen.de.ibm.com>
+In-Reply-To: <20110215150017.498fda48@mschwide.boeblingen.de.ibm.com>
+References: <20101126143843.801484792@chello.nl>
+	<alpine.LSU.2.00.1101172301340.2899@sister.anvils>
+	<1295457039.28776.137.camel@laptop>
+	<20110215150017.498fda48@mschwide.boeblingen.de.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Nick Piggin <npiggin@kernel.dk>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
 
-On Tue 08-02-11 14:26:00, Tetsuo Handa wrote:
-> I got below hangup. Is this known problem?
-> 
-> Installing: grub-0.97-173.6 [91%]
-> 
-> # dmesg
-> [14280.252030] INFO: task sh:17496 blocked for more than 120 seconds.
-> [14280.252228] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> [14280.252447] sh            D 00000000     0 17496  17470 0x00000000
-> [14280.252455]  f6f8fcf8 00200082 c02084a3 00000000 00000000 c088e4c0 f6d39c24 c088e4c0
-> [14280.252468]  15e72f78 00000ccd c088e4c0 c088e4c0 f6d39c24 c088e4c0 c088e4c0 f40c2a80
-> [14280.252480]  15e50702 00000ccd f6d39980 f4d2b63c f4d2b600 00000000 f6f8fd54 c02c7ead
-> [14280.252492] Call Trace:
-> [14280.252503]  [<c02084a3>] ? __slab_alloc+0x163/0x220
-> [14280.252512]  [<c02c7ead>] start_this_handle+0x22d/0x390
-> [14280.252519]  [<c016ff90>] ? autoremove_wake_function+0x0/0x50
-> [14280.252525]  [<c02c8188>] journal_start+0x98/0xd0
-> [14280.252532]  [<c027b06e>] ext3_journal_start_sb+0x2e/0x50
-> [14280.252538]  [<c0272f02>] ext3_dirty_inode+0x32/0x80
-> [14280.252545]  [<c0231c71>] __mark_inode_dirty+0x31/0x180
-> [14280.252552]  [<c022900a>] inode_setattr+0xaa/0x170
-> [14280.252557]  [<c0273091>] ext3_setattr+0x141/0x1f0
-> [14280.252563]  [<c0229213>] notify_change+0x143/0x340
-> [14280.252571]  [<c02122d2>] do_truncate+0x62/0x90
-> [14280.252578]  [<c03018ea>] ? security_path_truncate+0x3a/0x50
-> [14280.252584]  [<c021c710>] may_open+0x1d0/0x200
-> [14280.252591]  [<c021f9fc>] do_filp_open+0xfc/0x990
-> [14280.252597]  [<c01efb74>] ? do_wp_page+0x104/0x910
-> [14280.252605]  [<c02111d5>] do_sys_open+0x55/0x160
-> [14280.252611]  [<c021134e>] sys_open+0x2e/0x40
-> [14280.252617]  [<c01096c3>] sysenter_do_call+0x12/0x28
-  Ext3 looks innocent here. That is a standard call path for open(..,
-O_TRUNC). But apparently something broke in SLUB allocator. Adding proper
-list to CC...
+On Tue, 15 Feb 2011 15:00:17 +0100
+Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
 
-> [14400.252032] INFO: task sh:17496 blocked for more than 120 seconds.
-> [14400.252201] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> [14400.252429] sh            D 00000000     0 17496  17470 0x00000000
-> [14400.252437]  f6f8fcf8 00200082 c02084a3 00000000 00000000 c088e4c0 f6d39c24 c088e4c0
-> [14400.252450]  15e72f78 00000ccd c088e4c0 c088e4c0 f6d39c24 c088e4c0 c088e4c0 f40c2a80
-> [14400.252461]  15e50702 00000ccd f6d39980 f4d2b63c f4d2b600 00000000 f6f8fd54 c02c7ead
-> [14400.252473] Call Trace:
-> [14400.252484]  [<c02084a3>] ? __slab_alloc+0x163/0x220
-> [14400.252492]  [<c02c7ead>] start_this_handle+0x22d/0x390
-> [14400.252500]  [<c016ff90>] ? autoremove_wake_function+0x0/0x50
-> [14400.252506]  [<c02c8188>] journal_start+0x98/0xd0
-> [14400.252512]  [<c027b06e>] ext3_journal_start_sb+0x2e/0x50
-> [14400.252518]  [<c0272f02>] ext3_dirty_inode+0x32/0x80
-> [14400.252525]  [<c0231c71>] __mark_inode_dirty+0x31/0x180
-> [14400.252532]  [<c022900a>] inode_setattr+0xaa/0x170
-> [14400.252537]  [<c0273091>] ext3_setattr+0x141/0x1f0
-> [14400.252543]  [<c0229213>] notify_change+0x143/0x340
-> [14400.252550]  [<c02122d2>] do_truncate+0x62/0x90
-> [14400.252557]  [<c03018ea>] ? security_path_truncate+0x3a/0x50
-> [14400.252564]  [<c021c710>] may_open+0x1d0/0x200
-> [14400.252570]  [<c021f9fc>] do_filp_open+0xfc/0x990
-> [14400.252577]  [<c01efb74>] ? do_wp_page+0x104/0x910
-> [14400.252584]  [<c02111d5>] do_sys_open+0x55/0x160
-> [14400.252590]  [<c021134e>] sys_open+0x2e/0x40
-> [14400.252596]  [<c01096c3>] sysenter_do_call+0x12/0x28
+> On Wed, 19 Jan 2011 18:10:39 +0100
+> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 > 
-> CPU usage is almost 0%. Below is some sysrq info.
+> > Martin, while doing the below DEFINE_PER_CPU removal I saw you had a
+> > bunch of RCU table removal thingies in arch/s390/mm/pgtable.c, could
+> > s390 use the generic bits like sparc and powerpc (see patch 16)?
 > 
-> [15460.045190] SysRq : Show Blocked State
-> [15460.053012]   task                PC stack   pid father
-> [15460.053012] sh            D 00000000     0 17496  17470 0x00000000
-> [15460.053012]  f6f8fcf8 00200082 c02084a3 00000000 00000000 c088e4c0 f6d39c24 c088e4c0
-> [15460.053012]  15e72f78 00000ccd c088e4c0 c088e4c0 f6d39c24 c088e4c0 c088e4c0 f40c2a80
-> [15460.053012]  15e50702 00000ccd f6d39980 f4d2b63c f4d2b600 00000000 f6f8fd54 c02c7ead
-> [15460.053012] Call Trace:
-> [15460.053012]  [<c02084a3>] ? __slab_alloc+0x163/0x220
-> [15460.053012]  [<c02c7ead>] start_this_handle+0x22d/0x390
-> [15460.053012]  [<c016ff90>] ? autoremove_wake_function+0x0/0x50
-> [15460.053012]  [<c02c8188>] journal_start+0x98/0xd0
-> [15460.053012]  [<c027b06e>] ext3_journal_start_sb+0x2e/0x50
-> [15460.053012]  [<c0272f02>] ext3_dirty_inode+0x32/0x80
-> [15460.053012]  [<c0231c71>] __mark_inode_dirty+0x31/0x180
-> [15460.053012]  [<c022900a>] inode_setattr+0xaa/0x170
-> [15460.053012]  [<c0273091>] ext3_setattr+0x141/0x1f0
-> [15460.053012]  [<c0229213>] notify_change+0x143/0x340
-> [15460.053012]  [<c02122d2>] do_truncate+0x62/0x90
-> [15460.053012]  [<c03018ea>] ? security_path_truncate+0x3a/0x50
-> [15460.053012]  [<c021c710>] may_open+0x1d0/0x200
-> [15460.053012]  [<c021f9fc>] do_filp_open+0xfc/0x990
-> [15460.053012]  [<c01efb74>] ? do_wp_page+0x104/0x910
-> [15460.053012]  [<c02111d5>] do_sys_open+0x55/0x160
-> [15460.053012]  [<c021134e>] sys_open+0x2e/0x40
-> [15460.053012]  [<c01096c3>] sysenter_do_call+0x12/0x28
-> [15460.053012] Sched Debug Version: v0.09, 2.6.32-28-generic-pae #55-Ubuntu
-> [15460.053012] now at 15460053.551044 msecs
-> [15460.053012]   .jiffies                                 : 3790013
-> [15460.053012]   .sysctl_sched_latency                    : 10.000000
-> [15460.053012]   .sysctl_sched_min_granularity            : 2.000000
-> [15460.053012]   .sysctl_sched_wakeup_granularity         : 2.000000
-> [15460.053012]   .sysctl_sched_child_runs_first           : 0.000000
-> [15460.053012]   .sysctl_sched_features                   : 15834235
-> [15460.053012]
-> [15460.053012] cpu#0, 2194.944 MHz
-> [15460.053012]   .nr_running                    : 1
-> [15460.053012]   .load                          : 1024
-> [15460.053012]   .nr_switches                   : 1773885
-> [15460.053012]   .nr_load_updates               : 494855
-> [15460.053012]   .nr_uninterruptible            : 1
-> [15460.053012]   .next_balance                  : 3.789648
-> [15460.053012]   .curr->pid                     : 17674
-> [15460.053012]   .clock                         : 15460045.031387
-> [15460.053012]   .cpu_load[0]                   : 0
-> [15460.053012]   .cpu_load[1]                   : 0
-> [15460.053012]   .cpu_load[2]                   : 0
-> [15460.053012]   .cpu_load[3]                   : 0
-> [15460.053012]   .cpu_load[4]                   : 0
-> [15460.053012]   .yld_count                     : 1006
-> [15460.053012]   .sched_switch                  : 0
-> [15460.053012]   .sched_count                   : 1819077
-> [15460.053012]   .sched_goidle                  : 758147
-> [15460.053012]   .avg_idle                      : 1000000
-> [15460.053012]   .ttwu_count                    : 922833
-> [15460.053012]   .ttwu_local                    : 721258
-> [15460.053012]   .bkl_count                     : 113
-> [15460.053012]
-> [15460.053012] cfs_rq[0]:/
-> [15460.053012]   .exec_clock                    : 565672.449837
-> [15460.053012]   .MIN_vruntime                  : 0.000001
-> [15460.053012]   .min_vruntime                  : 684253.393210
-> [15460.053012]   .max_vruntime                  : 0.000001
-> [15460.053012]   .spread                        : 0.000000
-> [15460.053012]   .spread0                       : 0.000000
-> [15460.053012]   .nr_running                    : 1
-> [15460.053012]   .load                          : 1024
-> [15460.053012]   .nr_spread_over                : 2
-> [15460.053012]   .shares                        : 0
-> [15460.053012]
-> [15460.053012] rt_rq[0]:/
-> [15460.053012]   .rt_nr_running                 : 0
-> [15460.053012]   .rt_throttled                  : 0
-> [15460.053012]   .rt_time                       : 0.000000
-> [15460.053012]   .rt_runtime                    : 950.000000
-> [15460.053012]
-> [15460.053012] runnable tasks:
-> [15460.053012]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
-> [15460.053012] ----------------------------------------------------------------------------------------------------------
-> [15460.053012] R           bash 17674    684253.393210       448   120    684253.393210       168.337420    700111.995795 /
-> [15460.053012]
-> [15460.053012] cpu#1, 2194.944 MHz
-> [15460.053012]   .nr_running                    : 0
-> [15460.053012]   .load                          : 0
-> [15460.053012]   .nr_switches                   : 2781711
-> [15460.053012]   .nr_load_updates               : 585052
-> [15460.053012]   .nr_uninterruptible            : 0
-> [15460.053012]   .next_balance                  : 3.790015
-> [15460.053012]   .curr->pid                     : 0
-> [15460.053012]   .clock                         : 15460053.425771
-> [15460.053012]   .cpu_load[0]                   : 0
-> [15460.053012]   .cpu_load[1]                   : 0
-> [15460.053012]   .cpu_load[2]                   : 0
-> [15460.053012]   .cpu_load[3]                   : 0
-> [15460.053012]   .cpu_load[4]                   : 0
-> [15460.053012]   .yld_count                     : 971
-> [15460.053012]   .sched_switch                  : 0
-> [15460.053012]   .sched_count                   : 2828076
-> [15460.053012]   .sched_goidle                  : 1319436
-> [15460.053012]   .avg_idle                      : 875273
-> [15460.053012]   .ttwu_count                    : 1398861
-> [15460.053012]   .ttwu_local                    : 1163642
-> [15460.053012]   .bkl_count                     : 79
-> [15460.053012]
-> [15460.053012] cfs_rq[1]:/
-> [15460.053012]   .exec_clock                    : 415244.483606
-> [15460.053012]   .MIN_vruntime                  : 0.000001
-> [15460.053012]   .min_vruntime                  : 507085.016198
-> [15460.053012]   .max_vruntime                  : 0.000001
-> [15460.053012]   .spread                        : 0.000000
-> [15460.053012]   .spread0                       : -177168.377012
-> [15460.053012]   .nr_running                    : 0
-> [15460.053012]   .load                          : 0
-> [15460.053012]   .nr_spread_over                : 1
-> [15460.053012]   .shares                        : 0
-> [15460.053012]
-> [15460.053012] rt_rq[1]:/
-> [15460.053012]   .rt_nr_running                 : 0
-> [15460.053012]   .rt_throttled                  : 0
-> [15460.053012]   .rt_time                       : 0.000000
-> [15460.053012]   .rt_runtime                    : 950.000000
-> [15460.053012]
-> [15460.053012] runnable tasks:
-> [15460.053012]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
-> [15460.053012] ----------------------------------------------------------------------------------------------------------
-> [15460.053012]
-> 
-> [15492.337181] SysRq : Show clockevent devices & pending hrtimers (no others)
-> [15492.341016] Timer List Version: v0.5
-> [15492.341016] HRTIMER_MAX_CLOCK_BASES: 2
-> [15492.341016] now at 15492345437343 nsecs
-> [15492.341016]
-> [15492.341016] cpu: 0
-> [15492.341016]  clock 0:
-> [15492.341016]   .base:       c70049a4
-> [15492.341016]   .index:      0
-> [15492.341016]   .resolution: 1 nsecs
-> [15492.341016]   .get_time:   ktime_get_real
-> [15492.341016]   .offset:     1297125938059809325 nsecs
-> [15492.341016] active timers:
-> [15492.341016]  clock 1:
-> [15492.341016]   .base:       c70049d0
-> [15492.341016]   .index:      1
-> [15492.341016]   .resolution: 1 nsecs
-> [15492.341016]   .get_time:   ktime_get
-> [15492.341016]   .offset:     0 nsecs
-> [15492.341016] active timers:
-> [15492.341016]  #0: <c7004a60>, tick_sched_timer, S:01, hrtimer_start_range_ns, swapper/0
-> [15492.341016]  # expires at 15492340000000-15492340000000 nsecs [in -5437343 to -5437343 nsecs]
-> [15492.341016]  #1: <f5105ad8>, hrtimer_wakeup, S:01, hrtimer_start_range_ns, zypper/28960
-> [15492.341016]  # expires at 15497197764475-15497202764474 nsecs [in 4852327132 to 4857327131 nsecs]
-> [15492.341016]  #2: <f6e09f40>, hrtimer_wakeup, S:01, hrtimer_start_range_ns, cron/884
-> [15492.341016]  # expires at 15503084128363-15503084178363 nsecs [in 10738691020 to 10738741020 nsecs]
-> [15492.341016]  #3: <f4f19ad8>, hrtimer_wakeup, S:01, hrtimer_start_range_ns, winbindd/917
-> [15492.341016]  # expires at 15510366264172-15510396264171 nsecs [in 18020826829 to 18050826828 nsecs]
-> [15492.341016]  #4: <f52bfef4>, hrtimer_wakeup, S:01, hrtimer_start_range_ns, rsyslogd/17711
-> [15492.341016]  # expires at 15520060947543-15520060997543 nsecs [in 27715510200 to 27715560200 nsecs]
-> [15492.341016]  #5: <f4f37f40>, hrtimer_wakeup, S:01, hrtimer_start_range_ns, atd/885
-> [15492.341016]  # expires at 18011893116083-18011893166083 nsecs [in 2519547678740 to 2519547728740 nsecs]
-> [15492.341016]  #6: <f4cc3ad8>, hrtimer_wakeup, S:01, hrtimer_start_range_ns, smbd/836
-> [15492.341016]  # expires at 20009829520272-20009929520272 nsecs [in 4517484082929 to 4517584082929 nsecs]
-> [15492.341016]   .expires_next   : 15492340000000 nsecs
-> [15492.341016]   .hres_active    : 1
-> [15492.341016]   .nr_events      : 641821
-> [15492.341016]   .nr_retries     : 26332
-> [15492.341016]   .nr_hangs       : 0
-> [15492.341016]   .max_hang_time  : 0 nsecs
-> [15492.341016]   .nohz_mode      : 2
-> [15492.341016]   .idle_tick      : 15492236000000 nsecs
-> [15492.341016]   .tick_stopped   : 0
-> [15492.341016]   .idle_jiffies   : 3798058
-> [15492.341016]   .idle_calls     : 1096583
-> [15492.341016]   .idle_sleeps    : 330634
-> [15492.341016]   .idle_entrytime : 15492232028728 nsecs
-> [15492.341016]   .idle_waketime  : 15492232000843 nsecs
-> [15492.341016]   .idle_exittime  : 15492337016034 nsecs
-> [15492.341016]   .idle_sleeptime : 14901605968046 nsecs
-> [15492.341016]   .last_jiffies   : 3798058
-> [15492.341016]   .next_jiffies   : 3798120
-> [15492.341016]   .idle_expires   : 15492480000000 nsecs
-> [15492.341016] jiffies: 3798086
-> [15492.341016]
-> [15492.341016] cpu: 1
-> [15492.341016]  clock 0:
-> [15492.341016]   .base:       c71049a4
-> [15492.341016]   .index:      0
-> [15492.341016]   .resolution: 1 nsecs
-> [15492.341016]   .get_time:   ktime_get_real
-> [15492.341016]   .offset:     1297125938059809325 nsecs
-> [15492.341016] active timers:
-> [15492.341016]  clock 1:
-> [15492.341016]   .base:       c71049d0
-> [15492.341016]   .index:      1
-> [15492.341016]   .resolution: 1 nsecs
-> [15492.341016]   .get_time:   ktime_get
-> [15492.341016]   .offset:     0 nsecs
-> [15492.341016] active timers:
-> [15492.341016]  #0: <c7104a60>, tick_sched_timer, S:01, hrtimer_start_range_ns, swapper/0
-> [15492.341016]  # expires at 15492349000000-15492349000000 nsecs [in 3562657 to 3562657 nsecs]
-> [15492.341016]  #1: <f4c8bad8>, hrtimer_wakeup, S:01, hrtimer_start_range_ns, apache2/947
-> [15492.341016]  # expires at 15492556578781-15492557578780 nsecs [in 211141438 to 212141437 nsecs]
-> [15492.341016]  #2: <f5359ad8>, hrtimer_wakeup, S:01, hrtimer_start_range_ns, smbd/1140
-> [15492.341016]  # expires at 15496084626915-15496121504563 nsecs [in 3739189572 to 3776067220 nsecs]
-> [15492.341016]  #3: <f4f3bad8>, hrtimer_wakeup, S:01, hrtimer_start_range_ns, rsyslogd/806
-> [15492.341016]  # expires at 15507004032991-15507034032990 nsecs [in 14658595648 to 14688595647 nsecs]
-> [15492.341016]  #4: <f4d29ad8>, hrtimer_wakeup, S:01, hrtimer_start_range_ns, smbd/796
-> [15492.341016]  # expires at 20130936331799-20131036331799 nsecs [in 4638590894456 to 4638690894456 nsecs]
-> [15492.341016]   .expires_next   : 15492349000000 nsecs
-> [15492.341016]   .hres_active    : 1
-> [15492.341016]   .nr_events      : 793193
-> [15492.341016]   .nr_retries     : 26862
-> [15492.341016]   .nr_hangs       : 0
-> [15492.341016]   .max_hang_time  : 0 nsecs
-> [15492.341016]   .nohz_mode      : 2
-> [15492.341016]   .idle_tick      : 15492253000000 nsecs
-> [15492.341016]   .tick_stopped   : 0
-> [15492.341016]   .idle_jiffies   : 3798063
-> [15492.341016]   .idle_calls     : 2433134
-> [15492.341016]   .idle_sleeps    : 913836
-> [15492.341016]   .idle_entrytime : 15492345003341 nsecs
-> [15492.341016]   .idle_waketime  : 15492332763723 nsecs
-> [15492.341016]   .idle_exittime  : 15492332774252 nsecs
-> [15492.341016]   .idle_sleeptime : 15052885462990 nsecs
-> [15492.341016]   .last_jiffies   : 3798086
-> [15492.341016]   .next_jiffies   : 3798097
-> [15492.341016]   .idle_expires   : 15492444000000 nsecs
-> [15492.341016] jiffies: 3798086
-> [15492.341016]
-> [15492.341016]
-> [15492.341016] Tick Device: mode:     1
-> [15492.341016] Broadcast device
-> [15492.341016] Clock Event Device: hpet
-> [15492.341016]  max_delta_ns:   2147483647
-> [15492.341016]  min_delta_ns:   5000
-> [15492.341016]  mult:           61496114
-> [15492.341016]  shift:          32
-> [15492.341016]  mode:           3
-> [15492.341016]  next_event:     9223372036854775807 nsecs
-> [15492.341016]  set_next_event: hpet_legacy_next_event
-> [15492.341016]  set_mode:       hpet_legacy_set_mode
-> [15492.341016]  event_handler:  tick_handle_oneshot_broadcast
-> [15492.341016] tick_broadcast_mask: 00000000
-> [15492.341016] tick_broadcast_oneshot_mask: 00000000
-> [15492.341016]
-> [15492.341016]
-> [15492.341016] Tick Device: mode:     1
-> [15492.341016] Per CPU device: 0
-> [15492.341016] Clock Event Device: lapic
-> [15492.341016]  max_delta_ns:   672820093
-> [15492.341016]  min_delta_ns:   1203
-> [15492.341016]  mult:           53548925
-> [15492.341016]  shift:          32
-> [15492.341016]  mode:           3
-> [15492.341016]  next_event:     15492340000000 nsecs
-> [15492.341016]  set_next_event: lapic_next_event
-> [15492.341016]  set_mode:       lapic_timer_setup
-> [15492.341016]  event_handler:  hrtimer_interrupt
-> [15492.341016]
-> [15492.341016] Tick Device: mode:     1
-> [15492.341016] Per CPU device: 1
-> [15492.341016] Clock Event Device: lapic
-> [15492.341016]  max_delta_ns:   672820093
-> [15492.341016]  min_delta_ns:   1203
-> [15492.341016]  mult:           53548925
-> [15492.341016]  shift:          32
-> [15492.341016]  mode:           3
-> [15492.341016]  next_event:     15492349000000 nsecs
-> [15492.341016]  set_next_event: lapic_next_event
-> [15492.341016]  set_mode:       lapic_timer_setup
-> [15492.341016]  event_handler:  hrtimer_interrupt
-> [15492.341016]
-> 
-> [15676.361191] SysRq : Show Memory
-> [15676.365011] Mem-Info:
-> [15676.365011] DMA per-cpu:
-> [15676.365011] CPU    0: hi:    0, btch:   1 usd:   0
-> [15676.365011] CPU    1: hi:    0, btch:   1 usd:   0
-> [15676.365011] Normal per-cpu:
-> [15676.365011] CPU    0: hi:  186, btch:  31 usd:  73
-> [15676.365011] CPU    1: hi:  186, btch:  31 usd: 176
-> [15676.365011] HighMem per-cpu:
-> [15676.365011] CPU    0: hi:  186, btch:  31 usd:  76
-> [15676.365011] CPU    1: hi:  186, btch:  31 usd:  99
-> [15676.365011] active_anon:5431 inactive_anon:7392 isolated_anon:0
-> [15676.365011]  active_file:199148 inactive_file:241880 isolated_file:0
-> [15676.365011]  unevictable:11 dirty:0 writeback:0 unstable:0
-> [15676.365011]  free:13441 slab_reclaimable:21971 slab_unreclaimable:2072
-> [15676.365011]  mapped:4822 shmem:254 pagetables:345 bounce:0
-> [15676.365011] DMA free:8100kB min:64kB low:80kB high:96kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:20kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15804kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:8kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
-> [15676.365011] lowmem_reserve[]: 0 867 2005 2005
-> [15676.365011] Normal free:42564kB min:3732kB low:4664kB high:5596kB active_anon:0kB inactive_anon:488kB active_file:294868kB inactive_file:354120kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:887976kB mlocked:0kB dirty:0kB writeback:0kB mapped:720kB shmem:0kB slab_reclaimable:87884kB slab_unreclaimable:8280kB kernel_stack:1248kB pagetables:28kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-> [15676.365011] lowmem_reserve[]: 0 0 9106 9106
-> [15676.365011] HighMem free:3100kB min:512kB low:1736kB high:2960kB active_anon:21724kB inactive_anon:29080kB active_file:501724kB inactive_file:613380kB unevictable:44kB isolated(anon):0kB isolated(file):0kB present:1165660kB mlocked:0kB dirty:0kB writeback:0kB mapped:18568kB shmem:1016kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:1352kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-> [15676.365011] lowmem_reserve[]: 0 0 0 0
-> [15676.365011] DMA: 1*4kB 6*8kB 5*16kB 5*32kB 4*64kB 3*128kB 2*256kB 3*512kB 1*1024kB 2*2048kB 0*4096kB = 8100kB
-> [15676.365011] Normal: 535*4kB 303*8kB 563*16kB 326*32kB 116*64kB 33*128kB 3*256kB 0*512kB 0*1024kB 1*2048kB 1*4096kB = 42564kB
-> [15676.365011] HighMem: 19*4kB 26*8kB 30*16kB 17*32kB 10*64kB 5*128kB 2*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 3100kB
-> [15676.365011] 441294 total pagecache pages
-> [15676.365011] 0 pages in swap cache
-> [15676.365011] Swap cache stats: add 0, delete 0, find 0/0
-> [15676.365011] Free swap  = 0kB
-> [15676.365011] Total swap = 0kB
-> [15676.365011] 521532 pages RAM
-> [15676.365011] 293710 pages HighMem
-> [15676.365011] 25301 pages reserved
-> [15676.365011] 410815 pages shared
-> [15676.365011] 81402 pages non-shared
-> 
-> # cat /proc/17496/status
-> Name:   sh
-> State:  D (disk sleep)
-> Tgid:   17496
-> Pid:    17496
-> PPid:   17470
-> TracerPid:      0
-> Uid:    0       0       0       0
-> Gid:    0       0       0       0
-> FDSize: 256
-> Groups: 0
-> VmPeak:     3008 kB
-> VmSize:     3008 kB
-> VmLck:         0 kB
-> VmHWM:       400 kB
-> VmRSS:       400 kB
-> VmData:      196 kB
-> VmStk:        88 kB
-> VmExe:       580 kB
-> VmLib:      2064 kB
-> VmPTE:        20 kB
-> Threads:        1
-> SigQ:   2/16382
-> SigPnd: 0000000000000000
-> ShdPnd: 0000000000000002
-> SigBlk: 0000000000000000
-> SigIgn: 0000000000000000
-> SigCgt: 0000000000010002
-> CapInh: 0000000000000000
-> CapPrm: ffffffffffffffff
-> CapEff: ffffffffffffffff
-> CapBnd: ffffffffffffffff
-> Cpus_allowed:   3
-> Cpus_allowed_list:      0-1
-> Mems_allowed:   1
-> Mems_allowed_list:      0
-> voluntary_ctxt_switches:        1
-> nonvoluntary_ctxt_switches:     0
-> 
-> # cat /proc/version
-> Linux version 2.6.32-28-generic-pae (buildd@palmer) (gcc version 4.4.3 (Ubuntu 4.4.3-4ubuntu5) ) #55-Ubuntu SMP Mon Jan 10 22:34:08 UTC 2011
-> 
-> # cat /proc/cmdline
-> BOOT_IMAGE=/boot/vmlinuz-2.6.32-28-generic-pae root=UUID=59b657e8-f757-4b9b-807f-56541a7cefa6 ro crashkernel=384M-2G:64M,2G-:128M quiet splash
+> That should do it. 229 deletions vs. 74 insertions, not bad. And the
+> tlb flushing code actually got simpler. Even better :-)
 
-								Honza
+Darn, forgot "quilt refresh". The last patch I've sent is the old,
+broken one. This one is better..
+
+--
+Subject: [PATCH] s390: use generic RCP page-table freeing
+
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+
+Now that we have a generic implementation for RCU based page table
+freeing, use it for s390 as well. It saves a couple of lines.
+
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+---
+ arch/s390/Kconfig               |    1 
+ arch/s390/include/asm/pgalloc.h |   19 +--
+ arch/s390/include/asm/tlb.h     |   91 ++++++++----------
+ arch/s390/mm/pgtable.c          |  192 +++++-----------------------------------
+ 4 files changed, 74 insertions(+), 229 deletions(-)
+
+--- a/arch/s390/Kconfig
++++ b/arch/s390/Kconfig
+@@ -87,6 +87,7 @@ config S390
+ 	select HAVE_KERNEL_LZO
+ 	select HAVE_GET_USER_PAGES_FAST
+ 	select HAVE_ARCH_MUTEX_CPU_RELAX
++	select HAVE_RCU_TABLE_FREE
+ 	select ARCH_INLINE_SPIN_TRYLOCK
+ 	select ARCH_INLINE_SPIN_TRYLOCK_BH
+ 	select ARCH_INLINE_SPIN_LOCK
+--- a/arch/s390/include/asm/pgalloc.h
++++ b/arch/s390/include/asm/pgalloc.h
+@@ -20,12 +20,11 @@
+ #define check_pgt_cache()	do {} while (0)
+ 
+ unsigned long *crst_table_alloc(struct mm_struct *, int);
+-void crst_table_free(struct mm_struct *, unsigned long *);
+-void crst_table_free_rcu(struct mm_struct *, unsigned long *);
++void crst_table_free(unsigned long *);
+ 
+ unsigned long *page_table_alloc(struct mm_struct *);
+-void page_table_free(struct mm_struct *, unsigned long *);
+-void page_table_free_rcu(struct mm_struct *, unsigned long *);
++void page_table_free(unsigned long *);
++
+ void disable_noexec(struct mm_struct *, struct task_struct *);
+ 
+ static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
+@@ -95,7 +94,7 @@ static inline pud_t *pud_alloc_one(struc
+ 		crst_table_init(table, _REGION3_ENTRY_EMPTY);
+ 	return (pud_t *) table;
+ }
+-#define pud_free(mm, pud) crst_table_free(mm, (unsigned long *) pud)
++#define pud_free(mm, pud) crst_table_free((unsigned long *) pud)
+ 
+ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
+ {
+@@ -104,7 +103,7 @@ static inline pmd_t *pmd_alloc_one(struc
+ 		crst_table_init(table, _SEGMENT_ENTRY_EMPTY);
+ 	return (pmd_t *) table;
+ }
+-#define pmd_free(mm, pmd) crst_table_free(mm, (unsigned long *) pmd)
++#define pmd_free(mm, pmd) crst_table_free((unsigned long *) pmd)
+ 
+ static inline void pgd_populate_kernel(struct mm_struct *mm,
+ 				       pgd_t *pgd, pud_t *pud)
+@@ -148,7 +147,7 @@ static inline pgd_t *pgd_alloc(struct mm
+ 	return (pgd_t *)
+ 		crst_table_alloc(mm, user_mode == SECONDARY_SPACE_MODE);
+ }
+-#define pgd_free(mm, pgd) crst_table_free(mm, (unsigned long *) pgd)
++#define pgd_free(mm, pgd) crst_table_free((unsigned long *) pgd)
+ 
+ static inline void pmd_populate_kernel(struct mm_struct *mm,
+ 				       pmd_t *pmd, pte_t *pte)
+@@ -175,9 +174,7 @@ static inline void pmd_populate(struct m
+ #define pte_alloc_one_kernel(mm, vmaddr) ((pte_t *) page_table_alloc(mm))
+ #define pte_alloc_one(mm, vmaddr) ((pte_t *) page_table_alloc(mm))
+ 
+-#define pte_free_kernel(mm, pte) page_table_free(mm, (unsigned long *) pte)
+-#define pte_free(mm, pte) page_table_free(mm, (unsigned long *) pte)
+-
+-extern void rcu_table_freelist_finish(void);
++#define pte_free_kernel(mm, pte) page_table_free((unsigned long *) pte)
++#define pte_free(mm, pte) page_table_free((unsigned long *) pte)
+ 
+ #endif /* _S390_PGALLOC_H */
+--- a/arch/s390/include/asm/tlb.h
++++ b/arch/s390/include/asm/tlb.h
+@@ -29,50 +29,42 @@
+ #include <asm/smp.h>
+ #include <asm/tlbflush.h>
+ 
++struct mmu_table_batch {
++	struct rcu_head rcu;
++	unsigned int nr;
++	void *tables[0];
++};
++
++#define MAX_TABLE_BATCH \
++	((PAGE_SIZE - sizeof(struct mmu_table_batch)) / sizeof(void *))
++
++void tlb_table_flush(struct mmu_gather *);
++void tlb_remove_table(struct mmu_gather *, void *);
++
+ struct mmu_gather {
+ 	struct mm_struct *mm;
+ 	unsigned int fullmm;
+-	unsigned int nr_ptes;
+-	unsigned int nr_pxds;
+-	unsigned int max;
+-	void **array;
+-	void *local[8];
++	struct mmu_table_batch *batch;
++	/* need_flush is used only for page tables */
++	unsigned int need_flush : 1;
+ };
+ 
+-static inline void __tlb_alloc_page(struct mmu_gather *tlb)
+-{
+-	unsigned long addr = __get_free_pages(GFP_NOWAIT | __GFP_NOWARN, 0);
+-
+-	if (addr) {
+-		tlb->array = (void *) addr;
+-		tlb->max = PAGE_SIZE / sizeof(void *);
+-	}
+-}
+-
+ static inline void tlb_gather_mmu(struct mmu_gather *tlb,
+ 				  struct mm_struct *mm,
+ 				  unsigned int full_mm_flush)
+ {
+ 	tlb->mm = mm;
+-	tlb->max = ARRAY_SIZE(tlb->local);
+-	tlb->array = tlb->local;
+ 	tlb->fullmm = full_mm_flush;
+ 	if (tlb->fullmm)
+ 		__tlb_flush_mm(mm);
+-	else
+-		__tlb_alloc_page(tlb);
+-	tlb->nr_ptes = 0;
+-	tlb->nr_pxds = tlb->max;
++	tlb->batch = NULL;
++	tlb->need_flush = 0;
+ }
+ 
+ static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+ {
+-	if (!tlb->fullmm && (tlb->nr_ptes > 0 || tlb->nr_pxds < tlb->max))
+-		__tlb_flush_mm(tlb->mm);
+-	while (tlb->nr_ptes > 0)
+-		page_table_free_rcu(tlb->mm, tlb->array[--tlb->nr_ptes]);
+-	while (tlb->nr_pxds < tlb->max)
+-		crst_table_free_rcu(tlb->mm, tlb->array[tlb->nr_pxds++]);
++	if (tlb->need_flush)
++		tlb_table_flush(tlb);
+ }
+ 
+ static inline void tlb_finish_mmu(struct mmu_gather *tlb,
+@@ -80,13 +72,8 @@ static inline void tlb_finish_mmu(struct
+ {
+ 	tlb_flush_mmu(tlb);
+ 
+-	rcu_table_freelist_finish();
+-
+ 	/* keep the page table cache within bounds */
+ 	check_pgt_cache();
+-
+-	if (tlb->array != tlb->local)
+-		free_pages((unsigned long) tlb->array, 0);
+ }
+ 
+ /*
+@@ -113,12 +100,11 @@ static inline void tlb_remove_page(struc
+ static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
+ 				unsigned long address)
+ {
+-	if (!tlb->fullmm) {
+-		tlb->array[tlb->nr_ptes++] = pte;
+-		if (tlb->nr_ptes >= tlb->nr_pxds)
+-			tlb_flush_mmu(tlb);
+-	} else
+-		page_table_free(tlb->mm, (unsigned long *) pte);
++	if (!tlb->fullmm)
++		/* Use LSB to distinguish crst table vs. page table */
++		tlb_remove_table(tlb, (void *) pte + 1);
++	else
++		page_table_free((unsigned long *) pte);
+ }
+ 
+ /*
+@@ -134,12 +120,10 @@ static inline void pmd_free_tlb(struct m
+ #ifdef __s390x__
+ 	if (tlb->mm->context.asce_limit <= (1UL << 31))
+ 		return;
+-	if (!tlb->fullmm) {
+-		tlb->array[--tlb->nr_pxds] = pmd;
+-		if (tlb->nr_ptes >= tlb->nr_pxds)
+-			tlb_flush_mmu(tlb);
+-	} else
+-		crst_table_free(tlb->mm, (unsigned long *) pmd);
++	if (!tlb->fullmm)
++		tlb_remove_table(tlb, pmd);
++	else
++		crst_table_free((unsigned long *) pmd);
+ #endif
+ }
+ 
+@@ -156,15 +140,22 @@ static inline void pud_free_tlb(struct m
+ #ifdef __s390x__
+ 	if (tlb->mm->context.asce_limit <= (1UL << 42))
+ 		return;
+-	if (!tlb->fullmm) {
+-		tlb->array[--tlb->nr_pxds] = pud;
+-		if (tlb->nr_ptes >= tlb->nr_pxds)
+-			tlb_flush_mmu(tlb);
+-	} else
+-		crst_table_free(tlb->mm, (unsigned long *) pud);
++	if (!tlb->fullmm)
++		tlb_remove_table(tlb, pud);
++	else
++		crst_table_free((unsigned long *) pud);
+ #endif
+ }
+ 
++static inline void __tlb_remove_table(void *table)
++{
++	/* Use LSB to distinguish crst table vs. page table */
++	if ((unsigned long) table & 1)
++		page_table_free(table - 1);
++	else
++		crst_table_free(table);
++}
++
+ #define tlb_start_vma(tlb, vma)			do { } while (0)
+ #define tlb_end_vma(tlb, vma)			do { } while (0)
+ #define tlb_remove_tlb_entry(tlb, ptep, addr)	do { } while (0)
+--- a/arch/s390/mm/pgtable.c
++++ b/arch/s390/mm/pgtable.c
+@@ -24,92 +24,17 @@
+ #include <asm/tlbflush.h>
+ #include <asm/mmu_context.h>
+ 
+-struct rcu_table_freelist {
+-	struct rcu_head rcu;
+-	struct mm_struct *mm;
+-	unsigned int pgt_index;
+-	unsigned int crst_index;
+-	unsigned long *table[0];
+-};
+-
+-#define RCU_FREELIST_SIZE \
+-	((PAGE_SIZE - sizeof(struct rcu_table_freelist)) \
+-	  / sizeof(unsigned long))
+-
+-static DEFINE_PER_CPU(struct rcu_table_freelist *, rcu_table_freelist);
+-
+-static void __page_table_free(struct mm_struct *mm, unsigned long *table);
+-static void __crst_table_free(struct mm_struct *mm, unsigned long *table);
+-
+-static struct rcu_table_freelist *rcu_table_freelist_get(struct mm_struct *mm)
+-{
+-	struct rcu_table_freelist **batchp = &__get_cpu_var(rcu_table_freelist);
+-	struct rcu_table_freelist *batch = *batchp;
+-
+-	if (batch)
+-		return batch;
+-	batch = (struct rcu_table_freelist *) __get_free_page(GFP_ATOMIC);
+-	if (batch) {
+-		batch->mm = mm;
+-		batch->pgt_index = 0;
+-		batch->crst_index = RCU_FREELIST_SIZE;
+-		*batchp = batch;
+-	}
+-	return batch;
+-}
+-
+-static void rcu_table_freelist_callback(struct rcu_head *head)
+-{
+-	struct rcu_table_freelist *batch =
+-		container_of(head, struct rcu_table_freelist, rcu);
+-
+-	while (batch->pgt_index > 0)
+-		__page_table_free(batch->mm, batch->table[--batch->pgt_index]);
+-	while (batch->crst_index < RCU_FREELIST_SIZE)
+-		__crst_table_free(batch->mm, batch->table[batch->crst_index++]);
+-	free_page((unsigned long) batch);
+-}
+-
+-void rcu_table_freelist_finish(void)
+-{
+-	struct rcu_table_freelist *batch = __get_cpu_var(rcu_table_freelist);
+-
+-	if (!batch)
+-		return;
+-	call_rcu(&batch->rcu, rcu_table_freelist_callback);
+-	__get_cpu_var(rcu_table_freelist) = NULL;
+-}
+-
+-static void smp_sync(void *arg)
+-{
+-}
+ 
+ #ifndef CONFIG_64BIT
+ #define ALLOC_ORDER	1
+ #define TABLES_PER_PAGE	4
+ #define FRAG_MASK	15UL
+ #define SECOND_HALVES	10UL
+-
+-void clear_table_pgstes(unsigned long *table)
+-{
+-	clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE/4);
+-	memset(table + 256, 0, PAGE_SIZE/4);
+-	clear_table(table + 512, _PAGE_TYPE_EMPTY, PAGE_SIZE/4);
+-	memset(table + 768, 0, PAGE_SIZE/4);
+-}
+-
+ #else
+ #define ALLOC_ORDER	2
+ #define TABLES_PER_PAGE	2
+ #define FRAG_MASK	3UL
+ #define SECOND_HALVES	2UL
+-
+-void clear_table_pgstes(unsigned long *table)
+-{
+-	clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE/2);
+-	memset(table + 256, 0, PAGE_SIZE/2);
+-}
+-
+ #endif
+ 
+ unsigned long VMALLOC_START = VMALLOC_END - VMALLOC_SIZE;
+@@ -138,6 +63,7 @@ unsigned long *crst_table_alloc(struct m
+ 			return NULL;
+ 		}
+ 		page->index = page_to_phys(shadow);
++		page->private = (unsigned long) mm;
+ 	}
+ 	spin_lock_bh(&mm->context.list_lock);
+ 	list_add(&page->lru, &mm->context.crst_list);
+@@ -145,47 +71,19 @@ unsigned long *crst_table_alloc(struct m
+ 	return (unsigned long *) page_to_phys(page);
+ }
+ 
+-static void __crst_table_free(struct mm_struct *mm, unsigned long *table)
+-{
+-	unsigned long *shadow = get_shadow_table(table);
+-
+-	if (shadow)
+-		free_pages((unsigned long) shadow, ALLOC_ORDER);
+-	free_pages((unsigned long) table, ALLOC_ORDER);
+-}
+-
+-void crst_table_free(struct mm_struct *mm, unsigned long *table)
+-{
+-	struct page *page = virt_to_page(table);
+-
+-	spin_lock_bh(&mm->context.list_lock);
+-	list_del(&page->lru);
+-	spin_unlock_bh(&mm->context.list_lock);
+-	__crst_table_free(mm, table);
+-}
+-
+-void crst_table_free_rcu(struct mm_struct *mm, unsigned long *table)
++void crst_table_free(unsigned long *table)
+ {
+-	struct rcu_table_freelist *batch;
+ 	struct page *page = virt_to_page(table);
++	struct mm_struct *mm = (struct mm_struct *) page->private;
++	unsigned long *shadow = get_shadow_table(table);
+ 
+ 	spin_lock_bh(&mm->context.list_lock);
+ 	list_del(&page->lru);
++	page->private = 0;
+ 	spin_unlock_bh(&mm->context.list_lock);
+-	if (atomic_read(&mm->mm_users) < 2 &&
+-	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
+-		__crst_table_free(mm, table);
+-		return;
+-	}
+-	batch = rcu_table_freelist_get(mm);
+-	if (!batch) {
+-		smp_call_function(smp_sync, NULL, 1);
+-		__crst_table_free(mm, table);
+-		return;
+-	}
+-	batch->table[--batch->crst_index] = table;
+-	if (batch->pgt_index >= batch->crst_index)
+-		rcu_table_freelist_finish();
++	if (shadow)
++		free_pages((unsigned long) shadow, ALLOC_ORDER);
++	free_pages((unsigned long) table, ALLOC_ORDER);
+ }
+ 
+ #ifdef CONFIG_64BIT
+@@ -223,7 +121,7 @@ repeat:
+ 	}
+ 	spin_unlock_bh(&mm->page_table_lock);
+ 	if (table)
+-		crst_table_free(mm, table);
++		crst_table_free(table);
+ 	if (mm->context.asce_limit < limit)
+ 		goto repeat;
+ 	update_mm(mm, current);
+@@ -257,7 +155,7 @@ void crst_table_downgrade(struct mm_stru
+ 		}
+ 		mm->pgd = (pgd_t *) (pgd_val(*pgd) & _REGION_ENTRY_ORIGIN);
+ 		mm->task_size = mm->context.asce_limit;
+-		crst_table_free(mm, (unsigned long *) pgd);
++		crst_table_free((unsigned long *) pgd);
+ 	}
+ 	update_mm(mm, current);
+ }
+@@ -288,11 +186,7 @@ unsigned long *page_table_alloc(struct m
+ 			return NULL;
+ 		pgtable_page_ctor(page);
+ 		page->flags &= ~FRAG_MASK;
+-		table = (unsigned long *) page_to_phys(page);
+-		if (mm->context.has_pgste)
+-			clear_table_pgstes(table);
+-		else
+-			clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE);
++		page->private = (unsigned long) mm;
+ 		spin_lock_bh(&mm->context.list_lock);
+ 		list_add(&page->lru, &mm->context.pgtable_list);
+ 	}
+@@ -305,42 +199,34 @@ unsigned long *page_table_alloc(struct m
+ 	if ((page->flags & FRAG_MASK) == ((1UL << TABLES_PER_PAGE) - 1))
+ 		list_move_tail(&page->lru, &mm->context.pgtable_list);
+ 	spin_unlock_bh(&mm->context.list_lock);
++	clear_table(table, _PAGE_TYPE_EMPTY, PTRS_PER_PTE * sizeof(long));
++	if (mm->context.noexec)
++		clear_table(table + 256, _PAGE_TYPE_EMPTY,
++			    PTRS_PER_PTE * sizeof(long));
++	else if (mm->context.has_pgste)
++		clear_table(table + 256, 0, PTRS_PER_PTE * sizeof(long));
+ 	return table;
+ }
+ 
+-static void __page_table_free(struct mm_struct *mm, unsigned long *table)
++void page_table_free(unsigned long *table)
+ {
+-	struct page *page;
+-	unsigned long bits;
+-
+-	bits = ((unsigned long) table) & 15;
+-	table = (unsigned long *)(((unsigned long) table) ^ bits);
+-	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
+-	page->flags ^= bits;
+-	if (!(page->flags & FRAG_MASK)) {
+-		pgtable_page_dtor(page);
+-		__free_page(page);
+-	}
+-}
+-
+-void page_table_free(struct mm_struct *mm, unsigned long *table)
+-{
+-	struct page *page;
++	struct page *page = virt_to_page(table);
++	struct mm_struct *mm = (struct mm_struct *) page->private;
+ 	unsigned long bits;
+ 
+ 	bits = (mm->context.noexec || mm->context.has_pgste) ? 3UL : 1UL;
+ 	bits <<= (__pa(table) & (PAGE_SIZE - 1)) / 256 / sizeof(unsigned long);
+-	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
+ 	spin_lock_bh(&mm->context.list_lock);
+ 	page->flags ^= bits;
+ 	if (page->flags & FRAG_MASK) {
+ 		/* Page now has some free pgtable fragments. */
+-		if (!list_empty(&page->lru))
+-			list_move(&page->lru, &mm->context.pgtable_list);
++		list_move(&page->lru, &mm->context.pgtable_list);
+ 		page = NULL;
+-	} else
++	} else {
+ 		/* All fragments of the 4K page have been freed. */
+ 		list_del(&page->lru);
++		page->private = 0;
++	}
+ 	spin_unlock_bh(&mm->context.list_lock);
+ 	if (page) {
+ 		pgtable_page_dtor(page);
+@@ -348,36 +234,6 @@ void page_table_free(struct mm_struct *m
+ 	}
+ }
+ 
+-void page_table_free_rcu(struct mm_struct *mm, unsigned long *table)
+-{
+-	struct rcu_table_freelist *batch;
+-	struct page *page;
+-	unsigned long bits;
+-
+-	if (atomic_read(&mm->mm_users) < 2 &&
+-	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
+-		page_table_free(mm, table);
+-		return;
+-	}
+-	batch = rcu_table_freelist_get(mm);
+-	if (!batch) {
+-		smp_call_function(smp_sync, NULL, 1);
+-		page_table_free(mm, table);
+-		return;
+-	}
+-	bits = (mm->context.noexec || mm->context.has_pgste) ? 3UL : 1UL;
+-	bits <<= (__pa(table) & (PAGE_SIZE - 1)) / 256 / sizeof(unsigned long);
+-	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
+-	spin_lock_bh(&mm->context.list_lock);
+-	/* Delayed freeing with rcu prevents reuse of pgtable fragments */
+-	list_del_init(&page->lru);
+-	spin_unlock_bh(&mm->context.list_lock);
+-	table = (unsigned long *)(((unsigned long) table) | bits);
+-	batch->table[batch->pgt_index++] = table;
+-	if (batch->pgt_index >= batch->crst_index)
+-		rcu_table_freelist_finish();
+-}
+-
+ void disable_noexec(struct mm_struct *mm, struct task_struct *tsk)
+ {
+ 	struct page *page;
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
