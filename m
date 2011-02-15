@@ -1,43 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CE6748D0039
-	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 12:27:54 -0500 (EST)
-Date: Tue, 15 Feb 2011 09:25:48 -0800
-From: Greg KH <gregkh@suse.de>
-Subject: Re: [PATCH V2 2/3] drivers/staging: zcache: host services and PAM
- services
-Message-ID: <20110215172548.GD18437@suse.de>
-References: <20110207032608.GA27453@ca-server1.us.oracle.com>
- <20110215165353.GA6118@dumpdata.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A45458D0039
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 13:00:33 -0500 (EST)
+Date: Tue, 15 Feb 2011 19:00:26 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/5] fix up /proc/$pid/smaps to not split huge pages
+Message-ID: <20110215180026.GH5935@random.random>
+References: <20110209195406.B9F23C9F@kernel>
+ <20110215165510.GA2550@mgebm.net>
+ <20110215170152.GF5935@random.random>
+ <1297789525.9829.9616.camel@nimitz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110215165353.GA6118@dumpdata.com>
+In-Reply-To: <1297789525.9829.9616.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, chris.mason@oracle.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, kurt.hackel@oracle.com, npiggin@kernel.dk, riel@redhat.com, mel@csn.ul.ie, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, sfr@canb.auug.org.au, wfg@mail.ustc.edu.cn, tytso@mit.edu, viro@ZenIV.linux.org.uk, hughd@google.com, hannes@cmpxchg.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Eric B Munson <emunson@mgebm.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>
 
-On Tue, Feb 15, 2011 at 11:53:53AM -0500, Konrad Rzeszutek Wilk wrote:
-> On Sun, Feb 06, 2011 at 07:26:08PM -0800, Dan Magenheimer wrote:
-> > [PATCH V2 2/3] drivers/staging: zcache: host services and PAM services
+On Tue, Feb 15, 2011 at 09:05:25AM -0800, Dave Hansen wrote:
+> On Tue, 2011-02-15 at 18:01 +0100, Andrea Arcangeli wrote:
+> > > The entire mapping is contained in a THP but the
+> > > KernelPageSize shows 4kb.  For cases where the mapping might
+> > > have mixed page sizes this may be okay, but for this
+> > > particular mapping the 4kb page size is wrong.
+> > 
+> > I'm not sure this is a bug, if the mapping grows it may become 4096k
+> > but the new pages may be 4k. There's no such thing as a
+> > vma_mmu_pagesize in terms of hugepages because we support graceful
+> > fallback and collapse/split on the fly without altering the vma. So I
+> > think 4k is correct here
 > 
-> Hey Dan,
-> 
-> I did a simple review of just reading the code and trying to grok it.
-> 
-> Greg,
-> 
-> How does the review work in staging tree? Would you just take
-> new patches from Dan based on my review and he should stick
-> 'Reviewed-by: Konrad...' or .. ?
+> How about we bump MMUPageSize for mappings that are _entirely_ huge
+> pages, but leave it at 4k for mixed mappings?  Anyone needing more
+> detail than that can use the new AnonHugePages count.
 
-I would, if I hadn't already committed these patches, so it'e a bit too
-late for adding that, sorry.
+Anyone needing the detail that you ask for, already can use the
+AnonHugePages count.
 
-thanks,
+> KernelPageSize is pretty ambiguous, and we could certainly make the
+> argument that the kernel is or can still deal with things in 4k blocks.
 
-greg k-h
+That's my point. We could bring it to 2m whenever
+AnonHugePages==Anonymous, that's a two liner change, but I'm not
+really sure if it makes sense or it provides any meaningful info.
+
+That is a slot specific to show hugetlbfs presence and to
+differentiate between 2m/1g mappings. I think remaining mutually
+exclusive between AnonHugePages > 0 and MMUPageSize >4k is actually
+cleaner than a two liner magic returning 2m if AnonHugePages ==
+Anonymous.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
