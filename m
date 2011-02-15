@@ -1,43 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E6C58D0039
-	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 13:19:48 -0500 (EST)
-Date: Tue, 15 Feb 2011 13:18:37 -0500
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH V2 2/3] drivers/staging: zcache: host services and PAM
- services
-Message-ID: <20110215181837.GA26885@dumpdata.com>
-References: <20110207032608.GA27453@ca-server1.us.oracle.com>
- <20110215165353.GA6118@dumpdata.com>
- <20110215172548.GD18437@suse.de>
-MIME-Version: 1.0
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1E6418D0039
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 16:53:03 -0500 (EST)
+Subject: Re: [2.6.32 ubuntu] I/O hang at start_this_handle
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201102080526.p185Q0mL034909@www262.sakura.ne.jp>
+	<20110215151633.GG17313@quack.suse.cz>
+In-Reply-To: <20110215151633.GG17313@quack.suse.cz>
+Message-Id: <201102160652.BDI60469.JOVFSFOHLQOFtM@I-love.SAKURA.ne.jp>
+Date: Wed, 16 Feb 2011 06:52:55 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110215172548.GD18437@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@suse.de>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, chris.mason@oracle.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, matthew@wil.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, kurt.hackel@oracle.com, npiggin@kernel.dk, riel@redhat.com, mel@csn.ul.ie, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, sfr@canb.auug.org.au, wfg@mail.ustc.edu.cn, tytso@mit.edu, viro@ZenIV.linux.org.uk, hughd@google.com, hannes@cmpxchg.org
+To: jack@suse.cz
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Feb 15, 2011 at 09:25:48AM -0800, Greg KH wrote:
-> On Tue, Feb 15, 2011 at 11:53:53AM -0500, Konrad Rzeszutek Wilk wrote:
-> > On Sun, Feb 06, 2011 at 07:26:08PM -0800, Dan Magenheimer wrote:
-> > > [PATCH V2 2/3] drivers/staging: zcache: host services and PAM services
-> > 
-> > Hey Dan,
-> > 
-> > I did a simple review of just reading the code and trying to grok it.
-> > 
-> > Greg,
-> > 
-> > How does the review work in staging tree? Would you just take
-> > new patches from Dan based on my review and he should stick
-> > 'Reviewed-by: Konrad...' or .. ?
-> 
-> I would, if I hadn't already committed these patches, so it'e a bit too
-> late for adding that, sorry.
+Jan Kara wrote:
+>   Ext3 looks innocent here. That is a standard call path for open(..,
+> O_TRUNC). But apparently something broke in SLUB allocator. Adding proper
+> list to CC...
 
-That is OK. Thanks.
+Thanks.
+
+Both fs/jbd/transaction.c and fs/jbd2/transaction.c provide start_this_handle()
+and I don't know which one was called.
+
+But
+
+	if (!journal->j_running_transaction) {
+		new_transaction = kzalloc(sizeof(*new_transaction),
+					  GFP_NOFS|__GFP_NOFAIL);
+		if (!new_transaction) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	}
+
+does kzalloc(GFP_NOFS|__GFP_NOFAIL) causes /proc/$PID/status to show
+
+  State:  D (disk sleep)
+
+line? I thought this is either
+
+	if (transaction->t_state == T_LOCKED) {
+		DEFINE_WAIT(wait);
+
+		prepare_to_wait(&journal->j_wait_transaction_locked,
+				&wait, TASK_UNINTERRUPTIBLE);
+		spin_unlock(&journal->j_state_lock);
+		schedule();
+		finish_wait(&journal->j_wait_transaction_locked, &wait);
+		goto repeat;
+	}
+
+or
+
+	if (needed > journal->j_max_transaction_buffers) {
+		/*
+		 * If the current transaction is already too large, then start
+		 * to commit it: we can then go back and attach this handle to
+		 * a new transaction.
+		 */
+		DEFINE_WAIT(wait);
+
+		jbd_debug(2, "Handle %p starting new commit...\n", handle);
+		spin_unlock(&transaction->t_handle_lock);
+		prepare_to_wait(&journal->j_wait_transaction_locked, &wait,
+				TASK_UNINTERRUPTIBLE);
+		__jbd2_log_start_commit(journal, transaction->t_tid);
+		spin_unlock(&journal->j_state_lock);
+		schedule();
+		finish_wait(&journal->j_wait_transaction_locked, &wait);
+		goto repeat;
+	}
+
+within start_this_handle().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
