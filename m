@@ -1,81 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1E6418D0039
-	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 16:53:03 -0500 (EST)
-Subject: Re: [2.6.32 ubuntu] I/O hang at start_this_handle
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201102080526.p185Q0mL034909@www262.sakura.ne.jp>
-	<20110215151633.GG17313@quack.suse.cz>
-In-Reply-To: <20110215151633.GG17313@quack.suse.cz>
-Message-Id: <201102160652.BDI60469.JOVFSFOHLQOFtM@I-love.SAKURA.ne.jp>
-Date: Wed, 16 Feb 2011 06:52:55 +0900
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C9ACD8D0039
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 17:38:42 -0500 (EST)
+Date: Tue, 15 Feb 2011 16:38:40 -0600
+From: Jack Steiner <steiner@sgi.com>
+Subject: [PATCH] - Improve drain pages performance on large systems
+Message-ID: <20110215223840.GA27420@sgi.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jack@suse.cz
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org
 
-Jan Kara wrote:
->   Ext3 looks innocent here. That is a standard call path for open(..,
-> O_TRUNC). But apparently something broke in SLUB allocator. Adding proper
-> list to CC...
 
-Thanks.
+Heavy swapping within a cpuset causes frequent calls to drain_all_pages().
+This sends IPIs to all cpus to free PCP pages. In most cases, there are
+no pages to be freed on cpus outside of the swapping cpuset.
 
-Both fs/jbd/transaction.c and fs/jbd2/transaction.c provide start_this_handle()
-and I don't know which one was called.
+Add checks to minimize locking and updates to potentially hot cachelines.
+Before acquiring locks, do a quick check to see if any pages are in the PCP
+queues. Exit if none.
 
-But
+On a 128 node SGI UV system, this reduced the IPI overhead to cpus outside of the
+swapping cpuset by 38% and improved time to run a pass of the swaping test
+from 98 sec to 51 sec. These times are obviously test & configuration
+dependent but the improvements are significant.
 
-	if (!journal->j_running_transaction) {
-		new_transaction = kzalloc(sizeof(*new_transaction),
-					  GFP_NOFS|__GFP_NOFAIL);
-		if (!new_transaction) {
-			ret = -ENOMEM;
-			goto out;
-		}
-	}
 
-does kzalloc(GFP_NOFS|__GFP_NOFAIL) causes /proc/$PID/status to show
+Signed-off-by: Jack Steiner <steiner@sgi.com>
 
-  State:  D (disk sleep)
+---
+ mm/page_alloc.c |   14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
-line? I thought this is either
-
-	if (transaction->t_state == T_LOCKED) {
-		DEFINE_WAIT(wait);
-
-		prepare_to_wait(&journal->j_wait_transaction_locked,
-				&wait, TASK_UNINTERRUPTIBLE);
-		spin_unlock(&journal->j_state_lock);
-		schedule();
-		finish_wait(&journal->j_wait_transaction_locked, &wait);
-		goto repeat;
-	}
-
-or
-
-	if (needed > journal->j_max_transaction_buffers) {
-		/*
-		 * If the current transaction is already too large, then start
-		 * to commit it: we can then go back and attach this handle to
-		 * a new transaction.
-		 */
-		DEFINE_WAIT(wait);
-
-		jbd_debug(2, "Handle %p starting new commit...\n", handle);
-		spin_unlock(&transaction->t_handle_lock);
-		prepare_to_wait(&journal->j_wait_transaction_locked, &wait,
-				TASK_UNINTERRUPTIBLE);
-		__jbd2_log_start_commit(journal, transaction->t_tid);
-		spin_unlock(&journal->j_state_lock);
-		schedule();
-		finish_wait(&journal->j_wait_transaction_locked, &wait);
-		goto repeat;
-	}
-
-within start_this_handle().
+Index: linux/mm/page_alloc.c
+===================================================================
+--- linux.orig/mm/page_alloc.c	2011-02-15 16:28:36.165921713 -0600
++++ linux/mm/page_alloc.c	2011-02-15 16:29:43.085502487 -0600
+@@ -592,10 +592,24 @@ static void free_pcppages_bulk(struct zo
+ 	int batch_free = 0;
+ 	int to_free = count;
+ 
++	/*
++	 * Quick scan of zones. If all are empty, there is nothing to do.
++	 */
++	for (migratetype = 0; migratetype < MIGRATE_PCPTYPES; migratetype++) {
++		struct list_head *list;
++
++		list = &pcp->lists[migratetype];
++		if (!list_empty(list))
++			break;
++	}
++	if (migratetype == MIGRATE_PCPTYPES)
++		return;
++
+ 	spin_lock(&zone->lock);
+ 	zone->all_unreclaimable = 0;
+ 	zone->pages_scanned = 0;
+ 
++	migratetype = 0;
+ 	while (to_free) {
+ 		struct page *page;
+ 		struct list_head *list;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
