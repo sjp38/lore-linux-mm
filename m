@@ -1,57 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A68DD8D0039
-	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 22:15:31 -0500 (EST)
-Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
-	by smtp-out.google.com with ESMTP id p1G3FQtE004726
-	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 19:15:26 -0800
-Received: from pxi9 (pxi9.prod.google.com [10.243.27.9])
-	by wpaz24.hot.corp.google.com with ESMTP id p1G3Eifn024217
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 19:15:25 -0800
-Received: by pxi9 with SMTP id 9so151358pxi.23
-        for <linux-mm@kvack.org>; Tue, 15 Feb 2011 19:15:24 -0800 (PST)
-Date: Tue, 15 Feb 2011 19:15:21 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] memcg: add oom killer delay
-In-Reply-To: <20110210090428.6c8a7c21.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1102151906030.19953@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com> <alpine.DEB.2.00.1102091417410.5697@chino.kir.corp.google.com> <20110210090428.6c8a7c21.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A3E878D0039
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2011 23:36:25 -0500 (EST)
+Received: by iyi20 with SMTP id 20so833085iyi.14
+        for <linux-mm@kvack.org>; Tue, 15 Feb 2011 20:36:18 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <e647042e-419e-4e61-a563-e489596bd659@default>
+References: <20110207032407.GA27404@ca-server1.us.oracle.com>
+	<1ddd01a8-591a-42bc-8bb3-561843b31acb@default>
+	<AANLkTimFATx-gYVgY_pVdZsySSBmXvKFkhTJUeVFBcop@mail.gmail.com>
+	<AANLkTimqSSxHrLhL9t4DOmDeuAA41B9e-qnr+vnUsucL@mail.gmail.com>
+	<AANLkTi=4QkV4wtMmDd6+XXhvkva+fq9m5PVYGC0qBUc3@mail.gmail.com>
+	<AANLkTimOssgM7JYSpwB=5zmF_JJ2ByH+PWO7N+YZNB_y@mail.gmail.com>
+	<e647042e-419e-4e61-a563-e489596bd659@default>
+Date: Wed, 16 Feb 2011 13:36:18 +0900
+Message-ID: <AANLkTim_U+mJtHk7drvqMOmUwd4ro8J0dazZMDsNqH=o@mail.gmail.com>
+Subject: Re: [PATCH V2 0/3] drivers/staging: zcache: dynamic page cache/swap compression
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Matt <jackdachef@gmail.com>, gregkh@suse.de, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, linux-btrfs@vger.kernel.org, Josef Bacik <josef@redhat.com>, Dan Rosenberg <drosenberg@vsecurity.com>, Yan Zheng <zheng.z.yan@intel.com>, miaox@cn.fujitsu.com, Li Zefan <lizf@cn.fujitsu.com>
 
-On Thu, 10 Feb 2011, KAMEZAWA Hiroyuki wrote:
+On Wed, Feb 16, 2011 at 10:27 AM, Dan Magenheimer
+<dan.magenheimer@oracle.com> wrote:
+>> -----Original Message-----
+>> From: Matt [mailto:jackdachef@gmail.com]
+>> Sent: Tuesday, February 15, 2011 5:12 PM
+>> To: Minchan Kim
+>> Cc: Dan Magenheimer; gregkh@suse.de; Chris Mason; linux-
+>> kernel@vger.kernel.org; linux-mm@kvack.org; ngupta@vflare.org; linux-
+>> btrfs@vger.kernel.org; Josef Bacik; Dan Rosenberg; Yan Zheng;
+>> miaox@cn.fujitsu.com; Li Zefan
+>> Subject: Re: [PATCH V2 0/3] drivers/staging: zcache: dynamic page
+>> cache/swap compression
+>>
+>> On Mon, Feb 14, 2011 at 4:35 AM, Minchan Kim <minchan.kim@gmail.com>
+>> > Just my guessing. I might be wrong.
+>> >
+>> > __cleancache_flush_inode calls cleancache_get_key with
+>> cleancache_filekey.
+>> > cleancache_file_key's size is just 6 * u32.
+>> > cleancache_get_key calls btrfs_encode_fh with the key.
+>> > but btrfs_encode_fh does typecasting the key to btrfs_fid which is
+>> > bigger size than cleancache_filekey's one so it should not access
+>> > fields beyond cleancache_get_key.
+>> >
+>> > I think some file systems use extend fid so in there, this problem
+>> can
+>> > happen. I don't know why we can't find it earlier. Maybe Dan and
+>> > others test it for a long time.
+>> >
+>> > Am I missing something?
+>> >
+>> >
+>> >
+>> > --
+>> > Kind regards,
+>> > Minchan Kim
+>> >
+>>
+>> reposting Minchan's message for reference to the btrfs mailing list
+>> while also adding
+>>
+>> Li Zefan, Miao Xie, Yan Zheng, Dan Rosenberg and Josef Bacik to CC
+>>
+>> Regards
+>>
+>> Matt
+>
+> Hi Matt and Minchan --
+>
+> (BTRFS EXPERTS SEE *** BELOW)
+>
+> I definitely see a bug in cleancache_get_key in the monolithic
+> zcache+cleancache+frontswap patch I posted on oss.oracle.com
+> that is corrected in linux-next but I don't see how it could
+> get provoked by btrfs.
+>
+> The bug is that, in cleancache_get_key, the return value of fhfn should
+> be checked against 255. =C2=A0If the return value is 255, cleancache_get_=
+key
+> should return -1. =C2=A0This should disable cleancache for any filesystem
+> where KEY_MAX is too large.
+>
+> But cleancache_get_key always calls fhfn with connectable =3D=3D 0 and
+> CLEANCACHE_KEY_MAX=3D=3D6 should be greater than BTRFS_FID_SIZE_CONNECTAB=
+LE
+> (which I think should be 5?). =C2=A0And the elements written into the
+> typecast btrfs_fid should be only writing the first 5 32-bit words.
 
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
+BTRFS_FID_SIZE_NON_CONNECTALBE is 5,  not BTRFS_FID_SIZE_CONNECTABLE.
+Anyway, you passed connectable with 0 so it should be only writing the
+first 5 32-bit words as you said.
+That's one I missed. ;-)
 
-Thanks!
-
-> Hm. But I'm not sure how this will be used.
-> 
-
-Since this patch hasn't been added to -mm even with your acked-by, I'm 
-assuming Andrew is waiting for an answer to this :)  I thought it was 
-fairly well covered in the changelog, but I'll elaborate:
-
-We can already give userspace a grace period to act before oom killing a 
-task by utilizing memory.oom_control.  That's not what the oom killer 
-delay addresses, however.  This addresses a very specific (and real) 
-problem that occurs when userspace wants that grace period but is unable 
-to respond, for whatever reason, to either increase the hard limit or 
-allow the oom kill to proceed.  The possibility of that happening would 
-cause that memcg to livelock because no forward progress could be made 
-when oom, which is a negative result.  We don't have that possibility with 
-the global oom killer since the kernel will always choose to act if memory 
-freeing is not imminent: in other words, since we've opened the window for 
-livelock because of an unreliable userspace via a kernel feature -- namely 
-memory.oom_control -- then it's only responsible to provide an alternate 
-means to configure the cgroup for the same grace period without risking 
-livelock.
+Thanks.
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
