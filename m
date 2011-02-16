@@ -1,46 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id ED2EC8D0039
-	for <linux-mm@kvack.org>; Wed, 16 Feb 2011 16:00:24 -0500 (EST)
-Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p1GKxoie023697
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Wed, 16 Feb 2011 12:59:50 -0800
-Received: by iyi20 with SMTP id 20so1655423iyi.14
-        for <linux-mm@kvack.org>; Wed, 16 Feb 2011 12:59:50 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 80ECF8D0039
+	for <linux-mm@kvack.org>; Wed, 16 Feb 2011 18:45:13 -0500 (EST)
+Received: by iyi20 with SMTP id 20so1794966iyi.14
+        for <linux-mm@kvack.org>; Wed, 16 Feb 2011 15:45:11 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <AANLkTi=xnbcs5BKj3cNE_aLtBO7W5m+2uaUacu7M8g_S@mail.gmail.com>
-References: <20110216185234.GA11636@tiehlicka.suse.cz> <20110216193700.GA6377@elte.hu>
- <AANLkTinDxxbVjrUViCs=UaMD9Wg9PR7b0ShNud5zKE3w@mail.gmail.com> <AANLkTi=xnbcs5BKj3cNE_aLtBO7W5m+2uaUacu7M8g_S@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 16 Feb 2011 12:51:21 -0800
-Message-ID: <AANLkTikgTsktn3DBEweQd1bH=NKoSsXwNai92F_zM_H1@mail.gmail.com>
-Subject: Re: BUG: Bad page map in process udevd (anon_vma: (null)) in 2.6.38-rc4
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <20110213173336.GC23919@balbir.in.ibm.com>
+References: <20110125051003.13762.35120.stgit@localhost6.localdomain6>
+	<20110125051015.13762.13429.stgit@localhost6.localdomain6>
+	<AANLkTikHLw0Qg+odOB-bDtBSB-5UbTJ5ZOM-ZAdMqXgh@mail.gmail.com>
+	<AANLkTi=qXsDjN5Jp4m3QMgVnckoAM7uE9_Hzn6CajP+c@mail.gmail.com>
+	<AANLkTinfxXc04S9VwQcJ9thFff=cP=icroaiVLkN-GeH@mail.gmail.com>
+	<20110128064851.GB5054@balbir.in.ibm.com>
+	<AANLkTikw_j0JJVqEsj1xThoashiOARg+8BgcLKrvkV3U@mail.gmail.com>
+	<20110128111833.GD5054@balbir.in.ibm.com>
+	<AANLkTin4JM6phwy0wuV6fV-i-3UwP_GGmXh1vN=Wz2u=@mail.gmail.com>
+	<AANLkTi=hhKJGXwe1OyFsGF9StLJnYFX+QqUpNLXmfVc=@mail.gmail.com>
+	<20110213173336.GC23919@balbir.in.ibm.com>
+Date: Thu, 17 Feb 2011 08:45:11 +0900
+Message-ID: <AANLkTik4pXr_3hY3QoivMHHA6zq-k35f4HPNLZZC8bge@mail.gmail.com>
+Subject: Re: [PATCH 3/3] Provide control over unmapped pages (v4)
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
 
-On Wed, Feb 16, 2011 at 12:09 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
+On Mon, Feb 14, 2011 at 2:33 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> * MinChan Kim <minchan.kim@gmail.com> [2011-02-10 14:41:44]:
 >
-> That said, neither 0x1e68 nor 0xe68 seems to be in the main vmlinux
-> file. But I haven't checked modules yet.
+>> I don't know why the part of message is deleted only when I send you.
+>> Maybe it's gmail bug.
+>>
+>> I hope mail sending is successful in this turn. :)
+>>
+>> On Thu, Feb 10, 2011 at 2:33 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
+>> > Sorry for late response.
+>> >
+>> > On Fri, Jan 28, 2011 at 8:18 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>> >> * MinChan Kim <minchan.kim@gmail.com> [2011-01-28 16:24:19]:
+>> >>
+>> >>> >
+>> >>> > But the assumption for LRU order to change happens only if the page
+>> >>> > cannot be successfully freed, which means it is in some way active..
+>> >>> > and needs to be moved no?
+>> >>>
+>> >>> 1. holded page by someone
+>> >>> 2. mapped pages
+>> >>> 3. active pages
+>> >>>
+>> >>> 1 is rare so it isn't the problem.
+>> >>> Of course, in case of 3, we have to activate it so no problem.
+>> >>> The problem is 2.
+>> >>>
+>> >>
+>> >> 2 is a problem, but due to the size aspects not a big one. Like you
+>> >> said even lumpy reclaim affects it. May be the reclaim code could
+>> >> honour may_unmap much earlier.
+>> >
+>> > Even if it is, it's a trade-off to get a big contiguous memory. I
+>> > don't want to add new mess. (In addition, lumpy is weak by compaction
+>> > as time goes by)
+>> > What I have in mind for preventing LRU ignore is that put the page
+>> > into original position instead of head of lru. Maybe it can help the
+>> > situation both lumpy and your case. But it's another story.
+>> >
+>> > How about the idea?
+>> >
+>> > I borrow the idea from CFLRU[1]
+>> > - PCFLRU(Page-Cache First LRU)
+>> >
+>> > When we allocates new page for page cache, we adds the page into LRU's tail.
+>> > When we map the page cache into page table, we rotate the page into LRU's head.
+>> >
+>> > So, inactive list's result is following as.
+>> >
+>> > M.P : mapped page
+>> > N.P : none-mapped page
+>> >
+>> > HEAD-M.P-M.P-M.P-M.P-N.P-N.P-N.P-N.P-N.P-TAIL
+>> >
+>> > Admin can set threshold window size which determines stop reclaiming
+>> > none-mapped page contiguously.
+>> >
+>> > I think it needs some tweak of page cache/page mapping functions but
+>> > we can use kswapd/direct reclaim without change.
+>> >
+>> > Also, it can change page reclaim policy totally but it's just what you
+>> > want, I think.
+>> >
+>
+> I am not sure how this would work, moreover the idea behind
+> min_unmapped_pages is to keep sufficient unmapped pages around for the
+> FS metadata and has been working with the existing code for zone
+> reclaim. What you propose is more drastic re-org of the LRU and I am
+> not sure I have the apetite for it.
 
-There's no obvious clues in modules either. Sad. I was really hoping
-for some "oh, there's a list_head at offset 0x1e68 of structure 'xyz',
-that's obviously it".
+Yes. My suggestion can change LRU order totally but it can't meet your
+goal so it was a bad idea. Sorry for bothering you.
 
-So maybe it really is something like a pointer to some on-stack data,
-and the 0x1e68 offset is just a random offset off the beginning of the
-stack (it's in the right range). The stack is still one of the few
-obvious 8kB allocations we have...
+I can add reviewed-by [1/3],[2/3], but still doubt [3/3].
+LRU ordering problem as I mentioned is not only your problem but it's
+general problem these day(ex, more aggressive compaction/lumpy
+reclaim). So we may need general solution if it is real problem.
+Okay. I don't oppose your approach from now on until I can prove how
+much LRU-reordering makes bad effect. (But still I  raise my eyebrow
+on implementation [3/3] but I don't oppose it until I suggest better
+approach)
 
-CONFIG_DEBUG_PAGEALLOC really should catch it in that case, though.
-
-                            Linus
+Thanks.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
