@@ -1,66 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BFAE68D0039
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 18:50:23 -0500 (EST)
-Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
-	by smtp-out.google.com with ESMTP id p1HNoMIn030515
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 15:50:22 -0800
-Received: from pzk26 (pzk26.prod.google.com [10.243.19.154])
-	by wpaz24.hot.corp.google.com with ESMTP id p1HNnpqv013622
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CB6A68D0039
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 18:52:14 -0500 (EST)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id p1HNqBXh004965
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 15:52:11 -0800
+Received: from pvf33 (pvf33.prod.google.com [10.241.210.97])
+	by kpbe17.cbf.corp.google.com with ESMTP id p1HNq9T0000602
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 15:50:21 -0800
-Received: by pzk26 with SMTP id 26so17618pzk.29
-        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 15:50:21 -0800 (PST)
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 15:52:09 -0800
+Received: by pvf33 with SMTP id 33so400288pvf.1
+        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 15:52:09 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20110217144643.0d60bef4.akpm@linux-foundation.org>
-References: <4D5C7EA7.1030409@cn.fujitsu.com> <4D5C7ED1.2070601@cn.fujitsu.com>
- <20110217144643.0d60bef4.akpm@linux-foundation.org>
+In-Reply-To: <4D5C7F00.2050802@cn.fujitsu.com>
+References: <4D5C7EA7.1030409@cn.fujitsu.com> <4D5C7F00.2050802@cn.fujitsu.com>
 From: Paul Menage <menage@google.com>
-Date: Thu, 17 Feb 2011 15:50:01 -0800
-Message-ID: <AANLkTin6TqQMHSpQjNXNrgGAHG8DL6CvzhTm3KHoxv0y@mail.gmail.com>
-Subject: Re: [PATCH 3/4] cpuset: Fix unchecked calls to NODEMASK_ALLOC()
+Date: Thu, 17 Feb 2011 15:51:47 -0800
+Message-ID: <AANLkTiki=aXr3KMXwrnnTrLC2Wt1F0eG8sVdXWiZrVFa@mail.gmail.com>
+Subject: Re: [PATCH 4/4] cpuset: Hold callback_mutex in cpuset_clone()
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, =?UTF-8?B?57yqIOWLsA==?= <miaox@cn.fujitsu.com>, linux-mm@kvack.org
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, =?UTF-8?B?57yqIOWLsA==?= <miaox@cn.fujitsu.com>, linux-mm@kvack.org
 
-On Thu, Feb 17, 2011 at 2:46 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Thu, 17 Feb 2011 09:50:09 +0800
-> Li Zefan <lizf@cn.fujitsu.com> wrote:
+On Wed, Feb 16, 2011 at 5:50 PM, Li Zefan <lizf@cn.fujitsu.com> wrote:
+> Chaning cpuset->mems/cpuset->cpus should be protected under
+> callback_mutex.
 >
->> +/*
->> + * In functions that can't propogate errno to users, to avoid declaring=
- a
->> + * nodemask_t variable, and avoid using NODEMASK_ALLOC that can return
->> + * -ENOMEM, we use this global cpuset_mems.
->> + *
->> + * It should be used with cgroup_lock held.
+> cpuset_clone() doesn't follow this rule. It's ok because it's
+> called when creating and initializing a cgroup, but we'd better
+> hold the lock to avoid subtil break in the future.
 >
-> I'll do s/should/must/ - that would be a nasty bug.
->
-> I'd be more comfortable about the maintainability of this optimisation
-> if we had
->
-> =A0 =A0 =A0 =A0WARN_ON(!cgroup_is_locked());
->
-> at each site.
->
+> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
 
-Agreed - that was my first thought on reading the patch. How about:
+Acked-by: Paul Menage <menage@google.com>
 
-static nodemask_t *cpuset_static_nodemask() {
-  static nodemask_t nodemask;
-  WARN_ON(!cgroup_is_locked());
-  return &nodemask;
-}
+Patch title should be s/cpuset_clone/cpuset_post_clone/
 
-and then just call cpuset_static_nodemask() in the various locations
-being patched?
-
-Paul
+> ---
+> =A0kernel/cpuset.c | =A0 =A02 ++
+> =A01 files changed, 2 insertions(+), 0 deletions(-)
+>
+> diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+> index 1e18d26..445573b 100644
+> --- a/kernel/cpuset.c
+> +++ b/kernel/cpuset.c
+> @@ -1840,8 +1840,10 @@ static void cpuset_post_clone(struct cgroup_subsys=
+ *ss,
+> =A0 =A0 =A0 =A0cs =3D cgroup_cs(cgroup);
+> =A0 =A0 =A0 =A0parent_cs =3D cgroup_cs(parent);
+>
+> + =A0 =A0 =A0 mutex_lock(&callback_mutex);
+> =A0 =A0 =A0 =A0cs->mems_allowed =3D parent_cs->mems_allowed;
+> =A0 =A0 =A0 =A0cpumask_copy(cs->cpus_allowed, parent_cs->cpus_allowed);
+> + =A0 =A0 =A0 mutex_unlock(&callback_mutex);
+> =A0 =A0 =A0 =A0return;
+> =A0}
+>
+> --
+> 1.7.3.1
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
