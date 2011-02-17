@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 8E8C98D0039
-	for <linux-mm@kvack.org>; Wed, 16 Feb 2011 20:48:35 -0500 (EST)
-Message-ID: <4D5C7EBF.2070603@cn.fujitsu.com>
-Date: Thu, 17 Feb 2011 09:49:51 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id EBF4B8D0039
+	for <linux-mm@kvack.org>; Wed, 16 Feb 2011 20:49:40 -0500 (EST)
+Message-ID: <4D5C7F00.2050802@cn.fujitsu.com>
+Date: Thu, 17 Feb 2011 09:50:56 +0800
 From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH 2/4] cpuset: Remove unneeded NODEMASK_ALLOC() in cpuset_attch()
+Subject: [PATCH 4/4] cpuset: Hold callback_mutex in cpuset_clone()
 References: <4D5C7EA7.1030409@cn.fujitsu.com>
 In-Reply-To: <4D5C7EA7.1030409@cn.fujitsu.com>
 Content-Transfer-Encoding: 7bit
@@ -16,49 +16,31 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, =?UTF-8?B?57yqIOWLsA==?= <miaox@cn.fujitsu.com>, linux-mm@kvack.org
 
-oldcs->mems_allowed is not modified during cpuset_attch(), so
-we don't have to copy it to a buffer allocated by NODEMASK_ALLOC().
-Just pass it to cpuset_migrate_mm().
+Chaning cpuset->mems/cpuset->cpus should be protected under
+callback_mutex.
+
+cpuset_clone() doesn't follow this rule. It's ok because it's
+called when creating and initializing a cgroup, but we'd better
+hold the lock to avoid subtil break in the future.
 
 Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
 ---
- kernel/cpuset.c |    7 ++-----
- 1 files changed, 2 insertions(+), 5 deletions(-)
+ kernel/cpuset.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
 diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-index f13ff2e..70c9ca2 100644
+index 1e18d26..445573b 100644
 --- a/kernel/cpuset.c
 +++ b/kernel/cpuset.c
-@@ -1438,10 +1438,9 @@ static void cpuset_attach(struct cgroup_subsys *ss, struct cgroup *cont,
- 	struct mm_struct *mm;
- 	struct cpuset *cs = cgroup_cs(cont);
- 	struct cpuset *oldcs = cgroup_cs(oldcont);
--	NODEMASK_ALLOC(nodemask_t, from, GFP_KERNEL);
- 	NODEMASK_ALLOC(nodemask_t, to, GFP_KERNEL);
+@@ -1840,8 +1840,10 @@ static void cpuset_post_clone(struct cgroup_subsys *ss,
+ 	cs = cgroup_cs(cgroup);
+ 	parent_cs = cgroup_cs(parent);
  
--	if (from == NULL || to == NULL)
-+	if (to == NULL)
- 		goto alloc_fail;
- 
- 	if (cs == &top_cpuset) {
-@@ -1463,18 +1462,16 @@ static void cpuset_attach(struct cgroup_subsys *ss, struct cgroup *cont,
- 	}
- 
- 	/* change mm; only needs to be done once even if threadgroup */
--	*from = oldcs->mems_allowed;
- 	*to = cs->mems_allowed;
- 	mm = get_task_mm(tsk);
- 	if (mm) {
- 		mpol_rebind_mm(mm, to);
- 		if (is_memory_migrate(cs))
--			cpuset_migrate_mm(mm, from, to);
-+			cpuset_migrate_mm(mm, &oldcs->mems_allowed, to);
- 		mmput(mm);
- 	}
- 
- alloc_fail:
--	NODEMASK_FREE(from);
- 	NODEMASK_FREE(to);
++	mutex_lock(&callback_mutex);
+ 	cs->mems_allowed = parent_cs->mems_allowed;
+ 	cpumask_copy(cs->cpus_allowed, parent_cs->cpus_allowed);
++	mutex_unlock(&callback_mutex);
+ 	return;
  }
  
 -- 
