@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 881858D003A
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 12:46:04 -0500 (EST)
-Message-ID: <4D5D5F4C.2020601@redhat.com>
-Date: Thu, 17 Feb 2011 12:47:56 -0500
+	by kanga.kvack.org (Postfix) with SMTP id F2FE38D003A
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 12:47:15 -0500 (EST)
+Message-ID: <4D5D5F94.5080205@redhat.com>
+Date: Thu, 17 Feb 2011 12:49:08 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] mm: Simplify anon_vma refcounts
-References: <20110217161948.045410404@chello.nl> <20110217162124.457572646@chello.nl>
-In-Reply-To: <20110217162124.457572646@chello.nl>
+Subject: Re: [PATCH 2/3] mm: Move anon_vma ref out from under CONFIG_foo
+References: <20110217161948.045410404@chello.nl> <20110217162124.388877866@chello.nl>
+In-Reply-To: <20110217162124.388877866@chello.nl>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
