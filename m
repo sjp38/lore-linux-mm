@@ -1,90 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 428A78D0039
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 10:09:14 -0500 (EST)
-Received: by pzk27 with SMTP id 27so463517pzk.14
-        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 07:09:12 -0800 (PST)
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v5 4/4] add profile information for invalidated page
-Date: Fri, 18 Feb 2011 00:08:22 +0900
-Message-Id: <7563767d6b6e841a8ac5f8315ee166e0f039723c.1297940291.git.minchan.kim@gmail.com>
-In-Reply-To: <cover.1297940291.git.minchan.kim@gmail.com>
-References: <cover.1297940291.git.minchan.kim@gmail.com>
-In-Reply-To: <cover.1297940291.git.minchan.kim@gmail.com>
-References: <cover.1297940291.git.minchan.kim@gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4B9DB8D0039
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 10:38:52 -0500 (EST)
+Date: Thu, 17 Feb 2011 16:38:47 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [2.6.32 ubuntu] I/O hang at start_this_handle
+Message-ID: <20110217153847.GE4947@quack.suse.cz>
+References: <201102080526.p185Q0mL034909@www262.sakura.ne.jp>
+ <20110215151633.GG17313@quack.suse.cz>
+ <201102160652.BDI60469.JOVFSFOHLQOFtM@I-love.SAKURA.ne.jp>
+ <20110216155317.GD5592@quack.suse.cz>
+ <201102170813.p1H8DhOJ083597@www262.sakura.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201102170813.p1H8DhOJ083597@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steven Barrett <damentz@liquorix.net>, Ben Gamari <bgamari.foss@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: jack@suse.cz, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-This patch adds profile information about invalidated page reclaim.
-It's just for profiling for test so it is never for merging.
+  Hello,
 
-Acked-by: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Nick Piggin <npiggin@kernel.dk>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- include/linux/vmstat.h |    4 ++--
- mm/swap.c              |    3 +++
- mm/vmstat.c            |    3 +++
- 3 files changed, 8 insertions(+), 2 deletions(-)
+On Thu 17-02-11 17:13:43, Tetsuo Handa wrote:
+> Jan Kara wrote:
+> > You can verify this by looking at disassembly of start_this_handle() in your
+> > kernel and finding out where offset 0x22d is in the function...
+> 
+> I confirmed that the function
+> 
+>   [<c02c7ead>] start_this_handle+0x22d/0x390
+> 
+> is the one in fs/jbd/transaction.o .
+> 
+> c02c7ea4:       eb 07                   jmp    c02c7ead <start_this_handle+0x22d>
+> c02c7ea6:       66 90                   xchg   %ax,%ax
+> c02c7ea8:       e8 93 a6 2e 00          call   c05b2540 <schedule>
+> c02c7ead:       89 d8                   mov    %ebx,%eax
+> c02c7eaf:       b9 02 00 00 00          mov    $0x2,%ecx
+> c02c7eb4:       8d 55 e0                lea    -0x20(%ebp),%edx
+> c02c7eb7:       e8 d4 82 ea ff          call   c0170190 <prepare_to_wait>
+> c02c7ebc:       8b 46 18                mov    0x18(%esi),%eax
+> c02c7ebf:       85 c0                   test   %eax,%eax
+> c02c7ec1:       75 e5                   jne    c02c7ea8 <start_this_handle+0x228>
+> c02c7ec3:       8b 45 cc                mov    -0x34(%ebp),%eax
+> c02c7ec6:       8d 55 e0                lea    -0x20(%ebp),%edx
+> c02c7ec9:       e8 e2 81 ea ff          call   c01700b0 <finish_wait>
+> c02c7ece:       e9 08 fe ff ff          jmp    c02c7cdb <start_this_handle+0x5b>
+> 
+> The location in that function is
+> 
+>         /* Wait on the journal's transaction barrier if necessary */
+>         if (journal->j_barrier_count) {
+>                 spin_unlock(&journal->j_state_lock);
+>                 wait_event(journal->j_wait_transaction_locked,
+>                                 journal->j_barrier_count == 0);
+>                 goto repeat;
+>         }
+> 
+> . (Disassembly with mixed code attached at the bottom.)
+  Great, thanks for analysis.
 
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 833e676..c38ad95 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -30,8 +30,8 @@
- 
- enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		FOR_ALL_ZONES(PGALLOC),
--		PGFREE, PGACTIVATE, PGDEACTIVATE,
--		PGFAULT, PGMAJFAULT,
-+		PGFREE, PGACTIVATE, PGDEACTIVATE, PGINVALIDATE,
-+		PGRECLAIM, PGFAULT, PGMAJFAULT,
- 		FOR_ALL_ZONES(PGREFILL),
- 		FOR_ALL_ZONES(PGSTEAL),
- 		FOR_ALL_ZONES(PGSCAN_KSWAPD),
-diff --git a/mm/swap.c b/mm/swap.c
-index 0a33714..980c17b 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -397,6 +397,7 @@ static void lru_deactivate(struct page *page, struct zone *zone)
- 		 * is _really_ small and  it's non-critical problem.
- 		 */
- 		SetPageReclaim(page);
-+		__count_vm_event(PGRECLAIM);
- 	} else {
- 		/*
- 		 * The page's writeback ends up during pagevec
-@@ -409,6 +410,8 @@ static void lru_deactivate(struct page *page, struct zone *zone)
- 
- 	if (active)
- 		__count_vm_event(PGDEACTIVATE);
-+
-+	__count_vm_event(PGINVALIDATE);
- 	update_page_reclaim_stat(zone, page, file, 0);
- }
- 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 0c3b504..cbe032b 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -896,6 +896,9 @@ static const char * const vmstat_text[] = {
- 	"pgactivate",
- 	"pgdeactivate",
- 
-+	"pginvalidate",
-+	"pgreclaim",
-+
- 	"pgfault",
- 	"pgmajfault",
- 
+> > But in this case - does the process (sh) eventually resume or is it stuck
+> > forever?
+> 
+> I waited for a few hours but the process did not resume. Thus, I gave up.
+OK, so stuck forever ;). Interesting. So we probably missed a wakeup
+somehow or j_barrier_count got corrupted. I suppose you are not able to
+reproduce the hang, are you?  Looking at the code, it looks safe and I have
+no clue how it could happen. So unless you are able to see the issue again
+(so that we can gather some more debug information), I'm not able to help...
+I'm sorry.
+
+								Honza
 -- 
-1.7.1
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
