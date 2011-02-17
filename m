@@ -1,104 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AFB58D003E
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C59268D0040
 	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 12:10:42 -0500 (EST)
-Message-Id: <20110217163235.245158823@chello.nl>
-Date: Thu, 17 Feb 2011 17:23:35 +0100
+Message-Id: <20110217163234.756898524@chello.nl>
+Date: Thu, 17 Feb 2011 17:23:28 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 08/17] um: mmu_gather rework
+Subject: [PATCH 01/17] tile: Fix __pte_free_tlb
 References: <20110217162327.434629380@chello.nl>
-Content-Disposition: inline; filename=peter_zijlstra-um-preemptible_mmu_gather.patch
+Content-Disposition: inline; filename=tile-fix-pte_free_tlb.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Jeff Dike <jdike@addtoit.com>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Chris Metcalf <cmetcalf@tilera.com>
 
-Fix up the um mmu_gather code to conform to the new API.
+Tile's __pte_free_tlb() implementation makes assumptions about the
+generic mmu_gather implementation, cure this ;-)
 
-Cc: Jeff Dike <jdike@addtoit.com>
+Acked-by: Chris Metcalf <cmetcalf@tilera.com>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- arch/um/include/asm/tlb.h |   29 +++++++++++------------------
- 1 file changed, 11 insertions(+), 18 deletions(-)
+ arch/tile/mm/pgtable.c |   15 ++-------------
+ 1 file changed, 2 insertions(+), 13 deletions(-)
 
-Index: linux-2.6/arch/um/include/asm/tlb.h
+Index: linux-2.6/arch/tile/mm/pgtable.c
 ===================================================================
---- linux-2.6.orig/arch/um/include/asm/tlb.h
-+++ linux-2.6/arch/um/include/asm/tlb.h
-@@ -22,9 +22,6 @@ struct mmu_gather {
- 	unsigned int		fullmm; /* non-zero means full mm flush */
- };
+--- linux-2.6.orig/arch/tile/mm/pgtable.c
++++ linux-2.6/arch/tile/mm/pgtable.c
+@@ -252,19 +252,8 @@ void __pte_free_tlb(struct mmu_gather *t
+ 	int i;
  
--/* Users of the generic TLB shootdown code must declare this storage space. */
--DECLARE_PER_CPU(struct mmu_gather, mmu_gathers);
--
- static inline void __tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep,
- 					  unsigned long address)
- {
-@@ -47,27 +44,20 @@ static inline void init_tlb_gather(struc
- 	}
+ 	pgtable_page_dtor(pte);
+-	tlb->need_flush = 1;
+-	if (tlb_fast_mode(tlb)) {
+-		struct page *pte_pages[L2_USER_PGTABLE_PAGES];
+-		for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i)
+-			pte_pages[i] = pte + i;
+-		free_pages_and_swap_cache(pte_pages, L2_USER_PGTABLE_PAGES);
+-		return;
+-	}
+-	for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i) {
+-		tlb->pages[tlb->nr++] = pte + i;
+-		if (tlb->nr >= FREE_PTE_NR)
+-			tlb_flush_mmu(tlb, 0, 0);
+-	}
++	for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i)
++		tlb_remove_page(tlb, pte + i);
  }
  
--/* tlb_gather_mmu
-- *	Return a pointer to an initialized struct mmu_gather.
-- */
--static inline struct mmu_gather *
--tlb_gather_mmu(struct mm_struct *mm, unsigned int full_mm_flush)
-+static inline void
-+tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned int full_mm_flush)
- {
--	struct mmu_gather *tlb = &get_cpu_var(mmu_gathers);
--
- 	tlb->mm = mm;
- 	tlb->fullmm = full_mm_flush;
- 
- 	init_tlb_gather(tlb);
--
--	return tlb;
- }
- 
- extern void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 			       unsigned long end);
- 
- static inline void
--tlb_flush_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
-+tlb_flush_mmu(struct mmu_gather *tlb)
- {
- 	if (!tlb->need_flush)
- 		return;
-@@ -83,12 +73,10 @@ tlb_flush_mmu(struct mmu_gather *tlb, un
- static inline void
- tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
- {
--	tlb_flush_mmu(tlb, start, end);
-+	tlb_flush_mmu(tlb);
- 
- 	/* keep the page table cache within bounds */
- 	check_pgt_cache();
--
--	put_cpu_var(mmu_gathers);
- }
- 
- /* tlb_remove_page
-@@ -96,11 +84,16 @@ tlb_finish_mmu(struct mmu_gather *tlb, u
-  *	while handling the additional races in SMP caused by other CPUs
-  *	caching valid mappings in their TLBs.
-  */
--static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
-+static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
- {
- 	tlb->need_flush = 1;
- 	free_page_and_swap_cache(page);
--	return;
-+	return 0;
-+}
-+
-+static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
-+{
-+	__tlb_remove_page(tlb, page);
- }
- 
- /**
+ #ifndef __tilegx__
 
 
 --
