@@ -1,145 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 40ECD8D003D
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 12:22:41 -0500 (EST)
-Message-Id: <20110217170855.048229155@chello.nl>
-Date: Thu, 17 Feb 2011 18:05:26 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AA048D003A
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 12:36:34 -0500 (EST)
+Subject: Re: [PATCH 00/17] mm: mmu_gather rework
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 6/8] mm: Use refcounts for page_lock_anon_vma()
-References: <20110217170520.229881980@chello.nl>
-Content-Disposition: inline; filename=peter_zijlstra-mm-use_refcounts_for_page_lock_anon_vma.patch
+In-Reply-To: <20110217162327.434629380@chello.nl>
+References: <20110217162327.434629380@chello.nl>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Thu, 17 Feb 2011 18:36:20 +0100
+Message-ID: <1297964180.2413.2028.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Hugh Dickins <hughd@google.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>
 
-Convert page_lock_anon_vma() over to use refcounts. This is done to
-prepare for the conversion of anon_vma from spinlock to mutex.
+On Thu, 2011-02-17 at 17:23 +0100, Peter Zijlstra wrote:
+> Rework the existing mmu_gather infrastructure.
+>=20
+> The direct purpose of these patches was to allow preemptible mmu_gather,
+> but even without that I think these patches provide an improvement to the
+> status quo.
+>=20
+> The first patch is a fix to the tile architecture, the subsequent 9 patch=
+es
+> rework the mmu_gather infrastructure. For review purpose I've split them
+> into generic and per-arch patches with the last of those a generic cleanu=
+p.
+>=20
+> For the final commit I would provide a roll-up of these patches so as not
+> to wreck bisectability of non generic archs.
+>=20
+> The next patch provides generic RCU page-table freeing, and the follow up
+> is a patch converting s390 to use this. I've also got 4 patches from
+> DaveM lined up (not included in this series) that uses this to implement
+> gup_fast() for sparc64.
+>=20
+> Then there is one patch that extends the generic mmu_gather batching.
+>=20
+> Finally there are 4 patches that convert various architectures over
+> to asm-generic/tlb.h, these are compile tested only and basically RFC.
+>=20
+> After this only um and s390 are left -- um should be straight forward,
+> s390 wants a bit more, but more on that in another email.
 
-Sadly this inceases the cost of page_lock_anon_vma() from one to two
-atomics, a follow up patch addresses this, lets keep that simple for
-now.
-
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- mm/migrate.c |   17 ++++-------------
- mm/rmap.c    |   42 +++++++++++++++++++++++++++---------------
- 2 files changed, 31 insertions(+), 28 deletions(-)
-
-Index: linux-2.6/mm/rmap.c
-===================================================================
---- linux-2.6.orig/mm/rmap.c
-+++ linux-2.6/mm/rmap.c
-@@ -336,9 +336,9 @@ void __init anon_vma_init(void)
-  * that the anon_vma pointer from page->mapping is valid if there is a
-  * mapcount, we can dereference the anon_vma after observing those.
-  */
--struct anon_vma *page_lock_anon_vma(struct page *page)
-+struct anon_vma *page_get_anon_vma(struct page *page)
- {
--	struct anon_vma *anon_vma, *root_anon_vma;
-+	struct anon_vma *anon_vma = NULL;
- 	unsigned long anon_mapping;
- 
- 	rcu_read_lock();
-@@ -349,30 +349,42 @@ struct anon_vma *page_lock_anon_vma(stru
- 		goto out;
- 
- 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
--	root_anon_vma = ACCESS_ONCE(anon_vma->root);
--	spin_lock(&root_anon_vma->lock);
-+	if (!atomic_inc_not_zero(&anon_vma->refcount)) {
-+		anon_vma = NULL;
-+		goto out;
-+	}
- 
- 	/*
- 	 * If this page is still mapped, then its anon_vma cannot have been
--	 * freed.  But if it has been unmapped, we have no security against
--	 * the anon_vma structure being freed and reused (for another anon_vma:
--	 * SLAB_DESTROY_BY_RCU guarantees that - so the spin_lock above cannot
--	 * corrupt): with anon_vma_prepare() or anon_vma_fork() redirecting
--	 * anon_vma->root before page_unlock_anon_vma() is called to unlock.
-+	 * freed.  But if it has been unmapped, we have no security against the
-+	 * anon_vma structure being freed and reused (for another anon_vma:
-+	 * SLAB_DESTROY_BY_RCU guarantees that - so the atomic_inc_not_zero()
-+	 * above cannot corrupt).
- 	 */
--	if (page_mapped(page))
--		return anon_vma;
--
--	spin_unlock(&root_anon_vma->lock);
-+	if (!page_mapped(page)) {
-+		put_anon_vma(anon_vma);
-+		anon_vma = NULL;
-+	}
- out:
- 	rcu_read_unlock();
--	return NULL;
-+
-+	return anon_vma;
-+}
-+
-+struct anon_vma *page_lock_anon_vma(struct page *page)
-+{
-+	struct anon_vma *anon_vma = page_get_anon_vma(page);
-+
-+	if (anon_vma)
-+		anon_vma_lock(anon_vma);
-+
-+	return anon_vma;
- }
- 
- void page_unlock_anon_vma(struct anon_vma *anon_vma)
- {
- 	anon_vma_unlock(anon_vma);
--	rcu_read_unlock();
-+	put_anon_vma(anon_vma);
- }
- 
- /*
-Index: linux-2.6/mm/migrate.c
-===================================================================
---- linux-2.6.orig/mm/migrate.c
-+++ linux-2.6/mm/migrate.c
-@@ -703,15 +703,11 @@ static int unmap_and_move(new_page_t get
- 		 * Only page_lock_anon_vma() understands the subtleties of
- 		 * getting a hold on an anon_vma from outside one of its mms.
- 		 */
--		anon_vma = page_lock_anon_vma(page);
-+		anon_vma = page_get_anon_vma(page);
- 		if (anon_vma) {
- 			/*
--			 * Take a reference count on the anon_vma if the
--			 * page is mapped so that it is guaranteed to
--			 * exist when the page is remapped later
-+			 * Anon page
- 			 */
--			get_anon_vma(anon_vma);
--			page_unlock_anon_vma(anon_vma);
- 		} else if (PageSwapCache(page)) {
- 			/*
- 			 * We cannot be sure that the anon_vma of an unmapped
-@@ -840,13 +836,8 @@ static int unmap_and_move_huge_page(new_
- 		lock_page(hpage);
- 	}
- 
--	if (PageAnon(hpage)) {
--		anon_vma = page_lock_anon_vma(hpage);
--		if (anon_vma) {
--			get_anon_vma(anon_vma);
--			page_unlock_anon_vma(anon_vma);
--		}
--	}
-+	if (PageAnon(hpage))
-+		anon_vma = page_get_anon_vma(hpage);
- 
- 	try_to_unmap(hpage, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
- 
-
+ arch/Kconfig                           |    6=20
+ arch/alpha/mm/init.c                   |    2=20
+ arch/arm/Kconfig                       |    1=20
+ arch/arm/include/asm/tlb.h             |   83 ------------
+ arch/arm/include/asm/tlbflush.h        |    5=20
+ arch/arm/mm/mmu.c                      |    2=20
+ arch/avr32/mm/init.c                   |    2=20
+ arch/cris/mm/init.c                    |    2=20
+ arch/frv/mm/init.c                     |    2=20
+ arch/ia64/Kconfig                      |    1=20
+ arch/ia64/include/asm/tlb.h            |  147 +--------------------
+ arch/ia64/mm/init.c                    |    2=20
+ arch/m32r/mm/init.c                    |    2=20
+ arch/m68k/mm/init.c                    |    2=20
+ arch/microblaze/mm/init.c              |    2=20
+ arch/mips/mm/init.c                    |    2=20
+ arch/mn10300/mm/init.c                 |    2=20
+ arch/parisc/mm/init.c                  |    2=20
+ arch/powerpc/Kconfig                   |    1=20
+ arch/powerpc/include/asm/pgalloc.h     |   21 ++-
+ arch/powerpc/include/asm/thread_info.h |    2=20
+ arch/powerpc/kernel/process.c          |   23 +++
+ arch/powerpc/mm/pgtable.c              |  104 ---------------
+ arch/powerpc/mm/tlb_hash32.c           |    3=20
+ arch/powerpc/mm/tlb_hash64.c           |   11 -
+ arch/powerpc/mm/tlb_nohash.c           |    3=20
+ arch/s390/Kconfig                      |    1=20
+ arch/s390/include/asm/pgalloc.h        |   19 +-
+ arch/s390/include/asm/tlb.h            |  100 +++++++-------
+ arch/s390/mm/pgtable.c                 |  193 +++-------------------------
+ arch/score/mm/init.c                   |    2=20
+ arch/sh/Kconfig                        |    1=20
+ arch/sh/include/asm/tlb.h              |   92 -------------
+ arch/sh/mm/init.c                      |    1=20
+ arch/sparc/include/asm/pgalloc_64.h    |    3=20
+ arch/sparc/include/asm/pgtable_64.h    |   15 +-
+ arch/sparc/include/asm/tlb_64.h        |   91 -------------
+ arch/sparc/include/asm/tlbflush_64.h   |   12 +
+ arch/sparc/mm/init_32.c                |    2=20
+ arch/sparc/mm/tlb.c                    |   43 +++---
+ arch/sparc/mm/tsb.c                    |   15 +-
+ arch/tile/mm/init.c                    |    2=20
+ arch/tile/mm/pgtable.c                 |   15 --
+ arch/um/include/asm/tlb.h              |   29 +---
+ arch/um/kernel/smp.c                   |    3=20
+ arch/x86/mm/init.c                     |    2=20
+ arch/xtensa/mm/mmu.c                   |    2=20
+ fs/exec.c                              |   10 -
+ include/asm-generic/tlb.h              |  227 +++++++++++++++++++++++++++-=
+-----
+ include/linux/mm.h                     |    2=20
+ mm/memory.c                            |  119 +++++++++++++----
+ mm/mmap.c                              |   18 +-
+ 52 files changed, 536 insertions(+), 918 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
