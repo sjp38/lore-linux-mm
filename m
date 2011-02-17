@@ -1,62 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 524F68D0039
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 14:12:44 -0500 (EST)
-Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p1HJCBRY010250
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 11:12:12 -0800
-Received: by iyi20 with SMTP id 20so2727098iyi.14
-        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 11:12:11 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id BA1498D003A
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 14:31:26 -0500 (EST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <20110216185234.GA11636@tiehlicka.suse.cz>
+	<20110216193700.GA6377@elte.hu>
+	<AANLkTinDxxbVjrUViCs=UaMD9Wg9PR7b0ShNud5zKE3w@mail.gmail.com>
+	<AANLkTi=xnbcs5BKj3cNE_aLtBO7W5m+2uaUacu7M8g_S@mail.gmail.com>
+	<20110217090910.GA3781@tiehlicka.suse.cz>
+	<AANLkTikPKpNHxDQAYBd3fiQsmVozLtCVDsNn=+eF_q2r@mail.gmail.com>
+	<20110217163531.GF14168@elte.hu> <m1pqqqfpzh.fsf@fess.ebiederm.org>
+	<AANLkTinB=EgDGNv-v-qD-MvHVAmstfP_CyyLNhhotkZx@mail.gmail.com>
+Date: Thu, 17 Feb 2011 11:31:07 -0800
+In-Reply-To: <AANLkTinB=EgDGNv-v-qD-MvHVAmstfP_CyyLNhhotkZx@mail.gmail.com>
+	(Linus Torvalds's message of "Thu, 17 Feb 2011 11:11:51 -0800")
+Message-ID: <m1zkpue9vo.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
-In-Reply-To: <m1pqqqfpzh.fsf@fess.ebiederm.org>
-References: <20110216185234.GA11636@tiehlicka.suse.cz> <20110216193700.GA6377@elte.hu>
- <AANLkTinDxxbVjrUViCs=UaMD9Wg9PR7b0ShNud5zKE3w@mail.gmail.com>
- <AANLkTi=xnbcs5BKj3cNE_aLtBO7W5m+2uaUacu7M8g_S@mail.gmail.com>
- <20110217090910.GA3781@tiehlicka.suse.cz> <AANLkTikPKpNHxDQAYBd3fiQsmVozLtCVDsNn=+eF_q2r@mail.gmail.com>
- <20110217163531.GF14168@elte.hu> <m1pqqqfpzh.fsf@fess.ebiederm.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 17 Feb 2011 11:11:51 -0800
-Message-ID: <AANLkTinB=EgDGNv-v-qD-MvHVAmstfP_CyyLNhhotkZx@mail.gmail.com>
-Subject: Re: BUG: Bad page map in process udevd (anon_vma: (null)) in 2.6.38-rc4
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
+Subject: Re: BUG: Bad page map in process udevd (anon_vma: (null)) in 2.6.38-rc4
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Ingo Molnar <mingo@elte.hu>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Feb 17, 2011 at 10:57 AM, Eric W. Biederman
-<ebiederm@xmission.com> wrote:
+Linus Torvalds <torvalds@linux-foundation.org> writes:
+
+> On Thu, Feb 17, 2011 at 10:57 AM, Eric W. Biederman
+> <ebiederm@xmission.com> wrote:
+>>
+>> fedora 14
+>> ext4 on all filesystems
 >
-> fedora 14
-> ext4 on all filesystems
+> Your dmesg snippets had ext3 mentioned, though:
+>
+>   <6>EXT3-fs (sda1): recovery required on readonly filesystem
+>   <6>EXT3-fs (sda1): write access will be enabled during recovery
+>   <6>EXT3-fs: barriers not enabled
+>   ..
+>   <6>EXT3-fs (sda1): recovery complete
+>   <6>EXT3-fs (sda1): mounted filesystem with ordered data mode
+>   <6>dracut: Mounted root filesystem /dev/sda1
+>
+> not that I see that it should matter, but there's been some bigger
+> ext3 changes too (like the batched discard).
+>
+> I don't really think ext3 is the issue, though.
 
-Your dmesg snippets had ext3 mentioned, though:
+Oh right.  I changed the configuration but I haven't upgraded this
+machine off of ext3 root yet.   The partition where all of the data is
+going is ext4.  Creating a chrooted build environment on the fly is
+great but it can momentarily swamp the disk.
 
-  <6>EXT3-fs (sda1): recovery required on readonly filesystem
-  <6>EXT3-fs (sda1): write access will be enabled during recovery
-  <6>EXT3-fs: barriers not enabled
-  ..
-  <6>EXT3-fs (sda1): recovery complete
-  <6>EXT3-fs (sda1): mounted filesystem with ordered data mode
-  <6>dracut: Mounted root filesystem /dev/sda1
+>> I was about to say this happens with DEBUG_PAGEALLOC enabled but it
+>> appears that options keeps eluding my fingers when I have a few minutes
+>> to play with it. =C2=A0Perhaps this time will be the charm.
+>
+> Please do. You seem to be much better at triggering it than anybody
+> else. And do the DEBUG_LIST and DEBUG_SLUB_ON things too (even if the
+> DEBUG_LIST thing won't catch list_move())
 
-not that I see that it should matter, but there's been some bigger
-ext3 changes too (like the batched discard).
+DEBUG_LIST I did manage to get enabled and it didn't catch anything,
+despite some bad PMD's showing up.  The other two should be enabled in
+the kernel version I am building right now.
 
-I don't really think ext3 is the issue, though.
+It does look like this can go quiet for a days at a time.  The 17th is
+the first my logs show of it since the 14th.
 
-> I was about to say this happens with DEBUG_PAGEALLOC enabled but it
-> appears that options keeps eluding my fingers when I have a few minutes
-> to play with it. =A0Perhaps this time will be the charm.
+messages:Feb 14 17:55:12 bs38 kernel: BUG: Bad page map in process [manager=
+]  pte:ffff88028c45f748 pmd:28c45f067
+messages:Feb 14 17:55:12 bs38 kernel: BUG: Bad page map in process [manager=
+]  pte:ffff88028c45f748 pmd:28c45f067
+messages:Feb 17 00:49:53 bs38 kernel: BUG: Bad page map in process Sysdb  p=
+te:ffff8802742b3758 pmd:2742b3067
+messages:Feb 17 00:49:53 bs38 kernel: BUG: Bad page map in process Sysdb  p=
+te:ffff8802742b3758 pmd:2742b3067
+messages:Feb 17 10:00:43 bs38 kernel: BUG: Bad page map in process cc1plus =
+ pte:ffff880190f73758 pmd:190f73067
+messages:Feb 17 10:00:43 bs38 kernel: BUG: Bad page map in process cc1plus =
+ pte:ffff88025efed758 pmd:25efed067
+messages:Feb 17 10:00:43 bs38 kernel: BUG: Bad page map in process cc1plus =
+ pte:ffff88025efed758 pmd:25efed067
+messages:Feb 17 10:00:43 bs38 kernel: BUG: Bad page map in process cc1plus =
+ pte:ffff880190f73758 pmd:190f73067
 
-Please do. You seem to be much better at triggering it than anybody
-else. And do the DEBUG_LIST and DEBUG_SLUB_ON things too (even if the
-DEBUG_LIST thing won't catch list_move())
-
-                      Linus
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
