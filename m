@@ -1,479 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 05C548D0045
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 12:10:42 -0500 (EST)
-Message-Id: <20110217170854.766930171@chello.nl>
-Date: Thu, 17 Feb 2011 18:05:22 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 431BD8D0044
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 12:10:43 -0500 (EST)
+Message-Id: <20110217170855.187755824@chello.nl>
+Date: Thu, 17 Feb 2011 18:05:28 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 2/8] mm: Remove i_mmap_mutex lockbreak
+Subject: [PATCH 8/8] mm: Optimize page_lock_anon_vma() fast-path
 References: <20110217170520.229881980@chello.nl>
-Content-Disposition: inline; filename=mm-fix-zap_block_size.patch
+Content-Disposition: inline; filename=peter_zijlstra-mm-optimize_page_lock_anon_vma_fast-path.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>
 
-Hugh says:
- "The only significant loser, I think, would be page reclaim (when
-  concurrent with truncation): could spin for a long time waiting for
-  the i_mmap_mutex it expects would soon be dropped? "
+Optimize the page_lock_anon_vma() fast path to be one LOCKed op,
+instead of two.
 
-Counter points:
- - cpu contention makes the spin stop (need_resched())
- - zap pages should be freeing pages at a higher rate than reclaim
-   ever can
- - shouldn't hold up reclaim more than lock_page() would
-
-I think the simplification of the truncate code is definately worth
-it.
-
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/fs.h       |    1 
- include/linux/mm.h       |    2 
- include/linux/mm_types.h |    1 
- kernel/fork.c            |    1 
- mm/memory.c              |  193 ++++++-----------------------------------------
- mm/mmap.c                |   13 ---
- mm/mremap.c              |    3 
- 7 files changed, 27 insertions(+), 187 deletions(-)
+ mm/rmap.c |   85 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 81 insertions(+), 4 deletions(-)
 
-Index: linux-2.6/include/linux/mm.h
+Index: linux-2.6/mm/rmap.c
 ===================================================================
---- linux-2.6.orig/include/linux/mm.h
-+++ linux-2.6/include/linux/mm.h
-@@ -878,8 +878,6 @@ struct zap_details {
- 	struct address_space *check_mapping;	/* Check page->mapping if set */
- 	pgoff_t	first_index;			/* Lowest page->index to unmap */
- 	pgoff_t last_index;			/* Highest page->index to unmap */
--	spinlock_t *i_mmap_lock;		/* For unmap_mapping_range: */
--	unsigned long truncate_count;		/* Compare vm_truncate_count */
- };
- 
- struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
-Index: linux-2.6/mm/memory.c
-===================================================================
---- linux-2.6.orig/mm/memory.c
-+++ linux-2.6/mm/memory.c
-@@ -986,13 +986,13 @@ int copy_page_range(struct mm_struct *ds
- static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 				struct vm_area_struct *vma, pmd_t *pmd,
- 				unsigned long addr, unsigned long end,
--				long *zap_work, struct zap_details *details)
-+				struct zap_details *details)
- {
- 	struct mm_struct *mm = tlb->mm;
- 	int need_flush = 0;
--	pte_t *pte;
--	spinlock_t *ptl;
- 	int rss[NR_MM_COUNTERS];
-+	spinlock_t *ptl;
-+	pte_t *pte;
- 
- 	init_rss_vec(rss);
- again:
-@@ -1001,12 +1001,9 @@ static unsigned long zap_pte_range(struc
- 	do {
- 		pte_t ptent = *pte;
- 		if (pte_none(ptent)) {
--			(*zap_work)--;
- 			continue;
- 		}
- 
--		(*zap_work) -= PAGE_SIZE;
--
- 		if (pte_present(ptent)) {
- 			struct page *page;
- 
-@@ -1073,8 +1070,7 @@ static unsigned long zap_pte_range(struc
- 				print_bad_pte(vma, addr, ptent, NULL);
- 		}
- 		pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
--	} while (pte++, addr += PAGE_SIZE,
--			(addr != end && *zap_work > 0 && !need_flush));
-+	} while (pte++, addr += PAGE_SIZE, (addr != end && !need_flush));
- 
- 	add_mm_rss_vec(mm, rss);
- 	arch_leave_lazy_mmu_mode();
-@@ -1093,7 +1089,7 @@ static unsigned long zap_pte_range(struc
- static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
- 				struct vm_area_struct *vma, pud_t *pud,
- 				unsigned long addr, unsigned long end,
--				long *zap_work, struct zap_details *details)
-+				struct zap_details *details)
- {
- 	pmd_t *pmd;
- 	unsigned long next;
-@@ -1105,19 +1101,15 @@ static inline unsigned long zap_pmd_rang
- 			if (next-addr != HPAGE_PMD_SIZE) {
- 				VM_BUG_ON(!rwsem_is_locked(&tlb->mm->mmap_sem));
- 				split_huge_page_pmd(vma->vm_mm, pmd);
--			} else if (zap_huge_pmd(tlb, vma, pmd)) {
--				(*zap_work)--;
-+			} else if (zap_huge_pmd(tlb, vma, pmd))
- 				continue;
--			}
- 			/* fall through */
- 		}
--		if (pmd_none_or_clear_bad(pmd)) {
--			(*zap_work)--;
-+		if (pmd_none_or_clear_bad(pmd))
- 			continue;
--		}
--		next = zap_pte_range(tlb, vma, pmd, addr, next,
--						zap_work, details);
--	} while (pmd++, addr = next, (addr != end && *zap_work > 0));
-+		next = zap_pte_range(tlb, vma, pmd, addr, next, details);
-+		cond_resched();
-+	} while (pmd++, addr = next, addr != end);
- 
- 	return addr;
+--- linux-2.6.orig/mm/rmap.c
++++ linux-2.6/mm/rmap.c
+@@ -371,20 +371,75 @@ struct anon_vma *page_get_anon_vma(struc
+ 	return anon_vma;
  }
-@@ -1125,7 +1117,7 @@ static inline unsigned long zap_pmd_rang
- static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
- 				struct vm_area_struct *vma, pgd_t *pgd,
- 				unsigned long addr, unsigned long end,
--				long *zap_work, struct zap_details *details)
-+				struct zap_details *details)
+ 
++/*
++ * Similar to page_get_anon_vma() except it locks the anon_vma.
++ *
++ * Its a little more complex as it tries to keep the fast path to a single
++ * atomic op -- the trylock. If we fail the trylock, we fall back to getting a
++ * reference like with page_get_anon_vma() and then block on the mutex.
++ */
+ struct anon_vma *page_lock_anon_vma(struct page *page)
  {
- 	pud_t *pud;
- 	unsigned long next;
-@@ -1133,13 +1125,10 @@ static inline unsigned long zap_pud_rang
- 	pud = pud_offset(pgd, addr);
- 	do {
- 		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(pud)) {
--			(*zap_work)--;
-+		if (pud_none_or_clear_bad(pud))
- 			continue;
--		}
--		next = zap_pmd_range(tlb, vma, pud, addr, next,
--						zap_work, details);
--	} while (pud++, addr = next, (addr != end && *zap_work > 0));
-+		next = zap_pmd_range(tlb, vma, pud, addr, next, details);
-+	} while (pud++, addr = next, addr != end);
+-	struct anon_vma *anon_vma = page_get_anon_vma(page);
++	struct anon_vma *anon_vma = NULL;
++	unsigned long anon_mapping;
  
- 	return addr;
- }
-@@ -1147,7 +1136,7 @@ static inline unsigned long zap_pud_rang
- static unsigned long unmap_page_range(struct mmu_gather *tlb,
- 				struct vm_area_struct *vma,
- 				unsigned long addr, unsigned long end,
--				long *zap_work, struct zap_details *details)
-+				struct zap_details *details)
- {
- 	pgd_t *pgd;
- 	unsigned long next;
-@@ -1161,13 +1150,10 @@ static unsigned long unmap_page_range(st
- 	pgd = pgd_offset(vma->vm_mm, addr);
- 	do {
- 		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd)) {
--			(*zap_work)--;
-+		if (pgd_none_or_clear_bad(pgd))
- 			continue;
--		}
--		next = zap_pud_range(tlb, vma, pgd, addr, next,
--						zap_work, details);
--	} while (pgd++, addr = next, (addr != end && *zap_work > 0));
-+		next = zap_pud_range(tlb, vma, pgd, addr, next, details);
-+	} while (pgd++, addr = next, addr != end);
- 	tlb_end_vma(tlb, vma);
- 	mem_cgroup_uncharge_end();
- 
-@@ -1212,9 +1198,7 @@ unsigned long unmap_vmas(struct mmu_gath
- 		unsigned long end_addr, unsigned long *nr_accounted,
- 		struct zap_details *details)
- {
--	long zap_work = ZAP_BLOCK_SIZE;
- 	unsigned long start = start_addr;
--	spinlock_t *i_mmap_lock = details? details->i_mmap_lock: NULL;
- 	struct mm_struct *mm = vma->vm_mm;
- 
- 	mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
-@@ -1247,33 +1231,15 @@ unsigned long unmap_vmas(struct mmu_gath
- 				 * Since no pte has actually been setup, it is
- 				 * safe to do nothing in this case.
- 				 */
--				if (vma->vm_file) {
-+				if (vma->vm_file)
- 					unmap_hugepage_range(vma, start, end, NULL);
--					zap_work -= (end - start) /
--					pages_per_huge_page(hstate_vma(vma));
--				}
- 
- 				start = end;
- 			} else
--				start = unmap_page_range(tlb, vma,
--						start, end, &zap_work, details);
--
--			if (zap_work > 0) {
--				BUG_ON(start != end);
--				break;
--			}
--
--			if (need_resched() ||
--				(i_mmap_lock && spin_needbreak(i_mmap_lock))) {
--				if (i_mmap_lock)
--					goto out;
--				cond_resched();
--			}
--
--			zap_work = ZAP_BLOCK_SIZE;
-+				start = unmap_page_range(tlb, vma, start, end, details);
- 		}
- 	}
--out:
+-	if (anon_vma)
+-		anon_vma_lock(anon_vma);
++	rcu_read_lock();
++	anon_mapping = (unsigned long) ACCESS_ONCE(page->mapping);
++	if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
++		goto out;
++	if (!page_mapped(page))
++		goto out;
 +
- 	mmu_notifier_invalidate_range_end(mm, start_addr, end_addr);
- 	return start;	/* which is now the end (or restart) address */
- }
-@@ -2535,96 +2501,11 @@ static int do_wp_page(struct mm_struct *
- 	return ret;
++	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
++	if (mutex_trylock(&anon_vma->root->mutex)) {
++		/*
++		 * If we observe a !0 refcount, then holding the lock ensures
++		 * the anon_vma will not go away, see __put_anon_vma().
++		 */
++		if (!atomic_read(&anon_vma->refcount)) {
++			anon_vma_unlock(anon_vma);
++			anon_vma = NULL;
++		}
++		goto out;
++	}
++
++	/* trylock failed, we got to sleep */
++	if (!atomic_inc_not_zero(&anon_vma->refcount)) {
++		anon_vma = NULL;
++		goto out;
++	}
++
++	if (!page_mapped(page)) {
++		put_anon_vma(anon_vma);
++		anon_vma = NULL;
++		goto out;
++	}
+ 
++	/* we pinned the anon_vma, its safe to sleep */
++	rcu_read_unlock();
++	anon_vma_lock(anon_vma);
++
++	if (atomic_dec_and_test(&anon_vma->refcount)) {
++		/*
++		 * Oops, we held the last refcount, release the lock
++		 * and bail -- can't simply use put_anon_vma() because
++		 * we'll deadlock on the anon_vma_lock() recursion.
++		 */
++		anon_vma_unlock(anon_vma);
++		__put_anon_vma(anon_vma);
++		anon_vma = NULL;
++	}
++
++	return anon_vma;
++
++out:
++	rcu_read_unlock();
+ 	return anon_vma;
  }
  
--/*
-- * Helper functions for unmap_mapping_range().
-- *
-- * __ Notes on dropping i_mmap_lock to reduce latency while unmapping __
-- *
-- * We have to restart searching the prio_tree whenever we drop the lock,
-- * since the iterator is only valid while the lock is held, and anyway
-- * a later vma might be split and reinserted earlier while lock dropped.
-- *
-- * The list of nonlinear vmas could be handled more efficiently, using
-- * a placeholder, but handle it in the same way until a need is shown.
-- * It is important to search the prio_tree before nonlinear list: a vma
-- * may become nonlinear and be shifted from prio_tree to nonlinear list
-- * while the lock is dropped; but never shifted from list to prio_tree.
-- *
-- * In order to make forward progress despite restarting the search,
-- * vm_truncate_count is used to mark a vma as now dealt with, so we can
-- * quickly skip it next time around.  Since the prio_tree search only
-- * shows us those vmas affected by unmapping the range in question, we
-- * can't efficiently keep all vmas in step with mapping->truncate_count:
-- * so instead reset them all whenever it wraps back to 0 (then go to 1).
-- * mapping->truncate_count and vma->vm_truncate_count are protected by
-- * i_mmap_lock.
-- *
-- * In order to make forward progress despite repeatedly restarting some
-- * large vma, note the restart_addr from unmap_vmas when it breaks out:
-- * and restart from that address when we reach that vma again.  It might
-- * have been split or merged, shrunk or extended, but never shifted: so
-- * restart_addr remains valid so long as it remains in the vma's range.
-- * unmap_mapping_range forces truncate_count to leap over page-aligned
-- * values so we can save vma's restart_addr in its truncate_count field.
-- */
--#define is_restart_addr(truncate_count) (!((truncate_count) & ~PAGE_MASK))
--
--static void reset_vma_truncate_counts(struct address_space *mapping)
--{
--	struct vm_area_struct *vma;
--	struct prio_tree_iter iter;
--
--	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, ULONG_MAX)
--		vma->vm_truncate_count = 0;
--	list_for_each_entry(vma, &mapping->i_mmap_nonlinear, shared.vm_set.list)
--		vma->vm_truncate_count = 0;
--}
--
--static int unmap_mapping_range_vma(struct vm_area_struct *vma,
-+static void unmap_mapping_range_vma(struct vm_area_struct *vma,
- 		unsigned long start_addr, unsigned long end_addr,
- 		struct zap_details *details)
+ void page_unlock_anon_vma(struct anon_vma *anon_vma)
  {
--	unsigned long restart_addr;
--	int need_break;
--
--	/*
--	 * files that support invalidating or truncating portions of the
--	 * file from under mmaped areas must have their ->fault function
--	 * return a locked page (and set VM_FAULT_LOCKED in the return).
--	 * This provides synchronisation against concurrent unmapping here.
--	 */
--
--again:
--	restart_addr = vma->vm_truncate_count;
--	if (is_restart_addr(restart_addr) && start_addr < restart_addr) {
--		start_addr = restart_addr;
--		if (start_addr >= end_addr) {
--			/* Top of vma has been split off since last time */
--			vma->vm_truncate_count = details->truncate_count;
--			return 0;
--		}
--	}
--
--	restart_addr = zap_page_range(vma, start_addr,
--					end_addr - start_addr, details);
--	need_break = need_resched() || spin_needbreak(details->i_mmap_lock);
--
--	if (restart_addr >= end_addr) {
--		/* We have now completed this vma: mark it so */
--		vma->vm_truncate_count = details->truncate_count;
--		if (!need_break)
--			return 0;
--	} else {
--		/* Note restart_addr in vma's truncate_count field */
--		vma->vm_truncate_count = restart_addr;
--		if (!need_break)
--			goto again;
--	}
--
--	spin_unlock(details->i_mmap_lock);
--	cond_resched();
--	spin_lock(details->i_mmap_lock);
--	return -EINTR;
-+	zap_page_range(vma, start_addr, end_addr - start_addr, details);
+ 	anon_vma_unlock(anon_vma);
+-	put_anon_vma(anon_vma);
  }
  
- static inline void unmap_mapping_range_tree(struct prio_tree_root *root,
-@@ -2634,12 +2515,8 @@ static inline void unmap_mapping_range_t
- 	struct prio_tree_iter iter;
- 	pgoff_t vba, vea, zba, zea;
+ /*
+@@ -1500,6 +1555,28 @@ int try_to_munlock(struct page *page)
  
--restart:
- 	vma_prio_tree_foreach(vma, &iter, root,
- 			details->first_index, details->last_index) {
--		/* Skip quickly over those we have already dealt with */
--		if (vma->vm_truncate_count == details->truncate_count)
--			continue;
- 
- 		vba = vma->vm_pgoff;
- 		vea = vba + ((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) - 1;
-@@ -2651,11 +2528,10 @@ static inline void unmap_mapping_range_t
- 		if (zea > vea)
- 			zea = vea;
- 
--		if (unmap_mapping_range_vma(vma,
-+		unmap_mapping_range_vma(vma,
- 			((zba - vba) << PAGE_SHIFT) + vma->vm_start,
- 			((zea - vba + 1) << PAGE_SHIFT) + vma->vm_start,
--				details) < 0)
--			goto restart;
-+				details);
- 	}
- }
- 
-@@ -2670,15 +2546,9 @@ static inline void unmap_mapping_range_l
- 	 * across *all* the pages in each nonlinear VMA, not just the pages
- 	 * whose virtual address lies outside the file truncation point.
- 	 */
--restart:
- 	list_for_each_entry(vma, head, shared.vm_set.list) {
--		/* Skip quickly over those we have already dealt with */
--		if (vma->vm_truncate_count == details->truncate_count)
--			continue;
- 		details->nonlinear_vma = vma;
--		if (unmap_mapping_range_vma(vma, vma->vm_start,
--					vma->vm_end, details) < 0)
--			goto restart;
-+		unmap_mapping_range_vma(vma, vma->vm_start, vma->vm_end, details);
- 	}
- }
- 
-@@ -2717,19 +2587,8 @@ void unmap_mapping_range(struct address_
- 	details.last_index = hba + hlen - 1;
- 	if (details.last_index < details.first_index)
- 		details.last_index = ULONG_MAX;
--	details.i_mmap_lock = &mapping->i_mmap_lock;
- 
- 	spin_lock(&mapping->i_mmap_lock);
--
--	/* Protect against endless unmapping loops */
--	mapping->truncate_count++;
--	if (unlikely(is_restart_addr(mapping->truncate_count))) {
--		if (mapping->truncate_count == 0)
--			reset_vma_truncate_counts(mapping);
--		mapping->truncate_count++;
--	}
--	details.truncate_count = mapping->truncate_count;
--
- 	if (unlikely(!prio_tree_empty(&mapping->i_mmap)))
- 		unmap_mapping_range_tree(&mapping->i_mmap, &details);
- 	if (unlikely(!list_empty(&mapping->i_mmap_nonlinear)))
-Index: linux-2.6/include/linux/fs.h
-===================================================================
---- linux-2.6.orig/include/linux/fs.h
-+++ linux-2.6/include/linux/fs.h
-@@ -640,7 +640,6 @@ struct address_space {
- 	struct prio_tree_root	i_mmap;		/* tree of private and shared mappings */
- 	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
- 	spinlock_t		i_mmap_lock;	/* protect tree, count, list */
--	unsigned int		truncate_count;	/* Cover race condition with truncate */
- 	unsigned long		nrpages;	/* number of total pages */
- 	pgoff_t			writeback_index;/* writeback starts here */
- 	const struct address_space_operations *a_ops;	/* methods */
-Index: linux-2.6/include/linux/mm_types.h
-===================================================================
---- linux-2.6.orig/include/linux/mm_types.h
-+++ linux-2.6/include/linux/mm_types.h
-@@ -175,7 +175,6 @@ struct vm_area_struct {
- 					   units, *not* PAGE_CACHE_SIZE */
- 	struct file * vm_file;		/* File we map to (can be NULL). */
- 	void * vm_private_data;		/* was vm_pte (shared mem) */
--	unsigned long vm_truncate_count;/* truncate_count or restart_addr */
- 
- #ifndef CONFIG_MMU
- 	struct vm_region *vm_region;	/* NOMMU mapping region */
-Index: linux-2.6/kernel/fork.c
-===================================================================
---- linux-2.6.orig/kernel/fork.c
-+++ linux-2.6/kernel/fork.c
-@@ -379,7 +379,6 @@ static int dup_mmap(struct mm_struct *mm
- 			spin_lock(&mapping->i_mmap_lock);
- 			if (tmp->vm_flags & VM_SHARED)
- 				mapping->i_mmap_writable++;
--			tmp->vm_truncate_count = mpnt->vm_truncate_count;
- 			flush_dcache_mmap_lock(mapping);
- 			/* insert tmp into the share list, just after mpnt */
- 			vma_prio_tree_add(tmp, mpnt);
-Index: linux-2.6/mm/mmap.c
-===================================================================
---- linux-2.6.orig/mm/mmap.c
-+++ linux-2.6/mm/mmap.c
-@@ -464,10 +464,8 @@ static void vma_link(struct mm_struct *m
- 	if (vma->vm_file)
- 		mapping = vma->vm_file->f_mapping;
- 
--	if (mapping) {
-+	if (mapping)
- 		spin_lock(&mapping->i_mmap_lock);
--		vma->vm_truncate_count = mapping->truncate_count;
--	}
- 
- 	__vma_link(mm, vma, prev, rb_link, rb_parent);
- 	__vma_link_file(vma);
-@@ -577,16 +575,7 @@ again:			remove_next = 1 + (end > next->
- 		if (!(vma->vm_flags & VM_NONLINEAR))
- 			root = &mapping->i_mmap;
- 		spin_lock(&mapping->i_mmap_lock);
--		if (importer &&
--		    vma->vm_truncate_count != next->vm_truncate_count) {
--			/*
--			 * unmap_mapping_range might be in progress:
--			 * ensure that the expanding vma is rescanned.
--			 */
--			importer->vm_truncate_count = 0;
--		}
- 		if (insert) {
--			insert->vm_truncate_count = vma->vm_truncate_count;
- 			/*
- 			 * Put into prio_tree now, so instantiated pages
- 			 * are visible to arm/parisc __flush_dcache_page
-Index: linux-2.6/mm/mremap.c
-===================================================================
---- linux-2.6.orig/mm/mremap.c
-+++ linux-2.6/mm/mremap.c
-@@ -94,9 +94,6 @@ static void move_ptes(struct vm_area_str
- 		 */
- 		mapping = vma->vm_file->f_mapping;
- 		spin_lock(&mapping->i_mmap_lock);
--		if (new_vma->vm_truncate_count &&
--		    new_vma->vm_truncate_count != vma->vm_truncate_count)
--			new_vma->vm_truncate_count = 0;
- 	}
- 
- 	/*
+ void __put_anon_vma(struct anon_vma *anon_vma)
+ {
++	/*
++	 * Synchronize against page_lock_anon_vma() such that
++	 * we can safely hold the lock without the anon_vma getting
++	 * freed.
++	 *
++	 * Relies on the full mb implied by the atomic_dec_and_test() from
++	 * put_anon_vma() against the acquire barrier implied by
++	 * mutex_trylock() from page_lock_anon_vma(). This orders:
++	 *
++	 * page_lock_anon_vma()		VS	put_anon_vma()
++	 *   mutex_trylock()			  atomic_dec_and_test()
++	 *   LOCK				  MB
++	 *   atomic_read()			  mutex_is_locked()
++	 *
++	 * LOCK should suffice since the actual taking of the lock must
++	 * happen _before_ what follows.
++	 */
++	if (mutex_is_locked(&anon_vma->root->mutex)) {
++		anon_vma_lock(anon_vma);
++		anon_vma_unlock(anon_vma);
++	}
++
+ 	if (anon_vma->root != anon_vma)
+ 		put_anon_vma(anon_vma->root);
+ 	anon_vma_free(anon_vma);
 
 
 --
