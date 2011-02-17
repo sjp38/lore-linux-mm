@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C35FF8D0039
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 10:08:55 -0500 (EST)
+	by kanga.kvack.org (Postfix) with ESMTP id 1B15F8D0039
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 10:09:00 -0500 (EST)
 Received: by mail-pv0-f169.google.com with SMTP id 30so462573pvc.14
-        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 07:08:51 -0800 (PST)
+        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 07:08:58 -0800 (PST)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v5 1/4] deactivate invalidated pages
-Date: Fri, 18 Feb 2011 00:08:19 +0900
-Message-Id: <5677f3262774f4ddc24044065b7cbd6443ac5e16.1297940291.git.minchan.kim@gmail.com>
+Subject: [PATCH v5 2/4] memcg: move memcg reclaimable page into tail of inactive list
+Date: Fri, 18 Feb 2011 00:08:20 +0900
+Message-Id: <442221b243154ef2546cb921d53b774f2c8f5df5.1297940291.git.minchan.kim@gmail.com>
 In-Reply-To: <cover.1297940291.git.minchan.kim@gmail.com>
 References: <cover.1297940291.git.minchan.kim@gmail.com>
 In-Reply-To: <cover.1297940291.git.minchan.kim@gmail.com>
@@ -17,234 +17,106 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steven Barrett <damentz@liquorix.net>, Ben Gamari <bgamari.foss@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
 
-Recently, there are reported problem about thrashing.
-(http://marc.info/?l=rsync&m=128885034930933&w=2)
-It happens by backup workloads(ex, nightly rsync).
-That's because the workload makes just use-once pages
-and touches pages twice. It promotes the page into
-active list so that it results in working set page eviction.
+The rotate_reclaimable_page function moves just written out
+pages, which the VM wanted to reclaim, to the end of the
+inactive list.  That way the VM will find those pages first
+next time it needs to free memory.
+This patch apply the rule in memcg.
+It can help to prevent unnecessary working page eviction of memcg.
 
-Some app developer want to support POSIX_FADV_NOREUSE.
-But other OSes don't support it, either.
-(http://marc.info/?l=linux-mm&m=128928979512086&w=2)
-
-By other approach, app developers use POSIX_FADV_DONTNEED.
-But it has a problem. If kernel meets page is writing
-during invalidate_mapping_pages, it can't work.
-It makes for application programmer to use it since they always 
-have to sync data before calling fadivse(..POSIX_FADV_DONTNEED) to 
-make sure the pages could be discardable. At last, they can't use
-deferred write of kernel so that they could see performance loss.
-(http://insights.oetiker.ch/linux/fadvise.html)
-
-In fact, invalidation is very big hint to reclaimer.
-It means we don't use the page any more. So let's move
-the writing page into inactive list's head if we can't truncate 
-it right now.
-
-Why I move page to head of lru on this patch, Dirty/Writeback page 
-would be flushed sooner or later. It can prevent writeout of pageout 
-which is less effective than flusher's writeout.
-
-Originally, I reused lru_demote of Peter with some change so added
-his Signed-off-by.
-
-Reported-by: Ben Gamari <bgamari.foss@gmail.com>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Signed-off-by: Peter Zijlstra <peterz@infradead.org>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Nick Piggin <npiggin@kernel.dk>
 Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 ---
 Changelog since v4:
- - Change function comments - suggested by Johannes
- - Change function name - suggested by Johannes
- - Drop only dirty/writeback pages to deactive pagevec - suggested by Johannes
- - Add acked-by
+ - add acked-by and reviewed-by
+ - change description - suggested by Rik
 
-Changelog since v3:
- - Change function comments - suggested by Johannes
- - Change function name - suggested by Johannes
- - add only dirty/writeback pages to deactive pagevec
+ include/linux/memcontrol.h |    6 ++++++
+ mm/memcontrol.c            |   27 +++++++++++++++++++++++++++
+ mm/swap.c                  |    3 ++-
+ 3 files changed, 35 insertions(+), 1 deletions(-)
 
-Changelog since v2:
- - mapped page leaves alone - suggested by Mel
- - pass part related PG_reclaim in next patch.
-
-Changelog since v1:
- - modify description
- - correct typo
- - add some comment
-
- include/linux/swap.h |    1 +
- mm/swap.c            |   78 ++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/truncate.c        |   17 ++++++++---
- 3 files changed, 91 insertions(+), 5 deletions(-)
-
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 4d55932..c335055 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -215,6 +215,7 @@ extern void mark_page_accessed(struct page *);
- extern void lru_add_drain(void);
- extern int lru_add_drain_all(void);
- extern void rotate_reclaimable_page(struct page *page);
-+extern void deactivate_page(struct page *page);
- extern void swap_setup(void);
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 3da48ae..5a5ce70 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -62,6 +62,7 @@ extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 					gfp_t gfp_mask);
+ extern void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru);
+ extern void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru);
++extern void mem_cgroup_rotate_reclaimable_page(struct page *page);
+ extern void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru);
+ extern void mem_cgroup_del_lru(struct page *page);
+ extern void mem_cgroup_move_lists(struct page *page,
+@@ -215,6 +216,11 @@ static inline void mem_cgroup_del_lru_list(struct page *page, int lru)
+ 	return ;
+ }
  
- extern void add_page_to_unevictable_list(struct page *page);
++static inline inline void mem_cgroup_rotate_reclaimable_page(struct page *page)
++{
++	return ;
++}
++
+ static inline void mem_cgroup_rotate_lru_list(struct page *page, int lru)
+ {
+ 	return ;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 686f1ce..ab8bdff 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -813,6 +813,33 @@ void mem_cgroup_del_lru(struct page *page)
+ 	mem_cgroup_del_lru_list(page, page_lru(page));
+ }
+ 
++/*
++ * Writeback is about to end against a page which has been marked for immediate
++ * reclaim.  If it still appears to be reclaimable, move it to the tail of the
++ * inactive list.
++ */
++void mem_cgroup_rotate_reclaimable_page(struct page *page)
++{
++	struct mem_cgroup_per_zone *mz;
++	struct page_cgroup *pc;
++	enum lru_list lru = page_lru_base_type(page);
++
++	if (mem_cgroup_disabled())
++		return;
++
++	pc = lookup_page_cgroup(page);
++	/*
++	 * Used bit is set without atomic ops but after smp_wmb().
++	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
++	 */
++	smp_rmb();
++	/* unused or root page is not rotated. */
++	if (!PageCgroupUsed(pc) || mem_cgroup_is_root(pc->mem_cgroup))
++		return;
++	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
++	list_move_tail(&pc->lru, &mz->lists[lru]);
++}
++
+ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
+ {
+ 	struct mem_cgroup_per_zone *mz;
 diff --git a/mm/swap.c b/mm/swap.c
-index c02f936..4aea806 100644
+index 4aea806..1b9e4eb 100644
 --- a/mm/swap.c
 +++ b/mm/swap.c
-@@ -39,6 +39,7 @@ int page_cluster;
- 
- static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
- static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
-+static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
- 
- /*
-  * This path almost never happens for VM activity - pages are normally
-@@ -347,6 +348,60 @@ void add_page_to_unevictable_list(struct page *page)
- }
- 
- /*
-+ * If the page can not be invalidated, it is moved to the
-+ * inactive list to speed up its reclaim.  It is moved to the
-+ * head of the list, rather than the tail, to give the flusher
-+ * threads some time to write it out, as this is much more
-+ * effective than the single-page writeout from reclaim.
-+ */
-+static void lru_deactivate(struct page *page, struct zone *zone)
-+{
-+	int lru, file;
-+
-+	if (!PageLRU(page) || !PageActive(page))
-+		return;
-+
-+	/* Some processes are using the page */
-+	if (page_mapped(page))
-+		return;
-+
-+	file = page_is_file_cache(page);
-+	lru = page_lru_base_type(page);
-+	del_page_from_lru_list(zone, page, lru + LRU_ACTIVE);
-+	ClearPageActive(page);
-+	ClearPageReferenced(page);
-+	add_page_to_lru_list(zone, page, lru);
-+	__count_vm_event(PGDEACTIVATE);
-+
-+	update_page_reclaim_stat(zone, page, file, 0);
-+}
-+
-+static void ____pagevec_lru_deactivate(struct pagevec *pvec)
-+{
-+	int i;
-+	struct zone *zone = NULL;
-+
-+	for (i = 0; i < pagevec_count(pvec); i++) {
-+		struct page *page = pvec->pages[i];
-+		struct zone *pagezone = page_zone(page);
-+
-+		if (pagezone != zone) {
-+			if (zone)
-+				spin_unlock_irq(&zone->lru_lock);
-+			zone = pagezone;
-+			spin_lock_irq(&zone->lru_lock);
-+		}
-+		lru_deactivate(page, zone);
-+	}
-+	if (zone)
-+		spin_unlock_irq(&zone->lru_lock);
-+
-+	release_pages(pvec->pages, pvec->nr, pvec->cold);
-+	pagevec_reinit(pvec);
-+}
-+
-+
-+/*
-  * Drain pages out of the cpu's pagevecs.
-  * Either "cpu" is the current CPU, and preemption has already been
-  * disabled; or "cpu" is being hot-unplugged, and is already dead.
-@@ -372,6 +427,29 @@ static void drain_cpu_pagevecs(int cpu)
- 		pagevec_move_tail(pvec);
- 		local_irq_restore(flags);
+@@ -200,8 +200,9 @@ static void pagevec_move_tail(struct pagevec *pvec)
+ 			spin_lock(&zone->lru_lock);
+ 		}
+ 		if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+-			int lru = page_lru_base_type(page);
++			enum lru_list lru = page_lru_base_type(page);
+ 			list_move_tail(&page->lru, &zone->lru[lru].list);
++			mem_cgroup_rotate_reclaimable_page(page);
+ 			pgmoved++;
+ 		}
  	}
-+
-+	pvec = &per_cpu(lru_deactivate_pvecs, cpu);
-+	if (pagevec_count(pvec))
-+		____pagevec_lru_deactivate(pvec);
-+}
-+
-+/**
-+ * deactivate_page - forcefully deactivate a page
-+ * @page: page to deactivate
-+ *
-+ * This function hints the VM that @page is a good reclaim candidate,
-+ * for example if its invalidation fails due to the page being dirty
-+ * or under writeback.
-+ */
-+void deactivate_page(struct page *page)
-+{
-+	if (likely(get_page_unless_zero(page))) {
-+		struct pagevec *pvec = &get_cpu_var(lru_deactivate_pvecs);
-+
-+		if (!pagevec_add(pvec, page))
-+			____pagevec_lru_deactivate(pvec);
-+		put_cpu_var(lru_deactivate_pvecs);
-+	}
- }
- 
- void lru_add_drain(void)
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 4d415b3..9ec7bc5 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -328,11 +328,12 @@ EXPORT_SYMBOL(truncate_inode_pages);
-  * pagetables.
-  */
- unsigned long invalidate_mapping_pages(struct address_space *mapping,
--				       pgoff_t start, pgoff_t end)
-+		pgoff_t start, pgoff_t end)
- {
- 	struct pagevec pvec;
- 	pgoff_t next = start;
--	unsigned long ret = 0;
-+	unsigned long ret;
-+	unsigned long count = 0;
- 	int i;
- 
- 	pagevec_init(&pvec, 0);
-@@ -359,8 +360,14 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
- 			if (lock_failed)
- 				continue;
- 
--			ret += invalidate_inode_page(page);
--
-+			ret = invalidate_inode_page(page);
-+			/*
-+			 * Invalidation is a hint that the page is no longer
-+			 * of interest and try to speed up its reclaim.
-+			 */
-+			if (!ret)
-+				deactivate_page(page);
-+			count += ret;
- 			unlock_page(page);
- 			if (next > end)
- 				break;
-@@ -369,7 +376,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
- 		mem_cgroup_uncharge_end();
- 		cond_resched();
- 	}
--	return ret;
-+	return count;
- }
- EXPORT_SYMBOL(invalidate_mapping_pages);
- 
 -- 
 1.7.1
 
