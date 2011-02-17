@@ -1,50 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 39F988D0039
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 01:29:09 -0500 (EST)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp03.in.ibm.com (8.14.4/8.13.1) with ESMTP id p1H6T43x026933
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 11:59:04 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p1H6T3Gx3964982
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 11:59:03 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p1HMShnO015850
-	for <linux-mm@kvack.org>; Fri, 18 Feb 2011 03:58:44 +0530
-Date: Thu, 17 Feb 2011 11:58:59 +0530
+	by kanga.kvack.org (Postfix) with ESMTP id A90E68D0039
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 01:31:25 -0500 (EST)
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
+	by e23smtp03.au.ibm.com (8.14.4/8.13.1) with ESMTP id p1H6QeWW006619
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 17:26:40 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p1H6VBoH2162714
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 17:31:11 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p1H6VB8d007872
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 17:31:11 +1100
+Date: Thu, 17 Feb 2011 12:01:06 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2/2] memcg: use native word page statistics counters
-Message-ID: <20110217062859.GH3415@balbir.in.ibm.com>
+Subject: Re: [PATCH v2 1/2] memcg: break out event counters from other stats
+Message-ID: <20110217063106.GI3415@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 References: <1297920842-17299-1-git-send-email-gthelen@google.com>
- <1297920842-17299-3-git-send-email-gthelen@google.com>
+ <1297920842-17299-2-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1297920842-17299-3-git-send-email-gthelen@google.com>
+In-Reply-To: <1297920842-17299-2-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Greg Thelen <gthelen@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-* Greg Thelen <gthelen@google.com> [2011-02-16 21:34:02]:
+* Greg Thelen <gthelen@google.com> [2011-02-16 21:34:01]:
 
 > From: Johannes Weiner <hannes@cmpxchg.org>
 > 
-> The statistic counters are in units of pages, there is no reason to
-> make them 64-bit wide on 32-bit machines.
+> For increasing and decreasing per-cpu cgroup usage counters it makes
+> sense to use signed types, as single per-cpu values might go negative
+> during updates.  But this is not the case for only-ever-increasing
+> event counters.
 > 
-> Make them native words.  Since they are signed, this leaves 31 bit on
-> 32-bit machines, which can represent roughly 8TB assuming a page size
-> of 4k.
+> All the counters have been signed 64-bit so far, which was enough to
+> count events even with the sign bit wasted.
+> 
+> The next patch narrows the usage counters type (on 32-bit CPUs, that
+> is), though, so break out the event counters and make them unsigned
+> words as they should have been from the start.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 > Signed-off-by: Greg Thelen <gthelen@google.com>
-
+> ---
 
 Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
  
-
 -- 
 	Three Cheers,
 	Balbir
