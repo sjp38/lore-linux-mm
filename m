@@ -1,292 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id DC2A08D0039
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 16:30:14 -0500 (EST)
-Received: by iwc10 with SMTP id 10so2945973iwc.14
-        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 13:30:09 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20110111210710.32348.1642.stgit@paris.rdu.redhat.com>
-References: <20110111210710.32348.1642.stgit@paris.rdu.redhat.com>
-Date: Thu, 17 Feb 2011 16:27:28 -0500
-Message-ID: <AANLkTi=wyaLP6gFmNxajp+HtYu3B9_KGf2o4BnYA+rwy@mail.gmail.com>
-Subject: Re: [PATCH] tmpfs: implement security.capability xattrs
-From: Eric Paris <eparis@parisplace.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 97BA58D0039
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 17:22:49 -0500 (EST)
+Date: Thu, 17 Feb 2011 14:22:09 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: vmscan: Stop reclaim/compaction earlier due to
+ insufficient progress if !__GFP_REPEAT
+Message-Id: <20110217142209.8736cca1.akpm@linux-foundation.org>
+In-Reply-To: <20110216095048.GA4473@csn.ul.ie>
+References: <20110209154606.GJ27110@cmpxchg.org>
+	<20110209164656.GA1063@csn.ul.ie>
+	<20110209182846.GN3347@random.random>
+	<20110210102109.GB17873@csn.ul.ie>
+	<20110210124838.GU3347@random.random>
+	<20110210133323.GH17873@csn.ul.ie>
+	<20110210141447.GW3347@random.random>
+	<20110210145813.GK17873@csn.ul.ie>
+	<20110216095048.GA4473@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Paris <eparis@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, linux-fsdevel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Kent Overstreet <kent.overstreet@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Bueller?  Bueller?  Any thoughts?  Any problems?
+On Wed, 16 Feb 2011 09:50:49 +0000
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-On Tue, Jan 11, 2011 at 4:07 PM, Eric Paris <eparis@redhat.com> wrote:
-> This patch implements security.capability xattrs for tmpfs filesystems. =
-=A0The
-> feodra project, while trying to replace suid apps with file capabilities,
-> realized that tmpfs, which is used on my build systems, does not support =
-file
-> capabilities and thus cannot be used to build packages which use file
-> capabilities. =A0The patch only implements security.capability but there =
-is no
-> reason it could not be easily expanded to support *.* xattrs as most of t=
-he
-> work is already done. =A0I don't know what other xattrs are in use in the=
- world
-> or if they necessarily make sense on tmpfs so I didn't make this
-> implementation completely generic.
->
-> The basic implementation is that I attach a
-> struct shmem_xattr {
-> =A0 =A0 =A0 =A0struct list_head list; /* anchored by shmem_inode_info->xa=
-ttr_list */
-> =A0 =A0 =A0 =A0char *name;
-> =A0 =A0 =A0 =A0size_t size;
-> =A0 =A0 =A0 =A0char value[0];
-> };
-> Into the struct shmem_inode_info for each xattr that is set. =A0Since I o=
-nly
-> allow security.capability obviously this list is only every 0 or 1 entry =
-long.
-> I could have been a little simpler, but then the next person having to
-> implement an xattr would have to redo everything I did instead of me just
-> doing 90% of their work =A0:)
->
-> Signed-off-by: Eric Paris <eparis@redhat.com>
-> ---
->
-> =A0include/linux/shmem_fs.h | =A0 =A08 +++
-> =A0mm/shmem.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0112 ++++++++++++++++++++++=
-++++++++++++++++++++++--
-> =A02 files changed, 116 insertions(+), 4 deletions(-)
->
-> diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-> index 399be5a..6f2ebb8 100644
-> --- a/include/linux/shmem_fs.h
-> +++ b/include/linux/shmem_fs.h
-> @@ -9,6 +9,13 @@
->
-> =A0#define SHMEM_NR_DIRECT 16
->
-> +struct shmem_xattr {
-> + =A0 =A0 =A0 struct list_head list; /* anchored by shmem_inode_info->xat=
-tr_list */
-> + =A0 =A0 =A0 char *name;
-> + =A0 =A0 =A0 size_t size;
-> + =A0 =A0 =A0 char value[0];
-> +};
-> +
-> =A0struct shmem_inode_info {
-> =A0 =A0 =A0 =A0spinlock_t =A0 =A0 =A0 =A0 =A0 =A0 =A0lock;
-> =A0 =A0 =A0 =A0unsigned long =A0 =A0 =A0 =A0 =A0 flags;
-> @@ -19,6 +26,7 @@ struct shmem_inode_info {
-> =A0 =A0 =A0 =A0struct page =A0 =A0 =A0 =A0 =A0 =A0 *i_indirect; =A0 =A0/*=
- top indirect blocks page */
-> =A0 =A0 =A0 =A0swp_entry_t =A0 =A0 =A0 =A0 =A0 =A0 i_direct[SHMEM_NR_DIRE=
-CT]; /* first blocks */
-> =A0 =A0 =A0 =A0struct list_head =A0 =A0 =A0 =A0swaplist; =A0 =A0 =A0 /* c=
-hain of maybes on swap */
-> + =A0 =A0 =A0 struct list_head =A0 =A0 =A0 =A0xattr_list; =A0 =A0 /* list=
- of shmem_xattr */
-> =A0 =A0 =A0 =A0struct inode =A0 =A0 =A0 =A0 =A0 =A0vfs_inode;
-> =A0};
->
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 86cd21d..d2bacd6 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -822,6 +822,7 @@ static int shmem_notify_change(struct dentry *dentry,=
- struct iattr *attr)
-> =A0static void shmem_evict_inode(struct inode *inode)
-> =A0{
-> =A0 =A0 =A0 =A0struct shmem_inode_info *info =3D SHMEM_I(inode);
-> + =A0 =A0 =A0 struct shmem_xattr *xattr, *nxattr;
->
-> =A0 =A0 =A0 =A0if (inode->i_mapping->a_ops =3D=3D &shmem_aops) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0truncate_inode_pages(inode->i_mapping, 0);
-> @@ -834,6 +835,9 @@ static void shmem_evict_inode(struct inode *inode)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mutex_unlock(&shmem_swapli=
-st_mutex);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
-> =A0 =A0 =A0 =A0}
-> +
-> + =A0 =A0 =A0 list_for_each_entry_safe(xattr, nxattr, &info->xattr_list, =
-list)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(xattr);
-> =A0 =A0 =A0 =A0BUG_ON(inode->i_blocks);
-> =A0 =A0 =A0 =A0shmem_free_inode(inode->i_sb);
-> =A0 =A0 =A0 =A0end_writeback(inode);
-> @@ -1597,6 +1601,7 @@ static struct inode *shmem_get_inode(struct super_b=
-lock *sb, const struct inode
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_lock_init(&info->lock);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0info->flags =3D flags & VM_NORESERVE;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0INIT_LIST_HEAD(&info->swaplist);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 INIT_LIST_HEAD(&info->xattr_list);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0cache_no_acl(inode);
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0switch (mode & S_IFMT) {
-> @@ -2071,24 +2076,123 @@ static size_t shmem_xattr_security_list(struct d=
-entry *dentry, char *list,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0size_t list_len, const char *name,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0size_t name_len, int handler_flags)
-> =A0{
-> - =A0 =A0 =A0 return security_inode_listsecurity(dentry->d_inode, list, l=
-ist_len);
-> + =A0 =A0 =A0 struct shmem_xattr *xattr;
-> + =A0 =A0 =A0 struct shmem_inode_info *shmem_i;
-> + =A0 =A0 =A0 size_t used;
-> + =A0 =A0 =A0 char *buf =3D NULL;
-> +
-> + =A0 =A0 =A0 used =3D security_inode_listsecurity(dentry->d_inode, list,=
- list_len);
-> +
-> + =A0 =A0 =A0 shmem_i =3D SHMEM_I(dentry->d_inode);
-> + =A0 =A0 =A0 if (list)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 buf =3D list + used;
-> +
-> + =A0 =A0 =A0 spin_lock(&dentry->d_inode->i_lock);
-> + =A0 =A0 =A0 list_for_each_entry(xattr, &shmem_i->xattr_list, list) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 size_t len =3D XATTR_SECURITY_PREFIX_LEN;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 len +=3D strlen(xattr->name) + 1;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (list_len - (used + len) >=3D 0 && buf) =
-{
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 strncpy(buf, XATTR_SECURITY=
-_PREFIX, XATTR_SECURITY_PREFIX_LEN);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 buf +=3D XATTR_SECURITY_PRE=
-FIX_LEN;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 strncpy(buf, xattr->name, s=
-trlen(xattr->name) + 1);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 buf +=3D strlen(xattr->name=
-) + 1;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 used +=3D len;
-> + =A0 =A0 =A0 }
-> + =A0 =A0 =A0 spin_unlock(&dentry->d_inode->i_lock);
-> +
-> + =A0 =A0 =A0 return used;
-> =A0}
->
-> =A0static int shmem_xattr_security_get(struct dentry *dentry, const char =
-*name,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0void *buffer, size_t size, int handler_fla=
-gs)
-> =A0{
-> + =A0 =A0 =A0 struct shmem_inode_info *shmem_i;
-> + =A0 =A0 =A0 struct shmem_xattr *xattr;
-> + =A0 =A0 =A0 int ret;
-> +
-> =A0 =A0 =A0 =A0if (strcmp(name, "") =3D=3D 0)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -EINVAL;
-> - =A0 =A0 =A0 return xattr_getsecurity(dentry->d_inode, name, buffer, siz=
-e);
-> +
-> + =A0 =A0 =A0 ret =3D xattr_getsecurity(dentry->d_inode, name, buffer, si=
-ze);
-> + =A0 =A0 =A0 if (ret !=3D -EOPNOTSUPP)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ret;
-> +
-> + =A0 =A0 =A0 /* if we make this generic this needs to go... */
-> + =A0 =A0 =A0 if (strcmp(name, XATTR_CAPS_SUFFIX))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EOPNOTSUPP;
-> +
-> + =A0 =A0 =A0 ret =3D -ENODATA;
-> + =A0 =A0 =A0 shmem_i =3D SHMEM_I(dentry->d_inode);
-> +
-> + =A0 =A0 =A0 spin_lock(&dentry->d_inode->i_lock);
-> + =A0 =A0 =A0 list_for_each_entry(xattr, &shmem_i->xattr_list, list) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!strcmp(name, xattr->name)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D xattr->size;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (buffer) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (size < =
-xattr->size)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 ret =3D -ERANGE;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 else
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 memcpy(buffer, xattr->value, xattr->size);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> + =A0 =A0 =A0 }
-> + =A0 =A0 =A0 spin_unlock(&dentry->d_inode->i_lock);
-> + =A0 =A0 =A0 return ret;
-> =A0}
->
-> =A0static int shmem_xattr_security_set(struct dentry *dentry, const char =
-*name,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0const void *value, size_t size, int flags,=
- int handler_flags)
-> =A0{
-> + =A0 =A0 =A0 int ret;
-> + =A0 =A0 =A0 struct inode *inode =3D dentry->d_inode;
-> + =A0 =A0 =A0 struct shmem_inode_info *shmem_i =3D SHMEM_I(inode);
-> + =A0 =A0 =A0 struct shmem_xattr *xattr;
-> + =A0 =A0 =A0 struct shmem_xattr *new_xattr;
-> + =A0 =A0 =A0 size_t len;
-> +
-> =A0 =A0 =A0 =A0if (strcmp(name, "") =3D=3D 0)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -EINVAL;
-> - =A0 =A0 =A0 return security_inode_setsecurity(dentry->d_inode, name, va=
-lue,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 size, flags);
-> + =A0 =A0 =A0 ret =3D security_inode_setsecurity(inode, name, value, size=
-, flags);
-> + =A0 =A0 =A0 if (ret !=3D -EOPNOTSUPP)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ret;
-> +
-> + =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0* We only store fcaps for now, but this could be a lot m=
-ore generic.
-> + =A0 =A0 =A0 =A0* We could hold the prefix as well as the suffix in the =
-xattr struct
-> + =A0 =A0 =A0 =A0* We would also need to hold a copy of the suffix rather=
- than a
-> + =A0 =A0 =A0 =A0* pointer to XATTR_CAPS_SUFFIX
-> + =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 if (strcmp(name, XATTR_CAPS_SUFFIX))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EOPNOTSUPP;
-> +
-> + =A0 =A0 =A0 /* wrap around? */
-> + =A0 =A0 =A0 len =3D sizeof(*new_xattr) + size;
-> + =A0 =A0 =A0 if (len <=3D sizeof(*new_xattr))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;
-> +
-> + =A0 =A0 =A0 new_xattr =3D kmalloc(GFP_NOFS, len);
-> + =A0 =A0 =A0 if (!new_xattr)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;
-> +
-> + =A0 =A0 =A0 new_xattr->name =3D XATTR_CAPS_SUFFIX;
-> + =A0 =A0 =A0 new_xattr->size =3D size;
-> + =A0 =A0 =A0 memcpy(new_xattr->value, value, size);
-> +
-> + =A0 =A0 =A0 spin_lock(&inode->i_lock);
-> + =A0 =A0 =A0 list_for_each_entry(xattr, &shmem_i->xattr_list, list) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!strcmp(name, xattr->name)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_replace(&xattr->list, =
-&new_xattr->list);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto out;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> + =A0 =A0 =A0 }
-> + =A0 =A0 =A0 list_add(&new_xattr->list, &shmem_i->xattr_list);
-> + =A0 =A0 =A0 xattr =3D NULL;
-> +out:
-> + =A0 =A0 =A0 spin_unlock(&inode->i_lock);
-> + =A0 =A0 =A0 kfree(xattr);
-> + =A0 =A0 =A0 return 0;
-> =A0}
->
-> =A0static const struct xattr_handler shmem_xattr_security_handler =3D {
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
-n
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at =A0http://www.tux.org/lkml/
->
+> should_continue_reclaim() for reclaim/compaction allows scanning to continue
+> even if pages are not being reclaimed until the full list is scanned. In
+> terms of allocation success, this makes sense but potentially it introduces
+> unwanted latency for high-order allocations such as transparent hugepages
+> and network jumbo frames that would prefer to fail the allocation attempt
+> and fallback to order-0 pages.  Worse, there is a potential that the full
+> LRU scan will clear all the young bits, distort page aging information and
+> potentially push pages into swap that would have otherwise remained resident.
+
+afaict the patch affects order-0 allocations as well.  What are the
+implications of this?
+
+Also, what might be the downsides of this change, and did you test for
+them?
+
+> This patch will stop reclaim/compaction if no pages were reclaimed in the
+> last SWAP_CLUSTER_MAX pages that were considered.
+
+a) Why SWAP_CLUSTER_MAX?  Is (SWAP_CLUSTER_MAX+7) better or worse?
+
+b) The sentence doesn't seem even vaguely accurate.  shrink_zone()
+   will scan vastly more than SWAP_CLUSTER_MAX pages before calling
+   should_continue_reclaim().  Confused.
+
+c) The patch doesn't "stop reclaim/compaction" fully.  It stops it
+   against one zone.  reclaim will then advance on to any other
+   eligible zones.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
