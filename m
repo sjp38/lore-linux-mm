@@ -1,182 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 014A58D0039
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 07:33:09 -0500 (EST)
-Date: Thu, 17 Feb 2011 12:32:39 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH] mm: vmscan: Stop reclaim/compaction earlier due to
-	insufficient progress if !__GFP_REPEAT v2
-Message-ID: <20110217123238.GB11762@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id EC3BA8D0039
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 10:08:46 -0500 (EST)
+Received: by pvc30 with SMTP id 30so462573pvc.14
+        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 07:08:44 -0800 (PST)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH v5 0/4] fadvise(DONTNEED) support
+Date: Fri, 18 Feb 2011 00:08:18 +0900
+Message-Id: <cover.1297940291.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Kent Overstreet <kent.overstreet@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steven Barrett <damentz@liquorix.net>, Ben Gamari <bgamari.foss@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
 
-Changelog since V1
-  o Correct typo
-  o Added acks and reviewed-by
+Sorry for my laziness. It's time to repost with some test result.
 
-should_continue_reclaim() for reclaim/compaction allows scanning to continue
-even if pages are not being reclaimed until the full list is scanned. In
-terms of allocation success, this makes sense but potentially it introduces
-unwanted latency for high-order allocations such as transparent hugepages
-and network jumbo frames that would prefer to fail the allocation attempt
-and fallback to order-0 pages.  Worse, there is a potential that the full
-LRU scan will clear all the young bits, distort page aging information and
-potentially push pages into swap that would have otherwise remained resident.
+Recently, there was a reported problem about thrashing.
+(http://marc.info/?l=rsync&m=128885034930933&w=2)
+It happens by backup workloads(ex, nightly rsync).
+That's because the workload makes just use-once pages
+and touches pages twice. It promotes the page into
+active list so that it results in working set page eviction.
+So app developer want to support POSIX_FADV_NOREUSE but other OSes include linux 
+don't support it. (http://marc.info/?l=linux-mm&m=128928979512086&w=2)
 
-This patch will stop reclaim/compaction if no pages were reclaimed in the
-last SWAP_CLUSTER_MAX pages that were considered. For allocations such as
-hugetlbfs that use __GFP_REPEAT and have fewer fallback options, the full LRU
-list may still be scanned.
+By other approach, app developers use POSIX_FADV_DONTNEED.
+But it has a problem. If kernel meets page is going on writing
+during invalidate_mapping_pages, it can't work.
+It makes application programmer to use it hard since they always 
+consider sync data before calling fadivse(..POSIX_FADV_DONTNEED) to 
+make sure the pages couldn't be discardable. At last, they can't use
+deferred write of kernel so see performance loss.
+(http://insights.oetiker.ch/linux/fadvise.html)
 
-A tool was developed based on ftrace that tracked the latency of high-order
-allocations while transparent hugepage support was enabled and three
-benchmarks were run.  The "fix-infinite" figures are 2.6.38-rc4 with
-Johannes's patch "vmscan: fix zone shrinking exit when scan work is done"
-applied.
+In fact, invalidation is very big hint to reclaimer.
+It means we don't use the page any more. So the idea in this series is that
+let's move invalidated pages but not-freed page until into inactive list.
+It can help relcaim efficiency very much so that it can prevent
+eviction working set.
 
-STREAM Highorder Allocation Latency Statistics
-	       fix-infinite	break-early
-1 :: Count            10298           10229
-1 :: Min             0.4560          0.4640
-1 :: Mean            1.0589          1.0183
-1 :: Max            14.5990         11.7510
-1 :: Stddev          0.5208          0.4719
-2 :: Count                2               1
-2 :: Min             1.8610          3.7240
-2 :: Mean            3.4325          3.7240
-2 :: Max             5.0040          3.7240
-2 :: Stddev          1.5715          0.0000
-9 :: Count           111696          111694
-9 :: Min             0.5230          0.4110
-9 :: Mean           10.5831         10.5718
-9 :: Max            38.4480         43.2900
-9 :: Stddev          1.1147          1.1325
+My exeperiment is folowing as.
 
-Mean time for order-1 allocations is reduced. order-2 looks increased
-but with so few allocations, it's not particularly significant. THP mean
-allocation latency is also reduced. That said, allocation time varies so
-significantly that the reductions are within noise.
+Test Environment :
+DRAM : 2G, CPU : Intel(R) Core(TM)2 CPU
+Rsync backup directory size : 16G
 
-Max allocation time is reduced by a significant amount for low-order
-allocations but reduced for THP allocations which presumably are now
-breaking before reclaim has done enough work.
+rsync version is 3.0.7.
+rsync patch is Ben's fadivse.
+The stress scenario do following jobs with parallel.
 
-SysBench Highorder Allocation Latency Statistics
-	       fix-infinite	break-early
-1 :: Count            15745           15677
-1 :: Min             0.4250          0.4550
-1 :: Mean            1.1023          1.0810
-1 :: Max            14.4590         10.8220
-1 :: Stddev          0.5117          0.5100
-2 :: Count                1               1
-2 :: Min             3.0040          2.1530
-2 :: Mean            3.0040          2.1530
-2 :: Max             3.0040          2.1530
-2 :: Stddev          0.0000          0.0000
-9 :: Count             2017            1931
-9 :: Min             0.4980          0.7480
-9 :: Mean           10.4717         10.3840
-9 :: Max            24.9460         26.2500
-9 :: Stddev          1.1726          1.1966
+1. git clone linux-2.6
+1. make all -j4 linux-mmotm
+3. rsync src dst
 
-Again, mean time for order-1 allocations is reduced while order-2 allocations
-are too few to draw conclusions from. The mean time for THP allocations is
-also slightly reduced albeit the reductions are within varianes.
+nrns : no-patched rsync + no stress
+prns : patched rsync + no stress
+nrs  : no-patched rsync + stress
+prs  : patched rsync + stress
 
-Once again, our maximum allocation time is significantly reduced for
-low-order allocations and slightly increased for THP allocations.
+For profiling, I add some vmstat.
+pginvalidate : the total number of pages which are moved by this patch.
+pgreclaim : the number of pages which are moved at inactive's tail by PG_reclaim of pginvalidate
 
-Anon stream mmap reference Highorder Allocation Latency Statistics
-1 :: Count             1376            1790
-1 :: Min             0.4940          0.5010
-1 :: Mean            1.0289          0.9732
-1 :: Max             6.2670          4.2540
-1 :: Stddev          0.4142          0.2785
-2 :: Count                1               -
-2 :: Min             1.9060               -
-2 :: Mean            1.9060               -
-2 :: Max             1.9060               -
-2 :: Stddev          0.0000               -
-9 :: Count            11266           11257
-9 :: Min             0.4990          0.4940
-9 :: Mean        27250.4669      24256.1919
-9 :: Max      11439211.0000    6008885.0000
-9 :: Stddev     226427.4624     186298.1430
+                        NRNS    PRNS    NRS     PRS 
+Elapsed time            36:01.49        37:13.58        01:23:24        01:21:45
+nr_vmscan_write         184     1       296     509 
+pgactivate              76559   84714   445214  463143
+pgdeactivate            19360   40184   74302   91423
+pginvalidate            0       2240333 0       1769147
+pgreclaim               0       1849651 0       1650796
+pgfault                 406208  421860  72485217        70334416
+pgmajfault              212     334     5149    3688
+pgsteal_dma             0       0       0       0   
+pgsteal_normal          2645174 1545116 2521098 1578651
+pgsteal_high            5162080 2562269 6074720 3137294
+pgsteal_movable         0       0       0       0   
+pgscan_kswapd_dma       0       0       0       0   
+pgscan_kswapd_normal    2641732 1545374 2499894 1557882
+pgscan_kswapd_high      5143794 2567981 5999585 3051150
+pgscan_kswapd_movable   0       0       0       0   
+pgscan_direct_dma       0       0       0       0   
+pgscan_direct_normal    3643    0       21613   21238
+pgscan_direct_high      20174   1783    76980   87848
+pgscan_direct_movable   0       0       0       0   
+pginodesteal            130     1029    3510    24100
+slabs_scanned           1421824 1648128 1870720 1880320
+kswapd_steal            7785153 4105620 8498332 4608372
+kswapd_inodesteal       189432  474052  342835  472503
+pageoutrun              100687  52282   145712  70946
+allocstall              22      1       149     163 
+pgrotated               0       2231408 2932    1765393
+unevictable_pgs_scanned 0       0       0       0   
 
-This benchmark creates one thread per CPU which references an amount of
-anonymous memory 1.5 times the size of physical RAM. This pounds swap quite
-heavily and is intended to exercise THP a bit.
+In stress test(NRS vs PRS), pgsteal_[normal|high] are reduced by 37% and 48%.
+pgscan_kswapd_[normal|high] are reduced by 37% and 49%.
+It means although the VM scan small window, it can reclaim enough pages to work well and
+prevent eviction unnecessary page.
+rsync program's elapsed time is reduced by 1.5 minutes but I think rsync's fadvise 
+isn't good because [NRNS vs NRS] it takes one minutes longer time. 
+I think it's because calling unnecessary fadivse system calls so that 
+rsync's fadvise should be smart then effect would be much better than now.
+The pgmajor fault is reduced by 28%. It's good.
+What I can't understand is that why inode steal is increased.
+If anyone know it, please explain to me.
+Anyway, this patch improves reclaim efficiency very much.
 
-Mean allocation time for order-1 is reduced as before. It's also reduced
-for THP allocations but the variations here are pretty massive due to swap.
-As before, maximum allocation times are significantly reduced.
+Recently, Steven Barrentt already applied this series to his project kernel 
+"Liquorix kernel" and said followin as with one problem.
+(The problem is solved by [3/4]. See the description)
 
-Overall, the patch reduces the mean and maximum allocation latencies for
-the smaller high-order allocations. This was with Slab configured so it
-would be expected to be more significant with Slub which uses these size
-allocations more aggressively.
+" I've been having really good results with your new patch set that
+mitigates the problem where a backup utility or something like that
+reads each file once and eventually evicting the original working set
+out of the page cache.
+...
+...
+ These patches solved some problems on a friend's desktop.
+ He said that his wife wanted to send me kisses and hugs because their
+computer was so responsive after the patches were applied.
+"
+So I think this patch series solves real problem.
 
-The mean allocation times for THP allocations are also slightly reduced.
-The maximum latency was slightly increased as predicted by the comments due
-to reclaim/compaction breaking early. However, workloads care more about the
-latency of lower-order allocations than THP so it's an acceptable trade-off.
+ - [1/4] is to move invalidated page which is dirty/writeback on active list
+   into inactive list's head.
+ - [2/4] is to move memcg reclaimable page on inactive's tail.
+ - [3/4] is for moving invalidated page into inactive list's tail when the
+   page's writeout is completed for reclaim asap.
+ - [4/4] is to add profing information for evaluation.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
----
- mm/vmscan.c |   32 ++++++++++++++++++++++----------
- 1 files changed, 22 insertions(+), 10 deletions(-)
+This patches are based on mmotm-02-04
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 148c6e6..591b907 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1841,16 +1841,28 @@ static inline bool should_continue_reclaim(struct zone *zone,
- 	if (!(sc->reclaim_mode & RECLAIM_MODE_COMPACTION))
- 		return false;
- 
--	/*
--	 * If we failed to reclaim and have scanned the full list, stop.
--	 * NOTE: Checking just nr_reclaimed would exit reclaim/compaction far
--	 *       faster but obviously would be less likely to succeed
--	 *       allocation. If this is desirable, use GFP_REPEAT to decide
--	 *       if both reclaimed and scanned should be checked or just
--	 *       reclaimed
--	 */
--	if (!nr_reclaimed && !nr_scanned)
--		return false;
-+	/* Consider stopping depending on scan and reclaim activity */
-+	if (sc->gfp_mask & __GFP_REPEAT) {
-+		/*
-+		 * For __GFP_REPEAT allocations, stop reclaiming if the
-+		 * full LRU list has been scanned and we are still failing
-+		 * to reclaim pages. This full LRU scan is potentially
-+		 * expensive but a __GFP_REPEAT caller really wants to succeed
-+		 */
-+		if (!nr_reclaimed && !nr_scanned)
-+			return false;
-+	} else {
-+		/*
-+		 * For non-__GFP_REPEAT allocations which can presumably
-+		 * fail without consequence, stop if we failed to reclaim
-+		 * any pages from the last SWAP_CLUSTER_MAX number of
-+		 * pages that were scanned. This will return to the
-+		 * caller faster at the risk reclaim/compaction and
-+		 * the resulting allocation attempt fails
-+		 */
-+		if (!nr_reclaimed)
-+			return false;
-+	}
- 
- 	/*
- 	 * If we have not reclaimed enough pages for compaction and the
+Changelog since v4:
+ - Remove patches related to madvise and clean up patch of swap.c
+   (I will separate madvise issue from this series and repost after merging this series)
+
+Minchan Kim (4):
+  [1/4] deactivate invalidated pages
+  [2/4] memcg: move memcg reclaimable page into tail of inactive list
+  [3/4] Reclaim invalidated page ASAP
+  [4/4] add profile information for invalidated page
+
+ include/linux/memcontrol.h |    6 ++
+ include/linux/swap.h       |    1 +
+ include/linux/vmstat.h     |    4 +-
+ mm/memcontrol.c            |   27 ++++++++++
+ mm/page-writeback.c        |   12 ++++-
+ mm/swap.c                  |  119 +++++++++++++++++++++++++++++++++++++++++++-
+ mm/truncate.c              |   17 +++++--
+ mm/vmstat.c                |    3 +
+ 8 files changed, 180 insertions(+), 9 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
