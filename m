@@ -1,65 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 9639F8D0039
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 13:30:32 -0500 (EST)
-Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p1HIUSYh005976
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 10:30:28 -0800
-Received: by iyi20 with SMTP id 20so2689719iyi.14
-        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 10:30:28 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id D71F28D0039
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 13:58:09 -0500 (EST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <20110216185234.GA11636@tiehlicka.suse.cz>
+	<20110216193700.GA6377@elte.hu>
+	<AANLkTinDxxbVjrUViCs=UaMD9Wg9PR7b0ShNud5zKE3w@mail.gmail.com>
+	<AANLkTi=xnbcs5BKj3cNE_aLtBO7W5m+2uaUacu7M8g_S@mail.gmail.com>
+	<20110217090910.GA3781@tiehlicka.suse.cz>
+	<AANLkTikPKpNHxDQAYBd3fiQsmVozLtCVDsNn=+eF_q2r@mail.gmail.com>
+	<20110217163531.GF14168@elte.hu>
+Date: Thu, 17 Feb 2011 10:57:54 -0800
+In-Reply-To: <20110217163531.GF14168@elte.hu> (Ingo Molnar's message of "Thu,
+	17 Feb 2011 17:35:31 +0100")
+Message-ID: <m1pqqqfpzh.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
-In-Reply-To: <20110217162124.457572646@chello.nl>
-References: <20110217161948.045410404@chello.nl> <20110217162124.457572646@chello.nl>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 17 Feb 2011 10:30:07 -0800
-Message-ID: <AANLkTimj1d6QpzuNZ6NJvLDVvvC++mPodggFaBziU8Bj@mail.gmail.com>
-Subject: Re: [PATCH 3/3] mm: Simplify anon_vma refcounts
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Subject: Re: BUG: Bad page map in process udevd (anon_vma: (null)) in 2.6.38-rc4
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Hugh Dickins <hughd@google.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Feb 17, 2011 at 8:19 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wr=
-ote:
+Ingo Molnar <mingo@elte.hu> writes:
+
+> * Linus Torvalds <torvalds@linux-foundation.org> wrote:
 >
-> +void __put_anon_vma(struct anon_vma *anon_vma)
-> +{
-> + =A0 =A0 =A0 if (anon_vma->root !=3D anon_vma)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 put_anon_vma(anon_vma->root);
-> + =A0 =A0 =A0 anon_vma_free(anon_vma);
-> =A0}
+>> And in addition, I don't see why others wouldn't see it (I've got
+>> DEBUG_PAGEALLOC and SLUB_DEBUG_ON turned on myself, and I know others
+>> do too).
+>
+> I've done extensive randconfig testing and no crash triggers for typical workloads 
+> on a typical dual-core PC. If there's a generic crashes in there my tests tend to 
+> trigger them at least 10x as often as regular testers ;-) But the tests are still 
+> only statistical so the race could simply be special and missed by the tests.
+>
+>> So I'm wondering what triggers it. Must be something subtle.
+>
+> I think what Michal did before he got the corruption seemed somewhat atypical: 
+> suspend/resume and udevd wifi twiddling, right?
+>
+> Now, Eric's crashes look similar - and he does not seem to have done anything 
+> special to trigger the crashes.
+>
+> Eric, could you possibly describe your system in a bit more detail, does it do 
+> suspend and does the box use wifi actively? Anything atypical in your setup or usage 
+> that doesnt match a bog-standard whitebox PC with LAN? Swap to file? NFS? FUSE? 
+> Anything that is even just borderline atypical.
 
-So this makes me nervous. It looks like recursion.
+10G RAM
+2G Swap
+dual socket system
+4 cores per socket
+No hyperthreading.
 
-Now, I don't think we can ever get a chain of these things (because
-the root should be the root of everything), but I still preferred the
-older code that made that "one-level root" case explicit, and didn't
-have recursion.
+fedora 14
+ext4 on all filesystems
 
-IOW, even though it should be entirely equivalent, I think I'd really
-prefer something like
+The biggest difference is I beat the system to death with automated builds.
 
-  void __put_anon_vma(struct anon_vma *anon_vma)
-  {
-    struct anon_vma *root =3D anon_vma->root;
+I was about to say this happens with DEBUG_PAGEALLOC enabled but it
+appears that options keeps eluding my fingers when I have a few minutes
+to play with it.  Perhaps this time will be the charm.
 
-    if (root !=3D anon_vma && atomic_dec_and_test(&root->refcount))
-      anon_vma_free(root);
-    anon_vma_free(anon_vma);
-  }
+The biggest difference may be that I am constantly stressing the system
+to the edge of triggering the OOM killer.  My builds and tests are
+greedy when it comes to memory.
 
-instead. Exactly because it makes it very clear that the "root" is a
-root, and we're not doing some possibly arbitrarily deep list like the
-dentry tree (which avoids recursion by open-coding its freeing as a
-loop).
+I guess also I only see the bad PMD on processes that exit.  So it may
+be that it is a matter of timing to see it.
 
-Hmm? (The above is obviously untested, maybe it has some stupid bug)
-
-                   Linus
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
