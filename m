@@ -1,98 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 51A778D0039
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 18:46:46 -0500 (EST)
-Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
-	by smtp-out.google.com with ESMTP id p1HNkgoq031008
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 15:46:42 -0800
-Received: from pwi14 (pwi14.prod.google.com [10.241.219.14])
-	by hpaq11.eem.corp.google.com with ESMTP id p1HNkdXQ024509
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BFAE68D0039
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 18:50:23 -0500 (EST)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id p1HNoMIn030515
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 15:50:22 -0800
+Received: from pzk26 (pzk26.prod.google.com [10.243.19.154])
+	by wpaz24.hot.corp.google.com with ESMTP id p1HNnpqv013622
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 15:46:41 -0800
-Received: by pwi14 with SMTP id 14so19012pwi.0
-        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 15:46:39 -0800 (PST)
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 15:50:21 -0800
+Received: by pzk26 with SMTP id 26so17618pzk.29
+        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 15:50:21 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <4D5C7EBF.2070603@cn.fujitsu.com>
-References: <4D5C7EA7.1030409@cn.fujitsu.com> <4D5C7EBF.2070603@cn.fujitsu.com>
+In-Reply-To: <20110217144643.0d60bef4.akpm@linux-foundation.org>
+References: <4D5C7EA7.1030409@cn.fujitsu.com> <4D5C7ED1.2070601@cn.fujitsu.com>
+ <20110217144643.0d60bef4.akpm@linux-foundation.org>
 From: Paul Menage <menage@google.com>
-Date: Thu, 17 Feb 2011 15:46:19 -0800
-Message-ID: <AANLkTimRH=LVRLnajbtL3a8FwKkbEfLspAHXXeQLUY8=@mail.gmail.com>
-Subject: Re: [PATCH 2/4] cpuset: Remove unneeded NODEMASK_ALLOC() in cpuset_attch()
+Date: Thu, 17 Feb 2011 15:50:01 -0800
+Message-ID: <AANLkTin6TqQMHSpQjNXNrgGAHG8DL6CvzhTm3KHoxv0y@mail.gmail.com>
+Subject: Re: [PATCH 3/4] cpuset: Fix unchecked calls to NODEMASK_ALLOC()
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, =?UTF-8?B?57yqIOWLsA==?= <miaox@cn.fujitsu.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Li Zefan <lizf@cn.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, =?UTF-8?B?57yqIOWLsA==?= <miaox@cn.fujitsu.com>, linux-mm@kvack.org
 
-On Wed, Feb 16, 2011 at 5:49 PM, Li Zefan <lizf@cn.fujitsu.com> wrote:
-> oldcs->mems_allowed is not modified during cpuset_attch(), so
-> we don't have to copy it to a buffer allocated by NODEMASK_ALLOC().
-> Just pass it to cpuset_migrate_mm().
+On Thu, Feb 17, 2011 at 2:46 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Thu, 17 Feb 2011 09:50:09 +0800
+> Li Zefan <lizf@cn.fujitsu.com> wrote:
 >
-> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+>> +/*
+>> + * In functions that can't propogate errno to users, to avoid declaring=
+ a
+>> + * nodemask_t variable, and avoid using NODEMASK_ALLOC that can return
+>> + * -ENOMEM, we use this global cpuset_mems.
+>> + *
+>> + * It should be used with cgroup_lock held.
+>
+> I'll do s/should/must/ - that would be a nasty bug.
+>
+> I'd be more comfortable about the maintainability of this optimisation
+> if we had
+>
+> =A0 =A0 =A0 =A0WARN_ON(!cgroup_is_locked());
+>
+> at each site.
+>
 
-I'd be inclined to skip this one - we're already allocating one
-nodemask, so one more isn't really any extra complexity, and we're
-doing horrendously complicated stuff in cpuset_migrate_mm() that's
-much more likely to fail in low-memory situations.
+Agreed - that was my first thought on reading the patch. How about:
 
-It's true that mems_allowed can't change during the call to
-cpuset_attach(), but that's due to the fact that both cgroup_attach()
-and the cpuset.mems write paths take cgroup_mutex. I might prefer to
-leave the allocated nodemask here and wrap callback_mutex around the
-places in cpuset_attach() where we're reading from a cpuset's
-mems_allowed - that would remove the implicit synchronization via
-cgroup_mutex and leave the code a little more understandable.
+static nodemask_t *cpuset_static_nodemask() {
+  static nodemask_t nodemask;
+  WARN_ON(!cgroup_is_locked());
+  return &nodemask;
+}
 
-> ---
-> =A0kernel/cpuset.c | =A0 =A07 ++-----
-> =A01 files changed, 2 insertions(+), 5 deletions(-)
->
-> diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-> index f13ff2e..70c9ca2 100644
-> --- a/kernel/cpuset.c
-> +++ b/kernel/cpuset.c
-> @@ -1438,10 +1438,9 @@ static void cpuset_attach(struct cgroup_subsys *ss=
-, struct cgroup *cont,
-> =A0 =A0 =A0 =A0struct mm_struct *mm;
-> =A0 =A0 =A0 =A0struct cpuset *cs =3D cgroup_cs(cont);
-> =A0 =A0 =A0 =A0struct cpuset *oldcs =3D cgroup_cs(oldcont);
-> - =A0 =A0 =A0 NODEMASK_ALLOC(nodemask_t, from, GFP_KERNEL);
-> =A0 =A0 =A0 =A0NODEMASK_ALLOC(nodemask_t, to, GFP_KERNEL);
->
-> - =A0 =A0 =A0 if (from =3D=3D NULL || to =3D=3D NULL)
-> + =A0 =A0 =A0 if (to =3D=3D NULL)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto alloc_fail;
->
-> =A0 =A0 =A0 =A0if (cs =3D=3D &top_cpuset) {
-> @@ -1463,18 +1462,16 @@ static void cpuset_attach(struct cgroup_subsys *s=
-s, struct cgroup *cont,
-> =A0 =A0 =A0 =A0}
->
-> =A0 =A0 =A0 =A0/* change mm; only needs to be done once even if threadgro=
-up */
-> - =A0 =A0 =A0 *from =3D oldcs->mems_allowed;
-> =A0 =A0 =A0 =A0*to =3D cs->mems_allowed;
-> =A0 =A0 =A0 =A0mm =3D get_task_mm(tsk);
-> =A0 =A0 =A0 =A0if (mm) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mpol_rebind_mm(mm, to);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (is_memory_migrate(cs))
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cpuset_migrate_mm(mm, from,=
- to);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 cpuset_migrate_mm(mm, &oldc=
-s->mems_allowed, to);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mmput(mm);
-> =A0 =A0 =A0 =A0}
->
-> =A0alloc_fail:
-> - =A0 =A0 =A0 NODEMASK_FREE(from);
-> =A0 =A0 =A0 =A0NODEMASK_FREE(to);
-> =A0}
->
-> --
-> 1.7.3.1
->
+and then just call cpuset_static_nodemask() in the various locations
+being patched?
+
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
