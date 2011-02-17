@@ -1,55 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6B98E8D0039
-	for <linux-mm@kvack.org>; Wed, 16 Feb 2011 20:54:08 -0500 (EST)
-Message-ID: <4D5C7EA7.1030409@cn.fujitsu.com>
-Date: Thu, 17 Feb 2011 09:49:27 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id D69208D0039
+	for <linux-mm@kvack.org>; Wed, 16 Feb 2011 20:57:56 -0500 (EST)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH] memcg: clarify use_hierarchy documentation
+References: <201102170152.p1H1qKli008601@smtp-out.google.com>
+Date: Wed, 16 Feb 2011 17:57:49 -0800
+In-Reply-To: <201102170152.p1H1qKli008601@smtp-out.google.com> (Mail Delivery
+	Subsystem's message of "Wed, 16 Feb 2011 17:52:20 -0800")
+Message-ID: <xr93ei772zj6.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Subject: [PATCH 1/4] cpuset: Remove unneeded NODEMASK_ALLOC() in cpuset_sprintf_memlist()
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, =?UTF-8?B?57yqIOWLsA==?= <miaox@cn.fujitsu.com>, linux-mm@kvack.org
+Cc: Randy Dunlap <rdunlap@xenotime.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>
 
-It's not necessary to copy cpuset->mems_allowed to a buffer
-allocated by NODEMASK_ALLOC(). Just pass it to nodelist_scnprintf().
+(cc correct linux-mm address)
 
-Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+The memcg code does not allow changing memory.use_hierarchy if the
+parent cgroup has enabled use_hierarchy.  Update documentation to match
+the code.
+
+Signed-off-by: Greg Thelen <gthelen@google.com>
 ---
- kernel/cpuset.c |   10 +---------
- 1 files changed, 1 insertions(+), 9 deletions(-)
+ Documentation/cgroups/memory.txt |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-index 10f1835..f13ff2e 100644
---- a/kernel/cpuset.c
-+++ b/kernel/cpuset.c
-@@ -1620,20 +1620,12 @@ static int cpuset_sprintf_cpulist(char *page, struct cpuset *cs)
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 7781857..b6ed61c 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -485,8 +485,9 @@ The feature can be disabled by
  
- static int cpuset_sprintf_memlist(char *page, struct cpuset *cs)
- {
--	NODEMASK_ALLOC(nodemask_t, mask, GFP_KERNEL);
- 	int retval;
+ # echo 0 > memory.use_hierarchy
  
--	if (mask == NULL)
--		return -ENOMEM;
--
- 	mutex_lock(&callback_mutex);
--	*mask = cs->mems_allowed;
-+	retval = nodelist_scnprintf(page, PAGE_SIZE, cs->mems_allowed);
- 	mutex_unlock(&callback_mutex);
+-NOTE1: Enabling/disabling will fail if the cgroup already has other
+-       cgroups created below it.
++NOTE1: Enabling/disabling will fail if either the cgroup already has other
++       cgroups created below it, or if the parent cgroup has use_hierarchy
++       enabled.
  
--	retval = nodelist_scnprintf(page, PAGE_SIZE, *mask);
--
--	NODEMASK_FREE(mask);
--
- 	return retval;
- }
- 
--- 
-1.7.3.1
+ NOTE2: When panic_on_oom is set to "2", the whole system will panic in
+        case of an OOM event in any cgroup.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
