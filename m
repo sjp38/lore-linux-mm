@@ -1,165 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 507188D0056
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D3ED8D0054
 	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 12:11:01 -0500 (EST)
-Message-Id: <20110217170854.698106430@chello.nl>
-Date: Thu, 17 Feb 2011 18:05:21 +0100
+Message-Id: <20110217163235.727265214@chello.nl>
+Date: Thu, 17 Feb 2011 17:23:42 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 1/8] lockdep, mutex: Provide mutex_lock_nest_lock
-References: <20110217170520.229881980@chello.nl>
-Content-Disposition: inline; filename=peter_zijlstra-lockdep_mutex-provide_mutex_lock_nest_lock.patch
+Subject: [PATCH 15/17] arm, mm: Convert arm to generic tlb
+References: <20110217162327.434629380@chello.nl>
+Content-Disposition: inline; filename=mm-arm-tlb-range.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Russell King <rmk@arm.linux.org.uk>
 
-Provide the mutex_lock_nest_lock() annotation.
 
+Cc: Russell King <rmk@arm.linux.org.uk>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/lockdep.h |    3 +++
- include/linux/mutex.h   |    9 +++++++++
- kernel/mutex.c          |   25 +++++++++++++++++--------
- 3 files changed, 29 insertions(+), 8 deletions(-)
+ arch/arm/Kconfig                |    1 
+ arch/arm/include/asm/tlb.h      |   90 +---------------------------------------
+ arch/arm/include/asm/tlbflush.h |    5 --
+ 3 files changed, 6 insertions(+), 90 deletions(-)
 
-Index: linux-2.6/include/linux/lockdep.h
+Index: linux-2.6/arch/arm/Kconfig
 ===================================================================
---- linux-2.6.orig/include/linux/lockdep.h
-+++ linux-2.6/include/linux/lockdep.h
-@@ -495,12 +495,15 @@ static inline void print_irqtrace_events
- #ifdef CONFIG_DEBUG_LOCK_ALLOC
- # ifdef CONFIG_PROVE_LOCKING
- #  define mutex_acquire(l, s, t, i)		lock_acquire(l, s, t, 0, 2, NULL, i)
-+#  define mutex_acquire_nest(l, s, t, n, i)	lock_acquire(l, s, t, 0, 2, n, i)
- # else
- #  define mutex_acquire(l, s, t, i)		lock_acquire(l, s, t, 0, 1, NULL, i)
-+#  define mutex_acquire_nest(l, s, t, n, i)	lock_acquire(l, s, t, 0, 1, n, i)
- # endif
- # define mutex_release(l, n, i)			lock_release(l, n, i)
- #else
- # define mutex_acquire(l, s, t, i)		do { } while (0)
-+# define mutex_acquire_nest(l, s, t, n, i)	do { } while (0)
- # define mutex_release(l, n, i)			do { } while (0)
- #endif
- 
-Index: linux-2.6/include/linux/mutex.h
+--- linux-2.6.orig/arch/arm/Kconfig
++++ linux-2.6/arch/arm/Kconfig
+@@ -28,6 +28,7 @@ config ARM
+ 	select HAVE_C_RECORDMCOUNT
+ 	select HAVE_GENERIC_HARDIRQS
+ 	select HAVE_SPARSE_IRQ
++	select HAVE_MMU_GATHER_RANGE if MMU
+ 	help
+ 	  The ARM series is a line of low-power-consumption RISC chip designs
+ 	  licensed by ARM Ltd and targeted at embedded applications and
+Index: linux-2.6/arch/arm/include/asm/tlb.h
 ===================================================================
---- linux-2.6.orig/include/linux/mutex.h
-+++ linux-2.6/include/linux/mutex.h
-@@ -132,6 +132,7 @@ static inline int mutex_is_locked(struct
-  */
- #ifdef CONFIG_DEBUG_LOCK_ALLOC
- extern void mutex_lock_nested(struct mutex *lock, unsigned int subclass);
-+extern void _mutex_lock_nest_lock(struct mutex *lock, struct lockdep_map *nest_lock);
- extern int __must_check mutex_lock_interruptible_nested(struct mutex *lock,
- 					unsigned int subclass);
- extern int __must_check mutex_lock_killable_nested(struct mutex *lock,
-@@ -140,6 +141,13 @@ extern int __must_check mutex_lock_killa
- #define mutex_lock(lock) mutex_lock_nested(lock, 0)
- #define mutex_lock_interruptible(lock) mutex_lock_interruptible_nested(lock, 0)
- #define mutex_lock_killable(lock) mutex_lock_killable_nested(lock, 0)
-+
-+#define mutex_lock_nest_lock(lock, nest_lock)				\
-+do {									\
-+	typecheck(struct lockdep_map *, &(nest_lock)->dep_map);		\
-+	_mutex_lock_nest_lock(lock, &(nest_lock)->dep_map);		\
-+} while (0)
-+
- #else
- extern void mutex_lock(struct mutex *lock);
- extern int __must_check mutex_lock_interruptible(struct mutex *lock);
-@@ -148,6 +156,7 @@ extern int __must_check mutex_lock_killa
- # define mutex_lock_nested(lock, subclass) mutex_lock(lock)
- # define mutex_lock_interruptible_nested(lock, subclass) mutex_lock_interruptible(lock)
- # define mutex_lock_killable_nested(lock, subclass) mutex_lock_killable(lock)
-+# define mutex_lock_nest_lock(lock, nest_lock) mutex_lock(lock)
- #endif
+--- linux-2.6.orig/arch/arm/include/asm/tlb.h
++++ linux-2.6/arch/arm/include/asm/tlb.h
+@@ -23,96 +23,14 @@
+ #ifndef CONFIG_MMU
  
- /*
-Index: linux-2.6/kernel/mutex.c
+ #include <linux/pagemap.h>
+-#include <asm-generic/tlb.h>
+ 
+ #else /* !CONFIG_MMU */
+ 
+-#include <asm/pgalloc.h>
+-
+-/*
+- * TLB handling.  This allows us to remove pages from the page
+- * tables, and efficiently handle the TLB issues.
+- */
+-struct mmu_gather {
+-	struct mm_struct	*mm;
+-	unsigned int		fullmm;
+-	unsigned long		range_start;
+-	unsigned long		range_end;
+-};
+-
+-static inline void
+-tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned int full_mm_flush)
+-{
+-	tlb->mm = mm;
+-	tlb->fullmm = full_mm_flush;
+-}
+-
+-static inline void
+-tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
+-{
+-	if (tlb->fullmm)
+-		flush_tlb_mm(tlb->mm);
+-
+-	/* keep the page table cache within bounds */
+-	check_pgt_cache();
+-}
+-
+-/*
+- * Memorize the range for the TLB flush.
+- */
+-static inline void
+-tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep, unsigned long addr)
+-{
+-	if (!tlb->fullmm) {
+-		if (addr < tlb->range_start)
+-			tlb->range_start = addr;
+-		if (addr + PAGE_SIZE > tlb->range_end)
+-			tlb->range_end = addr + PAGE_SIZE;
+-	}
+-}
+-
+-/*
+- * In the case of tlb vma handling, we can optimise these away in the
+- * case where we're doing a full MM flush.  When we're doing a munmap,
+- * the vmas are adjusted to only cover the region to be torn down.
+- */
+-static inline void
+-tlb_start_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
+-{
+-	if (!tlb->fullmm) {
+-		flush_cache_range(vma, vma->vm_start, vma->vm_end);
+-		tlb->range_start = TASK_SIZE;
+-		tlb->range_end = 0;
+-	}
+-}
+-
+-static inline void
+-tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
+-{
+-	if (!tlb->fullmm && tlb->range_end > 0)
+-		flush_tlb_range(vma, tlb->range_start, tlb->range_end);
+-}
+-
+-static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+-{
+-	free_page_and_swap_cache(page);
+-	return 0;
+-}
+-
+-static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+-{
+-	might_sleep();
+-	__tlb_remove_page(tlb, page);
+-}
+-
+-static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+-{
+-}
++#define __pte_free_tlb(tlb, ptep, addr)	pte_free((tlb)->mm, ptep)
++#define __pmd_free_tlb(tlb, pmdp, addr)	pmd_free((tlb)->mm, pmdp)
+ 
+-#define pte_free_tlb(tlb, ptep, addr)	pte_free((tlb)->mm, ptep)
+-#define pmd_free_tlb(tlb, pmdp, addr)	pmd_free((tlb)->mm, pmdp)
++#endif /* CONFIG_MMU */
+ 
+-#define tlb_migrate_finish(mm)		do { } while (0)
++#include <asm-generic/tlb.h>
+ 
+-#endif /* CONFIG_MMU */
+ #endif
+Index: linux-2.6/arch/arm/include/asm/tlbflush.h
 ===================================================================
---- linux-2.6.orig/kernel/mutex.c
-+++ linux-2.6/kernel/mutex.c
-@@ -131,14 +131,14 @@ EXPORT_SYMBOL(mutex_unlock);
-  */
- static inline int __sched
- __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
--	       	unsigned long ip)
-+		    struct lockdep_map *nest_lock, unsigned long ip)
- {
- 	struct task_struct *task = current;
- 	struct mutex_waiter waiter;
- 	unsigned long flags;
+--- linux-2.6.orig/arch/arm/include/asm/tlbflush.h
++++ linux-2.6/arch/arm/include/asm/tlbflush.h
+@@ -10,12 +10,9 @@
+ #ifndef _ASMARM_TLBFLUSH_H
+ #define _ASMARM_TLBFLUSH_H
  
- 	preempt_disable();
--	mutex_acquire(&lock->dep_map, subclass, 0, ip);
-+	mutex_acquire_nest(&lock->dep_map, subclass, 0, nest_lock, ip);
+-
+-#ifndef CONFIG_MMU
+-
+ #define tlb_flush(tlb)	((void) tlb)
  
- #ifdef CONFIG_MUTEX_SPIN_ON_OWNER
- 	/*
-@@ -276,16 +276,25 @@ void __sched
- mutex_lock_nested(struct mutex *lock, unsigned int subclass)
- {
- 	might_sleep();
--	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, subclass, _RET_IP_);
-+	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, subclass, NULL, _RET_IP_);
- }
+-#else /* CONFIG_MMU */
++#ifdef CONFIG_MMU
  
- EXPORT_SYMBOL_GPL(mutex_lock_nested);
- 
-+void __sched
-+_mutex_lock_nest_lock(struct mutex *lock, struct lockdep_map *nest)
-+{
-+	might_sleep();
-+	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, 0, nest, _RET_IP_);
-+}
-+
-+EXPORT_SYMBOL_GPL(_mutex_lock_nest_lock);
-+
- int __sched
- mutex_lock_killable_nested(struct mutex *lock, unsigned int subclass)
- {
- 	might_sleep();
--	return __mutex_lock_common(lock, TASK_KILLABLE, subclass, _RET_IP_);
-+	return __mutex_lock_common(lock, TASK_KILLABLE, subclass, NULL, _RET_IP_);
- }
- EXPORT_SYMBOL_GPL(mutex_lock_killable_nested);
- 
-@@ -294,7 +303,7 @@ mutex_lock_interruptible_nested(struct m
- {
- 	might_sleep();
- 	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE,
--				   subclass, _RET_IP_);
-+				   subclass, NULL, _RET_IP_);
- }
- 
- EXPORT_SYMBOL_GPL(mutex_lock_interruptible_nested);
-@@ -400,7 +409,7 @@ __mutex_lock_slowpath(atomic_t *lock_cou
- {
- 	struct mutex *lock = container_of(lock_count, struct mutex, count);
- 
--	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, 0, _RET_IP_);
-+	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, 0, NULL, _RET_IP_);
- }
- 
- static noinline int __sched
-@@ -408,7 +417,7 @@ __mutex_lock_killable_slowpath(atomic_t 
- {
- 	struct mutex *lock = container_of(lock_count, struct mutex, count);
- 
--	return __mutex_lock_common(lock, TASK_KILLABLE, 0, _RET_IP_);
-+	return __mutex_lock_common(lock, TASK_KILLABLE, 0, NULL, _RET_IP_);
- }
- 
- static noinline int __sched
-@@ -416,7 +425,7 @@ __mutex_lock_interruptible_slowpath(atom
- {
- 	struct mutex *lock = container_of(lock_count, struct mutex, count);
- 
--	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE, 0, _RET_IP_);
-+	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE, 0, NULL, _RET_IP_);
- }
- #endif
+ #include <asm/glue.h>
  
 
 
