@@ -1,248 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DD82F8D0056
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 12:11:11 -0500 (EST)
-Message-Id: <20110217163235.790717562@chello.nl>
-Date: Thu, 17 Feb 2011 17:23:43 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F39A8D0056
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 12:11:19 -0500 (EST)
+Message-Id: <20110217163235.858804604@chello.nl>
+Date: Thu, 17 Feb 2011 17:23:44 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 16/17] ia64, mm: Convert ia64 to generic tlb
+Subject: [PATCH 17/17] sh, mm: Convert sh to generic tlb
 References: <20110217162327.434629380@chello.nl>
-Content-Disposition: inline; filename=mm-ia64-tlb-range.patch
+Content-Disposition: inline; filename=mm-sh-tlb-range.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Tony Luck <tony.luck@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Paul Mundt <lethal@linux-sh.org>
 
-Cc: Tony Luck <tony.luck@intel.com>
+
+Cc: Paul Mundt <lethal@linux-sh.org>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- arch/ia64/Kconfig           |    1 
- arch/ia64/include/asm/tlb.h |  176 ++------------------------------------------
- 2 files changed, 9 insertions(+), 168 deletions(-)
+ arch/sh/Kconfig           |    1 
+ arch/sh/include/asm/tlb.h |   98 ++--------------------------------------------
+ 2 files changed, 6 insertions(+), 93 deletions(-)
 
-Index: linux-2.6/arch/ia64/Kconfig
+Index: linux-2.6/arch/sh/Kconfig
 ===================================================================
---- linux-2.6.orig/arch/ia64/Kconfig
-+++ linux-2.6/arch/ia64/Kconfig
-@@ -25,6 +25,7 @@ config IA64
- 	select HAVE_GENERIC_HARDIRQS
- 	select GENERIC_IRQ_PROBE
- 	select GENERIC_PENDING_IRQ if SMP
-+	select HAVE_MMU_GATHER_RANGE
- 	select IRQ_PER_CPU
- 	default y
+--- linux-2.6.orig/arch/sh/Kconfig
++++ linux-2.6/arch/sh/Kconfig
+@@ -23,6 +23,7 @@ config SUPERH
+ 	select HAVE_SPARSE_IRQ
+ 	select RTC_LIB
+ 	select GENERIC_ATOMIC64
++	select HAVE_MMU_GATHER_RANGE if MMU
+ 	# Support the deprecated APIs until MFD and GPIOLIB catch up.
+ 	select GENERIC_HARDIRQS_NO_DEPRECATED if !MFD_SUPPORT && !GPIOLIB
  	help
-Index: linux-2.6/arch/ia64/include/asm/tlb.h
+Index: linux-2.6/arch/sh/include/asm/tlb.h
 ===================================================================
---- linux-2.6.orig/arch/ia64/include/asm/tlb.h
-+++ linux-2.6/arch/ia64/include/asm/tlb.h
-@@ -46,30 +46,6 @@
- #include <asm/tlbflush.h>
- #include <asm/machvec.h>
+--- linux-2.6.orig/arch/sh/include/asm/tlb.h
++++ linux-2.6/arch/sh/include/asm/tlb.h
+@@ -9,100 +9,11 @@
+ #include <linux/pagemap.h>
  
--#ifdef CONFIG_SMP
--# define tlb_fast_mode(tlb)	((tlb)->nr == ~0U)
--#else
--# define tlb_fast_mode(tlb)	(1)
--#endif
--
+ #ifdef CONFIG_MMU
+-#include <asm/pgalloc.h>
+-#include <asm/tlbflush.h>
+ #include <asm/mmu_context.h>
+ 
 -/*
-- * If we can't allocate a page to make a big batch of page pointers
-- * to work on, then just handle a few from the on-stack structure.
+- * TLB handling.  This allows us to remove pages from the page
+- * tables, and efficiently handle the TLB issues.
 - */
--#define	IA64_GATHER_BUNDLE	8
--
 -struct mmu_gather {
 -	struct mm_struct	*mm;
--	unsigned int		nr;		/* == ~0U => fast mode */
--	unsigned int		max;
--	unsigned char		fullmm;		/* non-zero means full mm flush */
--	unsigned char		need_flush;	/* really unmapped some PTEs? */
--	unsigned long		start_addr;
--	unsigned long		end_addr;
--	struct page		**pages;
--	struct page		*local[IA64_GATHER_BUNDLE];
+-	unsigned int		fullmm;
+-	unsigned long		start, end;
 -};
 -
- struct ia64_tr_entry {
- 	u64 ifa;
- 	u64 itir;
-@@ -96,6 +72,12 @@ extern struct ia64_tr_entry *ia64_idtrs[
- #define RR_RID_MASK	0x00000000ffffff00L
- #define RR_TO_RID(val) 	((val >> 8) & 0xffffff)
- 
-+static inline void tlb_flush(struct mmu_gather *tlb);
-+
-+#define tlb_migrate_finish(mm)	platform_tlb_migrate_finish(mm)
-+
-+#include <asm-generic/tlb.h>
-+
- /*
-  * Flush the TLB for address range START to END and, if not in fast mode, release the
-  * freed pages that where gathered up to this point.
-@@ -103,12 +85,6 @@ extern struct ia64_tr_entry *ia64_idtrs[
- static inline void
- ia64_tlb_flush_mmu (struct mmu_gather *tlb, unsigned long start, unsigned long end)
- {
--	unsigned int nr;
--
--	if (!tlb->need_flush)
--		return;
--	tlb->need_flush = 0;
--
- 	if (tlb->fullmm) {
- 		/*
- 		 * Tearing down the entire address space.  This happens both as a result
-@@ -138,147 +114,11 @@ ia64_tlb_flush_mmu (struct mmu_gather *t
- 		/* now flush the virt. page-table area mapping the address range: */
- 		flush_tlb_range(&vma, ia64_thash(start), ia64_thash(end));
- 	}
--
--	/* lastly, release the freed pages */
--	nr = tlb->nr;
--	if (!tlb_fast_mode(tlb)) {
--		unsigned long i;
--		tlb->nr = 0;
--		tlb->start_addr = ~0UL;
--		for (i = 0; i < nr; ++i)
--			free_page_and_swap_cache(tlb->pages[i]);
--	}
--}
--
--static inline void __tlb_alloc_page(struct mmu_gather *tlb)
+-static inline void init_tlb_gather(struct mmu_gather *tlb)
 -{
--	unsigned long addr = __get_free_pages(GFP_NOWAIT | __GFP_NOWARN, 0);
+-	tlb->start = TASK_SIZE;
+-	tlb->end = 0;
 -
--	if (addr) {
--		tlb->pages = (void *)addr;
--		tlb->max = PAGE_SIZE / sizeof(void *);
+-	if (tlb->fullmm) {
+-		tlb->start = 0;
+-		tlb->end = TASK_SIZE;
 -	}
 -}
--
 -
 -static inline void
 -tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned int full_mm_flush)
 -{
 -	tlb->mm = mm;
--	tlb->max = ARRAY_SIZE(tlb->local);
--	tlb->pages = tlb->local;
--	/*
--	 * Use fast mode if only 1 CPU is online.
--	 *
--	 * It would be tempting to turn on fast-mode for full_mm_flush as well.  But this
--	 * doesn't work because of speculative accesses and software prefetching: the page
--	 * table of "mm" may (and usually is) the currently active page table and even
--	 * though the kernel won't do any user-space accesses during the TLB shoot down, a
--	 * compiler might use speculation or lfetch.fault on what happens to be a valid
--	 * user-space address.  This in turn could trigger a TLB miss fault (or a VHPT
--	 * walk) and re-insert a TLB entry we just removed.  Slow mode avoids such
--	 * problems.  (We could make fast-mode work by switching the current task to a
--	 * different "mm" during the shootdown.) --davidm 08/02/2002
--	 */
--	tlb->nr = (num_online_cpus() == 1) ? ~0U : 0;
 -	tlb->fullmm = full_mm_flush;
--	tlb->start_addr = ~0UL;
+-
+-	init_tlb_gather(tlb);
 -}
 -
--/*
-- * Called at the end of the shootdown operation to free up any resources that were
-- * collected.
-- */
 -static inline void
 -tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
 -{
--	/*
--	 * Note: tlb->nr may be 0 at this point, so we can't rely on tlb->start_addr and
--	 * tlb->end_addr.
--	 */
--	ia64_tlb_flush_mmu(tlb, start, end);
+-	if (tlb->fullmm)
+-		flush_tlb_mm(tlb->mm);
 -
 -	/* keep the page table cache within bounds */
 -	check_pgt_cache();
+-}
 -
--	if (tlb->pages != tlb->local)
--		free_pages((unsigned long)tlb->pages, 0);
+-static inline void
+-tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep, unsigned long address)
+-{
+-	if (tlb->start > address)
+-		tlb->start = address;
+-	if (tlb->end < address + PAGE_SIZE)
+-		tlb->end = address + PAGE_SIZE;
 -}
 -
 -/*
-- * Logically, this routine frees PAGE.  On MP machines, the actual freeing of the page
-- * must be delayed until after the TLB has been flushed (see comments at the beginning of
-- * this file).
-- */
--static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
--{
--	tlb->need_flush = 1;
--
--	if (tlb_fast_mode(tlb)) {
--		free_page_and_swap_cache(page);
--		return 0;
--	}
--
--	if (!tlb->nr && tlb->pages == tlb->local)
--		__tlb_alloc_page(tlb);
--
--	tlb->pages[tlb->nr++] = page;
--	if (tlb->nr >= tlb->max)
--		return 1;
--
--	return 0;
- }
- 
--static inline void tlb_flush_mmu(struct mmu_gather *tlb)
-+static inline void tlb_flush(struct mmu_gather *tlb)
- {
--	ia64_tlb_flush_mmu(tlb, tlb->start_addr, tlb->end_addr);
-+	ia64_tlb_flush_mmu(tlb, tlb->start, tlb->end);
- }
- 
--static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
--{
--	if (__tlb_remove_page(tlb, page))
--		tlb_flush_mmu(tlb);
--}
--
--/*
-- * Remove TLB entry for PTE mapped at virtual address ADDRESS.  This is called for any
-- * PTE, not just those pointing to (normal) physical memory.
+- * In the case of tlb vma handling, we can optimise these away in the
+- * case where we're doing a full MM flush.  When we're doing a munmap,
+- * the vmas are adjusted to only cover the region to be torn down.
 - */
 -static inline void
--__tlb_remove_tlb_entry (struct mmu_gather *tlb, pte_t *ptep, unsigned long address)
+-tlb_start_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
 -{
--	if (tlb->start_addr == ~0UL)
--		tlb->start_addr = address;
--	tlb->end_addr = address + PAGE_SIZE;
+-	if (!tlb->fullmm)
+-		flush_cache_range(vma, vma->vm_start, vma->vm_end);
 -}
 -
--#define tlb_migrate_finish(mm)	platform_tlb_migrate_finish(mm)
+-static inline void
+-tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
+-{
+-	if (!tlb->fullmm && tlb->end) {
+-		flush_tlb_range(vma, tlb->start, tlb->end);
+-		init_tlb_gather(tlb);
+-	}
+-}
 -
--#define tlb_start_vma(tlb, vma)			do { } while (0)
--#define tlb_end_vma(tlb, vma)			do { } while (0)
+-static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+-{
+-}
 -
--#define tlb_remove_tlb_entry(tlb, ptep, addr)		\
--do {							\
--	tlb->need_flush = 1;				\
--	__tlb_remove_tlb_entry(tlb, ptep, addr);	\
--} while (0)
+-static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+-{
+-	free_page_and_swap_cache(page);
+-	return 0;
+-}
 -
--#define pte_free_tlb(tlb, ptep, address)		\
--do {							\
--	tlb->need_flush = 1;				\
--	__pte_free_tlb(tlb, ptep, address);		\
--} while (0)
+-static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+-{
+-	__tlb_remove_page(tlb, page);
+-}
 -
--#define pmd_free_tlb(tlb, ptep, address)		\
--do {							\
--	tlb->need_flush = 1;				\
--	__pmd_free_tlb(tlb, ptep, address);		\
--} while (0)
+-#define pte_free_tlb(tlb, ptep, addr)	pte_free((tlb)->mm, ptep)
+-#define pmd_free_tlb(tlb, pmdp, addr)	pmd_free((tlb)->mm, pmdp)
+-#define pud_free_tlb(tlb, pudp, addr)	pud_free((tlb)->mm, pudp)
 -
--#define pud_free_tlb(tlb, pudp, address)		\
--do {							\
--	tlb->need_flush = 1;				\
--	__pud_free_tlb(tlb, pudp, address);		\
--} while (0)
--
- #endif /* _ASM_IA64_TLB_H */
+-#define tlb_migrate_finish(mm)		do { } while (0)
++#define __pte_free_tlb(tlb, ptep, addr)	pte_free((tlb)->mm, ptep)
++#define __pmd_free_tlb(tlb, pmdp, addr)	pmd_free((tlb)->mm, pmdp)
++#define __pud_free_tlb(tlb, pudp, addr)	pud_free((tlb)->mm, pudp)
+ 
+ #if defined(CONFIG_CPU_SH4) || defined(CONFIG_SUPERH64)
+ extern void tlb_wire_entry(struct vm_area_struct *, unsigned long, pte_t);
+@@ -127,8 +38,9 @@ static inline void tlb_unwire_entry(void
+ #define __tlb_remove_tlb_entry(tlb, pte, address)	do { } while (0)
+ #define tlb_flush(tlb)					do { } while (0)
+ 
++#endif /* CONFIG_MMU */
++
+ #include <asm-generic/tlb.h>
+ 
+-#endif /* CONFIG_MMU */
+ #endif /* __ASSEMBLY__ */
+ #endif /* __ASM_SH_TLB_H */
 
 
 --
