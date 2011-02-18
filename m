@@ -1,34 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Fri, 18 Feb 2011 11:03:06 -0500
-From: Benjamin LaHaise <bcrl@kvack.org>
+Date: Fri, 18 Feb 2011 17:16:29 +0100
+From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: incomplete emails from kvack.org
-Message-ID: <20110218160306.GE2507@kvack.org>
+Message-ID: <20110218161629.GB4862@tiehlicka.suse.cz>
 References: <20110218145932.GA4862@tiehlicka.suse.cz>
-Mime-Version: 1.0
+ <20110218160306.GE2507@kvack.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110218145932.GA4862@tiehlicka.suse.cz>
+In-Reply-To: <20110218160306.GE2507@kvack.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
+To: Benjamin LaHaise <bcrl@kvack.org>
 Cc: linux-mm@kvack.org
 
-On Fri, Feb 18, 2011 at 03:59:32PM +0100, Michal Hocko wrote:
-> Hi,
+On Fri 18-02-11 11:03:06, Benjamin LaHaise wrote:
+> On Fri, Feb 18, 2011 at 03:59:32PM +0100, Michal Hocko wrote:
+> > Hi,
+> > 
+> > I have seen incomplete emails coming from kvack.org mailing list
+> > recently. I cannot say since when because I have ignored it for some
+> ...
+> > Is this a known issue?
+> > 
+> > [1] http://marc.info/?l=linux-mm&m=129781446430960&w=2
+> > [2] https://lkml.org/lkml/2011/2/15/361
 > 
-> I have seen incomplete emails coming from kvack.org mailing list
-> recently. I cannot say since when because I have ignored it for some
-...
-> Is this a known issue?
-> 
-> [1] http://marc.info/?l=linux-mm&m=129781446430960&w=2
-> [2] https://lkml.org/lkml/2011/2/15/361
+> Hugh Dickins already reported the issue earlier this week and it has been 
+> fixed.  Emails with a single period on the beginning of a line were being 
+> truncated.
 
-Hugh Dickins already reported the issue earlier this week and it has been 
-fixed.  Emails with a single period on the beginning of a line were being 
-truncated.
+OK. Thanks for the information.
 
-		-ben
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
