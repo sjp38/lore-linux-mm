@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id BF2C88D0039
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 21:36:25 -0500 (EST)
-Message-ID: <4D5DDB77.8090807@cn.fujitsu.com>
-Date: Fri, 18 Feb 2011 10:37:43 +0800
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 006EC8D0039
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 21:46:34 -0500 (EST)
+Message-ID: <4D5DDDD7.509@cn.fujitsu.com>
+Date: Fri, 18 Feb 2011 10:47:51 +0800
 From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] cpuset: Remove unneeded NODEMASK_ALLOC() in cpuset_attch()
-References: <4D5C7EA7.1030409@cn.fujitsu.com> <4D5C7EBF.2070603@cn.fujitsu.com> <AANLkTimRH=LVRLnajbtL3a8FwKkbEfLspAHXXeQLUY8=@mail.gmail.com>
-In-Reply-To: <AANLkTimRH=LVRLnajbtL3a8FwKkbEfLspAHXXeQLUY8=@mail.gmail.com>
+Subject: Re: [PATCH 3/4] cpuset: Fix unchecked calls to NODEMASK_ALLOC()
+References: <4D5C7EA7.1030409@cn.fujitsu.com> <4D5C7ED1.2070601@cn.fujitsu.com> <20110217144643.0d60bef4.akpm@linux-foundation.org> <AANLkTin6TqQMHSpQjNXNrgGAHG8DL6CvzhTm3KHoxv0y@mail.gmail.com>
+In-Reply-To: <AANLkTin6TqQMHSpQjNXNrgGAHG8DL6CvzhTm3KHoxv0y@mail.gmail.com>
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -17,82 +17,55 @@ To: Paul Menage <menage@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, =?UTF-8?B?57yqIOWLsA==?= <miaox@cn.fujitsu.com>, linux-mm@kvack.org
 
 Paul Menage wrote:
-> On Wed, Feb 16, 2011 at 5:49 PM, Li Zefan <lizf@cn.fujitsu.com> wrote:
->> oldcs->mems_allowed is not modified during cpuset_attch(), so
->> we don't have to copy it to a buffer allocated by NODEMASK_ALLOC().
->> Just pass it to cpuset_migrate_mm().
+> On Thu, Feb 17, 2011 at 2:46 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+>> On Thu, 17 Feb 2011 09:50:09 +0800
+>> Li Zefan <lizf@cn.fujitsu.com> wrote:
 >>
->> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
-> 
-> I'd be inclined to skip this one - we're already allocating one
-> nodemask, so one more isn't really any extra complexity, and we're
-> doing horrendously complicated stuff in cpuset_migrate_mm() that's
-> much more likely to fail in low-memory situations.
-
-That's true, but it's not a reason to add more cases that can fail.
-
-> 
-> It's true that mems_allowed can't change during the call to
-
-Sorry to lead you to mistake what I meant. I meant 'from' is not modified
-after it's copied from oldcs->mems_allowed, so the two are exactly the
-same and thus we only need one.
-
-> cpuset_attach(), but that's due to the fact that both cgroup_attach()
-> and the cpuset.mems write paths take cgroup_mutex. I might prefer to
-> leave the allocated nodemask here and wrap callback_mutex around the
-> places in cpuset_attach() where we're reading from a cpuset's
-> mems_allowed - that would remove the implicit synchronization via
-> cgroup_mutex and leave the code a little more understandable.
-
-It's not an implicit synchronization, but instead the lock rule for
-reading/writing a cpuset's mems/cpus is described in the comment.
-
-> 
->> ---
->>  kernel/cpuset.c |    7 ++-----
->>  1 files changed, 2 insertions(+), 5 deletions(-)
+>>> +/*
+>>> + * In functions that can't propogate errno to users, to avoid declaring a
+>>> + * nodemask_t variable, and avoid using NODEMASK_ALLOC that can return
+>>> + * -ENOMEM, we use this global cpuset_mems.
+>>> + *
+>>> + * It should be used with cgroup_lock held.
 >>
->> diff --git a/kernel/cpuset.c b/kernel/cpuset.c
->> index f13ff2e..70c9ca2 100644
->> --- a/kernel/cpuset.c
->> +++ b/kernel/cpuset.c
->> @@ -1438,10 +1438,9 @@ static void cpuset_attach(struct cgroup_subsys *ss, struct cgroup *cont,
->>        struct mm_struct *mm;
->>        struct cpuset *cs = cgroup_cs(cont);
->>        struct cpuset *oldcs = cgroup_cs(oldcont);
->> -       NODEMASK_ALLOC(nodemask_t, from, GFP_KERNEL);
->>        NODEMASK_ALLOC(nodemask_t, to, GFP_KERNEL);
+>> I'll do s/should/must/ - that would be a nasty bug.
 >>
->> -       if (from == NULL || to == NULL)
->> +       if (to == NULL)
->>                goto alloc_fail;
+>> I'd be more comfortable about the maintainability of this optimisation
+>> if we had
 >>
->>        if (cs == &top_cpuset) {
->> @@ -1463,18 +1462,16 @@ static void cpuset_attach(struct cgroup_subsys *ss, struct cgroup *cont,
->>        }
+>>        WARN_ON(!cgroup_is_locked());
 >>
->>        /* change mm; only needs to be done once even if threadgroup */
->> -       *from = oldcs->mems_allowed;
->>        *to = cs->mems_allowed;
->>        mm = get_task_mm(tsk);
->>        if (mm) {
->>                mpol_rebind_mm(mm, to);
->>                if (is_memory_migrate(cs))
->> -                       cpuset_migrate_mm(mm, from, to);
->> +                       cpuset_migrate_mm(mm, &oldcs->mems_allowed, to);
->>                mmput(mm);
->>        }
->>
->>  alloc_fail:
->> -       NODEMASK_FREE(from);
->>        NODEMASK_FREE(to);
->>  }
->>
->> --
->> 1.7.3.1
+>> at each site.
 >>
 > 
+> Agreed - that was my first thought on reading the patch. How about:
+> 
+> static nodemask_t *cpuset_static_nodemask() {
+
+Then this should be 'noinline', otherwise we'll have one copy for each
+function that calls it.
+
+>   static nodemask_t nodemask;
+>   WARN_ON(!cgroup_is_locked());
+>   return &nodemask;
+> }
+> 
+> and then just call cpuset_static_nodemask() in the various locations
+> being patched?
+> 
+
+I think a defect of this is people might call it twice in one function
+but don't know it returns the same variable?
+
+For example in cpuset_attach():
+
+void cpuset_attach(...)
+{
+	nodemask_t *from = cpuset_static_nodemask();
+	nodemask_t *to = cpuset_static_nodemask();
+	...
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
