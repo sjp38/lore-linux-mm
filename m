@@ -1,37 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EBE7F8D0039
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 23:58:34 -0500 (EST)
-Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p1I4vxA2003487
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 20:57:59 -0800
-Received: by iwc10 with SMTP id 10so3274490iwc.14
-        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 20:57:59 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id F03D98D0039
+	for <linux-mm@kvack.org>; Fri, 18 Feb 2011 00:20:22 -0500 (EST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <20110216185234.GA11636@tiehlicka.suse.cz>
+	<20110216193700.GA6377@elte.hu>
+	<AANLkTinDxxbVjrUViCs=UaMD9Wg9PR7b0ShNud5zKE3w@mail.gmail.com>
+	<AANLkTi=xnbcs5BKj3cNE_aLtBO7W5m+2uaUacu7M8g_S@mail.gmail.com>
+	<20110217090910.GA3781@tiehlicka.suse.cz>
+	<AANLkTikPKpNHxDQAYBd3fiQsmVozLtCVDsNn=+eF_q2r@mail.gmail.com>
+	<20110217163531.GF14168@elte.hu> <m1pqqqfpzh.fsf@fess.ebiederm.org>
+	<AANLkTinB=EgDGNv-v-qD-MvHVAmstfP_CyyLNhhotkZx@mail.gmail.com>
+	<m1sjvm822m.fsf@fess.ebiederm.org>
+	<AANLkTimzP0UNRXutkt1zJ+OGhmeg6ga87HFyMuZQmpMj@mail.gmail.com>
+Date: Thu, 17 Feb 2011 21:20:05 -0800
+In-Reply-To: <AANLkTimzP0UNRXutkt1zJ+OGhmeg6ga87HFyMuZQmpMj@mail.gmail.com>
+	(Linus Torvalds's message of "Thu, 17 Feb 2011 20:30:42 -0800")
+Message-ID: <m17hcx7wca.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
-In-Reply-To: <20110217.204036.226788819.davem@davemloft.net>
-References: <m1sjvm822m.fsf@fess.ebiederm.org> <AANLkTimzP0UNRXutkt1zJ+OGhmeg6ga87HFyMuZQmpMj@mail.gmail.com>
- <AANLkTi=kEEip7UjtLqvo0Hpz8uwjVdx334hYnPsoNXis@mail.gmail.com> <20110217.204036.226788819.davem@davemloft.net>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 17 Feb 2011 20:57:39 -0800
-Message-ID: <AANLkTin2XX-HHFqnAajUYPU23WeuOZk7vvGczmijUEy=@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Subject: Re: BUG: Bad page map in process udevd (anon_vma: (null)) in 2.6.38-rc4
-Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: ebiederm@xmission.com, mingo@elte.hu, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, eric.dumazet@gmail.com, opurdila@ixiacom.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Octavian Purdila <opurdila@ixiacom.com>, David Miller <davem@davemloft.net>, Ingo Molnar <mingo@elte.hu>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Feb 17, 2011 at 8:40 PM, David Miller <davem@davemloft.net> wrote:
+Linus Torvalds <torvalds@linux-foundation.org> writes:
+
+> On Thu, Feb 17, 2011 at 7:16 PM, Eric W. Biederman
+> <ebiederm@xmission.com> wrote:
+>>
+>> Interesting. =C2=A0I just got this with DEBUG_PAGEALLOC
+>> It looks like something in DEBUG_PAGEALLOC is interfering with taking a
+>> successful crashdump.
 >
-> I looked at Eric's (and your) patch before I wrote my reply :-)
+> Hmm. I don't see why, but we don't care. Just the IP and the Code:
+> section is plenty good enough.
 
-It was Eric Biederman that was missing from some of the discussion.
-Too many Eric's, and two separate threads for the same bug that I'm
-involved in.
+I agree that is a different problem.
 
-                       Linus
+I care because I don't get my automatic reboot after the crash.  Which
+means things don't recover automatically, and I have to futz with the
+machine.
+
+> The patch from Eric Dumazet (which adds a few more cases to my patch
+> and hopefully catches them all) almost certainly fixes this rather
+> nasty memory corruption.
+
+I will see if I can dig it up and get it into my test kernel.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
