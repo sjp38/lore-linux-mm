@@ -1,57 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id EE4F58D0039
-	for <linux-mm@kvack.org>; Fri, 18 Feb 2011 03:41:37 -0500 (EST)
-Received: by fxm12 with SMTP id 12so3601608fxm.14
-        for <linux-mm@kvack.org>; Fri, 18 Feb 2011 00:41:34 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id DEBE98D0039
+	for <linux-mm@kvack.org>; Fri, 18 Feb 2011 03:54:27 -0500 (EST)
+Date: Fri, 18 Feb 2011 09:54:25 +0100
+From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: BUG: Bad page map in process udevd (anon_vma: (null)) in
  2.6.38-rc4
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <m17hcx7wca.fsf@fess.ebiederm.org>
+Message-ID: <20110218085425.GB10846@tiehlicka.suse.cz>
 References: <20110216185234.GA11636@tiehlicka.suse.cz>
-	 <20110216193700.GA6377@elte.hu>
-	 <AANLkTinDxxbVjrUViCs=UaMD9Wg9PR7b0ShNud5zKE3w@mail.gmail.com>
-	 <AANLkTi=xnbcs5BKj3cNE_aLtBO7W5m+2uaUacu7M8g_S@mail.gmail.com>
-	 <20110217090910.GA3781@tiehlicka.suse.cz>
-	 <AANLkTikPKpNHxDQAYBd3fiQsmVozLtCVDsNn=+eF_q2r@mail.gmail.com>
-	 <20110217163531.GF14168@elte.hu> <m1pqqqfpzh.fsf@fess.ebiederm.org>
-	 <AANLkTinB=EgDGNv-v-qD-MvHVAmstfP_CyyLNhhotkZx@mail.gmail.com>
-	 <m1sjvm822m.fsf@fess.ebiederm.org>
-	 <AANLkTimzP0UNRXutkt1zJ+OGhmeg6ga87HFyMuZQmpMj@mail.gmail.com>
-	 <m17hcx7wca.fsf@fess.ebiederm.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 18 Feb 2011 09:41:25 +0100
-Message-ID: <1298018485.2595.44.camel@edumazet-laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <20110216193700.GA6377@elte.hu>
+ <AANLkTinDxxbVjrUViCs=UaMD9Wg9PR7b0ShNud5zKE3w@mail.gmail.com>
+ <AANLkTi=xnbcs5BKj3cNE_aLtBO7W5m+2uaUacu7M8g_S@mail.gmail.com>
+ <20110217090910.GA3781@tiehlicka.suse.cz>
+ <AANLkTikPKpNHxDQAYBd3fiQsmVozLtCVDsNn=+eF_q2r@mail.gmail.com>
+ <20110217163531.GF14168@elte.hu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110217163531.GF14168@elte.hu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Octavian Purdila <opurdila@ixiacom.com>, David Miller <davem@davemloft.net>, Ingo Molnar <mingo@elte.hu>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-So I confirm previous kernels had a bug too in rollback_registered()
+On Thu 17-02-11 17:35:31, Ingo Molnar wrote:
+> 
+> * Linus Torvalds <torvalds@linux-foundation.org> wrote:
+> 
+> > And in addition, I don't see why others wouldn't see it (I've got
+> > DEBUG_PAGEALLOC and SLUB_DEBUG_ON turned on myself, and I know others
+> > do too).
+> 
+> I've done extensive randconfig testing and no crash triggers for typical workloads 
+> on a typical dual-core PC. If there's a generic crashes in there my tests tend to 
+> trigger them at least 10x as often as regular testers ;-) But the tests are still 
+> only statistical so the race could simply be special and missed by the tests.
+> 
+> > So I'm wondering what triggers it. Must be something subtle.
+> 
+> I think what Michal did before he got the corruption seemed somewhat atypical: 
+> suspend/resume and udevd wifi twiddling, right?
 
-The "single" list was left as is before exiting.
+I wouldn't call it atypical. I just resumed from suspend to RAM and set
+up my wireless interface which involved modprobe for iwlwifi[*] (where udev
+came into play).
 
-default_device_exit_batch() seems OK, because the rtnl_unlock() acted as
-a barrier in this respect : devices were removed from dev_kill_list
-before exiting default_device_exit_batch()
-
-Following this mail, please find two patches.
-
-One from Linus to address bug introduced in commit 443457242beb6
-(net: factorize
-sync-rcu call in unregister_netdevice_many) in 2.6.38-rc1
-
-A second one to address old bugs, so that stable teams can fix previous
-kernels (2.6.33 and up)
-Offending commit was 9b5e383c11b08784 (net: Introduce
-unregister_netdevice_many())
-
-Of course this second patch is also needed for current linux-2.6
-
-Thanks
-
+---
+[*] - my script for setting up home wireless connection rmmods iwlwifi,
+iwlcore mac80211 cfg80211 and then modprobes iwlwifi. It is a relict
+from the past where I wasn't able to re-establish the connection in some
+cases (well stupid router which totally confused the driver) without
+reloading modules. I guess this is no more needed but I was lazy to
+touch my scripts when they work.
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
