@@ -1,109 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E40158D0039
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 23:20:36 -0500 (EST)
-Received: by iwc10 with SMTP id 10so3251551iwc.14
-        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 20:18:38 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DE8028D0039
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 23:31:37 -0500 (EST)
+Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p1I4V2AQ000595
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 20:31:02 -0800
+Received: by iyi20 with SMTP id 20so3166892iyi.14
+        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 20:31:02 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <AANLkTikfbqjk18JM8pTh+F6QR69m+QxQzdw6CQGOuZjH@mail.gmail.com>
-References: <cover.1297940291.git.minchan.kim@gmail.com>
-	<5677f3262774f4ddc24044065b7cbd6443ac5e16.1297940291.git.minchan.kim@gmail.com>
-	<20110218005020.d202acd2.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTikfbqjk18JM8pTh+F6QR69m+QxQzdw6CQGOuZjH@mail.gmail.com>
-Date: Fri, 18 Feb 2011 13:18:37 +0900
-Message-ID: <AANLkTik+Kw0N8b=ny+NxjBAh577P3=GZmatRkTV1ZD7s@mail.gmail.com>
-Subject: Re: [PATCH v5 1/4] deactivate invalidated pages
-From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+In-Reply-To: <m1sjvm822m.fsf@fess.ebiederm.org>
+References: <20110216185234.GA11636@tiehlicka.suse.cz> <20110216193700.GA6377@elte.hu>
+ <AANLkTinDxxbVjrUViCs=UaMD9Wg9PR7b0ShNud5zKE3w@mail.gmail.com>
+ <AANLkTi=xnbcs5BKj3cNE_aLtBO7W5m+2uaUacu7M8g_S@mail.gmail.com>
+ <20110217090910.GA3781@tiehlicka.suse.cz> <AANLkTikPKpNHxDQAYBd3fiQsmVozLtCVDsNn=+eF_q2r@mail.gmail.com>
+ <20110217163531.GF14168@elte.hu> <m1pqqqfpzh.fsf@fess.ebiederm.org>
+ <AANLkTinB=EgDGNv-v-qD-MvHVAmstfP_CyyLNhhotkZx@mail.gmail.com> <m1sjvm822m.fsf@fess.ebiederm.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 17 Feb 2011 20:30:42 -0800
+Message-ID: <AANLkTimzP0UNRXutkt1zJ+OGhmeg6ga87HFyMuZQmpMj@mail.gmail.com>
+Subject: Re: BUG: Bad page map in process udevd (anon_vma: (null)) in 2.6.38-rc4
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steven Barrett <damentz@liquorix.net>, Ben Gamari <bgamari.foss@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: "Eric W. Biederman" <ebiederm@xmission.com>, Eric Dumazet <eric.dumazet@gmail.com>, Octavian Purdila <opurdila@ixiacom.com>, David Miller <davem@davemloft.net>
+Cc: Ingo Molnar <mingo@elte.hu>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-2011/2/18 Minchan Kim <minchan.kim@gmail.com>:
-> On Fri, Feb 18, 2011 at 12:50 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> On Fri, 18 Feb 2011 00:08:19 +0900
->> Minchan Kim <minchan.kim@gmail.com> wrote:
->>
->>> Recently, there are reported problem about thrashing.
->>> (http://marc.info/?l=3Drsync&m=3D128885034930933&w=3D2)
->>> It happens by backup workloads(ex, nightly rsync).
->>> That's because the workload makes just use-once pages
->>> and touches pages twice. It promotes the page into
->>> active list so that it results in working set page eviction.
->>>
->>> Some app developer want to support POSIX_FADV_NOREUSE.
->>> But other OSes don't support it, either.
->>> (http://marc.info/?l=3Dlinux-mm&m=3D128928979512086&w=3D2)
->>>
->>> By other approach, app developers use POSIX_FADV_DONTNEED.
->>> But it has a problem. If kernel meets page is writing
->>> during invalidate_mapping_pages, it can't work.
->>> It makes for application programmer to use it since they always
->>> have to sync data before calling fadivse(..POSIX_FADV_DONTNEED) to
->>> make sure the pages could be discardable. At last, they can't use
->>> deferred write of kernel so that they could see performance loss.
->>> (http://insights.oetiker.ch/linux/fadvise.html)
->>>
->>> In fact, invalidation is very big hint to reclaimer.
->>> It means we don't use the page any more. So let's move
->>> the writing page into inactive list's head if we can't truncate
->>> it right now.
->>>
->>> Why I move page to head of lru on this patch, Dirty/Writeback page
->>> would be flushed sooner or later. It can prevent writeout of pageout
->>> which is less effective than flusher's writeout.
->>>
->>> Originally, I reused lru_demote of Peter with some change so added
->>> his Signed-off-by.
->>>
->>> Reported-by: Ben Gamari <bgamari.foss@gmail.com>
->>> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->>> Signed-off-by: Peter Zijlstra <peterz@infradead.org>
->>> Acked-by: Rik van Riel <riel@redhat.com>
->>> Acked-by: Mel Gorman <mel@csn.ul.ie>
->>> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>> Cc: Wu Fengguang <fengguang.wu@intel.com>
->>> Cc: Johannes Weiner <hannes@cmpxchg.org>
->>> Cc: Nick Piggin <npiggin@kernel.dk>
->>> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->>
->>
->> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>
->> One question is ....it seems there is no flush() code for percpu pagevec
->> in this patch. Is it safe against cpu hot plug ?
->>
->> And from memory hot unplug point of view, I'm grad if pagevec for this
->> is flushed at the same time as when we clear other per-cpu lru pagevecs.
->> (And compaction will be affected by the page_count() magic by pagevec
->> =A0which is flushed only when FADVISE is called.)
->>
->> Could you add add-on patches for flushing and hooks ?
+On Thu, Feb 17, 2011 at 7:16 PM, Eric W. Biederman
+<ebiederm@xmission.com> wrote:
 >
-> Isn't it enough in my patch? If I miss your point, Could you elaborate pl=
-ease?
->
-> =A0* Drain pages out of the cpu's pagevecs.
-> =A0* Either "cpu" is the current CPU, and preemption has already been
-> =A0* disabled; or "cpu" is being hot-unplugged, and is already dead.
-> @@ -372,6 +427,29 @@ static void drain_cpu_pagevecs(int cpu)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 pagevec_move_tail(pvec);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 local_irq_restore(flags);
-> =A0 =A0 =A0 }
-> +
-> + =A0 =A0 =A0 pvec =3D &per_cpu(lru_deactivate_pvecs, cpu);
-> + =A0 =A0 =A0 if (pagevec_count(pvec))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 ____pagevec_lru_deactivate(pvec);
-> +}
->
+> Interesting. =A0I just got this with DEBUG_PAGEALLOC
+> It looks like something in DEBUG_PAGEALLOC is interfering with taking a
+> successful crashdump.
 
-I'm sorry that I missed this line. It seems I was wrong.
+Hmm. I don't see why, but we don't care. Just the IP and the Code:
+section is plenty good enough.
 
-Regards,
--Kame
+> BUG: unable to handle kernel paging request at ffff8801adf8d760
+> IP: [<ffffffff8140c7ca>] unregister_netdevice_queue+0x3a/0xb0
+
+Yup. That's the "list_move()". The disassembly is exactly what I'd
+expect from __list_del():
+
+  16:	48 8b 93 a0 00 00 00 	mov    0xa0(%rbx),%rdx
+  1d:	48 8b 83 a8 00 00 00 	mov    0xa8(%rbx),%rax
+  24:	48 8d bb a0 00 00 00 	lea    0xa0(%rbx),%rdi
+  2b:*	48 89 42 08          	mov    %rax,0x8(%rdx)     <-- trapping instruc=
+tion
+  2f:	48 89 10             	mov    %rdx,(%rax)
+
+So I think we can consider this confirmed: it really is the stale
+queue left over on the stack (introduced by commit 443457242beb). With
+CONFIG_DEBUG_PAGEALLOC, you get a page fault when it tries to update
+the now stale pointers.
+
+The patch from Eric Dumazet (which adds a few more cases to my patch
+and hopefully catches them all) almost certainly fixes this rather
+nasty memory corruption.
+
+                           Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
