@@ -1,102 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2804D8D0039
-	for <linux-mm@kvack.org>; Fri, 18 Feb 2011 15:39:00 -0500 (EST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <AANLkTikPKpNHxDQAYBd3fiQsmVozLtCVDsNn=+eF_q2r@mail.gmail.com>
-	<20110217163531.GF14168@elte.hu> <m1pqqqfpzh.fsf@fess.ebiederm.org>
-	<AANLkTinB=EgDGNv-v-qD-MvHVAmstfP_CyyLNhhotkZx@mail.gmail.com>
-	<20110218122938.GB26779@tiehlicka.suse.cz>
-	<20110218162623.GD4862@tiehlicka.suse.cz>
-	<AANLkTimO=M5xG_mnDBSxPKwSOTrp3JhHVBa8=wHsiVHY@mail.gmail.com>
-	<m17hcx43m3.fsf@fess.ebiederm.org>
-	<AANLkTikh4oaR6CBK3NBazer7yjhE0VndsUB5FCDRsbJc@mail.gmail.com>
-	<20110218190128.GF13211@ghostprotocols.net>
-	<20110218191146.GG13211@ghostprotocols.net>
-Date: Fri, 18 Feb 2011 12:38:49 -0800
-In-Reply-To: <20110218191146.GG13211@ghostprotocols.net> (Arnaldo Carvalho de
-	Melo's message of "Fri, 18 Feb 2011 17:11:46 -0200")
-Message-ID: <m1sjvl2i3q.fsf@fess.ebiederm.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 272738D0039
+	for <linux-mm@kvack.org>; Fri, 18 Feb 2011 17:07:04 -0500 (EST)
+Received: by iyf13 with SMTP id 13so704426iyf.14
+        for <linux-mm@kvack.org>; Fri, 18 Feb 2011 14:07:01 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20110218165827.GB13246@csn.ul.ie>
+References: <cover.1297940291.git.minchan.kim@gmail.com>
+	<7563767d6b6e841a8ac5f8315ee166e0f039723c.1297940291.git.minchan.kim@gmail.com>
+	<20110218165827.GB13246@csn.ul.ie>
+Date: Sat, 19 Feb 2011 07:07:01 +0900
+Message-ID: <AANLkTikom2dZaE4v2fNBaRV+OKT+0ZF3ZcEnvkRH0oJW@mail.gmail.com>
+Subject: Re: [PATCH v5 4/4] add profile information for invalidated page
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
-Subject: Re: BUG: Bad page map in process udevd (anon_vma: (null)) in 2.6.38-rc4
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnaldo Carvalho de Melo <acme@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, Pavel Emelyanov <xemul@openvz.org>, Daniel Lezcano <daniel.lezcano@free.fr>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steven Barrett <damentz@liquorix.net>, Ben Gamari <bgamari.foss@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Arnaldo Carvalho de Melo <acme@redhat.com> writes:
+Hi Mel,
 
-> Em Fri, Feb 18, 2011 at 05:01:28PM -0200, Arnaldo Carvalho de Melo escrev=
-eu:
->> Em Fri, Feb 18, 2011 at 10:48:18AM -0800, Linus Torvalds escreveu:
->> > This seems to be a fairly straightforward bug.
->> >=20
->> > In net/ipv4/inet_timewait_sock.c we have this:
->> >=20
->> >   /* These are always called from BH context.  See callers in
->> >    * tcp_input.c to verify this.
->> >    */
->> >=20
->> >   /* This is for handling early-kills of TIME_WAIT sockets. */
->> >   void inet_twsk_deschedule(struct inet_timewait_sock *tw,
->> >                             struct inet_timewait_death_row *twdr)
->> >   {
->> >           spin_lock(&twdr->death_lock);
->> >           ..
->> >=20
->> > and the intention is clearly that that spin_lock is BH-safe because
->> > it's called from BH context.
->> >=20
->> > Except that clearly isn't true. It's called from a worker thread:
->> >=20
->> > > stack backtrace:
->> > > Pid: 10833, comm: kworker/u:1 Not tainted 2.6.38-rc4-359399.2010Aror=
-aKernelBeta.fc14.x86_64 #1
->> > > Call Trace:
->> > > =C2=A0[<ffffffff81460e69>] ? inet_twsk_deschedule+0x29/0xa0
->> > > =C2=A0[<ffffffff81460fd6>] ? inet_twsk_purge+0xf6/0x180
->> > > =C2=A0[<ffffffff81460f10>] ? inet_twsk_purge+0x30/0x180
->> > > =C2=A0[<ffffffff814760fc>] ? tcp_sk_exit_batch+0x1c/0x20
->> > > =C2=A0[<ffffffff8141c1d3>] ? ops_exit_list.clone.0+0x53/0x60
->> > > =C2=A0[<ffffffff8141c520>] ? cleanup_net+0x100/0x1b0
->> > > =C2=A0[<ffffffff81068c47>] ? process_one_work+0x187/0x4b0
->> > > =C2=A0[<ffffffff81068be1>] ? process_one_work+0x121/0x4b0
->> > > =C2=A0[<ffffffff8141c420>] ? cleanup_net+0x0/0x1b0
->> > > =C2=A0[<ffffffff8106a65c>] ? worker_thread+0x15c/0x330
->> >=20
->> > so it can deadlock with a BH happening at the same time, afaik.
->> >=20
->> > The code (and comment) is all from 2005, it looks like the BH->worker
->> > thread has broken the code. But somebody who knows that code better
->> > should take a deeper look at it.
->> >=20
->> > Added acme to the cc, since the code is attributed to him back in 2005
->> > ;). Although I don't know how active he's been in networking lately
->> > (seems to be all perf-related). Whatever, it can't hurt.
->>=20
->> Original code is ANK's, I just made it possible to use with DCCP, and
->> yeah, the smiley is appropriate, something 6 years old and the world
->> around it changing continually... well, thanks for the git blame ;-)
+On Sat, Feb 19, 2011 at 1:58 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> On Fri, Feb 18, 2011 at 12:08:22AM +0900, Minchan Kim wrote:
+>> This patch adds profile information about invalidated page reclaim.
+>> It's just for profiling for test so it is never for merging.
+>>
+>> Acked-by: Rik van Riel <riel@redhat.com>
+>> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> Cc: Wu Fengguang <fengguang.wu@intel.com>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Cc: Nick Piggin <npiggin@kernel.dk>
+>> Cc: Mel Gorman <mel@csn.ul.ie>
+>> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+>> ---
+>> =C2=A0include/linux/vmstat.h | =C2=A0 =C2=A04 ++--
+>> =C2=A0mm/swap.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0=
+ =C2=A03 +++
+>> =C2=A0mm/vmstat.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 =C2=
+=A03 +++
+>> =C2=A03 files changed, 8 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+>> index 833e676..c38ad95 100644
+>> --- a/include/linux/vmstat.h
+>> +++ b/include/linux/vmstat.h
+>> @@ -30,8 +30,8 @@
+>>
+>> =C2=A0enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 FOR_ALL_ZONES(PGALLOC),
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 PGFREE, PGACTIVATE, PGDEACTI=
+VATE,
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 PGFAULT, PGMAJFAULT,
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 PGFREE, PGACTIVATE, PGDEACTI=
+VATE, PGINVALIDATE,
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 PGRECLAIM, PGFAULT, PGMAJFAU=
+LT,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 FOR_ALL_ZONES(PGREFILL)=
+,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 FOR_ALL_ZONES(PGSTEAL),
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 FOR_ALL_ZONES(PGSCAN_KS=
+WAPD),
+>> diff --git a/mm/swap.c b/mm/swap.c
+>> index 0a33714..980c17b 100644
+>> --- a/mm/swap.c
+>> +++ b/mm/swap.c
+>> @@ -397,6 +397,7 @@ static void lru_deactivate(struct page *page, struct=
+ zone *zone)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* is _really_ sma=
+ll and =C2=A0it's non-critical problem.
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 SetPageReclaim(page);
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 __count_vm_event(PGRECLAIM);
+>> =C2=A0 =C2=A0 =C2=A0 } else {
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* The page's writ=
+eback ends up during pagevec
 >
-> But yeah, your analisys seems correct, with the bug being introduced by
-> one of these world around it changing continually issues, networking
-> namespaces broke the rules of the game on its cleanup_net() routine,
-> adding Pavel to the CC list since it doesn't hurt ;-)
+> Is this name potentially misleading?
+>
+> Pages that are reclaimed are accounted for with _steal. It's not particul=
+arly
+> obvious but that's the name it was given. I'd worry that an administrator=
+ that
+> was not aware of *_steal would read pgreclaim as "pages that were reclaim=
+ed"
+> when this is not necessarily the case.
+>
+> Is there a better name for this? pginvalidate_deferred
+> or pginvalidate_delayed maybe?
+>
 
-Which probably gets the bug back around to me.
+Yep. Your suggestion is fair enough. But as I said in description,
+It's just for testing for my profiling, not merging so I didn't care
+about it.
+I don't think we need new vmstat of pginvalidate.
 
-I guess this must be one of those ipv4 cases that where the cleanup
-simply did not exist in the rmmod sense that we had to invent.
-
-I think that was Daniel who did the time wait sockets.  I do remember
-they were a real pain.
-
-Would a bh_disable be sufficient?  I guess I should stop remembering and
-look at the code now.
-
-Eric
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
