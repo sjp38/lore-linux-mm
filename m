@@ -1,71 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 006EC8D0039
-	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 21:46:34 -0500 (EST)
-Message-ID: <4D5DDDD7.509@cn.fujitsu.com>
-Date: Fri, 18 Feb 2011 10:47:51 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/4] cpuset: Fix unchecked calls to NODEMASK_ALLOC()
-References: <4D5C7EA7.1030409@cn.fujitsu.com> <4D5C7ED1.2070601@cn.fujitsu.com> <20110217144643.0d60bef4.akpm@linux-foundation.org> <AANLkTin6TqQMHSpQjNXNrgGAHG8DL6CvzhTm3KHoxv0y@mail.gmail.com>
-In-Reply-To: <AANLkTin6TqQMHSpQjNXNrgGAHG8DL6CvzhTm3KHoxv0y@mail.gmail.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B7AC58D0039
+	for <linux-mm@kvack.org>; Thu, 17 Feb 2011 22:00:36 -0500 (EST)
+Received: by yxl31 with SMTP id 31so1486347yxl.14
+        for <linux-mm@kvack.org>; Thu, 17 Feb 2011 19:00:35 -0800 (PST)
+Subject: Re: [PATCH] mm: fix dubious code in __count_immobile_pages()
+From: Namhyung Kim <namhyung@gmail.com>
+In-Reply-To: <AANLkTi=vRekoBFgHu-AXiLwTVTYLX-FFMBoF0twg1Rpg@mail.gmail.com>
+References: <1297993586-3514-1-git-send-email-namhyung@gmail.com>
+	 <AANLkTi=vRekoBFgHu-AXiLwTVTYLX-FFMBoF0twg1Rpg@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 18 Feb 2011 12:00:28 +0900
+Message-ID: <1297998028.1440.7.camel@leonhard>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, =?UTF-8?B?57yqIOWLsA==?= <miaox@cn.fujitsu.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Paul Menage wrote:
-> On Thu, Feb 17, 2011 at 2:46 PM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
->> On Thu, 17 Feb 2011 09:50:09 +0800
->> Li Zefan <lizf@cn.fujitsu.com> wrote:
->>
->>> +/*
->>> + * In functions that can't propogate errno to users, to avoid declaring a
->>> + * nodemask_t variable, and avoid using NODEMASK_ALLOC that can return
->>> + * -ENOMEM, we use this global cpuset_mems.
->>> + *
->>> + * It should be used with cgroup_lock held.
->>
->> I'll do s/should/must/ - that would be a nasty bug.
->>
->> I'd be more comfortable about the maintainability of this optimisation
->> if we had
->>
->>        WARN_ON(!cgroup_is_locked());
->>
->> at each site.
->>
+2011-02-18 (e,?), 11:26 +0900, Minchan Kim:
+> On Fri, Feb 18, 2011 at 10:46 AM, Namhyung Kim <namhyung@gmail.com> wrote:
+> > When pfn_valid_within() failed 'iter' was incremented twice.
+> >
+> > Signed-off-by: Namhyung Kim <namhyung@gmail.com>
+> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 > 
-> Agreed - that was my first thought on reading the patch. How about:
+> Nitpick.
 > 
-> static nodemask_t *cpuset_static_nodemask() {
-
-Then this should be 'noinline', otherwise we'll have one copy for each
-function that calls it.
-
->   static nodemask_t nodemask;
->   WARN_ON(!cgroup_is_locked());
->   return &nodemask;
-> }
+> I am not sure it's best. I don't like below trick.
+> iter += (1 << page_order(page)) - 1;
 > 
-> and then just call cpuset_static_nodemask() in the various locations
-> being patched?
+> So we can change for loop with while as removing -1 trick of PageBuddy.
+> But if you don't like it, I don't mind it. :)
+> 
+> Thanks!
 > 
 
-I think a defect of this is people might call it twice in one function
-but don't know it returns the same variable?
+Hi Minchan,
 
-For example in cpuset_attach():
+Either is fine to me. But I think current code would be shorter.
 
-void cpuset_attach(...)
-{
-	nodemask_t *from = cpuset_static_nodemask();
-	nodemask_t *to = cpuset_static_nodemask();
-	...
-}
+
+-- 
+Regards,
+Namhyung Kim
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
