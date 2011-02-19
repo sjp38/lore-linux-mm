@@ -1,87 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 11BB98D0039
-	for <linux-mm@kvack.org>; Sat, 19 Feb 2011 01:22:47 -0500 (EST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20110216185234.GA11636@tiehlicka.suse.cz>
-	<20110216193700.GA6377@elte.hu>
-	<AANLkTinDxxbVjrUViCs=UaMD9Wg9PR7b0ShNud5zKE3w@mail.gmail.com>
-	<AANLkTi=xnbcs5BKj3cNE_aLtBO7W5m+2uaUacu7M8g_S@mail.gmail.com>
-	<20110217090910.GA3781@tiehlicka.suse.cz>
-	<AANLkTikPKpNHxDQAYBd3fiQsmVozLtCVDsNn=+eF_q2r@mail.gmail.com>
-	<20110217163531.GF14168@elte.hu> <m1pqqqfpzh.fsf@fess.ebiederm.org>
-	<AANLkTinB=EgDGNv-v-qD-MvHVAmstfP_CyyLNhhotkZx@mail.gmail.com>
-	<20110218122938.GB26779@tiehlicka.suse.cz>
-	<20110218162623.GD4862@tiehlicka.suse.cz>
-	<AANLkTimO=M5xG_mnDBSxPKwSOTrp3JhHVBa8=wHsiVHY@mail.gmail.com>
-Date: Fri, 18 Feb 2011 22:22:32 -0800
-In-Reply-To: <AANLkTimO=M5xG_mnDBSxPKwSOTrp3JhHVBa8=wHsiVHY@mail.gmail.com>
-	(Linus Torvalds's message of "Fri, 18 Feb 2011 08:39:02 -0800")
-Message-ID: <m1oc68ilw7.fsf@fess.ebiederm.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Subject: Re: BUG: Bad page map in process udevd (anon_vma: (null)) in 2.6.38-rc4
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 66C638D0039
+	for <linux-mm@kvack.org>; Sat, 19 Feb 2011 03:36:09 -0500 (EST)
+Received: by bwz17 with SMTP id 17so49646bwz.14
+        for <linux-mm@kvack.org>; Sat, 19 Feb 2011 00:36:02 -0800 (PST)
+Subject: [PATCH] tcp: fix inet_twsk_deschedule()
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <m1sjvl2i3q.fsf@fess.ebiederm.org>
+References: <AANLkTikPKpNHxDQAYBd3fiQsmVozLtCVDsNn=+eF_q2r@mail.gmail.com>
+	 <20110217163531.GF14168@elte.hu> <m1pqqqfpzh.fsf@fess.ebiederm.org>
+	 <AANLkTinB=EgDGNv-v-qD-MvHVAmstfP_CyyLNhhotkZx@mail.gmail.com>
+	 <20110218122938.GB26779@tiehlicka.suse.cz>
+	 <20110218162623.GD4862@tiehlicka.suse.cz>
+	 <AANLkTimO=M5xG_mnDBSxPKwSOTrp3JhHVBa8=wHsiVHY@mail.gmail.com>
+	 <m17hcx43m3.fsf@fess.ebiederm.org>
+	 <AANLkTikh4oaR6CBK3NBazer7yjhE0VndsUB5FCDRsbJc@mail.gmail.com>
+	 <20110218190128.GF13211@ghostprotocols.net>
+	 <20110218191146.GG13211@ghostprotocols.net>
+	 <m1sjvl2i3q.fsf@fess.ebiederm.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Sat, 19 Feb 2011 09:35:56 +0100
+Message-ID: <1298104556.8559.21.camel@edumazet-laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, David Miller <davem@davemloft.net>, Eric Dumazet <eric.dumazet@gmail.com>
+To: "Eric W. Biederman" <ebiederm@xmission.com>, David Miller <davem@davemloft.net>
+Cc: Arnaldo Carvalho de Melo <acme@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, netdev@vger.kernel.org, Pavel Emelyanov <xemul@openvz.org>, Daniel Lezcano <daniel.lezcano@free.fr>
 
-Linus Torvalds <torvalds@linux-foundation.org> writes:
+Le vendredi 18 fA(C)vrier 2011 A  12:38 -0800, Eric W. Biederman a A(C)crit :
+> Arnaldo Carvalho de Melo <acme@redhat.com> writes:
+> 
+> > Em Fri, Feb 18, 2011 at 05:01:28PM -0200, Arnaldo Carvalho de Melo escreveu:
+> >> Em Fri, Feb 18, 2011 at 10:48:18AM -0800, Linus Torvalds escreveu:
+> >> > This seems to be a fairly straightforward bug.
+> >> > 
+> >> > In net/ipv4/inet_timewait_sock.c we have this:
+> >> > 
+> >> >   /* These are always called from BH context.  See callers in
+> >> >    * tcp_input.c to verify this.
+> >> >    */
+> >> > 
+> >> >   /* This is for handling early-kills of TIME_WAIT sockets. */
+> >> >   void inet_twsk_deschedule(struct inet_timewait_sock *tw,
+> >> >                             struct inet_timewait_death_row *twdr)
+> >> >   {
+> >> >           spin_lock(&twdr->death_lock);
+> >> >           ..
+> >> > 
+> >> > and the intention is clearly that that spin_lock is BH-safe because
+> >> > it's called from BH context.
+> >> > 
+> >> > Except that clearly isn't true. It's called from a worker thread:
+> >> > 
+> >> > > stack backtrace:
+> >> > > Pid: 10833, comm: kworker/u:1 Not tainted 2.6.38-rc4-359399.2010AroraKernelBeta.fc14.x86_64 #1
+> >> > > Call Trace:
+> >> > >  [<ffffffff81460e69>] ? inet_twsk_deschedule+0x29/0xa0
+> >> > >  [<ffffffff81460fd6>] ? inet_twsk_purge+0xf6/0x180
+> >> > >  [<ffffffff81460f10>] ? inet_twsk_purge+0x30/0x180
+> >> > >  [<ffffffff814760fc>] ? tcp_sk_exit_batch+0x1c/0x20
+> >> > >  [<ffffffff8141c1d3>] ? ops_exit_list.clone.0+0x53/0x60
+> >> > >  [<ffffffff8141c520>] ? cleanup_net+0x100/0x1b0
+> >> > >  [<ffffffff81068c47>] ? process_one_work+0x187/0x4b0
+> >> > >  [<ffffffff81068be1>] ? process_one_work+0x121/0x4b0
+> >> > >  [<ffffffff8141c420>] ? cleanup_net+0x0/0x1b0
+> >> > >  [<ffffffff8106a65c>] ? worker_thread+0x15c/0x330
+> >> > 
+> >> > so it can deadlock with a BH happening at the same time, afaik.
+> >> > 
+> >> > The code (and comment) is all from 2005, it looks like the BH->worker
+> >> > thread has broken the code. But somebody who knows that code better
+> >> > should take a deeper look at it.
+> >> > 
+> >> > Added acme to the cc, since the code is attributed to him back in 2005
+> >> > ;). Although I don't know how active he's been in networking lately
+> >> > (seems to be all perf-related). Whatever, it can't hurt.
+> >> 
+> >> Original code is ANK's, I just made it possible to use with DCCP, and
+> >> yeah, the smiley is appropriate, something 6 years old and the world
+> >> around it changing continually... well, thanks for the git blame ;-)
+> >
+> > But yeah, your analisys seems correct, with the bug being introduced by
+> > one of these world around it changing continually issues, networking
+> > namespaces broke the rules of the game on its cleanup_net() routine,
+> > adding Pavel to the CC list since it doesn't hurt ;-)
+> 
+> Which probably gets the bug back around to me.
+> 
+> I guess this must be one of those ipv4 cases that where the cleanup
+> simply did not exist in the rmmod sense that we had to invent.
+> 
+> I think that was Daniel who did the time wait sockets.  I do remember
+> they were a real pain.
+> 
+> Would a bh_disable be sufficient?  I guess I should stop remembering and
+> look at the code now.
+> 
 
-> On Fri, Feb 18, 2011 at 8:26 AM, Michal Hocko <mhocko@suse.cz> wrote:
->>> Now, I will try with the 2 patches patches in this thread. I will also
->>> turn on DEBUG_LIST and DEBUG_PAGEALLOC.
->>
->> I am not able to reproduce with those 2 patches applied.
->
-> Thanks for verifying. Davem/EricD - you can add Michal's tested-by to
-> the patches too.
->
-> And I think we can consider this whole thing solved. It hopefully also
-> explains all the other random crashes that EricB saw - just random
-> memory corruption in other datastructures.
->
-> EricB - do all your stress-testers run ok now?
->
->                     Linus
+Here is the patch to fix the problem
 
-It looks like the same problematic dellink pattern made it into net_namespace.c,
-and your new LIST_DEBUG changes caught it.
+Daniel commit (d315492b1a6ba29d (netns : fix kernel panic in timewait
+socket destruction) was OK (it did use local_bh_disable())
 
-I will cook up a patch after I get some sleep.
+Problem comes from commit 575f4cd5a5b6394577
+(net: Use rcu lookups in inet_twsk_purge.) added in 2.6.33
 
-Eric
+Thanks !
 
+[PATCH] tcp: fix inet_twsk_deschedule()
 
-------------[ cut here ]------------
-WARNING: at lib/list_debug.c:53 __list_del_entry+0xa1/0xd0()
-Hardware name: X7DWU
-list_del corruption. prev->next should be ffff88005fc12140, but was           (null)
-Modules linked in: macvtap ipt_LOG xt_limit ipt_REJECT xt_hl xt_state dummy tulip xt_tcpudp iptable_filter inet_diag veth macvlan nfsd lockd nfs_acl auth_rpcgss exportfs sunrpc dm_mirror dm_region_hash dm_log uinput bonding ipv6 kvm_intel kvm fuse xt_multiport iptable_nat ip_tables nf_nat x_tables nf_conntrack_ipv4 nf_conntrack nf_defrag_ipv4 tun 8021q iTCO_wdt microcode iTCO_vendor_support ghes hed sg i5k_amb i5400_edac ioatdma edac_core i2c_i801 serio_raw pcspkr dca shpchp radeon ttm drm_kms_helper drm hwmon i2c_algo_bit i2c_core sr_mod ehci_hcd cdrom netxen_nic uhci_hcd igb dm_mod [last unloaded: mperf]
-Pid: 4865, comm: kworker/u:0 Tainted: G        W   2.6.38-rc4-359399.2010AroraKernelBeta.fc14.x86_64 #1
-Call Trace:
- [<ffffffff8104d6ba>] ? warn_slowpath_common+0x7a/0xb0
- [<ffffffff8104d791>] ? warn_slowpath_fmt+0x41/0x50
- [<ffffffff81430b02>] ? rtnl_lock+0x12/0x20
- [<ffffffff814328a0>] ? __rtnl_unlock+0x10/0x20
- [<ffffffff8129ab31>] ? __list_del_entry+0xa1/0xd0
- [<ffffffff81423644>] ? unregister_netdevice_queue+0x34/0xa0
- [<ffffffffa0427200>] ? veth_dellink+0x20/0x40 [veth]
- [<ffffffff81423711>] ? default_device_exit_batch+0x61/0xe0
- [<ffffffff8141c1d3>] ? ops_exit_list.clone.0+0x53/0x60
- [<ffffffff8141c520>] ? cleanup_net+0x100/0x1b0
- [<ffffffff81068c47>] ? process_one_work+0x187/0x4b0
- [<ffffffff81068be1>] ? process_one_work+0x121/0x4b0
- [<ffffffff8141c420>] ? cleanup_net+0x0/0x1b0
- [<ffffffff8106a65c>] ? worker_thread+0x15c/0x330
- [<ffffffff8106a500>] ? worker_thread+0x0/0x330
- [<ffffffff8106f226>] ? kthread+0xb6/0xc0
- [<ffffffff81003c24>] ? kernel_thread_helper+0x4/0x10
- [<ffffffff814df02b>] ? _raw_spin_unlock_irq+0x2b/0x40
- [<ffffffff814df854>] ? restore_args+0x0/0x30
- [<ffffffff8106f170>] ? kthread+0x0/0xc0
- [<ffffffff81003c20>] ? kernel_thread_helper+0x0/0x10
----[ end trace bcdbebbab42b1e76 ]---
+Eric W. Biederman reported a lockdep splat in inet_twsk_deschedule()
+
+This is caused by inet_twsk_purge(), run from process context,
+and commit 575f4cd5a5b6394577 (net: Use rcu lookups in inet_twsk_purge.)
+removed the BH disabling that was necessary.
+
+Add the BH disabling but fine grained, right before calling
+inet_twsk_deschedule(), instead of whole function.
+
+With help from Linus Torvalds and Eric W. Biederman
+
+Reported-by: Eric W. Biederman <ebiederm@xmission.com>
+Signed-off-by: Eric Dumazet <eric.dumazet@gmail.com>
+CC: Daniel Lezcano <daniel.lezcano@free.fr>
+CC: Pavel Emelyanov <xemul@openvz.org>
+CC: Arnaldo Carvalho de Melo <acme@redhat.com>
+CC: stable <stable@kernel.org> (# 2.6.33+)
+---
+ net/ipv4/inet_timewait_sock.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/net/ipv4/inet_timewait_sock.c b/net/ipv4/inet_timewait_sock.c
+index c5af909..3c8dfa1 100644
+--- a/net/ipv4/inet_timewait_sock.c
++++ b/net/ipv4/inet_timewait_sock.c
+@@ -505,7 +505,9 @@ restart:
+ 			}
+ 
+ 			rcu_read_unlock();
++			local_bh_disable();
+ 			inet_twsk_deschedule(tw, twdr);
++			local_bh_enable();
+ 			inet_twsk_put(tw);
+ 			goto restart_rcu;
+ 		}
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
