@@ -1,80 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5DAEA8D0039
-	for <linux-mm@kvack.org>; Sun, 20 Feb 2011 16:34:55 -0500 (EST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <AANLkTincrnq1kMcAYEWYLf5vdbQ4DYbYObbg=0cLfHnm@mail.gmail.com>
-	<m1oc67zcov.fsf@fess.ebiederm.org>
-	<AANLkTik8kjt1TZ5vOoAm_y0f7toGtOSpxOsgCXO-bey9@mail.gmail.com>
-	<20110220.115355.59672016.davem@davemloft.net>
-Date: Sun, 20 Feb 2011 13:34:41 -0800
-In-Reply-To: <20110220.115355.59672016.davem@davemloft.net> (David Miller's
-	message of "Sun, 20 Feb 2011 11:53:55 -0800 (PST)")
-Message-ID: <m1d3mmxudq.fsf@fess.ebiederm.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F42B8D0039
+	for <linux-mm@kvack.org>; Sun, 20 Feb 2011 16:54:20 -0500 (EST)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id p1KLsFCF017036
+	for <linux-mm@kvack.org>; Sun, 20 Feb 2011 13:54:15 -0800
+Received: from pvg3 (pvg3.prod.google.com [10.241.210.131])
+	by wpaz5.hot.corp.google.com with ESMTP id p1KLsDa7022069
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 20 Feb 2011 13:54:14 -0800
+Received: by pvg3 with SMTP id 3so487514pvg.4
+        for <linux-mm@kvack.org>; Sun, 20 Feb 2011 13:54:13 -0800 (PST)
+Date: Sun, 20 Feb 2011 13:54:09 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 0/5] fix up /proc/$pid/smaps to not split huge pages
+In-Reply-To: <20110209212404.GR3347@random.random>
+Message-ID: <alpine.DEB.2.00.1102201352570.26991@chino.kir.corp.google.com>
+References: <20110209195406.B9F23C9F@kernel> <20110209212404.GR3347@random.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Subject: Re: BUG: Bad page map in process udevd (anon_vma: (null)) in 2.6.38-rc4
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: torvalds@linux-foundation.org, mhocko@suse.cz, mingo@elte.hu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, eric.dumazet@gmail.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>
 
-David Miller <davem@davemloft.net> writes:
+On Wed, 9 Feb 2011, Andrea Arcangeli wrote:
 
-> From: Linus Torvalds <torvalds@linux-foundation.org>
-> Date: Sat, 19 Feb 2011 22:15:23 -0800
->
->> So unregister_netdevice_many() should always return with the list
->> empty and destroyed. There is no valid use of a list of netdevices
->> after you've unregistered them.
->> 
->> Now, dev_deactivate_many() actually has uses of that list after
->> they've been de-activated (__dev_close_many will deactivate them, and
->> then after that do the whole ndo_stop dance too, so I guess all (two)
->> callers of that function need to get rid of their list manually. So I
->> think your patch to sch_generic.c is good, but I really think the
->> semantics of unregister_netdevice_many() should just be changed.
->
-> The key, as Eric D. mentioned, is the moment we changed the "scope" of
-> this list.
->
-> Previously all manipulations and use were guareded entirely inside of
-> holding the RTNL mutex.
->
-> The commit that introduced this regression allowed the list to be
-> "live" across RTNL mutex drop/re-grab.
+> On Wed, Feb 09, 2011 at 11:54:06AM -0800, Dave Hansen wrote:
+> > Andrea, after playing with this for a week or two, I'm quite a bit
+> > more confident that it's not causing much harm.  Seems a fairly
+> > low-risk feature.  Could we stick these somewhere so they'll at
+> > least hit linux-next for the 2.6.40 cycle perhaps?
+> 
+> I think they're good to go in mmotm already and to be merged ASAP.
+> 
+> The only minor issue I have is the increment, to become per-cpu. Are
+> we going to change its location then or it's still read through sysfs?
+> 
 
-No.
-
-Previoously there was exactly one usage of dev->unreg_list:  To gather
-a list of network devices to unregister_netdevice_many.
-
-We added using dev->unreg_list to dev_deactivate and dev_close.
-
-Using this list head multiple times when done carefully is safe because
-every usage is covered entirely by the RTNL lock.
-
-The essence is of the trigger case was to drop the link (dev_deactivate)
-or down the interface (dev_close) and then remove the network device
-(rmmod or ip link del).
-
-If we ever dropped the rtnl lock while using dev->unreg_list we would
-have mysterious errors that would be a pain to track down.
-
-> Anyways, Eric B.'s patch (which I've just added to net-2.6) should
-> handle the known remaining cases, and as Eric D. said we should do one
-> more audit to make sure we got them all now.
-
-My tests have been running without an list debug errors since I applied
-my change.  So we should be good on that front. Thanks for applying my fixes.
-
-Still on my list of bugs I can see in 2.6.38-rc5+ are:
-- macvlan use after free of macvlan_port.
-- tftp over ipv6 getpeername problems.
-- Something that is resulting in 'address already in use', and 
-  'connection reset by peer' errors that only happen in 2.6.38.
-
-Eric
+Dave, I notice these patches haven't been merged into -mm yet.  Are we 
+waiting on another iteration or is this set ready to go?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
