@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 69DF48D0039
-	for <linux-mm@kvack.org>; Sat, 19 Feb 2011 20:51:34 -0500 (EST)
-Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
-	by smtp-out.google.com with ESMTP id p1K1pSRQ006073
-	for <linux-mm@kvack.org>; Sat, 19 Feb 2011 17:51:28 -0800
-Received: from pxi17 (pxi17.prod.google.com [10.243.27.17])
-	by wpaz29.hot.corp.google.com with ESMTP id p1K1pQxt014389
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B58F8D0039
+	for <linux-mm@kvack.org>; Sat, 19 Feb 2011 20:51:37 -0500 (EST)
+Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
+	by smtp-out.google.com with ESMTP id p1K1pZ8n006243
+	for <linux-mm@kvack.org>; Sat, 19 Feb 2011 17:51:35 -0800
+Received: from pwj9 (pwj9.prod.google.com [10.241.219.73])
+	by kpbe19.cbf.corp.google.com with ESMTP id p1K1pX4K001025
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 19 Feb 2011 17:51:27 -0800
-Received: by pxi17 with SMTP id 17so699903pxi.39
-        for <linux-mm@kvack.org>; Sat, 19 Feb 2011 17:51:26 -0800 (PST)
-Date: Sat, 19 Feb 2011 17:51:23 -0800 (PST)
+	for <linux-mm@kvack.org>; Sat, 19 Feb 2011 17:51:34 -0800
+Received: by pwj9 with SMTP id 9so188524pwj.34
+        for <linux-mm@kvack.org>; Sat, 19 Feb 2011 17:51:33 -0800 (PST)
+Date: Sat, 19 Feb 2011 17:51:31 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/4] cpuset: Remove unneeded NODEMASK_ALLOC() in
- cpuset_sprintf_memlist()
-In-Reply-To: <4D5C7EA7.1030409@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1102191739200.27722@chino.kir.corp.google.com>
-References: <4D5C7EA7.1030409@cn.fujitsu.com>
+Subject: Re: [PATCH 3/4] cpuset: Fix unchecked calls to NODEMASK_ALLOC()
+In-Reply-To: <4D5C7ED1.2070601@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1102191745180.27722@chino.kir.corp.google.com>
+References: <4D5C7EA7.1030409@cn.fujitsu.com> <4D5C7ED1.2070601@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,12 +26,21 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.or
 
 On Thu, 17 Feb 2011, Li Zefan wrote:
 
-> It's not necessary to copy cpuset->mems_allowed to a buffer
-> allocated by NODEMASK_ALLOC(). Just pass it to nodelist_scnprintf().
+> Those functions that use NODEMASK_ALLOC() can't propogate errno
+> to users, but will fail silently.
+> 
+> Since all of them are called with cgroup_mutex held, here we use
+> a global nodemask_t variable.
 > 
 > Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
 
-Acked-by: David Rientjes <rientjes@google.com>
+I like the idea and the comment is explicit enough that we don't need any 
+refcounting to ensure double usage under cgroup_lock.  I think each 
+function should be modified to use cpuset_mems directly, though, instead 
+of defining local variables that indirectly access it which only serves to 
+make this patch smaller.  Then we can ensure that all occurrences of 
+cpuset_mems appear within the lock without being concerned about other 
+references.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
