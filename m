@@ -1,73 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CB9E8D0039
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 05:04:15 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4222D3EE081
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 19:04:11 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B2E045DE58
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 19:04:11 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 109FE45DE55
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 19:04:11 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 01C3B1DB8048
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 19:04:11 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C5ABA1DB8047
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 19:04:10 +0900 (JST)
-Date: Mon, 21 Feb 2011 18:57:57 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: fix dubious code in __count_immobile_pages()
-Message-Id: <20110221185757.85dcaaf1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1297993586-3514-1-git-send-email-namhyung@gmail.com>
-References: <1297993586-3514-1-git-send-email-namhyung@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id DB43F8D0039
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 08:04:38 -0500 (EST)
+Date: Mon, 21 Feb 2011 14:04:31 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 1/2] memcg: remove unnecessary BUG_ON
+Message-ID: <20110221130431.GF25382@cmpxchg.org>
+References: <cover.1298214672.git.minchan.kim@gmail.com>
+ <b691a7be970d6aafcd12ccc32ba812ce39fcf027.1298214672.git.minchan.kim@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b691a7be970d6aafcd12ccc32ba812ce39fcf027.1298214672.git.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namhyung Kim <namhyung@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-On Fri, 18 Feb 2011 10:46:26 +0900
-Namhyung Kim <namhyung@gmail.com> wrote:
-
-> When pfn_valid_within() failed 'iter' was incremented twice.
+On Mon, Feb 21, 2011 at 12:17:17AM +0900, Minchan Kim wrote:
+> Now memcg in unmap_and_move checks BUG_ON of charge.
+> But mem_cgroup_prepare_migration returns either 0 or -ENOMEM.
+> If it returns -ENOMEM, it jumps out unlock without the check.
+> If it returns 0, it can pass BUG_ON. So it's meaningless.
+> Let's remove it.
 > 
-> Signed-off-by: Namhyung Kim <namhyung@gmail.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Thank you.
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
+> Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 > ---
->  mm/page_alloc.c |    5 ++---
->  1 files changed, 2 insertions(+), 3 deletions(-)
+>  mm/migrate.c |    1 -
+>  1 files changed, 0 insertions(+), 1 deletions(-)
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index e8b02771ccea..bf83d1c1d648 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5380,10 +5380,9 @@ __count_immobile_pages(struct zone *zone, struct page *page, int count)
->  	for (found = 0, iter = 0; iter < pageblock_nr_pages; iter++) {
->  		unsigned long check = pfn + iter;
->  
-> -		if (!pfn_valid_within(check)) {
-> -			iter++;
-> +		if (!pfn_valid_within(check))
->  			continue;
-> -		}
-> +
->  		page = pfn_to_page(check);
->  		if (!page_count(page)) {
->  			if (PageBuddy(page))
-> -- 
-> 1.7.4
-> 
-> 
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index eb083a6..2abc9c9 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -683,7 +683,6 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+>  		rc = -ENOMEM;
+>  		goto unlock;
+>  	}
+> -	BUG_ON(charge);
+
+You remove this assertion of the mem_cgroup_prepare_migration() return
+value but only add a comment about the expectations in the next patch.
+
+Could you write a full-blown kerneldoc on mem_cgroup_prepare_migration
+and remove this BUG_ON() in the same patch?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
