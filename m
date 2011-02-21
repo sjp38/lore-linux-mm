@@ -1,69 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7F4AD8D0039
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 14:07:55 -0500 (EST)
-Date: Mon, 21 Feb 2011 20:07:13 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH v6 0/4] fadvise(DONTNEED) support
-Message-ID: <20110221190713.GM13092@random.random>
-References: <cover.1298212517.git.minchan.kim@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cover.1298212517.git.minchan.kim@gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C17FD8D0039
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 14:08:10 -0500 (EST)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Fix NUMA problems in transparent hugepages and KSM
+Date: Mon, 21 Feb 2011 11:07:42 -0800
+Message-Id: <1298315270-10434-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steven Barrett <damentz@liquorix.net>, Ben Gamari <bgamari.foss@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@kernel.dk>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, lwoodman@redhat.com
 
-Hello,
+The current transparent hugepages daemon can mess up local
+memory affinity on NUMA systems. When it copies memory to a 
+huge page it does not necessarily keep it on the same
+node as the local allocations.
 
-On Sun, Feb 20, 2011 at 11:43:35PM +0900, Minchan Kim wrote:
-> Recently, there was a reported problem about thrashing.
-> (http://marc.info/?l=rsync&m=128885034930933&w=2)
-> It happens by backup workloads(ex, nightly rsync).
-> That's because the workload makes just use-once pages
-> and touches pages twice. It promotes the page into
+While fixing this I also found some more related issues:
+- The NUMA policy interleaving for THP was using the small
+page size, not the large parse size.
+- KSM and THP copies also did not preserve the local node
+- The accounting for local/remote allocations in the daemon
+was misleading.
+- There were no VM statistics counters for THP, which made it 
+impossible to analyze.
+ 
+At least some of the bug fixes are 2.6.38 candidates IMHO
+because some of the NUMA problems are pretty bad. In some workloads
+this can cause performance problems. 
 
-"recently" and "thrashing horribly" seem to signal a regression. Ok
-that trying to have backup not messing up the VM working set, but by
-any means running rsync in a loop shouldn't lead a server into
-"trashing horribly" (other than for the additional disk I/O, just like
-if rsync would be using O_DIRECT).
+What can be delayed are GFP_OTHERNODE and the statistics changes.
 
-This effort in teaching rsync to tell the VM it's likely an used-once
-type of access to the cache is good (tar will need it too), but if
-this is a regression like it appears from the words above ("recently"
-and "trashing horribly"), I suspect it's much higher priority to fix a
-VM regression than to add fadvise support in rsync/tar. Likely if the
-system didn't start "trashing horribly", they wouldn't need rsync.
+Git tree:
 
-Then fadvise becomes an improvement on top of that.
+  git://git.kernel.org/pub/scm/linux/kernel/git/ak/linux-misc-2.6.git thp-numa
 
-It'd be nice if at least it was tested if older kernel wouldn't trash
-horribly after being left inactive overnight. If it still trashes
-horribly with 2.6.18 ok... ignore this, otherwise we need a real fix.
+Andi Kleen (8):
+      Fix interleaving for transparent hugepages
+      Change alloc_pages_vma to pass down the policy node for local policy
+      Preserve local node for KSM copies
+      Preserve original node for transparent huge page copies
+      Use correct numa policy node for transparent hugepages
+      Add __GFP_OTHER_NODE flag
+      Use GFP_OTHER_NODE for transparent huge pages
+      Add VM counters for transparent hugepages
 
-I'm quite comfortable that older kernels would do perfectly ok with a
-loop of rsync overnight while the system was idle. I also got people
-asking me privately what to do to avoid the backup to swapout, that
-further make me believe something regressed recently as older VM code
-would never swapout on such a workload, even if you do used twice or 3
-times in a row. If it swapout that's the real bug.
+ include/linux/gfp.h    |   13 ++++++++---
+ include/linux/vmstat.h |   11 ++++++++-
+ mm/huge_memory.c       |   49 +++++++++++++++++++++++++++++++++--------------
+ mm/ksm.c               |    3 +-
+ mm/mempolicy.c         |   16 +++++++-------
+ mm/page_alloc.c        |    2 +-
+ mm/vmstat.c            |   17 ++++++++++++++-
+ 7 files changed, 78 insertions(+), 33 deletions(-)
 
-I had questions about limiting the pagecache size to a certain amount,
-that works too, but that's again a band aid like fadvise, and it's
-real minor issue compared to fixing the VM so that at least you can
-tell the kernel "nuke all clean cache first", being able to tell the
-kernel just that (even if some VM clever algorithm thinks swapping is
-better and we want to swap by default) will fix it. We still need a
-way to make the kernel behave perfect with zero swapping without
-fadvise and without limiting the cache. Maybe setting swappiness to 0
-just does that, I suggested that and I heard nothing back.
-
-If you can reproduce I suggest making sure that at least it doesn't
-swap anything during the overnight workload as that would signal a
-definitive problem.
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
