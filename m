@@ -1,69 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D5A038D0039
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 09:14:43 -0500 (EST)
-Received: by iyf13 with SMTP id 13so2779744iyf.14
-        for <linux-mm@kvack.org>; Mon, 21 Feb 2011 06:14:40 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20110221130431.GF25382@cmpxchg.org>
-References: <cover.1298214672.git.minchan.kim@gmail.com>
-	<b691a7be970d6aafcd12ccc32ba812ce39fcf027.1298214672.git.minchan.kim@gmail.com>
-	<20110221130431.GF25382@cmpxchg.org>
-Date: Mon, 21 Feb 2011 23:14:40 +0900
-Message-ID: <AANLkTintsg+5wm7EOr40zUqcmhO3Qend=KeYV09zeOAE@mail.gmail.com>
-Subject: Re: [PATCH v2 1/2] memcg: remove unnecessary BUG_ON
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with SMTP id D14668D0039
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 10:48:46 -0500 (EST)
+From: Petr Holasek <pholasek@redhat.com>
+Subject: [PATCH] hugetlbfs: correct handling of negative input to /proc/sys/vm/nr_hugepages
+Date: Mon, 21 Feb 2011 16:47:49 +0100
+Message-Id: <1298303270-3184-1-git-send-email-pholasek@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: linux-kernel@vger.kernel.org
+Cc: Petr Holasek <pholasek@redhat.com>, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
 
-On Mon, Feb 21, 2011 at 10:04 PM, Johannes Weiner <hannes@cmpxchg.org> wrot=
-e:
-> On Mon, Feb 21, 2011 at 12:17:17AM +0900, Minchan Kim wrote:
->> Now memcg in unmap_and_move checks BUG_ON of charge.
->> But mem_cgroup_prepare_migration returns either 0 or -ENOMEM.
->> If it returns -ENOMEM, it jumps out unlock without the check.
->> If it returns 0, it can pass BUG_ON. So it's meaningless.
->> Let's remove it.
->>
->> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
->> Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
->> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->> ---
->> =C2=A0mm/migrate.c | =C2=A0 =C2=A01 -
->> =C2=A01 files changed, 0 insertions(+), 1 deletions(-)
->>
->> diff --git a/mm/migrate.c b/mm/migrate.c
->> index eb083a6..2abc9c9 100644
->> --- a/mm/migrate.c
->> +++ b/mm/migrate.c
->> @@ -683,7 +683,6 @@ static int unmap_and_move(new_page_t get_new_page, u=
-nsigned long private,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 rc =3D -ENOMEM;
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto unlock;
->> =C2=A0 =C2=A0 =C2=A0 }
->> - =C2=A0 =C2=A0 BUG_ON(charge);
->
-> You remove this assertion of the mem_cgroup_prepare_migration() return
-> value but only add a comment about the expectations in the next patch.
->
-> Could you write a full-blown kerneldoc on mem_cgroup_prepare_migration
-> and remove this BUG_ON() in the same patch?
->
+When user insert negative value into /proc/sys/vm/nr_hugepages it will result
+in the setting a random number of HugePages in system (can be easily showed
+at /proc/meminfo output). This patch fixes the wrong behavior so that the
+negative input will result in nr_hugepages value unchanged.
 
-Okay. I could.
+Signed-off-by: Petr Holasek <pholasek@redhat.com>
+---
+ mm/hugetlb.c |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
 
-
-
-
---=20
-Kind regards,
-Minchan Kim
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index bb0b7c1..f99d7a8 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1872,8 +1872,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+ 	unsigned long tmp;
+ 	int ret;
+ 
+-	if (!write)
+-		tmp = h->max_huge_pages;
++	tmp = h->max_huge_pages;
+ 
+ 	if (write && h->order >= MAX_ORDER)
+ 		return -EINVAL;
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
