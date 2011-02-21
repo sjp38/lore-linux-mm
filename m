@@ -1,109 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 011E38D0039
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 08:11:07 -0500 (EST)
-Date: Mon, 21 Feb 2011 14:10:58 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2 2/2] memcg: remove charge variable in unmap_and_move
-Message-ID: <20110221131058.GG25382@cmpxchg.org>
-References: <cover.1298214672.git.minchan.kim@gmail.com>
- <c48df61c1186492699f18c4c6b401dcbc0db2b7f.1298214672.git.minchan.kim@gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C76AB8D0039
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 09:07:27 -0500 (EST)
+Received: by iyf13 with SMTP id 13so2773091iyf.14
+        for <linux-mm@kvack.org>; Mon, 21 Feb 2011 06:07:26 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <c48df61c1186492699f18c4c6b401dcbc0db2b7f.1298214672.git.minchan.kim@gmail.com>
+In-Reply-To: <20110221084014.GC25382@cmpxchg.org>
+References: <cover.1298212517.git.minchan.kim@gmail.com>
+	<c76a1645aac12c3b8ffe2cc5738033f5a6da8d32.1298212517.git.minchan.kim@gmail.com>
+	<20110221084014.GC25382@cmpxchg.org>
+Date: Mon, 21 Feb 2011 23:07:26 +0900
+Message-ID: <AANLkTikkGGQdxtshsWb8k2Lb89LwWznNjZLBB5i=UQrm@mail.gmail.com>
+Subject: Re: [PATCH v6 2/3] memcg: move memcg reclaimable page into tail of
+ inactive list
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steven Barrett <damentz@liquorix.net>, Ben Gamari <bgamari.foss@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Mon, Feb 21, 2011 at 12:17:18AM +0900, Minchan Kim wrote:
-> memcg charge/uncharge could be handled by mem_cgroup_[prepare/end]
-> migration itself so charge local variable in unmap_and_move lost the role
-> since we introduced 01b1ae63c2.
-> 
-> In addition, the variable name is not good like below.
-> 
-> int unmap_and_move()
-> {
-> 	charge = mem_cgroup_prepare_migration(xxx);
-> 	..
-> 		BUG_ON(charge); <-- BUG if it is charged?
-> 		..
-> uncharge:
-> 		if (!charge)    <-- why do we have to uncharge !charge?
-> 			mem_group_end_migration(xxx);
-> 	..
-> }
-> 
-> So let's remove unnecessary and confusing variable.
-> 
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-> Suggested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> ---
->  mm/memcontrol.c |    1 +
->  mm/migrate.c    |    9 +++------
->  2 files changed, 4 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 8a97571..3c91d5c 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2873,6 +2873,7 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
->  /*
->   * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
->   * page belongs to.
-> + * Note: Should not return -EAGAIN. unmap_and_move depens on it.
->   */
->  int mem_cgroup_prepare_migration(struct page *page,
->  	struct page *newpage, struct mem_cgroup **ptr, gfp_t gfp_mask)
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 2abc9c9..37055d0 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -622,7 +622,6 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  	int *result = NULL;
->  	struct page *newpage = get_new_page(page, private, &result);
->  	int remap_swapcache = 1;
-> -	int charge = 0;
->  	struct mem_cgroup *mem;
->  	struct anon_vma *anon_vma = NULL;
->  
-> @@ -637,7 +636,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  		if (unlikely(split_huge_page(page)))
->  			goto move_newpage;
->  
-> -	/* prepare cgroup just returns 0 or -ENOMEM */
-> +	/* mem_cgroup_prepage_migration never returns -EAGAIN */
->  	rc = -EAGAIN;
+On Mon, Feb 21, 2011 at 5:40 PM, Johannes Weiner <hannes@cmpxchg.org> wrote=
+:
+> On Sun, Feb 20, 2011 at 11:43:37PM +0900, Minchan Kim wrote:
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -813,6 +813,33 @@ void mem_cgroup_del_lru(struct page *page)
+>> =C2=A0 =C2=A0 =C2=A0 mem_cgroup_del_lru_list(page, page_lru(page));
+>> =C2=A0}
+>>
+>> +/*
+>> + * Writeback is about to end against a page which has been marked for i=
+mmediate
+>> + * reclaim. =C2=A0If it still appears to be reclaimable, move it to the=
+ tail of the
+>> + * inactive list.
+>> + */
+>> +void mem_cgroup_rotate_reclaimable_page(struct page *page)
+>> +{
+>> + =C2=A0 =C2=A0 struct mem_cgroup_per_zone *mz;
+>> + =C2=A0 =C2=A0 struct page_cgroup *pc;
+>> + =C2=A0 =C2=A0 enum lru_list lru =3D page_lru(page);
+>> +
+>> + =C2=A0 =C2=A0 if (mem_cgroup_disabled())
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return;
+>> +
+>> + =C2=A0 =C2=A0 pc =3D lookup_page_cgroup(page);
+>> + =C2=A0 =C2=A0 /*
+>> + =C2=A0 =C2=A0 =C2=A0* Used bit is set without atomic ops but after smp=
+_wmb().
+>> + =C2=A0 =C2=A0 =C2=A0* For making pc->mem_cgroup visible, insert smp_rm=
+b() here.
+>> + =C2=A0 =C2=A0 =C2=A0*/
+>> + =C2=A0 =C2=A0 smp_rmb();
+>> + =C2=A0 =C2=A0 /* unused or root page is not rotated. */
+>> + =C2=A0 =C2=A0 if (!PageCgroupUsed(pc) || mem_cgroup_is_root(pc->mem_cg=
+roup))
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return;
+>
+> The placement of this barrier is confused and has been fixed up in the
+> meantime in other places. =C2=A0It has to be between PageCgroupUsed() and
+> accessing pc->mem_cgroup. =C2=A0You can look at the other memcg lru
+> functions for reference.
 
-I really don't like this.  Why should we depend on that?
+Yes. I saw your patch at that time but forgot it.
+I will resend fixed version.
+Thanks.
 
->  	if (!trylock_page(page)) {
-> @@ -678,8 +677,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  	}
->  
->  	/* charge against new page */
-> -	charge = mem_cgroup_prepare_migration(page, newpage, &mem, GFP_KERNEL);
-> -	if (charge == -ENOMEM) {
-> +	if (mem_cgroup_prepare_migration(page, newpage, &mem, GFP_KERNEL)) {
->  		rc = -ENOMEM;
->  		goto unlock;
-
-Couldn't we make unmap_and_move completely oblivious of the specific
-value and just do
-
-	rc = mem_cgroup_prepare_migration()
-	if (rc)
-		goto unlock;
-
-at this point?  I think mem_cgroup_prepare_migration should be rather
-free to signal pretty much any error and it is up to migrate_pages()
-to handle them correctly.
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
