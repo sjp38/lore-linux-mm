@@ -1,46 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D14668D0039
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 10:48:46 -0500 (EST)
-From: Petr Holasek <pholasek@redhat.com>
-Subject: [PATCH] hugetlbfs: correct handling of negative input to /proc/sys/vm/nr_hugepages
-Date: Mon, 21 Feb 2011 16:47:49 +0100
-Message-Id: <1298303270-3184-1-git-send-email-pholasek@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A88F68D0039
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 10:59:38 -0500 (EST)
+Received: by pwi10 with SMTP id 10so568818pwi.14
+        for <linux-mm@kvack.org>; Mon, 21 Feb 2011 07:59:36 -0800 (PST)
+Date: Tue, 22 Feb 2011 00:59:25 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH v6 2/3] memcg: move memcg reclaimable page into tail of
+ inactive list
+Message-ID: <20110221155925.GA5641@barrios-desktop>
+References: <cover.1298212517.git.minchan.kim@gmail.com>
+ <c76a1645aac12c3b8ffe2cc5738033f5a6da8d32.1298212517.git.minchan.kim@gmail.com>
+ <20110221084014.GC25382@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110221084014.GC25382@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Petr Holasek <pholasek@redhat.com>, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steven Barrett <damentz@liquorix.net>, Ben Gamari <bgamari.foss@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-When user insert negative value into /proc/sys/vm/nr_hugepages it will result
-in the setting a random number of HugePages in system (can be easily showed
-at /proc/meminfo output). This patch fixes the wrong behavior so that the
-negative input will result in nr_hugepages value unchanged.
-
-Signed-off-by: Petr Holasek <pholasek@redhat.com>
----
- mm/hugetlb.c |    3 +--
- 1 files changed, 1 insertions(+), 2 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index bb0b7c1..f99d7a8 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1872,8 +1872,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
- 	unsigned long tmp;
- 	int ret;
- 
--	if (!write)
--		tmp = h->max_huge_pages;
-+	tmp = h->max_huge_pages;
- 
- 	if (write && h->order >= MAX_ORDER)
- 		return -EINVAL;
--- 
-1.7.1
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Fixed version.
