@@ -1,35 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E8B428D003B
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 14:08:10 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 5C1CF8D0039
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 14:08:11 -0500 (EST)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] - Improve drain pages performance on large systems
-References: <20110215223840.GA27420@sgi.com>
-Date: Tue, 15 Feb 2011 16:17:44 -0800
-In-Reply-To: <20110215223840.GA27420@sgi.com> (Jack Steiner's message of "Tue,
-	15 Feb 2011 16:38:40 -0600")
-Message-ID: <m262skx26v.fsf@firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: [PATCH 4/8] Preserve original node for transparent huge page copies
+Date: Mon, 21 Feb 2011 11:07:46 -0800
+Message-Id: <1298315270-10434-5-git-send-email-andi@firstfloor.org>
+In-Reply-To: <1298315270-10434-1-git-send-email-andi@firstfloor.org>
+References: <1298315270-10434-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jack Steiner <steiner@sgi.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, lwoodman@redhat.com, Andi Kleen <ak@linux.intel.com>
 
-Jack Steiner <steiner@sgi.com> writes:
+From: Andi Kleen <ak@linux.intel.com>
 
-> Heavy swapping within a cpuset causes frequent calls to drain_all_pages().
+This makes a difference for LOCAL policy, where the node cannot
+be determined from the policy itself, but has to be gotten
+from the original page.
 
-I suspect drain_all_pages should be really made more zone aware in the
-first place and only drain what is actually needed (e.g.
-work off a zonelist). I was fighting with this for hwpoison too.
+Cc: aarcange@redhat.com
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+---
+ mm/huge_memory.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-That said your patch looks reasonable.
-
--Andi
-
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 73ecca5..00a5c39 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -799,8 +799,8 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
+ 	}
+ 
+ 	for (i = 0; i < HPAGE_PMD_NR; i++) {
+-		pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
+-					  vma, address);
++		pages[i] = alloc_page_vma_node(GFP_HIGHUSER_MOVABLE,
++					       vma, address, page_to_nid(page));
+ 		if (unlikely(!pages[i] ||
+ 			     mem_cgroup_newpage_charge(pages[i], mm,
+ 						       GFP_KERNEL))) {
 -- 
-ak@linux.intel.com -- Speaking for myself only
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
