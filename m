@@ -1,72 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C76AB8D0039
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 09:07:27 -0500 (EST)
-Received: by iyf13 with SMTP id 13so2773091iyf.14
-        for <linux-mm@kvack.org>; Mon, 21 Feb 2011 06:07:26 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D5A038D0039
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 09:14:43 -0500 (EST)
+Received: by iyf13 with SMTP id 13so2779744iyf.14
+        for <linux-mm@kvack.org>; Mon, 21 Feb 2011 06:14:40 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20110221084014.GC25382@cmpxchg.org>
-References: <cover.1298212517.git.minchan.kim@gmail.com>
-	<c76a1645aac12c3b8ffe2cc5738033f5a6da8d32.1298212517.git.minchan.kim@gmail.com>
-	<20110221084014.GC25382@cmpxchg.org>
-Date: Mon, 21 Feb 2011 23:07:26 +0900
-Message-ID: <AANLkTikkGGQdxtshsWb8k2Lb89LwWznNjZLBB5i=UQrm@mail.gmail.com>
-Subject: Re: [PATCH v6 2/3] memcg: move memcg reclaimable page into tail of
- inactive list
+In-Reply-To: <20110221130431.GF25382@cmpxchg.org>
+References: <cover.1298214672.git.minchan.kim@gmail.com>
+	<b691a7be970d6aafcd12ccc32ba812ce39fcf027.1298214672.git.minchan.kim@gmail.com>
+	<20110221130431.GF25382@cmpxchg.org>
+Date: Mon, 21 Feb 2011 23:14:40 +0900
+Message-ID: <AANLkTintsg+5wm7EOr40zUqcmhO3Qend=KeYV09zeOAE@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] memcg: remove unnecessary BUG_ON
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Steven Barrett <damentz@liquorix.net>, Ben Gamari <bgamari.foss@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-On Mon, Feb 21, 2011 at 5:40 PM, Johannes Weiner <hannes@cmpxchg.org> wrote=
-:
-> On Sun, Feb 20, 2011 at 11:43:37PM +0900, Minchan Kim wrote:
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -813,6 +813,33 @@ void mem_cgroup_del_lru(struct page *page)
->> =C2=A0 =C2=A0 =C2=A0 mem_cgroup_del_lru_list(page, page_lru(page));
->> =C2=A0}
+On Mon, Feb 21, 2011 at 10:04 PM, Johannes Weiner <hannes@cmpxchg.org> wrot=
+e:
+> On Mon, Feb 21, 2011 at 12:17:17AM +0900, Minchan Kim wrote:
+>> Now memcg in unmap_and_move checks BUG_ON of charge.
+>> But mem_cgroup_prepare_migration returns either 0 or -ENOMEM.
+>> If it returns -ENOMEM, it jumps out unlock without the check.
+>> If it returns 0, it can pass BUG_ON. So it's meaningless.
+>> Let's remove it.
 >>
->> +/*
->> + * Writeback is about to end against a page which has been marked for i=
-mmediate
->> + * reclaim. =C2=A0If it still appears to be reclaimable, move it to the=
- tail of the
->> + * inactive list.
->> + */
->> +void mem_cgroup_rotate_reclaimable_page(struct page *page)
->> +{
->> + =C2=A0 =C2=A0 struct mem_cgroup_per_zone *mz;
->> + =C2=A0 =C2=A0 struct page_cgroup *pc;
->> + =C2=A0 =C2=A0 enum lru_list lru =3D page_lru(page);
->> +
->> + =C2=A0 =C2=A0 if (mem_cgroup_disabled())
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return;
->> +
->> + =C2=A0 =C2=A0 pc =3D lookup_page_cgroup(page);
->> + =C2=A0 =C2=A0 /*
->> + =C2=A0 =C2=A0 =C2=A0* Used bit is set without atomic ops but after smp=
-_wmb().
->> + =C2=A0 =C2=A0 =C2=A0* For making pc->mem_cgroup visible, insert smp_rm=
-b() here.
->> + =C2=A0 =C2=A0 =C2=A0*/
->> + =C2=A0 =C2=A0 smp_rmb();
->> + =C2=A0 =C2=A0 /* unused or root page is not rotated. */
->> + =C2=A0 =C2=A0 if (!PageCgroupUsed(pc) || mem_cgroup_is_root(pc->mem_cg=
-roup))
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return;
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
+>> Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+>> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+>> ---
+>> =C2=A0mm/migrate.c | =C2=A0 =C2=A01 -
+>> =C2=A01 files changed, 0 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/mm/migrate.c b/mm/migrate.c
+>> index eb083a6..2abc9c9 100644
+>> --- a/mm/migrate.c
+>> +++ b/mm/migrate.c
+>> @@ -683,7 +683,6 @@ static int unmap_and_move(new_page_t get_new_page, u=
+nsigned long private,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 rc =3D -ENOMEM;
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto unlock;
+>> =C2=A0 =C2=A0 =C2=A0 }
+>> - =C2=A0 =C2=A0 BUG_ON(charge);
 >
-> The placement of this barrier is confused and has been fixed up in the
-> meantime in other places. =C2=A0It has to be between PageCgroupUsed() and
-> accessing pc->mem_cgroup. =C2=A0You can look at the other memcg lru
-> functions for reference.
+> You remove this assertion of the mem_cgroup_prepare_migration() return
+> value but only add a comment about the expectations in the next patch.
+>
+> Could you write a full-blown kerneldoc on mem_cgroup_prepare_migration
+> and remove this BUG_ON() in the same patch?
+>
 
-Yes. I saw your patch at that time but forgot it.
-I will resend fixed version.
-Thanks.
+Okay. I could.
+
+
+
 
 --=20
 Kind regards,
