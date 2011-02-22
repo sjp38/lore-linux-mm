@@ -1,86 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E2FE68D003C
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:53:48 -0500 (EST)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p1M1YsAj005320
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:34:54 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p1M1rlWL229968
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:53:47 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p1M1rkk4010541
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:53:46 -0500
-Subject: [PATCH 5/5] have smaps show transparent huge pages
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 677BA8D003C
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:54:00 -0500 (EST)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p1M1Xfrn003189
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:33:41 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p1M1rgrl307844
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:53:42 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p1M1rfxP022667
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 22:53:42 -0300
+Subject: [PATCH 2/5] break out smaps_pte_entry() from smaps_pte_range()
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Mon, 21 Feb 2011 17:53:45 -0800
+Date: Mon, 21 Feb 2011 17:53:40 -0800
 References: <20110222015338.309727CA@kernel>
 In-Reply-To: <20110222015338.309727CA@kernel>
-Message-Id: <20110222015345.BF949720@kernel>
+Message-Id: <20110222015340.B0D1C3FC@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, akpm@osdl.org, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, akpm@osdl.org, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 
 
-Now that the mere act of _looking_ at /proc/$pid/smaps will not
-destroy transparent huge pages, tell how much of the VMA is
-actually mapped with them.
-
-This way, we can make sure that we're getting THPs where we
-expect to see them.
-
-v3 - * changed HPAGE_SIZE to HPAGE_PMD_SIZE, probably more correct
-       and also has a nice BUG() in case there was a .config mishap
-     * remove direct reference to ->page_table_lock, and used the
-       passed-in ptl pointer insteadl
+We will use smaps_pte_entry() in a moment to handle both small
+and transparent large pages.  But, we must break it out of
+smaps_pte_range() first.
 
 Acked-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 ---
 
- linux-2.6.git-dave/fs/proc/task_mmu.c |    4 ++++
- 1 file changed, 4 insertions(+)
+ linux-2.6.git-dave/fs/proc/task_mmu.c |   85 ++++++++++++++++++----------------
+ 1 file changed, 46 insertions(+), 39 deletions(-)
 
-diff -puN fs/proc/task_mmu.c~teach-smaps-thp fs/proc/task_mmu.c
---- linux-2.6.git/fs/proc/task_mmu.c~teach-smaps-thp	2011-02-21 15:07:55.707591741 -0800
-+++ linux-2.6.git-dave/fs/proc/task_mmu.c	2011-02-21 15:07:55.803594580 -0800
-@@ -331,6 +331,7 @@ struct mem_size_stats {
- 	unsigned long private_dirty;
- 	unsigned long referenced;
- 	unsigned long anonymous;
-+	unsigned long anonymous_thp;
- 	unsigned long swap;
+diff -puN fs/proc/task_mmu.c~break-out-smaps_pte_entry fs/proc/task_mmu.c
+--- linux-2.6.git/fs/proc/task_mmu.c~break-out-smaps_pte_entry	2011-02-14 09:59:43.030561028 -0800
++++ linux-2.6.git-dave/fs/proc/task_mmu.c	2011-02-14 09:59:43.038561264 -0800
+@@ -333,56 +333,63 @@ struct mem_size_stats {
  	u64 pss;
  };
-@@ -396,6 +397,7 @@ static int smaps_pte_range(pmd_t *pmd, u
- 			smaps_pte_entry(*(pte_t *)pmd, addr,
- 					HPAGE_PMD_SIZE, walk);
- 			spin_unlock(&walk->mm->page_table_lock);
-+			mss->anonymous_thp += HPAGE_PMD_SIZE;
- 			return 0;
- 		}
- 	} else {
-@@ -444,6 +446,7 @@ static int show_smap(struct seq_file *m,
- 		   "Private_Dirty:  %8lu kB\n"
- 		   "Referenced:     %8lu kB\n"
- 		   "Anonymous:      %8lu kB\n"
-+		   "AnonHugePages:  %8lu kB\n"
- 		   "Swap:           %8lu kB\n"
- 		   "KernelPageSize: %8lu kB\n"
- 		   "MMUPageSize:    %8lu kB\n"
-@@ -457,6 +460,7 @@ static int show_smap(struct seq_file *m,
- 		   mss.private_dirty >> 10,
- 		   mss.referenced >> 10,
- 		   mss.anonymous >> 10,
-+		   mss.anonymous_thp >> 10,
- 		   mss.swap >> 10,
- 		   vma_kernel_pagesize(vma) >> 10,
- 		   vma_mmu_pagesize(vma) >> 10,
-diff -puN include/linux/huge_mm.h~teach-smaps-thp include/linux/huge_mm.h
-diff -puN mm/memory-failure.c~teach-smaps-thp mm/memory-failure.c
-diff -puN mm/huge_memory.c~teach-smaps-thp mm/huge_memory.c
+ 
+-static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+-			   struct mm_walk *walk)
++
++static void smaps_pte_entry(pte_t ptent, unsigned long addr,
++		struct mm_walk *walk)
+ {
+ 	struct mem_size_stats *mss = walk->private;
+ 	struct vm_area_struct *vma = mss->vma;
+-	pte_t *pte, ptent;
+-	spinlock_t *ptl;
+ 	struct page *page;
+ 	int mapcount;
+ 
+-	split_huge_page_pmd(walk->mm, pmd);
+-
+-	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+-	for (; addr != end; pte++, addr += PAGE_SIZE) {
+-		ptent = *pte;
++	if (is_swap_pte(ptent)) {
++		mss->swap += PAGE_SIZE;
++		return;
++	}
+ 
+-		if (is_swap_pte(ptent)) {
+-			mss->swap += PAGE_SIZE;
+-			continue;
+-		}
++	if (!pte_present(ptent))
++		return;
+ 
+-		if (!pte_present(ptent))
+-			continue;
++	page = vm_normal_page(vma, addr, ptent);
++	if (!page)
++		return;
++
++	if (PageAnon(page))
++		mss->anonymous += PAGE_SIZE;
++
++	mss->resident += PAGE_SIZE;
++	/* Accumulate the size in pages that have been accessed. */
++	if (pte_young(ptent) || PageReferenced(page))
++		mss->referenced += PAGE_SIZE;
++	mapcount = page_mapcount(page);
++	if (mapcount >= 2) {
++		if (pte_dirty(ptent) || PageDirty(page))
++			mss->shared_dirty += PAGE_SIZE;
++		else
++			mss->shared_clean += PAGE_SIZE;
++		mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
++	} else {
++		if (pte_dirty(ptent) || PageDirty(page))
++			mss->private_dirty += PAGE_SIZE;
++		else
++			mss->private_clean += PAGE_SIZE;
++		mss->pss += (PAGE_SIZE << PSS_SHIFT);
++	}
++}
+ 
+-		page = vm_normal_page(vma, addr, ptent);
+-		if (!page)
+-			continue;
++static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
++			   struct mm_walk *walk)
++{
++	struct mem_size_stats *mss = walk->private;
++	struct vm_area_struct *vma = mss->vma;
++	pte_t *pte;
++	spinlock_t *ptl;
+ 
+-		if (PageAnon(page))
+-			mss->anonymous += PAGE_SIZE;
++	split_huge_page_pmd(walk->mm, pmd);
+ 
+-		mss->resident += PAGE_SIZE;
+-		/* Accumulate the size in pages that have been accessed. */
+-		if (pte_young(ptent) || PageReferenced(page))
+-			mss->referenced += PAGE_SIZE;
+-		mapcount = page_mapcount(page);
+-		if (mapcount >= 2) {
+-			if (pte_dirty(ptent) || PageDirty(page))
+-				mss->shared_dirty += PAGE_SIZE;
+-			else
+-				mss->shared_clean += PAGE_SIZE;
+-			mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
+-		} else {
+-			if (pte_dirty(ptent) || PageDirty(page))
+-				mss->private_dirty += PAGE_SIZE;
+-			else
+-				mss->private_clean += PAGE_SIZE;
+-			mss->pss += (PAGE_SIZE << PSS_SHIFT);
+-		}
+-	}
++	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
++	for (; addr != end; pte++, addr += PAGE_SIZE)
++		smaps_pte_entry(*pte, addr, walk);
+ 	pte_unmap_unlock(pte - 1, ptl);
+ 	cond_resched();
+ 	return 0;
 _
 
 --
