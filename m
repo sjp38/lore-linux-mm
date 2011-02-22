@@ -1,40 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 1BE248D0039
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 11:38:06 -0500 (EST)
-Message-ID: <4D63E6EF.3020206@redhat.com>
-Date: Tue, 22 Feb 2011 11:40:15 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 59ECD8D0039
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 11:43:37 -0500 (EST)
+Date: Tue, 22 Feb 2011 17:43:31 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 8/8] Add VM counters for transparent hugepages
+Message-ID: <20110222164331.GA31195@random.random>
+References: <1298315270-10434-1-git-send-email-andi@firstfloor.org>
+ <1298315270-10434-9-git-send-email-andi@firstfloor.org>
+ <1298392586.9829.22566.camel@nimitz>
 MIME-Version: 1.0
-Subject: Re: too big min_free_kbytes
-References: <20110126152302.GT18984@csn.ul.ie> <20110126154203.GS926@random.random> <20110126163655.GU18984@csn.ul.ie> <20110126174236.GV18984@csn.ul.ie> <20110127134057.GA32039@csn.ul.ie> <20110127152755.GB30919@random.random> <20110203025808.GJ5843@random.random> <20110214022524.GA18198@sli10-conroe.sh.intel.com> <20110222142559.GD15652@csn.ul.ie> <20110222144200.GY13092@random.random> <20110222160449.GF15652@csn.ul.ie>
-In-Reply-To: <20110222160449.GF15652@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1298392586.9829.22566.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>, alex.shi@intel.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lwoodman@redhat.com, Andi Kleen <ak@linux.intel.com>
 
-On 02/22/2011 11:04 AM, Mel Gorman wrote:
+On Tue, Feb 22, 2011 at 08:36:26AM -0800, Dave Hansen wrote:
+> On Mon, 2011-02-21 at 11:07 -0800, Andi Kleen wrote:
+> > From: Andi Kleen <ak@linux.intel.com>
+> > 
+> > I found it difficult to make sense of transparent huge pages without
+> > having any counters for its actions. Add some counters to vmstat
+> > for allocation of transparent hugepages and fallback to smaller
+> > pages.
+> > 
+> > Optional patch, but useful for development and understanding the system.
+> 
+> Very nice.  I did the same thing, splits-only.  I also found this stuff
+> a must-have for trying to do any work with transparent hugepages.  It's
+> just impossible otherwise.
 
-> To avoid an excessive number of pages being reclaimed from the larger zones,
-> explicitely defines the "balance gap" to be either 1% of the zone or the
-> low watermark for the zone, whichever is smaller.  While kswapd will check
-> all zones to apply pressure, it'll ignore zones that meets the (high_wmark +
-> balance_gap) watermark.
->
-> To test this, 80G were copied from a partition and the amount of memory
-> being used was recorded. A comparison of a patch and unpatched kernel
-> can be seen at
-> http://www.csn.ul.ie/~mel/postings/minfree-20110222/memory-usage-hydra.ps
-> and shows that kswapd is not reclaiming as much memory with the patch
-> applied.
->
-> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
-> Signed-off-by: Mel Gorman<mel@csn.ul.ie>
+This patch is good too. 1 and 8 I think can go in, patch 1 is high
+priority.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Patches 2-5 I've an hard time to see how they're not hurting
+performance instead of improving it, especially patch 3 looks dead
+wrong and has no chance by the very design of KSM and by the random
+(vma-ignoring) NUMA affinity of PageKSM, patch 3 is most certainly a
+regression.
+
+Patch 6-7 I didn't evaluate those yet, they look good, even if low
+priority.
+
+Acked-by: Andrea Arcangeli <aarcange@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
