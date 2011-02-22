@@ -1,49 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 99F808D0042
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 18:27:33 -0500 (EST)
-Date: Tue, 22 Feb 2011 16:27:29 -0700
-From: Jonathan Corbet <corbet@lwn.net>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id C89988D0042
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 18:37:23 -0500 (EST)
+Date: Wed, 23 Feb 2011 00:37:18 +0100
+From: Andrea Righi <arighi@develer.com>
 Subject: Re: [PATCH 3/5] page_cgroup: make page tracking available for blkio
-Message-ID: <20110222162729.054fe596@bike.lwn.net>
-In-Reply-To: <20110222230146.GB23723@linux.develer.com>
+Message-ID: <20110222233718.GF23723@linux.develer.com>
 References: <1298394776-9957-1-git-send-email-arighi@develer.com>
-	<1298394776-9957-4-git-send-email-arighi@develer.com>
-	<20110222130145.37cb151e@bike.lwn.net>
-	<20110222230146.GB23723@linux.develer.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+ <1298394776-9957-4-git-send-email-arighi@develer.com>
+ <20110222130145.37cb151e@bike.lwn.net>
+ <20110222230146.GB23723@linux.develer.com>
+ <20110222230630.GL28269@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110222230630.GL28269@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Righi <arighi@develer.com>
-Cc: Vivek Goyal <vgoyal@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Jonathan Corbet <corbet@lwn.net>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 23 Feb 2011 00:01:47 +0100
-Andrea Righi <arighi@develer.com> wrote:
-
-> > My immediate observation is that you're not really tracking the "owner"
-> > here - you're tracking an opaque 16-bit token known only to the block
-> > controller in a field which - if changed by anybody other than the block
-> > controller - will lead to mayhem in the block controller.  I think it
-> > might be clearer - and safer - to say "blkcg" or some such instead of
-> > "owner" here.
+On Tue, Feb 22, 2011 at 06:06:30PM -0500, Vivek Goyal wrote:
+> On Wed, Feb 23, 2011 at 12:01:47AM +0100, Andrea Righi wrote:
+> > On Tue, Feb 22, 2011 at 01:01:45PM -0700, Jonathan Corbet wrote:
+> > > On Tue, 22 Feb 2011 18:12:54 +0100
+> > > Andrea Righi <arighi@develer.com> wrote:
+> > > 
+> > > > The page_cgroup infrastructure, currently available only for the memory
+> > > > cgroup controller, can be used to store the owner of each page and
+> > > > opportunely track the writeback IO. This information is encoded in
+> > > > the upper 16-bits of the page_cgroup->flags.
+> > > > 
+> > > > A owner can be identified using a generic ID number and the following
+> > > > interfaces are provided to store a retrieve this information:
+> > > > 
+> > > >   unsigned long page_cgroup_get_owner(struct page *page);
+> > > >   int page_cgroup_set_owner(struct page *page, unsigned long id);
+> > > >   int page_cgroup_copy_owner(struct page *npage, struct page *opage);
+> > > 
+> > > My immediate observation is that you're not really tracking the "owner"
+> > > here - you're tracking an opaque 16-bit token known only to the block
+> > > controller in a field which - if changed by anybody other than the block
+> > > controller - will lead to mayhem in the block controller.  I think it
+> > > might be clearer - and safer - to say "blkcg" or some such instead of
+> > > "owner" here.
+> > > 
+> > 
+> > Basically the idea here was to be as generic as possible and make this
+> > feature potentially available also to other subsystems, so that cgroup
+> > subsystems may represent whatever they want with the 16-bit token.
+> > However, no more than a single subsystem may be able to use this feature
+> > at the same time.
+> > 
+> > > I'm tempted to say it might be better to just add a pointer to your
+> > > throtl_grp structure into struct page_cgroup.  Or maybe replace the
+> > > mem_cgroup pointer with a single pointer to struct css_set.  Both of
+> > > those ideas, though, probably just add unwanted extra overhead now to gain
+> > > generality which may or may not be wanted in the future.
+> > 
+> > The pointer to css_set sounds good, but it would add additional space to
+> > the page_cgroup struct. Now, page_cgroup is 40 bytes (in 64-bit arch)
+> > and all of them are allocated at boot time. Using unused bits in
+> > page_cgroup->flags is a choice with no overhead from this point of view.
 > 
-> Basically the idea here was to be as generic as possible and make this
-> feature potentially available also to other subsystems, so that cgroup
-> subsystems may represent whatever they want with the 16-bit token.
-> However, no more than a single subsystem may be able to use this feature
-> at the same time.
+> I think John suggested replacing mem_cgroup pointer with css_set so that
+> size of the strcuture does not increase but it leads extra level of 
+> indirection.
 
-That makes me nervous; it can't really be used that way unless we want to
-say that certain controllers are fundamentally incompatible and can't be
-allowed to play together.  For whatever my $0.02 are worth (given the
-state of the US dollar, that's not a whole lot), I'd suggest keeping the
-current mechanism, but make it clear that it belongs to your controller.
-If and when another controller comes along with a need for similar
-functionality, somebody can worry about making it more general.
+OK, got it sorry.
 
-jon
+So, IIUC we save css_set pointer and get a struct cgroup as following:
+
+  struct cgroup *cgrp = css_set->subsys[subsys_id]->cgroup;
+
+Then, for example to get the mem_cgroup reference:
+
+  struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+
+It seems a lot of indirections, but I may have done something wrong or
+there could be a simpler way to do it.
+
+Thanks,
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
