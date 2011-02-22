@@ -1,64 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C3308D0039
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 05:03:08 -0500 (EST)
-Date: Tue, 22 Feb 2011 10:02:36 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] hugetlbfs: correct handling of negative input to
-	/proc/sys/vm/nr_hugepages
-Message-ID: <20110222100235.GA15652@csn.ul.ie>
-References: <1298303270-3184-1-git-send-email-pholasek@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1298303270-3184-1-git-send-email-pholasek@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 60E508D0039
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 05:51:33 -0500 (EST)
+Received: by iyf13 with SMTP id 13so3691552iyf.14
+        for <linux-mm@kvack.org>; Tue, 22 Feb 2011 02:51:31 -0800 (PST)
+From: Namhyung Kim <namhyung@gmail.com>
+Subject: [PATCH] mempolicy: remove redundant check in __mpol_equal()
+Date: Tue, 22 Feb 2011 19:51:17 +0900
+Message-Id: <1298371877-2906-1-git-send-email-namhyung@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Holasek <pholasek@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bob Liu <lliubbo@gmail.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-On Mon, Feb 21, 2011 at 04:47:49PM +0100, Petr Holasek wrote:
-> When user insert negative value into /proc/sys/vm/nr_hugepages it will result
-> in the setting a random number of HugePages in system (can be easily showed
-> at /proc/meminfo output).
+The 'flags' field is already checked, no need to do it again.
 
-I bet you a shiny penny that the value of HugePages becomes the maximum
-number that could be allocated by the system at the time rather than a
-random value.
+Signed-off-by: Namhyung Kim <namhyung@gmail.com>
+Cc: Bob Liu <lliubbo@gmail.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
+---
+ mm/mempolicy.c |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
 
-> This patch fixes the wrong behavior so that the
-> negative input will result in nr_hugepages value unchanged.
-> 
-
-As pointed out elsewhere, nr_overcommit_hugepages also needs fixing but
-the fix is essentially the same.
-
-> Signed-off-by: Petr Holasek <pholasek@redhat.com>
-> ---
->  mm/hugetlb.c |    3 +--
->  1 files changed, 1 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index bb0b7c1..f99d7a8 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1872,8 +1872,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
->  	unsigned long tmp;
->  	int ret;
->  
-> -	if (!write)
-> -		tmp = h->max_huge_pages;
-> +	tmp = h->max_huge_pages;
->  
->  	if (write && h->order >= MAX_ORDER)
->  		return -EINVAL;
-> -- 
-> 1.7.1
-> 
-
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 368fc9d23610..4244e4988e66 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1979,8 +1979,7 @@ int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
+ 	case MPOL_INTERLEAVE:
+ 		return nodes_equal(a->v.nodes, b->v.nodes);
+ 	case MPOL_PREFERRED:
+-		return a->v.preferred_node == b->v.preferred_node &&
+-			a->flags == b->flags;
++		return a->v.preferred_node == b->v.preferred_node;
+ 	default:
+ 		BUG();
+ 		return 0;
 -- 
-Mel Gorman
-SUSE Labs
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
