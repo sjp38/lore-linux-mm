@@ -1,108 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C179D8D0039
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:53:45 -0500 (EST)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p1M1YptZ005281
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:34:51 -0500
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p1M1rhAq138058
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:53:43 -0500
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p1M1rh5O006923
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 18:53:43 -0700
-Subject: [PATCH 3/5] pass pte size argument in to smaps_pte_entry()
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BD588D0039
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:53:46 -0500 (EST)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p1M1Yq75005292
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:34:52 -0500
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p1M1rjIg208410
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:53:45 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p1M1rimc021687
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 22:53:45 -0300
+Subject: [PATCH 4/5] teach smaps_pte_range() about THP pmds
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Mon, 21 Feb 2011 17:53:42 -0800
+Date: Mon, 21 Feb 2011 17:53:43 -0800
 References: <20110222015338.309727CA@kernel>
 In-Reply-To: <20110222015338.309727CA@kernel>
-Message-Id: <20110222015342.5DD9FC72@kernel>
+Message-Id: <20110222015343.41586948@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, akpm@osdl.org, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 
 
-This patch adds an argument to the new smaps_pte_entry()
-function to let it account in things other than PAGE_SIZE
-units.  I changed all of the PAGE_SIZE sites, even though
-not all of them can be reached for transparent huge pages,
-just so this will continue to work without changes as THPs
-are improved.
+v2 - used mm->page_table_lock to fix up locking bug that
+	Mel pointed out.  Also remove Acks since things
+	got changed significantly.
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+This adds code to explicitly detect  and handle
+pmd_trans_huge() pmds.  It then passes HPAGE_SIZE units
+in to the smap_pte_entry() function instead of PAGE_SIZE.
+
+This means that using /proc/$pid/smaps now will no longer
+cause THPs to be broken down in to small pages.
+
 Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 ---
 
- linux-2.6.git-dave/fs/proc/task_mmu.c |   24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ linux-2.6.git-dave/fs/proc/task_mmu.c |   23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)
 
-diff -puN fs/proc/task_mmu.c~give-smaps_pte_range-a-size-arg fs/proc/task_mmu.c
---- linux-2.6.git/fs/proc/task_mmu.c~give-smaps_pte_range-a-size-arg	2011-02-14 09:59:43.530575814 -0800
-+++ linux-2.6.git-dave/fs/proc/task_mmu.c	2011-02-14 09:59:43.538576050 -0800
-@@ -335,7 +335,7 @@ struct mem_size_stats {
+diff -puN fs/proc/task_mmu.c~teach-smaps_pte_range-about-thp-pmds fs/proc/task_mmu.c
+--- linux-2.6.git/fs/proc/task_mmu.c~teach-smaps_pte_range-about-thp-pmds	2011-02-14 09:59:44.034590716 -0800
++++ linux-2.6.git-dave/fs/proc/task_mmu.c	2011-02-21 15:12:46.144181298 -0800
+@@ -1,5 +1,6 @@
+ #include <linux/mm.h>
+ #include <linux/hugetlb.h>
++#include <linux/huge_mm.h>
+ #include <linux/mount.h>
+ #include <linux/seq_file.h>
+ #include <linux/highmem.h>
+@@ -7,6 +8,7 @@
+ #include <linux/slab.h>
+ #include <linux/pagemap.h>
+ #include <linux/mempolicy.h>
++#include <linux/rmap.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
  
+@@ -385,8 +387,25 @@ static int smaps_pte_range(pmd_t *pmd, u
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
  
- static void smaps_pte_entry(pte_t ptent, unsigned long addr,
--		struct mm_walk *walk)
-+		unsigned long ptent_size, struct mm_walk *walk)
- {
- 	struct mem_size_stats *mss = walk->private;
- 	struct vm_area_struct *vma = mss->vma;
-@@ -343,7 +343,7 @@ static void smaps_pte_entry(pte_t ptent,
- 	int mapcount;
- 
- 	if (is_swap_pte(ptent)) {
--		mss->swap += PAGE_SIZE;
-+		mss->swap += ptent_size;
- 		return;
- 	}
- 
-@@ -355,25 +355,25 @@ static void smaps_pte_entry(pte_t ptent,
- 		return;
- 
- 	if (PageAnon(page))
--		mss->anonymous += PAGE_SIZE;
-+		mss->anonymous += ptent_size;
- 
--	mss->resident += PAGE_SIZE;
-+	mss->resident += ptent_size;
- 	/* Accumulate the size in pages that have been accessed. */
- 	if (pte_young(ptent) || PageReferenced(page))
--		mss->referenced += PAGE_SIZE;
-+		mss->referenced += ptent_size;
- 	mapcount = page_mapcount(page);
- 	if (mapcount >= 2) {
- 		if (pte_dirty(ptent) || PageDirty(page))
--			mss->shared_dirty += PAGE_SIZE;
-+			mss->shared_dirty += ptent_size;
- 		else
--			mss->shared_clean += PAGE_SIZE;
--		mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
-+			mss->shared_clean += ptent_size;
-+		mss->pss += (ptent_size << PSS_SHIFT) / mapcount;
- 	} else {
- 		if (pte_dirty(ptent) || PageDirty(page))
--			mss->private_dirty += PAGE_SIZE;
-+			mss->private_dirty += ptent_size;
- 		else
--			mss->private_clean += PAGE_SIZE;
--		mss->pss += (PAGE_SIZE << PSS_SHIFT);
-+			mss->private_clean += ptent_size;
-+		mss->pss += (ptent_size << PSS_SHIFT);
- 	}
- }
- 
-@@ -389,7 +389,7 @@ static int smaps_pte_range(pmd_t *pmd, u
- 
+-	split_huge_page_pmd(walk->mm, pmd);
+-
++	spin_lock(&walk->mm->page_table_lock);
++	if (pmd_trans_huge(*pmd)) {
++		if (pmd_trans_splitting(*pmd)) {
++			spin_unlock(&walk->mm->page_table_lock);
++			wait_split_huge_page(vma->anon_vma, pmd);
++		} else {
++			smaps_pte_entry(*(pte_t *)pmd, addr,
++					HPAGE_PMD_SIZE, walk);
++			spin_unlock(&walk->mm->page_table_lock);
++			return 0;
++		}
++	} else {
++		spin_unlock(&walk->mm->page_table_lock);
++	}
++	/*
++	 * The mmap_sem held all the way back in m_start() is what
++	 * keeps khugepaged out of here and from collapsing things
++	 * in here.
++	 */
  	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
  	for (; addr != end; pte++, addr += PAGE_SIZE)
--		smaps_pte_entry(*pte, addr, walk);
-+		smaps_pte_entry(*pte, addr, PAGE_SIZE, walk);
- 	pte_unmap_unlock(pte - 1, ptl);
- 	cond_resched();
- 	return 0;
+ 		smaps_pte_entry(*pte, addr, PAGE_SIZE, walk);
+diff -puN mm/migrate.c~teach-smaps_pte_range-about-thp-pmds mm/migrate.c
+diff -puN mm/mincore.c~teach-smaps_pte_range-about-thp-pmds mm/mincore.c
+diff -puN include/linux/mm.h~teach-smaps_pte_range-about-thp-pmds include/linux/mm.h
+diff -puN mm/mempolicy.c~teach-smaps_pte_range-about-thp-pmds mm/mempolicy.c
 _
 
 --
