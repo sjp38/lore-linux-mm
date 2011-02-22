@@ -1,58 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E7FC58D0039
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 11:20:40 -0500 (EST)
-Date: Tue, 22 Feb 2011 17:20:11 +0100
+	by kanga.kvack.org (Postfix) with SMTP id 1C8628D0039
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 11:29:47 -0500 (EST)
+Date: Tue, 22 Feb 2011 17:29:40 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 3/8] Preserve local node for KSM copies
-Message-ID: <20110222162011.GD13092@random.random>
+Subject: Re: [PATCH 1/8] Fix interleaving for transparent hugepages
+Message-ID: <20110222162940.GE13092@random.random>
 References: <1298315270-10434-1-git-send-email-andi@firstfloor.org>
- <1298315270-10434-4-git-send-email-andi@firstfloor.org>
- <alpine.DEB.2.00.1102220945210.16060@router.home>
+ <1298315270-10434-2-git-send-email-andi@firstfloor.org>
+ <alpine.DEB.2.00.1102220933500.16060@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1102220945210.16060@router.home>
+In-Reply-To: <alpine.DEB.2.00.1102220933500.16060@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lwoodman@redhat.com, Andi Kleen <ak@linux.intel.com>, arcange@redhat.com
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lwoodman@redhat.com, Andi Kleen <ak@linux.intel.com>
 
-On Tue, Feb 22, 2011 at 09:47:26AM -0600, Christoph Lameter wrote:
+On Tue, Feb 22, 2011 at 09:34:33AM -0600, Christoph Lameter wrote:
+> 
 > On Mon, 21 Feb 2011, Andi Kleen wrote:
 > 
-> > Add a alloc_page_vma_node that allows passing the "local" node in.
-> > Use it in ksm to allocate copy pages on the same node as
-> > the original as possible.
+> > @@ -1830,7 +1830,7 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+> >  	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
+> >  		unsigned nid;
+> >
+> > -		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
+> > +		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT << order);
 > 
-> Why would that be useful? The shared page could be on a node that is not
-> near the process that maps the page. Would it not be better to allocate on
-> the node that is local to the process that maps the page?
+> Should be PAGE_SHIFT + order.
 
-This is what I was trying to understand. To me it looks like this is
-making things worse. Following the "vma" advice like current code
-does, sounds much better than following the previous page that may
-have been allocated in the wrong node if the allocation from the right
-node couldn't be satisfied at the time the page was first allocated
-(we should still try to allocate from the right node following the vma
-hint).
+This one is very good after changing + order. I updated
+alloc_page_interleave to get an order parameter but I didn't adjust
+the nid accordingly to order. This was my incomplete modification for
+hpage interleaving:
 
-In the KSM case this badness is exacerbated by the fact a ksm page is
-guarnteed to be randomly-numa allocated, because it's shared across
-all processes regardless of their vma settings. KSM is not NUMA aware,
-so following the location of the KSM "page" seems a regression
-compared to the current code that at least follows the vma when
-bringing up a page during swapin.
+@@ -1830,7 +1832,7 @@ alloc_page_vma(gfp_t gfp, struct vm_area_struct
+*vma, unsigned long addr)
+ 
+                nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
+                mpol_cond_put(pol);
+-               page = alloc_page_interleave(gfp, 0, nid);
++               page = alloc_page_interleave(gfp, order, nid);
+                put_mems_allowed();
+                return page;
+        }
 
-I've an hard time generally to see how following "page" (that is
-especially wrong with KSM because of the very sharing effect) is
-better than following "vma".
 
-KSM may become NUMA aware if we replicate the stable tree in each
-node, but we're not even close to that, so I've an hard time how
-"page" hinting instead of "vma" hinting can do any good, especially in
-KSM case. But I've to think more about this.. but if you've
-suggestions you're welcome.
+Andi, can you resubmit this one fixd with + to Andrew, this one can go
+in 2.6.38. For the rest frankly I've an hard time to see how it cannot
+hurt performance (instead of improving them) especially for KSM. It's
+impossible to improve KSM for NUMA with that change to
+ksm_does_need_to_copy at the very least. But the same reasoning
+applies to the rest. But I'll think more about the others, I just
+would prefer to include the above fix quick, the rest don't seem that
+urgent even if it's really improving performance (instead of hurting
+it as I think).
+
+Acked-by: Andrea Arcangeli <aarcange@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
