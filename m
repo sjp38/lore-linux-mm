@@ -1,68 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 48E358D0039
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 12:19:44 -0500 (EST)
-From: Andrea Righi <arighi@develer.com>
-Subject: [PATCH 2/5] blk-cgroup: introduce task_to_blkio_cgroup()
-Date: Tue, 22 Feb 2011 18:12:53 +0100
-Message-Id: <1298394776-9957-3-git-send-email-arighi@develer.com>
-In-Reply-To: <1298394776-9957-1-git-send-email-arighi@develer.com>
-References: <1298394776-9957-1-git-send-email-arighi@develer.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 288058D0039
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 13:02:42 -0500 (EST)
+Date: Tue, 22 Feb 2011 19:02:34 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 8/8] Add VM counters for transparent hugepages
+Message-ID: <20110222180234.GZ5818@one.firstfloor.org>
+References: <1298315270-10434-1-git-send-email-andi@firstfloor.org> <1298315270-10434-9-git-send-email-andi@firstfloor.org> <1298392586.9829.22566.camel@nimitz> <20110222164331.GA31195@random.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110222164331.GA31195@random.random>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Righi <arighi@develer.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lwoodman@redhat.com, Andi Kleen <ak@linux.intel.com>
 
-Introduce a helper function to retrieve a blkio cgroup from a task.
+On Tue, Feb 22, 2011 at 05:43:31PM +0100, Andrea Arcangeli wrote:
+> On Tue, Feb 22, 2011 at 08:36:26AM -0800, Dave Hansen wrote:
+> > On Mon, 2011-02-21 at 11:07 -0800, Andi Kleen wrote:
+> > > From: Andi Kleen <ak@linux.intel.com>
+> > > 
+> > > I found it difficult to make sense of transparent huge pages without
+> > > having any counters for its actions. Add some counters to vmstat
+> > > for allocation of transparent hugepages and fallback to smaller
+> > > pages.
+> > > 
+> > > Optional patch, but useful for development and understanding the system.
+> > 
+> > Very nice.  I did the same thing, splits-only.  I also found this stuff
+> > a must-have for trying to do any work with transparent hugepages.  It's
+> > just impossible otherwise.
+> 
+> This patch is good too. 1 and 8 I think can go in, patch 1 is high
+> priority.
+> 
+> Patches 2-5 I've an hard time to see how they're not hurting
+> performance instead of improving it, especially patch 3 looks dead
 
-Signed-off-by: Andrea Righi <arighi@develer.com>
----
- block/blk-cgroup.c         |    7 +++++++
- include/linux/blk-cgroup.h |    4 ++++
- 2 files changed, 11 insertions(+), 0 deletions(-)
+Well right now THP destroys memory locality and that is a quite bad
+regression. Destroying memory locality hurts performance significantly.
 
-diff --git a/block/blk-cgroup.c b/block/blk-cgroup.c
-index bf9d354..f283ae1 100644
---- a/block/blk-cgroup.c
-+++ b/block/blk-cgroup.c
-@@ -107,6 +107,13 @@ blkio_policy_search_node(const struct blkio_cgroup *blkcg, dev_t dev,
- 	return NULL;
- }
- 
-+struct blkio_cgroup *task_to_blkio_cgroup(struct task_struct *task)
-+{
-+	return container_of(task_subsys_state(task, blkio_subsys_id),
-+				struct blkio_cgroup, css);
-+}
-+EXPORT_SYMBOL_GPL(task_to_blkio_cgroup);
-+
- struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup)
- {
- 	return container_of(cgroup_subsys_state(cgroup, blkio_subsys_id),
-diff --git a/include/linux/blk-cgroup.h b/include/linux/blk-cgroup.h
-index 5e48204..41b59db 100644
---- a/include/linux/blk-cgroup.h
-+++ b/include/linux/blk-cgroup.h
-@@ -287,6 +287,7 @@ static inline void blkiocg_set_start_empty_time(struct blkio_group *blkg) {}
- extern struct blkio_cgroup blkio_root_cgroup;
- extern bool blkio_cgroup_disabled(void);
- extern struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup);
-+extern struct blkio_cgroup *task_to_blkio_cgroup(struct task_struct *task);
- extern void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
- 	struct blkio_group *blkg, void *key, dev_t dev,
- 	enum blkio_policy_id plid);
-@@ -311,6 +312,9 @@ static inline bool blkio_cgroup_disabled(void) { return true; }
- static inline struct blkio_cgroup *
- cgroup_to_blkio_cgroup(struct cgroup *cgroup) { return NULL; }
- 
-+static inline struct blkio_cgroup *
-+task_to_blkio_cgroup(struct task_struct *task) { return NULL; }
-+
- static inline void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
- 		struct blkio_group *blkg, void *key, dev_t dev,
- 		enum blkio_policy_id plid) {}
+In general the assumption that you can get the full policy from the 
+vma only is wrong: for local you always have to look at the node 
+of the existing page too.
+
+I haven't had any reports of KSM doing so, but it seems better
+to fix it in the same way. Don't feel very strongly about KSM
+for this though, i guess these parts could be dropped too. I guess
+you're right and KSM is a bit of a lost cause for NUMA anyways.
+Also in my experience KSM is very little memory usually anyways so
+it shouldn't matter too much. I guess I can drop that part if it's
+controversal.
+
+-Andi
 -- 
-1.7.1
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
