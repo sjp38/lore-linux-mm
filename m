@@ -1,51 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C46018D0039
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 15:01:49 -0500 (EST)
-Date: Tue, 22 Feb 2011 13:01:45 -0700
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH 3/5] page_cgroup: make page tracking available for blkio
-Message-ID: <20110222130145.37cb151e@bike.lwn.net>
-In-Reply-To: <1298394776-9957-4-git-send-email-arighi@develer.com>
-References: <1298394776-9957-1-git-send-email-arighi@develer.com>
-	<1298394776-9957-4-git-send-email-arighi@develer.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id A2F618D0039
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 15:17:34 -0500 (EST)
+Message-ID: <4D6419C0.8080804@redhat.com>
+Date: Tue, 22 Feb 2011 21:17:04 +0100
+From: Petr Holasek <pholasek@redhat.com>
+MIME-Version: 1.0
+Subject: [PATCH v2] hugetlbfs: correct handling of negative input to /proc/sys/vm/nr_hugepages
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Righi <arighi@develer.com>
-Cc: Vivek Goyal <vgoyal@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: Petr Holasek <pholasek@redhat.com>, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
 
-On Tue, 22 Feb 2011 18:12:54 +0100
-Andrea Righi <arighi@develer.com> wrote:
+When user insert negative value into /proc/sys/vm/nr_hugepages it will 
+result
+in the setting a random number of HugePages in system (can be easily showed
+at /proc/meminfo output). This patch fixes the wrong behavior so that the
+negative input will result in nr_hugepages value unchanged.
 
-> The page_cgroup infrastructure, currently available only for the memory
-> cgroup controller, can be used to store the owner of each page and
-> opportunely track the writeback IO. This information is encoded in
-> the upper 16-bits of the page_cgroup->flags.
-> 
-> A owner can be identified using a generic ID number and the following
-> interfaces are provided to store a retrieve this information:
-> 
->   unsigned long page_cgroup_get_owner(struct page *page);
->   int page_cgroup_set_owner(struct page *page, unsigned long id);
->   int page_cgroup_copy_owner(struct page *npage, struct page *opage);
+v2: same fix was also done in hugetlb_overcommit_handler function
+     as suggested by reviewers.
 
-My immediate observation is that you're not really tracking the "owner"
-here - you're tracking an opaque 16-bit token known only to the block
-controller in a field which - if changed by anybody other than the block
-controller - will lead to mayhem in the block controller.  I think it
-might be clearer - and safer - to say "blkcg" or some such instead of
-"owner" here.
+Signed-off-by: Petr Holasek <pholasek@redhat.com>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+  mm/hugetlb.c |    6 ++----
+  1 files changed, 2 insertions(+), 4 deletions(-)
 
-I'm tempted to say it might be better to just add a pointer to your
-throtl_grp structure into struct page_cgroup.  Or maybe replace the
-mem_cgroup pointer with a single pointer to struct css_set.  Both of
-those ideas, though, probably just add unwanted extra overhead now to gain
-generality which may or may not be wanted in the future.
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index bb0b7c1..06de5aa 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1872,8 +1872,7 @@ static int hugetlb_sysctl_handler_common(bool 
+obey_mempolicy,
+      unsigned long tmp;
+      int ret;
 
-jon
+-    if (!write)
+-        tmp = h->max_huge_pages;
++    tmp = h->max_huge_pages;
+
+      if (write && h->order >= MAX_ORDER)
+          return -EINVAL;
+@@ -1938,8 +1937,7 @@ int hugetlb_overcommit_handler(struct ctl_table 
+*table, int write,
+      unsigned long tmp;
+      int ret;
+
+-    if (!write)
+-        tmp = h->nr_overcommit_huge_pages;
++    tmp = h->nr_overcommit_huge_pages;
+
+      if (write && h->order >= MAX_ORDER)
+          return -EINVAL;
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
