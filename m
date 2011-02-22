@@ -1,83 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 85CA78D0046
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 16:57:40 -0500 (EST)
-Date: Tue, 22 Feb 2011 16:57:20 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 3/5] page_cgroup: make page tracking available for blkio
-Message-ID: <20110222215720.GK28269@redhat.com>
-References: <1298394776-9957-1-git-send-email-arighi@develer.com>
- <1298394776-9957-4-git-send-email-arighi@develer.com>
- <20110222130145.37cb151e@bike.lwn.net>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D512D8D0046
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 17:09:06 -0500 (EST)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
+	by smtp-out.google.com with ESMTP id p1MM93NZ001386
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 14:09:03 -0800
+Received: from pxi17 (pxi17.prod.google.com [10.243.27.17])
+	by hpaq14.eem.corp.google.com with ESMTP id p1MM90m0021365
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 14:09:02 -0800
+Received: by pxi17 with SMTP id 17so370333pxi.34
+        for <linux-mm@kvack.org>; Tue, 22 Feb 2011 14:09:00 -0800 (PST)
+Date: Tue, 22 Feb 2011 14:08:56 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 6/8] Add __GFP_OTHER_NODE flag
+In-Reply-To: <4D642F03.5040800@linux.intel.com>
+Message-ID: <alpine.DEB.2.00.1102221402150.5929@chino.kir.corp.google.com>
+References: <1298315270-10434-1-git-send-email-andi@firstfloor.org> <1298315270-10434-7-git-send-email-andi@firstfloor.org> <alpine.DEB.2.00.1102221333100.5929@chino.kir.corp.google.com> <4D642F03.5040800@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110222130145.37cb151e@bike.lwn.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, lwoodman@redhat.com
 
-On Tue, Feb 22, 2011 at 01:01:45PM -0700, Jonathan Corbet wrote:
-> On Tue, 22 Feb 2011 18:12:54 +0100
-> Andrea Righi <arighi@develer.com> wrote:
+On Tue, 22 Feb 2011, Andi Kleen wrote:
+
+> > This makes the accounting worse, NUMA_LOCAL is defined as "allocation from
+> > local node," meaning it's local to the allocating cpu, not local to the
+> > node being targeted.
 > 
-> > The page_cgroup infrastructure, currently available only for the memory
-> > cgroup controller, can be used to store the owner of each page and
-> > opportunely track the writeback IO. This information is encoded in
-> > the upper 16-bits of the page_cgroup->flags.
-> > 
-> > A owner can be identified using a generic ID number and the following
-> > interfaces are provided to store a retrieve this information:
-> > 
-> >   unsigned long page_cgroup_get_owner(struct page *page);
-> >   int page_cgroup_set_owner(struct page *page, unsigned long id);
-> >   int page_cgroup_copy_owner(struct page *npage, struct page *opage);
+> Local to the process really (and I defined it originally ...)  That is what
+> I'm implementing
 > 
-> My immediate observation is that you're not really tracking the "owner"
-> here - you're tracking an opaque 16-bit token known only to the block
-> controller in a field which - if changed by anybody other than the block
-> controller - will lead to mayhem in the block controller.  I think it
-> might be clearer - and safer - to say "blkcg" or some such instead of
-> "owner" here.
+> I don't think "local to some random kernel daemon which changes mappings on
+> behalf of others"
+> makes any sense as semantics.
 > 
-> I'm tempted to say it might be better to just add a pointer to your
-> throtl_grp structure into struct page_cgroup.
 
-throtl_grp might not even be present when page is being dirtied. When this
-IO is actually submitted to device, we migth end up creating new
-throtl_grp. I guess other concern here would be increasing the size of
-page_cgroup structure.
-
-I guess you meant storing a pointer to blkio_cgroup, along the lines of
-storing a pointer to mem_cgroup. That also means extra 8 bytes and only
-one subsystem can use it at a time. So using upper bits of pc->flags
-is probably better.
-
-> Or maybe replace the
-> mem_cgroup pointer with a single pointer to struct css_set.  Both of
-> those ideas, though, probably just add unwanted extra overhead now to gain
-> generality which may or may not be wanted in the future.
-
-This sounds interesting. IIUC, then this single pointer will allow all
-the subsystems to use this single pointer to retireve respective cgroups
-without actually co-mounting them. 
-
-I am not sure how much work is involved in making it happen. Also not sure
-about the overhead involved in traversing one extra pointer. Also apart
-from blkio controller, have we practically felt the need of any other
-controller this info. (network controller?). Few days back we were
-experimenting with trying to control block IO bandwidth over NFS with 
-the help of network controller but it did not really work well with
-host of issues and one them being losing the context information.
-
-If storing css_set pointer is lot of work, may be for the time being
-we can go for this hardcoding that these bits are exclusively used
-by blkio controller and once some other controller wants to share it,
-then look for ways of how to do sharing.
-
-Thanks
-Vivek
+You could make the same argument for anything using kmalloc_node() since 
+preferred_zone may very well not be on the allocating cpu's node.  So you 
+either define NUMA_LOCAL to account for when a cpu allocates memory local 
+to itself (as it's name implies) or you define it to account for when 
+memory comes from the preferred_zone's node as determined by the zonelist.  
+It's not useful to change it from the former to the latter since it's 
+already the definition of NUMA_HIT.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
