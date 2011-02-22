@@ -1,147 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 677BA8D003C
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:54:00 -0500 (EST)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p1M1Xfrn003189
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:33:41 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p1M1rgrl307844
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:53:42 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p1M1rfxP022667
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 22:53:42 -0300
-Subject: [PATCH 2/5] break out smaps_pte_entry() from smaps_pte_range()
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Mon, 21 Feb 2011 17:53:40 -0800
-References: <20110222015338.309727CA@kernel>
-In-Reply-To: <20110222015338.309727CA@kernel>
-Message-Id: <20110222015340.B0D1C3FC@kernel>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4C1C48D003C
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 21:14:19 -0500 (EST)
+Message-ID: <4D631C54.1080703@cn.fujitsu.com>
+Date: Tue, 22 Feb 2011 10:15:48 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/4] cpuset: Fix unchecked calls to NODEMASK_ALLOC()
+References: <4D5C7EA7.1030409@cn.fujitsu.com> <4D5C7ED1.2070601@cn.fujitsu.com> <alpine.DEB.2.00.1102191745180.27722@chino.kir.corp.google.com> <4D61DA04.4060007@cn.fujitsu.com> <alpine.DEB.2.00.1102211617510.23557@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1102211617510.23557@chino.kir.corp.google.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, akpm@osdl.org, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, miaox@cn.fujitsu.com, linux-mm@kvack.org
 
+David Rientjes wrote:
+> On Mon, 21 Feb 2011, Li Zefan wrote:
+> 
+>> Unfortunately, as I looked into the code again I found cpuset_change_nodemask()
+>> is called by other functions that use the global cpuset_mems, so I
+>> think we'd better check the refcnt of cpuset_mems.
+>>
+>> How about this:
+>>
+>> [PATCH 3/4] cpuset: Fix unchecked calls to NODEMASK_ALLOC()
+>>
+>> Those functions that use NODEMASK_ALLOC() can't propogate errno
+>> to users, so might fail silently.
+>>
+>> Based on the fact that all of them are called with cgroup_mutex
+>> held, we fix this by using a global nodemask.
+>>
+> 
+> If all of the functions that require a nodemask are protected by 
+> cgroup_mutex, then I think it would be much better to just statically 
+> allocate them within the function and avoid any nodemask in file scope.  
+> cpuset_mems cannot be shared so introducing it with a refcount would 
+> probably just be confusing.
+> 
 
-We will use smaps_pte_entry() in a moment to handle both small
-and transparent large pages.  But, we must break it out of
-smaps_pte_range() first.
+I'll repost the patchset after you ack this patch.
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+[PATCH 3/4] cpuset: Fix unchecked calls to NODEMASK_ALLOC()
+
+Those functions that use NODEMASK_ALLOC() can't propogate errno
+to users, so might fail silently.
+
+Fix it by using one static nodemask_t variable for each function, and
+those variables are protected by cgroup_mutex.
+
+Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
 ---
+ kernel/cpuset.c |   50 ++++++++++++++++----------------------------------
+ 1 files changed, 16 insertions(+), 34 deletions(-)
 
- linux-2.6.git-dave/fs/proc/task_mmu.c |   85 ++++++++++++++++++----------------
- 1 file changed, 46 insertions(+), 39 deletions(-)
-
-diff -puN fs/proc/task_mmu.c~break-out-smaps_pte_entry fs/proc/task_mmu.c
---- linux-2.6.git/fs/proc/task_mmu.c~break-out-smaps_pte_entry	2011-02-14 09:59:43.030561028 -0800
-+++ linux-2.6.git-dave/fs/proc/task_mmu.c	2011-02-14 09:59:43.038561264 -0800
-@@ -333,56 +333,63 @@ struct mem_size_stats {
- 	u64 pss;
- };
- 
--static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
--			   struct mm_walk *walk)
-+
-+static void smaps_pte_entry(pte_t ptent, unsigned long addr,
-+		struct mm_walk *walk)
- {
- 	struct mem_size_stats *mss = walk->private;
- 	struct vm_area_struct *vma = mss->vma;
--	pte_t *pte, ptent;
--	spinlock_t *ptl;
- 	struct page *page;
- 	int mapcount;
- 
--	split_huge_page_pmd(walk->mm, pmd);
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index 8fef8c6..073ce91 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -1015,17 +1015,12 @@ static void cpuset_change_nodemask(struct task_struct *p,
+ 	struct cpuset *cs;
+ 	int migrate;
+ 	const nodemask_t *oldmem = scan->data;
+-	NODEMASK_ALLOC(nodemask_t, newmems, GFP_KERNEL);
 -
--	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
--	for (; addr != end; pte++, addr += PAGE_SIZE) {
--		ptent = *pte;
-+	if (is_swap_pte(ptent)) {
-+		mss->swap += PAGE_SIZE;
-+		return;
-+	}
+-	if (!newmems)
+-		return;
++	static nodemask_t newmems;	/* protected by cgroup_mutex */
  
--		if (is_swap_pte(ptent)) {
--			mss->swap += PAGE_SIZE;
--			continue;
--		}
-+	if (!pte_present(ptent))
-+		return;
+ 	cs = cgroup_cs(scan->cg);
+-	guarantee_online_mems(cs, newmems);
+-
+-	cpuset_change_task_nodemask(p, newmems);
++	guarantee_online_mems(cs, &newmems);
  
--		if (!pte_present(ptent))
--			continue;
-+	page = vm_normal_page(vma, addr, ptent);
-+	if (!page)
-+		return;
-+
-+	if (PageAnon(page))
-+		mss->anonymous += PAGE_SIZE;
-+
-+	mss->resident += PAGE_SIZE;
-+	/* Accumulate the size in pages that have been accessed. */
-+	if (pte_young(ptent) || PageReferenced(page))
-+		mss->referenced += PAGE_SIZE;
-+	mapcount = page_mapcount(page);
-+	if (mapcount >= 2) {
-+		if (pte_dirty(ptent) || PageDirty(page))
-+			mss->shared_dirty += PAGE_SIZE;
-+		else
-+			mss->shared_clean += PAGE_SIZE;
-+		mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
-+	} else {
-+		if (pte_dirty(ptent) || PageDirty(page))
-+			mss->private_dirty += PAGE_SIZE;
-+		else
-+			mss->private_clean += PAGE_SIZE;
-+		mss->pss += (PAGE_SIZE << PSS_SHIFT);
-+	}
-+}
+-	NODEMASK_FREE(newmems);
++	cpuset_change_task_nodemask(p, &newmems);
  
--		page = vm_normal_page(vma, addr, ptent);
--		if (!page)
--			continue;
-+static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-+			   struct mm_walk *walk)
-+{
-+	struct mem_size_stats *mss = walk->private;
-+	struct vm_area_struct *vma = mss->vma;
-+	pte_t *pte;
-+	spinlock_t *ptl;
+ 	mm = get_task_mm(p);
+ 	if (!mm)
+@@ -1438,41 +1433,35 @@ static void cpuset_attach(struct cgroup_subsys *ss, struct cgroup *cont,
+ 	struct mm_struct *mm;
+ 	struct cpuset *cs = cgroup_cs(cont);
+ 	struct cpuset *oldcs = cgroup_cs(oldcont);
+-	NODEMASK_ALLOC(nodemask_t, to, GFP_KERNEL);
+-
+-	if (to == NULL)
+-		goto alloc_fail;
++	static nodemask_t to;		/* protected by cgroup_mutex */
  
--		if (PageAnon(page))
--			mss->anonymous += PAGE_SIZE;
-+	split_huge_page_pmd(walk->mm, pmd);
+ 	if (cs == &top_cpuset) {
+ 		cpumask_copy(cpus_attach, cpu_possible_mask);
+ 	} else {
+ 		guarantee_online_cpus(cs, cpus_attach);
+ 	}
+-	guarantee_online_mems(cs, to);
++	guarantee_online_mems(cs, &to);
  
--		mss->resident += PAGE_SIZE;
--		/* Accumulate the size in pages that have been accessed. */
--		if (pte_young(ptent) || PageReferenced(page))
--			mss->referenced += PAGE_SIZE;
--		mapcount = page_mapcount(page);
--		if (mapcount >= 2) {
--			if (pte_dirty(ptent) || PageDirty(page))
--				mss->shared_dirty += PAGE_SIZE;
--			else
--				mss->shared_clean += PAGE_SIZE;
--			mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
--		} else {
--			if (pte_dirty(ptent) || PageDirty(page))
--				mss->private_dirty += PAGE_SIZE;
--			else
--				mss->private_clean += PAGE_SIZE;
--			mss->pss += (PAGE_SIZE << PSS_SHIFT);
--		}
--	}
-+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-+	for (; addr != end; pte++, addr += PAGE_SIZE)
-+		smaps_pte_entry(*pte, addr, walk);
- 	pte_unmap_unlock(pte - 1, ptl);
- 	cond_resched();
- 	return 0;
-_
+ 	/* do per-task migration stuff possibly for each in the threadgroup */
+-	cpuset_attach_task(tsk, to, cs);
++	cpuset_attach_task(tsk, &to, cs);
+ 	if (threadgroup) {
+ 		struct task_struct *c;
+ 		rcu_read_lock();
+ 		list_for_each_entry_rcu(c, &tsk->thread_group, thread_group) {
+-			cpuset_attach_task(c, to, cs);
++			cpuset_attach_task(c, &to, cs);
+ 		}
+ 		rcu_read_unlock();
+ 	}
+ 
+ 	/* change mm; only needs to be done once even if threadgroup */
+-	*to = cs->mems_allowed;
++	to = cs->mems_allowed;
+ 	mm = get_task_mm(tsk);
+ 	if (mm) {
+-		mpol_rebind_mm(mm, to);
++		mpol_rebind_mm(mm, &to);
+ 		if (is_memory_migrate(cs))
+-			cpuset_migrate_mm(mm, &oldcs->mems_allowed, to);
++			cpuset_migrate_mm(mm, &oldcs->mems_allowed, &to);
+ 		mmput(mm);
+ 	}
+-
+-alloc_fail:
+-	NODEMASK_FREE(to);
+ }
+ 
+ /* The various types of files and directories in a cpuset file system */
+@@ -2051,10 +2040,7 @@ static void scan_for_empty_cpusets(struct cpuset *root)
+ 	struct cpuset *cp;	/* scans cpusets being updated */
+ 	struct cpuset *child;	/* scans child cpusets of cp */
+ 	struct cgroup *cont;
+-	NODEMASK_ALLOC(nodemask_t, oldmems, GFP_KERNEL);
+-
+-	if (oldmems == NULL)
+-		return;
++	static nodemask_t oldmems;	/* protected by cgroup_mutex */
+ 
+ 	list_add_tail((struct list_head *)&root->stack_list, &queue);
+ 
+@@ -2071,7 +2057,7 @@ static void scan_for_empty_cpusets(struct cpuset *root)
+ 		    nodes_subset(cp->mems_allowed, node_states[N_HIGH_MEMORY]))
+ 			continue;
+ 
+-		*oldmems = cp->mems_allowed;
++		oldmems = cp->mems_allowed;
+ 
+ 		/* Remove offline cpus and mems from this cpuset. */
+ 		mutex_lock(&callback_mutex);
+@@ -2087,10 +2073,9 @@ static void scan_for_empty_cpusets(struct cpuset *root)
+ 			remove_tasks_in_empty_cpuset(cp);
+ 		else {
+ 			update_tasks_cpumask(cp, NULL);
+-			update_tasks_nodemask(cp, oldmems, NULL);
++			update_tasks_nodemask(cp, &oldmems, NULL);
+ 		}
+ 	}
+-	NODEMASK_FREE(oldmems);
+ }
+ 
+ /*
+@@ -2132,19 +2117,16 @@ void cpuset_update_active_cpus(void)
+ static int cpuset_track_online_nodes(struct notifier_block *self,
+ 				unsigned long action, void *arg)
+ {
+-	NODEMASK_ALLOC(nodemask_t, oldmems, GFP_KERNEL);
+-
+-	if (oldmems == NULL)
+-		return NOTIFY_DONE;
++	static nodemask_t oldmems;	/* protected by cgroup_mutex */
+ 
+ 	cgroup_lock();
+ 	switch (action) {
+ 	case MEM_ONLINE:
+-		*oldmems = top_cpuset.mems_allowed;
++		oldmems = top_cpuset.mems_allowed;
+ 		mutex_lock(&callback_mutex);
+ 		top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
+ 		mutex_unlock(&callback_mutex);
+-		update_tasks_nodemask(&top_cpuset, oldmems, NULL);
++		update_tasks_nodemask(&top_cpuset, &oldmems, NULL);
+ 		break;
+ 	case MEM_OFFLINE:
+ 		/*
+-- 
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
