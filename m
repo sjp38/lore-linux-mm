@@ -1,51 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CB1F38D0039
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 19:31:47 -0500 (EST)
-Date: Tue, 22 Feb 2011 09:30:22 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] hugetlbfs: correct handling of negative input to
- /proc/sys/vm/nr_hugepages
-Message-ID: <20110222003022.GA2895@spritzera.linux.bs1.fc.nec.co.jp>
-References: <1298303270-3184-1-git-send-email-pholasek@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Disposition: inline
-In-Reply-To: <1298303270-3184-1-git-send-email-pholasek@redhat.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B4B648D0039
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:53:40 -0500 (EST)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p1M1ZWPw030991
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:35:32 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p1M1rdKj479264
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 20:53:39 -0500
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p1M1rcWm023017
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2011 18:53:38 -0700
+Subject: [PATCH 0/5] fix up /proc/$pid/smaps to not split huge pages
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+Date: Mon, 21 Feb 2011 17:53:38 -0800
+Message-Id: <20110222015338.309727CA@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Holasek <pholasek@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, akpm@osdl.org, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Mon, Feb 21, 2011 at 04:47:49PM +0100, Petr Holasek wrote:
-> When user insert negative value into /proc/sys/vm/nr_hugepages it will result
-> in the setting a random number of HugePages in system (can be easily showed
-> at /proc/meminfo output). This patch fixes the wrong behavior so that the
-> negative input will result in nr_hugepages value unchanged.
-> 
-> Signed-off-by: Petr Holasek <pholasek@redhat.com>
-> ---
->  mm/hugetlb.c |    3 +--
->  1 files changed, 1 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index bb0b7c1..f99d7a8 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1872,8 +1872,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
->  	unsigned long tmp;
->  	int ret;
->  
-> -	if (!write)
-> -		tmp = h->max_huge_pages;
-> +	tmp = h->max_huge_pages;
+Andrew, these have gone through a couple of review rounds.  Can
+they have a spin in -mm?
 
-Looks reasonable.
-hugetlb_overcommit_handler() has the same wrong behavior.
-So how about fixing that too?
+--
 
-Anyway,
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+I'm working on some more reports that transparent huge pages and
+KSM do not play nicely together.  Basically, whenever THP's are
+present along with KSM, there is a lot of attrition over time,
+and we do not see much overall progress keeping THP's around:
+
+	http://sr71.net/~dave/ibm/038_System_Anonymous_Pages.png
+
+(That's Karl Rister's graph, thanks Karl!)
+
+However, I realized that we do not currently have a nice way to
+find out where individual THP's might be on the system.  We
+have an overall count, but no way of telling which processes or
+VMAs they might be in.
+
+I started to implement this in the /proc/$pid/smaps code, but
+quickly realized that the lib/pagewalk.c code unconditionally
+splits THPs up.  This set reworks that code a bit and, in the
+end, gives you a per-map count of the numbers of huge pages.
+It also makes it possible for page walks to _not_ split THPs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
