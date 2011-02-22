@@ -1,87 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 2DCFD8D003F
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 16:23:13 -0500 (EST)
-Date: Tue, 22 Feb 2011 16:22:53 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 3/5] page_cgroup: make page tracking available for blkio
-Message-ID: <20110222212253.GJ28269@redhat.com>
-References: <1298394776-9957-1-git-send-email-arighi@develer.com>
- <1298394776-9957-4-git-send-email-arighi@develer.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A7948D003F
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 16:42:14 -0500 (EST)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id p1MLg8Oe015681
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 13:42:09 -0800
+Received: from pzk12 (pzk12.prod.google.com [10.243.19.140])
+	by kpbe13.cbf.corp.google.com with ESMTP id p1MLg3c1006449
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 13:42:07 -0800
+Received: by pzk12 with SMTP id 12so432530pzk.29
+        for <linux-mm@kvack.org>; Tue, 22 Feb 2011 13:42:03 -0800 (PST)
+Date: Tue, 22 Feb 2011 13:42:00 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 6/8] Add __GFP_OTHER_NODE flag
+In-Reply-To: <1298315270-10434-7-git-send-email-andi@firstfloor.org>
+Message-ID: <alpine.DEB.2.00.1102221333100.5929@chino.kir.corp.google.com>
+References: <1298315270-10434-1-git-send-email-andi@firstfloor.org> <1298315270-10434-7-git-send-email-andi@firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1298394776-9957-4-git-send-email-arighi@develer.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Righi <arighi@develer.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, lwoodman@redhat.com, Andi Kleen <ak@linux.intel.com>
 
-On Tue, Feb 22, 2011 at 06:12:54PM +0100, Andrea Righi wrote:
-> The page_cgroup infrastructure, currently available only for the memory
-> cgroup controller, can be used to store the owner of each page and
-> opportunely track the writeback IO. This information is encoded in
-> the upper 16-bits of the page_cgroup->flags.
-> 
-> A owner can be identified using a generic ID number and the following
-> interfaces are provided to store a retrieve this information:
-> 
->   unsigned long page_cgroup_get_owner(struct page *page);
->   int page_cgroup_set_owner(struct page *page, unsigned long id);
->   int page_cgroup_copy_owner(struct page *npage, struct page *opage);
-> 
-> The blkio.throttle controller can use the cgroup css_id() as the owner's
-> ID number.
-> 
-> Signed-off-by: Andrea Righi <arighi@develer.com>
-> ---
->  block/Kconfig               |    2 +
->  block/blk-cgroup.c          |    6 ++
->  include/linux/memcontrol.h  |    6 ++
->  include/linux/mmzone.h      |    4 +-
->  include/linux/page_cgroup.h |   33 ++++++++++-
->  init/Kconfig                |    4 +
->  mm/Makefile                 |    3 +-
->  mm/memcontrol.c             |    6 ++
->  mm/page_cgroup.c            |  129 +++++++++++++++++++++++++++++++++++++++----
->  9 files changed, 176 insertions(+), 17 deletions(-)
-> 
-> diff --git a/block/Kconfig b/block/Kconfig
-> index 60be1e0..1351ea8 100644
-> --- a/block/Kconfig
-> +++ b/block/Kconfig
-> @@ -80,6 +80,8 @@ config BLK_DEV_INTEGRITY
->  config BLK_DEV_THROTTLING
->  	bool "Block layer bio throttling support"
->  	depends on BLK_CGROUP=y && EXPERIMENTAL
-> +	select MM_OWNER
-> +	select PAGE_TRACKING
->  	default n
->  	---help---
->  	Block layer bio throttling support. It can be used to limit
-> diff --git a/block/blk-cgroup.c b/block/blk-cgroup.c
-> index f283ae1..5c57f0a 100644
-> --- a/block/blk-cgroup.c
-> +++ b/block/blk-cgroup.c
-> @@ -107,6 +107,12 @@ blkio_policy_search_node(const struct blkio_cgroup *blkcg, dev_t dev,
->  	return NULL;
->  }
->  
-> +bool blkio_cgroup_disabled(void)
-> +{
-> +	return blkio_subsys.disabled ? true : false;
-> +}
-> +EXPORT_SYMBOL_GPL(blkio_cgroup_disabled);
-> +
+On Mon, 21 Feb 2011, Andi Kleen wrote:
 
-I think there should be option to just disable this asyn feature of
-blkio controller. So those who don't want it (running VMs with cache=none
-option) and don't want to take the memory reservation hit should be
-able to disable just ASYNC facility of blkio controller and not
-the whole blkio controller facility.
+> From: Andi Kleen <ak@linux.intel.com>
+> 
+> Add a new __GFP_OTHER_NODE flag to tell the low level numa statistics
+> in zone_statistics() that an allocation is on behalf of another thread.
+> This way the local and remote counters can be still correct, even
+> when background daemons like khugepaged are changing memory
+> mappings.
+> 
+> This only affects the accounting, but I think it's worth doing that
+> right to avoid confusing users.
+> 
 
-Thanks
-Vivek
+This makes the accounting worse, NUMA_LOCAL is defined as "allocation from 
+local node," meaning it's local to the allocating cpu, not local to the 
+node being targeted.
+
+Further, preferred_zone has taken on a much more significant meaning other 
+than just statistics: it impacts the behavior of memory compaction and how 
+long congestion timeouts are, if a timeout is taken at all, depending on 
+the I/O being done on behalf of the zone.
+
+A better way to address the issue is by making sure preferred_zone is 
+actually correct by using the appropriate zonelist to be passed into the 
+allocator in the first place.
+
+> I first tried to just pass down the right node, but this required
+> a lot of changes to pass down this parameter and at least one
+> addition of a 10th argument to a 9 argument function. Using
+> the flag is a lot less intrusive.
+> 
+
+And adding a branch to every successful page allocation for statistics 
+isn't intrusive?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
