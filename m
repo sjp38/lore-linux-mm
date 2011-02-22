@@ -1,59 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id ABF7D8D0039
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 08:35:46 -0500 (EST)
-Date: Tue, 22 Feb 2011 14:35:20 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 4/5] teach smaps_pte_range() about THP pmds
-Message-ID: <20110222133520.GS13092@random.random>
-References: <20110222015338.309727CA@kernel>
- <20110222015343.41586948@kernel>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C4188D0039
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 09:24:53 -0500 (EST)
+Date: Tue, 22 Feb 2011 14:24:23 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: too big min_free_kbytes
+Message-ID: <20110222142423.GC15652@csn.ul.ie>
+References: <1295841406.1949.953.camel@sli10-conroe> <20110124150033.GB9506@random.random> <20110126141746.GS18984@csn.ul.ie> <20110126152302.GT18984@csn.ul.ie> <20110126154203.GS926@random.random> <20110126163655.GU18984@csn.ul.ie> <20110126174236.GV18984@csn.ul.ie> <20110127134057.GA32039@csn.ul.ie> <20110127152755.GB30919@random.random> <AANLkTim7Vc1bntXEu0pFkZ=cvoLJ1hsaSx9Tq00+MODZ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110222015343.41586948@kernel>
+In-Reply-To: <AANLkTim7Vc1bntXEu0pFkZ=cvoLJ1hsaSx9Tq00+MODZ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, akpm@osdl.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
+To: alex shi <lkml.alex@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>, alex.shi@intel.com
 
-On Mon, Feb 21, 2011 at 05:53:43PM -0800, Dave Hansen wrote:
-> @@ -385,8 +387,25 @@ static int smaps_pte_range(pmd_t *pmd, u
->  	pte_t *pte;
->  	spinlock_t *ptl;
->  
-> -	split_huge_page_pmd(walk->mm, pmd);
-> -
-> +	spin_lock(&walk->mm->page_table_lock);
-> +	if (pmd_trans_huge(*pmd)) {
-> +		if (pmd_trans_splitting(*pmd)) {
-> +			spin_unlock(&walk->mm->page_table_lock);
-> +			wait_split_huge_page(vma->anon_vma, pmd);
-> +		} else {
-> +			smaps_pte_entry(*(pte_t *)pmd, addr,
-> +					HPAGE_PMD_SIZE, walk);
-> +			spin_unlock(&walk->mm->page_table_lock);
-> +			return 0;
-> +		}
-> +	} else {
-> +		spin_unlock(&walk->mm->page_table_lock);
-> +	}
-> +	/*
-> +	 * The mmap_sem held all the way back in m_start() is what
-> +	 * keeps khugepaged out of here and from collapsing things
-> +	 * in here.
-> +	 */
+On Sat, Feb 12, 2011 at 05:48:55PM +0800, alex shi wrote:
+> I am tried the patch, but seems it has no effect for our regression.
+> 
 
-This time the locking is right and HPAGE_PMD_SIZE is used instead of
-HPAGE_SIZE, thanks! I think all 5 patches can go in -mm and upstream
-anytime (not mandatory for 2.6.38 but definitely we want this for
-2.6.39).
+What is the nature of your regression? I see no details of it in the
+thread.
 
-BTW, Andi in his NUMA THP improvement series added a THP_SPLIT vmstat
-per-cpu counter so that part removed from his series, is taken care by
-him.
-
-Acked-by: Andrea Arcangeli <aarcange@redhat.com>
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
