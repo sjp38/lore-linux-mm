@@ -1,47 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 66C8C8D0039
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 11:36:36 -0500 (EST)
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p1MGXsHp021714
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 09:33:54 -0700
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p1MGaSOT108572
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 09:36:28 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p1MGaRJ7003170
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 09:36:28 -0700
-Subject: Re: [PATCH 8/8] Add VM counters for transparent hugepages
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1298315270-10434-9-git-send-email-andi@firstfloor.org>
-References: <1298315270-10434-1-git-send-email-andi@firstfloor.org>
-	 <1298315270-10434-9-git-send-email-andi@firstfloor.org>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Tue, 22 Feb 2011 08:36:26 -0800
-Message-ID: <1298392586.9829.22566.camel@nimitz>
-Mime-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 1BE248D0039
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 11:38:06 -0500 (EST)
+Message-ID: <4D63E6EF.3020206@redhat.com>
+Date: Tue, 22 Feb 2011 11:40:15 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: too big min_free_kbytes
+References: <20110126152302.GT18984@csn.ul.ie> <20110126154203.GS926@random.random> <20110126163655.GU18984@csn.ul.ie> <20110126174236.GV18984@csn.ul.ie> <20110127134057.GA32039@csn.ul.ie> <20110127152755.GB30919@random.random> <20110203025808.GJ5843@random.random> <20110214022524.GA18198@sli10-conroe.sh.intel.com> <20110222142559.GD15652@csn.ul.ie> <20110222144200.GY13092@random.random> <20110222160449.GF15652@csn.ul.ie>
+In-Reply-To: <20110222160449.GF15652@csn.ul.ie>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, lwoodman@redhat.com, Andi Kleen <ak@linux.intel.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>, alex.shi@intel.com
 
-On Mon, 2011-02-21 at 11:07 -0800, Andi Kleen wrote:
-> From: Andi Kleen <ak@linux.intel.com>
-> 
-> I found it difficult to make sense of transparent huge pages without
-> having any counters for its actions. Add some counters to vmstat
-> for allocation of transparent hugepages and fallback to smaller
-> pages.
-> 
-> Optional patch, but useful for development and understanding the system.
+On 02/22/2011 11:04 AM, Mel Gorman wrote:
 
-Very nice.  I did the same thing, splits-only.  I also found this stuff
-a must-have for trying to do any work with transparent hugepages.  It's
-just impossible otherwise.
+> To avoid an excessive number of pages being reclaimed from the larger zones,
+> explicitely defines the "balance gap" to be either 1% of the zone or the
+> low watermark for the zone, whichever is smaller.  While kswapd will check
+> all zones to apply pressure, it'll ignore zones that meets the (high_wmark +
+> balance_gap) watermark.
+>
+> To test this, 80G were copied from a partition and the amount of memory
+> being used was recorded. A comparison of a patch and unpatched kernel
+> can be seen at
+> http://www.csn.ul.ie/~mel/postings/minfree-20110222/memory-usage-hydra.ps
+> and shows that kswapd is not reclaiming as much memory with the patch
+> applied.
+>
+> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+> Signed-off-by: Mel Gorman<mel@csn.ul.ie>
 
-Acked-by: Dave Hansen <dave@linux.vnet.ibm.com>
-
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
