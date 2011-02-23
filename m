@@ -1,55 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 23A3E8D0039
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 17:45:47 -0500 (EST)
-Date: Wed, 23 Feb 2011 14:44:45 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: optimize replace_page_cache_page
-Message-Id: <20110223144445.86d0ca2b.akpm@linux-foundation.org>
-In-Reply-To: <20110219234121.GA2546@barrios-desktop>
-References: <1297355626-5152-1-git-send-email-minchan.kim@gmail.com>
-	<20110219234121.GA2546@barrios-desktop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AAB748D0039
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 18:12:23 -0500 (EST)
+Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
+	by smtp-out.google.com with ESMTP id p1NNCJF4016615
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 15:12:20 -0800
+Received: from yic13 (yic13.prod.google.com [10.243.65.141])
+	by kpbe19.cbf.corp.google.com with ESMTP id p1NNBt9b009714
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 15:12:18 -0800
+Received: by yic13 with SMTP id 13so460997yic.17
+        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 15:12:13 -0800 (PST)
+Date: Wed, 23 Feb 2011 15:12:02 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: prevent concurrent unmap_mapping_range() on the same
+ inode
+In-Reply-To: <AANLkTimeihuzjgR2f7Avq2PJrCw1vZxtjh=wBPXO3aHP@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1102231448460.5732@sister.anvils>
+References: <E1PsEA7-0007G0-29@pomaz-ex.szeredi.hu> <AANLkTimeihuzjgR2f7Avq2PJrCw1vZxtjh=wBPXO3aHP@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Miklos Szeredi <mszeredi@suse.cz>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, hch@infradead.org, a.p.zijlstra@chello.nl, gurudas.pai@oracle.com, lkml20101129@newton.leun.net, rjw@sisk.pl, florian@mickler.org, trond.myklebust@fys.uio.no, maciej.rutecki@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, 20 Feb 2011 08:41:21 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
-
-> Resend.
-
-Reignore.
-
-> he patch is based on mmotm-2011-02-04 + 
-> mm-add-replace_page_cache_page-function-add-freepage-hook.patch.
+On Wed, 23 Feb 2011, Linus Torvalds wrote:
+> On Wed, Feb 23, 2011 at 4:49 AM, Miklos Szeredi <miklos@szeredi.hu> wrote:
+> >
+> > This resolves Bug 25822 listed in the regressions since 2.6.36 (though
+> > it's a bug much older than that, for some reason it only started
+> > triggering for people recently).
 > 
-> On Fri, Feb 11, 2011 at 01:33:46AM +0900, Minchan Kim wrote:
-> > This patch optmizes replace_page_cache_page.
-> > 
-> > 1) remove radix_tree_preload
-> > 2) single radix_tree_lookup_slot and replace radix tree slot
-> > 3) page accounting optimization if both pages are in same zone.
-> > 
-> > Cc: Miklos Szeredi <mszeredi@suse.cz>
-> > Cc: Rik van Riel <riel@redhat.com>
-> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Cc: Mel Gorman <mel@csn.ul.ie>
-> > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-> > ---
-> >  mm/filemap.c |   61 ++++++++++++++++++++++++++++++++++++++++++++++++---------
-> >  1 files changed, 51 insertions(+), 10 deletions(-)
-> > 
-> > Hi Miklos,
-> > This patch is totally not tested.
-> > Could you test this patch?
+> Gaah. I hate this patch. It is, in fact, a patch that makes me finally
+> think that the mm preemptibility is actually worth it, because then
+> i_mmap_lock turns into a mutex and makes the whole "drop the lock"
+> thing hopefully a thing of the past (see the patch "mm: Remove
+> i_mmap_mutex lockbreak").
+> 
+> Because as far as I can see, the only thing that makes this thing
+> needed in the first place is that horribly ugly "we drop i_mmap_lock
+> in the middle of random operations that really still need it".
+> 
+> That said, I don't really see any alternatives - I guess we can't
+> really just say "remove that crazy lock dropping". Even though I
+> really really really would like to.
 
-^^^ Because of this.
+Those feelings understood and shared.
 
-Is it tested yet?
+> 
+> Of course, we could also just decide that we should apply the mm
+> preemptibility series instead. Can people confirm that that fixes the
+> bug too?
+
+It would fix it, but there's a but.
+
+In his [2/8] mm: remove i_mmap_mutex lockbreak patch, Peter says
+"shouldn't hold up reclaim more than lock_page() would".  But (apart
+from a write error case) we always use trylock_page() in reclaim, we
+never dare hold it up on a lock_page().  So page reclaim would get
+held up on truncation more than at present - though he's right to
+point out that truncation will usually be freeing pages much faster.
+
+I'm not sure whether it will prove good enough to abandon the lock
+breaking if we move to a mutex there.  And besides, this unmapping
+BUG does need a fix in stable, well before we want to try out the
+preemptible mmu gathering.
+
+I'd rather hold out Peter's series as a hope that we can
+eliminate this extra unmapping mutex in a few months time.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
