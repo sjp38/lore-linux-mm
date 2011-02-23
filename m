@@ -1,97 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8A3648D0039
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 10:26:17 -0500 (EST)
-Date: Wed, 23 Feb 2011 10:23:54 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 0/5] blk-throttle: writeback and swap IO control
-Message-ID: <20110223152354.GA2526@redhat.com>
-References: <1298394776-9957-1-git-send-email-arighi@develer.com>
- <20110222193403.GG28269@redhat.com>
- <20110222224141.GA23723@linux.develer.com>
- <20110223000358.GM28269@redhat.com>
- <20110223083206.GA2174@linux.develer.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id CCF6E8D0039
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 10:30:39 -0500 (EST)
+Received: by vws13 with SMTP id 13so3583840vws.14
+        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 07:30:37 -0800 (PST)
+Date: Wed, 23 Feb 2011 10:30:30 -0500
+From: Eric B Munson <emunson@mgebm.net>
+Subject: Re: [PATCH 1/5] pagewalk: only split huge pages when necessary
+Message-ID: <20110223153030.GA2810@mgebm.net>
+References: <20110222015338.309727CA@kernel>
+ <20110222015339.0C9A2212@kernel>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="9amGYk9869ThD9tj"
 Content-Disposition: inline
-In-Reply-To: <20110223083206.GA2174@linux.develer.com>
+In-Reply-To: <20110222015339.0C9A2212@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Righi <arighi@develer.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, akpm@osdl.org, Mel Gorman <mel@csn.ul.ie>
 
-> > Agreed. Granularity of per inode level might be accetable in many 
-> > cases. Again, I am worried faster group getting stuck behind slower
-> > group.
-> > 
-> > I am wondering if we are trying to solve the problem of ASYNC write throttling
-> > at wrong layer. Should ASYNC IO be throttled before we allow task to write to
-> > page cache. The way we throttle the process based on dirty ratio, can we
-> > just check for throttle limits also there or something like that.(I think
-> > that's what you had done in your initial throttling controller implementation?)
-> 
-> Right. This is exactly the same approach I've used in my old throttling
-> controller: throttle sync READs and WRITEs at the block layer and async
-> WRITEs when the task is dirtying memory pages.
-> 
-> This is probably the simplest way to resolve the problem of faster group
-> getting blocked by slower group, but the controller will be a little bit
-> more leaky, because the writeback IO will be never throttled and we'll
-> see some limited IO spikes during the writeback.
 
-Yes writeback will not be throttled. Not sure how big a problem that is.
+--9amGYk9869ThD9tj
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-- We have controlled the input rate. So that should help a bit.
-- May be one can put some high limit on root cgroup to in blkio throttle
-  controller to limit overall WRITE rate of the system.
-- For SATA disks, try to use CFQ which can try to minimize the impact of
-  WRITE.
+On Mon, 21 Feb 2011, Dave Hansen wrote:
 
-It will atleast provide consistent bandwindth experience to application.
+>=20
+> v2 - rework if() block, and remove  now redundant split_huge_page()
+>=20
+> Right now, if a mm_walk has either ->pte_entry or ->pmd_entry
+> set, it will unconditionally split any transparent huge pages
+> it runs in to.  In practice, that means that anyone doing a
+>=20
+> 	cat /proc/$pid/smaps
+>=20
+> will unconditionally break down every huge page in the process
+> and depend on khugepaged to re-collapse it later.  This is
+> fairly suboptimal.
+>=20
+> This patch changes that behavior.  It teaches each ->pmd_entry
+> handler (there are five) that they must break down the THPs
+> themselves.  Also, the _generic_ code will never break down
+> a THP unless a ->pte_entry handler is actually set.
+>=20
+> This means that the ->pmd_entry handlers can now choose to
+> deal with THPs without breaking them down.
+>=20
+> Acked-by: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 
->However, this is always
-> a better solution IMHO respect to the current implementation that is
-> affected by that kind of priority inversion problem.
-> 
-> I can try to add this logic to the current blk-throttle controller if
-> you think it is worth to test it.
+I have been running this set for serveral hours now and viewing
+various smaps files is not causing wild shifts in my AnonHugePages:
+counter.
 
-At this point of time I have few concerns with this approach.
+Reviewed-and-tested-by: Eric B Munson <emunson@mgebm.net>
 
-- Configuration issues. Asking user to plan for SYNC ans ASYNC IO
-  separately is inconvenient. One has to know the nature of workload.
+--9amGYk9869ThD9tj
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
 
-- Most likely we will come up with global limits (atleast to begin with),
-  and not per device limit. That can lead to contention on one single
-  lock and scalability issues on big systems.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
 
-Having said that, this approach should reduce the kernel complexity a lot.
-So if we can do some intelligent locking to limit the overhead then it
-will boil down to reduced complexity in kernel vs ease of use to user. I 
-guess at this point of time I am inclined towards keeping it simple in
-kernel.
+iQEcBAEBAgAGBQJNZSgWAAoJEH65iIruGRnNCcsH/2dNeUbCWtqFwt4w9xYj/SOH
+JcdRS8AMG826/O/8Alp7k2HktNyb50cSB2JgUJuM4xjhR8sskQnEkX6SDrubREhD
+vuLEYGGqhmVA2hcRj1ao+bkJnegzzq1xpcAXJuptjgkv/+KrM+cMNGJd0RXaMHYw
+spNMkDSzmIZYnBHMl+MAOnErvhVZYaumAxLJRs1TWBfUNm86FA97zlYi7A1gSRfR
+1aximEpHTlI8oky099vQnLeO3CgwbJTco0QhwJkU7qNcZyE9gx6UDqLeUlKbuvRb
+Uw7UwGnAxgImDbX3NGBduk25eSCsJ2CX8EV7SH2cLuacs9hokxxnSiR5+3jTlOQ=
+=ePjJ
+-----END PGP SIGNATURE-----
 
-Couple of people have asked me that we have backup jobs running at night
-and we want to reduce the IO bandwidth of these jobs to limit the impact
-on latency of other jobs, I guess this approach will definitely solve
-that issue.
-
-IMHO, it might be worth trying this approach and see how well does it work. It
-might not solve all the problems but can be helpful in many situations.
-
-I feel that for proportional bandwidth division, implementing ASYNC
-control at CFQ will make sense because even if things get serialized in
-higher layers, consequences are not very bad as it is work conserving
-algorithm. But for throttling serialization will lead to bad consequences.
-
-May be one can think of new files in blkio controller to limit async IO
-per group during page dirty time.
-
-blkio.throttle.async.write_bps_limit
-blkio.throttle.async.write_iops_limit
-
-Thanks
-Vivek
+--9amGYk9869ThD9tj--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
