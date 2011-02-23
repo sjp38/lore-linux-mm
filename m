@@ -1,84 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E34C78D0039
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 18:40:07 -0500 (EST)
-Date: Wed, 23 Feb 2011 23:39:34 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Bug 29772] New: memory compaction crashed
-Message-ID: <20110223233934.GN15652@csn.ul.ie>
-References: <bug-29772-27@https.bugzilla.kernel.org/> <20110223134015.be96110b.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110223134015.be96110b.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 707C48D0039
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 18:59:09 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 0D44B3EE081
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 08:59:04 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E190E45DE51
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 08:59:03 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C81B745DE4F
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 08:59:03 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B8C291DB8040
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 08:59:03 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 845FB1DB802F
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 08:59:03 +0900 (JST)
+Date: Thu, 24 Feb 2011 08:52:27 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC PATCH] page_cgroup: Reduce allocation overhead for
+ page_cgroup array for CONFIG_SPARSEMEM
+Message-Id: <20110224085227.1a3e185b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1298485162.7236.4.camel@nimitz>
+References: <20110223151047.GA7275@tiehlicka.suse.cz>
+	<1298485162.7236.4.camel@nimitz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, johannes@sipsolutions.net
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Feb 23, 2011 at 01:40:15PM -0800, Andrew Morton wrote:
+On Wed, 23 Feb 2011 10:19:22 -0800
+Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+
+> On Wed, 2011-02-23 at 16:10 +0100, Michal Hocko wrote:
+> > We can reduce this internal fragmentation by splitting the single
+> > page_cgroup array into more arrays where each one is well kmalloc
+> > aligned. This patch implements this idea. 
 > 
-> (switched to email.  Please respond via emailed reply-to-all, not via the
-> bugzilla web interface).
-> 
-> On Wed, 23 Feb 2011 21:31:41 GMT
-> bugzilla-daemon@bugzilla.kernel.org wrote:
-> 
-> > https://bugzilla.kernel.org/show_bug.cgi?id=29772
-> > 
-> >            Summary: memory compaction crashed
-> >            Product: Memory Management
-> >            Version: 2.5
-> >     Kernel Version: 2.6.38-rc6-wl-65354-geac0466-dirty
-> >           Platform: All
-> >         OS/Version: Linux
-> >               Tree: Mainline
-> >             Status: NEW
-> >           Severity: normal
-> >           Priority: P1
-> >          Component: Other
-> >         AssignedTo: akpm@linux-foundation.org
-> >         ReportedBy: johannes@sipsolutions.net
-> >         Regression: No
-> > 
-> > 
-> > see attached image
-> 
-> screenshot here: https://bugzilla.kernel.org/attachment.cgi?id=48772
+> How about using alloc_pages_exact()?  These things aren't allocated
+> often enough to really get most of the benefits of being in a slab.
+> That'll at least get you down to a maximum of about PAGE_SIZE wasted.  
 > 
 
-isolate_migratepages is hit any time compaction runs so I'm wondering
-what is special about this test case. I'm assuming as evince crashed
-that it's a normalish desktop and wasn't running anything in particular.
-Is that true?
+yes, alloc_pages_exact() is much better.
 
-Can you tell me what line the instruction ffffffff8100f1c2 corresponds to? If
-you have CONFIG_DEBUG_INFO set, it should be a case of telling me what the
-output of "addr2line -e vmlinux 0xffffffff8100f1c2" is. On a similar note,
-do you know what sort of crash this was? i.e. was it a NULL deference or
-did a VM_BUG_ON or BUG_ON hit such as VM_BUG_ON(PageTransCompound(page))?
-Was CONFIG_DEBUG_VM set? Actually, it would be preferable to have the
-whole .config attached to the bugzilla if possible please.
+packing page_cgroups for multiple sections causes breakage in memory hotplug logic.
 
-Can I also see a full dmesg with the kernel parameters "loglevel=9
-mminit_loglevel=4" please? I know the crash won't be included but I want
-to see what your memory layout looks like to see can I spot anything
-unusual about it.
-
-I see fuse was loaded. Was it being heavily used at the time? If so,
-what sort of workload was exercising it?
-
-I *think* the kernel version is 2.6.38-rc6-wl-65354-geac0466-dirty. I'm
-not certain because there is a big shine from the camera flash on it.
-However, I can't see what this corresponds to. eac0466 is not a commit I
-can identify and the "dirty" implies that it's patched. How does this
-kernel differ from mainline?
-
-Thanks.
-
--- 
-Mel Gorman
-SUSE Labs
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
