@@ -1,132 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CCBB8D0039
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 23:56:06 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F0DB43EE0C2
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 13:56:01 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D13A945DE57
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 13:56:01 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B7B1F45DE52
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 13:56:01 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A26761DB8042
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 13:56:01 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 640561DB8037
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 13:56:01 +0900 (JST)
-Date: Wed, 23 Feb 2011 13:49:10 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/5] page_cgroup: make page tracking available for blkio
-Message-Id: <20110223134910.abbdc931.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110222233718.GF23723@linux.develer.com>
-References: <1298394776-9957-1-git-send-email-arighi@develer.com>
-	<1298394776-9957-4-git-send-email-arighi@develer.com>
-	<20110222130145.37cb151e@bike.lwn.net>
-	<20110222230146.GB23723@linux.develer.com>
-	<20110222230630.GL28269@redhat.com>
-	<20110222233718.GF23723@linux.develer.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E39488D0039
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 00:29:17 -0500 (EST)
+Subject: Re: too big min_free_kbytes
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20110222142559.GD15652@csn.ul.ie>
+References: <20110124150033.GB9506@random.random>
+	 <20110126141746.GS18984@csn.ul.ie> <20110126152302.GT18984@csn.ul.ie>
+	 <20110126154203.GS926@random.random> <20110126163655.GU18984@csn.ul.ie>
+	 <20110126174236.GV18984@csn.ul.ie> <20110127134057.GA32039@csn.ul.ie>
+	 <20110127152755.GB30919@random.random>
+	 <20110203025808.GJ5843@random.random>
+	 <20110214022524.GA18198@sli10-conroe.sh.intel.com>
+	 <20110222142559.GD15652@csn.ul.ie>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 23 Feb 2011 13:29:14 +0800
+Message-ID: <1298438954.19589.7.camel@sli10-conroe>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Righi <arighi@develer.com>
-Cc: Vivek Goyal <vgoyal@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>, Rik van Riel <riel@redhat.com>, "Shi, Alex" <alex.shi@intel.com>
 
-On Wed, 23 Feb 2011 00:37:18 +0100
-Andrea Righi <arighi@develer.com> wrote:
-
-> On Tue, Feb 22, 2011 at 06:06:30PM -0500, Vivek Goyal wrote:
-> > On Wed, Feb 23, 2011 at 12:01:47AM +0100, Andrea Righi wrote:
-> > > On Tue, Feb 22, 2011 at 01:01:45PM -0700, Jonathan Corbet wrote:
-> > > > On Tue, 22 Feb 2011 18:12:54 +0100
-> > > > Andrea Righi <arighi@develer.com> wrote:
-> > > > 
-> > > > > The page_cgroup infrastructure, currently available only for the memory
-> > > > > cgroup controller, can be used to store the owner of each page and
-> > > > > opportunely track the writeback IO. This information is encoded in
-> > > > > the upper 16-bits of the page_cgroup->flags.
-> > > > > 
-> > > > > A owner can be identified using a generic ID number and the following
-> > > > > interfaces are provided to store a retrieve this information:
-> > > > > 
-> > > > >   unsigned long page_cgroup_get_owner(struct page *page);
-> > > > >   int page_cgroup_set_owner(struct page *page, unsigned long id);
-> > > > >   int page_cgroup_copy_owner(struct page *npage, struct page *opage);
-> > > > 
-> > > > My immediate observation is that you're not really tracking the "owner"
-> > > > here - you're tracking an opaque 16-bit token known only to the block
-> > > > controller in a field which - if changed by anybody other than the block
-> > > > controller - will lead to mayhem in the block controller.  I think it
-> > > > might be clearer - and safer - to say "blkcg" or some such instead of
-> > > > "owner" here.
-> > > > 
+On Tue, 2011-02-22 at 22:25 +0800, Mel Gorman wrote:
+> On Mon, Feb 14, 2011 at 10:25:24AM +0800, Shaohua Li wrote:
+> > On Thu, Feb 03, 2011 at 10:58:08AM +0800, Andrea Arcangeli wrote:
+> > > On Thu, Jan 27, 2011 at 04:27:55PM +0100, Andrea Arcangeli wrote:
+> > > > totally untested... I will test....
 > > > 
-> > > Basically the idea here was to be as generic as possible and make this
-> > > feature potentially available also to other subsystems, so that cgroup
-> > > subsystems may represent whatever they want with the 16-bit token.
-> > > However, no more than a single subsystem may be able to use this feature
-> > > at the same time.
+> > > The below patch is fixing my problem and working fine for me... as
+> > > expected it can't possibly lead to any D state, it's pretty much like
+> > > setting min_free_kbytes lower, and it's not going to alter anything
+> > > other than the levels of free memory kept by kswapd.
 > > > 
-> > > > I'm tempted to say it might be better to just add a pointer to your
-> > > > throtl_grp structure into struct page_cgroup.  Or maybe replace the
-> > > > mem_cgroup pointer with a single pointer to struct css_set.  Both of
-> > > > those ideas, though, probably just add unwanted extra overhead now to gain
-> > > > generality which may or may not be wanted in the future.
+> > > $ while :; do ps xa|grep [k]swapd; sleep 1; done
+> > >   452 ?        R      1:20 [kswapd0]
+> > >   452 ?        S      1:20 [kswapd0]
+> > >   452 ?        S      1:20 [kswapd0]
+> > >   452 ?        S      1:20 [kswapd0]
+> > >   452 ?        S      1:20 [kswapd0]
+> > >   452 ?        R      1:20 [kswapd0]
+> > >   452 ?        R      1:20 [kswapd0]
+> > >   452 ?        R      1:20 [kswapd0]
+> > >   452 ?        R      1:20 [kswapd0]
+> > >   452 ?        S      1:20 [kswapd0]
+> > >   452 ?        R      1:20 [kswapd0]
+> > > $ vmstat 1
+> > > procs -----------memory---------- ---swap-- -----io---- -system--
+> > >   ----cpu----
+> > >  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us
+> > >   sy id wa
+> > >  2  1   1784 111040 2393336 807924    0    0    63   992   56   70  1   1 96  2
+> > >  0  1   1784 108928 2402556 801864    0    0 122624     0 1619 2150  0   5 80 16
+> > >  0  1   1784 110664 2401244 801140    0    0 122496     0 1602 2081  0   3 81 16
+> > >  0  1   1784 109796 2410184 792984    0    0 122752     0 1685 2149  0   4 80 16
+> > >  0  1   1784 110416 2411856 791208    0    0 120448     4 1599 2075  0   4 81 16
+> > >  1  0   1784 113516 2415344 785336    0    0 122496     0 1636 2125  0   4 81 15
 > > > 
-> > > The pointer to css_set sounds good, but it would add additional space to
-> > > the page_cgroup struct. Now, page_cgroup is 40 bytes (in 64-bit arch)
-> > > and all of them are allocated at boot time. Using unused bits in
-> > > page_cgroup->flags is a choice with no overhead from this point of view.
+> > > I doubt we'll get any regression because of the below (see also my
+> > > prev email in this thread), and I would only expect more cache and
+> > > maybe better lru. Previously the free memory levels were stuck at
+> > > ~700M now they're stuck at the right level for a 4G system with THP on
+> > > (I'd still like to try to reduce the requirements only 1 hugepage for
+> > > each migratetype in the set_min_free_kbytes to reduce the requirements
+> > > to the minium, but only if possible..). But this saves 600M over 4G so
+> > > it's the highest prio to address.
+> > Sorry for the later response, I offlined several weeks.
+> > The patch is addressing the 8*high_wmark issue, which isn't the original issue
+> > I reported (sure the 8*wmark issue should be fixed too).
+> > min_free_kbytes is set higher and cause more pages freed even no the 8*wmark
+> > issue. wmark:
+> > before: min      1424
+> > after:	min      11178
+> 
+> The higher min_free_kbytes is expected as a result of using transparent
+> hugepages so I don't really consider it a bug. Free memory going up to
+> about 700M as a result of kswapd is a real bug though.
+> 
+> > in our test, there is about 50M memory free (originally just about 5M, which
+> > will cause more swap. Should we also reduce the min_free_kbytes?
 > > 
-> > I think John suggested replacing mem_cgroup pointer with css_set so that
-> > size of the strcuture does not increase but it leads extra level of 
-> > indirection.
 > 
-> OK, got it sorry.
-> 
-> So, IIUC we save css_set pointer and get a struct cgroup as following:
-> 
->   struct cgroup *cgrp = css_set->subsys[subsys_id]->cgroup;
-> 
-> Then, for example to get the mem_cgroup reference:
-> 
->   struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-> 
-> It seems a lot of indirections, but I may have done something wrong or
-> there could be a simpler way to do it.
-> 
-
-
-Then, page_cgroup should have reference count on css_set and make tons of
-atomic ops.
-
-BTW, bits of pc->flags are used for storing sectionID or nodeID.
-Please clarify your 16bit never breaks that information. And please keep
-more 4-5 flags for dirty_ratio support of memcg.
-
-I wonder I can make pc->mem_cgroup to be pc->memid(16bit), then, 
-==
-static inline struct mem_cgroup *get_memcg_from_pc(struct page_cgroup *pc)
-{
-    struct cgroup_subsys_state *css = css_lookup(&mem_cgroup_subsys, pc->memid);
-    return container_of(css, struct mem_cgroup, css);
-}
-==
-Overhead will be seen at updating file statistics and LRU management.
-
-But, hmm, can't you do that tracking without page_cgroup ?
-Because the number of dirty/writeback pages are far smaller than total pages,
-chasing I/O with dynamic structure is not very bad..
-
-prepareing [pfn -> blkio] record table and move that information to struct bio
-in dynamic way is very difficult ?
-
-Thanks,
--Kame
+> Either that or boot with transparent hugepages disabled and
+> min_free_kbytes will be lower.
+Fixing it will let more people enable THP by default. but anyway we will
+disable it now if the issue can't be fixed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
