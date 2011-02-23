@@ -1,47 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6EEC78D003C
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 20:52:48 -0500 (EST)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 4/8] Preserve original node for transparent huge page copies
-Date: Tue, 22 Feb 2011 17:51:58 -0800
-Message-Id: <1298425922-23630-5-git-send-email-andi@firstfloor.org>
-In-Reply-To: <1298425922-23630-1-git-send-email-andi@firstfloor.org>
-References: <1298425922-23630-1-git-send-email-andi@firstfloor.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 60D1C8D0039
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 22:29:38 -0500 (EST)
+Message-ID: <4D647F1D.2000307@linux.intel.com>
+Date: Wed, 23 Feb 2011 11:29:33 +0800
+From: Haicheng Li <haicheng.li@linux.intel.com>
+MIME-Version: 1.0
+Subject: Re: [0/7, v9] NUMA Hotplug Emulator (v9)
+References: <20101210073119.156388875@intel.com> <alpine.DEB.2.00.1102221429030.31758@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1102221429030.31758@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, aarcange@redhat.com
+To: David Rientjes <rientjes@google.com>
+Cc: Shaohui Zheng <shaohui.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lethal@linux-sh.org, Andi Kleen <ak@linux.intel.com>, dave@linux.vnet.ibm.com, Greg Kroah-Hartman <gregkh@suse.de>, yang.z.zhang@intel.com, "You, Yongkang" <yongkang.you@intel.com>
 
-From: Andi Kleen <ak@linux.intel.com>
+Shaohui is out of position recently. Include Yang Zhang and Yongkang You in 
+this loop, who are Shaohui's backup.
 
-This makes a difference for LOCAL policy, where the node cannot
-be determined from the policy itself, but has to be gotten
-from the original page.
-
-Cc: aarcange@redhat.com
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
----
- mm/huge_memory.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 73ecca5..00a5c39 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -799,8 +799,8 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 	}
- 
- 	for (i = 0; i < HPAGE_PMD_NR; i++) {
--		pages[i] = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
--					  vma, address);
-+		pages[i] = alloc_page_vma_node(GFP_HIGHUSER_MOVABLE,
-+					       vma, address, page_to_nid(page));
- 		if (unlikely(!pages[i] ||
- 			     mem_cgroup_newpage_charge(pages[i], mm,
- 						       GFP_KERNEL))) {
--- 
-1.7.4
+David Rientjes wrote:
+> On Fri, 10 Dec 2010, shaohui.zheng@intel.com wrote:
+> 
+>> v9:
+>>
+>> Solve the bug reported by Eric B Munson, check the return value of cpu_down when do
+>>  CPU release.
+>>
+>> Solve the conflicts with Tejun Heo' Unificaton NUMA code, re-work patch 5 based on his
+>> patch.
+>>
+>> Some small changes on debugfs per-node add_memory interface.
+>>
+> 
+> Hi Shaohui,
+> 
+> Tejun's NUMA unification work has been merged into x86/mm, so I think it 
+> would possible to rebase your hotplug emulator patchset on top of it 
+> without too many conflicts now.
+> 
+> It should probably be based on x86/mm from 
+> http://git.kernel.org/?p=linux/kernel/git/mingo/linux-2.6-x86.git
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
