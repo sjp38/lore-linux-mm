@@ -1,71 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id BCCAE8D0039
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 18:37:28 -0500 (EST)
-Received: by iwl42 with SMTP id 42so5483510iwl.14
-        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 15:37:27 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E34C78D0039
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 18:40:07 -0500 (EST)
+Date: Wed, 23 Feb 2011 23:39:34 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [Bug 29772] New: memory compaction crashed
+Message-ID: <20110223233934.GN15652@csn.ul.ie>
+References: <bug-29772-27@https.bugzilla.kernel.org/> <20110223134015.be96110b.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20110223144445.86d0ca2b.akpm@linux-foundation.org>
-References: <1297355626-5152-1-git-send-email-minchan.kim@gmail.com>
-	<20110219234121.GA2546@barrios-desktop>
-	<20110223144445.86d0ca2b.akpm@linux-foundation.org>
-Date: Thu, 24 Feb 2011 08:37:27 +0900
-Message-ID: <AANLkTik47+rots2XsouMiCnefmxeC_n=Q9mwBSyE9YjC@mail.gmail.com>
-Subject: Re: [PATCH] mm: optimize replace_page_cache_page
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110223134015.be96110b.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <mszeredi@suse.cz>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, johannes@sipsolutions.net
 
-On Thu, Feb 24, 2011 at 7:44 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Sun, 20 Feb 2011 08:41:21 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
->
->> Resend.
->
-> Reignore.
->
->> he patch is based on mmotm-2011-02-04 +
->> mm-add-replace_page_cache_page-function-add-freepage-hook.patch.
->>
->> On Fri, Feb 11, 2011 at 01:33:46AM +0900, Minchan Kim wrote:
->> > This patch optmizes replace_page_cache_page.
->> >
->> > 1) remove radix_tree_preload
->> > 2) single radix_tree_lookup_slot and replace radix tree slot
->> > 3) page accounting optimization if both pages are in same zone.
->> >
->> > Cc: Miklos Szeredi <mszeredi@suse.cz>
->> > Cc: Rik van Riel <riel@redhat.com>
->> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> > Cc: Mel Gorman <mel@csn.ul.ie>
->> > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->> > ---
->> > =C2=A0mm/filemap.c | =C2=A0 61 +++++++++++++++++++++++++++++++++++++++=
-+++++++++---------
->> > =C2=A01 files changed, 51 insertions(+), 10 deletions(-)
->> >
->> > Hi Miklos,
->> > This patch is totally not tested.
->> > Could you test this patch?
->
-> ^^^ Because of this.
->
-> Is it tested yet?
->
+On Wed, Feb 23, 2011 at 01:40:15PM -0800, Andrew Morton wrote:
+> 
+> (switched to email.  Please respond via emailed reply-to-all, not via the
+> bugzilla web interface).
+> 
+> On Wed, 23 Feb 2011 21:31:41 GMT
+> bugzilla-daemon@bugzilla.kernel.org wrote:
+> 
+> > https://bugzilla.kernel.org/show_bug.cgi?id=29772
+> > 
+> >            Summary: memory compaction crashed
+> >            Product: Memory Management
+> >            Version: 2.5
+> >     Kernel Version: 2.6.38-rc6-wl-65354-geac0466-dirty
+> >           Platform: All
+> >         OS/Version: Linux
+> >               Tree: Mainline
+> >             Status: NEW
+> >           Severity: normal
+> >           Priority: P1
+> >          Component: Other
+> >         AssignedTo: akpm@linux-foundation.org
+> >         ReportedBy: johannes@sipsolutions.net
+> >         Regression: No
+> > 
+> > 
+> > see attached image
+> 
+> screenshot here: https://bugzilla.kernel.org/attachment.cgi?id=48772
+> 
 
-Miklos. Could you test this?
-If you are busy, let me know how to test it. I will.
+isolate_migratepages is hit any time compaction runs so I'm wondering
+what is special about this test case. I'm assuming as evince crashed
+that it's a normalish desktop and wasn't running anything in particular.
+Is that true?
+
+Can you tell me what line the instruction ffffffff8100f1c2 corresponds to? If
+you have CONFIG_DEBUG_INFO set, it should be a case of telling me what the
+output of "addr2line -e vmlinux 0xffffffff8100f1c2" is. On a similar note,
+do you know what sort of crash this was? i.e. was it a NULL deference or
+did a VM_BUG_ON or BUG_ON hit such as VM_BUG_ON(PageTransCompound(page))?
+Was CONFIG_DEBUG_VM set? Actually, it would be preferable to have the
+whole .config attached to the bugzilla if possible please.
+
+Can I also see a full dmesg with the kernel parameters "loglevel=9
+mminit_loglevel=4" please? I know the crash won't be included but I want
+to see what your memory layout looks like to see can I spot anything
+unusual about it.
+
+I see fuse was loaded. Was it being heavily used at the time? If so,
+what sort of workload was exercising it?
+
+I *think* the kernel version is 2.6.38-rc6-wl-65354-geac0466-dirty. I'm
+not certain because there is a big shine from the camera flash on it.
+However, I can't see what this corresponds to. eac0466 is not a commit I
+can identify and the "dirty" implies that it's patched. How does this
+kernel differ from mainline?
+
 Thanks.
 
-
---=20
-Kind regards,
-Minchan Kim
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
