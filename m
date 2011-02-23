@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id DB2DF8D0039
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 10:30:58 -0500 (EST)
+	by kanga.kvack.org (Postfix) with ESMTP id 11B2A8D003E
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 10:31:11 -0500 (EST)
 Received: by mail-vw0-f41.google.com with SMTP id 13so3583840vws.14
-        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 07:30:57 -0800 (PST)
-Date: Wed, 23 Feb 2011 10:30:52 -0500
+        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 07:31:09 -0800 (PST)
+Date: Wed, 23 Feb 2011 10:31:04 -0500
 From: Eric B Munson <emunson@mgebm.net>
-Subject: Re: [PATCH 3/5] pass pte size argument in to smaps_pte_entry()
-Message-ID: <20110223153052.GC2810@mgebm.net>
+Subject: Re: [PATCH 4/5] teach smaps_pte_range() about THP pmds
+Message-ID: <20110223153104.GD2810@mgebm.net>
 References: <20110222015338.309727CA@kernel>
- <20110222015342.5DD9FC72@kernel>
+ <20110222015343.41586948@kernel>
 MIME-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="L6iaP+gRLNZHKoI4"
+	protocol="application/pgp-signature"; boundary="KdquIMZPjGJQvRdI"
 Content-Disposition: inline
-In-Reply-To: <20110222015342.5DD9FC72@kernel>
+In-Reply-To: <20110222015343.41586948@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave@linux.vnet.ibm.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, akpm@osdl.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 
 
---L6iaP+gRLNZHKoI4
+--KdquIMZPjGJQvRdI
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
@@ -29,20 +29,22 @@ Content-Transfer-Encoding: quoted-printable
 On Mon, 21 Feb 2011, Dave Hansen wrote:
 
 >=20
-> This patch adds an argument to the new smaps_pte_entry()
-> function to let it account in things other than PAGE_SIZE
-> units.  I changed all of the PAGE_SIZE sites, even though
-> not all of them can be reached for transparent huge pages,
-> just so this will continue to work without changes as THPs
-> are improved.
+> v2 - used mm->page_table_lock to fix up locking bug that
+> 	Mel pointed out.  Also remove Acks since things
+> 	got changed significantly.
 >=20
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> This adds code to explicitly detect  and handle
+> pmd_trans_huge() pmds.  It then passes HPAGE_SIZE units
+> in to the smap_pte_entry() function instead of PAGE_SIZE.
+>=20
+> This means that using /proc/$pid/smaps now will no longer
+> cause THPs to be broken down in to small pages.
+>=20
 > Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 
 Reviewed-and-tested-by: Eric B Munson <emunson@mgebm.net>
 
---L6iaP+gRLNZHKoI4
+--KdquIMZPjGJQvRdI
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: Digital signature
 Content-Disposition: inline
@@ -50,16 +52,16 @@ Content-Disposition: inline
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.10 (GNU/Linux)
 
-iQEcBAEBAgAGBQJNZSgsAAoJEH65iIruGRnNfjQH/jigfBNihcGhJ6Z9ESvDkQ1C
-VxTUjpWt67zxTObErN/TYLn9zZv/MvG4m8+ZmYKesICyydXAqoo/2rjqsm6dUv05
-Tczv0gIcgih8XL9EG+TzzHqx4s5iky9DyRcqG4HOOOffa5CIB9BpytMNRu/e/Q5V
-i/Fy7qLLYD17wBCN7QZY1BtT+ENPUSvWtARDoizow5ps8v0LgtNEOxL75Qmii7pw
-R9TKiTFdrZjx0zwpszXx4QTWDsWortBg3PcQkuvIicMgb48EnvEdOod7TZlmeKpG
-NvdMp9DJ/O4CC+SblmVf2FwFYuMWD6UEJO1TXEodxQAyNijToMKyOxPq7M5P69I=
-=Sovd
+iQEcBAEBAgAGBQJNZSg4AAoJEH65iIruGRnNvSsH/AtwBQIVUaJi8Uvm59aCnIiu
+ignraJxSzfqLoUkbGbA2prdsZwY0rk5Dn0Zdm1kzjpD+26YsA9n5JSdPFdzR7TXP
+Srr/Yqs+rgPJPvKE6gJt1jXN8Rtxg1nE1TKxNKHJYHVnH/sLN1MQeSOFrbtBM7sq
+Pil5w7FUII1ZpR/4BAq6fFEohyveXAGVHxZjfHkQNgfW6wP8Wxfulbb/QAf5W4/y
+2FzSIrcDB45IT7c1drWX6zCqURXxOQHuJbye1xNK8XMANOWyfPeUJQeGj0yVd4T1
+5cTXlP2pvYCB49dKmGRJSrtMXEHrF/F6Yv7NEw4M1PYHVLWbV96AevInnin8CNU=
+=zbue
 -----END PGP SIGNATURE-----
 
---L6iaP+gRLNZHKoI4--
+--KdquIMZPjGJQvRdI--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
