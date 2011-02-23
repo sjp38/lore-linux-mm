@@ -1,120 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 50EE68D0039
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 18:14:18 -0500 (EST)
-Date: Thu, 24 Feb 2011 00:14:11 +0100
-From: Andrea Righi <arighi@develer.com>
-Subject: Re: [PATCH 0/5] blk-throttle: writeback and swap IO control
-Message-ID: <20110223231410.GB1744@linux.develer.com>
-References: <1298394776-9957-1-git-send-email-arighi@develer.com>
- <20110222193403.GG28269@redhat.com>
- <20110222224141.GA23723@linux.develer.com>
- <20110223000358.GM28269@redhat.com>
- <20110223083206.GA2174@linux.develer.com>
- <20110223152354.GA2526@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id BCCAE8D0039
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 18:37:28 -0500 (EST)
+Received: by iwl42 with SMTP id 42so5483510iwl.14
+        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 15:37:27 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110223152354.GA2526@redhat.com>
+In-Reply-To: <20110223144445.86d0ca2b.akpm@linux-foundation.org>
+References: <1297355626-5152-1-git-send-email-minchan.kim@gmail.com>
+	<20110219234121.GA2546@barrios-desktop>
+	<20110223144445.86d0ca2b.akpm@linux-foundation.org>
+Date: Thu, 24 Feb 2011 08:37:27 +0900
+Message-ID: <AANLkTik47+rots2XsouMiCnefmxeC_n=Q9mwBSyE9YjC@mail.gmail.com>
+Subject: Re: [PATCH] mm: optimize replace_page_cache_page
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <mszeredi@suse.cz>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
 
-On Wed, Feb 23, 2011 at 10:23:54AM -0500, Vivek Goyal wrote:
-> > > Agreed. Granularity of per inode level might be accetable in many 
-> > > cases. Again, I am worried faster group getting stuck behind slower
-> > > group.
-> > > 
-> > > I am wondering if we are trying to solve the problem of ASYNC write throttling
-> > > at wrong layer. Should ASYNC IO be throttled before we allow task to write to
-> > > page cache. The way we throttle the process based on dirty ratio, can we
-> > > just check for throttle limits also there or something like that.(I think
-> > > that's what you had done in your initial throttling controller implementation?)
-> > 
-> > Right. This is exactly the same approach I've used in my old throttling
-> > controller: throttle sync READs and WRITEs at the block layer and async
-> > WRITEs when the task is dirtying memory pages.
-> > 
-> > This is probably the simplest way to resolve the problem of faster group
-> > getting blocked by slower group, but the controller will be a little bit
-> > more leaky, because the writeback IO will be never throttled and we'll
-> > see some limited IO spikes during the writeback.
-> 
-> Yes writeback will not be throttled. Not sure how big a problem that is.
-> 
-> - We have controlled the input rate. So that should help a bit.
-> - May be one can put some high limit on root cgroup to in blkio throttle
->   controller to limit overall WRITE rate of the system.
-> - For SATA disks, try to use CFQ which can try to minimize the impact of
->   WRITE.
-> 
-> It will atleast provide consistent bandwindth experience to application.
+On Thu, Feb 24, 2011 at 7:44 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Sun, 20 Feb 2011 08:41:21 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+>
+>> Resend.
+>
+> Reignore.
+>
+>> he patch is based on mmotm-2011-02-04 +
+>> mm-add-replace_page_cache_page-function-add-freepage-hook.patch.
+>>
+>> On Fri, Feb 11, 2011 at 01:33:46AM +0900, Minchan Kim wrote:
+>> > This patch optmizes replace_page_cache_page.
+>> >
+>> > 1) remove radix_tree_preload
+>> > 2) single radix_tree_lookup_slot and replace radix tree slot
+>> > 3) page accounting optimization if both pages are in same zone.
+>> >
+>> > Cc: Miklos Szeredi <mszeredi@suse.cz>
+>> > Cc: Rik van Riel <riel@redhat.com>
+>> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> > Cc: Mel Gorman <mel@csn.ul.ie>
+>> > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+>> > ---
+>> > =C2=A0mm/filemap.c | =C2=A0 61 +++++++++++++++++++++++++++++++++++++++=
++++++++++---------
+>> > =C2=A01 files changed, 51 insertions(+), 10 deletions(-)
+>> >
+>> > Hi Miklos,
+>> > This patch is totally not tested.
+>> > Could you test this patch?
+>
+> ^^^ Because of this.
+>
+> Is it tested yet?
+>
 
-Right.
+Miklos. Could you test this?
+If you are busy, let me know how to test it. I will.
+Thanks.
 
-> 
-> >However, this is always
-> > a better solution IMHO respect to the current implementation that is
-> > affected by that kind of priority inversion problem.
-> > 
-> > I can try to add this logic to the current blk-throttle controller if
-> > you think it is worth to test it.
-> 
-> At this point of time I have few concerns with this approach.
-> 
-> - Configuration issues. Asking user to plan for SYNC ans ASYNC IO
->   separately is inconvenient. One has to know the nature of workload.
-> 
-> - Most likely we will come up with global limits (atleast to begin with),
->   and not per device limit. That can lead to contention on one single
->   lock and scalability issues on big systems.
-> 
-> Having said that, this approach should reduce the kernel complexity a lot.
-> So if we can do some intelligent locking to limit the overhead then it
-> will boil down to reduced complexity in kernel vs ease of use to user. I 
-> guess at this point of time I am inclined towards keeping it simple in
-> kernel.
-> 
 
-BTW, with this approach probably we can even get rid of the page
-tracking stuff for now. If we don't consider the swap IO, any other IO
-operation from our point of view will happen directly from process
-context (writes in memory + sync reads from the block device).
-
-However, I'm sure we'll need the page tracking also for the blkio
-controller soon or later. This is an important information and also the
-proportional bandwidth controller can take advantage of it.
-
-> 
-> Couple of people have asked me that we have backup jobs running at night
-> and we want to reduce the IO bandwidth of these jobs to limit the impact
-> on latency of other jobs, I guess this approach will definitely solve
-> that issue.
-> 
-> IMHO, it might be worth trying this approach and see how well does it work. It
-> might not solve all the problems but can be helpful in many situations.
-
-Agreed. This could be a good tradeoff for a lot of common cases.
-
-> 
-> I feel that for proportional bandwidth division, implementing ASYNC
-> control at CFQ will make sense because even if things get serialized in
-> higher layers, consequences are not very bad as it is work conserving
-> algorithm. But for throttling serialization will lead to bad consequences.
-
-Agreed.
-
-> 
-> May be one can think of new files in blkio controller to limit async IO
-> per group during page dirty time.
-> 
-> blkio.throttle.async.write_bps_limit
-> blkio.throttle.async.write_iops_limit
-
-OK, I'll try to add the async throttling logic and use this interface.
-
--Andrea
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
