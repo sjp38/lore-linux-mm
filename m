@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 91F558D003B
+	by kanga.kvack.org (Postfix) with SMTP id DC0CE8D003D
 	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 20:52:37 -0500 (EST)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 2/8] Change alloc_pages_vma to pass down the policy node for local policy
-Date: Tue, 22 Feb 2011 17:51:56 -0800
-Message-Id: <1298425922-23630-3-git-send-email-andi@firstfloor.org>
+Subject: [PATCH 5/8] Use correct numa policy node for transparent hugepages
+Date: Tue, 22 Feb 2011 17:51:59 -0800
+Message-Id: <1298425922-23630-6-git-send-email-andi@firstfloor.org>
 In-Reply-To: <1298425922-23630-1-git-send-email-andi@firstfloor.org>
 References: <1298425922-23630-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,102 +15,125 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel
 
 From: Andi Kleen <ak@linux.intel.com>
 
-Currently alloc_pages_vma always uses the local node as policy node
-for the LOCAL policy. Pass this node down as an argument instead.
+Pass down the correct node for a transparent hugepage allocation.
+Most callers continue to use the current node, however the hugepaged
+daemon now uses the previous node of the first to be collapsed page
+instead. This ensures that khugepaged does not mess up local memory
+for an existing process which uses local policy.
 
-No behaviour change from this patch, but will be needed for followons.
+The choice of node is somewhat primitive currently: it just
+uses the node of the first page in the pmd range. An alternative
+would be to look at multiple pages and use the most popular
+node. I used the simplest variant for now which should work
+well enough for the case of all pages being on the same node.
 
 Cc: aarcange@redhat.com
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 ---
- include/linux/gfp.h |    9 +++++----
- mm/huge_memory.c    |    2 +-
- mm/mempolicy.c      |   11 +++++------
- 3 files changed, 11 insertions(+), 11 deletions(-)
+ mm/huge_memory.c |   24 +++++++++++++++++-------
+ mm/mempolicy.c   |    3 ++-
+ 2 files changed, 19 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 0b84c61..782e74a 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -332,16 +332,17 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
- 	return alloc_pages_current(gfp_mask, order);
- }
- extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
--			struct vm_area_struct *vma, unsigned long addr);
-+		    	struct vm_area_struct *vma, unsigned long addr,
-+			int node);
- #else
- #define alloc_pages(gfp_mask, order) \
- 		alloc_pages_node(numa_node_id(), gfp_mask, order)
--#define alloc_pages_vma(gfp_mask, order, vma, addr)	\
-+#define alloc_pages_vma(gfp_mask, order, vma, addr, node)	\
- 	alloc_pages(gfp_mask, order)
- #endif
- #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
--#define alloc_page_vma(gfp_mask, vma, addr)	\
--	alloc_pages_vma(gfp_mask, 0, vma, addr)
-+#define alloc_page_vma(gfp_mask, vma, addr)			\
-+	alloc_pages_vma(gfp_mask, 0, vma, addr, numa_node_id())
- 
- extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
- extern unsigned long get_zeroed_page(gfp_t gfp_mask);
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index e62ddb8..73ecca5 100644
+index 00a5c39..5a05b35 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -653,7 +653,7 @@ static inline struct page *alloc_hugepage_vma(int defrag,
- 					      unsigned long haddr)
+@@ -650,10 +650,10 @@ static inline gfp_t alloc_hugepage_gfpmask(int defrag)
+ 
+ static inline struct page *alloc_hugepage_vma(int defrag,
+ 					      struct vm_area_struct *vma,
+-					      unsigned long haddr)
++					      unsigned long haddr, int nd)
  {
  	return alloc_pages_vma(alloc_hugepage_gfpmask(defrag),
--			       HPAGE_PMD_ORDER, vma, haddr);
-+			       HPAGE_PMD_ORDER, vma, haddr, numa_node_id());
+-			       HPAGE_PMD_ORDER, vma, haddr, numa_node_id());
++			       HPAGE_PMD_ORDER, vma, haddr, nd);
  }
  
  #ifndef CONFIG_NUMA
+@@ -678,7 +678,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		if (unlikely(khugepaged_enter(vma)))
+ 			return VM_FAULT_OOM;
+ 		page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+-					  vma, haddr);
++					  vma, haddr, numa_node_id());
+ 		if (unlikely(!page))
+ 			goto out;
+ 		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
+@@ -902,7 +902,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (transparent_hugepage_enabled(vma) &&
+ 	    !transparent_hugepage_debug_cow())
+ 		new_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+-					      vma, haddr);
++					      vma, haddr, numa_node_id());
+ 	else
+ 		new_page = NULL;
+ 
+@@ -1745,7 +1745,8 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
+ static void collapse_huge_page(struct mm_struct *mm,
+ 			       unsigned long address,
+ 			       struct page **hpage,
+-			       struct vm_area_struct *vma)
++			       struct vm_area_struct *vma,
++			       int node)
+ {
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+@@ -1773,7 +1774,8 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	 * mmap_sem in read mode is good idea also to allow greater
+ 	 * scalability.
+ 	 */
+-	new_page = alloc_hugepage_vma(khugepaged_defrag(), vma, address);
++	new_page = alloc_hugepage_vma(khugepaged_defrag(), vma, address,
++				      node);
+ 	if (unlikely(!new_page)) {
+ 		up_read(&mm->mmap_sem);
+ 		*hpage = ERR_PTR(-ENOMEM);
+@@ -1917,6 +1919,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 	struct page *page;
+ 	unsigned long _address;
+ 	spinlock_t *ptl;
++	int node = -1;
+ 
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 
+@@ -1947,6 +1950,13 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 		page = vm_normal_page(vma, _address, pteval);
+ 		if (unlikely(!page))
+ 			goto out_unmap;
++		/* 
++		 * Chose the node of the first page. This could 
++		 * be more sophisticated and look at more pages,
++		 * but isn't for now.
++		 */
++		if (node == -1) 
++			node = page_to_nid(page);
+ 		VM_BUG_ON(PageCompound(page));
+ 		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
+ 			goto out_unmap;
+@@ -1963,7 +1973,7 @@ out_unmap:
+ 	pte_unmap_unlock(pte, ptl);
+ 	if (ret)
+ 		/* collapse_huge_page will return with the mmap_sem released */
+-		collapse_huge_page(mm, address, hpage, vma);
++		collapse_huge_page(mm, address, hpage, vma, node);
+ out:
+ 	return ret;
+ }
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 49355a9..25a5a91 100644
+index 25a5a91..151c20c 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -1524,10 +1524,9 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
+@@ -1891,7 +1891,8 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
+ 		page = alloc_page_interleave(gfp, order, interleave_nodes(pol));
+ 	else
+ 		page = __alloc_pages_nodemask(gfp, order,
+-			policy_zonelist(gfp, pol), policy_nodemask(gfp, pol));
++	      			policy_zonelist(gfp, pol, numa_node_id()), 
++				policy_nodemask(gfp, pol));
+ 	put_mems_allowed();
+ 	return page;
  }
- 
- /* Return a zonelist indicated by gfp for node representing a mempolicy */
--static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy)
-+static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
-+	int nd)
- {
--	int nd = numa_node_id();
--
- 	switch (policy->mode) {
- 	case MPOL_PREFERRED:
- 		if (!(policy->flags & MPOL_F_LOCAL))
-@@ -1679,7 +1678,7 @@ struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
- 		zl = node_zonelist(interleave_nid(*mpol, vma, addr,
- 				huge_page_shift(hstate_vma(vma))), gfp_flags);
- 	} else {
--		zl = policy_zonelist(gfp_flags, *mpol);
-+		zl = policy_zonelist(gfp_flags, *mpol, numa_node_id());
- 		if ((*mpol)->mode == MPOL_BIND)
- 			*nodemask = &(*mpol)->v.nodes;
- 	}
-@@ -1820,7 +1819,7 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
-  */
- struct page *
- alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
--		unsigned long addr)
-+		unsigned long addr, int node)
- {
- 	struct mempolicy *pol = get_vma_policy(current, vma, addr);
- 	struct zonelist *zl;
-@@ -1836,7 +1835,7 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
- 		put_mems_allowed();
- 		return page;
- 	}
--	zl = policy_zonelist(gfp, pol);
-+	zl = policy_zonelist(gfp, pol, node);
- 	if (unlikely(mpol_needs_cond_ref(pol))) {
- 		/*
- 		 * slow path: ref counted shared policy
 -- 
 1.7.4
 
