@@ -1,84 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 164C18D0039
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 19:02:21 -0500 (EST)
-Date: Wed, 23 Feb 2011 15:08:50 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] memcg: add oom killer delay
-Message-Id: <20110223150850.8b52f244.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1102091417410.5697@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1102091417410.5697@chino.kir.corp.google.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 50C6F8D0039
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 19:04:33 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 02B3C3EE0AE
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:04:30 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DD0AB45DE5B
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:04:29 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C368245DE56
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:04:29 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B3F98E38008
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:04:29 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C459E38004
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:04:29 +0900 (JST)
+Date: Thu, 24 Feb 2011 08:58:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 3/5] page_cgroup: make page tracking available for blkio
+Message-Id: <20110224085805.14766e93.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110223085911.GC2174@linux.develer.com>
+References: <1298394776-9957-1-git-send-email-arighi@develer.com>
+	<1298394776-9957-4-git-send-email-arighi@develer.com>
+	<20110222130145.37cb151e@bike.lwn.net>
+	<20110222230146.GB23723@linux.develer.com>
+	<20110222230630.GL28269@redhat.com>
+	<20110222233718.GF23723@linux.develer.com>
+	<20110223134910.abbdc931.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110223085911.GC2174@linux.develer.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
+To: Andrea Righi <arighi@develer.com>
+Cc: Vivek Goyal <vgoyal@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 9 Feb 2011 14:19:50 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+On Wed, 23 Feb 2011 09:59:11 +0100
+Andrea Righi <arighi@develer.com> wrote:
 
-> Completely disabling the oom killer for a memcg is problematic if
-> userspace is unable to address the condition itself, usually because it
-> is unresponsive.  This scenario creates a memcg deadlock: tasks are
-> sitting in TASK_KILLABLE waiting for the limit to be increased, a task to
-> exit or move, or the oom killer reenabled and userspace is unable to do
-> so.
+> > 
+> > I wonder I can make pc->mem_cgroup to be pc->memid(16bit), then, 
+> > ==
+> > static inline struct mem_cgroup *get_memcg_from_pc(struct page_cgroup *pc)
+> > {
+> >     struct cgroup_subsys_state *css = css_lookup(&mem_cgroup_subsys, pc->memid);
+> >     return container_of(css, struct mem_cgroup, css);
+> > }
+> > ==
+> > Overhead will be seen at updating file statistics and LRU management.
+> > 
+> > But, hmm, can't you do that tracking without page_cgroup ?
+> > Because the number of dirty/writeback pages are far smaller than total pages,
+> > chasing I/O with dynamic structure is not very bad..
+> > 
+> > prepareing [pfn -> blkio] record table and move that information to struct bio
+> > in dynamic way is very difficult ?
 > 
-> An additional possible use case is to defer oom killing within a memcg
-> for a set period of time, probably to prevent unnecessary kills due to
-> temporary memory spikes, before allowing the kernel to handle the
-> condition.
+> This would be ok for dirty pages, but consider that we're also tracking
+> anonymous pages. So, if we want to control the swap IO we actually need
+> to save this information for a lot of pages and at the end I think we'll
+> basically duplicate the page_cgroup code.
 > 
-> This patch adds an oom killer delay so that a memcg may be configured to
-> wait at least a pre-defined number of milliseconds before calling the oom
-> killer.  If the oom condition persists for this number of milliseconds,
-> the oom killer will be called the next time the memory controller
-> attempts to charge a page (and memory.oom_control is set to 0).  This
-> allows userspace to have a short period of time to respond to the
-> condition before deferring to the kernel to kill a task.
-> 
-> Admins may set the oom killer delay using the new interface:
-> 
-> 	# echo 60000 > memory.oom_delay_millisecs
-> 
-> This will defer oom killing to the kernel only after 60 seconds has
-> elapsed by putting the task to sleep for 60 seconds.  When setting
-> memory.oom_delay_millisecs, all pending delays have their charges retried
-> and, if necessary, the new delay is then enforced.
-> 
-> The delay is cleared the first time the memcg is oom to avoid unnecessary
-> waiting when userspace is unresponsive for future oom conditions.  It may
-> be set again using the above interface to enforce a delay on the next
-> oom.
-> 
-> When a memory.oom_delay_millisecs is set for a cgroup, it is propagated
-> to all children memcg as well and is inherited when a new memcg is
-> created.
 
-Your patch still stinks!
+swap io is always started with bio and the task/mm_struct.
+So, if we can record information in bio, no page tracking is required.
+You can record information to bio just by reading mm->owner.
 
-If userspace can't handle a disabled oom-killer then userspace
-shouldn't have disabled the oom-killer.
-
-How do we fix this properly?
-
-A little birdie tells me that the offending userspace oom handler is
-running in a separate memcg and is not itself running out of memory. 
-The problem is that the userspace oom handler is also taking peeks into
-processes which are in the stressed memcg and is getting stuck on
-mmap_sem in the procfs reads.  Correct?
-
-It seems to me that such a userspace oom handler is correctly designed,
-and that we should be looking into the reasons why it is unreliable,
-and fixing them.  Please tell us about this?
-
-(If fixing the kernel is intractable, wouldn't it be feasible for the
-userspace oom handler to have its own watchdog which either starts
-killing stuff itself, or which reenables the stressed memcg's
-oom-killer?)
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
