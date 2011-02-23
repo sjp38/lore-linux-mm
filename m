@@ -1,60 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 323F58D0039
+	by kanga.kvack.org (Postfix) with SMTP id 601728D003A
 	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 20:52:37 -0500 (EST)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Fix NUMA problems in transparent hugepages v2
-Date: Tue, 22 Feb 2011 17:51:54 -0800
-Message-Id: <1298425922-23630-1-git-send-email-andi@firstfloor.org>
+Subject: [PATCH 1/8] Fix interleaving for transparent hugepages v2
+Date: Tue, 22 Feb 2011 17:51:55 -0800
+Message-Id: <1298425922-23630-2-git-send-email-andi@firstfloor.org>
+In-Reply-To: <1298425922-23630-1-git-send-email-andi@firstfloor.org>
+References: <1298425922-23630-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, aarcange@redhat.com
 
-v2: I dropped the controversal KSM changes and fixed
-the interleaving bug. Now it's purely for transparent huge pages.
+From: Andi Kleen <ak@linux.intel.com>
 
-The current transparent hugepages daemon can mess up local
-memory affinity on NUMA systems. When it copies memory to a 
-huge page it does not necessarily keep it on the same
-node as the local allocations.
+Bugfix, independent from the rest of the series.
 
-While fixing this I also found some more related issues:
-- The NUMA policy interleaving for THP was using the small
-page size, not the large parse size.
-- THP copies also did not preserve the local node
-- The accounting for local/remote allocations in the daemon
-was misleading.
-- There were no VM statistics counters for THP, which made it 
-impossible to analyze.
+The THP code didn't pass the correct interleaving shift to the memory
+policy code. Fix this here by adjusting for the order.
+
+v2: Use + (thanks Christoph)
+Cc: aarcange@redhat.com
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+---
+ mm/mempolicy.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 368fc9d..49355a9 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1830,7 +1830,7 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+ 	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
+ 		unsigned nid;
  
-At least some of the bug fixes are 2.6.38 candidates IMHO
-because some of the NUMA problems are pretty bad. In some workloads
-this can cause performance problems. 
-
-What can be delayed are GFP_OTHERNODE and the statistics changes.
-
-Git tree:
-
-  git://git.kernel.org/pub/scm/linux/kernel/git/ak/linux-misc-2.6.git thp-numa
-
-Andi Kleen (8):
-      Fix interleaving for transparent hugepages v2
-      Change alloc_pages_vma to pass down the policy node for local policy
-      Add alloc_page_vma_node
-      Preserve original node for transparent huge page copies
-      Use correct numa policy node for transparent hugepages
-      Add __GFP_OTHER_NODE flag
-      Use GFP_OTHER_NODE for transparent huge pages
-      Add VM counters for transparent hugepages
-
- include/linux/gfp.h    |   13 ++++++++---
- include/linux/vmstat.h |   11 ++++++++-
- mm/huge_memory.c       |   49 +++++++++++++++++++++++++++++++++--------------
- mm/mempolicy.c         |   16 +++++++-------
- mm/page_alloc.c        |    2 +-
- mm/vmstat.c            |   17 ++++++++++++++-
- 6 files changed, 76 insertions(+), 32 deletions(-)
+-		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
++		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT + order);
+ 		mpol_cond_put(pol);
+ 		page = alloc_page_interleave(gfp, order, nid);
+ 		put_mems_allowed();
+-- 
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
