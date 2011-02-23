@@ -1,53 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 92E3B8D003D
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 10:31:25 -0500 (EST)
-Received: by vxc38 with SMTP id 38so2961315vxc.14
-        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 07:31:23 -0800 (PST)
-Date: Wed, 23 Feb 2011 10:31:18 -0500
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 165A88D003D
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 10:34:27 -0500 (EST)
+Received: by vws13 with SMTP id 13so3588918vws.14
+        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 07:34:07 -0800 (PST)
+Date: Wed, 23 Feb 2011 10:33:30 -0500
 From: Eric B Munson <emunson@mgebm.net>
-Subject: Re: [PATCH 5/5] have smaps show transparent huge pages
-Message-ID: <20110223153118.GE2810@mgebm.net>
-References: <20110222015338.309727CA@kernel>
- <20110222015345.BF949720@kernel>
+Subject: Re: [PATCH v2] hugetlbfs: correct handling of negative input to
+ /proc/sys/vm/nr_hugepages
+Message-ID: <20110223153330.GF2810@mgebm.net>
+References: <4D6419C0.8080804@redhat.com>
 MIME-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="ZInfyf7laFu/Kiw7"
+	protocol="application/pgp-signature"; boundary="9ADF8FXzFeE7X4jE"
 Content-Disposition: inline
-In-Reply-To: <20110222015345.BF949720@kernel>
+In-Reply-To: <4D6419C0.8080804@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael J Wolf <mjwolf@us.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, akpm@osdl.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>
+To: Petr Holasek <pholasek@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
 
 
---ZInfyf7laFu/Kiw7
+--9ADF8FXzFeE7X4jE
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
 
-On Mon, 21 Feb 2011, Dave Hansen wrote:
+On Tue, 22 Feb 2011, Petr Holasek wrote:
 
+> When user insert negative value into /proc/sys/vm/nr_hugepages it
+> will result
+> in the setting a random number of HugePages in system (can be easily show=
+ed
+> at /proc/meminfo output). This patch fixes the wrong behavior so that the
+> negative input will result in nr_hugepages value unchanged.
 >=20
-> Now that the mere act of _looking_ at /proc/$pid/smaps will not
-> destroy transparent huge pages, tell how much of the VMA is
-> actually mapped with them.
+> v2: same fix was also done in hugetlb_overcommit_handler function
+>     as suggested by reviewers.
 >=20
-> This way, we can make sure that we're getting THPs where we
-> expect to see them.
->=20
-> v3 - * changed HPAGE_SIZE to HPAGE_PMD_SIZE, probably more correct
->        and also has a nice BUG() in case there was a .config mishap
->      * remove direct reference to ->page_table_lock, and used the
->        passed-in ptl pointer insteadl
->=20
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+> Signed-off-by: Petr Holasek <pholasek@redhat.com>
+> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Reviewed-and-tested-by: Eric B Munson <emunson@mgebm.net>
+Acked-by: Eric B Munson <emunson@mgebm.net>
 
---ZInfyf7laFu/Kiw7
+--9ADF8FXzFeE7X4jE
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: Digital signature
 Content-Disposition: inline
@@ -55,16 +51,16 @@ Content-Disposition: inline
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.10 (GNU/Linux)
 
-iQEcBAEBAgAGBQJNZShGAAoJEH65iIruGRnNUYwH+gNDTiqWFnERc/nD72V5k8zj
-PEd9BqE0XqfyfXAaIySAgT6JfWJzlDG1zumNHNPXbtvHgSIn/5V92I3o+WIm2Jpi
-7n+wxcFt9q4D5DDqa9BsHnr7bAANe3AjKjA6+yDET3dUlQpfPFG2iMvDCQ0V3mPk
-Mdr7a6ZSP9eMVcZKkE2V+z/M3PO84qT7Qd3j7e8GGKY35fQocHlbvKsPGu4sicGg
-v1sRHr/jtH/NyrEE5xhVvgskVbj4pcgyMKIxX/0uVU5Yq/Dc2LIjkF6ZYl9sHnIt
-qA4lVAbNxaOtYsCWE39hT26VgmC/72IWmolhRTk7A6tDO+E58ipodLRoMNYwxhQ=
-=Pyxw
+iQEcBAEBAgAGBQJNZSjKAAoJEH65iIruGRnNfmgIANcaLoAQV6ayXUnWTeYd1BtW
+xjf2c91jcxg+UMRNmpZEkQXVU03CfV4GZe/o9r1vXDTZTtUgMYpRcI+dhIC7X4+W
+IhiPQAB1I/J0E8vNvYfbj7J2GK7vvmMhM1du3DQyb44L5IsbNiaA13VfCrUqTS+g
+3Ls6SROHpQOc/Qf4EXsq0w6nrrlJfOFajLJ7LNA6EAd59Ze6mA0QaBrARyOmpjYe
+IPQZbPB5IKcy64+1rnTjrDgd9ba1ruhOKVsrb0q0u7z1LO7a+K9IhPMVpPNkydeS
+8bHUWdQCnH0NdHkWggTPdJac82e5JGWddcjoNi5JYx5/QqNLkWqIgVDA+kXg3hQ=
+=QDU0
 -----END PGP SIGNATURE-----
 
---ZInfyf7laFu/Kiw7--
+--9ADF8FXzFeE7X4jE--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
