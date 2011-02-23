@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id DC0CE8D003D
-	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 20:52:37 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 42CC58D0040
+	for <linux-mm@kvack.org>; Tue, 22 Feb 2011 20:52:38 -0500 (EST)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 5/8] Use correct numa policy node for transparent hugepages
-Date: Tue, 22 Feb 2011 17:51:59 -0800
-Message-Id: <1298425922-23630-6-git-send-email-andi@firstfloor.org>
+Subject: [PATCH 8/8] Add VM counters for transparent hugepages
+Date: Tue, 22 Feb 2011 17:52:02 -0800
+Message-Id: <1298425922-23630-9-git-send-email-andi@firstfloor.org>
 In-Reply-To: <1298425922-23630-1-git-send-email-andi@firstfloor.org>
 References: <1298425922-23630-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,125 +15,115 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel
 
 From: Andi Kleen <ak@linux.intel.com>
 
-Pass down the correct node for a transparent hugepage allocation.
-Most callers continue to use the current node, however the hugepaged
-daemon now uses the previous node of the first to be collapsed page
-instead. This ensures that khugepaged does not mess up local memory
-for an existing process which uses local policy.
+I found it difficult to make sense of transparent huge pages without
+having any counters for its actions. Add some counters to vmstat
+for allocation of transparent hugepages and fallback to smaller
+pages.
 
-The choice of node is somewhat primitive currently: it just
-uses the node of the first page in the pmd range. An alternative
-would be to look at multiple pages and use the most popular
-node. I used the simplest variant for now which should work
-well enough for the case of all pages being on the same node.
+Optional patch, but useful for development and understanding the system.
 
 Cc: aarcange@redhat.com
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 ---
- mm/huge_memory.c |   24 +++++++++++++++++-------
- mm/mempolicy.c   |    3 ++-
- 2 files changed, 19 insertions(+), 8 deletions(-)
+ include/linux/vmstat.h |    7 +++++++
+ mm/huge_memory.c       |   13 ++++++++++---
+ mm/vmstat.c            |    8 ++++++++
+ 3 files changed, 25 insertions(+), 3 deletions(-)
 
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index 9b5c63d..7794d1a7 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -58,6 +58,13 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		UNEVICTABLE_PGCLEARED,	/* on COW, page truncate */
+ 		UNEVICTABLE_PGSTRANDED,	/* unable to isolate on unlock */
+ 		UNEVICTABLE_MLOCKFREED,
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	        THP_DIRECT_ALLOC,
++		THP_DAEMON_ALLOC,	
++		THP_DIRECT_FALLBACK,	
++		THP_DAEMON_ALLOC_FAILED,
++		THP_SPLIT,
++#endif
+ 		NR_VM_EVENT_ITEMS
+ };
+ 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 00a5c39..5a05b35 100644
+index 877756e..4ef8c32 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -650,10 +650,10 @@ static inline gfp_t alloc_hugepage_gfpmask(int defrag)
- 
- static inline struct page *alloc_hugepage_vma(int defrag,
- 					      struct vm_area_struct *vma,
--					      unsigned long haddr)
-+					      unsigned long haddr, int nd)
- {
- 	return alloc_pages_vma(alloc_hugepage_gfpmask(defrag),
--			       HPAGE_PMD_ORDER, vma, haddr, numa_node_id());
-+			       HPAGE_PMD_ORDER, vma, haddr, nd);
- }
- 
- #ifndef CONFIG_NUMA
-@@ -678,7 +678,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		if (unlikely(khugepaged_enter(vma)))
+@@ -680,13 +680,15 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
  			return VM_FAULT_OOM;
  		page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
--					  vma, haddr);
-+					  vma, haddr, numa_node_id());
- 		if (unlikely(!page))
+ 					  vma, haddr, numa_node_id(), 0);
+-		if (unlikely(!page))
++		if (unlikely(!page)) {
++			count_vm_event(THP_DIRECT_FALLBACK);
  			goto out;
++		}
  		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
-@@ -902,7 +902,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (transparent_hugepage_enabled(vma) &&
- 	    !transparent_hugepage_debug_cow())
- 		new_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
--					      vma, haddr);
-+					      vma, haddr, numa_node_id());
- 	else
+ 			put_page(page);
+ 			goto out;
+ 		}
+-
++		count_vm_event(THP_DIRECT_ALLOC);
+ 		return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page);
+ 	}
+ out:
+@@ -909,6 +911,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
  		new_page = NULL;
  
-@@ -1745,7 +1745,8 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
- static void collapse_huge_page(struct mm_struct *mm,
- 			       unsigned long address,
- 			       struct page **hpage,
--			       struct vm_area_struct *vma)
-+			       struct vm_area_struct *vma,
-+			       int node)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
-@@ -1773,7 +1774,8 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	 * mmap_sem in read mode is good idea also to allow greater
- 	 * scalability.
- 	 */
--	new_page = alloc_hugepage_vma(khugepaged_defrag(), vma, address);
-+	new_page = alloc_hugepage_vma(khugepaged_defrag(), vma, address,
-+				      node);
+ 	if (unlikely(!new_page)) {
++		count_vm_event(THP_DIRECT_FALLBACK);
+ 		ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
+ 						   pmd, orig_pmd, page, haddr);
+ 		put_page(page);
+@@ -921,7 +924,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		ret |= VM_FAULT_OOM;
+ 		goto out;
+ 	}
+-
++	count_vm_event(THP_DIRECT_ALLOC);
+ 	copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
+ 	__SetPageUptodate(new_page);
+ 
+@@ -1780,6 +1783,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 				      node, __GFP_OTHER_NODE);
  	if (unlikely(!new_page)) {
  		up_read(&mm->mmap_sem);
++		count_vm_event(THP_DAEMON_ALLOC_FAILED);
  		*hpage = ERR_PTR(-ENOMEM);
-@@ -1917,6 +1919,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 	struct page *page;
- 	unsigned long _address;
- 	spinlock_t *ptl;
-+	int node = -1;
+ 		return;
+ 	}
+@@ -2286,6 +2290,9 @@ void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd)
+ 		spin_unlock(&mm->page_table_lock);
+ 		return;
+ 	}
++
++	count_vm_event(THP_SPLIT);
++
+ 	page = pmd_page(*pmd);
+ 	VM_BUG_ON(!page_count(page));
+ 	get_page(page);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 2b461ed..f3ab7e9 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -946,6 +946,14 @@ static const char * const vmstat_text[] = {
+ 	"unevictable_pgs_stranded",
+ 	"unevictable_pgs_mlockfreed",
+ #endif
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	"thp_direct_alloc",
++	"thp_daemon_alloc",
++	"thp_direct_fallback",
++	"thp_daemon_alloc_failed",
++	"thp_split",
++#endif
+ };
  
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
- 
-@@ -1947,6 +1950,13 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 		page = vm_normal_page(vma, _address, pteval);
- 		if (unlikely(!page))
- 			goto out_unmap;
-+		/* 
-+		 * Chose the node of the first page. This could 
-+		 * be more sophisticated and look at more pages,
-+		 * but isn't for now.
-+		 */
-+		if (node == -1) 
-+			node = page_to_nid(page);
- 		VM_BUG_ON(PageCompound(page));
- 		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
- 			goto out_unmap;
-@@ -1963,7 +1973,7 @@ out_unmap:
- 	pte_unmap_unlock(pte, ptl);
- 	if (ret)
- 		/* collapse_huge_page will return with the mmap_sem released */
--		collapse_huge_page(mm, address, hpage, vma);
-+		collapse_huge_page(mm, address, hpage, vma, node);
- out:
- 	return ret;
- }
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 25a5a91..151c20c 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1891,7 +1891,8 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
- 		page = alloc_page_interleave(gfp, order, interleave_nodes(pol));
- 	else
- 		page = __alloc_pages_nodemask(gfp, order,
--			policy_zonelist(gfp, pol), policy_nodemask(gfp, pol));
-+	      			policy_zonelist(gfp, pol, numa_node_id()), 
-+				policy_nodemask(gfp, pol));
- 	put_mems_allowed();
- 	return page;
- }
+ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 -- 
 1.7.4
 
