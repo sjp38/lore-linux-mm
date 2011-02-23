@@ -1,105 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 48E2D8D0039
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 10:13:42 -0500 (EST)
-Date: Wed, 23 Feb 2011 23:13:22 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: IO-less dirty throttling V6 results available
-Message-ID: <20110223151322.GA13637@localhost>
-References: <20110222142543.GA13132@localhost>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8A3648D0039
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 10:26:17 -0500 (EST)
+Date: Wed, 23 Feb 2011 10:23:54 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 0/5] blk-throttle: writeback and swap IO control
+Message-ID: <20110223152354.GA2526@redhat.com>
+References: <1298394776-9957-1-git-send-email-arighi@develer.com>
+ <20110222193403.GG28269@redhat.com>
+ <20110222224141.GA23723@linux.develer.com>
+ <20110223000358.GM28269@redhat.com>
+ <20110223083206.GA2174@linux.develer.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110222142543.GA13132@localhost>
+In-Reply-To: <20110223083206.GA2174@linux.develer.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Minchan Kim <minchan.kim@gmail.com>, Boaz Harrosh <bharrosh@panasas.com>, Sorin Faibish <sfaibish@emc.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrea Righi <arighi@develer.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6
+> > Agreed. Granularity of per inode level might be accetable in many 
+> > cases. Again, I am worried faster group getting stuck behind slower
+> > group.
+> > 
+> > I am wondering if we are trying to solve the problem of ASYNC write throttling
+> > at wrong layer. Should ASYNC IO be throttled before we allow task to write to
+> > page cache. The way we throttle the process based on dirty ratio, can we
+> > just check for throttle limits also there or something like that.(I think
+> > that's what you had done in your initial throttling controller implementation?)
+> 
+> Right. This is exactly the same approach I've used in my old throttling
+> controller: throttle sync READs and WRITEs at the block layer and async
+> WRITEs when the task is dirtying memory pages.
+> 
+> This is probably the simplest way to resolve the problem of faster group
+> getting blocked by slower group, but the controller will be a little bit
+> more leaky, because the writeback IO will be never throttled and we'll
+> see some limited IO spikes during the writeback.
 
-As you can see from the graphs, the write bandwidth, the dirty
-throttle bandwidths and the number of dirty pages are all fluctuating. 
-Fluctuations are regular for as simple as dd workloads.
+Yes writeback will not be throttled. Not sure how big a problem that is.
 
-The current threshold based balance_dirty_pages() has the effect of
-keeping the number of dirty pages close to the dirty threshold at most
-time, at the cost of directly passing the underneath fluctuations to
-the application. As a result, the dirtier tasks are swinging from
-"dirty as fast as possible" and "full stop" states. The pause time
-in current balance_dirty_pages() are measured to be random numbers
-between 0 and hundreds of milliseconds for local ext4 filesystem and
-more for NFS.
+- We have controlled the input rate. So that should help a bit.
+- May be one can put some high limit on root cgroup to in blkio throttle
+  controller to limit overall WRITE rate of the system.
+- For SATA disks, try to use CFQ which can try to minimize the impact of
+  WRITE.
 
-Obviously end users are much more sensitive to the fluctuating
-latencies than the fluctuation of dirty pages. It makes much sense to
-expand the current on/off dirty threshold to some kind of dirty range
-control, absorbing the fluctuation of dirty throttle latencies by
-allowing the dirty pages to raise or drop within an acceptable range
-as the underlying IO completion rate fluctuates up or down.
+It will atleast provide consistent bandwindth experience to application.
 
-The proposed scheme is to allow the dirty pages to float within range
-(thresh - thresh/4, thresh), targeting the average pages at near
-(thresh - thresh/8).
+>However, this is always
+> a better solution IMHO respect to the current implementation that is
+> affected by that kind of priority inversion problem.
+> 
+> I can try to add this logic to the current blk-throttle controller if
+> you think it is worth to test it.
 
-I observed that if keeping the dirty rate fixed at the theoretic
-average bdi write bandwidth, the fluctuation of dirty pages are
-bounded by (bdi write bandwidth * 1 second) for all major local
-filesystems and simple dd workloads. So if the machine has adequately
-large memory, it's in theory able to achieve flat write() progress.
+At this point of time I have few concerns with this approach.
 
-I'm not able to get the perfect smoothness, however in some cases it's
-close:
+- Configuration issues. Asking user to plan for SYNC ans ASYNC IO
+  separately is inconvenient. One has to know the nature of workload.
 
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/4G-60%25/btrfs-4dd-1M-8p-3911M-60%25-2.6.38-rc5-dt6+-2011-02-22-14-35/balance_dirty_pages-bandwidth.png
+- Most likely we will come up with global limits (atleast to begin with),
+  and not per device limit. That can lead to contention on one single
+  lock and scalability issues on big systems.
 
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/4G-60%25/xfs-4dd-1M-8p-3911M-60%25-2.6.38-rc5-dt6+-2011-02-22-11-17/balance_dirty_pages-bandwidth.png
+Having said that, this approach should reduce the kernel complexity a lot.
+So if we can do some intelligent locking to limit the overhead then it
+will boil down to reduced complexity in kernel vs ease of use to user. I 
+guess at this point of time I am inclined towards keeping it simple in
+kernel.
 
-In the bandwidth graph:
+Couple of people have asked me that we have backup jobs running at night
+and we want to reduce the IO bandwidth of these jobs to limit the impact
+on latency of other jobs, I guess this approach will definitely solve
+that issue.
 
-        write bandwidth - disk write bandwidth
-          avg bandwidth - smoothed "write bandwidth"
-         task bandwidth - task throttle bandwidth, the rate a dd task is allowed to dirty pages
-         base bandwidth - base throttle bandwidth, a per-bdi base value for computing task throttle bandwidth
+IMHO, it might be worth trying this approach and see how well does it work. It
+might not solve all the problems but can be helpful in many situations.
 
-The "task throttle bandwidth" is what will directly impact individual dirtier
-tasks. It's calculated from
+I feel that for proportional bandwidth division, implementing ASYNC
+control at CFQ will make sense because even if things get serialized in
+higher layers, consequences are not very bad as it is work conserving
+algorithm. But for throttling serialization will lead to bad consequences.
 
-(1) the base throttle bandwidth
+May be one can think of new files in blkio controller to limit async IO
+per group during page dirty time.
 
-(2) the level of dirty pages
-    - if the number of dirty pages is equal to the control target
-      (thresh - thresh / 8), then just use the base bandwidth
-    - otherwise use higher/lower bandwidth to drive the dirty pages
-      towards the target
-    - ...omitting more rules in dirty_throttle_bandwidth()...
+blkio.throttle.async.write_bps_limit
+blkio.throttle.async.write_iops_limit
 
-(3) the task's dirty weight
-    a light dirtier has smaller weight and will be honored quadratic
-    larger throttle bandwidth
-
-The base throttle bandwidth should be equal to average bdi write
-bandwidth when there is one dd, and scaled down by 1/(N*sqrt(N)) when
-there are N dd writing to 1 bdi in the system. In a realistic file
-server, there will be N tasks at _different_ dirty rates, in which
-case it's virtually impossible to track and calculate the right value.
-
-So the base throttle bandwidth is by far the most important and
-hardest part to control.  It's required to
-
-- quickly adapt to the right value, otherwise the dirty pages will be
-  hitting the top or bottom boundaries;
-
-- and stay rock stable there for a stable workload, as its fluctuation
-  will directly impact all tasks writing to that bdi
-
-Looking at the graphs, I'm pleased to say the above requirements are
-met in not only the memory bounty cases, but also the much harder low
-memory and JBOD cases. It's achieved by the rigid update policies in
-bdi_update_throttle_bandwidth().  [to be continued tomorrow]
-
-Thanks,
-Fengguang
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
