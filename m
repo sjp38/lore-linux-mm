@@ -1,52 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A2EF18D0039
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 17:35:04 -0500 (EST)
-Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p1NMYEbW015064
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 14:34:14 -0800
-Received: by iwl42 with SMTP id 42so5449897iwl.14
-        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 14:34:14 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <E1PsEA7-0007G0-29@pomaz-ex.szeredi.hu>
-References: <E1PsEA7-0007G0-29@pomaz-ex.szeredi.hu>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 23 Feb 2011 14:33:54 -0800
-Message-ID: <AANLkTimeihuzjgR2f7Avq2PJrCw1vZxtjh=wBPXO3aHP@mail.gmail.com>
-Subject: Re: [PATCH] mm: prevent concurrent unmap_mapping_range() on the same inode
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 23A3E8D0039
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 17:45:47 -0500 (EST)
+Date: Wed, 23 Feb 2011 14:44:45 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: optimize replace_page_cache_page
+Message-Id: <20110223144445.86d0ca2b.akpm@linux-foundation.org>
+In-Reply-To: <20110219234121.GA2546@barrios-desktop>
+References: <1297355626-5152-1-git-send-email-minchan.kim@gmail.com>
+	<20110219234121.GA2546@barrios-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: akpm@linux-foundation.org, hughd@google.com, gurudas.pai@oracle.com, lkml20101129@newton.leun.net, rjw@sisk.pl, florian@mickler.org, trond.myklebust@fys.uio.no, maciej.rutecki@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Miklos Szeredi <mszeredi@suse.cz>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
 
-On Wed, Feb 23, 2011 at 4:49 AM, Miklos Szeredi <miklos@szeredi.hu> wrote:
->
-> This resolves Bug 25822 listed in the regressions since 2.6.36 (though
-> it's a bug much older than that, for some reason it only started
-> triggering for people recently).
+On Sun, 20 Feb 2011 08:41:21 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-Gaah. I hate this patch. It is, in fact, a patch that makes me finally
-think that the mm preemptibility is actually worth it, because then
-i_mmap_lock turns into a mutex and makes the whole "drop the lock"
-thing hopefully a thing of the past (see the patch "mm: Remove
-i_mmap_mutex lockbreak").
+> Resend.
 
-Because as far as I can see, the only thing that makes this thing
-needed in the first place is that horribly ugly "we drop i_mmap_lock
-in the middle of random operations that really still need it".
+Reignore.
 
-That said, I don't really see any alternatives - I guess we can't
-really just say "remove that crazy lock dropping". Even though I
-really really really would like to.
+> he patch is based on mmotm-2011-02-04 + 
+> mm-add-replace_page_cache_page-function-add-freepage-hook.patch.
+> 
+> On Fri, Feb 11, 2011 at 01:33:46AM +0900, Minchan Kim wrote:
+> > This patch optmizes replace_page_cache_page.
+> > 
+> > 1) remove radix_tree_preload
+> > 2) single radix_tree_lookup_slot and replace radix tree slot
+> > 3) page accounting optimization if both pages are in same zone.
+> > 
+> > Cc: Miklos Szeredi <mszeredi@suse.cz>
+> > Cc: Rik van Riel <riel@redhat.com>
+> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Cc: Mel Gorman <mel@csn.ul.ie>
+> > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> > ---
+> >  mm/filemap.c |   61 ++++++++++++++++++++++++++++++++++++++++++++++++---------
+> >  1 files changed, 51 insertions(+), 10 deletions(-)
+> > 
+> > Hi Miklos,
+> > This patch is totally not tested.
+> > Could you test this patch?
 
-Of course, we could also just decide that we should apply the mm
-preemptibility series instead. Can people confirm that that fixes the
-bug too?
+^^^ Because of this.
 
-                         Linus
+Is it tested yet?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
