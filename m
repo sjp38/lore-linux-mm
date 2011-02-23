@@ -1,76 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id D1CD78D0039
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 00:30:58 -0500 (EST)
-From: "Zhang, Yang Z" <yang.z.zhang@intel.com>
-Date: Wed, 23 Feb 2011 13:29:24 +0800
-Subject: RE: [0/7, v9] NUMA Hotplug Emulator (v9)
-Message-ID: <749B9D3DBF0F054390025D9EAFF47F22333D016D@shsmsx501.ccr.corp.intel.com>
-References: <20101210073119.156388875@intel.com>
- <alpine.DEB.2.00.1102221429030.31758@chino.kir.corp.google.com>
- <4D647F1D.2000307@linux.intel.com>
-In-Reply-To: <4D647F1D.2000307@linux.intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1537E8D0039
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 03:32:09 -0500 (EST)
+Date: Wed, 23 Feb 2011 09:32:06 +0100
+From: Andrea Righi <arighi@develer.com>
+Subject: Re: [PATCH 0/5] blk-throttle: writeback and swap IO control
+Message-ID: <20110223083206.GA2174@linux.develer.com>
+References: <1298394776-9957-1-git-send-email-arighi@develer.com>
+ <20110222193403.GG28269@redhat.com>
+ <20110222224141.GA23723@linux.develer.com>
+ <20110223000358.GM28269@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110223000358.GM28269@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Haicheng Li <haicheng.li@linux.intel.com>, David Rientjes <rientjes@google.com>
-Cc: "Zheng, Shaohui" <shaohui.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lethal@linux-sh.org" <lethal@linux-sh.org>, Andi Kleen <ak@linux.intel.com>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@suse.de>, "You, Yongkang" <yongkang.you@intel.com>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-I am rebasing the patch now. I will send out it when i finish.
+On Tue, Feb 22, 2011 at 07:03:58PM -0500, Vivek Goyal wrote:
+> > I think we should accept to have an inode granularity. We could redesign
+> > the writeback code to work per-cgroup / per-page, etc. but that would
+> > add a huge overhead. The limit of inode granularity could be an
+> > acceptable tradeoff, cgroups are supposed to work to different files
+> > usually, well.. except when databases come into play (ouch!).
+> 
+> Agreed. Granularity of per inode level might be accetable in many 
+> cases. Again, I am worried faster group getting stuck behind slower
+> group.
+> 
+> I am wondering if we are trying to solve the problem of ASYNC write throttling
+> at wrong layer. Should ASYNC IO be throttled before we allow task to write to
+> page cache. The way we throttle the process based on dirty ratio, can we
+> just check for throttle limits also there or something like that.(I think
+> that's what you had done in your initial throttling controller implementation?)
 
-best regards
-yang
+Right. This is exactly the same approach I've used in my old throttling
+controller: throttle sync READs and WRITEs at the block layer and async
+WRITEs when the task is dirtying memory pages.
 
+This is probably the simplest way to resolve the problem of faster group
+getting blocked by slower group, but the controller will be a little bit
+more leaky, because the writeback IO will be never throttled and we'll
+see some limited IO spikes during the writeback. However, this is always
+a better solution IMHO respect to the current implementation that is
+affected by that kind of priority inversion problem.
 
-> -----Original Message-----
-> From: Haicheng Li [mailto:haicheng.li@linux.intel.com]
-> Sent: Wednesday, February 23, 2011 11:30 AM
-> To: David Rientjes
-> Cc: Zheng, Shaohui; Andrew Morton; linux-mm@kvack.org;
-> linux-kernel@vger.kernel.org; lethal@linux-sh.org; Andi Kleen;
-> dave@linux.vnet.ibm.com; Greg Kroah-Hartman; Zhang, Yang Z; You, Yongkang
-> Subject: Re: [0/7, v9] NUMA Hotplug Emulator (v9)
->=20
-> Shaohui is out of position recently. Include Yang Zhang and Yongkang You =
-in
-> this loop, who are Shaohui's backup.
->=20
-> David Rientjes wrote:
-> > On Fri, 10 Dec 2010, shaohui.zheng@intel.com wrote:
-> >
-> >> v9:
-> >>
-> >> Solve the bug reported by Eric B Munson, check the return value of
-> cpu_down when do
-> >>  CPU release.
-> >>
-> >> Solve the conflicts with Tejun Heo' Unificaton NUMA code, re-work patc=
-h 5
-> based on his
-> >> patch.
-> >>
-> >> Some small changes on debugfs per-node add_memory interface.
-> >>
-> >
-> > Hi Shaohui,
-> >
-> > Tejun's NUMA unification work has been merged into x86/mm, so I think i=
-t
-> > would possible to rebase your hotplug emulator patchset on top of it
-> > without too many conflicts now.
-> >
-> > It should probably be based on x86/mm from
-> > http://git.kernel.org/?p=3Dlinux/kernel/git/mingo/linux-2.6-x86.git
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-kernel"=
- in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> > Please read the FAQ at  http://www.tux.org/lkml/
-> >
+I can try to add this logic to the current blk-throttle controller if
+you think it is worth to test it.
+
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
