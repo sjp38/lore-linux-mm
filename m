@@ -1,117 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C30008D0039
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 12:02:50 -0500 (EST)
-Date: Thu, 24 Feb 2011 12:02:11 -0500 (EST)
-From: Petr Holasek <pholasek@redhat.com>
-Message-ID: <395193561.595052.1298566931517.JavaMail.root@zmail04.collab.prod.int.phx2.redhat.com>
-In-Reply-To: <4D6419C0.8080804@redhat.com>
-Subject: Re: [PATCH v2] hugetlbfs: correct handling of negative input to
- /proc/sys/vm/nr_hugepages
+	by kanga.kvack.org (Postfix) with SMTP id 1DADA8D0039
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 12:08:28 -0500 (EST)
+Message-ID: <4D669089.6080007@redhat.com>
+Date: Thu, 24 Feb 2011 12:08:25 -0500
+From: Satoru Moriya <smoriya@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Subject: Re: [PATCH 3/3][RESEND] Provide control over unmapped pages (v4)
+References: <20110201165329.12377.13683.stgit@localhost6.localdomain6> <20110201165533.12377.11775.stgit@localhost6.localdomain6>
+In-Reply-To: <20110201165533.12377.11775.stgit@localhost6.localdomain6>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
 
------ Original Message -----
-> From: "Petr Holasek" <pholasek@redhat.com>
-> To: linux-kernel@vger.kernel.org
-> Cc: "Petr Holasek" <pholasek@redhat.com>, "Andi Kleen" <ak@linux.intel.com>, "Naoya Horiguchi"
-> <n-horiguchi@ah.jp.nec.com>, "Mel Gorman" <mel@csn.ul.ie>, "Andrew Morton" <akpm@linux-foundation.org>, "Wu Fengguang"
-> <fengguang.wu@intel.com>, linux-mm@kvack.org
-> Sent: Tuesday, February 22, 2011 9:17:04 PM
-> Subject: [PATCH v2] hugetlbfs: correct handling of negative input to /proc/sys/vm/nr_hugepages
-> When user insert negative value into /proc/sys/vm/nr_hugepages it will
-> result
-> in the setting a random number of HugePages in system (can be easily
-> showed
-> at /proc/meminfo output). This patch fixes the wrong behavior so that
-> the
-> negative input will result in nr_hugepages value unchanged.
-> 
-> v2: same fix was also done in hugetlb_overcommit_handler function
-> as suggested by reviewers.
-> 
-> Signed-off-by: Petr Holasek <pholasek@redhat.com>
-> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
-> mm/hugetlb.c | 6 ++----
-> 1 files changed, 2 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index bb0b7c1..06de5aa 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1872,8 +1872,7 @@ static int hugetlb_sysctl_handler_common(bool
-> obey_mempolicy,
-> unsigned long tmp;
-> int ret;
-> 
-> - if (!write)
-> - tmp = h->max_huge_pages;
-> + tmp = h->max_huge_pages;
-> 
-> if (write && h->order >= MAX_ORDER)
-> return -EINVAL;
-> @@ -1938,8 +1937,7 @@ int hugetlb_overcommit_handler(struct ctl_table
-> *table, int write,
-> unsigned long tmp;
-> int ret;
-> 
-> - if (!write)
-> - tmp = h->nr_overcommit_huge_pages;
-> + tmp = h->nr_overcommit_huge_pages;
-> 
-> if (write && h->order >= MAX_ORDER)
-> return -EINVAL;
-> --
-> 1.7.1
-> --
-> To unsubscribe from this list: send the line "unsubscribe
-> linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at http://www.tux.org/lkml/
+On 02/01/2011 11:55 AM, Balbir Singh wrote:
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 7b56473..2ac8549 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1660,6 +1660,9 @@ zonelist_scan:
+>  			unsigned long mark;
+>  			int ret;
+>  
+> +			if (should_reclaim_unmapped_pages(zone))
+> +				wakeup_kswapd(zone, order, classzone_idx);
+> +
+>  			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
+>  			if (zone_watermark_ok(zone, order, mark,
+>  				    classzone_idx, alloc_flags))
 
-I am really sorry, but tabs were broken up into spaces during posting,
-here is the right version:
+<snip>
 
-thanks,
-Petr
+> +int sysctl_max_unmapped_ratio_sysctl_handler(ctl_table *table, int write,
+> +	void __user *buffer, size_t *length, loff_t *ppos)
+> +{
+> +	struct zone *zone;
+> +	int rc;
+> +
+> +	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
+> +	if (rc)
+> +		return rc;
+> +
+> +	for_each_zone(zone)
+> +		zone->max_unmapped_pages = (zone->present_pages *
+> +				sysctl_max_unmapped_ratio) / 100;
+> +	return 0;
+> +}
+> +#endif
+> +
 
----
- mm/hugetlb.c |    6 ++----
- 1 files changed, 2 insertions(+), 4 deletions(-)
+<snip>
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index bb0b7c1..06de5aa 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1872,8 +1872,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
- 	unsigned long tmp;
- 	int ret;
- 
--	if (!write)
--		tmp = h->max_huge_pages;
-+	tmp = h->max_huge_pages;
- 
- 	if (write && h->order >= MAX_ORDER)
- 		return -EINVAL;
-@@ -1938,8 +1937,7 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
- 	unsigned long tmp;
- 	int ret;
- 
--	if (!write)
--		tmp = h->nr_overcommit_huge_pages;
-+	tmp = h->nr_overcommit_huge_pages;
- 
- 	if (write && h->order >= MAX_ORDER)
- 		return -EINVAL;
--- 
-1.7.1
+> +
+> +bool should_reclaim_unmapped_pages(struct zone *zone)
+> +{
+> +	if (unlikely(unmapped_page_control) &&
+> +		(zone_unmapped_file_pages(zone) > zone->max_unmapped_pages))
+> +		return true;
+> +	return false;
+> +}
+> +#endif
+
+Why don't you limit the amount of unmapped pages for the whole system?
+Current implementation, which limit unmapped pages per zone, may cause unnecessary
+reclaiming. Because if memory access is not balanced among zones(or nodes),
+the kernel may reclaim unmapped pages even though other zones/nodes have enough
+spaces for them.
+
+Anyway, I'm interested in this patchset. Because my customers in enterprise area
+want this kind of feature for a long time to avoid direct reclaim completely 
+in a certain situation.
+
+Regards,
+Satoru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
