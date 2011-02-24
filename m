@@ -1,81 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1DADA8D0039
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 12:08:28 -0500 (EST)
-Message-ID: <4D669089.6080007@redhat.com>
-Date: Thu, 24 Feb 2011 12:08:25 -0500
-From: Satoru Moriya <smoriya@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 735278D003A
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 13:22:28 -0500 (EST)
+Received: by vxc38 with SMTP id 38so924743vxc.14
+        for <linux-mm@kvack.org>; Thu, 24 Feb 2011 10:22:25 -0800 (PST)
+Date: Thu, 24 Feb 2011 13:20:33 -0500
+From: Eric B Munson <emunson@mgebm.net>
+Subject: Re: [PATCH] hugetlbfs: correct handling of negative input to
+ /proc/sys/vm/nr_hugepages
+Message-ID: <20110224182033.GA30387@mgebm.net>
+References: <1298303270-3184-1-git-send-email-pholasek@redhat.com>
+ <20110222100235.GA15652@csn.ul.ie>
+ <20110223161818.9876cc10.akpm@linux-foundation.org>
+ <20110224094912.GO15652@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3][RESEND] Provide control over unmapped pages (v4)
-References: <20110201165329.12377.13683.stgit@localhost6.localdomain6> <20110201165533.12377.11775.stgit@localhost6.localdomain6>
-In-Reply-To: <20110201165533.12377.11775.stgit@localhost6.localdomain6>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="fUYQa+Pmc3FrFX/N"
+Content-Disposition: inline
+In-Reply-To: <20110224094912.GO15652@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
 
-On 02/01/2011 11:55 AM, Balbir Singh wrote:
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7b56473..2ac8549 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1660,6 +1660,9 @@ zonelist_scan:
->  			unsigned long mark;
->  			int ret;
->  
-> +			if (should_reclaim_unmapped_pages(zone))
-> +				wakeup_kswapd(zone, order, classzone_idx);
-> +
->  			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
->  			if (zone_watermark_ok(zone, order, mark,
->  				    classzone_idx, alloc_flags))
 
-<snip>
+--fUYQa+Pmc3FrFX/N
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> +int sysctl_max_unmapped_ratio_sysctl_handler(ctl_table *table, int write,
-> +	void __user *buffer, size_t *length, loff_t *ppos)
-> +{
-> +	struct zone *zone;
-> +	int rc;
-> +
-> +	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
-> +	if (rc)
-> +		return rc;
-> +
-> +	for_each_zone(zone)
-> +		zone->max_unmapped_pages = (zone->present_pages *
-> +				sysctl_max_unmapped_ratio) / 100;
-> +	return 0;
-> +}
-> +#endif
-> +
+On Thu, 24 Feb 2011, Mel Gorman wrote:
 
-<snip>
+> On Wed, Feb 23, 2011 at 04:18:18PM -0800, Andrew Morton wrote:
+> > On Tue, 22 Feb 2011 10:02:36 +0000
+> > Mel Gorman <mel@csn.ul.ie> wrote:
+> >=20
+> > > On Mon, Feb 21, 2011 at 04:47:49PM +0100, Petr Holasek wrote:
+> > > > When user insert negative value into /proc/sys/vm/nr_hugepages it w=
+ill result
+> > > > in the setting a random number of HugePages in system (can be easil=
+y showed
+> > > > at /proc/meminfo output).
+> > >=20
+> > > I bet you a shiny penny that the value of HugePages becomes the maxim=
+um
+> > > number that could be allocated by the system at the time rather than a
+> > > random value.
+> >=20
+> > That seems to be the case from my reading.  In which case the patch
+> > removes probably-undocumented and possibly-useful existing behavior.
+> >=20
+>=20
+> It's not proof that no one does this but I'm not aware of any documentati=
+on
+> related to hugetlbfs that recommends writing negative values to take adva=
+ntage
+> of this side-effect. It's more likely they simply wrote a very large numb=
+er
+> to nr_hugepages if they wanted "as many hugepages as possible" as it makes
+> more intuitive sense than asking for a negative amount of pages. hugeadm =
+at
+> least is not depending on this behaviour AFAIK.
 
-> +
-> +bool should_reclaim_unmapped_pages(struct zone *zone)
-> +{
-> +	if (unlikely(unmapped_page_control) &&
-> +		(zone_unmapped_file_pages(zone) > zone->max_unmapped_pages))
-> +		return true;
-> +	return false;
-> +}
-> +#endif
+That is correct, hugeadm never writes negative values to huge page pool siz=
+es.
 
-Why don't you limit the amount of unmapped pages for the whole system?
-Current implementation, which limit unmapped pages per zone, may cause unnecessary
-reclaiming. Because if memory access is not balanced among zones(or nodes),
-the kernel may reclaim unmapped pages even though other zones/nodes have enough
-spaces for them.
+--fUYQa+Pmc3FrFX/N
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
 
-Anyway, I'm interested in this patchset. Because my customers in enterprise area
-want this kind of feature for a long time to avoid direct reclaim completely 
-in a certain situation.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
 
-Regards,
-Satoru
+iQEcBAEBAgAGBQJNZqFxAAoJEH65iIruGRnNZFIH/ja1AgjpNu57iF4BLYANI3Q8
+qYy1oerxQTil8d5488NoHVAf7qTWVmXpOTy+E0+u7VPOqsCEYQbyQVBBgUabcS8U
+TX7MeijKY69l+KzEbkDGudWDnOrLMP55V6vmDSYVte4Oawi7o2qA4vmkEqmPvuvI
+X7N5r7B5pjHjiVsASaWNtpw0HuWBwjnKgzUajIlyTvMN7d+tGQmYTV5wL+kRTCbC
+1yfbiAdzYZ3A5nTIJbmVLzMlC2ZtCiUL9Wu9BZ6n05DEZtU06dbzSKzP4GVTmK78
+GwucW/aQIrYBH6kGy4iTgDWFs6ED0+NoTZerdYa4KOXP4gxNXwPchwS+bDMFdK4=
+=nHB7
+-----END PGP SIGNATURE-----
+
+--fUYQa+Pmc3FrFX/N--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
