@@ -1,56 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E9ACF8D0039
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 00:44:36 -0500 (EST)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id p1O5iWWF031846
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:44:33 -0800
-Received: from yie30 (yie30.prod.google.com [10.243.66.30])
-	by wpaz13.hot.corp.google.com with ESMTP id p1O5iVli016299
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:44:31 -0800
-Received: by yie30 with SMTP id 30so108022yie.9
-        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:44:31 -0800 (PST)
-Date: Wed, 23 Feb 2011 21:44:33 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] memcg: more mem_cgroup_uncharge batching
-Message-ID: <alpine.LSU.2.00.1102232139560.2239@sister.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BBAD8D0039
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 00:56:43 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 18BB33EE0AE
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 14:56:38 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F391245DE4E
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 14:56:37 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DD67D45DE4D
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 14:56:37 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CFF9C1DB8037
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 14:56:37 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A70E1DB803B
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 14:56:37 +0900 (JST)
+Date: Thu, 24 Feb 2011 14:50:16 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: more mem_cgroup_uncharge batching
+Message-Id: <20110224145016.794247a0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.LSU.2.00.1102232139560.2239@sister.anvils>
+References: <alpine.LSU.2.00.1102232139560.2239@sister.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Hugh Dickins <hughd@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@in.ibm.com>, Daisuke Nishimura <nishmura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-It seems odd that truncate_inode_pages_range(), called not only when
-truncating but also when evicting inodes, has mem_cgroup_uncharge_start
-and _end() batching in its second loop to clear up a few leftovers, but
-not in its first loop that does almost all the work: add them there too.
+On Wed, 23 Feb 2011 21:44:33 -0800 (PST)
+Hugh Dickins <hughd@google.com> wrote:
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
+> It seems odd that truncate_inode_pages_range(), called not only when
+> truncating but also when evicting inodes, has mem_cgroup_uncharge_start
+> and _end() batching in its second loop to clear up a few leftovers, but
+> not in its first loop that does almost all the work: add them there too.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
- mm/truncate.c |    2 ++
- 1 file changed, 2 insertions(+)
-
---- 2.6.38-rc6/mm/truncate.c	2011-01-21 20:54:14.000000000 -0800
-+++ linux/mm/truncate.c	2011-02-23 16:12:19.000000000 -0800
-@@ -225,6 +225,7 @@ void truncate_inode_pages_range(struct a
- 	next = start;
- 	while (next <= end &&
- 	       pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
-+		mem_cgroup_uncharge_start();
- 		for (i = 0; i < pagevec_count(&pvec); i++) {
- 			struct page *page = pvec.pages[i];
- 			pgoff_t page_index = page->index;
-@@ -247,6 +248,7 @@ void truncate_inode_pages_range(struct a
- 			unlock_page(page);
- 		}
- 		pagevec_release(&pvec);
-+		mem_cgroup_uncharge_end();
- 		cond_resched();
- 	}
- 
+Thank you.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
