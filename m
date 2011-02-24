@@ -1,99 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D73208D0039
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 19:20:08 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4FF1B3EE0BD
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:20:05 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3509F45DE5D
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:20:05 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 10BD045DE5B
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:20:05 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 04C8AE38002
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:20:05 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B37CAE08001
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:20:04 +0900 (JST)
-Date: Thu, 24 Feb 2011 09:13:48 +0900
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EDA98D0039
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 19:47:07 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3C2453EE0C7
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:47:04 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 25B9A45DE55
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:47:04 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 081F345DE4E
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:47:04 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EB4131DB8038
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:47:03 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AAC901DB803C
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:47:03 +0900 (JST)
+Date: Thu, 24 Feb 2011 09:40:39 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] memcg: add oom killer delay
-Message-Id: <20110224091348.a95ed1b4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110223150850.8b52f244.akpm@linux-foundation.org>
-References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1102091417410.5697@chino.kir.corp.google.com>
-	<20110223150850.8b52f244.akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/5] blk-throttle: writeback and swap IO control
+Message-Id: <20110224094039.89c07bea.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110224001033.GF2526@redhat.com>
+References: <1298394776-9957-1-git-send-email-arighi@develer.com>
+	<20110222193403.GG28269@redhat.com>
+	<20110222224141.GA23723@linux.develer.com>
+	<20110223000358.GM28269@redhat.com>
+	<20110223083206.GA2174@linux.develer.com>
+	<20110223152354.GA2526@redhat.com>
+	<20110223231410.GB1744@linux.develer.com>
+	<20110224001033.GF2526@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On Wed, 23 Feb 2011 15:08:50 -0800
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed, 23 Feb 2011 19:10:33 -0500
+Vivek Goyal <vgoyal@redhat.com> wrote:
 
-> On Wed, 9 Feb 2011 14:19:50 -0800 (PST)
-> David Rientjes <rientjes@google.com> wrote:
+> On Thu, Feb 24, 2011 at 12:14:11AM +0100, Andrea Righi wrote:
+> > On Wed, Feb 23, 2011 at 10:23:54AM -0500, Vivek Goyal wrote:
+> > > > > Agreed. Granularity of per inode level might be accetable in many 
+> > > > > cases. Again, I am worried faster group getting stuck behind slower
+> > > > > group.
+> > > > > 
+> > > > > I am wondering if we are trying to solve the problem of ASYNC write throttling
+> > > > > at wrong layer. Should ASYNC IO be throttled before we allow task to write to
+> > > > > page cache. The way we throttle the process based on dirty ratio, can we
+> > > > > just check for throttle limits also there or something like that.(I think
+> > > > > that's what you had done in your initial throttling controller implementation?)
+> > > > 
+> > > > Right. This is exactly the same approach I've used in my old throttling
+> > > > controller: throttle sync READs and WRITEs at the block layer and async
+> > > > WRITEs when the task is dirtying memory pages.
+> > > > 
+> > > > This is probably the simplest way to resolve the problem of faster group
+> > > > getting blocked by slower group, but the controller will be a little bit
+> > > > more leaky, because the writeback IO will be never throttled and we'll
+> > > > see some limited IO spikes during the writeback.
+> > > 
+> > > Yes writeback will not be throttled. Not sure how big a problem that is.
+> > > 
+> > > - We have controlled the input rate. So that should help a bit.
+> > > - May be one can put some high limit on root cgroup to in blkio throttle
+> > >   controller to limit overall WRITE rate of the system.
+> > > - For SATA disks, try to use CFQ which can try to minimize the impact of
+> > >   WRITE.
+> > > 
+> > > It will atleast provide consistent bandwindth experience to application.
+> > 
+> > Right.
+> > 
+> > > 
+> > > >However, this is always
+> > > > a better solution IMHO respect to the current implementation that is
+> > > > affected by that kind of priority inversion problem.
+> > > > 
+> > > > I can try to add this logic to the current blk-throttle controller if
+> > > > you think it is worth to test it.
+> > > 
+> > > At this point of time I have few concerns with this approach.
+> > > 
+> > > - Configuration issues. Asking user to plan for SYNC ans ASYNC IO
+> > >   separately is inconvenient. One has to know the nature of workload.
+> > > 
+> > > - Most likely we will come up with global limits (atleast to begin with),
+> > >   and not per device limit. That can lead to contention on one single
+> > >   lock and scalability issues on big systems.
+> > > 
+> > > Having said that, this approach should reduce the kernel complexity a lot.
+> > > So if we can do some intelligent locking to limit the overhead then it
+> > > will boil down to reduced complexity in kernel vs ease of use to user. I 
+> > > guess at this point of time I am inclined towards keeping it simple in
+> > > kernel.
+> > > 
+> > 
+> > BTW, with this approach probably we can even get rid of the page
+> > tracking stuff for now.
 > 
-> > Completely disabling the oom killer for a memcg is problematic if
-> > userspace is unable to address the condition itself, usually because it
-> > is unresponsive.  This scenario creates a memcg deadlock: tasks are
-> > sitting in TASK_KILLABLE waiting for the limit to be increased, a task to
-> > exit or move, or the oom killer reenabled and userspace is unable to do
-> > so.
-> > 
-> > An additional possible use case is to defer oom killing within a memcg
-> > for a set period of time, probably to prevent unnecessary kills due to
-> > temporary memory spikes, before allowing the kernel to handle the
-> > condition.
-> > 
-> > This patch adds an oom killer delay so that a memcg may be configured to
-> > wait at least a pre-defined number of milliseconds before calling the oom
-> > killer.  If the oom condition persists for this number of milliseconds,
-> > the oom killer will be called the next time the memory controller
-> > attempts to charge a page (and memory.oom_control is set to 0).  This
-> > allows userspace to have a short period of time to respond to the
-> > condition before deferring to the kernel to kill a task.
-> > 
-> > Admins may set the oom killer delay using the new interface:
-> > 
-> > 	# echo 60000 > memory.oom_delay_millisecs
-> > 
-> > This will defer oom killing to the kernel only after 60 seconds has
-> > elapsed by putting the task to sleep for 60 seconds.  When setting
-> > memory.oom_delay_millisecs, all pending delays have their charges retried
-> > and, if necessary, the new delay is then enforced.
-> > 
-> > The delay is cleared the first time the memcg is oom to avoid unnecessary
-> > waiting when userspace is unresponsive for future oom conditions.  It may
-> > be set again using the above interface to enforce a delay on the next
-> > oom.
-> > 
-> > When a memory.oom_delay_millisecs is set for a cgroup, it is propagated
-> > to all children memcg as well and is inherited when a new memcg is
-> > created.
+> Agreed.
 > 
-> Your patch still stinks!
+> > If we don't consider the swap IO, any other IO
+> > operation from our point of view will happen directly from process
+> > context (writes in memory + sync reads from the block device).
 > 
-> If userspace can't handle a disabled oom-killer then userspace
-> shouldn't have disabled the oom-killer.
-> 
-> How do we fix this properly?
-> 
-> A little birdie tells me that the offending userspace oom handler is
-> running in a separate memcg and is not itself running out of memory. 
-> The problem is that the userspace oom handler is also taking peeks into
-> processes which are in the stressed memcg and is getting stuck on
-> mmap_sem in the procfs reads.  Correct?
+> Why do we need to account for swap IO? Application never asked for swap
+> IO. It is kernel's decision to move soem pages to swap to free up some
+> memory. What's the point in charging those pages to application group
+> and throttle accordingly?
 > 
 
-Hmm, I think memcg's oom-kill just happens under down_read(mmap_sem). 
-And all tasks, which is under oom, will be in wait-queue.
+I think swap I/O should be controlled by memcg's dirty_ratio.
+But, IIRC, NEC guy had a requirement for this...
 
+I think some enterprise cusotmer may want to throttle the whole speed of
+swapout I/O (not swapin)...so, they may be glad if they can limit throttle
+the I/O against a disk partition or all I/O tagged as 'swapio' rather than
+some cgroup name.
+
+But I'm afraid slow swapout may consume much dirty_ratio and make things
+worse ;)
+
+
+
+> > 
+> > However, I'm sure we'll need the page tracking also for the blkio
+> > controller soon or later. This is an important information and also the
+> > proportional bandwidth controller can take advantage of it.
+> 
+> Yes page tracking will be needed for CFQ proportional bandwidth ASYNC
+> write support. But until and unless we implement memory cgroup dirty
+> ratio and figure a way out to make writeback logic cgroup aware, till
+> then I think page tracking stuff is not really useful.
+> 
+
+I think Greg Thelen is now preparing patches for dirty_ratio.
 
 Thanks,
 -Kame
