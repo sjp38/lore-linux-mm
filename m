@@ -1,36 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 58CD08D0039
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 02:06:07 -0500 (EST)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id p1O765MH024497
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 23:06:05 -0800
-Received: from pzk12 (pzk12.prod.google.com [10.243.19.140])
-	by wpaz5.hot.corp.google.com with ESMTP id p1O763gD015805
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 23:06:04 -0800
-Received: by pzk12 with SMTP id 12so56794pzk.1
-        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 23:06:03 -0800 (PST)
-Date: Wed, 23 Feb 2011 23:05:59 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] cpuset: Add a missing unlock in cpuset_write_resmask()
-In-Reply-To: <4D6601B2.1090207@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1102232305360.5816@chino.kir.corp.google.com>
-References: <4D6601B2.1090207@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 708B68D0039
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 03:08:51 -0500 (EST)
+Subject: Re: too big min_free_kbytes
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20110223144509.GG31195@random.random>
+References: <20110126152302.GT18984@csn.ul.ie>
+	 <20110126154203.GS926@random.random> <20110126163655.GU18984@csn.ul.ie>
+	 <20110126174236.GV18984@csn.ul.ie> <20110127134057.GA32039@csn.ul.ie>
+	 <20110127152755.GB30919@random.random>
+	 <20110203025808.GJ5843@random.random>
+	 <20110214022524.GA18198@sli10-conroe.sh.intel.com>
+	 <20110222142559.GD15652@csn.ul.ie> <1298438954.19589.7.camel@sli10-conroe>
+	 <20110223144509.GG31195@random.random>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 24 Feb 2011 16:08:47 +0800
+Message-ID: <1298534927.19589.41.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Menage <menage@google.com>, miaox@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>, Rik van Riel <riel@redhat.com>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>
 
-On Thu, 24 Feb 2011, Li Zefan wrote:
-
-> Don't forget to release cgroup_mutex if alloc_trial_cpuset() fails.
+On Wed, 2011-02-23 at 22:45 +0800, Andrea Arcangeli wrote:
+> On Wed, Feb 23, 2011 at 01:29:14PM +0800, Shaohua Li wrote:
+> > Fixing it will let more people enable THP by default. but anyway we will
+> > disable it now if the issue can't be fixed.
 > 
-> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+> Did you try what happens with transparent_hugepage=madvise? If that
+> doesn't fix it, it's min_free_kbytes issue.
+with madvise, the min_free_kbytes is still high (same as the 'always'
+case). The result is still we have about 50M memory is reserved. you can
+try at your machine with boot option 'mem=2G' and check the zoneinfo
+output.
 
-Acked-by: David Rientjes <rientjes@google.com>
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
