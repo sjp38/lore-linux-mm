@@ -1,60 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 50D118D0039
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 04:57:57 -0500 (EST)
-Date: Thu, 24 Feb 2011 09:57:27 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: too big min_free_kbytes
-Message-ID: <20110224095727.GQ15652@csn.ul.ie>
-References: <20110126174236.GV18984@csn.ul.ie> <20110127134057.GA32039@csn.ul.ie> <20110127152755.GB30919@random.random> <20110203025808.GJ5843@random.random> <20110214022524.GA18198@sli10-conroe.sh.intel.com> <20110222142559.GD15652@csn.ul.ie> <1298438954.19589.7.camel@sli10-conroe> <20110223144509.GG31195@random.random> <1298534927.19589.41.camel@sli10-conroe> <20110224095208.GP15652@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110224095208.GP15652@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6738C8D0039
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 05:09:10 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3ABE23EE0BB
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 19:09:03 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 24E3945DE5B
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 19:09:03 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CCF745DE58
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 19:09:03 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F231EE38005
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 19:09:02 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BD6D5E38003
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 19:09:02 +0900 (JST)
+Date: Thu, 24 Feb 2011 19:02:47 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC PATCH] page_cgroup: Reduce allocation overhead for
+ page_cgroup array for CONFIG_SPARSEMEM
+Message-Id: <20110224190247.bdc2e6f8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110224093519.GB20922@tiehlicka.suse.cz>
+References: <20110223151047.GA7275@tiehlicka.suse.cz>
+	<1298485162.7236.4.camel@nimitz>
+	<20110224085227.1a3e185b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110224093519.GB20922@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>, Rik van Riel <riel@redhat.com>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Feb 24, 2011 at 09:52:09AM +0000, Mel Gorman wrote:
-> On Thu, Feb 24, 2011 at 04:08:47PM +0800, Shaohua Li wrote:
-> > On Wed, 2011-02-23 at 22:45 +0800, Andrea Arcangeli wrote:
-> > > On Wed, Feb 23, 2011 at 01:29:14PM +0800, Shaohua Li wrote:
-> > > > Fixing it will let more people enable THP by default. but anyway we will
-> > > > disable it now if the issue can't be fixed.
+On Thu, 24 Feb 2011 10:35:19 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
+
+> On Thu 24-02-11 08:52:27, KAMEZAWA Hiroyuki wrote:
+> > On Wed, 23 Feb 2011 10:19:22 -0800
+> > Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+> > 
+> > > On Wed, 2011-02-23 at 16:10 +0100, Michal Hocko wrote:
+> > > > We can reduce this internal fragmentation by splitting the single
+> > > > page_cgroup array into more arrays where each one is well kmalloc
+> > > > aligned. This patch implements this idea. 
 > > > 
-> > > Did you try what happens with transparent_hugepage=madvise? If that
-> > > doesn't fix it, it's min_free_kbytes issue.
-> > with madvise, the min_free_kbytes is still high (same as the 'always'
-> > case).
+> > > How about using alloc_pages_exact()?  These things aren't allocated
+> > > often enough to really get most of the benefits of being in a slab.
+> > > That'll at least get you down to a maximum of about PAGE_SIZE wasted.  
+> > > 
+> > 
+> > yes, alloc_pages_exact() is much better.
+> > 
+> > packing page_cgroups for multiple sections causes breakage in memory hotplug logic.
 > 
-> This high min_free_kbytes is expected and is not considered a bug as it's
-> related to transparent hugepages being able to allocate huge pages for a
-> long period of time. Essentially, it's a cost of using hugepages.
+> I am not sure I understand this. What do you mean by packing
+> page_cgroups for multiple sections? The patch I have posted doesn't do
+> any packing. Or do you mean that using a double array can break hotplog?
+> Not that this would change anything, alloc_pages_exact is really a
+> better solution, I am just curious ;) 
 > 
 
-I should be clearer here. madvise|always sets a high min_free_kbytes by
-this check
+Sorry, it seems I failed to read code correctly. 
+You just implemented 2 level table..
 
-        if (ret > 0 &&
-            (test_bit(TRANSPARENT_HUGEPAGE_FLAG,
-                      &transparent_hugepage_flags) ||
-             test_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-                      &transparent_hugepage_flags)))
-                set_recommended_min_free_kbytes();
 
-so I'd expect the new higher value for min_free_kbytes once THP was ever
-expected to be used.
+Thanks,
+-Kame
 
-If this new value was still considered a bug, removing the call to
-set_recommended_min_free_kbytes() would always use the lower value that
-was used in older kernels. This would "fix" the bug but transparent hugepage
-users would not get the pages they expected the longer the system was running.
-This would be harder for ordinary users to catch.
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
