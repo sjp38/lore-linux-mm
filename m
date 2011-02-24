@@ -1,44 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0AE9E8D0039
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 01:57:26 -0500 (EST)
-Message-ID: <4D6601B2.1090207@cn.fujitsu.com>
-Date: Thu, 24 Feb 2011 14:58:58 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 58CD08D0039
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 02:06:07 -0500 (EST)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id p1O765MH024497
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 23:06:05 -0800
+Received: from pzk12 (pzk12.prod.google.com [10.243.19.140])
+	by wpaz5.hot.corp.google.com with ESMTP id p1O763gD015805
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 23:06:04 -0800
+Received: by pzk12 with SMTP id 12so56794pzk.1
+        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 23:06:03 -0800 (PST)
+Date: Wed, 23 Feb 2011 23:05:59 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] cpuset: Add a missing unlock in cpuset_write_resmask()
+In-Reply-To: <4D6601B2.1090207@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1102232305360.5816@chino.kir.corp.google.com>
+References: <4D6601B2.1090207@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH] cpuset: Add a missing unlock in cpuset_write_resmask()
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, =?UTF-8?B?57yqIOWLsA==?= <miaox@cn.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Menage <menage@google.com>, miaox@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Don't forget to release cgroup_mutex if alloc_trial_cpuset() fails.
+On Thu, 24 Feb 2011, Li Zefan wrote:
 
-Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
----
- kernel/cpuset.c |    4 +++-
- 1 files changed, 3 insertions(+), 1 deletions(-)
+> Don't forget to release cgroup_mutex if alloc_trial_cpuset() fails.
+> 
+> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
 
-diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-index 1ca786a..6272503 100644
---- a/kernel/cpuset.c
-+++ b/kernel/cpuset.c
-@@ -1561,8 +1561,10 @@ static int cpuset_write_resmask(struct cgroup *cgrp, struct cftype *cft,
- 		return -ENODEV;
- 
- 	trialcs = alloc_trial_cpuset(cs);
--	if (!trialcs)
-+	if (!trialcs) {
-+		cgroup_unlock();
- 		return -ENOMEM;
-+	}
- 
- 	switch (cft->private) {
- 	case FILE_CPULIST:
--- 
-1.7.3.1
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
