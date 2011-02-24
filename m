@@ -1,12 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 55C348D0039
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 01:55:14 -0500 (EST)
-Message-ID: <4D660130.8020009@cn.fujitsu.com>
-Date: Thu, 24 Feb 2011 14:56:48 +0800
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 829A48D0039
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 01:55:45 -0500 (EST)
+Message-ID: <4D660141.7020201@cn.fujitsu.com>
+Date: Thu, 24 Feb 2011 14:57:05 +0800
 From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH v2 1/4] cpuset: Remove unneeded NODEMASK_ALLOC() in cpuset_sprintf_memlist()
+Subject: [PATCH v2 2/4] cpuset: Remove unneeded NODEMASK_ALLOC() in cpuset_attch()
+References: <4D660130.8020009@cn.fujitsu.com>
+In-Reply-To: <4D660130.8020009@cn.fujitsu.com>
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -14,68 +16,52 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, =?UTF-8?B?57yqIOWLsA==?= <miaox@cn.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-It's not necessary to copy cpuset->mems_allowed to a buffer
-allocated by NODEMASK_ALLOC(). Just pass it to nodelist_scnprintf().
+The variable 'from' is not modified after it's copied from
+oldcs->mems_allowed, so we can just pass oldcs->mems_allowed
+to cpuset_migrate_mm().
 
-As spotted by Paul, a side effect is we fix a bug that the function
-can return -ENOMEM but the caller doesn't expect negative return
-value. Therefore change the return value of cpuset_sprintf_cpulist()
-and cpuset_sprintf_memlist() from int to size_t.
-
-Acked-by: Paul Menage <menage@google.com>
 Acked-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
 ---
- kernel/cpuset.c |   24 ++++++++----------------
- 1 files changed, 8 insertions(+), 16 deletions(-)
+ kernel/cpuset.c |    7 ++-----
+ 1 files changed, 2 insertions(+), 5 deletions(-)
 
 diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-index 10f1835..e79650b 100644
+index e79650b..8fef8c6 100644
 --- a/kernel/cpuset.c
 +++ b/kernel/cpuset.c
-@@ -1607,34 +1607,26 @@ static int cpuset_write_resmask(struct cgroup *cgrp, struct cftype *cft,
-  * across a page fault.
-  */
+@@ -1438,10 +1438,9 @@ static void cpuset_attach(struct cgroup_subsys *ss, struct cgroup *cont,
+ 	struct mm_struct *mm;
+ 	struct cpuset *cs = cgroup_cs(cont);
+ 	struct cpuset *oldcs = cgroup_cs(oldcont);
+-	NODEMASK_ALLOC(nodemask_t, from, GFP_KERNEL);
+ 	NODEMASK_ALLOC(nodemask_t, to, GFP_KERNEL);
  
--static int cpuset_sprintf_cpulist(char *page, struct cpuset *cs)
-+static size_t cpuset_sprintf_cpulist(char *page, struct cpuset *cs)
- {
--	int ret;
-+	size_t count;
+-	if (from == NULL || to == NULL)
++	if (to == NULL)
+ 		goto alloc_fail;
  
- 	mutex_lock(&callback_mutex);
--	ret = cpulist_scnprintf(page, PAGE_SIZE, cs->cpus_allowed);
-+	count = cpulist_scnprintf(page, PAGE_SIZE, cs->cpus_allowed);
- 	mutex_unlock(&callback_mutex);
+ 	if (cs == &top_cpuset) {
+@@ -1463,18 +1462,16 @@ static void cpuset_attach(struct cgroup_subsys *ss, struct cgroup *cont,
+ 	}
  
--	return ret;
-+	return count;
+ 	/* change mm; only needs to be done once even if threadgroup */
+-	*from = oldcs->mems_allowed;
+ 	*to = cs->mems_allowed;
+ 	mm = get_task_mm(tsk);
+ 	if (mm) {
+ 		mpol_rebind_mm(mm, to);
+ 		if (is_memory_migrate(cs))
+-			cpuset_migrate_mm(mm, from, to);
++			cpuset_migrate_mm(mm, &oldcs->mems_allowed, to);
+ 		mmput(mm);
+ 	}
+ 
+ alloc_fail:
+-	NODEMASK_FREE(from);
+ 	NODEMASK_FREE(to);
  }
  
--static int cpuset_sprintf_memlist(char *page, struct cpuset *cs)
-+static size_t cpuset_sprintf_memlist(char *page, struct cpuset *cs)
- {
--	NODEMASK_ALLOC(nodemask_t, mask, GFP_KERNEL);
--	int retval;
--
--	if (mask == NULL)
--		return -ENOMEM;
-+	size_t count;
- 
- 	mutex_lock(&callback_mutex);
--	*mask = cs->mems_allowed;
-+	count = nodelist_scnprintf(page, PAGE_SIZE, cs->mems_allowed);
- 	mutex_unlock(&callback_mutex);
- 
--	retval = nodelist_scnprintf(page, PAGE_SIZE, *mask);
--
--	NODEMASK_FREE(mask);
--
--	return retval;
-+	return count;
- }
- 
- static ssize_t cpuset_common_file_read(struct cgroup *cont,
 -- 
 1.7.3.1
 
