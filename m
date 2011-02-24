@@ -1,62 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 656F48D0039
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 00:39:53 -0500 (EST)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id p1O5dnYh026954
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:39:49 -0800
-Received: from gwb15 (gwb15.prod.google.com [10.200.2.15])
-	by kpbe19.cbf.corp.google.com with ESMTP id p1O5dIvb032571
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E9ACF8D0039
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 00:44:36 -0500 (EST)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id p1O5iWWF031846
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:44:33 -0800
+Received: from yie30 (yie30.prod.google.com [10.243.66.30])
+	by wpaz13.hot.corp.google.com with ESMTP id p1O5iVli016299
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:39:48 -0800
-Received: by gwb15 with SMTP id 15so128099gwb.38
-        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:39:47 -0800 (PST)
-Date: Wed, 23 Feb 2011 21:39:49 -0800 (PST)
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:44:31 -0800
+Received: by yie30 with SMTP id 30so108022yie.9
+        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:44:31 -0800 (PST)
+Date: Wed, 23 Feb 2011 21:44:33 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] mm: fix possible cause of a page_mapped BUG
-Message-ID: <alpine.LSU.2.00.1102232136020.2239@sister.anvils>
+Subject: [PATCH] memcg: more mem_cgroup_uncharge batching
+Message-ID: <alpine.LSU.2.00.1102232139560.2239@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Robert Swiecki <robert@swiecki.net>, Miklos Szeredi <miklos@szeredi.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@in.ibm.com>, Daisuke Nishimura <nishmura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Robert Swiecki reported a BUG_ON(page_mapped) from a fuzzer, punching
-a hole with madvise(,, MADV_REMOVE).  That path is under mutex, and
-cannot be explained by lack of serialization in unmap_mapping_range().
-
-Reviewing the code, I found one place where vm_truncate_count handling
-should have been updated, when I switched at the last minute from one
-way of managing the restart_addr to another: mremap move changes the
-virtual addresses, so it ought to adjust the restart_addr.
-
-But rather than exporting the notion of restart_addr from memory.c, or
-converting to restart_pgoff throughout, simply reset vm_truncate_count
-to 0 to force a rescan if mremap move races with preempted truncation.
-
-We have no confirmation that this fixes Robert's BUG,
-but it is a fix that's worth making anyway.
+It seems odd that truncate_inode_pages_range(), called not only when
+truncating but also when evicting inodes, has mem_cgroup_uncharge_start
+and _end() batching in its second loop to clear up a few leftovers, but
+not in its first loop that does almost all the work: add them there too.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
 
- mm/mremap.c |    4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ mm/truncate.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
---- 2.6.38-rc6/mm/mremap.c	2011-01-18 22:04:56.000000000 -0800
-+++ linux/mm/mremap.c	2011-02-23 15:29:52.000000000 -0800
-@@ -94,9 +94,7 @@ static void move_ptes(struct vm_area_str
- 		 */
- 		mapping = vma->vm_file->f_mapping;
- 		spin_lock(&mapping->i_mmap_lock);
--		if (new_vma->vm_truncate_count &&
--		    new_vma->vm_truncate_count != vma->vm_truncate_count)
--			new_vma->vm_truncate_count = 0;
-+		new_vma->vm_truncate_count = 0;
+--- 2.6.38-rc6/mm/truncate.c	2011-01-21 20:54:14.000000000 -0800
++++ linux/mm/truncate.c	2011-02-23 16:12:19.000000000 -0800
+@@ -225,6 +225,7 @@ void truncate_inode_pages_range(struct a
+ 	next = start;
+ 	while (next <= end &&
+ 	       pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
++		mem_cgroup_uncharge_start();
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+ 			struct page *page = pvec.pages[i];
+ 			pgoff_t page_index = page->index;
+@@ -247,6 +248,7 @@ void truncate_inode_pages_range(struct a
+ 			unlock_page(page);
+ 		}
+ 		pagevec_release(&pvec);
++		mem_cgroup_uncharge_end();
+ 		cond_resched();
  	}
  
- 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
