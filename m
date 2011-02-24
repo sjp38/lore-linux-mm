@@ -1,63 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D99878D0039
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 11:19:06 -0500 (EST)
-Date: Thu, 24 Feb 2011 11:18:44 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 0/5] blk-throttle: writeback and swap IO control
-Message-ID: <20110224161844.GD18494@redhat.com>
-References: <1298394776-9957-1-git-send-email-arighi@develer.com>
- <20110222193403.GG28269@redhat.com>
- <20110222224141.GA23723@linux.develer.com>
- <20110223000358.GM28269@redhat.com>
- <20110223083206.GA2174@linux.develer.com>
- <20110223152354.GA2526@redhat.com>
- <20110223231410.GB1744@linux.develer.com>
- <20110224001033.GF2526@redhat.com>
- <20110224094039.89c07bea.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110224094039.89c07bea.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2463F8D0039
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 11:34:47 -0500 (EST)
+Subject: Re: [PATCH 06/17] arm: mmu_gather rework
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20110217163235.106239192@chello.nl>
+References: <20110217162327.434629380@chello.nl>
+	 <20110217163235.106239192@chello.nl>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Thu, 24 Feb 2011 17:34:13 +0100
+Message-ID: <1298565253.2428.288.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Russell King <rmk@arm.linux.org.uk>, "Luck,Tony" <tony.luck@intel.com>, PaulMundt <lethal@linux-sh.org>
 
-On Thu, Feb 24, 2011 at 09:40:39AM +0900, KAMEZAWA Hiroyuki wrote:
+On Thu, 2011-02-17 at 17:23 +0100, Peter Zijlstra wrote:
+> plain text document attachment
+> (peter_zijlstra-arm-preemptible_mmu_gather.patch)
+> Fix up the arm mmu_gather code to conform to the new API.
 
-[..]
-> > > If we don't consider the swap IO, any other IO
-> > > operation from our point of view will happen directly from process
-> > > context (writes in memory + sync reads from the block device).
-> > 
-> > Why do we need to account for swap IO? Application never asked for swap
-> > IO. It is kernel's decision to move soem pages to swap to free up some
-> > memory. What's the point in charging those pages to application group
-> > and throttle accordingly?
-> > 
-> 
-> I think swap I/O should be controlled by memcg's dirty_ratio.
-> But, IIRC, NEC guy had a requirement for this...
-> 
-> I think some enterprise cusotmer may want to throttle the whole speed of
-> swapout I/O (not swapin)...so, they may be glad if they can limit throttle
-> the I/O against a disk partition or all I/O tagged as 'swapio' rather than
-> some cgroup name.
+So akpm noted that this one doesn't apply anymore because of:
 
-If swap is on a separate disk, then one can control put write throttling rules
-on systemwide swapout. Though I still don't understand how that can help.
+commit 06824ba824b3e9f2fedb38bee79af0643198ed7f
+Author: Russell King <rmk+kernel@arm.linux.org.uk>
+Date:   Sun Feb 20 12:16:45 2011 +0000
 
-> 
-> But I'm afraid slow swapout may consume much dirty_ratio and make things
-> worse ;)
+    ARM: tlb: delay page freeing for SMP and ARMv7 CPUs
+   =20
+    We need to delay freeing any mapped page on SMP and ARMv7 systems to
+    ensure that the data is not accessed by other CPUs, or is used for
+    speculative prefetch with ARMv7.  This includes not only mapped pages
+    but also pages used for the page tables themselves.
+   =20
+    This avoids races with the MMU/other CPUs accessing pages after they've
+    been freed but before we've invalidated the TLB.
+   =20
+    Signed-off-by: Russell King <rmk+kernel@arm.linux.org.uk>
 
-Exactly. So I think focus should be controlling things earlier and stop
-applications early before they can either write too much data in page
-cache etc.
 
-Thanks
-Vivek
+Which raises a nice point about shift_arg_pages() which calls
+free_pgd_range(), the other architectures that look similar to arm in
+this respect are ia64 and sh, do they suffer the same problem?
+
+It doesn't look hard to fold the requirements for this into the generic
+tlb range support (patch 14 in this series).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
