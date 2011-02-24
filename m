@@ -1,32 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 986588D0039
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 01:20:07 -0500 (EST)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp04.au.ibm.com (8.14.4/8.13.1) with ESMTP id p1O6EZR7006790
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 17:14:35 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p1O6K4Ba651438
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 17:20:04 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p1O6K3xx008280
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 17:20:03 +1100
-Date: Thu, 24 Feb 2011 11:49:31 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 29ECF8D0039
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 01:53:49 -0500 (EST)
+Date: Thu, 24 Feb 2011 15:47:45 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Subject: Re: [PATCH] memcg: more mem_cgroup_uncharge batching
-Message-ID: <20110224061931.GO3379@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <alpine.LSU.2.00.1102232139560.2239@sister.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+Message-Id: <20110224154745.b7d7a0ac.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <alpine.LSU.2.00.1102232139560.2239@sister.anvils>
+References: <alpine.LSU.2.00.1102232139560.2239@sister.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishmura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@in.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-* Hugh Dickins <hughd@google.com> [2011-02-23 21:44:33]:
+On Wed, 23 Feb 2011 21:44:33 -0800 (PST)
+Hugh Dickins <hughd@google.com> wrote:
 
 > It seems odd that truncate_inode_pages_range(), called not only when
 > truncating but also when evicting inodes, has mem_cgroup_uncharge_start
@@ -34,15 +25,12 @@ Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linu
 > not in its first loop that does almost all the work: add them there too.
 > 
 > Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
+Thank you catching this. This patch has already got enough ack's, but anyway:
 
+	Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
- 
-
--- 
-	Three Cheers,
-	Balbir
+P.S.
+My address is "nishimura@mxp.nes.nec.co.jp", not "nishmura@mxp.nes.nec.co.jp" :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
