@@ -1,33 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A3F4B8D003A
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 08:40:50 -0500 (EST)
-Date: Thu, 24 Feb 2011 14:40:45 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH] page_cgroup: Reduce allocation overhead for
- page_cgroup array for CONFIG_SPARSEMEM v2
-Message-ID: <20110224134045.GA22122@tiehlicka.suse.cz>
-References: <20110223151047.GA7275@tiehlicka.suse.cz>
- <1298485162.7236.4.camel@nimitz>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 40BDE8D0039
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 09:04:57 -0500 (EST)
+Date: Thu, 24 Feb 2011 15:04:14 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: too big min_free_kbytes
+Message-ID: <20110224140413.GA5633@random.random>
+References: <20110126163655.GU18984@csn.ul.ie>
+ <20110126174236.GV18984@csn.ul.ie>
+ <20110127134057.GA32039@csn.ul.ie>
+ <20110127152755.GB30919@random.random>
+ <20110203025808.GJ5843@random.random>
+ <20110214022524.GA18198@sli10-conroe.sh.intel.com>
+ <20110222142559.GD15652@csn.ul.ie>
+ <1298438954.19589.7.camel@sli10-conroe>
+ <20110223144509.GG31195@random.random>
+ <1298534927.19589.41.camel@sli10-conroe>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1298485162.7236.4.camel@nimitz>
+In-Reply-To: <1298534927.19589.41.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>, Rik van Riel <riel@redhat.com>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>
 
-Here is the second version of the patch. I have used alloc_pages_exact
-instead of the complex double array approach.
+On Thu, Feb 24, 2011 at 04:08:47PM +0800, Shaohua Li wrote:
+> with madvise, the min_free_kbytes is still high (same as the 'always'
+> case). The result is still we have about 50M memory is reserved. you can
+> try at your machine with boot option 'mem=2G' and check the zoneinfo
+> output.
 
-I still fallback to kmalloc/vmalloc because hotplug can happen quite
-some time after boot and we can end up not having enough continuous
-pages at that time. 
+yes I know. The objective of that test was exactly to know if the
+problem is higher memory footprint because of THP or only the
+anti-frag/min_free_kbytes which would still be present with the
+"madvise" setting (anti-frag is only shutdown by the "never"
+setting). If you still have the out of memory with madvise, then you
+can keep THP enabled "always" and then "echo 16384 >
+/proc/sys/vm/min_free_kbytes", it should work fine then even with THP
+always mode then, no need to disable THP (simply you won't have a good
+guarantee that anti-frag is functional so the hugepage usage will be
+reduced over time compared to the default min_free_kbytes that enables
+anti-frag fully).
 
-I am also thinking whether it would make sense to introduce
-alloc_pages_exact_node function which would allocate pages from the
-given node.
-
-Any thoughts?
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
