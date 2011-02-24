@@ -1,42 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 708B68D0039
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 03:08:51 -0500 (EST)
-Subject: Re: too big min_free_kbytes
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20110223144509.GG31195@random.random>
-References: <20110126152302.GT18984@csn.ul.ie>
-	 <20110126154203.GS926@random.random> <20110126163655.GU18984@csn.ul.ie>
-	 <20110126174236.GV18984@csn.ul.ie> <20110127134057.GA32039@csn.ul.ie>
-	 <20110127152755.GB30919@random.random>
-	 <20110203025808.GJ5843@random.random>
-	 <20110214022524.GA18198@sli10-conroe.sh.intel.com>
-	 <20110222142559.GD15652@csn.ul.ie> <1298438954.19589.7.camel@sli10-conroe>
-	 <20110223144509.GG31195@random.random>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 24 Feb 2011 16:08:47 +0800
-Message-ID: <1298534927.19589.41.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id AE1ED8D0039
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 03:16:43 -0500 (EST)
+Date: Thu, 24 Feb 2011 09:16:15 +0100
+From: Anton Arapov <anton@redhat.com>
+Subject: Re: [PATCH v2] hugetlbfs: correct handling of negative input to
+ /proc/sys/vm/nr_hugepages
+Message-ID: <20110224081615.GE2511@bandura.usersys.redhat.com>
+References: <4D6419C0.8080804@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4D6419C0.8080804@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>, Rik van Riel <riel@redhat.com>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>
+To: Petr Holasek <pholasek@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
 
-On Wed, 2011-02-23 at 22:45 +0800, Andrea Arcangeli wrote:
-> On Wed, Feb 23, 2011 at 01:29:14PM +0800, Shaohua Li wrote:
-> > Fixing it will let more people enable THP by default. but anyway we will
-> > disable it now if the issue can't be fixed.
+On Tue, Feb 22, 2011 at 09:17:04PM +0100, Petr Holasek wrote:
+> When user insert negative value into /proc/sys/vm/nr_hugepages it
+> will result
+> in the setting a random number of HugePages in system (can be easily showed
+> at /proc/meminfo output). This patch fixes the wrong behavior so that the
+> negative input will result in nr_hugepages value unchanged.
 > 
-> Did you try what happens with transparent_hugepage=madvise? If that
-> doesn't fix it, it's min_free_kbytes issue.
-with madvise, the min_free_kbytes is still high (same as the 'always'
-case). The result is still we have about 50M memory is reserved. you can
-try at your machine with boot option 'mem=2G' and check the zoneinfo
-output.
+> v2: same fix was also done in hugetlb_overcommit_handler function
+>     as suggested by reviewers.
+> 
+> Signed-off-by: Petr Holasek <pholasek@redhat.com>
+> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  mm/hugetlb.c |    6 ++----
+>  1 files changed, 2 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index bb0b7c1..06de5aa 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1872,8 +1872,7 @@ static int hugetlb_sysctl_handler_common(bool
+> obey_mempolicy,
+>      unsigned long tmp;
+>      int ret;
+> 
+> -    if (!write)
+> -        tmp = h->max_huge_pages;
+> +    tmp = h->max_huge_pages;
+> 
+>      if (write && h->order >= MAX_ORDER)
+>          return -EINVAL;
+> @@ -1938,8 +1937,7 @@ int hugetlb_overcommit_handler(struct
+> ctl_table *table, int write,
+>      unsigned long tmp;
+>      int ret;
+> 
+> -    if (!write)
+> -        tmp = h->nr_overcommit_huge_pages;
+> +    tmp = h->nr_overcommit_huge_pages;
+> 
+>      if (write && h->order >= MAX_ORDER)
+>          return -EINVAL;
+> -- 
+> 1.7.1
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
+ 
+Signed-off-by: Anton Arapov <anton@redhat.com>
 
-Thanks,
-Shaohua
+-- 
+Anton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
