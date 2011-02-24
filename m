@@ -1,78 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AEFA58D0039
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 00:35:54 -0500 (EST)
-Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
-	by smtp-out.google.com with ESMTP id p1O5ZpNg023177
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:35:51 -0800
-Received: from yxk30 (yxk30.prod.google.com [10.190.3.158])
-	by hpaq13.eem.corp.google.com with ESMTP id p1O5ZQBY004687
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 656F48D0039
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 00:39:53 -0500 (EST)
+Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
+	by smtp-out.google.com with ESMTP id p1O5dnYh026954
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:39:49 -0800
+Received: from gwb15 (gwb15.prod.google.com [10.200.2.15])
+	by kpbe19.cbf.corp.google.com with ESMTP id p1O5dIvb032571
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:35:50 -0800
-Received: by yxk30 with SMTP id 30so168830yxk.17
-        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:35:50 -0800 (PST)
-Date: Wed, 23 Feb 2011 21:35:51 -0800 (PST)
+	for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:39:48 -0800
+Received: by gwb15 with SMTP id 15so128099gwb.38
+        for <linux-mm@kvack.org>; Wed, 23 Feb 2011 21:39:47 -0800 (PST)
+Date: Wed, 23 Feb 2011 21:39:49 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] mm: don't return 0 too early from find_get_pages()
-Message-ID: <alpine.LSU.2.00.1102232132080.2239@sister.anvils>
+Subject: [PATCH] mm: fix possible cause of a page_mapped BUG
+Message-ID: <alpine.LSU.2.00.1102232136020.2239@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Piggin <npiggin@kernel.dk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Salman Qazi <sqazi@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Robert Swiecki <robert@swiecki.net>, Miklos Szeredi <miklos@szeredi.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Callers of find_get_pages(), or its wrapper pagevec_lookup() - notably
-truncate_inode_pages_range() - stop looking further when it returns 0.
+Robert Swiecki reported a BUG_ON(page_mapped) from a fuzzer, punching
+a hole with madvise(,, MADV_REMOVE).  That path is under mutex, and
+cannot be explained by lack of serialization in unmap_mapping_range().
 
-But if an interrupt comes just after its radix_tree_gang_lookup_slot(),
-especially if we have preemptible RCU enabled, isn't it conceivable
-that all 14 pages returned could be removed from the page cache by
-shrink_page_list(), before find_get_pages() gets to process them?  So
-causing it to return 0 although there may be plenty more pages beyond.
+Reviewing the code, I found one place where vm_truncate_count handling
+should have been updated, when I switched at the last minute from one
+way of managing the restart_addr to another: mremap move changes the
+virtual addresses, so it ought to adjust the restart_addr.
 
-Make find_get_pages() and find_get_pages_tag() check for this unlikely
-case, and restart should it occur; but callers of find_get_pages_contig()
-have no such expectation, it's okay for that to return 0 early.
+But rather than exporting the notion of restart_addr from memory.c, or
+converting to restart_pgoff throughout, simply reset vm_truncate_count
+to 0 to force a rescan if mremap move races with preempted truncation.
 
-I have not seen this in practice, just worried by the possibility.
+We have no confirmation that this fixes Robert's BUG,
+but it is a fix that's worth making anyway.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
 
- mm/filemap.c |   14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ mm/mremap.c |    4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
---- 2.6.38-rc6/mm/filemap.c	2011-01-18 22:04:56.000000000 -0800
-+++ linux/mm/filemap.c	2011-02-23 16:06:19.000000000 -0800
-@@ -800,6 +800,13 @@ repeat:
- 		pages[ret] = page;
- 		ret++;
+--- 2.6.38-rc6/mm/mremap.c	2011-01-18 22:04:56.000000000 -0800
++++ linux/mm/mremap.c	2011-02-23 15:29:52.000000000 -0800
+@@ -94,9 +94,7 @@ static void move_ptes(struct vm_area_str
+ 		 */
+ 		mapping = vma->vm_file->f_mapping;
+ 		spin_lock(&mapping->i_mmap_lock);
+-		if (new_vma->vm_truncate_count &&
+-		    new_vma->vm_truncate_count != vma->vm_truncate_count)
+-			new_vma->vm_truncate_count = 0;
++		new_vma->vm_truncate_count = 0;
  	}
-+
-+	/*
-+	 * If all entries were removed before we could secure them,
-+	 * try again, because callers stop trying once 0 is returned.
-+	 */
-+	if (unlikely(!ret && nr_found))
-+		goto restart;
- 	rcu_read_unlock();
- 	return ret;
- }
-@@ -909,6 +916,13 @@ repeat:
- 		pages[ret] = page;
- 		ret++;
- 	}
-+
-+	/*
-+	 * If all entries were removed before we could secure them,
-+	 * try again, because callers stop trying once 0 is returned.
-+	 */
-+	if (unlikely(!ret && nr_found))
-+		goto restart;
- 	rcu_read_unlock();
  
- 	if (ret)
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
