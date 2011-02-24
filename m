@@ -1,31 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C39D18D0039
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 18:15:43 -0500 (EST)
-Date: Fri, 25 Feb 2011 00:15:36 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7FFCC8D0039
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2011 18:23:26 -0500 (EST)
+Date: Fri, 25 Feb 2011 00:23:13 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 8/8] Add VM counters for transparent hugepages
-Message-ID: <20110224231536.GF23252@random.random>
+Subject: Re: [PATCH 1/8] Fix interleaving for transparent hugepages v2
+Message-ID: <20110224232313.GG23252@random.random>
 References: <1298425922-23630-1-git-send-email-andi@firstfloor.org>
- <1298425922-23630-9-git-send-email-andi@firstfloor.org>
- <20110224041851.GF31195@random.random>
- <1298587430.9138.24.camel@nimitz>
+ <1298425922-23630-2-git-send-email-andi@firstfloor.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1298587430.9138.24.camel@nimitz>
+In-Reply-To: <1298425922-23630-2-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>
 
-On Thu, Feb 24, 2011 at 02:43:50PM -0800, Dave Hansen wrote:
-> On Thu, 2011-02-24 at 05:18 +0100, Andrea Arcangeli wrote:
-> > Incremental fix for your patch 8 (I doubt it was intentional).
-> 
-> Bah, sorry.  Should have read one more message down the thread. :)
+For patches 1-5 and 8:
 
-no problem ;).
+Acked-by: Andrea Arcangeli <aarcange@redhat.com>
+
+Patch 6-7 I've to trust this branch is really worth it, I agree
+khugepaged can hardly be better, but this comes at the cost of one
+more branch for something that looks minor issue. I'm netural if
+others likes it it's sure fine with me (I think David didn't like it
+though, but he didn't answer to last email from Andi, I'm CCing him in
+case he wants to elaborate further).
+
+My patch incremental with patch 8 is also needed. My patch incremental
+with patch 7 is also needed if 6-7 gets applied.
+
+They're good to be in 2.6.38 but I don't rate them extremely urgent
+with the exception of patch 1 that is already in -mm in fact.
+
+In some ways this also shows how the default numa policy is
+inefficient if the best it can do is to look at where the page was
+allocated initially without any knowledge of where the task run last
+but I don't want to risk making things worse, so for the short term
+it's ok fix (it's not a band-aid it's really a fix for an heuristic
+that is not good enough and it can't make things worse unlike the KSM
+change in previous series that definitely made things worse), but I
+hope in the long term getting info from the page in khugepaged won't
+be needed anymore and it can be rolled back.
+
+Thanks a lot Andi,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
