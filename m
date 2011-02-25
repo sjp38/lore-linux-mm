@@ -1,95 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 201D98D0039
-	for <linux-mm@kvack.org>; Fri, 25 Feb 2011 04:54:05 -0500 (EST)
-Date: Fri, 25 Feb 2011 10:53:57 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH] page_cgroup: Reduce allocation overhead for
- page_cgroup array for CONFIG_SPARSEMEM v3
-Message-ID: <20110225095357.GA23241@tiehlicka.suse.cz>
-References: <20110223151047.GA7275@tiehlicka.suse.cz>
- <1298485162.7236.4.camel@nimitz>
- <20110224134045.GA22122@tiehlicka.suse.cz>
- <20110225122522.8c4f1057.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5191D8D0039
+	for <linux-mm@kvack.org>; Fri, 25 Feb 2011 07:14:23 -0500 (EST)
+Date: Fri, 25 Feb 2011 12:13:53 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: too big min_free_kbytes
+Message-ID: <20110225121352.GA8010@csn.ul.ie>
+References: <20110127134057.GA32039@csn.ul.ie> <20110127152755.GB30919@random.random> <20110203025808.GJ5843@random.random> <20110214022524.GA18198@sli10-conroe.sh.intel.com> <20110222142559.GD15652@csn.ul.ie> <1298438954.19589.7.camel@sli10-conroe> <20110223144509.GG31195@random.random> <1298534927.19589.41.camel@sli10-conroe> <20110224140413.GA5633@random.random> <1298595109.19589.46.camel@sli10-conroe>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20110225122522.8c4f1057.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1298595109.19589.46.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>, Rik van Riel <riel@redhat.com>, "Shi, Alex" <alex.shi@intel.com>, Andi Kleen <andi@firstfloor.org>
 
-On Fri 25-02-11 12:25:22, KAMEZAWA Hiroyuki wrote:
-> On Thu, 24 Feb 2011 14:40:45 +0100
-> Michal Hocko <mhocko@suse.cz> wrote:
-> 
-> > Here is the second version of the patch. I have used alloc_pages_exact
-> > instead of the complex double array approach.
+On Fri, Feb 25, 2011 at 08:51:49AM +0800, Shaohua Li wrote:
+> On Thu, 2011-02-24 at 22:04 +0800, Andrea Arcangeli wrote:
+> > On Thu, Feb 24, 2011 at 04:08:47PM +0800, Shaohua Li wrote:
+> > > with madvise, the min_free_kbytes is still high (same as the 'always'
+> > > case). The result is still we have about 50M memory is reserved. you can
+> > > try at your machine with boot option 'mem=2G' and check the zoneinfo
+> > > output.
 > > 
-> > I still fallback to kmalloc/vmalloc because hotplug can happen quite
-> > some time after boot and we can end up not having enough continuous
-> > pages at that time. 
-> > 
-> > I am also thinking whether it would make sense to introduce
-> > alloc_pages_exact_node function which would allocate pages from the
-> > given node.
-> > 
-> > Any thoughts?
+> > yes I know. The objective of that test was exactly to know if the
+> > problem is higher memory footprint because of THP or only the
+> > anti-frag/min_free_kbytes which would still be present with the
+> > "madvise" setting (anti-frag is only shutdown by the "never"
+> > setting). If you still have the out of memory with madvise, then you
+> > can keep THP enabled "always" and then "echo 16384 >
+> > /proc/sys/vm/min_free_kbytes", it should work fine then even with THP
+> > always mode then, no need to disable THP (simply you won't have a good
+> > guarantee that anti-frag is functional so the hugepage usage will be
+> > reduced over time compared to the default min_free_kbytes that enables
+> > anti-frag fully).
+>
+> I can disable THP or set the min_free_kbytes manually in our test, but
+> just wonder if it's possible we can avoid the memory waste even with THP
+> enabled, because this will make more people enable it by default.
+
+With a lower value of min_free_kbytes, THP would give diminishing returns
+over time as hugepage allocation success rates start degrading over time. It
+might not happen for several days or weeks making it a tricky problem to
+diagnose. So yes, the memory waste with THP enabled can be fixed but it
+would only be suitable for short-term benchmarks.
+
+> If you
+> don't consider this is a problem, we can disable THP.
 > 
-> The patch itself is fine but please update the description.
 
-I have updated the description but kept those parts which describe how
-the memory is wasted for different configurations. Do you have any tips
-how it can be improved?
+-- 
+Mel Gorman
+SUSE Labs
 
-> 
-> But have some comments, below.
-[...]
-> > -/* __alloc_bootmem...() is protected by !slab_available() */
-> > +static void *__init_refok alloc_mcg_table(size_t size, int nid)
-> > +{
-> > +	void *addr = NULL;
-> > +	if((addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN)))
-> > +		return addr;
-> > +
-> > +	if (node_state(nid, N_HIGH_MEMORY)) {
-> > +		addr = kmalloc_node(size, GFP_KERNEL | __GFP_NOWARN, nid);
-> > +		if (!addr)
-> > +			addr = vmalloc_node(size, nid);
-> > +	} else {
-> > +		addr = kmalloc(size, GFP_KERNEL | __GFP_NOWARN);
-> > +		if (!addr)
-> > +			addr = vmalloc(size);
-> > +	}
-> > +
-> > +	return addr;
-> > +}
-> 
-> What is the case we need to call kmalloc_node() even when alloc_pages_exact() fails ?
-> vmalloc() may need to be called when the size of chunk is larger than
-> MAX_ORDER or there is fragmentation.....
-
-I kept the original kmalloc with fallback to vmalloc because vmalloc is
-more scarce resource (especially on i386 where we can have memory
-hotplug configured as well).
-
-> 
-> And the function name, alloc_mcg_table(), I don't like it because this is an
-> allocation for page_cgroup.
-> 
-> How about alloc_page_cgroup() simply ?
-
-OK, I have no preferences for the name. alloc_page_cgroup sounds good as
-well.
-
-I have also added VM_BUG_ON(!slab_is_available()) back to the allocation
-path.
-
-Thanks for the review. The updated patch is bellow:
-
-Changes since v2
-- rename alloc_mcg_table to alloc_page_cgroup
-- free__mcg_table renamed to free_page_cgroup
-- get VM_BUG_ON(!slab_is_available()) back into the allocation path
---- 
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
