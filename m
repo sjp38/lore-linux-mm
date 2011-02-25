@@ -1,95 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E54828D003B
-	for <linux-mm@kvack.org>; Fri, 25 Feb 2011 13:01:10 -0500 (EST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 2/2] mm: compaction: Minimise the time IRQs are disabled while isolating pages for migration
-Date: Fri, 25 Feb 2011 18:00:56 +0000
-Message-Id: <1298656856-6074-3-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1298656856-6074-1-git-send-email-mel@csn.ul.ie>
-References: <1298656856-6074-1-git-send-email-mel@csn.ul.ie>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 50EC68D003B
+	for <linux-mm@kvack.org>; Fri, 25 Feb 2011 13:01:18 -0500 (EST)
+Date: Fri, 25 Feb 2011 18:52:49 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: [PATCH 2/5] exec: introduce "bool compat" argument
+Message-ID: <20110225175249.GC19059@redhat.com>
+References: <20101130200129.GG11905@redhat.com> <compat-not-unlikely@mdm.bga.com> <20101201182747.GB6143@redhat.com> <20110225175202.GA19059@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110225175202.GA19059@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arthur Marsh <arthur.marsh@internode.on.net>, Clemens Ladisch <cladisch@googlemail.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>, Milton Miller <miltonm@bga.com>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+No functional changes, preparation to simplify the review.
 
-compaction_alloc() isolates pages for migration in isolate_migratepages. While
-it's scanning, IRQs are disabled on the mistaken assumption the scanning
-should be short. Tests show this to be true for the most part but
-contention times on the LRU lock can be increased. Before this patch,
-the IRQ disabled times for a simple test looked like
+And the new (and currently unused) "bool compat" argument to
+get_arg_ptr(), count(), and copy_strings().
 
-Total sampled time IRQs off (not real total time): 5493
-Event shrink_inactive_list..shrink_zone                  1596 us count 1
-Event shrink_inactive_list..shrink_zone                  1530 us count 1
-Event shrink_inactive_list..shrink_zone                   956 us count 1
-Event shrink_inactive_list..shrink_zone                   541 us count 1
-Event shrink_inactive_list..shrink_zone                   531 us count 1
-Event split_huge_page..add_to_swap                        232 us count 1
-Event save_args..call_softirq                              36 us count 1
-Event save_args..call_softirq                              35 us count 2
-Event __wake_up..__wake_up                                  1 us count 1
+Add this argument to do_execve() as well, and rename it to
+do_execve_common().
 
-This patch reduces the worst-case IRQs-disabled latencies by releasing the
-lock every SWAP_CLUSTER_MAX pages that are scanned and releasing the CPU if
-necessary. The cost of this is that the processing performing compaction will
-be slower but IRQs being disabled for too long a time has worse consequences
-as the following report shows;
+Reintroduce do_execve() as a trivial wrapper() on top of
+do_execve_common(compat => false).
 
-Total sampled time IRQs off (not real total time): 4367
-Event shrink_inactive_list..shrink_zone                   881 us count 1
-Event shrink_inactive_list..shrink_zone                   875 us count 1
-Event shrink_inactive_list..shrink_zone                   868 us count 1
-Event shrink_inactive_list..shrink_zone                   555 us count 1
-Event split_huge_page..add_to_swap                        495 us count 1
-Event compact_zone..compact_zone_order                    269 us count 1
-Event split_huge_page..add_to_swap                        266 us count 1
-Event shrink_inactive_list..shrink_zone                    85 us count 1
-Event save_args..call_softirq                              36 us count 2
-Event __wake_up..__wake_up                                  1 us count 1
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Oleg Nesterov <oleg@redhat.com>
 ---
- mm/compaction.c |   18 ++++++++++++++++++
- 1 files changed, 18 insertions(+), 0 deletions(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index f47de94..5babbbb 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -278,9 +278,27 @@ static unsigned long isolate_migratepages(struct zone *zone,
- 	}
+ fs/exec.c |   33 +++++++++++++++++++++------------
+ 1 file changed, 21 insertions(+), 12 deletions(-)
+
+--- 38/fs/exec.c~2_is_compat_arg	2011-02-25 18:04:50.000000000 +0100
++++ 38/fs/exec.c	2011-02-25 18:05:05.000000000 +0100
+@@ -396,7 +396,7 @@ err:
+ }
  
- 	/* Time to isolate some pages for migration */
-+	cond_resched();
- 	spin_lock_irq(&zone->lru_lock);
- 	for (; low_pfn < end_pfn; low_pfn++) {
- 		struct page *page;
-+		bool unlocked = false;
+ static const char __user *
+-get_arg_ptr(const char __user * const __user *argv, int argc)
++get_arg_ptr(const char __user * const __user *argv, int argc, bool compat)
+ {
+ 	const char __user *ptr;
+ 
+@@ -409,13 +409,13 @@ get_arg_ptr(const char __user * const __
+ /*
+  * count() counts the number of strings in array ARGV.
+  */
+-static int count(const char __user * const __user * argv, int max)
++static int count(const char __user * const __user *argv, int max, bool compat)
+ {
+ 	int i = 0;
+ 
+ 	if (argv != NULL) {
+ 		for (;;) {
+-			const char __user *p = get_arg_ptr(argv, i);
++			const char __user *p = get_arg_ptr(argv, i, compat);
+ 
+ 			if (!p)
+ 				break;
+@@ -440,7 +440,7 @@ static int count(const char __user * con
+  * ensures the destination page is created and not swapped out.
+  */
+ static int copy_strings(int argc, const char __user *const __user *argv,
+-			struct linux_binprm *bprm)
++			struct linux_binprm *bprm, bool compat)
+ {
+ 	struct page *kmapped_page = NULL;
+ 	char *kaddr = NULL;
+@@ -453,7 +453,7 @@ static int copy_strings(int argc, const 
+ 		unsigned long pos;
+ 
+ 		ret = -EFAULT;
+-		str = get_arg_ptr(argv, argc);
++		str = get_arg_ptr(argv, argc, compat);
+ 		if (IS_ERR(str))
+ 			goto out;
+ 
+@@ -536,7 +536,8 @@ int copy_strings_kernel(int argc, const 
+ 	int r;
+ 	mm_segment_t oldfs = get_fs();
+ 	set_fs(KERNEL_DS);
+-	r = copy_strings(argc, (const char __user *const  __user *)argv, bprm);
++	r = copy_strings(argc, (const char __user *const  __user *)argv,
++				bprm, false);
+ 	set_fs(oldfs);
+ 	return r;
+ }
+@@ -1387,10 +1388,10 @@ EXPORT_SYMBOL(search_binary_handler);
+ /*
+  * sys_execve() executes a new program.
+  */
+-int do_execve(const char * filename,
++static int do_execve_common(const char *filename,
+ 	const char __user *const __user *argv,
+ 	const char __user *const __user *envp,
+-	struct pt_regs * regs)
++	struct pt_regs *regs, bool compat)
+ {
+ 	struct linux_binprm *bprm;
+ 	struct file *file;
+@@ -1432,11 +1433,11 @@ int do_execve(const char * filename,
+ 	if (retval)
+ 		goto out_file;
+ 
+-	bprm->argc = count(argv, MAX_ARG_STRINGS);
++	bprm->argc = count(argv, MAX_ARG_STRINGS, compat);
+ 	if ((retval = bprm->argc) < 0)
+ 		goto out;
+ 
+-	bprm->envc = count(envp, MAX_ARG_STRINGS);
++	bprm->envc = count(envp, MAX_ARG_STRINGS, compat);
+ 	if ((retval = bprm->envc) < 0)
+ 		goto out;
+ 
+@@ -1449,11 +1450,11 @@ int do_execve(const char * filename,
+ 		goto out;
+ 
+ 	bprm->exec = bprm->p;
+-	retval = copy_strings(bprm->envc, envp, bprm);
++	retval = copy_strings(bprm->envc, envp, bprm, compat);
+ 	if (retval < 0)
+ 		goto out;
+ 
+-	retval = copy_strings(bprm->argc, argv, bprm);
++	retval = copy_strings(bprm->argc, argv, bprm, compat);
+ 	if (retval < 0)
+ 		goto out;
+ 
+@@ -1497,6 +1498,14 @@ out_ret:
+ 	return retval;
+ }
+ 
++int do_execve(const char *filename,
++	const char __user *const __user *argv,
++	const char __user *const __user *envp,
++	struct pt_regs *regs)
++{
++	return do_execve_common(filename, argv, envp, regs, false);
++}
 +
-+		/* give a chance to irqs before checking need_resched() */
-+		if (!((low_pfn+1) % SWAP_CLUSTER_MAX)) {
-+			spin_unlock_irq(&zone->lru_lock);
-+			unlocked = true;
-+		}
-+		if (need_resched() || spin_is_contended(&zone->lru_lock)) {
-+			if (!unlocked)
-+				spin_unlock_irq(&zone->lru_lock);
-+			cond_resched();
-+			spin_lock_irq(&zone->lru_lock);
-+			if (fatal_signal_pending(current))
-+				break;
-+		} else if (unlocked)
-+			spin_lock_irq(&zone->lru_lock);
-+
- 		if (!pfn_valid_within(low_pfn))
- 			continue;
- 		nr_scanned++;
--- 
-1.7.2.3
+ void set_binfmt(struct linux_binfmt *new)
+ {
+ 	struct mm_struct *mm = current->mm;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
