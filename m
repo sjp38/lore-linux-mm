@@ -1,64 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 148268D0039
-	for <linux-mm@kvack.org>; Fri, 25 Feb 2011 12:31:00 -0500 (EST)
-Date: Fri, 25 Feb 2011 17:30:30 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH v2] hugetlbfs: correct handling of negative input to
-	/proc/sys/vm/nr_hugepages
-Message-ID: <20110225173030.GC9468@csn.ul.ie>
-References: <4D6419C0.8080804@redhat.com> <20110224141034.d2dfb7de.akpm@linux-foundation.org> <20110224141335.978066c5.akpm@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 883DE8D0039
+	for <linux-mm@kvack.org>; Fri, 25 Feb 2011 13:00:30 -0500 (EST)
+Date: Fri, 25 Feb 2011 18:52:02 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: [PATCH 0/4 RESEND] exec: unify compat/non-compat code
+Message-ID: <20110225175202.GA19059@redhat.com>
+References: <20101130200129.GG11905@redhat.com> <compat-not-unlikely@mdm.bga.com> <20101201182747.GB6143@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110224141335.978066c5.akpm@linux-foundation.org>
+In-Reply-To: <20101201182747.GB6143@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Petr Holasek <pholasek@redhat.com>, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>, Milton Miller <miltonm@bga.com>
 
-On Thu, Feb 24, 2011 at 02:13:35PM -0800, Andrew Morton wrote:
-> On Thu, 24 Feb 2011 14:10:34 -0800
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > On Tue, 22 Feb 2011 21:17:04 +0100
-> > Petr Holasek <pholasek@redhat.com> wrote:
-> > 
-> > > When user insert negative value into /proc/sys/vm/nr_hugepages it will 
-> > > result
-> > > in the setting a random number of HugePages in system
-> > 
-> > Is this true?  afacit the kernel will allocate as many pages as it can
-> > and will then set /proc/sys/vm/nr_hugepages to reflect the result. 
-> > That's not random.
-> > 
-> 
-> Assuming the above to be correct, I altered the changelog thusly:
-> 
+On 12/01, Oleg Nesterov wrote:
+>
+> On 12/01, Milton Miller wrote:
+> >
+> > > +#ifdef CONFIG_COMPAT
+> > > +int compat_do_execve(char * filename,
+> > > +	compat_uptr_t __user *argv,
+> > > +	compat_uptr_t __user *envp,
+> > > +	struct pt_regs * regs)
+> > > +{
+> > > +	return do_execve_common(filename,
+> > > +				(void __user*)argv, (void __user*)envp,
+> >
+> > Shouldn't these be compat_ptr(argv)?  (makes a difference on s390)
+>
+> I'll recheck, but I don't think so. Please note that compat_ptr()
+> accepts "compat_uptr_t", not "compat_uptr_t *".
+>
+> argv should be correct as a pointer to user-space, otherwise the
+> current code is buggy. For example, compat_do_execve() passes
+> argv to compat_count() which does get_user(argv) without any
+> conversion.
 
-AFAIK, it's correct.
+So, once again, this should not (and can not) be compat_ptr(argv) afaics.
 
-> : When the user inserts a negative value into /proc/sys/vm/nr_hugepages it
-> : will cause the kernel to allocate as many hugepages as possible and to
-> : then update /proc/meminfo to reflect this.
-> :
-> : This changes the behavior so that the negative input will result in
-> : nr_hugepages value being unchanged.
-> 
-> and given that, I don't really see why we should change the existing behaviour.
-> 
+I don't understand the s390 asm, but compat_wrapper.S:sys32_execve_wrapper
+looks correct. If not, the current code is already buggy and s390 should
+be fixed. argv/envp are not compat ptrs, they just point to compat_ data,
+we should not do any conversion.
 
-The main motivation is that asking the kernel for -1 pages and getting a
-sensible response just feels wrong. The second reason I'd guess is that an
-administrator script that was buggy (or raced with a second) instance that
-accidentally wrote a negative number to the proc interface would try allocating
-all memory as huge pages instead of reducing the number of hugepages as
-was probably intended. Totally hypothetical case of course, I haven't
-actually heard of this happening to anyone.
+I am resending this series unchanged, plus the trivial 5/5 to document
+acct_arg_size().
 
--- 
-Mel Gorman
-SUSE Labs
+----------------------------------------------------------------------
+
+execve code in fs/compat.c must die. It is very hard to maintain this
+copy-and-paste horror. And the only reason for this duplication is that
+argv/envp point to char* or compat_uptr_t depending on compat. We can
+add the trivial helper which hides the difference and unify the code.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
