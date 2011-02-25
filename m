@@ -1,53 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DF2458D0039
-	for <linux-mm@kvack.org>; Fri, 25 Feb 2011 16:41:19 -0500 (EST)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH v5 3/9] writeback: convert variables to unsigned
-Date: Fri, 25 Feb 2011 13:35:54 -0800
-Message-Id: <1298669760-26344-4-git-send-email-gthelen@google.com>
-In-Reply-To: <1298669760-26344-1-git-send-email-gthelen@google.com>
-References: <1298669760-26344-1-git-send-email-gthelen@google.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id DB3058D0039
+	for <linux-mm@kvack.org>; Fri, 25 Feb 2011 16:53:42 -0500 (EST)
+Date: Fri, 25 Feb 2011 21:51:24 +0000
+From: Russell King <rmk@arm.linux.org.uk>
+Subject: Re: [PATCH 06/17] arm: mmu_gather rework
+Message-ID: <20110225215123.GA10026@flint.arm.linux.org.uk>
+References: <20110217162327.434629380@chello.nl> <20110217163235.106239192@chello.nl> <1298565253.2428.288.camel@twins> <1298657083.2428.2483.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1298657083.2428.2483.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Vivek Goyal <vgoyal@redhat.com>, Greg Thelen <gthelen@google.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, "Luck,Tony" <tony.luck@intel.com>, PaulMundt <lethal@linux-sh.org>
 
-Convert two balance_dirty_pages() page counter variables (nr_reclaimable
-and nr_writeback) from 'long' to 'unsigned long'.
+On Fri, Feb 25, 2011 at 07:04:43PM +0100, Peter Zijlstra wrote:
+> I'm not quite sure why you chose to add range tracking on
+> pte_free_tlb(), the only affected code path seems to be unmap_region()
+> where you'll use a flush_tlb_range(), but its buggy, the pte_free_tlb()
+> range is much larger than 1 page, and if you do it there you also need
+> it for all the other p??_free_tlb() functions.
 
-These two variables are used to store results from global_page_state().
-global_page_state() returns unsigned long and carefully sums per-cpu
-counters explicitly avoiding returning a negative value.
+My reasoning is to do with the way the LPAE stuff works.  For the
+explaination below, I'm going to assume a 2 level page table system
+for simplicity.
 
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
-Changelog since v4:
-- Created this patch for clarity.  Previously this patch was integrated within
-  the "writeback: create dirty_info structure" patch.
+The first thing to realise is that if we have L2 entries, then we'll
+have unmapped them first using the usual tlb shootdown interfaces.
 
- mm/page-writeback.c |    6 ++++--
- 1 files changed, 4 insertions(+), 2 deletions(-)
+However, when we're freeing the page tables themselves, we should
+already have removed the L2 entries, so all we have are the L1 entries.
+In most 'normal' processors, these aren't cached in any way.
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 2cb01f6..4408e54 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -478,8 +478,10 @@ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
- static void balance_dirty_pages(struct address_space *mapping,
- 				unsigned long write_chunk)
- {
--	long nr_reclaimable, bdi_nr_reclaimable;
--	long nr_writeback, bdi_nr_writeback;
-+	unsigned long nr_reclaimable;
-+	long bdi_nr_reclaimable;
-+	unsigned long nr_writeback;
-+	long bdi_nr_writeback;
- 	unsigned long background_thresh;
- 	unsigned long dirty_thresh;
- 	unsigned long bdi_thresh;
+Howver, with LPAE, these are cached.  I'm told that any TLB flush for an
+address which is covered by the L1 entry will cause that cached entry to
+be invalidated.
+
+So really this is about getting rid of cached L1 entries, and not the
+usual TLB lookaside entries that you'd come to expect.
+
 -- 
-1.7.3.1
+Russell King
+ Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
+ maintainer of:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
