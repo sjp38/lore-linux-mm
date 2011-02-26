@@ -1,98 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D3E48D0039
-	for <linux-mm@kvack.org>; Sat, 26 Feb 2011 14:12:07 -0500 (EST)
-From: Mariusz Kozlowski <mk@lab.zgora.pl>
-Subject: [PATCH] slub: fix ksize() build error
-Date: Sat, 26 Feb 2011 20:10:26 +0100
-Message-Id: <1298747426-8236-1-git-send-email-mk@lab.zgora.pl>
-In-Reply-To: <20110225105205.5a1309bb.randy.dunlap@oracle.com>
-References: <20110225105205.5a1309bb.randy.dunlap@oracle.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 828D78D0039
+	for <linux-mm@kvack.org>; Sat, 26 Feb 2011 15:59:24 -0500 (EST)
+Date: Sat, 26 Feb 2011 16:03:52 -0500
+Subject: Re: [LSF/MM TOPIC] Writeback - current state and future
+From: "Sorin Faibish" <sfaibish@emc.com>
+Content-Type: text/plain; format=flowed; delsp=yes; charset=iso-8859-15
+MIME-Version: 1.0
+References: <20110204164222.GG4104@quack.suse.cz>
+ <4D4E7B48.9020500@panasas.com> <op.vqhlw3rirwwil4@sfaibish1.corp.emc.com>
+ <20110211144717.GH5187@quack.suse.cz>
+ <op.vqqyfgtmunckof@usensfaibisl2e.eng.emc.com>
+Content-Transfer-Encoding: 8bit
+Message-ID: <op.vri3gqaxrwwil4@sfaibish1.corp.emc.com>
+In-Reply-To: <op.vqqyfgtmunckof@usensfaibisl2e.eng.emc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Eric Dumazet <eric.dumazet@gmail.com>, linux-next@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mariusz Kozlowski <mk@lab.zgora.pl>
+To: sfaibish <sfaibish@emc.com>, Jan Kara <jack@suse.cz>
+Cc: Boaz Harrosh <bharrosh@panasas.com>, lsf-pc@lists.linuxfoundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
 
-mm/slub.c: In function 'ksize':
-mm/slub.c:2728: error: implicit declaration of function 'slab_ksize'
+Jan,
 
-slab_ksize() needs to go out of CONFIG_SLUB_DEBUG section.
+It looks like people in LSF are not so interested in writeback problems
+and we will not have a discussion on this. Too bad as I have new results
+to present regarding the latest patches in the kernel related to writeback
+and I am not sure for the best.
 
-Signed-off-by: Mariusz Kozlowski <mk@lab.zgora.pl>
----
-Maybe something like this? Compile tested for slub debug enabled/disabled.
+/Sorin
 
- mm/slub.c |   48 ++++++++++++++++++++++++------------------------
- 1 files changed, 24 insertions(+), 24 deletions(-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 217b5b5..ea6f039 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -281,6 +281,30 @@ static inline int slab_index(void *p, struct kmem_cache *s, void *addr)
- 	return (p - addr) / s->size;
- }
- 
-+static inline size_t slab_ksize(const struct kmem_cache *s)
-+{
-+#ifdef CONFIG_SLUB_DEBUG
-+	/*
-+	 * Debugging requires use of the padding between object
-+	 * and whatever may come after it.
-+	 */
-+	if (s->flags & (SLAB_RED_ZONE | SLAB_POISON))
-+		return s->objsize;
-+
-+#endif
-+	/*
-+	 * If we have the need to store the freelist pointer
-+	 * back there or track user information then we can
-+	 * only use the space before that information.
-+	 */
-+	if (s->flags & (SLAB_DESTROY_BY_RCU | SLAB_STORE_USER))
-+		return s->inuse;
-+	/*
-+	 * Else we can use all the padding etc for the allocation
-+	 */
-+	return s->size;
-+}
-+
- static inline struct kmem_cache_order_objects oo_make(int order,
- 						unsigned long size)
- {
-@@ -797,30 +821,6 @@ static inline int slab_pre_alloc_hook(struct kmem_cache *s, gfp_t flags)
- 	return should_failslab(s->objsize, flags, s->flags);
- }
- 
--static inline size_t slab_ksize(const struct kmem_cache *s)
--{
--#ifdef CONFIG_SLUB_DEBUG
--	/*
--	 * Debugging requires use of the padding between object
--	 * and whatever may come after it.
--	 */
--	if (s->flags & (SLAB_RED_ZONE | SLAB_POISON))
--		return s->objsize;
--
--#endif
--	/*
--	 * If we have the need to store the freelist pointer
--	 * back there or track user information then we can
--	 * only use the space before that information.
--	 */
--	if (s->flags & (SLAB_DESTROY_BY_RCU | SLAB_STORE_USER))
--		return s->inuse;
--	/*
--	 * Else we can use all the padding etc for the allocation
--	 */
--	return s->size;
--}
--
- static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags, void *object)
- {
- 	flags &= gfp_allowed_mask;
+On Fri, 11 Feb 2011 11:22:18 -0500, sfaibish <sfaibish@emc.com> wrote:
+
+> On Fri, 11 Feb 2011 09:47:17 -0500, Jan Kara <jack@suse.cz> wrote:
+>
+>> On Sun 06-02-11 10:13:41, Sorin Faibish wrote:
+>>> I was thinking to have a special track for all the writeback related
+>>> topics.
+>>   Well, a separate track might be a bit too much I feel ;). I'm  
+>> interested
+>> also in other things that are happening... We'll see what the program  
+>> will
+>> be but I can imagine we can discuss for a couple of hours but that  
+>> might be
+>> just a discussion in a small circle over a <enter preferable drink>.
+> No problem. I pay for the beer. :) You make the expert pick.
+>
+>>
+>>> I would like also to include a discussion on new cache writeback  
+>>> paterns
+>>> with the target to prevent any cache swaps that are becoming a
+>>> bigger problem
+>>> when dealing with servers wir 100's GB caches. The swap is the worst  
+>>> that
+>>> could happen to the performance of such systems. I will share my
+>>> latest findings
+>>> in the cache writeback in continuation to my previous discussion at
+>>> last LSF.
+>>   I'm not sure what do you exactly mean by 'cache swaps'. If you mean  
+>> that
+>> your application private cache is swapped out, then I can imagine this  
+>> is a
+>> problem but I'd need more details to tell how big.
+> What I meant is to prevent any global cache swap. Think that you have to  
+> SWAP
+> 256GB of cache to a 120MB/sec SATA disk. How long it will take? Cannot be
+> tolerated. Even if you use SSD at say 1GB/sec it is still a long time.  
+> Not
+> typical but common in HPC. I am not sure you saw my latest results but I
+> had an example where the swap was taking a long time to the point that a
+> build on a small memory system didn't finish. The good news are that the
+> latest kernels 37 RC3 made progress. I have additional data to present.
+> I will present the latest results next week at FAST conference.
+>
+> /Sorin
+>
+>>
+>> 									Honza
+>
+>
+>
+
+
+
 -- 
-1.7.0.4
+Best Regards
+Sorin Faibish
+Corporate Distinguished Engineer
+Unified Storage Division
+
+        EMC2
+where information lives
+
+Phone: 508-435-1000 x 48545
+Cellphone: 617-510-0422
+Email : sfaibish@emc.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
