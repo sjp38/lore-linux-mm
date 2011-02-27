@@ -1,63 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F6B68D0039
-	for <linux-mm@kvack.org>; Sat, 26 Feb 2011 20:51:30 -0500 (EST)
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Writeback - current state and future
-From: Trond Myklebust <Trond.Myklebust@netapp.com>
-In-Reply-To: <1298764107.2459.139.camel@mulgrave.site>
-References: <20110204164222.GG4104@quack.suse.cz>
-	 <4D4E7B48.9020500@panasas.com> <op.vqhlw3rirwwil4@sfaibish1.corp.emc.com>
-	 <20110211144717.GH5187@quack.suse.cz>
-	 <op.vqqyfgtmunckof@usensfaibisl2e.eng.emc.com>
-	 <op.vri3gqaxrwwil4@sfaibish1.corp.emc.com>
-	 <1298754440.2459.116.camel@mulgrave.site>
-	 <op.vri9tqh6rwwil4@sfaibish1.corp.emc.com>
-	 <1298764107.2459.139.camel@mulgrave.site>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Sat, 26 Feb 2011 17:50:01 -0800
-Message-ID: <1298771401.3054.23.camel@heimdal.trondhjem.org>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E7DF98D0039
+	for <linux-mm@kvack.org>; Sat, 26 Feb 2011 23:34:57 -0500 (EST)
+Received: by iyf13 with SMTP id 13so2683962iyf.14
+        for <linux-mm@kvack.org>; Sat, 26 Feb 2011 20:34:56 -0800 (PST)
+From: "Justin P. Mattock" <justinmattock@gmail.com>
+Subject: [PATCH 16/17]mm:shmem.c Remove one to many n's in a word.
+Date: Sat, 26 Feb 2011 20:34:09 -0800
+Message-Id: <1298781250-2718-17-git-send-email-justinmattock@gmail.com>
+In-Reply-To: <1298781250-2718-1-git-send-email-justinmattock@gmail.com>
+References: <1298781250-2718-1-git-send-email-justinmattock@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@hansenpartnership.com>
-Cc: Sorin Faibish <sfaibish@emc.com>, Jan Kara <jack@suse.cz>, lsf-pc@lists.linuxfoundation.org, linux-mm@kvack.org, Boaz Harrosh <bharrosh@panasas.com>, linux-fsdevel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>
+To: trivial@kernel.org
+Cc: linux-kernel@vger.kernel.org, "Justin P. Mattock" <justinmattock@gmail.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Sat, 2011-02-26 at 18:48 -0500, James Bottomley wrote:=20
-> On Sat, 2011-02-26 at 18:21 -0500, Sorin Faibish wrote:
-> I'm not entirely sure I parse this sentence correctly.  However, the
-> reason you didn't get an invite is because you didn't request one.  The
-> CFP=20
->=20
-> http://marc.info/?l=3Dlinux-fsdevel&m=3D129503688923313
->=20
-> Was pretty clear ... to get an invite you need to send a topic or attend
-> email to the PC list, which you didn't do.  Even if I look at the three
-> replies you made to other people's topic or attend emails, I'd be very
-> hard pressed to construe any of them as a request to attend.
->=20
-> >  If you think I am wrong I will be more than happy to retract my
-> > complain and attend to present my newest test results with the latest =
-=20
-> > patches.
->=20
-> I'm afraid that we're pretty much oversubscribed on all tracks at LSF/MM
-> 2011 now (in fact, the FS track is very oversubscribed).  I can put you
-> on the reserve list in case there are any cancellations, if you like.
+The Patch below removes one to many "n's" in a word..
 
-I agree. If there are cancellations, then there may be a second round of
-invitations to those who are wait-listed, but until then, we won't be
-making any exceptions to the rules outlined in the CFP.
+Signed-off-by: Justin P. Mattock <justinmattock@gmail.com>
+CC: Hugh Dickins <hughd@google.com>
+CC: linux-mm@kvack.org
+---
+ mm/shmem.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-Trond
-
---=20
-Trond Myklebust
-Linux NFS client maintainer
-
-NetApp
-Trond.Myklebust@netapp.com
-www.netapp.com
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 5ee67c9..3cdb243 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -779,7 +779,7 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
+ 			 * If truncating down to a partial page, then
+ 			 * if that page is already allocated, hold it
+ 			 * in memory until the truncation is over, so
+-			 * truncate_partial_page cannnot miss it were
++			 * truncate_partial_page cannot miss it were
+ 			 * it assigned to swap.
+ 			 */
+ 			if (newsize & (PAGE_CACHE_SIZE-1)) {
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
