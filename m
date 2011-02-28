@@ -1,77 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A2D2B8D0039
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 18:35:42 -0500 (EST)
-Received: by gyb13 with SMTP id 13so2245709gyb.14
-        for <linux-mm@kvack.org>; Mon, 28 Feb 2011 15:35:40 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.00.1102232136020.2239@sister.anvils>
-References: <alpine.LSU.2.00.1102232136020.2239@sister.anvils>
-Date: Mon, 28 Feb 2011 15:35:40 -0800
-Message-ID: <AANLkTi==MQV=_qq1HaCxGLRu8DdT6FYddqzBkzp1TQs7@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix possible cause of a page_mapped BUG
-From: =?UTF-8?B?Um9iZXJ0IMWad2nEmWNraQ==?= <robert@swiecki.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 504778D0039
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 18:48:37 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6CA523EE0AE
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 08:48:32 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 55B722AEA81
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 08:48:32 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D71845DE61
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 08:48:32 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 312511DB802C
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 08:48:32 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id F21951DB803A
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 08:48:31 +0900 (JST)
+Date: Tue, 1 Mar 2011 08:42:09 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/2] mm: compaction: Minimise the time IRQs are disabled
+ while isolating pages for migration
+Message-Id: <20110301084209.2cfbd063.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110228101827.GE9548@csn.ul.ie>
+References: <1298664299-10270-1-git-send-email-mel@csn.ul.ie>
+	<1298664299-10270-3-git-send-email-mel@csn.ul.ie>
+	<20110228111746.34f3f3e0.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110228054818.GF22700@random.random>
+	<20110228145402.65e6f200.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110228092814.GC9548@csn.ul.ie>
+	<20110228184230.7c2eefb7.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110228101827.GE9548@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arthur Marsh <arthur.marsh@internode.on.net>, Clemens Ladisch <cladisch@googlemail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-> But rather than exporting the notion of restart_addr from memory.c, or
-> converting to restart_pgoff throughout, simply reset vm_truncate_count
-> to 0 to force a rescan if mremap move races with preempted truncation.
->
-> We have no confirmation that this fixes Robert's BUG,
-> but it is a fix that's worth making anyway.
+On Mon, 28 Feb 2011 10:18:27 +0000
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-Hi, I don't have currently access to my rs232/console testing machine
-(lame excuse but it helps a lot;), cause I'm working currently OOtO,
-so I'll try to test it asap - which is probably Mar 15th or so.
+> > BTW, can't we drop disable_irq() from all lru_lock related codes ?
+> > 
+> 
+> I don't think so - at least not right now. Some LRU operations such as LRU
+> pagevec draining are run from IPI which is running from an interrupt so
+> minimally spin_lock_irq is necessary.
+> 
 
-Btw, the fuzzer is here: http://code.google.com/p/iknowthis/
+pagevec draining is done by workqueue(schedule_on_each_cpu()). 
+I think only racy case is just lru rotation after writeback.
 
-I think i was trying it with this revision:
-http://code.google.com/p/iknowthis/source/detail?r=3D11 (i386 mode,
-newest 'iknowthis' supports x86-64 natively), so feel free to try it.
-
-It used to crash the machine (it's BUG_ON but the system became
-unusable) in matter of hours. Btw, when I was testing it for the last
-time it Ooopsed much more frequently in proc_readdir (I sent report in
-one of earliet e-mails).
-
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
->
-> =C2=A0mm/mremap.c | =C2=A0 =C2=A04 +---
-> =C2=A01 file changed, 1 insertion(+), 3 deletions(-)
->
-> --- 2.6.38-rc6/mm/mremap.c =C2=A0 =C2=A0 =C2=A02011-01-18 22:04:56.000000=
-000 -0800
-> +++ linux/mm/mremap.c =C2=A0 2011-02-23 15:29:52.000000000 -0800
-> @@ -94,9 +94,7 @@ static void move_ptes(struct vm_area_str
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mapping =3D vma->v=
-m_file->f_mapping;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_lock(&mapping=
-->i_mmap_lock);
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (new_vma->vm_trunca=
-te_count &&
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 new_vma-=
->vm_truncate_count !=3D vma->vm_truncate_count)
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 new_vma->vm_truncate_count =3D 0;
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 new_vma->vm_truncate_c=
-ount =3D 0;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
->
-
-
-
---=20
-Robert =C5=9Awi=C4=99cki
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
