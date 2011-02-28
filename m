@@ -1,111 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E6188D0039
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 04:48:56 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 38CF43EE0C0
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 18:48:52 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 14F8645DE5A
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 18:48:52 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E579545DE56
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 18:48:51 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D42B0E38003
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 18:48:51 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9DD46E38001
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 18:48:51 +0900 (JST)
-Date: Mon, 28 Feb 2011 18:42:30 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2] mm: compaction: Minimise the time IRQs are disabled
- while isolating pages for migration
-Message-Id: <20110228184230.7c2eefb7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110228092814.GC9548@csn.ul.ie>
-References: <1298664299-10270-1-git-send-email-mel@csn.ul.ie>
-	<1298664299-10270-3-git-send-email-mel@csn.ul.ie>
-	<20110228111746.34f3f3e0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110228054818.GF22700@random.random>
-	<20110228145402.65e6f200.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110228092814.GC9548@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 91A8F8D0039
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 04:53:20 -0500 (EST)
+Date: Mon, 28 Feb 2011 10:53:16 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC PATCH] page_cgroup: Reduce allocation overhead for
+ page_cgroup array for CONFIG_SPARSEMEM v4
+Message-ID: <20110228095316.GC4648@tiehlicka.suse.cz>
+References: <20110223151047.GA7275@tiehlicka.suse.cz>
+ <1298485162.7236.4.camel@nimitz>
+ <20110224134045.GA22122@tiehlicka.suse.cz>
+ <20110225122522.8c4f1057.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110225095357.GA23241@tiehlicka.suse.cz>
+ <20110228095347.7510b1d4.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110228091256.GA4648@tiehlicka.suse.cz>
+ <20110228182322.a34cc1fd.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110228182322.a34cc1fd.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arthur Marsh <arthur.marsh@internode.on.net>, Clemens Ladisch <cladisch@googlemail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 28 Feb 2011 09:28:14 +0000
-Mel Gorman <mel@csn.ul.ie> wrote:
-
-> On Mon, Feb 28, 2011 at 02:54:02PM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Mon, 28 Feb 2011 06:48:18 +0100
-> > Andrea Arcangeli <aarcange@redhat.com> wrote:
+On Mon 28-02-11 18:23:22, KAMEZAWA Hiroyuki wrote:
+[...]
+> > From 84a9555741b59cb2a0a67b023e4bd0f92c670ca1 Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Date: Thu, 24 Feb 2011 11:25:44 +0100
+> > Subject: [PATCH] page_cgroup: Reduce allocation overhead for page_cgroup array for CONFIG_SPARSEMEM
 > > 
-> > > On Mon, Feb 28, 2011 at 11:17:46AM +0900, KAMEZAWA Hiroyuki wrote:
-> > > > BTW, I forget why we always take zone->lru_lock with IRQ disabled....
-> > > 
-> > > To decrease lock contention in SMP to deliver overall better
-> > > performance (not sure how much it helps though). It was supposed to be
-> > > hold for a very short time (PAGEVEC_SIZE) to avoid giving irq latency
-> > > problems.
-> > > 
+> > Currently we are allocating a single page_cgroup array per memory
+> > section (stored in mem_section->base) when CONFIG_SPARSEMEM is selected.
+> > This is correct but memory inefficient solution because the allocated
+> > memory (unless we fall back to vmalloc) is not kmalloc friendly:
+> >         - 32b - 16384 entries (20B per entry) fit into 327680B so the
+> >           524288B slab cache is used
+> >         - 32b with PAE - 131072 entries with 2621440B fit into 4194304B
+> >         - 64b - 32768 entries (40B per entry) fit into 2097152 cache
 > > 
-> > memory hotplug uses MIGRATE_ISOLATED migrate types for scanning pfn range
-> > without lru_lock. I wonder whether we can make use of it (the function
-> > which memory hotplug may need rework for the compaction but  migrate_type can
-> > be used, I think).
+> > This is ~37% wasted space per memory section and it sumps up for the
+> > whole memory. On a x86_64 machine it is something like 6MB per 1GB of
+> > RAM.
 > > 
+> > We can reduce the internal fragmentation by using alloc_pages_exact
+> > which allocates PAGE_SIZE aligned blocks so we will get down to <4kB
+> > wasted memory per section which is much better.
+> > 
+> > We still need a fallback to vmalloc because we have no guarantees that
+> > we will have a continuous memory of that size (order-10) later on during
+> > the hotplug events.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > CC: Dave Hansen <dave@linux.vnet.ibm.com>
+> > CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> I don't see how migrate_type would be of any benefit here particularly
-> as compaction does not directly affect the migratetype of a pageblock. I
-> have not checked closely which part of hotplug you are on about but if
-> you're talking about when pages actually get offlined, the zone lock is
-> not necessary there because the pages are not on the LRU. In compactions
-> case, they are. Did I misunderstand?
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+Thanks. I will repost it with Andrew in the CC.
+
 > 
+> But...nitpick, it may be from my fault..
+[...]
+> > +static void free_page_cgroup(void *addr)
+> > +{
+> > +	if (is_vmalloc_addr(addr)) {
+> > +		vfree(addr);
+> > +	} else {
+> > +		struct page *page = virt_to_page(addr);
+> > +		if (!PageReserved(page)) { /* Is bootmem ? */
+> 
+> I think we never see PageReserved if we just use alloc_pages_exact()/vmalloc().
 
-memory offline code doesn't take big lru_lock (and call isolate_lru_page())
-at picking up migration target pages from LRU. While this, allocation from
-the zone is allowed. memory offline is done by mem_section unit.
+I have checked that and we really do not (unless I am missing some
+subtle side effects). Anyway, I think we still should at least BUG_ON on
+that.
 
-memory offline does.
+> Maybe my old patch was not enough and this kind of junks are remaining in
+> the original code.
 
-   1. making a whole section as MIGRATETYPE_ISOLATED.
-   2. scan pfn within section.
-   3. find a page on LRU
-   4. isolate_lru_page() -> take/release lru_lock. ----(*)
-   5. migrate it.
-   6. making all pages in the range as RESERVED.
+Should I incorporate it into the patch. I think that a separate one
+would be better for readability.
 
-During this, by marking the pageblock as MIGRATETYPE_ISOLATED,
-
-  - new allocation will never picks up a page in the range.
-  - newly freed pages in the range will never be allocated and never in pcp.
-  - page type of the range will never change.
-
-then, memory offline success.
-
-If (*) seems too heavy anyway and will be no help even if with some batching
-as isolate_lru_page_pagevec() or some, okay please forget offlining.
-
-
-BTW, can't we drop disable_irq() from all lru_lock related codes ?
-
-Thanks,
--Kame
-
-
-
-
-
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---
