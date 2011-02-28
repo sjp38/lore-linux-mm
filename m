@@ -1,50 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EE7878D0039
-	for <linux-mm@kvack.org>; Sun, 27 Feb 2011 21:35:12 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 690D73EE0CD
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:35:09 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CC8A45DE54
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:35:09 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 33F5045DE51
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:35:09 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CE00D1DB803E
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:35:08 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 87E78E78003
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:35:08 +0900 (JST)
-Date: Mon, 28 Feb 2011 11:28:46 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v5 3/9] writeback: convert variables to unsigned
-Message-Id: <20110228112846.454cea86.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1298669760-26344-4-git-send-email-gthelen@google.com>
-References: <1298669760-26344-1-git-send-email-gthelen@google.com>
-	<1298669760-26344-4-git-send-email-gthelen@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 41B198D0039
+	for <linux-mm@kvack.org>; Sun, 27 Feb 2011 21:35:28 -0500 (EST)
+Received: by iyf13 with SMTP id 13so3363146iyf.14
+        for <linux-mm@kvack.org>; Sun, 27 Feb 2011 18:35:26 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20110228111822.41484020.nishimura@mxp.nes.nec.co.jp>
+References: <1298821765-3167-1-git-send-email-minchan.kim@gmail.com>
+	<20110228111822.41484020.nishimura@mxp.nes.nec.co.jp>
+Date: Mon, 28 Feb 2011 11:35:26 +0900
+Message-ID: <AANLkTik44K60MLTw_m431xd3ZFatAo=9O+42jUHscdFR@mail.gmail.com>
+Subject: Re: [PATCH] memcg: clean up migration
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Vivek Goyal <vgoyal@redhat.com>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, 25 Feb 2011 13:35:54 -0800
-Greg Thelen <gthelen@google.com> wrote:
+Hi, Daisuke
 
-> Convert two balance_dirty_pages() page counter variables (nr_reclaimable
-> and nr_writeback) from 'long' to 'unsigned long'.
-> 
-> These two variables are used to store results from global_page_state().
-> global_page_state() returns unsigned long and carefully sums per-cpu
-> counters explicitly avoiding returning a negative value.
-> 
-> Signed-off-by: Greg Thelen <gthelen@google.com>
+On Mon, Feb 28, 2011 at 11:18 AM, Daisuke Nishimura
+<nishimura@mxp.nes.nec.co.jp> wrote:
+> On Mon, 28 Feb 2011 00:49:25 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+>
+>> This patch cleans up unncessary BUG_ON check and confusing
+>> charge variable.
+>>
+>> That's because memcg charge/uncharge could be handled by
+>> mem_cgroup_[prepare/end] migration itself so charge local variable
+>> in unmap_and_move lost the role since we introduced 01b1ae63c2.
+>>
+>> And mem_cgroup_prepare_migratio return 0 if only it is successful.
+>> Otherwise, it jumps to unlock label to clean up so BUG_ON(charge)
+>> isn;t meaningless.
+>>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
+>> Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+>> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+>
+> It looks good to me, but I have one minor comment.
+>
+>> ---
+>> =C2=A0mm/memcontrol.c | =C2=A0 =C2=A01 +
+>> =C2=A0mm/migrate.c =C2=A0 =C2=A0| =C2=A0 14 ++++----------
+>> =C2=A02 files changed, 5 insertions(+), 10 deletions(-)
+>>
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 2fc97fc..6832926 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -2872,6 +2872,7 @@ static inline int mem_cgroup_move_swap_account(swp=
+_entry_t entry,
+>> =C2=A0/*
+>> =C2=A0 * Before starting migration, account PAGE_SIZE to mem_cgroup that=
+ the old
+>> =C2=A0 * page belongs to.
+>> + * Return 0 if charge is successful. Otherwise return -errno.
+>> =C2=A0 */
+>> =C2=A0int mem_cgroup_prepare_migration(struct page *page,
+>> =C2=A0 =C2=A0 =C2=A0 struct page *newpage, struct mem_cgroup **ptr, gfp_=
+t gfp_mask)
+>> diff --git a/mm/migrate.c b/mm/migrate.c
+>> index eb083a6..737c2e5 100644
+>> --- a/mm/migrate.c
+>> +++ b/mm/migrate.c
+>> @@ -622,7 +622,6 @@ static int unmap_and_move(new_page_t get_new_page, u=
+nsigned long private,
+>> =C2=A0 =C2=A0 =C2=A0 int *result =3D NULL;
+>> =C2=A0 =C2=A0 =C2=A0 struct page *newpage =3D get_new_page(page, private=
+, &result);
+>> =C2=A0 =C2=A0 =C2=A0 int remap_swapcache =3D 1;
+>> - =C2=A0 =C2=A0 int charge =3D 0;
+>> =C2=A0 =C2=A0 =C2=A0 struct mem_cgroup *mem;
+>> =C2=A0 =C2=A0 =C2=A0 struct anon_vma *anon_vma =3D NULL;
+>>
+>> @@ -637,9 +636,7 @@ static int unmap_and_move(new_page_t get_new_page, u=
+nsigned long private,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (unlikely(split_huge=
+_page(page)))
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 goto move_newpage;
+>>
+>> - =C2=A0 =C2=A0 /* prepare cgroup just returns 0 or -ENOMEM */
+>> =C2=A0 =C2=A0 =C2=A0 rc =3D -EAGAIN;
+>> -
+>> =C2=A0 =C2=A0 =C2=A0 if (!trylock_page(page)) {
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!force)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 goto move_newpage;
+>> @@ -678,13 +675,11 @@ static int unmap_and_move(new_page_t get_new_page,=
+ unsigned long private,
+>> =C2=A0 =C2=A0 =C2=A0 }
+>>
+>> =C2=A0 =C2=A0 =C2=A0 /* charge against new page */
+>> - =C2=A0 =C2=A0 charge =3D mem_cgroup_prepare_migration(page, newpage, &=
+mem, GFP_KERNEL);
+>> - =C2=A0 =C2=A0 if (charge =3D=3D -ENOMEM) {
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 rc =3D -ENOMEM;
+>> + =C2=A0 =C2=A0 rc =3D mem_cgroup_prepare_migration(page, newpage, &mem,=
+ GFP_KERNEL);
+>> + =C2=A0 =C2=A0 if (rc)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto unlock;
+>> - =C2=A0 =C2=A0 }
+>> - =C2=A0 =C2=A0 BUG_ON(charge);
+>>
+>> + =C2=A0 =C2=A0 rc =3D -EAGAIN;
+>> =C2=A0 =C2=A0 =C2=A0 if (PageWriteback(page)) {
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!force || !sync)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 goto uncharge;
+> How about
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (mem_cgroup_prepare_migration(..)) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0rc =3D -ENOMEM;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0goto unlock;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>
+> ?
+>
+> Re-setting "rc" to -EAGAIN is not necessary in this case.
+> "if (mem_cgroup_...)" is commonly used in many places.
+>
+It works now but Johannes doesn't like it and me, either.
+It makes unnecessary dependency which mem_cgroup_preparre_migration
+can't propagate error to migrate_pages.
+Although we don't need it, I want to remove such unnecessary dependency.
 
-Reviewd-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Anyway,
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0Acked-by: Daisuke Nishimura <nishimura@mxp.nes=
+.nec.co.jp>
+>
+>
+
+Thanks!.
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
