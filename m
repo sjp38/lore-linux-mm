@@ -1,61 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DCF6F8D0039
-	for <linux-mm@kvack.org>; Sun, 27 Feb 2011 21:45:22 -0500 (EST)
-Date: Mon, 28 Feb 2011 11:40:06 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH] memcg: clean up migration
-Message-Id: <20110228114006.89177ce7.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <AANLkTik44K60MLTw_m431xd3ZFatAo=9O+42jUHscdFR@mail.gmail.com>
-References: <1298821765-3167-1-git-send-email-minchan.kim@gmail.com>
-	<20110228111822.41484020.nishimura@mxp.nes.nec.co.jp>
-	<AANLkTik44K60MLTw_m431xd3ZFatAo=9O+42jUHscdFR@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 013358D0039
+	for <linux-mm@kvack.org>; Sun, 27 Feb 2011 21:46:46 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CB6FE3EE0BC
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:46:43 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AEA0B45DE56
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:46:43 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 94F3845DE4D
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:46:43 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 86CCEE08004
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:46:43 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5174DE08001
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:46:43 +0900 (JST)
+Date: Mon, 28 Feb 2011 11:40:18 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v5 6/9] memcg: add kernel calls for memcg dirty page
+ stats
+Message-Id: <20110228114018.390ce291.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110227170143.GE3226@barrios-desktop>
+References: <1298669760-26344-1-git-send-email-gthelen@google.com>
+	<1298669760-26344-7-git-send-email-gthelen@google.com>
+	<20110227170143.GE3226@barrios-desktop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Vivek Goyal <vgoyal@redhat.com>
 
-> >> @@ -678,13 +675,11 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
-> >> A  A  A  }
-> >>
-> >> A  A  A  /* charge against new page */
-> >> - A  A  charge = mem_cgroup_prepare_migration(page, newpage, &mem, GFP_KERNEL);
-> >> - A  A  if (charge == -ENOMEM) {
-> >> - A  A  A  A  A  A  rc = -ENOMEM;
-> >> + A  A  rc = mem_cgroup_prepare_migration(page, newpage, &mem, GFP_KERNEL);
-> >> + A  A  if (rc)
-> >> A  A  A  A  A  A  A  goto unlock;
-> >> - A  A  }
-> >> - A  A  BUG_ON(charge);
-> >>
-> >> + A  A  rc = -EAGAIN;
-> >> A  A  A  if (PageWriteback(page)) {
-> >> A  A  A  A  A  A  A  if (!force || !sync)
-> >> A  A  A  A  A  A  A  A  A  A  A  goto uncharge;
-> > How about
-> >
-> > A  A  A  A if (mem_cgroup_prepare_migration(..)) {
-> > A  A  A  A  A  A  A  A rc = -ENOMEM;
-> > A  A  A  A  A  A  A  A goto unlock;
-> > A  A  A  A }
-> >
-> > ?
-> >
-> > Re-setting "rc" to -EAGAIN is not necessary in this case.
-> > "if (mem_cgroup_...)" is commonly used in many places.
-> >
-> It works now but Johannes doesn't like it and me, either.
-> It makes unnecessary dependency which mem_cgroup_preparre_migration
-> can't propagate error to migrate_pages.
-> Although we don't need it, I want to remove such unnecessary dependency.
+On Mon, 28 Feb 2011 02:01:43 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
+
+> On Fri, Feb 25, 2011 at 01:35:57PM -0800, Greg Thelen wrote:
+ 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+> >  	} else {
+> > @@ -1365,6 +1368,7 @@ int test_set_page_writeback(struct page *page)
+> >  						PAGECACHE_TAG_WRITEBACK);
+> >  			if (bdi_cap_account_writeback(bdi))
+> >  				__inc_bdi_stat(bdi, BDI_WRITEBACK);
+> > +			mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_WRITEBACK);
 > 
-I see.
-Thank you for your explanation.
+> Question:
+> Why should we care of BDI_CAP_NO_WRITEBACK?
+> 
+Hmm, should we do ..
+==
+        if (!ret) {
+                account_page_writeback(page);
++		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_WRITEBACL);
+	}
+==
 
-Daisuke Nishimura.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
