@@ -1,104 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6302D8D0039
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 05:18:58 -0500 (EST)
-Date: Mon, 28 Feb 2011 10:18:27 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/2] mm: compaction: Minimise the time IRQs are
-	disabled while isolating pages for migration
-Message-ID: <20110228101827.GE9548@csn.ul.ie>
-References: <1298664299-10270-1-git-send-email-mel@csn.ul.ie> <1298664299-10270-3-git-send-email-mel@csn.ul.ie> <20110228111746.34f3f3e0.kamezawa.hiroyu@jp.fujitsu.com> <20110228054818.GF22700@random.random> <20110228145402.65e6f200.kamezawa.hiroyu@jp.fujitsu.com> <20110228092814.GC9548@csn.ul.ie> <20110228184230.7c2eefb7.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110228184230.7c2eefb7.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 929568D0039
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 06:45:24 -0500 (EST)
+Subject: Re: [PATCH 06/17] arm: mmu_gather rework
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20110225215123.GA10026@flint.arm.linux.org.uk>
+References: <20110217162327.434629380@chello.nl>
+	 <20110217163235.106239192@chello.nl> <1298565253.2428.288.camel@twins>
+	 <1298657083.2428.2483.camel@twins>
+	 <20110225215123.GA10026@flint.arm.linux.org.uk>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 28 Feb 2011 12:44:47 +0100
+Message-ID: <1298893487.2428.10537.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arthur Marsh <arthur.marsh@internode.on.net>, Clemens Ladisch <cladisch@googlemail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Russell King <rmk@arm.linux.org.uk>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, "Luck,Tony" <tony.luck@intel.com>, PaulMundt <lethal@linux-sh.org>, Chris Metcalf <cmetcalf@tilera.com>
 
-On Mon, Feb 28, 2011 at 06:42:30PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Mon, 28 Feb 2011 09:28:14 +0000
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > On Mon, Feb 28, 2011 at 02:54:02PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > On Mon, 28 Feb 2011 06:48:18 +0100
-> > > Andrea Arcangeli <aarcange@redhat.com> wrote:
-> > > 
-> > > > On Mon, Feb 28, 2011 at 11:17:46AM +0900, KAMEZAWA Hiroyuki wrote:
-> > > > > BTW, I forget why we always take zone->lru_lock with IRQ disabled....
-> > > > 
-> > > > To decrease lock contention in SMP to deliver overall better
-> > > > performance (not sure how much it helps though). It was supposed to be
-> > > > hold for a very short time (PAGEVEC_SIZE) to avoid giving irq latency
-> > > > problems.
-> > > > 
-> > > 
-> > > memory hotplug uses MIGRATE_ISOLATED migrate types for scanning pfn range
-> > > without lru_lock. I wonder whether we can make use of it (the function
-> > > which memory hotplug may need rework for the compaction but  migrate_type can
-> > > be used, I think).
-> > > 
-> > 
-> > I don't see how migrate_type would be of any benefit here particularly
-> > as compaction does not directly affect the migratetype of a pageblock. I
-> > have not checked closely which part of hotplug you are on about but if
-> > you're talking about when pages actually get offlined, the zone lock is
-> > not necessary there because the pages are not on the LRU. In compactions
-> > case, they are. Did I misunderstand?
-> > 
-> 
-> memory offline code doesn't take big lru_lock (and call isolate_lru_page())
-> at picking up migration target pages from LRU.
+On Fri, 2011-02-25 at 21:51 +0000, Russell King wrote:
+> On Fri, Feb 25, 2011 at 07:04:43PM +0100, Peter Zijlstra wrote:
+> > I'm not quite sure why you chose to add range tracking on
+> > pte_free_tlb(), the only affected code path seems to be unmap_region()
+> > where you'll use a flush_tlb_range(), but its buggy, the pte_free_tlb()
+> > range is much larger than 1 page, and if you do it there you also need
+> > it for all the other p??_free_tlb() functions.
+>=20
+> My reasoning is to do with the way the LPAE stuff works.  For the
+> explaination below, I'm going to assume a 2 level page table system
+> for simplicity.
+>=20
+> The first thing to realise is that if we have L2 entries, then we'll
+> have unmapped them first using the usual tlb shootdown interfaces.
+>=20
+> However, when we're freeing the page tables themselves, we should
+> already have removed the L2 entries, so all we have are the L1 entries.
+> In most 'normal' processors, these aren't cached in any way.
+>=20
+> Howver, with LPAE, these are cached.  I'm told that any TLB flush for an
+> address which is covered by the L1 entry will cause that cached entry to
+> be invalidated.
+>=20
+> So really this is about getting rid of cached L1 entries, and not the
+> usual TLB lookaside entries that you'd come to expect.
 
-Right - the scanning doesn't hold the lock but you get and release the lock
-for every LRU page encountered. This is fairly expensive but considered ok
-during memory hotplug. It's less ideal in compaction which is expected
-to be a more frequent operation than memory hotplug.
 
-> While this, allocation from
-> the zone is allowed. memory offline is done by mem_section unit.
-> 
-> memory offline does.
-> 
->    1. making a whole section as MIGRATETYPE_ISOLATED.
->    2. scan pfn within section.
->    3. find a page on LRU
->    4. isolate_lru_page() -> take/release lru_lock. ----(*)
->    5. migrate it.
->    6. making all pages in the range as RESERVED.
-> 
-> During this, by marking the pageblock as MIGRATETYPE_ISOLATED,
-> 
->   - new allocation will never picks up a page in the range.
+Right, so the normal case is:
 
-Overkill for compaction though. To use MIGRATE_ISOLATE properly, all pages
-on the freelist for that block have to be moved as well. It also operates
-at the granularity of a pageblock which is potentially far higher than the
-allocation target. It'd might make some sense for transparent hugepage support.
+  unmap_region()
+    tlb_gather_mmu()
+    unmap_vmas()
+      for (; vma; vma =3D vma->vm_next)
+        unmao_page_range()
+          tlb_start_vma() -> flush cache range
+          zap_*_range()
+            ptep_get_and_clear_full() -> batch/track external tlbs
+            tlb_remove_tlb_entry() -> batch/track external tlbs
+            tlb_remove_page() -> track range/batch page
+          tlb_end_vma() -> flush tlb range
 
->   - newly freed pages in the range will never be allocated and never in pcp.
->   - page type of the range will never change.
-> 
-> then, memory offline success.
-> 
-> If (*) seems too heavy anyway and will be no help even if with some batching
-> as isolate_lru_page_pagevec() or some, okay please forget offlining.
+ [ for architectures that have hardware page table walkers
+   concurrent faults can still load the page tables ]
 
-(*) is indeed too heavy but if IRQ disabled times are found to be too high
-it could be batched like I described in my previous mail. Right now, the
-interrupt disabled times are not showing up as very high.
+    free_pgtables()
+      while (vma)
+        unlink_*_vma()
+        free_*_range()
+          *_free_tlb()
+    tlb_finish_mmu()
 
-> BTW, can't we drop disable_irq() from all lru_lock related codes ?
-> 
+  free vmas
 
-I don't think so - at least not right now. Some LRU operations such as LRU
-pagevec draining are run from IPI which is running from an interrupt so
-minimally spin_lock_irq is necessary.
 
--- 
-Mel Gorman
-SUSE Labs
+Now, if we want to track ranges _and_ have hardware page table walkers
+(ARM seems to be one such), we must flush TLBs at tlb_end_vma() because
+flush_tlb_range() requires a vma pointer (ARM and TILE actually use more
+than ->vm_mm), and on tlb_finish_mmu() issue a full mm wide invalidate
+because the hardware walker could have re-populated the cache after
+clearing the PTEs but before freeing the page tables.
+
+What ARM does is it retains the last vma pointer and tracks
+pte_free_tlb() range and uses that in tlb_finish_mmu(), which is a tad
+hacky.
+
+Mostly because of shift_arg_pages(), where we have:
+
+  shift_arg_pages()
+    tlb_gather_mmu()
+    free_*_range()
+    tlb_finish_mmu()
+
+For which ARM now punts and does a full tlb invalidate (no vma pointer).
+But also because it drags along that vma pointer, which might not at all
+match the range its actually going to invalidate (and hence its vm_flags
+might not accurately reflect things -- at worst more expensive than
+needed).
+
+The reason I wanted flush_tlb_range() to take an mm_struct and not the
+current vm_area_struct is because we can avoid doing the
+flush_tlb_range() from tlb_end_vma() and delay the thing until
+tlb_finish_mmu() without having to resort to such games as above. We
+could simply track the full range over all VMAs and free'd page-tables
+and do one range invalidate.
+
+ARM uses vm_flags & VM_EXEC to see if it also needs to invalidate
+I-TLBs, and TILE uses VM_EXEC and VM_HUGETLB.
+
+For the I-TLBs we could easily use
+ptep_get_and_clear_full()/tlb_remove_tlb_entry() and see if any of the
+cleared pte's had its executable bit set (both ARM and TILE seem to have
+such a PTE bit).
+
+I'm not sure what we can do about TILE's VM_HUGETLB usage though, if it
+needs explicit flushes for huge ptes it might just have to issue
+multiple tlb invalidates and do them from tlb_start_vma()/tlb_end_vma().
+
+So my current proposal for generic mmu_gather (not fully coded yet) is
+to provide a number of CONFIG_goo switches:
+
+  CONFIG_HAVE_RCU_TABLE_FREE - for architectures that do not walk the
+linux page tables in hardware (Sparc64, PowerPC, etc), and others where
+TLB flushing isn't delayed by disabling IRQs (Xen, s390).
+
+  CONFIG_HAVE_MMU_GATHER_RANGE - will track start,end ranges from
+tlb_remove_tlb_entry() and p*_free_tlb() and issue
+flush_tlb_range(mm,start,end) instead of mm-wide invalidates.
+
+  CONFIG_HAVE_MMU_GATHER_ITLB - will use
+ptep_get_and_clear_full()/tlb_remove_tlb_entry() to test pte_exec() and
+issue flush_itlb_range(mm,start,end).
+
+Then there is the optimization s390 wants, which is to do a full mm tlb
+flush for fullmm (exit_mmap()) at tlb_gather_mmu() and never again after
+that, since there is guaranteed no concurrency to poke at anything.
+AFAICT that should work on all architectures so we can do that
+unconditionally.
+
+So the biggest problem with implementing the above is TILE, where we
+need to figure out wth to do with its hugetlb stuff.
+
+The second biggest problem is with ARM and TILE, where we'd need to
+implement flush_itlb_range(). I've already got a patch for all other
+architectures to convert flush_tlb_range() to mm_struct.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
