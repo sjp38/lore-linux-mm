@@ -1,294 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id AE57F8D003C
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 05:17:24 -0500 (EST)
-From: Andrea Righi <arighi@develer.com>
-Subject: [PATCH 2/3] blkio-throttle: infrastructure to throttle async io
-Date: Mon, 28 Feb 2011 11:15:04 +0100
-Message-Id: <1298888105-3778-3-git-send-email-arighi@develer.com>
-In-Reply-To: <1298888105-3778-1-git-send-email-arighi@develer.com>
-References: <1298888105-3778-1-git-send-email-arighi@develer.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6302D8D0039
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 05:18:58 -0500 (EST)
+Date: Mon, 28 Feb 2011 10:18:27 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 2/2] mm: compaction: Minimise the time IRQs are
+	disabled while isolating pages for migration
+Message-ID: <20110228101827.GE9548@csn.ul.ie>
+References: <1298664299-10270-1-git-send-email-mel@csn.ul.ie> <1298664299-10270-3-git-send-email-mel@csn.ul.ie> <20110228111746.34f3f3e0.kamezawa.hiroyu@jp.fujitsu.com> <20110228054818.GF22700@random.random> <20110228145402.65e6f200.kamezawa.hiroyu@jp.fujitsu.com> <20110228092814.GC9548@csn.ul.ie> <20110228184230.7c2eefb7.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110228184230.7c2eefb7.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Righi <arighi@develer.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arthur Marsh <arthur.marsh@internode.on.net>, Clemens Ladisch <cladisch@googlemail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Add blk_throtl_async() to throttle async io writes.
+On Mon, Feb 28, 2011 at 06:42:30PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Mon, 28 Feb 2011 09:28:14 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > On Mon, Feb 28, 2011 at 02:54:02PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > On Mon, 28 Feb 2011 06:48:18 +0100
+> > > Andrea Arcangeli <aarcange@redhat.com> wrote:
+> > > 
+> > > > On Mon, Feb 28, 2011 at 11:17:46AM +0900, KAMEZAWA Hiroyuki wrote:
+> > > > > BTW, I forget why we always take zone->lru_lock with IRQ disabled....
+> > > > 
+> > > > To decrease lock contention in SMP to deliver overall better
+> > > > performance (not sure how much it helps though). It was supposed to be
+> > > > hold for a very short time (PAGEVEC_SIZE) to avoid giving irq latency
+> > > > problems.
+> > > > 
+> > > 
+> > > memory hotplug uses MIGRATE_ISOLATED migrate types for scanning pfn range
+> > > without lru_lock. I wonder whether we can make use of it (the function
+> > > which memory hotplug may need rework for the compaction but  migrate_type can
+> > > be used, I think).
+> > > 
+> > 
+> > I don't see how migrate_type would be of any benefit here particularly
+> > as compaction does not directly affect the migratetype of a pageblock. I
+> > have not checked closely which part of hotplug you are on about but if
+> > you're talking about when pages actually get offlined, the zone lock is
+> > not necessary there because the pages are not on the LRU. In compactions
+> > case, they are. Did I misunderstand?
+> > 
+> 
+> memory offline code doesn't take big lru_lock (and call isolate_lru_page())
+> at picking up migration target pages from LRU.
 
-The idea is to stop applications before they can generate too much dirty
-pages in the page cache. Each time a chunk of pages is wrote in memory
-we charge the current task / cgroup for the size of the pages dirtied.
+Right - the scanning doesn't hold the lock but you get and release the lock
+for every LRU page encountered. This is fairly expensive but considered ok
+during memory hotplug. It's less ideal in compaction which is expected
+to be a more frequent operation than memory hotplug.
 
-If blkio limit are exceeded we also enforce throttling at this layer,
-instead of throttling writes at the block IO layer, where it's not
-possible to associate the pages with the process that dirtied them.
+> While this, allocation from
+> the zone is allowed. memory offline is done by mem_section unit.
+> 
+> memory offline does.
+> 
+>    1. making a whole section as MIGRATETYPE_ISOLATED.
+>    2. scan pfn within section.
+>    3. find a page on LRU
+>    4. isolate_lru_page() -> take/release lru_lock. ----(*)
+>    5. migrate it.
+>    6. making all pages in the range as RESERVED.
+> 
+> During this, by marking the pageblock as MIGRATETYPE_ISOLATED,
+> 
+>   - new allocation will never picks up a page in the range.
 
-In this case throttling can be simply enforced via a
-schedule_timeout_killable().
+Overkill for compaction though. To use MIGRATE_ISOLATE properly, all pages
+on the freelist for that block have to be moved as well. It also operates
+at the granularity of a pageblock which is potentially far higher than the
+allocation target. It'd might make some sense for transparent hugepage support.
 
-Also change some internal blkio function to make them more generic, and
-allow to get the size and type of the IO operation without extracting
-these information directly from a struct bio. In this way the same
-functions can be used also in the contextes where a struct bio is not
-yet created (e.g., writes in the page cache).
+>   - newly freed pages in the range will never be allocated and never in pcp.
+>   - page type of the range will never change.
+> 
+> then, memory offline success.
+> 
+> If (*) seems too heavy anyway and will be no help even if with some batching
+> as isolate_lru_page_pagevec() or some, okay please forget offlining.
 
-Signed-off-by: Andrea Righi <arighi@develer.com>
----
- block/blk-throttle.c   |  106 ++++++++++++++++++++++++++++++++----------------
- include/linux/blkdev.h |    6 +++
- 2 files changed, 77 insertions(+), 35 deletions(-)
+(*) is indeed too heavy but if IRQ disabled times are found to be too high
+it could be batched like I described in my previous mail. Right now, the
+interrupt disabled times are not showing up as very high.
 
-diff --git a/block/blk-throttle.c b/block/blk-throttle.c
-index a89043a..07ef429 100644
---- a/block/blk-throttle.c
-+++ b/block/blk-throttle.c
-@@ -449,9 +449,8 @@ throtl_trim_slice(struct throtl_data *td, struct throtl_grp *tg, bool rw)
- }
- 
- static bool tg_with_in_iops_limit(struct throtl_data *td, struct throtl_grp *tg,
--		struct bio *bio, unsigned long *wait)
-+		bool rw, size_t size, unsigned long *wait)
- {
--	bool rw = bio_data_dir(bio);
- 	unsigned int io_allowed;
- 	unsigned long jiffy_elapsed, jiffy_wait, jiffy_elapsed_rnd;
- 	u64 tmp;
-@@ -499,9 +498,8 @@ static bool tg_with_in_iops_limit(struct throtl_data *td, struct throtl_grp *tg,
- }
- 
- static bool tg_with_in_bps_limit(struct throtl_data *td, struct throtl_grp *tg,
--		struct bio *bio, unsigned long *wait)
-+		bool rw, size_t size, unsigned long *wait)
- {
--	bool rw = bio_data_dir(bio);
- 	u64 bytes_allowed, extra_bytes, tmp;
- 	unsigned long jiffy_elapsed, jiffy_wait, jiffy_elapsed_rnd;
- 
-@@ -517,14 +515,14 @@ static bool tg_with_in_bps_limit(struct throtl_data *td, struct throtl_grp *tg,
- 	do_div(tmp, HZ);
- 	bytes_allowed = tmp;
- 
--	if (tg->bytes_disp[rw] + bio->bi_size <= bytes_allowed) {
-+	if (tg->bytes_disp[rw] + size <= bytes_allowed) {
- 		if (wait)
- 			*wait = 0;
- 		return 1;
- 	}
- 
- 	/* Calc approx time to dispatch */
--	extra_bytes = tg->bytes_disp[rw] + bio->bi_size - bytes_allowed;
-+	extra_bytes = tg->bytes_disp[rw] + size - bytes_allowed;
- 	jiffy_wait = div64_u64(extra_bytes * HZ, tg->bps[rw]);
- 
- 	if (!jiffy_wait)
-@@ -540,24 +538,11 @@ static bool tg_with_in_bps_limit(struct throtl_data *td, struct throtl_grp *tg,
- 	return 0;
- }
- 
--/*
-- * Returns whether one can dispatch a bio or not. Also returns approx number
-- * of jiffies to wait before this bio is with-in IO rate and can be dispatched
-- */
- static bool tg_may_dispatch(struct throtl_data *td, struct throtl_grp *tg,
--				struct bio *bio, unsigned long *wait)
-+				bool rw, size_t size, unsigned long *wait)
- {
--	bool rw = bio_data_dir(bio);
- 	unsigned long bps_wait = 0, iops_wait = 0, max_wait = 0;
- 
--	/*
-- 	 * Currently whole state machine of group depends on first bio
--	 * queued in the group bio list. So one should not be calling
--	 * this function with a different bio if there are other bios
--	 * queued.
--	 */
--	BUG_ON(tg->nr_queued[rw] && bio != bio_list_peek(&tg->bio_lists[rw]));
--
- 	/* If tg->bps = -1, then BW is unlimited */
- 	if (tg->bps[rw] == -1 && tg->iops[rw] == -1) {
- 		if (wait)
-@@ -577,8 +562,8 @@ static bool tg_may_dispatch(struct throtl_data *td, struct throtl_grp *tg,
- 			throtl_extend_slice(td, tg, rw, jiffies + throtl_slice);
- 	}
- 
--	if (tg_with_in_bps_limit(td, tg, bio, &bps_wait)
--	    && tg_with_in_iops_limit(td, tg, bio, &iops_wait)) {
-+	if (tg_with_in_bps_limit(td, tg, rw, size, &bps_wait) &&
-+			tg_with_in_iops_limit(td, tg, rw, size, &iops_wait)) {
- 		if (wait)
- 			*wait = 0;
- 		return 1;
-@@ -595,20 +580,37 @@ static bool tg_may_dispatch(struct throtl_data *td, struct throtl_grp *tg,
- 	return 0;
- }
- 
--static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
-+/*
-+ * Returns whether one can dispatch a bio or not. Also returns approx number
-+ * of jiffies to wait before this bio is with-in IO rate and can be dispatched
-+ */
-+static bool tg_may_dispatch_bio(struct throtl_data *td, struct throtl_grp *tg,
-+				struct bio *bio, unsigned long *wait)
- {
- 	bool rw = bio_data_dir(bio);
--	bool sync = bio->bi_rw & REQ_SYNC;
- 
-+	/*
-+	 * Currently whole state machine of group depends on first bio queued
-+	 * in the group bio list. So one should not be calling this function
-+	 * with a different bio if there are other bios queued.
-+	 */
-+	BUG_ON(tg->nr_queued[rw] && bio != bio_list_peek(&tg->bio_lists[rw]));
-+
-+	return tg_may_dispatch(td, tg, rw, bio->bi_size, wait);
-+}
-+
-+static void
-+throtl_charge_io(struct throtl_grp *tg, bool rw, bool sync, size_t size)
-+{
- 	/* Charge the bio to the group */
--	tg->bytes_disp[rw] += bio->bi_size;
-+	tg->bytes_disp[rw] += size;
- 	tg->io_disp[rw]++;
- 
- 	/*
- 	 * TODO: This will take blkg->stats_lock. Figure out a way
- 	 * to avoid this cost.
- 	 */
--	blkiocg_update_dispatch_stats(&tg->blkg, bio->bi_size, rw, sync);
-+	blkiocg_update_dispatch_stats(&tg->blkg, size, rw, sync);
- }
- 
- static void throtl_add_bio_tg(struct throtl_data *td, struct throtl_grp *tg,
-@@ -630,10 +632,10 @@ static void tg_update_disptime(struct throtl_data *td, struct throtl_grp *tg)
- 	struct bio *bio;
- 
- 	if ((bio = bio_list_peek(&tg->bio_lists[READ])))
--		tg_may_dispatch(td, tg, bio, &read_wait);
-+		tg_may_dispatch_bio(td, tg, bio, &read_wait);
- 
- 	if ((bio = bio_list_peek(&tg->bio_lists[WRITE])))
--		tg_may_dispatch(td, tg, bio, &write_wait);
-+		tg_may_dispatch_bio(td, tg, bio, &write_wait);
- 
- 	min_wait = min(read_wait, write_wait);
- 	disptime = jiffies + min_wait;
-@@ -657,7 +659,8 @@ static void tg_dispatch_one_bio(struct throtl_data *td, struct throtl_grp *tg,
- 	BUG_ON(td->nr_queued[rw] <= 0);
- 	td->nr_queued[rw]--;
- 
--	throtl_charge_bio(tg, bio);
-+	throtl_charge_io(tg, bio_data_dir(bio),
-+				bio->bi_rw & REQ_SYNC, bio->bi_size);
- 	bio_list_add(bl, bio);
- 	bio->bi_rw |= REQ_THROTTLED;
- 
-@@ -674,8 +677,8 @@ static int throtl_dispatch_tg(struct throtl_data *td, struct throtl_grp *tg,
- 
- 	/* Try to dispatch 75% READS and 25% WRITES */
- 
--	while ((bio = bio_list_peek(&tg->bio_lists[READ]))
--		&& tg_may_dispatch(td, tg, bio, NULL)) {
-+	while ((bio = bio_list_peek(&tg->bio_lists[READ])) &&
-+			tg_may_dispatch_bio(td, tg, bio, NULL)) {
- 
- 		tg_dispatch_one_bio(td, tg, bio_data_dir(bio), bl);
- 		nr_reads++;
-@@ -684,8 +687,8 @@ static int throtl_dispatch_tg(struct throtl_data *td, struct throtl_grp *tg,
- 			break;
- 	}
- 
--	while ((bio = bio_list_peek(&tg->bio_lists[WRITE]))
--		&& tg_may_dispatch(td, tg, bio, NULL)) {
-+	while ((bio = bio_list_peek(&tg->bio_lists[WRITE])) &&
-+			tg_may_dispatch_bio(td, tg, bio, NULL)) {
- 
- 		tg_dispatch_one_bio(td, tg, bio_data_dir(bio), bl);
- 		nr_writes++;
-@@ -998,6 +1001,9 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
- 		bio->bi_rw &= ~REQ_THROTTLED;
- 		return 0;
- 	}
-+	/* Async writes are ratelimited in blk_throtl_async() */
-+	if (rw == WRITE && !(bio->bi_rw & REQ_DIRECT))
-+		return 0;
- 
- 	spin_lock_irq(q->queue_lock);
- 	tg = throtl_get_tg(td);
-@@ -1018,8 +1024,9 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
- 	}
- 
- 	/* Bio is with-in rate limit of group */
--	if (tg_may_dispatch(td, tg, bio, NULL)) {
--		throtl_charge_bio(tg, bio);
-+	if (tg_may_dispatch_bio(td, tg, bio, NULL)) {
-+		throtl_charge_io(tg, bio_data_dir(bio),
-+				bio->bi_rw & REQ_SYNC, bio->bi_size);
- 		goto out;
- 	}
- 
-@@ -1044,6 +1051,35 @@ out:
- 	return 0;
- }
- 
-+/*
-+ * Enforce throttling on async i/o writes
-+ */
-+int blk_throtl_async(struct request_queue *q, size_t size)
-+{
-+	struct throtl_data *td = q->td;
-+	struct throtl_grp *tg;
-+	bool rw = 1;
-+	unsigned long wait = 0;
-+
-+	spin_lock_irq(q->queue_lock);
-+	tg = throtl_get_tg(td);
-+	if (tg_may_dispatch(td, tg, rw, size, &wait))
-+		throtl_charge_io(tg, rw, false, size);
-+	else
-+		throtl_log_tg(td, tg, "[%c] async. bdisp=%u sz=%u bps=%llu"
-+				" iodisp=%u iops=%u queued=%d/%d",
-+				rw == READ ? 'R' : 'W',
-+				tg->bytes_disp[rw], size, tg->bps[rw],
-+				tg->io_disp[rw], tg->iops[rw],
-+				tg->nr_queued[READ], tg->nr_queued[WRITE]);
-+	spin_unlock_irq(q->queue_lock);
-+
-+	if (wait >= throtl_slice)
-+		schedule_timeout_killable(wait);
-+
-+	return 0;
-+}
-+
- int blk_throtl_init(struct request_queue *q)
- {
- 	struct throtl_data *td;
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 4d18ff3..01c8241 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -1136,6 +1136,7 @@ static inline uint64_t rq_io_start_time_ns(struct request *req)
- extern int blk_throtl_init(struct request_queue *q);
- extern void blk_throtl_exit(struct request_queue *q);
- extern int blk_throtl_bio(struct request_queue *q, struct bio **bio);
-+extern int blk_throtl_async(struct request_queue *q, size_t size);
- extern void throtl_schedule_delayed_work(struct request_queue *q, unsigned long delay);
- extern void throtl_shutdown_timer_wq(struct request_queue *q);
- #else /* CONFIG_BLK_DEV_THROTTLING */
-@@ -1144,6 +1145,11 @@ static inline int blk_throtl_bio(struct request_queue *q, struct bio **bio)
- 	return 0;
- }
- 
-+static inline int blk_throtl_async(struct request_queue *q, size_t size)
-+{
-+	return 0;
-+}
-+
- static inline int blk_throtl_init(struct request_queue *q) { return 0; }
- static inline int blk_throtl_exit(struct request_queue *q) { return 0; }
- static inline void throtl_schedule_delayed_work(struct request_queue *q, unsigned long delay) {}
+> BTW, can't we drop disable_irq() from all lru_lock related codes ?
+> 
+
+I don't think so - at least not right now. Some LRU operations such as LRU
+pagevec draining are run from IPI which is running from an interrupt so
+minimally spin_lock_irq is necessary.
+
 -- 
-1.7.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
