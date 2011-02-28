@@ -1,129 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 33CA58D0039
-	for <linux-mm@kvack.org>; Sun, 27 Feb 2011 20:01:41 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D7B063EE0B6
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 10:01:37 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BEC9E45DE52
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 10:01:37 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9967145DE4E
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 10:01:37 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A3CB1DB8037
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 10:01:37 +0900 (JST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EC088D0039
+	for <linux-mm@kvack.org>; Sun, 27 Feb 2011 21:01:54 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 34C593EE0C2
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:01:51 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1913845DE56
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:01:51 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EBA1445DE54
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:01:50 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D6685E08003
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:01:50 +0900 (JST)
 Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4770E1DB802F
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 10:01:37 +0900 (JST)
-Date: Mon, 28 Feb 2011 09:55:21 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 82D7BE38003
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 11:01:50 +0900 (JST)
+Date: Mon, 28 Feb 2011 10:55:35 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: clean up migration
-Message-Id: <20110228095521.9b8a08cf.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1298821765-3167-1-git-send-email-minchan.kim@gmail.com>
-References: <1298821765-3167-1-git-send-email-minchan.kim@gmail.com>
+Subject: Re: [PATCH 1/2] mm: compaction: Minimise the time IRQs are disabled
+ while isolating free pages
+Message-Id: <20110228105535.cd7bde35.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1298664299-10270-2-git-send-email-mel@csn.ul.ie>
+References: <1298664299-10270-1-git-send-email-mel@csn.ul.ie>
+	<1298664299-10270-2-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Arthur Marsh <arthur.marsh@internode.on.net>, Clemens Ladisch <cladisch@googlemail.com>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Mon, 28 Feb 2011 00:49:25 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+On Fri, 25 Feb 2011 20:04:58 +0000
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-> This patch cleans up unncessary BUG_ON check and confusing
-> charge variable.
+> compaction_alloc() isolates free pages to be used as migration targets.
+> While its scanning, IRQs are disabled on the mistaken assumption the scanning
+> should be short. Analysis showed that IRQs were in fact being disabled for
+> substantial time. A simple test was run using large anonymous mappings with
+> transparent hugepage support enabled to trigger frequent compactions. A
+> monitor sampled what the worst IRQ-off latencies were and a post-processing
+> tool found the following;
 > 
-> That's because memcg charge/uncharge could be handled by
-> mem_cgroup_[prepare/end] migration itself so charge local variable
-> in unmap_and_move lost the role since we introduced 01b1ae63c2.
+> Total sampled time IRQs off (not real total time): 22355
+> Event compaction_alloc..compaction_alloc                 8409 us count 1
+> Event compaction_alloc..compaction_alloc                 7341 us count 1
+> Event compaction_alloc..compaction_alloc                 2463 us count 1
+> Event compaction_alloc..compaction_alloc                 2054 us count 1
+> Event shrink_inactive_list..shrink_zone                  1864 us count 1
+> Event shrink_inactive_list..shrink_zone                    88 us count 1
+> Event save_args..call_softirq                              36 us count 1
+> Event save_args..call_softirq                              35 us count 2
+> Event __make_request..__blk_run_queue                      24 us count 1
+> Event __alloc_pages_nodemask..__alloc_pages_nodemask        6 us count 1
 > 
-> And mem_cgroup_prepare_migratio return 0 if only it is successful.
-> Otherwise, it jumps to unlock label to clean up so BUG_ON(charge)
-> isn;t meaningless.
+> i.e. compaction is disabled IRQs for a prolonged period of time - 8ms in
+> one instance. The full report generated by the tool can be found at
+> http://www.csn.ul.ie/~mel/postings/minfree-20110225/irqsoff-vanilla-micro.report .
+> This patch reduces the time IRQs are disabled by simply disabling IRQs
+> at the last possible minute. An updated IRQs-off summary report then
+> looks like;
 > 
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-> Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> Total sampled time IRQs off (not real total time): 5493
+> Event shrink_inactive_list..shrink_zone                  1596 us count 1
+> Event shrink_inactive_list..shrink_zone                  1530 us count 1
+> Event shrink_inactive_list..shrink_zone                   956 us count 1
+> Event shrink_inactive_list..shrink_zone                   541 us count 1
+> Event shrink_inactive_list..shrink_zone                   531 us count 1
+> Event split_huge_page..add_to_swap                        232 us count 1
+> Event save_args..call_softirq                              36 us count 1
+> Event save_args..call_softirq                              35 us count 2
+> Event __wake_up..__wake_up                                  1 us count 1
+> 
+> A full report is again available at
+> http://www.csn.ul.ie/~mel/postings/minfree-20110225/irqsoff-minimiseirq-free-v1r4-micro.report .
+> . As should be obvious, IRQ disabled latencies due to compaction are
+> almost elimimnated for this particular test.
+> 
+> [aarcange@redhat.com: Fix initialisation of isolated]
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-
-> ---
->  mm/memcontrol.c |    1 +
->  mm/migrate.c    |   14 ++++----------
->  2 files changed, 5 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 2fc97fc..6832926 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2872,6 +2872,7 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
->  /*
->   * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
->   * page belongs to.
-> + * Return 0 if charge is successful. Otherwise return -errno.
->   */
->  int mem_cgroup_prepare_migration(struct page *page,
->  	struct page *newpage, struct mem_cgroup **ptr, gfp_t gfp_mask)
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index eb083a6..737c2e5 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -622,7 +622,6 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  	int *result = NULL;
->  	struct page *newpage = get_new_page(page, private, &result);
->  	int remap_swapcache = 1;
-> -	int charge = 0;
->  	struct mem_cgroup *mem;
->  	struct anon_vma *anon_vma = NULL;
->  
-> @@ -637,9 +636,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  		if (unlikely(split_huge_page(page)))
->  			goto move_newpage;
->  
-> -	/* prepare cgroup just returns 0 or -ENOMEM */
->  	rc = -EAGAIN;
-> -
->  	if (!trylock_page(page)) {
->  		if (!force)
->  			goto move_newpage;
-> @@ -678,13 +675,11 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  	}
->  
->  	/* charge against new page */
-> -	charge = mem_cgroup_prepare_migration(page, newpage, &mem, GFP_KERNEL);
-> -	if (charge == -ENOMEM) {
-> -		rc = -ENOMEM;
-> +	rc = mem_cgroup_prepare_migration(page, newpage, &mem, GFP_KERNEL);
-> +	if (rc)
->  		goto unlock;
-> -	}
-> -	BUG_ON(charge);
->  
-> +	rc = -EAGAIN;
->  	if (PageWriteback(page)) {
->  		if (!force || !sync)
->  			goto uncharge;
-> @@ -767,8 +762,7 @@ skip_unmap:
->  		drop_anon_vma(anon_vma);
->  
->  uncharge:
-> -	if (!charge)
-> -		mem_cgroup_end_migration(mem, page, newpage, rc == 0);
-> +	mem_cgroup_end_migration(mem, page, newpage, rc == 0);
->  unlock:
->  	unlock_page(page);
->  
-> -- 
-> 1.7.1
-> 
-> 
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujisu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
