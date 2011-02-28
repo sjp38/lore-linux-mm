@@ -1,183 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 93BB48D0039
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 17:22:05 -0500 (EST)
-Date: Mon, 28 Feb 2011 23:21:38 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH] remove compaction from kswapd
-Message-ID: <20110228222138.GP22700@random.random>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AAAE8D0039
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 17:40:30 -0500 (EST)
+Date: Mon, 28 Feb 2011 16:41:24 -0600
+From: Russ Meyerriecks <rmeyerriecks@digium.com>
+Subject: [PATCH] mm/dmapool.c: Do not create/destroy sysfs file while
+	holding pools_lock
+Message-ID: <20110228224124.GA31769@blackmagic.digium.internal>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: sruffell@digium.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This is important to apply in 2.6.38. The imporoved
-compaction-in-kswapd logic worked much better then the upstream one,
-but performance was still a little better with no compaction in
-kswapd. This is also somewhat saver as it removes a feature (that is
-hurting performance a bit) instead of improving it. We used a network
-benchmark. This is also confirmed by Arthur on lkml using a different
-multimedia workload and checking kswapd CPU utilization.
+From: Shaun Ruffell <sruffell@digium.com>
 
-This goes on top of the two lowlatency fixes for compaction (those
-fixes improve latency when kswapd runs compaction, but they don't
-reduce the kswapd load at all).
+Eliminates a circular lock dependency reported by lockdep. When reading the
+"pools" file from a PCI device via sysfs, the s_active lock is acquired before
+the pools_lock. When unloading the driver and destroying the pool, pools_lock
+is acquired before the s_active lock.
 
-Later we can rethink (without hurry) if to readd the feature but for
-2.6.38 it's safer to remove it.
+ cat/12016 is trying to acquire lock:
+  (pools_lock){+.+.+.}, at: [<c04ef113>] show_pools+0x43/0x140
 
-===
-Subject: compaction: remove compaction from kswapd
+ but task is already holding lock:
+  (s_active#82){++++.+}, at: [<c0554e1b>] sysfs_read_file+0xab/0x160
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+ which lock already depends on the new lock.
 
-It's safer to stop calling compaction from kswapd as that creates too
-high load during memory pressure that can't be offseted by the
-improved performance of compound allocations. NOTE: this is not
-related to THP (THP allocations uses __GFP_NO_KSWAPD), this is only
-related to frequent and small order allocations that make kswapd go
-wild with compaction.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Shaun Ruffell <sruffell@digium.com>
+Signed-off-by: Russ Meyerriecks <rmeyerriecks@digium.com>
 ---
+ mm/dmapool.c |   34 ++++++++++++++++++++++++----------
+ 1 files changed, 24 insertions(+), 10 deletions(-)
 
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -405,10 +423,7 @@ static int compact_finished(struct zone 
- 		return COMPACT_COMPLETE;
+diff --git a/mm/dmapool.c b/mm/dmapool.c
+index 03bf3bb..d693872 100644
+--- a/mm/dmapool.c
++++ b/mm/dmapool.c
+@@ -174,21 +174,28 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
+ 	init_waitqueue_head(&retval->waitq);
  
- 	/* Compaction run is not finished if the watermark is not met */
--	if (cc->compact_mode != COMPACT_MODE_KSWAPD)
--		watermark = low_wmark_pages(zone);
--	else
--		watermark = high_wmark_pages(zone);
-+	watermark = low_wmark_pages(zone);
- 	watermark += (1 << cc->order);
+ 	if (dev) {
+-		int ret;
++		int first_pool;
  
- 	if (!zone_watermark_ok(zone, cc->order, watermark, 0, 0))
-@@ -421,15 +436,6 @@ static int compact_finished(struct zone 
- 	if (cc->order == -1)
- 		return COMPACT_CONTINUE;
+ 		mutex_lock(&pools_lock);
+ 		if (list_empty(&dev->dma_pools))
+-			ret = device_create_file(dev, &dev_attr_pools);
++			first_pool = 1;
+ 		else
+-			ret = 0;
++			first_pool = 0;
+ 		/* note:  not currently insisting "name" be unique */
+-		if (!ret)
+-			list_add(&retval->pools, &dev->dma_pools);
+-		else {
+-			kfree(retval);
+-			retval = NULL;
+-		}
++		list_add(&retval->pools, &dev->dma_pools);
+ 		mutex_unlock(&pools_lock);
++
++		if (first_pool) {
++			int ret;
++			ret = device_create_file(dev, &dev_attr_pools);
++			if (ret) {
++				mutex_lock(&pools_lock);
++				list_del(&retval->pools);
++				mutex_unlock(&pools_lock);
++				kfree(retval);
++				retval = NULL;
++			}
++		}
+ 	} else
+ 		INIT_LIST_HEAD(&retval->pools);
  
--	/*
--	 * Generating only one page of the right order is not enough
--	 * for kswapd, we must continue until we're above the high
--	 * watermark as a pool for high order GFP_ATOMIC allocations
--	 * too.
--	 */
--	if (cc->compact_mode == COMPACT_MODE_KSWAPD)
--		return COMPACT_CONTINUE;
--
- 	/* Direct compactor: Is a suitable page free? */
- 	for (order = cc->order; order < MAX_ORDER; order++) {
- 		/* Job done if page is free of the right migratetype */
-@@ -551,8 +557,7 @@ static int compact_zone(struct zone *zon
- 
- unsigned long compact_zone_order(struct zone *zone,
- 				 int order, gfp_t gfp_mask,
--				 bool sync,
--				 int compact_mode)
-+				 bool sync)
+@@ -263,12 +270,19 @@ static void pool_free_page(struct dma_pool *pool, struct dma_page *page)
+  */
+ void dma_pool_destroy(struct dma_pool *pool)
  {
- 	struct compact_control cc = {
- 		.nr_freepages = 0,
-@@ -561,7 +566,6 @@ unsigned long compact_zone_order(struct 
- 		.migratetype = allocflags_to_migratetype(gfp_mask),
- 		.zone = zone,
- 		.sync = sync,
--		.compact_mode = compact_mode,
- 	};
- 	INIT_LIST_HEAD(&cc.freepages);
- 	INIT_LIST_HEAD(&cc.migratepages);
-@@ -607,8 +611,7 @@ unsigned long try_to_compact_pages(struc
- 								nodemask) {
- 		int status;
++	int last_pool;
++
+ 	mutex_lock(&pools_lock);
+ 	list_del(&pool->pools);
+ 	if (pool->dev && list_empty(&pool->dev->dma_pools))
+-		device_remove_file(pool->dev, &dev_attr_pools);
++		last_pool = 1;
++	else
++		last_pool = 0;
+ 	mutex_unlock(&pools_lock);
  
--		status = compact_zone_order(zone, order, gfp_mask, sync,
--					    COMPACT_MODE_DIRECT_RECLAIM);
-+		status = compact_zone_order(zone, order, gfp_mask, sync);
- 		rc = max(status, rc);
- 
- 		/* If a normal allocation would succeed, stop compacting */
-@@ -639,7 +642,6 @@ static int compact_node(int nid)
- 			.nr_freepages = 0,
- 			.nr_migratepages = 0,
- 			.order = -1,
--			.compact_mode = COMPACT_MODE_DIRECT_RECLAIM,
- 		};
- 
- 		zone = &pgdat->node_zones[zoneid];
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -11,9 +11,6 @@
- /* The full zone was compacted */
- #define COMPACT_COMPLETE	3
- 
--#define COMPACT_MODE_DIRECT_RECLAIM	0
--#define COMPACT_MODE_KSWAPD		1
--
- #ifdef CONFIG_COMPACTION
- extern int sysctl_compact_memory;
- extern int sysctl_compaction_handler(struct ctl_table *table, int write,
-@@ -28,8 +25,7 @@ extern unsigned long try_to_compact_page
- 			bool sync);
- extern unsigned long compaction_suitable(struct zone *zone, int order);
- extern unsigned long compact_zone_order(struct zone *zone, int order,
--					gfp_t gfp_mask, bool sync,
--					int compact_mode);
-+					gfp_t gfp_mask, bool sync);
- 
- /* Do not skip compaction more than 64 times */
- #define COMPACT_MAX_DEFER_SHIFT 6
-@@ -74,8 +70,7 @@ static inline unsigned long compaction_s
- }
- 
- static inline unsigned long compact_zone_order(struct zone *zone, int order,
--					       gfp_t gfp_mask, bool sync,
--					       int compact_mode)
-+					       gfp_t gfp_mask, bool sync)
- {
- 	return COMPACT_CONTINUE;
- }
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2397,7 +2397,6 @@ loop_again:
- 		 * cause too much scanning of the lower zones.
- 		 */
- 		for (i = 0; i <= end_zone; i++) {
--			int compaction;
- 			struct zone *zone = pgdat->node_zones + i;
- 			int nr_slab;
- 			unsigned long balance_gap;
-@@ -2438,24 +2437,9 @@ loop_again:
- 			sc.nr_reclaimed += reclaim_state->reclaimed_slab;
- 			total_scanned += sc.nr_scanned;
- 
--			compaction = 0;
--			if (order &&
--			    zone_watermark_ok(zone, 0,
--					       high_wmark_pages(zone),
--					      end_zone, 0) &&
--			    !zone_watermark_ok(zone, order,
--					       high_wmark_pages(zone),
--					       end_zone, 0)) {
--				compact_zone_order(zone,
--						   order,
--						   sc.gfp_mask, false,
--						   COMPACT_MODE_KSWAPD);
--				compaction = 1;
--			}
--
- 			if (zone->all_unreclaimable)
- 				continue;
--			if (!compaction && nr_slab == 0 &&
-+			if (nr_slab == 0 &&
- 			    !zone_reclaimable(zone))
- 				zone->all_unreclaimable = 1;
- 			/*
++	if (last_pool)
++		device_remove_file(pool->dev, &dev_attr_pools);
++
+ 	while (!list_empty(&pool->page_list)) {
+ 		struct dma_page *page;
+ 		page = list_entry(pool->page_list.next,
+-- 
+1.7.2.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
