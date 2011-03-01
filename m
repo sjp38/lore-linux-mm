@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id D13ED8D0039
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 15:56:37 -0500 (EST)
-Date: Tue, 1 Mar 2011 21:48:03 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id D20608D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 15:57:04 -0500 (EST)
+Date: Tue, 1 Mar 2011 21:48:24 +0100
 From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH v2 1/5] exec: introduce get_arg_ptr() helper
-Message-ID: <20110301204803.GB30406@redhat.com>
+Subject: [PATCH v2 2/5] exec: introduce "bool compat" argument
+Message-ID: <20110301204824.GC30406@redhat.com>
 References: <20101130200129.GG11905@redhat.com> <compat-not-unlikely@mdm.bga.com> <20101201182747.GB6143@redhat.com> <20110225175202.GA19059@redhat.com> <20110225175314.GD19059@redhat.com> <AANLkTik8epq5cx8n=k6ocMUfbg9kkUAZ8KL7ZiG4UuoU@mail.gmail.com> <20110226123731.GC4416@redhat.com> <AANLkTinFVCR_znYtyVuJcjFQq_fgMp+ozbSz54UKzvQ_@mail.gmail.com> <20110226174408.GA17442@redhat.com> <20110301204739.GA30406@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -16,83 +16,134 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>, Milton Miller <miltonm@bga.com>
 
-Introduce get_arg_ptr() helper, convert count() and copy_strings()
-to use it.
+No functional changes, preparation to simplify the review.
 
-No functional changes, preparation. This helper is trivial, it just
-reads the pointer from argv/envp user-space array.
+And the new (and currently unused) "bool compat" argument to
+get_arg_ptr(), count(), and copy_strings().
+
+Add this argument to do_execve() as well, and rename it to
+do_execve_common().
+
+Reintroduce do_execve() as a trivial wrapper() on top of
+do_execve_common(compat => false).
 
 Signed-off-by: Oleg Nesterov <oleg@redhat.com>
 ---
 
- fs/exec.c |   36 +++++++++++++++++++++++++-----------
- 1 file changed, 25 insertions(+), 11 deletions(-)
+ fs/exec.c |   33 +++++++++++++++++++++------------
+ 1 file changed, 21 insertions(+), 12 deletions(-)
 
---- 38/fs/exec.c~1_get_arg_ptr	2011-03-01 21:15:47.000000000 +0100
-+++ 38/fs/exec.c	2011-03-01 21:17:45.000000000 +0100
-@@ -395,6 +395,17 @@ err:
- 	return err;
+--- 38/fs/exec.c~2_is_compat_arg	2011-03-01 21:17:45.000000000 +0100
++++ 38/fs/exec.c	2011-03-01 21:17:46.000000000 +0100
+@@ -396,7 +396,7 @@ err:
  }
  
-+static const char __user *
-+get_arg_ptr(const char __user * const __user *argv, int argc)
-+{
-+	const char __user *ptr;
-+
-+	if (get_user(ptr, argv + argc))
-+		return ERR_PTR(-EFAULT);
-+
-+	return ptr;
-+}
-+
+ static const char __user *
+-get_arg_ptr(const char __user * const __user *argv, int argc)
++get_arg_ptr(const char __user * const __user *argv, int argc, bool compat)
+ {
+ 	const char __user *ptr;
+ 
+@@ -409,13 +409,13 @@ get_arg_ptr(const char __user * const __
  /*
   * count() counts the number of strings in array ARGV.
   */
-@@ -404,13 +415,14 @@ static int count(const char __user * con
+-static int count(const char __user * const __user * argv, int max)
++static int count(const char __user * const __user *argv, int max, bool compat)
+ {
+ 	int i = 0;
  
  	if (argv != NULL) {
  		for (;;) {
--			const char __user * p;
-+			const char __user *p = get_arg_ptr(argv, i);
+-			const char __user *p = get_arg_ptr(argv, i);
++			const char __user *p = get_arg_ptr(argv, i, compat);
  
--			if (get_user(p, argv))
--				return -EFAULT;
  			if (!p)
  				break;
--			argv++;
-+
-+			if (IS_ERR(p))
-+				return -EFAULT;
-+
- 			if (i++ >= max)
- 				return -E2BIG;
- 
-@@ -440,16 +452,18 @@ static int copy_strings(int argc, const 
- 		int len;
+@@ -440,7 +440,7 @@ static int count(const char __user * con
+  * ensures the destination page is created and not swapped out.
+  */
+ static int copy_strings(int argc, const char __user *const __user *argv,
+-			struct linux_binprm *bprm)
++			struct linux_binprm *bprm, bool compat)
+ {
+ 	struct page *kmapped_page = NULL;
+ 	char *kaddr = NULL;
+@@ -453,7 +453,7 @@ static int copy_strings(int argc, const 
  		unsigned long pos;
  
--		if (get_user(str, argv+argc) ||
--				!(len = strnlen_user(str, MAX_ARG_STRLEN))) {
--			ret = -EFAULT;
-+		ret = -EFAULT;
-+		str = get_arg_ptr(argv, argc);
-+		if (IS_ERR(str))
+ 		ret = -EFAULT;
+-		str = get_arg_ptr(argv, argc);
++		str = get_arg_ptr(argv, argc, compat);
+ 		if (IS_ERR(str))
  			goto out;
--		}
  
--		if (!valid_arg_len(bprm, len)) {
--			ret = -E2BIG;
-+		len = strnlen_user(str, MAX_ARG_STRLEN);
-+		if (!len)
-+			goto out;
+@@ -536,7 +536,8 @@ int copy_strings_kernel(int argc, const 
+ 	int r;
+ 	mm_segment_t oldfs = get_fs();
+ 	set_fs(KERNEL_DS);
+-	r = copy_strings(argc, (const char __user *const  __user *)argv, bprm);
++	r = copy_strings(argc, (const char __user *const  __user *)argv,
++				bprm, false);
+ 	set_fs(oldfs);
+ 	return r;
+ }
+@@ -1387,10 +1388,10 @@ EXPORT_SYMBOL(search_binary_handler);
+ /*
+  * sys_execve() executes a new program.
+  */
+-int do_execve(const char * filename,
++static int do_execve_common(const char *filename,
+ 	const char __user *const __user *argv,
+ 	const char __user *const __user *envp,
+-	struct pt_regs * regs)
++	struct pt_regs *regs, bool compat)
+ {
+ 	struct linux_binprm *bprm;
+ 	struct file *file;
+@@ -1432,11 +1433,11 @@ int do_execve(const char * filename,
+ 	if (retval)
+ 		goto out_file;
+ 
+-	bprm->argc = count(argv, MAX_ARG_STRINGS);
++	bprm->argc = count(argv, MAX_ARG_STRINGS, compat);
+ 	if ((retval = bprm->argc) < 0)
+ 		goto out;
+ 
+-	bprm->envc = count(envp, MAX_ARG_STRINGS);
++	bprm->envc = count(envp, MAX_ARG_STRINGS, compat);
+ 	if ((retval = bprm->envc) < 0)
+ 		goto out;
+ 
+@@ -1449,11 +1450,11 @@ int do_execve(const char * filename,
+ 		goto out;
+ 
+ 	bprm->exec = bprm->p;
+-	retval = copy_strings(bprm->envc, envp, bprm);
++	retval = copy_strings(bprm->envc, envp, bprm, compat);
+ 	if (retval < 0)
+ 		goto out;
+ 
+-	retval = copy_strings(bprm->argc, argv, bprm);
++	retval = copy_strings(bprm->argc, argv, bprm, compat);
+ 	if (retval < 0)
+ 		goto out;
+ 
+@@ -1497,6 +1498,14 @@ out_ret:
+ 	return retval;
+ }
+ 
++int do_execve(const char *filename,
++	const char __user *const __user *argv,
++	const char __user *const __user *envp,
++	struct pt_regs *regs)
++{
++	return do_execve_common(filename, argv, envp, regs, false);
++}
 +
-+		ret = -E2BIG;
-+		if (!valid_arg_len(bprm, len))
- 			goto out;
--		}
- 
- 		/* We're going to work our way backwords. */
- 		pos = bprm->p;
+ void set_binfmt(struct linux_binfmt *new)
+ {
+ 	struct mm_struct *mm = current->mm;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
