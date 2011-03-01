@@ -1,32 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 914E28D0039
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 10:12:50 -0500 (EST)
-Date: Tue, 1 Mar 2011 09:11:31 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/4] slub,rcu: don't assume the size of struct rcu_head
-In-Reply-To: <AANLkTimXy2Yaj+NTDMNTWuLqHHfKZJhVDpeXj3CfMvBf@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1103010909320.6253@router.home>
-References: <4D6CA852.3060303@cn.fujitsu.com> <AANLkTimXy2Yaj+NTDMNTWuLqHHfKZJhVDpeXj3CfMvBf@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F79D8D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 10:30:24 -0500 (EST)
+Received: by pxi9 with SMTP id 9so1207580pxi.14
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2011 07:30:22 -0800 (PST)
+Message-Id: <43A4FBC4-6A1C-4BD8-9F0C-23C0DBA2E35D@gmail.com>
+From: Justin Mattock <justinmattock@gmail.com>
+In-Reply-To: <alpine.LNX.2.00.1103011507120.32580@pobox.suse.cz>
+Content-Type: text/plain; charset=US-ASCII; format=flowed; delsp=yes
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0 (Apple Message framework v936)
+Subject: Re: [PATCH 00/00]Remove one to many n's in a word.
+Date: Tue, 1 Mar 2011 07:30:19 -0800
+References: <1298781250-2718-1-git-send-email-justinmattock@gmail.com> <1298781250-2718-17-git-send-email-justinmattock@gmail.com> <alpine.LNX.2.00.1103011507120.32580@pobox.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: Jiri Kosina <jkosina@suse.cz>
+Cc: linux-kernel@vger.kernel.org, Vinod Koul <vinod.koul@intel.com>, Dan Williams <dan.j.williams@intel.com>, Wim Van Sebroeck <wim@iguana.be>, linux-watchdog@vger.kernel.org, Greg Kroah-Hartman <gregkh@suse.de>, Alan Stern <stern@rowland.harvard.edu>, linux-usb@vger.kernel.org, Chris Mason <chris.mason@oracle.com>, Eric Paris <eparis@redhat.com>, John McCutchan <john@johnmccutchan.com>, Robert Love <rlove@rlove.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
 
-On Tue, 1 Mar 2011, Pekka Enberg wrote:
 
-> The SLAB and SLUB patches are fine by me if there are going to be real
-> users for this. Christoph, Paul?
+On Mar 1, 2011, at 6:12 AM, Jiri Kosina wrote:
 
-The solution is a bit overkill. It would be much simpler to add a union to
-struct page that has lru and the rcu in there similar things can be done
-for SLAB and the network layer. A similar issue already exists for the
-spinlock in struct page. Lets follow the existing way of handling this.
+> On Sat, 26 Feb 2011, Justin P. Mattock wrote:
+>
+>> The Patch below removes one to many "n's" in a word..
+>
+> Hi Justin,
+>
+> I have applied all the patches from the series which were not  
+> present in
+> linux-next as of today (in a squashed-together form, no need to have
+> separated commits for such cosmetic changes).
+>
+> I'd suggest that, unless any subsystem maintainer explicitly states
+> otherwise, you submit all such similar changes justo to trivial@kernel.org
+> (and perhaps CC LKML). I propose this because:
+>
+> - I believe most maintainers don't care about these changes and  
+> don't need
+>  to be bothered
+> - it reduces annoying mail traffic (tens of mails because such
+>  nano-change)
+> - it reduces the trivial tree maintainership load, as I don't have  
+> to wait
+>  and cross-check which maintainer has applied which bits and which  
+> ones
+>  were not picked up
+>
+> -- 
+> Jiri Kosina
+> SUSE Labs, Novell Inc.
 
-Struct page may be larger for debugging purposes already because of the
-need for extended spinlock data.
+
+alright. makes sense.
+I have another set of fixes that I did, I'll send it out later today  
+or tomorrow to just trivial and lkml.
+
+Justin P. Mattock
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
