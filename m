@@ -1,123 +1,108 @@
-From: Russell King <rmk@arm.linux.org.uk>
-Subject: Re: [PATCH 06/17] arm: mmu_gather rework
-Date: Mon, 28 Feb 2011 12:06:51 +0000
-Message-ID: <20110228120651.GA25657__24279.129834804$1298894982$gmane$org@flint.arm.linux.org.uk>
-References: <20110217162327.434629380@chello.nl> <20110217163235.106239192@chello.nl> <1298565253.2428.288.camel@twins> <1298657083.2428.2483.camel@twins> <20110225215123.GA10026@flint.arm.linux.org.uk> <1298893487.2428.10537.camel@twins> <20110228115907.GB492@flint.arm.linux.org.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by lo.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Pu1ux-0003vQ-In
-	for glkm-linux-mm-2@m.gmane.org; Mon, 28 Feb 2011 13:09:36 +0100
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A812E8D003A
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2011 07:09:32 -0500 (EST)
-Content-Disposition: inline
-In-Reply-To: <20110228115907.GB492@flint.arm.linux.org.uk>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B3A7F8D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 00:00:18 -0500 (EST)
+Received: by gyb13 with SMTP id 13so2343174gyb.14
+        for <linux-mm@kvack.org>; Mon, 28 Feb 2011 21:00:16 -0800 (PST)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH v2] memcg: clean up migration
+Date: Tue,  1 Mar 2011 13:59:06 +0900
+Message-Id: <1298955546-2450-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
 
-On Mon, Feb 28, 2011 at 11:59:07AM +0000, Russell King wrote:
-> It may be hacky but then the TLB shootdown interface is hacky too.  We
-> don't keep the vma around to re-use after tlb_end_vma() - if you think
-> that then you misunderstand what's going on.  The vma pointer is kept
-> around as a cheap way of allowing tlb_finish_mmu() to distinguish
-> between the unmap_region() mode and the shift_arg_pages() mode.
+This patch cleans up unncessary BUG_ON check and confusing
+charge variable.
 
-As I think I mentioned, the TLB shootdown interface either needs rewriting
-from scratch as its currently a broken design, or it needs tlb_gather_mmu()
-to take a proper mode argument, rather than this useless 'fullmm' argument
-which only gives half the story.
+That's because memcg charge/uncharge could be handled by
+mem_cgroup_[prepare/end] migration itself so charge local variable
+in unmap_and_move lost the role since we introduced 
+[01b1ae6 memcg: simple migration handling]
 
-The fact is that the interface has three modes, and distinguishing between
-them requires a certain amount of black magic.  Explicitly, the !fullmm
-case has two modes, and it requires implementations to remember whether
-tlb_start_vma() has been called before tlb_finish_mm() or not.
+And mem_cgroup_prepare_migration return 0 if only it is successful.
+Otherwise, it jumps to unlock label to clean up so BUG_ON(charge)
+isn't meaningless.
 
-Maybe this will help you understand the ARM implementation - this doesn't
-change the functionality, but may make things clearer.
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
-diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
-index 82dfe5d..73fb813 100644
---- a/arch/arm/include/asm/tlb.h
-+++ b/arch/arm/include/asm/tlb.h
-@@ -54,7 +54,7 @@
- struct mmu_gather {
- 	struct mm_struct	*mm;
- 	unsigned int		fullmm;
--	struct vm_area_struct	*vma;
-+	unsigned int		byvma;
- 	unsigned long		range_start;
- 	unsigned long		range_end;
- 	unsigned int		nr;
-@@ -68,23 +68,18 @@ DECLARE_PER_CPU(struct mmu_gather, mmu_gathers);
-  * code is used:
-  *  1. Unmapping a range of vmas.  See zap_page_range(), unmap_region().
-  *     tlb->fullmm = 0, and tlb_start_vma/tlb_end_vma will be called.
-- *     tlb->vma will be non-NULL.
-+ *     tlb->byvma will be true.
-  *  2. Unmapping all vmas.  See exit_mmap().
-  *     tlb->fullmm = 1, and tlb_start_vma/tlb_end_vma will be called.
-- *     tlb->vma will be non-NULL.  Additionally, page tables will be freed.
-+ *     tlb->byvma will be true.  Additionally, page tables will be freed.
-  *  3. Unmapping argument pages.  See shift_arg_pages().
-  *     tlb->fullmm = 0, but tlb_start_vma/tlb_end_vma will not be called.
-- *     tlb->vma will be NULL.
-+ *     tlb->byvma will be false.
+* Change from v1
+  - add acked-by/reviewed-by
+  - change typo
+
+---
+ mm/memcontrol.c |    1 +
+ mm/migrate.c    |   14 ++++----------
+ 2 files changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2fc97fc..6832926 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2872,6 +2872,7 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
+ /*
+  * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
+  * page belongs to.
++ * Return 0 if charge is successful. Otherwise return -errno.
   */
- static inline void tlb_flush(struct mmu_gather *tlb)
- {
--	if (tlb->fullmm || !tlb->vma)
-+	if (tlb->fullmm || !tlb->byvma)
- 		flush_tlb_mm(tlb->mm);
--	else if (tlb->range_end > 0) {
--		flush_tlb_range(tlb->vma, tlb->range_start, tlb->range_end);
--		tlb->range_start = TASK_SIZE;
--		tlb->range_end = 0;
--	}
- }
+ int mem_cgroup_prepare_migration(struct page *page,
+ 	struct page *newpage, struct mem_cgroup **ptr, gfp_t gfp_mask)
+diff --git a/mm/migrate.c b/mm/migrate.c
+index eb083a6..737c2e5 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -622,7 +622,6 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+ 	int *result = NULL;
+ 	struct page *newpage = get_new_page(page, private, &result);
+ 	int remap_swapcache = 1;
+-	int charge = 0;
+ 	struct mem_cgroup *mem;
+ 	struct anon_vma *anon_vma = NULL;
  
- static inline void tlb_add_flush(struct mmu_gather *tlb, unsigned long addr)
-@@ -113,7 +108,7 @@ tlb_gather_mmu(struct mm_struct *mm, unsigned int full_mm_flush)
+@@ -637,9 +636,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+ 		if (unlikely(split_huge_page(page)))
+ 			goto move_newpage;
  
- 	tlb->mm = mm;
- 	tlb->fullmm = full_mm_flush;
--	tlb->vma = NULL;
-+	tlb->byvma = 0;
- 	tlb->nr = 0;
- 
- 	return tlb;
-@@ -149,7 +144,7 @@ tlb_start_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
- {
- 	if (!tlb->fullmm) {
- 		flush_cache_range(vma, vma->vm_start, vma->vm_end);
--		tlb->vma = vma;
-+		tlb->byvma = 1;
- 		tlb->range_start = TASK_SIZE;
- 		tlb->range_end = 0;
+-	/* prepare cgroup just returns 0 or -ENOMEM */
+ 	rc = -EAGAIN;
+-
+ 	if (!trylock_page(page)) {
+ 		if (!force)
+ 			goto move_newpage;
+@@ -678,13 +675,11 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
  	}
-@@ -158,8 +153,11 @@ tlb_start_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
- static inline void
- tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
- {
--	if (!tlb->fullmm)
--		tlb_flush(tlb);
-+	if (!tlb->fullmm && tlb->range_end > 0) {
-+		flush_tlb_range(vma, tlb->range_start, tlb->range_end);
-+		tlb->range_start = TASK_SIZE;
-+		tlb->range_end = 0;
-+	}
- }
  
- static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
-
+ 	/* charge against new page */
+-	charge = mem_cgroup_prepare_migration(page, newpage, &mem, GFP_KERNEL);
+-	if (charge == -ENOMEM) {
+-		rc = -ENOMEM;
++	rc = mem_cgroup_prepare_migration(page, newpage, &mem, GFP_KERNEL);
++	if (rc)
+ 		goto unlock;
+-	}
+-	BUG_ON(charge);
+ 
++	rc = -EAGAIN;
+ 	if (PageWriteback(page)) {
+ 		if (!force || !sync)
+ 			goto uncharge;
+@@ -767,8 +762,7 @@ skip_unmap:
+ 		drop_anon_vma(anon_vma);
+ 
+ uncharge:
+-	if (!charge)
+-		mem_cgroup_end_migration(mem, page, newpage, rc == 0);
++	mem_cgroup_end_migration(mem, page, newpage, rc == 0);
+ unlock:
+ 	unlock_page(page);
+ 
 -- 
-Russell King
- Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
- maintainer of:
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
