@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 926E28D0048
+	by kanga.kvack.org (Postfix) with ESMTP id E42F98D004A
 	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 18:29:02 -0500 (EST)
 From: Cesar Eduardo Barros <cesarb@cesarb.net>
-Subject: [PATCHv2 14/24] sys_swapon: simplify error flow in claim_swapfile
-Date: Tue,  1 Mar 2011 20:28:38 -0300
-Message-Id: <1299022128-6239-15-git-send-email-cesarb@cesarb.net>
+Subject: [PATCHv2 09/24] sys_swapon: remove did_down variable
+Date: Tue,  1 Mar 2011 20:28:33 -0300
+Message-Id: <1299022128-6239-10-git-send-email-cesarb@cesarb.net>
 In-Reply-To: <1299022128-6239-1-git-send-email-cesarb@cesarb.net>
 References: <4D6D7FEA.80800@cesarb.net>
  <1299022128-6239-1-git-send-email-cesarb@cesarb.net>
@@ -14,55 +14,45 @@ List-ID: <linux-mm.kvack.org>
 To: Eric B Munson <emunson@mgebm.net>
 Cc: linux-mm@kvack.org, Cesar Eduardo Barros <cesarb@cesarb.net>
 
-Since there is no cleanup to do, there is no reason to jump to a label.
-Return directly instead.
+Since mutex_lock(&inode->i_mutex) is called just after setting inode,
+did_down is always equivalent to (inode && S_ISREG(inode->i_mode)).
+
+Use this fact to remove the did_down variable.
 
 Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 ---
- mm/swapfile.c |   20 ++++++--------------
- 1 files changed, 6 insertions(+), 14 deletions(-)
+ mm/swapfile.c |    4 +---
+ 1 files changed, 1 insertions(+), 3 deletions(-)
 
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 27faeec..058cf1b 100644
+index 55a50ef..c655389 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -1900,30 +1900,22 @@ static int claim_swapfile(struct swap_info_struct *p, struct inode *inode)
- 				   sys_swapon);
- 		if (error < 0) {
- 			p->bdev = NULL;
--			error = -EINVAL;
--			goto bad_swap;
-+			return -EINVAL;
- 		}
- 		p->old_block_size = block_size(p->bdev);
- 		error = set_blocksize(p->bdev, PAGE_SIZE);
- 		if (error < 0)
--			goto bad_swap;
-+			return error;
- 		p->flags |= SWP_BLKDEV;
+@@ -1907,7 +1907,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 	unsigned char *swap_map = NULL;
+ 	struct page *page = NULL;
+ 	struct inode *inode = NULL;
+-	int did_down = 0;
+ 
+ 	if (!capable(CAP_SYS_ADMIN))
+ 		return -EPERM;
+@@ -1962,7 +1961,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
  	} else if (S_ISREG(inode->i_mode)) {
  		p->bdev = inode->i_sb->s_bdev;
  		mutex_lock(&inode->i_mutex);
--		if (IS_SWAPFILE(inode)) {
--			error = -EBUSY;
--			goto bad_swap;
--		}
--	} else {
--		error = -EINVAL;
--		goto bad_swap;
--	}
-+		if (IS_SWAPFILE(inode))
-+			return -EBUSY;
-+	} else
-+		return -EINVAL;
- 
- 	return 0;
--
--bad_swap:
--	return error;
- }
- 
- SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+-		did_down = 1;
+ 		if (IS_SWAPFILE(inode)) {
+ 			error = -EBUSY;
+ 			goto bad_swap;
+@@ -2163,7 +2161,7 @@ out:
+ 	}
+ 	if (name)
+ 		putname(name);
+-	if (did_down) {
++	if (inode && S_ISREG(inode->i_mode)) {
+ 		if (!error)
+ 			inode->i_flags |= S_SWAPFILE;
+ 		mutex_unlock(&inode->i_mutex);
 -- 
 1.7.4
 
