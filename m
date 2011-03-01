@@ -1,151 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 29A6C8D003F
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 18:29:05 -0500 (EST)
-From: Cesar Eduardo Barros <cesarb@cesarb.net>
-Subject: [PATCHv2 24/24] sys_swapon: separate final enabling of the swapfile
-Date: Tue,  1 Mar 2011 20:28:48 -0300
-Message-Id: <1299022128-6239-25-git-send-email-cesarb@cesarb.net>
-In-Reply-To: <1299022128-6239-1-git-send-email-cesarb@cesarb.net>
-References: <4D6D7FEA.80800@cesarb.net>
- <1299022128-6239-1-git-send-email-cesarb@cesarb.net>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F3348D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 18:41:05 -0500 (EST)
+Date: Tue, 1 Mar 2011 15:41:00 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] ksm: add vm_stat and meminfo entry to reflect pte
+ mapping to ksm pages
+Message-Id: <20110301154100.212c4ff9.akpm@linux-foundation.org>
+In-Reply-To: <201102262256.31565.nai.xia@gmail.com>
+References: <201102262256.31565.nai.xia@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@mgebm.net>
-Cc: linux-mm@kvack.org, Cesar Eduardo Barros <cesarb@cesarb.net>
+To: nai.xia@gmail.com
+Cc: Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
 
-The block in sys_swapon which does the final adjustments to the
-swap_info_struct and to swap_list is the same as the block which
-re-inserts it again at sys_swapoff on failure of try_to_unuse(). Move
-this code to a separate function, and use it both in sys_swapon and
-sys_swapoff.
+On Sat, 26 Feb 2011 22:56:31 +0800
+Nai Xia <nai.xia@gmail.com> wrote:
 
-Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
----
- mm/swapfile.c |   84 ++++++++++++++++++++++++++++----------------------------
- 1 files changed, 42 insertions(+), 42 deletions(-)
+> ksm_pages_sharing is updated by ksmd periodically.  In some cases, it cannot 
+> reflect the actual savings and makes the benchmarks on volatile VMAs very 
+> inaccurate.
+> 
+> This patch add a vm_stat entry and let the /proc/meminfo show information 
+> about how much virutal address pte is being mapped to ksm pages.  With default 
+> ksm paramters (pages_to_scan==100 && sleep_millisecs==20), this can result in 
+> 50% more accurate averaged savings result for the following test program. 
+> Bigger sleep_millisecs values will increase this deviation. 
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index c9825aa..49eb310 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1550,6 +1550,36 @@ bad_bmap:
- 	goto out;
- }
- 
-+static void enable_swap_info(struct swap_info_struct *p, int prio,
-+				unsigned char *swap_map)
-+{
-+	int i, prev;
-+
-+	spin_lock(&swap_lock);
-+	if (prio >= 0)
-+		p->prio = prio;
-+	else
-+		p->prio = --least_priority;
-+	p->swap_map = swap_map;
-+	p->flags |= SWP_WRITEOK;
-+	nr_swap_pages += p->pages;
-+	total_swap_pages += p->pages;
-+
-+	/* insert swap space into swap_list: */
-+	prev = -1;
-+	for (i = swap_list.head; i >= 0; i = swap_info[i]->next) {
-+		if (p->prio >= swap_info[i]->prio)
-+			break;
-+		prev = i;
-+	}
-+	p->next = i;
-+	if (prev < 0)
-+		swap_list.head = swap_list.next = p->type;
-+	else
-+		swap_info[prev]->next = p->type;
-+	spin_unlock(&swap_lock);
-+}
-+
- SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- {
- 	struct swap_info_struct *p = NULL;
-@@ -1621,26 +1651,14 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	current->flags &= ~PF_OOM_ORIGIN;
- 
- 	if (err) {
-+		/*
-+		 * reading p->prio and p->swap_map outside the lock is
-+		 * safe here because only sys_swapon and sys_swapoff
-+		 * change them, and there can be no other sys_swapon or
-+		 * sys_swapoff for this swap_info_struct at this point.
-+		 */
- 		/* re-insert swap space back into swap_list */
--		spin_lock(&swap_lock);
--		if (p->prio < 0)
--			p->prio = --least_priority;
--		p->flags |= SWP_WRITEOK;
--		nr_swap_pages += p->pages;
--		total_swap_pages += p->pages;
--
--		prev = -1;
--		for (i = swap_list.head; i >= 0; i = swap_info[i]->next) {
--			if (p->prio >= swap_info[i]->prio)
--				break;
--			prev = i;
--		}
--		p->next = i;
--		if (prev < 0)
--			swap_list.head = swap_list.next = type;
--		else
--			swap_info[prev]->next = type;
--		spin_unlock(&swap_lock);
-+		enable_swap_info(p, p->prio, p->swap_map);
- 		goto out_dput;
- 	}
- 
-@@ -2037,7 +2055,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	char *name;
- 	struct file *swap_file = NULL;
- 	struct address_space *mapping;
--	int i, prev;
-+	int i;
-+	int prio;
- 	int error;
- 	union swap_header *swap_header;
- 	int nr_extents;
-@@ -2134,30 +2153,11 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	}
- 
- 	mutex_lock(&swapon_mutex);
--	spin_lock(&swap_lock);
-+	prio = -1;
- 	if (swap_flags & SWAP_FLAG_PREFER)
--		p->prio =
-+		prio =
- 		  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
--	else
--		p->prio = --least_priority;
--	p->swap_map = swap_map;
--	p->flags |= SWP_WRITEOK;
--	nr_swap_pages += p->pages;
--	total_swap_pages += p->pages;
--
--	/* insert swap space into swap_list: */
--	prev = -1;
--	for (i = swap_list.head; i >= 0; i = swap_info[i]->next) {
--		if (p->prio >= swap_info[i]->prio)
--			break;
--		prev = i;
--	}
--	p->next = i;
--	if (prev < 0)
--		swap_list.head = swap_list.next = p->type;
--	else
--		swap_info[prev]->next = p->type;
--	spin_unlock(&swap_lock);
-+	enable_swap_info(p, prio, swap_map);
- 
- 	printk(KERN_INFO "Adding %uk swap on %s.  "
- 			"Priority:%d extents:%d across:%lluk %s%s\n",
--- 
-1.7.4
+So I think you're saying that the existing ksm_pages_sharing sysfs file
+is no good.
+
+You added a new entry to /proc/meminfo and left ksm_pages_sharing
+as-is.  Why not leave /proc/meminfo alone, and fix up the existing
+ksm_pages_sharing?
+
+Also, the patch accumulates the NR_KSM_PAGES_SHARING counts on a
+per-zone basis as well as on a global basis, but only provides the
+global count to userspace.  The per-zone counts are potentially
+interesting?  If not, maintaining the per-zone counters is wasted
+overhead.
+
+> 
+> --- test.c-----
+>
+
+The "^---" token conventionally means "end of changelog".  Please avoid
+inserting it into the middle of the changelog.
+
+> +++ b/mm/ksm.c
+> @@ -897,6 +897,7 @@ static int try_to_merge_one_page(struct vm_area_struct 
+> *vma,
+
+Your email client wordwraps the patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
