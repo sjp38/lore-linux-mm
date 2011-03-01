@@ -1,137 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id DF6688D003C
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 17:15:42 -0500 (EST)
-Date: Tue, 1 Mar 2011 14:15:10 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 0352F8D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 17:22:35 -0500 (EST)
+Received: by iyf13 with SMTP id 13so5830357iyf.14
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2011 14:22:33 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20110301161900.GA21860@random.random>
+References: <20110301153558.GA2031@barrios-desktop>
+	<20110301161900.GA21860@random.random>
+Date: Wed, 2 Mar 2011 07:22:33 +0900
+Message-ID: <AANLkTimpTyaAU0JzFKp4s14w=ciq152MWSmbgn8xtkOx@mail.gmail.com>
 Subject: Re: [PATCH 2/2] mm: compaction: Minimise the time IRQs are disabled
  while isolating pages for migration
-Message-Id: <20110301141510.64691f9d.akpm@linux-foundation.org>
-In-Reply-To: <1298664299-10270-3-git-send-email-mel@csn.ul.ie>
-References: <1298664299-10270-1-git-send-email-mel@csn.ul.ie>
-	<1298664299-10270-3-git-send-email-mel@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Arthur Marsh <arthur.marsh@internode.on.net>, Clemens Ladisch <cladisch@googlemail.com>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Arthur Marsh <arthur.marsh@internode.on.net>, Clemens Ladisch <cladisch@googlemail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Fri, 25 Feb 2011 20:04:59 +0000
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Wed, Mar 2, 2011 at 1:19 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> On Wed, Mar 02, 2011 at 12:35:58AM +0900, Minchan Kim wrote:
+>> On Tue, Mar 01, 2011 at 01:49:25PM +0900, KAMEZAWA Hiroyuki wrote:
+>> > On Tue, 1 Mar 2011 13:11:46 +0900
+>> > Minchan Kim <minchan.kim@gmail.com> wrote:
+>> >
+>> > > On Tue, Mar 01, 2011 at 08:42:09AM +0900, KAMEZAWA Hiroyuki wrote:
+>> > > > On Mon, 28 Feb 2011 10:18:27 +0000
+>> > > > Mel Gorman <mel@csn.ul.ie> wrote:
+>> > > >
+>> > > > > > BTW, can't we drop disable_irq() from all lru_lock related codes ?
+>> > > > > >
+>> > > > >
+>> > > > > I don't think so - at least not right now. Some LRU operations such as LRU
+>> > > > > pagevec draining are run from IPI which is running from an interrupt so
+>> > > > > minimally spin_lock_irq is necessary.
+>> > > > >
+>> > > >
+>> > > > pagevec draining is done by workqueue(schedule_on_each_cpu()).
+>> > > > I think only racy case is just lru rotation after writeback.
+>> > >
+>> > > put_page still need irq disable.
+>> > >
+>> >
+>> > Aha..ok. put_page() removes a page from LRU via __page_cache_release().
+>> > Then, we may need to remove a page from LRU under irq context.
+>> > Hmm...
+>>
+>> But as __page_cache_release's comment said, normally vm doesn't release page in
+>> irq context. so it would be rare.
+>> If we can remove it, could we change all of spin_lock_irqsave with spin_lock?
+>> If it is right, I think it's very desirable to reduce irq latency.
+>>
+>> How about this? It's totally a quick implementation and untested.
+>> I just want to hear opinions of you guys if the work is valuable or not before
+>> going ahead.
+>
+> pages freed from irq shouldn't be PageLRU.
 
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> 
-> compaction_alloc() isolates pages for migration in isolate_migratepages. While
-> it's scanning, IRQs are disabled on the mistaken assumption the scanning
-> should be short. Tests show this to be true for the most part but
-> contention times on the LRU lock can be increased. Before this patch,
-> the IRQ disabled times for a simple test looked like
-> 
-> Total sampled time IRQs off (not real total time): 5493
-> Event shrink_inactive_list..shrink_zone                  1596 us count 1
-> Event shrink_inactive_list..shrink_zone                  1530 us count 1
-> Event shrink_inactive_list..shrink_zone                   956 us count 1
-> Event shrink_inactive_list..shrink_zone                   541 us count 1
-> Event shrink_inactive_list..shrink_zone                   531 us count 1
-> Event split_huge_page..add_to_swap                        232 us count 1
-> Event save_args..call_softirq                              36 us count 1
-> Event save_args..call_softirq                              35 us count 2
-> Event __wake_up..__wake_up                                  1 us count 1
-> 
-> This patch reduces the worst-case IRQs-disabled latencies by releasing the
-> lock every SWAP_CLUSTER_MAX pages that are scanned and releasing the CPU if
-> necessary. The cost of this is that the processing performing compaction will
-> be slower but IRQs being disabled for too long a time has worse consequences
-> as the following report shows;
-> 
-> Total sampled time IRQs off (not real total time): 4367
-> Event shrink_inactive_list..shrink_zone                   881 us count 1
-> Event shrink_inactive_list..shrink_zone                   875 us count 1
-> Event shrink_inactive_list..shrink_zone                   868 us count 1
-> Event shrink_inactive_list..shrink_zone                   555 us count 1
-> Event split_huge_page..add_to_swap                        495 us count 1
-> Event compact_zone..compact_zone_order                    269 us count 1
-> Event split_huge_page..add_to_swap                        266 us count 1
-> Event shrink_inactive_list..shrink_zone                    85 us count 1
-> Event save_args..call_softirq                              36 us count 2
-> Event __wake_up..__wake_up                                  1 us count 1
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  mm/compaction.c |   18 ++++++++++++++++++
->  1 files changed, 18 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 11d88a2..ec9eb0f 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -279,9 +279,27 @@ static unsigned long isolate_migratepages(struct zone *zone,
->  	}
->  
->  	/* Time to isolate some pages for migration */
-> +	cond_resched();
->  	spin_lock_irq(&zone->lru_lock);
->  	for (; low_pfn < end_pfn; low_pfn++) {
->  		struct page *page;
-> +		bool unlocked = false;
-> +
-> +		/* give a chance to irqs before checking need_resched() */
-> +		if (!((low_pfn+1) % SWAP_CLUSTER_MAX)) {
-> +			spin_unlock_irq(&zone->lru_lock);
-> +			unlocked = true;
-> +		}
-> +		if (need_resched() || spin_is_contended(&zone->lru_lock)) {
-> +			if (!unlocked)
-> +				spin_unlock_irq(&zone->lru_lock);
-> +			cond_resched();
-> +			spin_lock_irq(&zone->lru_lock);
-> +			if (fatal_signal_pending(current))
-> +				break;
-> +		} else if (unlocked)
-> +			spin_lock_irq(&zone->lru_lock);
-> +
->  		if (!pfn_valid_within(low_pfn))
->  			continue;
->  		nr_scanned++;
+Hmm..
+As looking code, it seems to be no problem and I didn't see the any
+comment about such rule. It should have been written down in
+__page_cache_release.
+Just out of curiosity.
+What kinds of problem happen if we release lru page in irq context?
 
-That was somewhat ghastly.
+>
+> deferring freeing to workqueue doesn't look ok. firewall loads runs
+> only from irq and this will cause some more work and a delay in the
+> freeing. I doubt it's worhwhile especially for the lru_lock.
+>
 
-I think it can be made only 99% as ghastly by renaming "unlocked" to
-"locked" and eliminating the double-negative logic.
+As you said, if it is for decreasing lock contention in SMP to deliver
+overall better performance, maybe we need to check again how much it
+helps.
+If it doesn't help much, could we remove irq_save/restore of lru_lock?
+Do you know any benchmark to prove it had a benefit at that time or
+any thread discussing about that in lkml?
 
---- a/mm/compaction.c~mm-compaction-minimise-the-time-irqs-are-disabled-while-isolating-pages-for-migration
-+++ a/mm/compaction.c
-@@ -279,9 +279,27 @@ static unsigned long isolate_migratepage
- 	}
- 
- 	/* Time to isolate some pages for migration */
-+	cond_resched();
- 	spin_lock_irq(&zone->lru_lock);
- 	for (; low_pfn < end_pfn; low_pfn++) {
- 		struct page *page;
-+		bool locked = true;
-+
-+		/* give a chance to irqs before checking need_resched() */
-+		if (!((low_pfn+1) % SWAP_CLUSTER_MAX)) {
-+			spin_unlock_irq(&zone->lru_lock);
-+			locked = false;
-+		}
-+		if (need_resched() || spin_is_contended(&zone->lru_lock)) {
-+			if (locked)
-+				spin_unlock_irq(&zone->lru_lock);
-+			cond_resched();
-+			spin_lock_irq(&zone->lru_lock);
-+			if (fatal_signal_pending(current))
-+				break;
-+		} else if (!locked)
-+			spin_lock_irq(&zone->lru_lock);
-+
- 		if (!pfn_valid_within(low_pfn))
- 			continue;
- 		nr_scanned++;
+Thanks, Andrea.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
