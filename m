@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 364468D0039
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C80CC8D003E
 	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 18:29:00 -0500 (EST)
 From: Cesar Eduardo Barros <cesarb@cesarb.net>
-Subject: [PATCHv2 01/24] sys_swapon: use vzalloc instead of vmalloc/memset
-Date: Tue,  1 Mar 2011 20:28:25 -0300
-Message-Id: <1299022128-6239-2-git-send-email-cesarb@cesarb.net>
+Subject: [PATCHv2 02/24] sys_swapon: remove changelog from function comment
+Date: Tue,  1 Mar 2011 20:28:26 -0300
+Message-Id: <1299022128-6239-3-git-send-email-cesarb@cesarb.net>
 In-Reply-To: <1299022128-6239-1-git-send-email-cesarb@cesarb.net>
 References: <4D6D7FEA.80800@cesarb.net>
  <1299022128-6239-1-git-send-email-cesarb@cesarb.net>
@@ -14,30 +14,32 @@ List-ID: <linux-mm.kvack.org>
 To: Eric B Munson <emunson@mgebm.net>
 Cc: linux-mm@kvack.org, Cesar Eduardo Barros <cesarb@cesarb.net>
 
+Changelogs belong in the git history instead of in the source code.
+
+Also, "The swapon system call" is redundant with
+"SYSCALL_DEFINE2(swapon, ...)".
+
 Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 ---
- mm/swapfile.c |    3 +--
- 1 files changed, 1 insertions(+), 2 deletions(-)
+ mm/swapfile.c |    5 -----
+ 1 files changed, 0 insertions(+), 5 deletions(-)
 
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 0341c57..3fe8913 100644
+index 3fe8913..75ee39c 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -2047,13 +2047,12 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		goto bad_swap;
+@@ -1844,11 +1844,6 @@ static int __init max_swapfiles_check(void)
+ late_initcall(max_swapfiles_check);
+ #endif
  
- 	/* OK, set up the swap map and apply the bad block list */
--	swap_map = vmalloc(maxpages);
-+	swap_map = vzalloc(maxpages);
- 	if (!swap_map) {
- 		error = -ENOMEM;
- 		goto bad_swap;
- 	}
- 
--	memset(swap_map, 0, maxpages);
- 	nr_good_pages = maxpages - 1;	/* omit header page */
- 
- 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
+-/*
+- * Written 01/25/92 by Simmule Turner, heavily changed by Linus.
+- *
+- * The swapon system call
+- */
+ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ {
+ 	struct swap_info_struct *p;
 -- 
 1.7.4
 
