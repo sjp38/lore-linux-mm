@@ -1,72 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E9B4C8D0039
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 16:40:35 -0500 (EST)
-Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id F32FF8D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 16:47:42 -0500 (EST)
+Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
 	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.14.2/Debian-2build1) with ESMTP id p21Ldu26007713
+	by smtp1.linux-foundation.org (8.14.2/8.14.2/Debian-2build1) with ESMTP id p21LlCGb008406
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Tue, 1 Mar 2011 13:39:57 -0800
-Received: by iyf13 with SMTP id 13so5786218iyf.14
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2011 13:39:55 -0800 (PST)
+	for <linux-mm@kvack.org>; Tue, 1 Mar 2011 13:47:12 -0800
+Received: by iwl42 with SMTP id 42so6046822iwl.14
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2011 13:47:12 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20110301204739.GA30406@redhat.com>
-References: <20101130200129.GG11905@redhat.com> <compat-not-unlikely@mdm.bga.com>
- <20101201182747.GB6143@redhat.com> <20110225175202.GA19059@redhat.com>
- <20110225175314.GD19059@redhat.com> <AANLkTik8epq5cx8n=k6ocMUfbg9kkUAZ8KL7ZiG4UuoU@mail.gmail.com>
- <20110226123731.GC4416@redhat.com> <AANLkTinFVCR_znYtyVuJcjFQq_fgMp+ozbSz54UKzvQ_@mail.gmail.com>
- <20110226174408.GA17442@redhat.com> <20110301204739.GA30406@redhat.com>
+In-Reply-To: <20110228151736.GO22310@pengutronix.de>
+References: <20101124085645.GW4693@pengutronix.de> <1290589070-854-5-git-send-email-u.kleine-koenig@pengutronix.de>
+ <20110228151736.GO22310@pengutronix.de>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 1 Mar 2011 13:39:35 -0800
-Message-ID: <AANLkTikVecxcGoZ9a4hmkoi4wynrNfH9_AU7Vb+hOvbH@mail.gmail.com>
-Subject: Re: [PATCH v2 0/5] exec: unify native/compat code
+Date: Tue, 1 Mar 2011 13:46:52 -0800
+Message-ID: <AANLkTi=VB5po9Yt2oCcCq01UNQxXNY+_6RBpjWRFkvxN@mail.gmail.com>
+Subject: Re: [PATCH 5/6] mm: add some KERN_CONT markers to continuation lines
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>, Milton Miller <miltonm@bga.com>
+To: =?ISO-8859-1?Q?Uwe_Kleine=2DK=F6nig?= <u.kleine-koenig@pengutronix.de>
+Cc: linux-kernel@vger.kernel.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, kernel@pengutronix.de, Arjan van de Ven <arjan@infradead.org>, linux-mm@kvack.org
 
-On Tue, Mar 1, 2011 at 12:47 PM, Oleg Nesterov <oleg@redhat.com> wrote:
-> =A0 =A0 =A0 =A0where that 'do_execve_common()' takes it's arguments as
+2011/2/28 Uwe Kleine-K=F6nig <u.kleine-koenig@pengutronix.de>:
+> Hello,
 >
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0union conditional_user_ptr_t __user *argv,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0union conditional_user_ptr_t __user *envp
 >
-> I hope you didn't really mean this...
+> On Wed, Nov 24, 2010 at 09:57:49AM +0100, Uwe Kleine-K=F6nig wrote:
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 printk("\n");
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 printk("%spcpu=
+-alloc: ", lvl);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 printk(KERN_CO=
+NT "\n");
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 printk("%spcpu=
+-alloc:", lvl);
 
-I really did mean that (although not the double "union" + "_t" thing
-for the typedef).
+So I hate this kind of "mindless search-and-replace" patch.
 
-But I'm not going to claim that it has to be done exactly that way,
-the union can certainly be encapsulated differently too.
+The whole point is that with the modern printk semantics, the above
+kind of crazy cdoe shouldn't be needed. You should be able to just
+write
 
-So I'm ok with your alternative
+     printk("%spcpu-alloc:", lvl);
 
-> =A0 =A0 =A0 =A0typedef union {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0const char __user *const __user *native;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0compat_uptr_t __user *compat;
-> =A0 =A0 =A0 =A0} conditional_user_ptr_t;
+without that "\n" at all, because printk() will insert the \n if
+necessary. So the concept of
 
-model instead, which moves the pointer into the union.
+    printk(KERN_CONT "\n")
 
-However, if you do this, then I have one more suggestion: just move
-the "compat" flag in there too!
+is just crazy: you're saying "I want to continue the line, in order to
+print a newline". Whaa?
 
-Every time you pass the union, you're going to pass the compat flag to
-distinguish the cases. So do it like this:
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 printk("[%0*d] ", group_width,=
+ group);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 printk(KERN_CONT " [%0*d]", gr=
+oup_width, group);
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 printk("%0*d ", cpu_width,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 printk(KERN_CONT " %0*d", cpu_width,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 printk("%s ", empty_str);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 printk(KERN_CONT " %s", empty_str);
 
-  struct conditional_ptr {
-    int is_compat;
-    union {
-      const char __user *const __user *native;
-      compat_uptr_t __user *compat;
-    };
-  };
+These look ok, but:
 
-and it will all look much cleaner, I bet.
+>> - =A0 =A0 printk("\n");
+>> + =A0 =A0 printk(KERN_CONT "\n");
 
-                        Linus
+Same deal. Why do KERN_CONT + "\n"?
+
+Yes, yes, it does have semantic meaning ("do newline _now_"), and can
+matter if you are going to use KERN_CONT exclusively around it. But it
+still smells like just being silly to me. The point of the printk
+changes was to make things simpler. I really would suggest just
+removing those KERN_CONT "\n" lines. Doesn't it end up looking fine
+that way too?
+
+                     Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
