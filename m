@@ -1,89 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 94FAC8D003C
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 03:02:40 -0500 (EST)
-Message-ID: <4D6CA85B.5030107@cn.fujitsu.com>
-Date: Tue, 01 Mar 2011 16:03:39 +0800
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: [PATCH 3/4] slab,rcu: don't assume the size of struct rcu_head
+	by kanga.kvack.org (Postfix) with SMTP id DC37D8D003C
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 03:16:02 -0500 (EST)
+Date: Tue, 01 Mar 2011 00:16:38 -0800 (PST)
+Message-Id: <20110301.001638.104075130.davem@davemloft.net>
+Subject: Re: [PATCH 4/4] net,rcu: don't assume the size of struct rcu_head
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <4D6CA860.3020409@cn.fujitsu.com>
+References: <4D6CA860.3020409@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: laijs@cn.fujitsu.com
+Cc: mingo@elte.hu, paulmck@linux.vnet.ibm.com, cl@linux-foundation.org, penberg@kernel.org, eric.dumazet@gmail.com, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Date: Tue, 01 Mar 2011 16:03:44 +0800
 
-The size of struct rcu_head may be changed. When it becomes larger,
-it may pollute the data after struct slab.
+> 
+> struct dst_entry assumes the size of struct rcu_head as 2 * sizeof(long)
+> and manually adds pads for aligning for "__refcnt".
+> 
+> When the size of struct rcu_head is changed, these manual padding
+> is wrong. Use __attribute__((aligned (64))) instead.
+> 
+> Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
----
-diff --git a/mm/slab.c b/mm/slab.c
-index 37961d1..52cf0b4 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -191,22 +191,6 @@ typedef unsigned int kmem_bufctl_t;
- #define	SLAB_LIMIT	(((kmem_bufctl_t)(~0U))-3)
- 
- /*
-- * struct slab
-- *
-- * Manages the objs in a slab. Placed either at the beginning of mem allocated
-- * for a slab, or allocated from an general cache.
-- * Slabs are chained into three list: fully used, partial, fully free slabs.
-- */
--struct slab {
--	struct list_head list;
--	unsigned long colouroff;
--	void *s_mem;		/* including colour offset */
--	unsigned int inuse;	/* num of objs active in slab */
--	kmem_bufctl_t free;
--	unsigned short nodeid;
--};
--
--/*
-  * struct slab_rcu
-  *
-  * slab_destroy on a SLAB_DESTROY_BY_RCU cache uses this structure to
-@@ -219,8 +203,6 @@ struct slab {
-  *
-  * rcu_read_lock before reading the address, then rcu_read_unlock after
-  * taking the spinlock within the structure expected at that address.
-- *
-- * We assume struct slab_rcu can overlay struct slab when destroying.
-  */
- struct slab_rcu {
- 	struct rcu_head head;
-@@ -229,6 +211,27 @@ struct slab_rcu {
- };
- 
- /*
-+ * struct slab
-+ *
-+ * Manages the objs in a slab. Placed either at the beginning of mem allocated
-+ * for a slab, or allocated from an general cache.
-+ * Slabs are chained into three list: fully used, partial, fully free slabs.
-+ */
-+struct slab {
-+	union {
-+		struct {
-+			struct list_head list;
-+			unsigned long colouroff;
-+			void *s_mem;		/* including colour offset */
-+			unsigned int inuse;	/* num of objs active in slab */
-+			kmem_bufctl_t free;
-+			unsigned short nodeid;
-+		};
-+		struct slab_rcu __slab_cover_slab_rcu;
-+	};
-+};
-+
-+/*
-  * struct array_cache
-  *
-  * Purpose:
+We don't want to use the align if it's going to waste lots of space.
+
+Instead we want to rearrange the structure so that the alignment comes
+more cheaply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
