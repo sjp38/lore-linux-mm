@@ -1,102 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 125E78D0039
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 14:10:06 -0500 (EST)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id p21JA1xt013164
-	for <linux-mm@kvack.org>; Tue, 1 Mar 2011 11:10:01 -0800
-Received: from pwj8 (pwj8.prod.google.com [10.241.219.72])
-	by kpbe12.cbf.corp.google.com with ESMTP id p21J9YGI009055
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 1 Mar 2011 11:09:58 -0800
-Received: by pwj8 with SMTP id 8so1255553pwj.41
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2011 11:09:34 -0800 (PST)
-Date: Tue, 1 Mar 2011 11:09:30 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] oom: prevent unnecessary oom kills or kernel panics
-Message-ID: <alpine.DEB.2.00.1103011108400.28110@chino.kir.corp.google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1A2DA8D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 15:56:17 -0500 (EST)
+Date: Tue, 1 Mar 2011 21:47:39 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: [PATCH v2 0/5] exec: unify native/compat code
+Message-ID: <20110301204739.GA30406@redhat.com>
+References: <20101130200129.GG11905@redhat.com> <compat-not-unlikely@mdm.bga.com> <20101201182747.GB6143@redhat.com> <20110225175202.GA19059@redhat.com> <20110225175314.GD19059@redhat.com> <AANLkTik8epq5cx8n=k6ocMUfbg9kkUAZ8KL7ZiG4UuoU@mail.gmail.com> <20110226123731.GC4416@redhat.com> <AANLkTinFVCR_znYtyVuJcjFQq_fgMp+ozbSz54UKzvQ_@mail.gmail.com> <20110226174408.GA17442@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110226174408.GA17442@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>, Milton Miller <miltonm@bga.com>
 
-This patch revents unnecessary oom kills or kernel panics by reverting
-two commits:
+On 02/26, Oleg Nesterov wrote:
+>
+> On 02/26, Linus Torvalds wrote:
+> >
+> > See? The advantage of the union is that the types are correct, which
+> > means that the casts are unnecessary.
+>
+> My point was, apart from the trivial get_arg_ptr() helper, nobody else
+> uses this argv/envp, so I thought it is OK to drop the type info and
+> use "void *".
+>
+> But as I said, I won't insist. I'll redo/resend.
 
-	495789a5 (oom: make oom_score to per-process value)
-	cef1d352 (oom: multi threaded process coredump don't make deadlock)
+Well, yes... But it turns out I didn't actually read what you proposed.
 
-First, 495789a5 (oom: make oom_score to per-process value) ignores the
-fact that all threads in a thread group do not necessarily exit at the
-same time.
+	typedef union {
+		compat_uptr_t compat;
+		const char __user *native;
+	} conditional_user_ptr_t;
 
-It is imperative that select_bad_process() detect threads that are in the
-exit path, specifically those with PF_EXITING set, to prevent needlessly
-killing additional tasks.  If a process is oom killed and the thread
-group leader exits, select_bad_process() cannot detect the other threads
-that are PF_EXITING by iterating over only processes.  Thus, it currently
-chooses another task unnecessarily for oom kill or panics the machine
-when nothing else is eligible.
+	...
 
-By iterating over threads instead, it is possible to detect threads that
-are exiting and nominate them for oom kill so they get access to memory
-reserves.
+	where that 'do_execve_common()' takes it's arguments as
 
-Second, cef1d352 (oom: multi threaded process coredump don't make
-deadlock) erroneously avoids making the oom killer a no-op when an
-eligible thread other than current isfound to be exiting.  We want to
-detect this situation so that we may allow that exiting thread time to
-exit and free its memory; if it is able to exit on its own, that should
-free memory so current is no loner oom.  If it is not able to exit on its
-own, the oom killer will nominate it for oom kill which, in this case,
-only means it will get access to memory reserves.
+		union conditional_user_ptr_t __user *argv,
+		union conditional_user_ptr_t __user *envp
 
-Without this change, it is easy for the oom killer to unnecessarily
-target tasks when all threads of a victim don't exit before the thread
-group leader or, in the worst case, panic the machine.
+I hope you didn't really mean this...
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c |    8 ++++----
- 1 files changed, 4 insertions(+), 4 deletions(-)
+OK, we have two kinds of pointers, the union makes sense. But I think
+we do not want the 3rd kind, pointer to the union. This can't help to
+avoid the casts. Yes, get_arg_ptr() can do
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -292,11 +292,11 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 		unsigned long totalpages, struct mem_cgroup *mem,
- 		const nodemask_t *nodemask)
- {
--	struct task_struct *p;
-+	struct task_struct *g, *p;
- 	struct task_struct *chosen = NULL;
- 	*ppoints = 0;
- 
--	for_each_process(p) {
-+	do_each_thread(g, p) {
- 		unsigned int points;
- 
- 		if (oom_unkillable_task(p, mem, nodemask))
-@@ -324,7 +324,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 		 * the process of exiting and releasing its resources.
- 		 * Otherwise we could get an easy OOM deadlock.
- 		 */
--		if (thread_group_empty(p) && (p->flags & PF_EXITING) && p->mm) {
-+		if ((p->flags & PF_EXITING) && p->mm) {
- 			if (p != current)
- 				return ERR_PTR(-1UL);
- 
-@@ -337,7 +337,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 			chosen = p;
- 			*ppoints = points;
- 		}
--	}
-+	} while_each_thread(g, p);
- 
- 	return chosen;
- }
+	&argv->native
+
+but this still means the cast even if looks differently (and tricky).
+
+And. How can we pass "argv" from do_execve() to do_execve_common() ?
+We need another cast.
+
+So. If you insist you prefer the pointer to the union - no need to
+convince me. Just say this and I'll redo again.
+
+This patch does:
+
+	typedef union {
+		const char __user *const __user *native;
+		compat_uptr_t __user *compat;
+	} conditional_user_ptr_t;
+
+	static int do_execve_common(const char *filename,
+			conditional_user_ptr_t argv,
+			conditional_user_ptr_t envp,
+			struct pt_regs *regs, bool compat)
+
+get_arg_ptr() does argv.native/compat, this looks more understandable.
+
+Do you agree?
+
+copy_strings_kernel() still needs the cast, but this is only because
+we want to add "__user" for annotation.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
