@@ -1,64 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 762AF8D0039
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 11:28:12 -0500 (EST)
-Date: Tue, 1 Mar 2011 11:27:53 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 0/3] blk-throttle: async write throttling
-Message-ID: <20110301162753.GB2539@redhat.com>
-References: <1298888105-3778-1-git-send-email-arighi@develer.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 901968D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 13:21:00 -0500 (EST)
+Received: by vws13 with SMTP id 13so5992947vws.14
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2011 10:20:57 -0800 (PST)
+Date: Tue, 1 Mar 2011 13:20:51 -0500
+From: Eric B Munson <emunson@mgebm.net>
+Subject: Re: [PATCH 00/24] Refactor sys_swapon
+Message-ID: <20110301182051.GB3664@mgebm.net>
+References: <4D56D5F9.8000609@cesarb.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="p4qYPpj5QlsIQJ0K"
 Content-Disposition: inline
-In-Reply-To: <1298888105-3778-1-git-send-email-arighi@develer.com>
+In-Reply-To: <4D56D5F9.8000609@cesarb.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Righi <arighi@develer.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Gui Jianfeng <guijianfeng@cn.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, Hirokazu Takahashi <taka@valinux.co.jp>, Jens Axboe <axboe@kernel.dk>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
-On Mon, Feb 28, 2011 at 11:15:02AM +0100, Andrea Righi wrote:
-
-[..]
-> TODO
-> ~~~~
->  - Consider to add the following new files in the blkio controller to allow the
->    user to explicitly limit async writes as well as sync writes:
-> 
->    blkio.throttle.async.write_bps_limit
->    blkio.throttle.async.write_iops_limit
-
-I am kind of split on this.
-
-- One way of thinking is that blkio.throttle.read/write_limits represent
-  the limits on requeuest queue of the IO which is actually passing
-  through queue now. So we should not mix the two and keep async limits
-  separately. This will also tell the customer explicitly that async
-  throttling does not mean the same thing as throttling happens before
-  entering the page cache and there can be/will be IO spikes later
-  at the request queue.
-
-  Also creating the separate files leaves the door open for future
-  extension of implementing async control when async IO is actually
-  submitted to request queue. (Though I think that will be hard as
-  making sure all the filesystems, writeback logic, device mapper
-  drivers are aware of throttling and will take steps to ensure faster
-  groups are not stuck behind slower groups).
-
- So keeping async accounting separate will help differentiating that
- async control is not same as sync control. There are fundamental
- differences.
+To: Cesar Eduardo Barros <cesarb@cesarb.net>
+Cc: linux-mm@kvack.org
 
 
-- On the other hand, it makes life a bit simple for user as they don't
-  have to specify the async limits separately and there is one aggregate
-  limit for sync and async (assuming we fix the throttling state issues
-  so that throttling logic can handle both bio and task throttling out
-  of single limit).
+--p4qYPpj5QlsIQJ0K
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Any thoughts?
+On Sat, 12 Feb 2011, Cesar Eduardo Barros wrote:
 
-Thanks
-Vivek
+> This patch series refactors the sys_swapon function.
+>=20
+> sys_swapon is currently a very large function, with 313 lines (more
+> than 12 25-line screens), which can make it a bit hard to read. This
+> patch series reduces this size by half, by extracting large chunks
+> of related code to new helper functions.
+>=20
+> One of these chunks of code was nearly identical to the part of
+> sys_swapoff which is used in case of a failure return from
+> try_to_unuse(), so this patch series also makes both share the same
+> code.
+>=20
+> As a side effect of all this refactoring, the compiled code gets a
+> bit smaller:
+>=20
+>    text	   data	    bss	    dec	    hex	filename
+>   14012	    944	    276	  15232	   3b80	mm/swapfile.o.before
+>   13941	    944	    276	  15161	   3b39	mm/swapfile.o.after
+>=20
+> Lightly tested on a x86_64 VM.
+
+I have been working on reviewing/testing this set and I cannot get it
+to apply to Linus' tree, what is this set based on?
+
+Thanks,
+Eric
+
+--p4qYPpj5QlsIQJ0K
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iQEcBAEBAgAGBQJNbTkDAAoJEH65iIruGRnN6nQIAKuR1EfmOjtoYqJQNsfvDAKW
+bg/59MtKx+qIWnwG5UIbTbsRmDYBajmlEc6PzhD3IjaL7ZmwHgfdB2c+RKJllQQR
+PV7sVRFMG5c5UY7uBPc6smyUCUrUO4kfJIbJRMbh45aIvyMJMnsdJzHqL3d89zpn
+cXf+QRot6vmQ791XfYmMeWn7w8TBa5rjchjQ+qutvSiUKpRJ1hajvacSPSlVcC97
+rSgTBqZCVnssIKozMrryzsIwozr9VMtwly4aYC97FRnGOkdxL/JQif6iey0CLI82
+Jh9EAOyNLNO2cOO/fcQiqQY4xGBD3YsXJS6AhMpCjh9so1USt66HpimjN14CxqM=
+=49ML
+-----END PGP SIGNATURE-----
+
+--p4qYPpj5QlsIQJ0K--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
