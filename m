@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0029B8D003E
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 18:29:03 -0500 (EST)
+	by kanga.kvack.org (Postfix) with ESMTP id 1CF878D004E
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 18:29:04 -0500 (EST)
 From: Cesar Eduardo Barros <cesarb@cesarb.net>
-Subject: [PATCHv2 20/24] sys_swapon: simplify error flow in setup_swap_map_and_extents
-Date: Tue,  1 Mar 2011 20:28:44 -0300
-Message-Id: <1299022128-6239-21-git-send-email-cesarb@cesarb.net>
+Subject: [PATCHv2 22/24] sys_swapon: move printk outside lock
+Date: Tue,  1 Mar 2011 20:28:46 -0300
+Message-Id: <1299022128-6239-23-git-send-email-cesarb@cesarb.net>
 In-Reply-To: <1299022128-6239-1-git-send-email-cesarb@cesarb.net>
 References: <4D6D7FEA.80800@cesarb.net>
  <1299022128-6239-1-git-send-email-cesarb@cesarb.net>
@@ -14,65 +14,50 @@ List-ID: <linux-mm.kvack.org>
 To: Eric B Munson <emunson@mgebm.net>
 Cc: linux-mm@kvack.org, Cesar Eduardo Barros <cesarb@cesarb.net>
 
-Since there is no cleanup to do, there is no reason to jump to a label.
-Return directly instead.
+The block in sys_swapon which does the final adjustments to the
+swap_info_struct and to swap_list is the same as the block which
+re-inserts it again at sys_swapoff on failure of try_to_unuse(). To be
+able to make both share the same code, move the printk() call in the
+middle of it to just after it.
 
 Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 ---
- mm/swapfile.c |   19 +++++--------------
- 1 files changed, 5 insertions(+), 14 deletions(-)
+ mm/swapfile.c |   15 ++++++++-------
+ 1 files changed, 8 insertions(+), 7 deletions(-)
 
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 26eb84a..5f6df81 100644
+index 369816d..33f9102 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -1998,7 +1998,6 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
- 					sector_t *span)
- {
- 	int i;
--	int error;
- 	unsigned int nr_good_pages;
- 	int nr_extents;
+@@ -2144,13 +2144,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 	nr_swap_pages += p->pages;
+ 	total_swap_pages += p->pages;
  
-@@ -2006,10 +2005,8 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
- 
- 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
- 		unsigned int page_nr = swap_header->info.badpages[i];
--		if (page_nr == 0 || page_nr > swap_header->info.last_page) {
--			error = -EINVAL;
--			goto bad_swap;
--		}
-+		if (page_nr == 0 || page_nr > swap_header->info.last_page)
-+			return -EINVAL;
- 		if (page_nr < maxpages) {
- 			swap_map[page_nr] = SWAP_MAP_BAD;
- 			nr_good_pages--;
-@@ -2021,22 +2018,16 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
- 		p->max = maxpages;
- 		p->pages = nr_good_pages;
- 		nr_extents = setup_swap_extents(p, span);
--		if (nr_extents < 0) {
--			error = nr_extents;
--			goto bad_swap;
--		}
-+		if (nr_extents < 0)
-+			return nr_extents;
- 		nr_good_pages = p->pages;
- 	}
- 	if (!nr_good_pages) {
- 		printk(KERN_WARNING "Empty swap-file\n");
--		error = -EINVAL;
--		goto bad_swap;
-+		return -EINVAL;
- 	}
- 
- 	return nr_extents;
+-	printk(KERN_INFO "Adding %uk swap on %s.  "
+-			"Priority:%d extents:%d across:%lluk %s%s\n",
+-		p->pages<<(PAGE_SHIFT-10), name, p->prio,
+-		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10),
+-		(p->flags & SWP_SOLIDSTATE) ? "SS" : "",
+-		(p->flags & SWP_DISCARDABLE) ? "D" : "");
 -
--bad_swap:
--	return error;
- }
- 
- SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 	/* insert swap space into swap_list: */
+ 	prev = -1;
+ 	for (i = swap_list.head; i >= 0; i = swap_info[i]->next) {
+@@ -2164,6 +2157,14 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 	else
+ 		swap_info[prev]->next = p->type;
+ 	spin_unlock(&swap_lock);
++
++	printk(KERN_INFO "Adding %uk swap on %s.  "
++			"Priority:%d extents:%d across:%lluk %s%s\n",
++		p->pages<<(PAGE_SHIFT-10), name, p->prio,
++		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10),
++		(p->flags & SWP_SOLIDSTATE) ? "SS" : "",
++		(p->flags & SWP_DISCARDABLE) ? "D" : "");
++
+ 	mutex_unlock(&swapon_mutex);
+ 	atomic_inc(&proc_poll_event);
+ 	wake_up_interruptible(&proc_poll_wait);
 -- 
 1.7.4
 
