@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E42F98D004A
+	by kanga.kvack.org (Postfix) with ESMTP id 89C658D0041
 	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 18:29:02 -0500 (EST)
 From: Cesar Eduardo Barros <cesarb@cesarb.net>
-Subject: [PATCHv2 09/24] sys_swapon: remove did_down variable
-Date: Tue,  1 Mar 2011 20:28:33 -0300
-Message-Id: <1299022128-6239-10-git-send-email-cesarb@cesarb.net>
+Subject: [PATCHv2 15/24] sys_swapon: move setting of swapfilepages near use
+Date: Tue,  1 Mar 2011 20:28:39 -0300
+Message-Id: <1299022128-6239-16-git-send-email-cesarb@cesarb.net>
 In-Reply-To: <1299022128-6239-1-git-send-email-cesarb@cesarb.net>
 References: <4D6D7FEA.80800@cesarb.net>
  <1299022128-6239-1-git-send-email-cesarb@cesarb.net>
@@ -14,45 +14,36 @@ List-ID: <linux-mm.kvack.org>
 To: Eric B Munson <emunson@mgebm.net>
 Cc: linux-mm@kvack.org, Cesar Eduardo Barros <cesarb@cesarb.net>
 
-Since mutex_lock(&inode->i_mutex) is called just after setting inode,
-did_down is always equivalent to (inode && S_ISREG(inode->i_mode)).
-
-Use this fact to remove the did_down variable.
+There is no reason I can see to read inode->i_size long before it is
+needed. Move its read to just before it is needed, to reduce the
+variable lifetime.
 
 Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 ---
- mm/swapfile.c |    4 +---
- 1 files changed, 1 insertions(+), 3 deletions(-)
+ mm/swapfile.c |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
 
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 55a50ef..c655389 100644
+index 058cf1b..f3f413b 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -1907,7 +1907,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	unsigned char *swap_map = NULL;
- 	struct page *page = NULL;
- 	struct inode *inode = NULL;
--	int did_down = 0;
+@@ -1975,8 +1975,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 	if (unlikely(error))
+ 		goto bad_swap;
  
- 	if (!capable(CAP_SYS_ADMIN))
- 		return -EPERM;
-@@ -1962,7 +1961,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	} else if (S_ISREG(inode->i_mode)) {
- 		p->bdev = inode->i_sb->s_bdev;
- 		mutex_lock(&inode->i_mutex);
--		did_down = 1;
- 		if (IS_SWAPFILE(inode)) {
- 			error = -EBUSY;
- 			goto bad_swap;
-@@ -2163,7 +2161,7 @@ out:
- 	}
- 	if (name)
- 		putname(name);
--	if (did_down) {
-+	if (inode && S_ISREG(inode->i_mode)) {
- 		if (!error)
- 			inode->i_flags |= S_SWAPFILE;
- 		mutex_unlock(&inode->i_mutex);
+-	swapfilepages = i_size_read(inode) >> PAGE_SHIFT;
+-
+ 	/*
+ 	 * Read the swap header.
+ 	 */
+@@ -2045,6 +2043,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 	error = -EINVAL;
+ 	if (!maxpages)
+ 		goto bad_swap;
++	swapfilepages = i_size_read(inode) >> PAGE_SHIFT;
+ 	if (swapfilepages && maxpages > swapfilepages) {
+ 		printk(KERN_WARNING
+ 		       "Swap area shorter than signature indicates\n");
 -- 
 1.7.4
 
