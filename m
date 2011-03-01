@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9F7B48D003C
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 03:02:31 -0500 (EST)
-Message-ID: <4D6CA852.3060303@cn.fujitsu.com>
-Date: Tue, 01 Mar 2011 16:03:30 +0800
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 94FAC8D003C
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 03:02:40 -0500 (EST)
+Message-ID: <4D6CA85B.5030107@cn.fujitsu.com>
+Date: Tue, 01 Mar 2011 16:03:39 +0800
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH 2/4] slub,rcu: don't assume the size of struct rcu_head
+Subject: [PATCH 3/4] slab,rcu: don't assume the size of struct rcu_head
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -16,74 +16,74 @@ Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux
 
 
 The size of struct rcu_head may be changed. When it becomes larger,
-it will pollute the page array.
-
-We reserve some some bytes for struct rcu_head when a slab
-is allocated in this situation.
+it may pollute the data after struct slab.
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 ---
- slub.c |   30 +++++++++++++++++++++++++-----
- 1 file changed, 25 insertions(+), 5 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index ad545b2..ceb135a 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1254,21 +1254,38 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 	__free_pages(page, order);
- }
+diff --git a/mm/slab.c b/mm/slab.c
+index 37961d1..52cf0b4 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -191,22 +191,6 @@ typedef unsigned int kmem_bufctl_t;
+ #define	SLAB_LIMIT	(((kmem_bufctl_t)(~0U))-3)
  
-+#define need_reserve_slab_rcu						\
-+	(sizeof(((struct page *)NULL)->lru) < sizeof(struct rcu_head))
-+
- static void rcu_free_slab(struct rcu_head *h)
- {
- 	struct page *page;
+ /*
+- * struct slab
+- *
+- * Manages the objs in a slab. Placed either at the beginning of mem allocated
+- * for a slab, or allocated from an general cache.
+- * Slabs are chained into three list: fully used, partial, fully free slabs.
+- */
+-struct slab {
+-	struct list_head list;
+-	unsigned long colouroff;
+-	void *s_mem;		/* including colour offset */
+-	unsigned int inuse;	/* num of objs active in slab */
+-	kmem_bufctl_t free;
+-	unsigned short nodeid;
+-};
+-
+-/*
+  * struct slab_rcu
+  *
+  * slab_destroy on a SLAB_DESTROY_BY_RCU cache uses this structure to
+@@ -219,8 +203,6 @@ struct slab {
+  *
+  * rcu_read_lock before reading the address, then rcu_read_unlock after
+  * taking the spinlock within the structure expected at that address.
+- *
+- * We assume struct slab_rcu can overlay struct slab when destroying.
+  */
+ struct slab_rcu {
+ 	struct rcu_head head;
+@@ -229,6 +211,27 @@ struct slab_rcu {
+ };
  
--	page = container_of((struct list_head *)h, struct page, lru);
-+	if (need_reserve_slab_rcu)
-+		page = virt_to_head_page(h);
-+	else
-+		page = container_of((struct list_head *)h, struct page, lru);
+ /*
++ * struct slab
++ *
++ * Manages the objs in a slab. Placed either at the beginning of mem allocated
++ * for a slab, or allocated from an general cache.
++ * Slabs are chained into three list: fully used, partial, fully free slabs.
++ */
++struct slab {
++	union {
++		struct {
++			struct list_head list;
++			unsigned long colouroff;
++			void *s_mem;		/* including colour offset */
++			unsigned int inuse;	/* num of objs active in slab */
++			kmem_bufctl_t free;
++			unsigned short nodeid;
++		};
++		struct slab_rcu __slab_cover_slab_rcu;
++	};
++};
 +
- 	__free_slab(page->slab, page);
- }
- 
- static void free_slab(struct kmem_cache *s, struct page *page)
- {
- 	if (unlikely(s->flags & SLAB_DESTROY_BY_RCU)) {
--		/*
--		 * RCU free overloads the RCU head over the LRU
--		 */
--		struct rcu_head *head = (void *)&page->lru;
-+		struct rcu_head *head;
-+
-+		if (need_reserve_slab_rcu) {
-+			int order = compound_order(page);
-+			int offset = (PAGE_SIZE << order) - s->reserved;
-+
-+			BUG_ON(s->reserved != sizeof(*head));
-+			head = page_address(page) + offset;
-+		} else {
-+			/*
-+			 * RCU free overloads the RCU head over the LRU
-+			 */
-+			head = (void *)&page->lru;
-+		}
- 
- 		call_rcu(head, rcu_free_slab);
- 	} else
-@@ -2356,6 +2373,9 @@ static int kmem_cache_open(struct kmem_cache *s,
- 	s->flags = kmem_cache_flags(size, flags, name, ctor);
- 	s->reserved = 0;
- 
-+	if (need_reserve_slab_rcu && (s->flags & SLAB_DESTROY_BY_RCU))
-+		s->reserved = sizeof(struct rcu_head);
-+
- 	if (!calculate_sizes(s, -1))
- 		goto error;
- 	if (disable_higher_order_debug) {
++/*
+  * struct array_cache
+  *
+  * Purpose:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
