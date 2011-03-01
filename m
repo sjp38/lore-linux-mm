@@ -1,62 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BE82F8D0039
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 18:10:41 -0500 (EST)
-Received: by iyf13 with SMTP id 13so5873432iyf.14
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2011 15:10:40 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 576888D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 18:23:28 -0500 (EST)
+Message-ID: <4D6D7FEA.80800@cesarb.net>
+Date: Tue, 01 Mar 2011 20:23:22 -0300
+From: Cesar Eduardo Barros <cesarb@cesarb.net>
 MIME-Version: 1.0
-In-Reply-To: <20110301223954.GI19057@random.random>
-References: <20110228222138.GP22700@random.random>
-	<AANLkTingkWo6dx=0sGdmz9qNp+_TrQnKXnmASwD8LhV4@mail.gmail.com>
-	<20110301223954.GI19057@random.random>
-Date: Wed, 2 Mar 2011 08:10:35 +0900
-Message-ID: <AANLkTim7tcPTxG9hyFiSnQ7rqfMdoUhL1wrmqNAXAvEK@mail.gmail.com>
-Subject: Re: [PATCH] remove compaction from kswapd
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 00/24] Refactor sys_swapon
+References: <4D56D5F9.8000609@cesarb.net> <20110301182051.GB3664@mgebm.net>
+In-Reply-To: <20110301182051.GB3664@mgebm.net>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org
+To: Eric B Munson <emunson@mgebm.net>
+Cc: linux-mm@kvack.org
 
-On Wed, Mar 2, 2011 at 7:39 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> On Wed, Mar 02, 2011 at 07:33:13AM +0900, Minchan Kim wrote:
->> Sorry for bothering you but I think you get the data.
->> It helps someone in future very much to know why we determined to
->> remove the feature at that time and they should do what kinds of
->> experiment to prove it has a benefit to add compaction in kswapd
->> again.
+Em 01-03-2011 15:20, Eric B Munson escreveu:
+> On Sat, 12 Feb 2011, Cesar Eduardo Barros wrote:
 >
-> This is a benchmark I'm unsure if it's ok to publish results but it
-> should be possible to simulate it with a device driver.
+>> This patch series refactors the sys_swapon function.
 >
-> Arthur provided kswapd load usage data too, so I hope that's enough.
->
-> My other patch (compaction-kswapd-3) is way better than current logic
-> and retains compaction in kswapd. That shows slightly higher
-> kswapd utilization with Arthur's multimedia workload, and a bit worse
-> performance on the network benchmark. So I thought it was better to go
-> with the fastest potion as long as we don't have a logic that uses
-> compaction and shows improved performance and lower latency than with
-> no compaction at all in kswapd.
->
+> I have been working on reviewing/testing this set and I cannot get it
+> to apply to Linus' tree, what is this set based on?
 
-I didn't notice Arthur's problem.
-The patch seems to fix a real problem so I think it's enough.
-I wished you wrote down the link url about Arthur on LKML.
+According to the git tree from which I generated these patches, it was 
+based on v2.6.38-rc4.
 
-You can remove compact_mode of compact_control.
-Otherwise, looks good to me.
+Commit 8074b26 (mm: fix refcounting in swapon) is what probably is 
+causing you conflicts. I was planning to rebase and repost this patch 
+series this weekend because of it.
 
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-
-Thanks,
-
-
+I just did a quick rebase to Linus' current tree, and will post the 
+whole set as a reply to this email. I have not even compile tested it, 
+but the change is so small that, unless I made a typo when fixing the 
+merge conflicts, it should work the same. The patches affected are 08 
+(context only), 10, and 13.
 
 -- 
-Kind regards,
-Minchan Kim
+Cesar Eduardo Barros
+cesarb@cesarb.net
+cesar.barros@gmail.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
