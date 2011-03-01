@@ -1,62 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F79D8D0039
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 10:30:24 -0500 (EST)
-Received: by pxi9 with SMTP id 9so1207580pxi.14
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2011 07:30:22 -0800 (PST)
-Message-Id: <43A4FBC4-6A1C-4BD8-9F0C-23C0DBA2E35D@gmail.com>
-From: Justin Mattock <justinmattock@gmail.com>
-In-Reply-To: <alpine.LNX.2.00.1103011507120.32580@pobox.suse.cz>
-Content-Type: text/plain; charset=US-ASCII; format=flowed; delsp=yes
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0 (Apple Message framework v936)
-Subject: Re: [PATCH 00/00]Remove one to many n's in a word.
-Date: Tue, 1 Mar 2011 07:30:19 -0800
-References: <1298781250-2718-1-git-send-email-justinmattock@gmail.com> <1298781250-2718-17-git-send-email-justinmattock@gmail.com> <alpine.LNX.2.00.1103011507120.32580@pobox.suse.cz>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 561FA8D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 10:37:13 -0500 (EST)
+Received: by yxt33 with SMTP id 33so2599785yxt.14
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2011 07:37:11 -0800 (PST)
+Date: Wed, 2 Mar 2011 00:35:58 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 2/2] mm: compaction: Minimise the time IRQs are
+ disabled while isolating pages for migration
+Message-ID: <20110301153558.GA2031@barrios-desktop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <jkosina@suse.cz>
-Cc: linux-kernel@vger.kernel.org, Vinod Koul <vinod.koul@intel.com>, Dan Williams <dan.j.williams@intel.com>, Wim Van Sebroeck <wim@iguana.be>, linux-watchdog@vger.kernel.org, Greg Kroah-Hartman <gregkh@suse.de>, Alan Stern <stern@rowland.harvard.edu>, linux-usb@vger.kernel.org, Chris Mason <chris.mason@oracle.com>, Eric Paris <eparis@redhat.com>, John McCutchan <john@johnmccutchan.com>, Robert Love <rlove@rlove.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arthur Marsh <arthur.marsh@internode.on.net>, Clemens Ladisch <cladisch@googlemail.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+
+On Tue, Mar 01, 2011 at 01:49:25PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Tue, 1 Mar 2011 13:11:46 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+> 
+> > On Tue, Mar 01, 2011 at 08:42:09AM +0900, KAMEZAWA Hiroyuki wrote:
+> > > On Mon, 28 Feb 2011 10:18:27 +0000
+> > > Mel Gorman <mel@csn.ul.ie> wrote:
+> > > 
+> > > > > BTW, can't we drop disable_irq() from all lru_lock related codes ?
+> > > > > 
+> > > > 
+> > > > I don't think so - at least not right now. Some LRU operations such as LRU
+> > > > pagevec draining are run from IPI which is running from an interrupt so
+> > > > minimally spin_lock_irq is necessary.
+> > > > 
+> > > 
+> > > pagevec draining is done by workqueue(schedule_on_each_cpu()). 
+> > > I think only racy case is just lru rotation after writeback.
+> > 
+> > put_page still need irq disable.
+> > 
+> 
+> Aha..ok. put_page() removes a page from LRU via __page_cache_release().
+> Then, we may need to remove a page from LRU under irq context.
+> Hmm...
+
+But as __page_cache_release's comment said, normally vm doesn't release page in
+irq context. so it would be rare.
+If we can remove it, could we change all of spin_lock_irqsave with spin_lock?
+If it is right, I think it's very desirable to reduce irq latency.
+
+How about this? It's totally a quick implementation and untested. 
+I just want to hear opinions of you guys if the work is valuable or not before
+going ahead.
+
+== CUT_HERE ==
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index c71c487..5d17de6 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1353,7 +1353,7 @@ extern void si_meminfo_node(struct sysinfo *val, int nid);
+ extern int after_bootmem;
+ 
+ extern void setup_per_cpu_pageset(void);
+-
++extern void setup_per_cpu_defer_free_pages(void);
+ extern void zone_pcp_update(struct zone *zone);
+ 
+ /* nommu.c */
+diff --git a/init/main.c b/init/main.c
+index 3627bb3..9c35fad 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -583,6 +583,7 @@ asmlinkage void __init start_kernel(void)
+ 	kmemleak_init();
+ 	debug_objects_mem_init();
+ 	setup_per_cpu_pageset();
++	setup_per_cpu_defer_free_pages();
+ 	numa_policy_init();
+ 	if (late_time_init)
+ 		late_time_init();
+diff --git a/mm/swap.c b/mm/swap.c
+index 1b9e4eb..62a9f3b 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -37,10 +37,23 @@
+ /* How many pages do we try to swap or page in/out together? */
+ int page_cluster;
+ 
++/*
++ * This structure is to free pages which are deallocated
++ * by interrupt context for reducing irq disable time.
++ */
++#define DEFER_FREE_PAGES_THRESH_HOLD	32
++struct defer_free_pages_pcp {
++	struct page *next;
++	unsigned long count;
++	struct work_struct work;
++};
++
++static DEFINE_PER_CPU(struct defer_free_pages_pcp, defer_free_pages);
+ static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
+ static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
+ static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
+ 
++static void __put_single_page(struct page *page);
+ /*
+  * This path almost never happens for VM activity - pages are normally
+  * freed via pagevecs.  But it gets used by networking.
+@@ -59,10 +72,76 @@ static void __page_cache_release(struct page *page)
+ 	}
+ }
+ 
++void init_defer_free_pages(struct defer_free_pages_pcp *free_pages)
++{
++	free_pages->count = 0;
++	free_pages->next = NULL;
++}
++
++static void drain_cpu_defer_free_pages(int cpu)
++{
++	struct page *page;
++	struct defer_free_pages_pcp *free_pages = &per_cpu(defer_free_pages, cpu);
++	local_irq_disable();
++	while((page = free_pages->next)) {
++		free_pages->next = (struct page*)page_private(page);
++		__put_single_page(page);
++		free_pages->count--;
++	}
++	local_irq_enable();
++}
++
++static void defer_free_pages_drain(struct work_struct *dummy)
++{
++	drain_cpu_defer_free_pages(get_cpu());
++	put_cpu();
++}
++
++void __init setup_per_cpu_defer_free_pages(void)
++{
++	int cpu;
++	struct defer_free_pages_pcp *free_pages;
++
++	get_online_cpus();
++	for_each_online_cpu(cpu) {
++		free_pages = &per_cpu(defer_free_pages, cpu);
++		INIT_WORK(&free_pages->work, defer_free_pages_drain);
++		init_defer_free_pages(free_pages);
++	}
++	put_online_cpus();
++}
++
++static void defer_free(struct page *page, int cpu)
++{
++	struct defer_free_pages_pcp *free_pages = &per_cpu(defer_free_pages, cpu);
++
++	set_page_private(page, (unsigned long)free_pages->next);
++	free_pages->next = page;
++	free_pages->count++;
++
++	if (free_pages->count >= DEFER_FREE_PAGES_THRESH_HOLD) {
++		schedule_work_on(cpu, &free_pages->work);
++		flush_work(&free_pages->work);
++	}
++}
++
++static void __page_cache_release_defer(struct page *page)
++{
++	static int i = 0;
++	defer_free(page, get_cpu());
++	put_cpu();
++}
++
+ static void __put_single_page(struct page *page)
+ {
+-	__page_cache_release(page);
+-	free_hot_cold_page(page, 0);
++	if (in_irq())
++		__page_cache_release_defer(page);
++	else {
++		__page_cache_release(page);
++		free_hot_cold_page(page, 0);
++	}
+ }
+ 
+ static void __put_compound_page(struct page *page)
 
 
-On Mar 1, 2011, at 6:12 AM, Jiri Kosina wrote:
+> 
+> Thanks,
+> -Kame
+> 
 
-> On Sat, 26 Feb 2011, Justin P. Mattock wrote:
->
->> The Patch below removes one to many "n's" in a word..
->
-> Hi Justin,
->
-> I have applied all the patches from the series which were not  
-> present in
-> linux-next as of today (in a squashed-together form, no need to have
-> separated commits for such cosmetic changes).
->
-> I'd suggest that, unless any subsystem maintainer explicitly states
-> otherwise, you submit all such similar changes justo to trivial@kernel.org
-> (and perhaps CC LKML). I propose this because:
->
-> - I believe most maintainers don't care about these changes and  
-> don't need
->  to be bothered
-> - it reduces annoying mail traffic (tens of mails because such
->  nano-change)
-> - it reduces the trivial tree maintainership load, as I don't have  
-> to wait
->  and cross-check which maintainer has applied which bits and which  
-> ones
->  were not picked up
->
-> -- 
-> Jiri Kosina
-> SUSE Labs, Novell Inc.
-
-
-alright. makes sense.
-I have another set of fixes that I did, I'll send it out later today  
-or tomorrow to just trivial and lkml.
-
-Justin P. Mattock
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
