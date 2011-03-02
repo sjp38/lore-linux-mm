@@ -1,42 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D110A8D0040
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 04:48:43 -0500 (EST)
-Subject: Re: [PATCH] mm: prevent concurrent unmap_mapping_range() on the
- same inode
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <alpine.LSU.2.00.1102231448460.5732@sister.anvils>
-References: <E1PsEA7-0007G0-29@pomaz-ex.szeredi.hu>
-	 <AANLkTimeihuzjgR2f7Avq2PJrCw1vZxtjh=wBPXO3aHP@mail.gmail.com>
-	 <alpine.LSU.2.00.1102231448460.5732@sister.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 02 Mar 2011 10:48:16 +0100
-Message-ID: <1299059296.2428.13483.camel@twins>
-Mime-Version: 1.0
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DA748D0040
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 05:02:50 -0500 (EST)
+Date: Wed, 2 Mar 2011 11:02:45 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] page_cgroup: Reduce allocation overhead for
+ page_cgroup array for CONFIG_SPARSEMEM
+Message-ID: <20110302100244.GB19651@tiehlicka.suse.cz>
+References: <20110228100920.GD4648@tiehlicka.suse.cz>
+ <20110301160550.0dd3217e.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110301160550.0dd3217e.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, hch@infradead.org, gurudas.pai@oracle.com, lkml20101129@newton.leun.net, rjw@sisk.pl, florian@mickler.org, trond.myklebust@fys.uio.no, maciej.rutecki@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, 2011-02-23 at 15:12 -0800, Hugh Dickins wrote:
->=20
-> In his [2/8] mm: remove i_mmap_mutex lockbreak patch, Peter says
-> "shouldn't hold up reclaim more than lock_page() would".  But (apart
-> from a write error case) we always use trylock_page() in reclaim, we
-> never dare hold it up on a lock_page().=20
+On Tue 01-03-11 16:05:50, Andrew Morton wrote:
+> On Mon, 28 Feb 2011 11:09:20 +0100
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > Hi Andrew,
+> > could you consider the patch bellow, please?
+> > The patch was discussed at https://lkml.org/lkml/2011/2/23/232
+[...]
+> This conflicts with
+> memcg-remove-direct-page_cgroup-to-page-pointer.patch, which did
 
-D'0h! I so missed that, ok fixed up the changelog.
-
->  So page reclaim would get
-> held up on truncation more than at present - though he's right to
-> point out that truncation will usually be freeing pages much faster.
-
-*phew* :-)
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I have based my patch on top of the current Linus tree. Sorry about
+that. Here is the patch rebased on top of the mmotm (2011-02-10-16-26).
+The patch passes also checkpatch now.
+--- 
