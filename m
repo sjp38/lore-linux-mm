@@ -1,45 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 490C98D0039
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 21:54:48 -0500 (EST)
-Message-ID: <4D6DB1BD.60003@cn.fujitsu.com>
-Date: Wed, 02 Mar 2011 10:55:57 +0800
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] slub,rcu: don't assume the size of struct rcu_head
-References: <4D6CA852.3060303@cn.fujitsu.com> <AANLkTimXy2Yaj+NTDMNTWuLqHHfKZJhVDpeXj3CfMvBf@mail.gmail.com> <alpine.DEB.2.00.1103010909320.6253@router.home>
-In-Reply-To: <alpine.DEB.2.00.1103010909320.6253@router.home>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B96A78D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 22:02:13 -0500 (EST)
+Received: by wyi11 with SMTP id 11so6831020wyi.14
+        for <linux-mm@kvack.org>; Tue, 01 Mar 2011 19:02:10 -0800 (PST)
+Subject: Re: [PATCH 4/4 V2] net,rcu: don't assume the size of struct
+ rcu_head
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <4D6DAF86.2000407@cn.fujitsu.com>
+References: <4D6CA860.3020409@cn.fujitsu.com>
+	 <20110301.001638.104075130.davem@davemloft.net>
+	 <4D6CB414.8050107@cn.fujitsu.com> <1298971213.3284.4.camel@edumazet-laptop>
+	 <4D6DAF86.2000407@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 02 Mar 2011 04:02:05 +0100
+Message-ID: <1299034925.2930.52.camel@edumazet-laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: Lai Jiangshan <laijs@cn.fujitsu.com>
+Cc: David Miller <davem@davemloft.net>, mingo@elte.hu, paulmck@linux.vnet.ibm.com, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 
-On 03/01/2011 11:11 PM, Christoph Lameter wrote:
-> On Tue, 1 Mar 2011, Pekka Enberg wrote:
-> 
->> The SLAB and SLUB patches are fine by me if there are going to be real
->> users for this. Christoph, Paul?
-> 
-> The solution is a bit overkill. It would be much simpler to add a union to
-> struct page that has lru and the rcu in there similar things can be done
-> for SLAB and the network layer. A similar issue already exists for the
-> spinlock in struct page. Lets follow the existing way of handling this.
+Le mercredi 02 mars 2011 A  10:46 +0800, Lai Jiangshan a A(C)crit :
 
-I don't want to impact the whole system too much to
-touch struct page. The solution changes existed things little,
-and the reversed data may just make use of the pad data.
+> Is it the cause of false sharing? I thought that all are rare write(except __refcnt)
+> since it is protected by RCU.
+> 
+> Do you allow me just move the seldom access rcu_head to the end of the structure
+> and add pads before __refcnt? I guess it increases about 3% the size of dst_entry.
 
+
+dst_entry is a base class.
+
+Its included at the beginning of other structs.
+
+Moving rcu_head "at the end" just move it right in the middle of upper
+objects as a matter of fact. This might add one cache line miss on
+critical network object. A complete audit is needed.
+
+David is doing some changes in this area, so things move fast anyway.
+
+> I accept that I leave this code as is, when I change rcu_head I will
+notify you.
 > 
-> Struct page may be larger for debugging purposes already because of the
-> need for extended spinlock data.
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+
+Thanks
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
