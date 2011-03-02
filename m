@@ -1,127 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AB94C8D0039
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 19:06:26 -0500 (EST)
-Date: Tue, 1 Mar 2011 16:05:50 -0800
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C18198D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 19:42:45 -0500 (EST)
+Date: Tue, 1 Mar 2011 16:41:43 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] page_cgroup: Reduce allocation overhead for
- page_cgroup array for CONFIG_SPARSEMEM
-Message-Id: <20110301160550.0dd3217e.akpm@linux-foundation.org>
-In-Reply-To: <20110228100920.GD4648@tiehlicka.suse.cz>
-References: <20110228100920.GD4648@tiehlicka.suse.cz>
+Subject: Re: [PATCH] remove compaction from kswapd
+Message-Id: <20110301164143.e44e5699.akpm@linux-foundation.org>
+In-Reply-To: <AANLkTim7tcPTxG9hyFiSnQ7rqfMdoUhL1wrmqNAXAvEK@mail.gmail.com>
+References: <20110228222138.GP22700@random.random>
+	<AANLkTingkWo6dx=0sGdmz9qNp+_TrQnKXnmASwD8LhV4@mail.gmail.com>
+	<20110301223954.GI19057@random.random>
+	<AANLkTim7tcPTxG9hyFiSnQ7rqfMdoUhL1wrmqNAXAvEK@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org
 
-On Mon, 28 Feb 2011 11:09:20 +0100
-Michal Hocko <mhocko@suse.cz> wrote:
+On Wed, 2 Mar 2011 08:10:35 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-> Hi Andrew,
-> could you consider the patch bellow, please?
-> The patch was discussed at https://lkml.org/lkml/2011/2/23/232
-> ---
-> >From 7e5b1e7043605891dacd9e32f19985bc675292f5 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Thu, 24 Feb 2011 11:25:44 +0100
-> Subject: [PATCH 1/2] page_cgroup: Reduce allocation overhead for page_cgroup array for CONFIG_SPARSEMEM
+> On Wed, Mar 2, 2011 at 7:39 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> > On Wed, Mar 02, 2011 at 07:33:13AM +0900, Minchan Kim wrote:
+> >> Sorry for bothering you but I think you get the data.
+> >> It helps someone in future very much to know why we determined to
+> >> remove the feature at that time and they should do what kinds of
+> >> experiment to prove it has a benefit to add compaction in kswapd
+> >> again.
+> >
+> > This is a benchmark I'm unsure if it's ok to publish results but it
+> > should be possible to simulate it with a device driver.
+> >
+> > Arthur provided kswapd load usage data too, so I hope that's enough.
+> >
+> > My other patch (compaction-kswapd-3) is way better than current logic
+> > and retains compaction in kswapd. That shows slightly higher
+> > kswapd utilization with Arthur's multimedia workload, and a bit worse
+> > performance on the network benchmark. So I thought it was better to go
+> > with the fastest potion as long as we don't have a logic that uses
+> > compaction and shows improved performance and lower latency than with
+> > no compaction at all in kswapd.
+> >
 > 
-> Currently we are allocating a single page_cgroup array per memory
-> section (stored in mem_section->base) when CONFIG_SPARSEMEM is selected.
-> This is correct but memory inefficient solution because the allocated
-> memory (unless we fall back to vmalloc) is not kmalloc friendly:
->         - 32b - 16384 entries (20B per entry) fit into 327680B so the
->           524288B slab cache is used
->         - 32b with PAE - 131072 entries with 2621440B fit into 4194304B
->         - 64b - 32768 entries (40B per entry) fit into 2097152 cache
+> I didn't notice Arthur's problem.
+> The patch seems to fix a real problem so I think it's enough.
+> I wished you wrote down the link url about Arthur on LKML.
 > 
-> This is ~37% wasted space per memory section and it sumps up for the
-> whole memory. On a x86_64 machine it is something like 6MB per 1GB of
-> RAM.
+> You can remove compact_mode of compact_control.
+> Otherwise, looks good to me.
 > 
-> We can reduce the internal fragmentation by using alloc_pages_exact
-> which allocates PAGE_SIZE aligned blocks so we will get down to <4kB
-> wasted memory per section which is much better.
-> 
-> We still need a fallback to vmalloc because we have no guarantees that
-> we will have a continuous memory of that size (order-10) later on during
-> the hotplug events.
-> 
-> ...
->
 
-> @@ -114,19 +140,9 @@ static int __init_refok init_section_page_cgroup(unsigned long pfn)
->  	int nid, index;
->  
->  	if (!section->page_cgroup) {
-> -		nid = page_to_nid(pfn_to_page(pfn));
->  		table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
-> -		VM_BUG_ON(!slab_is_available());
-> -		if (node_state(nid, N_HIGH_MEMORY)) {
-> -			base = kmalloc_node(table_size,
-> -				GFP_KERNEL | __GFP_NOWARN, nid);
-> -			if (!base)
-> -				base = vmalloc_node(table_size, nid);
-> -		} else {
-> -			base = kmalloc(table_size, GFP_KERNEL | __GFP_NOWARN);
-> -			if (!base)
-> -				base = vmalloc(table_size);
-> -		}
-> +		nid = page_to_nid(pfn_to_page(pfn));
-> +		base = alloc_page_cgroup(table_size, nid);
->  		/*
->  		 * The value stored in section->page_cgroup is (base - pfn)
->  		 * and it does not point to the memory block allocated above,
+I'd be pretty worried about jamming this into 2.6.38 at this late
+stage.  And some vague talk about something Arthur did really doesn't
+help a lot!  It would be better to have some good, solid quantitative
+justification for what is really an emergency patch.  
 
-This conflicts with
-memcg-remove-direct-page_cgroup-to-page-pointer.patch, which did
+Bear in mind that we always have a middle option: merge a patch into
+2.6.39-rc1 and tag it for backporting into 2.6.38.x.  That gives us
+more time to test it and to generally give it a shakedown.  But to make
+decisions like that and to commend a patch to the -stable maintainers,
+we need to provide better information please.
 
- static int __init_refok init_section_page_cgroup(unsigned long pfn)
- {
--	struct mem_section *section = __pfn_to_section(pfn);
- 	struct page_cgroup *base, *pc;
-+	struct mem_section *section;
- 	unsigned long table_size;
-+	unsigned long nr;
- 	int nid, index;
- 
--	if (!section->page_cgroup) {
--		nid = page_to_nid(pfn_to_page(pfn));
--		table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
--		VM_BUG_ON(!slab_is_available());
--		if (node_state(nid, N_HIGH_MEMORY)) {
--			base = kmalloc_node(table_size,
--				GFP_KERNEL | __GFP_NOWARN, nid);
--			if (!base)
--				base = vmalloc_node(table_size, nid);
--		} else {
--			base = kmalloc(table_size, GFP_KERNEL | __GFP_NOWARN);
--			if (!base)
--				base = vmalloc(table_size);
--		}
--		/*
--		 * The value stored in section->page_cgroup is (base - pfn)
--		 * and it does not point to the memory block allocated above,
--		 * causing kmemleak false positives.
--		 */
--		kmemleak_not_leak(base);
-+	nr = pfn_to_section_nr(pfn);
-+	section = __nr_to_section(nr);
-+
-+	if (section->page_cgroup)
-+		return 0;
-+
-+	nid = page_to_nid(pfn_to_page(pfn));
-+	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
-+	VM_BUG_ON(!slab_is_available());
-+	if (node_state(nid, N_HIGH_MEMORY)) {
-+		base = kmalloc_node(table_size,
-+				    GFP_KERNEL | __GFP_NOWARN, nid);
-+		if (!base)
-+			base = vmalloc_node(table_size, nid);
+Also, "This goes on top of the two lowlatency fixes for compaction"
+isn't particularly helpful.  I need to verify that the referred-to
+patches are already in mainline but I don't have a clue what this
+description refers to.  More specificity, please - it helps avoid
+mistakes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
