@@ -1,62 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 626098D0039
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 23:31:25 -0500 (EST)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id p224VIhP025778
-	for <linux-mm@kvack.org>; Tue, 1 Mar 2011 20:31:18 -0800
-Received: from yxe1 (yxe1.prod.google.com [10.190.2.1])
-	by kpbe20.cbf.corp.google.com with ESMTP id p224VEDV026969
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 1 Mar 2011 20:31:17 -0800
-Received: by yxe1 with SMTP id 1so4838246yxe.25
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2011 20:31:14 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 52FA38D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 23:36:04 -0500 (EST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <20110228224124.GA31769@blackmagic.digium.internal>
+	<20110301170117.258e06e2.akpm@linux-foundation.org>
+Date: Tue, 01 Mar 2011 20:35:53 -0800
+In-Reply-To: <20110301170117.258e06e2.akpm@linux-foundation.org> (Andrew
+	Morton's message of "Tue, 1 Mar 2011 17:01:17 -0800")
+Message-ID: <m1wrki3zrq.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1103010909320.6253@router.home>
-References: <4D6CA852.3060303@cn.fujitsu.com>
-	<AANLkTimXy2Yaj+NTDMNTWuLqHHfKZJhVDpeXj3CfMvBf@mail.gmail.com>
-	<alpine.DEB.2.00.1103010909320.6253@router.home>
-Date: Tue, 1 Mar 2011 20:31:14 -0800
-Message-ID: <AANLkTim0Zjc7c9-7LCnEaYpV5PVN=5fNQpjMYqtZe-fk@mail.gmail.com>
-Subject: Re: [PATCH 2/4] slub,rcu: don't assume the size of struct rcu_head
-From: Hugh Dickins <hughd@google.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH] mm/dmapool.c: Do not create/destroy sysfs file while holding pools_lock
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Russ Meyerriecks <rmeyerriecks@digium.com>, sruffell@digium.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg KH <greg@kroah.com>
 
-On Tue, Mar 1, 2011 at 7:11 AM, Christoph Lameter <cl@linux.com> wrote:
-> On Tue, 1 Mar 2011, Pekka Enberg wrote:
+Andrew Morton <akpm@linux-foundation.org> writes:
+
+> On Mon, 28 Feb 2011 16:41:24 -0600
+> Russ Meyerriecks <rmeyerriecks@digium.com> wrote:
 >
-> > The SLAB and SLUB patches are fine by me if there are going to be real
-> > users for this. Christoph, Paul?
+>> From: Shaun Ruffell <sruffell@digium.com>
+>> 
+>> Eliminates a circular lock dependency reported by lockdep. When reading the
+>> "pools" file from a PCI device via sysfs, the s_active lock is acquired before
+>> the pools_lock. When unloading the driver and destroying the pool, pools_lock
+>> is acquired before the s_active lock.
+>> 
+>>  cat/12016 is trying to acquire lock:
+>>   (pools_lock){+.+.+.}, at: [<c04ef113>] show_pools+0x43/0x140
+>> 
+>>  but task is already holding lock:
+>>   (s_active#82){++++.+}, at: [<c0554e1b>] sysfs_read_file+0xab/0x160
+>> 
+>>  which lock already depends on the new lock.
 >
-> The solution is a bit overkill. It would be much simpler to add a union to
-> struct page that has lru and the rcu in there similar things can be done
-> for SLAB and the network layer. A similar issue already exists for the
-> spinlock in struct page. Lets follow the existing way of handling this.
+> sysfs_dirent_init_lockdep() and the 6992f53349 ("sysfs: Use one lockdep
+> class per sysfs attribute") which added it are rather scary.
 >
-> Struct page may be larger for debugging purposes already because of the
-> need for extended spinlock data.
+> The alleged bug appears to be due to taking pools_lock outside
+> device_create_file() (which takes magical sysfs PseudoVirtualLocks)
+> versus show_pools(), which takes pools_lock but is called from inside
+> magical sysfs PseudoVirtualLocks.
+>
+> I don't know if this is actually a real bug or not.  Probably not, as
+> this device_create_file() does not match the reasons for 6992f53349:
+> "There is a sysfs idiom where writing to one sysfs file causes the
+> addition or removal of other sysfs files".  But that's a guess.
 
-That was so for a long time, but I stopped it just over a year ago
-with commit a70caa8ba48f21f46d3b4e71b6b8d14080bbd57a, stop ptlock
-enlarging struct page.
+device_create_file is arguable But this also happens with
+device_remove_file, and that is exactly the deadlock scenario I added
+the lockdep annotation to catch.  So the patch clearly does not fix the
+issue.
 
-Partly out of shame at how large struct page was growing when lockdep
-is on, but also a subtle KSM reason which might apply here too: KSM
-relies on the content of page->mapping to be kernel pointer to a
-relevant structure, NULLed when the page is freed.
+Eric
 
-If a union leads to "random junk" overwriting the page->mapping field
-when the page is reused, and that junk could resemble the pointer in
-question, then KSM would mistakenly think it still owned the page.
-Very remote chance, and maybe it amounts to no more than a leak.  But
-I'd still prefer we keep page->mapping for pointers (sometimes with
-lower bits set as flags).
 
-Hugh
+>> --- a/mm/dmapool.c
+>> +++ b/mm/dmapool.c
+>> @@ -174,21 +174,28 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
+>>  	init_waitqueue_head(&retval->waitq);
+>>  
+>>  	if (dev) {
+>> -		int ret;
+>> +		int first_pool;
+>>  
+>>  		mutex_lock(&pools_lock);
+>>  		if (list_empty(&dev->dma_pools))
+>> -			ret = device_create_file(dev, &dev_attr_pools);
+>> +			first_pool = 1;
+>>  		else
+>> -			ret = 0;
+>> +			first_pool = 0;
+>>  		/* note:  not currently insisting "name" be unique */
+>> -		if (!ret)
+>> -			list_add(&retval->pools, &dev->dma_pools);
+>> -		else {
+>> -			kfree(retval);
+>> -			retval = NULL;
+>> -		}
+>> +		list_add(&retval->pools, &dev->dma_pools);
+>>  		mutex_unlock(&pools_lock);
+>> +
+>> +		if (first_pool) {
+>> +			int ret;
+>> +			ret = device_create_file(dev, &dev_attr_pools);
+>> +			if (ret) {
+>> +				mutex_lock(&pools_lock);
+>> +				list_del(&retval->pools);
+>> +				mutex_unlock(&pools_lock);
+>> +				kfree(retval);
+>> +				retval = NULL;
+>> +			}
+>> +		}
+>
+> Not a good fix, IMO.  The problem is that if two CPUs concurrently call
+> dma_pool_create(), the first CPU will spend time creating the sysfs
+> file.  Meanwhile, the second CPU will whizz straight back to its
+> caller.  The caller now thinks that the sysfs file has been created and
+> returns to userspace, which immediately tries to read the sysfs file. 
+> But the first CPU hasn't finished creating it yet.  Userspace fails.
+>
+> One way of fixing this would be to create another singleton lock:
+>
+>
+> 	{
+> 		static DEFINE_MUTEX(pools_sysfs_lock);
+> 		static bool pools_sysfs_done;
+>
+> 		mutex_lock(&pools_sysfs_lock);
+> 		if (pools_sysfs_done == false) {
+> 			create_sysfs_stuff();
+> 			pools_sysfs_done = true;
+> 		}
+> 		mutex_unlock(&pools_sysfs_lock);
+> 	}
+>
+> That's not terribly pretty.
+
+Or possibly use module_init style magic.  Where use module
+initialization and remove to trigger creation and deletion of the sysfs.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
