@@ -1,53 +1,291 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AE848D003C
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 13:09:30 -0500 (EST)
-Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p22I8wrc010307
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Wed, 2 Mar 2011 10:08:59 -0800
-Received: by iyf13 with SMTP id 13so221212iyf.14
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2011 10:08:58 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20110302164428.GF26810@redhat.com>
-References: <20101201182747.GB6143@redhat.com> <20110225175202.GA19059@redhat.com>
- <20110225175314.GD19059@redhat.com> <AANLkTik8epq5cx8n=k6ocMUfbg9kkUAZ8KL7ZiG4UuoU@mail.gmail.com>
- <20110226123731.GC4416@redhat.com> <AANLkTinFVCR_znYtyVuJcjFQq_fgMp+ozbSz54UKzvQ_@mail.gmail.com>
- <20110226174408.GA17442@redhat.com> <20110301204739.GA30406@redhat.com>
- <AANLkTikVecxcGoZ9a4hmkoi4wynrNfH9_AU7Vb+hOvbH@mail.gmail.com>
- <20110302162650.GA26810@redhat.com> <20110302164428.GF26810@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 2 Mar 2011 10:00:23 -0800
-Message-ID: <AANLkTinzQmprg+XHKjTj7bA+jFf_N4hta3_09M+SEfRt@mail.gmail.com>
-Subject: Re: [PATCH v3 0/4] exec: unify native/compat code
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 75ACA8D003C
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 13:10:57 -0500 (EST)
+Message-Id: <20110302180259.185304666@chello.nl>
+Date: Wed, 02 Mar 2011 18:59:33 +0100
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [RFC][PATCH 5/6] ia64, mm: Convert ia64 to generic tlb
+References: <20110302175928.022902359@chello.nl>
+Content-Disposition: inline; filename=mm-ia64-tlb-range.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>, Milton Miller <miltonm@bga.com>
+To: Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tony Luck <tony.luck@intel.com>
 
-On Wed, Mar 2, 2011 at 8:44 AM, Oleg Nesterov <oleg@redhat.com> wrote:
->
-> forgot to mention...
->
-> And probably you meant we should pass "struct conditional_ptr*", not
-> by value. I can redo again.
+Cc: Tony Luck <tony.luck@intel.com>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ arch/ia64/Kconfig           |    1 
+ arch/ia64/include/asm/tlb.h |  216 ++++----------------------------------------
+ 2 files changed, 24 insertions(+), 193 deletions(-)
 
-No, I think we're ok with passing the structure by value - it's a
-small structure that would generally be passed in registers (at least
-on some architectures, I guess it will depend on the ABI), and we do
-the "struct-by-value" thing for other things too (notably the page
-table entries), so it's not a new thing in the kernel.
+Index: linux-2.6/arch/ia64/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/ia64/Kconfig
++++ linux-2.6/arch/ia64/Kconfig
+@@ -25,6 +25,7 @@ config IA64
+ 	select HAVE_GENERIC_HARDIRQS
+ 	select GENERIC_IRQ_PROBE
+ 	select GENERIC_PENDING_IRQ if SMP
++	select HAVE_MMU_GATHER_RANGE
+ 	select IRQ_PER_CPU
+ 	default y
+ 	help
+Index: linux-2.6/arch/ia64/include/asm/tlb.h
+===================================================================
+--- linux-2.6.orig/arch/ia64/include/asm/tlb.h
++++ linux-2.6/arch/ia64/include/asm/tlb.h
+@@ -46,77 +46,48 @@
+ #include <asm/tlbflush.h>
+ #include <asm/machvec.h>
+ 
+-#ifdef CONFIG_SMP
+-# define tlb_fast_mode(tlb)	((tlb)->nr == ~0U)
+-#else
+-# define tlb_fast_mode(tlb)	(1)
+-#endif
+-
+-/*
+- * If we can't allocate a page to make a big batch of page pointers
+- * to work on, then just handle a few from the on-stack structure.
+- */
+-#define	IA64_GATHER_BUNDLE	8
+-
+-struct mmu_gather {
+-	struct mm_struct	*mm;
+-	unsigned int		nr;		/* == ~0U => fast mode */
+-	unsigned int		max;
+-	unsigned char		fullmm;		/* non-zero means full mm flush */
+-	unsigned char		need_flush;	/* really unmapped some PTEs? */
+-	unsigned long		start_addr;
+-	unsigned long		end_addr;
+-	struct page		**pages;
+-	struct page		*local[IA64_GATHER_BUNDLE];
+-};
+-
+ struct ia64_tr_entry {
+-	u64 ifa;
+-	u64 itir;
+-	u64 pte;
+-	u64 rr;
++       u64 ifa;
++       u64 itir;
++       u64 pte;
++       u64 rr;
+ }; /*Record for tr entry!*/
+ 
+ extern int ia64_itr_entry(u64 target_mask, u64 va, u64 pte, u64 log_size);
+ extern void ia64_ptr_entry(u64 target_mask, int slot);
+-
+ extern struct ia64_tr_entry *ia64_idtrs[NR_CPUS];
+ 
+ /*
+  region register macros
+ */
+ #define RR_TO_VE(val)   (((val) >> 0) & 0x0000000000000001)
+-#define RR_VE(val)	(((val) & 0x0000000000000001) << 0)
+-#define RR_VE_MASK	0x0000000000000001L
+-#define RR_VE_SHIFT	0
+-#define RR_TO_PS(val)	(((val) >> 2) & 0x000000000000003f)
+-#define RR_PS(val)	(((val) & 0x000000000000003f) << 2)
+-#define RR_PS_MASK	0x00000000000000fcL
+-#define RR_PS_SHIFT	2
+-#define RR_RID_MASK	0x00000000ffffff00L
+-#define RR_TO_RID(val) 	((val >> 8) & 0xffffff)
++#define RR_VE(val)     (((val) & 0x0000000000000001) << 0)
++#define RR_VE_MASK     0x0000000000000001L
++#define RR_VE_SHIFT    0
++#define RR_TO_PS(val)  (((val) >> 2) & 0x000000000000003f)
++#define RR_PS(val)     (((val) & 0x000000000000003f) << 2)
++#define RR_PS_MASK     0x00000000000000fcL
++#define RR_PS_SHIFT    2
++#define RR_RID_MASK    0x00000000ffffff00L
++#define RR_TO_RID(val)         ((val >> 8) & 0xffffff)
++
++static inline void tlb_flush(struct mmu_gather *tlb);
++
++#define __tlb_remove_tlb_entry(tlb, ptep, addr) do { } while (0)
++#define tlb_migrate_finish(mm)	platform_tlb_migrate_finish(mm)
++
++#include <asm-generic/tlb.h>
+ 
+ /*
+  * Flush the TLB for address range START to END and, if not in fast mode, release the
+  * freed pages that where gathered up to this point.
+  */
+ static inline void
+-ia64_tlb_flush_mmu (struct mmu_gather *tlb, unsigned long start, unsigned long end)
++tlb_flush(struct mmu_gather *tlb)
+ {
+-	unsigned int nr;
++	unsigned long start = tlb->start, end = tlb->end;
+ 
+-	if (!tlb->need_flush)
+-		return;
+-	tlb->need_flush = 0;
+-
+-	if (tlb->fullmm) {
+-		/*
+-		 * Tearing down the entire address space.  This happens both as a result
+-		 * of exit() and execve().  The latter case necessitates the call to
+-		 * flush_tlb_mm() here.
+-		 */
+-		flush_tlb_mm(tlb->mm);
+-	} else if (unlikely (end - start >= 1024*1024*1024*1024UL
++	if (unlikely (end - start >= 1024*1024*1024*1024UL
+ 			     || REGION_NUMBER(start) != REGION_NUMBER(end - 1)))
+ 	{
+ 		/*
+@@ -131,147 +102,6 @@ ia64_tlb_flush_mmu (struct mmu_gather *t
+ 		/* now flush the virt. page-table area mapping the address range: */
+ 		flush_tlb_range(tlb->mm, ia64_thash(start), ia64_thash(end));
+ 	}
+-
+-	/* lastly, release the freed pages */
+-	nr = tlb->nr;
+-	if (!tlb_fast_mode(tlb)) {
+-		unsigned long i;
+-		tlb->nr = 0;
+-		tlb->start_addr = ~0UL;
+-		for (i = 0; i < nr; ++i)
+-			free_page_and_swap_cache(tlb->pages[i]);
+-	}
+ }
+ 
+-static inline void __tlb_alloc_page(struct mmu_gather *tlb)
+-{
+-	unsigned long addr = __get_free_pages(GFP_NOWAIT | __GFP_NOWARN, 0);
+-
+-	if (addr) {
+-		tlb->pages = (void *)addr;
+-		tlb->max = PAGE_SIZE / sizeof(void *);
+-	}
+-}
+-
+-
+-static inline void
+-tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned int full_mm_flush)
+-{
+-	tlb->mm = mm;
+-	tlb->max = ARRAY_SIZE(tlb->local);
+-	tlb->pages = tlb->local;
+-	/*
+-	 * Use fast mode if only 1 CPU is online.
+-	 *
+-	 * It would be tempting to turn on fast-mode for full_mm_flush as well.  But this
+-	 * doesn't work because of speculative accesses and software prefetching: the page
+-	 * table of "mm" may (and usually is) the currently active page table and even
+-	 * though the kernel won't do any user-space accesses during the TLB shoot down, a
+-	 * compiler might use speculation or lfetch.fault on what happens to be a valid
+-	 * user-space address.  This in turn could trigger a TLB miss fault (or a VHPT
+-	 * walk) and re-insert a TLB entry we just removed.  Slow mode avoids such
+-	 * problems.  (We could make fast-mode work by switching the current task to a
+-	 * different "mm" during the shootdown.) --davidm 08/02/2002
+-	 */
+-	tlb->nr = (num_online_cpus() == 1) ? ~0U : 0;
+-	tlb->fullmm = full_mm_flush;
+-	tlb->start_addr = ~0UL;
+-}
+-
+-/*
+- * Called at the end of the shootdown operation to free up any resources that were
+- * collected.
+- */
+-static inline void
+-tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
+-{
+-	/*
+-	 * Note: tlb->nr may be 0 at this point, so we can't rely on tlb->start_addr and
+-	 * tlb->end_addr.
+-	 */
+-	ia64_tlb_flush_mmu(tlb, start, end);
+-
+-	/* keep the page table cache within bounds */
+-	check_pgt_cache();
+-
+-	if (tlb->pages != tlb->local)
+-		free_pages((unsigned long)tlb->pages, 0);
+-}
+-
+-/*
+- * Logically, this routine frees PAGE.  On MP machines, the actual freeing of the page
+- * must be delayed until after the TLB has been flushed (see comments at the beginning of
+- * this file).
+- */
+-static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+-{
+-	tlb->need_flush = 1;
+-
+-	if (tlb_fast_mode(tlb)) {
+-		free_page_and_swap_cache(page);
+-		return 0;
+-	}
+-
+-	if (!tlb->nr && tlb->pages == tlb->local)
+-		__tlb_alloc_page(tlb);
+-
+-	tlb->pages[tlb->nr++] = page;
+-	if (tlb->nr >= tlb->max)
+-		return 1;
+-
+-	return 0;
+-}
+-
+-static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+-{
+-	ia64_tlb_flush_mmu(tlb, tlb->start_addr, tlb->end_addr);
+-}
+-
+-static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+-{
+-	if (__tlb_remove_page(tlb, page))
+-		tlb_flush_mmu(tlb);
+-}
+-
+-/*
+- * Remove TLB entry for PTE mapped at virtual address ADDRESS.  This is called for any
+- * PTE, not just those pointing to (normal) physical memory.
+- */
+-static inline void
+-__tlb_remove_tlb_entry (struct mmu_gather *tlb, pte_t *ptep, unsigned long address)
+-{
+-	if (tlb->start_addr == ~0UL)
+-		tlb->start_addr = address;
+-	tlb->end_addr = address + PAGE_SIZE;
+-}
+-
+-#define tlb_migrate_finish(mm)	platform_tlb_migrate_finish(mm)
+-
+-#define tlb_start_vma(tlb, vma)			do { } while (0)
+-#define tlb_end_vma(tlb, vma)			do { } while (0)
+-
+-#define tlb_remove_tlb_entry(tlb, ptep, addr)		\
+-do {							\
+-	tlb->need_flush = 1;				\
+-	__tlb_remove_tlb_entry(tlb, ptep, addr);	\
+-} while (0)
+-
+-#define pte_free_tlb(tlb, ptep, address)		\
+-do {							\
+-	tlb->need_flush = 1;				\
+-	__pte_free_tlb(tlb, ptep, address);		\
+-} while (0)
+-
+-#define pmd_free_tlb(tlb, ptep, address)		\
+-do {							\
+-	tlb->need_flush = 1;				\
+-	__pmd_free_tlb(tlb, ptep, address);		\
+-} while (0)
+-
+-#define pud_free_tlb(tlb, pudp, address)		\
+-do {							\
+-	tlb->need_flush = 1;				\
+-	__pud_free_tlb(tlb, pudp, address);		\
+-} while (0)
+-
+ #endif /* _ASM_IA64_TLB_H */
 
-So I think I finally have no complaints. Of course, I didn't actually
-check whether it _works_, but I assume it does.
-
-If the s390 people (who actually do special things with compat
-pointers) can test, that would be ok, but I'm certainly happily going
-to apply this series when the next merge window opens.
-
-                            Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
