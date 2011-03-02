@@ -1,366 +1,542 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B31E38D0039
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 12:59:22 -0500 (EST)
-Message-Id: <20110302175200.444631504@chello.nl>
-Date: Wed, 02 Mar 2011 18:50:07 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4508D0039
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 13:00:06 -0500 (EST)
+Message-Id: <20110302175201.108884434@chello.nl>
+Date: Wed, 02 Mar 2011 18:50:16 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 03/13] sparc: mmu_gather rework
+Subject: [PATCH 12/13] s390: use generic RCP page-table freeing
 References: <20110302175004.222724818@chello.nl>
-Content-Disposition: inline; filename=peter_zijlstra-sparc-preemptible_mmu_gather.patch
+Content-Disposition: inline; filename=martin_schwidefsky-s390-use_generic_rcp_page-table_freeing.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-Rework the sparc mmu_gather usage to conform to the new world order :-)
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-Sparc mmu_gather does two things:
- - tracks vaddrs to unhash
- - tracks pages to free
+Now that we have a generic implementation for RCU based page table
+freeing, use it for s390 as well. It saves a couple of lines.
 
-Split these two things like powerpc has done and keep the vaddrs
-in per-cpu data structures and flush them on context switch.
-
-The remaining bits can then use the generic mmu_gather.
-
-Acked-by: David Miller <davem@davemloft.net>
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+LKML-Reference: <20110215193717.30c2bb0a@mschwide.boeblingen.de.ibm.com>
 ---
- arch/sparc/include/asm/pgalloc_64.h  |    3 +
- arch/sparc/include/asm/pgtable_64.h  |   15 ++++-
- arch/sparc/include/asm/tlb_64.h      |   91 ++---------------------------------
- arch/sparc/include/asm/tlbflush_64.h |   12 +++-
- arch/sparc/mm/tlb.c                  |   43 +++++++++-------
- arch/sparc/mm/tsb.c                  |   15 +++--
- 6 files changed, 63 insertions(+), 116 deletions(-)
+ arch/s390/Kconfig               |    1 
+ arch/s390/include/asm/pgalloc.h |   19 +--
+ arch/s390/include/asm/tlb.h     |   92 ++++++++-----------
+ arch/s390/mm/pgtable.c          |  192 +++++-----------------------------------
+ 4 files changed, 76 insertions(+), 228 deletions(-)
 
-Index: linux-2.6/arch/sparc/include/asm/pgalloc_64.h
+Index: linux-2.6/arch/s390/Kconfig
 ===================================================================
---- linux-2.6.orig/arch/sparc/include/asm/pgalloc_64.h
-+++ linux-2.6/arch/sparc/include/asm/pgalloc_64.h
-@@ -78,4 +78,7 @@ static inline void check_pgt_cache(void)
- 	quicklist_trim(0, NULL, 25, 16);
+--- linux-2.6.orig/arch/s390/Kconfig
++++ linux-2.6/arch/s390/Kconfig
+@@ -87,6 +87,7 @@ config S390
+ 	select HAVE_KERNEL_LZO
+ 	select HAVE_GET_USER_PAGES_FAST
+ 	select HAVE_ARCH_MUTEX_CPU_RELAX
++	select HAVE_RCU_TABLE_FREE
+ 	select ARCH_INLINE_SPIN_TRYLOCK
+ 	select ARCH_INLINE_SPIN_TRYLOCK_BH
+ 	select ARCH_INLINE_SPIN_LOCK
+Index: linux-2.6/arch/s390/include/asm/pgalloc.h
+===================================================================
+--- linux-2.6.orig/arch/s390/include/asm/pgalloc.h
++++ linux-2.6/arch/s390/include/asm/pgalloc.h
+@@ -20,12 +20,11 @@
+ #define check_pgt_cache()	do {} while (0)
+ 
+ unsigned long *crst_table_alloc(struct mm_struct *, int);
+-void crst_table_free(struct mm_struct *, unsigned long *);
+-void crst_table_free_rcu(struct mm_struct *, unsigned long *);
++void crst_table_free(unsigned long *);
+ 
+ unsigned long *page_table_alloc(struct mm_struct *);
+-void page_table_free(struct mm_struct *, unsigned long *);
+-void page_table_free_rcu(struct mm_struct *, unsigned long *);
++void page_table_free(unsigned long *);
++
+ void disable_noexec(struct mm_struct *, struct task_struct *);
+ 
+ static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
+@@ -95,7 +94,7 @@ static inline pud_t *pud_alloc_one(struc
+ 		crst_table_init(table, _REGION3_ENTRY_EMPTY);
+ 	return (pud_t *) table;
+ }
+-#define pud_free(mm, pud) crst_table_free(mm, (unsigned long *) pud)
++#define pud_free(mm, pud) crst_table_free((unsigned long *) pud)
+ 
+ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
+ {
+@@ -104,7 +103,7 @@ static inline pmd_t *pmd_alloc_one(struc
+ 		crst_table_init(table, _SEGMENT_ENTRY_EMPTY);
+ 	return (pmd_t *) table;
+ }
+-#define pmd_free(mm, pmd) crst_table_free(mm, (unsigned long *) pmd)
++#define pmd_free(mm, pmd) crst_table_free((unsigned long *) pmd)
+ 
+ static inline void pgd_populate_kernel(struct mm_struct *mm,
+ 				       pgd_t *pgd, pud_t *pud)
+@@ -148,7 +147,7 @@ static inline pgd_t *pgd_alloc(struct mm
+ 	return (pgd_t *)
+ 		crst_table_alloc(mm, user_mode == SECONDARY_SPACE_MODE);
+ }
+-#define pgd_free(mm, pgd) crst_table_free(mm, (unsigned long *) pgd)
++#define pgd_free(mm, pgd) crst_table_free((unsigned long *) pgd)
+ 
+ static inline void pmd_populate_kernel(struct mm_struct *mm,
+ 				       pmd_t *pmd, pte_t *pte)
+@@ -175,9 +174,7 @@ static inline void pmd_populate(struct m
+ #define pte_alloc_one_kernel(mm, vmaddr) ((pte_t *) page_table_alloc(mm))
+ #define pte_alloc_one(mm, vmaddr) ((pte_t *) page_table_alloc(mm))
+ 
+-#define pte_free_kernel(mm, pte) page_table_free(mm, (unsigned long *) pte)
+-#define pte_free(mm, pte) page_table_free(mm, (unsigned long *) pte)
+-
+-extern void rcu_table_freelist_finish(void);
++#define pte_free_kernel(mm, pte) page_table_free((unsigned long *) pte)
++#define pte_free(mm, pte) page_table_free((unsigned long *) pte)
+ 
+ #endif /* _S390_PGALLOC_H */
+Index: linux-2.6/arch/s390/include/asm/tlb.h
+===================================================================
+--- linux-2.6.orig/arch/s390/include/asm/tlb.h
++++ linux-2.6/arch/s390/include/asm/tlb.h
+@@ -29,50 +29,45 @@
+ #include <asm/smp.h>
+ #include <asm/tlbflush.h>
+ 
++struct mmu_table_batch {
++	struct rcu_head rcu;
++	unsigned int nr;
++	void *tables[0];
++};
++
++#define MAX_TABLE_BATCH \
++	((PAGE_SIZE - sizeof(struct mmu_table_batch)) / sizeof(void *))
++
++void tlb_table_flush(struct mmu_gather *);
++void tlb_remove_table(struct mmu_gather *, void *);
++
+ struct mmu_gather {
+ 	struct mm_struct *mm;
+ 	unsigned int fullmm;
+-	unsigned int nr_ptes;
+-	unsigned int nr_pxds;
+-	unsigned int max;
+-	void **array;
+-	void *local[8];
++	struct mmu_table_batch *batch;
++	/* need_flush is used only for page tables */
++	unsigned int need_flush : 1;
+ };
+ 
+-static inline void __tlb_alloc_page(struct mmu_gather *tlb)
+-{
+-	unsigned long addr = __get_free_pages(GFP_NOWAIT | __GFP_NOWARN, 0);
+-
+-	if (addr) {
+-		tlb->array = (void *) addr;
+-		tlb->max = PAGE_SIZE / sizeof(void *);
+-	}
+-}
+-
+ static inline void tlb_gather_mmu(struct mmu_gather *tlb,
+ 				  struct mm_struct *mm,
+ 				  unsigned int full_mm_flush)
+ {
+ 	tlb->mm = mm;
+-	tlb->max = ARRAY_SIZE(tlb->local);
+-	tlb->array = tlb->local;
+ 	tlb->fullmm = full_mm_flush;
+ 	if (tlb->fullmm)
+ 		__tlb_flush_mm(mm);
+-	else
+-		__tlb_alloc_page(tlb);
+-	tlb->nr_ptes = 0;
+-	tlb->nr_pxds = tlb->max;
++	tlb->batch = NULL;
++	tlb->need_flush = 0;
  }
  
-+#define __pte_free_tlb(tlb, pte, addr)	pte_free((tlb)->mm, pte)
-+#define __pmd_free_tlb(tlb, pmd, addr)	pmd_free((tlb)->mm, pmd)
+ static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+ {
+-	if (!tlb->fullmm && (tlb->nr_ptes > 0 || tlb->nr_pxds < tlb->max))
++	if (tlb->need_flush) {
++		tlb->need_flush = 0;
+ 		__tlb_flush_mm(tlb->mm);
+-	while (tlb->nr_ptes > 0)
+-		page_table_free_rcu(tlb->mm, tlb->array[--tlb->nr_ptes]);
+-	while (tlb->nr_pxds < tlb->max)
+-		crst_table_free_rcu(tlb->mm, tlb->array[tlb->nr_pxds++]);
++		tlb_table_flush(tlb);
++	}
+ }
+ 
+ static inline void tlb_finish_mmu(struct mmu_gather *tlb,
+@@ -80,13 +75,8 @@ static inline void tlb_finish_mmu(struct
+ {
+ 	tlb_flush_mmu(tlb);
+ 
+-	rcu_table_freelist_finish();
+-
+ 	/* keep the page table cache within bounds */
+ 	check_pgt_cache();
+-
+-	if (tlb->array != tlb->local)
+-		free_pages((unsigned long) tlb->array, 0);
+ }
+ 
+ /*
+@@ -112,12 +102,11 @@ static inline void tlb_remove_page(struc
+ static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
+ 				unsigned long address)
+ {
+-	if (!tlb->fullmm) {
+-		tlb->array[tlb->nr_ptes++] = pte;
+-		if (tlb->nr_ptes >= tlb->nr_pxds)
+-			tlb_flush_mmu(tlb);
+-	} else
+-		page_table_free(tlb->mm, (unsigned long *) pte);
++	if (!tlb->fullmm)
++		/* Use LSB to distinguish crst table vs. page table */
++		tlb_remove_table(tlb, (void *) pte + 1);
++	else
++		page_table_free((unsigned long *) pte);
+ }
+ 
+ /*
+@@ -133,12 +122,10 @@ static inline void pmd_free_tlb(struct m
+ #ifdef __s390x__
+ 	if (tlb->mm->context.asce_limit <= (1UL << 31))
+ 		return;
+-	if (!tlb->fullmm) {
+-		tlb->array[--tlb->nr_pxds] = pmd;
+-		if (tlb->nr_ptes >= tlb->nr_pxds)
+-			tlb_flush_mmu(tlb);
+-	} else
+-		crst_table_free(tlb->mm, (unsigned long *) pmd);
++	if (!tlb->fullmm)
++		tlb_remove_table(tlb, pmd);
++	else
++		crst_table_free((unsigned long *) pmd);
+ #endif
+ }
+ 
+@@ -155,15 +142,22 @@ static inline void pud_free_tlb(struct m
+ #ifdef __s390x__
+ 	if (tlb->mm->context.asce_limit <= (1UL << 42))
+ 		return;
+-	if (!tlb->fullmm) {
+-		tlb->array[--tlb->nr_pxds] = pud;
+-		if (tlb->nr_ptes >= tlb->nr_pxds)
+-			tlb_flush_mmu(tlb);
+-	} else
+-		crst_table_free(tlb->mm, (unsigned long *) pud);
++	if (!tlb->fullmm)
++		tlb_remove_table(tlb, pud);
++	else
++		crst_table_free((unsigned long *) pud);
+ #endif
+ }
+ 
++static inline void __tlb_remove_table(void *table)
++{
++	/* Use LSB to distinguish crst table vs. page table */
++	if ((unsigned long) table & 1)
++		page_table_free(table - 1);
++	else
++		crst_table_free(table);
++}
 +
- #endif /* _SPARC64_PGALLOC_H */
-Index: linux-2.6/arch/sparc/include/asm/tlb_64.h
+ #define tlb_start_vma(tlb, vma)			do { } while (0)
+ #define tlb_end_vma(tlb, vma)			do { } while (0)
+ #define tlb_remove_tlb_entry(tlb, ptep, addr)	do { } while (0)
+Index: linux-2.6/arch/s390/mm/pgtable.c
 ===================================================================
---- linux-2.6.orig/arch/sparc/include/asm/tlb_64.h
-+++ linux-2.6/arch/sparc/include/asm/tlb_64.h
-@@ -7,66 +7,11 @@
+--- linux-2.6.orig/arch/s390/mm/pgtable.c
++++ linux-2.6/arch/s390/mm/pgtable.c
+@@ -24,92 +24,17 @@
  #include <asm/tlbflush.h>
  #include <asm/mmu_context.h>
  
--#define TLB_BATCH_NR	192
--
--/*
-- * For UP we don't need to worry about TLB flush
-- * and page free order so much..
-- */
--#ifdef CONFIG_SMP
--  #define FREE_PTE_NR	506
--  #define tlb_fast_mode(bp) ((bp)->pages_nr == ~0U)
--#else
--  #define FREE_PTE_NR	1
--  #define tlb_fast_mode(bp) 1
--#endif
--
--struct mmu_gather {
+-struct rcu_table_freelist {
+-	struct rcu_head rcu;
 -	struct mm_struct *mm;
--	unsigned int pages_nr;
--	unsigned int need_flush;
--	unsigned int fullmm;
--	unsigned int tlb_nr;
--	unsigned long vaddrs[TLB_BATCH_NR];
--	struct page *pages[FREE_PTE_NR];
+-	unsigned int pgt_index;
+-	unsigned int crst_index;
+-	unsigned long *table[0];
 -};
 -
--DECLARE_PER_CPU(struct mmu_gather, mmu_gathers);
+-#define RCU_FREELIST_SIZE \
+-	((PAGE_SIZE - sizeof(struct rcu_table_freelist)) \
+-	  / sizeof(unsigned long))
 -
- #ifdef CONFIG_SMP
- extern void smp_flush_tlb_pending(struct mm_struct *,
- 				  unsigned long, unsigned long *);
- #endif
- 
--extern void __flush_tlb_pending(unsigned long, unsigned long, unsigned long *);
--extern void flush_tlb_pending(void);
+-static DEFINE_PER_CPU(struct rcu_table_freelist *, rcu_table_freelist);
 -
--static inline struct mmu_gather *tlb_gather_mmu(struct mm_struct *mm, unsigned int full_mm_flush)
+-static void __page_table_free(struct mm_struct *mm, unsigned long *table);
+-static void __crst_table_free(struct mm_struct *mm, unsigned long *table);
+-
+-static struct rcu_table_freelist *rcu_table_freelist_get(struct mm_struct *mm)
 -{
--	struct mmu_gather *mp = &get_cpu_var(mmu_gathers);
+-	struct rcu_table_freelist **batchp = &__get_cpu_var(rcu_table_freelist);
+-	struct rcu_table_freelist *batch = *batchp;
 -
--	BUG_ON(mp->tlb_nr);
--
--	mp->mm = mm;
--	mp->pages_nr = num_online_cpus() > 1 ? 0U : ~0U;
--	mp->fullmm = full_mm_flush;
--
--	return mp;
--}
--
--
--static inline void tlb_flush_mmu(struct mmu_gather *mp)
--{
--	if (!mp->fullmm)
--		flush_tlb_pending();
--	if (mp->need_flush) {
--		free_pages_and_swap_cache(mp->pages, mp->pages_nr);
--		mp->pages_nr = 0;
--		mp->need_flush = 0;
+-	if (batch)
+-		return batch;
+-	batch = (struct rcu_table_freelist *) __get_free_page(GFP_ATOMIC);
+-	if (batch) {
+-		batch->mm = mm;
+-		batch->pgt_index = 0;
+-		batch->crst_index = RCU_FREELIST_SIZE;
+-		*batchp = batch;
 -	}
--
+-	return batch;
 -}
 -
- #ifdef CONFIG_SMP
- extern void smp_flush_tlb_mm(struct mm_struct *mm);
- #define do_flush_tlb_mm(mm) smp_flush_tlb_mm(mm)
-@@ -74,38 +19,14 @@ extern void smp_flush_tlb_mm(struct mm_s
- #define do_flush_tlb_mm(mm) __flush_tlb_mm(CTX_HWBITS(mm->context), SECONDARY_CONTEXT)
+-static void rcu_table_freelist_callback(struct rcu_head *head)
+-{
+-	struct rcu_table_freelist *batch =
+-		container_of(head, struct rcu_table_freelist, rcu);
+-
+-	while (batch->pgt_index > 0)
+-		__page_table_free(batch->mm, batch->table[--batch->pgt_index]);
+-	while (batch->crst_index < RCU_FREELIST_SIZE)
+-		__crst_table_free(batch->mm, batch->table[batch->crst_index++]);
+-	free_page((unsigned long) batch);
+-}
+-
+-void rcu_table_freelist_finish(void)
+-{
+-	struct rcu_table_freelist *batch = __get_cpu_var(rcu_table_freelist);
+-
+-	if (!batch)
+-		return;
+-	call_rcu(&batch->rcu, rcu_table_freelist_callback);
+-	__get_cpu_var(rcu_table_freelist) = NULL;
+-}
+-
+-static void smp_sync(void *arg)
+-{
+-}
+ 
+ #ifndef CONFIG_64BIT
+ #define ALLOC_ORDER	1
+ #define TABLES_PER_PAGE	4
+ #define FRAG_MASK	15UL
+ #define SECOND_HALVES	10UL
+-
+-void clear_table_pgstes(unsigned long *table)
+-{
+-	clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE/4);
+-	memset(table + 256, 0, PAGE_SIZE/4);
+-	clear_table(table + 512, _PAGE_TYPE_EMPTY, PAGE_SIZE/4);
+-	memset(table + 768, 0, PAGE_SIZE/4);
+-}
+-
+ #else
+ #define ALLOC_ORDER	2
+ #define TABLES_PER_PAGE	2
+ #define FRAG_MASK	3UL
+ #define SECOND_HALVES	2UL
+-
+-void clear_table_pgstes(unsigned long *table)
+-{
+-	clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE/2);
+-	memset(table + 256, 0, PAGE_SIZE/2);
+-}
+-
  #endif
  
--static inline void tlb_finish_mmu(struct mmu_gather *mp, unsigned long start, unsigned long end)
+ unsigned long VMALLOC_START = VMALLOC_END - VMALLOC_SIZE;
+@@ -138,6 +63,7 @@ unsigned long *crst_table_alloc(struct m
+ 			return NULL;
+ 		}
+ 		page->index = page_to_phys(shadow);
++		page->private = (unsigned long) mm;
+ 	}
+ 	spin_lock_bh(&mm->context.list_lock);
+ 	list_add(&page->lru, &mm->context.crst_list);
+@@ -145,47 +71,19 @@ unsigned long *crst_table_alloc(struct m
+ 	return (unsigned long *) page_to_phys(page);
+ }
+ 
+-static void __crst_table_free(struct mm_struct *mm, unsigned long *table)
 -{
--	tlb_flush_mmu(mp);
+-	unsigned long *shadow = get_shadow_table(table);
 -
--	if (mp->fullmm)
--		mp->fullmm = 0;
--
--	/* keep the page table cache within bounds */
--	check_pgt_cache();
--
--	put_cpu_var(mmu_gathers);
+-	if (shadow)
+-		free_pages((unsigned long) shadow, ALLOC_ORDER);
+-	free_pages((unsigned long) table, ALLOC_ORDER);
 -}
 -
--static inline void tlb_remove_page(struct mmu_gather *mp, struct page *page)
+-void crst_table_free(struct mm_struct *mm, unsigned long *table)
 -{
--	if (tlb_fast_mode(mp)) {
--		free_page_and_swap_cache(page);
+-	struct page *page = virt_to_page(table);
+-
+-	spin_lock_bh(&mm->context.list_lock);
+-	list_del(&page->lru);
+-	spin_unlock_bh(&mm->context.list_lock);
+-	__crst_table_free(mm, table);
+-}
+-
+-void crst_table_free_rcu(struct mm_struct *mm, unsigned long *table)
++void crst_table_free(unsigned long *table)
+ {
+-	struct rcu_table_freelist *batch;
+ 	struct page *page = virt_to_page(table);
++	struct mm_struct *mm = (struct mm_struct *) page->private;
++	unsigned long *shadow = get_shadow_table(table);
+ 
+ 	spin_lock_bh(&mm->context.list_lock);
+ 	list_del(&page->lru);
++	page->private = 0;
+ 	spin_unlock_bh(&mm->context.list_lock);
+-	if (atomic_read(&mm->mm_users) < 2 &&
+-	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
+-		__crst_table_free(mm, table);
 -		return;
 -	}
--	mp->need_flush = 1;
--	mp->pages[mp->pages_nr++] = page;
--	if (mp->pages_nr >= FREE_PTE_NR)
--		tlb_flush_mmu(mp);
+-	batch = rcu_table_freelist_get(mm);
+-	if (!batch) {
+-		smp_call_function(smp_sync, NULL, 1);
+-		__crst_table_free(mm, table);
+-		return;
+-	}
+-	batch->table[--batch->crst_index] = table;
+-	if (batch->pgt_index >= batch->crst_index)
+-		rcu_table_freelist_finish();
++	if (shadow)
++		free_pages((unsigned long) shadow, ALLOC_ORDER);
++	free_pages((unsigned long) table, ALLOC_ORDER);
+ }
+ 
+ #ifdef CONFIG_64BIT
+@@ -223,7 +121,7 @@ int crst_table_upgrade(struct mm_struct 
+ 	}
+ 	spin_unlock_bh(&mm->page_table_lock);
+ 	if (table)
+-		crst_table_free(mm, table);
++		crst_table_free(table);
+ 	if (mm->context.asce_limit < limit)
+ 		goto repeat;
+ 	update_mm(mm, current);
+@@ -257,7 +155,7 @@ void crst_table_downgrade(struct mm_stru
+ 		}
+ 		mm->pgd = (pgd_t *) (pgd_val(*pgd) & _REGION_ENTRY_ORIGIN);
+ 		mm->task_size = mm->context.asce_limit;
+-		crst_table_free(mm, (unsigned long *) pgd);
++		crst_table_free((unsigned long *) pgd);
+ 	}
+ 	update_mm(mm, current);
+ }
+@@ -288,11 +186,7 @@ unsigned long *page_table_alloc(struct m
+ 			return NULL;
+ 		pgtable_page_ctor(page);
+ 		page->flags &= ~FRAG_MASK;
+-		table = (unsigned long *) page_to_phys(page);
+-		if (mm->context.has_pgste)
+-			clear_table_pgstes(table);
+-		else
+-			clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE);
++		page->private = (unsigned long) mm;
+ 		spin_lock_bh(&mm->context.list_lock);
+ 		list_add(&page->lru, &mm->context.pgtable_list);
+ 	}
+@@ -305,42 +199,34 @@ unsigned long *page_table_alloc(struct m
+ 	if ((page->flags & FRAG_MASK) == ((1UL << TABLES_PER_PAGE) - 1))
+ 		list_move_tail(&page->lru, &mm->context.pgtable_list);
+ 	spin_unlock_bh(&mm->context.list_lock);
++	clear_table(table, _PAGE_TYPE_EMPTY, PTRS_PER_PTE * sizeof(long));
++	if (mm->context.noexec)
++		clear_table(table + 256, _PAGE_TYPE_EMPTY,
++			    PTRS_PER_PTE * sizeof(long));
++	else if (mm->context.has_pgste)
++		clear_table(table + 256, 0, PTRS_PER_PTE * sizeof(long));
+ 	return table;
+ }
+ 
+-static void __page_table_free(struct mm_struct *mm, unsigned long *table)
++void page_table_free(unsigned long *table)
+ {
+-	struct page *page;
+-	unsigned long bits;
+-
+-	bits = ((unsigned long) table) & 15;
+-	table = (unsigned long *)(((unsigned long) table) ^ bits);
+-	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
+-	page->flags ^= bits;
+-	if (!(page->flags & FRAG_MASK)) {
+-		pgtable_page_dtor(page);
+-		__free_page(page);
+-	}
 -}
 -
--#define tlb_remove_tlb_entry(mp,ptep,addr) do { } while (0)
--#define pte_free_tlb(mp, ptepage, addr) pte_free((mp)->mm, ptepage)
--#define pmd_free_tlb(mp, pmdp, addr) pmd_free((mp)->mm, pmdp)
--#define pud_free_tlb(tlb,pudp, addr) __pud_free_tlb(tlb,pudp,addr)
-+extern void __flush_tlb_pending(unsigned long, unsigned long, unsigned long *);
-+extern void flush_tlb_pending(void);
+-void page_table_free(struct mm_struct *mm, unsigned long *table)
+-{
+-	struct page *page;
++	struct page *page = virt_to_page(table);
++	struct mm_struct *mm = (struct mm_struct *) page->private;
+ 	unsigned long bits;
  
--#define tlb_migrate_finish(mm)	do { } while (0)
- #define tlb_start_vma(tlb, vma) do { } while (0)
- #define tlb_end_vma(tlb, vma)	do { } while (0)
-+#define __tlb_remove_tlb_entry(tlb, ptep, address) do { } while (0)
-+#define tlb_flush(tlb)	flush_tlb_pending()
-+
-+#include <asm-generic/tlb.h>
- 
- #endif /* _SPARC64_TLB_H */
-Index: linux-2.6/arch/sparc/include/asm/tlbflush_64.h
-===================================================================
---- linux-2.6.orig/arch/sparc/include/asm/tlbflush_64.h
-+++ linux-2.6/arch/sparc/include/asm/tlbflush_64.h
-@@ -5,9 +5,17 @@
- #include <asm/mmu_context.h>
- 
- /* TSB flush operations. */
--struct mmu_gather;
-+
-+#define TLB_BATCH_NR	192
-+
-+struct tlb_batch {
-+	struct mm_struct *mm;
-+	unsigned long tlb_nr;
-+	unsigned long vaddrs[TLB_BATCH_NR];
-+};
-+
- extern void flush_tsb_kernel_range(unsigned long start, unsigned long end);
--extern void flush_tsb_user(struct mmu_gather *mp);
-+extern void flush_tsb_user(struct tlb_batch *tb);
- 
- /* TLB flush operations. */
- 
-Index: linux-2.6/arch/sparc/mm/tlb.c
-===================================================================
---- linux-2.6.orig/arch/sparc/mm/tlb.c
-+++ linux-2.6/arch/sparc/mm/tlb.c
-@@ -19,33 +19,34 @@
- 
- /* Heavily inspired by the ppc64 code.  */
- 
--DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-+static DEFINE_PER_CPU(struct tlb_batch, tlb_batch);
- 
- void flush_tlb_pending(void)
- {
--	struct mmu_gather *mp = &get_cpu_var(mmu_gathers);
-+	struct tlb_batch *tb = &get_cpu_var(tlb_batch);
- 
--	if (mp->tlb_nr) {
--		flush_tsb_user(mp);
-+	if (tb->tlb_nr) {
-+		flush_tsb_user(tb);
- 
--		if (CTX_VALID(mp->mm->context)) {
-+		if (CTX_VALID(tb->mm->context)) {
- #ifdef CONFIG_SMP
--			smp_flush_tlb_pending(mp->mm, mp->tlb_nr,
--					      &mp->vaddrs[0]);
-+			smp_flush_tlb_pending(tb->mm, tb->tlb_nr,
-+					      &tb->vaddrs[0]);
- #else
--			__flush_tlb_pending(CTX_HWBITS(mp->mm->context),
--					    mp->tlb_nr, &mp->vaddrs[0]);
-+			__flush_tlb_pending(CTX_HWBITS(tb->mm->context),
-+					    tb->tlb_nr, &tb->vaddrs[0]);
- #endif
- 		}
--		mp->tlb_nr = 0;
-+		tb->tlb_nr = 0;
- 	}
- 
--	put_cpu_var(mmu_gathers);
-+	put_cpu_var(tlb_batch);
- }
- 
--void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr, pte_t *ptep, pte_t orig)
-+void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
-+		   pte_t *ptep, pte_t orig, int fullmm)
- {
--	struct mmu_gather *mp = &__get_cpu_var(mmu_gathers);
-+	struct tlb_batch *tb = &get_cpu_var(tlb_batch);
- 	unsigned long nr;
- 
- 	vaddr &= PAGE_MASK;
-@@ -77,21 +78,25 @@ void tlb_batch_add(struct mm_struct *mm,
- 
- no_cache_flush:
- 
--	if (mp->fullmm)
-+	if (fullmm) {
-+		put_cpu_var(tlb_batch);
- 		return;
+ 	bits = (mm->context.noexec || mm->context.has_pgste) ? 3UL : 1UL;
+ 	bits <<= (__pa(table) & (PAGE_SIZE - 1)) / 256 / sizeof(unsigned long);
+-	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
+ 	spin_lock_bh(&mm->context.list_lock);
+ 	page->flags ^= bits;
+ 	if (page->flags & FRAG_MASK) {
+ 		/* Page now has some free pgtable fragments. */
+-		if (!list_empty(&page->lru))
+-			list_move(&page->lru, &mm->context.pgtable_list);
++		list_move(&page->lru, &mm->context.pgtable_list);
+ 		page = NULL;
+-	} else
++	} else {
+ 		/* All fragments of the 4K page have been freed. */
+ 		list_del(&page->lru);
++		page->private = 0;
 +	}
- 
--	nr = mp->tlb_nr;
-+	nr = tb->tlb_nr;
- 
--	if (unlikely(nr != 0 && mm != mp->mm)) {
-+	if (unlikely(nr != 0 && mm != tb->mm)) {
- 		flush_tlb_pending();
- 		nr = 0;
- 	}
- 
- 	if (nr == 0)
--		mp->mm = mm;
-+		tb->mm = mm;
- 
--	mp->vaddrs[nr] = vaddr;
--	mp->tlb_nr = ++nr;
-+	tb->vaddrs[nr] = vaddr;
-+	tb->tlb_nr = ++nr;
- 	if (nr >= TLB_BATCH_NR)
- 		flush_tlb_pending();
-+
-+	put_cpu_var(tlb_batch);
- }
-Index: linux-2.6/arch/sparc/mm/tsb.c
-===================================================================
---- linux-2.6.orig/arch/sparc/mm/tsb.c
-+++ linux-2.6/arch/sparc/mm/tsb.c
-@@ -47,12 +47,13 @@ void flush_tsb_kernel_range(unsigned lon
+ 	spin_unlock_bh(&mm->context.list_lock);
+ 	if (page) {
+ 		pgtable_page_dtor(page);
+@@ -348,36 +234,6 @@ void page_table_free(struct mm_struct *m
  	}
  }
  
--static void __flush_tsb_one(struct mmu_gather *mp, unsigned long hash_shift, unsigned long tsb, unsigned long nentries)
-+static void __flush_tsb_one(struct tlb_batch *tb, unsigned long hash_shift,
-+			    unsigned long tsb, unsigned long nentries)
+-void page_table_free_rcu(struct mm_struct *mm, unsigned long *table)
+-{
+-	struct rcu_table_freelist *batch;
+-	struct page *page;
+-	unsigned long bits;
+-
+-	if (atomic_read(&mm->mm_users) < 2 &&
+-	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
+-		page_table_free(mm, table);
+-		return;
+-	}
+-	batch = rcu_table_freelist_get(mm);
+-	if (!batch) {
+-		smp_call_function(smp_sync, NULL, 1);
+-		page_table_free(mm, table);
+-		return;
+-	}
+-	bits = (mm->context.noexec || mm->context.has_pgste) ? 3UL : 1UL;
+-	bits <<= (__pa(table) & (PAGE_SIZE - 1)) / 256 / sizeof(unsigned long);
+-	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
+-	spin_lock_bh(&mm->context.list_lock);
+-	/* Delayed freeing with rcu prevents reuse of pgtable fragments */
+-	list_del_init(&page->lru);
+-	spin_unlock_bh(&mm->context.list_lock);
+-	table = (unsigned long *)(((unsigned long) table) | bits);
+-	batch->table[batch->pgt_index++] = table;
+-	if (batch->pgt_index >= batch->crst_index)
+-		rcu_table_freelist_finish();
+-}
+-
+ void disable_noexec(struct mm_struct *mm, struct task_struct *tsk)
  {
- 	unsigned long i;
- 
--	for (i = 0; i < mp->tlb_nr; i++) {
--		unsigned long v = mp->vaddrs[i];
-+	for (i = 0; i < tb->tlb_nr; i++) {
-+		unsigned long v = tb->vaddrs[i];
- 		unsigned long tag, ent, hash;
- 
- 		v &= ~0x1UL;
-@@ -65,9 +66,9 @@ static void __flush_tsb_one(struct mmu_g
- 	}
- }
- 
--void flush_tsb_user(struct mmu_gather *mp)
-+void flush_tsb_user(struct tlb_batch *tb)
- {
--	struct mm_struct *mm = mp->mm;
-+	struct mm_struct *mm = tb->mm;
- 	unsigned long nentries, base, flags;
- 
- 	spin_lock_irqsave(&mm->context.lock, flags);
-@@ -76,7 +77,7 @@ void flush_tsb_user(struct mmu_gather *m
- 	nentries = mm->context.tsb_block[MM_TSB_BASE].tsb_nentries;
- 	if (tlb_type == cheetah_plus || tlb_type == hypervisor)
- 		base = __pa(base);
--	__flush_tsb_one(mp, PAGE_SHIFT, base, nentries);
-+	__flush_tsb_one(tb, PAGE_SHIFT, base, nentries);
- 
- #ifdef CONFIG_HUGETLB_PAGE
- 	if (mm->context.tsb_block[MM_TSB_HUGE].tsb) {
-@@ -84,7 +85,7 @@ void flush_tsb_user(struct mmu_gather *m
- 		nentries = mm->context.tsb_block[MM_TSB_HUGE].tsb_nentries;
- 		if (tlb_type == cheetah_plus || tlb_type == hypervisor)
- 			base = __pa(base);
--		__flush_tsb_one(mp, HPAGE_SHIFT, base, nentries);
-+		__flush_tsb_one(tb, HPAGE_SHIFT, base, nentries);
- 	}
- #endif
- 	spin_unlock_irqrestore(&mm->context.lock, flags);
-Index: linux-2.6/arch/sparc/include/asm/pgtable_64.h
-===================================================================
---- linux-2.6.orig/arch/sparc/include/asm/pgtable_64.h
-+++ linux-2.6/arch/sparc/include/asm/pgtable_64.h
-@@ -655,9 +655,11 @@ static inline int pte_special(pte_t pte)
- #define pte_unmap(pte)			do { } while (0)
- 
- /* Actual page table PTE updates.  */
--extern void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr, pte_t *ptep, pte_t orig);
-+extern void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
-+			  pte_t *ptep, pte_t orig, int fullmm);
- 
--static inline void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
-+static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
-+			     pte_t *ptep, pte_t pte, int fullmm)
- {
- 	pte_t orig = *ptep;
- 
-@@ -670,12 +672,19 @@ static inline void set_pte_at(struct mm_
- 	 *             and SUN4V pte layout, so this inline test is fine.
- 	 */
- 	if (likely(mm != &init_mm) && (pte_val(orig) & _PAGE_VALID))
--		tlb_batch_add(mm, addr, ptep, orig);
-+		tlb_batch_add(mm, addr, ptep, orig, fullmm);
- }
- 
-+#define set_pte_at(mm,addr,ptep,pte)	\
-+	__set_pte_at((mm), (addr), (ptep), (pte), 0)
-+
- #define pte_clear(mm,addr,ptep)		\
- 	set_pte_at((mm), (addr), (ptep), __pte(0UL))
- 
-+#define __HAVE_ARCH_PTE_CLEAR_NOT_PRESENT_FULL
-+#define pte_clear_not_present_full(mm,addr,ptep,fullmm)	\
-+	__set_pte_at((mm), (addr), (ptep), __pte(0UL), (fullmm))
-+
- #ifdef DCACHE_ALIASING_POSSIBLE
- #define __HAVE_ARCH_MOVE_PTE
- #define move_pte(pte, prot, old_addr, new_addr)				\
+ 	struct page *page;
 
 
 --
