@@ -1,47 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 600508D0040
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 03:45:53 -0500 (EST)
-Date: Wed, 2 Mar 2011 09:45:42 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC PATCH 4/5] mm: Add hit/miss accounting for Page Cache
-Message-ID: <20110302084542.GA20795@elte.hu>
-References: <no>
- <1299055090-23976-4-git-send-email-namei.unix@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1299055090-23976-4-git-send-email-namei.unix@gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id D110A8D0040
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 04:48:43 -0500 (EST)
+Subject: Re: [PATCH] mm: prevent concurrent unmap_mapping_range() on the
+ same inode
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <alpine.LSU.2.00.1102231448460.5732@sister.anvils>
+References: <E1PsEA7-0007G0-29@pomaz-ex.szeredi.hu>
+	 <AANLkTimeihuzjgR2f7Avq2PJrCw1vZxtjh=wBPXO3aHP@mail.gmail.com>
+	 <alpine.LSU.2.00.1102231448460.5732@sister.anvils>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Wed, 02 Mar 2011 10:48:16 +0100
+Message-ID: <1299059296.2428.13483.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liu Yuan <namei.unix@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaxboe@fusionio.com, akpm@linux-foundation.org, fengguang.wu@intel.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Arnaldo Carvalho de Melo <acme@redhat.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, hch@infradead.org, gurudas.pai@oracle.com, lkml20101129@newton.leun.net, rjw@sisk.pl, florian@mickler.org, trond.myklebust@fys.uio.no, maciej.rutecki@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+On Wed, 2011-02-23 at 15:12 -0800, Hugh Dickins wrote:
+>=20
+> In his [2/8] mm: remove i_mmap_mutex lockbreak patch, Peter says
+> "shouldn't hold up reclaim more than lock_page() would".  But (apart
+> from a write error case) we always use trylock_page() in reclaim, we
+> never dare hold it up on a lock_page().=20
 
-* Liu Yuan <namei.unix@gmail.com> wrote:
+D'0h! I so missed that, ok fixed up the changelog.
 
-> +		if (likely(!retry_find) && page && PageUptodate(page))
-> +			page_cache_acct_hit(inode->i_sb, READ);
-> +		else
-> +			page_cache_acct_missed(inode->i_sb, READ);
+>  So page reclaim would get
+> held up on truncation more than at present - though he's right to
+> point out that truncation will usually be freeing pages much faster.
 
-Sigh.
-
-This would make such a nice tracepoint or sw perf event. It could be collected in a 
-'count' form, equivalent to the stats you are aiming for here, or it could even be 
-traced, if someone is interested in such details.
-
-It could be mixed with other events, enriching multiple apps at once.
-
-But, instead of trying to improve those aspects of our existing instrumentation 
-frameworks, mm/* is gradually growing its own special instrumentation hacks, missing 
-the big picture and fragmenting the instrumentation space some more.
-
-That trend is somewhat sad.
-
-Thanks,
-
-	Ingo
+*phew* :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
