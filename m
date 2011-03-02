@@ -1,36 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id E3B3D8D0039
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 14:53:35 -0500 (EST)
-Date: Wed, 02 Mar 2011 11:54:11 -0800 (PST)
-Message-Id: <20110302.115411.183067873.davem@davemloft.net>
-Subject: Re: [PATCH v3 0/4] exec: unify native/compat code
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <AANLkTi=e7n63cCTUe1T+C0d6Ni1VVBFZZ6y_rj-2RQwu@mail.gmail.com>
-References: <AANLkTinzQmprg+XHKjTj7bA+jFf_N4hta3_09M+SEfRt@mail.gmail.com>
-	<20110302.114018.104077586.davem@davemloft.net>
-	<AANLkTi=e7n63cCTUe1T+C0d6Ni1VVBFZZ6y_rj-2RQwu@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 296D28D0039
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 16:00:00 -0500 (EST)
+Message-ID: <4D6EAF93.5000000@redhat.com>
+Date: Wed, 02 Mar 2011 15:58:59 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 2/6] mm: Change flush_tlb_range() to take an mm_struct
+References: <20110302175928.022902359@chello.nl> <20110302180258.956518392@chello.nl> <AANLkTimhWKhHojZ-9XZGSh3OzfPhvo__Dib9VfeMWoBQ@mail.gmail.com>
+In-Reply-To: <AANLkTimhWKhHojZ-9XZGSh3OzfPhvo__Dib9VfeMWoBQ@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: oleg@redhat.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pageexec@freemail.hu, solar@openwall.com, eteo@redhat.com, spender@grsecurity.net, roland@redhat.com, miltonm@bga.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 2 Mar 2011 11:48:03 -0800
+On 03/02/2011 02:19 PM, Linus Torvalds wrote:
 
-> Well, the thing is, on architectures that _can_ pass by value, it
-> avoids one indirection.
-> 
-> And if you do pass it on stack, then the code generated will be the
-> same as if we passed a pointer. So sparc may not be able to take
-> advantage of the optimization, but I don't think the code generation
-> would be worse.
+>> There are various reasons that we need to flush TLBs _after_ freeing
+>> the page-tables themselves. For some architectures (x86 among others)
+>> this serializes against (both hardware and software) page table
+>> walkers like gup_fast().
+>
+> This part of the changelog also makes no sense what-so-ever. It's
+> actively wrong.
+>
+> On x86, we absolutely *must* do the TLB flush _before_ we release the
+> page tables. So your commentary is actively wrong and misleading.
+>
+> The order has to be:
+>   - clear the page table entry, queue the page to be free'd
+>   - flush the TLB
+>   - free the page (and page tables)
+>
+> and nothing else is correct, afaik. So the changelog is pure and utter
+> garbage. I didn't look at what the patch actually changed.
 
-That's a good point, the situation here is different than the page table
-one.
+The patch seems to preserve the correct behaviour.
+
+The changelog should probably read something along the
+lines of:
+
+"There are various reasons that we need to flush TLBs _after_
+  clearing the page-table entries themselves."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
