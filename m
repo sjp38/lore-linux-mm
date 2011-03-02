@@ -1,59 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C6B218D0039
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 13:50:07 -0500 (EST)
-Date: Wed, 2 Mar 2011 19:49:53 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC PATCH 4/5] mm: Add hit/miss accounting for Page Cache
-Message-ID: <20110302184953.GH13693@elte.hu>
-References: <no>
- <1299055090-23976-4-git-send-email-namei.unix@gmail.com>
- <20110302084542.GA20795@elte.hu>
- <1299085326.8493.820.camel@nimitz>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AACB8D0039
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 14:27:45 -0500 (EST)
+Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p22JR2mq017900
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Wed, 2 Mar 2011 11:27:02 -0800
+Received: by iyf13 with SMTP id 13so308967iyf.14
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2011 11:27:02 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1299085326.8493.820.camel@nimitz>
+In-Reply-To: <20110302180258.956518392@chello.nl>
+References: <20110302175928.022902359@chello.nl> <20110302180258.956518392@chello.nl>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 2 Mar 2011 11:19:48 -0800
+Message-ID: <AANLkTimhWKhHojZ-9XZGSh3OzfPhvo__Dib9VfeMWoBQ@mail.gmail.com>
+Subject: Re: [RFC][PATCH 2/6] mm: Change flush_tlb_range() to take an mm_struct
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Liu Yuan <namei.unix@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaxboe@fusionio.com, akpm@linux-foundation.org, fengguang.wu@intel.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Arnaldo Carvalho de Melo <acme@redhat.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
+On Wed, Mar 2, 2011 at 9:59 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> In order to be able to properly support architecture that want/need to
+> support TLB range invalidation, we need to change the
+> flush_tlb_range() argument from a vm_area_struct to an mm_struct
+> because the range might very well extend past one VMA, or not have a
+> VMA at all.
 
-* Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+I really don't think this is right. The whole "drop the icache
+information" thing is a total anti-optimization, since for some
+architectures, the icache flush is the _big_ deal. Possibly much
+bigger than the TLB flush itself. Doing an icache flush was much more
+expensive than the TLB flush on alpha, for example (the tlb had ASI's
+etc, the icache did not).
 
-> On Wed, 2011-03-02 at 09:45 +0100, Ingo Molnar wrote:
-> > But, instead of trying to improve those aspects of our existing instrumentation 
-> > frameworks, mm/* is gradually growing its own special instrumentation hacks, missing 
-> > the big picture and fragmenting the instrumentation space some more.
-> > 
-> > That trend is somewhat sad. 
-> 
-> Go any handy examples of how you'd like to see these done?
+> There are various reasons that we need to flush TLBs _after_ freeing
+> the page-tables themselves. For some architectures (x86 among others)
+> this serializes against (both hardware and software) page table
+> walkers like gup_fast().
 
-There's a very, very old branch in tip:tracing/mm (by Steve) that shows off some of 
-the concepts that could be introduced, to 'dump' current MM state via an extension 
-to the tracepoints APIs:
+This part of the changelog also makes no sense what-so-ever. It's
+actively wrong.
 
-3383e37ea796: tracing, page-allocator: Add a postprocessing script for page-allocator-related ftrace events
-c33b3596bc38: tracing, page-allocator: Add trace event for page traffic related to the buddy lists
-0d524fb734bc: tracing, mm: Add trace events for anti-fragmentation falling back to other migratetypes
-b9a28177eedf: tracing, page-allocator: Add trace events for page allocation and page freeing
-807243eb20b2: Merge branch 'perfcounters/urgent' into tracing/mm
-08b6cb88eeb5: perf_counter tools: Provide default bfd_demangle() function in case it's not around
-eb4671011887: tracing/mm: rename 'trigger' file to 'dump_range'
-1487a7a1ff99: tracing/mm: fix mapcount trace record field
-dcac8cdac1d4: tracing/mm: add page frame snapshot trace
+On x86, we absolutely *must* do the TLB flush _before_ we release the
+page tables. So your commentary is actively wrong and misleading.
 
-That's just a demo in essence - showing what things could be done in this area.
+The order has to be:
+ - clear the page table entry, queue the page to be free'd
+ - flush the TLB
+ - free the page (and page tables)
 
-You can pick those commits up via running:
+and nothing else is correct, afaik. So the changelog is pure and utter
+garbage. I didn't look at what the patch actually changed.
 
-  http://people.redhat.com/mingo/tip.git/README
+NAK.
 
-Thanks,
-
-	Ingo
+                         Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
