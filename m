@@ -1,61 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 1878B8D0040
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 03:38:39 -0500 (EST)
-Received: by gwj15 with SMTP id 15so3205265gwj.8
-        for <linux-mm@kvack.org>; Wed, 02 Mar 2011 00:38:36 -0800 (PST)
-From: Liu Yuan <namei.unix@gmail.com>
-Subject: [RFC PATCH 5/5] mm: Add readpages accounting
-Date: Wed,  2 Mar 2011 16:38:10 +0800
-Message-Id: <1299055090-23976-5-git-send-email-namei.unix@gmail.com>
-In-Reply-To: <no>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 600508D0040
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 03:45:53 -0500 (EST)
+Date: Wed, 2 Mar 2011 09:45:42 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [RFC PATCH 4/5] mm: Add hit/miss accounting for Page Cache
+Message-ID: <20110302084542.GA20795@elte.hu>
 References: <no>
+ <1299055090-23976-4-git-send-email-namei.unix@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1299055090-23976-4-git-send-email-namei.unix@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaxboe@fusionio.com, akpm@linux-foundation.org, fengguang.wu@intel.com
+To: Liu Yuan <namei.unix@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaxboe@fusionio.com, akpm@linux-foundation.org, fengguang.wu@intel.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Arnaldo Carvalho de Melo <acme@redhat.com>
 
-From: Liu Yuan <tailai.ly@taobao.com>
 
-The _readpages_ counter simply counts how many pages the kernel
-really request from the disk, either by readahead module or
-aop->readpage() when readahead window equals 0.
+* Liu Yuan <namei.unix@gmail.com> wrote:
 
-This counter is request-centric and doesnot check read errors
-since the read requests are issued to the block layer already.
+> +		if (likely(!retry_find) && page && PageUptodate(page))
+> +			page_cache_acct_hit(inode->i_sb, READ);
+> +		else
+> +			page_cache_acct_missed(inode->i_sb, READ);
 
-Signed-off-by: Liu Yuan <tailai.ly@taobao.com>
----
- mm/filemap.c   |    1 +
- mm/readahead.c |    2 ++
- 2 files changed, 3 insertions(+), 0 deletions(-)
+Sigh.
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 5388b2a..d638391 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1137,6 +1137,7 @@ readpage:
- 		 */
- 		ClearPageError(page);
- 		/* Start the actual read. The read will unlock the page. */
-+		page_cache_acct_readpages(mapping->host->i_sb, 1);
- 		error = mapping->a_ops->readpage(filp, page);
- 
- 		if (unlikely(error)) {
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 77506a2..483acb8 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -112,6 +112,8 @@ static int read_pages(struct address_space *mapping, struct file *filp,
- 	unsigned page_idx;
- 	int ret;
- 
-+	page_cache_acct_readpages(mapping->host->i_sb, nr_pages);
-+
- 	if (mapping->a_ops->readpages) {
- 		ret = mapping->a_ops->readpages(filp, mapping, pages, nr_pages);
- 		/* Clean up the remaining pages */
--- 
-1.7.0.4
+This would make such a nice tracepoint or sw perf event. It could be collected in a 
+'count' form, equivalent to the stats you are aiming for here, or it could even be 
+traced, if someone is interested in such details.
+
+It could be mixed with other events, enriching multiple apps at once.
+
+But, instead of trying to improve those aspects of our existing instrumentation 
+frameworks, mm/* is gradually growing its own special instrumentation hacks, missing 
+the big picture and fragmenting the instrumentation space some more.
+
+That trend is somewhat sad.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
