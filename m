@@ -1,52 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 24ED48D0039
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 00:23:25 -0500 (EST)
-Received: by qyk30 with SMTP id 30so5453663qyk.14
-        for <linux-mm@kvack.org>; Tue, 01 Mar 2011 21:23:23 -0800 (PST)
-Date: Tue, 1 Mar 2011 23:23:20 -0600
-From: Shaun Ruffell <sruffell@sruffell.net>
-Subject: Re: [PATCH] mm/dmapool.c: Do not create/destroy sysfs file while
-	holding pools_lock
-Message-ID: <20110302052320.GB7463@kilby.digium.internal>
-References: <20110228224124.GA31769@blackmagic.digium.internal> <20110301170117.258e06e2.akpm@linux-foundation.org> <m1wrki3zrq.fsf@fess.ebiederm.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <m1wrki3zrq.fsf@fess.ebiederm.org>
+	by kanga.kvack.org (Postfix) with SMTP id 79D548D0039
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 00:28:04 -0500 (EST)
+Subject: Re: [PATCH 5/6] mm: add some KERN_CONT markers to continuation
+ lines
+From: Joe Perches <joe@perches.com>
+In-Reply-To: <AANLkTi=VB5po9Yt2oCcCq01UNQxXNY+_6RBpjWRFkvxN@mail.gmail.com>
+References: <20101124085645.GW4693@pengutronix.de>
+	 <1290589070-854-5-git-send-email-u.kleine-koenig@pengutronix.de>
+	 <20110228151736.GO22310@pengutronix.de>
+	 <AANLkTi=VB5po9Yt2oCcCq01UNQxXNY+_6RBpjWRFkvxN@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 01 Mar 2011 21:28:00 -0800
+Message-ID: <1299043680.4208.97.camel@Joe-Laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Russ Meyerriecks <rmeyerriecks@digium.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg KH <greg@kroah.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Uwe =?ISO-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>, linux-kernel@vger.kernel.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, kernel@pengutronix.de, Arjan van de Ven <arjan@infradead.org>, linux-mm@kvack.org
 
-On Tue, Mar 01, 2011 at 08:35:53PM -0800, Eric W. Biederman wrote:
-> Andrew Morton <akpm@linux-foundation.org> writes:
-> > One way of fixing this would be to create another singleton lock:
-> >
-> >
-> > 	{
-> > 		static DEFINE_MUTEX(pools_sysfs_lock);
-> > 		static bool pools_sysfs_done;
-> >
-> > 		mutex_lock(&pools_sysfs_lock);
-> > 		if (pools_sysfs_done == false) {
-> > 			create_sysfs_stuff();
-> > 			pools_sysfs_done = true;
-> > 		}
-> > 		mutex_unlock(&pools_sysfs_lock);
-> > 	}
-> >
-> > That's not terribly pretty.
-> 
-> Or possibly use module_init style magic.  Where use module
-> initialization and remove to trigger creation and deletion of the sysfs.
-> 
+On Tue, 2011-03-01 at 13:46 -0800, Linus Torvalds wrote:
+> the concept of
+>     printk(KERN_CONT "\n")
+> is just crazy: you're saying "I want to continue the line, in order to
+> print a newline". Whaa?
 
-I'm not following how module initialization can help here. Are you suggesting
-that all devices get a 'pools' attribute regardless of whether any dma pools
-are actually created?
+It's a trivially useful "end of collected printk" mark,
+which was made a bit superfluous by the code that added
+any necessary newline before every KERN_<level>.
 
-Shaun
+There are a thousand or so of them today.
+
+$ grep -rP --include=*.[ch] "\b(printk\s*\(\s*KERN_CONT|pr_cont\s*\(|printk\s*\()\s*\"\\\n\"" * | wc -l
+1061
+
+That code made all message terminating newlines a bit
+obsolete.  I won't be submitting any patches to remove
+those EOM newlines any time soon.
+
+I hope no one does that.
+
+It would be actually useful to have some form like:
+
+	cookie = collected_printk_start()
+loop:
+		collected_printk(cookie, ...) (...)
+	collected_printk_end(cookie)
+
+so that interleaved messages from multiple
+concurrent streams could be sensibly collected
+either post processed or buffered.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
