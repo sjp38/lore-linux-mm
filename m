@@ -1,240 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id EDFBD8D0039
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 02:24:39 -0500 (EST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20110228224124.GA31769@blackmagic.digium.internal>
-	<20110301170117.258e06e2.akpm@linux-foundation.org>
-	<20110302051734.GA7463@kilby.digium.internal>
-Date: Tue, 01 Mar 2011 23:24:27 -0800
-In-Reply-To: <20110302051734.GA7463@kilby.digium.internal> (Shaun Ruffell's
-	message of "Tue, 1 Mar 2011 23:17:34 -0600")
-Message-ID: <m1lj0y3rys.fsf@fess.ebiederm.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C20B8D0039
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 03:37:56 -0500 (EST)
+Received: by iwl42 with SMTP id 42so6552872iwl.14
+        for <linux-mm@kvack.org>; Wed, 02 Mar 2011 00:37:54 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Subject: Re: [PATCH] mm/dmapool.c: Do not create/destroy sysfs file while holding pools_lock
+Date: Wed, 2 Mar 2011 16:37:54 +0800
+Message-ID: <AANLkTik7MA6YcrWVbjFhQsN0arR72xmH9g1M2Yi-E_B-@mail.gmail.com>
+Subject: [RFC PATCH 0/5] Add accountings for Page Cache
+From: noname noname <namei.unix@gmail.com>
+Content-Type: multipart/alternative; boundary=90e6ba2121d73bb16f049d7bd4f0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaun Ruffell <sruffell@sruffell.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Russ Meyerriecks <rmeyerriecks@digium.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg KH <greg@kroah.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaxboe@fusionio.com, akpm@linux-foundation.org, fengguang.wu@intel.com
 
-Shaun Ruffell <sruffell@sruffell.net> writes:
+--90e6ba2121d73bb16f049d7bd4f0
+Content-Type: text/plain; charset=ISO-8859-1
 
-> On Tue, Mar 01, 2011 at 05:01:17PM -0800, Andrew Morton wrote:
->> On Mon, 28 Feb 2011 16:41:24 -0600
->> Russ Meyerriecks <rmeyerriecks@digium.com> wrote:
->> 
->> > From: Shaun Ruffell <sruffell@digium.com>
->> > 
->> > Eliminates a circular lock dependency reported by lockdep. When reading the
->> > "pools" file from a PCI device via sysfs, the s_active lock is acquired before
->> > the pools_lock. When unloading the driver and destroying the pool, pools_lock
->> > is acquired before the s_active lock.
->> > 
->> >  cat/12016 is trying to acquire lock:
->> >   (pools_lock){+.+.+.}, at: [<c04ef113>] show_pools+0x43/0x140
->> > 
->> >  but task is already holding lock:
->> >   (s_active#82){++++.+}, at: [<c0554e1b>] sysfs_read_file+0xab/0x160
->> > 
->> >  which lock already depends on the new lock.
->> 
->> sysfs_dirent_init_lockdep() and the 6992f53349 ("sysfs: Use one lockdep
->> class per sysfs attribute") which added it are rather scary.
->> 
->> The alleged bug appears to be due to taking pools_lock outside
->> device_create_file() (which takes magical sysfs PseudoVirtualLocks)
->> versus show_pools(), which takes pools_lock but is called from inside
->> magical sysfs PseudoVirtualLocks.
->> 
->> I don't know if this is actually a real bug or not.  Probably not, as
->> this device_create_file() does not match the reasons for 6992f53349:
->> "There is a sysfs idiom where writing to one sysfs file causes the
->> addition or removal of other sysfs files".  But that's a guess.
->> 
->> > --- a/mm/dmapool.c
->> > +++ b/mm/dmapool.c
->> > @@ -174,21 +174,28 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
->> >  	init_waitqueue_head(&retval->waitq);
->> >  
->> >  	if (dev) {
->> > -		int ret;
->> > +		int first_pool;
->> >  
->> >  		mutex_lock(&pools_lock);
->> >  		if (list_empty(&dev->dma_pools))
->> > -			ret = device_create_file(dev, &dev_attr_pools);
->> > +			first_pool = 1;
->> >  		else
->> > -			ret = 0;
->> > +			first_pool = 0;
->> >  		/* note:  not currently insisting "name" be unique */
->> > -		if (!ret)
->> > -			list_add(&retval->pools, &dev->dma_pools);
->> > -		else {
->> > -			kfree(retval);
->> > -			retval = NULL;
->> > -		}
->> > +		list_add(&retval->pools, &dev->dma_pools);
->> >  		mutex_unlock(&pools_lock);
->> > +
->> > +		if (first_pool) {
->> > +			int ret;
->> > +			ret = device_create_file(dev, &dev_attr_pools);
->> > +			if (ret) {
->> > +				mutex_lock(&pools_lock);
->> > +				list_del(&retval->pools);
->> > +				mutex_unlock(&pools_lock);
->> > +				kfree(retval);
->> > +				retval = NULL;
->> > +			}
->> > +		}
->> 
->> Not a good fix, IMO.  The problem is that if two CPUs concurrently call
->> dma_pool_create(), the first CPU will spend time creating the sysfs
->> file.  Meanwhile, the second CPU will whizz straight back to its
->> caller.  The caller now thinks that the sysfs file has been created and
->> returns to userspace, which immediately tries to read the sysfs file. 
->> But the first CPU hasn't finished creating it yet.  Userspace fails.
->> 
->> One way of fixing this would be to create another singleton lock:
->> 
->> 
->> 	{
->> 		static DEFINE_MUTEX(pools_sysfs_lock);
->> 		static bool pools_sysfs_done;
->> 
->> 		mutex_lock(&pools_sysfs_lock);
->> 		if (pools_sysfs_done == false) {
->> 			create_sysfs_stuff();
->> 			pools_sysfs_done = true;
->> 		}
->> 		mutex_unlock(&pools_sysfs_lock);
->> 	}
->> 
->
-> If I am following, I do not believe using a static pools_sysfs_done flag
-> will not work since there is one pools file created in sysfs for each
-> device that creates one or more dma pools. A static flag like that will
-> fail for any aditional devices.
->
-> Assuming that lockdep has uncovered a real bug (I'm not 100% clear on
-> all the reasons that sysfs PseudoVirtualLocks are needed as opposed
-> to regular locks) what do you think about something like:
->
-> mm/dmapool.c: Do not create/destroy sysfs file while holding pools_lock
->
-> Eliminates a circular lock dependency reported by lockdep. When reading the
-> "pools" file from a PCI device via sysfs, the s_active lock is acquired before
-> the pools_lock. When unloading the driver and destroying the pool, pools_lock
-> is acquired before the s_active lock.
->
->  cat/12016 is trying to acquire lock:
->   (pools_lock){+.+.+.}, at: [<c04ef113>] show_pools+0x43/0x140
->
->  but task is already holding lock:
->   (s_active#82){++++.+}, at: [<c0554e1b>] sysfs_read_file+0xab/0x160
->
->  which lock already depends on the new lock.
->
-> This introduces a new pools_sysfs_lock that is used to synchronize
-> 'pools' attribute creation / destruction without requiring 'pools_lock'
-> to be held.
+[Summery]
 
+In order to evaluate page cache efficiency, system admins are happy to
+know whether a block of data is cached for subsequent use, or whether
+the page is read-in but seldom used. This patch extends an effort to
+provide such kind of information. We adds three counters, which are
+exported to the user space, for the Page Cache that is almost
+transparent to the applications. This would benifit some heavy page
+cache users that might try to tune the performance in hybrid storage
+situation.
 
-The deadlock scenario looks like this.
-Process A:					Process B:
-mutex_lock(&pools_lock)				s_active_down();
-	device_remove_pool_file();		show_pools();	
-		s_active_down();
-							mutex_lock(&pools_lock);
+[Detail]
 
-What sysfs uses isn't strictly a lock implementation wise, but from a
-deadlock perspective it is.   And you very much have an AB BA deadlock
-here.
+The kernel would query the page cache first when it tries to manipulate
+file data & meta data. If the target data is out there, this is called
+page cache _hit_ and will save one IO operation to disk. If the target
+data is absent, then the kernel will issue the real IO requests to the
+disk, this is called page cache _miss_.
 
-If you read the sysfs file while trying to remove dma pool you will deadlock.
+Two counters are page cache specific, that is, page cache _hit_ and
+_miss_. Another counter named _readpages_ is also added because the
+kernel relys on the readahead module to make the real read requests to
+save future read IOs. The _readpages_ is supposed to give more
+information about kernel read operations.
 
-The patch below looks like it might work.  The immediate symptom is
-fixed.  But it is doing strange locking things and I am too tired to
-read through the rest of the code.
+The different combinations of three counters would give some hints on
+kernel page cache system. For example, nr(hit) + nr(miss) would means
+how many request[nr(request)] the kernel ask for in some time.
+nr(miss)/nr(requests) would produce miss ratio, etc.
 
->  mm/dmapool.c |   37 +++++++++++++++++++++++++++----------
->  1 files changed, 27 insertions(+), 10 deletions(-)
->
-> diff --git a/mm/dmapool.c b/mm/dmapool.c
-> index 03bf3bb..b0dd40c 100644
-> --- a/mm/dmapool.c
-> +++ b/mm/dmapool.c
-> @@ -64,6 +64,7 @@ struct dma_page {		/* cacheable header for 'allocation' bytes */
->  #define	POOL_TIMEOUT_JIFFIES	((100 /* msec */ * HZ) / 1000)
->  
->  static DEFINE_MUTEX(pools_lock);
-> +static DEFINE_MUTEX(pools_sysfs_lock);
->  
->  static ssize_t
->  show_pools(struct device *dev, struct device_attribute *attr, char *buf)
-> @@ -174,21 +175,28 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
->  	init_waitqueue_head(&retval->waitq);
->  
->  	if (dev) {
-> -		int ret;
-> +		int first_pool;
->  
-> +		mutex_lock(&pools_sysfs_lock);
->  		mutex_lock(&pools_lock);
->  		if (list_empty(&dev->dma_pools))
-> -			ret = device_create_file(dev, &dev_attr_pools);
-> +			first_pool = 1;
->  		else
-> -			ret = 0;
-> +			first_pool = 0;
->  		/* note:  not currently insisting "name" be unique */
-> -		if (!ret)
-> -			list_add(&retval->pools, &dev->dma_pools);
-> -		else {
-> -			kfree(retval);
-> -			retval = NULL;
-> -		}
-> +		list_add(&retval->pools, &dev->dma_pools);
->  		mutex_unlock(&pools_lock);
-> +
-> +		if (first_pool) {
-> +			if (device_create_file(dev, &dev_attr_pools)) {
-> +				mutex_lock(&pools_lock);
-> +				list_del(&retval->pools);
-> +				mutex_unlock(&pools_lock);
-> +				kfree(retval);
-> +				retval = NULL;
-> +			}
-> +		}
-> +		mutex_unlock(&pools_sysfs_lock);
->  	} else
->  		INIT_LIST_HEAD(&retval->pools);
->  
-> @@ -263,12 +271,21 @@ static void pool_free_page(struct dma_pool *pool, struct dma_page *page)
->   */
->  void dma_pool_destroy(struct dma_pool *pool)
->  {
-> +	int last_pool;
-> +
-> +	mutex_lock(&pools_sysfs_lock);
->  	mutex_lock(&pools_lock);
->  	list_del(&pool->pools);
->  	if (pool->dev && list_empty(&pool->dev->dma_pools))
-> -		device_remove_file(pool->dev, &dev_attr_pools);
-> +		last_pool = 1;
-> +	else
-> +		last_pool = 0;
->  	mutex_unlock(&pools_lock);
->  
-> +	if (last_pool)
-> +		device_remove_file(pool->dev, &dev_attr_pools);
-> +	mutex_unlock(&pools_sysfs_lock);
-> +
->  	while (!list_empty(&pool->page_list)) {
->  		struct dma_page *page;
->  		page = list_entry(pool->page_list.next,
+There is a long request from our operation teams who run hapdoop in a
+very large scale. They ask for some information about underlying Page
+Cache system when they are tuning the applications.
+
+The statistics are collected per partition. This would benifit
+performance tuning at the situation when the hybrid storage are applied
+(for example, SSD + SAS + SATA).
+
+Currently only regular file data in the page acche are collected.[meta
+data accounting is also under consideration]
+
+There is still much work that needs to be done, but it is better for me
+to send it out to review and get feedbacks as early as possible.
+
+[Performance]
+
+Since the patch is on the one of the hottest code path of the kernel, I
+did a simple function gragh tracing on the sys_read() path by
+_no-inlining_ the hit function with loop-reading a 2G
+file.[hit/miss/readpages share virtually the same logic]
+
+1)first read a 2G file from disk into page cache.
+2)read 2G file in a loop without disk IOs.
+3)function graph tracing on sys_read()
+
+This is the worst case for hit function, it is called every time when
+kernel query the page cache.
+
+In the context, test shows that sys_read() costs 8.567us, hit() costs
+0.173us (approximate to put_page() function), so 0.173 / 8.567 = 2%.
+
+Any comments are more than welcome :)
+
+-Yuan
+
+--------------------
+Liu Yuan(5)
+
+x86/Kconfig: Add Page Cache Accounting entry
+block: Add functions and data types for Page Cache Accounting
+block: Make page cache counters work with sysfs
+mm: Add hit/miss accounting for Page Cache
+mm: Add readpages accounting
+
+ arch/x86/Kconfig.debug |    9 +++++++
+ block/genhd.c          |    6 ++++
+ fs/partitions/check.c  |   23 ++++++++++++++++++
+ include/linux/genhd.h  |   60
+++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/filemap.c           |   27 ++++++++++++++++++---
+ mm/readahead.c         |    2 +
+ 6 files changed, 123 insertions(+), 4 deletions(-)
+
+--90e6ba2121d73bb16f049d7bd4f0
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+[Summery]<br><br>In order to evaluate page cache efficiency, system admins =
+are happy to<br>know whether a block of data is cached for subsequent use, =
+or whether<br>the page is read-in but seldom used. This patch extends an ef=
+fort to<br>
+provide such kind of information. We adds three counters, which are<br>expo=
+rted to the user space, for the Page Cache that is almost<br>transparent to=
+ the applications. This would benifit some heavy page<br>cache users that m=
+ight try to tune the performance in hybrid storage<br>
+situation.<br><br>[Detail]<br><br>The kernel would query the page cache fir=
+st when it tries to manipulate<br>file data &amp; meta data. If the target =
+data is out there, this is called<br>page cache _hit_ and will save one IO =
+operation to disk. If the target<br>
+data is absent, then the kernel will issue the real IO requests to the<br>d=
+isk, this is called page cache _miss_.<br><br>Two counters are page cache s=
+pecific, that is, page cache _hit_ and<br>_miss_. Another counter named _re=
+adpages_ is also added because the<br>
+kernel relys on the readahead module to make the real read requests to<br>s=
+ave future read IOs. The _readpages_ is supposed to give more<br>informatio=
+n about kernel read operations.<br><br>The different combinations of three =
+counters would give some hints on<br>
+kernel page cache system. For example, nr(hit) + nr(miss) would means<br>ho=
+w many request[nr(request)] the kernel ask for in some time.<br>nr(miss)/nr=
+(requests) would produce miss ratio, etc.<br><br>There is a long request fr=
+om our operation teams who run hapdoop in a<br>
+very large scale. They ask for some information about underlying Page<br>Ca=
+che system when they are tuning the applications.<br><br>The statistics are=
+ collected per partition. This would benifit<br>performance tuning at the s=
+ituation when the hybrid storage are applied<br>
+(for example, SSD + SAS + SATA).<br><br>Currently only regular file data in=
+ the page acche are collected.[meta<br>data accounting is also under consid=
+eration]<br><br>There is still much work that needs to be done, but it is b=
+etter for me<br>
+to send it out to review and get feedbacks as early as possible.<br><br>[Pe=
+rformance]<br><br>Since the patch is on the one of the hottest code path of=
+ the kernel, I<br>did a simple function gragh tracing on the sys_read() pat=
+h by<br>
+_no-inlining_ the hit function with loop-reading a 2G<br>file.[hit/miss/rea=
+dpages share virtually the same logic]<br><br>1)first read a 2G file from d=
+isk into page cache.<br>2)read 2G file in a loop without disk IOs.<br>3)fun=
+ction graph tracing on sys_read()<br>
+<br>This is the worst case for hit function, it is called every time when<b=
+r>kernel query the page cache.<br><br>In the context, test shows that sys_r=
+ead() costs 8.567us, hit() costs<br>0.173us (approximate to put_page() func=
+tion), so 0.173 / 8.567 =3D 2%.<br>
+<br>Any comments are more than welcome :)<br><br>-Yuan<br><br>-------------=
+-------<br>Liu Yuan(5)<br><br>x86/Kconfig: Add Page Cache Accounting entry<=
+br>block: Add functions and data types for Page Cache Accounting<br>block: =
+Make page cache counters work with sysfs<br>
+mm: Add hit/miss accounting for Page Cache<br>mm: Add readpages accounting<=
+br><br>=A0arch/x86/Kconfig.debug |=A0=A0=A0 9 +++++++<br>=A0block/genhd.c=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0 |=A0=A0=A0 6 ++++<br>=A0fs/partitions/check.c=
+=A0 |=A0=A0 23 ++++++++++++++++++<br>=A0include/linux/genhd.h=A0 |=A0=A0 60=
+ ++++++++++++++++++++++++++++++++++++++++++++++++<br>
+=A0mm/filemap.c=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 |=A0=A0 27 ++++++++++++++++++=
+---<br>=A0mm/readahead.c=A0=A0=A0=A0=A0=A0=A0=A0 |=A0=A0=A0 2 +<br>=A06 fil=
+es changed, 123 insertions(+), 4 deletions(-)<br>
+
+--90e6ba2121d73bb16f049d7bd4f0--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
