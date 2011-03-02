@@ -1,114 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EED938D0039
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 20:01:53 -0500 (EST)
-Date: Tue, 1 Mar 2011 17:01:17 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/dmapool.c: Do not create/destroy sysfs file while
- holding pools_lock
-Message-Id: <20110301170117.258e06e2.akpm@linux-foundation.org>
-In-Reply-To: <20110228224124.GA31769@blackmagic.digium.internal>
-References: <20110228224124.GA31769@blackmagic.digium.internal>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D57DC8D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 21:46:44 -0500 (EST)
+Message-ID: <4D6DAF86.2000407@cn.fujitsu.com>
+Date: Wed, 02 Mar 2011 10:46:30 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 4/4 V2] net,rcu: don't assume the size of struct rcu_head
+References: <4D6CA860.3020409@cn.fujitsu.com>	 <20110301.001638.104075130.davem@davemloft.net>	 <4D6CB414.8050107@cn.fujitsu.com> <1298971213.3284.4.camel@edumazet-laptop>
+In-Reply-To: <1298971213.3284.4.camel@edumazet-laptop>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russ Meyerriecks <rmeyerriecks@digium.com>
-Cc: sruffell@digium.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Eric W. Biederman" <ebiederm@xmission.com>, Greg KH <greg@kroah.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: David Miller <davem@davemloft.net>, mingo@elte.hu, paulmck@linux.vnet.ibm.com, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 
-On Mon, 28 Feb 2011 16:41:24 -0600
-Russ Meyerriecks <rmeyerriecks@digium.com> wrote:
+On 03/01/2011 05:20 PM, Eric Dumazet wrote:
+> Le mardi 01 mars 2011 =C3=A0 16:53 +0800, Lai Jiangshan a =C3=A9crit :
+>> On 03/01/2011 04:16 PM, David Miller wrote:
+>>> From: Lai Jiangshan <laijs@cn.fujitsu.com>
+>>> Date: Tue, 01 Mar 2011 16:03:44 +0800
+>>>
+>>>>
+>>>> struct dst=5Fentry assumes the size of struct rcu=5Fhead as 2 * sizeof=
+(long)
+>>>> and manually adds pads for aligning for "=5F=5Frefcnt".
+>>>>
+>>>> When the size of struct rcu=5Fhead is changed, these manual padding
+>>>> is wrong. Use =5F=5Fattribute=5F=5F((aligned (64))) instead.
+>>>>
+>>>> Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+>>>
+>>> We don't want to use the align if it's going to waste lots of space.
+>>>
+>>> Instead we want to rearrange the structure so that the alignment comes
+>>> more cheaply.
+>>
+>> Subject: [PATCH 4/4 V2] net,rcu: don't assume the size of struct rcu=5Fh=
+ead
+>>
+>> struct dst=5Fentry assumes the size of struct rcu=5Fhead as 2 * sizeof(l=
+ong)
+>> and manually adds pads for aligning for "=5F=5Frefcnt".
+>>
+>> When the size of struct rcu=5Fhead is changed, these manual padding
+>> are hardly suit for the changes. So we rearrange the structure,
+>> and move the seldom access rcu=5Fhead to the end of the structure.
+>>
+>> Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+>> ---
+>>
+>> diff --git a/include/net/dst.h b/include/net/dst.h
+>> index 93b0310..d8c5296 100644
+>> --- a/include/net/dst.h
+>> +++ b/include/net/dst.h
+>> @@ -37,7 +37,6 @@
+>>  struct sk=5Fbuff;
+>> =20
+>>  struct dst=5Fentry {
+>> -	struct rcu=5Fhead		rcu=5Fhead;
+>>  	struct dst=5Fentry	*child;
+>>  	struct net=5Fdevice       *dev;
+>>  	short			error;
+>> @@ -78,6 +77,13 @@ struct dst=5Fentry {
+>>  	=5F=5Fu32			=5F=5Fpad2;
+>>  #endif
+>> =20
+>> +	unsigned long		lastuse;
+>> +	union {
+>> +		struct dst=5Fentry	*next;
+>> +		struct rtable =5F=5Frcu	*rt=5Fnext;
+>> +		struct rt6=5Finfo		*rt6=5Fnext;
+>> +		struct dn=5Froute =5F=5Frcu	*dn=5Fnext;
+>> +	};
+>> =20
+>>  	/*
+>>  	 * Align =5F=5Frefcnt to a 64 bytes alignment
+>> @@ -92,13 +98,7 @@ struct dst=5Fentry {
+>>  	 */
+>>  	atomic=5Ft		=5F=5Frefcnt;	/* client references	*/
+>>  	int			=5F=5Fuse;
+>> -	unsigned long		lastuse;
+>> -	union {
+>> -		struct dst=5Fentry	*next;
+>> -		struct rtable =5F=5Frcu	*rt=5Fnext;
+>> -		struct rt6=5Finfo		*rt6=5Fnext;
+>> -		struct dn=5Froute =5F=5Frcu	*dn=5Fnext;
+>> -	};
+>> +	struct rcu=5Fhead		rcu=5Fhead;
+>>  };
+>> =20
+>>  #ifdef =5F=5FKERNEL=5F=5F
+>=20
+> Nope...
+>=20
+> "lastuse" and "next" must be in this place, or this introduce false
+> sharing we wanted to avoid in the past.
+>=20
+> I suggest you leave this code as is, we will address the problem when
+> rcu=5Fhead changes (assuming we can test a CONFIG=5FRCU=5FHEAD=5FDEBUG or
+> something)
+>=20
+> First part of "struct dst=5Fentry" is mostly read, while part beginning
+> after refcnt is often written.
+>=20
 
-> From: Shaun Ruffell <sruffell@digium.com>
-> 
-> Eliminates a circular lock dependency reported by lockdep. When reading the
-> "pools" file from a PCI device via sysfs, the s_active lock is acquired before
-> the pools_lock. When unloading the driver and destroying the pool, pools_lock
-> is acquired before the s_active lock.
-> 
->  cat/12016 is trying to acquire lock:
->   (pools_lock){+.+.+.}, at: [<c04ef113>] show_pools+0x43/0x140
-> 
->  but task is already holding lock:
->   (s_active#82){++++.+}, at: [<c0554e1b>] sysfs_read_file+0xab/0x160
-> 
->  which lock already depends on the new lock.
+Is it the cause of false sharing? I thought that all are rare write(except =
+=5F=5Frefcnt)
+since it is protected by RCU.
 
-sysfs_dirent_init_lockdep() and the 6992f53349 ("sysfs: Use one lockdep
-class per sysfs attribute") which added it are rather scary.
+Do you allow me just move the seldom access rcu=5Fhead to the end of the st=
+ructure
+and add pads before =5F=5Frefcnt? I guess it increases about 3% the size of=
+ dst=5Fentry.
 
-The alleged bug appears to be due to taking pools_lock outside
-device_create_file() (which takes magical sysfs PseudoVirtualLocks)
-versus show_pools(), which takes pools_lock but is called from inside
-magical sysfs PseudoVirtualLocks.
+I accept that I leave this code as is, when I change rcu=5Fhead I will noti=
+fy you.
 
-I don't know if this is actually a real bug or not.  Probably not, as
-this device_create_file() does not match the reasons for 6992f53349:
-"There is a sysfs idiom where writing to one sysfs file causes the
-addition or removal of other sysfs files".  But that's a guess.
-
-> --- a/mm/dmapool.c
-> +++ b/mm/dmapool.c
-> @@ -174,21 +174,28 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
->  	init_waitqueue_head(&retval->waitq);
->  
->  	if (dev) {
-> -		int ret;
-> +		int first_pool;
->  
->  		mutex_lock(&pools_lock);
->  		if (list_empty(&dev->dma_pools))
-> -			ret = device_create_file(dev, &dev_attr_pools);
-> +			first_pool = 1;
->  		else
-> -			ret = 0;
-> +			first_pool = 0;
->  		/* note:  not currently insisting "name" be unique */
-> -		if (!ret)
-> -			list_add(&retval->pools, &dev->dma_pools);
-> -		else {
-> -			kfree(retval);
-> -			retval = NULL;
-> -		}
-> +		list_add(&retval->pools, &dev->dma_pools);
->  		mutex_unlock(&pools_lock);
-> +
-> +		if (first_pool) {
-> +			int ret;
-> +			ret = device_create_file(dev, &dev_attr_pools);
-> +			if (ret) {
-> +				mutex_lock(&pools_lock);
-> +				list_del(&retval->pools);
-> +				mutex_unlock(&pools_lock);
-> +				kfree(retval);
-> +				retval = NULL;
-> +			}
-> +		}
-
-Not a good fix, IMO.  The problem is that if two CPUs concurrently call
-dma_pool_create(), the first CPU will spend time creating the sysfs
-file.  Meanwhile, the second CPU will whizz straight back to its
-caller.  The caller now thinks that the sysfs file has been created and
-returns to userspace, which immediately tries to read the sysfs file. 
-But the first CPU hasn't finished creating it yet.  Userspace fails.
-
-One way of fixing this would be to create another singleton lock:
-
-
-	{
-		static DEFINE_MUTEX(pools_sysfs_lock);
-		static bool pools_sysfs_done;
-
-		mutex_lock(&pools_sysfs_lock);
-		if (pools_sysfs_done == false) {
-			create_sysfs_stuff();
-			pools_sysfs_done = true;
-		}
-		mutex_unlock(&pools_sysfs_lock);
-	}
-
-That's not terribly pretty.
+Thanks,
+Lai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
