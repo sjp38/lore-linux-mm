@@ -1,129 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 52FA38D0039
-	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 23:36:04 -0500 (EST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20110228224124.GA31769@blackmagic.digium.internal>
-	<20110301170117.258e06e2.akpm@linux-foundation.org>
-Date: Tue, 01 Mar 2011 20:35:53 -0800
-In-Reply-To: <20110301170117.258e06e2.akpm@linux-foundation.org> (Andrew
-	Morton's message of "Tue, 1 Mar 2011 17:01:17 -0800")
-Message-ID: <m1wrki3zrq.fsf@fess.ebiederm.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3414F8D0039
+	for <linux-mm@kvack.org>; Tue,  1 Mar 2011 23:39:25 -0500 (EST)
+Date: Wed, 2 Mar 2011 05:38:56 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] remove compaction from kswapd
+Message-ID: <20110302043856.GB23911@random.random>
+References: <20110228222138.GP22700@random.random>
+ <AANLkTingkWo6dx=0sGdmz9qNp+_TrQnKXnmASwD8LhV4@mail.gmail.com>
+ <20110301223954.GI19057@random.random>
+ <AANLkTim7tcPTxG9hyFiSnQ7rqfMdoUhL1wrmqNAXAvEK@mail.gmail.com>
+ <20110301164143.e44e5699.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Subject: Re: [PATCH] mm/dmapool.c: Do not create/destroy sysfs file while holding pools_lock
+Content-Disposition: inline
+In-Reply-To: <20110301164143.e44e5699.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Russ Meyerriecks <rmeyerriecks@digium.com>, sruffell@digium.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg KH <greg@kroah.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org
 
-Andrew Morton <akpm@linux-foundation.org> writes:
+On Tue, Mar 01, 2011 at 04:41:43PM -0800, Andrew Morton wrote:
+> I'd be pretty worried about jamming this into 2.6.38 at this late
+> stage.  And some vague talk about something Arthur did really doesn't
+> help a lot!  It would be better to have some good, solid quantitative
+> justification for what is really an emergency patch.  
 
-> On Mon, 28 Feb 2011 16:41:24 -0600
-> Russ Meyerriecks <rmeyerriecks@digium.com> wrote:
->
->> From: Shaun Ruffell <sruffell@digium.com>
->> 
->> Eliminates a circular lock dependency reported by lockdep. When reading the
->> "pools" file from a PCI device via sysfs, the s_active lock is acquired before
->> the pools_lock. When unloading the driver and destroying the pool, pools_lock
->> is acquired before the s_active lock.
->> 
->>  cat/12016 is trying to acquire lock:
->>   (pools_lock){+.+.+.}, at: [<c04ef113>] show_pools+0x43/0x140
->> 
->>  but task is already holding lock:
->>   (s_active#82){++++.+}, at: [<c0554e1b>] sysfs_read_file+0xab/0x160
->> 
->>  which lock already depends on the new lock.
->
-> sysfs_dirent_init_lockdep() and the 6992f53349 ("sysfs: Use one lockdep
-> class per sysfs attribute") which added it are rather scary.
->
-> The alleged bug appears to be due to taking pools_lock outside
-> device_create_file() (which takes magical sysfs PseudoVirtualLocks)
-> versus show_pools(), which takes pools_lock but is called from inside
-> magical sysfs PseudoVirtualLocks.
->
-> I don't know if this is actually a real bug or not.  Probably not, as
-> this device_create_file() does not match the reasons for 6992f53349:
-> "There is a sysfs idiom where writing to one sysfs file causes the
-> addition or removal of other sysfs files".  But that's a guess.
+It is a emergency patch. This is zero risk, this brings back kswapd in
+2.6.37 status! 2.6.38 added a new feature, I'm reverting it because
+it's screwing benchmarks.
 
-device_create_file is arguable But this also happens with
-device_remove_file, and that is exactly the deadlock scenario I added
-the lockdep annotation to catch.  So the patch clearly does not fix the
-issue.
+> Bear in mind that we always have a middle option: merge a patch into
+> 2.6.39-rc1 and tag it for backporting into 2.6.38.x.  That gives us
+> more time to test it and to generally give it a shakedown.  But to make
+> decisions like that and to commend a patch to the -stable maintainers,
+> we need to provide better information please.
 
-Eric
+This is 100% tested in 2.6.37. The new code was tested in 2.6.38-rc
+and testing return -EFAIL. So we must revert this change. This patch
+is doing nothing but reverting compaction-kswapd code merged in
+2.6.38-rc. The old code is fully tested.
 
+> Also, "This goes on top of the two lowlatency fixes for compaction"
+> isn't particularly helpful.  I need to verify that the referred-to
+> patches are already in mainline but I don't have a clue what this
+> description refers to.  More specificity, please - it helps avoid
+> mistakes.
 
->> --- a/mm/dmapool.c
->> +++ b/mm/dmapool.c
->> @@ -174,21 +174,28 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
->>  	init_waitqueue_head(&retval->waitq);
->>  
->>  	if (dev) {
->> -		int ret;
->> +		int first_pool;
->>  
->>  		mutex_lock(&pools_lock);
->>  		if (list_empty(&dev->dma_pools))
->> -			ret = device_create_file(dev, &dev_attr_pools);
->> +			first_pool = 1;
->>  		else
->> -			ret = 0;
->> +			first_pool = 0;
->>  		/* note:  not currently insisting "name" be unique */
->> -		if (!ret)
->> -			list_add(&retval->pools, &dev->dma_pools);
->> -		else {
->> -			kfree(retval);
->> -			retval = NULL;
->> -		}
->> +		list_add(&retval->pools, &dev->dma_pools);
->>  		mutex_unlock(&pools_lock);
->> +
->> +		if (first_pool) {
->> +			int ret;
->> +			ret = device_create_file(dev, &dev_attr_pools);
->> +			if (ret) {
->> +				mutex_lock(&pools_lock);
->> +				list_del(&retval->pools);
->> +				mutex_unlock(&pools_lock);
->> +				kfree(retval);
->> +				retval = NULL;
->> +			}
->> +		}
->
-> Not a good fix, IMO.  The problem is that if two CPUs concurrently call
-> dma_pool_create(), the first CPU will spend time creating the sysfs
-> file.  Meanwhile, the second CPU will whizz straight back to its
-> caller.  The caller now thinks that the sysfs file has been created and
-> returns to userspace, which immediately tries to read the sysfs file. 
-> But the first CPU hasn't finished creating it yet.  Userspace fails.
->
-> One way of fixing this would be to create another singleton lock:
->
->
-> 	{
-> 		static DEFINE_MUTEX(pools_sysfs_lock);
-> 		static bool pools_sysfs_done;
->
-> 		mutex_lock(&pools_sysfs_lock);
-> 		if (pools_sysfs_done == false) {
-> 			create_sysfs_stuff();
-> 			pools_sysfs_done = true;
-> 		}
-> 		mutex_unlock(&pools_sysfs_lock);
-> 	}
->
-> That's not terribly pretty.
+Those two patches are fully orthogonal with this one. Andrew already
+has them in -mm and there's no need to analyse those simultaneously
+with this one.
 
-Or possibly use module_init style magic.  Where use module
-initialization and remove to trigger creation and deletion of the sysfs.
-
-Eric
+I mentioned those two because those two are also important fixes to
+avoid compaction to disable interrupts for too long, but they have no
+actual relation to this one. One of the two fixes that Mel sent was
+actually embedded into my patch but he splitted it off rightfully
+because it has no relation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
