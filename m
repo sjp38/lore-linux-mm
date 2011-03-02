@@ -1,45 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 31ECB8D0040
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 07:32:09 -0500 (EST)
-Date: Wed, 2 Mar 2011 06:32:03 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/4] slub,rcu: don't assume the size of struct rcu_head
-In-Reply-To: <AANLkTim0Zjc7c9-7LCnEaYpV5PVN=5fNQpjMYqtZe-fk@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1103020625290.10180@router.home>
-References: <4D6CA852.3060303@cn.fujitsu.com> <AANLkTimXy2Yaj+NTDMNTWuLqHHfKZJhVDpeXj3CfMvBf@mail.gmail.com> <alpine.DEB.2.00.1103010909320.6253@router.home> <AANLkTim0Zjc7c9-7LCnEaYpV5PVN=5fNQpjMYqtZe-fk@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B07BD8D0040
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 07:58:38 -0500 (EST)
+Date: Wed, 2 Mar 2011 14:55:13 +0200 (EET)
+From: Aaro Koskinen <aaro.koskinen@nokia.com>
+Subject: Re: [PATCH] procfs: fix /proc/<pid>/maps heap check
+In-Reply-To: <1298996813-8625-1-git-send-email-aaro.koskinen@nokia.com>
+Message-ID: <alpine.DEB.1.10.1103021449000.27610@esdhcp041196.research.nokia.com>
+References: <1298996813-8625-1-git-send-email-aaro.koskinen@nokia.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, stable@kernel.org, Aaro Koskinen <aaro.koskinen@nokia.com>
 
-On Tue, 1 Mar 2011, Hugh Dickins wrote:
+Hi,
 
-> > Struct page may be larger for debugging purposes already because of the
-> > need for extended spinlock data.
+On Tue, 1 Mar 2011, Aaro Koskinen wrote:
+> The current check looks wrong and prints "[heap]" only if the mapping
+> matches exactly the heap. However, the heap may be merged with some
+> other mappings, and there may be also be multiple mappings.
 >
-> That was so for a long time, but I stopped it just over a year ago
-> with commit a70caa8ba48f21f46d3b4e71b6b8d14080bbd57a, stop ptlock
-> enlarging struct page.
+> Signed-off-by: Aaro Koskinen <aaro.koskinen@nokia.com>
+> Cc: stable@kernel.org
 
-Strange. I just played around with in in January and the page struct size
-changes when I build kernels with full debugging. I have some
-cmpxchg_double patches here that depend on certain alignment in the page
-struct. Debugging causes all that stuff to get out of whack so that I had
-to do some special patches to make sure fields following the spinlock are
-properly aligned when the sizes change.
+Below is a test program and an example output showing the problem,
+and the correct output with the patch:
 
-> If a union leads to "random junk" overwriting the page->mapping field
-> when the page is reused, and that junk could resemble the pointer in
-> question, then KSM would mistakenly think it still owned the page.
-> Very remote chance, and maybe it amounts to no more than a leak.  But
-> I'd still prefer we keep page->mapping for pointers (sometimes with
-> lower bits set as flags).
+Without the patch:
 
-DESTROY BY RCU uses the lru field which follows the mapping field in page
-struct. Why would random junk overwrite the mapping field?
+ 	# ./a.out &
+ 	# cat /proc/$!/maps | head -4
+ 	00008000-00009000 r-xp 00000000 01:00 9224       /a.out
+ 	00010000-00011000 rw-p 00000000 01:00 9224       /a.out
+ 	00011000-00012000 rw-p 00000000 00:00 0
+ 	00012000-00013000 rw-p 00000000 00:00 0
+
+With the patch:
+
+ 	# ./a.out &
+ 	# cat /proc/$!/maps | head -4
+ 	00008000-00009000 r-xp 00000000 01:00 9228       /a.out
+ 	00010000-00011000 rw-p 00000000 01:00 9228       /a.out
+ 	00011000-00012000 rw-p 00000000 00:00 0          [heap]
+ 	00012000-00013000 rw-p 00000000 00:00 0          [heap]
+
+The test program:
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/mman.h>
+
+int main (void)
+{
+ 	if (sbrk(4096) == (void *)-1) {
+ 		perror("first sbrk(): ");
+ 		return EXIT_FAILURE;
+ 	}
+
+ 	if (mlockall(MCL_FUTURE)) {
+ 		perror("mlockall(): ");
+ 		return EXIT_FAILURE;
+ 	}
+
+ 	if (sbrk(4096) == (void *)-1) {
+ 		perror("second sbrk(): ");
+ 		return EXIT_FAILURE;
+ 	}
+
+ 	while (1)
+ 		sleep(1);
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
