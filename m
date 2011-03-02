@@ -1,66 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7846F8D0040
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 11:24:20 -0500 (EST)
-Received: from chimera.site ([173.50.240.230]) by xenotime.net for <linux-mm@kvack.org>; Wed, 2 Mar 2011 08:24:13 -0800
-Date: Wed, 2 Mar 2011 08:24:12 -0800
-From: Randy Dunlap <rdunlap@xenotime.net>
-Subject: Re: [RFC PATCH 1/5] x86/Kconfig: Add Page Cache Accounting entry
-Message-Id: <20110302082412.87f153ba.rdunlap@xenotime.net>
-In-Reply-To: <1299055090-23976-1-git-send-email-namei.unix@gmail.com>
-References: <no>
-	<1299055090-23976-1-git-send-email-namei.unix@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id F36608D0040
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 11:35:29 -0500 (EST)
+Date: Wed, 2 Mar 2011 17:26:50 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: [PATCH v3 0/4] exec: unify native/compat code
+Message-ID: <20110302162650.GA26810@redhat.com>
+References: <compat-not-unlikely@mdm.bga.com> <20101201182747.GB6143@redhat.com> <20110225175202.GA19059@redhat.com> <20110225175314.GD19059@redhat.com> <AANLkTik8epq5cx8n=k6ocMUfbg9kkUAZ8KL7ZiG4UuoU@mail.gmail.com> <20110226123731.GC4416@redhat.com> <AANLkTinFVCR_znYtyVuJcjFQq_fgMp+ozbSz54UKzvQ_@mail.gmail.com> <20110226174408.GA17442@redhat.com> <20110301204739.GA30406@redhat.com> <AANLkTikVecxcGoZ9a4hmkoi4wynrNfH9_AU7Vb+hOvbH@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTikVecxcGoZ9a4hmkoi4wynrNfH9_AU7Vb+hOvbH@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liu Yuan <namei.unix@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaxboe@fusionio.com, akpm@linux-foundation.org, fengguang.wu@intel.com
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>, Milton Miller <miltonm@bga.com>
 
-On Wed,  2 Mar 2011 16:38:06 +0800 Liu Yuan wrote:
+On 03/01, Linus Torvalds wrote:
+>
+> So I'm ok with your alternative
+>
+> >        typedef union {
+> >                const char __user *const __user *native;
+> >                compat_uptr_t __user *compat;
+> >        } conditional_user_ptr_t;
+>
+> model instead, which moves the pointer into the union.
+>
+> However, if you do this, then I have one more suggestion: just move
+> the "compat" flag in there too!
+>
+> Every time you pass the union, you're going to pass the compat flag to
+> distinguish the cases. So do it like this:
+>
+>   struct conditional_ptr {
+>     int is_compat;
+>     union {
+>       const char __user *const __user *native;
+>       compat_uptr_t __user *compat;
+>     };
+>   };
+>
+> and it will all look much cleaner, I bet.
 
-> From: Liu Yuan <tailai.ly@taobao.com>
-> 
-> Signed-off-by: Liu Yuan <tailai.ly@taobao.com>
-> ---
->  arch/x86/Kconfig.debug |    9 +++++++++
->  1 files changed, 9 insertions(+), 0 deletions(-)
-> 
-> diff --git a/arch/x86/Kconfig.debug b/arch/x86/Kconfig.debug
-> index 615e188..f29e32d 100644
-> --- a/arch/x86/Kconfig.debug
-> +++ b/arch/x86/Kconfig.debug
-> @@ -304,4 +304,13 @@ config DEBUG_STRICT_USER_COPY_CHECKS
->  
->  	  If unsure, or if you run an older (pre 4.4) gcc, say N.
->  
-> +config PAGE_CACHE_ACCT
-> +	bool "Page cache accounting"
-> +	---help---
-> +	  Enabling this options to account for page cache hit/missed number of
-> +	  times. This would allow user space applications get better knowledge
-> +	  of underlying page cache system by reading virtual file. The statitics
-> +	  per partition are collected.
-> +
-> +	  If unsure, say N.
->  endmenu
-> -- 
+Heh. I knew. I swear, I knew you would suggest this ;)
 
-rewrite:
+OK, please find v3. I had to deanonymize the union though, otherwise
+the initializer in do_execve() becomes nontrivial.
 
-	  Enable this option to provide for page cache hit/miss counters.
-	  This allows userspace applications to obtain better knowledge of the
-	  underlying page cache subsystem by reading a virtual file.
-	  Statistics are collect per partition.
 
-questions:
-	what virtual file?
-	what kind of partition?
 
----
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+But I don't think this is right. Not only this adds 200 bytes to exec.o.
+To me, is_compat is not the private property of argv/envp. Yes, currently
+nobody except get_arg_ptr() needs to know the difference. But who knows,
+it is possible that we will need more "if (compat)" code in future. IOW,
+I think that the explicit argument is a win.
+
+Never mind. I agree with everything as long as we can remove this c-a-p
+compat_do_execve().
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
