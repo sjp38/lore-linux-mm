@@ -1,42 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A04728D0039
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 18:02:50 -0500 (EST)
-Message-ID: <4D6ECC94.4080603@cesarb.net>
-Date: Wed, 02 Mar 2011 20:02:44 -0300
-From: Cesar Eduardo Barros <cesarb@cesarb.net>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B67E38D0039
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 18:17:42 -0500 (EST)
+Date: Wed, 2 Mar 2011 18:17:27 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH v5 9/9] memcg: check memcg dirty limits in page writeback
+Message-ID: <20110302231727.GG2547@redhat.com>
+References: <1298669760-26344-1-git-send-email-gthelen@google.com>
+ <1298669760-26344-10-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv2 13/24] sys_swapon: separate bdev claim and inode lock
-References: <4D6D7FEA.80800@cesarb.net> <1299022128-6239-1-git-send-email-cesarb@cesarb.net> <1299022128-6239-14-git-send-email-cesarb@cesarb.net> <20110302214019.GB2864@mgebm.net>
-In-Reply-To: <20110302214019.GB2864@mgebm.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1298669760-26344-10-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@mgebm.net>
-Cc: linux-mm@kvack.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
 
-Em 02-03-2011 18:40, Eric B Munson escreveu:
->> -	} else {
->> -		error = -EINVAL;
->> +	error = claim_swapfile(p, inode);
->> +	if (unlikely(error))
->
-> As a personal preference, I don't use likely/unlikley unless I have a profiler
-> telling me that the compiler got it wrong.  Just a suggestion.
+On Fri, Feb 25, 2011 at 01:36:00PM -0800, Greg Thelen wrote:
 
-I tend to use them for paths which should never happen in normal 
-operation (error paths mostly). But yeah, I am probably still overusing 
-them - who says the error path is not normal in some cases? Old habits 
-die hard...
+[..]
+> @@ -500,18 +527,27 @@ static void balance_dirty_pages(struct address_space *mapping,
+>  		};
+>  
+>  		global_dirty_info(&sys_info);
+> +		if (!memcg_dirty_info(NULL, &memcg_info))
+> +			memcg_info = sys_info;
+>  
+>  		/*
+>  		 * Throttle it only when the background writeback cannot
+>  		 * catch-up. This avoids (excessively) small writeouts
+>  		 * when the bdi limits are ramping up.
+>  		 */
+> -		if (dirty_info_reclaimable(&sys_info) + sys_info.nr_writeback <=
+> +		if ((dirty_info_reclaimable(&sys_info) +
+> +		     sys_info.nr_writeback <=
+>  				(sys_info.background_thresh +
+> -				 sys_info.dirty_thresh) / 2)
+> +				 sys_info.dirty_thresh) / 2) &&
+> +		    (dirty_info_reclaimable(&memcg_info) +
+> +		     memcg_info.nr_writeback <=
+> +				(memcg_info.background_thresh +
+> +				 memcg_info.dirty_thresh) / 2))
+>  			break;
+>  
+> -		bdi_thresh = bdi_dirty_limit(bdi, sys_info.dirty_thresh);
+> +		bdi_thresh = bdi_dirty_limit(bdi,
+> +				min(sys_info.dirty_thresh,
+> +				    memcg_info.dirty_thresh));
+>  		bdi_thresh = task_dirty_limit(current, bdi_thresh);
 
-And I added more unlikely() calls than are visible in the patches. 
-Remember that every IS_ERR() counts as a unlikely() too.
+Greg, so currently we seem to have per_bdi/per_task dirty limits and
+now with this patch it will sort of become per_cgroup/per_bdi/per_task
+dirty limits? I think that kind of makes sense to me.
 
--- 
-Cesar Eduardo Barros
-cesarb@cesarb.net
-cesar.barros@gmail.com
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
