@@ -1,45 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 8437F8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 15:14:28 -0500 (EST)
-Date: Thu, 3 Mar 2011 15:12:26 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 00/27] IO-less dirty throttling v6
-Message-ID: <20110303201226.GI16720@redhat.com>
-References: <20110303064505.718671603@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110303064505.718671603@intel.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4D0BA8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 15:58:12 -0500 (EST)
+Subject: Re: [PATCH] Make /proc/slabinfo 0400
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <1299174652.2071.12.camel@dan>
+References: <1299174652.2071.12.camel@dan>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 03 Mar 2011 14:58:02 -0600
+Message-ID: <1299185882.3062.233.camel@calx>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Dan Rosenberg <drosenberg@vsecurity.com>
+Cc: cl@linux-foundation.org, penberg@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 03, 2011 at 02:45:05PM +0800, Wu Fengguang wrote:
+On Thu, 2011-03-03 at 12:50 -0500, Dan Rosenberg wrote:
+> Allowing unprivileged users to read /proc/slabinfo represents a security
+> risk, since revealing details of slab allocations can expose information
+> that is useful when exploiting kernel heap corruption issues.  This is
+> evidenced by observing that nearly all recent public exploits for heap
+> issues rely on feedback from /proc/slabinfo to manipulate heap layout
+> into an exploitable state.
 
-[..]
-> - serve as simple IO controllers: if provide an interface for the user
->   to set task_bw directly (by returning the user specified value
->   directly at the beginning of dirty_throttle_bandwidth(), plus always
->   throttle such tasks even under the background dirty threshold), we get
->   a bandwidth based per-task async write IO controller; let the user
->   scale up/down the @priority parameter in dirty_throttle_bandwidth(),
->   we get a priority based IO controller. It's possible to extend the
->   capabilities to the scope of cgroup, too.
-> 
+Looking at a couple of these exploits, my suspicion is that looking at
+slabinfo simply improves the odds of success by a small factor (ie 10x
+or so) and doesn't present a real obstacle to attackers. All that
+appears to be required is to arrange that an overrunnable object be
+allocated next to one that is exploitable when overrun. And that can be
+arranged with fairly high probability on SLUB's merged caches.
 
-Hi Fengguang,
+On the other hand, I'm not convinced the contents of this file are of
+much use to people without admin access.
 
-Above simple IO controller capabilities sound interesting and I was
-looking at the patch to figure out the details. 
+-- 
+Mathematics is the supreme nostalgia of our time.
 
-You seem to be mentioning that user can explicitly set the upper rate
-limit per task for async IO. Can't really figure that out where is the
-interface for setting such upper limits. Can you please point me to that.
-
-Thanks
-Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
