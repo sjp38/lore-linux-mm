@@ -1,51 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DA318D0039
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 21:23:50 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 91A123EE0C5
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 11:23:47 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7AB5E45DE56
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 11:23:47 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 64D2B45DE57
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 11:23:47 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 58C5DE08002
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 11:23:47 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 201C2E18001
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 11:23:47 +0900 (JST)
-Date: Thu, 3 Mar 2011 11:17:25 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 4/8] Preserve original node for transparent huge page
- copies
-Message-Id: <20110303111725.6e29c2da.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1299113128-11349-5-git-send-email-andi@firstfloor.org>
-References: <1299113128-11349-1-git-send-email-andi@firstfloor.org>
-	<1299113128-11349-5-git-send-email-andi@firstfloor.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 184808D0039
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 21:31:07 -0500 (EST)
+Date: Thu, 3 Mar 2011 13:30:55 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: mmotm 2011-03-02-16-52 uploaded
+Message-Id: <20110303133055.db60038b.sfr@canb.auug.org.au>
+In-Reply-To: <20110302181711.2399cdba.akpm@linux-foundation.org>
+References: <201103030127.p231ReNl012841@imap1.linux-foundation.org>
+	<20110303130538.3e99f952.sfr@canb.auug.org.au>
+	<20110302181711.2399cdba.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA1";
+ boundary="Signature=_Thu__3_Mar_2011_13_30_55_+1100_l8HoQFifYTbNevkY"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Wed,  2 Mar 2011 16:45:24 -0800
-Andi Kleen <andi@firstfloor.org> wrote:
+--Signature=_Thu__3_Mar_2011_13_30_55_+1100_l8HoQFifYTbNevkY
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> From: Andi Kleen <ak@linux.intel.com>
-> 
-> This makes a difference for LOCAL policy, where the node cannot
-> be determined from the policy itself, but has to be gotten
-> from the original page.
-> 
-> Acked-by: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+Hi Andrew,
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Wed, 2 Mar 2011 18:17:11 -0800 Andrew Morton <akpm@linux-foundation.org>=
+ wrote:
+>
+> What's in the 8000 lines?
+
+Just the localversion-next file and the stuff in the "Next" directory ...
+meta information about the linux-next tree.
+
+> Didn't understand that - why is git-am unhappy?  Your sentence was
+> truncated.
+
+It didn't recognise the patch format since it wants an email-like patch
+(with a From line to show the author).
+
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
+
+--Signature=_Thu__3_Mar_2011_13_30_55_+1100_l8HoQFifYTbNevkY
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQEcBAEBAgAGBQJNbv1fAAoJEDMEi1NhKgbsR2kH/0prVyROTO7hUdnJ5mv1CcPJ
+A4WrZOAaIvZIWkcjaVPtVmkWihGnx0e0jLEb8kSR9kyNUjHXkY4LbHvkAnLChwxb
+ZoREL61FSg1H5M3lu7P79yI+MNhgie8X/eSBvapXm47kE9Aox9VbueTv1fN38abg
+grvr/K5aA2SVvm1gsS8pAdbHONHF+RHj08i1wsAWZtdpjUNkq4B/OZGYQpGx8PBh
+DLohDcNkuStZcY2C366Pe6fBv70GVIE4cR7qW0KNtwx/tYUYXzFQHq/YtQMYX5mO
+cLD4drg2LSEZ1ItgkQ+i22bnFRN5/C5UdRg3DFjxlSUp8HLm1YvcSZjGE/vczNs=
+=kPZM
+-----END PGP SIGNATURE-----
+
+--Signature=_Thu__3_Mar_2011_13_30_55_+1100_l8HoQFifYTbNevkY--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
