@@ -1,119 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 60DAF8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 04:34:42 -0500 (EST)
-Date: Thu, 3 Mar 2011 10:34:22 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC PATCH 4/5] mm: Add hit/miss accounting for Page Cache
-Message-ID: <20110303093422.GC18252@elte.hu>
-References: <no>
- <1299055090-23976-4-git-send-email-namei.unix@gmail.com>
- <20110302084542.GA20795@elte.hu>
- <4D6F077B.3060400@tao.ma>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 37F9F8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 06:03:13 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 11BBA3EE0BC
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:03:10 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EA17C45DE4D
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:03:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C6BD745DE55
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:03:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B92951DB803C
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:03:09 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 756AA1DB802C
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:03:09 +0900 (JST)
+Date: Thu, 03 Mar 2011 20:01:39 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Strange minor page fault repeats when SPECjbb2005 is executed
+Message-Id: <20110303200139.B187.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4D6F077B.3060400@tao.ma>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tao Ma <tm@tao.ma>
-Cc: Liu Yuan <namei.unix@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaxboe@fusionio.com, akpm@linux-foundation.org, fengguang.wu@intel.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>
+To: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, Motohiro Kosaki <kosaki.motohiro@jp.fujitsu.com>
 
 
-* Tao Ma <tm@tao.ma> wrote:
+Hello.
 
-> On 03/02/2011 04:45 PM, Ingo Molnar wrote:
-> >* Liu Yuan<namei.unix@gmail.com>  wrote:
-> >
-> >>+		if (likely(!retry_find)&&  page&&  PageUptodate(page))
-> >>+			page_cache_acct_hit(inode->i_sb, READ);
-> >>+		else
-> >>+			page_cache_acct_missed(inode->i_sb, READ);
-> >Sigh.
-> >
-> >This would make such a nice tracepoint or sw perf event. It could be collected in a
-> >'count' form, equivalent to the stats you are aiming for here, or it could even be
-> >traced, if someone is interested in such details.
-> >
-> >It could be mixed with other events, enriching multiple apps at once.
-> >
-> >But, instead of trying to improve those aspects of our existing instrumentation
-> >frameworks, mm/* is gradually growing its own special instrumentation hacks, missing
-> >the big picture and fragmenting the instrumentation space some more.
+I found an abnormal kernel behavior when I executed SPECjbb2005.
+It is that minor page fault repeats even though page table entry is correct.
 
-> Thanks for the quick response. Actually our team(including Liu) here are planing 
-> to add some debug info to the mm parts for analyzing the application behavior and 
-> hope to find some way to improve our application's performance. We have searched 
-> the trace points in mm, but it seems to us that the trace points isn't quite 
-> welcomed there. Only vmscan and writeback have some limited trace points added. 
-> That's the reason we first tried to add some debug info like this patch. You does 
-> shed some light on our direction. Thanks.
+If you know something about cause of this phenomenon, please let me know.
+If nobody knows, please reproduce it and find why it is happen.
 
-Yes, it's very much a 'critical mass' phenomenon: the moment there's enough 
-tracepoints, above some magic limit, things happen quickly and everyone finds the 
-stuff obviously useful.
 
-Before that limit it's all pretty painful.
+The details of this problem are the followings.
 
-> btw, what part do you think is needed to add some trace point?  We
-> volunteer to add more if you like.
+When SPECjbb2005 is executed, it sometimes stop displaying message of
+progress suddenly.
+-------------
+          :
+          :
+116.160: [GC 406278K->193826K(2071552K), 0.0117750 secs]
+116.342: [GC 406626K->194122K(2071616K), 0.0118000 secs]
+116.522: [GC
+            ^
+            It stop showing message from here.
+--------------------
 
-Whatever part you find useful in your daily development work!
+This condition keeps for some time, then SPECjbb2005 finishes.
+The stop time is from about 5 seconds to an hours. It may tend to be longer
+on bigger box, but I'm not sure.
 
-Tracepoints are pretty flexible. The bit that is missing and which is very important 
-for the MM is the collapse into 'summaries' and the avoidance of tracing overhead 
-when only a summary is wanted. Please see Wu Fengguang's reply in this thread about 
-the 'dump state' facility he and Steve added to recover large statistics.
+In addition, the stop condition is sometimes released when I executed other
+unrelated command.
 
-I suspect the hit/miss histogram you are building in this patch could be recovered 
-via that facility initially?
 
-The next step would generalize that approach - it is non-trivial but powerful :-)
 
-The idea is to allow non-trivial histograms and summaries to be built out of simple 
-events, via the filter engine.
+When this phenomenon happen, I saw that too many minor page faults occur
+on the java process.
 
-It would require an extension of tracing to really allow a filter expression to be 
-defined over existing events, which would allow the maintenance of a persistent 
-'sum' variable - probably within the perf ring-buffer. We already have filter 
-support, that would have to be extended with a notion of 'persistent variables'.
+Here is output of /proc/<pid>/stat of the java process.
 
-So right now, if you define a tracepoint in that spot, we already support such 
-filter expressions:
+Usually, the minor fault value is under 1 million on my current environment
+like the following.
+------------------
+1744 (java) S 1742 1742 1721 34816 1742 4202496 968826 0 35834 0 218734 ...
+                                                ^^^^^^
+                                                minor fault value
 
-     'bdev == sda1 && page_state == PageUptodate'
+------------------
 
-You can inject such filter expressions into /debug/tracing/events/*/*/filter today, 
-and you can use filters in perf record --filter '...' as well.
+But, when SPECjbb2005 stops with this phenomenon, this value increases
+sharply.
+----
 
-To implement 'fast statistics', the filter engine would have to be extended to 
-support (simple) statements like:
+2065 (java) S 2063 2063 1721 34816 2063 4202496 157573157 0 1 0 .....
+                                                ^^^^^^^^^
+2065 (java) S 2063 2063 1721 34816 2063 4202496 231388697 0 1 0 ......
+                                                ^^^^^^^^^
 
-	if (bdev == sda1 && page_state == PageUptodate)'
-		var0++;
+2065 (java) S 2063 2063 1721 34816 2063 4202496 438851940 0 1 0 ....
+                                                ^^^^^^^^^
 
-And:
+2065 (java) S 2063 2063 1721 34816 2063 4202496 524209252 0 1 0 ...
+                                                ^^^^^^^^^
+-----
 
-	if (bdev == sda1 && page_state != PageUptodate)'
-		var1++;
+I checked page table entry status at handle_mm_fault by debugfs,
+then even ptes are correct, page fault repeated on same virtual address
+and same cpus. And I think page table entry looks correct.
 
-Only a very minimal type of C syntax would be supported - not a full C parser.
+In this log, cpu4 and 6 repeat page faults.
+----
+handle_mm_fault jiffies64=4295160616 cpu=4 address=40019a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=55171067
+handle_mm_fault jiffies64=4295160616 cpu=6 address=40003a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=551ef067
+handle_mm_fault jiffies64=4295160616 cpu=6 address=40003a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=551ef067
+handle_mm_fault jiffies64=4295160616 cpu=4 address=40019a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=55171067
+handle_mm_fault jiffies64=4295160616 cpu=4 address=40019a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=55171067
+         :
+         :
+------------
+(Here is the patch to display the above log by debugfs.)
 
-That way the 'var0' portion of the perf ring-buffer (which would not be part of the 
-regular, overwritten ring-buffer) would act as a 'hits' variable that you could 
-recover. The 'var1' portion would be the 'misses' counter.
+---------------
+Index: linux-2.6.38-rc5/mm/memory.c
+===================================================================
+--- linux-2.6.38-rc5.orig/mm/memory.c
++++ linux-2.6.38-rc5/mm/memory.c
+@@ -3333,6 +3333,8 @@ int handle_mm_fault(struct mm_struct *mm
+ 	 */
+ 	pte = pte_offset_map(pmd, address);
+ 
++	pr_debug("%s jiffies64=%lld cpu=%d address=%08lx pmdval=%016llx ptehigh=%08lx ptelow=%08lx\n",__func__, get_jiffies_64(), smp_processor_id(), address, pmd->pmd, pte->pte_high, pte->pte_low);
++
+ 	return handle_pte_fault(mm, vma, address, pte, pmd, flags);
+ }
+ 
+---------------
 
-Individual trace events would only twiddle var0 and var1 - they would not inject a 
-full-blown event into the ring-buffer, so statistics would be very fast.
+I confirmed this phenomenon is reproduced on 2.6.31 and 2.6.38-rc5
+of x86 kernel, and I heard this phenomenon doesn't occur on
+x86-64 kernel from another engineer who found this problem first.
 
-This method is very extensible and could be used for far more things than just MM 
-statistics. In theory all of /proc statistics collection could be replaced and made 
-optional that way, just by adding the right events to the right spots in the kernel.  
-That is obviously a very long-term project.
+In addition, this phenomenon occurred on 4 boxes, so I think the cause
+is not hardware malfunction.
 
-Thanks,
 
-	Ingo
+Here is the run.sh of SPECjbb2005 when it is reproduced on my current box.
+----------
+date
+echo $CLASSPATH
+CLASSPATH=./jbb.jar:./jbb_no_precompile.jar:./check.jar:./reporter.jar:$CLASSPATH
+echo $CLASSPATH
+export CLASSPATH
+
+/usr/bin/java -XX:+UseParallelGC -ms2032m -mx2032m -XX:-AlwaysPreTouch -verbosegc
+spec.jbb.JBBmain -propfile SPECjbb.props_WH1-8
+
+-----------
+
+
+Though I'll continue to chase the cause of this problem, please help to solve this...
+
+Thanks.
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
