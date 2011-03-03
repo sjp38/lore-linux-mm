@@ -1,124 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 648048D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 12:22:41 -0500 (EST)
-Message-ID: <4D6FCE5D.4030904@tilera.com>
-Date: Thu, 3 Mar 2011 12:22:37 -0500
-From: Chris Metcalf <cmetcalf@tilera.com>
+	by kanga.kvack.org (Postfix) with ESMTP id E4D8D8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 12:29:42 -0500 (EST)
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 2/6] mm: Change flush_tlb_range() to take an mm_struct
-References: <20110302180258.956518392@chello.nl>	<AANLkTimhWKhHojZ-9XZGSh3OzfPhvo__Dib9VfeMWoBQ@mail.gmail.com>	<1299102027.1310.39.camel@laptop> <20110302.134735.260066220.davem@davemloft.net>
-In-Reply-To: <20110302.134735.260066220.davem@davemloft.net>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Message-ID: <763a2305-27c6-4f44-8962-db72b434c037@default>
+Date: Thu, 3 Mar 2011 09:29:04 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V2 0/3] drivers/staging: zcache: dynamic page cache/swap
+ compression
+References: <20110207032407.GA27404@ca-server1.us.oracle.com>
+ <1ddd01a8-591a-42bc-8bb3-561843b31acb@default>
+ <AANLkTimFATx-gYVgY_pVdZsySSBmXvKFkhTJUeVFBcop@mail.gmail.com>
+ <AANLkTimqSSxHrLhL9t4DOmDeuAA41B9e-qnr+vnUsucL@mail.gmail.com>
+ <AANLkTi=4QkV4wtMmDd6+XXhvkva+fq9m5PVYGC0qBUc3@mail.gmail.com>
+ <AANLkTimOssgM7JYSpwB=5zmF_JJ2ByH+PWO7N+YZNB_y@mail.gmail.com>
+ <e647042e-419e-4e61-a563-e489596bd659@default
+ AANLkTim_U+mJtHk7drvqMOmUwd4ro8J0dazZMDsNqH=o@mail.gmail.com>
+In-Reply-To: <AANLkTim_U+mJtHk7drvqMOmUwd4ro8J0dazZMDsNqH=o@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: a.p.zijlstra@chello.nl, torvalds@linux-foundation.org, aarcange@redhat.com, tglx@linutronix.de, riel@redhat.com, mingo@elte.hu, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, benh@kernel.crashing.org, hugh.dickins@tiscali.co.uk, mel@csn.ul.ie, npiggin@kernel.dk, rmk@arm.linux.org.uk, schwidefsky@de.ibm.com
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Matt <jackdachef@gmail.com>, gregkh@suse.de, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, linux-btrfs@vger.kernel.org, Josef Bacik <josef@redhat.com>, Dan Rosenberg <drosenberg@vsecurity.com>, Yan Zheng <zheng.z.yan@intel.com>, miaox@cn.fujitsu.com, Li Zefan <lizf@cn.fujitsu.com>
 
-On 3/2/2011 4:47 PM, David Miller wrote:
-> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Date: Wed, 02 Mar 2011 22:40:27 +0100
->
->> On Wed, 2011-03-02 at 11:19 -0800, Linus Torvalds wrote:
->>> On Wed, Mar 2, 2011 at 9:59 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
->>>> In order to be able to properly support architecture that want/need to
->>>> support TLB range invalidation, we need to change the
->>>> flush_tlb_range() argument from a vm_area_struct to an mm_struct
->>>> because the range might very well extend past one VMA, or not have a
->>>> VMA at all.
->>> I really don't think this is right. The whole "drop the icache
->>> information" thing is a total anti-optimization, since for some
->>> architectures, the icache flush is the _big_ deal. 
->> Right, so Tile has the I-cache flush from flush_tlb_range(), I'm not
->> sure if that's the right thing to do, Documentation/cachetlb.txt seems
->> to suggest doing it from update_mmu_cache() like things.
-> Sparc32 chips that require a valid TLB entry for I-cache flushes do
-> the flush from flush_cache_range() and similar.
->
-> Sparc64 does not have the "present TLB entry" requirement (since I-cache
-> is physical), and we handle it in update_mmu_cache() but only as an
-> optimization.  This scheme works in concert with flush_dcache_page().
->
-> Either scheme is valid, the former is best when flushing is based upon
-> virtual addresses.
->
-> But I'll be the first to admit that the interfaces we have for doing
-> this stuff is basically nothing more than a set of hooks, with
-> assurances that the hooks will be called in specific situations.  Like
-> anything else, it's evolved over time based upon architectural needs.
+> > I definitely see a bug in cleancache_get_key in the monolithic
+> > zcache+cleancache+frontswap patch I posted on oss.oracle.com
+> > that is corrected in linux-next but I don't see how it could
+> > get provoked by btrfs.
+> >
+> > The bug is that, in cleancache_get_key, the return value of fhfn
+> should
+> > be checked against 255. =C2=A0If the return value is 255,
+> cleancache_get_key
+> > should return -1. =C2=A0This should disable cleancache for any filesyst=
+em
+> > where KEY_MAX is too large.
+> >
+> > But cleancache_get_key always calls fhfn with connectable =3D=3D 0 and
+> > CLEANCACHE_KEY_MAX=3D=3D6 should be greater than
+> BTRFS_FID_SIZE_CONNECTABLE
+> > (which I think should be 5?). =C2=A0And the elements written into the
+> > typecast btrfs_fid should be only writing the first 5 32-bit words.
+>=20
+> BTRFS_FID_SIZE_NON_CONNECTALBE is 5,  not BTRFS_FID_SIZE_CONNECTABLE.
+> Anyway, you passed connectable with 0 so it should be only writing the
+> first 5 32-bit words as you said.
+> That's one I missed. ;-)
+>=20
+> Thanks.
+> --
+> Kind regards,
+> Minchan Kim
 
-I'm finding it hard to understand how the Sparc code handles icache
-coherence.  It seems that the Spitfire MMU is the interesting one, but the
-hard case seems to be when a process migrates around to various cores
-during execution (thus leaving incoherent icache lines everywhere), and the
-page is then freed and re-used for different executable code.  I'd think
-that there would have to be xcall IPIs to flush all the cpus' icaches, or
-to flush every core in the cpu_vm_mask plus do something at context switch,
-but I don't see any of that.  No doubt I'm missing something :-)
+Sorry, I realized that I solved this with Matt offlist and never
+posted the solution on-list, so for the archives:
 
-Currently on Tile I assume that we flush icaches in cpu_vm_mask at TLB
-flush time, and flush the icache on context-switch, since I'm confident I
-can reason correctly about that and prove that with this model you can
-never have stale icache data.  But the "every context-switch" is a
-nuisance, only somewhat mitigated by the fact that with 64 cores we don't
-do a lot of context-switching.
+This patch applies on top of the cleancache patch.  It is really
+a horrible hack but solving it correctly requires the interface
+to encode_fh ops to change, which would require changes to many
+filesystems, so best saved for a later time.  If/when cleancache
+gets merged, this patch will need to be applied on top of it
+for btrfs to work properly when cleancache is enabled.
 
-To give some more specificity to my thinking, here's one optimization we
-could do on Tile, that would both address Peter Zijlstra's generic
-architecture in an obvious way, and also improve context switch time:
+Basically, the problem is that, in all current filesystems,
+obtaining the filehandle requires a dentry ONLY if connectable
+is set.  Otherwise, the dentry is only used to get the inode.
+But cleancache_get_key only has an inode, and the alias list
+of dentries associated with the inode may be empty.  So
+either the encode_fh interface would need to be changed
+or, in this hack-y solution, a dentry is created temporarily
+only for the purpose of dereferencing it.
 
-- Add a "free time" field to struct page.  The free time field could be a
-64-bit cycle counter value, or maybe some kind of 32-bit counter that just
-increments every time we free, etc., though then we'd need to worry about
-handling wraparound.  We'd record the free time when we freed the page back
-to the buddy allocator.  Since we only care about executable page frees,
-we'd want to use a page bit to track if a given page was ever associated
-with an executable PTE, and if it wasn't, we could just record the "free
-time" as zero, for book-keeping purposes.
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
-- Keep a per-cpu "icache flush time", with the same timekeeping system as
-the page free time.  Every time we flush the whole icache on a cpu, we
-update its per-cpu timestamp.
-
-- When writing an executable PTE into the page table, we'd check the
-cpu_vm_mask, and any cpu that hadn't done a full icache flush since the
-page in question was previously freed would be IPI'ed and would do the
-icache flush, making it safe to start running code on the page with its new
-code.  We'd also update a per-mm "latest free" timestamp to hold the most
-recent "free time" of all the pages faulted in for that mm.
-
-- When context-switching, we'd check the per-mm "latest free" timestamp,
-and if the mm held a page that was freed more recently than that cpu's
-timestamp, we'd do a full icache flush and update the per-cpu timestamp.
-
-This has several good properties:
-
-- We are unlikely to do much icache flushing, since we only do it when an
-executable page is freed back to the buddy allocator and then reused as
-executable again.
-
-- If two processes share a cpu, they don't end up having to icache flush at
-every context switch.
-
-- We never need to IPI a cpu that isn't actively involved with the process
-that is faulting in a new executable page.  (This is particularly important
-since we want to avoid disturbing "dataplane" cpus that are running
-latency-sensitive tasks.)
-
-- We don't need to worry about vma's at flush_tlb_range() time, thus making
-Peter happy :-)
-
-I'm not worrying about kernel module executable pages, since I'm happy to
-do much more heavy-weight operations for them, i.e. flush all the icaches
-on all the cores.
-
-So: does this general approach seem appropriate, or am I missing a key
-subtlety of the Sparc approach that makes this all unnecessary?
-
--- 
-Chris Metcalf, Tilera Corp.
-http://www.tilera.com
+diff -Napur -X linux-2.6.37.1/Documentation/dontdiff linux-2.6.37.1/mm/clea=
+ncache.c linux-2.6.37.1-fix/mm/cleancache.c
+--- linux-2.6.37.1/mm/cleancache.c=092011-02-25 11:38:47.000000000 -0800
++++ linux-2.6.37.1-fix/mm/cleancache.c=092011-02-25 08:53:46.000000000 -080=
+0
+@@ -78,15 +78,14 @@ static int cleancache_get_key(struct ino
+ =09int (*fhfn)(struct dentry *, __u32 *fh, int *, int);
+ =09int maxlen =3D CLEANCACHE_KEY_MAX;
+ =09struct super_block *sb =3D inode->i_sb;
+-=09struct dentry *d;
+=20
+ =09key->u.ino =3D inode->i_ino;
+ =09if (sb->s_export_op !=3D NULL) {
+ =09=09fhfn =3D sb->s_export_op->encode_fh;
+ =09=09if  (fhfn) {
+-=09=09=09d =3D list_first_entry(&inode->i_dentry,
+-=09=09=09=09=09=09struct dentry, d_alias);
+-=09=09=09(void)(*fhfn)(d, &key->u.fh[0], &maxlen, 0);
++=09=09=09struct dentry d;
++=09=09=09d.d_inode =3D inode;
++=09=09=09(void)(*fhfn)(&d, &key->u.fh[0], &maxlen, 0);
+ =09=09=09if (maxlen > CLEANCACHE_KEY_MAX)
+ =09=09=09=09return -1;
+ =09=09}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
