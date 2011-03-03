@@ -1,119 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 178B18D003D
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 15:00:48 -0500 (EST)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 2/8] Change alloc_pages_vma to pass down the policy node for local policy
-Date: Thu,  3 Mar 2011 11:59:45 -0800
-Message-Id: <1299182391-6061-3-git-send-email-andi@firstfloor.org>
-In-Reply-To: <1299182391-6061-1-git-send-email-andi@firstfloor.org>
-References: <1299182391-6061-1-git-send-email-andi@firstfloor.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 357448D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 15:11:34 -0500 (EST)
+Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
+	by smtp-out.google.com with ESMTP id p23KBVpo015624
+	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 12:11:31 -0800
+Received: from pzk36 (pzk36.prod.google.com [10.243.19.164])
+	by kpbe15.cbf.corp.google.com with ESMTP id p23KAA4Z019174
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 12:11:30 -0800
+Received: by pzk36 with SMTP id 36so278074pzk.16
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2011 12:11:29 -0800 (PST)
+Date: Thu, 3 Mar 2011 12:11:27 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] memcg: add oom killer delay
+In-Reply-To: <alpine.DEB.2.00.1102231636260.21906@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1103031211130.9993@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com> <alpine.DEB.2.00.1102091417410.5697@chino.kir.corp.google.com> <20110223150850.8b52f244.akpm@linux-foundation.org> <alpine.DEB.2.00.1102231636260.21906@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
 
-From: Andi Kleen <ak@linux.intel.com>
+On Wed, 23 Feb 2011, David Rientjes wrote:
 
-Currently alloc_pages_vma always uses the local node as policy node
-for the LOCAL policy. Pass this node down as an argument instead.
+> On Wed, 23 Feb 2011, Andrew Morton wrote:
+> 
+> > Your patch still stinks!
+> > 
+> > If userspace can't handle a disabled oom-killer then userspace
+> > shouldn't have disabled the oom-killer.
+> > 
+> 
+> I agree, but userspace may not always be perfect especially on large 
+> scale; we, in kernel land, can easily choose to ignore that but it's only 
+> a problem because we're providing an interface where the memcg will 
+> livelock without userspace intervention.  The global oom killer doesn't 
+> have this problem and for years it has even radically panicked the machine 
+> instead of livelocking EVEN THOUGH other threads, those that are 
+> OOM_DISABLE, may be getting work done.
+> 
+> This is a memcg-specific issue because memory.oom_control has opened the 
+> possibility up to livelock that userspace may have no way of correcting on 
+> its own especially when it may be oom itself.  The natural conclusion is 
+> that you should never set memory.oom_control unless you can guarantee a 
+> perfect userspace implementation that will never be unresponsive.  At our 
+> scale, we can't make that guarantee so memory.oom_control is not helpful 
+> at all.
+> 
+> If that's the case, then what else do we have at our disposal other than 
+> memory.oom_delay_millisecs that allows us to increase a hard limit or kill 
+> a job of lower priority other than setting memory thresholds and hoping 
+> userspace will schedule and respond before the memcg is completely oom?
+> 
+> > How do we fix this properly?
+> > 
+> > A little birdie tells me that the offending userspace oom handler is
+> > running in a separate memcg and is not itself running out of memory. 
+> 
+> It depends on how you configure your memory controllers, but even if it is 
+> running in a separate memcg how can you make the conclusion it isn't oom 
+> in parallel?
+> 
+> > The problem is that the userspace oom handler is also taking peeks into
+> > processes which are in the stressed memcg and is getting stuck on
+> > mmap_sem in the procfs reads.  Correct?
+> > 
+> 
+> That's outside the scope of this feature and is a separate discussion; 
+> this patch specifically addresses an issue where a userspace job scheduler 
+> wants to take action when a memcg is oom before deferring to the kernel 
+> and happens to become unresponsive for whatever reason.
+> 
+> > It seems to me that such a userspace oom handler is correctly designed,
+> > and that we should be looking into the reasons why it is unreliable,
+> > and fixing them.  Please tell us about this?
+> > 
+> 
+> The problem isn't specific to any one cause or implementation, we know 
+> that userspace programs have bugs, they can stall forever in D-state, they 
+> can be oom themselves, they get stuck waiting on a lock, etc etc.
+> 
 
-No behaviour change from this patch, but will be needed for followons.
-
-Acked-by: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/gfp.h |    9 +++++----
- mm/huge_memory.c    |    2 +-
- mm/mempolicy.c      |   11 +++++------
- 3 files changed, 11 insertions(+), 11 deletions(-)
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 0b84c61..782e74a 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -332,16 +332,17 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
- 	return alloc_pages_current(gfp_mask, order);
- }
- extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
--			struct vm_area_struct *vma, unsigned long addr);
-+		    	struct vm_area_struct *vma, unsigned long addr,
-+			int node);
- #else
- #define alloc_pages(gfp_mask, order) \
- 		alloc_pages_node(numa_node_id(), gfp_mask, order)
--#define alloc_pages_vma(gfp_mask, order, vma, addr)	\
-+#define alloc_pages_vma(gfp_mask, order, vma, addr, node)	\
- 	alloc_pages(gfp_mask, order)
- #endif
- #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
--#define alloc_page_vma(gfp_mask, vma, addr)	\
--	alloc_pages_vma(gfp_mask, 0, vma, addr)
-+#define alloc_page_vma(gfp_mask, vma, addr)			\
-+	alloc_pages_vma(gfp_mask, 0, vma, addr, numa_node_id())
- 
- extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
- extern unsigned long get_zeroed_page(gfp_t gfp_mask);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 3e29781..c7c2cd9 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -653,7 +653,7 @@ static inline struct page *alloc_hugepage_vma(int defrag,
- 					      unsigned long haddr)
- {
- 	return alloc_pages_vma(alloc_hugepage_gfpmask(defrag),
--			       HPAGE_PMD_ORDER, vma, haddr);
-+			       HPAGE_PMD_ORDER, vma, haddr, numa_node_id());
- }
- 
- #ifndef CONFIG_NUMA
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 49355a9..25a5a91 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1524,10 +1524,9 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
- }
- 
- /* Return a zonelist indicated by gfp for node representing a mempolicy */
--static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy)
-+static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
-+	int nd)
- {
--	int nd = numa_node_id();
--
- 	switch (policy->mode) {
- 	case MPOL_PREFERRED:
- 		if (!(policy->flags & MPOL_F_LOCAL))
-@@ -1679,7 +1678,7 @@ struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
- 		zl = node_zonelist(interleave_nid(*mpol, vma, addr,
- 				huge_page_shift(hstate_vma(vma))), gfp_flags);
- 	} else {
--		zl = policy_zonelist(gfp_flags, *mpol);
-+		zl = policy_zonelist(gfp_flags, *mpol, numa_node_id());
- 		if ((*mpol)->mode == MPOL_BIND)
- 			*nodemask = &(*mpol)->v.nodes;
- 	}
-@@ -1820,7 +1819,7 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
-  */
- struct page *
- alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
--		unsigned long addr)
-+		unsigned long addr, int node)
- {
- 	struct mempolicy *pol = get_vma_policy(current, vma, addr);
- 	struct zonelist *zl;
-@@ -1836,7 +1835,7 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
- 		put_mems_allowed();
- 		return page;
- 	}
--	zl = policy_zonelist(gfp, pol);
-+	zl = policy_zonelist(gfp, pol, node);
- 	if (unlikely(mpol_needs_cond_ref(pol))) {
- 		/*
- 		 * slow path: ref counted shared policy
--- 
-1.7.4
+Was there a response to this, or can this patch be merged?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
