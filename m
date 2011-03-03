@@ -1,56 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 707F18D0042
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7FAB98D0043
 	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 03:17:57 -0500 (EST)
-Message-Id: <20110303074949.543938784@intel.com>
-Date: Thu, 03 Mar 2011 14:45:12 +0800
+Message-Id: <20110303074950.195446002@intel.com>
+Date: Thu, 03 Mar 2011 14:45:17 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 07/27] btrfs: wait on too many nr_async_bios
+Subject: [PATCH 12/27] nfs: lower writeback threshold proportionally to dirty threshold
 References: <20110303064505.718671603@intel.com>
-Content-Disposition: inline; filename=btrfs-nr_async_bios-wait.patch
+Content-Disposition: inline; filename=nfs-congestion-thresh.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Trond Myklebust <Trond.Myklebust@netapp.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Tests show that btrfs is repeatedly moving _all_ PG_dirty pages into
-PG_writeback state. It's desirable to have some limit on the number of
-writeback pages.
+nfs_congestion_kb is to control the max allowed writeback and in-commit
+pages. It's not reasonable for them to outnumber dirty and to-commit
+pages. So each of them should not take more than 1/4 dirty threshold.
 
+Considering that nfs_init_writepagecache() is called on fresh boot,
+at the time dirty_thresh is much higher than the real dirty limit after
+lots of user space memory consumptions, use 1/8 instead.
+
+We might update nfs_congestion_kb when global dirty limit is changed
+at runtime, but whatever, do it simple first.
+
+CC: Trond Myklebust <Trond.Myklebust@netapp.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/btrfs/disk-io.c |    7 +++++++
- 1 file changed, 7 insertions(+)
+ fs/nfs/write.c      |   13 +++++++++++++
+ mm/page-writeback.c |    1 +
+ 2 files changed, 14 insertions(+)
 
-before patch:
-	http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/btrfs-1dd-1M-8p-2952M-2.6.37-rc5+-2010-12-08-21-30/vmstat-dirty-300.png
-
-after patch:
-	http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/tests/3G/btrfs-1dd-1M-8p-2952M-2.6.37-rc5+-2010-12-08-21-14/vmstat-dirty-300.png
-
---- linux-next.orig/fs/btrfs/disk-io.c	2011-03-03 14:03:39.000000000 +0800
-+++ linux-next/fs/btrfs/disk-io.c	2011-03-03 14:03:40.000000000 +0800
-@@ -616,6 +616,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_
- 			extent_submit_bio_hook_t *submit_bio_done)
+--- linux-next.orig/fs/nfs/write.c	2011-03-03 14:04:01.000000000 +0800
++++ linux-next/fs/nfs/write.c	2011-03-03 14:04:01.000000000 +0800
+@@ -1651,6 +1651,9 @@ out:
+ 
+ int __init nfs_init_writepagecache(void)
  {
- 	struct async_submit_bio *async;
-+	int limit;
- 
- 	async = kmalloc(sizeof(*async), GFP_NOFS);
- 	if (!async)
-@@ -643,6 +644,12 @@ int btrfs_wq_submit_bio(struct btrfs_fs_
- 
- 	btrfs_queue_worker(&fs_info->workers, &async->work);
- 
-+	limit = btrfs_async_submit_limit(fs_info);
++	unsigned long background_thresh;
++	unsigned long dirty_thresh;
 +
-+	if (atomic_read(&fs_info->nr_async_bios) > limit)
-+		wait_event(fs_info->async_submit_wait,
-+			   (atomic_read(&fs_info->nr_async_bios) < limit));
+ 	nfs_wdata_cachep = kmem_cache_create("nfs_write_data",
+ 					     sizeof(struct nfs_write_data),
+ 					     0, SLAB_HWCACHE_ALIGN,
+@@ -1688,6 +1691,16 @@ int __init nfs_init_writepagecache(void)
+ 	if (nfs_congestion_kb > 256*1024)
+ 		nfs_congestion_kb = 256*1024;
+ 
++	/*
++	 * Limit to 1/8 dirty threshold, so that writeback+in_commit pages
++	 * won't overnumber dirty+to_commit pages.
++	 */
++	global_dirty_limits(&background_thresh, &dirty_thresh);
++	dirty_thresh <<= PAGE_SHIFT - 10;
 +
- 	while (atomic_read(&fs_info->async_submit_draining) &&
- 	      atomic_read(&fs_info->nr_async_submits)) {
- 		wait_event(fs_info->async_submit_wait,
++	if (nfs_congestion_kb > dirty_thresh / 8)
++		nfs_congestion_kb = dirty_thresh / 8;
++
+ 	return 0;
+ }
+ 
+--- linux-next.orig/mm/page-writeback.c	2011-03-03 14:04:01.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-03-03 14:04:01.000000000 +0800
+@@ -431,6 +431,7 @@ void global_dirty_limits(unsigned long *
+ 	*pbackground = background;
+ 	*pdirty = dirty;
+ }
++EXPORT_SYMBOL_GPL(global_dirty_limits);
+ 
+ /**
+  * bdi_dirty_limit - @bdi's share of dirty throttling threshold
 
 
 --
