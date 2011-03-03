@@ -1,50 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3EC5E8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 16:31:06 -0500 (EST)
-Date: Thu, 3 Mar 2011 15:48:27 -0500
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 00/27] IO-less dirty throttling v6
-Message-ID: <20110303204827.GJ16720@redhat.com>
-References: <20110303064505.718671603@intel.com>
- <20110303201226.GI16720@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110303201226.GI16720@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id DF9F88D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 16:44:31 -0500 (EST)
+Subject: Re: [PATCH] Make /proc/slabinfo 0400
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <1299186986.2071.90.camel@dan>
+References: <1299174652.2071.12.camel@dan>  <1299185882.3062.233.camel@calx>
+	 <1299186986.2071.90.camel@dan>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 03 Mar 2011 15:44:27 -0600
+Message-ID: <1299188667.3062.259.camel@calx>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Dan Rosenberg <drosenberg@vsecurity.com>
+Cc: cl@linux-foundation.org, penberg@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 03, 2011 at 03:12:26PM -0500, Vivek Goyal wrote:
-> On Thu, Mar 03, 2011 at 02:45:05PM +0800, Wu Fengguang wrote:
-> 
-> [..]
-> > - serve as simple IO controllers: if provide an interface for the user
-> >   to set task_bw directly (by returning the user specified value
-> >   directly at the beginning of dirty_throttle_bandwidth(), plus always
-> >   throttle such tasks even under the background dirty threshold), we get
-> >   a bandwidth based per-task async write IO controller; let the user
-> >   scale up/down the @priority parameter in dirty_throttle_bandwidth(),
-> >   we get a priority based IO controller. It's possible to extend the
-> >   capabilities to the scope of cgroup, too.
+On Thu, 2011-03-03 at 16:16 -0500, Dan Rosenberg wrote:
+> > 
+> > Looking at a couple of these exploits, my suspicion is that looking at
+> > slabinfo simply improves the odds of success by a small factor (ie 10x
+> > or so) and doesn't present a real obstacle to attackers. All that
+> > appears to be required is to arrange that an overrunnable object be
+> > allocated next to one that is exploitable when overrun. And that can be
+> > arranged with fairly high probability on SLUB's merged caches.
 > > 
 > 
-> Hi Fengguang,
-> 
-> Above simple IO controller capabilities sound interesting and I was
-> looking at the patch to figure out the details. 
-> 
-> You seem to be mentioning that user can explicitly set the upper rate
-> limit per task for async IO. Can't really figure that out where is the
-> interface for setting such upper limits. Can you please point me to that.
+> This is accurate, but the primary goal of exploit mitigation isn't
+> necessarily to completely prevent the possibility of exploitation (time
+> has shown that this is unlikely to be feasible), but rather to increase
+> the cost of investment required to develop a reliable exploit.  If
+> removing read access to /proc/slabinfo means that heap exploits are even
+> slightly more likely to fail, then that's a win as far as I'm concerned
+> and may be the thing that prevents some helpless end user from getting
+> compromised.
 
-Never mind. Jeff moyer pointed out that you mentioned above as possible
-future enhancements on top of this patchset.
+Well if it were a 1000x-1000000x difficulty improvement, I would say you
+had a point. But at 10x, it's just not a real obstacle. For instance, in
+this exploit:
 
-Thanks
-Vivek
+http://www.exploit-db.com/exploits/14814/
+
+..there's already detection of successful smashing, so working around
+not having /proc/slabinfo is as simple as putting the initial smash in a
+loop. I can probably improve my odds of success to nearly 100% by
+pre-allocating a ton of objects all at once to get my own private slab
+page and tidy adjoining allocations. I'll only fail if someone does a
+simultaneous allocation between my target objects or I happen to
+straddle slab pages.
+
+And once an exploit writer has figured that out once, everyone else just
+copies it (like they've copied the slabinfo technique). At which point,
+we might as well make the file more permissive again.. 
+
+> > On the other hand, I'm not convinced the contents of this file are of
+> > much use to people without admin access.
+> > 
+> 
+> Exactly.  We might as well do everything we can to make attackers' lives
+> more difficult, especially when the cost is so low.
+
+There are thousands of attackers and millions of users. Most of those
+millions are on single-user systems with no local attackers. For every
+attacker's life we make trivially more difficult, we're also making a
+few real user's lives more difficult. It's not obvious that this is a
+good trade-off.
+
+-- 
+Mathematics is the supreme nostalgia of our time.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
