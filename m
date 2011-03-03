@@ -1,76 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E66C78D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 11:16:04 -0500 (EST)
-Received: by vxc38 with SMTP id 38so1508194vxc.14
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2011 08:15:57 -0800 (PST)
-Date: Thu, 3 Mar 2011 11:15:50 -0500
-From: Eric B Munson <emunson@mgebm.net>
-Subject: Re: [PATCHv2 00/24] Refactor sys_swapon
-Message-ID: <20110303161550.GA4095@mgebm.net>
-References: <4D6D7FEA.80800@cesarb.net>
- <1299022128-6239-1-git-send-email-cesarb@cesarb.net>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3E81C8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 11:53:38 -0500 (EST)
+Message-ID: <4D6FC6C7.8060001@redhat.com>
+Date: Thu, 03 Mar 2011 11:50:15 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="HlL+5n6rz5pIUxbD"
-Content-Disposition: inline
-In-Reply-To: <1299022128-6239-1-git-send-email-cesarb@cesarb.net>
+Subject: Re: Strange minor page fault repeats when SPECjbb2005 is executed
+References: <20110303200139.B187.E1E9C6FF@jp.fujitsu.com>
+In-Reply-To: <20110303200139.B187.E1E9C6FF@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cesar Eduardo Barros <cesarb@cesarb.net>
-Cc: linux-mm@kvack.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, Motohiro Kosaki <kosaki.motohiro@jp.fujitsu.com>
 
+On 03/03/2011 06:01 AM, Yasunori Goto wrote:
 
---HlL+5n6rz5pIUxbD
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+> In this log, cpu4 and 6 repeat page faults.
+> ----
+> handle_mm_fault jiffies64=4295160616 cpu=4 address=40019a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=55171067
+> handle_mm_fault jiffies64=4295160616 cpu=6 address=40003a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=551ef067
+> handle_mm_fault jiffies64=4295160616 cpu=6 address=40003a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=551ef067
+> handle_mm_fault jiffies64=4295160616 cpu=4 address=40019a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=55171067
+> handle_mm_fault jiffies64=4295160616 cpu=4 address=40019a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=55171067
 
-On Tue, 01 Mar 2011, Cesar Eduardo Barros wrote:
+> I confirmed this phenomenon is reproduced on 2.6.31 and 2.6.38-rc5
+> of x86 kernel, and I heard this phenomenon doesn't occur on
+> x86-64 kernel from another engineer who found this problem first.
+>
+> In addition, this phenomenon occurred on 4 boxes, so I think the cause
+> is not hardware malfunction.
 
-> This patch series refactors the sys_swapon function.
->=20
-> sys_swapon is currently a very large function, with 313 lines (more than
-> 12 25-line screens), which can make it a bit hard to read. This patch
-> series reduces this size by half, by extracting large chunks of related
-> code to new helper functions.
->=20
-> One of these chunks of code was nearly identical to the part of
-> sys_swapoff which is used in case of a failure return from
-> try_to_unuse(), so this patch series also makes both share the same
-> code.
->=20
-> As a side effect of all this refactoring, the compiled code gets a bit
-> smaller (from v1 of this patch series):
->=20
->    text       data        bss        dec        hex    filename
->   14012        944        276      15232       3b80    mm/swapfile.o.befo=
-re
->   13941        944        276      15161       3b39    mm/swapfile.o.after
->=20
-> The v1 of this patch series was lightly tested on a x86_64 VM.
+On what CPU model(s) does this happen?
 
-One more small suggestion, you should cc LKML on this series, as well as any
-of the other emails suggested by get_maintainer.pl.
+Obviously the PTE is present and allows read, write and
+execute accesses, so the PTE should not cause any faults.
 
---HlL+5n6rz5pIUxbD
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
+That leaves the TLB. It looks almost like the CPU keeps
+re-faulting on a (old?) TLB entry, possibly with wrong
+permissions, and does not re-load it from the PTE.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
+I know this "should not happen" on x86, but I cannot think
+of an alternative explanation right now.  Can you try flushing
+the TLB entry in question from handle_pte_fault?
 
-iQEcBAEBAgAGBQJNb762AAoJEH65iIruGRnN8aQIANvrE9ztWcgLLyTVnb9RND9R
-jlmWlbEnZkSTZTY6kaRKk+gHp5E+a/3c7m0l0WXLGEiWPVjoeWs+ra1z6wQsAquO
-m0WI17k0lk4dHp2ZJiht8yMR6iIW+RaOTsPe4CXfwa1qlAPCCd3FBkjicUoconpy
-HS/V8NELl7UN88whn4IS8WayS/f7LZ06E4SZUl+L0+kVzgZJqYrdjT5QQhKznx/4
-7w2aX8KGRNhxkgXOslrRG5uY4Ge03C6Qh3gdSc+beE9NHYIjOROUGHz6tfFoaVFp
-5LfneJ8OQ+wtEYAJZ+UacPH+96j3hE29E3Szz54MrwqGESglybDRUQtvaupZcVI=
-=ArhI
------END PGP SIGNATURE-----
+It looks like the code already does this for write faults, but
+maybe the garbage collection code uses PROT_NONE a lot and is
+running into this issue with a read or exec fault?
 
---HlL+5n6rz5pIUxbD--
+It would be good to print the fault flags as well in your debug
+print, so we know what kind of fault is being repeated...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
