@@ -1,158 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 37F9F8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 06:03:13 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 11BBA3EE0BC
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:03:10 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EA17C45DE4D
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:03:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C6BD745DE55
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:03:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B92951DB803C
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:03:09 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 756AA1DB802C
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:03:09 +0900 (JST)
-Date: Thu, 03 Mar 2011 20:01:39 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Strange minor page fault repeats when SPECjbb2005 is executed
-Message-Id: <20110303200139.B187.E1E9C6FF@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id ACA978D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 06:03:55 -0500 (EST)
+Date: Thu, 3 Mar 2011 11:03:24 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: stable: mm: vmstat: use a single setter function and callback for
+	adjusting percpu thresholds
+Message-ID: <20110303110324.GH14162@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, Motohiro Kosaki <kosaki.motohiro@jp.fujitsu.com>
+To: akpm@linux-foundation.org
+Cc: "Nadolski, Edmund" <edmund.nadolski@intel.com>, Greg KH <gregkh@suse.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, Christoph Lameter <cl@linux.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, stable@kernel.org, linux-mm@kvack.org
 
+Edmund Nadolski reported the same problem Kosaki did against the commit
+[88f5acf8: mm: page allocator: adjust the per-cpu counter threshold when
+memory is low] whereby kswapd was in an inconsistent locking state due
+to calling get_online_cpus(): See https://lkml.org/lkml/2011/3/2/398 for
+details. This is already fixed upstream by commit [b44129b3: mm: vmstat: use
+a single setter function and callback for adjusting percpu thresholds]. Unless
+there is an objection, can this be picked up for 2.6.37-stable please?
+Ideally it would apply against 2.6.36.x as well but that release is no
+longer maintained.
 
-Hello.
+==== CUT HERE ====
 
-I found an abnormal kernel behavior when I executed SPECjbb2005.
-It is that minor page fault repeats even though page table entry is correct.
+reduce_pgdat_percpu_threshold() and restore_pgdat_percpu_threshold() exist
+to adjust the per-cpu vmstat thresholds while kswapd is awake to avoid
+errors due to counter drift.  The functions duplicate some code so this
+patch replaces them with a single set_pgdat_percpu_threshold() that takes
+a callback function to calculate the desired threshold as a parameter.
 
-If you know something about cause of this phenomenon, please let me know.
-If nobody knows, please reproduce it and find why it is happen.
+[akpm@linux-foundation.org: readability tweak]
+[kosaki.motohiro@jp.fujitsu.com: set_pgdat_percpu_threshold(): don't use for_each_online_cpu]
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Christoph Lameter <cl@linux.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 
-
-The details of this problem are the followings.
-
-When SPECjbb2005 is executed, it sometimes stop displaying message of
-progress suddenly.
--------------
-          :
-          :
-116.160: [GC 406278K->193826K(2071552K), 0.0117750 secs]
-116.342: [GC 406626K->194122K(2071616K), 0.0118000 secs]
-116.522: [GC
-            ^
-            It stop showing message from here.
---------------------
-
-This condition keeps for some time, then SPECjbb2005 finishes.
-The stop time is from about 5 seconds to an hours. It may tend to be longer
-on bigger box, but I'm not sure.
-
-In addition, the stop condition is sometimes released when I executed other
-unrelated command.
-
-
-
-When this phenomenon happen, I saw that too many minor page faults occur
-on the java process.
-
-Here is output of /proc/<pid>/stat of the java process.
-
-Usually, the minor fault value is under 1 million on my current environment
-like the following.
-------------------
-1744 (java) S 1742 1742 1721 34816 1742 4202496 968826 0 35834 0 218734 ...
-                                                ^^^^^^
-                                                minor fault value
-
-------------------
-
-But, when SPECjbb2005 stops with this phenomenon, this value increases
-sharply.
-----
-
-2065 (java) S 2063 2063 1721 34816 2063 4202496 157573157 0 1 0 .....
-                                                ^^^^^^^^^
-2065 (java) S 2063 2063 1721 34816 2063 4202496 231388697 0 1 0 ......
-                                                ^^^^^^^^^
-
-2065 (java) S 2063 2063 1721 34816 2063 4202496 438851940 0 1 0 ....
-                                                ^^^^^^^^^
-
-2065 (java) S 2063 2063 1721 34816 2063 4202496 524209252 0 1 0 ...
-                                                ^^^^^^^^^
------
-
-I checked page table entry status at handle_mm_fault by debugfs,
-then even ptes are correct, page fault repeated on same virtual address
-and same cpus. And I think page table entry looks correct.
-
-In this log, cpu4 and 6 repeat page faults.
-----
-handle_mm_fault jiffies64=4295160616 cpu=4 address=40019a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=55171067
-handle_mm_fault jiffies64=4295160616 cpu=6 address=40003a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=551ef067
-handle_mm_fault jiffies64=4295160616 cpu=6 address=40003a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=551ef067
-handle_mm_fault jiffies64=4295160616 cpu=4 address=40019a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=55171067
-handle_mm_fault jiffies64=4295160616 cpu=4 address=40019a38 pmdval=0000000070832067 ptehigh=00000000 ptelow=55171067
-         :
-         :
-------------
-(Here is the patch to display the above log by debugfs.)
-
----------------
-Index: linux-2.6.38-rc5/mm/memory.c
-===================================================================
---- linux-2.6.38-rc5.orig/mm/memory.c
-+++ linux-2.6.38-rc5/mm/memory.c
-@@ -3333,6 +3333,8 @@ int handle_mm_fault(struct mm_struct *mm
- 	 */
- 	pte = pte_offset_map(pmd, address);
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index e4cc21c..833e676 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -254,8 +254,11 @@ extern void dec_zone_state(struct zone *, enum zone_stat_item);
+ extern void __dec_zone_state(struct zone *, enum zone_stat_item);
  
-+	pr_debug("%s jiffies64=%lld cpu=%d address=%08lx pmdval=%016llx ptehigh=%08lx ptelow=%08lx\n",__func__, get_jiffies_64(), smp_processor_id(), address, pmd->pmd, pte->pte_high, pte->pte_low);
+ void refresh_cpu_vm_stats(int);
+-void reduce_pgdat_percpu_threshold(pg_data_t *pgdat);
+-void restore_pgdat_percpu_threshold(pg_data_t *pgdat);
 +
- 	return handle_pte_fault(mm, vma, address, pte, pmd, flags);
++int calculate_pressure_threshold(struct zone *zone);
++int calculate_normal_threshold(struct zone *zone);
++void set_pgdat_percpu_threshold(pg_data_t *pgdat,
++				int (*calculate_pressure)(struct zone *));
+ #else /* CONFIG_SMP */
+ 
+ /*
+@@ -300,8 +303,7 @@ static inline void __dec_zone_page_state(struct page *page,
+ #define dec_zone_page_state __dec_zone_page_state
+ #define mod_zone_page_state __mod_zone_page_state
+ 
+-static inline void reduce_pgdat_percpu_threshold(pg_data_t *pgdat) { }
+-static inline void restore_pgdat_percpu_threshold(pg_data_t *pgdat) { }
++#define set_pgdat_percpu_threshold(pgdat, callback) { }
+ 
+ static inline void refresh_cpu_vm_stats(int cpu) { }
+ #endif
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 5da4295..86f8c34 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2448,9 +2448,24 @@ static int kswapd(void *p)
+ 				 */
+ 				if (!sleeping_prematurely(pgdat, order, remaining)) {
+ 					trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
+-					restore_pgdat_percpu_threshold(pgdat);
++
++					/*
++					 * vmstat counters are not perfectly
++					 * accurate and the estimated value
++					 * for counters such as NR_FREE_PAGES
++					 * can deviate from the true value by
++					 * nr_online_cpus * threshold. To
++					 * avoid the zone watermarks being
++					 * breached while under pressure, we
++					 * reduce the per-cpu vmstat threshold
++					 * while kswapd is awake and restore
++					 * them before going back to sleep.
++					 */
++					set_pgdat_percpu_threshold(pgdat,
++						calculate_normal_threshold);
+ 					schedule();
+-					reduce_pgdat_percpu_threshold(pgdat);
++					set_pgdat_percpu_threshold(pgdat,
++						calculate_pressure_threshold);
+ 				} else {
+ 					if (remaining)
+ 						count_vm_event(KSWAPD_LOW_WMARK_HIT_QUICKLY);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index bc0f095..751a65e 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -83,7 +83,7 @@ EXPORT_SYMBOL(vm_stat);
+ 
+ #ifdef CONFIG_SMP
+ 
+-static int calculate_pressure_threshold(struct zone *zone)
++int calculate_pressure_threshold(struct zone *zone)
+ {
+ 	int threshold;
+ 	int watermark_distance;
+@@ -107,7 +107,7 @@ static int calculate_pressure_threshold(struct zone *zone)
+ 	return threshold;
  }
  
----------------
-
-I confirmed this phenomenon is reproduced on 2.6.31 and 2.6.38-rc5
-of x86 kernel, and I heard this phenomenon doesn't occur on
-x86-64 kernel from another engineer who found this problem first.
-
-In addition, this phenomenon occurred on 4 boxes, so I think the cause
-is not hardware malfunction.
-
-
-Here is the run.sh of SPECjbb2005 when it is reproduced on my current box.
-----------
-date
-echo $CLASSPATH
-CLASSPATH=./jbb.jar:./jbb_no_precompile.jar:./check.jar:./reporter.jar:$CLASSPATH
-echo $CLASSPATH
-export CLASSPATH
-
-/usr/bin/java -XX:+UseParallelGC -ms2032m -mx2032m -XX:-AlwaysPreTouch -verbosegc
-spec.jbb.JBBmain -propfile SPECjbb.props_WH1-8
-
------------
-
-
-Though I'll continue to chase the cause of this problem, please help to solve this...
-
-Thanks.
-
--- 
-Yasunori Goto 
-
+-static int calculate_threshold(struct zone *zone)
++int calculate_normal_threshold(struct zone *zone)
+ {
+ 	int threshold;
+ 	int mem;	/* memory in 128 MB units */
+@@ -166,7 +166,7 @@ static void refresh_zone_stat_thresholds(void)
+ 	for_each_populated_zone(zone) {
+ 		unsigned long max_drift, tolerate_drift;
+ 
+-		threshold = calculate_threshold(zone);
++		threshold = calculate_normal_threshold(zone);
+ 
+ 		for_each_online_cpu(cpu)
+ 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+@@ -185,46 +185,24 @@ static void refresh_zone_stat_thresholds(void)
+ 	}
+ }
+ 
+-void reduce_pgdat_percpu_threshold(pg_data_t *pgdat)
++void set_pgdat_percpu_threshold(pg_data_t *pgdat,
++				int (*calculate_pressure)(struct zone *))
+ {
+ 	struct zone *zone;
+ 	int cpu;
+ 	int threshold;
+ 	int i;
+ 
+-	get_online_cpus();
+-	for (i = 0; i < pgdat->nr_zones; i++) {
+-		zone = &pgdat->node_zones[i];
+-		if (!zone->percpu_drift_mark)
+-			continue;
+-
+-		threshold = calculate_pressure_threshold(zone);
+-		for_each_online_cpu(cpu)
+-			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+-							= threshold;
+-	}
+-	put_online_cpus();
+-}
+-
+-void restore_pgdat_percpu_threshold(pg_data_t *pgdat)
+-{
+-	struct zone *zone;
+-	int cpu;
+-	int threshold;
+-	int i;
+-
+-	get_online_cpus();
+ 	for (i = 0; i < pgdat->nr_zones; i++) {
+ 		zone = &pgdat->node_zones[i];
+ 		if (!zone->percpu_drift_mark)
+ 			continue;
+ 
+-		threshold = calculate_threshold(zone);
+-		for_each_online_cpu(cpu)
++		threshold = (*calculate_pressure)(zone);
++		for_each_possible_cpu(cpu)
+ 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+ 							= threshold;
+ 	}
+-	put_online_cpus();
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
