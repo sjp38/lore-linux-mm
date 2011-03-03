@@ -1,43 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id DEAF48D0039
+	by kanga.kvack.org (Postfix) with SMTP id EF88D8D003A
 	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 03:17:55 -0500 (EST)
-Message-Id: <20110303074949.419321686@intel.com>
-Date: Thu, 03 Mar 2011 14:45:11 +0800
+Message-Id: <20110303074949.165618203@intel.com>
+Date: Thu, 03 Mar 2011 14:45:09 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 06/27] btrfs: lower the dirty balance poll interval
+Subject: [PATCH 04/27] writeback: reduce per-bdi dirty threshold ramp up time
 References: <20110303064505.718671603@intel.com>
-Content-Disposition: inline; filename=btrfs-limit-nr-dirtied.patch
+Content-Disposition: inline; filename=writeback-speedup-per-bdi-threshold-ramp-up.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Richard Kennedy <richard@rsk.demon.co.uk>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Call balance_dirty_pages_ratelimit_nr() on every 32 pages dirtied.
+Reduce the dampening for the control system, yielding faster
+convergence. The change is a bit conservative, as smaller values may
+lead to noticeable bdi threshold fluctuates in low memory JBOD setup.
 
-Tests show that original larger intervals can easily make the bdi
-dirty limit exceeded on 100 concurrent dd.
-
-CC: Chris Mason <chris.mason@oracle.com>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Richard Kennedy <richard@rsk.demon.co.uk>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/btrfs/file.c |    5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ mm/page-writeback.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
---- linux-next.orig/fs/btrfs/file.c	2011-03-02 20:15:19.000000000 +0800
-+++ linux-next/fs/btrfs/file.c	2011-03-02 20:35:07.000000000 +0800
-@@ -949,9 +949,8 @@ static ssize_t btrfs_file_aio_write(stru
- 	}
+--- linux-next.orig/mm/page-writeback.c	2011-03-02 14:52:19.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-03-02 15:00:17.000000000 +0800
+@@ -145,7 +145,7 @@ static int calc_period_shift(void)
+ 	else
+ 		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
+ 				100;
+-	return 2 + ilog2(dirty_total - 1);
++	return ilog2(dirty_total - 1);
+ }
  
- 	iov_iter_init(&i, iov, nr_segs, count, num_written);
--	nrptrs = min((iov_iter_count(&i) + PAGE_CACHE_SIZE - 1) /
--		     PAGE_CACHE_SIZE, PAGE_CACHE_SIZE /
--		     (sizeof(struct page *)));
-+	nrptrs = min(DIV_ROUND_UP(iov_iter_count(&i), PAGE_CACHE_SIZE),
-+		     min(32UL, PAGE_CACHE_SIZE / sizeof(struct page *)));
- 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
- 	if (!pages) {
- 		ret = -ENOMEM;
+ /*
 
 
 --
