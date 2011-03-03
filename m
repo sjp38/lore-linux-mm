@@ -1,61 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C31D48D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 16:52:59 -0500 (EST)
-Date: Thu, 3 Mar 2011 13:52:23 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] memcg: add oom killer delay
-Message-Id: <20110303135223.0a415e69.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1102231636260.21906@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1102091417410.5697@chino.kir.corp.google.com>
-	<20110223150850.8b52f244.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1102231636260.21906@chino.kir.corp.google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DD43A8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 17:30:06 -0500 (EST)
+Subject: Re: [PATCH] Make /proc/slabinfo 0400
+From: Dan Rosenberg <drosenberg@vsecurity.com>
+In-Reply-To: <1299188667.3062.259.camel@calx>
+References: <1299174652.2071.12.camel@dan>  <1299185882.3062.233.camel@calx>
+	 <1299186986.2071.90.camel@dan>  <1299188667.3062.259.camel@calx>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 03 Mar 2011 17:30:00 -0500
+Message-ID: <1299191400.2071.203.camel@dan>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
+To: Matt Mackall <mpm@selenic.com>
+Cc: cl@linux-foundation.org, penberg@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 23 Feb 2011 16:51:24 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
 
-> > The problem is that the userspace oom handler is also taking peeks into
-> > processes which are in the stressed memcg and is getting stuck on
-> > mmap_sem in the procfs reads.  Correct?
-> > 
+> Well if it were a 1000x-1000000x difficulty improvement, I would say you
+> had a point. But at 10x, it's just not a real obstacle. For instance, in
+> this exploit:
 > 
-> That's outside the scope of this feature and is a separate discussion; 
-> this patch specifically addresses an issue where a userspace job scheduler 
-> wants to take action when a memcg is oom before deferring to the kernel 
-> and happens to become unresponsive for whatever reason.
-
-That's just handwaving used to justify a workaround for a kernel
-deficiency.
-
-If userspace has chosen to repalce the oom-killer then userspace should
-be able to appropriately perform the role.  But for some
-as-yet-undescribed reason, userspace is *not* able to perform that
-role.
-
-And I'm suspecting that the as-yet-undescribed reason is a kernel
-deficiency.  Spit it out.
-
-> > It seems to me that such a userspace oom handler is correctly designed,
-> > and that we should be looking into the reasons why it is unreliable,
-> > and fixing them.  Please tell us about this?
-> > 
+> http://www.exploit-db.com/exploits/14814/
 > 
-> The problem isn't specific to any one cause or implementation, we know 
-> that userspace programs have bugs, they can stall forever in D-state, they 
-> can be oom themselves, they get stuck waiting on a lock, etc etc.
+> ..there's already detection of successful smashing, so working around
+> not having /proc/slabinfo is as simple as putting the initial smash in a
+> loop. I can probably improve my odds of success to nearly 100% by
+> pre-allocating a ton of objects all at once to get my own private slab
+> page and tidy adjoining allocations. I'll only fail if someone does a
+> simultaneous allocation between my target objects or I happen to
+> straddle slab pages.
+> 
 
-It's not the kernel's role to work around userspace bugs and it's
-certainly not the kernel's role to work around kernel bugs.
+For this particular exploit, the allocation and triggering of the
+vulnerability were in separate stages, so that's the case, but other
+exploits might have additional constraints.  For example, there is a
+public exploit for a two-byte SLUB overflow that relies on a partial
+overwrite into a free chunk; exploitation of vulnerabilities similar to
+this may be significantly hindered by the lack of availability of this
+interface.  Still other issues may only get one shot at exploitation
+without needing to clean up corrupted heap state to avoid panicking the
+kernel.  In short, every exploit is different, and exposure
+of /proc/slabinfo may be the thing that puts some more difficult cases
+within reach.
 
-Now please tell us: why is the userspace job manager getting stuck?
+> And once an exploit writer has figured that out once, everyone else just
+> copies it (like they've copied the slabinfo technique). At which point,
+> we might as well make the file more permissive again.. 
+> 
+
+This may be true to some extent, but kernel vulnerabilities tend to be
+somewhat varied in terms of exploitation constraints, so I'm not
+convinced a general technique would apply to enough cases to render this
+change completely pointless.
+
+Many security features, for example NX enforcement, have not proven to
+be especially significant in completely mitigating exploitation of
+userland memory corruption vulnerabilities by themselves, given the
+advent of code-reuse exploitation techniques.  They have also come at
+the cost of breaking some applications.  However, the reason we don't
+just turn them all off is because they provide SOME hurdle, however
+small, and given enough incremental improvements, we eventually get to
+the point where things are actually hard.
+
+> > > On the other hand, I'm not convinced the contents of this file are of
+> > > much use to people without admin access.
+> > > 
+> > 
+> > Exactly.  We might as well do everything we can to make attackers' lives
+> > more difficult, especially when the cost is so low.
+> 
+> There are thousands of attackers and millions of users. Most of those
+> millions are on single-user systems with no local attackers. For every
+> attacker's life we make trivially more difficult, we're also making a
+> few real user's lives more difficult. It's not obvious that this is a
+> good trade-off.
+> 
+
+I appreciate your input on this, you've made very reasonable points.
+I'm just not convinced that those few real users are being substantially
+inconvenienced, even if there's only a small benefit for the larger
+population of users who are at risk for attacks.  Perhaps others could
+contribute their opinions to the discussion.
+
+-Dan
+
+> -- 
+> Mathematics is the supreme nostalgia of our time.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
