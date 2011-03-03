@@ -1,145 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id EF10C8D0052
+	by kanga.kvack.org (Postfix) with SMTP id 36C248D004F
 	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 03:17:59 -0500 (EST)
-Message-Id: <20110303074952.128185713@intel.com>
-Date: Thu, 03 Mar 2011 14:45:31 +0800
+Message-Id: <20110303074951.568969627@intel.com>
+Date: Thu, 03 Mar 2011 14:45:27 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 26/27] writeback: scale IO chunk size up to device bandwidth
+Subject: [PATCH 22/27] writeback: trace dirty_throttle_bandwidth
 References: <20110303064505.718671603@intel.com>
-Content-Disposition: inline; filename=writeback-128M-MAX_WRITEBACK_PAGES.patch
+Content-Disposition: inline; filename=writeback-trace-throttle-bandwidth.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Theodore Tso <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Originally, MAX_WRITEBACK_PAGES was hard-coded to 1024 because of a
-concern of not holding I_SYNC for too long.  (At least, that was the
-comment previously.)  This doesn't make sense now because the only
-time we wait for I_SYNC is if we are calling sync or fsync, and in
-that case we need to write out all of the data anyway.  Previously
-there may have been other code paths that waited on I_SYNC, but not
-any more.					    -- Theodore Ts'o
+It provides critical information to understand how various throttle
+bandwidths are updated.
 
-According to Christoph, the current writeback size is way too small,
-and XFS had a hack that bumped out nr_to_write to four times the value
-sent by the VM to be able to saturate medium-sized RAID arrays.  This
-value was also problematic for ext4 as well, as it caused large files
-to be come interleaved on disk by in 8 megabyte chunks (we bumped up
-the nr_to_write by a factor of two).
-
-So remove the MAX_WRITEBACK_PAGES constraint totally. The writeback pages
-will adapt to as large as the storage device can write within 1 second.
-
-For a typical hard disk, the resulted chunk size will be 32MB or 64MB.
-
-XFS is observed to do IO completions in a batch, and the batch size is
-equal to the write chunk size. To avoid dirty pages to suddenly drop
-out of balance_dirty_pages()'s dirty control scope and create large
-fluctuations, the chunk size is also limited to half the control scope.
-
-http://bugzilla.kernel.org/show_bug.cgi?id=13930
-
-CC: Theodore Ts'o <tytso@mit.edu>
-CC: Dave Chinner <david@fromorbit.com>
-CC: Chris Mason <chris.mason@oracle.com>
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/fs-writeback.c |   61 ++++++++++++++++++++++++--------------------
- 1 file changed, 34 insertions(+), 27 deletions(-)
+ include/trace/events/writeback.h |   49 +++++++++++++++++++++++++++++
+ mm/page-writeback.c              |    1 
+ 2 files changed, 50 insertions(+)
 
---- linux-next.orig/fs/fs-writeback.c	2011-03-02 17:24:06.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2011-03-02 17:24:10.000000000 +0800
-@@ -594,15 +594,6 @@ static void __writeback_inodes_sb(struct
- 	spin_unlock(&inode_lock);
+--- linux-next.orig/mm/page-writeback.c	2011-03-03 14:44:31.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-03-03 14:44:38.000000000 +0800
+@@ -1068,6 +1068,7 @@ adjust:
+ 	bdi->throttle_bandwidth = bw;
+ out:
+ 	bdi_update_reference_bandwidth(bdi, ref_bw);
++	trace_dirty_throttle_bandwidth(bdi, dirty_bw, pos_bw, ref_bw);
  }
  
--/*
-- * The maximum number of pages to writeout in a single bdi flush/kupdate
-- * operation.  We do this so we don't hold I_SYNC against an inode for
-- * enormous amounts of time, which would block a userspace task which has
-- * been forced to throttle against that inode.  Also, the code reevaluates
-- * the dirty each time it has written this many pages.
-- */
--#define MAX_WRITEBACK_PAGES     1024
--
- static inline bool over_bground_thresh(void)
- {
- 	unsigned long background_thresh, dirty_thresh;
-@@ -614,6 +605,39 @@ static inline bool over_bground_thresh(v
- }
+ void bdi_update_bandwidth(struct backing_dev_info *bdi,
+--- linux-next.orig/include/trace/events/writeback.h	2011-03-03 14:43:49.000000000 +0800
++++ linux-next/include/trace/events/writeback.h	2011-03-03 14:44:38.000000000 +0800
+@@ -152,6 +152,55 @@ DEFINE_WBC_EVENT(wbc_balance_dirty_writt
+ DEFINE_WBC_EVENT(wbc_balance_dirty_wait);
+ DEFINE_WBC_EVENT(wbc_writepage);
  
- /*
-+ * Give each inode a nr_to_write that can complete within 1 second.
-+ */
-+static unsigned long writeback_chunk_size(struct backing_dev_info *bdi,
-+					  int sync_mode)
-+{
-+	unsigned long pages;
++#define KBps(x)			((x) << (PAGE_SHIFT - 10))
++#define Bps(x)			((x) >> (BASE_BW_SHIFT - PAGE_SHIFT))
 +
-+	/*
-+	 * WB_SYNC_ALL mode does livelock avoidance by syncing dirty
-+	 * inodes/pages in one big loop. Setting wbc.nr_to_write=LONG_MAX
-+	 * here avoids calling into writeback_inodes_wb() more than once.
-+	 *
-+	 * The intended call sequence for WB_SYNC_ALL writeback is:
-+	 *
-+	 *      wb_writeback()
-+	 *          __writeback_inodes_sb()     <== called only once
-+	 *              write_cache_pages()     <== called once for each inode
-+	 *                  (quickly) tag currently dirty pages
-+	 *                  (maybe slowly) sync all tagged pages
-+	 */
-+	if (sync_mode == WB_SYNC_ALL)
-+		return LONG_MAX;
++TRACE_EVENT(dirty_throttle_bandwidth,
 +
-+	pages = min(bdi->avg_bandwidth,
-+		    bdi->dirty_threshold / DIRTY_SCOPE);
++	TP_PROTO(struct backing_dev_info *bdi,
++		 unsigned long dirty_bw,
++		 unsigned long long pos_bw,
++		 unsigned long long ref_bw),
 +
-+	if (pages <= MIN_WRITEBACK_PAGES)
-+		return MIN_WRITEBACK_PAGES;
++	TP_ARGS(bdi, dirty_bw, pos_bw, ref_bw),
 +
-+	return rounddown_pow_of_two(pages);
-+}
++	TP_STRUCT__entry(
++		__array(char,			bdi, 32)
++		__field(unsigned long,		write_bw)
++		__field(unsigned long,		avg_bw)
++		__field(unsigned long,		dirty_bw)
++		__field(unsigned long long,	base_bw)
++		__field(unsigned long long,	pos_bw)
++		__field(unsigned long long,	ref_bw)
++		__field(unsigned long long,	avg_ref_bw)
++	),
 +
-+/*
-  * Explicit flushing or periodic writeback of "old" data.
-  *
-  * Define "old": the first time one of an inode's pages is dirtied, we mark the
-@@ -653,24 +677,6 @@ static long wb_writeback(struct bdi_writ
- 		wbc.range_end = LLONG_MAX;
- 	}
++	TP_fast_assign(
++		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
++		__entry->write_bw	= KBps(bdi->write_bandwidth);
++		__entry->avg_bw		= KBps(bdi->avg_bandwidth);
++		__entry->dirty_bw	= KBps(dirty_bw);
++		__entry->base_bw	= Bps(bdi->throttle_bandwidth);
++		__entry->pos_bw		= Bps(pos_bw);
++		__entry->ref_bw		= Bps(ref_bw);
++		__entry->avg_ref_bw	= Bps(bdi->reference_bandwidth);
++	),
++
++
++	TP_printk("bdi %s: "
++		  "write_bw=%lu avg_bw=%lu dirty_bw=%lu "
++		  "base_bw=%llu pos_bw=%llu ref_bw=%llu aref_bw=%llu",
++		  __entry->bdi,
++		  __entry->write_bw,	/* bdi write bandwidth */
++		  __entry->avg_bw,	/* bdi avg write bandwidth */
++		  __entry->dirty_bw,	/* bdi dirty bandwidth */
++		  __entry->base_bw,	/* base throttle bandwidth */
++		  __entry->pos_bw,	/* position control bandwidth */
++		  __entry->ref_bw,	/* reference throttle bandwidth */
++		  __entry->avg_ref_bw	/* smoothed reference bandwidth */
++	)
++);
++
+ DECLARE_EVENT_CLASS(writeback_congest_waited_template,
  
--	/*
--	 * WB_SYNC_ALL mode does livelock avoidance by syncing dirty
--	 * inodes/pages in one big loop. Setting wbc.nr_to_write=LONG_MAX
--	 * here avoids calling into writeback_inodes_wb() more than once.
--	 *
--	 * The intended call sequence for WB_SYNC_ALL writeback is:
--	 *
--	 *      wb_writeback()
--	 *          __writeback_inodes_sb()     <== called only once
--	 *              write_cache_pages()     <== called once for each inode
--	 *                   (quickly) tag currently dirty pages
--	 *                   (maybe slowly) sync all tagged pages
--	 */
--	if (wbc.sync_mode == WB_SYNC_NONE)
--		write_chunk = MAX_WRITEBACK_PAGES;
--	else
--		write_chunk = LONG_MAX;
--
- 	wbc.wb_start = jiffies; /* livelock avoidance */
- 	bdi_update_write_bandwidth(wb->bdi, wbc.wb_start);
- 	for (;;) {
-@@ -698,6 +704,7 @@ static long wb_writeback(struct bdi_writ
- 			break;
- 
- 		wbc.more_io = 0;
-+		write_chunk = writeback_chunk_size(wb->bdi, wbc.sync_mode);
- 		wbc.nr_to_write = write_chunk;
- 		wbc.per_file_limit = write_chunk;
- 		wbc.pages_skipped = 0;
+ 	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
 
 
 --
