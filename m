@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 55CBC8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 13:09:52 -0500 (EST)
-Date: Thu, 3 Mar 2011 19:09:46 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 8/8] Add VM counters for transparent hugepages
-Message-ID: <20110303180946.GK32215@one.firstfloor.org>
-References: <1299113128-11349-1-git-send-email-andi@firstfloor.org> <1299113128-11349-9-git-send-email-andi@firstfloor.org> <20110303091827.GC2245@cmpxchg.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 467908D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 13:17:56 -0500 (EST)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p23I53Lv007901
+	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 11:05:03 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p23IHmv2117260
+	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 11:17:48 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p23IHmS9022246
+	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 11:17:48 -0700
+Subject: Re: [PATCH] Make /proc/slabinfo 0400
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <1299174652.2071.12.camel@dan>
+References: <1299174652.2071.12.camel@dan>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Thu, 03 Mar 2011 10:17:46 -0800
+Message-ID: <1299176266.8493.2369.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110303091827.GC2245@cmpxchg.org>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
+To: Dan Rosenberg <drosenberg@vsecurity.com>
+Cc: cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 03, 2011 at 10:18:27AM +0100, Johannes Weiner wrote:
-> On Wed, Mar 02, 2011 at 04:45:28PM -0800, Andi Kleen wrote:
-> > --- a/include/linux/vmstat.h
-> > +++ b/include/linux/vmstat.h
-> > @@ -58,6 +58,13 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
-> >  		UNEVICTABLE_PGCLEARED,	/* on COW, page truncate */
-> >  		UNEVICTABLE_PGSTRANDED,	/* unable to isolate on unlock */
-> >  		UNEVICTABLE_MLOCKFREED,
-> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> > +	        THP_FAULT_ALLOC,
-> > +		THP_COLLAPSE_ALLOC,	
-> > +		THP_FAULT_FALLBACK,	
+On Thu, 2011-03-03 at 12:50 -0500, Dan Rosenberg wrote:
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -4691,7 +4691,7 @@ static const struct file_operations proc_slabinfo_operations = {
 > 
-> Wouldn't this better be named THP_FAULT_ALLOC_FAIL?  After all, it
-> counts allocation failures, not what results from them.
+>  static int __init slab_proc_init(void)
+>  {
+> -       proc_create("slabinfo", S_IRUGO, NULL, &proc_slabinfo_operations);
+> +       proc_create("slabinfo", S_IRUSR, NULL, &proc_slabinfo_operations);
+>         return 0;
+>  }
+>  module_init(slab_proc_init); 
 
-It doesn't really fail anything for the user, so I thought fallback
-was better.
+Please don't.  In reality, it'll just mean that more data collection
+things will have to get done as root, and I'll wear my keyboard out more
+often sudo'ing.
 
-> 
-> Secondly, the order does not match the strings, it will report the
-> THP_COLLAPSE_ALLOC item as "thp_fault_fallback" and vice versa.
+If you really want this on particularly pedantic systems, why not chmod?
 
-
-Oops, I broke that while merging Andrea's change. Will resend.
-
-> Can you make this "_failed" instead, to match the enum symbol?  Andrea
-> wasn't sure which was better, "failure" or "failed".  Right now, we
-> have two instances of "fail" and two instances of "failed" in
-> /proc/vmstat, it's probably best not to introduce a third one.
-
-Okay.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
