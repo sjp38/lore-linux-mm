@@ -1,99 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 135ED8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 14:54:20 -0500 (EST)
-Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
-	by smtp-out.google.com with ESMTP id p23Js1p7016168
-	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 11:54:01 -0800
-Received: from pxi15 (pxi15.prod.google.com [10.243.27.15])
-	by hpaq11.eem.corp.google.com with ESMTP id p23JrPPG012244
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 11:54:00 -0800
-Received: by pxi15 with SMTP id 15so218960pxi.19
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2011 11:53:59 -0800 (PST)
-Date: Thu, 3 Mar 2011 11:53:53 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] oom: prevent unnecessary oom kills or kernel panics
-In-Reply-To: <20110303100030.B936.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1103031147560.9993@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1103011108400.28110@chino.kir.corp.google.com> <20110303100030.B936.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6CE0F8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 15:00:32 -0500 (EST)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: [PATCH 6/8] Add __GFP_OTHER_NODE flag
+Date: Thu,  3 Mar 2011 11:59:49 -0800
+Message-Id: <1299182391-6061-7-git-send-email-andi@firstfloor.org>
+In-Reply-To: <1299182391-6061-1-git-send-email-andi@firstfloor.org>
+References: <1299182391-6061-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, aarcange@redhat.com
 
-On Thu, 3 Mar 2011, KOSAKI Motohiro wrote:
+From: Andi Kleen <ak@linux.intel.com>
 
-> > This patch revents unnecessary oom kills or kernel panics by reverting
-> > two commits:
-> > 
-> > 	495789a5 (oom: make oom_score to per-process value)
-> > 	cef1d352 (oom: multi threaded process coredump don't make deadlock)
-> > 
-> > First, 495789a5 (oom: make oom_score to per-process value) ignores the
-> > fact that all threads in a thread group do not necessarily exit at the
-> > same time.
-> > 
-> > It is imperative that select_bad_process() detect threads that are in the
-> > exit path, specifically those with PF_EXITING set, to prevent needlessly
-> > killing additional tasks.  
-> 
-> to prevent? No, it is not a reason of PF_EXITING exist.
-> 
+Add a new __GFP_OTHER_NODE flag to tell the low level numa statistics
+in zone_statistics() that an allocation is on behalf of another thread.
+This way the local and remote counters can be still correct, even
+when background daemons like khugepaged are changing memory
+mappings.
 
-It is not the sole reason PF_EXITING exists in the kernel, no.  It was 
-used in select_bad_process() to ensure we don't needlessly kill another 
-task if an eligible one is already in the exit path.  We want to ensure 
-that the oom killer only kills a process getting work done when nothing 
-has the potential to free memory in the short term.  It's not a guarantee 
-that the PF_EXITING task will free memory, but it has the potential to be 
-the last thread pinning the ->mm.
+This only affects the accounting, but I think it's worth doing that
+right to avoid confusing users.
 
-> > By iterating over threads instead, it is possible to detect threads that
-> > are exiting and nominate them for oom kill so they get access to memory
-> > reserves.
-> 
-> In fact, PF_EXITING is a sing of *THREAD* exiting, not process. Therefore
-> PF_EXITING is not a sign of memory freeing in nearly future. If other
-> CPUs don't try to free memory, prevent oom and waiting makes deadlock.
-> 
+I first tried to just pass down the right node, but this required
+a lot of changes to pass down this parameter and at least one
+addition of a 10th argument to a 9 argument function. Using
+the flag is a lot less intrusive.
 
-It's not a deadlock if a thread is PF_EXITING and isn't stalled by, for 
-instance, failed memory allocations.  That's why this patch restores the 
-behavior back to what it was previous to cef1d352: if an eligible thread 
-is PF_EXITING and is not current, then wait for it; otherwise, if it is 
-current, give it access to memory reserves so it can allow the allocation 
-to succeed.
+Open: should be also used for migration?
 
-> > Second, cef1d352 (oom: multi threaded process coredump don't make
-> > deadlock) erroneously avoids making the oom killer a no-op when an
-> > eligible thread other than current isfound to be exiting.  We want to
-> > detect this situation so that we may allow that exiting thread time to
-> > exit and free its memory; if it is able to exit on its own, that should
-> > free memory so current is no loner oom.  If it is not able to exit on its
-> > own, the oom killer will nominate it for oom kill which, in this case,
-> > only means it will get access to memory reserves.
-> > 
-> > Without this change, it is easy for the oom killer to unnecessarily
-> > target tasks when all threads of a victim don't exit before the thread
-> > group leader or, in the worst case, panic the machine.
-> > 
-> 
-> You missed deadlock is more worse than panic. And again, task overkill
-> is a part of OOM killer design. it is necessary to avoid deadlock. If
-> you want to change this spec, you need to remove deadlock change at first.
-> 
+Cc: aarcange@redhat.com
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/gfp.h    |    2 ++
+ include/linux/vmstat.h |    4 ++--
+ mm/page_alloc.c        |    2 +-
+ mm/vmstat.c            |    9 +++++++--
+ 4 files changed, 12 insertions(+), 5 deletions(-)
 
-There is no deadlock being introduced by this patch; if you have an 
-example of one, then please show it.  The problem is not just overkill but 
-rather panicking the machine when no other eligible processes exist.  We 
-have seen this in production quite a few times and we'd like to see this 
-patch merged to avoid our machines panicking because the oom killer, by 
-your patch, isn't considering threads that are eligible in the exit path 
-once their parent has been killed and has exited itself yet memory freeing 
-isn't possible yet because the threads still pin the ->mm.
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 814d50e..a064724 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -35,6 +35,7 @@ struct vm_area_struct;
+ #define ___GFP_NOTRACK		0
+ #endif
+ #define ___GFP_NO_KSWAPD	0x400000u
++#define ___GFP_OTHER_NODE	0x800000u
+ 
+ /*
+  * GFP bitmasks..
+@@ -83,6 +84,7 @@ struct vm_area_struct;
+ #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
+ 
+ #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
++#define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
+ 
+ /*
+  * This may seem redundant, but it's a way of annotating false positives vs.
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index 833e676..9b5c63d 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -220,12 +220,12 @@ static inline unsigned long node_page_state(int node,
+ 		zone_page_state(&zones[ZONE_MOVABLE], item);
+ }
+ 
+-extern void zone_statistics(struct zone *, struct zone *);
++extern void zone_statistics(struct zone *, struct zone *, gfp_t gfp);
+ 
+ #else
+ 
+ #define node_page_state(node, item) global_page_state(item)
+-#define zone_statistics(_zl,_z) do { } while (0)
++#define zone_statistics(_zl,_z, gfp) do { } while (0)
+ 
+ #endif /* CONFIG_NUMA */
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a873e61..4ce06a6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1333,7 +1333,7 @@ again:
+ 	}
+ 
+ 	__count_zone_vm_events(PGALLOC, zone, 1 << order);
+-	zone_statistics(preferred_zone, zone);
++	zone_statistics(preferred_zone, zone, gfp_flags);
+ 	local_irq_restore(flags);
+ 
+ 	VM_BUG_ON(bad_range(zone, page));
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 0c3b504..2b461ed 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -500,8 +500,12 @@ void refresh_cpu_vm_stats(int cpu)
+  * z 	    = the zone from which the allocation occurred.
+  *
+  * Must be called with interrupts disabled.
++ * 
++ * When __GFP_OTHER_NODE is set assume the node of the preferred
++ * zone is the local node. This is useful for daemons who allocate
++ * memory on behalf of other processes.
+  */
+-void zone_statistics(struct zone *preferred_zone, struct zone *z)
++void zone_statistics(struct zone *preferred_zone, struct zone *z, gfp_t flags)
+ {
+ 	if (z->zone_pgdat == preferred_zone->zone_pgdat) {
+ 		__inc_zone_state(z, NUMA_HIT);
+@@ -509,7 +513,8 @@ void zone_statistics(struct zone *preferred_zone, struct zone *z)
+ 		__inc_zone_state(z, NUMA_MISS);
+ 		__inc_zone_state(preferred_zone, NUMA_FOREIGN);
+ 	}
+-	if (z->node == numa_node_id())
++	if (z->node == ((flags & __GFP_OTHER_NODE) ? 
++			preferred_zone->node : numa_node_id()))
+ 		__inc_zone_state(z, NUMA_LOCAL);
+ 	else
+ 		__inc_zone_state(z, NUMA_OTHER);
+-- 
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
