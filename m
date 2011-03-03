@@ -1,94 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 6192E8D004A
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 03:17:58 -0500 (EST)
-Message-Id: <20110303074951.840216412@intel.com>
-Date: Thu, 03 Mar 2011 14:45:29 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id C27958D0044
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 03:17:59 -0500 (EST)
+Message-Id: <20110303074948.914547023@intel.com>
+Date: Thu, 03 Mar 2011 14:45:07 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 24/27] writeback: trace global_dirty_state
+Subject: [PATCH 02/27] writeback: avoid duplicate balance_dirty_pages_ratelimited() calls
 References: <20110303064505.718671603@intel.com>
-Content-Disposition: inline; filename=writeback-trace-global-dirty-states.patch
+Content-Disposition: inline; filename=writeback-fix-duplicate-bdp-calls.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Add trace balance_dirty_state for showing the global dirty page counts
-and thresholds at each balance_dirty_pages() loop.
+When dd in 512bytes, balance_dirty_pages_ratelimited() could be called 8
+times for the same page, but obviously the page is only dirtied once.
+
+Fix it with a (slightly racy) PageDirty() test.
 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/trace/events/writeback.h |   48 +++++++++++++++++++++++++++++
- mm/page-writeback.c              |    1 
- 2 files changed, 49 insertions(+)
+ mm/filemap.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
---- linux-next.orig/mm/page-writeback.c	2011-03-03 14:02:58.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-03-03 14:03:24.000000000 +0800
-@@ -386,6 +386,7 @@ void global_dirty_limits(unsigned long *
- 	tsk = current;
- 	*pbackground = background;
- 	*pdirty = dirty;
-+	trace_global_dirty_state(background, dirty);
- }
- EXPORT_SYMBOL_GPL(global_dirty_limits);
+--- linux-next.orig/mm/filemap.c	2011-03-02 14:18:52.000000000 +0800
++++ linux-next/mm/filemap.c	2011-03-02 14:20:07.000000000 +0800
+@@ -2253,6 +2253,7 @@ static ssize_t generic_perform_write(str
+ 	long status = 0;
+ 	ssize_t written = 0;
+ 	unsigned int flags = 0;
++	unsigned int dirty;
  
---- linux-next.orig/include/trace/events/writeback.h	2011-03-03 14:02:58.000000000 +0800
-+++ linux-next/include/trace/events/writeback.h	2011-03-03 14:03:24.000000000 +0800
-@@ -287,6 +287,54 @@ TRACE_EVENT(balance_dirty_pages,
- 		  )
- );
+ 	/*
+ 	 * Copies from kernel address space cannot fail (NFSD is a big user).
+@@ -2301,6 +2302,7 @@ again:
+ 		pagefault_enable();
+ 		flush_dcache_page(page);
  
-+TRACE_EVENT(global_dirty_state,
-+
-+	TP_PROTO(unsigned long background_thresh,
-+		 unsigned long dirty_thresh
-+	),
-+
-+	TP_ARGS(background_thresh,
-+		dirty_thresh
-+	),
-+
-+	TP_STRUCT__entry(
-+		__field(unsigned long,	nr_dirty)
-+		__field(unsigned long,	nr_writeback)
-+		__field(unsigned long,	nr_unstable)
-+		__field(unsigned long,	background_thresh)
-+		__field(unsigned long,	dirty_thresh)
-+		__field(unsigned long,	poll_thresh)
-+		__field(unsigned long,	nr_dirtied)
-+		__field(unsigned long,	nr_written)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->nr_dirty	= global_page_state(NR_FILE_DIRTY);
-+		__entry->nr_writeback	= global_page_state(NR_WRITEBACK);
-+		__entry->nr_unstable	= global_page_state(NR_UNSTABLE_NFS);
-+		__entry->nr_dirtied	= global_page_state(NR_DIRTIED);
-+		__entry->nr_written	= global_page_state(NR_WRITTEN);
-+		__entry->background_thresh	= background_thresh;
-+		__entry->dirty_thresh		= dirty_thresh;
-+		__entry->poll_thresh		= current->nr_dirtied_pause;
-+	),
-+
-+	TP_printk("dirty=%lu writeback=%lu unstable=%lu "
-+		  "bg_thresh=%lu thresh=%lu gap=%ld poll=%ld "
-+		  "dirtied=%lu written=%lu",
-+		  __entry->nr_dirty,
-+		  __entry->nr_writeback,
-+		  __entry->nr_unstable,
-+		  __entry->background_thresh,
-+		  __entry->dirty_thresh,
-+		  __entry->dirty_thresh - __entry->nr_dirty -
-+		  __entry->nr_writeback - __entry->nr_unstable,
-+		  __entry->poll_thresh,
-+		  __entry->nr_dirtied,
-+		  __entry->nr_written
-+	)
-+);
-+
- DECLARE_EVENT_CLASS(writeback_congest_waited_template,
++		dirty = PageDirty(page);
+ 		mark_page_accessed(page);
+ 		status = a_ops->write_end(file, mapping, pos, bytes, copied,
+ 						page, fsdata);
+@@ -2327,7 +2329,8 @@ again:
+ 		pos += copied;
+ 		written += copied;
  
- 	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
+-		balance_dirty_pages_ratelimited(mapping);
++		if (!dirty)
++			balance_dirty_pages_ratelimited(mapping);
+ 
+ 	} while (iov_iter_count(i));
+ 
 
 
 --
