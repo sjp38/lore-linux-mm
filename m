@@ -1,94 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 411648D003C
+	by kanga.kvack.org (Postfix) with SMTP id 60AF98D003D
 	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 03:17:56 -0500 (EST)
-Message-Id: <20110303074950.073028900@intel.com>
-Date: Thu, 03 Mar 2011 14:45:16 +0800
+Message-Id: <20110303074950.704987840@intel.com>
+Date: Thu, 03 Mar 2011 14:45:21 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 11/27] nfs: limit the commit range
+Subject: [PATCH 16/27] writeback: smoothed global/bdi dirty pages
 References: <20110303064505.718671603@intel.com>
-Content-Disposition: inline; filename=nfs-commit-range.patch
+Content-Disposition: inline; filename=writeback-smooth-dirty.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Trond Myklebust <Trond.Myklebust@netapp.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Hopefully this will help limit the number of unstable pages to be synced
-at one time, more timely return of the commit request and reduce dirty
-throttle fluctuations.
+Maintain a smoothed version of dirty pages for use in the throttle
+bandwidth calculations.
 
-CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+default_backing_dev_info.avg_dirty holds the smoothed global dirty
+pages.
+
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/nfs/write.c |   20 ++++++++++++++------
- 1 file changed, 14 insertions(+), 6 deletions(-)
+ include/linux/backing-dev.h |    2 +
+ mm/backing-dev.c            |    3 +
+ mm/page-writeback.c         |   62 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+)
 
---- linux-next.orig/fs/nfs/write.c	2010-12-25 10:13:34.000000000 +0800
-+++ linux-next/fs/nfs/write.c	2010-12-25 10:13:35.000000000 +0800
-@@ -1304,7 +1304,7 @@ static void nfs_commitdata_release(void 
-  */
- static int nfs_commit_rpcsetup(struct list_head *head,
- 		struct nfs_write_data *data,
--		int how)
-+		int how, pgoff_t offset, pgoff_t count)
- {
- 	struct nfs_page *first = nfs_list_entry(head->next);
- 	struct inode *inode = first->wb_context->path.dentry->d_inode;
-@@ -1336,8 +1336,8 @@ static int nfs_commit_rpcsetup(struct li
+--- linux-next.orig/mm/page-writeback.c	2011-03-03 14:44:07.000000000 +0800
++++ linux-next/mm/page-writeback.c	2011-03-03 14:44:10.000000000 +0800
+@@ -472,6 +472,64 @@ unsigned long bdi_dirty_limit(struct bac
+ 	return bdi_dirty;
+ }
  
- 	data->args.fh     = NFS_FH(data->inode);
- 	/* Note: we always request a commit of the entire inode */
--	data->args.offset = 0;
--	data->args.count  = 0;
-+	data->args.offset = offset;
-+	data->args.count  = count;
- 	data->args.context = get_nfs_open_context(first->wb_context);
- 	data->res.count   = 0;
- 	data->res.fattr   = &data->fattr;
-@@ -1360,7 +1360,8 @@ static int nfs_commit_rpcsetup(struct li
-  * Commit dirty pages
-  */
- static int
--nfs_commit_list(struct inode *inode, struct list_head *head, int how)
-+nfs_commit_list(struct inode *inode, struct list_head *head, int how,
-+		pgoff_t offset, pgoff_t count)
- {
- 	struct nfs_write_data	*data;
- 	struct nfs_page         *req;
-@@ -1371,7 +1372,7 @@ nfs_commit_list(struct inode *inode, str
- 		goto out_bad;
- 
- 	/* Set up the argument struct */
--	return nfs_commit_rpcsetup(head, data, how);
-+	return nfs_commit_rpcsetup(head, data, how, offset, count);
-  out_bad:
- 	while (!list_empty(head)) {
- 		req = nfs_list_entry(head->next);
-@@ -1453,6 +1454,8 @@ static const struct rpc_call_ops nfs_com
- int nfs_commit_inode(struct inode *inode, int how)
- {
- 	LIST_HEAD(head);
-+	pgoff_t first_index;
-+	pgoff_t last_index;
- 	int may_wait = how & FLUSH_SYNC;
- 	int res = 0;
- 
-@@ -1460,9 +1463,14 @@ int nfs_commit_inode(struct inode *inode
- 		goto out_mark_dirty;
- 	spin_lock(&inode->i_lock);
- 	res = nfs_scan_commit(inode, &head, 0, 0);
-+	if (res) {
-+		first_index = nfs_list_entry(head.next)->wb_index;
-+		last_index  = nfs_list_entry(head.prev)->wb_index;
++static void bdi_update_dirty_smooth(struct backing_dev_info *bdi,
++				    unsigned long dirty)
++{
++	unsigned long avg = bdi->avg_dirty;
++	unsigned long old = bdi->old_dirty;
++
++	if (unlikely(!avg)) {
++		avg = dirty;
++		goto update;
 +	}
- 	spin_unlock(&inode->i_lock);
- 	if (res) {
--		int error = nfs_commit_list(inode, &head, how);
-+		int error = nfs_commit_list(inode, &head, how, first_index,
-+					    last_index - first_index + 1);
- 		if (error < 0)
- 			return error;
- 		if (may_wait)
++
++	/*
++	 * dirty pages are departing upwards, follow up
++	 */
++	if (avg < old && old <= dirty) {
++		avg += (old - avg) >> 3;
++		goto update;
++	}
++
++	/*
++	 * dirty pages are departing downwards, follow down
++	 */
++	if (avg > old && old >= dirty) {
++		avg -= (avg - old) >> 3;
++		goto update;
++	}
++
++	/*
++	 * This can filter out one half unnecessary updates when bdi_dirty is
++	 * fluctuating around the balance point, and is most effective on XFS,
++	 * whose pattern is
++	 *                                                             .
++	 *	[.] dirty	[-] avg                       .       .
++	 *                                                   .       .
++	 *              .         .         .         .     .       .
++	 *      ---------------------------------------    .       .
++	 *            .         .         .         .     .       .
++	 *           .         .         .         .     .       .
++	 *          .         .         .         .     .       .
++	 *         .         .         .         .     .       .
++	 *        .         .         .         .
++	 *       .         .         .         .      (flucuated)
++	 *      .         .         .         .
++	 *     .         .         .         .
++	 *
++	 * @avg will remain flat at the cost of being biased towards high. In
++	 * practice the error tend to be much smaller: thanks to more coarse
++	 * grained fluctuations, @avg becomes the real average number for the
++	 * last two rising lines of @dirty.
++	 */
++	goto out;
++
++update:
++	bdi->avg_dirty = avg;
++out:
++	bdi->old_dirty = dirty;
++}
++
+ static void __bdi_update_write_bandwidth(struct backing_dev_info *bdi,
+ 					 unsigned long elapsed,
+ 					 unsigned long written)
+@@ -537,6 +595,10 @@ void bdi_update_bandwidth(struct backing
+ 		goto unlock;
+ 
+ 	__bdi_update_write_bandwidth(bdi, elapsed, written);
++	if (thresh) {
++		bdi_update_dirty_smooth(bdi, bdi_dirty);
++		bdi_update_dirty_smooth(&default_backing_dev_info, dirty);
++	}
+ 
+ snapshot:
+ 	bdi->written_stamp = written;
+--- linux-next.orig/include/linux/backing-dev.h	2011-03-03 14:44:07.000000000 +0800
++++ linux-next/include/linux/backing-dev.h	2011-03-03 14:44:10.000000000 +0800
+@@ -79,6 +79,8 @@ struct backing_dev_info {
+ 	unsigned long written_stamp;
+ 	unsigned long write_bandwidth;
+ 	unsigned long avg_bandwidth;
++	unsigned long avg_dirty;
++	unsigned long old_dirty;
+ 
+ 	struct prop_local_percpu completions;
+ 	int dirty_exceeded;
+--- linux-next.orig/mm/backing-dev.c	2011-03-03 14:44:07.000000000 +0800
++++ linux-next/mm/backing-dev.c	2011-03-03 14:44:10.000000000 +0800
+@@ -675,6 +675,9 @@ int bdi_init(struct backing_dev_info *bd
+ 	bdi->write_bandwidth = INIT_BW;
+ 	bdi->avg_bandwidth = INIT_BW;
+ 
++	bdi->avg_dirty = 0;
++	bdi->old_dirty = 0;
++
+ 	err = prop_local_init_percpu(&bdi->completions);
+ 
+ 	if (err) {
 
 
 --
