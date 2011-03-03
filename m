@@ -1,96 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C3B788D003D
+	by kanga.kvack.org (Postfix) with SMTP id E40B98D0048
 	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 03:17:57 -0500 (EST)
-Message-Id: <20110303074949.040208949@intel.com>
-Date: Thu, 03 Mar 2011 14:45:08 +0800
+Message-Id: <20110303074951.964058636@intel.com>
+Date: Thu, 03 Mar 2011 14:45:30 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 03/27] writeback: skip balance_dirty_pages() for in-memory fs
+Subject: [PATCH 25/27] writeback: make nr_to_write a per-file limit
 References: <20110303064505.718671603@intel.com>
-Content-Disposition: inline; filename=writeback-trace-global-dirty-states-fix.patch
+Content-Disposition: inline; filename=writeback-single-file-limit.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-This avoids unnecessary checks and dirty throttling on tmpfs/ramfs.
+This ensures full 4MB or larger writeback size for large dirty files.
 
-It can also prevent
-
-[  388.126563] BUG: unable to handle kernel NULL pointer dereference at 0000000000000050
-
-in the balance_dirty_pages tracepoint, which will call
-
-	dev_name(mapping->backing_dev_info->dev)
-
-but shmem_backing_dev_info.dev is NULL.
-
-Summary notes about the tmpfs/ramfs behavior changes:
-
-As for 2.6.36 and older kernels, the tmpfs writes will sleep inside
-balance_dirty_pages() as long as we are over the (dirty+background)/2
-global throttle threshold.  This is because both the dirty pages and
-threshold will be 0 for tmpfs/ramfs. Hence this test will always
-evaluate to TRUE:
-
-                dirty_exceeded =
-                        (bdi_nr_reclaimable + bdi_nr_writeback >= bdi_thresh)
-                        || (nr_reclaimable + nr_writeback >= dirty_thresh);
-
-For 2.6.37, someone complained that the current logic does not allow the
-users to set vm.dirty_ratio=0.  So commit 4cbec4c8b9 changed the test to
-
-                dirty_exceeded =
-                        (bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
-                        || (nr_reclaimable + nr_writeback > dirty_thresh);
-
-So 2.6.37 will behave differently for tmpfs/ramfs: it will never get
-throttled unless the global dirty threshold is exceeded (which is very
-unlikely to happen; once happen, will block many tasks).
-
-I'd say that the 2.6.36 behavior is very bad for tmpfs/ramfs. It means
-for a busy writing server, tmpfs write()s may get livelocked! The
-"inadvertent" throttling can hardly bring help to any workload because
-of its "either no throttling, or get throttled to death" property.
-
-So based on 2.6.37, this patch won't bring more noticeable changes.
-
-CC: Hugh Dickins <hughd@google.com>
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Acked-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+CC: Jan Kara <jack@suse.cz>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/page-writeback.c |   10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+ fs/fs-writeback.c         |   11 +++++++++++
+ include/linux/writeback.h |    1 +
+ 2 files changed, 12 insertions(+)
 
---- linux-next.orig/mm/page-writeback.c	2011-03-03 14:43:37.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2011-03-03 14:43:51.000000000 +0800
-@@ -244,13 +244,8 @@ void task_dirty_inc(struct task_struct *
- static void bdi_writeout_fraction(struct backing_dev_info *bdi,
- 		long *numerator, long *denominator)
+--- linux-next.orig/fs/fs-writeback.c	2011-03-03 14:02:53.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2011-03-03 14:03:32.000000000 +0800
+@@ -330,6 +330,8 @@ static int
+ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
  {
--	if (bdi_cap_writeback_dirty(bdi)) {
--		prop_fraction_percpu(&vm_completions, &bdi->completions,
-+	prop_fraction_percpu(&vm_completions, &bdi->completions,
- 				numerator, denominator);
--	} else {
--		*numerator = 0;
--		*denominator = 1;
--	}
- }
+ 	struct address_space *mapping = inode->i_mapping;
++	long per_file_limit = wbc->per_file_limit;
++	long uninitialized_var(nr_to_write);
+ 	unsigned dirty;
+ 	int ret;
  
- static inline void task_dirties_fraction(struct task_struct *tsk,
-@@ -495,6 +490,9 @@ static void balance_dirty_pages(struct a
- 	bool dirty_exceeded = false;
- 	struct backing_dev_info *bdi = mapping->backing_dev_info;
+@@ -365,8 +367,16 @@ writeback_single_inode(struct inode *ino
+ 	inode->i_state &= ~I_DIRTY_PAGES;
+ 	spin_unlock(&inode_lock);
  
-+	if (!bdi_cap_account_dirty(bdi))
-+		return;
++	if (per_file_limit) {
++		nr_to_write = wbc->nr_to_write;
++		wbc->nr_to_write = per_file_limit;
++	}
 +
- 	for (;;) {
- 		struct writeback_control wbc = {
- 			.sync_mode	= WB_SYNC_NONE,
+ 	ret = do_writepages(mapping, wbc);
+ 
++	if (per_file_limit)
++		wbc->nr_to_write += nr_to_write - per_file_limit;
++
+ 	/*
+ 	 * Make sure to wait on the data before writing out the metadata.
+ 	 * This is important for filesystems that modify metadata on data
+@@ -689,6 +699,7 @@ static long wb_writeback(struct bdi_writ
+ 
+ 		wbc.more_io = 0;
+ 		wbc.nr_to_write = write_chunk;
++		wbc.per_file_limit = write_chunk;
+ 		wbc.pages_skipped = 0;
+ 
+ 		trace_wbc_writeback_start(&wbc, wb->bdi);
+--- linux-next.orig/include/linux/writeback.h	2011-03-03 14:02:53.000000000 +0800
++++ linux-next/include/linux/writeback.h	2011-03-03 14:03:32.000000000 +0800
+@@ -74,6 +74,7 @@ struct writeback_control {
+ 					   extra jobs and livelock */
+ 	long nr_to_write;		/* Write this many pages, and decrement
+ 					   this for each page written */
++	long per_file_limit;		/* Write this many pages for one file */
+ 	long pages_skipped;		/* Pages which were not written */
+ 
+ 	/*
 
 
 --
