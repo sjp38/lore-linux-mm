@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1CC468D003A
+	by kanga.kvack.org (Postfix) with SMTP id 715DB8D0040
 	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 19:46:03 -0500 (EST)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 6/8] Add __GFP_OTHER_NODE flag
-Date: Wed,  2 Mar 2011 16:45:26 -0800
-Message-Id: <1299113128-11349-7-git-send-email-andi@firstfloor.org>
+Subject: [PATCH 7/8] Use GFP_OTHER_NODE for transparent huge pages
+Date: Wed,  2 Mar 2011 16:45:27 -0800
+Message-Id: <1299113128-11349-8-git-send-email-andi@firstfloor.org>
 In-Reply-To: <1299113128-11349-1-git-send-email-andi@firstfloor.org>
 References: <1299113128-11349-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,111 +15,89 @@ Cc: aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi 
 
 From: Andi Kleen <ak@linux.intel.com>
 
-Add a new __GFP_OTHER_NODE flag to tell the low level numa statistics
-in zone_statistics() that an allocation is on behalf of another thread.
-This way the local and remote counters can be still correct, even
-when background daemons like khugepaged are changing memory
-mappings.
+Pass GFP_OTHER_NODE for transparent hugepages NUMA allocations
+done by the hugepages daemon. This way the low level accounting
+for local versus remote pages works correctly.
 
-This only affects the accounting, but I think it's worth doing that
-right to avoid confusing users.
-
-I first tried to just pass down the right node, but this required
-a lot of changes to pass down this parameter and at least one
-addition of a 10th argument to a 9 argument function. Using
-the flag is a lot less intrusive.
-
-Open: should be also used for migration?
+Contains improvements from Andrea Arcangeli
 
 Cc: aarcange@redhat.com
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 ---
- include/linux/gfp.h    |    2 ++
- include/linux/vmstat.h |    4 ++--
- mm/page_alloc.c        |    2 +-
- mm/vmstat.c            |    9 +++++++--
- 4 files changed, 12 insertions(+), 5 deletions(-)
+ mm/huge_memory.c |   20 +++++++++++---------
+ 1 files changed, 11 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 814d50e..a064724 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -35,6 +35,7 @@ struct vm_area_struct;
- #define ___GFP_NOTRACK		0
- #endif
- #define ___GFP_NO_KSWAPD	0x400000u
-+#define ___GFP_OTHER_NODE	0x800000u
- 
- /*
-  * GFP bitmasks..
-@@ -83,6 +84,7 @@ struct vm_area_struct;
- #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
- 
- #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
-+#define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
- 
- /*
-  * This may seem redundant, but it's a way of annotating false positives vs.
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 833e676..9b5c63d 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -220,12 +220,12 @@ static inline unsigned long node_page_state(int node,
- 		zone_page_state(&zones[ZONE_MOVABLE], item);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 8a7f94c..8c6c4a7 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -643,23 +643,24 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ 	return ret;
  }
  
--extern void zone_statistics(struct zone *, struct zone *);
-+extern void zone_statistics(struct zone *, struct zone *, gfp_t gfp);
- 
- #else
- 
- #define node_page_state(node, item) global_page_state(item)
--#define zone_statistics(_zl,_z) do { } while (0)
-+#define zone_statistics(_zl,_z, gfp) do { } while (0)
- 
- #endif /* CONFIG_NUMA */
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a873e61..4ce06a6 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1333,7 +1333,7 @@ again:
- 	}
- 
- 	__count_zone_vm_events(PGALLOC, zone, 1 << order);
--	zone_statistics(preferred_zone, zone);
-+	zone_statistics(preferred_zone, zone, gfp_flags);
- 	local_irq_restore(flags);
- 
- 	VM_BUG_ON(bad_range(zone, page));
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 0c3b504..2b461ed 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -500,8 +500,12 @@ void refresh_cpu_vm_stats(int cpu)
-  * z 	    = the zone from which the allocation occurred.
-  *
-  * Must be called with interrupts disabled.
-+ * 
-+ * When __GFP_OTHER_NODE is set assume the node of the preferred
-+ * zone is the local node. This is useful for daemons who allocate
-+ * memory on behalf of other processes.
-  */
--void zone_statistics(struct zone *preferred_zone, struct zone *z)
-+void zone_statistics(struct zone *preferred_zone, struct zone *z, gfp_t flags)
+-static inline gfp_t alloc_hugepage_gfpmask(int defrag)
++static inline gfp_t alloc_hugepage_gfpmask(int defrag, gfp_t extra_gfp)
  {
- 	if (z->zone_pgdat == preferred_zone->zone_pgdat) {
- 		__inc_zone_state(z, NUMA_HIT);
-@@ -509,7 +513,8 @@ void zone_statistics(struct zone *preferred_zone, struct zone *z)
- 		__inc_zone_state(z, NUMA_MISS);
- 		__inc_zone_state(preferred_zone, NUMA_FOREIGN);
+-	return GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_WAIT);
++	return (GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_WAIT)) | extra_gfp;
+ }
+ 
+ static inline struct page *alloc_hugepage_vma(int defrag,
+ 					      struct vm_area_struct *vma,
+-					      unsigned long haddr, int nd)
++					      unsigned long haddr, int nd,
++					      gfp_t extra_gfp)
+ {
+-	return alloc_pages_vma(alloc_hugepage_gfpmask(defrag),
++	return alloc_pages_vma(alloc_hugepage_gfpmask(defrag, extra_gfp),
+ 			       HPAGE_PMD_ORDER, vma, haddr, nd);
+ }
+ 
+ #ifndef CONFIG_NUMA
+ static inline struct page *alloc_hugepage(int defrag)
+ {
+-	return alloc_pages(alloc_hugepage_gfpmask(defrag),
++	return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
+ 			   HPAGE_PMD_ORDER);
+ }
+ #endif
+@@ -678,7 +679,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		if (unlikely(khugepaged_enter(vma)))
+ 			return VM_FAULT_OOM;
+ 		page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+-					  vma, haddr, numa_node_id());
++					  vma, haddr, numa_node_id(), 0);
+ 		if (unlikely(!page))
+ 			goto out;
+ 		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
+@@ -799,7 +800,8 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
  	}
--	if (z->node == numa_node_id())
-+	if (z->node == ((flags & __GFP_OTHER_NODE) ? 
-+			preferred_zone->node : numa_node_id()))
- 		__inc_zone_state(z, NUMA_LOCAL);
+ 
+ 	for (i = 0; i < HPAGE_PMD_NR; i++) {
+-		pages[i] = alloc_page_vma_node(GFP_HIGHUSER_MOVABLE,
++		pages[i] = alloc_page_vma_node(GFP_HIGHUSER_MOVABLE | 
++					       __GFP_OTHER_NODE,
+ 					       vma, address, page_to_nid(page));
+ 		if (unlikely(!pages[i] ||
+ 			     mem_cgroup_newpage_charge(pages[i], mm,
+@@ -902,7 +904,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (transparent_hugepage_enabled(vma) &&
+ 	    !transparent_hugepage_debug_cow())
+ 		new_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+-					      vma, haddr, numa_node_id());
++					      vma, haddr, numa_node_id(), 0);
  	else
- 		__inc_zone_state(z, NUMA_OTHER);
+ 		new_page = NULL;
+ 
+@@ -1775,7 +1777,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	 * scalability.
+ 	 */
+ 	new_page = alloc_hugepage_vma(khugepaged_defrag(), vma, address,
+-				      node);
++				      node, __GFP_OTHER_NODE);
+ 	if (unlikely(!new_page)) {
+ 		up_read(&mm->mmap_sem);
+ 		*hpage = ERR_PTR(-ENOMEM);
 -- 
 1.7.4
 
