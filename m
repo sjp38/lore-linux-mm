@@ -1,66 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 184808D0039
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 21:31:07 -0500 (EST)
-Date: Thu, 3 Mar 2011 13:30:55 +1100
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: mmotm 2011-03-02-16-52 uploaded
-Message-Id: <20110303133055.db60038b.sfr@canb.auug.org.au>
-In-Reply-To: <20110302181711.2399cdba.akpm@linux-foundation.org>
-References: <201103030127.p231ReNl012841@imap1.linux-foundation.org>
-	<20110303130538.3e99f952.sfr@canb.auug.org.au>
-	<20110302181711.2399cdba.akpm@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 660938D0039
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 21:32:26 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A18CA3EE0C1
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 11:32:22 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8350745DE54
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 11:32:22 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FFB345DE58
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 11:32:22 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 53E9F1DB8042
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 11:32:22 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1644BE08001
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 11:32:22 +0900 (JST)
+Date: Thu, 3 Mar 2011 11:26:04 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 5/8] Use correct numa policy node for transparent
+ hugepages
+Message-Id: <20110303112604.aa4352ca.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1299113128-11349-6-git-send-email-andi@firstfloor.org>
+References: <1299113128-11349-1-git-send-email-andi@firstfloor.org>
+	<1299113128-11349-6-git-send-email-andi@firstfloor.org>
 Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA1";
- boundary="Signature=_Thu__3_Mar_2011_13_30_55_+1100_l8HoQFifYTbNevkY"
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: akpm@linux-foundation.org, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
 
---Signature=_Thu__3_Mar_2011_13_30_55_+1100_l8HoQFifYTbNevkY
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Wed,  2 Mar 2011 16:45:25 -0800
+Andi Kleen <andi@firstfloor.org> wrote:
 
-Hi Andrew,
+> From: Andi Kleen <ak@linux.intel.com>
+> 
+> Pass down the correct node for a transparent hugepage allocation.
+> Most callers continue to use the current node, however the hugepaged
+> daemon now uses the previous node of the first to be collapsed page
+> instead. This ensures that khugepaged does not mess up local memory
+> for an existing process which uses local policy.
+> 
+> The choice of node is somewhat primitive currently: it just
+> uses the node of the first page in the pmd range. An alternative
+> would be to look at multiple pages and use the most popular
+> node. I used the simplest variant for now which should work
+> well enough for the case of all pages being on the same node.
+> 
+> Acked-by: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
-On Wed, 2 Mar 2011 18:17:11 -0800 Andrew Morton <akpm@linux-foundation.org>=
- wrote:
->
-> What's in the 8000 lines?
-
-Just the localversion-next file and the stuff in the "Next" directory ...
-meta information about the linux-next tree.
-
-> Didn't understand that - why is git-am unhappy?  Your sentence was
-> truncated.
-
-It didn't recognise the patch format since it wants an email-like patch
-(with a From line to show the author).
-
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-http://www.canb.auug.org.au/~sfr/
-
---Signature=_Thu__3_Mar_2011_13_30_55_+1100_l8HoQFifYTbNevkY
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iQEcBAEBAgAGBQJNbv1fAAoJEDMEi1NhKgbsR2kH/0prVyROTO7hUdnJ5mv1CcPJ
-A4WrZOAaIvZIWkcjaVPtVmkWihGnx0e0jLEb8kSR9kyNUjHXkY4LbHvkAnLChwxb
-ZoREL61FSg1H5M3lu7P79yI+MNhgie8X/eSBvapXm47kE9Aox9VbueTv1fN38abg
-grvr/K5aA2SVvm1gsS8pAdbHONHF+RHj08i1wsAWZtdpjUNkq4B/OZGYQpGx8PBh
-DLohDcNkuStZcY2C366Pe6fBv70GVIE4cR7qW0KNtwx/tYUYXzFQHq/YtQMYX5mO
-cLD4drg2LSEZ1ItgkQ+i22bnFRN5/C5UdRg3DFjxlSUp8HLm1YvcSZjGE/vczNs=
-=kPZM
------END PGP SIGNATURE-----
-
---Signature=_Thu__3_Mar_2011_13_30_55_+1100_l8HoQFifYTbNevkY--
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
