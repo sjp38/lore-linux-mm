@@ -1,71 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DC7C18D0039
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 22:13:12 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D0A343EE0BD
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 12:13:09 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B3D7645DE60
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 12:13:09 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DBFA45DE57
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 12:13:09 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D572E18001
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 12:13:09 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 347BCE08002
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 12:13:09 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH v3 3/4] exec: unify do_execve/compat_do_execve code
-In-Reply-To: <20110302162753.GD26810@redhat.com>
-References: <20110302162650.GA26810@redhat.com> <20110302162753.GD26810@redhat.com>
-Message-Id: <20110303120915.B951.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 357CD8D0039
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 22:20:52 -0500 (EST)
+Message-ID: <4D6F077B.3060400@tao.ma>
+Date: Thu, 03 Mar 2011 11:14:03 +0800
+From: Tao Ma <tm@tao.ma>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [RFC PATCH 4/5] mm: Add hit/miss accounting for Page Cache
+References: <no> <1299055090-23976-4-git-send-email-namei.unix@gmail.com> <20110302084542.GA20795@elte.hu>
+In-Reply-To: <20110302084542.GA20795@elte.hu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Thu,  3 Mar 2011 12:13:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>, Milton Miller <miltonm@bga.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Liu Yuan <namei.unix@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaxboe@fusionio.com, akpm@linux-foundation.org, fengguang.wu@intel.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, =?ISO-8859-1?Q?Fr=E9d=E9ric_Weisbecker?= <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Arnaldo Carvalho de Melo <acme@redhat.com>
 
-> @@ -1510,11 +1528,27 @@ int do_execve(const char *filename,
->  	const char __user *const __user *__envp,
->  	struct pt_regs *regs)
->  {
-> -	struct conditional_ptr argv = { .native = __argv };
-> -	struct conditional_ptr envp = { .native = __envp };
-> +	struct conditional_ptr argv = { .ptr.native = __argv };
-> +	struct conditional_ptr envp = { .ptr.native = __envp };
->  	return do_execve_common(filename, argv, envp, regs);
->  }
->  
-> +#ifdef CONFIG_COMPAT
-> +int compat_do_execve(char *filename,
-> +	compat_uptr_t __user *__argv,
-> +	compat_uptr_t __user *__envp,
-> +	struct pt_regs *regs)
-> +{
-> +	struct conditional_ptr argv = {
-> +		.is_compat = true, .ptr.compat = __argv,
-> +	};
+On 03/02/2011 04:45 PM, Ingo Molnar wrote:
+> * Liu Yuan<namei.unix@gmail.com>  wrote:
+>
+>    
+>> +		if (likely(!retry_find)&&  page&&  PageUptodate(page))
+>> +			page_cache_acct_hit(inode->i_sb, READ);
+>> +		else
+>> +			page_cache_acct_missed(inode->i_sb, READ);
+>>      
+> Sigh.
+>
+> This would make such a nice tracepoint or sw perf event. It could be collected in a
+> 'count' form, equivalent to the stats you are aiming for here, or it could even be
+> traced, if someone is interested in such details.
+>
+> It could be mixed with other events, enriching multiple apps at once.
+>
+> But, instead of trying to improve those aspects of our existing instrumentation
+> frameworks, mm/* is gradually growing its own special instrumentation hacks, missing
+> the big picture and fragmenting the instrumentation space some more.
+>    
+Thanks for the quick response. Actually our team(including Liu) here are 
+planing to add some
+debug info to the mm parts for analyzing the application behavior and 
+hope to find some way
+to improve our application's performance.
+We have searched the trace points in mm, but it seems to us that the 
+trace points isn't quite welcomed
+there. Only vmscan and writeback have some limited trace points added. 
+That's the reason we first
+tried to add some debug info like this patch. You does shed some light 
+on our direction. Thanks.
 
-Please don't mind to compress a line.
+btw, what part do you think is needed to add some trace point?  We 
+volunteer to add more if you like.
 
-	struct conditional_ptr argv = {
-		.is_compat = true,
-		.ptr.compat = __argv,
-	};
-
-is more good readability.
-
-
-Other parts looks very good to me.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-
+Regards,
+Tao
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
