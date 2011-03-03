@@ -1,69 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3258B8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 02:30:29 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 75D0E3EE0AE
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 16:30:18 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5107645DE5B
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 16:30:18 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 322AB45DE55
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 16:30:18 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E08BBE08002
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 16:30:17 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CA34E08001
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 16:30:17 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [LSF/MM TOPIC][ATTEND]cold page tracking / working set estimation
-In-Reply-To: <AANLkTimTSE2OrgFSmsYPk7uW+8zAuwfjbeku8WCbGONP@mail.gmail.com>
-References: <AANLkTimTSE2OrgFSmsYPk7uW+8zAuwfjbeku8WCbGONP@mail.gmail.com>
-Message-Id: <20110303161550.B959.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu,  3 Mar 2011 16:30:16 +0900 (JST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id DEAF48D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 03:17:55 -0500 (EST)
+Message-Id: <20110303074949.419321686@intel.com>
+Date: Thu, 03 Mar 2011 14:45:11 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 06/27] btrfs: lower the dirty balance poll interval
+References: <20110303064505.718671603@intel.com>
+Content-Disposition: inline; filename=btrfs-limit-nr-dirtied.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, lsf-pc@lists.linuxfoundation.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-> Google uses an automated system to assign compute jobs to individual
-> machines within a cluster. In order to improve memory utilization in
-> the cluster, this system collects memory utilization statistics for
-> each cgroup on each machine. The following properties are desired for
-> the working set estimation mechanism:
-> 
-> - Low impact on the normal MM algorithms - we don't want to stress the
-> VM just by enabling working set estimation;
-> 
-> - Collected statistics should be comparable across multiple machines -
-> we don't just want to know which cgroup to reclaim from on an
-> individual machine, we also need to know which machine is best to
-> target a job onto within a large cluster;
-> 
-> - Low, predictable CPU usage;
-> 
-> - Among cold pages, differentiate between these that are immediately
-> reclaimable and these that would require a disk write.
-> 
-> We use a very simple approach, scanning memory at a fixed rate and
-> identifying pages that haven't been touched in a number of scans. We
-> are currently switching from a fakenuma based implementation (which we
-> don't think is very upstreamable) to a memcg based one. We think this
-> could be of interest to the wider community & would like to discuss
-> requirement with other interested folks.
+Call balance_dirty_pages_ratelimit_nr() on every 32 pages dirtied.
 
-Hi, Michel and Program comittees
+Tests show that original larger intervals can easily make the bdi
+dirty limit exceeded on 100 concurrent dd.
 
-I'm not sure what status is MM track. but if this proposal was accepted and
-seat number is allowed, I'd like to attend and discuss the issue with other
-cloud intersted developers.
+CC: Chris Mason <chris.mason@oracle.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/btrfs/file.c |    5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-Thanks.
+--- linux-next.orig/fs/btrfs/file.c	2011-03-02 20:15:19.000000000 +0800
++++ linux-next/fs/btrfs/file.c	2011-03-02 20:35:07.000000000 +0800
+@@ -949,9 +949,8 @@ static ssize_t btrfs_file_aio_write(stru
+ 	}
+ 
+ 	iov_iter_init(&i, iov, nr_segs, count, num_written);
+-	nrptrs = min((iov_iter_count(&i) + PAGE_CACHE_SIZE - 1) /
+-		     PAGE_CACHE_SIZE, PAGE_CACHE_SIZE /
+-		     (sizeof(struct page *)));
++	nrptrs = min(DIV_ROUND_UP(iov_iter_count(&i), PAGE_CACHE_SIZE),
++		     min(32UL, PAGE_CACHE_SIZE / sizeof(struct page *)));
+ 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
+ 	if (!pages) {
+ 		ret = -ENOMEM;
 
 
 --
