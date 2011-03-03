@@ -1,90 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 357448D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 15:11:34 -0500 (EST)
-Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
-	by smtp-out.google.com with ESMTP id p23KBVpo015624
-	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 12:11:31 -0800
-Received: from pzk36 (pzk36.prod.google.com [10.243.19.164])
-	by kpbe15.cbf.corp.google.com with ESMTP id p23KAA4Z019174
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 12:11:30 -0800
-Received: by pzk36 with SMTP id 36so278074pzk.16
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2011 12:11:29 -0800 (PST)
-Date: Thu, 3 Mar 2011 12:11:27 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] memcg: add oom killer delay
-In-Reply-To: <alpine.DEB.2.00.1102231636260.21906@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1103031211130.9993@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com> <alpine.DEB.2.00.1102091417410.5697@chino.kir.corp.google.com> <20110223150850.8b52f244.akpm@linux-foundation.org> <alpine.DEB.2.00.1102231636260.21906@chino.kir.corp.google.com>
+	by kanga.kvack.org (Postfix) with SMTP id 8437F8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 15:14:28 -0500 (EST)
+Date: Thu, 3 Mar 2011 15:12:26 -0500
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 00/27] IO-less dirty throttling v6
+Message-ID: <20110303201226.GI16720@redhat.com>
+References: <20110303064505.718671603@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110303064505.718671603@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 23 Feb 2011, David Rientjes wrote:
+On Thu, Mar 03, 2011 at 02:45:05PM +0800, Wu Fengguang wrote:
 
-> On Wed, 23 Feb 2011, Andrew Morton wrote:
-> 
-> > Your patch still stinks!
-> > 
-> > If userspace can't handle a disabled oom-killer then userspace
-> > shouldn't have disabled the oom-killer.
-> > 
-> 
-> I agree, but userspace may not always be perfect especially on large 
-> scale; we, in kernel land, can easily choose to ignore that but it's only 
-> a problem because we're providing an interface where the memcg will 
-> livelock without userspace intervention.  The global oom killer doesn't 
-> have this problem and for years it has even radically panicked the machine 
-> instead of livelocking EVEN THOUGH other threads, those that are 
-> OOM_DISABLE, may be getting work done.
-> 
-> This is a memcg-specific issue because memory.oom_control has opened the 
-> possibility up to livelock that userspace may have no way of correcting on 
-> its own especially when it may be oom itself.  The natural conclusion is 
-> that you should never set memory.oom_control unless you can guarantee a 
-> perfect userspace implementation that will never be unresponsive.  At our 
-> scale, we can't make that guarantee so memory.oom_control is not helpful 
-> at all.
-> 
-> If that's the case, then what else do we have at our disposal other than 
-> memory.oom_delay_millisecs that allows us to increase a hard limit or kill 
-> a job of lower priority other than setting memory thresholds and hoping 
-> userspace will schedule and respond before the memcg is completely oom?
-> 
-> > How do we fix this properly?
-> > 
-> > A little birdie tells me that the offending userspace oom handler is
-> > running in a separate memcg and is not itself running out of memory. 
-> 
-> It depends on how you configure your memory controllers, but even if it is 
-> running in a separate memcg how can you make the conclusion it isn't oom 
-> in parallel?
-> 
-> > The problem is that the userspace oom handler is also taking peeks into
-> > processes which are in the stressed memcg and is getting stuck on
-> > mmap_sem in the procfs reads.  Correct?
-> > 
-> 
-> That's outside the scope of this feature and is a separate discussion; 
-> this patch specifically addresses an issue where a userspace job scheduler 
-> wants to take action when a memcg is oom before deferring to the kernel 
-> and happens to become unresponsive for whatever reason.
-> 
-> > It seems to me that such a userspace oom handler is correctly designed,
-> > and that we should be looking into the reasons why it is unreliable,
-> > and fixing them.  Please tell us about this?
-> > 
-> 
-> The problem isn't specific to any one cause or implementation, we know 
-> that userspace programs have bugs, they can stall forever in D-state, they 
-> can be oom themselves, they get stuck waiting on a lock, etc etc.
+[..]
+> - serve as simple IO controllers: if provide an interface for the user
+>   to set task_bw directly (by returning the user specified value
+>   directly at the beginning of dirty_throttle_bandwidth(), plus always
+>   throttle such tasks even under the background dirty threshold), we get
+>   a bandwidth based per-task async write IO controller; let the user
+>   scale up/down the @priority parameter in dirty_throttle_bandwidth(),
+>   we get a priority based IO controller. It's possible to extend the
+>   capabilities to the scope of cgroup, too.
 > 
 
-Was there a response to this, or can this patch be merged?
+Hi Fengguang,
+
+Above simple IO controller capabilities sound interesting and I was
+looking at the patch to figure out the details. 
+
+You seem to be mentioning that user can explicitly set the upper rate
+limit per task for async IO. Can't really figure that out where is the
+interface for setting such upper limits. Can you please point me to that.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
