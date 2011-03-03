@@ -1,59 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 357CD8D0039
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 22:20:52 -0500 (EST)
-Message-ID: <4D6F077B.3060400@tao.ma>
-Date: Thu, 03 Mar 2011 11:14:03 +0800
-From: Tao Ma <tm@tao.ma>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3258B8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 02:30:29 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 75D0E3EE0AE
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 16:30:18 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5107645DE5B
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 16:30:18 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 322AB45DE55
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 16:30:18 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E08BBE08002
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 16:30:17 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CA34E08001
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 16:30:17 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [LSF/MM TOPIC][ATTEND]cold page tracking / working set estimation
+In-Reply-To: <AANLkTimTSE2OrgFSmsYPk7uW+8zAuwfjbeku8WCbGONP@mail.gmail.com>
+References: <AANLkTimTSE2OrgFSmsYPk7uW+8zAuwfjbeku8WCbGONP@mail.gmail.com>
+Message-Id: <20110303161550.B959.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 4/5] mm: Add hit/miss accounting for Page Cache
-References: <no> <1299055090-23976-4-git-send-email-namei.unix@gmail.com> <20110302084542.GA20795@elte.hu>
-In-Reply-To: <20110302084542.GA20795@elte.hu>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu,  3 Mar 2011 16:30:16 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Liu Yuan <namei.unix@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaxboe@fusionio.com, akpm@linux-foundation.org, fengguang.wu@intel.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, =?ISO-8859-1?Q?Fr=E9d=E9ric_Weisbecker?= <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Arnaldo Carvalho de Melo <acme@redhat.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, lsf-pc@lists.linuxfoundation.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
 
-On 03/02/2011 04:45 PM, Ingo Molnar wrote:
-> * Liu Yuan<namei.unix@gmail.com>  wrote:
->
->    
->> +		if (likely(!retry_find)&&  page&&  PageUptodate(page))
->> +			page_cache_acct_hit(inode->i_sb, READ);
->> +		else
->> +			page_cache_acct_missed(inode->i_sb, READ);
->>      
-> Sigh.
->
-> This would make such a nice tracepoint or sw perf event. It could be collected in a
-> 'count' form, equivalent to the stats you are aiming for here, or it could even be
-> traced, if someone is interested in such details.
->
-> It could be mixed with other events, enriching multiple apps at once.
->
-> But, instead of trying to improve those aspects of our existing instrumentation
-> frameworks, mm/* is gradually growing its own special instrumentation hacks, missing
-> the big picture and fragmenting the instrumentation space some more.
->    
-Thanks for the quick response. Actually our team(including Liu) here are 
-planing to add some
-debug info to the mm parts for analyzing the application behavior and 
-hope to find some way
-to improve our application's performance.
-We have searched the trace points in mm, but it seems to us that the 
-trace points isn't quite welcomed
-there. Only vmscan and writeback have some limited trace points added. 
-That's the reason we first
-tried to add some debug info like this patch. You does shed some light 
-on our direction. Thanks.
+> Google uses an automated system to assign compute jobs to individual
+> machines within a cluster. In order to improve memory utilization in
+> the cluster, this system collects memory utilization statistics for
+> each cgroup on each machine. The following properties are desired for
+> the working set estimation mechanism:
+> 
+> - Low impact on the normal MM algorithms - we don't want to stress the
+> VM just by enabling working set estimation;
+> 
+> - Collected statistics should be comparable across multiple machines -
+> we don't just want to know which cgroup to reclaim from on an
+> individual machine, we also need to know which machine is best to
+> target a job onto within a large cluster;
+> 
+> - Low, predictable CPU usage;
+> 
+> - Among cold pages, differentiate between these that are immediately
+> reclaimable and these that would require a disk write.
+> 
+> We use a very simple approach, scanning memory at a fixed rate and
+> identifying pages that haven't been touched in a number of scans. We
+> are currently switching from a fakenuma based implementation (which we
+> don't think is very upstreamable) to a memcg based one. We think this
+> could be of interest to the wider community & would like to discuss
+> requirement with other interested folks.
 
-btw, what part do you think is needed to add some trace point?  We 
-volunteer to add more if you like.
+Hi, Michel and Program comittees
 
-Regards,
-Tao
+I'm not sure what status is MM track. but if this proposal was accepted and
+seat number is allowed, I'd like to attend and discuss the issue with other
+cloud intersted developers.
+
+Thanks.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
