@@ -1,166 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3C0598D0041
-	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 19:46:07 -0500 (EST)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 8/8] Add VM counters for transparent hugepages
-Date: Wed,  2 Mar 2011 16:45:28 -0800
-Message-Id: <1299113128-11349-9-git-send-email-andi@firstfloor.org>
-In-Reply-To: <1299113128-11349-1-git-send-email-andi@firstfloor.org>
-References: <1299113128-11349-1-git-send-email-andi@firstfloor.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DFB768D0039
+	for <linux-mm@kvack.org>; Wed,  2 Mar 2011 20:21:26 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 45EA03EE0BD
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 10:20:31 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 12F8C45DE5E
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 10:20:31 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D29A445DE5A
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 10:20:30 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B79A2E08001
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 10:20:30 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 656D7E18004
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 10:20:30 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch] oom: prevent unnecessary oom kills or kernel panics
+In-Reply-To: <alpine.DEB.2.00.1103011108400.28110@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1103011108400.28110@chino.kir.corp.google.com>
+Message-Id: <20110303100030.B936.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu,  3 Mar 2011 10:20:29 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-From: Andi Kleen <ak@linux.intel.com>
+Hi
 
-I found it difficult to make sense of transparent huge pages without
-having any counters for its actions. Add some counters to vmstat
-for allocation of transparent hugepages and fallback to smaller
-pages.
+> This patch revents unnecessary oom kills or kernel panics by reverting
+> two commits:
+> 
+> 	495789a5 (oom: make oom_score to per-process value)
+> 	cef1d352 (oom: multi threaded process coredump don't make deadlock)
+> 
+> First, 495789a5 (oom: make oom_score to per-process value) ignores the
+> fact that all threads in a thread group do not necessarily exit at the
+> same time.
+> 
+> It is imperative that select_bad_process() detect threads that are in the
+> exit path, specifically those with PF_EXITING set, to prevent needlessly
+> killing additional tasks.  
 
-Optional patch, but useful for development and understanding the system.
+to prevent? No, it is not a reason of PF_EXITING exist.
 
-Contains improvements from Andrea Arcangeli
 
-Acked-by: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
----
- include/linux/vmstat.h |    7 +++++++
- mm/huge_memory.c       |   25 +++++++++++++++++++++----
- mm/vmstat.c            |    8 ++++++++
- 3 files changed, 36 insertions(+), 4 deletions(-)
+> If a process is oom killed and the thread
+> group leader exits, select_bad_process() cannot detect the other threads
+> that are PF_EXITING by iterating over only processes.  Thus, it currently
+> chooses another task unnecessarily for oom kill or panics the machine
+> when nothing else is eligible.
+> 
+> By iterating over threads instead, it is possible to detect threads that
+> are exiting and nominate them for oom kill so they get access to memory
+> reserves.
 
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 9b5c63d..a21d694 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -58,6 +58,13 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		UNEVICTABLE_PGCLEARED,	/* on COW, page truncate */
- 		UNEVICTABLE_PGSTRANDED,	/* unable to isolate on unlock */
- 		UNEVICTABLE_MLOCKFREED,
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	        THP_FAULT_ALLOC,
-+		THP_COLLAPSE_ALLOC,	
-+		THP_FAULT_FALLBACK,	
-+		THP_COLLAPSE_ALLOC_FAILED,
-+		THP_SPLIT,
-+#endif
- 		NR_VM_EVENT_ITEMS
- };
- 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 8c6c4a7..f13a9a3 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -680,8 +680,11 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			return VM_FAULT_OOM;
- 		page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
- 					  vma, haddr, numa_node_id(), 0);
--		if (unlikely(!page))
-+		if (unlikely(!page)) {
-+			count_vm_event(THP_FAULT_FALLBACK);
- 			goto out;
-+		}
-+		count_vm_event(THP_FAULT_ALLOC);
- 		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
- 			put_page(page);
- 			goto out;
-@@ -909,11 +912,13 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		new_page = NULL;
- 
- 	if (unlikely(!new_page)) {
-+		count_vm_event(THP_FAULT_FALLBACK);
- 		ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
- 						   pmd, orig_pmd, page, haddr);
- 		put_page(page);
- 		goto out;
- 	}
-+	count_vm_event(THP_FAULT_ALLOC);
- 
- 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
- 		put_page(new_page);
-@@ -1390,6 +1395,7 @@ int split_huge_page(struct page *page)
- 
- 	BUG_ON(!PageSwapBacked(page));
- 	__split_huge_page(page, anon_vma);
-+	count_vm_event(THP_SPLIT);
- 
- 	BUG_ON(PageCompound(page));
- out_unlock:
-@@ -1780,9 +1786,11 @@ static void collapse_huge_page(struct mm_struct *mm,
- 				      node, __GFP_OTHER_NODE);
- 	if (unlikely(!new_page)) {
- 		up_read(&mm->mmap_sem);
-+		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
- 		*hpage = ERR_PTR(-ENOMEM);
- 		return;
- 	}
-+	count_vm_event(THP_COLLAPSE_ALLOC);
- #endif
- 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
- 		up_read(&mm->mmap_sem);
-@@ -2147,8 +2155,11 @@ static void khugepaged_do_scan(struct page **hpage)
- #ifndef CONFIG_NUMA
- 		if (!*hpage) {
- 			*hpage = alloc_hugepage(khugepaged_defrag());
--			if (unlikely(!*hpage))
-+			if (unlikely(!*hpage)) {
-+				count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
- 				break;
-+			}
-+			count_vm_event(THP_COLLAPSE_ALLOC);
- 		}
- #else
- 		if (IS_ERR(*hpage))
-@@ -2188,8 +2199,11 @@ static struct page *khugepaged_alloc_hugepage(void)
- 
- 	do {
- 		hpage = alloc_hugepage(khugepaged_defrag());
--		if (!hpage)
-+		if (!hpage) {
-+			count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
- 			khugepaged_alloc_sleep();
-+		} else
-+			count_vm_event(THP_COLLAPSE_ALLOC);
- 	} while (unlikely(!hpage) &&
- 		 likely(khugepaged_enabled()));
- 	return hpage;
-@@ -2206,8 +2220,11 @@ static void khugepaged_loop(void)
- 	while (likely(khugepaged_enabled())) {
- #ifndef CONFIG_NUMA
- 		hpage = khugepaged_alloc_hugepage();
--		if (unlikely(!hpage))
-+		if (unlikely(!hpage)) {
-+			count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
- 			break;
-+		}
-+		count_vm_event(THP_COLLAPSE_ALLOC);
- #else
- 		if (IS_ERR(hpage)) {
- 			khugepaged_alloc_sleep();
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 2b461ed..a23f2d2 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -946,6 +946,14 @@ static const char * const vmstat_text[] = {
- 	"unevictable_pgs_stranded",
- 	"unevictable_pgs_mlockfreed",
- #endif
-+
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	"thp_fault_alloc",
-+	"thp_fault_fallback",
-+	"thp_collapse_alloc",
-+	"thp_collapse_alloc_failure",
-+	"thp_split",
-+#endif
- };
- 
- static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
--- 
-1.7.4
+In fact, PF_EXITING is a sing of *THREAD* exiting, not process. Therefore
+PF_EXITING is not a sign of memory freeing in nearly future. If other
+CPUs don't try to free memory, prevent oom and waiting makes deadlock.
+
+Thus, I suggest to remove PF_EXITING check completely.
+
+> 
+> Second, cef1d352 (oom: multi threaded process coredump don't make
+> deadlock) erroneously avoids making the oom killer a no-op when an
+> eligible thread other than current isfound to be exiting.  We want to
+> detect this situation so that we may allow that exiting thread time to
+> exit and free its memory; if it is able to exit on its own, that should
+> free memory so current is no loner oom.  If it is not able to exit on its
+> own, the oom killer will nominate it for oom kill which, in this case,
+> only means it will get access to memory reserves.
+> 
+> Without this change, it is easy for the oom killer to unnecessarily
+> target tasks when all threads of a victim don't exit before the thread
+> group leader or, in the worst case, panic the machine.
+> 
+
+You missed deadlock is more worse than panic. And again, task overkill
+is a part of OOM killer design. it is necessary to avoid deadlock. If
+you want to change this spec, you need to remove deadlock change at first.
+
+
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/oom_kill.c |    8 ++++----
+>  1 files changed, 4 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -292,11 +292,11 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+>  		unsigned long totalpages, struct mem_cgroup *mem,
+>  		const nodemask_t *nodemask)
+>  {
+> -	struct task_struct *p;
+> +	struct task_struct *g, *p;
+>  	struct task_struct *chosen = NULL;
+>  	*ppoints = 0;
+>  
+> -	for_each_process(p) {
+> +	do_each_thread(g, p) {
+>  		unsigned int points;
+>  
+>  		if (oom_unkillable_task(p, mem, nodemask))
+> @@ -324,7 +324,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+>  		 * the process of exiting and releasing its resources.
+>  		 * Otherwise we could get an easy OOM deadlock.
+>  		 */
+> -		if (thread_group_empty(p) && (p->flags & PF_EXITING) && p->mm) {
+> +		if ((p->flags & PF_EXITING) && p->mm) {
+>
+>  			if (p != current)
+>  				return ERR_PTR(-1UL);
+>  
+> @@ -337,7 +337,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+>  			chosen = p;
+>  			*ppoints = points;
+>  		}
+> -	}
+> +	} while_each_thread(g, p);
+>  
+>  	return chosen;
+>  }
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
