@@ -1,66 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id BE87F8D003A
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 12:51:59 -0500 (EST)
-Subject: [PATCH] Make /proc/slabinfo 0400
-From: Dan Rosenberg <drosenberg@vsecurity.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 03 Mar 2011 12:50:52 -0500
-Message-ID: <1299174652.2071.12.camel@dan>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 55CBC8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 13:09:52 -0500 (EST)
+Date: Thu, 3 Mar 2011 19:09:46 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 8/8] Add VM counters for transparent hugepages
+Message-ID: <20110303180946.GK32215@one.firstfloor.org>
+References: <1299113128-11349-1-git-send-email-andi@firstfloor.org> <1299113128-11349-9-git-send-email-andi@firstfloor.org> <20110303091827.GC2245@cmpxchg.org>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110303091827.GC2245@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
 
-Allowing unprivileged users to read /proc/slabinfo represents a security
-risk, since revealing details of slab allocations can expose information
-that is useful when exploiting kernel heap corruption issues.  This is
-evidenced by observing that nearly all recent public exploits for heap
-issues rely on feedback from /proc/slabinfo to manipulate heap layout
-into an exploitable state.
+On Thu, Mar 03, 2011 at 10:18:27AM +0100, Johannes Weiner wrote:
+> On Wed, Mar 02, 2011 at 04:45:28PM -0800, Andi Kleen wrote:
+> > --- a/include/linux/vmstat.h
+> > +++ b/include/linux/vmstat.h
+> > @@ -58,6 +58,13 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+> >  		UNEVICTABLE_PGCLEARED,	/* on COW, page truncate */
+> >  		UNEVICTABLE_PGSTRANDED,	/* unable to isolate on unlock */
+> >  		UNEVICTABLE_MLOCKFREED,
+> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> > +	        THP_FAULT_ALLOC,
+> > +		THP_COLLAPSE_ALLOC,	
+> > +		THP_FAULT_FALLBACK,	
+> 
+> Wouldn't this better be named THP_FAULT_ALLOC_FAIL?  After all, it
+> counts allocation failures, not what results from them.
 
-Changing the permissions on this file to 0400 by default will make heap
-corruption issues more difficult to exploit.  Ordinary usage should not
-require unprivileged users to debug the running kernel; if this ability
-is required, an admin can always chmod the file appropriately.
+It doesn't really fail anything for the user, so I thought fallback
+was better.
+
+> 
+> Secondly, the order does not match the strings, it will report the
+> THP_COLLAPSE_ALLOC item as "thp_fault_fallback" and vice versa.
 
 
-Signed-off-by: Dan Rosenberg <drosenberg@vsecurity.com>
----
- mm/slab.c |    3 ++-
- mm/slub.c |    2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+Oops, I broke that while merging Andrea's change. Will resend.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 37961d1..7f719f6 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -4535,7 +4535,8 @@ static const struct file_operations proc_slabstats_operations = {
- 
- static int __init slab_proc_init(void)
- {
--	proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
-+	proc_create("slabinfo", S_IWUSR|S_IRUSR, NULL,
-+		    &proc_slabinfo_operations);
- #ifdef CONFIG_DEBUG_SLAB_LEAK
- 	proc_create("slab_allocators", 0, NULL, &proc_slabstats_operations);
- #endif
-diff --git a/mm/slub.c b/mm/slub.c
-index e15aa7f..5f57834 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -4691,7 +4691,7 @@ static const struct file_operations proc_slabinfo_operations = {
- 
- static int __init slab_proc_init(void)
- {
--	proc_create("slabinfo", S_IRUGO, NULL, &proc_slabinfo_operations);
-+	proc_create("slabinfo", S_IRUSR, NULL, &proc_slabinfo_operations);
- 	return 0;
- }
- module_init(slab_proc_init);
+> Can you make this "_failed" instead, to match the enum symbol?  Andrea
+> wasn't sure which was better, "failure" or "failed".  Right now, we
+> have two instances of "fail" and two instances of "failed" in
+> /proc/vmstat, it's probably best not to introduce a third one.
 
+Okay.
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
