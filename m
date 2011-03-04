@@ -1,75 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6B4BB8D0039
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 01:22:31 -0500 (EST)
-Date: Fri, 4 Mar 2011 17:22:17 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 06/27] btrfs: lower the dirty balance poll interval
-Message-ID: <20110304062217.GE25368@dastard>
-References: <20110303064505.718671603@intel.com>
- <20110303074949.419321686@intel.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FFEA8D0039
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 01:52:06 -0500 (EST)
+Received: by gwj15 with SMTP id 15so940497gwj.8
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2011 22:52:04 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110303074949.419321686@intel.com>
+In-Reply-To: <2DD7330B-2FED-4E58-A76D-93794A877A00@mit.edu>
+References: <1299174652.2071.12.camel@dan>
+	<1299185882.3062.233.camel@calx>
+	<1299186986.2071.90.camel@dan>
+	<1299188667.3062.259.camel@calx>
+	<1299191400.2071.203.camel@dan>
+	<2DD7330B-2FED-4E58-A76D-93794A877A00@mit.edu>
+Date: Fri, 4 Mar 2011 08:52:04 +0200
+Message-ID: <AANLkTimpfk8EHjVKYsJv0p_G7tS2yB-n=PPbD2v7xefV@mail.gmail.com>
+Subject: Re: [PATCH] Make /proc/slabinfo 0400
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Trond Myklebust <Trond.Myklebust@netapp.com>, Theodore Ts'o <tytso@mit.edu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Theodore Tso <tytso@mit.edu>
+Cc: Dan Rosenberg <drosenberg@vsecurity.com>, Matt Mackall <mpm@selenic.com>, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Mar 03, 2011 at 02:45:11PM +0800, Wu Fengguang wrote:
-> Call balance_dirty_pages_ratelimit_nr() on every 32 pages dirtied.
-> 
-> Tests show that original larger intervals can easily make the bdi
-> dirty limit exceeded on 100 concurrent dd.
-> 
-> CC: Chris Mason <chris.mason@oracle.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  fs/btrfs/file.c |    5 ++---
->  1 file changed, 2 insertions(+), 3 deletions(-)
-> 
-> --- linux-next.orig/fs/btrfs/file.c	2011-03-02 20:15:19.000000000 +0800
-> +++ linux-next/fs/btrfs/file.c	2011-03-02 20:35:07.000000000 +0800
-> @@ -949,9 +949,8 @@ static ssize_t btrfs_file_aio_write(stru
->  	}
->  
->  	iov_iter_init(&i, iov, nr_segs, count, num_written);
-> -	nrptrs = min((iov_iter_count(&i) + PAGE_CACHE_SIZE - 1) /
-> -		     PAGE_CACHE_SIZE, PAGE_CACHE_SIZE /
-> -		     (sizeof(struct page *)));
-> +	nrptrs = min(DIV_ROUND_UP(iov_iter_count(&i), PAGE_CACHE_SIZE),
-> +		     min(32UL, PAGE_CACHE_SIZE / sizeof(struct page *)));
+On Mar 3, 2011, at 5:30 PM, Dan Rosenberg wrote:
+>> I appreciate your input on this, you've made very reasonable points.
+>> I'm just not convinced that those few real users are being substantially
+>> inconvenienced, even if there's only a small benefit for the larger
+>> population of users who are at risk for attacks. =A0Perhaps others could
+>> contribute their opinions to the discussion.
 
-You're basically hardcoding the maximum to 32 pages here, because
-PAGE_CACHE_SIZE / sizeof(page *) is always going to be much larger
-than 32.
+On Fri, Mar 4, 2011 at 2:50 AM, Theodore Tso <tytso@mit.edu> wrote:
+> Being able to monitor /proc/slabinfo is incredibly useful for finding var=
+ious
+> kernel problems. =A0We can see if some part of the kernel is out of balan=
+ce,
+> and we can also find memory leaks. =A0 I once saved a school system's Lin=
+ux
+> deployment because their systems were crashing once a week, and becoming
+> progressively more unreliable before they crashed, and the school board
+> was about to pull the plug.
 
-This means that you are effectively neutering the large write
-efficiencies of btrfs - you're reducing the delayed allocation sizes
-from 512 * PAGE_CACHE_SIZE down to 32 * PAGE_CACHE_SIZE. This will
-increase the overhead of the write process for btrfs for large IOs.
+Indeed. However, I'm not sure we need to expose the number of _active
+objects_ to non-CAP_ADMIN users (which could be set to zeros if you
+don't have sufficient privileges). Memory leaks can be detected from
+the total number of objects anyway, no?
 
-Also, I've got some multipage write modifications that allow 1024
-pages at a time between mapping/allocation calls with XFS - once
-again for improving the efficiencies of the extent
-mapping/allocations in the write path. If the new writeback
-throttling algorithms don't work with large numbers of pages being
-copied in a single go, then that's a problem.
+On Fri, Mar 4, 2011 at 2:50 AM, Theodore Tso <tytso@mit.edu> wrote:
+> I wonder if there is some other change we could make to the slab allocato=
+r
+> that would make it harder for exploit writers without having to protect t=
+he
+> /proc/slabinfo file. =A0For example, could we randomly select different f=
+ree
+> objects in a page instead of filling them in sequentially?
 
-As it is, if 100 concurrent dd's can overrun the dirty limit w/ 512
-pages at a time, then 1000 concurrent dd's w/ 32 pages at a time is
-just as likely to overrun it, too. We support 4096 CPU systems, so a
-few thousand concurrent writers is not out of the question. Hence I
-don't think just reducing the number of pages between dirty balance
-calls is a sufficient solution....
-
-Cheers,
-
-Dave..
--- 
-Dave Chinner
-david@fromorbit.com
+We can do something like that if we can live with the performance costs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
