@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EC2238D0039
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 16:10:38 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id D1C978D0039
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 16:12:59 -0500 (EST)
 Subject: Re: [PATCH] Make /proc/slabinfo 0400
-From: Dan Rosenberg <drosenberg@vsecurity.com>
+From: Matt Mackall <mpm@selenic.com>
 In-Reply-To: <AANLkTimvhHxsMCf2FX0O8VqksOa2EAMz=S_C3LQKvE60@mail.gmail.com>
 References: <1299174652.2071.12.camel@dan> <1299185882.3062.233.camel@calx>
 	 <1299186986.2071.90.camel@dan> <1299188667.3062.259.camel@calx>
@@ -17,14 +17,14 @@ References: <1299174652.2071.12.camel@dan> <1299185882.3062.233.camel@calx>
 	 <1299271041.2071.1398.camel@dan>
 	 <AANLkTimvhHxsMCf2FX0O8VqksOa2EAMz=S_C3LQKvE60@mail.gmail.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 04 Mar 2011 16:10:34 -0500
-Message-ID: <1299273034.2071.1417.camel@dan>
+Date: Fri, 04 Mar 2011 15:12:55 -0600
+Message-ID: <1299273175.3062.327.camel@calx>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
-Cc: Matt Mackall <mpm@selenic.com>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Theodore Tso <tytso@mit.edu>, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dan Rosenberg <drosenberg@vsecurity.com>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Theodore Tso <tytso@mit.edu>, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
 
 On Fri, 2011-03-04 at 22:58 +0200, Pekka Enberg wrote:
 > On Fri, Mar 4, 2011 at 10:37 PM, Dan Rosenberg <drosenberg@vsecurity.com> wrote:
@@ -40,10 +40,25 @@ On Fri, 2011-03-04 at 22:58 +0200, Pekka Enberg wrote:
 > So if the attacker knows every object is allocated, how does that help
 > if we're randomizing the initial freelist?
 
-If you know you've got a slab completely full of your objects, then it
-doesn't matter that they happened to be allocated in a random fashion -
-they're still all allocated, and by freeing one of them and
-reallocating, you'll still be next to your target.
+First note that all of these attacks are probabilistic. 
+
+Now, with a randomized free list, if I create 1000 objects of type B,
+then, on average, the partially-filled page the next allocation comes
+from will be half-full of B objects. Thus, the next object will have a
+50% chance of being in the right spot for an exploit. 
+
+Now if I delete the 800th B object, it's probably on a slab that's
+otherwise full of B objects since we fill partial slabs before creating
+new ones. If my next allocation comes from that slab, it will thus get a
+spot that's almost guaranteed to be in the right spot.
+
+Similarly, if I create 1000 objects and then delete every tenth one,
+I've now got a swiss cheese heap where just about every hole is
+well-positioned. 
+
+-- 
+Mathematics is the supreme nostalgia of our time.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
