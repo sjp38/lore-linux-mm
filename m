@@ -1,49 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id D1DEE8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 19:59:55 -0500 (EST)
-Subject: Re: [PATCH] Make /proc/slabinfo 0400
-Mime-Version: 1.0 (Apple Message framework v1082)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2B04C8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:53:20 -0500 (EST)
+Date: Fri, 4 Mar 2011 09:53:13 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 09/27] nfs: writeback pages wait queue
+Message-ID: <20110304015312.GA7976@localhost>
+References: <20110303064505.718671603@intel.com>
+ <20110303074949.809203319@intel.com>
+ <1299168420.1310.55.camel@laptop>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-From: Theodore Tso <tytso@MIT.EDU>
-In-Reply-To: <1299191400.2071.203.camel@dan>
-Date: Thu, 3 Mar 2011 19:50:43 -0500
-Content-Transfer-Encoding: 7bit
-Message-Id: <2DD7330B-2FED-4E58-A76D-93794A877A00@mit.edu>
-References: <1299174652.2071.12.camel@dan>  <1299185882.3062.233.camel@calx> <1299186986.2071.90.camel@dan>  <1299188667.3062.259.camel@calx> <1299191400.2071.203.camel@dan>
+Content-Disposition: inline
+In-Reply-To: <1299168420.1310.55.camel@laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Rosenberg <drosenberg@vsecurity.com>
-Cc: Matt Mackall <mpm@selenic.com>, cl@linux-foundation.org, penberg@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Chris Mason <chris.mason@oracle.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
+On Fri, Mar 04, 2011 at 12:07:00AM +0800, Peter Zijlstra wrote:
+> On Thu, 2011-03-03 at 14:45 +0800, Wu Fengguang wrote:
+> > +static void nfs_wait_contested(int is_sync,
+> > +                              struct backing_dev_info *bdi,
+> > +                              wait_queue_head_t *wqh) 
+> 
+> s/contested/congested/ ?
 
-On Mar 3, 2011, at 5:30 PM, Dan Rosenberg wrote:
+Good catch. Will update in another email.
 
-> I appreciate your input on this, you've made very reasonable points.
-> I'm just not convinced that those few real users are being substantially
-> inconvenienced, even if there's only a small benefit for the larger
-> population of users who are at risk for attacks.  Perhaps others could
-> contribute their opinions to the discussion.
-
-Being able to monitor /proc/slabinfo is incredibly useful for finding various
-kernel problems.  We can see if some part of the kernel is out of balance,
-and we can also find memory leaks.   I once saved a school system's Linux
-deployment because their systems were crashing once a week, and becoming
-progressively more unreliable before they crashed, and the school board
-was about to pull the plug.
-
-Turned out the "virus scanner" was a piece of garbage that slowly leaked
-memory over time, and since it was proprietary code that was loaded as 
-a kernel module, it showed up in /proc/slabinfo.   If it had been protected
-it would have been much harder for me to get access to such debugging
-data.
-
-I wonder if there is some other change we could make to the slab allocator
-that would make it harder for exploit writers without having to protect the
-/proc/slabinfo file.  For example, could we randomly select different free 
-objects in a page instead of filling them in sequentially?
-
--- Ted
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
