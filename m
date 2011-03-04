@@ -1,128 +1,249 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E5BF8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:55:38 -0500 (EST)
-Received: by iyf13 with SMTP id 13so1987887iyf.14
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2011 17:55:36 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id AC4958D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 21:03:51 -0500 (EST)
+Date: Fri, 4 Mar 2011 10:01:58 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 09/27] nfs: writeback pages wait queue
+Message-ID: <20110304020157.GB7976@localhost>
+References: <20110303064505.718671603@intel.com>
+ <20110303074949.809203319@intel.com>
+ <1299168481.1310.56.camel@laptop>
 MIME-Version: 1.0
-In-Reply-To: <20110303104430.B93F.A69D9226@jp.fujitsu.com>
-References: <AANLkTik7MA6YcrWVbjFhQsN0arR72xmH9g1M2Yi-E_B-@mail.gmail.com>
-	<20110303104430.B93F.A69D9226@jp.fujitsu.com>
-Date: Fri, 4 Mar 2011 09:55:36 +0800
-Message-ID: <AANLkTine1S9bjnqUCsYRhenYH6TUJTdOOQvdQ1nKY8Wv@mail.gmail.com>
-Subject: Re: [RFC PATCH 0/5] Add accountings for Page Cache
-From: Liu Yuan <namei.unix@gmail.com>
-Content-Type: multipart/alternative; boundary=20cf30549ed9318e30049d9e7195
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1299168481.1310.56.camel@laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaxboe@fusionio.com, akpm@linux-foundation.org, fengguang.wu@intel.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Chris Mason <chris.mason@oracle.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
---20cf30549ed9318e30049d9e7195
-Content-Type: text/plain; charset=ISO-8859-1
+On Fri, Mar 04, 2011 at 12:08:01AM +0800, Peter Zijlstra wrote:
+> On Thu, 2011-03-03 at 14:45 +0800, Wu Fengguang wrote:
+> > +static void nfs_wakeup_congested(long nr,
+> > +                                struct backing_dev_info *bdi,
+> > +                                wait_queue_head_t *wqh)
+> > +{
+> > +       long limit = nfs_congestion_kb >> (PAGE_SHIFT - 10);
+> > +
+> > +       if (nr < 2 * limit - min(limit / 8, NFS_WAIT_PAGES)) {
+> > +               if (test_bit(BDI_sync_congested, &bdi->state)) {
+> > +                       clear_bdi_congested(bdi, BLK_RW_SYNC);
+> > +                       smp_mb__after_clear_bit();
+> > +               }
+> > +               if (waitqueue_active(&wqh[BLK_RW_SYNC]))
+> > +                       wake_up(&wqh[BLK_RW_SYNC]);
+> > +       }
+> > +       if (nr < limit - min(limit / 8, NFS_WAIT_PAGES)) {
+> > +               if (test_bit(BDI_async_congested, &bdi->state)) {
+> > +                       clear_bdi_congested(bdi, BLK_RW_ASYNC);
+> > +                       smp_mb__after_clear_bit();
+> > +               }
+> > +               if (waitqueue_active(&wqh[BLK_RW_ASYNC]))
+> > +                       wake_up(&wqh[BLK_RW_ASYNC]);
+> > +       }
+> > +} 
+> 
+> memory barriers want a comment - always - explaining what they order and
+> against whoem.
 
-On Thu, Mar 3, 2011 at 9:50 AM, KOSAKI Motohiro <
-kosaki.motohiro@jp.fujitsu.com> wrote:
+OK. Added this comment:
 
-> > [Summery]
-> >
-> > In order to evaluate page cache efficiency, system admins are happy to
-> > know whether a block of data is cached for subsequent use, or whether
-> > the page is read-in but seldom used. This patch extends an effort to
-> > provide such kind of information. We adds three counters, which are
-> > exported to the user space, for the Page Cache that is almost
-> > transparent to the applications. This would benifit some heavy page
-> > cache users that might try to tune the performance in hybrid storage
-> > situation.
->
-> I think you need to explain exact and concrete use-case. Typically,
-> cache-hit ratio doesn't help administrator at all. because merely backup
-> operation (eg. cp, dd, et al) makes prenty cache-miss. But it is no sign
-> of memory shortage. Usually, vmscan stastics may help memroy utilization
-> obzavation.
->
-> Plus, as ingo said, you have to consider to use trancepoint framework
-> at first. Because, it is zero cost if an admin don't enable such
-> tracepoint.
->
->
-Thanks very much for your comments.
-
-Yeah, we'er going to try tracepoint and perf as Ingo said.
-
-
-> At last, I don't think disk_stats have to have page cache stastics. It
-> seems
-> slightly layer violation.
->
-> Thanks.
->
->
-This is the starting point of the patch set, so I simply embedded the
-structure into the existing infrastructure. This did saved me a lot of
-effort because disk_stats is a good place to collect stats on _partition_
-basis. Anyway, as you pointed out, this is kind of the mess.
+                        clear_bdi_congested(bdi, BLK_RW_SYNC);
+                        /*
+                         * On the following wake_up(), nfs_wait_congested()
+                         * will see the cleared bit and quit.
+                         */
+                        smp_mb__after_clear_bit();
+                }
+                if (waitqueue_active(&wqh[BLK_RW_SYNC]))
+                        wake_up(&wqh[BLK_RW_SYNC]);
 
 Thanks,
-Yuan
+Fengguang
+---
+Subject: nfs: writeback pages wait queue
+Date: Tue Aug 03 22:47:07 CST 2010
 
---20cf30549ed9318e30049d9e7195
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+The generic writeback routines are departing from congestion_wait()
+in preference of get_request_wait(), aka. waiting on the block queues.
 
-<br><br><div class=3D"gmail_quote">On Thu, Mar 3, 2011 at 9:50 AM, KOSAKI M=
-otohiro <span dir=3D"ltr">&lt;<a href=3D"mailto:kosaki.motohiro@jp.fujitsu.=
-com">kosaki.motohiro@jp.fujitsu.com</a>&gt;</span> wrote:<br><blockquote cl=
-ass=3D"gmail_quote" style=3D"margin: 0pt 0pt 0pt 0.8ex; border-left: 1px so=
-lid rgb(204, 204, 204); padding-left: 1ex;">
-<div class=3D"im">&gt; [Summery]<br>
-&gt;<br>
-&gt; In order to evaluate page cache efficiency, system admins are happy to=
-<br>
-&gt; know whether a block of data is cached for subsequent use, or whether<=
-br>
-&gt; the page is read-in but seldom used. This patch extends an effort to<b=
-r>
-&gt; provide such kind of information. We adds three counters, which are<br=
->
-&gt; exported to the user space, for the Page Cache that is almost<br>
-&gt; transparent to the applications. This would benifit some heavy page<br=
->
-&gt; cache users that might try to tune the performance in hybrid storage<b=
-r>
-&gt; situation.<br>
-<br>
-</div>I think you need to explain exact and concrete use-case. Typically,<b=
-r>
-cache-hit ratio doesn&#39;t help administrator at all. because merely backu=
-p<br>
-operation (eg. cp, dd, et al) makes prenty cache-miss. But it is no sign<br=
->
-of memory shortage. Usually, vmscan stastics may help memroy utilization<br=
->
-obzavation.<br>
-<br>
-Plus, as ingo said, you have to consider to use trancepoint framework<br>
-at first. Because, it is zero cost if an admin don&#39;t enable such tracep=
-oint.<br>
-<br></blockquote><div><br>Thanks very much for your comments.<br><br>Yeah, =
-we&#39;er going to try tracepoint and perf as Ingo said.<br>=A0</div><block=
-quote class=3D"gmail_quote" style=3D"margin: 0pt 0pt 0pt 0.8ex; border-left=
-: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
+Introduce the missing writeback wait queue for NFS, otherwise its
+writeback pages will grow out of control, exhausting all PG_dirty pages.
 
-At last, I don&#39;t think disk_stats have to have page cache stastics. It =
-seems<br>
-slightly layer violation.<br>
-<br>
-Thanks.<br>
-<br></blockquote><div><br>This is the starting point of the patch set, so I=
- simply embedded the structure into the existing infrastructure. This did s=
-aved me a lot of effort because disk_stats is a good place to collect stats=
- on _partition_=A0 basis. Anyway, as you pointed out, this is kind of the m=
-ess.<br>
-</div></div><br>Thanks,<br>Yuan<br>
+CC: Jens Axboe <axboe@kernel.dk>
+CC: Chris Mason <chris.mason@oracle.com>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: Trond Myklebust <Trond.Myklebust@netapp.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/nfs/client.c           |    2 
+ fs/nfs/write.c            |   97 +++++++++++++++++++++++++++++++-----
+ include/linux/nfs_fs_sb.h |    1 
+ 3 files changed, 89 insertions(+), 11 deletions(-)
 
---20cf30549ed9318e30049d9e7195--
+--- linux-next.orig/fs/nfs/write.c	2011-03-03 14:44:16.000000000 +0800
++++ linux-next/fs/nfs/write.c	2011-03-04 09:58:38.000000000 +0800
+@@ -185,11 +185,72 @@ static int wb_priority(struct writeback_
+  * NFS congestion control
+  */
+ 
++#define NFS_WAIT_PAGES	(1024L >> (PAGE_SHIFT - 10))
+ int nfs_congestion_kb;
+ 
+-#define NFS_CONGESTION_ON_THRESH 	(nfs_congestion_kb >> (PAGE_SHIFT-10))
+-#define NFS_CONGESTION_OFF_THRESH	\
+-	(NFS_CONGESTION_ON_THRESH - (NFS_CONGESTION_ON_THRESH >> 2))
++/*
++ * SYNC requests will block on (2*limit) and wakeup on (2*limit-NFS_WAIT_PAGES)
++ * ASYNC requests will block on (limit) and wakeup on (limit - NFS_WAIT_PAGES)
++ * In this way SYNC writes will never be blocked by ASYNC ones.
++ */
++
++static void nfs_set_congested(long nr, struct backing_dev_info *bdi)
++{
++	long limit = nfs_congestion_kb >> (PAGE_SHIFT - 10);
++
++	if (nr > limit && !test_bit(BDI_async_congested, &bdi->state))
++		set_bdi_congested(bdi, BLK_RW_ASYNC);
++	else if (nr > 2 * limit && !test_bit(BDI_sync_congested, &bdi->state))
++		set_bdi_congested(bdi, BLK_RW_SYNC);
++}
++
++static void nfs_wait_congested(int is_sync,
++			       struct backing_dev_info *bdi,
++			       wait_queue_head_t *wqh)
++{
++	int waitbit = is_sync ? BDI_sync_congested : BDI_async_congested;
++	DEFINE_WAIT(wait);
++
++	if (!test_bit(waitbit, &bdi->state))
++		return;
++
++	for (;;) {
++		prepare_to_wait(&wqh[is_sync], &wait, TASK_UNINTERRUPTIBLE);
++		if (!test_bit(waitbit, &bdi->state))
++			break;
++
++		io_schedule();
++	}
++	finish_wait(&wqh[is_sync], &wait);
++}
++
++static void nfs_wakeup_congested(long nr,
++				 struct backing_dev_info *bdi,
++				 wait_queue_head_t *wqh)
++{
++	long limit = nfs_congestion_kb >> (PAGE_SHIFT - 10);
++
++	if (nr < 2 * limit - min(limit / 8, NFS_WAIT_PAGES)) {
++		if (test_bit(BDI_sync_congested, &bdi->state)) {
++			clear_bdi_congested(bdi, BLK_RW_SYNC);
++			/*
++			 * On the following wake_up(), nfs_wait_congested()
++			 * will see the cleared bit and quit.
++			 */
++			smp_mb__after_clear_bit();
++		}
++		if (waitqueue_active(&wqh[BLK_RW_SYNC]))
++			wake_up(&wqh[BLK_RW_SYNC]);
++	}
++	if (nr < limit - min(limit / 8, NFS_WAIT_PAGES)) {
++		if (test_bit(BDI_async_congested, &bdi->state)) {
++			clear_bdi_congested(bdi, BLK_RW_ASYNC);
++			smp_mb__after_clear_bit();
++		}
++		if (waitqueue_active(&wqh[BLK_RW_ASYNC]))
++			wake_up(&wqh[BLK_RW_ASYNC]);
++	}
++}
+ 
+ static int nfs_set_page_writeback(struct page *page)
+ {
+@@ -200,11 +261,8 @@ static int nfs_set_page_writeback(struct
+ 		struct nfs_server *nfss = NFS_SERVER(inode);
+ 
+ 		page_cache_get(page);
+-		if (atomic_long_inc_return(&nfss->writeback) >
+-				NFS_CONGESTION_ON_THRESH) {
+-			set_bdi_congested(&nfss->backing_dev_info,
+-						BLK_RW_ASYNC);
+-		}
++		nfs_set_congested(atomic_long_inc_return(&nfss->writeback),
++				  &nfss->backing_dev_info);
+ 	}
+ 	return ret;
+ }
+@@ -216,8 +274,10 @@ static void nfs_end_page_writeback(struc
+ 
+ 	end_page_writeback(page);
+ 	page_cache_release(page);
+-	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
+-		clear_bdi_congested(&nfss->backing_dev_info, BLK_RW_ASYNC);
++
++	nfs_wakeup_congested(atomic_long_dec_return(&nfss->writeback),
++			     &nfss->backing_dev_info,
++			     nfss->writeback_wait);
+ }
+ 
+ static struct nfs_page *nfs_find_and_lock_request(struct page *page, bool nonblock)
+@@ -318,19 +378,34 @@ static int nfs_writepage_locked(struct p
+ 
+ int nfs_writepage(struct page *page, struct writeback_control *wbc)
+ {
++	struct inode *inode = page->mapping->host;
++	struct nfs_server *nfss = NFS_SERVER(inode);
+ 	int ret;
+ 
+ 	ret = nfs_writepage_locked(page, wbc);
+ 	unlock_page(page);
++
++	nfs_wait_congested(wbc->sync_mode == WB_SYNC_ALL,
++			   &nfss->backing_dev_info,
++			   nfss->writeback_wait);
++
+ 	return ret;
+ }
+ 
+-static int nfs_writepages_callback(struct page *page, struct writeback_control *wbc, void *data)
++static int nfs_writepages_callback(struct page *page,
++				   struct writeback_control *wbc, void *data)
+ {
++	struct inode *inode = page->mapping->host;
++	struct nfs_server *nfss = NFS_SERVER(inode);
+ 	int ret;
+ 
+ 	ret = nfs_do_writepage(page, wbc, data);
+ 	unlock_page(page);
++
++	nfs_wait_congested(wbc->sync_mode == WB_SYNC_ALL,
++			   &nfss->backing_dev_info,
++			   nfss->writeback_wait);
++
+ 	return ret;
+ }
+ 
+--- linux-next.orig/include/linux/nfs_fs_sb.h	2011-03-03 14:44:15.000000000 +0800
++++ linux-next/include/linux/nfs_fs_sb.h	2011-03-03 14:44:16.000000000 +0800
+@@ -102,6 +102,7 @@ struct nfs_server {
+ 	struct nfs_iostats __percpu *io_stats;	/* I/O statistics */
+ 	struct backing_dev_info	backing_dev_info;
+ 	atomic_long_t		writeback;	/* number of writeback pages */
++	wait_queue_head_t	writeback_wait[2];
+ 	int			flags;		/* various flags */
+ 	unsigned int		caps;		/* server capabilities */
+ 	unsigned int		rsize;		/* read size */
+--- linux-next.orig/fs/nfs/client.c	2011-03-03 14:44:15.000000000 +0800
++++ linux-next/fs/nfs/client.c	2011-03-03 14:44:16.000000000 +0800
+@@ -1042,6 +1042,8 @@ static struct nfs_server *nfs_alloc_serv
+ 	INIT_LIST_HEAD(&server->delegations);
+ 
+ 	atomic_set(&server->active, 0);
++	init_waitqueue_head(&server->writeback_wait[BLK_RW_SYNC]);
++	init_waitqueue_head(&server->writeback_wait[BLK_RW_ASYNC]);
+ 
+ 	server->io_stats = nfs_alloc_iostats();
+ 	if (!server->io_stats) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
