@@ -1,35 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2B04C8D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:53:20 -0500 (EST)
-Date: Fri, 4 Mar 2011 09:53:13 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 09/27] nfs: writeback pages wait queue
-Message-ID: <20110304015312.GA7976@localhost>
-References: <20110303064505.718671603@intel.com>
- <20110303074949.809203319@intel.com>
- <1299168420.1310.55.camel@laptop>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E5BF8D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 20:55:38 -0500 (EST)
+Received: by iyf13 with SMTP id 13so1987887iyf.14
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2011 17:55:36 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1299168420.1310.55.camel@laptop>
+In-Reply-To: <20110303104430.B93F.A69D9226@jp.fujitsu.com>
+References: <AANLkTik7MA6YcrWVbjFhQsN0arR72xmH9g1M2Yi-E_B-@mail.gmail.com>
+	<20110303104430.B93F.A69D9226@jp.fujitsu.com>
+Date: Fri, 4 Mar 2011 09:55:36 +0800
+Message-ID: <AANLkTine1S9bjnqUCsYRhenYH6TUJTdOOQvdQ1nKY8Wv@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/5] Add accountings for Page Cache
+From: Liu Yuan <namei.unix@gmail.com>
+Content-Type: multipart/alternative; boundary=20cf30549ed9318e30049d9e7195
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Chris Mason <chris.mason@oracle.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan.kim@gmail.com>, Vivek Goyal <vgoyal@redhat.com>, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaxboe@fusionio.com, akpm@linux-foundation.org, fengguang.wu@intel.com
 
-On Fri, Mar 04, 2011 at 12:07:00AM +0800, Peter Zijlstra wrote:
-> On Thu, 2011-03-03 at 14:45 +0800, Wu Fengguang wrote:
-> > +static void nfs_wait_contested(int is_sync,
-> > +                              struct backing_dev_info *bdi,
-> > +                              wait_queue_head_t *wqh) 
-> 
-> s/contested/congested/ ?
+--20cf30549ed9318e30049d9e7195
+Content-Type: text/plain; charset=ISO-8859-1
 
-Good catch. Will update in another email.
+On Thu, Mar 3, 2011 at 9:50 AM, KOSAKI Motohiro <
+kosaki.motohiro@jp.fujitsu.com> wrote:
+
+> > [Summery]
+> >
+> > In order to evaluate page cache efficiency, system admins are happy to
+> > know whether a block of data is cached for subsequent use, or whether
+> > the page is read-in but seldom used. This patch extends an effort to
+> > provide such kind of information. We adds three counters, which are
+> > exported to the user space, for the Page Cache that is almost
+> > transparent to the applications. This would benifit some heavy page
+> > cache users that might try to tune the performance in hybrid storage
+> > situation.
+>
+> I think you need to explain exact and concrete use-case. Typically,
+> cache-hit ratio doesn't help administrator at all. because merely backup
+> operation (eg. cp, dd, et al) makes prenty cache-miss. But it is no sign
+> of memory shortage. Usually, vmscan stastics may help memroy utilization
+> obzavation.
+>
+> Plus, as ingo said, you have to consider to use trancepoint framework
+> at first. Because, it is zero cost if an admin don't enable such
+> tracepoint.
+>
+>
+Thanks very much for your comments.
+
+Yeah, we'er going to try tracepoint and perf as Ingo said.
+
+
+> At last, I don't think disk_stats have to have page cache stastics. It
+> seems
+> slightly layer violation.
+>
+> Thanks.
+>
+>
+This is the starting point of the patch set, so I simply embedded the
+structure into the existing infrastructure. This did saved me a lot of
+effort because disk_stats is a good place to collect stats on _partition_
+basis. Anyway, as you pointed out, this is kind of the mess.
 
 Thanks,
-Fengguang
+Yuan
+
+--20cf30549ed9318e30049d9e7195
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<br><br><div class=3D"gmail_quote">On Thu, Mar 3, 2011 at 9:50 AM, KOSAKI M=
+otohiro <span dir=3D"ltr">&lt;<a href=3D"mailto:kosaki.motohiro@jp.fujitsu.=
+com">kosaki.motohiro@jp.fujitsu.com</a>&gt;</span> wrote:<br><blockquote cl=
+ass=3D"gmail_quote" style=3D"margin: 0pt 0pt 0pt 0.8ex; border-left: 1px so=
+lid rgb(204, 204, 204); padding-left: 1ex;">
+<div class=3D"im">&gt; [Summery]<br>
+&gt;<br>
+&gt; In order to evaluate page cache efficiency, system admins are happy to=
+<br>
+&gt; know whether a block of data is cached for subsequent use, or whether<=
+br>
+&gt; the page is read-in but seldom used. This patch extends an effort to<b=
+r>
+&gt; provide such kind of information. We adds three counters, which are<br=
+>
+&gt; exported to the user space, for the Page Cache that is almost<br>
+&gt; transparent to the applications. This would benifit some heavy page<br=
+>
+&gt; cache users that might try to tune the performance in hybrid storage<b=
+r>
+&gt; situation.<br>
+<br>
+</div>I think you need to explain exact and concrete use-case. Typically,<b=
+r>
+cache-hit ratio doesn&#39;t help administrator at all. because merely backu=
+p<br>
+operation (eg. cp, dd, et al) makes prenty cache-miss. But it is no sign<br=
+>
+of memory shortage. Usually, vmscan stastics may help memroy utilization<br=
+>
+obzavation.<br>
+<br>
+Plus, as ingo said, you have to consider to use trancepoint framework<br>
+at first. Because, it is zero cost if an admin don&#39;t enable such tracep=
+oint.<br>
+<br></blockquote><div><br>Thanks very much for your comments.<br><br>Yeah, =
+we&#39;er going to try tracepoint and perf as Ingo said.<br>=A0</div><block=
+quote class=3D"gmail_quote" style=3D"margin: 0pt 0pt 0pt 0.8ex; border-left=
+: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
+
+At last, I don&#39;t think disk_stats have to have page cache stastics. It =
+seems<br>
+slightly layer violation.<br>
+<br>
+Thanks.<br>
+<br></blockquote><div><br>This is the starting point of the patch set, so I=
+ simply embedded the structure into the existing infrastructure. This did s=
+aved me a lot of effort because disk_stats is a good place to collect stats=
+ on _partition_=A0 basis. Anyway, as you pointed out, this is kind of the m=
+ess.<br>
+</div></div><br>Thanks,<br>Yuan<br>
+
+--20cf30549ed9318e30049d9e7195--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
