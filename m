@@ -1,88 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id BBB098D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 19:31:02 -0500 (EST)
-Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
-	by smtp-out.google.com with ESMTP id p240UiTS010792
-	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 16:30:44 -0800
-Received: from qyl38 (qyl38.prod.google.com [10.241.83.230])
-	by hpaq13.eem.corp.google.com with ESMTP id p240URwf027114
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 16:30:43 -0800
-Received: by qyl38 with SMTP id 38so1431440qyl.8
-        for <linux-mm@kvack.org>; Thu, 03 Mar 2011 16:30:43 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20110302231727.GG2547@redhat.com>
-References: <1298669760-26344-1-git-send-email-gthelen@google.com>
- <1298669760-26344-10-git-send-email-gthelen@google.com> <20110302231727.GG2547@redhat.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Thu, 3 Mar 2011 16:30:23 -0800
-Message-ID: <AANLkTinSrmH-XGuFMBve9SczdXsmKzJbFN4cZ234=z9A@mail.gmail.com>
-Subject: Re: [PATCH v5 9/9] memcg: check memcg dirty limits in page writeback
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D1928D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 19:32:59 -0500 (EST)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p240RfCf001600
+	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 17:27:41 -0700
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p240WpFF104522
+	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 17:32:51 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p240US5m022331
+	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 17:30:28 -0700
+Subject: Re: [PATCH] Make /proc/slabinfo 0400
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <1299193700.3062.260.camel@calx>
+References: <1299174652.2071.12.camel@dan>  <1299185882.3062.233.camel@calx>
+	 <1299186986.2071.90.camel@dan>  <1299188667.3062.259.camel@calx>
+	 <1299191400.2071.203.camel@dan>  <1299193700.3062.260.camel@calx>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Thu, 03 Mar 2011 16:32:49 -0800
+Message-ID: <1299198769.8493.2981.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
+To: Matt Mackall <mpm@selenic.com>
+Cc: Dan Rosenberg <drosenberg@vsecurity.com>, cl@linux-foundation.org, penberg@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Mar 2, 2011 at 3:17 PM, Vivek Goyal <vgoyal@redhat.com> wrote:
-> On Fri, Feb 25, 2011 at 01:36:00PM -0800, Greg Thelen wrote:
->
-> [..]
->> @@ -500,18 +527,27 @@ static void balance_dirty_pages(struct address_spa=
-ce *mapping,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 };
->>
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 global_dirty_info(&sys_info);
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (!memcg_dirty_info(NULL, &memcg_info))
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg_info =3D sys_info;
->>
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Throttle it only when the background wr=
-iteback cannot
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* catch-up. This avoids (excessively) sma=
-ll writeouts
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* when the bdi limits are ramping up.
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
->> - =A0 =A0 =A0 =A0 =A0 =A0 if (dirty_info_reclaimable(&sys_info) + sys_in=
-fo.nr_writeback <=3D
->> + =A0 =A0 =A0 =A0 =A0 =A0 if ((dirty_info_reclaimable(&sys_info) +
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sys_info.nr_writeback <=3D
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (sys_info.ba=
-ckground_thresh +
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sys_info.di=
-rty_thresh) / 2)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sys_info.di=
-rty_thresh) / 2) &&
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (dirty_info_reclaimable(&memcg_info) +
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0memcg_info.nr_writeback <=3D
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (memcg_info.ba=
-ckground_thresh +
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0memcg_info.=
-dirty_thresh) / 2))
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->>
->> - =A0 =A0 =A0 =A0 =A0 =A0 bdi_thresh =3D bdi_dirty_limit(bdi, sys_info.d=
-irty_thresh);
->> + =A0 =A0 =A0 =A0 =A0 =A0 bdi_thresh =3D bdi_dirty_limit(bdi,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 min(sys_info.d=
-irty_thresh,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg_=
-info.dirty_thresh));
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 bdi_thresh =3D task_dirty_limit(current, bdi=
-_thresh);
->
-> Greg, so currently we seem to have per_bdi/per_task dirty limits and
-> now with this patch it will sort of become per_cgroup/per_bdi/per_task
-> dirty limits? I think that kind of makes sense to me.
->
-> Thanks
-> Vivek
->
+On Thu, 2011-03-03 at 17:08 -0600, Matt Mackall wrote:
+> > I appreciate your input on this, you've made very reasonable points.
+> > I'm just not convinced that those few real users are being substantially
+> > inconvenienced, even if there's only a small benefit for the larger
+> > population of users who are at risk for attacks.  Perhaps others could
+> > contribute their opinions to the discussion.
 
-Vivek,  you are correct.  This patch adds per_cgroup limits to the
-existing system, bdi, and system dirty memory limits.
+
+Kees Cook was nice enough to point out a few of the ways this can get
+misused.  It looks like the basic pattern is to use slabinfo to
+determine where an object was likely to have been allocated in the slab
+in order to more precisely target the next stage of the attack.
+
+I do see how much easier slabinfo makes this.  Do any of the attacks
+that we know about rely on anything _but_ trying to figure out when a
+slab page got consumed?
+
+If I were an attacker, I'd probably just start watching /proc/meminfo
+for when Slab/SReclaimable/SUnreclaim get bumped.  That'll also give me
+a pretty good indicator of where my object is in the slab.
+
+Granted, doing that still puts one more level of opaqueness in the way.
+slabinfo definitely makes it more straightforward.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
