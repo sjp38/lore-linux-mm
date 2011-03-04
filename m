@@ -1,79 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9BDB18D0039
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 18:02:43 -0500 (EST)
-Subject: Re: [PATCH] Make /proc/slabinfo 0400
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <AANLkTikQxOgYFLbc2KbEKgRYL1RCnkPE-T80-GBY2Cgj@mail.gmail.com>
-References: <1299174652.2071.12.camel@dan> <1299185882.3062.233.camel@calx>
-	 <1299186986.2071.90.camel@dan> <1299188667.3062.259.camel@calx>
-	 <1299191400.2071.203.camel@dan>
-	 <2DD7330B-2FED-4E58-A76D-93794A877A00@mit.edu>
-	 <AANLkTimpfk8EHjVKYsJv0p_G7tS2yB-n=PPbD2v7xefV@mail.gmail.com>
-	 <1299260164.8493.4071.camel@nimitz>
-	 <AANLkTim+XcYiiM9u8nT659FHaZO1RPDEtyAgFtiA8VOk@mail.gmail.com>
-	 <1299262495.3062.298.camel@calx>
-	 <AANLkTimRN_=APe_PWMFe_6CHHC7psUbCYE-O0qc=mmYY@mail.gmail.com>
-	 <1299270709.3062.313.camel@calx> <1299271377.2071.1406.camel@dan>
-	 <AANLkTik6tAfaSr3wxdQ1u_Hd326TmNZe0-FQc3NuYMKN@mail.gmail.com>
-	 <1299272907.2071.1415.camel@dan>
-	 <AANLkTina+O77BFV+7mO9fX2aJimpO0ov_MKwxGtMwqG+@mail.gmail.com>
-	 <1299275042.2071.1422.camel@dan>
-	 <AANLkTikA=88EMs8RRm0RPQ+Q9nKj=2G+G86h5nCnV7Se@mail.gmail.com>
-	 <AANLkTikQxOgYFLbc2KbEKgRYL1RCnkPE-T80-GBY2Cgj@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 04 Mar 2011 17:02:36 -0600
-Message-ID: <1299279756.3062.361.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BB7E18D0039
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 18:42:19 -0500 (EST)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id p24NfkHk029941
+	for <linux-mm@kvack.org>; Fri, 4 Mar 2011 15:41:46 -0800
+Received: from pvc30 (pvc30.prod.google.com [10.241.209.158])
+	by wpaz37.hot.corp.google.com with ESMTP id p24NfiJ7030489
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 4 Mar 2011 15:41:45 -0800
+Received: by pvc30 with SMTP id 30so629555pvc.20
+        for <linux-mm@kvack.org>; Fri, 04 Mar 2011 15:41:44 -0800 (PST)
+Date: Fri, 4 Mar 2011 15:41:41 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH rh6] mm: skip zombie in OOM-killer
+In-Reply-To: <1299274256-2122-1-git-send-email-avagin@openvz.org>
+Message-ID: <alpine.DEB.2.00.1103041541040.7795@chino.kir.corp.google.com>
+References: <1299274256-2122-1-git-send-email-avagin@openvz.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Dan Rosenberg <drosenberg@vsecurity.com>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Theodore Tso <tytso@mit.edu>, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrey Vagin <avagin@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, 2011-03-05 at 00:14 +0200, Pekka Enberg wrote:
-> On Sat, Mar 5, 2011 at 12:10 AM, Pekka Enberg <penberg@kernel.org> wrote:
-> > I can think of four things that will make things harder for the
-> > attacker (in the order of least theoretical performance impact):
-> >
-> >  (1) disable slub merging
-> >
-> >  (2) pin down random objects in the slab during setup (i.e. don't
-> > allow them to be allocated)
-> >
-> >  (3) randomize the initial freelist
-> >
-> >  (4) randomize padding between objects in a slab
-> >
-> > AFAICT, all of them will make brute force attacks using the kernel
-> > heap as an attack vector harder but won't prevent them.
-> 
-> There's also a fifth one:
-> 
->   (5) randomize slab page allocation order
-> 
-> which will make it harder to make sure you have full control over a
-> slab and figure out which allocation lands on it.
+On Sat, 5 Mar 2011, Andrey Vagin wrote:
 
-I think the real issue here is that it's too easy to write code that
-copies too many bytes from userspace. Every piece of code writes its own
-bound checks on copy_from_user, for instance, and gets it wrong by
-hitting signed/unsigned issues, alignment issues, etc. that are on the
-very edge of the average C coder's awareness. 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 7dcca55..2fc554e 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -311,7 +311,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+>  		 * blocked waiting for another task which itself is waiting
+>  		 * for memory. Is there a better alternative?
+>  		 */
+> -		if (test_tsk_thread_flag(p, TIF_MEMDIE))
+> +		if (test_tsk_thread_flag(p, TIF_MEMDIE) && p->mm)
+>  			return ERR_PTR(-1UL);
+>  
+>  		/*
 
-We need functions that are hard to abuse and coding patterns that are
-easy to copy, easy to review, and take the tricky bits out of the hands
-of driver writers.
+I think it would be better to just do
 
-I'm not really sure what that looks like yet, but a copy that does its
-own bounds-checking seems like a start:
+	if (!p->mm)
+		continue;
 
-copy_from_user(dst, src, n, limit) # warning when limit is hit
-copy_from_user_nw(dst, src, n, limit) # no warning version
-
--- 
-Mathematics is the supreme nostalgia of our time.
-
+after the check for oom_unkillable_task() because everything that follows 
+this really depends on p->mm being non-NULL to actually do anything 
+useful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
