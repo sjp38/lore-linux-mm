@@ -1,78 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AF7EF8D0039
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 03:30:53 -0500 (EST)
+	by kanga.kvack.org (Postfix) with ESMTP id 8FB2C8D0039
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 03:34:39 -0500 (EST)
 Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 44E0D3EE0BD
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:30:50 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A00FC3EE0BD
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:34:36 +0900 (JST)
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C07845DE53
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:30:50 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 85EC845DE5A
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:34:36 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0086C45DE55
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:30:50 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B69B45DE53
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:34:36 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E71AA1DB8049
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:30:49 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B1C191DB8046
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:30:49 +0900 (JST)
-Date: Fri, 4 Mar 2011 17:24:30 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D9A9E38006
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:34:36 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 20011E08001
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:34:36 +0900 (JST)
+Date: Fri, 4 Mar 2011 17:28:15 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: cgroup memory, blkio and the lovely swapping
-Message-Id: <20110304172430.19a3824a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110304091132.6de2ed94@sol>
-References: <20110304083944.22fb612f@sol>
-	<20110304165455.d438342a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110304091132.6de2ed94@sol>
+Subject: Re: [Bugme-new] [Bug 30432] New: rmdir on cgroup can cause hang
+ tasks
+Message-Id: <20110304172815.9d9e3672.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110304000355.4f68bab1.akpm@linux-foundation.org>
+References: <bug-30432-10286@https.bugzilla.kernel.org/>
+	<20110304000355.4f68bab1.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Poelzleithner <poelzi@poelzi.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: containers@lists.osdl.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Daniel Poelzleithner <poelzi@poelzi.org>
 
-On Fri, 4 Mar 2011 09:11:32 +0100
-Daniel Poelzleithner <poelzi@poelzi.org> wrote:
+On Fri, 4 Mar 2011 00:03:55 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> On Fri, 4 Mar 2011 16:54:55 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > Now, blkio cgroup does work only with synchronous I/O(direct I/O)
-> > and never work with swap I/O. And I don't think swap-i/o limit
-> > is a blkio matter.
-> 
-> I'm totally unsure about what subsystem it really belongs to. It is
-> memory for sure, but disk access, which it actually affects, belongs to
-> the blkio subsystem. Is there a technical reason why swap I/O is not run
-> through the blkio system ?
-> 
-
-Now, blkio cgroup has no tags on each page. Then, it works only when
-it can detect a thread which starts I/O in block layer.
-But there is an activity to fix that.
-
-http://marc.info/?l=linux-mm&m=129888823027871&w=2
-
-I think you can discuss swap io handling in this thread.
-
-> 
-> > Memory cgroup is now developping dirty_ratio for memory cgroup.
-> > By that, you can control the number of pages in writeback, in memory
-> > cgroup. I think it will work for you.
-> 
-> I'm not sure that fixes the fairness problem on swapio. Just having a
-> larger buffer before a writeback happens will reduce seeks, but not
-> give fair share of io in swap in. It's good to control over it on
-> cgroup level, but i doubt it will fix the problem.
+> > [ 5066.149853] Call Trace:
+> > [ 5066.149853]  [<ffffffff8158e4d5>] schedule_timeout+0x215/0x2f0
+> > [ 5066.149853]  [<ffffffff8104e4fd>] ? task_rq_lock+0x5d/0xa0
+> > [ 5066.149853]  [<ffffffff81059c93>] ? try_to_wake_up+0xc3/0x410
+> > [ 5066.149853]  [<ffffffff8158e0cb>] wait_for_common+0xdb/0x180
+> > [ 5066.149853]  [<ffffffff81059fe0>] ? default_wake_function+0x0/0x20
+> > [ 5066.244366]  [<ffffffff8158e24d>] wait_for_completion+0x1d/0x20
+> > [ 5066.244366]  [<ffffffff810d44f5>] synchronize_sched+0x55/0x60
+> > [ 5066.244366]  [<ffffffff81080b00>] ? wakeme_after_rcu+0x0/0x20
+> > [ 5066.244366]  [<ffffffff811526a3>] mem_cgroup_start_move+0x93/0xa0
+> > [ 5066.244366]  [<ffffffff8115739b>] mem_cgroup_force_empty+0xdb/0x640
+> > [ 5066.244366]  [<ffffffff81157914>] mem_cgroup_pre_destroy+0x14/0x20
+> > [ 5066.244366]  [<ffffffff810ae681>] cgroup_rmdir+0xc1/0x560
+> > [ 5066.244366]  [<ffffffff81083d70>] ? autoremove_wake_function+0x0/0x40
+> > [ 5066.244366]  [<ffffffff81167cc4>] vfs_rmdir+0xb4/0x110
+> > [ 5066.244366]  [<ffffffff81169d13>] do_rmdir+0x133/0x140
+> > [ 5066.244366]  [<ffffffff810d3c85>] ? call_rcu_sched+0x15/0x20
+> > [ 5066.244366]  [<ffffffff810bf6ff>] ? audit_syscall_entry+0x1df/0x280
+> > [ 5066.244366]  [<ffffffff81169d76>] sys_rmdir+0x16/0x20
+> > [ 5066.244366]  [<ffffffff8100c042>] system_call_fastpath+0x16/0x1b
 > 
 
-swap-in is out-of-control from memcg's view and have no plans.
-IHMO, the number of swap-in will be blkio cgroup matter.
+This seems....
+==
+static void mem_cgroup_start_move(struct mem_cgroup *mem)
+{
+.....
+	put_online_cpus();
 
-Thanks,
--Kame 
+        synchronize_rcu();   <---------(*)
+}
+==
+
+Waiting on above synchronize_rcu().
+
+Hmm...
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
