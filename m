@@ -1,36 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F20C38D0039
-	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 19:30:26 -0500 (EST)
-Date: Thu, 3 Mar 2011 16:18:26 -0800
-From: Greg KH <greg@kroah.com>
-Subject: Re: stable: mm: vmstat: use a single setter function and callback
- for adjusting percpu thresholds
-Message-ID: <20110304001826.GA2429@kroah.com>
-References: <20110303110324.GH14162@csn.ul.ie>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id BBB098D0039
+	for <linux-mm@kvack.org>; Thu,  3 Mar 2011 19:31:02 -0500 (EST)
+Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
+	by smtp-out.google.com with ESMTP id p240UiTS010792
+	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 16:30:44 -0800
+Received: from qyl38 (qyl38.prod.google.com [10.241.83.230])
+	by hpaq13.eem.corp.google.com with ESMTP id p240URwf027114
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 3 Mar 2011 16:30:43 -0800
+Received: by qyl38 with SMTP id 38so1431440qyl.8
+        for <linux-mm@kvack.org>; Thu, 03 Mar 2011 16:30:43 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110303110324.GH14162@csn.ul.ie>
+In-Reply-To: <20110302231727.GG2547@redhat.com>
+References: <1298669760-26344-1-git-send-email-gthelen@google.com>
+ <1298669760-26344-10-git-send-email-gthelen@google.com> <20110302231727.GG2547@redhat.com>
+From: Greg Thelen <gthelen@google.com>
+Date: Thu, 3 Mar 2011 16:30:23 -0800
+Message-ID: <AANLkTinSrmH-XGuFMBve9SczdXsmKzJbFN4cZ234=z9A@mail.gmail.com>
+Subject: Re: [PATCH v5 9/9] memcg: check memcg dirty limits in page writeback
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@linux-foundation.org, "Nadolski, Edmund" <edmund.nadolski@intel.com>, Greg KH <gregkh@suse.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, Christoph Lameter <cl@linux.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, stable@kernel.org, linux-mm@kvack.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
 
-On Thu, Mar 03, 2011 at 11:03:24AM +0000, Mel Gorman wrote:
-> Edmund Nadolski reported the same problem Kosaki did against the commit
-> [88f5acf8: mm: page allocator: adjust the per-cpu counter threshold when
-> memory is low] whereby kswapd was in an inconsistent locking state due
-> to calling get_online_cpus(): See https://lkml.org/lkml/2011/3/2/398 for
-> details. This is already fixed upstream by commit [b44129b3: mm: vmstat: use
-> a single setter function and callback for adjusting percpu thresholds]. Unless
-> there is an objection, can this be picked up for 2.6.37-stable please?
-> Ideally it would apply against 2.6.36.x as well but that release is no
-> longer maintained.
+On Wed, Mar 2, 2011 at 3:17 PM, Vivek Goyal <vgoyal@redhat.com> wrote:
+> On Fri, Feb 25, 2011 at 01:36:00PM -0800, Greg Thelen wrote:
+>
+> [..]
+>> @@ -500,18 +527,27 @@ static void balance_dirty_pages(struct address_spa=
+ce *mapping,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 };
+>>
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 global_dirty_info(&sys_info);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (!memcg_dirty_info(NULL, &memcg_info))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg_info =3D sys_info;
+>>
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Throttle it only when the background wr=
+iteback cannot
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* catch-up. This avoids (excessively) sma=
+ll writeouts
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* when the bdi limits are ramping up.
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+>> - =A0 =A0 =A0 =A0 =A0 =A0 if (dirty_info_reclaimable(&sys_info) + sys_in=
+fo.nr_writeback <=3D
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if ((dirty_info_reclaimable(&sys_info) +
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sys_info.nr_writeback <=3D
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (sys_info.ba=
+ckground_thresh +
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sys_info.di=
+rty_thresh) / 2)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sys_info.di=
+rty_thresh) / 2) &&
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (dirty_info_reclaimable(&memcg_info) +
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0memcg_info.nr_writeback <=3D
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (memcg_info.ba=
+ckground_thresh +
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0memcg_info.=
+dirty_thresh) / 2))
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
+>>
+>> - =A0 =A0 =A0 =A0 =A0 =A0 bdi_thresh =3D bdi_dirty_limit(bdi, sys_info.d=
+irty_thresh);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 bdi_thresh =3D bdi_dirty_limit(bdi,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 min(sys_info.d=
+irty_thresh,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg_=
+info.dirty_thresh));
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 bdi_thresh =3D task_dirty_limit(current, bdi=
+_thresh);
+>
+> Greg, so currently we seem to have per_bdi/per_task dirty limits and
+> now with this patch it will sort of become per_cgroup/per_bdi/per_task
+> dirty limits? I think that kind of makes sense to me.
+>
+> Thanks
+> Vivek
+>
 
-Now queued up, thanks.
-
-greg k-h
+Vivek,  you are correct.  This patch adds per_cgroup limits to the
+existing system, bdi, and system dirty memory limits.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
