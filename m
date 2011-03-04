@@ -1,27 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FB2C8D0039
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 03:34:39 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A00FC3EE0BD
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:34:36 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 85EC845DE5A
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:34:36 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B69B45DE53
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:34:36 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D9A9E38006
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:34:36 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 20011E08001
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 17:34:36 +0900 (JST)
-Date: Fri, 4 Mar 2011 17:28:15 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C928C8D0039
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 04:04:52 -0500 (EST)
+Date: Fri, 4 Mar 2011 18:02:41 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Subject: Re: [Bugme-new] [Bug 30432] New: rmdir on cgroup can cause hang
  tasks
-Message-Id: <20110304172815.9d9e3672.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20110304180241.b6f08243.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20110304000355.4f68bab1.akpm@linux-foundation.org>
 References: <bug-30432-10286@https.bugzilla.kernel.org/>
 	<20110304000355.4f68bab1.akpm@linux-foundation.org>
@@ -30,12 +15,110 @@ Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: containers@lists.osdl.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Paul Menage <menage@google.com>, Daniel Poelzleithner <poelzi@poelzi.org>
+To: Daniel Poelzleithner <poelzi@poelzi.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, containers@lists.osdl.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+
+Hi, thank you for your report.
+
+I have some questions.
 
 On Fri, 4 Mar 2011 00:03:55 -0800
 Andrew Morton <akpm@linux-foundation.org> wrote:
 
+> 
+> (switched to email.  Please respond via emailed reply-to-all, not via the
+> bugzilla web interface).
+> 
+> On Fri, 4 Mar 2011 04:27:26 GMT bugzilla-daemon@bugzilla.kernel.org wrote:
+> 
+> > https://bugzilla.kernel.org/show_bug.cgi?id=30432
+> > 
+> >            Summary: rmdir on cgroup can cause hang tasks
+> >            Product: Process Management
+> >            Version: 2.5
+> >     Kernel Version: 2.6.37
+> >           Platform: All
+> >         OS/Version: Linux
+> >               Tree: Mainline
+> >             Status: NEW
+> >           Severity: high
+> >           Priority: P1
+> >          Component: Other
+> >         AssignedTo: process_other@kernel-bugs.osdl.org
+> >         ReportedBy: bugzilla.kernel.org@poelzi.org
+> >         Regression: No
+> > 
+> > 
+> > I just got following hang when removing an empty cgroup. I had still a shell in
+> > the cgroup that got emptied and removed. The shell as well as the release_agent
+> > and the program managing the cgroup hangs.
+> > 
+You tried to remove a cgroup directory via release_agent(i.e. you enabled "notify_on_release",
+and make the release_agent remove the directory)?
+
+And can you show your /proc/cgroups ?
+
+Thanks,
+Daisuke Nishimura.
+
+> > The directory structure looks like:
+> > /sys/fs/cgroup/memory/usr_1000/psn_3234
+> > 
+> > ls on /sys/fs/cgroup/memory but ls on /sys/fs/cgroup/memory/usr_1000 hangs.
+> > 
+> > 
+> > [ 5065.280666] SysRq : Changing Loglevel
+> > [ 5065.282574] Loglevel set to 5
+> > [ 5066.139879] SysRq : Show Blocked State
+> > [ 5066.141848]   task                        PC stack   pid father
+> > [ 5066.141925] zsh           D ffff880071520398     0  8719   3589 0x00000084
+> > [ 5066.141937]  ffff880002059bd8 0000000000000086 ffff880002059bb8
+> > ffffffff00000000
+> > [ 5066.143971]  00000000000139c0 ffff880071520000 ffff880071520398
+> > ffff880002059fd8
+> > [ 5066.146049]  ffff8800715203a0 00000000000139c0 ffff880002058010
+> > 00000000000139c0
+> > [ 5066.148183] Call Trace:
+> > [ 5066.149853]  [<ffffffff8158ec97>] __mutex_lock_slowpath+0xf7/0x180
+> > [ 5066.149853]  [<ffffffff812d74a6>] ? vsnprintf+0x416/0x5a0
+> > [ 5066.149853]  [<ffffffff8158eb7b>] mutex_lock+0x2b/0x50
+> > [ 5066.149853]  [<ffffffff81168252>] do_lookup+0x102/0x180
+> > [ 5066.149853]  [<ffffffff81168dfd>] link_path_walk+0x4dd/0x9e0
+> > [ 5066.149853]  [<ffffffff81169417>] path_walk+0x67/0xe0
+> > [ 5066.149853]  [<ffffffff811695eb>] do_path_lookup+0x5b/0xa0
+> > [ 5066.149853]  [<ffffffff8116a2f7>] user_path_at+0x57/0xa0
+> > [ 5066.149853]  [<ffffffff815940e0>] ? do_page_fault+0x1f0/0x4f0
+> > [ 5066.149853]  [<ffffffff81075e6c>] ? kill_pid_info+0x2c/0x60
+> > [ 5066.149853]  [<ffffffff811604fc>] vfs_fstatat+0x3c/0x80
+> > [ 5066.149853]  [<ffffffff8116061b>] vfs_stat+0x1b/0x20
+> > [ 5066.149853]  [<ffffffff81160644>] sys_newstat+0x24/0x50
+> > [ 5066.149853]  [<ffffffff810bf6ff>] ? audit_syscall_entry+0x1df/0x280
+> > [ 5066.149853]  [<ffffffff8100c042>] system_call_fastpath+0x16/0x1b
+> > [ 5066.149853] ulatencyd     D ffff88007a0bc7d8     0  9004   4809 0x00000084
+> > [ 5066.149853]  ffff880070b55cd8 0000000000000082 0000000000000082
+> > ffff88002c9d16c0
+> > [ 5066.149853]  00000000000139c0 ffff88007a0bc440 ffff88007a0bc7d8
+> > ffff880070b55fd8
+> > [ 5066.149853]  ffff88007a0bc7e0 00000000000139c0 ffff880070b54010
+> > 00000000000139c0
+> > [ 5066.149853] Call Trace:
+> > [ 5066.149853]  [<ffffffff8158ec97>] __mutex_lock_slowpath+0xf7/0x180
+> > [ 5066.149853]  [<ffffffff81166124>] ? exec_permission+0x44/0x90
+> > [ 5066.149853]  [<ffffffff8158eb7b>] mutex_lock+0x2b/0x50
+> > [ 5066.149853]  [<ffffffff81168418>] do_last+0x148/0x650
+> > [ 5066.149853]  [<ffffffff8116a6d5>] do_filp_open+0x205/0x5f0
+> > [ 5066.149853]  [<ffffffff81167281>] ? path_put+0x31/0x40
+> > [ 5066.149853]  [<ffffffff8117593a>] ? alloc_fd+0x10a/0x150
+> > [ 5066.149853]  [<ffffffff81159bb9>] do_sys_open+0x69/0x110
+> > [ 5066.149853]  [<ffffffff81159ca0>] sys_open+0x20/0x30
+> > [ 5066.149853]  [<ffffffff8100c042>] system_call_fastpath+0x16/0x1b
+> > [ 5066.149853] lua           D ffff88002c91b118     0  9487      1 0x00000080
+> > [ 5066.149853]  ffff880078f6db08 0000000000000086 ffff88002c91b118
+> > ffff880000000000
+> > [ 5066.149853]  00000000000139c0 ffff88002c91ad80 ffff88002c91b118
+> > ffff880078f6dfd8
+> > [ 5066.149853]  ffff88002c91b120 00000000000139c0 ffff880078f6c010
+> > 00000000000139c0
 > > [ 5066.149853] Call Trace:
 > > [ 5066.149853]  [<ffffffff8158e4d5>] schedule_timeout+0x215/0x2f0
 > > [ 5066.149853]  [<ffffffff8104e4fd>] ? task_rq_lock+0x5d/0xa0
@@ -57,22 +140,12 @@ Andrew Morton <akpm@linux-foundation.org> wrote:
 > > [ 5066.244366]  [<ffffffff81169d76>] sys_rmdir+0x16/0x20
 > > [ 5066.244366]  [<ffffffff8100c042>] system_call_fastpath+0x16/0x1b
 > 
-
-This seems....
-==
-static void mem_cgroup_start_move(struct mem_cgroup *mem)
-{
-.....
-	put_online_cpus();
-
-        synchronize_rcu();   <---------(*)
-}
-==
-
-Waiting on above synchronize_rcu().
-
-Hmm...
--Kame
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
