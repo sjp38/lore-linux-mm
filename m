@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BED2A8D003D
+	by kanga.kvack.org (Postfix) with ESMTP id E98C28D003F
 	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 11:42:38 -0500 (EST)
 Received: from unknown (HELO localhost.localdomain) (zcncxNmDysja2tXBptWToZWJlF6Wp6IuYnI=@[200.157.204.20])
           (envelope-sender <cesarb@cesarb.net>)
           by smtp-03.mandic.com.br (qmail-ldap-1.03) with AES256-SHA encrypted SMTP
           for <linux-mm@kvack.org>; 5 Mar 2011 16:42:35 -0000
 From: Cesar Eduardo Barros <cesarb@cesarb.net>
-Subject: [PATCHv2 05/24] sys_swapon: simplify error return from swap_info allocation
-Date: Sat,  5 Mar 2011 13:42:06 -0300
-Message-Id: <1299343345-3984-6-git-send-email-cesarb@cesarb.net>
+Subject: [PATCHv2 06/24] sys_swapon: simplify error flow in alloc_swap_info
+Date: Sat,  5 Mar 2011 13:42:07 -0300
+Message-Id: <1299343345-3984-7-git-send-email-cesarb@cesarb.net>
 In-Reply-To: <1299343345-3984-1-git-send-email-cesarb@cesarb.net>
 References: <1299343345-3984-1-git-send-email-cesarb@cesarb.net>
 Sender: owner-linux-mm@kvack.org
@@ -17,33 +17,51 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, Eric B Munson <emunson@mgebm.net>, Cesar Eduardo Barros <cesarb@cesarb.net>
 
-At this point in sys_swapon, there is nothing to free. Return directly
-instead of jumping to the cleanup block at the end of the function.
+Since there is no cleanup to do, there is no reason to jump to a label.
+Return directly instead.
 
 Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 Tested-by: Eric B Munson <emunson@mgebm.net>
 Acked-by: Eric B Munson <emunson@mgebm.net>
 ---
- mm/swapfile.c |    6 ++----
- 1 files changed, 2 insertions(+), 4 deletions(-)
+ mm/swapfile.c |    7 +------
+ 1 files changed, 1 insertions(+), 6 deletions(-)
 
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 91ca0f0..8969b37 100644
+index 8969b37..c97dc4b 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -1918,10 +1918,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		return -EPERM;
+@@ -1848,7 +1848,6 @@ static struct swap_info_struct *alloc_swap_info(void)
+ {
+ 	struct swap_info_struct *p;
+ 	unsigned int type;
+-	int error;
  
- 	p = alloc_swap_info();
--	if (IS_ERR(p)) {
--		error = PTR_ERR(p);
+ 	p = kzalloc(sizeof(*p), GFP_KERNEL);
+ 	if (!p)
+@@ -1859,11 +1858,10 @@ static struct swap_info_struct *alloc_swap_info(void)
+ 		if (!(swap_info[type]->flags & SWP_USED))
+ 			break;
+ 	}
+-	error = -EPERM;
+ 	if (type >= MAX_SWAPFILES) {
+ 		spin_unlock(&swap_lock);
+ 		kfree(p);
 -		goto out;
--	}
-+	if (IS_ERR(p))
-+		return PTR_ERR(p);
++		return ERR_PTR(-EPERM);
+ 	}
+ 	if (type >= nr_swapfiles) {
+ 		p->type = type;
+@@ -1889,9 +1887,6 @@ static struct swap_info_struct *alloc_swap_info(void)
+ 	spin_unlock(&swap_lock);
  
- 	name = getname(specialfile);
- 	error = PTR_ERR(name);
+ 	return p;
+-
+-out:
+-	return ERR_PTR(error);
+ }
+ 
+ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 -- 
 1.7.4
 
