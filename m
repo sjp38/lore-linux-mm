@@ -1,53 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BB7E18D0039
-	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 18:42:19 -0500 (EST)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id p24NfkHk029941
-	for <linux-mm@kvack.org>; Fri, 4 Mar 2011 15:41:46 -0800
-Received: from pvc30 (pvc30.prod.google.com [10.241.209.158])
-	by wpaz37.hot.corp.google.com with ESMTP id p24NfiJ7030489
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 4 Mar 2011 15:41:45 -0800
-Received: by pvc30 with SMTP id 30so629555pvc.20
-        for <linux-mm@kvack.org>; Fri, 04 Mar 2011 15:41:44 -0800 (PST)
-Date: Fri, 4 Mar 2011 15:41:41 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH rh6] mm: skip zombie in OOM-killer
-In-Reply-To: <1299274256-2122-1-git-send-email-avagin@openvz.org>
-Message-ID: <alpine.DEB.2.00.1103041541040.7795@chino.kir.corp.google.com>
-References: <1299274256-2122-1-git-send-email-avagin@openvz.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id BF62B8D0039
+	for <linux-mm@kvack.org>; Fri,  4 Mar 2011 19:51:37 -0500 (EST)
+From: Andrey Vagin <avagin@openvz.org>
+Subject: [PATCH] mm: skip zombie in OOM-killer
+Date: Sat,  5 Mar 2011 03:51:47 +0300
+Message-Id: <1299286307-4386-1-git-send-email-avagin@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Vagin <avagin@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, avagin@openvz.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, 5 Mar 2011, Andrey Vagin wrote:
+When we check that task has flag TIF_MEMDIE, we forgot check that
+it has mm. A task may be zombie and a parent may wait a memor.
 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 7dcca55..2fc554e 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -311,7 +311,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
->  		 * blocked waiting for another task which itself is waiting
->  		 * for memory. Is there a better alternative?
->  		 */
-> -		if (test_tsk_thread_flag(p, TIF_MEMDIE))
-> +		if (test_tsk_thread_flag(p, TIF_MEMDIE) && p->mm)
->  			return ERR_PTR(-1UL);
->  
->  		/*
+v2: Check that task doesn't have mm one time and skip it immediately
 
-I think it would be better to just do
+Signed-off-by: Andrey Vagin <avagin@openvz.org>
+---
+ mm/oom_kill.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
 
-	if (!p->mm)
-		continue;
-
-after the check for oom_unkillable_task() because everything that follows 
-this really depends on p->mm being non-NULL to actually do anything 
-useful.
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 7dcca55..b1ce3ba 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -299,6 +299,9 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 	for_each_process(p) {
+ 		unsigned int points;
+ 
++		if (!p->mm)
++			continue;
++
+ 		if (oom_unkillable_task(p, mem, nodemask))
+ 			continue;
+ 
+@@ -324,7 +327,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 		 * the process of exiting and releasing its resources.
+ 		 * Otherwise we could get an easy OOM deadlock.
+ 		 */
+-		if (thread_group_empty(p) && (p->flags & PF_EXITING) && p->mm) {
++		if (thread_group_empty(p) && (p->flags & PF_EXITING)) {
+ 			if (p != current)
+ 				return ERR_PTR(-1UL);
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
