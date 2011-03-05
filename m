@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 684EE8D003F
-	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 12:20:44 -0500 (EST)
-Received: by gyb13 with SMTP id 13so1520283gyb.14
-        for <linux-mm@kvack.org>; Sat, 05 Mar 2011 09:20:25 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 45DC78D003F
+	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 12:21:41 -0500 (EST)
+Received: by yib2 with SMTP id 2so1471228yib.14
+        for <linux-mm@kvack.org>; Sat, 05 Mar 2011 09:21:39 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1299343345-3984-25-git-send-email-cesarb@cesarb.net>
+In-Reply-To: <1299343345-3984-24-git-send-email-cesarb@cesarb.net>
 References: <1299343345-3984-1-git-send-email-cesarb@cesarb.net>
-	<1299343345-3984-25-git-send-email-cesarb@cesarb.net>
-Date: Sat, 5 Mar 2011 19:20:25 +0200
-Message-ID: <AANLkTinEsm6yGcaTMZOVGShSvCVKKMQnHBQec6w1_MtS@mail.gmail.com>
-Subject: Re: [PATCHv2 24/24] sys_swapon: separate final enabling of the swapfile
+	<1299343345-3984-24-git-send-email-cesarb@cesarb.net>
+Date: Sat, 5 Mar 2011 19:21:39 +0200
+Message-ID: <AANLkTinqaotJoaGZh=5iO639JEX7-b03U0LUjrKBTzBo@mail.gmail.com>
+Subject: Re: [PATCHv2 23/24] sys_swapoff: change order to match sys_swapon
 From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
@@ -21,9 +21,10 @@ Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins 
 On Sat, Mar 5, 2011 at 6:42 PM, Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
 > The block in sys_swapon which does the final adjustments to the
 > swap_info_struct and to swap_list is the same as the block which
-> re-inserts it again at sys_swapoff on failure of try_to_unuse(). Move
-> this code to a separate function, and use it both in sys_swapon and
-> sys_swapoff.
+> re-inserts it again at sys_swapoff on failure of try_to_unuse(), except
+> for the order of the operations within the lock. Since the order should
+> not matter, arbitrarily change sys_swapoff to match sys_swapon, in
+> preparation to making both share the same code.
 >
 > Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 > Tested-by: Eric B Munson <emunson@mgebm.net>
