@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 295F48D0039
-	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 17:09:38 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1607C8D0039
+	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 17:20:16 -0500 (EST)
 Subject: Re: [RFC] memblock; Properly handle overlaps
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <1299361819.8833.954.camel@pasglop>
+In-Reply-To: <4D72B2D0.3080700@kernel.org>
 References: <1299297946.8833.931.camel@pasglop>
 	 <4D71CE24.1090302@kernel.org> <1299311788.8833.937.camel@pasglop>
-	 <4D728B8C.2080803@kernel.org>  <1299361063.8833.953.camel@pasglop>
-	 <1299361819.8833.954.camel@pasglop>
+	 <4D728B8C.2080803@kernel.org> <1299361063.8833.953.camel@pasglop>
+	 <4D72B2D0.3080700@kernel.org>
 Content-Type: text/plain; charset="UTF-8"
-Date: Sun, 06 Mar 2011 09:08:46 +1100
-Message-ID: <1299362926.8833.956.camel@pasglop>
+Date: Sun, 06 Mar 2011 09:19:43 +1100
+Message-ID: <1299363583.8833.964.camel@pasglop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -20,22 +20,20 @@ To: Yinghai Lu <yinghai@kernel.org>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H.
  Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Russell King <linux@arm.linux.org.uk>
 
-On Sun, 2011-03-06 at 08:50 +1100, Benjamin Herrenschmidt wrote:
+On Sat, 2011-03-05 at 14:01 -0800, Yinghai Lu wrote:
+> yes. in addition to that, still need to move in base >= end into the
+> previous if block.
+> because only that place upste base, and also me need to make sure end
+> >= start before using
+> them to get fize.
 
-> > The blank array always has a count of 1, so memblock_remove_region()
-> > should be safe to call at any time. I can see how __memblock_remove()
-> > can hit the case of a blank array but that seems harmless to me.
-> 
-> Ok, I see there is indeed a problem as we do an i-- in this case and so
-> end up in an infinite loop trying to remove the fake entry. I'll fix
-> that too. Thanks.
-
-What about this ? This passes some new tests, there were indeed a couple
-of issues related to our weird "blank array not blank" special case,
-they should be dealt with now.
+Well, it's not necessary. We eventually hit the check and the bogus
+size will not be used. But the code looks a bit cleaner so here's
+a 3rd version, passes all my current tests. I still haven't played
+with non-coalesce boundaries yet tho.
 
 diff --git a/mm/memblock.c b/mm/memblock.c
-index 4618fda..7b549e0 100644
+index 4618fda..349bfe0 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
 @@ -58,28 +58,6 @@ static unsigned long __init_memblock memblock_addrs_overlap(phys_addr_t base1, p
@@ -161,19 +159,19 @@ index 4618fda..7b549e0 100644
 +			/* We extend the bottom of the block down to our
 +			 * base
 +			 */
-+			rgn->size += rgn->base - base;
 +			rgn->base = base;
++			rgn->size = rend - base;
++
++			/* Return if we have nothing else to allocate (fully coalesced) */
++			if (rend >= end)
++				return 0;
 +
 +			/* We continue processing from the end of the
 +			 * coalesced block.
 +			 */
-+			base = rgn->base + rgn->size;
++			base = rend;
 +			size = end - base;
 +		}
-+
-+		/* Return if we have nothing else to allocate (fully coalesced) */
-+		if (base >= end)
-+			return 0;
 +
 +		/* Now check if we overlap or are adjacent with the
 +		 * top of a block
