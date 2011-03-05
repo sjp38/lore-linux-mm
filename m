@@ -1,35 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 18AC38D003F
-	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 12:25:55 -0500 (EST)
-Received: by gxk2 with SMTP id 2so1486224gxk.14
-        for <linux-mm@kvack.org>; Sat, 05 Mar 2011 09:25:53 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1299343345-3984-20-git-send-email-cesarb@cesarb.net>
-References: <1299343345-3984-1-git-send-email-cesarb@cesarb.net>
-	<1299343345-3984-20-git-send-email-cesarb@cesarb.net>
-Date: Sat, 5 Mar 2011 19:25:53 +0200
-Message-ID: <AANLkTikcu-CTDWQxpjBn4JcERbo30DGRho=q3hyMdbS1@mail.gmail.com>
-Subject: Re: [PATCHv2 19/24] sys_swapon: separate parsing of bad blocks and extents
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 258868D0039
+	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 13:49:32 -0500 (EST)
+Received: from unknown (HELO localhost.localdomain) (zcncxNmDysja2tXBptWToZWJlF6Wp6IuYnI=@[200.157.204.20])
+          (envelope-sender <cesarb@cesarb.net>)
+          by smtp-03.mandic.com.br (qmail-ldap-1.03) with AES256-SHA encrypted SMTP
+          for <linux-mm@kvack.org>; 5 Mar 2011 18:49:27 -0000
+From: Cesar Eduardo Barros <cesarb@cesarb.net>
+Subject: [PATCH] mm: remove inline from scan_swap_map
+Date: Sat,  5 Mar 2011 15:49:16 -0300
+Message-Id: <1299350956-5614-1-git-send-email-cesarb@cesarb.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cesar Eduardo Barros <cesarb@cesarb.net>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, Eric B Munson <emunson@mgebm.net>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, Cesar Eduardo Barros <cesarb@cesarb.net>
 
-On Sat, Mar 5, 2011 at 6:42 PM, Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
-> Move the code which parses the bad block list and the extents to a
-> separate function. Only code movement, no functional changes.
->
-> This change uses the fact that, after the success path, nr_good_pages ==
-> p->pages.
->
-> Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
-> Tested-by: Eric B Munson <emunson@mgebm.net>
-> Acked-by: Eric B Munson <emunson@mgebm.net>
+scan_swap_map is a large function (224 lines), with several loops and a
+complex control flow involving several gotos.
 
-Reviewed-by: Pekka Enberg <penberg@kernel.org>
+Given all that, it is a bit silly that is is marked as inline. The
+compiler agrees with me: on a x86-64 compile, it did not inline the
+function.
+
+Remove the "inline" and let the compiler decide instead.
+
+Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
+---
+ mm/swapfile.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 0341c57..8ed42e7 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -212,8 +212,8 @@ static int wait_for_discard(void *word)
+ #define SWAPFILE_CLUSTER	256
+ #define LATENCY_LIMIT		256
+ 
+-static inline unsigned long scan_swap_map(struct swap_info_struct *si,
+-					  unsigned char usage)
++static unsigned long scan_swap_map(struct swap_info_struct *si,
++				   unsigned char usage)
+ {
+ 	unsigned long offset;
+ 	unsigned long scan_base;
+-- 
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
