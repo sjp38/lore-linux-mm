@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E5E2D8D0050
-	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 11:42:44 -0500 (EST)
+	by kanga.kvack.org (Postfix) with ESMTP id 282568D0052
+	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 11:42:45 -0500 (EST)
 Received: from unknown (HELO localhost.localdomain) (zcncxNmDysja2tXBptWToZWJlF6Wp6IuYnI=@[200.157.204.20])
           (envelope-sender <cesarb@cesarb.net>)
           by smtp-03.mandic.com.br (qmail-ldap-1.03) with AES256-SHA encrypted SMTP
           for <linux-mm@kvack.org>; 5 Mar 2011 16:42:41 -0000
 From: Cesar Eduardo Barros <cesarb@cesarb.net>
-Subject: [PATCHv2 22/24] sys_swapon: move printk outside lock
-Date: Sat,  5 Mar 2011 13:42:23 -0300
-Message-Id: <1299343345-3984-23-git-send-email-cesarb@cesarb.net>
+Subject: [PATCHv2 23/24] sys_swapoff: change order to match sys_swapon
+Date: Sat,  5 Mar 2011 13:42:24 -0300
+Message-Id: <1299343345-3984-24-git-send-email-cesarb@cesarb.net>
 In-Reply-To: <1299343345-3984-1-git-send-email-cesarb@cesarb.net>
 References: <1299343345-3984-1-git-send-email-cesarb@cesarb.net>
 Sender: owner-linux-mm@kvack.org
@@ -19,50 +19,43 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, 
 
 The block in sys_swapon which does the final adjustments to the
 swap_info_struct and to swap_list is the same as the block which
-re-inserts it again at sys_swapoff on failure of try_to_unuse(). To be
-able to make both share the same code, move the printk() call in the
-middle of it to just after it.
+re-inserts it again at sys_swapoff on failure of try_to_unuse(), except
+for the order of the operations within the lock. Since the order should
+not matter, arbitrarily change sys_swapoff to match sys_swapon, in
+preparation to making both share the same code.
 
 Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 Tested-by: Eric B Munson <emunson@mgebm.net>
 Acked-by: Eric B Munson <emunson@mgebm.net>
 ---
- mm/swapfile.c |   15 ++++++++-------
- 1 files changed, 8 insertions(+), 7 deletions(-)
+ mm/swapfile.c |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 369816d..33f9102 100644
+index 33f9102..c9825aa 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -2144,13 +2144,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	nr_swap_pages += p->pages;
- 	total_swap_pages += p->pages;
- 
--	printk(KERN_INFO "Adding %uk swap on %s.  "
--			"Priority:%d extents:%d across:%lluk %s%s\n",
--		p->pages<<(PAGE_SHIFT-10), name, p->prio,
--		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10),
--		(p->flags & SWP_SOLIDSTATE) ? "SS" : "",
--		(p->flags & SWP_DISCARDABLE) ? "D" : "");
--
- 	/* insert swap space into swap_list: */
- 	prev = -1;
- 	for (i = swap_list.head; i >= 0; i = swap_info[i]->next) {
-@@ -2164,6 +2157,14 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	else
- 		swap_info[prev]->next = p->type;
- 	spin_unlock(&swap_lock);
+@@ -1625,6 +1625,10 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+ 		spin_lock(&swap_lock);
+ 		if (p->prio < 0)
+ 			p->prio = --least_priority;
++		p->flags |= SWP_WRITEOK;
++		nr_swap_pages += p->pages;
++		total_swap_pages += p->pages;
 +
-+	printk(KERN_INFO "Adding %uk swap on %s.  "
-+			"Priority:%d extents:%d across:%lluk %s%s\n",
-+		p->pages<<(PAGE_SHIFT-10), name, p->prio,
-+		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10),
-+		(p->flags & SWP_SOLIDSTATE) ? "SS" : "",
-+		(p->flags & SWP_DISCARDABLE) ? "D" : "");
-+
- 	mutex_unlock(&swapon_mutex);
- 	atomic_inc(&proc_poll_event);
- 	wake_up_interruptible(&proc_poll_wait);
+ 		prev = -1;
+ 		for (i = swap_list.head; i >= 0; i = swap_info[i]->next) {
+ 			if (p->prio >= swap_info[i]->prio)
+@@ -1636,9 +1640,6 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+ 			swap_list.head = swap_list.next = type;
+ 		else
+ 			swap_info[prev]->next = type;
+-		nr_swap_pages += p->pages;
+-		total_swap_pages += p->pages;
+-		p->flags |= SWP_WRITEOK;
+ 		spin_unlock(&swap_lock);
+ 		goto out_dput;
+ 	}
 -- 
 1.7.4
 
