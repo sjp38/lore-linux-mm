@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D1E4B8D0039
-	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 12:07:12 -0500 (EST)
-Received: by yib2 with SMTP id 2so1467167yib.14
-        for <linux-mm@kvack.org>; Sat, 05 Mar 2011 09:07:11 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id C0B9D8D0039
+	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 12:07:50 -0500 (EST)
+Received: by yxt33 with SMTP id 33so1467615yxt.14
+        for <linux-mm@kvack.org>; Sat, 05 Mar 2011 09:07:49 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1299343345-3984-4-git-send-email-cesarb@cesarb.net>
+In-Reply-To: <1299343345-3984-5-git-send-email-cesarb@cesarb.net>
 References: <1299343345-3984-1-git-send-email-cesarb@cesarb.net>
-	<1299343345-3984-4-git-send-email-cesarb@cesarb.net>
-Date: Sat, 5 Mar 2011 19:07:11 +0200
-Message-ID: <AANLkTin3EWz4g_y03M7TOzAmD+wYJkR3a-cOJOy4ru07@mail.gmail.com>
-Subject: Re: [PATCHv2 03/24] sys_swapon: do not depend on "type" after allocation
+	<1299343345-3984-5-git-send-email-cesarb@cesarb.net>
+Date: Sat, 5 Mar 2011 19:07:48 +0200
+Message-ID: <AANLkTi=aoWZYvESDf-pOzd8Yj+5vJtdFy62LfRZ87-TL@mail.gmail.com>
+Subject: Re: [PATCHv2 04/24] sys_swapon: separate swap_info allocation
 From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
@@ -19,11 +19,8 @@ To: Cesar Eduardo Barros <cesarb@cesarb.net>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, Eric B Munson <emunson@mgebm.net>
 
 On Sat, Mar 5, 2011 at 6:42 PM, Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
-> Within sys_swapon, after the swap_info entry has been allocated, we
-> always have type == p->type and swap_info[type] == p. Use this fact to
-> reduce the dependency on the "type" local variable within the function,
-> as a preparation to move the allocation of the swap_info entry to a
-> separate function.
+> Move the swap_info allocation to its own function. Only code movement,
+> no functional changes.
 >
 > Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 > Tested-by: Eric B Munson <emunson@mgebm.net>
