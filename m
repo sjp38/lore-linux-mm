@@ -1,30 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 479D48D0039
-	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 21:44:11 -0500 (EST)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id p262i9n8021269
-	for <linux-mm@kvack.org>; Sat, 5 Mar 2011 18:44:09 -0800
-Received: from pxi9 (pxi9.prod.google.com [10.243.27.9])
-	by wpaz37.hot.corp.google.com with ESMTP id p262hqQg024690
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 5 Mar 2011 18:44:08 -0800
-Received: by pxi9 with SMTP id 9so791927pxi.14
-        for <linux-mm@kvack.org>; Sat, 05 Mar 2011 18:44:05 -0800 (PST)
-Date: Sat, 5 Mar 2011 18:44:02 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 42CD08D0039
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 05:37:51 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 6E12A3EE0AE
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 19:37:47 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 542E945DE52
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 19:37:47 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3954245DE4F
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 19:37:47 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 28EBF1DB803E
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 19:37:47 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E2C971DB8037
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 19:37:46 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [PATCH] mm: skip zombie in OOM-killer
 In-Reply-To: <1299286307-4386-1-git-send-email-avagin@openvz.org>
-Message-ID: <alpine.DEB.2.00.1103051843490.8779@chino.kir.corp.google.com>
 References: <1299286307-4386-1-git-send-email-avagin@openvz.org>
+Message-Id: <20110306193519.49DD.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Sun,  6 Mar 2011 19:37:46 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrey Vagin <avagin@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
-On Sat, 5 Mar 2011, Andrey Vagin wrote:
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 > When we check that task has flag TIF_MEMDIE, we forgot check that
 > it has mm. A task may be zombie and a parent may wait a memor.
@@ -33,7 +38,12 @@ On Sat, 5 Mar 2011, Andrey Vagin wrote:
 > 
 > Signed-off-by: Andrey Vagin <avagin@openvz.org>
 
-Acked-by: David Rientjes <rientjes@google.com>
+This seems incorrect. Do you have a reprodusable testcasae?
+Your patch only care thread group leader state, but current code
+care all thread in the process. Please look at oom_badness() and 
+find_lock_task_mm(). 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
