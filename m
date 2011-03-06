@@ -1,42 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id F36848D0039
-	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 21:04:02 -0500 (EST)
-Message-ID: <4D72E142.3000305@kernel.org>
-Date: Sat, 05 Mar 2011 17:20:02 -0800
-From: Yinghai Lu <yinghai@kernel.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 479D48D0039
+	for <linux-mm@kvack.org>; Sat,  5 Mar 2011 21:44:11 -0500 (EST)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id p262i9n8021269
+	for <linux-mm@kvack.org>; Sat, 5 Mar 2011 18:44:09 -0800
+Received: from pxi9 (pxi9.prod.google.com [10.243.27.9])
+	by wpaz37.hot.corp.google.com with ESMTP id p262hqQg024690
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 5 Mar 2011 18:44:08 -0800
+Received: by pxi9 with SMTP id 9so791927pxi.14
+        for <linux-mm@kvack.org>; Sat, 05 Mar 2011 18:44:05 -0800 (PST)
+Date: Sat, 5 Mar 2011 18:44:02 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: skip zombie in OOM-killer
+In-Reply-To: <1299286307-4386-1-git-send-email-avagin@openvz.org>
+Message-ID: <alpine.DEB.2.00.1103051843490.8779@chino.kir.corp.google.com>
+References: <1299286307-4386-1-git-send-email-avagin@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [RFC] memblock; Properly handle overlaps
-References: <1299297946.8833.931.camel@pasglop>	 <4D71CE24.1090302@kernel.org> <1299311788.8833.937.camel@pasglop>	 <4D728B8C.2080803@kernel.org> <1299361063.8833.953.camel@pasglop>	 <4D72B2D0.3080700@kernel.org> <1299363583.8833.964.camel@pasglop>	 <4D72C552.4050406@kernel.org> <1299372594.8833.966.camel@pasglop>
-In-Reply-To: <1299372594.8833.966.camel@pasglop>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Russell King <linux@arm.linux.org.uk>
+To: Andrey Vagin <avagin@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/05/2011 04:49 PM, Benjamin Herrenschmidt wrote:
-> On Sat, 2011-03-05 at 15:20 -0800, Yinghai Lu wrote:
->>
->> maybe we can omit rgn->size == 0 checking here.
->> with that case, dummy array will go though to some extra checking.
->>
->> if (rgn->base <= base && rend >= end)
->> if (base < rgn->base && end >= rgn->base) {
->> if (base <= rend && end >= rend) {
->>
->> but we can spare more checking regarding
->>         rgn->size == 0
-> 
-> Well, the array can be collasped to dummy by the removal of the last
-> block when doing a top overlap, then on the next loop around, we can
-> potentially hit the if (base <= rend && end >= rend) test, and loop
-> again no ?
-> 
-> I'd rather keep the test in .. won't hurt.
+On Sat, 5 Mar 2011, Andrey Vagin wrote:
 
-ok.
+> When we check that task has flag TIF_MEMDIE, we forgot check that
+> it has mm. A task may be zombie and a parent may wait a memor.
+> 
+> v2: Check that task doesn't have mm one time and skip it immediately
+> 
+> Signed-off-by: Andrey Vagin <avagin@openvz.org>
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
