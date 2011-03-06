@@ -1,63 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A2B058D0039
-	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 06:20:50 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E2EFD8D0039
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 07:04:05 -0500 (EST)
 Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4FB6E3EE081
-	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 20:20:47 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 548233EE0AE
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 21:04:02 +0900 (JST)
 Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 373CC45DE50
-	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 20:20:47 +0900 (JST)
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D69E45DE51
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 21:04:02 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E1EC45DE4D
-	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 20:20:47 +0900 (JST)
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 22C1245DE4F
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 21:04:02 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 103351DB803B
-	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 20:20:47 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D15AA1DB802F
-	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 20:20:46 +0900 (JST)
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 136DC1DB803B
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 21:04:02 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D52B11DB802F
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 21:04:01 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH rh6] mm: skip zombie in OOM-killer
-In-Reply-To: <alpine.DEB.2.00.1103041541040.7795@chino.kir.corp.google.com>
-References: <1299274256-2122-1-git-send-email-avagin@openvz.org> <alpine.DEB.2.00.1103041541040.7795@chino.kir.corp.google.com>
-Message-Id: <20110306201947.6CCC.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH v4 0/4] exec: unify native/compat code
+In-Reply-To: <20110305203040.GA7546@redhat.com>
+References: <AANLkTimp=mhedXLdrZFqK2QWYvg7MdmUPj3-Q9m2vtTx@mail.gmail.com> <20110305203040.GA7546@redhat.com>
+Message-Id: <20110306210334.6CD5.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Sun,  6 Mar 2011 20:20:46 +0900 (JST)
+Date: Sun,  6 Mar 2011 21:04:01 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrey Vagin <avagin@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>, Milton Miller <miltonm@bga.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-> On Sat, 5 Mar 2011, Andrey Vagin wrote:
+> On 03/03, Linus Torvalds wrote:
+> >
+> > On Thu, Mar 3, 2011 at 7:47 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+> > >> I _personally_ don't like "conditional". Its name is based on code logic.
+> > >> It's unclear what mean "conditional". From data strucuture view, It is
+> > >> "opaque userland pointer".
+> > >
+> > > I agree with any naming, just suggest a better name ;)
+> >
+> > Maybe just "struct user_arg_ptr" or something?
 > 
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index 7dcca55..2fc554e 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -311,7 +311,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
-> >  		 * blocked waiting for another task which itself is waiting
-> >  		 * for memory. Is there a better alternative?
-> >  		 */
-> > -		if (test_tsk_thread_flag(p, TIF_MEMDIE))
-> > +		if (test_tsk_thread_flag(p, TIF_MEMDIE) && p->mm)
-> >  			return ERR_PTR(-1UL);
-> >  
-> >  		/*
-> 
-> I think it would be better to just do
-> 
-> 	if (!p->mm)
-> 		continue;
-> 
-> after the check for oom_unkillable_task() because everything that follows 
-> this really depends on p->mm being non-NULL to actually do anything 
-> useful.
+> OK, nothing else was suggessted, I assume Kosaki agrees.
 
-I'm glad you join to review MM patches. It is worth effort for making
-solid kernel. But, please look at a current code at first.
+Sure. :)
+
+And, I happily reported this series run successfully my testsuite.
+Could you please add my tested-by tag?
+
+thanks.
+
+
+> 
+> So rename conditional_ptr to user_arg_ptr.
+> 
+> Also rename get_user_ptr() to get_user_arg_ptr(). It was suggested to
+> use the same "user_arg_ptr" for this helper too, but this is not
+> grep-friendly. As for get_ in the name... Well, I can redo again ;)
+> But this matches get_user() and this is all what this helper does.
+> 
+> Otherwise unchanged.
+> 
+> Oleg.
+> 
+
 
 
 --
