@@ -1,71 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E2EFD8D0039
-	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 07:04:05 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 548233EE0AE
-	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 21:04:02 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D69E45DE51
-	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 21:04:02 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 22C1245DE4F
-	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 21:04:02 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 136DC1DB803B
-	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 21:04:02 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D52B11DB802F
-	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 21:04:01 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH v4 0/4] exec: unify native/compat code
-In-Reply-To: <20110305203040.GA7546@redhat.com>
-References: <AANLkTimp=mhedXLdrZFqK2QWYvg7MdmUPj3-Q9m2vtTx@mail.gmail.com> <20110305203040.GA7546@redhat.com>
-Message-Id: <20110306210334.6CD5.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A3888D0039
+	for <linux-mm@kvack.org>; Sun,  6 Mar 2011 08:20:05 -0500 (EST)
+Date: Sun, 6 Mar 2011 13:19:55 +0000
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [PATCH] Make /proc/slabinfo 0400
+Message-ID: <20110306131955.722d9bd5@lxorguk.ukuu.org.uk>
+In-Reply-To: <20110305162508.GA11120@thunk.org>
+References: <AANLkTimRN_=APe_PWMFe_6CHHC7psUbCYE-O0qc=mmYY@mail.gmail.com>
+	<1299270709.3062.313.camel@calx>
+	<1299271377.2071.1406.camel@dan>
+	<AANLkTik6tAfaSr3wxdQ1u_Hd326TmNZe0-FQc3NuYMKN@mail.gmail.com>
+	<1299272907.2071.1415.camel@dan>
+	<AANLkTina+O77BFV+7mO9fX2aJimpO0ov_MKwxGtMwqG+@mail.gmail.com>
+	<1299275042.2071.1422.camel@dan>
+	<AANLkTikA=88EMs8RRm0RPQ+Q9nKj=2G+G86h5nCnV7Se@mail.gmail.com>
+	<AANLkTikQxOgYFLbc2KbEKgRYL1RCnkPE-T80-GBY2Cgj@mail.gmail.com>
+	<1299279756.3062.361.camel@calx>
+	<20110305162508.GA11120@thunk.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Sun,  6 Mar 2011 21:04:01 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, pageexec@freemail.hu, Solar Designer <solar@openwall.com>, Eugene Teo <eteo@redhat.com>, Brad Spengler <spender@grsecurity.net>, Roland McGrath <roland@redhat.com>, Milton Miller <miltonm@bga.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Ted Ts'o <tytso@mit.edu>
+Cc: Matt Mackall <mpm@selenic.com>, Pekka Enberg <penberg@kernel.org>, Dan Rosenberg <drosenberg@vsecurity.com>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
 
-> On 03/03, Linus Torvalds wrote:
-> >
-> > On Thu, Mar 3, 2011 at 7:47 AM, Oleg Nesterov <oleg@redhat.com> wrote:
-> > >> I _personally_ don't like "conditional". Its name is based on code logic.
-> > >> It's unclear what mean "conditional". From data strucuture view, It is
-> > >> "opaque userland pointer".
-> > >
-> > > I agree with any naming, just suggest a better name ;)
-> >
-> > Maybe just "struct user_arg_ptr" or something?
-> 
-> OK, nothing else was suggessted, I assume Kosaki agrees.
+> If we had wrappers for the most common cases, then any cases that were
+> left that used copy_from_user() explicitly could be flagged and
+> checked by hand, since they would be exception, and not the rule.
 
-Sure. :)
+Arjan's copy_from_user validation code already does verification checks
+on the copies using gcc magic.
 
-And, I happily reported this series run successfully my testsuite.
-Could you please add my tested-by tag?
+Some of the others might be useful - kmalloc_from_user() is a fairly
+obvious interface, a copy_from_user_into() interface where you pass
+the destination object and its actual length as well is mostly covered by
+Arjan's stuff.
 
-thanks.
-
-
-> 
-> So rename conditional_ptr to user_arg_ptr.
-> 
-> Also rename get_user_ptr() to get_user_arg_ptr(). It was suggested to
-> use the same "user_arg_ptr" for this helper too, but this is not
-> grep-friendly. As for get_ in the name... Well, I can redo again ;)
-> But this matches get_user() and this is all what this helper does.
-> 
-> Otherwise unchanged.
-> 
-> Oleg.
-> 
-
-
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
