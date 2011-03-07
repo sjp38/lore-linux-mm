@@ -1,169 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A4828D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:45:54 -0500 (EST)
-Received: by iwl42 with SMTP id 42so5924161iwl.14
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2011 15:45:52 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F2B78D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:47:32 -0500 (EST)
+Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
+	by smtp-out.google.com with ESMTP id p27NlU1H025360
+	for <linux-mm@kvack.org>; Mon, 7 Mar 2011 15:47:30 -0800
+Received: from pzk37 (pzk37.prod.google.com [10.243.19.165])
+	by hpaq5.eem.corp.google.com with ESMTP id p27NlRw7001407
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 7 Mar 2011 15:47:28 -0800
+Received: by pzk37 with SMTP id 37so1219859pzk.26
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2011 15:47:26 -0800 (PST)
+Date: Mon, 7 Mar 2011 15:47:23 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] hugetlb: /proc/meminfo shows data for all sizes of
+ hugepages
+In-Reply-To: <20110307152516.fee931bb.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1103071543460.22274@chino.kir.corp.google.com>
+References: <1299503155-6210-1-git-send-email-pholasek@redhat.com> <1299527214.8493.13263.camel@nimitz> <20110307145149.97e6676e.akpm@linux-foundation.org> <20110307231448.GA2946@spritzera.linux.bs1.fc.nec.co.jp>
+ <20110307152516.fee931bb.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20110307135831.9e0d7eaa.akpm@linux-foundation.org>
-References: <1299325456-2687-1-git-send-email-avagin@openvz.org>
-	<20110305152056.GA1918@barrios-desktop>
-	<4D72580D.4000208@gmail.com>
-	<20110305155316.GB1918@barrios-desktop>
-	<4D7267B6.6020406@gmail.com>
-	<20110305170759.GC1918@barrios-desktop>
-	<20110307135831.9e0d7eaa.akpm@linux-foundation.org>
-Date: Tue, 8 Mar 2011 08:45:51 +0900
-Message-ID: <AANLkTinDhorLusBju=Gn3bh1VsH1jrv0qixbU3SGWiqa@mail.gmail.com>
-Subject: Re: [PATCH] mm: check zone->all_unreclaimable in all_unreclaimable()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrew Vagin <avagin@gmail.com>, Andrey Vagin <avagin@openvz.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Petr Holasek <pholasek@redhat.com>, linux-kernel@vger.kernel.org, emunson@mgebm.net, anton@redhat.com, Andi Kleen <ak@linux.intel.com>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-mm@kvack.org
 
-On Tue, Mar 8, 2011 at 6:58 AM, Andrew Morton <akpm@linux-foundation.org> w=
-rote:
-> On Sun, 6 Mar 2011 02:07:59 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
->
->> On Sat, Mar 05, 2011 at 07:41:26PM +0300, Andrew Vagin wrote:
->> > On 03/05/2011 06:53 PM, Minchan Kim wrote:
->> > >On Sat, Mar 05, 2011 at 06:34:37PM +0300, Andrew Vagin wrote:
->> > >>On 03/05/2011 06:20 PM, Minchan Kim wrote:
->> > >>>On Sat, Mar 05, 2011 at 02:44:16PM +0300, Andrey Vagin wrote:
->> > >>>>Check zone->all_unreclaimable in all_unreclaimable(), otherwise th=
-e
->> > >>>>kernel may hang up, because shrink_zones() will do nothing, but
->> > >>>>all_unreclaimable() will say, that zone has reclaimable pages.
->> > >>>>
->> > >>>>do_try_to_free_pages()
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0shrink_zones()
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 for_each_=
-zone
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0if (zone->all_unreclaimable)
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0continue
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0if !all_unreclaimable(zonelist, sc)
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return 1
->> > >>>>
->> > >>>>__alloc_pages_slowpath()
->> > >>>>retry:
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0did_some_progress =3D do_try_to_free_p=
-ages(page)
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0...
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!page&& =C2=A0 did_some_progress)
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0retry;
->> > >>>>
->> > >>>>Signed-off-by: Andrey Vagin<avagin@openvz.org>
->> > >>>>---
->> > >>>> =C2=A0mm/vmscan.c | =C2=A0 =C2=A02 ++
->> > >>>> =C2=A01 files changed, 2 insertions(+), 0 deletions(-)
->> > >>>>
->> > >>>>diff --git a/mm/vmscan.c b/mm/vmscan.c
->> > >>>>index 6771ea7..1c056f7 100644
->> > >>>>--- a/mm/vmscan.c
->> > >>>>+++ b/mm/vmscan.c
->> > >>>>@@ -2002,6 +2002,8 @@ static bool all_unreclaimable(struct zonelis=
-t *zonelist,
->> > >>>>
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0for_each_zone_zonelist_nodemask(zone, =
-z, zonelist,
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0gfp_zone(sc->gfp_mask), sc->nodemask) {
->> > >>>>+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (zone->all_u=
-nreclaimable)
->> > >>>>+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 continue;
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!popul=
-ated_zone(zone))
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0continue;
->> > >>>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!cpuse=
-t_zone_allowed_hardwall(zone, GFP_KERNEL))
->> > >>>zone_reclaimable checks it. Isn't it enough?
->> > >>I sent one more patch [PATCH] mm: skip zombie in OOM-killer.
->> > >>This two patches are enough.
->> > >Sorry if I confused you.
->> > >I mean zone->all_unreclaimable become true if !zone_reclaimable in ba=
-lance_pgdat.
->> > >zone_reclaimable compares recent pages_scanned with the number of zon=
-e lru pages.
->> > >So too many page scanning in small lru pages makes the zone to unrecl=
-aimable zone.
->> > >
->> > >In all_unreclaimable, we calls zone_reclaimable to detect it.
->> > >It's the same thing with your patch.
->> > balance_pgdat set zone->all_unreclaimable, but the problem is that
->> > it is cleaned late.
->>
->> Yes. It can be delayed by pcp so (zone->all_unreclaimable =3D true) is
->> a false alram since zone have a free page and it can be returned
->> to free list by drain_all_pages in next turn.
->>
->> >
->> > The problem is that zone->all_unreclaimable =3D True, but
->> > zone_reclaimable() returns True too.
->>
->> Why is it a problem?
->> If zone->all_unreclaimable gives a false alram, we does need to check
->> it again by zone_reclaimable call.
->>
->> If we believe a false alarm and give up the reclaim, maybe we have to ma=
-ke
->> unnecessary oom kill.
->>
->> >
->> > zone->all_unreclaimable will be cleaned in free_*_pages, but this
->> > may be late. It is enough allocate one page from page cache, that
->> > zone_reclaimable() returns True and zone->all_unreclaimable becomes
->> > True.
->> > >>>Does the hang up really happen or see it by code review?
->> > >>Yes. You can reproduce it for help the attached python program. It's
->> > >>not very clever:)
->> > >>It make the following actions in loop:
->> > >>1. fork
->> > >>2. mmap
->> > >>3. touch memory
->> > >>4. read memory
->> > >>5. munmmap
->> > >It seems the test program makes fork bombs and memory hogging.
->> > >If you applied this patch, the problem is gone?
->> > Yes.
->>
->> Hmm.. Although it solves the problem, I think it's not a good idea that
->> depends on false alram and give up the retry.
->
-> Any alternative proposals? =C2=A0We should get the livelock fixed if poss=
-ible..
->
+On Mon, 7 Mar 2011, Andrew Morton wrote:
 
-And we should avoid unnecessary OOM kill if possible.
+> > > > On Mon, 2011-03-07 at 14:05 +0100, Petr Holasek wrote:
+> > > > > +       for_each_hstate(h)
+> > > > > +               seq_printf(m,
+> > > > > +                               "HugePages_Total:   %5lu\n"
+> > > > > +                               "HugePages_Free:    %5lu\n"
+> > > > > +                               "HugePages_Rsvd:    %5lu\n"
+> > > > > +                               "HugePages_Surp:    %5lu\n"
+> > > > > +                               "Hugepagesize:   %8lu kB\n",
+> > > > > +                               h->nr_huge_pages,
+> > > > > +                               h->free_huge_pages,
+> > > > > +                               h->resv_huge_pages,
+> > > > > +                               h->surplus_huge_pages,
+> > > > > +                               1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
+> > > > >  }
+> > > >
+> > > > It sounds like now we'll get a meminfo that looks like:
+> > > >
+> > > > ...
+> > > > AnonHugePages:    491520 kB
+> > > > HugePages_Total:       5
+> > > > HugePages_Free:        2
+> > > > HugePages_Rsvd:        3
+> > > > HugePages_Surp:        1
+> > > > Hugepagesize:       2048 kB
+> > > > HugePages_Total:       2
+> > > > HugePages_Free:        1
+> > > > HugePages_Rsvd:        1
+> > > > HugePages_Surp:        1
+> > > > Hugepagesize:    1048576 kB
+> > > > DirectMap4k:       12160 kB
+> > > > DirectMap2M:     2082816 kB
+> > > > DirectMap1G:     2097152 kB
+> > > >
+> > > > At best, that's a bit confusing.  There aren't any other entries in
+> > > > meminfo that occur more than once.  Plus, this information is available
+> > > > in the sysfs interface.  Why isn't that sufficient?
+> > > >
+> > > > Could we do something where we keep the default hpage_size looking like
+> > > > it does now, but append the size explicitly for the new entries?
+> > > >
+> > > > HugePages_Total(1G):       2
+> > > > HugePages_Free(1G):        1
+> > > > HugePages_Rsvd(1G):        1
+> > > > HugePages_Surp(1G):        1
+> > > >
+> > >
+> > > Let's not change the existing interface, please.
+> > >
+> > > Adding new fields: OK.
+> > > Changing the way in whcih existing fields are calculated: OKish.
+> > > Renaming existing fields: not OK.
+> > 
+> > How about lining up multiple values in each field like this?
+> > 
+> >   HugePages_Total:       5 2
+> >   HugePages_Free:        2 1
+> >   HugePages_Rsvd:        3 1
+> >   HugePages_Surp:        1 1
+> >   Hugepagesize:       2048 1048576 kB
+> >   ...
+> > 
+> > This doesn't change the field names and the impact for user space
+> > is still small?
+> 
+> It might break some existing parsers, dunno.
+> 
+> It was a mistake to assume that all hugepages will have the same size
+> for all time, and we just have to live with that mistake.
+> 
 
-I think the problem is caused by (zone->pages_scanned <
-zone_reclaimable_pages(zone) * 6). I am not sure (* 6) is a best. It
-would be rather big on recent big DRAM machines.
+I'm not sure it was a mistake: the kernel has a default hugepage size and 
+that's what the global /proc/sys/vm/nr_hugepages tunable uses, so it seems 
+appropriate that its statistics are exported in the global /proc/meminfo.
 
-I think it is a trade-off between latency and OOM kill.
-If we decrease the magic value, maybe we should prevent the almost
-livelock but happens unnecessary OOM kill.
+> I'd suggest that we leave meminfo alone, just ensuring that its output
+> makes some sense.  Instead create a new interface which presents all
+> the required info in a sensible fashion and migrate usersapce reporting
+> tools over to that interface.  Just let the meminfo field die a slow
+> death.
+> 
 
-And I think zone_reclaimable not fair.
-For example, too many scanning makes reclaimable state to
-unreclaimable state. Maybe it takes a very long time. But just some
-page free makes unreclaimable state to reclaimabe with very easy. So
-we need much painful reclaiming for changing reclaimable state with
-unreclaimabe state. it would affect latency very much.
+(Adding Nishanth to the cc)
 
-Maybe we need more smart zone_reclaimabe which is adaptive with memory pres=
-sure.
+It's already there, all this data is available for all the configured 
+hugepage sizes via /sys/kernel/mm/hugepages/hugepages-<size>kB/ as 
+described by Documentation/ABI/testing/sysfs-kernel-mm-hugepages.
 
---=20
-Kind regards,
-Minchan Kim
+It looks like Nishanth and others put quite a bit of effort into making as 
+stable of an API as possible for this information.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
