@@ -1,49 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 27C298D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 03:36:16 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id BD98D3EE0BD
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:36:07 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A35F845DE4E
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:36:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 89E1745DE4D
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:36:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CDEBE08002
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:36:07 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A8991DB802C
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:36:07 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/8] Change alloc_pages_vma to pass down the policy node for local policy
-In-Reply-To: <1299182391-6061-3-git-send-email-andi@firstfloor.org>
-References: <1299182391-6061-1-git-send-email-andi@firstfloor.org> <1299182391-6061-3-git-send-email-andi@firstfloor.org>
-Message-Id: <20110307173604.8A07.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E4AB58D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 03:36:37 -0500 (EST)
+Subject: [PATCH 1/2 v3]mm: simplify code of swap.c
+From: Shaohua Li <shaohua.li@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 07 Mar 2011 16:36:17 +0800
+Message-ID: <1299486977.2337.28.camel@sli10-conroe>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Date: Mon,  7 Mar 2011 17:36:06 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 
-> From: Andi Kleen <ak@linux.intel.com>
-> 
-> Currently alloc_pages_vma always uses the local node as policy node
-> for the LOCAL policy. Pass this node down as an argument instead.
-> 
-> No behaviour change from this patch, but will be needed for followons.
-> 
-> Acked-by: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Clean up code and remove duplicate code. Next patch will use
+pagevec_lru_move_fn introduced here too.
 
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 
+---
+ mm/swap.c |  101 +++++++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 54 insertions(+), 47 deletions(-)
+
+Index: linux/mm/swap.c
+===================================================================
+--- linux.orig/mm/swap.c	2011-02-14 15:04:20.000000000 +0800
++++ linux/mm/swap.c	2011-03-07 10:01:41.000000000 +0800
+@@ -178,15 +178,13 @@ void put_pages_list(struct list_head *pa
+ }
+ EXPORT_SYMBOL(put_pages_list);
+ 
+-/*
+- * pagevec_move_tail() must be called with IRQ disabled.
+- * Otherwise this may cause nasty races.
+- */
+-static void pagevec_move_tail(struct pagevec *pvec)
++static void pagevec_lru_move_fn(struct pagevec *pvec,
++				void (*move_fn)(struct page *page, void *arg),
++				void *arg)
+ {
+ 	int i;
+-	int pgmoved = 0;
+ 	struct zone *zone = NULL;
++	unsigned long flags = 0;
+ 
+ 	for (i = 0; i < pagevec_count(pvec); i++) {
+ 		struct page *page = pvec->pages[i];
+@@ -194,29 +192,49 @@ static void pagevec_move_tail(struct pag
+ 
+ 		if (pagezone != zone) {
+ 			if (zone)
+-				spin_unlock(&zone->lru_lock);
++				spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 			zone = pagezone;
+-			spin_lock(&zone->lru_lock);
+-		}
+-		if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+-			int lru = page_lru_base_type(page);
+-			list_move_tail(&page->lru, &zone->lru[lru].list);
+-			pgmoved++;
++			spin_lock_irqsave(&zone->lru_lock, flags);
+ 		}
++
++		(*move_fn)(page, arg);
+ 	}
+ 	if (zone)
+-		spin_unlock(&zone->lru_lock);
+-	__count_vm_events(PGROTATED, pgmoved);
+-	release_pages(pvec->pages, pvec->nr, pvec->cold);
++		spin_unlock_irqrestore(&zone->lru_lock, flags);
++	release_pages(pvec->pages, pagevec_count(pvec), pvec->cold);
+ 	pagevec_reinit(pvec);
+ }
+ 
++static void pagevec_move_tail_fn(struct page *page, void *arg)
++{
++	int *pgmoved = arg;
++	struct zone *zone = page_zone(page);
++
++	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
++		int lru = page_lru_base_type(page);
++		list_move_tail(&page->lru, &zone->lru[lru].list);
++		(*pgmoved)++;
++	}
++}
++
++/*
++ * pagevec_move_tail() must be called with IRQ disabled.
++ * Otherwise this may cause nasty races.
++ */
++static void pagevec_move_tail(struct pagevec *pvec)
++{
++	int pgmoved = 0;
++
++	pagevec_lru_move_fn(pvec, pagevec_move_tail_fn, &pgmoved);
++	__count_vm_events(PGROTATED, pgmoved);
++}
++
+ /*
+  * Writeback is about to end against a page which has been marked for immediate
+  * reclaim.  If it still appears to be reclaimable, move it to the tail of the
+  * inactive list.
+  */
+-void  rotate_reclaimable_page(struct page *page)
++void rotate_reclaimable_page(struct page *page)
+ {
+ 	if (!PageLocked(page) && !PageDirty(page) && !PageActive(page) &&
+ 	    !PageUnevictable(page) && PageLRU(page)) {
+@@ -516,44 +534,33 @@ void lru_add_page_tail(struct zone* zone
+ 	}
+ }
+ 
++static void ____pagevec_lru_add_fn(struct page *page, void *arg)
++{
++	enum lru_list lru = (enum lru_list)arg;
++	struct zone *zone = page_zone(page);
++	int file = is_file_lru(lru);
++	int active = is_active_lru(lru);
++
++	VM_BUG_ON(PageActive(page));
++	VM_BUG_ON(PageUnevictable(page));
++	VM_BUG_ON(PageLRU(page));
++
++	SetPageLRU(page);
++	if (active)
++		SetPageActive(page);
++	update_page_reclaim_stat(zone, page, file, active);
++	add_page_to_lru_list(zone, page, lru);
++}
++
+ /*
+  * Add the passed pages to the LRU, then drop the caller's refcount
+  * on them.  Reinitialises the caller's pagevec.
+  */
+ void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
+ {
+-	int i;
+-	struct zone *zone = NULL;
+-
+ 	VM_BUG_ON(is_unevictable_lru(lru));
+ 
+-	for (i = 0; i < pagevec_count(pvec); i++) {
+-		struct page *page = pvec->pages[i];
+-		struct zone *pagezone = page_zone(page);
+-		int file;
+-		int active;
+-
+-		if (pagezone != zone) {
+-			if (zone)
+-				spin_unlock_irq(&zone->lru_lock);
+-			zone = pagezone;
+-			spin_lock_irq(&zone->lru_lock);
+-		}
+-		VM_BUG_ON(PageActive(page));
+-		VM_BUG_ON(PageUnevictable(page));
+-		VM_BUG_ON(PageLRU(page));
+-		SetPageLRU(page);
+-		active = is_active_lru(lru);
+-		file = is_file_lru(lru);
+-		if (active)
+-			SetPageActive(page);
+-		update_page_reclaim_stat(zone, page, file, active);
+-		add_page_to_lru_list(zone, page, lru);
+-	}
+-	if (zone)
+-		spin_unlock_irq(&zone->lru_lock);
+-	release_pages(pvec->pages, pvec->nr, pvec->cold);
+-	pagevec_reinit(pvec);
++	pagevec_lru_move_fn(pvec, ____pagevec_lru_add_fn, (void *)lru);
+ }
+ 
+ EXPORT_SYMBOL(____pagevec_lru_add);
 
 
 --
