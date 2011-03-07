@@ -1,47 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B33F8D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 04:20:17 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 87A353EE0BC
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:20:14 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 34DED45DE59
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:20:14 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C4A745DE52
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:20:12 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A3F5A1DB8042
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:20:11 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 680511DB803E
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:20:11 +0900 (JST)
-Date: Mon, 7 Mar 2011 18:13:41 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCHv2 01/24] sys_swapon: use vzalloc instead of
- vmalloc/memset
-Message-Id: <20110307181341.87ff1801.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1299343345-3984-2-git-send-email-cesarb@cesarb.net>
+	by kanga.kvack.org (Postfix) with ESMTP id 570AD8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 04:22:25 -0500 (EST)
+Received: by yxt33 with SMTP id 33so2019218yxt.14
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2011 01:22:23 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1299343345-3984-9-git-send-email-cesarb@cesarb.net>
 References: <1299343345-3984-1-git-send-email-cesarb@cesarb.net>
-	<1299343345-3984-2-git-send-email-cesarb@cesarb.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	<1299343345-3984-9-git-send-email-cesarb@cesarb.net>
+Date: Mon, 7 Mar 2011 11:22:23 +0200
+Message-ID: <AANLkTi=XHOg_oqCoMPw=m9SkJucQAfJ0bB+kQ14Rs_QF@mail.gmail.com>
+Subject: Re: [PATCHv2 08/24] sys_swapon: move setting of error nearer use
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Cesar Eduardo Barros <cesarb@cesarb.net>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, Eric B Munson <emunson@mgebm.net>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, Eric B Munson <emunson@mgebm.net>
 
-On Sat,  5 Mar 2011 13:42:02 -0300
-Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
-
+On Sat, Mar 5, 2011 at 6:42 PM, Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
+> Move the setting of the error variable nearer the goto in a few places.
+>
+> Avoids calling PTR_ERR() if not IS_ERR() in two places, and makes the
+> error condition more explicit in two other places.
+>
 > Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 > Tested-by: Eric B Munson <emunson@mgebm.net>
 > Acked-by: Eric B Munson <emunson@mgebm.net>
-> ---
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Reviewed-by: Pekka Enberg <penberg@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
