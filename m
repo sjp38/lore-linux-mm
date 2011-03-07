@@ -1,82 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 55F8B8D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 00:45:44 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 70C383EE0C2
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 14:45:40 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5983F45DE51
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 14:45:40 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4464845DE4E
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 14:45:40 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 37AB11DB802F
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 14:45:40 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 044E21DB803F
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 14:45:40 +0900 (JST)
-Date: Mon, 7 Mar 2011 14:39:19 +0900
+	by kanga.kvack.org (Postfix) with ESMTP id E845D8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 01:07:26 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id DB96F3EE0BB
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 15:07:11 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B951145DE59
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 15:07:11 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A246445DE56
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 15:07:11 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 93AA3E38005
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 15:07:11 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 559AF1DB8047
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 15:07:11 +0900 (JST)
+Date: Mon, 7 Mar 2011 15:00:49 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [Bugme-new] [Bug 30432] New: rmdir on cgroup can cause hang
- tasks
-Message-Id: <20110307143919.e4606054.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110307135803.a7d718ce.kamezawa.hiroyu@jp.fujitsu.com>
-References: <bug-30432-10286@https.bugzilla.kernel.org/>
-	<20110304000355.4f68bab1.akpm@linux-foundation.org>
-	<20110304172815.9d9e3672.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110304180157.133fdfd1.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110307135803.a7d718ce.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] memcg: fix to leave pages on wrong LRU with FUSE.
+Message-Id: <20110307150049.d42d046d.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Daniel Poelzleithner <poelzi@poelzi.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, bugme-daemon@bugzilla.kernel.org, containers@lists.osdl.org, Paul Menage <menage@google.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, miklos@szeredi.hu
 
-On Mon, 7 Mar 2011 13:58:03 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+At this point, I'm not sure this is a fix for 
+   https://bugzilla.kernel.org/show_bug.cgi?id=30432.
 
-> On Fri, 4 Mar 2011 18:01:57 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > On Fri, 4 Mar 2011 17:28:15 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > This seems....
-> > > ==
-> > > static void mem_cgroup_start_move(struct mem_cgroup *mem)
-> > > {
-> > > .....
-> > > 	put_online_cpus();
-> > > 
-> > >         synchronize_rcu();   <---------(*)
-> > > }
-> > > ==
-> > > 
-> > 
-> > But this may scan LRU of memcg forever and SysRq+T just shows
-> > above stack.
-> > 
-> > I'll check a tree before THP and force_empty again
-> 
-> Hmm, one more conern is what kind of file system is used ?
-> 
-> Can I see 
->  - /prco/mounts
-> and your .config ?
-> 
-> If you use FUSE, could you try this ?
-> 
-> I'll prepare one for mmotm.
-> 
+The behavior seems very similar to SwapCache case and this is a possible
+bug and this patch can be a fix. Nishimura-san, how do you think ?
 
-Sorry, this version may contain hung-up bug...
-I'll start from fix for mmotm and backport it.
+But I'm not sure how to test this....please review.
 
-Thanks,
--Kame
+=
+fs/fuse/dev.c::fuse_try_move_page() does
+
+   (1) remove a page from page cache by ->steal()
+   (2) re-add the page to page cache 
+   (3) link the page to LRU if it was _not_ on LRU at (1)
+
+
+This implies the page can be _on_ LRU when add_to_page_cache_locked() is called.
+So, the page is added to a memory cgroup while it's on LRU.
+
+This is the same behavior as SwapCache, 'newly charged pages may be on LRU'
+and needs special care as
+ - remove page from old memcg's LRU before overwrite pc->mem_cgroup.
+ - add page to new memcg's LRU after overwrite pc->mem_cgroup.
+
+So, reusing SwapCache code with renaming for fix.
+
+Note: a page on pagevec(LRU).
+
+If a page is not PageLRU(page) but on pagevec(LRU), it may be added to LRU
+while we overwrite page->mapping. But in that case, PCG_USED bit of
+the page_cgroup is not set and the page_cgroup will not be added to
+wrong memcg's LRU. So, this patch's logic will work fine.
+(It has been tested with SwapCache.)
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |   42 +++++++++++++++++++++++-------------------
+ 1 file changed, 23 insertions(+), 19 deletions(-)
+
+Index: mmotm-0303/mm/memcontrol.c
+===================================================================
+--- mmotm-0303.orig/mm/memcontrol.c
++++ mmotm-0303/mm/memcontrol.c
+@@ -926,13 +926,12 @@ void mem_cgroup_add_lru_list(struct page
+ }
+ 
+ /*
+- * At handling SwapCache, pc->mem_cgroup may be changed while it's linked to
+- * lru because the page may.be reused after it's fully uncharged (because of
+- * SwapCache behavior).To handle that, unlink page_cgroup from LRU when charge
+- * it again. This function is only used to charge SwapCache. It's done under
+- * lock_page and expected that zone->lru_lock is never held.
++ * At handling SwapCache and other FUSE stuff, pc->mem_cgroup may be changed
++ * while it's linked to lru because the page may be reused after it's fully
++ * uncharged. To handle that, unlink page_cgroup from LRU when charge it again.
++ * It's done under lock_page and expected that zone->lru_lock isnever held.
+  */
+-static void mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
++static void mem_cgroup_lru_del_before_commit(struct page *page)
+ {
+ 	unsigned long flags;
+ 	struct zone *zone = page_zone(page);
+@@ -948,7 +947,7 @@ static void mem_cgroup_lru_del_before_co
+ 	spin_unlock_irqrestore(&zone->lru_lock, flags);
+ }
+ 
+-static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
++static void mem_cgroup_lru_add_after_commit(struct page *page)
+ {
+ 	unsigned long flags;
+ 	struct zone *zone = page_zone(page);
+@@ -2428,7 +2427,7 @@ int mem_cgroup_newpage_charge(struct pag
+ }
+ 
+ static void
+-__mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
++__mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *ptr,
+ 					enum charge_type ctype);
+ 
+ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+@@ -2468,17 +2467,22 @@ int mem_cgroup_cache_charge(struct page 
+ 	if (unlikely(!mm))
+ 		mm = &init_mm;
+ 
+-	if (page_is_file_cache(page))
+-		return mem_cgroup_charge_common(page, mm, gfp_mask,
++	if (page_is_file_cache(page) && !PageLRU(page)) {
++		ret = mem_cgroup_charge_common(page, mm, gfp_mask,
+ 				MEM_CGROUP_CHARGE_TYPE_CACHE);
+-
+-	/* shmem */
+-	if (PageSwapCache(page)) {
++	} else if (page_is_file_cache(page)) {
++		struct mem_cgroup *mem;
++		/* Page on LRU should be moved to the _new_ LRU */
++		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, &mem, true);
++		if (!ret)
++			__mem_cgroup_commit_charge_lrucare(page, mem,
++					MEM_CGROUP_CHARGE_TYPE_CACHE);
++	} else if (PageSwapCache(page)) {
+ 		struct mem_cgroup *mem;
+-
+ 		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
++
+ 		if (!ret)
+-			__mem_cgroup_commit_charge_swapin(page, mem,
++			__mem_cgroup_commit_charge_lrucare(page, mem,
+ 					MEM_CGROUP_CHARGE_TYPE_SHMEM);
+ 	} else
+ 		ret = mem_cgroup_charge_common(page, mm, gfp_mask,
+@@ -2529,7 +2533,7 @@ charge_cur_mm:
+ }
+ 
+ static void
+-__mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
++__mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *ptr,
+ 					enum charge_type ctype)
+ {
+ 	struct page_cgroup *pc;
+@@ -2540,9 +2544,9 @@ __mem_cgroup_commit_charge_swapin(struct
+ 		return;
+ 	cgroup_exclude_rmdir(&ptr->css);
+ 	pc = lookup_page_cgroup(page);
+-	mem_cgroup_lru_del_before_commit_swapcache(page);
++	mem_cgroup_lru_del_before_commit(page);
+ 	__mem_cgroup_commit_charge(ptr, page, 1, pc, ctype);
+-	mem_cgroup_lru_add_after_commit_swapcache(page);
++	mem_cgroup_lru_add_after_commit(page);
+ 	/*
+ 	 * Now swap is on-memory. This means this page may be
+ 	 * counted both as mem and swap....double count.
+@@ -2580,7 +2584,7 @@ __mem_cgroup_commit_charge_swapin(struct
+ 
+ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
+ {
+-	__mem_cgroup_commit_charge_swapin(page, ptr,
++	__mem_cgroup_commit_charge_lrucare(page, ptr,
+ 					MEM_CGROUP_CHARGE_TYPE_MAPPED);
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
