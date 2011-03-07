@@ -1,35 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1F0298D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 11:40:32 -0500 (EST)
-Date: Mon, 7 Mar 2011 10:40:25 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] Make /proc/slabinfo 0400
-In-Reply-To: <alpine.LNX.2.00.1103060213110.6297@swampdragon.chaosbits.net>
-Message-ID: <alpine.DEB.2.00.1103071039470.1973@router.home>
-References: <1299174652.2071.12.camel@dan> <1299185882.3062.233.camel@calx>  <1299186986.2071.90.camel@dan> <1299188667.3062.259.camel@calx>  <1299191400.2071.203.camel@dan>  <2DD7330B-2FED-4E58-A76D-93794A877A00@mit.edu>  <AANLkTimpfk8EHjVKYsJv0p_G7tS2yB-n=PPbD2v7xefV@mail.gmail.com>
-  <1299260164.8493.4071.camel@nimitz>  <AANLkTim+XcYiiM9u8nT659FHaZO1RPDEtyAgFtiA8VOk@mail.gmail.com>  <1299262495.3062.298.camel@calx>  <AANLkTimRN_=APe_PWMFe_6CHHC7psUbCYE-O0qc=mmYY@mail.gmail.com>  <1299271041.2071.1398.camel@dan>
- <AANLkTimvhHxsMCf2FX0O8VqksOa2EAMz=S_C3LQKvE60@mail.gmail.com>  <1299273034.2071.1417.camel@dan>  <alpine.LNX.2.00.1103060137410.6297@swampdragon.chaosbits.net> <1299373781.3062.374.camel@calx>
- <alpine.LNX.2.00.1103060213110.6297@swampdragon.chaosbits.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B5D1D8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 12:48:50 -0500 (EST)
+Message-Id: <20110307172207.513560565@chello.nl>
+Date: Mon, 07 Mar 2011 18:14:05 +0100
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [RFC][PATCH 15/15] mm, xtensa: Convert xtensa to generic tlb
+References: <20110307171350.989666626@chello.nl>
+Content-Disposition: inline; filename=xtensa-mmu_range.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Juhl <jj@chaosbits.net>
-Cc: Matt Mackall <mpm@selenic.com>, Dan Rosenberg <drosenberg@vsecurity.com>, Pekka Enberg <penberg@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Theodore Tso <tytso@mit.edu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
+To: Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Chris Zankel <chris@zankel.net>
 
-On Sun, 6 Mar 2011, Jesper Juhl wrote:
+Cc: Chris Zankel <chris@zankel.net>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+ arch/xtensa/Kconfig           |    1 +
+ arch/xtensa/include/asm/tlb.h |   23 -----------------------
+ 2 files changed, 1 insertion(+), 23 deletions(-)
 
-> > Putting trivial obstacles in the way of attackers accomplishes little
-> > beyond annoying users.
-> >
-> If we annoy users I agree we shouldn't. If we don't annoy users (and don't
-> impact performance in any relevant way) then even trivial obstacles that
-> stop just a few exploits are worth it IMHO.
+Index: linux-2.6/arch/xtensa/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/xtensa/Kconfig
++++ linux-2.6/arch/xtensa/Kconfig
+@@ -7,6 +7,7 @@ config ZONE_DMA
+ config XTENSA
+ 	def_bool y
+ 	select HAVE_IDE
++	select HAVE_MMU_GATHER_RANGE
+ 	help
+ 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
+ 	  primarily for embedded systems.  These processors are both
+Index: linux-2.6/arch/xtensa/include/asm/tlb.h
+===================================================================
+--- linux-2.6.orig/arch/xtensa/include/asm/tlb.h
++++ linux-2.6/arch/xtensa/include/asm/tlb.h
+@@ -14,29 +14,6 @@
+ #include <asm/cache.h>
+ #include <asm/page.h>
+ 
+-#if (DCACHE_WAY_SIZE <= PAGE_SIZE)
+-
+-/* Note, read http://lkml.org/lkml/2004/1/15/6 */
+-
+-# define tlb_start_vma(tlb,vma)			do { } while (0)
+-# define tlb_end_vma(tlb,vma)			do { } while (0)
+-
+-#else
+-
+-# define tlb_start_vma(tlb, vma)					      \
+-	do {								      \
+-		if (!tlb->fullmm)					      \
+-			flush_cache_range(vma, vma->vm_start, vma->vm_end);   \
+-	} while(0)
+-
+-# define tlb_end_vma(tlb, vma)						      \
+-	do {								      \
+-		if (!tlb->fullmm)					      \
+-			flush_tlb_range(vma, vma->vm_start, vma->vm_end);     \
+-	} while(0)
+-
+-#endif
+-
+ #define __tlb_remove_tlb_entry(tlb,pte,addr)	do { } while (0)
+ 
+ #include <asm-generic/tlb.h>
 
-Randomizing affects performance. The current way of initialization for the
-list of free objects was chosen because the processor can do effective
-prefetching when the allocator serves objects following each other.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
