@@ -1,64 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 595798D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 03:35:39 -0500 (EST)
-Received: by iwl42 with SMTP id 42so5020004iwl.14
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2011 00:35:37 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 27C298D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 03:36:16 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id BD98D3EE0BD
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:36:07 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A35F845DE4E
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:36:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 89E1745DE4D
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:36:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CDEBE08002
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:36:07 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A8991DB802C
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:36:07 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2/8] Change alloc_pages_vma to pass down the policy node for local policy
+In-Reply-To: <1299182391-6061-3-git-send-email-andi@firstfloor.org>
+References: <1299182391-6061-1-git-send-email-andi@firstfloor.org> <1299182391-6061-3-git-send-email-andi@firstfloor.org>
+Message-Id: <20110307173604.8A07.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <AANLkTikJpr9H2NJHyw_uajL=Ef_p16L3QYgmJSfFynSZ@mail.gmail.com>
-References: <AANLkTikJpr9H2NJHyw_uajL=Ef_p16L3QYgmJSfFynSZ@mail.gmail.com>
-Date: Mon, 7 Mar 2011 17:35:37 +0900
-Message-ID: <AANLkTinncv11r3cJnOr0HWZyaSu5NQMz6pEYThMkmFd0@mail.gmail.com>
-Subject: Re: THP, rmap and page_referenced_one()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon,  7 Mar 2011 17:36:06 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
 
-On Mon, Mar 7, 2011 at 3:50 PM, Michel Lespinasse <walken@google.com> wrote:
-> Hi,
->
-> I have been wondering about the following:
->
-> Before the THP work, the if (vma->vm_flags & VM_LOCKED) test in
-> page_referenced_one() was placed after the page_check_address() call,
-> but now it is placed above it. Could this be a problem ?
->
-> My understanding is that the page_check_address() check may return
-> false positives - for example, if an anon page was created before a
-> process forked, rmap will indicate that the page could be mapped in
-> both of the processes, even though one of them might have since broken
-> COW. What would happen if the child process mlocks the corresponding
-> VMA ? my understanding is that this would break COW, but not cause
-> rmap to be updated, so the parent's page would still be marked in rmap
-> as being possibly mapped in the children's VM_LOCKED vma. With the
-> VM_LOCKED check now placed above the page_check_address() call, this
-> would cause vmscan to see both the parent's and the child's pages as
-> being unevictable.
+> From: Andi Kleen <ak@linux.intel.com>
+> 
+> Currently alloc_pages_vma always uses the local node as policy node
+> for the LOCAL policy. Pass this node down as an argument instead.
+> 
+> No behaviour change from this patch, but will be needed for followons.
+> 
+> Acked-by: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-I agree.
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-There are two processes called P_A, P_B.
-P_B is child of P_A.
 
-A page "page A" is share between V_A(A's VMA)and V_B(B's VMA) since
-P_B is created by forking from P_A. When P_B calls mlock the V_B, P_B
-allocates new page B instead of reusing page A by COW and mapped P_B's
-page table but rmap of page A still indicates page A is mapped by V_A
-and V_B.
-
-The page_check_address can filter this situation that V_B doesn't
-include page A any more.
-So page_check_address should be placed before checking the VM_LOCKED.
-
-I think it's valuable to add the comment why we need
-page_check_address should be placed before the checking VM_LOCKED.
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
