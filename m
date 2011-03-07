@@ -1,83 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D2578D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 03:34:22 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 535413EE0C1
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:34:15 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 352DE45DE50
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:34:15 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C67445DE4F
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:34:15 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0EAF91DB803E
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:34:15 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CFD2D1DB802F
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:34:14 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 6/8] Add __GFP_OTHER_NODE flag
-In-Reply-To: <1299182391-6061-7-git-send-email-andi@firstfloor.org>
-References: <1299182391-6061-1-git-send-email-andi@firstfloor.org> <1299182391-6061-7-git-send-email-andi@firstfloor.org>
-Message-Id: <20110307173042.8A04.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 595798D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 03:35:39 -0500 (EST)
+Received: by iwl42 with SMTP id 42so5020004iwl.14
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2011 00:35:37 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon,  7 Mar 2011 17:34:14 +0900 (JST)
+In-Reply-To: <AANLkTikJpr9H2NJHyw_uajL=Ef_p16L3QYgmJSfFynSZ@mail.gmail.com>
+References: <AANLkTikJpr9H2NJHyw_uajL=Ef_p16L3QYgmJSfFynSZ@mail.gmail.com>
+Date: Mon, 7 Mar 2011 17:35:37 +0900
+Message-ID: <AANLkTinncv11r3cJnOr0HWZyaSu5NQMz6pEYThMkmFd0@mail.gmail.com>
+Subject: Re: THP, rmap and page_referenced_one()
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, aarcange@redhat.com
+To: Michel Lespinasse <walken@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 
-> From: Andi Kleen <ak@linux.intel.com>
-> 
-> Add a new __GFP_OTHER_NODE flag to tell the low level numa statistics
-> in zone_statistics() that an allocation is on behalf of another thread.
-> This way the local and remote counters can be still correct, even
-> when background daemons like khugepaged are changing memory
-> mappings.
-> 
-> This only affects the accounting, but I think it's worth doing that
-> right to avoid confusing users.
-> 
-> I first tried to just pass down the right node, but this required
-> a lot of changes to pass down this parameter and at least one
-> addition of a 10th argument to a 9 argument function. Using
-> the flag is a lot less intrusive.
+On Mon, Mar 7, 2011 at 3:50 PM, Michel Lespinasse <walken@google.com> wrote:
+> Hi,
+>
+> I have been wondering about the following:
+>
+> Before the THP work, the if (vma->vm_flags & VM_LOCKED) test in
+> page_referenced_one() was placed after the page_check_address() call,
+> but now it is placed above it. Could this be a problem ?
+>
+> My understanding is that the page_check_address() check may return
+> false positives - for example, if an anon page was created before a
+> process forked, rmap will indicate that the page could be mapped in
+> both of the processes, even though one of them might have since broken
+> COW. What would happen if the child process mlocks the corresponding
+> VMA ? my understanding is that this would break COW, but not cause
+> rmap to be updated, so the parent's page would still be marked in rmap
+> as being possibly mapped in the children's VM_LOCKED vma. With the
+> VM_LOCKED check now placed above the page_check_address() call, this
+> would cause vmscan to see both the parent's and the child's pages as
+> being unevictable.
 
-Yes, less intrusive. But are you using current NUMA stastics on
-practical system?
-I didn't numa stat recent 5 years at all. So, I'm curious your usecase.
-IOW, I haven't convinced this is worthful to consume new GFP_ flags bit.
+I agree.
 
-_now_, I can say I don't found any bug in this patch.
+There are two processes called P_A, P_B.
+P_B is child of P_A.
 
-> 
-> Open: should be also used for migration?
-> 
-> Cc: aarcange@redhat.com
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  include/linux/gfp.h    |    2 ++
->  include/linux/vmstat.h |    4 ++--
->  mm/page_alloc.c        |    2 +-
->  mm/vmstat.c            |    9 +++++++--
->  4 files changed, 12 insertions(+), 5 deletions(-)
-> 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 814d50e..a064724 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -35,6 +35,7 @@ struct vm_area_struct;
->  #define ___GFP_NOTRACK		0
->  #endif
->  #define ___GFP_NO_KSWAPD	0x400000u
-> +#define ___GFP_OTHER_NODE	0x800000u
+A page "page A" is share between V_A(A's VMA)and V_B(B's VMA) since
+P_B is created by forking from P_A. When P_B calls mlock the V_B, P_B
+allocates new page B instead of reusing page A by COW and mapped P_B's
+page table but rmap of page A still indicates page A is mapped by V_A
+and V_B.
 
+The page_check_address can filter this situation that V_B doesn't
+include page A any more.
+So page_check_address should be placed before checking the VM_LOCKED.
 
+I think it's valuable to add the comment why we need
+page_check_address should be placed before the checking VM_LOCKED.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
