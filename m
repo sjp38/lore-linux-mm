@@ -1,49 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 450FE8D003C
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 12:49:01 -0500 (EST)
-Message-Id: <20110307172206.831489809@chello.nl>
-Date: Mon, 07 Mar 2011 18:13:55 +0100
+	by kanga.kvack.org (Postfix) with ESMTP id 129AD8D003C
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 12:49:17 -0500 (EST)
+Message-Id: <20110307172207.309211374@chello.nl>
+Date: Mon, 07 Mar 2011 18:14:02 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [RFC][PATCH 05/15] mm, tile: Change flush_tlb_range() VM_HUGETLB semantics
+Subject: [RFC][PATCH 12/15] mm, mips: Convert mips to generic tlb
 References: <20110307171350.989666626@chello.nl>
-Content-Disposition: inline; filename=tile-flush_tlb_range-hugetlb.patch
+Content-Disposition: inline; filename=mips-mmu_range.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Ralf Baechle <ralf@linux-mips.org>
 
-Since we're going to provide a fake VMA covering a large range, we
-need to change the VM_HUGETLB semantic to mean _also_ wipe HPAGE TLBs.
-
-Cc: Chris Metcalf <cmetcalf@tilera.com>
+Cc: Ralf Baechle <ralf@linux-mips.org>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- arch/tile/kernel/tlb.c |    9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ arch/mips/Kconfig           |    1 +
+ arch/mips/include/asm/tlb.h |   10 ----------
+ 2 files changed, 1 insertion(+), 10 deletions(-)
 
-Index: linux-2.6/arch/tile/kernel/tlb.c
+Index: linux-2.6/arch/mips/Kconfig
 ===================================================================
---- linux-2.6.orig/arch/tile/kernel/tlb.c
-+++ linux-2.6/arch/tile/kernel/tlb.c
-@@ -67,11 +67,14 @@ EXPORT_SYMBOL(flush_tlb_page);
- void flush_tlb_range(const struct vm_area_struct *vma,
- 		     unsigned long start, unsigned long end)
- {
--	unsigned long size = hv_page_size(vma);
- 	struct mm_struct *mm = vma->vm_mm;
- 	int cache = (vma->vm_flags & VM_EXEC) ? HV_FLUSH_EVICT_L1I : 0;
--	flush_remote(0, cache, &mm->cpu_vm_mask, start, end - start, size,
--		     &mm->cpu_vm_mask, NULL, 0);
-+	flush_remote(0, cache, &mm->cpu_vm_mask, start, end - start,
-+			PAGE_SIZE, &mm->cpu_vm_mask, NULL, 0);
-+	if (vma->vm_flags & VM_HUGETLB) {
-+		flush_remote(0, 0, &mm->cpu_vm_mask, start, end - start,
-+				HPAGE_SIZE, &mm->cpu_vm_mask, NULL, 0);
-+	}
- }
+--- linux-2.6.orig/arch/mips/Kconfig
++++ linux-2.6/arch/mips/Kconfig
+@@ -22,6 +22,7 @@ config MIPS
+ 	select HAVE_GENERIC_HARDIRQS
+ 	select GENERIC_IRQ_PROBE
+ 	select HAVE_ARCH_JUMP_LABEL
++	select HAVE_MMU_GATHER_RANGE
  
- void flush_tlb_all(void)
+ menu "Machine selection"
+ 
+Index: linux-2.6/arch/mips/include/asm/tlb.h
+===================================================================
+--- linux-2.6.orig/arch/mips/include/asm/tlb.h
++++ linux-2.6/arch/mips/include/asm/tlb.h
+@@ -1,16 +1,6 @@
+ #ifndef __ASM_TLB_H
+ #define __ASM_TLB_H
+ 
+-/*
+- * MIPS doesn't need any special per-pte or per-vma handling, except
+- * we need to flush cache for area to be unmapped.
+- */
+-#define tlb_start_vma(tlb, vma) 				\
+-	do {							\
+-		if (!tlb->fullmm)				\
+-			flush_cache_range(vma, vma->vm_start, vma->vm_end); \
+-	}  while (0)
+-#define tlb_end_vma(tlb, vma) do { } while (0)
+ #define __tlb_remove_tlb_entry(tlb, ptep, address) do { } while (0)
+ 
+ #include <asm-generic/tlb.h>
 
 
 --
