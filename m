@@ -1,106 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8069A8D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 15:13:21 -0500 (EST)
-Received: by qwd7 with SMTP id 7so4560738qwd.14
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2011 12:13:18 -0800 (PST)
-Date: Mon, 7 Mar 2011 15:13:14 -0500
-From: Eric B Munson <emunson@mgebm.net>
-Subject: Re: [PATCH] hugetlb: /proc/meminfo shows data for all sizes of
- hugepages
-Message-ID: <20110307201314.GA5354@mgebm.net>
-References: <1299503155-6210-1-git-send-email-pholasek@redhat.com>
- <1299527214.8493.13263.camel@nimitz>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 182FF8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 15:37:01 -0500 (EST)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id p27Kauil008807
+	for <linux-mm@kvack.org>; Mon, 7 Mar 2011 12:36:56 -0800
+Received: from pwj4 (pwj4.prod.google.com [10.241.219.68])
+	by wpaz17.hot.corp.google.com with ESMTP id p27KaeER013735
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 7 Mar 2011 12:36:55 -0800
+Received: by pwj4 with SMTP id 4so964164pwj.16
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2011 12:36:54 -0800 (PST)
+Date: Mon, 7 Mar 2011 12:36:49 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: skip zombie in OOM-killer
+In-Reply-To: <AANLkTi=d+eZxg_NgNWa7roo=1YQS06=EaWJzjseL_Hhs@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1103071234480.10264@chino.kir.corp.google.com>
+References: <1299286307-4386-1-git-send-email-avagin@openvz.org> <20110306193519.49DD.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1103061400170.23737@chino.kir.corp.google.com> <AANLkTi=d+eZxg_NgNWa7roo=1YQS06=EaWJzjseL_Hhs@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="T4sUOijqQbZv57TR"
-Content-Disposition: inline
-In-Reply-To: <1299527214.8493.13263.camel@nimitz>
+Content-Type: MULTIPART/MIXED; BOUNDARY="531368966-1855919177-1299530211=:10264"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Petr Holasek <pholasek@redhat.com>, linux-kernel@vger.kernel.org, anton@redhat.com, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
+To: Andrew Vagin <avagin@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
---T4sUOijqQbZv57TR
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+--531368966-1855919177-1299530211=:10264
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 
-On Mon, 07 Mar 2011, Dave Hansen wrote:
+On Mon, 7 Mar 2011, Andrew Vagin wrote:
 
-> On Mon, 2011-03-07 at 14:05 +0100, Petr Holasek wrote:
-> > +       for_each_hstate(h)
-> > +               seq_printf(m,
-> > +                               "HugePages_Total:   %5lu\n"
-> > +                               "HugePages_Free:    %5lu\n"
-> > +                               "HugePages_Rsvd:    %5lu\n"
-> > +                               "HugePages_Surp:    %5lu\n"
-> > +                               "Hugepagesize:   %8lu kB\n",
-> > +                               h->nr_huge_pages,
-> > +                               h->free_huge_pages,
-> > +                               h->resv_huge_pages,
-> > +                               h->surplus_huge_pages,
-> > +                               1UL << (huge_page_order(h) + PAGE_SHIFT=
- - 10));
-> >  }
->=20
-> It sounds like now we'll get a meminfo that looks like:
->=20
-> ...
-> AnonHugePages:    491520 kB
-> HugePages_Total:       5
-> HugePages_Free:        2
-> HugePages_Rsvd:        3
-> HugePages_Surp:        1
-> Hugepagesize:       2048 kB
-> HugePages_Total:       2
-> HugePages_Free:        1
-> HugePages_Rsvd:        1
-> HugePages_Surp:        1
-> Hugepagesize:    1048576 kB
-> DirectMap4k:       12160 kB
-> DirectMap2M:     2082816 kB
-> DirectMap1G:     2097152 kB
->=20
-> At best, that's a bit confusing.  There aren't any other entries in
-> meminfo that occur more than once.  Plus, this information is available
-> in the sysfs interface.  Why isn't that sufficient?
->=20
-> Could we do something where we keep the default hpage_size looking like
-> it does now, but append the size explicitly for the new entries?
->=20
-> HugePages_Total(1G):       2
-> HugePages_Free(1G):        1
-> HugePages_Rsvd(1G):        1
-> HugePages_Surp(1G):        1
->=20
-> -- Dave
+> > Andrey is patching the case where an eligible TIF_MEMDIE process is found
+> > but it has already detached its ->mm.  In combination with the patch
+> > posted to linux-mm, oom: prevent unnecessary oom kills or kernel panics,
+> > which makes select_bad_process() iterate over all threads, it is an
+> > effective solution.
+> 
+> Probably you said about the first version of my patch.
+> This version is incorrect because of
+> http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=dd8e8f405ca386c7ce7cbb996ccd985d283b0e03
+> 
+> but my first patch is correct and it has a simple reproducer(I
+> attached it). You can execute it and your kernel hangs up, because the
+> parent doesn't wait children, but the one child (zombie) will have
+> flag TIF_MEMDIE, oom_killer will kill nobody
+> 
 
-I second that, this will help minimize the change to userspace tools that c=
-urrently read
-meminfo for huge page information.
+The second version of your patch works fine in combination with the 
+pending "oom: prevent unnecessary oom kills or kernel panics" patch from 
+linux-mm (included below).  Try your test case with both this patch and 
+the second version of your patch.
 
-Eric
-
---T4sUOijqQbZv57TR
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-
-iQEcBAEBAgAGBQJNdTxaAAoJEH65iIruGRnNefAIAISv2+UGndFtJT0oHxnZc15C
-aXwGi++SjjEzoXjaL1XXaTFyRBW+xAO6YNRgPeJUfnW7c+NLcb2XxffeARkiD5hf
-iipzdmTNxndthlYXWwSl+ZCdbcarx+SLdXC7juWVqQe00XXEB5GD/1nEI7E/2l5I
-ZcfiCJNDnV3rX8OeEekMm7LBatJ+lkPJj1tnaEW2C9CPwyGiMfl2wqMrT9r9EM0k
-OjDX7D7gPE6k9WfSgHKgwmGYwRZu6KWLbEansgf4KZEWlL9qc2DcP4Qip/01t0d2
-ZYGESX0gKLv3+t5f2AJAPlM9PMsImRGC3hRPgQfGQvU6GfwRhBga+XM+t65pmKU=
-=O0Pi
------END PGP SIGNATURE-----
-
---T4sUOijqQbZv57TR--
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -292,11 +292,11 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 		unsigned long totalpages, struct mem_cgroup *mem,
+ 		const nodemask_t *nodemask)
+ {
+-	struct task_struct *p;
++	struct task_struct *g, *p;
+ 	struct task_struct *chosen = NULL;
+ 	*ppoints = 0;
+ 
+-	for_each_process(p) {
++	do_each_thread(g, p) {
+ 		unsigned int points;
+ 
+ 		if (oom_unkillable_task(p, mem, nodemask))
+@@ -324,7 +324,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 		 * the process of exiting and releasing its resources.
+ 		 * Otherwise we could get an easy OOM deadlock.
+ 		 */
+-		if (thread_group_empty(p) && (p->flags & PF_EXITING) && p->mm) {
++		if ((p->flags & PF_EXITING) && p->mm) {
+ 			if (p != current)
+ 				return ERR_PTR(-1UL);
+ 
+@@ -337,7 +337,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 			chosen = p;
+ 			*ppoints = points;
+ 		}
+-	}
++	} while_each_thread(g, p);
+ 
+ 	return chosen;
+ }
+--531368966-1855919177-1299530211=:10264--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
