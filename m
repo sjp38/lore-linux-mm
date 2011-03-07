@@ -1,50 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 36EEF8D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 04:41:45 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 353223EE0C5
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:41:37 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BEBA45DE5A
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:41:37 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EF0A245DE56
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:41:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DA7E0E08006
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:41:36 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A5B78E08002
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:41:36 +0900 (JST)
-Date: Mon, 7 Mar 2011 18:35:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCHv2 08/24] sys_swapon: move setting of error nearer use
-Message-Id: <20110307183516.45ca82ae.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1299343345-3984-9-git-send-email-cesarb@cesarb.net>
-References: <1299343345-3984-1-git-send-email-cesarb@cesarb.net>
-	<1299343345-3984-9-git-send-email-cesarb@cesarb.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 18A448D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 04:42:48 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id BFF073EE0AE
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:42:40 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A7E9B45DE4F
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:42:40 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 90ACE45DE50
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:42:40 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 81D711DB8037
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:42:40 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C7271DB8040
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:42:40 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] page-types.c: add a new argument of debugfs path
+In-Reply-To: <1299487900-7792-1-git-send-email-gong.chen@linux.intel.com>
+References: <1299487900-7792-1-git-send-email-gong.chen@linux.intel.com>
+Message-Id: <20110307184133.8A19.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Mon,  7 Mar 2011 18:42:39 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cesar Eduardo Barros <cesarb@cesarb.net>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, Eric B Munson <emunson@mgebm.net>
+To: Chen Gong <gong.chen@linux.intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, fengguang.wu@intel.com, linux-kernel@vger.kernel.orgWu Fengguang <fengguang.wu@intel.com>
 
-On Sat,  5 Mar 2011 13:42:09 -0300
-Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
-
-> Move the setting of the error variable nearer the goto in a few places.
+> page-types.c doesn't supply a way to specify the debugfs path and
+> the original debugfs path is not usual on most machines. Add a
+> new argument to set the debugfs path easily.
 > 
-> Avoids calling PTR_ERR() if not IS_ERR() in two places, and makes the
-> error condition more explicit in two other places.
-> 
-> Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
-> Tested-by: Eric B Munson <emunson@mgebm.net>
-> Acked-by: Eric B Munson <emunson@mgebm.net>
+> Signed-off-by: Chen Gong <gong.chen@linux.intel.com>
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Hi
+
+Why do we need to set debugfs path manually? Instead I'd suggested to
+read /proc/mount and detect it automatically.
+
+Thanks.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
