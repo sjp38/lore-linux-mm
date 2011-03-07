@@ -1,53 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C43238D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:56:29 -0500 (EST)
-Date: Mon, 7 Mar 2011 13:52:28 -0800
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C4D4F8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:59:13 -0500 (EST)
+Date: Mon, 7 Mar 2011 13:58:31 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: skip zombie in OOM-killer
-Message-Id: <20110307135228.aad5a97d.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1103071234480.10264@chino.kir.corp.google.com>
-References: <1299286307-4386-1-git-send-email-avagin@openvz.org>
-	<20110306193519.49DD.A69D9226@jp.fujitsu.com>
-	<alpine.DEB.2.00.1103061400170.23737@chino.kir.corp.google.com>
-	<AANLkTi=d+eZxg_NgNWa7roo=1YQS06=EaWJzjseL_Hhs@mail.gmail.com>
-	<alpine.DEB.2.00.1103071234480.10264@chino.kir.corp.google.com>
+Subject: Re: [PATCH] mm: check zone->all_unreclaimable in
+ all_unreclaimable()
+Message-Id: <20110307135831.9e0d7eaa.akpm@linux-foundation.org>
+In-Reply-To: <20110305170759.GC1918@barrios-desktop>
+References: <1299325456-2687-1-git-send-email-avagin@openvz.org>
+	<20110305152056.GA1918@barrios-desktop>
+	<4D72580D.4000208@gmail.com>
+	<20110305155316.GB1918@barrios-desktop>
+	<4D7267B6.6020406@gmail.com>
+	<20110305170759.GC1918@barrios-desktop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Vagin <avagin@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Vagin <avagin@gmail.com>, Andrey Vagin <avagin@openvz.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 7 Mar 2011 12:36:49 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+On Sun, 6 Mar 2011 02:07:59 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-> On Mon, 7 Mar 2011, Andrew Vagin wrote:
+> On Sat, Mar 05, 2011 at 07:41:26PM +0300, Andrew Vagin wrote:
+> > On 03/05/2011 06:53 PM, Minchan Kim wrote:
+> > >On Sat, Mar 05, 2011 at 06:34:37PM +0300, Andrew Vagin wrote:
+> > >>On 03/05/2011 06:20 PM, Minchan Kim wrote:
+> > >>>On Sat, Mar 05, 2011 at 02:44:16PM +0300, Andrey Vagin wrote:
+> > >>>>Check zone->all_unreclaimable in all_unreclaimable(), otherwise the
+> > >>>>kernel may hang up, because shrink_zones() will do nothing, but
+> > >>>>all_unreclaimable() will say, that zone has reclaimable pages.
+> > >>>>
+> > >>>>do_try_to_free_pages()
+> > >>>>	shrink_zones()
+> > >>>>		 for_each_zone
+> > >>>>			if (zone->all_unreclaimable)
+> > >>>>				continue
+> > >>>>	if !all_unreclaimable(zonelist, sc)
+> > >>>>		return 1
+> > >>>>
+> > >>>>__alloc_pages_slowpath()
+> > >>>>retry:
+> > >>>>	did_some_progress = do_try_to_free_pages(page)
+> > >>>>	...
+> > >>>>	if (!page&&   did_some_progress)
+> > >>>>		retry;
+> > >>>>
+> > >>>>Signed-off-by: Andrey Vagin<avagin@openvz.org>
+> > >>>>---
+> > >>>>  mm/vmscan.c |    2 ++
+> > >>>>  1 files changed, 2 insertions(+), 0 deletions(-)
+> > >>>>
+> > >>>>diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > >>>>index 6771ea7..1c056f7 100644
+> > >>>>--- a/mm/vmscan.c
+> > >>>>+++ b/mm/vmscan.c
+> > >>>>@@ -2002,6 +2002,8 @@ static bool all_unreclaimable(struct zonelist *zonelist,
+> > >>>>
+> > >>>>  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+> > >>>>  			gfp_zone(sc->gfp_mask), sc->nodemask) {
+> > >>>>+		if (zone->all_unreclaimable)
+> > >>>>+			continue;
+> > >>>>  		if (!populated_zone(zone))
+> > >>>>  			continue;
+> > >>>>  		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+> > >>>zone_reclaimable checks it. Isn't it enough?
+> > >>I sent one more patch [PATCH] mm: skip zombie in OOM-killer.
+> > >>This two patches are enough.
+> > >Sorry if I confused you.
+> > >I mean zone->all_unreclaimable become true if !zone_reclaimable in balance_pgdat.
+> > >zone_reclaimable compares recent pages_scanned with the number of zone lru pages.
+> > >So too many page scanning in small lru pages makes the zone to unreclaimable zone.
+> > >
+> > >In all_unreclaimable, we calls zone_reclaimable to detect it.
+> > >It's the same thing with your patch.
+> > balance_pgdat set zone->all_unreclaimable, but the problem is that
+> > it is cleaned late.
 > 
-> > > Andrey is patching the case where an eligible TIF_MEMDIE process is found
-> > > but it has already detached its ->mm. __In combination with the patch
-> > > posted to linux-mm, oom: prevent unnecessary oom kills or kernel panics,
-> > > which makes select_bad_process() iterate over all threads, it is an
-> > > effective solution.
-> > 
-> > Probably you said about the first version of my patch.
-> > This version is incorrect because of
-> > http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=dd8e8f405ca386c7ce7cbb996ccd985d283b0e03
-> > 
-> > but my first patch is correct and it has a simple reproducer(I
-> > attached it). You can execute it and your kernel hangs up, because the
-> > parent doesn't wait children, but the one child (zombie) will have
-> > flag TIF_MEMDIE, oom_killer will kill nobody
-> > 
+> Yes. It can be delayed by pcp so (zone->all_unreclaimable = true) is
+> a false alram since zone have a free page and it can be returned 
+> to free list by drain_all_pages in next turn.
 > 
-> The second version of your patch works fine in combination with the 
-> pending "oom: prevent unnecessary oom kills or kernel panics" patch from 
-> linux-mm (included below).
+> > 
+> > The problem is that zone->all_unreclaimable = True, but
+> > zone_reclaimable() returns True too.
+> 
+> Why is it a problem? 
+> If zone->all_unreclaimable gives a false alram, we does need to check
+> it again by zone_reclaimable call.
+> 
+> If we believe a false alarm and give up the reclaim, maybe we have to make
+> unnecessary oom kill.
+> 
+> > 
+> > zone->all_unreclaimable will be cleaned in free_*_pages, but this
+> > may be late. It is enough allocate one page from page cache, that
+> > zone_reclaimable() returns True and zone->all_unreclaimable becomes
+> > True.
+> > >>>Does the hang up really happen or see it by code review?
+> > >>Yes. You can reproduce it for help the attached python program. It's
+> > >>not very clever:)
+> > >>It make the following actions in loop:
+> > >>1. fork
+> > >>2. mmap
+> > >>3. touch memory
+> > >>4. read memory
+> > >>5. munmmap
+> > >It seems the test program makes fork bombs and memory hogging.
+> > >If you applied this patch, the problem is gone?
+> > Yes.
+> 
+> Hmm.. Although it solves the problem, I think it's not a good idea that
+> depends on false alram and give up the retry.
 
-Andrew's v2 doesn't apply on top of
-oom-prevent-unnecessary-oom-kills-or-kernel-panics.patch and I'm
-disinclined to fix that up and merge some untested patch combination.
+Any alternative proposals?  We should get the livelock fixed if possible..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
