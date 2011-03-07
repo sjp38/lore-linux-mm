@@ -1,53 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 59BFD8D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 02:59:14 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8B1CA3EE0C0
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:59:11 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7177F45DE5F
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:59:11 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F06445DE5A
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:59:11 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 420891DB804E
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:59:11 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0230C1DB8048
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:59:11 +0900 (JST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CB2AC8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 03:28:51 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 33FBC3EE0C1
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:28:48 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1650845DE4E
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:28:48 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id F2CEC45DE61
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:28:47 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D9723E08001
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:28:47 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 843CDE08006
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 17:28:47 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCHv2] procfs: fix /proc/<pid>/maps heap check
-In-Reply-To: <1299244994-5284-1-git-send-email-aaro.koskinen@nokia.com>
-References: <1299244994-5284-1-git-send-email-aaro.koskinen@nokia.com>
-Message-Id: <20110307165145.89FE.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 8/8] Add VM counters for transparent hugepages
+In-Reply-To: <1299182391-6061-9-git-send-email-andi@firstfloor.org>
+References: <1299182391-6061-1-git-send-email-andi@firstfloor.org> <1299182391-6061-9-git-send-email-andi@firstfloor.org>
+Message-Id: <20110307172609.8A01.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Mon,  7 Mar 2011 16:59:10 +0900 (JST)
+Date: Mon,  7 Mar 2011 17:28:46 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaro Koskinen <aaro.koskinen@nokia.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, stable@kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
 
-> The current code fails to print the "[heap]" marking if the heap is
-> splitted into multiple mappings.
+> From: Andi Kleen <ak@linux.intel.com>
 > 
-> Fix the check so that the marking is displayed in all possible cases:
-> 	1. vma matches exactly the heap
-> 	2. the heap vma is merged e.g. with bss
-> 	3. the heap vma is splitted e.g. due to locked pages
+> I found it difficult to make sense of transparent huge pages without
+> having any counters for its actions. Add some counters to vmstat
+> for allocation of transparent hugepages and fallback to smaller
+> pages.
 > 
-> Signed-off-by: Aaro Koskinen <aaro.koskinen@nokia.com>
-> Cc: stable@kernel.org
+> Optional patch, but useful for development and understanding the system.
+> 
+> Contains improvements from Andrea Arcangeli and Johannes Weiner
+> 
+> Acked-by: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > ---
+>  include/linux/vmstat.h |    7 +++++++
+>  mm/huge_memory.c       |   25 +++++++++++++++++++++----
+>  mm/vmstat.c            |    8 ++++++++
+>  3 files changed, 36 insertions(+), 4 deletions(-)
 > 
-> v2: Rewrote the changelog.
+> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+> index 9b5c63d..074e8fd 100644
+> --- a/include/linux/vmstat.h
+> +++ b/include/linux/vmstat.h
+> @@ -58,6 +58,13 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+>  		UNEVICTABLE_PGCLEARED,	/* on COW, page truncate */
+>  		UNEVICTABLE_PGSTRANDED,	/* unable to isolate on unlock */
+>  		UNEVICTABLE_MLOCKFREED,
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +	        THP_FAULT_ALLOC,
+> +		THP_FAULT_FALLBACK,
+> +		THP_COLLAPSE_ALLOC,
+> +		THP_COLLAPSE_ALLOC_FAILED,
+> +		THP_SPLIT,
+> +#endif
+>  		NR_VM_EVENT_ITEMS
+>  };
 
-Looks good.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Hmm...
+Don't we need to make per zone stastics? I'm afraid small dma zone 
+makes much thp-splitting and screw up this stastics.
 
+only nit.
 
 
 --
