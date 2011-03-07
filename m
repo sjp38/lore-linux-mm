@@ -1,33 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 094B98D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 04:23:01 -0500 (EST)
-Received: by gxk2 with SMTP id 2so2034802gxk.14
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2011 01:23:00 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1299343345-3984-16-git-send-email-cesarb@cesarb.net>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 96B8D8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 04:24:24 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 42C663EE0C0
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:24:20 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A6D645DE6D
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:24:20 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E6BD645DE4D
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:24:19 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D6538E18007
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:24:19 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 86CDDE08001
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:24:19 +0900 (JST)
+Date: Mon, 7 Mar 2011 18:17:54 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCHv2 02/24] sys_swapon: remove changelog from function
+ comment
+Message-Id: <20110307181754.65e3d230.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1299343345-3984-3-git-send-email-cesarb@cesarb.net>
 References: <1299343345-3984-1-git-send-email-cesarb@cesarb.net>
-	<1299343345-3984-16-git-send-email-cesarb@cesarb.net>
-Date: Mon, 7 Mar 2011 11:23:00 +0200
-Message-ID: <AANLkTinZtF2Gw4Ji4ZkTjgkLA45sQMH23HGPw7pKJKrD@mail.gmail.com>
-Subject: Re: [PATCHv2 15/24] sys_swapon: move setting of swapfilepages near use
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+	<1299343345-3984-3-git-send-email-cesarb@cesarb.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Cesar Eduardo Barros <cesarb@cesarb.net>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, Eric B Munson <emunson@mgebm.net>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, Eric B Munson <emunson@mgebm.net>
 
-On Sat, Mar 5, 2011 at 6:42 PM, Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
-> There is no reason I can see to read inode->i_size long before it is
-> needed. Move its read to just before it is needed, to reduce the
-> variable lifetime.
->
+On Sat,  5 Mar 2011 13:42:03 -0300
+Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
+
+> Changelogs belong in the git history instead of in the source code.
+> 
+> Also, "The swapon system call" is redundant with
+> "SYSCALL_DEFINE2(swapon, ...)".
+> 
 > Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 > Tested-by: Eric B Munson <emunson@mgebm.net>
 > Acked-by: Eric B Munson <emunson@mgebm.net>
 
-Reviewed-by: Pekka Enberg <penberg@kernel.org>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
