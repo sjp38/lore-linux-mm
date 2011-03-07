@@ -1,43 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D4B78D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 04:13:18 -0500 (EST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B33F8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 04:20:17 -0500 (EST)
 Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9FF783EE0C3
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:13:12 +0900 (JST)
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 87A353EE0BC
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:20:14 +0900 (JST)
 Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 628E845DE52
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:13:12 +0900 (JST)
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 34DED45DE59
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:20:14 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AB4845DE4F
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:13:12 +0900 (JST)
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C4A745DE52
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:20:12 +0900 (JST)
 Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 350AC1DB803F
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:13:12 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id F3E9F1DB803B
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:13:11 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2 v3]mm: batch activate_page() to reduce lock contention
-In-Reply-To: <1299486978.2337.29.camel@sli10-conroe>
-References: <1299486978.2337.29.camel@sli10-conroe>
-Message-Id: <20110307181314.8A16.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Mon,  7 Mar 2011 18:13:11 +0900 (JST)
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A3F5A1DB8042
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:20:11 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 680511DB803E
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 18:20:11 +0900 (JST)
+Date: Mon, 7 Mar 2011 18:13:41 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCHv2 01/24] sys_swapon: use vzalloc instead of
+ vmalloc/memset
+Message-Id: <20110307181341.87ff1801.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1299343345-3984-2-git-send-email-cesarb@cesarb.net>
+References: <1299343345-3984-1-git-send-email-cesarb@cesarb.net>
+	<1299343345-3984-2-git-send-email-cesarb@cesarb.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
+To: Cesar Eduardo Barros <cesarb@cesarb.net>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, Eric B Munson <emunson@mgebm.net>
 
-> which use activate_page a lot.  others are basically variations because
-> each run has slightly difference.
-> 
-> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+On Sat,  5 Mar 2011 13:42:02 -0300
+Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
 
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
+> Tested-by: Eric B Munson <emunson@mgebm.net>
+> Acked-by: Eric B Munson <emunson@mgebm.net>
+> ---
 
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
