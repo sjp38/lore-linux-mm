@@ -1,65 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 549FC8D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 02:33:16 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D19633EE0BB
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:33:08 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BAAE045DE53
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:33:08 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A534A45DE4D
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:33:08 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 979221DB8041
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:33:08 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F3891DB803F
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:33:08 +0900 (JST)
+	by kanga.kvack.org (Postfix) with ESMTP id 59BFD8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 02:59:14 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8B1CA3EE0C0
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:59:11 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7177F45DE5F
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:59:11 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F06445DE5A
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:59:11 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 420891DB804E
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:59:11 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0230C1DB8048
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 16:59:11 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: THP, rmap and page_referenced_one()
-In-Reply-To: <AANLkTikJpr9H2NJHyw_uajL=Ef_p16L3QYgmJSfFynSZ@mail.gmail.com>
-References: <AANLkTikJpr9H2NJHyw_uajL=Ef_p16L3QYgmJSfFynSZ@mail.gmail.com>
-Message-Id: <20110307162920.89FB.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCHv2] procfs: fix /proc/<pid>/maps heap check
+In-Reply-To: <1299244994-5284-1-git-send-email-aaro.koskinen@nokia.com>
+References: <1299244994-5284-1-git-send-email-aaro.koskinen@nokia.com>
+Message-Id: <20110307165145.89FE.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Mon,  7 Mar 2011 16:33:07 +0900 (JST)
+Date: Mon,  7 Mar 2011 16:59:10 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Aaro Koskinen <aaro.koskinen@nokia.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, stable@kernel.org
 
-> Hi,
+> The current code fails to print the "[heap]" marking if the heap is
+> splitted into multiple mappings.
 > 
-> I have been wondering about the following:
+> Fix the check so that the marking is displayed in all possible cases:
+> 	1. vma matches exactly the heap
+> 	2. the heap vma is merged e.g. with bss
+> 	3. the heap vma is splitted e.g. due to locked pages
 > 
-> Before the THP work, the if (vma->vm_flags & VM_LOCKED) test in
-> page_referenced_one() was placed after the page_check_address() call,
-> but now it is placed above it. Could this be a problem ?
+> Signed-off-by: Aaro Koskinen <aaro.koskinen@nokia.com>
+> Cc: stable@kernel.org
+> ---
 > 
-> My understanding is that the page_check_address() check may return
-> false positives - for example, if an anon page was created before a
-> process forked, rmap will indicate that the page could be mapped in
-> both of the processes, even though one of them might have since broken
-> COW. What would happen if the child process mlocks the corresponding
-> VMA ? my understanding is that this would break COW, but not cause
-> rmap to be updated, so the parent's page would still be marked in rmap
-> as being possibly mapped in the children's VM_LOCKED vma. With the
-> VM_LOCKED check now placed above the page_check_address() call, this
-> would cause vmscan to see both the parent's and the child's pages as
-> being unevictable.
-> 
-> Am I missing something there ? In particular, I am not sure if marking
-> the children's VMA as mlocked would somehow cause rmap to realize it
-> can't share pages with the parent anymore (but I don't think that's
-> the case, and it could cause other issues if it was...)
+> v2: Rewrote the changelog.
 
-Hi
+Looks good.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-I think you are right. 
-page_check_address() should be called before VM_LOCKED check.
 
 
 --
