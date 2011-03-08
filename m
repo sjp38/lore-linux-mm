@@ -1,73 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 465708D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 19:12:58 -0500 (EST)
-Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
-	by smtp-out.google.com with ESMTP id p280Csi9029836
-	for <linux-mm@kvack.org>; Mon, 7 Mar 2011 16:12:54 -0800
-Received: from pvh11 (pvh11.prod.google.com [10.241.210.203])
-	by hpaq11.eem.corp.google.com with ESMTP id p280CkAH015821
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 7 Mar 2011 16:12:53 -0800
-Received: by pvh11 with SMTP id 11so1381985pvh.22
-        for <linux-mm@kvack.org>; Mon, 07 Mar 2011 16:12:46 -0800 (PST)
-Date: Mon, 7 Mar 2011 16:12:41 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] memcg: add oom killer delay
-In-Reply-To: <20110303135223.0a415e69.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1103071602080.23035@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com> <alpine.DEB.2.00.1102091417410.5697@chino.kir.corp.google.com> <20110223150850.8b52f244.akpm@linux-foundation.org> <alpine.DEB.2.00.1102231636260.21906@chino.kir.corp.google.com>
- <20110303135223.0a415e69.akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 24A198D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 19:19:10 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7BDA53EE0C0
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:19:07 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E71845DE6D
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:19:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 24B1C45DE68
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:19:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 177F9E08004
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:19:07 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CFA111DB803C
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:19:06 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 6/8] Add __GFP_OTHER_NODE flag
+In-Reply-To: <20110307163334.GB13384@alboin.amr.corp.intel.com>
+References: <20110307173042.8A04.A69D9226@jp.fujitsu.com> <20110307163334.GB13384@alboin.amr.corp.intel.com>
+Message-Id: <20110308091843.8A95.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue,  8 Mar 2011 09:19:06 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
+To: Andi Kleen <ak@linux.intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, aarcange@redhat.com
 
-On Thu, 3 Mar 2011, Andrew Morton wrote:
-
-> If userspace has chosen to repalce the oom-killer then userspace should
-> be able to appropriately perform the role.  But for some
-> as-yet-undescribed reason, userspace is *not* able to perform that
-> role.
+> > Yes, less intrusive. But are you using current NUMA stastics on
+> > practical system?
 > 
-> And I'm suspecting that the as-yet-undescribed reason is a kernel
-> deficiency.  Spit it out.
+> Yes I do. I know users use it too.
 > 
+> We unfortunately still have enough NUMA locality problems in the kernel
+> so that overflowing nodes, causing fallbacks for process memory etc. are not uncommon. 
+> If you get that then numastat is very useful to track down what happens.
+> 
+> In an ideal world with perfect NUMA balancing it wouldn't be needed,
+> but we're far from that.
+> 
+> Also the numactl test suite depends on them.
 
-The purpose of memory.oom_control is to disable to kernel oom killer from 
-killing a task as soon as a memcg reaches its hard limit and reclaim has 
-failed.  We want that behavior, but only temporarily for two reasons:
+If so, I have no objection of cource. :)
 
- - the condition may be temporary and we'd rather busy loop for the 
-   duration of the spike in memory usage than kill something off because 
-   it will be coming under the hard limit soon or userspace will be 
-   increasing that limit (or killing a lower priority job in favor of 
-   this one), and
+Thanks.
 
- - it's possible that the userspace daemon is oom itself (being in a 
-   separate cgroup doesn't prevent that) and is therefore subject to 
-   being killed itself (or panicking the machine if its OOM_DISABLE and 
-   nothing else is eligible) and cannot rectify the situation in other 
-   memcgs that are also oom.
 
-So this patch is not a bug fix, it's an enhancement to an already existing 
-feature (memory.oom_control) that probably should have been coded to be a 
-timeout in the first place and up to userspace whether that's infinite or 
-not.
-
-Not merging this patch forces us into the very limiting position where we 
-either completely disable the oom killer or we don't and that's not 
-helpful in either of the above two cases without relying on userspace to 
-fix it (and it may be oom itself and locked out of freeing any memory via 
-the oom killer for the very same reason).
-
-So the question I'd ask is: why should the kernel only offer a complete 
-and infinite disabling of the oom killer (something we'd never want to do 
-in production) to allow userspace a grace period to respond to reaching 
-the hard limit as opposed to allowing users the option to allow the 
-killing iff userspace can't expand the cgroup or kill something itself.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
