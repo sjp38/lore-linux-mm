@@ -1,69 +1,91 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B933D8D0040
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2011 23:24:05 -0400 (EDT)
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp01.au.ibm.com (8.14.4/8.13.1) with ESMTP id p313K6rm026403
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 14:20:06 +1100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p313Nxtj2367566
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 14:23:59 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p313NxG4031818
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2011 14:23:59 +1100
-Date: Fri, 1 Apr 2011 08:38:11 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/3] Unmapped page cache control (v5)
-Message-ID: <20110401030811.GP2879@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20110330052819.8212.1359.stgit@localhost6.localdomain6>
- <20110331214033.GA2904@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+From: Daniel Kiper <dkiper@net-space.pl>
+Subject: [PATCH R4 1/7] xen/balloon: Removal of driver_pages
+Date: Tue, 8 Mar 2011 22:45:46 +0100
+Message-ID: <20110308214546.GB27331__7281.90973536602$1299620793$gmane$org@router-fw-old.local.net-space.pl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by lo.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1Px4jV-0001ot-57
+	for glkm-linux-mm-2@m.gmane.org; Tue, 08 Mar 2011 22:46:21 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B96B8D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 16:46:19 -0500 (EST)
+Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
+	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
+	id S1578948Ab1CHVpq (ORCPT <rfc822;linux-mm@kvack.org>);
+	Tue, 8 Mar 2011 22:45:46 +0100
 Content-Disposition: inline
-In-Reply-To: <20110331214033.GA2904@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, npiggin@kernel.dk, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, cl@linux.com, kamezawa.hiroyu@jp.fujitsu.com
+To: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer
 
-* Dave Chinner <david@fromorbit.com> [2011-04-01 08:40:33]:
+Removal of driver_pages (I do not have seen any references to it).
 
-> On Wed, Mar 30, 2011 at 11:00:26AM +0530, Balbir Singh wrote:
-> > 
-> > The following series implements page cache control,
-> > this is a split out version of patch 1 of version 3 of the
-> > page cache optimization patches posted earlier at
-> > Previous posting http://lwn.net/Articles/425851/ and analysis
-> > at http://lwn.net/Articles/419713/
-> > 
-> > Detailed Description
-> > ====================
-> > This patch implements unmapped page cache control via preferred
-> > page cache reclaim. The current patch hooks into kswapd and reclaims
-> > page cache if the user has requested for unmapped page control.
-> > This is useful in the following scenario
-> > - In a virtualized environment with cache=writethrough, we see
-> >   double caching - (one in the host and one in the guest). As
-> >   we try to scale guests, cache usage across the system grows.
-> >   The goal of this patch is to reclaim page cache when Linux is running
-> >   as a guest and get the host to hold the page cache and manage it.
-> >   There might be temporary duplication, but in the long run, memory
-> >   in the guests would be used for mapped pages.
-> 
-> What does this do that "cache=none" for the VMs and using the page
-> cache inside the guest doesn't acheive? That avoids double caching
-> and doesn't require any new complexity inside the host OS to
-> acheive...
->
+Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
+---
+ arch/x86/xen/mmu.c    |    3 +--
+ drivers/xen/balloon.c |    8 --------
+ 2 files changed, 1 insertions(+), 10 deletions(-)
 
-There was a long discussion on cache=none in the first posting and the
-downsides/impact on throughput. Please see
-http://www.mail-archive.com/kvm@vger.kernel.org/msg30655.html 
-
+diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
+index 5e92b61..e7c378e 100644
+--- a/arch/x86/xen/mmu.c
++++ b/arch/x86/xen/mmu.c
+@@ -78,8 +78,7 @@
+ 
+ /*
+  * Protects atomic reservation decrease/increase against concurrent increases.
+- * Also protects non-atomic updates of current_pages and driver_pages, and
+- * balloon lists.
++ * Also protects non-atomic updates of current_pages and balloon lists.
+  */
+ DEFINE_SPINLOCK(xen_reservation_lock);
+ 
+diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+index 43f9f02..b4206fd 100644
+--- a/drivers/xen/balloon.c
++++ b/drivers/xen/balloon.c
+@@ -70,11 +70,6 @@ struct balloon_stats {
+ 	/* We aim for 'current allocation' == 'target allocation'. */
+ 	unsigned long current_pages;
+ 	unsigned long target_pages;
+-	/*
+-	 * Drivers may alter the memory reservation independently, but they
+-	 * must inform the balloon driver so we avoid hitting the hard limit.
+-	 */
+-	unsigned long driver_pages;
+ 	/* Number of pages in high- and low-memory balloons. */
+ 	unsigned long balloon_low;
+ 	unsigned long balloon_high;
+@@ -404,7 +399,6 @@ static int __init balloon_init(void)
+ 	balloon_stats.target_pages  = balloon_stats.current_pages;
+ 	balloon_stats.balloon_low   = 0;
+ 	balloon_stats.balloon_high  = 0;
+-	balloon_stats.driver_pages  = 0UL;
+ 
+ 	init_timer(&balloon_timer);
+ 	balloon_timer.data = 0;
+@@ -462,7 +456,6 @@ module_exit(balloon_exit);
+ BALLOON_SHOW(current_kb, "%lu\n", PAGES2KB(balloon_stats.current_pages));
+ BALLOON_SHOW(low_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_low));
+ BALLOON_SHOW(high_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_high));
+-BALLOON_SHOW(driver_kb, "%lu\n", PAGES2KB(balloon_stats.driver_pages));
+ 
+ static ssize_t show_target_kb(struct sys_device *dev, struct sysdev_attribute *attr,
+ 			      char *buf)
+@@ -531,7 +524,6 @@ static struct attribute *balloon_info_attrs[] = {
+ 	&attr_current_kb.attr,
+ 	&attr_low_kb.attr,
+ 	&attr_high_kb.attr,
+-	&attr_driver_kb.attr,
+ 	NULL
+ };
+ 
 -- 
-	Three Cheers,
-	Balbir
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
