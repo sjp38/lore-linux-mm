@@ -1,81 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A67748D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 17:48:56 -0500 (EST)
-Received: by iwl42 with SMTP id 42so7204534iwl.14
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2011 14:48:54 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CAEF8D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 18:49:39 -0500 (EST)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id p28NnbbU016166
+	for <linux-mm@kvack.org>; Tue, 8 Mar 2011 15:49:37 -0800
+Received: from yxm8 (yxm8.prod.google.com [10.190.4.8])
+	by wpaz1.hot.corp.google.com with ESMTP id p28NnHxc030185
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 8 Mar 2011 15:49:35 -0800
+Received: by yxm8 with SMTP id 8so2616852yxm.12
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2011 15:49:17 -0800 (PST)
+Date: Tue, 8 Mar 2011 15:49:10 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] memcg: add oom killer delay
+In-Reply-To: <20110308144901.fe34abd0.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1103081540320.27910@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com> <20110303135223.0a415e69.akpm@linux-foundation.org> <alpine.DEB.2.00.1103071602080.23035@chino.kir.corp.google.com> <20110307162912.2d8c70c1.akpm@linux-foundation.org>
+ <alpine.DEB.2.00.1103071631080.23844@chino.kir.corp.google.com> <20110307165119.436f5d21.akpm@linux-foundation.org> <alpine.DEB.2.00.1103071657090.24549@chino.kir.corp.google.com> <20110307171853.c31ec416.akpm@linux-foundation.org>
+ <alpine.DEB.2.00.1103071721330.25197@chino.kir.corp.google.com> <20110308115108.36b184c5.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1103071905400.1640@chino.kir.corp.google.com> <20110308121332.de003f81.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1103071954550.2883@chino.kir.corp.google.com> <20110308131723.e434cb89.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1103072126590.4593@chino.kir.corp.google.com> <20110308144901.fe34abd0.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20110308125830.GS25641@random.random>
-References: <AANLkTikJpr9H2NJHyw_uajL=Ef_p16L3QYgmJSfFynSZ@mail.gmail.com>
-	<AANLkTinncv11r3cJnOr0HWZyaSu5NQMz6pEYThMkmFd0@mail.gmail.com>
-	<AANLkTikKtxEoXT=Y9d80oYnY7LvfLn8Hwz-XorSxR3Mv@mail.gmail.com>
-	<20110308113245.GR25641@random.random>
-	<20110308122115.GA28054@google.com>
-	<20110308125830.GS25641@random.random>
-Date: Wed, 9 Mar 2011 07:48:54 +0900
-Message-ID: <AANLkTinNNN2BDnqj9S3PF7goS4tygzmO8ZmC+S5kvH1M@mail.gmail.com>
-Subject: Re: THP, rmap and page_referenced_one()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
 
-On Tue, Mar 8, 2011 at 9:58 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> On Tue, Mar 08, 2011 at 04:21:15AM -0800, Michel Lespinasse wrote:
->> On Tue, Mar 08, 2011 at 12:32:45PM +0100, Andrea Arcangeli wrote:
->> > I only run some basic testing, please review. I seen no reason to
->> > return "referenced = 0" if the pmd is still splitting. So I let it go
->> > ahead now and test_and_set_bit the accessed bit even on a splitting
->> > pmd. After all the tlb miss could still activate the young bit on a
->> > pmd while it's in splitting state. There's no check for splitting in
->> > the pmdp_clear_flush_young. The secondary mmu has no secondary spte
->> > mapped while it's set to splitting so it shouldn't matter for it if we
->> > clear the young bit (and new secondary mmu page faults will wait on
->> > splitting to clear and __split_huge_page_map to finish before going
->> > ahead creating new secondary sptes with 4k granularity).
->>
->> Agree, the pmd_trans_splitting check didn't seem necessary.
->>
->> Thanks for the patch, looks fine, I only have a couple nitpicks regarding
->> code comments:
->>
->
-> Ok, updated comments... thanks for the quick review. Try #2:
->
-> ===
-> Subject: thp: fix page_referenced to modify mapcount/vm_flags only if page is found
->
-> From: Andrea Arcangeli <aarcange@redhat.com>
->
-> When vmscan.c calls page_referenced, if an anon page was created before a
-> process forked, rmap will search for it in both of the processes, even though
-> one of them might have since broken COW. If the child process mlocks the vma
-> where the COWed page belongs to, page_referenced() running on the page mapped
-> by the parent would lead to *vm_flags getting VM_LOCKED set erroneously (leading
-> to the references on the parent page being ignored and evicting the parent page
-> too early).
->
-> *mapcount would also be decremented by page_referenced_one even if the page
-> wasn't found by page_check_address.
->
-> This also let pmdp_clear_flush_young_notify() go ahead on a
-> pmd_trans_splitting() pmd. We hold the page_table_lock so
-> __split_huge_page_map() must wait the pmdp_clear_flush_young_notify() to
-> complete before it can modify the pmd. The pmd is also still mapped in userland
-> so the young bit may materialize through a tlb miss before split_huge_page_map
-> runs. This will provide a more accurate page_referenced() behavior during
-> split_huge_page().
->
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> Reported-by: Michel Lespinasse <walken@google.com>
-> Reviewed-by: Michel Lespinasse <walken@google.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Tue, 8 Mar 2011, KAMEZAWA Hiroyuki wrote:
 
--- 
-Kind regards,
-Minchan Kim
+> > That's aside from the general purpose of the new 
+> > memory.oom_delay_millisecs: users may want a grace period for userspace to 
+> > increase the hard limit or kill a task before deferring to the kernel.  
+> > That seems exponentially more useful than simply disabling the oom killer 
+> > entirely with memory.oom_control.  I think it's unfortunate 
+> > memory.oom_control was merged frst and seems to have tainted this entire 
+> > discussion.
+> > 
+> 
+> That sounds like a mis-usage problem....what kind of workaround is offerred
+> if the user doesn't configure oom_delay_millisecs , a yet another mis-usage ?
+> 
+
+Not exactly sure what you mean, but you're saying disabling the oom killer 
+with memory.oom_control is not the recommended way to allow userspace to 
+fix the issue itself?  That seems like it's the entire usecase: we'd 
+rarely want to let a memcg stall when it needs memory without trying to 
+address the problem (elevating the limit, killing a lower priority job, 
+sending a signal to free memory).  We have a memcg oom notifier to handle 
+the situation but there's no guarantee that the kernel won't kill 
+something first and that's a bad result if we chose to address it with one 
+of the ways mentioned above.
+
+To answer your question: if the admin doesn't configure a 
+memory.oom_delay_millisecs, then the oom killer will obviously kill 
+something off (if memory.oom_control is also not set) when reclaim fails 
+to free memory just as before.
+
+Aside from my specific usecase for this tunable, let me pose a question: 
+do you believe that the memory controller would benefit from allowing 
+users to have a grace period in which to take one of the actions listed 
+above instead of killing something itself?  Yes, this would be possible by 
+setting and then unsetting memory.oom_control, but that requires userspace 
+to always be responsive (which, at our scale, we can unequivocally say 
+isn't always possible) and doesn't effectively deal with spikes in memory 
+that may only be temporary and doesn't require any intervention of the 
+user at all.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
