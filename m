@@ -1,145 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D09358D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 04:37:56 -0500 (EST)
-Date: Tue, 8 Mar 2011 09:37:23 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] hugetlb: /proc/meminfo shows data for all sizes of
-	hugepages
-Message-ID: <20110308093723.GA19206@csn.ul.ie>
-References: <1299503155-6210-1-git-send-email-pholasek@redhat.com> <1299527214.8493.13263.camel@nimitz> <20110307145149.97e6676e.akpm@linux-foundation.org> <20110307231448.GA2946@spritzera.linux.bs1.fc.nec.co.jp> <20110307152516.fee931bb.akpm@linux-foundation.org> <alpine.DEB.2.00.1103071543460.22274@chino.kir.corp.google.com> <20110308005706.GB5169@us.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A8D2D8D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 05:27:21 -0500 (EST)
+From: "Guan Xuetao" <gxt@mprc.pku.edu.cn>
+References: <20110302175004.222724818@chello.nl>	 <20110302175200.883953013@chello.nl>	 <03ca01cbda63$31930fd0$94b92f70$@mprc.pku.edu.cn> <1299241020.2428.13504.camel@twins>
+In-Reply-To: <1299241020.2428.13504.camel@twins>
+Subject: RE: [PATCH 09/13] unicore: mmu_gather rework
+Date: Tue, 8 Mar 2011 18:25:57 +0800
+Message-ID: <010601cbdd7b$3e388b00$baa9a100$@mprc.pku.edu.cn>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110308005706.GB5169@us.ibm.com>
+Content-Type: text/plain;
+	charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@us.ibm.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Petr Holasek <pholasek@redhat.com>, linux-kernel@vger.kernel.org, emunson@mgebm.net, anton@redhat.com, Andi Kleen <ak@linux.intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
+To: 'Peter Zijlstra' <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, 'Benjamin Herrenschmidt' <benh@kernel.crashing.org>, 'David Miller' <davem@davemloft.net>, 'Hugh Dickins' <hugh.dickins@tiscali.co.uk>, 'Mel Gorman' <mel@csn.ul.ie>, 'Nick Piggin' <npiggin@kernel.dk>, 'Paul McKenney' <paulmck@linux.vnet.ibm.com>, 'Yanmin Zhang' <yanmin_zhang@linux.intel.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, 'Avi Kivity' <avi@redhat.com>, 'Thomas Gleixner' <tglx@linutronix.de>, 'Rik van Riel' <riel@redhat.com>, 'Ingo Molnar' <mingo@elte.hu>, akpm@linux-foundation.org, 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Arnd Bergmann' <arnd@arndb.de>
 
-On Mon, Mar 07, 2011 at 04:57:06PM -0800, Nishanth Aravamudan wrote:
-> > > > > > On Mon, 2011-03-07 at 14:05 +0100, Petr Holasek wrote:
-> > > > > > > +       for_each_hstate(h)
-> > > > > > > +               seq_printf(m,
-> > > > > > > +                               "HugePages_Total:   %5lu\n"
-> > > > > > > +                               "HugePages_Free:    %5lu\n"
-> > > > > > > +                               "HugePages_Rsvd:    %5lu\n"
-> > > > > > > +                               "HugePages_Surp:    %5lu\n"
-> > > > > > > +                               "Hugepagesize:   %8lu kB\n",
-> > > > > > > +                               h->nr_huge_pages,
-> > > > > > > +                               h->free_huge_pages,
-> > > > > > > +                               h->resv_huge_pages,
-> > > > > > > +                               h->surplus_huge_pages,
-> > > > > > > +                               1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
-> > > > > > >  }
-> > > > > >
-> > > > > > It sounds like now we'll get a meminfo that looks like:
-> > > > > >
-> > > > > > ...
-> > > > > > AnonHugePages:    491520 kB
-> > > > > > HugePages_Total:       5
-> > > > > > HugePages_Free:        2
-> > > > > > HugePages_Rsvd:        3
-> > > > > > HugePages_Surp:        1
-> > > > > > Hugepagesize:       2048 kB
-> > > > > > HugePages_Total:       2
-> > > > > > HugePages_Free:        1
-> > > > > > HugePages_Rsvd:        1
-> > > > > > HugePages_Surp:        1
-> > > > > > Hugepagesize:    1048576 kB
-> > > > > > DirectMap4k:       12160 kB
-> > > > > > DirectMap2M:     2082816 kB
-> > > > > > DirectMap1G:     2097152 kB
-> > > > > >
-> > > > > > At best, that's a bit confusing.  There aren't any other entries in
-> > > > > > meminfo that occur more than once.  Plus, this information is available
-> > > > > > in the sysfs interface.  Why isn't that sufficient?
-> > > > > >
-> > > > > > Could we do something where we keep the default hpage_size looking like
-> > > > > > it does now, but append the size explicitly for the new entries?
-> > > > > >
-> > > > > > HugePages_Total(1G):       2
-> > > > > > HugePages_Free(1G):        1
-> > > > > > HugePages_Rsvd(1G):        1
-> > > > > > HugePages_Surp(1G):        1
-> > > > > >
-> > > > >
-> > > > > Let's not change the existing interface, please.
-> > > > >
-> > > > > Adding new fields: OK.
-> > > > > Changing the way in whcih existing fields are calculated: OKish.
-> > > > > Renaming existing fields: not OK.
-> > > > 
-> > > > How about lining up multiple values in each field like this?
-> > > > 
-> > > >   HugePages_Total:       5 2
-> > > >   HugePages_Free:        2 1
-> > > >   HugePages_Rsvd:        3 1
-> > > >   HugePages_Surp:        1 1
-> > > >   Hugepagesize:       2048 1048576 kB
-> > > >   ...
-> > > > 
-> > > > This doesn't change the field names and the impact for user space
-> > > > is still small?
-> > > 
-> > > It might break some existing parsers, dunno.
-> > > 
-> > > It was a mistake to assume that all hugepages will have the same size
-> > > for all time, and we just have to live with that mistake.
-> > > 
-> > 
-> > I'm not sure it was a mistake: the kernel has a default hugepage size and 
-> > that's what the global /proc/sys/vm/nr_hugepages tunable uses, so it seems 
-> > appropriate that its statistics are exported in the global /proc/meminfo.
-> 
-> Yep, the intent was for meminfo to (continue to) document the default
-> hugepage size's usage, and for any other size's statistics to be
-> accessed by the appropriate sysfs entries.
-> 
 
-Agreed. The suggested changes to the interface here is very likely to
-break libhugetlbfs.
 
-> > > I'd suggest that we leave meminfo alone, just ensuring that its output
-> > > makes some sense.  Instead create a new interface which presents all
-> > > the required info in a sensible fashion and migrate usersapce reporting
-> > > tools over to that interface.  Just let the meminfo field die a slow
-> > > death.
-> > > 
-> > 
-> > (Adding Nishanth to the cc)
-> > 
-> > It's already there, all this data is available for all the configured
-> > hugepage sizes via /sys/kernel/mm/hugepages/hugepages-<size>kB/ as
-> > described by Documentation/ABI/testing/sysfs-kernel-mm-hugepages.
-> > 
-> > It looks like Nishanth and others put quite a bit of effort into
-> > making as stable of an API as possible for this information.
-> 
-> I'm not sure if libhugetlbfs already has a tool for parsing the values
-> there (i.e., to give an end-user a quick'n'dirty snapshot of overall
-> current hugepage usage). Eric?
+> -----Original Message-----
+> From: Peter Zijlstra [mailto:a.p.zijlstra@chello.nl]
+> Sent: Friday, March 04, 2011 8:17 PM
+> To: Guan Xuetao
+> Cc: linux-kernel@vger.kernel.org; linux-arch@vger.kernel.org; =
+linux-mm@kvack.org; 'Benjamin Herrenschmidt'; 'David Miller'; 'Hugh
+> Dickins'; 'Mel Gorman'; 'Nick Piggin'; 'Paul McKenney'; 'Yanmin =
+Zhang'; 'Andrea Arcangeli'; 'Avi Kivity'; 'Thomas Gleixner'; 'Rik van =
+Riel';
+> 'Ingo Molnar'; akpm@linux-foundation.org; 'Linus Torvalds'; Arnd =
+Bergmann
+> Subject: RE: [PATCH 09/13] unicore: mmu_gather rework
+>=20
+> On Fri, 2011-03-04 at 19:56 +0800, Guan Xuetao wrote:
+>=20
+> > Thanks Peter.
+> > It looks good to me, though it is dependent on your patch set "mm: =
+Preemptible mmu_gather"
+>=20
+> It is indeed, the split-out per arch is purely to ease review. The =
+final
+> commit should be a merge of the first 10 patches so as not to break
+> bisection.
+>=20
+> > While I have another look to include/asm-generic/tlb.h, I found it =
+is also suitable for unicore32.
+> > And so, I rewrite the tlb.h to use asm-generic version, and then =
+your patch set will also work for me.
+>=20
+> Awesome, I notice you're loosing flush_tlb_range() support for this, =
+if
+> you're fine with that I'm obviously not going to argue, but if its
+> better for your platform to keep doing this we can work on that as =
+well
+> as I'm trying to add generic support for range tracking into the =
+generic
+> tlb code.
+Yes, I think flush_tlb_range() have no effect in unicore32 architecture.
+Or perhaps, it is because no optimization, just as you point it below.
 
-I'm not Eric, but it does. It's called hugeadm and here is an example of
-its output
+>=20
+> More importantly, you seem to loose your call to flush_cache_range()
+> which isn't a NOP on your platform.
+IMO, flush_cache_range() is only used in self-modified codes when =
+cachetype is vipt.
+So, it could be neglected here.
+Perhaps it's wrong.
+=20
+>=20
+> Furthermore, while arch/unicore32/mm/tlb-ucv2.S is mostly magic to me, =
+I
+> see unicore32 is one of the few architectures that actually uses
+> vm_flags in flush_tlb_range(). Do you have independent I/D-TLB flushes
+> or are you flushing I-cache on VM_EXEC?
+We have both independent and global I/D TLB flushes.
+And flushing I-cache on VM_EXEC is also needed in self-modified codes, =
+IMO.
 
-hydra:~# hugeadm --pool-list
-      Size  Minimum  Current  Maximum  Default
-   2097152       16       16       16        *
-1073741824        2        2        2         
+>=20
+> Also, I notice your flush_tlb_range() implementation looks to be a =
+loop
+> invalidating individual pages, which I can imagine is cheaper for =
+small
+> ranges but large ranges might be better of with a full invalidate. Did
+> you think about this?
+>=20
+Yes, it should be optimized.
+However, I doubt its effect in unicore32 which has no asid support.
 
-> If not, probably something worth having.
-> I believe we also have the per-node information in sysfs too, in case
-> that's relevant to tooling.
-> 
+Thanks & Regards.
 
-The kernel interfaces are sufficient at the moment at exporting all the
-information. If hugeadm is providing insufficient information, I'd
-prefer to see it enhanced than the sysfs or meminfo interfaces changed.
-
--- 
-Mel Gorman
-SUSE Labs
+Guan Xuetao
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
