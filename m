@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 437C38D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 13:24:12 -0500 (EST)
-Date: Tue, 8 Mar 2011 12:24:07 -0600 (CST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 27E5F8D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 13:25:46 -0500 (EST)
+Date: Tue, 8 Mar 2011 12:25:41 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/4] slub: automatically reserve bytes at the end of
- slab
-In-Reply-To: <4D6CA84B.9080606@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1103081222380.25214@router.home>
-References: <4D6CA84B.9080606@cn.fujitsu.com>
+Subject: Re: [PATCH 2/4] slub,rcu: don't assume the size of struct rcu_head
+In-Reply-To: <4D6CA852.3060303@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1103081224550.25214@router.home>
+References: <4D6CA852.3060303@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,12 +17,22 @@ Cc: Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
 On Tue, 1 Mar 2011, Lai Jiangshan wrote:
 
-> So we add a field "reserved" to struct kmem_cache, when a slab
-> is allocated, kmem_cache->reserved bytes are automatically reserved
-> at the end of the slab for slab's metadata.
+> -		 * RCU free overloads the RCU head over the LRU
+> -		 */
+> -		struct rcu_head *head = (void *)&page->lru;
+> +		struct rcu_head *head;
+> +
+> +		if (need_reserve_slab_rcu) {
+> +			int order = compound_order(page);
+> +			int offset = (PAGE_SIZE << order) - s->reserved;
+> +
+> +			BUG_ON(s->reserved != sizeof(*head));
 
-The reserved field should be exported via sysfs. Please add the code to
-show it in /sys/kernel/slab/<name>
+VM_BUG_ON is sufficient here I think.
+
+Otherwise
+
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
