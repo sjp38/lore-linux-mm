@@ -1,42 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A0D528D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 08:57:52 -0500 (EST)
-Message-ID: <4D7635DA.9030707@redhat.com>
-Date: Tue, 08 Mar 2011 08:57:46 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: THP, rmap and page_referenced_one()
-References: <AANLkTikJpr9H2NJHyw_uajL=Ef_p16L3QYgmJSfFynSZ@mail.gmail.com> <AANLkTinncv11r3cJnOr0HWZyaSu5NQMz6pEYThMkmFd0@mail.gmail.com> <AANLkTikKtxEoXT=Y9d80oYnY7LvfLn8Hwz-XorSxR3Mv@mail.gmail.com> <20110308113245.GR25641@random.random>
-In-Reply-To: <20110308113245.GR25641@random.random>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A63F38D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 10:59:48 -0500 (EST)
+From: Andrey Vagin <avagin@openvz.org>
+Subject: [PATCH] mm: handle mm_fault_error in kernel space (v2)
+Date: Tue,  8 Mar 2011 18:59:25 +0300
+Message-Id: <1299599965-28995-1-git-send-email-avagin@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 03/08/2011 06:32 AM, Andrea Arcangeli wrote:
+mm_fault_error() should not execute oom-killer, if page fault occurs
+in kernel space. E.g. in copy_from_user/copy_to_user.
 
-> Subject: thp: fix page_referenced to modify mapcount/vm_flags only if page is found
->
-> From: Andrea Arcangeli<aarcange@redhat.com>
->
-> When vmscan.c calls page_referenced, if an anon page was created before a
-> process forked, rmap will search for it in both of the processes, even though
-> one of them might have since broken COW. If the child process mlocks the vma
-> where the COWed page belongs to, page_referenced() running on the page mapped
-> by the parent would lead to *vm_flags getting VM_LOCKED set erroneously (leading
-> to the references on the parent page being ignored and evicting the parent page
-> too early).
+This would happen if we find ourselves in OOM on a copy_to_user(),
+or a copy_from_user() which faults.
 
-> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
-> Reported-by: Michel Lespinasse<walken@google.com>
+Without this patch, the kernels hangs up in copy_from_user, because
+OOM killer sends SIG_KILL to current process, but it can't handle a
+signal while in syscall, then the kernel returns to copy_from_user,
+reexcute current command and provokes page_fault again.
 
-Reviewed-by: Rik van Riel<riel@redhat.com>
+With this patch the kernel return -EFAULT from copy_from_user.
 
+The code, which checks that page fault occurred in kernel space, has been
+copied from do_sigbus.
+
+This situation is handled by the same way on powerpc, xtensa, tile, ...
+
+Signed-off-by: Andrey Vagin <avagin@openvz.org>
+---
+ arch/x86/mm/fault.c |    7 +++++++
+ 1 files changed, 7 insertions(+), 0 deletions(-)
+
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index 7d90ceb..ffc7be1 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -828,6 +828,13 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
+ 	       unsigned long address, unsigned int fault)
+ {
+ 	if (fault & VM_FAULT_OOM) {
++		/* Kernel mode? Handle exceptions or die: */
++		if (!(error_code & PF_USER)) {
++			up_read(&current->mm->mmap_sem);
++			no_context(regs, error_code, address);
++			return;
++		}
++
+ 		out_of_memory(regs, error_code, address);
+ 	} else {
+ 		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
 -- 
-All rights reversed
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
