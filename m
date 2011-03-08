@@ -1,169 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1984D8D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 04:07:13 -0500 (EST)
-From: Bob Liu <lliubbo@gmail.com>
-Subject: [BUG?] shmem: memory leak on NO-MMU arch
-Date: Tue, 8 Mar 2011 17:17:43 +0800
-Message-ID: <1299575863-7069-1-git-send-email-lliubbo@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CD8EE8D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 04:20:33 -0500 (EST)
+Date: Tue, 8 Mar 2011 18:18:32 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH v2] memcg: fix leak on wrong LRU with FUSE
+Message-Id: <20110308181832.6386da5f.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20110308135612.e971e1f3.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110308135612.e971e1f3.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: viro@zeniv.linux.org.uk, hch@lst.de, hughd@google.com, npiggin@kernel.dk, tj@kernel.org, Bob Liu <lliubbo@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Hi, folks
+On Tue, 8 Mar 2011 13:56:12 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-I got a problem about shmem on NO-MMU arch, it seems memory leak
-happened.
+> fs/fuse/dev.c::fuse_try_move_page() does
+> 
+>    (1) remove a page by ->steal()
+>    (2) re-add the page to page cache 
+>    (3) link the page to LRU if it was not on LRU at (1)
+> 
+> This implies the page is _on_ LRU when it's added to radix-tree.
+> So, the page is added to  memory cgroup while it's on LRU.
+> because LRU is lazy and no one flushs it.
+> 
+> This is the same behavior as SwapCache and needs special care as
+>  - remove page from LRU before overwrite pc->mem_cgroup.
+>  - add page to LRU after overwrite pc->mem_cgroup.
+> 
+> And we need to taking care of pagevec.
+> 
+> If PageLRU(page) is set before we add PCG_USED bit, the page
+> will not be added to memcg's LRU (in short period).
+> So, regardlress of PageLRU(page) value before commit_charge(),
+> we need to check PageLRU(page) after commit_charge().
+> 
+> Changelog:
+>   - clean up.
+>   - cover !PageLRU() by pagevec case.
+> 
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/memcontrol.c |   53 ++++++++++++++++++++++++++++++++++-------------------
+>  1 file changed, 34 insertions(+), 19 deletions(-)
+> 
+> Index: mmotm-0303/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-0303.orig/mm/memcontrol.c
+> +++ mmotm-0303/mm/memcontrol.c
+> @@ -926,13 +926,12 @@ void mem_cgroup_add_lru_list(struct page
+>  }
+>  
+>  /*
+> - * At handling SwapCache, pc->mem_cgroup may be changed while it's linked to
+> - * lru because the page may.be reused after it's fully uncharged (because of
+> - * SwapCache behavior).To handle that, unlink page_cgroup from LRU when charge
+> - * it again. This function is only used to charge SwapCache. It's done under
+> - * lock_page and expected that zone->lru_lock is never held.
+> + * At handling SwapCache and other FUSE stuff, pc->mem_cgroup may be changed
+> + * while it's linked to lru because the page may be reused after it's fully
+> + * uncharged. To handle that, unlink page_cgroup from LRU when charge it again.
+> + * It's done under lock_page and expected that zone->lru_lock isnever held.
+>   */
+> -static void mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
+> +static void mem_cgroup_lru_del_before_commit(struct page *page)
+>  {
+>  	unsigned long flags;
+>  	struct zone *zone = page_zone(page);
+> @@ -948,7 +947,7 @@ static void mem_cgroup_lru_del_before_co
+>  	spin_unlock_irqrestore(&zone->lru_lock, flags);
+>  }
+>  
+> -static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
+> +static void mem_cgroup_lru_add_after_commit(struct page *page)
+>  {
+>  	unsigned long flags;
+>  	struct zone *zone = page_zone(page);
+> @@ -2431,9 +2430,28 @@ static void
+>  __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
+>  					enum charge_type ctype);
+>  
+> +static void
+> +__mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *mem,
+> +					enum charge_type ctype)
+> +{
+> +	struct page_cgroup *pc = lookup_page_cgroup(page);
+> +	/*
+> +	 * In some case, SwapCache, FUSE(splice_buf->radixtree), the page
+> +	 * is already on LRU. It means the page may on some other page_cgroup's
+> +	 * LRU. Take care of it.
+> +	 */
+> +	if (unlikely(PageLRU(page)))
+> +		mem_cgroup_lru_del_before_commit(page);
+> +	__mem_cgroup_commit_charge(mem, page, 1, pc, ctype);
+> +	if (unlikely(PageLRU(page)))
+> +		mem_cgroup_lru_add_after_commit(page);
+> +	return;
+> +}
+> +
+>  int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+>  				gfp_t gfp_mask)
+>  {
+> +	struct mem_cgroup *mem = NULL;
+>  	int ret;
+>  
+>  	if (mem_cgroup_disabled())
+> @@ -2468,14 +2486,15 @@ int mem_cgroup_cache_charge(struct page 
+>  	if (unlikely(!mm))
+>  		mm = &init_mm;
+>  
+> -	if (page_is_file_cache(page))
+> -		return mem_cgroup_charge_common(page, mm, gfp_mask,
+> -				MEM_CGROUP_CHARGE_TYPE_CACHE);
+> -
+> +	if (page_is_file_cache(page)) {
+> +		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, &mem, true);
+> +		if (ret || !mem)
+> +			return ret;
+> +		__mem_cgroup_commit_charge_lrucare(page, mem,
+> +					MEM_CGROUP_CHARGE_TYPE_CACHE);
+> +	}
+We should do "return 0" here, or do:
 
-A simple test file is like this:
-=========
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <errno.h>
-#include <string.h>
-
-int main(void)
-{
-	int i;
-	key_t k = ftok("/etc", 42);
-
-	for ( i=0; i<2; ++i) {
-		int id = shmget(k, 10000, 0644|IPC_CREAT);
-		if (id == -1) {
-			printf("shmget error\n");
-		}
-		if(shmctl(id, IPC_RMID, NULL ) == -1) {
-			printf("shm  rm error\n");
-			return -1;
-		}
+} else {
+	/* shmem */
+	if (PageSwapCache(page)) {
+		..
+	} else {
+		..
 	}
-	printf("run ok...\n");
-	return 0;
 }
 
-The test results:
-root:/> free 
-              total         used         free       shared      buffers
-  Mem:        60528        13876        46652            0            0
-root:/> ./shmem 
-run ok...
-root:/> free 
-              total         used         free       shared      buffers
-  Mem:        60528        15104        45424            0            0
-root:/> ./shmem 
-run ok...
-root:/> free 
-              total         used         free       shared      buffers
-  Mem:        60528        16292        44236            0            0
-root:/> ./shmem 
-run ok...
-root:/> free 
-              total         used         free       shared      buffers
-  Mem:        60528        17496        43032            0            0
-root:/> ./shmem 
-run ok...
-root:/> free 
-              total         used         free       shared      buffers
-  Mem:        60528        18700        41828            0            0
-root:/> ./shmem 
-run ok...
-root:/> free 
-              total         used         free       shared      buffers
-  Mem:        60528        19904        40624            0            0
-root:/> ./shmem 
-run ok...
-root:/> free 
-              total         used         free       shared      buffers
-  Mem:        60528        21104        39424            0            0
-root:/>
+Otherwise, the page cache will be charged twice.
 
-It seems the shmem didn't free it's memory after using shmctl(IPC_RMID) to rm
-it.
-=========
+Thanks,
+Daisuke Nishimura.
 
-Patch below can work, but I know it's too simple and may cause other problems.
-Any ideas is welcome.
-
-Thanks!
-
-Signed-off-by: Bob Liu <lliubbo@gmail.com>
----
-diff --git a/fs/ramfs/file-nommu.c b/fs/ramfs/file-nommu.c
-index 9eead2c..831e6d5 100644
---- a/fs/ramfs/file-nommu.c
-+++ b/fs/ramfs/file-nommu.c
-@@ -59,6 +59,8 @@ const struct inode_operations ramfs_file_inode_operations = {
-  * size 0 on the assumption that it's going to be used for an mmap of shared
-  * memory
-  */
-+struct page *ramfs_pages;
-+unsigned long ramfs_nr_pages;
- int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
- {
- 	unsigned long npages, xpages, loop;
-@@ -114,6 +116,8 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
- 		unlock_page(page);
- 	}
- 
-+	ramfs_pages = pages;
-+	ramfs_nr_pages = loop;
- 	return 0;
- 
- add_error:
-diff --git a/fs/ramfs/inode.c b/fs/ramfs/inode.c
-index eacb166..2eb33e5 100644
---- a/fs/ramfs/inode.c
-+++ b/fs/ramfs/inode.c
-@@ -139,6 +139,23 @@ static int ramfs_symlink(struct inode * dir, struct dentry *dentry, const char *
- 	return error;
- }
- 
-+static void ramfs_delete_inode(struct inode *inode)
-+{
-+	int loop;
-+	struct page *page;
-+
-+	truncate_inode_pages(&inode->i_data, 0);
-+	clear_inode(inode);
-+
-+	for (loop = 0; loop < ramfs_nr_pages; loop++ ){
-+		page = ramfs_pages[loop];
-+		page->flags &= ~PAGE_FLAGS_CHECK_AT_FREE;
-+		if(page)
-+			__free_pages(page, 0);
-+	}
-+	kfree(ramfs_pages);
-+}
-+
- static const struct inode_operations ramfs_dir_inode_operations = {
- 	.create		= ramfs_create,
- 	.lookup		= simple_lookup,
-@@ -153,6 +170,7 @@ static const struct inode_operations ramfs_dir_inode_operations = {
- 
- static const struct super_operations ramfs_ops = {
- 	.statfs		= simple_statfs,
-+	.delete_inode   = ramfs_delete_inode,
- 	.drop_inode	= generic_delete_inode,
- 	.show_options	= generic_show_options,
- };
-diff --git a/fs/ramfs/internal.h b/fs/ramfs/internal.h
-index 6b33063..0b7b222 100644
---- a/fs/ramfs/internal.h
-+++ b/fs/ramfs/internal.h
-@@ -12,3 +12,5 @@
- 
- extern const struct address_space_operations ramfs_aops;
- extern const struct inode_operations ramfs_file_inode_operations;
-+extern struct page *ramfs_pages;
-+extern unsigned long ramfs_nr_pages;
--- 
-1.6.3.3
+>  	/* shmem */
+>  	if (PageSwapCache(page)) {
+> -		struct mem_cgroup *mem;
+> -
+>  		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
+>  		if (!ret)
+>  			__mem_cgroup_commit_charge_swapin(page, mem,
+> @@ -2532,17 +2551,13 @@ static void
+>  __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
+>  					enum charge_type ctype)
+>  {
+> -	struct page_cgroup *pc;
+> -
+>  	if (mem_cgroup_disabled())
+>  		return;
+>  	if (!ptr)
+>  		return;
+>  	cgroup_exclude_rmdir(&ptr->css);
+> -	pc = lookup_page_cgroup(page);
+> -	mem_cgroup_lru_del_before_commit_swapcache(page);
+> -	__mem_cgroup_commit_charge(ptr, page, 1, pc, ctype);
+> -	mem_cgroup_lru_add_after_commit_swapcache(page);
+> +
+> +	__mem_cgroup_commit_charge_lrucare(page, ptr, ctype);
+>  	/*
+>  	 * Now swap is on-memory. This means this page may be
+>  	 * counted both as mem and swap....double count.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
