@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D34908D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 16:50:22 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C4128D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 16:51:12 -0500 (EST)
 Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
 	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1578060Ab1CHVuD (ORCPT <rfc822;linux-mm@kvack.org>);
-	Tue, 8 Mar 2011 22:50:03 +0100
-Date: Tue, 8 Mar 2011 22:50:03 +0100
+	id S1579019Ab1CHVut (ORCPT <rfc822;linux-mm@kvack.org>);
+	Tue, 8 Mar 2011 22:50:49 +0100
+Date: Tue, 8 Mar 2011 22:50:49 +0100
 From: Daniel Kiper <dkiper@net-space.pl>
-Subject: [PATCH R4 6/7] mm: Extend memory hotplug API to allow memory hotplug in virtual guests
-Message-ID: <20110308215003.GG27331@router-fw-old.local.net-space.pl>
+Subject: [PATCH R4 7/7] xen/balloon: Memory hotplug support for Xen balloon driver
+Message-ID: <20110308215049.GH27331@router-fw-old.local.net-space.pl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -17,197 +17,261 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This patch extends memory hotplug API to allow easy memory hotplug
-in virtual guests. It contains:
-  - generic section aligment macro,
-  - online_page_chain and apropriate functions for registering/unregistering
-    online page notifiers,
-  - add_virtual_memory(u64 *size) function which adds memory region
-    of size >= *size above max_pfn; new region is section aligned
-    and size is modified to be multiple of section size.
+Memory hotplug support for Xen balloon driver. It should be
+mentioned that hotplugged memory is not onlined automatically.
+It should be onlined by user through standard sysfs interface.
 
 Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
 ---
- include/linux/memory_hotplug.h |    6 ++-
- include/linux/mmzone.h         |    2 +
- mm/memory_hotplug.c            |   91 +++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 95 insertions(+), 4 deletions(-)
+ drivers/xen/Kconfig   |   10 +++
+ drivers/xen/balloon.c |  154 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 159 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 8122018..4cfc5a0 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -68,12 +68,13 @@ static inline void zone_seqlock_init(struct zone *zone)
- extern int zone_grow_free_lists(struct zone *zone, unsigned long new_nr_pages);
- extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
- extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
--/* need some defines for these for archs that don't support it */
--extern void online_page(struct page *page);
- /* VM interface that may be used by firmware interface */
- extern int online_pages(unsigned long, unsigned long);
- extern void __offline_isolated_pages(unsigned long, unsigned long);
+diff --git a/drivers/xen/Kconfig b/drivers/xen/Kconfig
+index 07bec09..8f880aa 100644
+--- a/drivers/xen/Kconfig
++++ b/drivers/xen/Kconfig
+@@ -9,6 +9,16 @@ config XEN_BALLOON
+ 	  the system to expand the domain's memory allocation, or alternatively
+ 	  return unneeded memory to the system.
  
-+extern int register_online_page_notifier(struct notifier_block *nb);
-+extern int unregister_online_page_notifier(struct notifier_block *nb);
++config XEN_BALLOON_MEMORY_HOTPLUG
++	bool "Memory hotplug support for Xen balloon driver"
++	default n
++	depends on XEN_BALLOON && MEMORY_HOTPLUG
++	help
++	  Memory hotplug support for Xen balloon driver allows expanding memory
++	  available for the system above limit declared at system startup.
++	  It is very useful on critical systems which require long
++	  run without rebooting.
 +
- #ifdef CONFIG_MEMORY_HOTREMOVE
- extern bool is_pageblock_removable_nolock(struct page *page);
- #endif /* CONFIG_MEMORY_HOTREMOVE */
-@@ -224,6 +225,7 @@ static inline int is_mem_section_removable(unsigned long pfn,
- 
- extern int mem_online_node(int nid);
- extern int add_memory(int nid, u64 start, u64 size);
-+extern int add_virtual_memory(u64 *size);
- extern int arch_add_memory(int nid, u64 start, u64 size);
- extern int remove_memory(u64 start, u64 size);
- extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 02ecb01..76a7cbd 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -931,6 +931,8 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
- #define pfn_to_section_nr(pfn) ((pfn) >> PFN_SECTION_SHIFT)
- #define section_nr_to_pfn(sec) ((sec) << PFN_SECTION_SHIFT)
- 
-+#define SECTION_ALIGN(pfn)	(((pfn) + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK)
-+
- #ifdef CONFIG_SPARSEMEM
- 
- /*
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 321fc74..3b38d89 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -29,11 +29,25 @@
- #include <linux/suspend.h>
- #include <linux/mm_inline.h>
- #include <linux/firmware-map.h>
-+#include <linux/notifier.h>
- 
- #include <asm/tlbflush.h>
- 
- #include "internal.h"
- 
-+/*
-+ * online_page_chain contains chain of notifiers called when page is onlined.
-+ * When kernel is booting native_online_page_notifier() is registered with
-+ * priority 0 as default notifier. Custom notifier should be registered with
-+ * pririty > 0. It could be terminal (it should return NOTIFY_STOP on success)
-+ * or not (it should return NOTIFY_DONE or NOTIFY_OK on success; for full list
-+ * of return codes look into include/linux/notifier.h).
+ config XEN_SCRUB_PAGES
+ 	bool "Scrub pages before returning them to system"
+ 	depends on XEN_BALLOON
+diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+index 431e9f0..3dc8a83 100644
+--- a/drivers/xen/balloon.c
++++ b/drivers/xen/balloon.c
+@@ -6,6 +6,12 @@
+  * Copyright (c) 2003, B Dragovic
+  * Copyright (c) 2003-2004, M Williamson, K Fraser
+  * Copyright (c) 2005 Dan M. Smith, IBM Corporation
++ * Copyright (c) 2010 Daniel Kiper
 + *
-+ * Working example of usage: drivers/xen/balloon.c
-+ */
-+
-+static RAW_NOTIFIER_HEAD(online_page_chain);
-+
- DEFINE_MUTEX(mem_hotplug_mutex);
++ * Memory hotplug support was written by Daniel Kiper. Work on
++ * it was sponsored by Google under Google Summer of Code 2010
++ * program. Jeremy Fitzhardinge from Xen.org was the mentor for
++ * this project.
+  *
+  * This program is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License version 2
+@@ -44,6 +50,9 @@
+ #include <linux/list.h>
+ #include <linux/sysdev.h>
+ #include <linux/gfp.h>
++#include <linux/notifier.h>
++#include <linux/memory.h>
++#include <linux/memory_hotplug.h>
  
- void lock_memory_hotplug(void)
-@@ -361,8 +375,33 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+ #include <asm/page.h>
+ #include <asm/pgalloc.h>
+@@ -93,6 +102,10 @@ struct balloon_stats {
+ 	unsigned long max_schedule_delay;
+ 	unsigned long retry_count;
+ 	unsigned long max_retry_count;
++#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
++	unsigned long hotplug_pages;
++	unsigned long balloon_hotplug;
++#endif
+ };
+ 
+ static DEFINE_MUTEX(balloon_mutex);
+@@ -221,7 +234,93 @@ static enum bp_state update_schedule(enum bp_state state)
+ 	return BP_EAGAIN;
  }
- EXPORT_SYMBOL_GPL(__remove_pages);
  
--void online_page(struct page *page)
-+int register_online_page_notifier(struct notifier_block *nb)
+-static unsigned long current_target(void)
++#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
++static long current_credit(void)
++{
++	return balloon_stats.target_pages - balloon_stats.current_pages -
++		balloon_stats.hotplug_pages;
++}
++
++static int balloon_is_inflated(void)
++{
++	if (balloon_stats.balloon_low || balloon_stats.balloon_high ||
++			balloon_stats.balloon_hotplug)
++		return 1;
++	else
++		return 0;
++}
++
++static enum bp_state reserve_additional_memory(long credit)
 +{
 +	int rc;
++	unsigned long balloon_hotplug = credit;
 +
-+	lock_memory_hotplug();
-+	rc = raw_notifier_chain_register(&online_page_chain, nb);
-+	unlock_memory_hotplug();
++	balloon_hotplug <<= PAGE_SHIFT;
 +
-+	return rc;
++	rc = add_virtual_memory((u64 *)&balloon_hotplug);
++
++	if (rc) {
++		pr_info("xen_balloon: %s: add_virtual_memory() failed: %i\n", __func__, rc);
++		return BP_EAGAIN;
++	}
++
++	balloon_hotplug >>= PAGE_SHIFT;
++
++	balloon_hotplug -= credit;
++
++	balloon_stats.hotplug_pages += credit;
++	balloon_stats.balloon_hotplug = balloon_hotplug;
++
++	return BP_DONE;
 +}
-+EXPORT_SYMBOL_GPL(register_online_page_notifier);
 +
-+int unregister_online_page_notifier(struct notifier_block *nb)
++static int xen_online_page_notifier(struct notifier_block *nb, unsigned long val, void *v)
 +{
-+	int rc;
-+
-+	lock_memory_hotplug();
-+	rc = raw_notifier_chain_unregister(&online_page_chain, nb);
-+	unlock_memory_hotplug();
-+
-+	return rc;
-+}
-+EXPORT_SYMBOL_GPL(unregister_online_page_notifier);
-+
-+static int native_online_page_notifier(struct notifier_block *nb, unsigned long val, void *v)
- {
 +	struct page *page = v;
- 	unsigned long pfn = page_to_pfn(page);
- 
- 	totalram_pages++;
-@@ -375,12 +414,30 @@ void online_page(struct page *page)
- #endif
- 
- #ifdef CONFIG_FLATMEM
--	max_mapnr = max(page_to_pfn(page), max_mapnr);
++	unsigned long pfn = page_to_pfn(page);
++
++	if (pfn >= num_physpages)
++		num_physpages = pfn + 1;
++
++	inc_totalhigh_pages();
++
++#ifdef CONFIG_FLATMEM
 +	max_mapnr = max(pfn, max_mapnr);
- #endif
- 
- 	ClearPageReserved(page);
- 	init_page_count(page);
- 	__free_page(page);
++#endif
++
++	mutex_lock(&balloon_mutex);
++
++	__balloon_append(page);
++
++	if (balloon_stats.hotplug_pages)
++		--balloon_stats.hotplug_pages;
++	else
++		--balloon_stats.balloon_hotplug;
++
++	mutex_unlock(&balloon_mutex);
++
++	return NOTIFY_STOP;
++}
++
++static struct notifier_block xen_online_page_nb = {
++	.notifier_call = xen_online_page_notifier,
++	.priority = 10
++};
++
++static int xen_memory_notifier(struct notifier_block *nb, unsigned long val, void *v)
++{
++	if (val == MEM_ONLINE)
++		schedule_delayed_work(&balloon_worker, 0);
 +
 +	return NOTIFY_OK;
 +}
 +
-+static struct notifier_block native_online_page_nb = {
-+	.notifier_call = native_online_page_notifier,
++static struct notifier_block xen_memory_nb = {
++	.notifier_call = xen_memory_notifier,
 +	.priority = 0
 +};
-+
-+static int __init init_online_page_chain(void)
-+{
-+	return register_online_page_notifier(&native_online_page_nb);
++#else
++static long current_credit(void)
+ {
+ 	unsigned long target = balloon_stats.target_pages;
+ 
+@@ -230,9 +329,24 @@ static unsigned long current_target(void)
+ 		     balloon_stats.balloon_low +
+ 		     balloon_stats.balloon_high);
+ 
+-	return target;
++	return target - balloon_stats.current_pages;
 +}
-+pure_initcall(init_online_page_chain);
 +
-+static void online_page(struct page *page)
++static int balloon_is_inflated(void)
 +{
-+	raw_notifier_call_chain(&online_page_chain, 0, page);
++	if (balloon_stats.balloon_low || balloon_stats.balloon_high)
++		return 1;
++	else
++		return 0;
  }
  
- static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
-@@ -591,6 +648,36 @@ out:
- }
- EXPORT_SYMBOL_GPL(add_memory);
- 
-+/*
-+ * add_virtual_memory() adds memory region of size >= *size above max_pfn.
-+ * New region is section aligned and size is modified to be multiple of
-+ * section size. Those features allow optimal use of address space and
-+ * establish proper aligment when this function is called first time after
-+ * boot (last section not fully populated at boot time may contains unused
-+ * memory pages with PG_reserved bit not set; online_pages() does not allow
-+ * page onlining in whole section if first page does not have PG_reserved
-+ * bit set). Real size of added memory should be established at page onlining
-+ * stage.
-+ *
-+ * This function is often used in virtual guests because mainly they do not
-+ * care about new memory region address.
-+ *
-+ * Working example of usage: drivers/xen/balloon.c
-+ */
-+
-+int add_virtual_memory(u64 *size)
++static enum bp_state reserve_additional_memory(long credit)
 +{
-+	int nid;
-+	u64 start;
-+
-+	start = PFN_PHYS(SECTION_ALIGN(max_pfn));
-+	*size = (((*size >> PAGE_SHIFT) & PAGE_SECTION_MASK) + PAGES_PER_SECTION) << PAGE_SHIFT;
-+	nid = memory_add_physaddr_to_nid(start);
-+
-+	return add_memory(nid, start, *size);
++	balloon_stats.target_pages = balloon_stats.current_pages;
++	return BP_DONE;
 +}
-+EXPORT_SYMBOL_GPL(add_virtual_memory);
++#endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */
 +
- #ifdef CONFIG_MEMORY_HOTREMOVE
- /*
-  * A free page on the buddy free lists (not the per-cpu lists) has PageBuddy
+ static enum bp_state increase_reservation(unsigned long nr_pages)
+ {
+ 	int rc;
+@@ -244,6 +358,15 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
+ 		.domid        = DOMID_SELF
+ 	};
+ 
++#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
++	if (!balloon_stats.balloon_low && !balloon_stats.balloon_high) {
++		nr_pages = min(nr_pages, balloon_stats.balloon_hotplug);
++		balloon_stats.hotplug_pages += nr_pages;
++		balloon_stats.balloon_hotplug -= nr_pages;
++		return BP_DONE;
++	}
++#endif
++
+ 	if (nr_pages > ARRAY_SIZE(frame_list))
+ 		nr_pages = ARRAY_SIZE(frame_list);
+ 
+@@ -308,6 +431,15 @@ static enum bp_state decrease_reservation(unsigned long nr_pages)
+ 		.domid        = DOMID_SELF
+ 	};
+ 
++#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
++	if (balloon_stats.hotplug_pages) {
++		nr_pages = min(nr_pages, balloon_stats.hotplug_pages);
++		balloon_stats.hotplug_pages -= nr_pages;
++		balloon_stats.balloon_hotplug += nr_pages;
++		return BP_DONE;
++	}
++#endif
++
+ 	if (nr_pages > ARRAY_SIZE(frame_list))
+ 		nr_pages = ARRAY_SIZE(frame_list);
+ 
+@@ -368,10 +500,14 @@ static void balloon_process(struct work_struct *work)
+ 	mutex_lock(&balloon_mutex);
+ 
+ 	do {
+-		credit = current_target() - balloon_stats.current_pages;
++		credit = current_credit();
+ 
+-		if (credit > 0)
+-			state = increase_reservation(credit);
++		if (credit > 0) {
++			if (balloon_is_inflated())
++				state = increase_reservation(credit);
++			else
++				state = reserve_additional_memory(credit);
++		}
+ 
+ 		if (credit < 0)
+ 			state = decrease_reservation(-credit);
+@@ -458,6 +594,14 @@ static int __init balloon_init(void)
+ 	balloon_stats.retry_count = 1;
+ 	balloon_stats.max_retry_count = 16;
+ 
++#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
++	balloon_stats.hotplug_pages = 0;
++	balloon_stats.balloon_hotplug = 0;
++
++	register_online_page_notifier(&xen_online_page_nb);
++	register_memory_notifier(&xen_memory_nb);
++#endif
++
+ 	register_balloon(&balloon_sysdev);
+ 
+ 	/*
 -- 
 1.5.6.5
 
