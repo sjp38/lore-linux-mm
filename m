@@ -1,127 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 19D878D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 06:22:03 -0500 (EST)
-Message-ID: <4D761138.4030705@redhat.com>
-Date: Tue, 08 Mar 2011 12:21:28 +0100
-From: Petr Holasek <pholasek@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 255258D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 06:32:53 -0500 (EST)
+Date: Tue, 8 Mar 2011 12:32:45 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: THP, rmap and page_referenced_one()
+Message-ID: <20110308113245.GR25641@random.random>
+References: <AANLkTikJpr9H2NJHyw_uajL=Ef_p16L3QYgmJSfFynSZ@mail.gmail.com>
+ <AANLkTinncv11r3cJnOr0HWZyaSu5NQMz6pEYThMkmFd0@mail.gmail.com>
+ <AANLkTikKtxEoXT=Y9d80oYnY7LvfLn8Hwz-XorSxR3Mv@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] hugetlb: /proc/meminfo shows data for all sizes of hugepages
-References: <1299503155-6210-1-git-send-email-pholasek@redhat.com>	<1299527214.8493.13263.camel@nimitz>	<20110307145149.97e6676e.akpm@linux-foundation.org>	<20110307231448.GA2946@spritzera.linux.bs1.fc.nec.co.jp> <20110307152516.fee931bb.akpm@linux-foundation.org>
-In-Reply-To: <20110307152516.fee931bb.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTikKtxEoXT=Y9d80oYnY7LvfLn8Hwz-XorSxR3Mv@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, emunson@mgebm.net, anton@redhat.com, Andi Kleen <ak@linux.intel.com>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, Nishanth Aravamudan <nacc@us.ibm.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 
-On 03/08/2011 12:25 AM, Andrew Morton wrote:
-> On Tue, 8 Mar 2011 08:14:49 +0900
-> Naoya Horiguchi<n-horiguchi@ah.jp.nec.com>  wrote:
->
->> On Mon, Mar 07, 2011 at 02:51:49PM -0800, Andrew Morton wrote:
->>> On Mon, 07 Mar 2011 11:46:54 -0800
->>> Dave Hansen<dave@linux.vnet.ibm.com>  wrote:
->>>
->>>> On Mon, 2011-03-07 at 14:05 +0100, Petr Holasek wrote:
->>>>> +       for_each_hstate(h)
->>>>> +               seq_printf(m,
->>>>> +                               "HugePages_Total:   %5lu\n"
->>>>> +                               "HugePages_Free:    %5lu\n"
->>>>> +                               "HugePages_Rsvd:    %5lu\n"
->>>>> +                               "HugePages_Surp:    %5lu\n"
->>>>> +                               "Hugepagesize:   %8lu kB\n",
->>>>> +                               h->nr_huge_pages,
->>>>> +                               h->free_huge_pages,
->>>>> +                               h->resv_huge_pages,
->>>>> +                               h->surplus_huge_pages,
->>>>> +                               1UL<<  (huge_page_order(h) + PAGE_SHIFT - 10));
->>>>>   }
->>>>
->>>> It sounds like now we'll get a meminfo that looks like:
->>>>
->>>> ...
->>>> AnonHugePages:    491520 kB
->>>> HugePages_Total:       5
->>>> HugePages_Free:        2
->>>> HugePages_Rsvd:        3
->>>> HugePages_Surp:        1
->>>> Hugepagesize:       2048 kB
->>>> HugePages_Total:       2
->>>> HugePages_Free:        1
->>>> HugePages_Rsvd:        1
->>>> HugePages_Surp:        1
->>>> Hugepagesize:    1048576 kB
->>>> DirectMap4k:       12160 kB
->>>> DirectMap2M:     2082816 kB
->>>> DirectMap1G:     2097152 kB
->>>>
->>>> At best, that's a bit confusing.  There aren't any other entries in
->>>> meminfo that occur more than once.  Plus, this information is available
->>>> in the sysfs interface.  Why isn't that sufficient?
->>>>
->>>> Could we do something where we keep the default hpage_size looking like
->>>> it does now, but append the size explicitly for the new entries?
->>>>
->>>> HugePages_Total(1G):       2
->>>> HugePages_Free(1G):        1
->>>> HugePages_Rsvd(1G):        1
->>>> HugePages_Surp(1G):        1
->>>>
->>>
->>> Let's not change the existing interface, please.
->>>
->>> Adding new fields: OK.
->>> Changing the way in whcih existing fields are calculated: OKish.
->>> Renaming existing fields: not OK.
->>
->> How about lining up multiple values in each field like this?
->>
->>    HugePages_Total:       5 2
->>    HugePages_Free:        2 1
->>    HugePages_Rsvd:        3 1
->>    HugePages_Surp:        1 1
->>    Hugepagesize:       2048 1048576 kB
->>    ...
->>
->> This doesn't change the field names and the impact for user space
->> is still small?
->
-> It might break some existing parsers, dunno.
->
-> It was a mistake to assume that all hugepages will have the same size
-> for all time, and we just have to live with that mistake.
->
-> I'd suggest that we leave meminfo alone, just ensuring that its output
-> makes some sense.  Instead create a new interface which presents all
-> the required info in a sensible fashion and migrate usersapce reporting
-> tools over to that interface.  Just let the meminfo field die a slow
-> death.
+Hello,
 
-The main idea behind this patch is to unify hugetlb interfaces in 
-/proc/meminfo
-and sysfs. When somebody wants to find out all important informations 
-about hugepage
-pools (as hugeadm from libhugetlbfs does), he has to determine default 
-hugepage size
-from /proc/meminfo and then go into 
-/sys/kernel/mm/hugepages/hugepages-<size>kB/
-for informations about next nodes.
+On Mon, Mar 07, 2011 at 02:35:15AM -0800, Michel Lespinasse wrote:
+> There is also the issue that *mapcount will be decremented even if the
+> pmd turns out not to point to the given page. page_referenced() will
+> stop looking at rmap's candidate mappings once the refcount hits zero,
+> so the decrement will cause an actual mapping to be ignored.
 
-I agree with idea of throwing away of meminfo hugepage fields in the future,
-but before doing this, sysfs part of interface should indicate default 
-hugepage
-size. And meminfo could possibly show data for all hugepage sizes on 
-system. So when
-these parts will be independent, it is no problem to let meminfo fields 
-die.
+Both the mapcount and vm_flags problems would worst case lead to some
+page ("parent page" in the example provided with mlock in the child)
+being evicted too early, not to become unevictable. The mapcount is
+actually a bigger concern to me as it doesn't require the race. I also
+added a proper comment before page_check_address* as suggested by
+Minchan. Frankly when I updated the code I didn't realize that was the
+actual reason VM_LOCKED was placed in the middle between
+page_check_address and ptep_clear_flush_young_notify, now it's clear
+why...
 
->
-> It's tempting to remove the meminfo hugepage fields altogether - most
-> parsers _should_ be able to cope with a CONFIG_HUGETLB=n kernel.  But
-> that's breakage as well - some applications may be using meminfo to
-> detect whether the kernel supports huge pages!
+I only run some basic testing, please review. I seen no reason to
+return "referenced = 0" if the pmd is still splitting. So I let it go
+ahead now and test_and_set_bit the accessed bit even on a splitting
+pmd. After all the tlb miss could still activate the young bit on a
+pmd while it's in splitting state. There's no check for splitting in
+the pmdp_clear_flush_young. The secondary mmu has no secondary spte
+mapped while it's set to splitting so it shouldn't matter for it if we
+clear the young bit (and new secondary mmu page faults will wait on
+splitting to clear and __split_huge_page_map to finish before going
+ahead creating new secondary sptes with 4k granularity).
+
+Here a fix:
+
+===
+Subject: thp: fix page_referenced to modify mapcount/vm_flags only if page is found
+
+From: Andrea Arcangeli <aarcange@redhat.com>
+
+When vmscan.c calls page_referenced, if an anon page was created before a
+process forked, rmap will search for it in both of the processes, even though
+one of them might have since broken COW. If the child process mlocks the vma
+where the COWed page belongs to, page_referenced() running on the page mapped
+by the parent would lead to *vm_flags getting VM_LOCKED set erroneously (leading
+to the references on the parent page being ignored and evicting the parent page
+too early).
+
+*mapcount would also be decremented by page_referenced_one even if the page
+wasn't found by page_check_address.
+
+This also let pmdp_clear_flush_young_notify() go ahead on a
+pmd_trans_splitting() pmd. We hold the page_table_lock so
+__split_huge_page_map() must wait the pmdp_clear_flush_young_notify()
+to complete before it can modify the pmd. The pmd is also still mapped
+in userland so the young bit may materialize through a tlb miss before
+split_huge_page_map runs. This will provide a more accurate
+page_referenced() behavior during split_huge_page().
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Reported-by: Michel Lespinasse <walken@google.com>
+---
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index f21f4a1..e8924bc 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -497,41 +497,62 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	int referenced = 0;
+ 
+-	/*
+-	 * Don't want to elevate referenced for mlocked page that gets this far,
+-	 * in order that it progresses to try_to_unmap and is moved to the
+-	 * unevictable list.
+-	 */
+-	if (vma->vm_flags & VM_LOCKED) {
+-		*mapcount = 0;	/* break early from loop */
+-		*vm_flags |= VM_LOCKED;
+-		goto out;
+-	}
+-
+-	/* Pretend the page is referenced if the task has the
+-	   swap token and is in the middle of a page fault. */
+-	if (mm != current->mm && has_swap_token(mm) &&
+-			rwsem_is_locked(&mm->mmap_sem))
+-		referenced++;
+-
+ 	if (unlikely(PageTransHuge(page))) {
+ 		pmd_t *pmd;
+ 
+ 		spin_lock(&mm->page_table_lock);
++		/*
++		 * We must update *vm_flags and *mapcount only if
++		 * page_check_address_pmd() succeeds in finding the
++		 * page.
++		 */
+ 		pmd = page_check_address_pmd(page, mm, address,
+ 					     PAGE_CHECK_ADDRESS_PMD_FLAG);
+-		if (pmd && !pmd_trans_splitting(*pmd) &&
+-		    pmdp_clear_flush_young_notify(vma, address, pmd))
++		if (!pmd) {
++			spin_unlock(&mm->page_table_lock);
++			goto out;
++		}
++
++		/*
++		 * Don't want to elevate referenced for mlocked page
++		 * that gets this far, in order that it progresses to
++		 * try_to_unmap and is moved to the unevictable list.
++		 */
++		if (vma->vm_flags & VM_LOCKED) {
++			spin_unlock(&mm->page_table_lock);
++			*mapcount = 0;	/* break early from loop */
++			*vm_flags |= VM_LOCKED;
++			goto out;
++		}
++
++		/* go ahead even if the pmd is pmd_trans_splitting() */
++		if (pmdp_clear_flush_young_notify(vma, address, pmd))
+ 			referenced++;
+ 		spin_unlock(&mm->page_table_lock);
+ 	} else {
+ 		pte_t *pte;
+ 		spinlock_t *ptl;
+ 
++		/*
++		 * We must update *vm_flags and *mapcount only if
++		 * page_check_address() succeeds in finding the page.
++		 */
+ 		pte = page_check_address(page, mm, address, &ptl, 0);
+ 		if (!pte)
+ 			goto out;
+ 
++		/*
++		 * Don't want to elevate referenced for mlocked page
++		 * that gets this far, in order that it progresses to
++		 * try_to_unmap and is moved to the unevictable list.
++		 */
++		if (vma->vm_flags & VM_LOCKED) {
++			pte_unmap_unlock(pte, ptl);
++			*mapcount = 0;	/* break early from loop */
++			*vm_flags |= VM_LOCKED;
++			goto out;
++		}
++
+ 		if (ptep_clear_flush_young_notify(vma, address, pte)) {
+ 			/*
+ 			 * Don't treat a reference through a sequentially read
+@@ -546,6 +567,12 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 		pte_unmap_unlock(pte, ptl);
+ 	}
+ 
++	/* Pretend the page is referenced if the task has the
++	   swap token and is in the middle of a page fault. */
++	if (mm != current->mm && has_swap_token(mm) &&
++			rwsem_is_locked(&mm->mmap_sem))
++		referenced++;
++
+ 	(*mapcount)--;
+ 
+ 	if (referenced)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
