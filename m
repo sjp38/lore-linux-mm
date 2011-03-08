@@ -1,187 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8C1E58D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 00:01:40 -0500 (EST)
-Message-ID: <4D75B815.2080603@linux.intel.com>
-Date: Tue, 08 Mar 2011 13:01:09 +0800
-From: Chen Gong <gong.chen@linux.intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH V2] page-types.c: auto debugfs mount for hwpoison operation
-References: <1299487900-7792-1-git-send-email-gong.chen@linux.intel.com> <20110307184133.8A19.A69D9226@jp.fujitsu.com> <20110307113937.GB5080@localhost>
-In-Reply-To: <20110307113937.GB5080@localhost>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+	by kanga.kvack.org (Postfix) with ESMTP id 147958D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 00:02:35 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6DE683EE0B5
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 14:02:33 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5290A45DE5B
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 14:02:33 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3ABD245DE59
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 14:02:33 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 28EF2E08004
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 14:02:33 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D757FE18001
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 14:02:32 +0900 (JST)
+Date: Tue, 8 Mar 2011 13:56:12 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH v2] memcg: fix leak on wrong LRU with FUSE
+Message-Id: <20110308135612.e971e1f3.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>, Clark Williams <williams@redhat.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Xiao Guangrong <xiaoguangrong@cn.fujitsu.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 
-page-types.c doesn't supply a way to specify the debugfs path and
-the original debugfs path is not usual on most machines. This patch
-supplies a way to auto mount debugfs if needed.
 
-This patch is heavily inspired by tools/perf/utils/debugfs.c
+fs/fuse/dev.c::fuse_try_move_page() does
 
-Signed-off-by: Chen Gong <gong.chen@linux.intel.com>
+   (1) remove a page by ->steal()
+   (2) re-add the page to page cache 
+   (3) link the page to LRU if it was not on LRU at (1)
+
+This implies the page is _on_ LRU when it's added to radix-tree.
+So, the page is added to  memory cgroup while it's on LRU.
+because LRU is lazy and no one flushs it.
+
+This is the same behavior as SwapCache and needs special care as
+ - remove page from LRU before overwrite pc->mem_cgroup.
+ - add page to LRU after overwrite pc->mem_cgroup.
+
+And we need to taking care of pagevec.
+
+If PageLRU(page) is set before we add PCG_USED bit, the page
+will not be added to memcg's LRU (in short period).
+So, regardlress of PageLRU(page) value before commit_charge(),
+we need to check PageLRU(page) after commit_charge().
+
+Changelog:
+  - clean up.
+  - cover !PageLRU() by pagevec case.
+
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
-  Documentation/vm/page-types.c |  105 
-+++++++++++++++++++++++++++++++++++++++--
-  1 files changed, 101 insertions(+), 4 deletions(-)
+ mm/memcontrol.c |   53 ++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 34 insertions(+), 19 deletions(-)
 
-diff --git a/Documentation/vm/page-types.c b/Documentation/vm/page-types.c
-index cc96ee2..303b4ed 100644
---- a/Documentation/vm/page-types.c
-+++ b/Documentation/vm/page-types.c
-@@ -32,8 +32,20 @@
-  #include <sys/types.h>
-  #include <sys/errno.h>
-  #include <sys/fcntl.h>
-+#include <sys/mount.h>
-+#include <sys/statfs.h>
-+#include "../../include/linux/magic.h"
-
-
-+#ifndef MAX_PATH
-+# define MAX_PATH 256
-+#endif
-+
-+#ifndef STR
-+# define _STR(x) #x
-+# define STR(x) _STR(x)
-+#endif
-+
-  /*
-   * pagemap kernel ABI bits
-   */
-@@ -152,6 +164,12 @@ static const char *page_flag_names[] = {
-  };
-
-
-+static const char *debugfs_known_mountpoints[] = {
-+	"/sys/kernel/debug",
-+	"/debug",
-+	0,
-+};
-+
-  /*
-   * data structures
-   */
-@@ -184,7 +202,7 @@ static int		kpageflags_fd;
-  static int		opt_hwpoison;
-  static int		opt_unpoison;
-
--static const char	hwpoison_debug_fs[] = "/debug/hwpoison";
-+static char		hwpoison_debug_fs[MAX_PATH+1];
-  static int		hwpoison_inject_fd;
-  static int		hwpoison_forget_fd;
-
-@@ -464,21 +482,100 @@ static uint64_t kpageflags_flags(uint64_t flags)
-  	return flags;
-  }
-
-+/* verify that a mountpoint is actually a debugfs instance */
-+int debugfs_valid_mountpoint(const char *debugfs)
+Index: mmotm-0303/mm/memcontrol.c
+===================================================================
+--- mmotm-0303.orig/mm/memcontrol.c
++++ mmotm-0303/mm/memcontrol.c
+@@ -926,13 +926,12 @@ void mem_cgroup_add_lru_list(struct page
+ }
+ 
+ /*
+- * At handling SwapCache, pc->mem_cgroup may be changed while it's linked to
+- * lru because the page may.be reused after it's fully uncharged (because of
+- * SwapCache behavior).To handle that, unlink page_cgroup from LRU when charge
+- * it again. This function is only used to charge SwapCache. It's done under
+- * lock_page and expected that zone->lru_lock is never held.
++ * At handling SwapCache and other FUSE stuff, pc->mem_cgroup may be changed
++ * while it's linked to lru because the page may be reused after it's fully
++ * uncharged. To handle that, unlink page_cgroup from LRU when charge it again.
++ * It's done under lock_page and expected that zone->lru_lock isnever held.
+  */
+-static void mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
++static void mem_cgroup_lru_del_before_commit(struct page *page)
+ {
+ 	unsigned long flags;
+ 	struct zone *zone = page_zone(page);
+@@ -948,7 +947,7 @@ static void mem_cgroup_lru_del_before_co
+ 	spin_unlock_irqrestore(&zone->lru_lock, flags);
+ }
+ 
+-static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
++static void mem_cgroup_lru_add_after_commit(struct page *page)
+ {
+ 	unsigned long flags;
+ 	struct zone *zone = page_zone(page);
+@@ -2431,9 +2430,28 @@ static void
+ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
+ 					enum charge_type ctype);
+ 
++static void
++__mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *mem,
++					enum charge_type ctype)
 +{
-+	struct statfs st_fs;
-+
-+	if (statfs(debugfs, &st_fs) < 0)
-+		return -ENOENT;
-+	else if (st_fs.f_type != (long) DEBUGFS_MAGIC)
-+		return -ENOENT;
-+
-+	return 0;
++	struct page_cgroup *pc = lookup_page_cgroup(page);
++	/*
++	 * In some case, SwapCache, FUSE(splice_buf->radixtree), the page
++	 * is already on LRU. It means the page may on some other page_cgroup's
++	 * LRU. Take care of it.
++	 */
++	if (unlikely(PageLRU(page)))
++		mem_cgroup_lru_del_before_commit(page);
++	__mem_cgroup_commit_charge(mem, page, 1, pc, ctype);
++	if (unlikely(PageLRU(page)))
++		mem_cgroup_lru_add_after_commit(page);
++	return;
 +}
 +
-+/* find the path to the mounted debugfs */
-+const char *debugfs_find_mountpoint(void)
-+{
-+	const char **ptr;
-+	char type[100];
-+	FILE *fp;
-+
-+	ptr = debugfs_known_mountpoints;
-+	while (*ptr) {
-+		if (debugfs_valid_mountpoint(*ptr) == 0) {
-+			strcpy(hwpoison_debug_fs, *ptr);
-+			return hwpoison_debug_fs;
-+		}
-+		ptr++;
+ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 				gfp_t gfp_mask)
+ {
++	struct mem_cgroup *mem = NULL;
+ 	int ret;
+ 
+ 	if (mem_cgroup_disabled())
+@@ -2468,14 +2486,15 @@ int mem_cgroup_cache_charge(struct page 
+ 	if (unlikely(!mm))
+ 		mm = &init_mm;
+ 
+-	if (page_is_file_cache(page))
+-		return mem_cgroup_charge_common(page, mm, gfp_mask,
+-				MEM_CGROUP_CHARGE_TYPE_CACHE);
+-
++	if (page_is_file_cache(page)) {
++		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, &mem, true);
++		if (ret || !mem)
++			return ret;
++		__mem_cgroup_commit_charge_lrucare(page, mem,
++					MEM_CGROUP_CHARGE_TYPE_CACHE);
 +	}
+ 	/* shmem */
+ 	if (PageSwapCache(page)) {
+-		struct mem_cgroup *mem;
+-
+ 		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
+ 		if (!ret)
+ 			__mem_cgroup_commit_charge_swapin(page, mem,
+@@ -2532,17 +2551,13 @@ static void
+ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
+ 					enum charge_type ctype)
+ {
+-	struct page_cgroup *pc;
+-
+ 	if (mem_cgroup_disabled())
+ 		return;
+ 	if (!ptr)
+ 		return;
+ 	cgroup_exclude_rmdir(&ptr->css);
+-	pc = lookup_page_cgroup(page);
+-	mem_cgroup_lru_del_before_commit_swapcache(page);
+-	__mem_cgroup_commit_charge(ptr, page, 1, pc, ctype);
+-	mem_cgroup_lru_add_after_commit_swapcache(page);
 +
-+	/* give up and parse /proc/mounts */
-+	fp = fopen("/proc/mounts", "r");
-+	if (fp == NULL)
-+		perror("Can't open /proc/mounts for read");
-+
-+	while (fscanf(fp, "%*s %"
-+		      STR(MAX_PATH)
-+		      "s %99s %*s %*d %*d\n",
-+		      hwpoison_debug_fs, type) == 2) {
-+		if (strcmp(type, "debugfs") == 0)
-+			break;
-+	}
-+	fclose(fp);
-+
-+	if (strcmp(type, "debugfs") != 0)
-+		return NULL;
-+
-+	return hwpoison_debug_fs;
-+}
-+
-+/* mount the debugfs somewhere if it's not mounted */
-+
-+void debugfs_mount()
-+{
-+	const char **ptr;
-+
-+	/* see if it's already mounted */
-+	if (debugfs_find_mountpoint())
-+		return;
-+
-+	ptr = debugfs_known_mountpoints;
-+	while (*ptr) {
-+		if (mount(NULL, *ptr, "debugfs", 0, NULL) == 0) {
-+			/* save the mountpoint */
-+			strcpy(hwpoison_debug_fs, *ptr);
-+			break;
-+		}
-+		ptr++;
-+	}
-+
-+	if (*ptr == NULL) {
-+		perror("mount debugfs");
-+		exit(EXIT_FAILURE);
-+	}
-+}
-+
-  /*
-   * page actions
-   */
-
-  static void prepare_hwpoison_fd(void)
-  {
--	char buf[100];
-+	char buf[MAX_PATH + 1];
-+
-+	debugfs_mount();
-
-  	if (opt_hwpoison && !hwpoison_inject_fd) {
--		sprintf(buf, "%s/corrupt-pfn", hwpoison_debug_fs);
-+		snprintf(buf, MAX_PATH, "%s/hwpoison/corrupt-pfn",
-+			hwpoison_debug_fs);
-  		hwpoison_inject_fd = checked_open(buf, O_WRONLY);
-  	}
-
-  	if (opt_unpoison && !hwpoison_forget_fd) {
--		sprintf(buf, "%s/unpoison-pfn", hwpoison_debug_fs);
-+		snprintf(buf, MAX_PATH, "%s/hwpoison/unpoison-pfn",
-+			hwpoison_debug_fs);
-  		hwpoison_forget_fd = checked_open(buf, O_WRONLY);
-  	}
-  }
--- 
-1.7.3.1.120.g38a18
-
++	__mem_cgroup_commit_charge_lrucare(page, ptr, ctype);
+ 	/*
+ 	 * Now swap is on-memory. This means this page may be
+ 	 * counted both as mem and swap....double count.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
