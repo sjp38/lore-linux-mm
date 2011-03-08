@@ -1,53 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 24A198D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 19:19:10 -0500 (EST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2878F8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 19:24:54 -0500 (EST)
 Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7BDA53EE0C0
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:19:07 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C9C753EE081
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:24:46 +0900 (JST)
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E71845DE6D
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:19:07 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B0B5245DE69
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:24:46 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 24B1C45DE68
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:19:07 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9707045DD74
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:24:46 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 177F9E08004
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:19:07 +0900 (JST)
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8AFC8E08003
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:24:46 +0900 (JST)
 Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CFA111DB803C
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:19:06 +0900 (JST)
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 54A1F1DB802C
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 09:24:46 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 6/8] Add __GFP_OTHER_NODE flag
-In-Reply-To: <20110307163334.GB13384@alboin.amr.corp.intel.com>
-References: <20110307173042.8A04.A69D9226@jp.fujitsu.com> <20110307163334.GB13384@alboin.amr.corp.intel.com>
-Message-Id: <20110308091843.8A95.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch] oom: prevent unnecessary oom kills or kernel panics
+In-Reply-To: <alpine.DEB.2.00.1103061404210.23737@chino.kir.corp.google.com>
+References: <20110306201408.6CC6.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1103061404210.23737@chino.kir.corp.google.com>
+Message-Id: <20110308092413.8AA1.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue,  8 Mar 2011 09:19:06 +0900 (JST)
+Date: Tue,  8 Mar 2011 09:24:45 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, aarcange@redhat.com
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-> > Yes, less intrusive. But are you using current NUMA stastics on
-> > practical system?
+> On Sun, 6 Mar 2011, KOSAKI Motohiro wrote:
 > 
-> Yes I do. I know users use it too.
+> > > There is no deadlock being introduced by this patch; if you have an 
+> > > example of one, then please show it.  The problem is not just overkill but 
+> > > rather panicking the machine when no other eligible processes exist.  We 
+> > > have seen this in production quite a few times and we'd like to see this 
+> > > patch merged to avoid our machines panicking because the oom killer, by 
+> > > your patch, isn't considering threads that are eligible in the exit path 
+> > > once their parent has been killed and has exited itself yet memory freeing 
+> > > isn't possible yet because the threads still pin the ->mm.
+> > 
+> > No. While you don't understand current code, I'll not taking yours.
+> > 
 > 
-> We unfortunately still have enough NUMA locality problems in the kernel
-> so that overflowing nodes, causing fallbacks for process memory etc. are not uncommon. 
-> If you get that then numastat is very useful to track down what happens.
+> I take this as you declining to show your example of a deadlock introduced 
+> by this patch as requested.  There is no such deadlock.  The patch is 
+> reintroducing the behavior of the oom killer that existed for years before 
+> you broke it and caused many of ours machines to panic as a result.
 > 
-> In an ideal world with perfect NUMA balancing it wouldn't be needed,
-> but we're far from that.
-> 
-> Also the numactl test suite depends on them.
+> Thanks for your review.
 
-If so, I have no objection of cource. :)
+Do I need to talk the same again. I don't take your buggy patch. That's all.
 
-Thanks.
 
 
 
