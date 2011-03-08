@@ -1,175 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CD8EE8D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 04:20:33 -0500 (EST)
-Date: Tue, 8 Mar 2011 18:18:32 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH v2] memcg: fix leak on wrong LRU with FUSE
-Message-Id: <20110308181832.6386da5f.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20110308135612.e971e1f3.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110308135612.e971e1f3.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D09358D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 04:37:56 -0500 (EST)
+Date: Tue, 8 Mar 2011 09:37:23 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] hugetlb: /proc/meminfo shows data for all sizes of
+	hugepages
+Message-ID: <20110308093723.GA19206@csn.ul.ie>
+References: <1299503155-6210-1-git-send-email-pholasek@redhat.com> <1299527214.8493.13263.camel@nimitz> <20110307145149.97e6676e.akpm@linux-foundation.org> <20110307231448.GA2946@spritzera.linux.bs1.fc.nec.co.jp> <20110307152516.fee931bb.akpm@linux-foundation.org> <alpine.DEB.2.00.1103071543460.22274@chino.kir.corp.google.com> <20110308005706.GB5169@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20110308005706.GB5169@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Nishanth Aravamudan <nacc@us.ibm.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Petr Holasek <pholasek@redhat.com>, linux-kernel@vger.kernel.org, emunson@mgebm.net, anton@redhat.com, Andi Kleen <ak@linux.intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
 
-On Tue, 8 Mar 2011 13:56:12 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Mon, Mar 07, 2011 at 04:57:06PM -0800, Nishanth Aravamudan wrote:
+> > > > > > On Mon, 2011-03-07 at 14:05 +0100, Petr Holasek wrote:
+> > > > > > > +       for_each_hstate(h)
+> > > > > > > +               seq_printf(m,
+> > > > > > > +                               "HugePages_Total:   %5lu\n"
+> > > > > > > +                               "HugePages_Free:    %5lu\n"
+> > > > > > > +                               "HugePages_Rsvd:    %5lu\n"
+> > > > > > > +                               "HugePages_Surp:    %5lu\n"
+> > > > > > > +                               "Hugepagesize:   %8lu kB\n",
+> > > > > > > +                               h->nr_huge_pages,
+> > > > > > > +                               h->free_huge_pages,
+> > > > > > > +                               h->resv_huge_pages,
+> > > > > > > +                               h->surplus_huge_pages,
+> > > > > > > +                               1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
+> > > > > > >  }
+> > > > > >
+> > > > > > It sounds like now we'll get a meminfo that looks like:
+> > > > > >
+> > > > > > ...
+> > > > > > AnonHugePages:    491520 kB
+> > > > > > HugePages_Total:       5
+> > > > > > HugePages_Free:        2
+> > > > > > HugePages_Rsvd:        3
+> > > > > > HugePages_Surp:        1
+> > > > > > Hugepagesize:       2048 kB
+> > > > > > HugePages_Total:       2
+> > > > > > HugePages_Free:        1
+> > > > > > HugePages_Rsvd:        1
+> > > > > > HugePages_Surp:        1
+> > > > > > Hugepagesize:    1048576 kB
+> > > > > > DirectMap4k:       12160 kB
+> > > > > > DirectMap2M:     2082816 kB
+> > > > > > DirectMap1G:     2097152 kB
+> > > > > >
+> > > > > > At best, that's a bit confusing.  There aren't any other entries in
+> > > > > > meminfo that occur more than once.  Plus, this information is available
+> > > > > > in the sysfs interface.  Why isn't that sufficient?
+> > > > > >
+> > > > > > Could we do something where we keep the default hpage_size looking like
+> > > > > > it does now, but append the size explicitly for the new entries?
+> > > > > >
+> > > > > > HugePages_Total(1G):       2
+> > > > > > HugePages_Free(1G):        1
+> > > > > > HugePages_Rsvd(1G):        1
+> > > > > > HugePages_Surp(1G):        1
+> > > > > >
+> > > > >
+> > > > > Let's not change the existing interface, please.
+> > > > >
+> > > > > Adding new fields: OK.
+> > > > > Changing the way in whcih existing fields are calculated: OKish.
+> > > > > Renaming existing fields: not OK.
+> > > > 
+> > > > How about lining up multiple values in each field like this?
+> > > > 
+> > > >   HugePages_Total:       5 2
+> > > >   HugePages_Free:        2 1
+> > > >   HugePages_Rsvd:        3 1
+> > > >   HugePages_Surp:        1 1
+> > > >   Hugepagesize:       2048 1048576 kB
+> > > >   ...
+> > > > 
+> > > > This doesn't change the field names and the impact for user space
+> > > > is still small?
+> > > 
+> > > It might break some existing parsers, dunno.
+> > > 
+> > > It was a mistake to assume that all hugepages will have the same size
+> > > for all time, and we just have to live with that mistake.
+> > > 
+> > 
+> > I'm not sure it was a mistake: the kernel has a default hugepage size and 
+> > that's what the global /proc/sys/vm/nr_hugepages tunable uses, so it seems 
+> > appropriate that its statistics are exported in the global /proc/meminfo.
+> 
+> Yep, the intent was for meminfo to (continue to) document the default
+> hugepage size's usage, and for any other size's statistics to be
+> accessed by the appropriate sysfs entries.
+> 
 
-> fs/fuse/dev.c::fuse_try_move_page() does
-> 
->    (1) remove a page by ->steal()
->    (2) re-add the page to page cache 
->    (3) link the page to LRU if it was not on LRU at (1)
-> 
-> This implies the page is _on_ LRU when it's added to radix-tree.
-> So, the page is added to  memory cgroup while it's on LRU.
-> because LRU is lazy and no one flushs it.
-> 
-> This is the same behavior as SwapCache and needs special care as
->  - remove page from LRU before overwrite pc->mem_cgroup.
->  - add page to LRU after overwrite pc->mem_cgroup.
-> 
-> And we need to taking care of pagevec.
-> 
-> If PageLRU(page) is set before we add PCG_USED bit, the page
-> will not be added to memcg's LRU (in short period).
-> So, regardlress of PageLRU(page) value before commit_charge(),
-> we need to check PageLRU(page) after commit_charge().
-> 
-> Changelog:
->   - clean up.
->   - cover !PageLRU() by pagevec case.
-> 
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   53 ++++++++++++++++++++++++++++++++++-------------------
->  1 file changed, 34 insertions(+), 19 deletions(-)
-> 
-> Index: mmotm-0303/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-0303.orig/mm/memcontrol.c
-> +++ mmotm-0303/mm/memcontrol.c
-> @@ -926,13 +926,12 @@ void mem_cgroup_add_lru_list(struct page
->  }
->  
->  /*
-> - * At handling SwapCache, pc->mem_cgroup may be changed while it's linked to
-> - * lru because the page may.be reused after it's fully uncharged (because of
-> - * SwapCache behavior).To handle that, unlink page_cgroup from LRU when charge
-> - * it again. This function is only used to charge SwapCache. It's done under
-> - * lock_page and expected that zone->lru_lock is never held.
-> + * At handling SwapCache and other FUSE stuff, pc->mem_cgroup may be changed
-> + * while it's linked to lru because the page may be reused after it's fully
-> + * uncharged. To handle that, unlink page_cgroup from LRU when charge it again.
-> + * It's done under lock_page and expected that zone->lru_lock isnever held.
->   */
-> -static void mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
-> +static void mem_cgroup_lru_del_before_commit(struct page *page)
->  {
->  	unsigned long flags;
->  	struct zone *zone = page_zone(page);
-> @@ -948,7 +947,7 @@ static void mem_cgroup_lru_del_before_co
->  	spin_unlock_irqrestore(&zone->lru_lock, flags);
->  }
->  
-> -static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
-> +static void mem_cgroup_lru_add_after_commit(struct page *page)
->  {
->  	unsigned long flags;
->  	struct zone *zone = page_zone(page);
-> @@ -2431,9 +2430,28 @@ static void
->  __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
->  					enum charge_type ctype);
->  
-> +static void
-> +__mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *mem,
-> +					enum charge_type ctype)
-> +{
-> +	struct page_cgroup *pc = lookup_page_cgroup(page);
-> +	/*
-> +	 * In some case, SwapCache, FUSE(splice_buf->radixtree), the page
-> +	 * is already on LRU. It means the page may on some other page_cgroup's
-> +	 * LRU. Take care of it.
-> +	 */
-> +	if (unlikely(PageLRU(page)))
-> +		mem_cgroup_lru_del_before_commit(page);
-> +	__mem_cgroup_commit_charge(mem, page, 1, pc, ctype);
-> +	if (unlikely(PageLRU(page)))
-> +		mem_cgroup_lru_add_after_commit(page);
-> +	return;
-> +}
-> +
->  int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
->  				gfp_t gfp_mask)
->  {
-> +	struct mem_cgroup *mem = NULL;
->  	int ret;
->  
->  	if (mem_cgroup_disabled())
-> @@ -2468,14 +2486,15 @@ int mem_cgroup_cache_charge(struct page 
->  	if (unlikely(!mm))
->  		mm = &init_mm;
->  
-> -	if (page_is_file_cache(page))
-> -		return mem_cgroup_charge_common(page, mm, gfp_mask,
-> -				MEM_CGROUP_CHARGE_TYPE_CACHE);
-> -
-> +	if (page_is_file_cache(page)) {
-> +		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, &mem, true);
-> +		if (ret || !mem)
-> +			return ret;
-> +		__mem_cgroup_commit_charge_lrucare(page, mem,
-> +					MEM_CGROUP_CHARGE_TYPE_CACHE);
-> +	}
-We should do "return 0" here, or do:
+Agreed. The suggested changes to the interface here is very likely to
+break libhugetlbfs.
 
-} else {
-	/* shmem */
-	if (PageSwapCache(page)) {
-		..
-	} else {
-		..
-	}
-}
-
-Otherwise, the page cache will be charged twice.
-
-Thanks,
-Daisuke Nishimura.
-
->  	/* shmem */
->  	if (PageSwapCache(page)) {
-> -		struct mem_cgroup *mem;
-> -
->  		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
->  		if (!ret)
->  			__mem_cgroup_commit_charge_swapin(page, mem,
-> @@ -2532,17 +2551,13 @@ static void
->  __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
->  					enum charge_type ctype)
->  {
-> -	struct page_cgroup *pc;
-> -
->  	if (mem_cgroup_disabled())
->  		return;
->  	if (!ptr)
->  		return;
->  	cgroup_exclude_rmdir(&ptr->css);
-> -	pc = lookup_page_cgroup(page);
-> -	mem_cgroup_lru_del_before_commit_swapcache(page);
-> -	__mem_cgroup_commit_charge(ptr, page, 1, pc, ctype);
-> -	mem_cgroup_lru_add_after_commit_swapcache(page);
-> +
-> +	__mem_cgroup_commit_charge_lrucare(page, ptr, ctype);
->  	/*
->  	 * Now swap is on-memory. This means this page may be
->  	 * counted both as mem and swap....double count.
+> > > I'd suggest that we leave meminfo alone, just ensuring that its output
+> > > makes some sense.  Instead create a new interface which presents all
+> > > the required info in a sensible fashion and migrate usersapce reporting
+> > > tools over to that interface.  Just let the meminfo field die a slow
+> > > death.
+> > > 
+> > 
+> > (Adding Nishanth to the cc)
+> > 
+> > It's already there, all this data is available for all the configured
+> > hugepage sizes via /sys/kernel/mm/hugepages/hugepages-<size>kB/ as
+> > described by Documentation/ABI/testing/sysfs-kernel-mm-hugepages.
+> > 
+> > It looks like Nishanth and others put quite a bit of effort into
+> > making as stable of an API as possible for this information.
 > 
+> I'm not sure if libhugetlbfs already has a tool for parsing the values
+> there (i.e., to give an end-user a quick'n'dirty snapshot of overall
+> current hugepage usage). Eric?
+
+I'm not Eric, but it does. It's called hugeadm and here is an example of
+its output
+
+hydra:~# hugeadm --pool-list
+      Size  Minimum  Current  Maximum  Default
+   2097152       16       16       16        *
+1073741824        2        2        2         
+
+> If not, probably something worth having.
+> I believe we also have the per-node information in sysfs too, in case
+> that's relevant to tooling.
+> 
+
+The kernel interfaces are sufficient at the moment at exporting all the
+information. If hugeadm is providing insufficient information, I'd
+prefer to see it enhanced than the sysfs or meminfo interfaces changed.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
