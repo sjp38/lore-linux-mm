@@ -1,71 +1,214 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CAEF8D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 18:49:39 -0500 (EST)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id p28NnbbU016166
-	for <linux-mm@kvack.org>; Tue, 8 Mar 2011 15:49:37 -0800
-Received: from yxm8 (yxm8.prod.google.com [10.190.4.8])
-	by wpaz1.hot.corp.google.com with ESMTP id p28NnHxc030185
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 8 Mar 2011 15:49:35 -0800
-Received: by yxm8 with SMTP id 8so2616852yxm.12
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2011 15:49:17 -0800 (PST)
-Date: Tue, 8 Mar 2011 15:49:10 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] memcg: add oom killer delay
-In-Reply-To: <20110308144901.fe34abd0.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1103081540320.27910@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com> <20110303135223.0a415e69.akpm@linux-foundation.org> <alpine.DEB.2.00.1103071602080.23035@chino.kir.corp.google.com> <20110307162912.2d8c70c1.akpm@linux-foundation.org>
- <alpine.DEB.2.00.1103071631080.23844@chino.kir.corp.google.com> <20110307165119.436f5d21.akpm@linux-foundation.org> <alpine.DEB.2.00.1103071657090.24549@chino.kir.corp.google.com> <20110307171853.c31ec416.akpm@linux-foundation.org>
- <alpine.DEB.2.00.1103071721330.25197@chino.kir.corp.google.com> <20110308115108.36b184c5.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1103071905400.1640@chino.kir.corp.google.com> <20110308121332.de003f81.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.2.00.1103071954550.2883@chino.kir.corp.google.com> <20110308131723.e434cb89.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1103072126590.4593@chino.kir.corp.google.com> <20110308144901.fe34abd0.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 38A398D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 18:51:22 -0500 (EST)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e33.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p28Nilib004292
+	for <linux-mm@kvack.org>; Tue, 8 Mar 2011 16:44:47 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p28NpGbm073474
+	for <linux-mm@kvack.org>; Tue, 8 Mar 2011 16:51:16 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p28NpEqZ021247
+	for <linux-mm@kvack.org>; Tue, 8 Mar 2011 16:51:16 -0700
+Subject: Re: [PATCH R4 6/7] mm: Extend memory hotplug API to allow memory
+ hotplug in virtual guests
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20110308215003.GG27331@router-fw-old.local.net-space.pl>
+References: <20110308215003.GG27331@router-fw-old.local.net-space.pl>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Tue, 08 Mar 2011 15:51:12 -0800
+Message-ID: <1299628272.9014.3465.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 8 Mar 2011, KAMEZAWA Hiroyuki wrote:
+On Tue, 2011-03-08 at 22:50 +0100, Daniel Kiper wrote:
+> This patch extends memory hotplug API to allow easy memory hotplug
+> in virtual guests. It contains:
+>   - generic section aligment macro,
+>   - online_page_chain and apropriate functions for registering/unregistering
+>     online page notifiers,
+>   - add_virtual_memory(u64 *size) function which adds memory region
+>     of size >= *size above max_pfn; new region is section aligned
+>     and size is modified to be multiple of section size.
 
-> > That's aside from the general purpose of the new 
-> > memory.oom_delay_millisecs: users may want a grace period for userspace to 
-> > increase the hard limit or kill a task before deferring to the kernel.  
-> > That seems exponentially more useful than simply disabling the oom killer 
-> > entirely with memory.oom_control.  I think it's unfortunate 
-> > memory.oom_control was merged frst and seems to have tainted this entire 
-> > discussion.
-> > 
+Usually, when you can list stuff out like this, it's a good sign that
+they belong in separate patches.  I think it's true here as well.
+
+But, these are looking a lot better.  It looks like much less code, and
+it's quite a bit simpler.
+
+> +/*
+> + * online_page_chain contains chain of notifiers called when page is onlined.
+> + * When kernel is booting native_online_page_notifier() is registered with
+> + * priority 0 as default notifier. Custom notifier should be registered with
+> + * pririty > 0. It could be terminal (it should return NOTIFY_STOP on success)
+
+"pririty"?
+
+> + * or not (it should return NOTIFY_DONE or NOTIFY_OK on success; for full list
+> + * of return codes look into include/linux/notifier.h).
+> + *
+> + * Working example of usage: drivers/xen/balloon.c
+> + */
+> +
+> +static RAW_NOTIFIER_HEAD(online_page_chain);
+> +
+>  DEFINE_MUTEX(mem_hotplug_mutex);
 > 
-> That sounds like a mis-usage problem....what kind of workaround is offerred
-> if the user doesn't configure oom_delay_millisecs , a yet another mis-usage ?
+>  void lock_memory_hotplug(void)
+> @@ -361,8 +375,33 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+>  }
+>  EXPORT_SYMBOL_GPL(__remove_pages);
 > 
+> -void online_page(struct page *page)
+> +int register_online_page_notifier(struct notifier_block *nb)
+> +{
+> +	int rc;
+> +
+> +	lock_memory_hotplug();
+> +	rc = raw_notifier_chain_register(&online_page_chain, nb);
+> +	unlock_memory_hotplug();
+> +
+> +	return rc;
+> +}
+> +EXPORT_SYMBOL_GPL(register_online_page_notifier);
+> +
+> +int unregister_online_page_notifier(struct notifier_block *nb)
+> +{
+> +	int rc;
+> +
+> +	lock_memory_hotplug();
+> +	rc = raw_notifier_chain_unregister(&online_page_chain, nb);
+> +	unlock_memory_hotplug();
+> +
+> +	return rc;
+> +}
+> +EXPORT_SYMBOL_GPL(unregister_online_page_notifier);
 
-Not exactly sure what you mean, but you're saying disabling the oom killer 
-with memory.oom_control is not the recommended way to allow userspace to 
-fix the issue itself?  That seems like it's the entire usecase: we'd 
-rarely want to let a memcg stall when it needs memory without trying to 
-address the problem (elevating the limit, killing a lower priority job, 
-sending a signal to free memory).  We have a memcg oom notifier to handle 
-the situation but there's no guarantee that the kernel won't kill 
-something first and that's a bad result if we chose to address it with one 
-of the ways mentioned above.
+The whole "native" thing really is Xen terminology.  Could we call this
+"generic_online_page_notifier()" perhaps?  This really isn't even
+"native" either since some hypervisors actually do use this code.
 
-To answer your question: if the admin doesn't configure a 
-memory.oom_delay_millisecs, then the oom killer will obviously kill 
-something off (if memory.oom_control is also not set) when reclaim fails 
-to free memory just as before.
+> +static int native_online_page_notifier(struct notifier_block *nb, unsigned long val, void *v)
+>  {
+> +	struct page *page = v;
+>  	unsigned long pfn = page_to_pfn(page);
+> 
+>  	totalram_pages++;
+> @@ -375,12 +414,30 @@ void online_page(struct page *page)
+>  #endif
+> 
+>  #ifdef CONFIG_FLATMEM
+> -	max_mapnr = max(page_to_pfn(page), max_mapnr);
+> +	max_mapnr = max(pfn, max_mapnr);
+>  #endif
 
-Aside from my specific usecase for this tunable, let me pose a question: 
-do you believe that the memory controller would benefit from allowing 
-users to have a grace period in which to take one of the actions listed 
-above instead of killing something itself?  Yes, this would be possible by 
-setting and then unsetting memory.oom_control, but that requires userspace 
-to always be responsive (which, at our scale, we can unequivocally say 
-isn't always possible) and doesn't effectively deal with spikes in memory 
-that may only be temporary and doesn't require any intervention of the 
-user at all.
+This is another tidbit that's probably good to do, but it's superfluous
+here.  
+
+>  	ClearPageReserved(page);
+>  	init_page_count(page);
+>  	__free_page(page);
+> +
+> +	return NOTIFY_OK;
+> +}
+> +
+> +static struct notifier_block native_online_page_nb = {
+> +	.notifier_call = native_online_page_notifier,
+> +	.priority = 0
+> +};
+
+That comment about priority really belongs here.  
+
+ /*
+  * 0 priority makes this the fallthrough default.  All
+  * architectures wanting to override this should set a
+  * higher priority and return NOTIFY_STOP to keep this
+  * from running.
+  */
+
+> +static int __init init_online_page_chain(void)
+> +{
+> +	return register_online_page_notifier(&native_online_page_nb);
+> +}
+> +pure_initcall(init_online_page_chain);
+> +
+> +static void online_page(struct page *page)
+> +{
+> +	raw_notifier_call_chain(&online_page_chain, 0, page);
+>  }
+> 
+>  static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+> @@ -591,6 +648,36 @@ out:
+>  }
+>  EXPORT_SYMBOL_GPL(add_memory);
+> 
+> +/*
+> + * add_virtual_memory() adds memory region of size >= *size above max_pfn.
+> + * New region is section aligned and size is modified to be multiple of
+> + * section size.
+
+Aligned up or down?  Why did you choose up or down?
+
+> Those features allow optimal use of address space and
+> + * establish proper aligment when this function is called first time after
+
+                      ^^^^^^^^ alignment?
+
+> + * boot (last section not fully populated at boot time may contains unused
+> + * memory pages with PG_reserved bit not set; online_pages() does not allow
+> + * page onlining in whole section if first page does not have PG_reserved
+> + * bit set). Real size of added memory should be established at page onlining
+> + * stage.
+> + *
+> + * This function is often used in virtual guests because mainly they do not
+> + * care about new memory region address.
+
+Remember, you're touching generic memory hotplug code here.  I really
+don't know what a "virtual guest" is or how it relates to this code.
+How about something like this?
+
+        This code is expected to be used in cases where a certain amount
+        of memory needs to get added, but when the hardware or
+        hypervisor does not dictate where it will be placed.
+
+> + * Working example of usage: drivers/xen/balloon.c
+
+Please pull this out.  It'll probably become stale before anyone uses
+it.  I trust people to know how to use cscope. :)
+
+> +int add_virtual_memory(u64 *size)
+> +{
+> +	int nid;
+> +	u64 start;
+> +
+> +	start = PFN_PHYS(SECTION_ALIGN(max_pfn));
+> +	*size = (((*size >> PAGE_SHIFT) & PAGE_SECTION_MASK) + PAGES_PER_SECTION) << PAGE_SHIFT;
+
+Why use PFN_PHYS() in one case but not the other?
+
+I'd also highly suggest using the ALIGN() macro in cases like this.  It
+makes it much more readable:
+
+	*size = PFN_PHYS(ALIGN(*size, SECTION_SIZE)));	
+
+> +	nid = memory_add_physaddr_to_nid(start);
+> +
+> +	return add_memory(nid, start, *size);
+> +}
+
+Could you talk a little bit more about how 'size' gets used?  Also, are
+we sure we want an interface where we're so liberal with 'size'?  It
+seems like requiring that it be section-aligned is a fair burden to
+place on the caller.  That way, we're not in a position of _guessing_
+what the caller wants (aligning up or down).
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
