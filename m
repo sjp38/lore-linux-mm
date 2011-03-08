@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7764F8D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 16:45:17 -0500 (EST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B96B8D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 16:46:19 -0500 (EST)
 Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
 	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1578060Ab1CHVo3 (ORCPT <rfc822;linux-mm@kvack.org>);
-	Tue, 8 Mar 2011 22:44:29 +0100
-Date: Tue, 8 Mar 2011 22:44:29 +0100
+	id S1578948Ab1CHVpq (ORCPT <rfc822;linux-mm@kvack.org>);
+	Tue, 8 Mar 2011 22:45:46 +0100
+Date: Tue, 8 Mar 2011 22:45:46 +0100
 From: Daniel Kiper <dkiper@net-space.pl>
-Subject: [PATCH R4 0/7] xen/balloon: Memory hotplug support for Xen balloon driver
-Message-ID: <20110308214429.GA27331@router-fw-old.local.net-space.pl>
+Subject: [PATCH R4 1/7] xen/balloon: Removal of driver_pages
+Message-ID: <20110308214546.GB27331@router-fw-old.local.net-space.pl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -17,40 +17,70 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi,
+Removal of driver_pages (I do not have seen any references to it).
 
-I am sending next version of memory hotplug
-support for Xen balloon driver patch. It applies
-to Linus' git tree, v2.6.38-rc8 tag. Most of
-suggestions were taken into account. Thanks for
-everybody who tested and/or sent suggestions
-to my work.
+Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
+---
+ arch/x86/xen/mmu.c    |    3 +--
+ drivers/xen/balloon.c |    8 --------
+ 2 files changed, 1 insertions(+), 10 deletions(-)
 
-There are a few prerequisite patches which fixes
-some problems found during work on memory hotplug
-patch or add some futures which are needed by
-memory hotplug patch.
-
-Full list of fixes/futures:
-  - xen/balloon: Removal of driver_pages,
-  - xen/balloon: HVM mode support,
-  - xen/balloon: Migration from mod_timer() to schedule_delayed_work(),
-  - xen/balloon: Protect against CPU exhaust by event/x process,
-  - xen/balloon: Minor notation fixes,
-  - mm: Extend memory hotplug API to allow memory hotplug in virtual guests,
-  - xen/balloon: Memory hotplug support for Xen balloon driver.
-
-Additionally, I suggest to apply patch prepared by Steffano Stabellini
-(https://lkml.org/lkml/2011/1/31/232) which fixes memory management
-issue in Xen guest. I was not able boot guest machine without
-above mentioned patch.
-
-I have received notice that previous series of patches broke
-machine migration under Xen. I am going to confirm that and
-solve that problem ASAP. I do not have received any notices
-about other problems till now.
-
-Daniel
+diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c
+index 5e92b61..e7c378e 100644
+--- a/arch/x86/xen/mmu.c
++++ b/arch/x86/xen/mmu.c
+@@ -78,8 +78,7 @@
+ 
+ /*
+  * Protects atomic reservation decrease/increase against concurrent increases.
+- * Also protects non-atomic updates of current_pages and driver_pages, and
+- * balloon lists.
++ * Also protects non-atomic updates of current_pages and balloon lists.
+  */
+ DEFINE_SPINLOCK(xen_reservation_lock);
+ 
+diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+index 43f9f02..b4206fd 100644
+--- a/drivers/xen/balloon.c
++++ b/drivers/xen/balloon.c
+@@ -70,11 +70,6 @@ struct balloon_stats {
+ 	/* We aim for 'current allocation' == 'target allocation'. */
+ 	unsigned long current_pages;
+ 	unsigned long target_pages;
+-	/*
+-	 * Drivers may alter the memory reservation independently, but they
+-	 * must inform the balloon driver so we avoid hitting the hard limit.
+-	 */
+-	unsigned long driver_pages;
+ 	/* Number of pages in high- and low-memory balloons. */
+ 	unsigned long balloon_low;
+ 	unsigned long balloon_high;
+@@ -404,7 +399,6 @@ static int __init balloon_init(void)
+ 	balloon_stats.target_pages  = balloon_stats.current_pages;
+ 	balloon_stats.balloon_low   = 0;
+ 	balloon_stats.balloon_high  = 0;
+-	balloon_stats.driver_pages  = 0UL;
+ 
+ 	init_timer(&balloon_timer);
+ 	balloon_timer.data = 0;
+@@ -462,7 +456,6 @@ module_exit(balloon_exit);
+ BALLOON_SHOW(current_kb, "%lu\n", PAGES2KB(balloon_stats.current_pages));
+ BALLOON_SHOW(low_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_low));
+ BALLOON_SHOW(high_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_high));
+-BALLOON_SHOW(driver_kb, "%lu\n", PAGES2KB(balloon_stats.driver_pages));
+ 
+ static ssize_t show_target_kb(struct sys_device *dev, struct sysdev_attribute *attr,
+ 			      char *buf)
+@@ -531,7 +524,6 @@ static struct attribute *balloon_info_attrs[] = {
+ 	&attr_current_kb.attr,
+ 	&attr_low_kb.attr,
+ 	&attr_high_kb.attr,
+-	&attr_driver_kb.attr,
+ 	NULL
+ };
+ 
+-- 
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
