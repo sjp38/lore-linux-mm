@@ -1,52 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B5EA8D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 01:08:08 -0500 (EST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AB5798D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 01:10:41 -0500 (EST)
 Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id EE1BA3EE0BD
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:08:03 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id B39DD3EE0C5
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:10:38 +0900 (JST)
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D62D145DE59
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:08:03 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 93D0E45DE5D
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:10:38 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BDA8745DE58
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:08:03 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B6D045DE58
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:10:38 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AC62D1DB804A
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:08:03 +0900 (JST)
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6AC1CE38003
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:10:38 +0900 (JST)
 Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 75E801DB803A
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:08:03 +0900 (JST)
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 32C611DB804A
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:10:38 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH V2] page-types.c: auto debugfs mount for hwpoison operation
-In-Reply-To: <4D75B815.2080603@linux.intel.com>
-References: <20110307113937.GB5080@localhost> <4D75B815.2080603@linux.intel.com>
-Message-Id: <20110308150824.7EC2.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 2/2 v3]mm: batch activate_page() to reduce lock contention
+In-Reply-To: <AANLkTikBKemiS1aJB-MrHXwefHxKs2gGX6w=J1oQqJd-@mail.gmail.com>
+References: <20110308134633.7EBF.A69D9226@jp.fujitsu.com> <AANLkTikBKemiS1aJB-MrHXwefHxKs2gGX6w=J1oQqJd-@mail.gmail.com>
+Message-Id: <20110308150937.7EC5.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 8bit
-Date: Tue,  8 Mar 2011 15:08:02 +0900 (JST)
+Date: Tue,  8 Mar 2011 15:10:37 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gong <gong.chen@linux.intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>, Clark Williams <williams@redhat.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Xiao Guangrong <xiaoguangrong@cn.fujitsu.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Shaohua Li <shaohua.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 
-> page-types.c doesn't supply a way to specify the debugfs path and
-> the original debugfs path is not usual on most machines. This patch
-> supplies a way to auto mount debugfs if needed.
+> On Tue, Mar 8, 2011 at 1:47 PM, KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+> >> > > +#ifdef CONFIG_SMP
+> >> > > +static DEFINE_PER_CPU(struct pagevec, activate_page_pvecs);
+> >> >
+> >> > Why do we have to handle SMP and !SMP?
+> >> > We have been not separated in case of pagevec using in swap.c.
+> >> > If you have a special reason, please write it down.
+> >> this is to reduce memory footprint as suggested by akpm.
+> >>
+> >> Thanks,
+> >> Shaohua
+> >
+> > Hi Shaouhua,
+> >
+> > I agree with you. But, please please avoid full quote. I don't think
+> > it is so much difficult work. ;-)
 > 
-> This patch is heavily inspired by tools/perf/utils/debugfs.c
+> I didn't want to add new comment in the code but want to know why we
+> have to care of activate_page_pvecs specially. I think it's not a
+> matter of difficult work or easy work. If new thing is different with
+> existing things, at least some comment in description makes review
+> easy.
 > 
-> Signed-off-by: Chen Gong <gong.chen@linux.intel.com>
-> ---
->   Documentation/vm/page-types.c |  105 
-> +++++++++++++++++++++++++++++++++++++++--
->   1 files changed, 101 insertions(+), 4 deletions(-)
+> If it's memory footprint issue, should we care of other pagevec to
+> reduce memory footprint in non-smp? If it is, it would be a TODO list
+> for consistency and memory footprint.
 
-
-Cute!
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
+Yeah. indeed.
+Shaoua, If my remember is correct, your previous version has code size
+comparision result. could you resurrect it?
 
 
 --
