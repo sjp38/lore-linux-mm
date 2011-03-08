@@ -1,41 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 287628D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 02:28:07 -0500 (EST)
-Date: Mon, 7 Mar 2011 23:27:53 -0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH V2] page-types.c: auto debugfs mount for hwpoison
- operation
-Message-ID: <20110308072753.GA26747@localhost>
-References: <1299487900-7792-1-git-send-email-gong.chen@linux.intel.com>
- <20110307184133.8A19.A69D9226@jp.fujitsu.com>
- <20110307113937.GB5080@localhost>
- <4D75B815.2080603@linux.intel.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C6D3C8D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 03:11:00 -0500 (EST)
+Received: by bwz17 with SMTP id 17so6068829bwz.14
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2011 00:10:57 -0800 (PST)
+Message-ID: <4D75E4E6.9020507@gmail.com>
+Date: Tue, 08 Mar 2011 11:12:22 +0300
+From: Andrew Vagin <avagin@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4D75B815.2080603@linux.intel.com>
+Subject: Re: [PATCH] mm: check zone->all_unreclaimable in all_unreclaimable()
+References: <1299325456-2687-1-git-send-email-avagin@openvz.org>	<20110305152056.GA1918@barrios-desktop>	<4D72580D.4000208@gmail.com>	<20110305155316.GB1918@barrios-desktop>	<4D7267B6.6020406@gmail.com>	<20110305170759.GC1918@barrios-desktop>	<20110307135831.9e0d7eaa.akpm@linux-foundation.org> <20110308094438.1ba05ed2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110308094438.1ba05ed2.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gong <gong.chen@linux.intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>, Clark Williams <williams@redhat.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Xiao Guangrong <xiaoguangrong@cn.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Andrey Vagin <avagin@openvz.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Mar 08, 2011 at 01:01:09PM +0800, Chen Gong wrote:
-> page-types.c doesn't supply a way to specify the debugfs path and
-> the original debugfs path is not usual on most machines. This patch
-> supplies a way to auto mount debugfs if needed.
-> 
-> This patch is heavily inspired by tools/perf/utils/debugfs.c
-> 
-> Signed-off-by: Chen Gong <gong.chen@linux.intel.com>
-> ---
->   Documentation/vm/page-types.c |  105 
-> +++++++++++++++++++++++++++++++++++++++--
->   1 files changed, 101 insertions(+), 4 deletions(-)
+Hi, All
+> I agree with Minchan and can't think this is a real fix....
+> Andrey, I'm now trying your fix and it seems your fix for oom-killer,
+> 'skip-zombie-process' works enough good for my environ.
+>
+> What is your enviroment ? number of cpus ? architecture ? size of memory ?
+Processort: AMD Phenom(tm) II X6 1055T Processor (six-core)
+Ram: 8Gb
+RHEL6, x86_64. This host doesn't have swap.
 
-Thanks!
-
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+It hangs up fast. Tomorrow I will have to send a processes state, if it 
+will be interesting for you. With my patch the kernel work fine. I added 
+debug and found that it hangs up in the described case.
+I suppose that my patch may be incorrect, but the problem exists and we 
+should do something.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
