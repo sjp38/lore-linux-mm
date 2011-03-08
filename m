@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E4C68D003D
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 17:31:29 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5D60F8D0040
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 17:31:30 -0500 (EST)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 2/5] mm: Properly reflect task dirty limits in dirty_exceeded logic
-Date: Tue,  8 Mar 2011 23:31:12 +0100
-Message-Id: <1299623475-5512-3-git-send-email-jack@suse.cz>
+Subject: [PATCH 1/5] writeback: account per-bdi accumulated written pages
+Date: Tue,  8 Mar 2011 23:31:11 +0100
+Message-Id: <1299623475-5512-2-git-send-email-jack@suse.cz>
 In-Reply-To: <1299623475-5512-1-git-send-email-jack@suse.cz>
 References: <1299623475-5512-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -13,100 +13,74 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
 Cc: linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
 
-We set bdi->dirty_exceeded (and thus ratelimiting code starts to
-call balance_dirty_pages() every 8 pages) when a per-bdi limit is
-exceeded or global limit is exceeded. But per-bdi limit also depends
-on the task. Thus different tasks reach the limit on that bdi at
-different levels of dirty pages. The result is that with current code
-bdi->dirty_exceeded ping-ponged between 1 and 0 depending on which task
-just got into balance_dirty_pages().
+Introduce the BDI_WRITTEN counter. It will be used for waking up
+waiters in balance_dirty_pages().
 
-We fix the issue by clearing bdi->dirty_exceeded only when per-bdi amount
-of dirty pages drops below the threshold (7/8 * bdi_dirty_limit) where task
-limits already do not have any influence.
+Peter Zijlstra <a.p.zijlstra@chello.nl>:
+Move BDI_WRITTEN accounting into __bdi_writeout_inc().
+This will cover and fix fuse, which only calls bdi_writeout_inc().
 
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: Christoph Hellwig <hch@infradead.org>
 CC: Dave Chinner <david@fromorbit.com>
-CC: Wu Fengguang <fengguang.wu@intel.com>
 CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/page-writeback.c |   18 ++++++++++++++++--
- 1 files changed, 16 insertions(+), 2 deletions(-)
+ include/linux/backing-dev.h |    1 +
+ mm/backing-dev.c            |    6 ++++--
+ mm/page-writeback.c         |    1 +
+ 3 files changed, 6 insertions(+), 2 deletions(-)
 
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 4ce34fa..63ab4a5 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -40,6 +40,7 @@ typedef int (congested_fn)(void *, int);
+ enum bdi_stat_item {
+ 	BDI_RECLAIMABLE,
+ 	BDI_WRITEBACK,
++	BDI_WRITTEN,
+ 	NR_BDI_STAT_ITEMS
+ };
+ 
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 027100d..4d14072 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -92,6 +92,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ 		   "BdiDirtyThresh:   %8lu kB\n"
+ 		   "DirtyThresh:      %8lu kB\n"
+ 		   "BackgroundThresh: %8lu kB\n"
++		   "BdiWritten:       %8lu kB\n"
+ 		   "b_dirty:          %8lu\n"
+ 		   "b_io:             %8lu\n"
+ 		   "b_more_io:        %8lu\n"
+@@ -99,8 +100,9 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ 		   "state:            %8lx\n",
+ 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
+ 		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
+-		   K(bdi_thresh), K(dirty_thresh),
+-		   K(background_thresh), nr_dirty, nr_io, nr_more_io,
++		   K(bdi_thresh), K(dirty_thresh), K(background_thresh),
++		   (unsigned long) K(bdi_stat(bdi, BDI_WRITTEN)),
++		   nr_dirty, nr_io, nr_more_io,
+ 		   !list_empty(&bdi->bdi_list), bdi->state);
+ #undef K
+ 
 diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index c472c1c..f388f70 100644
+index 2cb01f6..c472c1c 100644
 --- a/mm/page-writeback.c
 +++ b/mm/page-writeback.c
-@@ -275,12 +275,13 @@ static inline void task_dirties_fraction(struct task_struct *tsk,
-  * effectively curb the growth of dirty pages. Light dirtiers with high enough
-  * dirty threshold may never get throttled.
+@@ -219,6 +219,7 @@ int dirty_bytes_handler(struct ctl_table *table, int write,
   */
-+#define TASK_LIMIT_FRACTION 8
- static unsigned long task_dirty_limit(struct task_struct *tsk,
- 				       unsigned long bdi_dirty)
+ static inline void __bdi_writeout_inc(struct backing_dev_info *bdi)
  {
- 	long numerator, denominator;
- 	unsigned long dirty = bdi_dirty;
--	u64 inv = dirty >> 3;
-+	u64 inv = dirty / TASK_LIMIT_FRACTION;
- 
- 	task_dirties_fraction(tsk, &numerator, &denominator);
- 	inv *= numerator;
-@@ -291,6 +292,12 @@ static unsigned long task_dirty_limit(struct task_struct *tsk,
- 	return max(dirty, bdi_dirty/2);
++	__inc_bdi_stat(bdi, BDI_WRITTEN);
+ 	__prop_inc_percpu_max(&vm_completions, &bdi->completions,
+ 			      bdi->max_prop_frac);
  }
- 
-+/* Minimum limit for any task */
-+static unsigned long task_min_dirty_limit(unsigned long bdi_dirty)
-+{
-+	return bdi_dirty - bdi_dirty / TASK_LIMIT_FRACTION;
-+}
-+
- /*
-  *
-  */
-@@ -484,9 +491,11 @@ static void balance_dirty_pages(struct address_space *mapping,
- 	unsigned long background_thresh;
- 	unsigned long dirty_thresh;
- 	unsigned long bdi_thresh;
-+	unsigned long min_bdi_thresh = ULONG_MAX;
- 	unsigned long pages_written = 0;
- 	unsigned long pause = 1;
- 	bool dirty_exceeded = false;
-+	bool min_dirty_exceeded = false;
- 	struct backing_dev_info *bdi = mapping->backing_dev_info;
- 
- 	for (;;) {
-@@ -513,6 +522,7 @@ static void balance_dirty_pages(struct address_space *mapping,
- 			break;
- 
- 		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
-+		min_bdi_thresh = task_min_dirty_limit(bdi_thresh);
- 		bdi_thresh = task_dirty_limit(current, bdi_thresh);
- 
- 		/*
-@@ -542,6 +552,9 @@ static void balance_dirty_pages(struct address_space *mapping,
- 		dirty_exceeded =
- 			(bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
- 			|| (nr_reclaimable + nr_writeback > dirty_thresh);
-+		min_dirty_exceeded =
-+			(bdi_nr_reclaimable + bdi_nr_writeback > min_bdi_thresh)
-+			|| (nr_reclaimable + nr_writeback > dirty_thresh);
- 
- 		if (!dirty_exceeded)
- 			break;
-@@ -579,7 +592,8 @@ static void balance_dirty_pages(struct address_space *mapping,
- 			pause = HZ / 10;
- 	}
- 
--	if (!dirty_exceeded && bdi->dirty_exceeded)
-+	/* Clear dirty_exceeded flag only when no task can exceed the limit */
-+	if (!min_dirty_exceeded && bdi->dirty_exceeded)
- 		bdi->dirty_exceeded = 0;
- 
- 	if (writeback_in_progress(bdi))
 -- 
 1.7.1
 
