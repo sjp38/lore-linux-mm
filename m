@@ -1,52 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 276AC8D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 23:48:00 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C63363EE0AE
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 13:47:46 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id ACB9F45DE6A
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 13:47:46 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9578045DE68
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 13:47:46 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8730AE08003
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 13:47:46 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4FA24E38003
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 13:47:46 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2 v3]mm: batch activate_page() to reduce lock contention
-In-Reply-To: <1299559453.2337.30.camel@sli10-conroe>
-References: <AANLkTikxoONF16WduKaRKpTFKkZbAR==UA1_a+3qzRV2@mail.gmail.com> <1299559453.2337.30.camel@sli10-conroe>
-Message-Id: <20110308134633.7EBF.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8C1E58D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 00:01:40 -0500 (EST)
+Message-ID: <4D75B815.2080603@linux.intel.com>
+Date: Tue, 08 Mar 2011 13:01:09 +0800
+From: Chen Gong <gong.chen@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Tue,  8 Mar 2011 13:47:44 +0900 (JST)
+Subject: Re: [PATCH V2] page-types.c: auto debugfs mount for hwpoison operation
+References: <1299487900-7792-1-git-send-email-gong.chen@linux.intel.com> <20110307184133.8A19.A69D9226@jp.fujitsu.com> <20110307113937.GB5080@localhost>
+In-Reply-To: <20110307113937.GB5080@localhost>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>, Clark Williams <williams@redhat.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Xiao Guangrong <xiaoguangrong@cn.fujitsu.com>
 
-> > > +#ifdef CONFIG_SMP
-> > > +static DEFINE_PER_CPU(struct pagevec, activate_page_pvecs);
-> > 
-> > Why do we have to handle SMP and !SMP?
-> > We have been not separated in case of pagevec using in swap.c.
-> > If you have a special reason, please write it down.
-> this is to reduce memory footprint as suggested by akpm.
-> 
-> Thanks,
-> Shaohua
+page-types.c doesn't supply a way to specify the debugfs path and
+the original debugfs path is not usual on most machines. This patch
+supplies a way to auto mount debugfs if needed.
 
-Hi Shaouhua,
+This patch is heavily inspired by tools/perf/utils/debugfs.c
 
-I agree with you. But, please please avoid full quote. I don't think
-it is so much difficult work. ;-)
+Signed-off-by: Chen Gong <gong.chen@linux.intel.com>
+---
+  Documentation/vm/page-types.c |  105 
++++++++++++++++++++++++++++++++++++++++--
+  1 files changed, 101 insertions(+), 4 deletions(-)
 
+diff --git a/Documentation/vm/page-types.c b/Documentation/vm/page-types.c
+index cc96ee2..303b4ed 100644
+--- a/Documentation/vm/page-types.c
++++ b/Documentation/vm/page-types.c
+@@ -32,8 +32,20 @@
+  #include <sys/types.h>
+  #include <sys/errno.h>
+  #include <sys/fcntl.h>
++#include <sys/mount.h>
++#include <sys/statfs.h>
++#include "../../include/linux/magic.h"
+
+
++#ifndef MAX_PATH
++# define MAX_PATH 256
++#endif
++
++#ifndef STR
++# define _STR(x) #x
++# define STR(x) _STR(x)
++#endif
++
+  /*
+   * pagemap kernel ABI bits
+   */
+@@ -152,6 +164,12 @@ static const char *page_flag_names[] = {
+  };
+
+
++static const char *debugfs_known_mountpoints[] = {
++	"/sys/kernel/debug",
++	"/debug",
++	0,
++};
++
+  /*
+   * data structures
+   */
+@@ -184,7 +202,7 @@ static int		kpageflags_fd;
+  static int		opt_hwpoison;
+  static int		opt_unpoison;
+
+-static const char	hwpoison_debug_fs[] = "/debug/hwpoison";
++static char		hwpoison_debug_fs[MAX_PATH+1];
+  static int		hwpoison_inject_fd;
+  static int		hwpoison_forget_fd;
+
+@@ -464,21 +482,100 @@ static uint64_t kpageflags_flags(uint64_t flags)
+  	return flags;
+  }
+
++/* verify that a mountpoint is actually a debugfs instance */
++int debugfs_valid_mountpoint(const char *debugfs)
++{
++	struct statfs st_fs;
++
++	if (statfs(debugfs, &st_fs) < 0)
++		return -ENOENT;
++	else if (st_fs.f_type != (long) DEBUGFS_MAGIC)
++		return -ENOENT;
++
++	return 0;
++}
++
++/* find the path to the mounted debugfs */
++const char *debugfs_find_mountpoint(void)
++{
++	const char **ptr;
++	char type[100];
++	FILE *fp;
++
++	ptr = debugfs_known_mountpoints;
++	while (*ptr) {
++		if (debugfs_valid_mountpoint(*ptr) == 0) {
++			strcpy(hwpoison_debug_fs, *ptr);
++			return hwpoison_debug_fs;
++		}
++		ptr++;
++	}
++
++	/* give up and parse /proc/mounts */
++	fp = fopen("/proc/mounts", "r");
++	if (fp == NULL)
++		perror("Can't open /proc/mounts for read");
++
++	while (fscanf(fp, "%*s %"
++		      STR(MAX_PATH)
++		      "s %99s %*s %*d %*d\n",
++		      hwpoison_debug_fs, type) == 2) {
++		if (strcmp(type, "debugfs") == 0)
++			break;
++	}
++	fclose(fp);
++
++	if (strcmp(type, "debugfs") != 0)
++		return NULL;
++
++	return hwpoison_debug_fs;
++}
++
++/* mount the debugfs somewhere if it's not mounted */
++
++void debugfs_mount()
++{
++	const char **ptr;
++
++	/* see if it's already mounted */
++	if (debugfs_find_mountpoint())
++		return;
++
++	ptr = debugfs_known_mountpoints;
++	while (*ptr) {
++		if (mount(NULL, *ptr, "debugfs", 0, NULL) == 0) {
++			/* save the mountpoint */
++			strcpy(hwpoison_debug_fs, *ptr);
++			break;
++		}
++		ptr++;
++	}
++
++	if (*ptr == NULL) {
++		perror("mount debugfs");
++		exit(EXIT_FAILURE);
++	}
++}
++
+  /*
+   * page actions
+   */
+
+  static void prepare_hwpoison_fd(void)
+  {
+-	char buf[100];
++	char buf[MAX_PATH + 1];
++
++	debugfs_mount();
+
+  	if (opt_hwpoison && !hwpoison_inject_fd) {
+-		sprintf(buf, "%s/corrupt-pfn", hwpoison_debug_fs);
++		snprintf(buf, MAX_PATH, "%s/hwpoison/corrupt-pfn",
++			hwpoison_debug_fs);
+  		hwpoison_inject_fd = checked_open(buf, O_WRONLY);
+  	}
+
+  	if (opt_unpoison && !hwpoison_forget_fd) {
+-		sprintf(buf, "%s/unpoison-pfn", hwpoison_debug_fs);
++		snprintf(buf, MAX_PATH, "%s/hwpoison/unpoison-pfn",
++			hwpoison_debug_fs);
+  		hwpoison_forget_fd = checked_open(buf, O_WRONLY);
+  	}
+  }
+-- 
+1.7.3.1.120.g38a18
 
 
 --
