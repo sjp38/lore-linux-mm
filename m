@@ -1,122 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C80F38D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 21:12:50 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 02C633EE0BC
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:12:47 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CF59A45DE5C
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:12:46 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 991D745DE56
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:12:46 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 881FEE18001
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:12:46 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 44EF0E18003
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:12:46 +0900 (JST)
-Date: Tue, 8 Mar 2011 11:06:26 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: fix to leave pages on wrong LRU with FUSE.
-Message-Id: <20110308110626.caa02b93.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110308110443.47136fc1.nishimura@mxp.nes.nec.co.jp>
-References: <20110307150049.d42d046d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110308095939.58100cfd.nishimura@mxp.nes.nec.co.jp>
-	<20110308100242.3075e2c7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110308110443.47136fc1.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4138C8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 21:16:13 -0500 (EST)
+Message-ID: <4D7591C5.5070909@cn.fujitsu.com>
+Date: Tue, 08 Mar 2011 10:17:41 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/4] slub,rcu: don't assume the size of struct rcu_head
+References: <4D6CA852.3060303@cn.fujitsu.com>	<AANLkTimXy2Yaj+NTDMNTWuLqHHfKZJhVDpeXj3CfMvBf@mail.gmail.com>	<alpine.DEB.2.00.1103010909320.6253@router.home>	<AANLkTim0Zjc7c9-7LCnEaYpV5PVN=5fNQpjMYqtZe-fk@mail.gmail.com>	<alpine.DEB.2.00.1103020625290.10180@router.home> <AANLkTikk02f6kLiPFqqAGroJErQkHbJFfHzpHy4Y5P8Y@mail.gmail.com>
+In-Reply-To: <AANLkTikk02f6kLiPFqqAGroJErQkHbJFfHzpHy4Y5P8Y@mail.gmail.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, miklos@szeredi.hu
+To: Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 
-On Tue, 8 Mar 2011 11:04:43 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> On Tue, 8 Mar 2011 10:02:42 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On 03/07/2011 03:39 AM, Hugh Dickins wrote:
+> On Wed, Mar 2, 2011 at 4:32 AM, Christoph Lameter <cl@linux.com> wrote:
+>> On Tue, 1 Mar 2011, Hugh Dickins wrote:
+>>
+>>>> Struct page may be larger for debugging purposes already because of the
+>>>> need for extended spinlock data.
+>>>
+>>> That was so for a long time, but I stopped it just over a year ago
+>>> with commit a70caa8ba48f21f46d3b4e71b6b8d14080bbd57a, stop ptlock
+>>> enlarging struct page.
+>>
+>> Strange. I just played around with in in January and the page struct size
+>> changes when I build kernels with full debugging. I have some
+>> cmpxchg_double patches here that depend on certain alignment in the page
+>> struct. Debugging causes all that stuff to get out of whack so that I had
+>> to do some special patches to make sure fields following the spinlock are
+>> properly aligned when the sizes change.
 > 
-> > On Tue, 8 Mar 2011 09:59:39 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> > > On Mon, 7 Mar 2011 15:00:49 +0900
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > 
-> > > > At this point, I'm not sure this is a fix for 
-> > > >    https://bugzilla.kernel.org/show_bug.cgi?id=30432.
-> > > > 
-> > > > The behavior seems very similar to SwapCache case and this is a possible
-> > > > bug and this patch can be a fix. Nishimura-san, how do you think ?
-> > > > 
-> > > As long as I can read the source code, I also think this is a possible bug.
-> > > 
-> > > > But I'm not sure how to test this....please review.
-> > > > 
-> > > > =
-> > > > fs/fuse/dev.c::fuse_try_move_page() does
-> > > > 
-> > > >    (1) remove a page from page cache by ->steal()
-> > > >    (2) re-add the page to page cache 
-> > > >    (3) link the page to LRU if it was _not_ on LRU at (1)
-> > > > 
-> > > > 
-> > > > This implies the page can be _on_ LRU when add_to_page_cache_locked() is called.
-> > > > So, the page is added to a memory cgroup while it's on LRU.
-> > > > 
-> > > > This is the same behavior as SwapCache, 'newly charged pages may be on LRU'
-> > > > and needs special care as
-> > > >  - remove page from old memcg's LRU before overwrite pc->mem_cgroup.
-> > > >  - add page to new memcg's LRU after overwrite pc->mem_cgroup.
-> > > > 
-> > > > So, reusing SwapCache code with renaming for fix.
-> > > > 
-> > > > Note: a page on pagevec(LRU).
-> > > > 
-> > > > If a page is not PageLRU(page) but on pagevec(LRU), it may be added to LRU
-> > > > while we overwrite page->mapping. But in that case, PCG_USED bit of
-> > > > the page_cgroup is not set and the page_cgroup will not be added to
-> > > > wrong memcg's LRU. So, this patch's logic will work fine.
-> > > > (It has been tested with SwapCache.)
-> > > > 
-> > > As for SwapCache, mem_cgroup_lru_add_after_commit() will be allways called,
-> > > and it will link the page to LRU. But, if I read this patch correctly,
-> > > a page cache on pagevec may not be added to a *proper* memcg's LRU.
-> > > 
-> > >       lru_add_drain()           mem_cgroup_cache_charge()
-> > >   ----------------------------------------------------------
-> > >                                   if (!PageLRU())
-> > >     SetPageLRU()
-> > >     add_page_to_lru_list()
-> > >       mem_cgroup_add_lru_list()
-> > >       -> do nothing
-> > >                                     mem_cgroup_charge_common()
-> > >                                       mem_cgroup_commit_charge()
-> > >                                       -> set PCG_USED
-> > > 
-> > 
-> > Hmm, yes, that's possible case.
-> > 
-> > So, PageLRU() && !PcgAcctLru(pc) should be checked after commit ?
-> > 
-> I think so, as mem_cgroup_lru_add_after_commit() does.
+> That puzzles me, it's not my experience and I don't have an
+> explanation: do you have time to investigate?
 > 
-> > I think we can add optimization later (add per-memcg-lru-pegecgrou-vec or some)
-> > 
-> In current mmotm, fuse uses replace_page_cache(), which uses mem_cgroup_(prepare|end)_migration(),
-> so I think we can handle this problem in a different way instead of changing
-> mem_cgroup_cache_charge(), which I think is a fast-path operation.
+> Uh oh, you're going to tell me you're working on an out-of-tree
+> architecture with a million cpus ;)  In that case, yes, I'm afraid
+> I'll have to update the SPLIT_PTLOCK_CPUS defaulting (for a million -
+> 1 even).
+> 
+>>
+>>> If a union leads to "random junk" overwriting the page->mapping field
+>>> when the page is reused, and that junk could resemble the pointer in
+>>> question, then KSM would mistakenly think it still owned the page.
+>>> Very remote chance, and maybe it amounts to no more than a leak.  But
+>>> I'd still prefer we keep page->mapping for pointers (sometimes with
+>>> lower bits set as flags).
+>>
+>> DESTROY BY RCU uses the lru field which follows the mapping field in page
+>> struct. Why would random junk overwrite the mapping field?
+> 
+> Random junk does not overwrite the mapping field with the current
+> implementation of DESTROY_BY_RCU.  But you and Jiangshan were
+> discussing how to change it, so I was warning of this issue with
+> page->mapping.
+> 
+> But I would anyway agree with Jiangshan, that it's preferable not to
+> bloat struct page size just for this DESTROY_BY_RCU issue, even if it
+> is only an issue when debugging.
 > 
 
-Hmm, but a fix for 2.6.37 is a problem... _AND_ this kind of breakage by
-some code can be happen, again. I think we need a check in this path.
-Let's try and see overheads.
+A union with rcu_head does not cause overwriting, But the problem is
+only one minority use of the page (as a DESTROY_BY_RCU slab) needs to
+fit a rcu_head and to bloat the struct page size.
 
-Thanks,
--Kame
+Except for preparing for debugging or adding priority information for rcu_head,
+this patch also does a de-coupling work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
