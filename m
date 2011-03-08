@@ -1,74 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4138C8D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 21:16:13 -0500 (EST)
-Message-ID: <4D7591C5.5070909@cn.fujitsu.com>
-Date: Tue, 08 Mar 2011 10:17:41 +0800
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D9658D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 21:43:39 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id B9DBB3EE0AE
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:43:33 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A2D3D45DE59
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:43:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A3D045DE56
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:43:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C7051DB8048
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:43:33 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 452131DB803A
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:43:33 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 8/8] Add VM counters for transparent hugepages
+In-Reply-To: <20110307163513.GC13384@alboin.amr.corp.intel.com>
+References: <20110307172609.8A01.A69D9226@jp.fujitsu.com> <20110307163513.GC13384@alboin.amr.corp.intel.com>
+Message-Id: <20110308114159.7EAD.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] slub,rcu: don't assume the size of struct rcu_head
-References: <4D6CA852.3060303@cn.fujitsu.com>	<AANLkTimXy2Yaj+NTDMNTWuLqHHfKZJhVDpeXj3CfMvBf@mail.gmail.com>	<alpine.DEB.2.00.1103010909320.6253@router.home>	<AANLkTim0Zjc7c9-7LCnEaYpV5PVN=5fNQpjMYqtZe-fk@mail.gmail.com>	<alpine.DEB.2.00.1103020625290.10180@router.home> <AANLkTikk02f6kLiPFqqAGroJErQkHbJFfHzpHy4Y5P8Y@mail.gmail.com>
-In-Reply-To: <AANLkTikk02f6kLiPFqqAGroJErQkHbJFfHzpHy4Y5P8Y@mail.gmail.com>
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Date: Tue,  8 Mar 2011 11:43:23 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: Andi Kleen <ak@linux.intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/07/2011 03:39 AM, Hugh Dickins wrote:
-> On Wed, Mar 2, 2011 at 4:32 AM, Christoph Lameter <cl@linux.com> wrote:
->> On Tue, 1 Mar 2011, Hugh Dickins wrote:
->>
->>>> Struct page may be larger for debugging purposes already because of the
->>>> need for extended spinlock data.
->>>
->>> That was so for a long time, but I stopped it just over a year ago
->>> with commit a70caa8ba48f21f46d3b4e71b6b8d14080bbd57a, stop ptlock
->>> enlarging struct page.
->>
->> Strange. I just played around with in in January and the page struct size
->> changes when I build kernels with full debugging. I have some
->> cmpxchg_double patches here that depend on certain alignment in the page
->> struct. Debugging causes all that stuff to get out of whack so that I had
->> to do some special patches to make sure fields following the spinlock are
->> properly aligned when the sizes change.
+> > Don't we need to make per zone stastics? I'm afraid small dma zone 
+> > makes much thp-splitting and screw up this stastics.
 > 
-> That puzzles me, it's not my experience and I don't have an
-> explanation: do you have time to investigate?
+> Does it? I haven't seen that so far.
 > 
-> Uh oh, you're going to tell me you're working on an out-of-tree
-> architecture with a million cpus ;)  In that case, yes, I'm afraid
-> I'll have to update the SPLIT_PTLOCK_CPUS defaulting (for a million -
-> 1 even).
-> 
->>
->>> If a union leads to "random junk" overwriting the page->mapping field
->>> when the page is reused, and that junk could resemble the pointer in
->>> question, then KSM would mistakenly think it still owned the page.
->>> Very remote chance, and maybe it amounts to no more than a leak.  But
->>> I'd still prefer we keep page->mapping for pointers (sometimes with
->>> lower bits set as flags).
->>
->> DESTROY BY RCU uses the lru field which follows the mapping field in page
->> struct. Why would random junk overwrite the mapping field?
-> 
-> Random junk does not overwrite the mapping field with the current
-> implementation of DESTROY_BY_RCU.  But you and Jiangshan were
-> discussing how to change it, so I was warning of this issue with
-> page->mapping.
-> 
-> But I would anyway agree with Jiangshan, that it's preferable not to
-> bloat struct page size just for this DESTROY_BY_RCU issue, even if it
-> is only an issue when debugging.
-> 
+> If it happens a lot it would be better to disable THP for the 16MB DMA
+> zone at least. Or did you mean the 4GB zone?
 
-A union with rcu_head does not cause overwriting, But the problem is
-only one minority use of the page (as a DESTROY_BY_RCU slab) needs to
-fit a rcu_head and to bloat the struct page size.
+I assumered 4GB. And cpusets/mempolicy binding might makes similar 
+issue. It can make only one zone high pressure.
 
-Except for preparing for debugging or adding priority information for rcu_head,
-this patch also does a de-coupling work.
+But, hmmm...
+Do you mean you don't hit any issue then? I don't think do don't tested
+NUMA machine. So, it has  no practical problem I can agree this.
+
+Thanks.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
