@@ -1,89 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1323B8D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 20:31:15 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CFFF33EE0BB
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 10:24:53 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B6C5D45DE55
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 10:24:53 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A1AB045DE51
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 10:24:53 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9486FE78002
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 10:24:53 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F1D01DB803B
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 10:24:53 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: skip zombie in OOM-killer
-In-Reply-To: <AANLkTi=d+eZxg_NgNWa7roo=1YQS06=EaWJzjseL_Hhs@mail.gmail.com>
-References: <alpine.DEB.2.00.1103061400170.23737@chino.kir.corp.google.com> <AANLkTi=d+eZxg_NgNWa7roo=1YQS06=EaWJzjseL_Hhs@mail.gmail.com>
-Message-Id: <20110308102147.7E96.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CEEE98D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 20:33:55 -0500 (EST)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id p281XpqW023794
+	for <linux-mm@kvack.org>; Mon, 7 Mar 2011 17:33:51 -0800
+Received: from pzk3 (pzk3.prod.google.com [10.243.19.131])
+	by hpaq11.eem.corp.google.com with ESMTP id p281XmJj012743
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 7 Mar 2011 17:33:50 -0800
+Received: by pzk3 with SMTP id 3so896734pzk.32
+        for <linux-mm@kvack.org>; Mon, 07 Mar 2011 17:33:48 -0800 (PST)
+Date: Mon, 7 Mar 2011 17:33:44 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] memcg: add oom killer delay
+In-Reply-To: <20110307171853.c31ec416.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1103071721330.25197@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com> <alpine.DEB.2.00.1102091417410.5697@chino.kir.corp.google.com> <20110223150850.8b52f244.akpm@linux-foundation.org> <alpine.DEB.2.00.1102231636260.21906@chino.kir.corp.google.com>
+ <20110303135223.0a415e69.akpm@linux-foundation.org> <alpine.DEB.2.00.1103071602080.23035@chino.kir.corp.google.com> <20110307162912.2d8c70c1.akpm@linux-foundation.org> <alpine.DEB.2.00.1103071631080.23844@chino.kir.corp.google.com>
+ <20110307165119.436f5d21.akpm@linux-foundation.org> <alpine.DEB.2.00.1103071657090.24549@chino.kir.corp.google.com> <20110307171853.c31ec416.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Date: Tue,  8 Mar 2011 10:24:52 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Vagin <avagin@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Andrey Vagin <avagin@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
 
-> 2011/3/7 David Rientjes <rientjes@google.com>:
-> > On Sun, 6 Mar 2011, KOSAKI Motohiro wrote:
-> >
-> >> > When we check that task has flag TIF_MEMDIE, we forgot check that
-> >> > it has mm. A task may be zombie and a parent may wait a memor.
-> >> >
-> >> > v2: Check that task doesn't have mm one time and skip it immediately
-> >> >
-> >> > Signed-off-by: Andrey Vagin <avagin@openvz.org>
-> >>
-> >> This seems incorrect. Do you have a reprodusable testcasae?
-> >> Your patch only care thread group leader state, but current code
-> >> care all thread in the process. Please look at oom_badness() and
-> >> find_lock_task_mm().
-> >>
-> >
-> > That's all irrelevant, the test for TIF_MEMDIE specifically makes the o=
-om
-> > killer a complete no-op when an eligible task is found to have been oom
-> > killed to prevent needlessly killing additional tasks. =A0oom_badness()=
- and
-> > find_lock_task_mm() have nothing to do with that check to return
-> > ERR_PTR(-1UL) from select_bad_process().
-> >
-> > Andrey is patching the case where an eligible TIF_MEMDIE process is fou=
-nd
-> > but it has already detached its ->mm. =A0In combination with the patch
-> > posted to linux-mm, oom: prevent unnecessary oom kills or kernel panics=
-,
-> > which makes select_bad_process() iterate over all threads, it is an
-> > effective solution.
->=20
-> Probably you said about the first version of my patch.
-> This version is incorrect because of
-> http://git.kernel.org/?p=3Dlinux/kernel/git/torvalds/linux-2.6.git;a=3Dco=
-mmit;h=3Ddd8e8f405ca386c7ce7cbb996ccd985d283b0e03
->=20
-> but my first patch is correct and it has a simple reproducer(I
-> attached it). You can execute it and your kernel hangs up, because the
-> parent doesn't wait children, but the one child (zombie) will have
-> flag TIF_MEMDIE, oom_killer will kill nobody
->=20
->=20
-> The link on the first patch:
-> http://groups.google.com/group/linux.kernel/browse_thread/thread/b9c6ddf3=
-4d1671ab/2941e1877ca4f626?lnk=3Draot&pli=3D1
+On Mon, 7 Mar 2011, Andrew Morton wrote:
 
-OK. I can ack this.
-TIF_MEMDIE  mean the process have been receive SIGKILL therefore we can ass=
-ume it
-as per process flag.
+> > It could be, if users assign the handler to a different memcg; otherwise, 
+> > it's guaranteed.
+> 
+> Putting the handler into the same container would be rather daft.
+> 
+> If userspace is going to elect to take over a kernel function then it
+> should be able to perform that function reliably.  We don't have hacks
+> in the kernel to stop runaway SCHED_FIFO tasks, either.  If the oom
+> handler has put itself into a memcg and then has permitted that memcg
+> to go oom then userspace is busted.
+> 
 
+We have a container specifically for daemons like this and have struggled 
+for years to accurately predict how much memory it needs and what to do 
+when it is oom.  The problem, in this case, is that when it's oom it's too 
+late: the memcg is livelocked and then no memory limits on the system have 
+a chance of getting increased and nothing in oom memcgs are guaranteed to 
+ever make forward progress again.
 
+That's why I keep bringing up the point that this patch is not a bugfix: 
+it's an extension of a feature (memory.oom_control) to allow userspace a 
+period of time to respond to memcgs reaching their hard limit before 
+killing something.  For our container with vital system daemons, this is 
+absolutely mandatory if something consumes a large amount of memory and 
+needs to be restarted; we want the logic in userspace to determine what to 
+do without killing vital tasks or panicking.  We want to use the oom 
+killer only as a last resort and that can effectively be done with this 
+patch and not with memory.oom_control (and I think this is why Kame acked 
+it).
+
+> My issue with this patch is that it extends the userspace API.  This
+> means we're committed to maintaining that interface *and its behaviour*
+> for evermore.  But the oom-killer and memcg are both areas of intense
+> development and the former has a habit of getting ripped out and
+> rewritten.  Committing ourselves to maintaining an extension to the
+> userspace interface is a big thing, especially as that extension is
+> somewhat tied to internal implementation details and is most definitely
+> tied to short-term inadequacies in userspace and in the kernel
+> implementation.
+> 
+
+The same could have been said for memory.oom_control to disable the oom 
+killer entirely which no seems to be solidified as the only way to 
+influence oom killer behavior from the kernel and now we're locked into 
+that limitation because we don't want dual interfaces.  I think this patch 
+would have been received much better prior to memory.oom_control since it 
+allows for the same behavior with an infinite timeout.  memory.oom_control 
+is not an option for us since we can't guarantee that any userspace daemon 
+at our scale will ever be responsive 100% of the time.
+
+I don't think the idea of a userspace grace period when a memcg is oom is 
+that abstract, though.  I think applications should have the opportunity 
+to free some of their own memory first when oom instead of abruptly 
+killing something and restarting it.
+
+So, in the end, we may have to carry this patch internally forever but I 
+think as memcg becomes more popular we'll have a higher demand for such a 
+grace period.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
