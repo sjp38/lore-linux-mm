@@ -1,59 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 304248D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 21:01:46 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9863E3EE0BB
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:01:40 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DB2045DE59
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:01:40 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6529145DE56
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:01:40 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 56CFD1DB804A
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:01:40 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 223F71DB8047
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:01:40 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch] oom: prevent unnecessary oom kills or kernel panics
-In-Reply-To: <alpine.DEB.2.00.1103061404210.23737@chino.kir.corp.google.com>
-References: <20110306201408.6CC6.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1103061404210.23737@chino.kir.corp.google.com>
-Message-Id: <20110308105825.7EA5.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DE2018D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 21:06:08 -0500 (EST)
+Date: Tue, 8 Mar 2011 11:04:43 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH] memcg: fix to leave pages on wrong LRU with FUSE.
+Message-Id: <20110308110443.47136fc1.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20110308100242.3075e2c7.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110307150049.d42d046d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110308095939.58100cfd.nishimura@mxp.nes.nec.co.jp>
+	<20110308100242.3075e2c7.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Tue,  8 Mar 2011 11:01:39 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, miklos@szeredi.hu, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-> On Sun, 6 Mar 2011, KOSAKI Motohiro wrote:
+On Tue, 8 Mar 2011 10:02:42 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> On Tue, 8 Mar 2011 09:59:39 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 > 
-> > > There is no deadlock being introduced by this patch; if you have an 
-> > > example of one, then please show it.  The problem is not just overkill but 
-> > > rather panicking the machine when no other eligible processes exist.  We 
-> > > have seen this in production quite a few times and we'd like to see this 
-> > > patch merged to avoid our machines panicking because the oom killer, by 
-> > > your patch, isn't considering threads that are eligible in the exit path 
-> > > once their parent has been killed and has exited itself yet memory freeing 
-> > > isn't possible yet because the threads still pin the ->mm.
+> > On Mon, 7 Mar 2011 15:00:49 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > > 
-> > No. While you don't understand current code, I'll not taking yours.
+> > > At this point, I'm not sure this is a fix for 
+> > >    https://bugzilla.kernel.org/show_bug.cgi?id=30432.
+> > > 
+> > > The behavior seems very similar to SwapCache case and this is a possible
+> > > bug and this patch can be a fix. Nishimura-san, how do you think ?
+> > > 
+> > As long as I can read the source code, I also think this is a possible bug.
+> > 
+> > > But I'm not sure how to test this....please review.
+> > > 
+> > > =
+> > > fs/fuse/dev.c::fuse_try_move_page() does
+> > > 
+> > >    (1) remove a page from page cache by ->steal()
+> > >    (2) re-add the page to page cache 
+> > >    (3) link the page to LRU if it was _not_ on LRU at (1)
+> > > 
+> > > 
+> > > This implies the page can be _on_ LRU when add_to_page_cache_locked() is called.
+> > > So, the page is added to a memory cgroup while it's on LRU.
+> > > 
+> > > This is the same behavior as SwapCache, 'newly charged pages may be on LRU'
+> > > and needs special care as
+> > >  - remove page from old memcg's LRU before overwrite pc->mem_cgroup.
+> > >  - add page to new memcg's LRU after overwrite pc->mem_cgroup.
+> > > 
+> > > So, reusing SwapCache code with renaming for fix.
+> > > 
+> > > Note: a page on pagevec(LRU).
+> > > 
+> > > If a page is not PageLRU(page) but on pagevec(LRU), it may be added to LRU
+> > > while we overwrite page->mapping. But in that case, PCG_USED bit of
+> > > the page_cgroup is not set and the page_cgroup will not be added to
+> > > wrong memcg's LRU. So, this patch's logic will work fine.
+> > > (It has been tested with SwapCache.)
+> > > 
+> > As for SwapCache, mem_cgroup_lru_add_after_commit() will be allways called,
+> > and it will link the page to LRU. But, if I read this patch correctly,
+> > a page cache on pagevec may not be added to a *proper* memcg's LRU.
+> > 
+> >       lru_add_drain()           mem_cgroup_cache_charge()
+> >   ----------------------------------------------------------
+> >                                   if (!PageLRU())
+> >     SetPageLRU()
+> >     add_page_to_lru_list()
+> >       mem_cgroup_add_lru_list()
+> >       -> do nothing
+> >                                     mem_cgroup_charge_common()
+> >                                       mem_cgroup_commit_charge()
+> >                                       -> set PCG_USED
 > > 
 > 
-> I take this as you declining to show your example of a deadlock introduced 
-> by this patch as requested.  There is no such deadlock.  The patch is 
-> reintroducing the behavior of the oom killer that existed for years before 
-> you broke it and caused many of ours machines to panic as a result.
+> Hmm, yes, that's possible case.
 > 
-> Thanks for your review.
+> So, PageLRU() && !PcgAcctLru(pc) should be checked after commit ?
+> 
+I think so, as mem_cgroup_lru_add_after_commit() does.
 
-How do you proof no deadlock? No, you can't. Don't pray to work as you hope.
+> I think we can add optimization later (add per-memcg-lru-pegecgrou-vec or some)
+> 
+In current mmotm, fuse uses replace_page_cache(), which uses mem_cgroup_(prepare|end)_migration(),
+so I think we can handle this problem in a different way instead of changing
+mem_cgroup_cache_charge(), which I think is a fast-path operation.
 
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
