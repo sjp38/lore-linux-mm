@@ -1,104 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EBC88D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 20:09:08 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 176D73EE0BD
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 10:09:05 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DDB7545DE5A
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 10:09:04 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AB1D845DE59
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 10:09:04 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E3EBE38003
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 10:09:04 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 66E1C1DB8047
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 10:09:04 +0900 (JST)
-Date: Tue, 8 Mar 2011 10:02:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: fix to leave pages on wrong LRU with FUSE.
-Message-Id: <20110308100242.3075e2c7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110308095939.58100cfd.nishimura@mxp.nes.nec.co.jp>
-References: <20110307150049.d42d046d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110308095939.58100cfd.nishimura@mxp.nes.nec.co.jp>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CB3F8D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 20:19:00 -0500 (EST)
+Date: Mon, 7 Mar 2011 17:18:53 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] memcg: add oom killer delay
+Message-Id: <20110307171853.c31ec416.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1103071657090.24549@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1102091417410.5697@chino.kir.corp.google.com>
+	<20110223150850.8b52f244.akpm@linux-foundation.org>
+	<alpine.DEB.2.00.1102231636260.21906@chino.kir.corp.google.com>
+	<20110303135223.0a415e69.akpm@linux-foundation.org>
+	<alpine.DEB.2.00.1103071602080.23035@chino.kir.corp.google.com>
+	<20110307162912.2d8c70c1.akpm@linux-foundation.org>
+	<alpine.DEB.2.00.1103071631080.23844@chino.kir.corp.google.com>
+	<20110307165119.436f5d21.akpm@linux-foundation.org>
+	<alpine.DEB.2.00.1103071657090.24549@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, miklos@szeredi.hu
+To: David Rientjes <rientjes@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
 
-On Tue, 8 Mar 2011 09:59:39 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Mon, 7 Mar 2011 17:02:36 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-> On Mon, 7 Mar 2011 15:00:49 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 7 Mar 2011, Andrew Morton wrote:
 > 
-> > At this point, I'm not sure this is a fix for 
-> >    https://bugzilla.kernel.org/show_bug.cgi?id=30432.
+> > > > > So the question I'd ask is
+> > > > 
+> > > > What about my question?  Why is your usersapce oom-handler "unresponsive"?
+> > > > 
+> > > 
+> > > If we have a per-memcg userspace oom handler, then it's absolutely 
+> > > required that it either increase the hard limit of the oom memcg or kill a 
+> > > task to free memory; anything else risks livelocking that memcg.  At 
+> > > the same time, the oom handler's memcg isn't really important: it may be 
+> > > in a different memcg but it may be oom at the same time.  If we risk 
+> > > livelocking the memcg when it is oom and the oom killer cannot respond 
+> > > (the only reason for the oom killer to exist in the first place), then 
+> > > there's no guarantee that a userspace oom handler could respond under 
+> > > livelock.
 > > 
-> > The behavior seems very similar to SwapCache case and this is a possible
-> > bug and this patch can be a fix. Nishimura-san, how do you think ?
-> > 
-> As long as I can read the source code, I also think this is a possible bug.
+> > So you're saying that your userspace oom-handler is in a memcg which is
+> > also oom?
 > 
-> > But I'm not sure how to test this....please review.
-> > 
-> > =
-> > fs/fuse/dev.c::fuse_try_move_page() does
-> > 
-> >    (1) remove a page from page cache by ->steal()
-> >    (2) re-add the page to page cache 
-> >    (3) link the page to LRU if it was _not_ on LRU at (1)
-> > 
-> > 
-> > This implies the page can be _on_ LRU when add_to_page_cache_locked() is called.
-> > So, the page is added to a memory cgroup while it's on LRU.
-> > 
-> > This is the same behavior as SwapCache, 'newly charged pages may be on LRU'
-> > and needs special care as
-> >  - remove page from old memcg's LRU before overwrite pc->mem_cgroup.
-> >  - add page to new memcg's LRU after overwrite pc->mem_cgroup.
-> > 
-> > So, reusing SwapCache code with renaming for fix.
-> > 
-> > Note: a page on pagevec(LRU).
-> > 
-> > If a page is not PageLRU(page) but on pagevec(LRU), it may be added to LRU
-> > while we overwrite page->mapping. But in that case, PCG_USED bit of
-> > the page_cgroup is not set and the page_cgroup will not be added to
-> > wrong memcg's LRU. So, this patch's logic will work fine.
-> > (It has been tested with SwapCache.)
-> > 
-> As for SwapCache, mem_cgroup_lru_add_after_commit() will be allways called,
-> and it will link the page to LRU. But, if I read this patch correctly,
-> a page cache on pagevec may not be added to a *proper* memcg's LRU.
+> It could be, if users assign the handler to a different memcg; otherwise, 
+> it's guaranteed.
+
+Putting the handler into the same container would be rather daft.
+
+If userspace is going to elect to take over a kernel function then it
+should be able to perform that function reliably.  We don't have hacks
+in the kernel to stop runaway SCHED_FIFO tasks, either.  If the oom
+handler has put itself into a memcg and then has permitted that memcg
+to go oom then userspace is busted.
+
+>  Keep in mind that for oom situations we give the killed 
+> task access to memory reserves below the min watermark with TIF_MEMDIE so 
+> that they can allocate memory to exit as quickly as possible (either to 
+> handle the SIGKILL or within the exit path).  That's because we can't 
+> guarantee anything within an oom system, cpuset, mempolicy, or memcg is 
+> ever responsive without it.  (And, the side effect of it and its threads 
+> exiting is the freeing of memory which allows everything else to once 
+> again be responsive.)
 > 
->       lru_add_drain()           mem_cgroup_cache_charge()
->   ----------------------------------------------------------
->                                   if (!PageLRU())
->     SetPageLRU()
->     add_page_to_lru_list()
->       mem_cgroup_add_lru_list()
->       -> do nothing
->                                     mem_cgroup_charge_common()
->                                       mem_cgroup_commit_charge()
->                                       -> set PCG_USED
+> > That this is the only situation you've observed in which the
+> > userspace oom-handler is "unresponsive"?
+> > 
 > 
+> Personally, yes, but I could imagine other users could get caught if their 
+> userspace oom handler requires taking locks (such as mmap_sem) by reading 
+> within procfs that a thread within an oom memcg already holds.
 
-Hmm, yes, that's possible case.
+If activity in one memcg cause a lockup of processes in a separate
+memcg then that's a containment violation and we should fix it.
 
-So, PageLRU() && !PcgAcctLru(pc) should be checked after commit ?
+One could argue that peering into a separate memcg's procfs files was
+already a containment violation, but from a practical point of view we
+definitely do want processes in a separate memcg to be able to
+passively observe activity in another without stepping on lindmines.
 
-I think we can add optimization later (add per-memcg-lru-pegecgrou-vec or some)
 
+My issue with this patch is that it extends the userspace API.  This
+means we're committed to maintaining that interface *and its behaviour*
+for evermore.  But the oom-killer and memcg are both areas of intense
+development and the former has a habit of getting ripped out and
+rewritten.  Committing ourselves to maintaining an extension to the
+userspace interface is a big thing, especially as that extension is
+somewhat tied to internal implementation details and is most definitely
+tied to short-term inadequacies in userspace and in the kernel
+implementation.
 
-Thanks,
--Kame
+We should not commit the kernel to maintaining this new interface for
+all time until all alternatives have been eliminated.  The patch looks
+to me like a short-term hack to work around medium-term userspace and
+kernel inadequacies, and that's a really bad basis upon which to merge
+it.  Expedient hacks do sometimes makes sense, but it's real bad when
+they appear in the API.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
