@@ -1,98 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DE2018D0039
-	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 21:06:08 -0500 (EST)
-Date: Tue, 8 Mar 2011 11:04:43 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH] memcg: fix to leave pages on wrong LRU with FUSE.
-Message-Id: <20110308110443.47136fc1.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20110308100242.3075e2c7.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110307150049.d42d046d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110308095939.58100cfd.nishimura@mxp.nes.nec.co.jp>
-	<20110308100242.3075e2c7.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 22F508D0039
+	for <linux-mm@kvack.org>; Mon,  7 Mar 2011 21:07:43 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CF00C3EE0AE
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:07:39 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B622445DE61
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:07:39 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A038E45DD74
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:07:39 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 93981E18005
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:07:39 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FD361DB8038
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 11:07:39 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: skip zombie in OOM-killer
+In-Reply-To: <alpine.DEB.2.00.1103061400170.23737@chino.kir.corp.google.com>
+References: <20110306193519.49DD.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1103061400170.23737@chino.kir.corp.google.com>
+Message-Id: <20110308105458.7EA2.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue,  8 Mar 2011 11:07:38 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, miklos@szeredi.hu, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrey Vagin <avagin@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 8 Mar 2011 10:02:42 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> On Tue, 8 Mar 2011 09:59:39 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> On Sun, 6 Mar 2011, KOSAKI Motohiro wrote:
 > 
-> > On Mon, 7 Mar 2011 15:00:49 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > When we check that task has flag TIF_MEMDIE, we forgot check that
+> > > it has mm. A task may be zombie and a parent may wait a memor.
+> > > 
+> > > v2: Check that task doesn't have mm one time and skip it immediately
+> > > 
+> > > Signed-off-by: Andrey Vagin <avagin@openvz.org>
 > > 
-> > > At this point, I'm not sure this is a fix for 
-> > >    https://bugzilla.kernel.org/show_bug.cgi?id=30432.
-> > > 
-> > > The behavior seems very similar to SwapCache case and this is a possible
-> > > bug and this patch can be a fix. Nishimura-san, how do you think ?
-> > > 
-> > As long as I can read the source code, I also think this is a possible bug.
-> > 
-> > > But I'm not sure how to test this....please review.
-> > > 
-> > > =
-> > > fs/fuse/dev.c::fuse_try_move_page() does
-> > > 
-> > >    (1) remove a page from page cache by ->steal()
-> > >    (2) re-add the page to page cache 
-> > >    (3) link the page to LRU if it was _not_ on LRU at (1)
-> > > 
-> > > 
-> > > This implies the page can be _on_ LRU when add_to_page_cache_locked() is called.
-> > > So, the page is added to a memory cgroup while it's on LRU.
-> > > 
-> > > This is the same behavior as SwapCache, 'newly charged pages may be on LRU'
-> > > and needs special care as
-> > >  - remove page from old memcg's LRU before overwrite pc->mem_cgroup.
-> > >  - add page to new memcg's LRU after overwrite pc->mem_cgroup.
-> > > 
-> > > So, reusing SwapCache code with renaming for fix.
-> > > 
-> > > Note: a page on pagevec(LRU).
-> > > 
-> > > If a page is not PageLRU(page) but on pagevec(LRU), it may be added to LRU
-> > > while we overwrite page->mapping. But in that case, PCG_USED bit of
-> > > the page_cgroup is not set and the page_cgroup will not be added to
-> > > wrong memcg's LRU. So, this patch's logic will work fine.
-> > > (It has been tested with SwapCache.)
-> > > 
-> > As for SwapCache, mem_cgroup_lru_add_after_commit() will be allways called,
-> > and it will link the page to LRU. But, if I read this patch correctly,
-> > a page cache on pagevec may not be added to a *proper* memcg's LRU.
-> > 
-> >       lru_add_drain()           mem_cgroup_cache_charge()
-> >   ----------------------------------------------------------
-> >                                   if (!PageLRU())
-> >     SetPageLRU()
-> >     add_page_to_lru_list()
-> >       mem_cgroup_add_lru_list()
-> >       -> do nothing
-> >                                     mem_cgroup_charge_common()
-> >                                       mem_cgroup_commit_charge()
-> >                                       -> set PCG_USED
+> > This seems incorrect. Do you have a reprodusable testcasae?
+> > Your patch only care thread group leader state, but current code
+> > care all thread in the process. Please look at oom_badness() and 
+> > find_lock_task_mm(). 
 > > 
 > 
-> Hmm, yes, that's possible case.
-> 
-> So, PageLRU() && !PcgAcctLru(pc) should be checked after commit ?
-> 
-I think so, as mem_cgroup_lru_add_after_commit() does.
+> That's all irrelevant, the test for TIF_MEMDIE specifically makes the oom 
+> killer a complete no-op when an eligible task is found to have been oom 
+> killed to prevent needlessly killing additional tasks.  oom_badness() and 
+> find_lock_task_mm() have nothing to do with that check to return 
+> ERR_PTR(-1UL) from select_bad_process().
 
-> I think we can add optimization later (add per-memcg-lru-pegecgrou-vec or some)
-> 
-In current mmotm, fuse uses replace_page_cache(), which uses mem_cgroup_(prepare|end)_migration(),
-so I think we can handle this problem in a different way instead of changing
-mem_cgroup_cache_charge(), which I think is a fast-path operation.
+I don't understand you think which task is eligible and unnecessary.
+But, Look! Andrey is not talking about zombie process case. But, this v2
+patch have factored out other tasks too. This IS the problem. No need
+unrelated talk.
 
-Thanks,
-Daisuke Nishimura.
+> 
+> Andrey is patching the case where an eligible TIF_MEMDIE process is found 
+> but it has already detached its ->mm.  In combination with the patch 
+> posted to linux-mm, oom: prevent unnecessary oom kills or kernel panics, 
+> which makes select_bad_process() iterate over all threads, it is an 
+> effective solution.
+
+Guys, It was alread NAKed. I've already talk kind explanation. Why do
+you bother to look actual code. Why do you continue to talk funny your
+dream?
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
