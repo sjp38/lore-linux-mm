@@ -1,83 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BE698D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 00:55:34 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 06AED3EE0C2
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 14:55:28 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E159B45DE4E
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 14:55:27 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C9B1C45DE4F
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 14:55:27 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BBBD71DB8040
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 14:55:27 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8458C1DB8037
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 14:55:27 +0900 (JST)
-Date: Tue, 8 Mar 2011 14:49:01 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] memcg: add oom killer delay
-Message-Id: <20110308144901.fe34abd0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1103072126590.4593@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1102231636260.21906@chino.kir.corp.google.com>
-	<20110303135223.0a415e69.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1103071602080.23035@chino.kir.corp.google.com>
-	<20110307162912.2d8c70c1.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1103071631080.23844@chino.kir.corp.google.com>
-	<20110307165119.436f5d21.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1103071657090.24549@chino.kir.corp.google.com>
-	<20110307171853.c31ec416.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1103071721330.25197@chino.kir.corp.google.com>
-	<20110308115108.36b184c5.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1103071905400.1640@chino.kir.corp.google.com>
-	<20110308121332.de003f81.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1103071954550.2883@chino.kir.corp.google.com>
-	<20110308131723.e434cb89.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1103072126590.4593@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B5EA8D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 01:08:08 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id EE1BA3EE0BD
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:08:03 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D62D145DE59
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:08:03 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BDA8745DE58
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:08:03 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AC62D1DB804A
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:08:03 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 75E801DB803A
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 15:08:03 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH V2] page-types.c: auto debugfs mount for hwpoison operation
+In-Reply-To: <4D75B815.2080603@linux.intel.com>
+References: <20110307113937.GB5080@localhost> <4D75B815.2080603@linux.intel.com>
+Message-Id: <20110308150824.7EC2.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Tue,  8 Mar 2011 15:08:02 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
+To: Chen Gong <gong.chen@linux.intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>, Clark Williams <williams@redhat.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Xiao Guangrong <xiaoguangrong@cn.fujitsu.com>
 
-On Mon, 7 Mar 2011 21:30:19 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+> page-types.c doesn't supply a way to specify the debugfs path and
+> the original debugfs path is not usual on most machines. This patch
+> supplies a way to auto mount debugfs if needed.
+> 
+> This patch is heavily inspired by tools/perf/utils/debugfs.c
+> 
+> Signed-off-by: Chen Gong <gong.chen@linux.intel.com>
+> ---
+>   Documentation/vm/page-types.c |  105 
+> +++++++++++++++++++++++++++++++++++++++--
+>   1 files changed, 101 insertions(+), 4 deletions(-)
 
-> On Tue, 8 Mar 2011, KAMEZAWA Hiroyuki wrote:
-> 
-> > Hmm? That's an unexpected answer. Why system's capacity is problem here ?
-> > (root memcg has no 'limit' always.)
-> > 
-> > Is it a problem that 'there is no 'guarantee' or 'private page pool'
-> > for daemons ?
-> > 
-> 
-> It's not an inherent problem of memcg, it's a configuration issue: if your 
-> userspace application cannot respond to address an oom condition in a 
-> memcg for whatever reason (such as it being in an oom memcg itself), then 
-> there's a chance that the memcg will livelock since the kernel cannot do 
-> anything to fix the issue itself.
-> 
-> That's aside from the general purpose of the new 
-> memory.oom_delay_millisecs: users may want a grace period for userspace to 
-> increase the hard limit or kill a task before deferring to the kernel.  
-> That seems exponentially more useful than simply disabling the oom killer 
-> entirely with memory.oom_control.  I think it's unfortunate 
-> memory.oom_control was merged frst and seems to have tainted this entire 
-> discussion.
-> 
 
-That sounds like a mis-usage problem....what kind of workaround is offerred
-if the user doesn't configure oom_delay_millisecs , a yet another mis-usage ?
+Cute!
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-THanks,
--Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
