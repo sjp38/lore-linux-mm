@@ -1,38 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C6D3C8D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 03:11:00 -0500 (EST)
-Received: by bwz17 with SMTP id 17so6068829bwz.14
-        for <linux-mm@kvack.org>; Tue, 08 Mar 2011 00:10:57 -0800 (PST)
-Message-ID: <4D75E4E6.9020507@gmail.com>
-Date: Tue, 08 Mar 2011 11:12:22 +0300
-From: Andrew Vagin <avagin@gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C7D408D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 04:04:31 -0500 (EST)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH] shmem: using goto to replace several return
+Date: Tue, 8 Mar 2011 17:15:00 +0800
+Message-ID: <1299575700-6901-2-git-send-email-lliubbo@gmail.com>
+In-Reply-To: <1299575700-6901-1-git-send-email-lliubbo@gmail.com>
+References: <1299575700-6901-1-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: check zone->all_unreclaimable in all_unreclaimable()
-References: <1299325456-2687-1-git-send-email-avagin@openvz.org>	<20110305152056.GA1918@barrios-desktop>	<4D72580D.4000208@gmail.com>	<20110305155316.GB1918@barrios-desktop>	<4D7267B6.6020406@gmail.com>	<20110305170759.GC1918@barrios-desktop>	<20110307135831.9e0d7eaa.akpm@linux-foundation.org> <20110308094438.1ba05ed2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110308094438.1ba05ed2.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Andrey Vagin <avagin@openvz.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, viro@zeniv.linux.org.uk, hch@lst.de, hughd@google.com, npiggin@kernel.dk, Bob Liu <lliubbo@gmail.com>
 
-Hi, All
-> I agree with Minchan and can't think this is a real fix....
-> Andrey, I'm now trying your fix and it seems your fix for oom-killer,
-> 'skip-zombie-process' works enough good for my environ.
->
-> What is your enviroment ? number of cpus ? architecture ? size of memory ?
-Processort: AMD Phenom(tm) II X6 1055T Processor (six-core)
-Ram: 8Gb
-RHEL6, x86_64. This host doesn't have swap.
+Code clean, use goto to replace several return.
 
-It hangs up fast. Tomorrow I will have to send a processes state, if it 
-will be interesting for you. With my patch the kernel work fine. I added 
-debug and found that it hangs up in the described case.
-I suppose that my patch may be incorrect, but the problem exists and we 
-should do something.
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ mm/shmem.c |   32 +++++++++++++++-----------------
+ 1 files changed, 15 insertions(+), 17 deletions(-)
+
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 7c9cdc6..99f5915 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1847,17 +1847,13 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
+ 						     &dentry->d_name, NULL,
+ 						     NULL, NULL);
+ 		if (error) {
+-			if (error != -EOPNOTSUPP) {
+-				iput(inode);
+-				return error;
+-			}
++			if (error != -EOPNOTSUPP)
++				goto failed_iput;
+ 		}
+ #ifdef CONFIG_TMPFS_POSIX_ACL
+ 		error = generic_acl_init(inode, dir);
+-		if (error) {
+-			iput(inode);
+-			return error;
+-		}
++		if (error)
++			goto failed_iput;
+ #else
+ 		error = 0;
+ #endif
+@@ -1866,6 +1862,9 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
+ 		d_instantiate(dentry, inode);
+ 		dget(dentry); /* Extra count - pin the dentry in core */
+ 	}
++
++failed_iput:
++	iput(inode);
+ 	return error;
+ }
+ 
+@@ -1987,10 +1986,8 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
+ 	error = security_inode_init_security(inode, dir, &dentry->d_name, NULL,
+ 					     NULL, NULL);
+ 	if (error) {
+-		if (error != -EOPNOTSUPP) {
+-			iput(inode);
+-			return error;
+-		}
++		if (error != -EOPNOTSUPP)
++			goto failed_iput;
+ 		error = 0;
+ 	}
+ 
+@@ -2002,10 +1999,8 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
+ 		inode->i_op = &shmem_symlink_inline_operations;
+ 	} else {
+ 		error = shmem_getpage(inode, 0, &page, SGP_WRITE, NULL);
+-		if (error) {
+-			iput(inode);
+-			return error;
+-		}
++		if (error)
++			goto failed_iput;
+ 		inode->i_mapping->a_ops = &shmem_aops;
+ 		inode->i_op = &shmem_symlink_inode_operations;
+ 		kaddr = kmap_atomic(page, KM_USER0);
+@@ -2019,7 +2014,10 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
+ 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+ 	d_instantiate(dentry, inode);
+ 	dget(dentry);
+-	return 0;
++
++failed_iput:
++	iput(inode);
++	return error;
+ }
+ 
+ static void *shmem_follow_link_inline(struct dentry *dentry, struct nameidata *nd)
+-- 
+1.6.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
