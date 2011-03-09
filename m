@@ -1,136 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D05D78D0039
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 05:00:32 -0500 (EST)
-Date: Wed, 9 Mar 2011 11:00:20 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v3] memcg: fix leak on wrong LRU with FUSE
-Message-ID: <20110309100020.GD30778@cmpxchg.org>
-References: <20110308135612.e971e1f3.kamezawa.hiroyu@jp.fujitsu.com>
- <20110308181832.6386da5f.nishimura@mxp.nes.nec.co.jp>
- <20110309150750.d570798c.kamezawa.hiroyu@jp.fujitsu.com>
- <20110309164801.3a4c8d10.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 94CB98D0039
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 05:36:05 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C40B93EE0BD
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 19:36:01 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A95D645DE5F
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 19:36:01 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C68F45DE56
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 19:36:01 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 67073E3800B
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 19:36:01 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EED76E38009
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 19:36:00 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch] oom: prevent unnecessary oom kills or kernel panics
+In-Reply-To: <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com>
+References: <20110308134233.GA26884@redhat.com> <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com>
+Message-Id: <20110309192955.040C.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110309164801.3a4c8d10.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed,  9 Mar 2011 19:36:00 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrey Vagin <avagin@openvz.org>
 
-On Wed, Mar 09, 2011 at 04:48:01PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Wed, 9 Mar 2011 15:07:50 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 8 Mar 2011, Oleg Nesterov wrote:
 > 
-> > > } else {
-> > > 	/* shmem */
-> > > 	if (PageSwapCache(page)) {
-> > > 		..
-> > > 	} else {
-> > > 		..
-> > > 	}
-> > > }
-> > > 
-> > > Otherwise, the page cache will be charged twice.
-> > > 
+> > > > By iterating over threads instead, it is possible to detect threads that
+> > > > are exiting and nominate them for oom kill so they get access to memory
+> > > > reserves.
+> > >
+> > > In fact, PF_EXITING is a sing of *THREAD* exiting, not process. Therefore
+> > > PF_EXITING is not a sign of memory freeing in nearly future. If other
+> > > CPUs don't try to free memory, prevent oom and waiting makes deadlock.
 > > 
-> > Ahh, thanks. I'll send v3.
+> > I agree. I don't understand this patch.
 > > 
 > 
-> Okay, this is a fixed one.
-> ==
+> Using for_each_process() does not consider threads that have failed to 
+> exit after the oom killed parent and, thus, we select another innocent 
+> task to kill when we're really just waiting for those threads to exit (and 
+> perhaps they need memory reserves in the exit path) or, in the worst case, 
+> panic if there is nothing else eligible.
 > 
-> fs/fuse/dev.c::fuse_try_move_page() does
-> 
->    (1) remove a page by ->steal()
->    (2) re-add the page to page cache 
->    (3) link the page to LRU if it was not on LRU at (1)
-> 
-> This implies the page is _on_ LRU when it's added to radix-tree.
-> So, the page is added to  memory cgroup while it's on LRU.
-> because LRU is lazy and no one flushs it.
-> 
-> This is the same behavior as SwapCache and needs special care as
->  - remove page from LRU before overwrite pc->mem_cgroup.
->  - add page to LRU after overwrite pc->mem_cgroup.
-> 
-> And we need to taking care of pagevec.
-> 
-> If PageLRU(page) is set before we add PCG_USED bit, the page
-> will not be added to memcg's LRU (in short period).
-> So, regardlress of PageLRU(page) value before commit_charge(),
-> we need to check PageLRU(page) after commit_charge().
-> 
-> Changelog v2=>v3:
->   - fixed double accounting.
-> 
-> Changelog v1=>v2:
->   - clean up.
->   - cover !PageLRU() by pagevec case.
-> 
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> The end result is that without this patch, we sometimes unnecessarily 
+> panic (and "sometimes" is defined as "many machines" for us) when nothing 
+> else is eligible for kill within an oom cpuset yet doing a 
+> do_each_thread() over that cpuset shows threads of previously oom killed 
+> parent that have yet to exit.
 
-Thanks for the fix.  I have a few comments below.  Only nitpicks
-though, the patch looks correct to me.
+Only your workload careness don't make any excuse to break other worlds.
+Google workload specific patch should be maintained in their. We only want 
+to discuss to make world happy.
 
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+Guys, Why don't run the test program. Oleg did spnet some times for you.
 
-> @@ -2431,9 +2430,28 @@ static void
->  __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
->  					enum charge_type ctype);
->  
-> +static void
-> +__mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *mem,
-> +					enum charge_type ctype)
-> +{
-> +	struct page_cgroup *pc = lookup_page_cgroup(page);
-> +	/*
-> +	 * In some case, SwapCache, FUSE(splice_buf->radixtree), the page
-> +	 * is already on LRU. It means the page may on some other page_cgroup's
-> +	 * LRU. Take care of it.
-> +	 */
-> +	if (unlikely(PageLRU(page)))
-> +		mem_cgroup_lru_del_before_commit(page);
 
-Do we need the extra check?  mem_cgroup_lru_del_before_commit() will
-do the right thing if the page is not on the list.
-
-> +	__mem_cgroup_commit_charge(mem, page, 1, pc, ctype);
-> +	if (unlikely(PageLRU(page)))
-> +		mem_cgroup_lru_add_after_commit(page);
-
-Same here, mem_cgroup_lru_add_after_commit() has its own check for
-PG_lru.
-
-> @@ -2468,14 +2486,16 @@ int mem_cgroup_cache_charge(struct page 
->  	if (unlikely(!mm))
->  		mm = &init_mm;
->  
-> -	if (page_is_file_cache(page))
-> -		return mem_cgroup_charge_common(page, mm, gfp_mask,
-> -				MEM_CGROUP_CHARGE_TYPE_CACHE);
-> -
-> +	if (page_is_file_cache(page)) {
-> +		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, &mem, true);
-> +		if (ret || !mem)
-> +			return ret;
-> +		__mem_cgroup_commit_charge_lrucare(page, mem,
-> +					MEM_CGROUP_CHARGE_TYPE_CACHE);
-
-I think the comment about why we need to take care of the LRU status
-would make more sense here (rather than in the _lrucare function),
-because it is here where you make handling the lru a consequence of
-the page being a file page.
-
-How about this?
-
-		/*
-		 * FUSE reuses pages without going through the final
-		 * put that would remove them from the LRU list, make
-		 * sure that they get relinked properly.
-		 */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
