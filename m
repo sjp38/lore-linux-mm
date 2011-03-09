@@ -1,175 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 56C998D0039
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 18:43:26 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 64A5F3EE0B5
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 08:43:23 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B8CE45DE4E
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 08:43:23 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 313D545DD73
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 08:43:23 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D14C1DB803F
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 08:43:23 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C121B1DB803A
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 08:43:22 +0900 (JST)
-Date: Thu, 10 Mar 2011 08:36:59 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3] memcg: fix leak on wrong LRU with FUSE
-Message-Id: <20110310083659.fd8b1c3f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20110309100020.GD30778@cmpxchg.org>
-References: <20110308135612.e971e1f3.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110308181832.6386da5f.nishimura@mxp.nes.nec.co.jp>
-	<20110309150750.d570798c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110309164801.3a4c8d10.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110309100020.GD30778@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id DA7F08D0039
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 18:51:34 -0500 (EST)
+Date: Thu, 10 Mar 2011 00:50:40 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] remove compaction from kswapd
+Message-ID: <20110309235040.GJ2141@random.random>
+References: <20110228222138.GP22700@random.random>
+ <AANLkTingkWo6dx=0sGdmz9qNp+_TrQnKXnmASwD8LhV4@mail.gmail.com>
+ <20110301223954.GI19057@random.random>
+ <AANLkTim7tcPTxG9hyFiSnQ7rqfMdoUhL1wrmqNAXAvEK@mail.gmail.com>
+ <20110301164143.e44e5699.akpm@linux-foundation.org>
+ <20110302043856.GB23911@random.random>
+ <20110301205324.f0daaf86.akpm@linux-foundation.org>
+ <20110302055221.GD23911@random.random>
+ <20110302142542.GE14162@csn.ul.ie>
+ <20110309141718.93db5ea5.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110309141718.93db5ea5.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, stable@kernel.org
 
-On Wed, 9 Mar 2011 11:00:20 +0100
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+Hi Andrew,
 
-> On Wed, Mar 09, 2011 at 04:48:01PM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Wed, 9 Mar 2011 15:07:50 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > 
-> > > > } else {
-> > > > 	/* shmem */
-> > > > 	if (PageSwapCache(page)) {
-> > > > 		..
-> > > > 	} else {
-> > > > 		..
-> > > > 	}
-> > > > }
-> > > > 
-> > > > Otherwise, the page cache will be charged twice.
-> > > > 
-> > > 
-> > > Ahh, thanks. I'll send v3.
-> > > 
-> > 
-> > Okay, this is a fixed one.
-> > ==
-> > 
-> > fs/fuse/dev.c::fuse_try_move_page() does
-> > 
-> >    (1) remove a page by ->steal()
-> >    (2) re-add the page to page cache 
-> >    (3) link the page to LRU if it was not on LRU at (1)
-> > 
-> > This implies the page is _on_ LRU when it's added to radix-tree.
-> > So, the page is added to  memory cgroup while it's on LRU.
-> > because LRU is lazy and no one flushs it.
-> > 
-> > This is the same behavior as SwapCache and needs special care as
-> >  - remove page from LRU before overwrite pc->mem_cgroup.
-> >  - add page to LRU after overwrite pc->mem_cgroup.
-> > 
-> > And we need to taking care of pagevec.
-> > 
-> > If PageLRU(page) is set before we add PCG_USED bit, the page
-> > will not be added to memcg's LRU (in short period).
-> > So, regardlress of PageLRU(page) value before commit_charge(),
-> > we need to check PageLRU(page) after commit_charge().
-> > 
-> > Changelog v2=>v3:
-> >   - fixed double accounting.
-> > 
-> > Changelog v1=>v2:
-> >   - clean up.
-> >   - cover !PageLRU() by pagevec case.
-> > 
-> > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Wed, Mar 09, 2011 at 02:17:18PM -0800, Andrew Morton wrote:
+> On Wed, 2 Mar 2011 14:25:42 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> Thanks for the fix.  I have a few comments below.  Only nitpicks
-> though, the patch looks correct to me.
+> > mm: compaction: Prevent kswapd compacting memory to reduce CPU usage
+> > 
+> > This patch reverts [5a03b051: thp: use compaction in kswapd for GFP_ATOMIC
+> > order > 0] due to reports stating that kswapd CPU usage was higher
+> > and IRQs were being disabled more frequently. This was reported at
+> > http://www.spinics.net/linux/fedora/alsa-user/msg09885.html .
 > 
-> Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+> OK, I grabbed this.
 > 
-
-Thank you for review.
-
-
-> > @@ -2431,9 +2430,28 @@ static void
-> >  __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
-> >  					enum charge_type ctype);
-> >  
-> > +static void
-> > +__mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *mem,
-> > +					enum charge_type ctype)
-> > +{
-> > +	struct page_cgroup *pc = lookup_page_cgroup(page);
-> > +	/*
-> > +	 * In some case, SwapCache, FUSE(splice_buf->radixtree), the page
-> > +	 * is already on LRU. It means the page may on some other page_cgroup's
-> > +	 * LRU. Take care of it.
-> > +	 */
-> > +	if (unlikely(PageLRU(page)))
-> > +		mem_cgroup_lru_del_before_commit(page);
+> I made a number of changelog changes:
 > 
-> Do we need the extra check?  mem_cgroup_lru_del_before_commit() will
-> do the right thing if the page is not on the list.
+> - Rewrote it as From: Andrea (correct?)
 > 
-
-lru_del_before_commit does checks under zone->lru_lock. So, it's very very heavy.
-Hmm, I'll move the check under mem_cgroup_lru_del_before_commit() before lock.
-
-
-> > +	__mem_cgroup_commit_charge(mem, page, 1, pc, ctype);
-> > +	if (unlikely(PageLRU(page)))
-> > +		mem_cgroup_lru_add_after_commit(page);
+> - Replaced your acked-by with signed-off-by, as you were on the
+>   delivery path
 > 
-> Same here, mem_cgroup_lru_add_after_commit() has its own check for
-> PG_lru.
-> 
+> - Hunted down Arthur's email address and added his reported-by and
+>   tested-by.
 
-I'll move the check.
+So far so good.
 
+> - Added cc:stable, as it's a bit late for 2.6.38.  The intention
+>   being that we put this into 2.6.38.1 after it has cooked in 2.6.39-rcX
+>   for a while.  OK?
 
-> > @@ -2468,14 +2486,16 @@ int mem_cgroup_cache_charge(struct page 
-> >  	if (unlikely(!mm))
-> >  		mm = &init_mm;
-> >  
-> > -	if (page_is_file_cache(page))
-> > -		return mem_cgroup_charge_common(page, mm, gfp_mask,
-> > -				MEM_CGROUP_CHARGE_TYPE_CACHE);
-> > -
-> > +	if (page_is_file_cache(page)) {
-> > +		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, &mem, true);
-> > +		if (ret || !mem)
-> > +			return ret;
-> > +		__mem_cgroup_commit_charge_lrucare(page, mem,
-> > +					MEM_CGROUP_CHARGE_TYPE_CACHE);
-> 
-> I think the comment about why we need to take care of the LRU status
-> would make more sense here (rather than in the _lrucare function),
-> because it is here where you make handling the lru a consequence of
-> the page being a file page.
-> 
-Sure.
+That's ok with me. It's unfortunate the only two workloads that
+triggers this weren't trivial setups and it was found after quite some
+time after being introduced (if it was obvious for all workloads, it
+wouldn't have gotten there after all, but this also makes it no big
+deal if this is only applied in 2.6.38.1 for the same reason).
 
-> How about this?
-> 
-> 		/*
-> 		 * FUSE reuses pages without going through the final
-> 		 * put that would remove them from the LRU list, make
-> 		 * sure that they get relinked properly.
-> 		 */
+I think the fundamental issue with compaction is that its searches are
+not SWAP_CLUSTER_MAX things, but it goes all the way through the zone
+from top to bottom and bottom to top, until the two scans meet in the
+middle. So invoking it just once for allocation in direct compaction
+(during alloc_pages slow path) is enough. Keeping invoking it in
+kswapd (even if at lower rate with my last patch as an attempt to fix
+it without removing compaction from kswapd) is probably being
+overkill. Maybe kswapd should have a comapction "incremental" mode
+that does a SWAP_CLUSTER_MAX thing. Maybe we shouldn't do it from
+kswapd either.
 
+We clearly we need a bit more time to sort this out, and in the
+meantime returning to the 2.6.37 logic in kswapd of 2.6.38.1 is good
+idea and safe.
 
-will add. Thank you !
+As opposed we could retain commit
+c5a73c3d55be1faadba35b41a862e036a3b12ddb introduced together with the
+problematic commit. Commit c5a73c3d55be1faadba35b41a862e036a3b12ddb
+should help with the kernel stack allocation during high VM pressure,
+without apparently hurting anything. That is somewhat safer than the
+kswapd part because it doesn't affect kswapd globally but just the
+thread allocating and it's surely not going to insist much invoking
+compaction in the background.
 
--Kame
+Thanks a lot,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
