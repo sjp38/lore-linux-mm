@@ -1,117 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 4269E8D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 19:03:05 -0500 (EST)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p28NvDFP030104
-	for <linux-mm@kvack.org>; Tue, 8 Mar 2011 16:57:13 -0700
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2902NrQ085956
-	for <linux-mm@kvack.org>; Tue, 8 Mar 2011 17:02:24 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p28Nxwnj018803
-	for <linux-mm@kvack.org>; Tue, 8 Mar 2011 17:00:00 -0700
-Subject: Re: [PATCH R4 7/7] xen/balloon: Memory hotplug support for Xen
- balloon driver
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110308215049.GH27331@router-fw-old.local.net-space.pl>
-References: <20110308215049.GH27331@router-fw-old.local.net-space.pl>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Tue, 08 Mar 2011 16:02:19 -0800
-Message-ID: <1299628939.9014.3499.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 322068D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 19:33:08 -0500 (EST)
+From: Stephen Wilson <wilsons@start.ca>
+Subject: [PATCH 0/5] make *_gate_vma accept mm_struct instead of task_struct
+Date: Tue,  8 Mar 2011 19:31:56 -0500
+Message-Id: <1299630721-4337-1-git-send-email-wilsons@start.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: x86@kernel.org
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Paul Mundt <lethal@linux-sh.org>, Andi Kleen <ak@linux.intel.com>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2011-03-08 at 22:50 +0100, Daniel Kiper wrote:
-> +static enum bp_state reserve_additional_memory(long credit)
-> +{
-> +	int rc;
-> +	unsigned long balloon_hotplug = credit;
-> +
-> +	balloon_hotplug <<= PAGE_SHIFT;
-> +
-> +	rc = add_virtual_memory((u64 *)&balloon_hotplug);
 
-This would work if all 'unsigned long's were 64-bits.  It'll break on
-32-bit kernels in a very bad way by overwriting 4 bytes of stack.
+Morally, the question of whether an address lies in a gate vma should be asked
+with respect to an mm, not a particular task.
 
-> +	if (rc) {
-> +		pr_info("xen_balloon: %s: add_virtual_memory() failed: %i\n", __func__, rc);
-> +		return BP_EAGAIN;
-> +	}
-> +
-> +	balloon_hotplug >>= PAGE_SHIFT;
-> +
-> +	balloon_hotplug -= credit;
-> +
-> +	balloon_stats.hotplug_pages += credit;
-> +	balloon_stats.balloon_hotplug = balloon_hotplug;
-> +
-> +	return BP_DONE;
-> +}
-> +
-> +static int xen_online_page_notifier(struct notifier_block *nb, unsigned long val, void *v)
-> +{
-> +	struct page *page = v;
-> +	unsigned long pfn = page_to_pfn(page);
-> +
-> +	if (pfn >= num_physpages)
-> +		num_physpages = pfn + 1;
-> +
-> +	inc_totalhigh_pages();
-> +
-> +#ifdef CONFIG_FLATMEM
-> +	max_mapnr = max(pfn, max_mapnr);
-> +#endif
+Practically, dropping the dependency on task_struct will help make current and
+future operations on mm's more flexible and convenient.  In particular, it
+allows some code paths to avoid the need to hold task_lock.
 
-I really don't like that this is a direct copy of online_page() up to
-this point.  They're already subtly different.  I'm also curious if this
-breaks on 32-bit kernels because of the unconditional
-inc_totalhigh_pages().
+The only architecture this change impacts in any significant way is x86_64.
+The principle change on that architecture is to mirror TIF_IA32 via
+a new flag in mm_context_t. 
 
-If it's done this way, I'd almost guarantee that the first time someone
-fixes a bug or adds a generic feature in online_page() that Xen gets
-missed.  
+This is the first of a two part series that implements safe writes to
+/proc/pid/mem.  I will be posting the second series to lkml shortly.  These
+patches are based on v2.6.38-rc8.  The general approach used here was suggested
+to me by Alexander Viro, but any mistakes present in these patches are entirely
+my own.
 
-> +	mutex_lock(&balloon_mutex);
-> +
-> +	__balloon_append(page);
-> +
-> +	if (balloon_stats.hotplug_pages)
-> +		--balloon_stats.hotplug_pages;
-> +	else
-> +		--balloon_stats.balloon_hotplug;
-> +
-> +	mutex_unlock(&balloon_mutex);
-> +
-> +	return NOTIFY_STOP;
-> +}
 
-I'm not a _huge_ fan of these notifier chains, but I guess it works.
-However, if you're going to use these notifier chains, then we probably
-should use them to full effect.  Have a notifier list like this:
+--
+steve
 
-	1. generic online_page()
-	2. xen_online_page_notifier() (returns NOTIFY_STOP)
-	3. free_online_page()
 
-Where finish_online_page() does something like this:
+Stephen Wilson (5):
+      x86: add context tag to mark mm when running a task in 32-bit compatibility mode
+      x86: mark associated mm when running a task in 32 bit compatibility mode
+      mm: arch: make get_gate_vma take an mm_struct instead of a task_struct
+      mm: arch: make in_gate_area take an mm_struct instead of a task_struct
+      mm: arch: rename in_gate_area_no_task to in_gate_area_no_mm
 
-finish_online_page(...)
-{
-        ClearPageReserved(page);
-        init_page_count(page);
-        __free_page(page);
-}
 
-These patches are definitely getting there.  Just another round or two,
-and they should be ready to go.
+ arch/powerpc/kernel/vdso.c         |    6 +++---
+ arch/s390/kernel/vdso.c            |    6 +++---
+ arch/sh/kernel/vsyscall/vsyscall.c |    6 +++---
+ arch/x86/ia32/ia32_aout.c          |    1 +
+ arch/x86/include/asm/mmu.h         |    6 ++++++
+ arch/x86/kernel/process_64.c       |    8 ++++++++
+ arch/x86/mm/init_64.c              |   16 ++++++++--------
+ arch/x86/vdso/vdso32-setup.c       |   15 ++++++++-------
+ fs/binfmt_elf.c                    |    2 +-
+ fs/proc/task_mmu.c                 |    8 +++++---
+ include/linux/mm.h                 |   10 +++++-----
+ kernel/kallsyms.c                  |    4 ++--
+ mm/memory.c                        |    8 ++++----
+ mm/mlock.c                         |    4 ++--
+ mm/nommu.c                         |    2 +-
+ 15 files changed, 61 insertions(+), 42 deletions(-)
 
--- Dave
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
