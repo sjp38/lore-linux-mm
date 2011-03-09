@@ -1,45 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 58AF38D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 21:47:36 -0500 (EST)
-Date: Tue, 8 Mar 2011 21:47:08 -0500
-From: Stephen Wilson <wilsons@start.ca>
-Subject: Re: [PATCH 0/6] enable writing to /proc/pid/mem
-Message-ID: <20110309024708.GA4941@fibrous.localdomain>
-References: <1299631343-4499-1-git-send-email-wilsons@start.ca> <20110309013017.GY22723@ZenIV.linux.org.uk> <20110309021524.GA4838@fibrous.localdomain> <20110309023303.GZ22723@ZenIV.linux.org.uk>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D5AD08D0039
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 00:19:41 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 92E103EE0BD
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 14:19:38 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 796C745DE5D
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 14:19:38 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D8CD45DE4D
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 14:19:38 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C300E18004
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 14:19:38 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 10BCDE08003
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 14:19:38 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/6] mm: use mm_struct to resolve gate vma's in __get_user_pages
+In-Reply-To: <1299631343-4499-2-git-send-email-wilsons@start.ca>
+References: <1299631343-4499-1-git-send-email-wilsons@start.ca> <1299631343-4499-2-git-send-email-wilsons@start.ca>
+Message-Id: <20110309141208.03F7.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110309023303.GZ22723@ZenIV.linux.org.uk>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed,  9 Mar 2011 14:19:30 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Roland McGrath <roland@redhat.com>, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
+To: Stephen Wilson <wilsons@start.ca>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>, Roland McGrath <roland@redhat.com>, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
 
-On Wed, Mar 09, 2011 at 02:33:04AM +0000, Al Viro wrote:
-> On Tue, Mar 08, 2011 at 09:15:25PM -0500, Stephen Wilson wrote:
+> We now check if a requested user page overlaps a gate vma using the supplied mm
+> instead of the supplied task.  The given task is now used solely for accounting
+> purposes and may be NULL.
 > 
-> > I think we could also remove the intermediate copy in both mem_read() and
-> > mem_write() as well, but I think such optimizations could be left for
-> > follow on patches.
+> Signed-off-by: Stephen Wilson <wilsons@start.ca>
+> ---
+>  mm/memory.c |   18 +++++++++++-------
+>  1 files changed, 11 insertions(+), 7 deletions(-)
 > 
-> How?  We do copy_.._user() in there; it can trigger page faults and
-> that's not something you want while holding mmap_sem on some mm.
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 3863e86..36445e3 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1437,9 +1437,9 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  		struct vm_area_struct *vma;
+>  
+>  		vma = find_extend_vma(mm, start);
+> -		if (!vma && in_gate_area(tsk->mm, start)) {
+> +		if (!vma && in_gate_area(mm, start)) {
+>  			unsigned long pg = start & PAGE_MASK;
+> -			struct vm_area_struct *gate_vma = get_gate_vma(tsk->mm);
+> +			struct vm_area_struct *gate_vma = get_gate_vma(mm);
+>  			pgd_t *pgd;
+>  			pud_t *pud;
+>  			pmd_t *pmd;
 
-Ah, OK.   I did not think thru that subtlety.  Was merely mentioning
-"things we might do afterwords" as opposed to a genuine proposal.
+Hmm..
+Is this works? In exec() case task has two mm, old and new-borned. tsk has
+no enough information to detect gate area if 64bit process exec 32bit process
+or oppsite case. On Linux, 32bit and 64bit processes have perfectly different
+process vma layout.
 
-> Looks like a deadlock country...  So we can't do that from inside
-> access_process_vm() or its analogs, which means buffering in caller.
+Am I missing something?
 
-Thanks for the feed back -- I am certainly (relatively speaking) new to
-the code so your insights are most valuable.
-
-Thanks again!
-
-
--- 
-steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
