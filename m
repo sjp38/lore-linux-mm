@@ -1,48 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E35798D0039
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 08:09:16 -0500 (EST)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id p29D9DE2008194
-	for <linux-mm@kvack.org>; Wed, 9 Mar 2011 05:09:13 -0800
-Received: from qwd6 (qwd6.prod.google.com [10.241.193.198])
-	by hpaq12.eem.corp.google.com with ESMTP id p29D8vFF003836
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 9 Mar 2011 05:09:12 -0800
-Received: by qwd6 with SMTP id 6so731858qwd.1
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2011 05:09:10 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 50BD18D0039
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 08:59:00 -0500 (EST)
+Date: Wed, 9 Mar 2011 13:58:30 +0000
+From: Stefano Stabellini <stefano.stabellini@eu.citrix.com>
+Subject: Re: [PATCH R4 2/7] xen/balloon: HVM mode support
+In-Reply-To: <20110308214636.GC27331@router-fw-old.local.net-space.pl>
+Message-ID: <alpine.DEB.2.00.1103091356370.2968@kaball-desktop>
+References: <20110308214636.GC27331@router-fw-old.local.net-space.pl>
 MIME-Version: 1.0
-In-Reply-To: <1299630721-4337-1-git-send-email-wilsons@start.ca>
-References: <1299630721-4337-1-git-send-email-wilsons@start.ca>
-Date: Wed, 9 Mar 2011 05:09:09 -0800
-Message-ID: <AANLkTikTEi8uKeCfPLoenNx9g6fLyAqNqfVdR=4KzNB3@mail.gmail.com>
-Subject: Re: [PATCH 0/5] make *_gate_vma accept mm_struct instead of task_struct
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Wilson <wilsons@start.ca>
-Cc: x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Paul Mundt <lethal@linux-sh.org>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: Ian Campbell <Ian.Campbell@eu.citrix.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi.kleen@intel.com" <andi.kleen@intel.com>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "jeremy@goop.org" <jeremy@goop.org>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, "v.tolstov@selfip.ru" <v.tolstov@selfip.ru>, "pasik@iki.fi" <pasik@iki.fi>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, "wdauchy@gmail.com" <wdauchy@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Mar 8, 2011 at 4:31 PM, Stephen Wilson <wilsons@start.ca> wrote:
-> Morally, the question of whether an address lies in a gate vma should be =
-asked
-> with respect to an mm, not a particular task.
->
-> Practically, dropping the dependency on task_struct will help make curren=
-t and
-> future operations on mm's more flexible and convenient. =A0In particular,=
- it
-> allows some code paths to avoid the need to hold task_lock.
+On Tue, 8 Mar 2011, Daniel Kiper wrote:
+> HVM mode support.
 
-Reviewed-by: Michel Lespinasse <walken@google.com>
+I have already a patch in linux-next to do this, please give a look at
+"xen: make the ballon driver work for hvm domains":
 
-May I suggest ia32_compat instead of just compat for the flag name ?
-
---=20
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+git://xenbits.xen.org/people/sstabellini/linux-pvhvm.git linux-next
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
