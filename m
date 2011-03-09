@@ -1,117 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B60728D0039
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 01:11:15 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 649073EE0BC
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:11:12 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B1C245DE5F
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:11:12 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 31FD445DE5B
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:11:12 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1EE6E1DB8048
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:11:12 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D8580E38001
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:11:11 +0900 (JST)
-Date: Wed, 9 Mar 2011 15:04:52 +0900
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 73F3C8D0039
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 01:13:19 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id B25093EE0BC
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:13:16 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9833045DE53
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:13:16 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8130D45DE51
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:13:16 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 70BBC1DB802F
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:13:16 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 31D4B1DB8037
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:13:16 +0900 (JST)
+Date: Wed, 9 Mar 2011 15:06:56 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] memcg: add oom killer delay
-Message-Id: <20110309150452.29883939.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1103081540320.27910@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1103071602080.23035@chino.kir.corp.google.com>
-	<20110307162912.2d8c70c1.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1103071631080.23844@chino.kir.corp.google.com>
-	<20110307165119.436f5d21.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1103071657090.24549@chino.kir.corp.google.com>
-	<20110307171853.c31ec416.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1103071721330.25197@chino.kir.corp.google.com>
-	<20110308115108.36b184c5.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1103071905400.1640@chino.kir.corp.google.com>
-	<20110308121332.de003f81.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1103071954550.2883@chino.kir.corp.google.com>
-	<20110308131723.e434cb89.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1103072126590.4593@chino.kir.corp.google.com>
-	<20110308144901.fe34abd0.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1103081540320.27910@chino.kir.corp.google.com>
+Subject: Re: [PATCH] mm: check zone->all_unreclaimable in
+ all_unreclaimable()
+Message-Id: <20110309150656.c7128fdd.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4D75E4E6.9020507@gmail.com>
+References: <1299325456-2687-1-git-send-email-avagin@openvz.org>
+	<20110305152056.GA1918@barrios-desktop>
+	<4D72580D.4000208@gmail.com>
+	<20110305155316.GB1918@barrios-desktop>
+	<4D7267B6.6020406@gmail.com>
+	<20110305170759.GC1918@barrios-desktop>
+	<20110307135831.9e0d7eaa.akpm@linux-foundation.org>
+	<20110308094438.1ba05ed2.kamezawa.hiroyu@jp.fujitsu.com>
+	<4D75E4E6.9020507@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
+To: Andrew Vagin <avagin@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Andrey Vagin <avagin@openvz.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 8 Mar 2011 15:49:10 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+On Tue, 08 Mar 2011 11:12:22 +0300
+Andrew Vagin <avagin@gmail.com> wrote:
 
-> On Tue, 8 Mar 2011, KAMEZAWA Hiroyuki wrote:
+> Hi, All
+> > I agree with Minchan and can't think this is a real fix....
+> > Andrey, I'm now trying your fix and it seems your fix for oom-killer,
+> > 'skip-zombie-process' works enough good for my environ.
+> >
+> > What is your enviroment ? number of cpus ? architecture ? size of memory ?
+> Processort: AMD Phenom(tm) II X6 1055T Processor (six-core)
+> Ram: 8Gb
+> RHEL6, x86_64. This host doesn't have swap.
 > 
-> > > That's aside from the general purpose of the new 
-> > > memory.oom_delay_millisecs: users may want a grace period for userspace to 
-> > > increase the hard limit or kill a task before deferring to the kernel.  
-> > > That seems exponentially more useful than simply disabling the oom killer 
-> > > entirely with memory.oom_control.  I think it's unfortunate 
-> > > memory.oom_control was merged frst and seems to have tainted this entire 
-> > > discussion.
-> > > 
-> > 
-> > That sounds like a mis-usage problem....what kind of workaround is offerred
-> > if the user doesn't configure oom_delay_millisecs , a yet another mis-usage ?
-> > 
-> 
-> Not exactly sure what you mean, but you're saying disabling the oom killer 
-> with memory.oom_control is not the recommended way to allow userspace to 
-> fix the issue itself?  That seems like it's the entire usecase: we'd 
-> rarely want to let a memcg stall when it needs memory without trying to 
-> address the problem (elevating the limit, killing a lower priority job, 
-> sending a signal to free memory).  We have a memcg oom notifier to handle 
-> the situation but there's no guarantee that the kernel won't kill 
-> something first and that's a bad result if we chose to address it with one 
-> of the ways mentioned above.
-> 
+Ok, thanks. "NO SWAP" is a big information ;)
 
-Why memcg's oom and system's oom happens at the same time ?
-
-
-
-> To answer your question: if the admin doesn't configure a 
-> memory.oom_delay_millisecs, then the oom killer will obviously kill 
-> something off (if memory.oom_control is also not set) when reclaim fails 
-> to free memory just as before.
-> 
-> Aside from my specific usecase for this tunable, let me pose a question: 
-> do you believe that the memory controller would benefit from allowing 
-> users to have a grace period in which to take one of the actions listed 
-> above instead of killing something itself?  Yes, this would be possible by 
-> setting and then unsetting memory.oom_control, but that requires userspace 
-> to always be responsive (which, at our scale, we can unequivocally say 
-> isn't always possible) and doesn't effectively deal with spikes in memory 
-> that may only be temporary and doesn't require any intervention of the 
-> user at all.
-> 
-
-Please add 'notifier' in kernel space and handle the event by kernel module.
-It is much better than 'timeout and allow oom-kill again'.
-
-If you add a notifier_chain in memcg's oom path, I have no obstruction.
-Implementing custom oom handler for it in kernel module sounds better
-than timeout. If necessary, please export some functionailty of memcg.
-
-IIUC, system's oom-killer has notifier chain of oom-kill. There is no reason
-it's bad to have one for memcg.
-
-Isn't it ok ? I think you can do what you want with it.
+> It hangs up fast. Tomorrow I will have to send a processes state, if it 
+> will be interesting for you. With my patch the kernel work fine. I added 
+> debug and found that it hangs up in the described case.
+> I suppose that my patch may be incorrect, but the problem exists and we 
+> should do something.
+>
 
 Thanks,
 -Kame
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
