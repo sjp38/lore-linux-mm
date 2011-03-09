@@ -1,48 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 240918D0039
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 09:15:47 -0500 (EST)
-Date: Wed, 9 Mar 2011 09:14:41 -0500
-From: Stephen Wilson <wilsons@start.ca>
-Subject: Re: [PATCH 0/5] make *_gate_vma accept mm_struct instead of
-	task_struct
-Message-ID: <20110309141441.GA8861@fibrous.localdomain>
-References: <1299630721-4337-1-git-send-email-wilsons@start.ca> <AANLkTikTEi8uKeCfPLoenNx9g6fLyAqNqfVdR=4KzNB3@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CF21E8D0039
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 09:38:50 -0500 (EST)
+Date: Wed, 9 Mar 2011 16:36:35 +0200 (EET)
+From: Aaro Koskinen <aaro.koskinen@nokia.com>
+Subject: Re: [PATCHv2] procfs: fix /proc/<pid>/maps heap check
+In-Reply-To: <20110307150756.d50635f1.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.1.10.1103091631280.23039@esdhcp041196.research.nokia.com>
+References: <1299244994-5284-1-git-send-email-aaro.koskinen@nokia.com> <20110307150756.d50635f1.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTikTEi8uKeCfPLoenNx9g6fLyAqNqfVdR=4KzNB3@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Paul Mundt <lethal@linux-sh.org>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Aaro Koskinen <aaro.koskinen@nokia.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, stable@kernel.org
 
-On Wed, Mar 09, 2011 at 05:09:09AM -0800, Michel Lespinasse wrote:
-> On Tue, Mar 8, 2011 at 4:31 PM, Stephen Wilson <wilsons@start.ca> wrote:
-> > Morally, the question of whether an address lies in a gate vma should be asked
-> > with respect to an mm, not a particular task.
-> >
-> > Practically, dropping the dependency on task_struct will help make current and
-> > future operations on mm's more flexible and convenient.  In particular, it
-> > allows some code paths to avoid the need to hold task_lock.
-> 
-> Reviewed-by: Michel Lespinasse <walken@google.com>
-> 
-> May I suggest ia32_compat instead of just compat for the flag name ?
+Hi,
 
-Yes, sounds good to me.  Will change in the next iteration.
+On Mon, 7 Mar 2011, Andrew Morton wrote:
+> On Fri,  4 Mar 2011 15:23:14 +0200
+> Aaro Koskinen <aaro.koskinen@nokia.com> wrote:
+>
+>> The current code fails to print the "[heap]" marking if the heap is
+>> splitted into multiple mappings.
+>>
+>> Fix the check so that the marking is displayed in all possible cases:
+>> 	1. vma matches exactly the heap
+>> 	2. the heap vma is merged e.g. with bss
+>> 	3. the heap vma is splitted e.g. due to locked pages
+>>
+>> Signed-off-by: Aaro Koskinen <aaro.koskinen@nokia.com>
+>> Cc: stable@kernel.org
+>
+> Why do you believe this problem is serious enough to justify
+> backporting the fix into -stable?
 
-Thanks for the review!
+My bad analysis. It looks like the bug has been there forever, and
+since it only results in some information missing from a procfile,
+it does not fulfil the stable "critical issue" criteria.
 
-
-> -- 
-> Michel "Walken" Lespinasse
-> A program is never fully debugged until the last user dies.
-
-
--- 
-steve
+A.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
