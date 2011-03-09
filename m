@@ -1,109 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A85F68D0039
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 02:22:50 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 11AF23EE0B6
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 16:22:48 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E881F45DE57
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 16:22:47 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C3C5545DE5B
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 16:22:47 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B634BE08001
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 16:22:47 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F047E18002
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 16:22:47 +0900 (JST)
-Date: Wed, 9 Mar 2011 16:16:21 +0900
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 411D88D0039
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 02:54:25 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 017203EE0AE
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 16:54:21 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DC45C45DE56
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 16:54:20 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C4C3F45DE58
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 16:54:20 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B83AE1DB803A
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 16:54:20 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 79BADE38002
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 16:54:20 +0900 (JST)
+Date: Wed, 9 Mar 2011 16:48:01 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] memcg: add oom killer delay
-Message-Id: <20110309161621.f890c148.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1103082239340.15665@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1103071631080.23844@chino.kir.corp.google.com>
-	<20110307165119.436f5d21.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1103071657090.24549@chino.kir.corp.google.com>
-	<20110307171853.c31ec416.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1103071721330.25197@chino.kir.corp.google.com>
-	<20110308115108.36b184c5.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1103071905400.1640@chino.kir.corp.google.com>
-	<20110308121332.de003f81.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1103071954550.2883@chino.kir.corp.google.com>
-	<20110308131723.e434cb89.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1103072126590.4593@chino.kir.corp.google.com>
-	<20110308144901.fe34abd0.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1103081540320.27910@chino.kir.corp.google.com>
-	<20110309150452.29883939.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1103082239340.15665@chino.kir.corp.google.com>
+Subject: [PATCH v3] memcg: fix leak on wrong LRU with FUSE
+Message-Id: <20110309164801.3a4c8d10.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110309150750.d570798c.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110308135612.e971e1f3.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110308181832.6386da5f.nishimura@mxp.nes.nec.co.jp>
+	<20110309150750.d570798c.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 
-On Tue, 8 Mar 2011 22:44:11 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+On Wed, 9 Mar 2011 15:07:50 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> On Wed, 9 Mar 2011, KAMEZAWA Hiroyuki wrote:
- > > Aside from my specific usecase for this tunable, let me pose a question: 
-> > > do you believe that the memory controller would benefit from allowing 
-> > > users to have a grace period in which to take one of the actions listed 
-> > > above instead of killing something itself?  Yes, this would be possible by 
-> > > setting and then unsetting memory.oom_control, but that requires userspace 
-> > > to always be responsive (which, at our scale, we can unequivocally say 
-> > > isn't always possible) and doesn't effectively deal with spikes in memory 
-> > > that may only be temporary and doesn't require any intervention of the 
-> > > user at all.
-> > > 
+> > } else {
+> > 	/* shmem */
+> > 	if (PageSwapCache(page)) {
+> > 		..
+> > 	} else {
+> > 		..
+> > 	}
+> > }
 > > 
-> > Please add 'notifier' in kernel space and handle the event by kernel module.
-> > It is much better than 'timeout and allow oom-kill again'.
+> > Otherwise, the page cache will be charged twice.
 > > 
 > 
-> A kernel-space notifier would certainly be helpful, but at what point does 
-> the kernel choose to oom kill something?  If there's an oom notifier in 
-> place, do we always defer killing or for a set period of time? 
-
-For google, as you like.
-
-For me, I want an oom-killall module Or oom-SIGSTOP-all module.
-oom-killall will be useful for killing fork-bombs and very quick recovery.
-
-For me, the 1st motivation of oom-disable is to taking core-dump of
-memory leaking process and look into it for checking memory leak.
-(panic_on_oom -> kdump is used for supporting my customer.)
-
-Maybe my example of notifier user doesn't sounds good to you, 
-please find a good one.
-
-
-> If it's  the latter then we'll still want the timeout, otherwise there's no
-> way to  guarantee we haven't killed something by the time userspace has a chance 
-> to react to the notification.
+> Ahh, thanks. I'll send v3.
 > 
 
-You can get a list of tasks in the cgroup and send SIGNALs with filters you like.
-List of thread-IDs can be got easily with cgroup_iter_xxx functions.
+Okay, this is a fixed one.
+==
 
-Anyway, if you add notifier, please give us a user of it. If possible,
-it should be a function which can never be implemented in userland even
-with sane programmers, admins, and users.
+fs/fuse/dev.c::fuse_try_move_page() does
 
-For example, if all process's oom_score_adj was set to -1000 and oom-killer
-doesn't work, do you implement a timeout ? I think you'll say it's a
-wrong configuration. memcg's oom_disable timeout is the same thing.
+   (1) remove a page by ->steal()
+   (2) re-add the page to page cache 
+   (3) link the page to LRU if it was not on LRU at (1)
 
-Thanks,
--Kame
+This implies the page is _on_ LRU when it's added to radix-tree.
+So, the page is added to  memory cgroup while it's on LRU.
+because LRU is lazy and no one flushs it.
+
+This is the same behavior as SwapCache and needs special care as
+ - remove page from LRU before overwrite pc->mem_cgroup.
+ - add page to LRU after overwrite pc->mem_cgroup.
+
+And we need to taking care of pagevec.
+
+If PageLRU(page) is set before we add PCG_USED bit, the page
+will not be added to memcg's LRU (in short period).
+So, regardlress of PageLRU(page) value before commit_charge(),
+we need to check PageLRU(page) after commit_charge().
+
+Changelog v2=>v3:
+  - fixed double accounting.
+
+Changelog v1=>v2:
+  - clean up.
+  - cover !PageLRU() by pagevec case.
 
 
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |   54 +++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 35 insertions(+), 19 deletions(-)
 
-
+Index: mmotm-0303/mm/memcontrol.c
+===================================================================
+--- mmotm-0303.orig/mm/memcontrol.c
++++ mmotm-0303/mm/memcontrol.c
+@@ -926,13 +926,12 @@ void mem_cgroup_add_lru_list(struct page
+ }
+ 
+ /*
+- * At handling SwapCache, pc->mem_cgroup may be changed while it's linked to
+- * lru because the page may.be reused after it's fully uncharged (because of
+- * SwapCache behavior).To handle that, unlink page_cgroup from LRU when charge
+- * it again. This function is only used to charge SwapCache. It's done under
+- * lock_page and expected that zone->lru_lock is never held.
++ * At handling SwapCache and other FUSE stuff, pc->mem_cgroup may be changed
++ * while it's linked to lru because the page may be reused after it's fully
++ * uncharged. To handle that, unlink page_cgroup from LRU when charge it again.
++ * It's done under lock_page and expected that zone->lru_lock isnever held.
+  */
+-static void mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
++static void mem_cgroup_lru_del_before_commit(struct page *page)
+ {
+ 	unsigned long flags;
+ 	struct zone *zone = page_zone(page);
+@@ -948,7 +947,7 @@ static void mem_cgroup_lru_del_before_co
+ 	spin_unlock_irqrestore(&zone->lru_lock, flags);
+ }
+ 
+-static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
++static void mem_cgroup_lru_add_after_commit(struct page *page)
+ {
+ 	unsigned long flags;
+ 	struct zone *zone = page_zone(page);
+@@ -2431,9 +2430,28 @@ static void
+ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
+ 					enum charge_type ctype);
+ 
++static void
++__mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *mem,
++					enum charge_type ctype)
++{
++	struct page_cgroup *pc = lookup_page_cgroup(page);
++	/*
++	 * In some case, SwapCache, FUSE(splice_buf->radixtree), the page
++	 * is already on LRU. It means the page may on some other page_cgroup's
++	 * LRU. Take care of it.
++	 */
++	if (unlikely(PageLRU(page)))
++		mem_cgroup_lru_del_before_commit(page);
++	__mem_cgroup_commit_charge(mem, page, 1, pc, ctype);
++	if (unlikely(PageLRU(page)))
++		mem_cgroup_lru_add_after_commit(page);
++	return;
++}
++
+ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 				gfp_t gfp_mask)
+ {
++	struct mem_cgroup *mem = NULL;
+ 	int ret;
+ 
+ 	if (mem_cgroup_disabled())
+@@ -2468,14 +2486,16 @@ int mem_cgroup_cache_charge(struct page 
+ 	if (unlikely(!mm))
+ 		mm = &init_mm;
+ 
+-	if (page_is_file_cache(page))
+-		return mem_cgroup_charge_common(page, mm, gfp_mask,
+-				MEM_CGROUP_CHARGE_TYPE_CACHE);
+-
++	if (page_is_file_cache(page)) {
++		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, &mem, true);
++		if (ret || !mem)
++			return ret;
++		__mem_cgroup_commit_charge_lrucare(page, mem,
++					MEM_CGROUP_CHARGE_TYPE_CACHE);
++		return ret;
++	}
+ 	/* shmem */
+ 	if (PageSwapCache(page)) {
+-		struct mem_cgroup *mem;
+-
+ 		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
+ 		if (!ret)
+ 			__mem_cgroup_commit_charge_swapin(page, mem,
+@@ -2532,17 +2552,13 @@ static void
+ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
+ 					enum charge_type ctype)
+ {
+-	struct page_cgroup *pc;
+-
+ 	if (mem_cgroup_disabled())
+ 		return;
+ 	if (!ptr)
+ 		return;
+ 	cgroup_exclude_rmdir(&ptr->css);
+-	pc = lookup_page_cgroup(page);
+-	mem_cgroup_lru_del_before_commit_swapcache(page);
+-	__mem_cgroup_commit_charge(ptr, page, 1, pc, ctype);
+-	mem_cgroup_lru_add_after_commit_swapcache(page);
++
++	__mem_cgroup_commit_charge_lrucare(page, ptr, ctype);
+ 	/*
+ 	 * Now swap is on-memory. This means this page may be
+ 	 * counted both as mem and swap....double count.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
