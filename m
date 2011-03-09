@@ -1,52 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CBB88D0039
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 01:20:21 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9A6733EE0BC
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:20:17 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8439545DE5B
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:20:17 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DB1A45DE58
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:20:17 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FF76E08002
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:20:17 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2992C1DB803A
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 15:20:17 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 5/6] proc: make check_mem_permission() return an mm_struct on success
-In-Reply-To: <1299631343-4499-6-git-send-email-wilsons@start.ca>
-References: <1299631343-4499-1-git-send-email-wilsons@start.ca> <1299631343-4499-6-git-send-email-wilsons@start.ca>
-Message-Id: <20110309151900.0403.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed,  9 Mar 2011 15:20:16 +0900 (JST)
+	by kanga.kvack.org (Postfix) with ESMTP id 975778D0039
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 01:34:47 -0500 (EST)
+Received: by iwl42 with SMTP id 42so289063iwl.14
+        for <linux-mm@kvack.org>; Tue, 08 Mar 2011 22:34:46 -0800 (PST)
+From: Namhyung Kim <namhyung@gmail.com>
+Subject: [PATCH] vmalloc: remove confusing comment on vwrite()
+Date: Wed,  9 Mar 2011 15:34:36 +0900
+Message-Id: <1299652476-5185-1-git-send-email-namhyung@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Wilson <wilsons@start.ca>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>, Roland McGrath <roland@redhat.com>, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> This change allows us to take advantage of access_remote_vm(), which in turn
-> enables a secure mem_write() implementation.
-> 
-> The previous implementation of mem_write() was insecure since the target task
-> could exec a setuid-root binary between the permission check and the actual
-> write.  Holding a reference to the target mm_struct eliminates this
-> vulnerability.
-> 
-> Signed-off-by: Stephen Wilson <wilsons@start.ca>
+KM_USER1 is never used for vwrite() path so the caller
+doesn't need to guarantee it is not used. Only the caller
+should guarantee is KM_USER0 and it is commented already.
 
-OK, I like this idea. So, I suppose you will resend newer version as applied Al's
-comment and I'll be able to ack this.
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Namhyung Kim <namhyung@gmail.com>
+---
+ mm/vmalloc.c |    2 --
+ 1 files changed, 0 insertions(+), 2 deletions(-)
 
-Thanks.
-
-
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index f9b166732e70..2828b6122bd4 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1951,8 +1951,6 @@ finished:
+  *	should know vmalloc() area is valid and can use memcpy().
+  *	This is for routines which have to access vmalloc area without
+  *	any informaion, as /dev/kmem.
+- *
+- *	The caller should guarantee KM_USER1 is not used.
+  */
+ 
+ long vwrite(char *buf, char *addr, unsigned long count)
+-- 
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
