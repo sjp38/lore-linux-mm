@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2D6B38D003E
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 19:43:47 -0500 (EST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id CF8308D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 19:44:17 -0500 (EST)
 From: Stephen Wilson <wilsons@start.ca>
-Subject: [PATCH 1/6] mm: use mm_struct to resolve gate vma's in __get_user_pages
-Date: Tue,  8 Mar 2011 19:42:18 -0500
-Message-Id: <1299631343-4499-2-git-send-email-wilsons@start.ca>
+Subject: [PATCH 3/6] mm: implement access_remote_vm
+Date: Tue,  8 Mar 2011 19:42:20 -0500
+Message-Id: <1299631343-4499-4-git-send-email-wilsons@start.ca>
 In-Reply-To: <1299631343-4499-1-git-send-email-wilsons@start.ca>
 References: <1299631343-4499-1-git-send-email-wilsons@start.ca>
 Sender: owner-linux-mm@kvack.org
@@ -13,59 +13,55 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Roland McGrath <roland@redhat.com>, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Stephen Wilson <wilsons@start.ca>
 
-We now check if a requested user page overlaps a gate vma using the supplied mm
-instead of the supplied task.  The given task is now used solely for accounting
-purposes and may be NULL.
+Provide an alternative to access_process_vm that allows the caller to obtain a
+reference to the supplied mm_struct.
 
 Signed-off-by: Stephen Wilson <wilsons@start.ca>
 ---
- mm/memory.c |   18 +++++++++++-------
- 1 files changed, 11 insertions(+), 7 deletions(-)
+ include/linux/mm.h |    2 ++
+ mm/memory.c        |   16 ++++++++++++++++
+ 2 files changed, 18 insertions(+), 0 deletions(-)
 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 694512d..e5fde8a 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -964,6 +964,8 @@ static inline int handle_mm_fault(struct mm_struct *mm,
+ 
+ extern int make_pages_present(unsigned long addr, unsigned long end);
+ extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len, int write);
++extern int access_remote_vm(struct mm_struct *mm, unsigned long addr,
++		void *buf, int len, int write);
+ 
+ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			unsigned long start, int nr_pages, int write, int force,
 diff --git a/mm/memory.c b/mm/memory.c
-index 3863e86..36445e3 100644
+index 68eec4f..c26e4f9 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -1437,9 +1437,9 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		struct vm_area_struct *vma;
+@@ -3654,6 +3654,22 @@ static int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
+ 	return buf - old_buf;
+ }
  
- 		vma = find_extend_vma(mm, start);
--		if (!vma && in_gate_area(tsk->mm, start)) {
-+		if (!vma && in_gate_area(mm, start)) {
- 			unsigned long pg = start & PAGE_MASK;
--			struct vm_area_struct *gate_vma = get_gate_vma(tsk->mm);
-+			struct vm_area_struct *gate_vma = get_gate_vma(mm);
- 			pgd_t *pgd;
- 			pud_t *pud;
- 			pmd_t *pmd;
-@@ -1533,10 +1533,13 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 						return i ? i : -EFAULT;
- 					BUG();
- 				}
--				if (ret & VM_FAULT_MAJOR)
--					tsk->maj_flt++;
--				else
--					tsk->min_flt++;
++/**
++ * @access_remote_vm - access another process' address space
++ * @mm:		the mm_struct of the target address space
++ * @addr:	start address to access
++ * @buf:	source or destination buffer
++ * @len:	number of bytes to transfer
++ * @write:	whether the access is a write
++ *
++ * The caller must hold a reference on @mm.
++ */
++int access_remote_vm(struct mm_struct *mm, unsigned long addr,
++		void *buf, int len, int write)
++{
++	return __access_remote_vm(NULL, mm, addr, buf, len, write);
++}
 +
-+				if (tsk) {
-+					if (ret & VM_FAULT_MAJOR)
-+						tsk->maj_flt++;
-+					else
-+						tsk->min_flt++;
-+				}
- 
- 				if (ret & VM_FAULT_RETRY) {
- 					*nonblocking = 0;
-@@ -1581,7 +1584,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 
- /**
-  * get_user_pages() - pin user pages in memory
-- * @tsk:	task_struct of target task
-+ * @tsk:	the task_struct to use for page fault accounting, or
-+ *		NULL if faults are not to be recorded.
-  * @mm:		mm_struct of target mm
-  * @start:	starting user address
-  * @nr_pages:	number of pages from start to pin
+ /*
+  * Access another process' address space.
+  * Source/target buffer must be kernel space,
 -- 
 1.7.3.5
 
