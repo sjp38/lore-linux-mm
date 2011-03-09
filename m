@@ -1,77 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0DCC68D0039
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 06:14:44 -0500 (EST)
-Date: Wed, 9 Mar 2011 12:06:06 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [patch] oom: prevent unnecessary oom kills or kernel panics
-Message-ID: <20110309110606.GA16719@redhat.com>
-References: <alpine.DEB.2.00.1103011108400.28110@chino.kir.corp.google.com> <20110303100030.B936.A69D9226@jp.fujitsu.com> <20110308134233.GA26884@redhat.com> <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F9548D0039
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 07:19:21 -0500 (EST)
+From: <johan.xx.mossberg@stericsson.com>
+Subject: [PATCHv2 0/3] hwmem: Hardware memory driver
+Date: Wed, 9 Mar 2011 13:18:50 +0100
+Message-ID: <1299673133-26464-1-git-send-email-johan.xx.mossberg@stericsson.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrey Vagin <avagin@openvz.org>
+To: johan.xx.mossberg@stericsson.com, linux-mm@kvack.org, linaro-dev@lists.linaro.org, linux-media@vger.kernel.org
+Cc: gstreamer-devel@lists.freedesktop.org, m.nazarewicz@samsung.com
 
-On 03/08, David Rientjes wrote:
->
-> On Tue, 8 Mar 2011, Oleg Nesterov wrote:
->
-> > > > By iterating over threads instead, it is possible to detect threads that
-> > > > are exiting and nominate them for oom kill so they get access to memory
-> > > > reserves.
-> > >
-> > > In fact, PF_EXITING is a sing of *THREAD* exiting, not process. Therefore
-> > > PF_EXITING is not a sign of memory freeing in nearly future. If other
-> > > CPUs don't try to free memory, prevent oom and waiting makes deadlock.
-> >
-> > I agree. I don't understand this patch.
-> >
->
-> Using for_each_process() does not consider threads that have failed to
-> exit after the oom killed parent and, thus, we select another innocent
-> task to kill when we're really just waiting for those threads to exit
+Hello everyone, 
 
-How so? select_bad_process() checks TIF_MEMDIE and returns ERR_PTR()
-if it is set.
+The following patchset implements a "hardware memory driver". The
+main purpose of hwmem is:
 
-And, exactly because we use for_each_process() we do not need to check
-other threads. The main thread can't disappear until they all exit.
+* To allocate buffers suitable for use with hardware. Currently
+this means contiguous buffers.
+* To synchronize the caches for the allocated buffers. This is
+achieved by keeping track of when the CPU uses a buffer and when
+other hardware uses the buffer, when we switch from CPU to other
+hardware or vice versa the caches are synchronized.
+* To handle sharing of allocated buffers between processes i.e.
+import, export.
 
-Imho TIF_MEMDIE is not perfect and should be replaced by MMF_, but this
-is another story. Hmm... and in any case, currently TIF_MEMDIE is not
-always used correctly, afaics.
+Hwmem is available both through a user space API and through a
+kernel API.
 
-> The end result is that without this patch, we sometimes unnecessarily
-> panic (and "sometimes" is defined as "many machines" for us) when nothing
-> else is eligible for kill within an oom cpuset yet doing a
-> do_each_thread() over that cpuset shows threads of previously oom killed
-> parent that have yet to exit.
->
-> > > > @@ -324,7 +324,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
-> > > >  		 * the process of exiting and releasing its resources.
-> > > >  		 * Otherwise we could get an easy OOM deadlock.
-> > > >  		 */
-> > > > -		if (thread_group_empty(p) && (p->flags & PF_EXITING) && p->mm) {
-> > > > +		if ((p->flags & PF_EXITING) && p->mm) {
-> >
-> > The previous check was not perfect, we know this.
-> >
-> > But with this patch applied, the simple program below disables oom-killer
-> > completely. select_bad_process() can never succeed.
-> >
->
-> The program illustrates a problem that shouldn't be fixed in
-> select_bad_process() but rather in oom_kill_process() when choosing an
-> eligible child of the selected task to kill in place of its parent.
+Here at ST-Ericsson we use hwmem for graphics buffers. Graphics
+buffers need to be contiguous due to our hardware, are passed
+between processes (usually application and window manager)and are
+part of usecases where performance is top priority so we can't
+afford to synchronize the caches unecessarily.
 
-Can't understand. oom_kill_process() is never called exactly because
-select_bad_process() is fooled.
+Additions in v2:
+* Bugfixes
+* Added the possibility to map hwmem buffers in the kernel through
+hwmem_kmap/kunmap
+* Moved mach specific stuff to mach.
 
-Oleg.
+Best regards
+Johan Mossberg
+Consultant at ST-Ericsson
+
+Johan Mossberg (3):
+  hwmem: Add hwmem (part 1)
+  hwmem: Add hwmem (part 2)
+  hwmem: Add hwmem to ux500
+
+ arch/arm/mach-ux500/Makefile               |    2 +-
+ arch/arm/mach-ux500/board-mop500.c         |    1 +
+ arch/arm/mach-ux500/dcache.c               |  266 +++++++++
+ arch/arm/mach-ux500/devices.c              |   31 ++
+ arch/arm/mach-ux500/include/mach/dcache.h  |   26 +
+ arch/arm/mach-ux500/include/mach/devices.h |    1 +
+ drivers/misc/Kconfig                       |    1 +
+ drivers/misc/Makefile                      |    1 +
+ drivers/misc/hwmem/Kconfig                 |    7 +
+ drivers/misc/hwmem/Makefile                |    3 +
+ drivers/misc/hwmem/cache_handler.c         |  510 ++++++++++++++++++
+ drivers/misc/hwmem/cache_handler.h         |   61 +++
+ drivers/misc/hwmem/hwmem-ioctl.c           |  455 ++++++++++++++++
+ drivers/misc/hwmem/hwmem-main.c            |  799 ++++++++++++++++++++++++++++
+ include/linux/hwmem.h                      |  536 +++++++++++++++++++
+ 15 files changed, 2699 insertions(+), 1 deletions(-)
+ create mode 100644 arch/arm/mach-ux500/dcache.c
+ create mode 100644 arch/arm/mach-ux500/include/mach/dcache.h
+ create mode 100644 drivers/misc/hwmem/Kconfig
+ create mode 100644 drivers/misc/hwmem/Makefile
+ create mode 100644 drivers/misc/hwmem/cache_handler.c
+ create mode 100644 drivers/misc/hwmem/cache_handler.h
+ create mode 100644 drivers/misc/hwmem/hwmem-ioctl.c
+ create mode 100644 drivers/misc/hwmem/hwmem-main.c
+ create mode 100644 include/linux/hwmem.h
+
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
