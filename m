@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3B6668D0039
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 19:44:53 -0500 (EST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id EF63E8D0039
+	for <linux-mm@kvack.org>; Tue,  8 Mar 2011 19:45:16 -0500 (EST)
 From: Stephen Wilson <wilsons@start.ca>
-Subject: [PATCH 6/6] proc: enable writing to /proc/pid/mem
-Date: Tue,  8 Mar 2011 19:42:23 -0500
-Message-Id: <1299631343-4499-7-git-send-email-wilsons@start.ca>
+Subject: [PATCH 4/6] proc: disable mem_write after exec
+Date: Tue,  8 Mar 2011 19:42:21 -0500
+Message-Id: <1299631343-4499-5-git-send-email-wilsons@start.ca>
 In-Reply-To: <1299631343-4499-1-git-send-email-wilsons@start.ca>
 References: <1299631343-4499-1-git-send-email-wilsons@start.ca>
 Sender: owner-linux-mm@kvack.org
@@ -13,37 +13,31 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Roland McGrath <roland@redhat.com>, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Stephen Wilson <wilsons@start.ca>
 
-With recent changes there is no longer a security hazard with writing to
-/proc/pid/mem.  Remove the #ifdef.
+This change makes mem_write() observe the same constraints as mem_read().  This
+is particularly important for mem_write as an accidental leak of the fd across
+an exec could result in arbitrary modification of the target process' memory.
+IOW, /proc/pid/mem is implicitly close-on-exec.
 
 Signed-off-by: Stephen Wilson <wilsons@start.ca>
 ---
- fs/proc/base.c |    5 -----
- 1 files changed, 0 insertions(+), 5 deletions(-)
+ fs/proc/base.c |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
 
 diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 5ffc927..41d9c46 100644
+index 9d096e8..e52702d 100644
 --- a/fs/proc/base.c
 +++ b/fs/proc/base.c
-@@ -833,10 +833,6 @@ out_no_task:
- 	return ret;
- }
+@@ -848,6 +848,10 @@ static ssize_t mem_write(struct file * file, const char __user *buf,
+ 	if (check_mem_permission(task))
+ 		goto out;
  
--#define mem_write NULL
--
--#ifndef mem_write
--/* This is a security hazard */
- static ssize_t mem_write(struct file * file, const char __user *buf,
- 			 size_t count, loff_t *ppos)
- {
-@@ -894,7 +890,6 @@ out:
- out_no_task:
- 	return copied;
- }
--#endif
- 
- loff_t mem_lseek(struct file *file, loff_t offset, int orig)
- {
++	copied = -EIO;
++	if (file->private_data != (void *)((long)current->self_exec_id))
++		goto out;
++
+ 	copied = -ENOMEM;
+ 	page = (char *)__get_free_page(GFP_TEMPORARY);
+ 	if (!page)
 -- 
 1.7.3.5
 
