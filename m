@@ -1,50 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E06888D0039
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 16:20:35 -0500 (EST)
-Subject: Re: [PATCH/v2] mm/memblock: Properly handle overlaps and fix error
- path
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <4D77E5E0.6010706@kernel.org>
-References: <1299466980.8833.973.camel@pasglop>
-	 <4D77E5E0.6010706@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 10 Mar 2011 08:20:10 +1100
-Message-ID: <1299705610.22236.390.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id ACE538D0039
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 16:24:29 -0500 (EST)
+Received: from kpbe18.cbf.corp.google.com (kpbe18.cbf.corp.google.com [172.25.105.82])
+	by smtp-out.google.com with ESMTP id p29LOHMq007574
+	for <linux-mm@kvack.org>; Wed, 9 Mar 2011 13:24:26 -0800
+Received: from gwaa18 (gwaa18.prod.google.com [10.200.27.18])
+	by kpbe18.cbf.corp.google.com with ESMTP id p29LCEBe013411
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 9 Mar 2011 13:13:14 -0800
+Received: by gwaa18 with SMTP id a18so214283gwa.5
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2011 13:13:14 -0800 (PST)
+Date: Wed, 9 Mar 2011 13:12:53 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] memcg: add oom killer delay
+In-Reply-To: <20110309161621.f890c148.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1103091307370.15068@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1102071623040.10488@chino.kir.corp.google.com> <20110307165119.436f5d21.akpm@linux-foundation.org> <alpine.DEB.2.00.1103071657090.24549@chino.kir.corp.google.com> <20110307171853.c31ec416.akpm@linux-foundation.org>
+ <alpine.DEB.2.00.1103071721330.25197@chino.kir.corp.google.com> <20110308115108.36b184c5.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1103071905400.1640@chino.kir.corp.google.com> <20110308121332.de003f81.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1103071954550.2883@chino.kir.corp.google.com> <20110308131723.e434cb89.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1103072126590.4593@chino.kir.corp.google.com> <20110308144901.fe34abd0.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1103081540320.27910@chino.kir.corp.google.com> <20110309150452.29883939.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1103082239340.15665@chino.kir.corp.google.com> <20110309161621.f890c148.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Russell King <linux@arm.linux.org.uk>, David Miller <davem@davemloft.net>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
 
-On Wed, 2011-03-09 at 12:41 -0800, Yinghai Lu wrote:
-> > Hopefully not damaged with a spurious bit of email header this
-> > time around... sorry about that.
+On Wed, 9 Mar 2011, KAMEZAWA Hiroyuki wrote:
+
+> For me, I want an oom-killall module Or oom-SIGSTOP-all module.
+> oom-killall will be useful for killing fork-bombs and very quick recovery.
 > 
-> works on my setups...
+
+That doesn't need to be in kernelspace, though, the global oom killer will 
+give access to memory reserves to any task that invokes it that has a 
+pending SIGKILL, so we could extend that to the memcg oom killer as well 
+and then use an oom notifier to trigger a killall in userspace.
+
+> For me, the 1st motivation of oom-disable is to taking core-dump of 
+> memory leaking process and look into it for checking memory leak.
+> (panic_on_oom -> kdump is used for supporting my customer.)
 > 
-> [    0.000000] Subtract (26 early reservations)
-> [    0.000000]   [000009a000-000009efff]
-> [    0.000000]   [000009f400-00000fffff]
-> [    0.000000]   [0001000000-0003495048]
-> ...
-> before:
-> [    0.000000] Subtract (27 early reservations)
-> [    0.000000]   [000009a000-000009efff]
-> [    0.000000]   [000009f400-00000fffff]
-> [    0.000000]   [00000f85b0-00000f86b3]
-> [    0.000000]   [0001000000-0003495048] 
 
-Ah interesting, so you did have a case of overlap that wasn't properly
-handled as well.
+I remember your advocacy of panic_on_oom during the oom killer rewrite 
+discussion, this makes it more clear.
 
-If there is no objection, I'll queue that up in powerpc-next for the
-upcoming merge window (soon now).
+> Anyway, if you add notifier, please give us a user of it. If possible,
+> it should be a function which can never be implemented in userland even
+> with sane programmers, admins, and users.
+> 
+> For example, if all process's oom_score_adj was set to -1000 and oom-killer
+> doesn't work, do you implement a timeout ? I think you'll say it's a
+> wrong configuration. memcg's oom_disable timeout is the same thing.
+> 
 
-Cheers,
-Ben.
-
+You know me quite well, actually :)  We've agreed to drop this patch and 
+carry it internally until we can deprecate it and implement a separate oom 
+handling thread in the root memcg that will detect the situation for a 
+given period of time (either via an oom notifier or by checking that the 
+usage of the memcg of interest equals to the limit) and then do the 
+killall.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
