@@ -1,45 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CF21E8D0039
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 09:38:50 -0500 (EST)
-Date: Wed, 9 Mar 2011 16:36:35 +0200 (EET)
-From: Aaro Koskinen <aaro.koskinen@nokia.com>
-Subject: Re: [PATCHv2] procfs: fix /proc/<pid>/maps heap check
-In-Reply-To: <20110307150756.d50635f1.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.1.10.1103091631280.23039@esdhcp041196.research.nokia.com>
-References: <1299244994-5284-1-git-send-email-aaro.koskinen@nokia.com> <20110307150756.d50635f1.akpm@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 5E46F8D0039
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 10:16:09 -0500 (EST)
+Received: by yxt33 with SMTP id 33so352738yxt.14
+        for <linux-mm@kvack.org>; Wed, 09 Mar 2011 07:16:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+In-Reply-To: <20110302180259.109909335@chello.nl>
+References: <20110302175928.022902359@chello.nl>
+	<20110302180259.109909335@chello.nl>
+Date: Wed, 9 Mar 2011 15:16:07 +0000
+Message-ID: <AANLkTimbRS++SCcKGrUcL5xKsCO+1ygkg+83x7F+2S4i@mail.gmail.com>
+Subject: Re: [RFC][PATCH 4/6] arm, mm: Convert arm to generic tlb
+From: Catalin Marinas <catalin.marinas@arm.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Aaro Koskinen <aaro.koskinen@nokia.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, stable@kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@kernel.dk>, Russell King <rmk@arm.linux.org.uk>, Chris Metcalf <cmetcalf@tilera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-Hi,
+Hi Peter,
 
-On Mon, 7 Mar 2011, Andrew Morton wrote:
-> On Fri,  4 Mar 2011 15:23:14 +0200
-> Aaro Koskinen <aaro.koskinen@nokia.com> wrote:
->
->> The current code fails to print the "[heap]" marking if the heap is
->> splitted into multiple mappings.
->>
->> Fix the check so that the marking is displayed in all possible cases:
->> 	1. vma matches exactly the heap
->> 	2. the heap vma is merged e.g. with bss
->> 	3. the heap vma is splitted e.g. due to locked pages
->>
->> Signed-off-by: Aaro Koskinen <aaro.koskinen@nokia.com>
->> Cc: stable@kernel.org
->
-> Why do you believe this problem is serious enough to justify
-> backporting the fix into -stable?
+On 2 March 2011 17:59, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> --- linux-2.6.orig/arch/arm/include/asm/tlb.h
+> +++ linux-2.6/arch/arm/include/asm/tlb.h
+[...]
+> +__pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte, unsigned long addr=
+)
+> =C2=A0{
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0pgtable_page_dtor(pte);
+> - =C2=A0 =C2=A0 =C2=A0 tlb_add_flush(tlb, addr);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0tlb_remove_page(tlb, pte);
+> =C2=A0}
 
-My bad analysis. It looks like the bug has been there forever, and
-since it only results in some information missing from a procfile,
-it does not fulfil the stable "critical issue" criteria.
+I think we still need a tlb_track_range() call here. On the path to
+pte_free_tlb() (for example shift_arg_pages ... free_pte_range) there
+doesn't seem to be any code setting the tlb->start/end range. Did I
+miss anything?
 
-A.
+Thanks.
+
+--=20
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
