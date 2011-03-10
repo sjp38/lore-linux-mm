@@ -1,99 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 662808D0047
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 01:58:31 -0500 (EST)
-Received: by iwl42 with SMTP id 42so1723562iwl.14
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2011 22:58:29 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id C24578D0047
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 02:20:17 -0500 (EST)
+Message-ID: <4D787C0C.7040707@cn.fujitsu.com>
+Date: Thu, 10 Mar 2011 15:21:48 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20110309143704.194e8ee1.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1299325456-2687-1-git-send-email-avagin@openvz.org>
-	<20110305152056.GA1918@barrios-desktop>
-	<4D72580D.4000208@gmail.com>
-	<20110305155316.GB1918@barrios-desktop>
-	<4D7267B6.6020406@gmail.com>
-	<20110305170759.GC1918@barrios-desktop>
-	<20110307135831.9e0d7eaa.akpm@linux-foundation.org>
-	<AANLkTinDhorLusBju=Gn3bh1VsH1jrv0qixbU3SGWiqa@mail.gmail.com>
-	<20110309143704.194e8ee1.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 10 Mar 2011 15:58:29 +0900
-Message-ID: <AANLkTi=q=YMrT7Uta+wGm47VZ5N6meybAQTgjKGsDWFw@mail.gmail.com>
-Subject: Re: [PATCH] mm: check zone->all_unreclaimable in all_unreclaimable()
-From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH 1/3 V2] slub: automatically reserve bytes at the end of slab
+References: <4D6CA843.3090103@cn.fujitsu.com>
+In-Reply-To: <4D6CA843.3090103@cn.fujitsu.com>
+Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrew Vagin <avagin@gmail.com>, Andrey Vagin <avagin@openvz.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux-foundation.org>, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 
-Hi Kame,
+There is no "struct" for slub's slab, it shares with struct page.
+But struct page is very small, it is insufficient when we need
+to add some metadata for slab.
 
-Sorry for late response.
-I had a time to test this issue shortly because these day I am very busy.
-This issue was interesting to me.
-So I hope taking a time for enough testing when I have a time.
-I should find out root cause of livelock.
+So we add a field "reserved" to struct kmem_cache, when a slab
+is allocated, kmem_cache->reserved bytes are automatically reserved
+at the end of the slab for slab's metadata.
 
-I will answer your comment after it. :)
-Thanks!
+Changed from v1:
+	Export the reserved field via sysfs
 
-On Wed, Mar 9, 2011 at 2:37 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Tue, 8 Mar 2011 08:45:51 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
->
->> On Tue, Mar 8, 2011 at 6:58 AM, Andrew Morton <akpm@linux-foundation.org=
-> wrote:
->> > On Sun, 6 Mar 2011 02:07:59 +0900
->> > Minchan Kim <minchan.kim@gmail.com> wrote:
->> > Any alternative proposals? =C2=A0We should get the livelock fixed if p=
-ossible..
->> >
->>
->> And we should avoid unnecessary OOM kill if possible.
->>
->> I think the problem is caused by (zone->pages_scanned <
->> zone_reclaimable_pages(zone) * 6). I am not sure (* 6) is a best. It
->> would be rather big on recent big DRAM machines.
->>
->
-> It means 3 times full-scan from the highest priority to the lowest
-> and cannot freed any pages. I think big memory machine tend to have
-> more cpus, so don't think it's big.
->
->> I think it is a trade-off between latency and OOM kill.
->> If we decrease the magic value, maybe we should prevent the almost
->> livelock but happens unnecessary OOM kill.
->>
->
-> Hmm, should I support a sacrifice feature 'some signal(SIGINT?) will be s=
-ent by
-> the kernel when it detects system memory is in short' in cgroup ?
-> (For example, if full LRU scan is done in a zone, notifier
-> =C2=A0works and SIGINT will be sent.)
->
->> And I think zone_reclaimable not fair.
->> For example, too many scanning makes reclaimable state to
->> unreclaimable state. Maybe it takes a very long time. But just some
->> page free makes unreclaimable state to reclaimabe with very easy. So
->> we need much painful reclaiming for changing reclaimable state with
->> unreclaimabe state. it would affect latency very much.
->>
->> Maybe we need more smart zone_reclaimabe which is adaptive with memory p=
-ressure.
->>
-> I agree.
->
-> Thanks,
-> -Kame
->
->
+Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+---
+ include/linux/slub_def.h |    1 +
+ mm/slub.c                |   47 +++++++++++++++++++++++++++++----------------
+ 2 files changed, 31 insertions(+), 17 deletions(-)
 
-
-
---=20
-Kind regards,
-Minchan Kim
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 8b6e8ae..ae0093c 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -83,6 +83,7 @@ struct kmem_cache {
+ 	void (*ctor)(void *);
+ 	int inuse;		/* Offset to metadata */
+ 	int align;		/* Alignment */
++	int reserved;		/* Reserved bytes at the end of slabs */
+ 	unsigned long min_partial;
+ 	const char *name;	/* Name (only for display!) */
+ 	struct list_head list;	/* List of slab caches */
+diff --git a/mm/slub.c b/mm/slub.c
+index e15aa7f..d3d1767 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -281,11 +281,16 @@ static inline int slab_index(void *p, struct kmem_cache *s, void *addr)
+ 	return (p - addr) / s->size;
+ }
+ 
++static inline int order_objects(int order, unsigned long size, int reserved)
++{
++	return ((PAGE_SIZE << order) - reserved) / size;
++}
++
+ static inline struct kmem_cache_order_objects oo_make(int order,
+-						unsigned long size)
++		unsigned long size, int reserved)
+ {
+ 	struct kmem_cache_order_objects x = {
+-		(order << OO_SHIFT) + (PAGE_SIZE << order) / size
++		(order << OO_SHIFT) + order_objects(order, size, reserved)
+ 	};
+ 
+ 	return x;
+@@ -617,7 +622,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
+ 		return 1;
+ 
+ 	start = page_address(page);
+-	length = (PAGE_SIZE << compound_order(page));
++	length = (PAGE_SIZE << compound_order(page)) - s->reserved;
+ 	end = start + length;
+ 	remainder = length % s->size;
+ 	if (!remainder)
+@@ -698,7 +703,7 @@ static int check_slab(struct kmem_cache *s, struct page *page)
+ 		return 0;
+ 	}
+ 
+-	maxobj = (PAGE_SIZE << compound_order(page)) / s->size;
++	maxobj = order_objects(compound_order(page), s->size, s->reserved);
+ 	if (page->objects > maxobj) {
+ 		slab_err(s, page, "objects %u > max %u",
+ 			s->name, page->objects, maxobj);
+@@ -748,7 +753,7 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
+ 		nr++;
+ 	}
+ 
+-	max_objects = (PAGE_SIZE << compound_order(page)) / s->size;
++	max_objects = order_objects(compound_order(page), s->size, s->reserved);
+ 	if (max_objects > MAX_OBJS_PER_PAGE)
+ 		max_objects = MAX_OBJS_PER_PAGE;
+ 
+@@ -1988,13 +1993,13 @@ static int slub_nomerge;
+  * the smallest order which will fit the object.
+  */
+ static inline int slab_order(int size, int min_objects,
+-				int max_order, int fract_leftover)
++				int max_order, int fract_leftover, int reserved)
+ {
+ 	int order;
+ 	int rem;
+ 	int min_order = slub_min_order;
+ 
+-	if ((PAGE_SIZE << min_order) / size > MAX_OBJS_PER_PAGE)
++	if (order_objects(min_order, size, reserved) > MAX_OBJS_PER_PAGE)
+ 		return get_order(size * MAX_OBJS_PER_PAGE) - 1;
+ 
+ 	for (order = max(min_order,
+@@ -2003,10 +2008,10 @@ static inline int slab_order(int size, int min_objects,
+ 
+ 		unsigned long slab_size = PAGE_SIZE << order;
+ 
+-		if (slab_size < min_objects * size)
++		if (slab_size < min_objects * size + reserved)
+ 			continue;
+ 
+-		rem = slab_size % size;
++		rem = (slab_size - reserved) % size;
+ 
+ 		if (rem <= slab_size / fract_leftover)
+ 			break;
+@@ -2016,7 +2021,7 @@ static inline int slab_order(int size, int min_objects,
+ 	return order;
+ }
+ 
+-static inline int calculate_order(int size)
++static inline int calculate_order(int size, int reserved)
+ {
+ 	int order;
+ 	int min_objects;
+@@ -2034,14 +2039,14 @@ static inline int calculate_order(int size)
+ 	min_objects = slub_min_objects;
+ 	if (!min_objects)
+ 		min_objects = 4 * (fls(nr_cpu_ids) + 1);
+-	max_objects = (PAGE_SIZE << slub_max_order)/size;
++	max_objects = order_objects(slub_max_order, size, reserved);
+ 	min_objects = min(min_objects, max_objects);
+ 
+ 	while (min_objects > 1) {
+ 		fraction = 16;
+ 		while (fraction >= 4) {
+ 			order = slab_order(size, min_objects,
+-						slub_max_order, fraction);
++					slub_max_order, fraction, reserved);
+ 			if (order <= slub_max_order)
+ 				return order;
+ 			fraction /= 2;
+@@ -2053,14 +2058,14 @@ static inline int calculate_order(int size)
+ 	 * We were unable to place multiple objects in a slab. Now
+ 	 * lets see if we can place a single object there.
+ 	 */
+-	order = slab_order(size, 1, slub_max_order, 1);
++	order = slab_order(size, 1, slub_max_order, 1, reserved);
+ 	if (order <= slub_max_order)
+ 		return order;
+ 
+ 	/*
+ 	 * Doh this slab cannot be placed using slub_max_order.
+ 	 */
+-	order = slab_order(size, 1, MAX_ORDER, 1);
++	order = slab_order(size, 1, MAX_ORDER, 1, reserved);
+ 	if (order < MAX_ORDER)
+ 		return order;
+ 	return -ENOSYS;
+@@ -2311,7 +2316,7 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
+ 	if (forced_order >= 0)
+ 		order = forced_order;
+ 	else
+-		order = calculate_order(size);
++		order = calculate_order(size, s->reserved);
+ 
+ 	if (order < 0)
+ 		return 0;
+@@ -2329,8 +2334,8 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
+ 	/*
+ 	 * Determine the number of objects per slab
+ 	 */
+-	s->oo = oo_make(order, size);
+-	s->min = oo_make(get_order(size), size);
++	s->oo = oo_make(order, size, s->reserved);
++	s->min = oo_make(get_order(size), size, s->reserved);
+ 	if (oo_objects(s->oo) > oo_objects(s->max))
+ 		s->max = s->oo;
+ 
+@@ -2349,6 +2354,7 @@ static int kmem_cache_open(struct kmem_cache *s,
+ 	s->objsize = size;
+ 	s->align = align;
+ 	s->flags = kmem_cache_flags(size, flags, name, ctor);
++	s->reserved = 0;
+ 
+ 	if (!calculate_sizes(s, -1))
+ 		goto error;
+@@ -4017,6 +4023,12 @@ static ssize_t destroy_by_rcu_show(struct kmem_cache *s, char *buf)
+ }
+ SLAB_ATTR_RO(destroy_by_rcu);
+ 
++static ssize_t reserved_show(struct kmem_cache *s, char *buf)
++{
++	return sprintf(buf, "%d\n", s->reserved);
++}
++SLAB_ATTR_RO(reserved);
++
+ #ifdef CONFIG_SLUB_DEBUG
+ static ssize_t slabs_show(struct kmem_cache *s, char *buf)
+ {
+@@ -4303,6 +4315,7 @@ static struct attribute *slab_attrs[] = {
+ 	&reclaim_account_attr.attr,
+ 	&destroy_by_rcu_attr.attr,
+ 	&shrink_attr.attr,
++	&reserved_attr.attr,
+ #ifdef CONFIG_SLUB_DEBUG
+ 	&total_objects_attr.attr,
+ 	&slabs_attr.attr,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
