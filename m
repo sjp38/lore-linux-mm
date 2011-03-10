@@ -1,91 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 049CC8D0047
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 02:20:58 -0500 (EST)
-Message-ID: <4D787C30.1020407@cn.fujitsu.com>
-Date: Thu, 10 Mar 2011 15:22:24 +0800
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 38BE28D0047
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 02:37:55 -0500 (EST)
+Date: Thu, 10 Mar 2011 02:37:51 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] xfs: flush vmap aliases when mapping fails
+Message-ID: <20110310073751.GB25374@infradead.org>
+References: <1299713876-7747-1-git-send-email-david@fromorbit.com>
 MIME-Version: 1.0
-Subject: [PATCH 3/3 V2] slab,rcu: don't assume the size of struct rcu_head
-References: <4D6CA843.3090103@cn.fujitsu.com>
-In-Reply-To: <4D6CA843.3090103@cn.fujitsu.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1299713876-7747-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux-foundation.org>, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: xfs@oss.sgi.com, npiggin@kernel.dk, linux-mm@kvack.org
 
-The size of struct rcu_head may be changed. When it becomes larger,
-it may pollute the data after struct slab.
+On Thu, Mar 10, 2011 at 10:37:56AM +1100, Dave Chinner wrote:
+> From: Dave Chinner <dchinner@redhat.com>
+> 
+> On 32 bit systems, vmalloc space is limited and XFS can chew through
+> it quickly as the vmalloc space is lazily freed. This can result in
+> failure to map buffers, even when there is apparently large amounts
+> of vmalloc space available. Hence, if we fail to map a buffer, purge
+> the aliases that have not yet been freed to hopefuly free up enough
+> vmalloc space to allow a retry to succeed.
 
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
----
-diff --git a/mm/slab.c b/mm/slab.c
-index 37961d1..52cf0b4 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -191,22 +191,6 @@ typedef unsigned int kmem_bufctl_t;
- #define	SLAB_LIMIT	(((kmem_bufctl_t)(~0U))-3)
- 
- /*
-- * struct slab
-- *
-- * Manages the objs in a slab. Placed either at the beginning of mem allocated
-- * for a slab, or allocated from an general cache.
-- * Slabs are chained into three list: fully used, partial, fully free slabs.
-- */
--struct slab {
--	struct list_head list;
--	unsigned long colouroff;
--	void *s_mem;		/* including colour offset */
--	unsigned int inuse;	/* num of objs active in slab */
--	kmem_bufctl_t free;
--	unsigned short nodeid;
--};
--
--/*
-  * struct slab_rcu
-  *
-  * slab_destroy on a SLAB_DESTROY_BY_RCU cache uses this structure to
-@@ -219,8 +203,6 @@ struct slab {
-  *
-  * rcu_read_lock before reading the address, then rcu_read_unlock after
-  * taking the spinlock within the structure expected at that address.
-- *
-- * We assume struct slab_rcu can overlay struct slab when destroying.
-  */
- struct slab_rcu {
- 	struct rcu_head head;
-@@ -229,6 +211,27 @@ struct slab_rcu {
- };
- 
- /*
-+ * struct slab
-+ *
-+ * Manages the objs in a slab. Placed either at the beginning of mem allocated
-+ * for a slab, or allocated from an general cache.
-+ * Slabs are chained into three list: fully used, partial, fully free slabs.
-+ */
-+struct slab {
-+	union {
-+		struct {
-+			struct list_head list;
-+			unsigned long colouroff;
-+			void *s_mem;		/* including colour offset */
-+			unsigned int inuse;	/* num of objs active in slab */
-+			kmem_bufctl_t free;
-+			unsigned short nodeid;
-+		};
-+		struct slab_rcu __slab_cover_slab_rcu;
-+	};
-+};
-+
-+/*
-  * struct array_cache
-  *
-  * Purpose:
---
+IMHO this should be done by vm_map_ram internally.  If we can't get the
+core code fixes we can put this in as a last resort.
+
+> 
+> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> ---
+>  fs/xfs/linux-2.6/xfs_buf.c |   14 +++++++++++---
+>  1 files changed, 11 insertions(+), 3 deletions(-)
+> 
+> diff --git a/fs/xfs/linux-2.6/xfs_buf.c b/fs/xfs/linux-2.6/xfs_buf.c
+> index 3cc671c..a5a260f 100644
+> --- a/fs/xfs/linux-2.6/xfs_buf.c
+> +++ b/fs/xfs/linux-2.6/xfs_buf.c
+> @@ -455,9 +455,17 @@ _xfs_buf_map_pages(
+>  		bp->b_addr = page_address(bp->b_pages[0]) + bp->b_offset;
+>  		bp->b_flags |= XBF_MAPPED;
+>  	} else if (flags & XBF_MAPPED) {
+> -		bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
+> -					-1, PAGE_KERNEL);
+> -		if (unlikely(bp->b_addr == NULL))
+> +		int retried = 0;
+> +
+> +		do {
+> +			bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
+> +						-1, PAGE_KERNEL);
+> +			if (bp->b_addr)
+> +				break;
+> +			vm_unmap_aliases();
+> +		} while (retried++ <= 1);
+> +
+> +		if (!bp->b_addr)
+>  			return -ENOMEM;
+>  		bp->b_addr += bp->b_offset;
+>  		bp->b_flags |= XBF_MAPPED;
+> -- 
+> 1.7.2.3
+> 
+> _______________________________________________
+> xfs mailing list
+> xfs@oss.sgi.com
+> http://oss.sgi.com/mailman/listinfo/xfs
+---end quoted text---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
