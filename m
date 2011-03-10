@@ -1,60 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 9E1608D003A
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 17:49:50 -0500 (EST)
-Date: Fri, 11 Mar 2011 09:49:45 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] xfs: flush vmap aliases when mapping fails
-Message-ID: <20110310224945.GA15097@dastard>
-References: <1299713876-7747-1-git-send-email-david@fromorbit.com>
- <20110310073751.GB25374@infradead.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id ED6578D003A
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 18:20:47 -0500 (EST)
+Message-ID: <4D795C9A.1040509@redhat.com>
+Date: Thu, 10 Mar 2011 18:19:54 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110310073751.GB25374@infradead.org>
+Subject: Re: [PATCH] arch/tile: optimize icache flush
+References: <201103102125.p2ALPupL017020@farm-0012.internal.tilera.com>
+In-Reply-To: <201103102125.p2ALPupL017020@farm-0012.internal.tilera.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: xfs@oss.sgi.com, npiggin@kernel.dk, linux-mm@kvack.org
+To: Chris Metcalf <cmetcalf@tilera.com>
+Cc: linux-kernel@vger.kernel.org, a.p.zijlstra@chello.nl, torvalds@linux-foundation.org, aarcange@redhat.com, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, "David Miller <davem@davemloft.net>" <linux-arch@vger.kernel.org>, linux-mm@kvack.org, benh@kernel.crashing.org, hugh.dickins@tiscali.co.uk, mel@csn.ul.ie, npiggin@kernel.dk, rmk@arm.linux.org.uk, schwidefsky@de.ibm.com
 
-On Thu, Mar 10, 2011 at 02:37:51AM -0500, Christoph Hellwig wrote:
-> On Thu, Mar 10, 2011 at 10:37:56AM +1100, Dave Chinner wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> > 
-> > On 32 bit systems, vmalloc space is limited and XFS can chew through
-> > it quickly as the vmalloc space is lazily freed. This can result in
-> > failure to map buffers, even when there is apparently large amounts
-> > of vmalloc space available. Hence, if we fail to map a buffer, purge
-> > the aliases that have not yet been freed to hopefuly free up enough
-> > vmalloc space to allow a retry to succeed.
-> 
-> IMHO this should be done by vm_map_ram internally.  If we can't get the
-> core code fixes we can put this in as a last resort.
+On 03/10/2011 01:05 PM, Chris Metcalf wrote:
+> Tile has incoherent icaches, so they must be explicitly invalidated
+> when necessary.  Until now we have done so at tlb flush and context
+> switch time, which means more invalidation than strictly necessary.
+> The new model for icache flush is:
+>
+> - When we fault in a page as executable, we set an "Exec" bit in the
+>    "struct page" information; the bit stays set until page free time.
+>    (We use the arch_1 page bit for our "Exec" bit.)
+>
+> - At page free time, if the Exec bit is set, we do an icache flush.
+>    This should happen relatively rarely: e.g., deleting a binary from disk,
+>    or evicting a binary's pages from the page cache due to memory pressure.
+>
+> Signed-off-by: Chris Metcalf<cmetcalf@tilera.com>
 
-OK. The patch was done as part of the triage for this bug:
+Nice trick.
 
-https://bugzilla.kernel.org/show_bug.cgi?id=27492
+Acked-by: Rik van Riel <riel@redhat.com>
 
-where the vmalloc space on 32 bit systems is getting exhausted. I
-can easily move this flush-and-retry into the vmap code.
-
-FWIW, while the VM folk might be paying attention about vmap realted
-stuff, this vmap BUG() also needs triage:
-
-https://bugzilla.kernel.org/show_bug.cgi?id=27002
-
-And, finally, the mm-vmap-area-cache.patch in the current mmotm also
-needs to be pushed forward because we've been getting reports of
-excessive CPU time being spent walking the vmap area rbtree during
-vm_map_ram operations and this patch supposedly fixes that
-problem....
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
