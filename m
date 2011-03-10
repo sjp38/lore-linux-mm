@@ -1,79 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 10E3A8D0039
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 12:27:54 -0500 (EST)
-Date: Thu, 10 Mar 2011 18:19:14 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH v2 1/1] select_bad_process: improve the PF_EXITING check
-Message-ID: <20110310171914.GB2687@redhat.com>
-References: <20110303100030.B936.A69D9226@jp.fujitsu.com> <20110308134233.GA26884@redhat.com> <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com> <20110309110606.GA16719@redhat.com> <alpine.DEB.2.00.1103091222420.13353@chino.kir.corp.google.com> <20110310120519.GA18415@redhat.com> <20110310154032.GA29044@redhat.com> <20110310163652.GA345@redhat.com> <20110310164000.GC345@redhat.com> <20110310171852.GA2687@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 84B4A8D003A
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 14:13:06 -0500 (EST)
+Date: Thu, 10 Mar 2011 13:13:02 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: COW userspace memory mapping question
+In-Reply-To: <056c7b49e7540a910b8a4f664415e638@anilinux.org>
+Message-ID: <alpine.DEB.2.00.1103101309090.2161@router.home>
+References: <056c7b49e7540a910b8a4f664415e638@anilinux.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110310171852.GA2687@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrey Vagin <avagin@openvz.org>
+To: Mordae <mordae@anilinux.org>
+Cc: linux-mm@kvack.org
 
-The current PF_EXITING check in select_bad_process() is very limited,
-it only works if the task is single-threaded.
+On Tue, 8 Mar 2011, Mordae wrote:
 
-Add the new helper which tries to handle the mt case. It is not exactly
-clear what should we actually check in this case. This patch checks
-PF_EXITING, but perhaps we can take signal_group_exit() into account.
-In this case select_bad_process() could detect the exiting process even
-before every thread calls exit().
+> first let me apologize if I've picked a wrong address.
 
-Note:
+Its probably more an issue of us understanding what you want.
 
-	- "if (p != current)" check is obviously wrong in mt case too.
+> Question: Is it possible to create a copy-on-write copy
+>           of a MAP_PRIVATE|MAP_ANONYMOUS memory mapping
+>           in the user space? Effectively a snapshot of
+>           memory region.
 
-	- with or without this change, we should probably check
-	  mm->core_state == NULL. We shouldn't assume that is is going
-	  to exit "soon" otherwise. But this needs other changes anyway,
-	  and in the common case when we do not share ->mm with another
-	  process the false positive is not possible.
+fork() and clone() can do this.
 
-Signed-off-by: Oleg Nesterov <oleg@redhat.com>
----
+>           I understand that clone() optionally does this
+>           on much larger scale, but that's not really it.
 
- mm/oom_kill.c |   17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
-
---- 38/mm/oom_kill.c~detect_exiting	2011-03-10 16:08:51.000000000 +0100
-+++ 38/mm/oom_kill.c	2011-03-10 18:12:35.000000000 +0100
-@@ -282,6 +282,21 @@ static enum oom_constraint constrained_a
- }
- #endif
- 
-+static bool mm_is_exiting(struct task_struct *p)
-+{
-+	struct task_struct *t;
-+	bool has_mm = false;
-+
-+	do {
-+		if (!(t->flags & PF_EXITING))
-+			return false;
-+		if (t->mm)
-+			has_mm = true;
-+	} while_each_thread(p, t);
-+
-+	return has_mm;
-+}
-+
- /*
-  * Simple selection loop. We chose the process with the highest
-  * number of 'points'. We expect the caller will lock the tasklist.
-@@ -324,7 +339,7 @@ static struct task_struct *select_bad_pr
- 		 * the process of exiting and releasing its resources.
- 		 * Otherwise we could get an easy OOM deadlock.
- 		 */
--		if (thread_group_empty(p) && (p->flags & PF_EXITING) && p->mm) {
-+		if (mm_is_exiting(p)) {
- 			if (p != current)
- 				return ERR_PTR(-1UL);
- 
+Ok let say you have a memory range in the address space from which you
+want to take a snapshot. How is that snapshot data visible? To another
+process? Via a file?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
