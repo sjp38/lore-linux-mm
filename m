@@ -1,41 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 520398D003A
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 17:20:36 -0500 (EST)
-Date: Thu, 10 Mar 2011 14:20:29 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4] memcg: fix leak on wrong LRU with FUSE
-Message-Id: <20110310142029.5d108e37.akpm@linux-foundation.org>
-In-Reply-To: <20110310150428.f175758c.nishimura@mxp.nes.nec.co.jp>
-References: <20110308135612.e971e1f3.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110308181832.6386da5f.nishimura@mxp.nes.nec.co.jp>
-	<20110309150750.d570798c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110309164801.3a4c8d10.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110309100020.GD30778@cmpxchg.org>
-	<20110310083659.fd8b1c3f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110310144752.289483d4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110310150428.f175758c.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9E1608D003A
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 17:49:50 -0500 (EST)
+Date: Fri, 11 Mar 2011 09:49:45 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] xfs: flush vmap aliases when mapping fails
+Message-ID: <20110310224945.GA15097@dastard>
+References: <1299713876-7747-1-git-send-email-david@fromorbit.com>
+ <20110310073751.GB25374@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110310073751.GB25374@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: xfs@oss.sgi.com, npiggin@kernel.dk, linux-mm@kvack.org
 
-On Thu, 10 Mar 2011 15:04:28 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> > Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Thu, Mar 10, 2011 at 02:37:51AM -0500, Christoph Hellwig wrote:
+> On Thu, Mar 10, 2011 at 10:37:56AM +1100, Dave Chinner wrote:
+> > From: Dave Chinner <dchinner@redhat.com>
+> > 
+> > On 32 bit systems, vmalloc space is limited and XFS can chew through
+> > it quickly as the vmalloc space is lazily freed. This can result in
+> > failure to map buffers, even when there is apparently large amounts
+> > of vmalloc space available. Hence, if we fail to map a buffer, purge
+> > the aliases that have not yet been freed to hopefuly free up enough
+> > vmalloc space to allow a retry to succeed.
 > 
-> Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> I hope this can fix the original BZ case.
+> IMHO this should be done by vm_map_ram internally.  If we can't get the
+> core code fixes we can put this in as a last resort.
 
-Do you recall the buzilla bug number?
+OK. The patch was done as part of the triage for this bug:
 
-Thanks.
+https://bugzilla.kernel.org/show_bug.cgi?id=27492
+
+where the vmalloc space on 32 bit systems is getting exhausted. I
+can easily move this flush-and-retry into the vmap code.
+
+FWIW, while the VM folk might be paying attention about vmap realted
+stuff, this vmap BUG() also needs triage:
+
+https://bugzilla.kernel.org/show_bug.cgi?id=27002
+
+And, finally, the mm-vmap-area-cache.patch in the current mmotm also
+needs to be pushed forward because we've been getting reports of
+excessive CPU time being spent walking the vmap area rbtree during
+vm_map_ram operations and this patch supposedly fixes that
+problem....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
