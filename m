@@ -1,172 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 62FE68D0039
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 00:30:41 -0500 (EST)
-Subject: [PATCH 2/2 v4]mm: batch activate_page() to reduce lock contention
-From: Shaohua Li <shaohua.li@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 10 Mar 2011 13:30:19 +0800
-Message-ID: <1299735019.2337.63.camel@sli10-conroe>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C540B8D0039
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 00:54:46 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 714223EE0AE
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 14:54:43 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 584A545DE55
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 14:54:43 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3ED9945DE58
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 14:54:43 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 31FCDE08003
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 14:54:43 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E28F4E18003
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 14:54:42 +0900 (JST)
+Date: Thu, 10 Mar 2011 14:47:52 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH v4] memcg: fix leak on wrong LRU with FUSE
+Message-Id: <20110310144752.289483d4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110310083659.fd8b1c3f.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110308135612.e971e1f3.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110308181832.6386da5f.nishimura@mxp.nes.nec.co.jp>
+	<20110309150750.d570798c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110309164801.3a4c8d10.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110309100020.GD30778@cmpxchg.org>
+	<20110310083659.fd8b1c3f.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 
-The zone->lru_lock is heavily contented in workload where activate_page()
-is frequently used. We could do batch activate_page() to reduce the lock
-contention. The batched pages will be added into zone list when the pool
-is full or page reclaim is trying to drain them.
+On Thu, 10 Mar 2011 08:36:59 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-For example, in a 4 socket 64 CPU system, create a sparse file and 64 processes,
-processes shared map to the file. Each process read access the whole file and
-then exit. The process exit will do unmap_vmas() and cause a lot of
-activate_page() call. In such workload, we saw about 58% total time reduction
-with below patch. Other workloads with a lot of activate_page also benefits a
-lot too.
+> will add. Thank you !
+> 
 
-Andrew Morton suggested activate_page() and putback_lru_pages() should
-follow the same path to active pages, but this is hard to implement (see commit
-7a608572a282a). On the other hand, do we really need putback_lru_pages() to
-follow the same path? I tested several FIO/FFSB benchmark (about 20 scripts for
-each benchmark) in 3 machines here from 2 sockets to 4 sockets. My test doesn't
-show anything significant with/without below patch (there is slight difference
-but mostly some noise which we found even without below patch before). Below
-patch basically returns to the same as my first post.
+Here is v4 based on feedbacks.
+==
 
-I tested some microbenchmarks:
-case-anon-cow-rand-mt               0.58%
-case-anon-cow-rand          -3.30%
-case-anon-cow-seq-mt                -0.51%
-case-anon-cow-seq           -5.68%
-case-anon-r-rand-mt         0.23%
-case-anon-r-rand            0.81%
-case-anon-r-seq-mt          -0.71%
-case-anon-r-seq                     -1.99%
-case-anon-rx-rand-mt                2.11%
-case-anon-rx-seq-mt         3.46%
-case-anon-w-rand-mt         -0.03%
-case-anon-w-rand            -0.50%
-case-anon-w-seq-mt          -1.08%
-case-anon-w-seq                     -0.12%
-case-anon-wx-rand-mt                -5.02%
-case-anon-wx-seq-mt         -1.43%
-case-fork                   1.65%
-case-fork-sleep                     -0.07%
-case-fork-withmem           1.39%
-case-hugetlb                        -0.59%
-case-lru-file-mmap-read-mt  -0.54%
-case-lru-file-mmap-read             0.61%
-case-lru-file-mmap-read-rand        -2.24%
-case-lru-file-readonce              -0.64%
-case-lru-file-readtwice             -11.69%
-case-lru-memcg                      -1.35%
-case-mmap-pread-rand-mt             1.88%
-case-mmap-pread-rand                -15.26%
-case-mmap-pread-seq-mt              0.89%
-case-mmap-pread-seq         -69.72%
-case-mmap-xread-rand-mt             0.71%
-case-mmap-xread-seq-mt              0.38%
+fs/fuse/dev.c::fuse_try_move_page() does
 
-The most significent are:
-case-lru-file-readtwice             -11.69%
-case-mmap-pread-rand                -15.26%
-case-mmap-pread-seq         -69.72%
+   (1) remove a page by ->steal()
+   (2) re-add the page to page cache 
+   (3) link the page to LRU if it was not on LRU at (1)
 
-which use activate_page a lot.  others are basically variations because
-each run has slightly difference.
+This implies the page is _on_ LRU when it's added to radix-tree.
+So, the page is added to  memory cgroup while it's on LRU and
+the pave will remain in the old(wrong) memcg.
+By this bug, force_empty()'s LRU scan cannot find the page and
+rmdir() will never ends.
 
-In UP case, 'size mm/swap.o'
-before the two patches:
-   text    data     bss     dec     hex filename
-   6466     896       4    7366    1cc6 mm/swap.o
-after the two patches:
-   text    data     bss     dec     hex filename
-   6343     896       4    7243    1c4b mm/swap.o
+This is the same behavior as SwapCache and needs special care as
+ - remove page from LRU before overwrite pc->mem_cgroup.
+ - add page to LRU after overwrite pc->mem_cgroup.
 
-Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+This will fixes memcg's rmdir() hang issue with FUSE.
 
+Changelog v3=v4:
+  - moved PageLRU() check into the leaf function.
+  - added comments
+
+Changelog v2=>v3:
+  - fixed double accounting.
+
+Changelog v1=>v2:
+  - clean up.
+  - cover !PageLRU() by pagevec case.
+
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/swap.c |   45 ++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 40 insertions(+), 5 deletions(-)
+ mm/memcontrol.c |   70 +++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 52 insertions(+), 18 deletions(-)
 
-Index: linux/mm/swap.c
+Index: mmotm-0303/mm/memcontrol.c
 ===================================================================
---- linux.orig/mm/swap.c	2011-03-09 12:56:09.000000000 +0800
-+++ linux/mm/swap.c	2011-03-09 12:56:46.000000000 +0800
-@@ -272,14 +272,10 @@ static void update_page_reclaim_stat(str
- 		memcg_reclaim_stat->recent_rotated[file]++;
+--- mmotm-0303.orig/mm/memcontrol.c
++++ mmotm-0303/mm/memcontrol.c
+@@ -926,18 +926,28 @@ void mem_cgroup_add_lru_list(struct page
  }
- 
--/*
-- * FIXME: speed this up?
-- */
--void activate_page(struct page *page)
-+static void __activate_page(struct page *page, void *arg)
- {
- 	struct zone *zone = page_zone(page);
- 
--	spin_lock_irq(&zone->lru_lock);
- 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
- 		int file = page_is_file_cache(page);
- 		int lru = page_lru_base_type(page);
-@@ -292,8 +288,45 @@ void activate_page(struct page *page)
- 
- 		update_page_reclaim_stat(zone, page, file, 1);
- 	}
-+}
-+
-+#ifdef CONFIG_SMP
-+static DEFINE_PER_CPU(struct pagevec, activate_page_pvecs);
-+
-+static void activate_page_drain(int cpu)
-+{
-+	struct pagevec *pvec = &per_cpu(activate_page_pvecs, cpu);
-+
-+	if (pagevec_count(pvec))
-+		pagevec_lru_move_fn(pvec, __activate_page, NULL);
-+}
-+
-+void activate_page(struct page *page)
-+{
-+	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
-+		struct pagevec *pvec = &get_cpu_var(activate_page_pvecs);
-+
-+		page_cache_get(page);
-+		if (!pagevec_add(pvec, page))
-+			pagevec_lru_move_fn(pvec, __activate_page, NULL);
-+		put_cpu_var(activate_page_pvecs);
-+	}
-+}
-+
-+#else
-+static inline void activate_page_drain(int cpu)
-+{
-+}
-+
-+void activate_page(struct page *page)
-+{
-+	struct zone *zone = page_zone(page);
-+
-+	spin_lock_irq(&zone->lru_lock);
-+	__activate_page(page, NULL);
- 	spin_unlock_irq(&zone->lru_lock);
- }
-+#endif
  
  /*
-  * Mark a page as having seen activity.
-@@ -461,6 +494,8 @@ static void drain_cpu_pagevecs(int cpu)
- 	pvec = &per_cpu(lru_deactivate_pvecs, cpu);
- 	if (pagevec_count(pvec))
- 		pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
+- * At handling SwapCache, pc->mem_cgroup may be changed while it's linked to
+- * lru because the page may.be reused after it's fully uncharged (because of
+- * SwapCache behavior).To handle that, unlink page_cgroup from LRU when charge
+- * it again. This function is only used to charge SwapCache. It's done under
+- * lock_page and expected that zone->lru_lock is never held.
++ * At handling SwapCache and other FUSE stuff, pc->mem_cgroup may be changed
++ * while it's linked to lru because the page may be reused after it's fully
++ * uncharged. To handle that, unlink page_cgroup from LRU when charge it again.
++ * It's done under lock_page and expected that zone->lru_lock isnever held.
+  */
+-static void mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
++static void mem_cgroup_lru_del_before_commit(struct page *page)
+ {
+ 	unsigned long flags;
+ 	struct zone *zone = page_zone(page);
+ 	struct page_cgroup *pc = lookup_page_cgroup(page);
+ 
++	/*
++	 * Doing this check without taking ->lru_lock seems wrong but this
++	 * is safe. Because if page_cgroup's USED bit is unset, the page
++	 * will not be added to any memcg's LRU. If page_cgroup's USED bit is
++	 * set, the commit after this will fail, anyway.
++	 * This all charge/uncharge is done under some mutual execustion.
++	 * So, we don't need to taking care of changes in USED bit.
++	 */
++	if (likely(!PageLRU(page)))
++		return;
 +
-+	activate_page_drain(cpu);
+ 	spin_lock_irqsave(&zone->lru_lock, flags);
+ 	/*
+ 	 * Forget old LRU when this page_cgroup is *not* used. This Used bit
+@@ -948,12 +958,15 @@ static void mem_cgroup_lru_del_before_co
+ 	spin_unlock_irqrestore(&zone->lru_lock, flags);
  }
  
- /**
-
+-static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
++static void mem_cgroup_lru_add_after_commit(struct page *page)
+ {
+ 	unsigned long flags;
+ 	struct zone *zone = page_zone(page);
+ 	struct page_cgroup *pc = lookup_page_cgroup(page);
+ 
++	/* taking care of that the page is added to LRU while we commit it */
++	if (likely(!PageLRU(page)))
++		return;
+ 	spin_lock_irqsave(&zone->lru_lock, flags);
+ 	/* link when the page is linked to LRU but page_cgroup isn't */
+ 	if (PageLRU(page) && !PageCgroupAcctLRU(pc))
+@@ -2431,9 +2444,26 @@ static void
+ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
+ 					enum charge_type ctype);
+ 
++static void
++__mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *mem,
++					enum charge_type ctype)
++{
++	struct page_cgroup *pc = lookup_page_cgroup(page);
++	/*
++	 * In some case, SwapCache, FUSE(splice_buf->radixtree), the page
++	 * is already on LRU. It means the page may on some other page_cgroup's
++	 * LRU. Take care of it.
++	 */
++	mem_cgroup_lru_del_before_commit(page);
++	__mem_cgroup_commit_charge(mem, page, 1, pc, ctype);
++	mem_cgroup_lru_add_after_commit(page);
++	return;
++}
++
+ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 				gfp_t gfp_mask)
+ {
++	struct mem_cgroup *mem = NULL;
+ 	int ret;
+ 
+ 	if (mem_cgroup_disabled())
+@@ -2468,14 +2498,22 @@ int mem_cgroup_cache_charge(struct page 
+ 	if (unlikely(!mm))
+ 		mm = &init_mm;
+ 
+-	if (page_is_file_cache(page))
+-		return mem_cgroup_charge_common(page, mm, gfp_mask,
+-				MEM_CGROUP_CHARGE_TYPE_CACHE);
++	if (page_is_file_cache(page)) {
++		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, &mem, true);
++		if (ret || !mem)
++			return ret;
+ 
++		/*
++		 * FUSE reuses pages without going through the final
++		 * put that would remove them from the LRU list, make
++		 * sure that they get relinked properly.
++		 */
++		__mem_cgroup_commit_charge_lrucare(page, mem,
++					MEM_CGROUP_CHARGE_TYPE_CACHE);
++		return ret;
++	}
+ 	/* shmem */
+ 	if (PageSwapCache(page)) {
+-		struct mem_cgroup *mem;
+-
+ 		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
+ 		if (!ret)
+ 			__mem_cgroup_commit_charge_swapin(page, mem,
+@@ -2532,17 +2570,13 @@ static void
+ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
+ 					enum charge_type ctype)
+ {
+-	struct page_cgroup *pc;
+-
+ 	if (mem_cgroup_disabled())
+ 		return;
+ 	if (!ptr)
+ 		return;
+ 	cgroup_exclude_rmdir(&ptr->css);
+-	pc = lookup_page_cgroup(page);
+-	mem_cgroup_lru_del_before_commit_swapcache(page);
+-	__mem_cgroup_commit_charge(ptr, page, 1, pc, ctype);
+-	mem_cgroup_lru_add_after_commit_swapcache(page);
++
++	__mem_cgroup_commit_charge_lrucare(page, ptr, ctype);
+ 	/*
+ 	 * Now swap is on-memory. This means this page may be
+ 	 * counted both as mem and swap....double count.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
