@@ -1,75 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B67A8D0039
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 12:23:29 -0500 (EST)
-References: <1299630721-4337-1-git-send-email-wilsons@start.ca> <20110310160032.GA20504@alboin.amr.corp.intel.com> <20110310163809.GA20675@alboin.amr.corp.intel.com> <20110310165414.GA6431@fibrous.localdomain>
-In-Reply-To: <20110310165414.GA6431@fibrous.localdomain>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9F2738D0039
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 12:27:32 -0500 (EST)
+Date: Thu, 10 Mar 2011 18:18:52 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: [PATCH v2 0/1] select_bad_process: improve the PF_EXITING check
+Message-ID: <20110310171852.GA2687@redhat.com>
+References: <alpine.DEB.2.00.1103011108400.28110@chino.kir.corp.google.com> <20110303100030.B936.A69D9226@jp.fujitsu.com> <20110308134233.GA26884@redhat.com> <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com> <20110309110606.GA16719@redhat.com> <alpine.DEB.2.00.1103091222420.13353@chino.kir.corp.google.com> <20110310120519.GA18415@redhat.com> <20110310154032.GA29044@redhat.com> <20110310163652.GA345@redhat.com> <20110310164000.GC345@redhat.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="----V09616JKR7L2B0NB8391YYHI8HKF8V"
-Subject: =?US-ASCII?Q?Re=3A_=5BPATCH_0/5=5D_make_*=5Fgate=5Fvma_accep?= =?US-ASCII?Q?t_mm=5Fstruct_instead_of=09task=5Fstruct_II?=
-From: "H. Peter Anvin" <hpa@zytor.com>
-Date: Thu, 10 Mar 2011 09:22:48 -0800
-Message-ID: <37e280c3-7f6b-4f1e-9589-68f4a67e4c0a@email.android.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110310164000.GC345@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Wilson <wilsons@start.ca>, Andi Kleen <ak@linux.intel.com>
-Cc: x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Paul Mundt <lethal@linux-sh.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrey Vagin <avagin@openvz.org>
 
-------V09616JKR7L2B0NB8391YYHI8HKF8V
-Content-Type: text/plain;
- charset=UTF-8
-Content-Transfer-Encoding: 8bit
+On 03/10, Oleg Nesterov wrote:
+>
+> On 03/10, Oleg Nesterov wrote:
+> >
+> > On 03/10, Oleg Nesterov wrote:
+> > >
+> > > It is not tested. I do not pretend I really understand oom-killer in
+> > > all details (although oom_kill.c itself is quite trivial).
+> > >
+> > > The patch assumes that
+> > >
+> > > 	oom-prevent-unnecessary-oom-kills-or-kernel-panics.patch
+> > > 	oom-skip-zombies-when-iterating-tasklist.patch
+> > >
+> > > are dropped.
+> > >
+> > > I think, this patch __might__ address the problems described in the
+> > > changelog, but of course I am not sure.
+> > >
+> > > I am relying on your and Kosaki's review, if you disagree with this
+> > > change I won't argue.
+> >
+> > And another uncompiled/untested/needs_review patch which might help.
+>               ^^^^^^^^^^
+>
+> I meant, compile-tested only ;)
+>
+> > Nobody ever argued, the current PF_EXITING check is not very good.
+> > I do not know how much it is useful, but we can at least improve it.
 
-Sorry... I confused them too. It's TS_COMPAT which is problematic.
--- 
-Sent from my mobile phone. Please pardon any lack of formatting.
+Argh. Sorry for noise, I am sending v2. Changes:
 
-Stephen Wilson <wilsons@start.ca> wrote:
+	- fix the typo in mm_is_exiting(), s/p/t/
 
-On Thu, Mar 10, 2011 at 08:38:09AM -0800, Andi Kleen wrote: > On Thu, Mar 10, 2011 at 08:00:32AM -0800, Andi Kleen wrote: > > On Tue, Mar 08, 2011 at 07:31:56PM -0500, Stephen Wilson wrote: > > > The only architecture this change impacts in any significant way is x86_64. > > > The principle change on that architecture is to mirror TIF_IA32 via > > > a new flag in mm_context_t. > > > > The problem is -- you're adding a likely cache miss on mm_struct for > > every 32bit compat syscall now, even if they don't need mm_struct > > currently (and a lot of them do not) Unless there's a very good > > justification to make up for this performance issue elsewhere > > (including numbers) this seems like a bad idea. > > Hmm I see you're only setting it on exec time actually on rereading > the patches. I thought you were changing TS_COMPAT which is in > the syscall path. > > Never mind. I have no problems with doing such a change on exec > time. OK. Great! Does this mean I have your ACK'e!
- d by or
-reviewed by? Thanks for taking a look! -- steve 
+	- update the changelog
 
-
-------V09616JKR7L2B0NB8391YYHI8HKF8V
-Content-Type: text/html;
- charset=utf-8
-Content-Transfer-Encoding: 8bit
-
-<html><head></head><body>Sorry... I confused them too.  It&#39;s TS_COMPAT which is problematic.<br>
--- <br>
-Sent from my mobile phone.  Please pardon any lack of formatting.<br><br><div class="gmail_quote">Stephen Wilson &lt;wilsons@start.ca&gt; wrote:<blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
-<div style="white-space: pre-wrap; word-wrap:break-word; ">
-On Thu, Mar 10, 2011 at 08:38:09AM -0800, Andi Kleen wrote:
-&gt; On Thu, Mar 10, 2011 at 08:00:32AM -0800, Andi Kleen wrote:
-&gt; &gt; On Tue, Mar 08, 2011 at 07:31:56PM -0500, Stephen Wilson wrote:
-&gt; &gt; &gt; The only architecture this change impacts in any significant way is x86_64.
-&gt; &gt; &gt; The principle change on that architecture is to mirror TIF_IA32 via
-&gt; &gt; &gt; a new flag in mm_context_t. 
-&gt; &gt; 
-&gt; &gt; The problem is -- you're adding a likely cache miss on mm_struct for
-&gt; &gt; every 32bit compat syscall now, even if they don't need mm_struct
-&gt; &gt; currently (and a lot of them do not) Unless there's a very good
-&gt; &gt; justification to make up for this performance issue elsewhere
-&gt; &gt; (including numbers) this seems like a bad idea.
-&gt; 
-&gt; Hmm I see you're only setting it on exec time actually on rereading
-&gt; the patches. I thought you were changing TS_COMPAT which is in
-&gt; the syscall path.
-&gt; 
-&gt; Never mind.  I have no problems with doing such a change on exec
-&gt; time.
-
-OK.  Great!  Does this mean I have your ACK'ed by or reviewed by?
-
-
-Thanks for taking a look!
-
--- 
-steve
-
-</div></blockquote></div></body></html>
-------V09616JKR7L2B0NB8391YYHI8HKF8V--
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
