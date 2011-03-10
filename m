@@ -1,39 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 84B4A8D003A
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 14:13:06 -0500 (EST)
-Date: Thu, 10 Mar 2011 13:13:02 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: COW userspace memory mapping question
-In-Reply-To: <056c7b49e7540a910b8a4f664415e638@anilinux.org>
-Message-ID: <alpine.DEB.2.00.1103101309090.2161@router.home>
-References: <056c7b49e7540a910b8a4f664415e638@anilinux.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E57F98D003A
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 16:02:01 -0500 (EST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Date: Thu, 10 Mar 2011 22:00:40 +0100
+From: Mordae <mordae@anilinux.org>
+In-Reply-To: <alpine.DEB.2.00.1103101309090.2161@router.home>
+References: <056c7b49e7540a910b8a4f664415e638@anilinux.org> <alpine.DEB.2.00.1103101309090.2161@router.home>
+Message-ID: <faf1c53253ae791c39448de707b96c15@anilinux.org>
+Subject: Re: COW userspace memory mapping question
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mordae <mordae@anilinux.org>
+To: Christoph Lameter <cl@linux.com>
 Cc: linux-mm@kvack.org
 
-On Tue, 8 Mar 2011, Mordae wrote:
+On Thu, 10 Mar 2011 13:13:02 -0600 (CST), Christoph Lameter <cl@linux.com>
+wrote:
+> Its probably more an issue of us understanding what you want.
 
-> first let me apologize if I've picked a wrong address.
+Okay. I've posted the message from within the CET. It was
+approximately 1 am and I am not a native speaker. So, once again
+sorry and thanks a lot for your help. :-)
 
-Its probably more an issue of us understanding what you want.
+Now to the question.
 
-> Question: Is it possible to create a copy-on-write copy
->           of a MAP_PRIVATE|MAP_ANONYMOUS memory mapping
->           in the user space? Effectively a snapshot of
->           memory region.
+> Ok let say you have a memory range in the address space from which you
+> want to take a snapshot. How is that snapshot data visible? To another
+> process? Via a file?
 
-fork() and clone() can do this.
+As I understand that, before a process forks, all of it's private memory
+pages are somehow magically marked. When a process with access to such
+page attempts to modify it, the page is duplicated and the copy replaces
+the shared page for this process. Then the actual modification is
+carried on.
 
->           I understand that clone() optionally does this
->           on much larger scale, but that's not really it.
+What I am interested in is a hypothetical system call
 
-Ok let say you have a memory range in the address space from which you
-want to take a snapshot. How is that snapshot data visible? To another
-process? Via a file?
+  void *mcopy(void *dst, void *src, size_t len, int flags);
+
+which would make src pages marked in the same way and mapped *also* to
+the dst. Afterwards, any modification to either mapping would not
+influence the other.
+
+Now, is there something like that?
+
+Best regards,
+    Jan Dvorak
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
