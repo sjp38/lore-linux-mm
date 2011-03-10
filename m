@@ -1,48 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5C3468D003A
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 16:33:34 -0500 (EST)
-Date: Thu, 10 Mar 2011 15:33:31 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: COW userspace memory mapping question
-In-Reply-To: <faf1c53253ae791c39448de707b96c15@anilinux.org>
-Message-ID: <alpine.DEB.2.00.1103101532230.2161@router.home>
-References: <056c7b49e7540a910b8a4f664415e638@anilinux.org> <alpine.DEB.2.00.1103101309090.2161@router.home> <faf1c53253ae791c39448de707b96c15@anilinux.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E6308D003A
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 17:11:53 -0500 (EST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Date: Thu, 10 Mar 2011 23:11:45 +0100
+From: Mordae <mordae@anilinux.org>
+In-Reply-To: <alpine.DEB.2.00.1103101532230.2161@router.home>
+References: <056c7b49e7540a910b8a4f664415e638@anilinux.org> <alpine.DEB.2.00.1103101309090.2161@router.home> <faf1c53253ae791c39448de707b96c15@anilinux.org> <alpine.DEB.2.00.1103101532230.2161@router.home>
+Message-ID: <474da85b78a7bd1e16726b72e9162f5c@anilinux.org>
+Subject: Re: COW userspace memory mapping question
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mordae <mordae@anilinux.org>
+To: Christoph Lameter <cl@linux.com>
 Cc: linux-mm@kvack.org
 
-On Thu, 10 Mar 2011, Mordae wrote:
+On Thu, 10 Mar 2011 15:33:31 -0600 (CST), Christoph Lameter <cl@linux.com>
+wrote:
+> First establish an RW mapping of the file.
+> Then -- when you want to take the snapshot -- unmap it and do two mmaps
+to
+> the old and new location. Make both readonly and MAP_PRIVATE. That will
+> cause the kernel to create readonly pages that are subject to COW.
 
-> As I understand that, before a process forks, all of it's private memory
-> pages are somehow magically marked. When a process with access to such
-> page attempts to modify it, the page is duplicated and the copy replaces
-> the shared page for this process. Then the actual modification is
-> carried on.
-
-Its not magic. The kernel simply marks the pages as readonly and does a
-copy operation when the page is modified.
-
-> What I am interested in is a hypothetical system call
->
->   void *mcopy(void *dst, void *src, size_t len, int flags);
->
-> which would make src pages marked in the same way and mapped *also* to
-> the dst. Afterwards, any modification to either mapping would not
-> influence the other.
->
-> Now, is there something like that?
-
-If you have a file backed mmap (could be tmpfs) then it is possible.
-
-First establish an RW mapping of the file.
-
-Then -- when you want to take the snapshot -- unmap it and do two mmaps to
-the old and new location. Make both readonly and MAP_PRIVATE. That will
-cause the kernel to create readonly pages that are subject to COW.
+I see, that seems reasonable. But what if I was picky and want to snapshot
+that piece of memory continuously? Let's say once in several minutes, then
+let some thread to do stuffs to the original using consistent information
+from the snapshot.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
