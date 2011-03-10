@@ -1,118 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D24D68D0039
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 21:48:56 -0500 (EST)
-Received: by wwb28 with SMTP id 28so1253910wwb.26
-        for <linux-mm@kvack.org>; Wed, 09 Mar 2011 18:48:52 -0800 (PST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 05F828D0039
+	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 23:01:27 -0500 (EST)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp02.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2A41DkH031749
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 09:31:13 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2A417ui3612842
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 09:31:13 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2A419GS000385
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 09:31:09 +0530
+Date: Thu, 10 Mar 2011 09:31:03 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH] memcg: fix event counter breakage with THP.
+Message-ID: <20110310040102.GR2868@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20110304164450.4cf80ef1.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1299673133-26464-1-git-send-email-johan.xx.mossberg@stericsson.com>
-References: <1299673133-26464-1-git-send-email-johan.xx.mossberg@stericsson.com>
-Date: Thu, 10 Mar 2011 11:48:51 +0900
-Message-ID: <AANLkTi=Q6YRbRs1HHNEESxfCsu7_BeDXwfriDFLLrb85@mail.gmail.com>
-Subject: Re: [PATCHv2 0/3] hwmem: Hardware memory driver
-From: Kyungmin Park <kmpark@infradead.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20110304164450.4cf80ef1.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: johan.xx.mossberg@stericsson.com
-Cc: linux-mm@kvack.org, linaro-dev@lists.linaro.org, linux-media@vger.kernel.org, gstreamer-devel@lists.freedesktop.org, m.nazarewicz@samsung.com, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, =?UTF-8?B?6rCV66+86rec?= <mk7.kang@samsung.com>, =?UTF-8?B?64yA7J246riw?= <inki.dae@samsung.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 
-Hi,
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2011-03-04 16:44:50]:
 
-CCed updated Michal email address,
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> memcg: Fix event counter, event leak with THP
+> 
+> With THP, event counter is updated by the size of large page because
+> event counter is for catching the change in usage.
+> This is now used for threshold notifier and soft limit.
+> 
+> Current event counter cathces the event by mask, as
+> 
+>    !(counter & mask)
+> 
+> Before THP, counter is always updated by 1, this never misses target.
+> But now, this can miss.
+> 
+> This patch makes the trigger for event as
+> 
+>   counter > target.
+> 
+> target is updated when the event happens.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/memcontrol.c |   59 ++++++++++++++++++++++++++++++++++++++++++--------------
+>  1 file changed, 45 insertions(+), 14 deletions(-)
+> 
+> Index: mmotm-0303/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-0303.orig/mm/memcontrol.c
+> +++ mmotm-0303/mm/memcontrol.c
+> @@ -73,15 +73,6 @@ static int really_do_swap_account __init
+>  #define do_swap_account		(0)
+>  #endif
+> 
+> -/*
+> - * Per memcg event counter is incremented at every pagein/pageout. This counter
+> - * is used for trigger some periodic events. This is straightforward and better
+> - * than using jiffies etc. to handle periodic memcg event.
+> - *
+> - * These values will be used as !((event) & ((1 <<(thresh)) - 1))
+> - */
+> -#define THRESHOLDS_EVENTS_THRESH (7) /* once in 128 */
+> -#define SOFTLIMIT_EVENTS_THRESH (10) /* once in 1024 */
+> 
+>  /*
+>   * Statistics for memory cgroup.
+> @@ -105,10 +96,24 @@ enum mem_cgroup_events_index {
+>  	MEM_CGROUP_EVENTS_COUNT,	/* # of pages paged in/out */
+>  	MEM_CGROUP_EVENTS_NSTATS,
+>  };
+> +/*
+> + * Per memcg event counter is incremented at every pagein/pageout. With THP,
+> + * it will be incremated by the number of pages. This counter is used for
+> + * for trigger some periodic events. This is straightforward and better
+> + * than using jiffies etc. to handle periodic memcg event.
+> + */
+> +enum mem_cgroup_events_target {
+> +        MEM_CGROUP_TARGET_THRESH,
+> +        MEM_CGROUP_TARGET_SOFTLIMIT,
+> +        MEM_CGROUP_NTARGETS,
+> +};
+> +#define THRESHOLDS_EVENTS_TARGET (128)
+> +#define SOFTLIMIT_EVENTS_TARGET (1024)
+> 
+>  struct mem_cgroup_stat_cpu {
+>  	long count[MEM_CGROUP_STAT_NSTATS];
+>  	unsigned long events[MEM_CGROUP_EVENTS_NSTATS];
+> +        unsigned long targets[MEM_CGROUP_NTARGETS];
 
-One note, As Michal moved to google, Marek is works on CMA. We are
-also studying the hwmem and GEM.
+I see spaces as opposed to tabs.
 
-Thank you,
-Kyungmin Park
+>  };
+> 
+>  /*
+> @@ -634,13 +639,34 @@ static unsigned long mem_cgroup_get_loca
+>  	return total;
+>  }
+> 
+> -static bool __memcg_event_check(struct mem_cgroup *mem, int event_mask_shift)
+> +static bool __memcg_event_check(struct mem_cgroup *mem, int target)
+>  {
+> -	unsigned long val;
+> +	unsigned long val, next;
+> 
+>  	val = this_cpu_read(mem->stat->events[MEM_CGROUP_EVENTS_COUNT]);
+> +	next = this_cpu_read(mem->stat->targets[target]);
+> +        /* from time_after() in jiffies.h */
+> +	return ((long)next - (long)val < 0);
+> +}
+> 
+> -	return !(val & ((1 << event_mask_shift) - 1));
+> +static void __mem_cgroup_target_update(struct mem_cgroup *mem, int target)
+> +{
+> +        unsigned long val, next;
+> +
+> +	val = this_cpu_read(mem->stat->events[MEM_CGROUP_EVENTS_COUNT]);
+> +
+> +        switch (target) {
 
-On Wed, Mar 9, 2011 at 9:18 PM,  <johan.xx.mossberg@stericsson.com> wrote:
-> Hello everyone,
->
-> The following patchset implements a "hardware memory driver". The
-> main purpose of hwmem is:
->
-> * To allocate buffers suitable for use with hardware. Currently
-> this means contiguous buffers.
-> * To synchronize the caches for the allocated buffers. This is
-> achieved by keeping track of when the CPU uses a buffer and when
-> other hardware uses the buffer, when we switch from CPU to other
-> hardware or vice versa the caches are synchronized.
-> * To handle sharing of allocated buffers between processes i.e.
-> import, export.
->
-> Hwmem is available both through a user space API and through a
-> kernel API.
->
-> Here at ST-Ericsson we use hwmem for graphics buffers. Graphics
-> buffers need to be contiguous due to our hardware, are passed
-> between processes (usually application and window manager)and are
-> part of usecases where performance is top priority so we can't
-> afford to synchronize the caches unecessarily.
->
-> Additions in v2:
-> * Bugfixes
-> * Added the possibility to map hwmem buffers in the kernel through
-> hwmem_kmap/kunmap
-> * Moved mach specific stuff to mach.
->
-> Best regards
-> Johan Mossberg
-> Consultant at ST-Ericsson
->
-> Johan Mossberg (3):
-> =A0hwmem: Add hwmem (part 1)
-> =A0hwmem: Add hwmem (part 2)
-> =A0hwmem: Add hwmem to ux500
->
-> =A0arch/arm/mach-ux500/Makefile =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A02 +-
-> =A0arch/arm/mach-ux500/board-mop500.c =A0 =A0 =A0 =A0 | =A0 =A01 +
-> =A0arch/arm/mach-ux500/dcache.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0266 ++++=
-+++++
-> =A0arch/arm/mach-ux500/devices.c =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 31 ++
-> =A0arch/arm/mach-ux500/include/mach/dcache.h =A0| =A0 26 +
-> =A0arch/arm/mach-ux500/include/mach/devices.h | =A0 =A01 +
-> =A0drivers/misc/Kconfig =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0=
- =A01 +
-> =A0drivers/misc/Makefile =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0=
- =A01 +
-> =A0drivers/misc/hwmem/Kconfig =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A07 =
-+
-> =A0drivers/misc/hwmem/Makefile =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A03 =
-+
-> =A0drivers/misc/hwmem/cache_handler.c =A0 =A0 =A0 =A0 | =A0510 ++++++++++=
-++++++++
-> =A0drivers/misc/hwmem/cache_handler.h =A0 =A0 =A0 =A0 | =A0 61 +++
-> =A0drivers/misc/hwmem/hwmem-ioctl.c =A0 =A0 =A0 =A0 =A0 | =A0455 ++++++++=
-++++++++
-> =A0drivers/misc/hwmem/hwmem-main.c =A0 =A0 =A0 =A0 =A0 =A0| =A0799 ++++++=
-++++++++++++++++++++++
-> =A0include/linux/hwmem.h =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0=
-536 +++++++++++++++++++
-> =A015 files changed, 2699 insertions(+), 1 deletions(-)
-> =A0create mode 100644 arch/arm/mach-ux500/dcache.c
-> =A0create mode 100644 arch/arm/mach-ux500/include/mach/dcache.h
-> =A0create mode 100644 drivers/misc/hwmem/Kconfig
-> =A0create mode 100644 drivers/misc/hwmem/Makefile
-> =A0create mode 100644 drivers/misc/hwmem/cache_handler.c
-> =A0create mode 100644 drivers/misc/hwmem/cache_handler.h
-> =A0create mode 100644 drivers/misc/hwmem/hwmem-ioctl.c
-> =A0create mode 100644 drivers/misc/hwmem/hwmem-main.c
-> =A0create mode 100644 include/linux/hwmem.h
->
-> --
-> 1.7.4.1
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+The formatting seems to be off, could you please check the coding
+style
+
+> +        case MEM_CGROUP_TARGET_THRESH:
+> +		next = val + THRESHOLDS_EVENTS_TARGET;
+> +            	break;
+> +        case MEM_CGROUP_TARGET_SOFTLIMIT:
+> +		next = val + SOFTLIMIT_EVENTS_TARGET;
+> +            	break;
+> +	default:
+> +		return;
+> +        }
+> +
+> +        this_cpu_write(mem->stat->targets[target], next);
+>  }
+> 
+>  /*
+> @@ -650,10 +676,15 @@ static bool __memcg_event_check(struct m
+>  static void memcg_check_events(struct mem_cgroup *mem, struct page *page)
+>  {
+>  	/* threshold event is triggered in finer grain than soft limit */
+> -	if (unlikely(__memcg_event_check(mem, THRESHOLDS_EVENTS_THRESH))) {
+> +	if (unlikely(__memcg_event_check(mem, MEM_CGROUP_TARGET_THRESH))) {
+>  		mem_cgroup_threshold(mem);
+> -		if (unlikely(__memcg_event_check(mem, SOFTLIMIT_EVENTS_THRESH)))
+> +                __mem_cgroup_target_update(mem, MEM_CGROUP_TARGET_THRESH);
+> +		if (unlikely(__memcg_event_check(mem,
+> +			MEM_CGROUP_TARGET_SOFTLIMIT))){
+>  			mem_cgroup_update_tree(mem, page);
+> +			__mem_cgroup_target_update(mem,
+> +				MEM_CGROUP_TARGET_SOFTLIMIT);
+> +		}
+>  	}
+>  }
+> 
+> 
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
