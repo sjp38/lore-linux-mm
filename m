@@ -1,66 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DEFB8D0039
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 09:08:45 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3542E3EE0B5
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 23:08:41 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1715545DE55
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 23:08:41 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id F3BAC45DE4D
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 23:08:40 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E09211DB802C
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 23:08:40 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AD5051DB8038
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 23:08:40 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: check zone->all_unreclaimable in all_unreclaimable()
-In-Reply-To: <20110309145457.0400.A69D9226@jp.fujitsu.com>
-References: <4D767D43.5020802@gmail.com> <20110309145457.0400.A69D9226@jp.fujitsu.com>
-Message-Id: <20110310224939.F926.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A99A48D0039
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 09:59:48 -0500 (EST)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2AEsNiM014998
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 07:54:23 -0700
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2AExafC060920
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 07:59:36 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2AExYGk016069
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 07:59:36 -0700
+Subject: Re: [PATCH R4 7/7] xen/balloon: Memory hotplug support for Xen
+ balloon driver
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20110310090207.GB13978@router-fw-old.local.net-space.pl>
+References: <20110308215049.GH27331@router-fw-old.local.net-space.pl>
+	 <1299628939.9014.3499.camel@nimitz>
+	 <20110310090207.GB13978@router-fw-old.local.net-space.pl>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Thu, 10 Mar 2011 06:59:25 -0800
+Message-ID: <1299769165.8937.2435.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Date: Thu, 10 Mar 2011 23:08:39 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: avagin@gmail.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Andrey Vagin <avagin@openvz.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-> Hi, 
+On Thu, 2011-03-10 at 10:02 +0100, Daniel Kiper wrote:
+> On Tue, Mar 08, 2011 at 04:02:19PM -0800, Dave Hansen wrote:
+> > > +	mutex_lock(&balloon_mutex);
+> > > +
+> > > +	__balloon_append(page);
+> > > +
+> > > +	if (balloon_stats.hotplug_pages)
+> > > +		--balloon_stats.hotplug_pages;
+> > > +	else
+> > > +		--balloon_stats.balloon_hotplug;
+> > > +
+> > > +	mutex_unlock(&balloon_mutex);
+> > > +
+> > > +	return NOTIFY_STOP;
+> > > +}
+> >
+> > I'm not a _huge_ fan of these notifier chains, but I guess it works.
 > 
-> Hmmm...
-> If I could observed your patch, I did support your opinion. but I didn't. so, now I'm 
-> curious why we got the different conclusion. tommorow, I'll try to construct a test 
-> environment to reproduce your system.
+> Could you tell me why ??? I think that in that case new
+> (faster, simpler, etc.) mechanism is an overkill. I prefer
+> to use something which is writen, tested and ready for usage.
 
-Hm, 
+Personally, I find it much harder to figure out what's going on there
+than if we had some #ifdefs or plain old function calls.  
 
-following two patches seems to have bad interaction. former makes
-SCHED_FIFO when OOM, latter makes CPU 100% occupied busy loop if
-LRU is really tight.
-Of cource, I need to run more much test. I'll digg it more at this 
-weekend (maybe).
+It would be one thing if we really had a large or undefined set of
+things that needs to interact here, but we really just need to
+conditionally free the page either in to the buddy allocator or back to
+Xen.  I think that calls for a simpler mechanism than notifier_blocks.
 
-
-commit 93b43fa55088fe977503a156d1097cc2055449a2
-Author: Luis Claudio R. Goncalves <lclaudio@uudg.org>
-Date:   Mon Aug 9 17:19:41 2010 -0700
-
-    oom: give the dying task a higher priority
-
-
-commit 0e093d99763eb4cea09f8ca4f1d01f34e121d10b
-Author: Mel Gorman <mel@csn.ul.ie>
-Date:   Tue Oct 26 14:21:45 2010 -0700
-
-    writeback: do not sleep on the congestion queue if there are no congested BDIs or if significant conge
-
-
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
