@@ -1,73 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 38BE28D0047
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 02:37:55 -0500 (EST)
-Date: Thu, 10 Mar 2011 02:37:51 -0500
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] xfs: flush vmap aliases when mapping fails
-Message-ID: <20110310073751.GB25374@infradead.org>
-References: <1299713876-7747-1-git-send-email-david@fromorbit.com>
-MIME-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 214608D003B
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 03:52:21 -0500 (EST)
+Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
+	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
+	id S1579637Ab1CJIvg (ORCPT <rfc822;linux-mm@kvack.org>);
+	Thu, 10 Mar 2011 09:51:36 +0100
+Date: Thu, 10 Mar 2011 09:51:36 +0100
+From: Daniel Kiper <dkiper@net-space.pl>
+Subject: Re: [PATCH R4 6/7] mm: Extend memory hotplug API to allow memory hotplug in virtual guests
+Message-ID: <20110310085136.GA13978@router-fw-old.local.net-space.pl>
+References: <20110308215003.GG27331@router-fw-old.local.net-space.pl> <1299628272.9014.3465.camel@nimitz>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1299713876-7747-1-git-send-email-david@fromorbit.com>
+In-Reply-To: <1299628272.9014.3465.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: xfs@oss.sgi.com, npiggin@kernel.dk, linux-mm@kvack.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Daniel Kiper <dkiper@net-space.pl>, ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Mar 10, 2011 at 10:37:56AM +1100, Dave Chinner wrote:
-> From: Dave Chinner <dchinner@redhat.com>
-> 
-> On 32 bit systems, vmalloc space is limited and XFS can chew through
-> it quickly as the vmalloc space is lazily freed. This can result in
-> failure to map buffers, even when there is apparently large amounts
-> of vmalloc space available. Hence, if we fail to map a buffer, purge
-> the aliases that have not yet been freed to hopefuly free up enough
-> vmalloc space to allow a retry to succeed.
+On Tue, Mar 08, 2011 at 03:51:12PM -0800, Dave Hansen wrote:
+> On Tue, 2011-03-08 at 22:50 +0100, Daniel Kiper wrote:
+> > +int add_virtual_memory(u64 *size)
+> > +{
+> > +	int nid;
+> > +	u64 start;
+> > +
+> > +	start = PFN_PHYS(SECTION_ALIGN(max_pfn));
+> > +	*size = (((*size >> PAGE_SHIFT) & PAGE_SECTION_MASK) + PAGES_PER_SECTION) << PAGE_SHIFT;
+>
+> Why use PFN_PHYS() in one case but not the other?
 
-IMHO this should be done by vm_map_ram internally.  If we can't get the
-core code fixes we can put this in as a last resort.
+I know that this is the same, however, I think PFN_PHYS() usage suggest
+that I do a PFN/address manipulation. It is not true in that case (I do
+an operation on region size) and I would like to avoid that ambiguity.
 
-> 
-> Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> ---
->  fs/xfs/linux-2.6/xfs_buf.c |   14 +++++++++++---
->  1 files changed, 11 insertions(+), 3 deletions(-)
-> 
-> diff --git a/fs/xfs/linux-2.6/xfs_buf.c b/fs/xfs/linux-2.6/xfs_buf.c
-> index 3cc671c..a5a260f 100644
-> --- a/fs/xfs/linux-2.6/xfs_buf.c
-> +++ b/fs/xfs/linux-2.6/xfs_buf.c
-> @@ -455,9 +455,17 @@ _xfs_buf_map_pages(
->  		bp->b_addr = page_address(bp->b_pages[0]) + bp->b_offset;
->  		bp->b_flags |= XBF_MAPPED;
->  	} else if (flags & XBF_MAPPED) {
-> -		bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
-> -					-1, PAGE_KERNEL);
-> -		if (unlikely(bp->b_addr == NULL))
-> +		int retried = 0;
-> +
-> +		do {
-> +			bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
-> +						-1, PAGE_KERNEL);
-> +			if (bp->b_addr)
-> +				break;
-> +			vm_unmap_aliases();
-> +		} while (retried++ <= 1);
-> +
-> +		if (!bp->b_addr)
->  			return -ENOMEM;
->  		bp->b_addr += bp->b_offset;
->  		bp->b_flags |= XBF_MAPPED;
-> -- 
-> 1.7.2.3
-> 
-> _______________________________________________
-> xfs mailing list
-> xfs@oss.sgi.com
-> http://oss.sgi.com/mailman/listinfo/xfs
----end quoted text---
+> I'd also highly suggest using the ALIGN() macro in cases like this.  It
+> makes it much more readable:
+
+OK.
+
+> 	*size = PFN_PHYS(ALIGN(*size, SECTION_SIZE)));
+>
+> > +	nid = memory_add_physaddr_to_nid(start);
+> > +
+> > +	return add_memory(nid, start, *size);
+> > +}
+>
+> Could you talk a little bit more about how 'size' gets used?  Also, are
+> we sure we want an interface where we're so liberal with 'size'?  It
+> seems like requiring that it be section-aligned is a fair burden to
+> place on the caller.  That way, we're not in a position of _guessing_
+> what the caller wants (aligning up or down).
+
+I do not have like this function since I created it. However,
+I decided to sent it for review. It does not simplify anything
+(add_memory() as a generic function is sufficient) and it is
+too inflexible. Now, I am sure that everything in its body
+should be moved to platform specific module (in that case Xen).
+I am going to that on next patch release.
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
