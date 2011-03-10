@@ -1,172 +1,242 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 05F828D0039
-	for <linux-mm@kvack.org>; Wed,  9 Mar 2011 23:01:27 -0500 (EST)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp02.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2A41DkH031749
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 09:31:13 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2A417ui3612842
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 09:31:13 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2A419GS000385
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 09:31:09 +0530
-Date: Thu, 10 Mar 2011 09:31:03 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH] memcg: fix event counter breakage with THP.
-Message-ID: <20110310040102.GR2868@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20110304164450.4cf80ef1.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20110304164450.4cf80ef1.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E4FAD8D0039
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 00:30:40 -0500 (EST)
+Subject: [PATCH 1/2 v4]mm: simplify code of swap.c
+From: Shaohua Li <shaohua.li@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 10 Mar 2011 13:30:18 +0800
+Message-ID: <1299735018.2337.62.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2011-03-04 16:44:50]:
+Clean up code and remove duplicate code. Next patch will use
+pagevec_lru_move_fn introduced here too.
 
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> memcg: Fix event counter, event leak with THP
-> 
-> With THP, event counter is updated by the size of large page because
-> event counter is for catching the change in usage.
-> This is now used for threshold notifier and soft limit.
-> 
-> Current event counter cathces the event by mask, as
-> 
->    !(counter & mask)
-> 
-> Before THP, counter is always updated by 1, this never misses target.
-> But now, this can miss.
-> 
-> This patch makes the trigger for event as
-> 
->   counter > target.
-> 
-> target is updated when the event happens.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   59 ++++++++++++++++++++++++++++++++++++++++++--------------
->  1 file changed, 45 insertions(+), 14 deletions(-)
-> 
-> Index: mmotm-0303/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-0303.orig/mm/memcontrol.c
-> +++ mmotm-0303/mm/memcontrol.c
-> @@ -73,15 +73,6 @@ static int really_do_swap_account __init
->  #define do_swap_account		(0)
->  #endif
-> 
-> -/*
-> - * Per memcg event counter is incremented at every pagein/pageout. This counter
-> - * is used for trigger some periodic events. This is straightforward and better
-> - * than using jiffies etc. to handle periodic memcg event.
-> - *
-> - * These values will be used as !((event) & ((1 <<(thresh)) - 1))
-> - */
-> -#define THRESHOLDS_EVENTS_THRESH (7) /* once in 128 */
-> -#define SOFTLIMIT_EVENTS_THRESH (10) /* once in 1024 */
-> 
->  /*
->   * Statistics for memory cgroup.
-> @@ -105,10 +96,24 @@ enum mem_cgroup_events_index {
->  	MEM_CGROUP_EVENTS_COUNT,	/* # of pages paged in/out */
->  	MEM_CGROUP_EVENTS_NSTATS,
->  };
-> +/*
-> + * Per memcg event counter is incremented at every pagein/pageout. With THP,
-> + * it will be incremated by the number of pages. This counter is used for
-> + * for trigger some periodic events. This is straightforward and better
-> + * than using jiffies etc. to handle periodic memcg event.
-> + */
-> +enum mem_cgroup_events_target {
-> +        MEM_CGROUP_TARGET_THRESH,
-> +        MEM_CGROUP_TARGET_SOFTLIMIT,
-> +        MEM_CGROUP_NTARGETS,
-> +};
-> +#define THRESHOLDS_EVENTS_TARGET (128)
-> +#define SOFTLIMIT_EVENTS_TARGET (1024)
-> 
->  struct mem_cgroup_stat_cpu {
->  	long count[MEM_CGROUP_STAT_NSTATS];
->  	unsigned long events[MEM_CGROUP_EVENTS_NSTATS];
-> +        unsigned long targets[MEM_CGROUP_NTARGETS];
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 
-I see spaces as opposed to tabs.
+---
+ mm/swap.c |  133 +++++++++++++++++++++++++++-----------------------------------
+ 1 file changed, 58 insertions(+), 75 deletions(-)
 
->  };
-> 
->  /*
-> @@ -634,13 +639,34 @@ static unsigned long mem_cgroup_get_loca
->  	return total;
->  }
-> 
-> -static bool __memcg_event_check(struct mem_cgroup *mem, int event_mask_shift)
-> +static bool __memcg_event_check(struct mem_cgroup *mem, int target)
->  {
-> -	unsigned long val;
-> +	unsigned long val, next;
-> 
->  	val = this_cpu_read(mem->stat->events[MEM_CGROUP_EVENTS_COUNT]);
-> +	next = this_cpu_read(mem->stat->targets[target]);
-> +        /* from time_after() in jiffies.h */
-> +	return ((long)next - (long)val < 0);
-> +}
-> 
-> -	return !(val & ((1 << event_mask_shift) - 1));
-> +static void __mem_cgroup_target_update(struct mem_cgroup *mem, int target)
-> +{
-> +        unsigned long val, next;
-> +
-> +	val = this_cpu_read(mem->stat->events[MEM_CGROUP_EVENTS_COUNT]);
-> +
-> +        switch (target) {
+Index: linux/mm/swap.c
+===================================================================
+--- linux.orig/mm/swap.c	2011-03-09 12:47:09.000000000 +0800
++++ linux/mm/swap.c	2011-03-09 13:39:26.000000000 +0800
+@@ -179,15 +179,13 @@ void put_pages_list(struct list_head *pa
+ }
+ EXPORT_SYMBOL(put_pages_list);
+ 
+-/*
+- * pagevec_move_tail() must be called with IRQ disabled.
+- * Otherwise this may cause nasty races.
+- */
+-static void pagevec_move_tail(struct pagevec *pvec)
++static void pagevec_lru_move_fn(struct pagevec *pvec,
++				void (*move_fn)(struct page *page, void *arg),
++				void *arg)
+ {
+ 	int i;
+-	int pgmoved = 0;
+ 	struct zone *zone = NULL;
++	unsigned long flags = 0;
+ 
+ 	for (i = 0; i < pagevec_count(pvec); i++) {
+ 		struct page *page = pvec->pages[i];
+@@ -195,30 +193,50 @@ static void pagevec_move_tail(struct pag
+ 
+ 		if (pagezone != zone) {
+ 			if (zone)
+-				spin_unlock(&zone->lru_lock);
++				spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 			zone = pagezone;
+-			spin_lock(&zone->lru_lock);
+-		}
+-		if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+-			enum lru_list lru = page_lru_base_type(page);
+-			list_move_tail(&page->lru, &zone->lru[lru].list);
+-			mem_cgroup_rotate_reclaimable_page(page);
+-			pgmoved++;
++			spin_lock_irqsave(&zone->lru_lock, flags);
+ 		}
++
++		(*move_fn)(page, arg);
+ 	}
+ 	if (zone)
+-		spin_unlock(&zone->lru_lock);
+-	__count_vm_events(PGROTATED, pgmoved);
++		spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 	release_pages(pvec->pages, pvec->nr, pvec->cold);
+ 	pagevec_reinit(pvec);
+ }
+ 
++static void pagevec_move_tail_fn(struct page *page, void *arg)
++{
++	int *pgmoved = arg;
++	struct zone *zone = page_zone(page);
++
++	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
++		enum lru_list lru = page_lru_base_type(page);
++		list_move_tail(&page->lru, &zone->lru[lru].list);
++		mem_cgroup_rotate_reclaimable_page(page);
++		(*pgmoved)++;
++	}
++}
++
++/*
++ * pagevec_move_tail() must be called with IRQ disabled.
++ * Otherwise this may cause nasty races.
++ */
++static void pagevec_move_tail(struct pagevec *pvec)
++{
++	int pgmoved = 0;
++
++	pagevec_lru_move_fn(pvec, pagevec_move_tail_fn, &pgmoved);
++	__count_vm_events(PGROTATED, pgmoved);
++}
++
+ /*
+  * Writeback is about to end against a page which has been marked for immediate
+  * reclaim.  If it still appears to be reclaimable, move it to the tail of the
+  * inactive list.
+  */
+-void  rotate_reclaimable_page(struct page *page)
++void rotate_reclaimable_page(struct page *page)
+ {
+ 	if (!PageLocked(page) && !PageDirty(page) && !PageActive(page) &&
+ 	    !PageUnevictable(page) && PageLRU(page)) {
+@@ -369,10 +387,11 @@ void add_page_to_unevictable_list(struct
+  * be write it out by flusher threads as this is much more effective
+  * than the single-page writeout from reclaim.
+  */
+-static void lru_deactivate(struct page *page, struct zone *zone)
++static void lru_deactivate_fn(struct page *page, void *arg)
+ {
+ 	int lru, file;
+ 	bool active;
++	struct zone *zone = page_zone(page);
+ 
+ 	if (!PageLRU(page))
+ 		return;
+@@ -412,31 +431,6 @@ static void lru_deactivate(struct page *
+ 	update_page_reclaim_stat(zone, page, file, 0);
+ }
+ 
+-static void ____pagevec_lru_deactivate(struct pagevec *pvec)
+-{
+-	int i;
+-	struct zone *zone = NULL;
+-
+-	for (i = 0; i < pagevec_count(pvec); i++) {
+-		struct page *page = pvec->pages[i];
+-		struct zone *pagezone = page_zone(page);
+-
+-		if (pagezone != zone) {
+-			if (zone)
+-				spin_unlock_irq(&zone->lru_lock);
+-			zone = pagezone;
+-			spin_lock_irq(&zone->lru_lock);
+-		}
+-		lru_deactivate(page, zone);
+-	}
+-	if (zone)
+-		spin_unlock_irq(&zone->lru_lock);
+-
+-	release_pages(pvec->pages, pvec->nr, pvec->cold);
+-	pagevec_reinit(pvec);
+-}
+-
+-
+ /*
+  * Drain pages out of the cpu's pagevecs.
+  * Either "cpu" is the current CPU, and preemption has already been
+@@ -466,7 +460,7 @@ static void drain_cpu_pagevecs(int cpu)
+ 
+ 	pvec = &per_cpu(lru_deactivate_pvecs, cpu);
+ 	if (pagevec_count(pvec))
+-		____pagevec_lru_deactivate(pvec);
++		pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
+ }
+ 
+ /**
+@@ -483,7 +477,7 @@ void deactivate_page(struct page *page)
+ 		struct pagevec *pvec = &get_cpu_var(lru_deactivate_pvecs);
+ 
+ 		if (!pagevec_add(pvec, page))
+-			____pagevec_lru_deactivate(pvec);
++			pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
+ 		put_cpu_var(lru_deactivate_pvecs);
+ 	}
+ }
+@@ -630,44 +624,33 @@ void lru_add_page_tail(struct zone* zone
+ 	}
+ }
+ 
++static void ____pagevec_lru_add_fn(struct page *page, void *arg)
++{
++	enum lru_list lru = (enum lru_list)arg;
++	struct zone *zone = page_zone(page);
++	int file = is_file_lru(lru);
++	int active = is_active_lru(lru);
++
++	VM_BUG_ON(PageActive(page));
++	VM_BUG_ON(PageUnevictable(page));
++	VM_BUG_ON(PageLRU(page));
++
++	SetPageLRU(page);
++	if (active)
++		SetPageActive(page);
++	update_page_reclaim_stat(zone, page, file, active);
++	add_page_to_lru_list(zone, page, lru);
++}
++
+ /*
+  * Add the passed pages to the LRU, then drop the caller's refcount
+  * on them.  Reinitialises the caller's pagevec.
+  */
+ void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
+ {
+-	int i;
+-	struct zone *zone = NULL;
+-
+ 	VM_BUG_ON(is_unevictable_lru(lru));
+ 
+-	for (i = 0; i < pagevec_count(pvec); i++) {
+-		struct page *page = pvec->pages[i];
+-		struct zone *pagezone = page_zone(page);
+-		int file;
+-		int active;
+-
+-		if (pagezone != zone) {
+-			if (zone)
+-				spin_unlock_irq(&zone->lru_lock);
+-			zone = pagezone;
+-			spin_lock_irq(&zone->lru_lock);
+-		}
+-		VM_BUG_ON(PageActive(page));
+-		VM_BUG_ON(PageUnevictable(page));
+-		VM_BUG_ON(PageLRU(page));
+-		SetPageLRU(page);
+-		active = is_active_lru(lru);
+-		file = is_file_lru(lru);
+-		if (active)
+-			SetPageActive(page);
+-		update_page_reclaim_stat(zone, page, file, active);
+-		add_page_to_lru_list(zone, page, lru);
+-	}
+-	if (zone)
+-		spin_unlock_irq(&zone->lru_lock);
+-	release_pages(pvec->pages, pvec->nr, pvec->cold);
+-	pagevec_reinit(pvec);
++	pagevec_lru_move_fn(pvec, ____pagevec_lru_add_fn, (void *)lru);
+ }
+ 
+ EXPORT_SYMBOL(____pagevec_lru_add);
 
-The formatting seems to be off, could you please check the coding
-style
-
-> +        case MEM_CGROUP_TARGET_THRESH:
-> +		next = val + THRESHOLDS_EVENTS_TARGET;
-> +            	break;
-> +        case MEM_CGROUP_TARGET_SOFTLIMIT:
-> +		next = val + SOFTLIMIT_EVENTS_TARGET;
-> +            	break;
-> +	default:
-> +		return;
-> +        }
-> +
-> +        this_cpu_write(mem->stat->targets[target], next);
->  }
-> 
->  /*
-> @@ -650,10 +676,15 @@ static bool __memcg_event_check(struct m
->  static void memcg_check_events(struct mem_cgroup *mem, struct page *page)
->  {
->  	/* threshold event is triggered in finer grain than soft limit */
-> -	if (unlikely(__memcg_event_check(mem, THRESHOLDS_EVENTS_THRESH))) {
-> +	if (unlikely(__memcg_event_check(mem, MEM_CGROUP_TARGET_THRESH))) {
->  		mem_cgroup_threshold(mem);
-> -		if (unlikely(__memcg_event_check(mem, SOFTLIMIT_EVENTS_THRESH)))
-> +                __mem_cgroup_target_update(mem, MEM_CGROUP_TARGET_THRESH);
-> +		if (unlikely(__memcg_event_check(mem,
-> +			MEM_CGROUP_TARGET_SOFTLIMIT))){
->  			mem_cgroup_update_tree(mem, page);
-> +			__mem_cgroup_target_update(mem,
-> +				MEM_CGROUP_TARGET_SOFTLIMIT);
-> +		}
->  	}
->  }
-> 
-> 
-
--- 
-	Three Cheers,
-	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
