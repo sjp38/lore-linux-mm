@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C24578D0047
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 02:20:17 -0500 (EST)
-Message-ID: <4D787C0C.7040707@cn.fujitsu.com>
-Date: Thu, 10 Mar 2011 15:21:48 +0800
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 450618D0047
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 02:20:28 -0500 (EST)
+Message-ID: <4D787C18.3070800@cn.fujitsu.com>
+Date: Thu, 10 Mar 2011 15:22:00 +0800
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH 1/3 V2] slub: automatically reserve bytes at the end of slab
+Subject: [PATCH 2/3 V2] slub,rcu: don't assume the size of struct rcu_head
 References: <4D6CA843.3090103@cn.fujitsu.com>
 In-Reply-To: <4D6CA843.3090103@cn.fujitsu.com>
 Content-Transfer-Encoding: 7bit
@@ -16,206 +16,79 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>
 Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux-foundation.org>, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 
-There is no "struct" for slub's slab, it shares with struct page.
-But struct page is very small, it is insufficient when we need
-to add some metadata for slab.
+The size of struct rcu_head may be changed. When it becomes larger,
+it will pollute the page array.
 
-So we add a field "reserved" to struct kmem_cache, when a slab
-is allocated, kmem_cache->reserved bytes are automatically reserved
-at the end of the slab for slab's metadata.
+We reserve some some bytes for struct rcu_head when a slab
+is allocated in this situation.
 
-Changed from v1:
-	Export the reserved field via sysfs
+Changed from V1:
+	use VM_BUG_ON instead BUG_ON
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+Acked-by: Christoph Lameter <cl@linux.com>
 ---
- include/linux/slub_def.h |    1 +
- mm/slub.c                |   47 +++++++++++++++++++++++++++++----------------
- 2 files changed, 31 insertions(+), 17 deletions(-)
+ mm/slub.c |   30 +++++++++++++++++++++++++-----
+ 1 files changed, 25 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index 8b6e8ae..ae0093c 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -83,6 +83,7 @@ struct kmem_cache {
- 	void (*ctor)(void *);
- 	int inuse;		/* Offset to metadata */
- 	int align;		/* Alignment */
-+	int reserved;		/* Reserved bytes at the end of slabs */
- 	unsigned long min_partial;
- 	const char *name;	/* Name (only for display!) */
- 	struct list_head list;	/* List of slab caches */
 diff --git a/mm/slub.c b/mm/slub.c
-index e15aa7f..d3d1767 100644
+index d3d1767..ebba3eb 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -281,11 +281,16 @@ static inline int slab_index(void *p, struct kmem_cache *s, void *addr)
- 	return (p - addr) / s->size;
+@@ -1254,21 +1254,38 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+ 	__free_pages(page, order);
  }
  
-+static inline int order_objects(int order, unsigned long size, int reserved)
-+{
-+	return ((PAGE_SIZE << order) - reserved) / size;
-+}
++#define need_reserve_slab_rcu						\
++	(sizeof(((struct page *)NULL)->lru) < sizeof(struct rcu_head))
 +
- static inline struct kmem_cache_order_objects oo_make(int order,
--						unsigned long size)
-+		unsigned long size, int reserved)
+ static void rcu_free_slab(struct rcu_head *h)
  {
- 	struct kmem_cache_order_objects x = {
--		(order << OO_SHIFT) + (PAGE_SIZE << order) / size
-+		(order << OO_SHIFT) + order_objects(order, size, reserved)
- 	};
+ 	struct page *page;
  
- 	return x;
-@@ -617,7 +622,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
- 		return 1;
- 
- 	start = page_address(page);
--	length = (PAGE_SIZE << compound_order(page));
-+	length = (PAGE_SIZE << compound_order(page)) - s->reserved;
- 	end = start + length;
- 	remainder = length % s->size;
- 	if (!remainder)
-@@ -698,7 +703,7 @@ static int check_slab(struct kmem_cache *s, struct page *page)
- 		return 0;
- 	}
- 
--	maxobj = (PAGE_SIZE << compound_order(page)) / s->size;
-+	maxobj = order_objects(compound_order(page), s->size, s->reserved);
- 	if (page->objects > maxobj) {
- 		slab_err(s, page, "objects %u > max %u",
- 			s->name, page->objects, maxobj);
-@@ -748,7 +753,7 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
- 		nr++;
- 	}
- 
--	max_objects = (PAGE_SIZE << compound_order(page)) / s->size;
-+	max_objects = order_objects(compound_order(page), s->size, s->reserved);
- 	if (max_objects > MAX_OBJS_PER_PAGE)
- 		max_objects = MAX_OBJS_PER_PAGE;
- 
-@@ -1988,13 +1993,13 @@ static int slub_nomerge;
-  * the smallest order which will fit the object.
-  */
- static inline int slab_order(int size, int min_objects,
--				int max_order, int fract_leftover)
-+				int max_order, int fract_leftover, int reserved)
- {
- 	int order;
- 	int rem;
- 	int min_order = slub_min_order;
- 
--	if ((PAGE_SIZE << min_order) / size > MAX_OBJS_PER_PAGE)
-+	if (order_objects(min_order, size, reserved) > MAX_OBJS_PER_PAGE)
- 		return get_order(size * MAX_OBJS_PER_PAGE) - 1;
- 
- 	for (order = max(min_order,
-@@ -2003,10 +2008,10 @@ static inline int slab_order(int size, int min_objects,
- 
- 		unsigned long slab_size = PAGE_SIZE << order;
- 
--		if (slab_size < min_objects * size)
-+		if (slab_size < min_objects * size + reserved)
- 			continue;
- 
--		rem = slab_size % size;
-+		rem = (slab_size - reserved) % size;
- 
- 		if (rem <= slab_size / fract_leftover)
- 			break;
-@@ -2016,7 +2021,7 @@ static inline int slab_order(int size, int min_objects,
- 	return order;
+-	page = container_of((struct list_head *)h, struct page, lru);
++	if (need_reserve_slab_rcu)
++		page = virt_to_head_page(h);
++	else
++		page = container_of((struct list_head *)h, struct page, lru);
++
+ 	__free_slab(page->slab, page);
  }
  
--static inline int calculate_order(int size)
-+static inline int calculate_order(int size, int reserved)
+ static void free_slab(struct kmem_cache *s, struct page *page)
  {
- 	int order;
- 	int min_objects;
-@@ -2034,14 +2039,14 @@ static inline int calculate_order(int size)
- 	min_objects = slub_min_objects;
- 	if (!min_objects)
- 		min_objects = 4 * (fls(nr_cpu_ids) + 1);
--	max_objects = (PAGE_SIZE << slub_max_order)/size;
-+	max_objects = order_objects(slub_max_order, size, reserved);
- 	min_objects = min(min_objects, max_objects);
+ 	if (unlikely(s->flags & SLAB_DESTROY_BY_RCU)) {
+-		/*
+-		 * RCU free overloads the RCU head over the LRU
+-		 */
+-		struct rcu_head *head = (void *)&page->lru;
++		struct rcu_head *head;
++
++		if (need_reserve_slab_rcu) {
++			int order = compound_order(page);
++			int offset = (PAGE_SIZE << order) - s->reserved;
++
++			VM_BUG_ON(s->reserved != sizeof(*head));
++			head = page_address(page) + offset;
++		} else {
++			/*
++			 * RCU free overloads the RCU head over the LRU
++			 */
++			head = (void *)&page->lru;
++		}
  
- 	while (min_objects > 1) {
- 		fraction = 16;
- 		while (fraction >= 4) {
- 			order = slab_order(size, min_objects,
--						slub_max_order, fraction);
-+					slub_max_order, fraction, reserved);
- 			if (order <= slub_max_order)
- 				return order;
- 			fraction /= 2;
-@@ -2053,14 +2058,14 @@ static inline int calculate_order(int size)
- 	 * We were unable to place multiple objects in a slab. Now
- 	 * lets see if we can place a single object there.
- 	 */
--	order = slab_order(size, 1, slub_max_order, 1);
-+	order = slab_order(size, 1, slub_max_order, 1, reserved);
- 	if (order <= slub_max_order)
- 		return order;
- 
- 	/*
- 	 * Doh this slab cannot be placed using slub_max_order.
- 	 */
--	order = slab_order(size, 1, MAX_ORDER, 1);
-+	order = slab_order(size, 1, MAX_ORDER, 1, reserved);
- 	if (order < MAX_ORDER)
- 		return order;
- 	return -ENOSYS;
-@@ -2311,7 +2316,7 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
- 	if (forced_order >= 0)
- 		order = forced_order;
- 	else
--		order = calculate_order(size);
-+		order = calculate_order(size, s->reserved);
- 
- 	if (order < 0)
- 		return 0;
-@@ -2329,8 +2334,8 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
- 	/*
- 	 * Determine the number of objects per slab
- 	 */
--	s->oo = oo_make(order, size);
--	s->min = oo_make(get_order(size), size);
-+	s->oo = oo_make(order, size, s->reserved);
-+	s->min = oo_make(get_order(size), size, s->reserved);
- 	if (oo_objects(s->oo) > oo_objects(s->max))
- 		s->max = s->oo;
- 
-@@ -2349,6 +2354,7 @@ static int kmem_cache_open(struct kmem_cache *s,
- 	s->objsize = size;
- 	s->align = align;
+ 		call_rcu(head, rcu_free_slab);
+ 	} else
+@@ -2356,6 +2373,9 @@ static int kmem_cache_open(struct kmem_cache *s,
  	s->flags = kmem_cache_flags(size, flags, name, ctor);
-+	s->reserved = 0;
+ 	s->reserved = 0;
  
++	if (need_reserve_slab_rcu && (s->flags & SLAB_DESTROY_BY_RCU))
++		s->reserved = sizeof(struct rcu_head);
++
  	if (!calculate_sizes(s, -1))
  		goto error;
-@@ -4017,6 +4023,12 @@ static ssize_t destroy_by_rcu_show(struct kmem_cache *s, char *buf)
- }
- SLAB_ATTR_RO(destroy_by_rcu);
- 
-+static ssize_t reserved_show(struct kmem_cache *s, char *buf)
-+{
-+	return sprintf(buf, "%d\n", s->reserved);
-+}
-+SLAB_ATTR_RO(reserved);
-+
- #ifdef CONFIG_SLUB_DEBUG
- static ssize_t slabs_show(struct kmem_cache *s, char *buf)
- {
-@@ -4303,6 +4315,7 @@ static struct attribute *slab_attrs[] = {
- 	&reclaim_account_attr.attr,
- 	&destroy_by_rcu_attr.attr,
- 	&shrink_attr.attr,
-+	&reserved_attr.attr,
- #ifdef CONFIG_SLUB_DEBUG
- 	&total_objects_attr.attr,
- 	&slabs_attr.attr,
+ 	if (disable_higher_order_debug) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
