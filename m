@@ -1,43 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id ED6578D003A
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 18:20:47 -0500 (EST)
-Message-ID: <4D795C9A.1040509@redhat.com>
-Date: Thu, 10 Mar 2011 18:19:54 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] arch/tile: optimize icache flush
-References: <201103102125.p2ALPupL017020@farm-0012.internal.tilera.com>
-In-Reply-To: <201103102125.p2ALPupL017020@farm-0012.internal.tilera.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D56F8D003A
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 18:52:23 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 548363EE0C0
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 08:52:19 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3843845DE58
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 08:52:19 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1EAD445DE4D
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 08:52:19 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A806E08004
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 08:52:19 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CA0CDE08002
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 08:52:18 +0900 (JST)
+Date: Fri, 11 Mar 2011 08:45:51 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v4] memcg: fix leak on wrong LRU with FUSE
+Message-Id: <20110311084551.883c8aeb.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110310142029.5d108e37.akpm@linux-foundation.org>
+References: <20110308135612.e971e1f3.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110308181832.6386da5f.nishimura@mxp.nes.nec.co.jp>
+	<20110309150750.d570798c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110309164801.3a4c8d10.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110309100020.GD30778@cmpxchg.org>
+	<20110310083659.fd8b1c3f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110310144752.289483d4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110310150428.f175758c.nishimura@mxp.nes.nec.co.jp>
+	<20110310142029.5d108e37.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@tilera.com>
-Cc: linux-kernel@vger.kernel.org, a.p.zijlstra@chello.nl, torvalds@linux-foundation.org, aarcange@redhat.com, tglx@linutronix.de, mingo@elte.hu, akpm@linux-foundation.org, "David Miller <davem@davemloft.net>" <linux-arch@vger.kernel.org>, linux-mm@kvack.org, benh@kernel.crashing.org, hugh.dickins@tiscali.co.uk, mel@csn.ul.ie, npiggin@kernel.dk, rmk@arm.linux.org.uk, schwidefsky@de.ibm.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 
-On 03/10/2011 01:05 PM, Chris Metcalf wrote:
-> Tile has incoherent icaches, so they must be explicitly invalidated
-> when necessary.  Until now we have done so at tlb flush and context
-> switch time, which means more invalidation than strictly necessary.
-> The new model for icache flush is:
->
-> - When we fault in a page as executable, we set an "Exec" bit in the
->    "struct page" information; the bit stays set until page free time.
->    (We use the arch_1 page bit for our "Exec" bit.)
->
-> - At page free time, if the Exec bit is set, we do an icache flush.
->    This should happen relatively rarely: e.g., deleting a binary from disk,
->    or evicting a binary's pages from the page cache due to memory pressure.
->
-> Signed-off-by: Chris Metcalf<cmetcalf@tilera.com>
+On Thu, 10 Mar 2011 14:20:29 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-Nice trick.
+> On Thu, 10 Mar 2011 15:04:28 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > > Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
+> > Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > 
+> > I hope this can fix the original BZ case.
+> 
+> Do you recall the buzilla bug number?
+> 
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Bug 30432
 
--- 
-All rights reversed
+The patch works only when the user use FUSE.
+We need to confirm that.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
