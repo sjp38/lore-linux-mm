@@ -1,73 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 34DC68D0039
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 11:18:58 -0500 (EST)
-Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
-	by smtp-out.google.com with ESMTP id p2AGIt11011810
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 08:18:55 -0800
-Received: from qwb8 (qwb8.prod.google.com [10.241.193.72])
-	by kpbe14.cbf.corp.google.com with ESMTP id p2AGHt1S031952
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 08:18:53 -0800
-Received: by qwb8 with SMTP id 8so1277804qwb.10
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2011 08:18:53 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 688E88D0039
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 11:38:25 -0500 (EST)
+Date: Thu, 10 Mar 2011 08:38:09 -0800
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH 0/5] make *_gate_vma accept mm_struct instead of
+ task_struct II
+Message-ID: <20110310163809.GA20675@alboin.amr.corp.intel.com>
+References: <1299630721-4337-1-git-send-email-wilsons@start.ca>
+ <20110310160032.GA20504@alboin.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20110228114018.390ce291.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1298669760-26344-1-git-send-email-gthelen@google.com>
- <1298669760-26344-7-git-send-email-gthelen@google.com> <20110227170143.GE3226@barrios-desktop>
- <20110228114018.390ce291.kamezawa.hiroyu@jp.fujitsu.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Thu, 10 Mar 2011 08:18:33 -0800
-Message-ID: <AANLkTimuHeGMY0ELXgsn+BmAibvV34x3RvphF+3SODqw@mail.gmail.com>
-Subject: Re: [PATCH v5 6/9] memcg: add kernel calls for memcg dirty page stats
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110310160032.GA20504@alboin.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Vivek Goyal <vgoyal@redhat.com>
+To: Stephen Wilson <wilsons@start.ca>
+Cc: x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Paul Mundt <lethal@linux-sh.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Feb 27, 2011 at 6:40 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Mon, 28 Feb 2011 02:01:43 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
->
->> On Fri, Feb 25, 2011 at 01:35:57PM -0800, Greg Thelen wrote:
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0spin_unlock_irqrestore(&mapping->tree_lock=
-, flags);
->> > =A0 =A0 } else {
->> > @@ -1365,6 +1368,7 @@ int test_set_page_writeback(struct page *page)
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 PAGECACHE_TAG_WRITEBACK);
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (bdi_cap_account_writeback(=
-bdi))
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __inc_bdi_stat=
-(bdi, BDI_WRITEBACK);
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_inc_page_stat(page, M=
-EMCG_NR_FILE_WRITEBACK);
->>
->> Question:
->> Why should we care of BDI_CAP_NO_WRITEBACK?
->>
-> Hmm, should we do ..
-> =3D=3D
-> =A0 =A0 =A0 =A0if (!ret) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0account_page_writeback(page);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_inc_page_stat(page, MEMCG_NR_FIL=
-E_WRITEBACL);
-> =A0 =A0 =A0 =A0}
-> =3D=3D
+On Thu, Mar 10, 2011 at 08:00:32AM -0800, Andi Kleen wrote:
+> On Tue, Mar 08, 2011 at 07:31:56PM -0500, Stephen Wilson wrote:
+> > 
+> > Morally, the question of whether an address lies in a gate vma should be asked
+> > with respect to an mm, not a particular task.
+> > 
+> > Practically, dropping the dependency on task_struct will help make current and
+> > future operations on mm's more flexible and convenient.  In particular, it
+> > allows some code paths to avoid the need to hold task_lock.
+> > 
+> > The only architecture this change impacts in any significant way is x86_64.
+> > The principle change on that architecture is to mirror TIF_IA32 via
+> > a new flag in mm_context_t. 
+> 
+> The problem is -- you're adding a likely cache miss on mm_struct for
+> every 32bit compat syscall now, even if they don't need mm_struct
+> currently (and a lot of them do not) Unless there's a very good
+> justification to make up for this performance issue elsewhere
+> (including numbers) this seems like a bad idea.
 
-Yes, I agree with Minchan that this is an issue.  I think Kame's fix
-is good.  I will apply Kame's fix to test_set_page_writeback().  I
-also found that test_clear_page_writeback() has the same issue and it
-will also be fixed.  I will be posting v6 shortly (hopefully today)
-with these fixes.
+Hmm I see you're only setting it on exec time actually on rereading
+the patches. I thought you were changing TS_COMPAT which is in
+the syscall path.
 
-> Thanks,
-> -Kame
->
->
+Never mind.  I have no problems with doing such a change on exec
+time.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
