@@ -1,230 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A584B8D003A
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 19:01:55 -0500 (EST)
-Date: Thu, 10 Mar 2011 16:01:16 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4] memcg: fix leak on wrong LRU with FUSE
-Message-Id: <20110310160116.289b378f.akpm@linux-foundation.org>
-In-Reply-To: <20110311084551.883c8aeb.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110308135612.e971e1f3.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110308181832.6386da5f.nishimura@mxp.nes.nec.co.jp>
-	<20110309150750.d570798c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110309164801.3a4c8d10.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110309100020.GD30778@cmpxchg.org>
-	<20110310083659.fd8b1c3f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110310144752.289483d4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110310150428.f175758c.nishimura@mxp.nes.nec.co.jp>
-	<20110310142029.5d108e37.akpm@linux-foundation.org>
-	<20110311084551.883c8aeb.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 83DBC8D003A
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 19:05:00 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5744D3EE0BD
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 09:04:57 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 393E645DE6A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 09:04:57 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 120F345DE67
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 09:04:57 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 028661DB803F
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 09:04:57 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AC54AE08003
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 09:04:56 +0900 (JST)
+Date: Fri, 11 Mar 2011 08:58:33 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: check zone->all_unreclaimable in
+ all_unreclaimable()
+Message-Id: <20110311085833.874c6c0e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <AANLkTi=q=YMrT7Uta+wGm47VZ5N6meybAQTgjKGsDWFw@mail.gmail.com>
+References: <1299325456-2687-1-git-send-email-avagin@openvz.org>
+	<20110305152056.GA1918@barrios-desktop>
+	<4D72580D.4000208@gmail.com>
+	<20110305155316.GB1918@barrios-desktop>
+	<4D7267B6.6020406@gmail.com>
+	<20110305170759.GC1918@barrios-desktop>
+	<20110307135831.9e0d7eaa.akpm@linux-foundation.org>
+	<AANLkTinDhorLusBju=Gn3bh1VsH1jrv0qixbU3SGWiqa@mail.gmail.com>
+	<20110309143704.194e8ee1.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTi=q=YMrT7Uta+wGm47VZ5N6meybAQTgjKGsDWFw@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Daniel Poelzleithner <poelzi@poelzi.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrew Vagin <avagin@gmail.com>, Andrey Vagin <avagin@openvz.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 11 Mar 2011 08:45:51 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, 10 Mar 2011 15:58:29 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-> On Thu, 10 Mar 2011 14:20:29 -0800
-> Andrew Morton <akpm@linux-foundation.org> wrote:
+> Hi Kame,
 > 
-> > On Thu, 10 Mar 2011 15:04:28 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> > > > Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
-> > > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > 
-> > > Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > > 
-> > > I hope this can fix the original BZ case.
-> > 
-> > Do you recall the buzilla bug number?
-> > 
+> Sorry for late response.
+> I had a time to test this issue shortly because these day I am very busy.
+> This issue was interesting to me.
+> So I hope taking a time for enough testing when I have a time.
+> I should find out root cause of livelock.
 > 
-> Bug 30432
 
-OK, well please let's not lose track of these things.  It's useful for
-maintaining the bug database and it helps with the rather important
-step of crediting the bug reporters who help us.
+Thanks. I and Kosaki-san reproduced the bug with swapless system.
+Now, Kosaki-san is digging and found some issue with scheduler boost at OOM
+and lack of enough "wait" in vmscan.c.
 
-> The patch works only when the user use FUSE.
-> We need to confirm that.
+I myself made patch like attached one. This works well for returning TRUE at
+all_unreclaimable() but livelock(deadlock?) still happens.
+I wonder vmscan itself isn't a key for fixing issue.
+Then, I'd like to wait for Kosaki-san's answer ;)
 
-Daniel, are you able to test the proposed fix?
+I'm now wondering how to catch fork-bomb and stop it (without using cgroup). 
+I think the problem is that fork-bomb is faster than killall...
 
+Thanks,
+-Kame
+==
 
+This is just a debug patch.
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-fs/fuse/dev.c::fuse_try_move_page() does
-
-   (1) remove a page by ->steal()
-   (2) re-add the page to page cache
-   (3) link the page to LRU if it was not on LRU at (1)
-
-This implies the page is _on_ LRU when it's added to radix-tree.  So, the
-page is added to memory cgroup while it's on LRU.  because LRU is lazy and
-no one flushs it.
-
-This is the same behavior as SwapCache and needs special care as
- - remove page from LRU before overwrite pc->mem_cgroup.
- - add page to LRU after overwrite pc->mem_cgroup.
-
-And we need to taking care of pagevec.
-
-If PageLRU(page) is set before we add PCG_USED bit, the page will not be
-added to memcg's LRU (in short period).  So, regardlress of PageLRU(page)
-value before commit_charge(), we need to check PageLRU(page) after
-commit_charge().
-
-Addresses https://bugzilla.kernel.org/show_bug.cgi?id=30432
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Miklos Szeredi <miklos@szeredi.hu>
-Cc: Balbir Singh <balbir@in.ibm.com>
-Reported-by: Daniel Poelzleithner <poelzi@poelzi.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
+ mm/vmscan.c |   58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 54 insertions(+), 4 deletions(-)
 
- mm/memcontrol.c |   70 ++++++++++++++++++++++++++++++++++------------
- 1 file changed, 52 insertions(+), 18 deletions(-)
-
-diff -puN mm/memcontrol.c~memcg-fix-leak-on-wrong-lru-with-fuse mm/memcontrol.c
---- a/mm/memcontrol.c~memcg-fix-leak-on-wrong-lru-with-fuse
-+++ a/mm/memcontrol.c
-@@ -926,18 +926,28 @@ void mem_cgroup_add_lru_list(struct page
+Index: mmotm-0303/mm/vmscan.c
+===================================================================
+--- mmotm-0303.orig/mm/vmscan.c
++++ mmotm-0303/mm/vmscan.c
+@@ -1983,9 +1983,55 @@ static void shrink_zones(int priority, s
+ 	}
+ }
+ 
+-static bool zone_reclaimable(struct zone *zone)
++static bool zone_seems_empty(struct zone *zone, struct scan_control *sc)
+ {
+-	return zone->pages_scanned < zone_reclaimable_pages(zone) * 6;
++	unsigned long nr, wmark, free, isolated, lru;
++
++	/*
++	 * If scanned, zone->pages_scanned is incremented and this can
++ 	 * trigger OOM.
++ 	 */
++	if (sc->nr_scanned)
++		return false;
++
++	free = zone_page_state(zone, NR_FREE_PAGES);
++	isolated = zone_page_state(zone, NR_ISOLATED_FILE);
++	if (nr_swap_pages)
++		isolated += zone_page_state(zone, NR_ISOLATED_ANON);
++
++	/* In we cannot do scan, don't count LRU pages. */
++	if (!zone->all_unreclaimable) {
++		lru = zone_page_state(zone, NR_ACTIVE_FILE);
++		lru += zone_page_state(zone, NR_INACTIVE_FILE);
++		if (nr_swap_pages) {
++			lru += zone_page_state(zone, NR_ACTIVE_ANON);
++			lru += zone_page_state(zone, NR_INACTIVE_ANON);
++		}
++	} else
++		lru = 0;
++	nr = free + isolated + lru;
++	wmark = min_wmark_pages(zone);
++	wmark += zone->lowmem_reserve[gfp_zone(sc->gfp_mask)];
++	wmark += 1 << sc->order;
++	printk("thread %d/%ld all %d scanned %ld pages %ld/%ld/%ld/%ld/%ld/%ld\n",
++		current->pid, sc->nr_scanned, zone->all_unreclaimable,
++		zone->pages_scanned,
++		nr,free,isolated,lru,
++		zone_reclaimable_pages(zone), wmark);
++	/*
++	 * In some case (especially noswap), almost all page cache are paged out
++	 * and we'll see the amount of reclaimable+free pages is smaller than
++	 * zone->min. In this case, we canoot expect any recovery other
++	 * than OOM-KILL. We can't reclaim memory enough for usual tasks.
++	 */
++
++	return nr <= wmark;
++}
++
++static bool zone_reclaimable(struct zone *zone, struct scan_control *sc)
++{
++	/* zone_reclaimable_pages() can return 0, we need <= */
++	return zone->pages_scanned <= zone_reclaimable_pages(zone) * 6;
  }
  
  /*
-- * At handling SwapCache, pc->mem_cgroup may be changed while it's linked to
-- * lru because the page may.be reused after it's fully uncharged (because of
-- * SwapCache behavior).To handle that, unlink page_cgroup from LRU when charge
-- * it again. This function is only used to charge SwapCache. It's done under
-- * lock_page and expected that zone->lru_lock is never held.
-+ * At handling SwapCache and other FUSE stuff, pc->mem_cgroup may be changed
-+ * while it's linked to lru because the page may be reused after it's fully
-+ * uncharged. To handle that, unlink page_cgroup from LRU when charge it again.
-+ * It's done under lock_page and expected that zone->lru_lock isnever held.
-  */
--static void mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
-+static void mem_cgroup_lru_del_before_commit(struct page *page)
- {
- 	unsigned long flags;
- 	struct zone *zone = page_zone(page);
- 	struct page_cgroup *pc = lookup_page_cgroup(page);
+@@ -2006,11 +2052,15 @@ static bool all_unreclaimable(struct zon
+ 			continue;
+ 		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+ 			continue;
+-		if (zone_reclaimable(zone)) {
++		if (zone_seems_empty(zone, sc))
++			continue;
++		if (zone_reclaimable(zone, sc)) {
+ 			all_unreclaimable = false;
+ 			break;
+ 		}
+ 	}
++	if (all_unreclaimable)
++		printk("all_unreclaimable() returns TRUE\n");
  
-+	/*
-+	 * Doing this check without taking ->lru_lock seems wrong but this
-+	 * is safe. Because if page_cgroup's USED bit is unset, the page
-+	 * will not be added to any memcg's LRU. If page_cgroup's USED bit is
-+	 * set, the commit after this will fail, anyway.
-+	 * This all charge/uncharge is done under some mutual execustion.
-+	 * So, we don't need to taking care of changes in USED bit.
-+	 */
-+	if (likely(!PageLRU(page)))
-+		return;
-+
- 	spin_lock_irqsave(&zone->lru_lock, flags);
- 	/*
- 	 * Forget old LRU when this page_cgroup is *not* used. This Used bit
-@@ -948,12 +958,15 @@ static void mem_cgroup_lru_del_before_co
- 	spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 	return all_unreclaimable;
  }
- 
--static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
-+static void mem_cgroup_lru_add_after_commit(struct page *page)
- {
- 	unsigned long flags;
- 	struct zone *zone = page_zone(page);
- 	struct page_cgroup *pc = lookup_page_cgroup(page);
- 
-+	/* taking care of that the page is added to LRU while we commit it */
-+	if (likely(!PageLRU(page)))
-+		return;
- 	spin_lock_irqsave(&zone->lru_lock, flags);
- 	/* link when the page is linked to LRU but page_cgroup isn't */
- 	if (PageLRU(page) && !PageCgroupAcctLRU(pc))
-@@ -2431,9 +2444,26 @@ static void
- __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
- 					enum charge_type ctype);
- 
-+static void
-+__mem_cgroup_commit_charge_lrucare(struct page *page, struct mem_cgroup *mem,
-+					enum charge_type ctype)
-+{
-+	struct page_cgroup *pc = lookup_page_cgroup(page);
-+	/*
-+	 * In some case, SwapCache, FUSE(splice_buf->radixtree), the page
-+	 * is already on LRU. It means the page may on some other page_cgroup's
-+	 * LRU. Take care of it.
-+	 */
-+	mem_cgroup_lru_del_before_commit(page);
-+	__mem_cgroup_commit_charge(mem, page, 1, pc, ctype);
-+	mem_cgroup_lru_add_after_commit(page);
-+	return;
-+}
-+
- int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask)
- {
-+	struct mem_cgroup *mem = NULL;
- 	int ret;
- 
- 	if (mem_cgroup_disabled())
-@@ -2468,14 +2498,22 @@ int mem_cgroup_cache_charge(struct page 
- 	if (unlikely(!mm))
- 		mm = &init_mm;
- 
--	if (page_is_file_cache(page))
--		return mem_cgroup_charge_common(page, mm, gfp_mask,
--				MEM_CGROUP_CHARGE_TYPE_CACHE);
-+	if (page_is_file_cache(page)) {
-+		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, &mem, true);
-+		if (ret || !mem)
-+			return ret;
- 
-+		/*
-+		 * FUSE reuses pages without going through the final
-+		 * put that would remove them from the LRU list, make
-+		 * sure that they get relinked properly.
-+		 */
-+		__mem_cgroup_commit_charge_lrucare(page, mem,
-+					MEM_CGROUP_CHARGE_TYPE_CACHE);
-+		return ret;
-+	}
- 	/* shmem */
- 	if (PageSwapCache(page)) {
--		struct mem_cgroup *mem;
--
- 		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
- 		if (!ret)
- 			__mem_cgroup_commit_charge_swapin(page, mem,
-@@ -2532,17 +2570,13 @@ static void
- __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
- 					enum charge_type ctype)
- {
--	struct page_cgroup *pc;
--
- 	if (mem_cgroup_disabled())
- 		return;
- 	if (!ptr)
- 		return;
- 	cgroup_exclude_rmdir(&ptr->css);
--	pc = lookup_page_cgroup(page);
--	mem_cgroup_lru_del_before_commit_swapcache(page);
--	__mem_cgroup_commit_charge(ptr, page, 1, pc, ctype);
--	mem_cgroup_lru_add_after_commit_swapcache(page);
-+
-+	__mem_cgroup_commit_charge_lrucare(page, ptr, ctype);
- 	/*
- 	 * Now swap is on-memory. This means this page may be
- 	 * counted both as mem and swap....double count.
-_
+@@ -2456,7 +2506,7 @@ loop_again:
+ 			if (zone->all_unreclaimable)
+ 				continue;
+ 			if (!compaction && nr_slab == 0 &&
+-			    !zone_reclaimable(zone))
++			    !zone_reclaimable(zone, &sc))
+ 				zone->all_unreclaimable = 1;
+ 			/*
+ 			 * If we've done a decent amount of scanning and
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
