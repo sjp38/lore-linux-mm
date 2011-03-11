@@ -1,66 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D129F8D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:25:49 -0500 (EST)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id p2BKPkVN019143
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 12:25:46 -0800
-Received: from vxd2 (vxd2.prod.google.com [10.241.33.194])
-	by hpaq1.eem.corp.google.com with ESMTP id p2BKOwQF029668
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 12:25:45 -0800
-Received: by vxd2 with SMTP id 2so3138802vxd.36
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 12:25:43 -0800 (PST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B773B8D003A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:35:51 -0500 (EST)
+Received: by qwa26 with SMTP id 26so88316qwa.14
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 12:35:47 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <AANLkTikZJqTtVF48cc-AQ1z9iF29Z+f35Qdn_1m_SFQi@mail.gmail.com>
-References: <20110311020410.GH5641@random.random>
-	<AANLkTikZJqTtVF48cc-AQ1z9iF29Z+f35Qdn_1m_SFQi@mail.gmail.com>
-Date: Fri, 11 Mar 2011 12:25:42 -0800
-Message-ID: <AANLkTi=EWW=uaHZbW95_eqabVHTsMdX5N2h_axqi27nn@mail.gmail.com>
-Subject: Re: [PATCH] thp: mremap support and TLB optimization
-From: Hugh Dickins <hughd@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Date: Fri, 11 Mar 2011 20:35:47 +0000
+Message-ID: <AANLkTimU2QGc_BVxSWCN8GEhr8hCOi1Zp+eaA20_pE-w@mail.gmail.com>
+Subject: [RFC][PATCH 00/25]: Propagating GFP_NOFS inside __vmalloc()
+From: Prasad Joshi <prasadjoshi124@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Anand Mitra <mitra@kqinfotech.com>
 
-Fri, Mar 11, 2011 at 11:44 AM, Hugh Dickins <hughd@google.com> wrote:
-> On Thu, Mar 10, 2011 at 6:04 PM, Andrea Arcangeli <aarcange@redhat.com> w=
-rote:
->>
->> I've been wondering why mremap is sending one IPI for each page that
->> it moves. I tried to remove that so we send an IPI for each
->> vma/syscall (not for each pte/page).
->
-> (It wouldn't usually have been sending an IPI for each page, only if
-> the mm were active on another cpu, but...)
->
-> That looks like a good optimization to me: I can't think of a good
-> reason for it to be the way it was, just it started out like that and
-> none of us ever thought to change it before. =C2=A0Plus it's always nice =
-to
-> see the flush_tlb_range() afterwards complementing the
-> flush_cache_range() beforehand, as you now have in move_page_tables().
->
-> And don't forget that move_page_tables() is also used by exec's
-> shift_arg_pages(): no IPI saving there, but it should be more
-> efficient when exec'ing with many arguments.
+A filesystem might run into a problem while calling
+__vmalloc(GFP_NOFS) inside a lock.
 
-Perhaps I should qualify that answer: although I still think it's the
-right change to make (it matches mprotect, for example), and an
-optimization in many cases, it will be a pessimization for anyone who
-mremap moves unpopulated areas (I doubt that's common), and for anyone
-who moves around single page areas (on x86 and probably some others).
-But the exec args case has, I think, few useful tlb entries to lose
-from the mm-wide tlb flush.
+It is expected than __vmalloc when called with GFP_NOFS should not
+callback the filesystem code even incase of the increased memory
+pressure. But the problem is that even if we pass this flag, __vmalloc
+itself allocates memory with GFP_KERNEL.
 
-flush_tlb_range() ought to special case small areas, doing at most one
-IPI, but up to some number of flush_tlb_one()s; but that would
-certainly have to be another patch.
+Using GFP_KERNEL allocations may go into the memory reclaim path and
+try to free memory by calling file system clear_inode/evict_inode
+function. Which might lead into deadlock.
 
-Hugh
+For further details
+https://bugzilla.kernel.org/show_bug.cgi?id=30702
+http://marc.info/?l=linux-mm&m=128942194520631&w=4
+
+The patch passes the gfp allocation flag all the way down to those
+allocating functions.
+
+ arch/alpha/include/asm/pgalloc.h         |   18 ++-------
+ arch/arm/include/asm/pgalloc.h           |   12 +-----
+ arch/avr32/include/asm/pgalloc.h         |    8 +----
+ arch/cris/include/asm/pgalloc.h          |   10 +----
+ arch/frv/include/asm/pgalloc.h           |    3 --
+ arch/frv/include/asm/pgtable.h           |    1 -
+ arch/frv/mm/pgalloc.c                    |    9 +----
+ arch/ia64/include/asm/pgalloc.h          |   24 ++-----------
+ arch/m32r/include/asm/pgalloc.h          |   11 ++----
+ arch/m68k/include/asm/motorola_pgalloc.h |   19 ++--------
+ arch/m68k/include/asm/sun3_pgalloc.h     |   14 ++------
+ arch/m68k/mm/memory.c                    |    9 +----
+ arch/microblaze/include/asm/pgalloc.h    |    3 --
+ arch/microblaze/mm/pgtable.c             |   12 ++-----
+ arch/mips/include/asm/pgalloc.h          |   22 ++++--------
+ arch/mn10300/include/asm/pgalloc.h       |    2 -
+ arch/mn10300/mm/pgtable.c                |   10 +----
+ arch/parisc/include/asm/pgalloc.h        |   20 ++--------
+ arch/powerpc/include/asm/pgalloc-32.h    |    2 -
+ arch/powerpc/include/asm/pgalloc-64.h    |   29 +++------------
+ arch/powerpc/mm/pgtable_32.c             |   10 +----
+ arch/s390/include/asm/pgalloc.h          |   28 +++------------
+ arch/s390/mm/pgtable.c                   |   22 +++---------
+ arch/score/include/asm/pgalloc.h         |   14 +++----
+ arch/sh/include/asm/pgalloc.h            |    8 +----
+ arch/sh/mm/pgtable.c                     |    8 +----
+ arch/sparc/include/asm/pgalloc_32.h      |    5 ---
+ arch/sparc/include/asm/pgalloc_64.h      |   17 +--------
+ arch/tile/include/asm/pgalloc.h          |   11 +-----
+ arch/tile/mm/pgtable.c                   |   10 +----
+ arch/um/include/asm/pgalloc.h            |    1 -
+ arch/um/kernel/mem.c                     |   21 +++--------
+ arch/x86/include/asm/pgalloc.h           |   17 +--------
+ arch/x86/mm/pgtable.c                    |    9 +----
+ arch/xtensa/include/asm/pgalloc.h        |    9 +----
+ arch/xtensa/mm/pgtable.c                 |   10 +----
+ include/asm-generic/4level-fixup.h       |    8 +---
+ include/asm-generic/pgtable-nopmd.h      |    3 +-
+ include/asm-generic/pgtable-nopud.h      |    1 -
+ include/linux/mm.h                       |   40 +++++---------------
+ mm/memory.c                              |   14 +++----
+ mm/vmalloc.c                             |   58 ++++++++++--------------------
+ 42 files changed, 121 insertions(+), 441 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
