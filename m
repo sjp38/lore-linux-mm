@@ -1,81 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CFB38D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:45:15 -0500 (EST)
-Received: by qyk2 with SMTP id 2so6915364qyk.14
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 12:45:10 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 945848D003A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:46:22 -0500 (EST)
+Received: by qyk30 with SMTP id 30so3208327qyk.14
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 12:46:20 -0800 (PST)
 MIME-Version: 1.0
-Date: Fri, 11 Mar 2011 20:45:10 +0000
-Message-ID: <AANLkTikOER1V2RAeSrPopLxxwGsWYg7+522FL4rtMNq3@mail.gmail.com>
-Subject: [RFC][PATCH 03/25]: Propagating GFP_NOFS inside __vmalloc()
+Date: Fri, 11 Mar 2011 20:46:20 +0000
+Message-ID: <AANLkTimPAVODeoz2-=T2FoqJ5ofswOyVpeKHs1ZF2ibD@mail.gmail.com>
+Subject: [RFC][PATCH 04/25]: Propagating GFP_NOFS inside __vmalloc()
 From: Prasad Joshi <prasadjoshi124@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Anand Mitra <mitra@kqinfotech.com>
 
-Changes for microblaze architecture.
+Changes for MIPS architecture.
 
 Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
 Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
 ---
-diff --git a/arch/microblaze/include/asm/pgalloc.h
-b/arch/microblaze/include/asm/pgalloc.h
-index ebd3579..7df761f 100644
---- a/arch/microblaze/include/asm/pgalloc.h
-+++ b/arch/microblaze/include/asm/pgalloc.h
-@@ -106,9 +106,11 @@ extern inline void free_pgd_slow(pgd_t *pgd)
-  * the pgd will always be present..
-  */
- #define pmd_alloc_one_fast(mm, address)    ({ BUG(); ((pmd_t *)1); })
-+#define __pmd_alloc_one(mm, address,mask)  ({ BUG(); ((pmd_t *)2); })
- #define pmd_alloc_one(mm, address) ({ BUG(); ((pmd_t *)2); })
+diff --git a/arch/mips/include/asm/pgalloc.h b/arch/mips/include/asm/pgalloc.h
+index 881d18b..e386a44 100644
+--- a/arch/mips/include/asm/pgalloc.h
++++ b/arch/mips/include/asm/pgalloc.h
+@@ -64,14 +64,16 @@ static inline void pgd_free(struct mm_struct *mm,
+pgd_t *pgd)
+    free_pages((unsigned long)pgd, PGD_ORDER);
+ }
 
- extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr);
-+extern pte_t *__pte_alloc_one_kernel(struct mm_struct *, unsigned long, gfp_t);
++static inline pte_t *__pte_alloc_one_kernel(struct mm_struct *mm,
++   unsigned long address, gfp_t gfp_mask)
++{
++   return (pte_t *)
+__get_free_pages(gfp_mask|__GFP_REPEAT|__GFP_ZERO, PTE_ORDER);
++}
++
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+    unsigned long address)
+ {
+-   pte_t *pte;
+-
+-   pte = (pte_t *)
+__get_free_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, PTE_ORDER);
+-
+-   return pte;
++   return __pte_alloc_one_kernel(mm, address, GFP_KERNEL);
+ }
 
  static inline struct page *pte_alloc_one(struct mm_struct *mm,
-        unsigned long address)
-@@ -175,6 +177,7 @@ extern inline void pte_free(struct mm_struct *mm,
-struct page *ptepage)
-  * We don't have any real pmd's, and this code never triggers because
-  * the pgd will always be present..
-  */
-+#define __pmd_alloc_one(mm, address,mask)  ({ BUG(); ((pmd_t *)2); })
- #define pmd_alloc_one(mm, address) ({ BUG(); ((pmd_t *)2); })
- #define pmd_free(mm, x)            do { } while (0)
- #define __pmd_free_tlb(tlb, x, addr)   pmd_free((tlb)->mm, x)
-diff --git a/arch/microblaze/mm/pgtable.c b/arch/microblaze/mm/pgtable.c
-index 59bf233..7d89c4b 100644
---- a/arch/microblaze/mm/pgtable.c
-+++ b/arch/microblaze/mm/pgtable.c
-@@ -240,12 +240,12 @@ unsigned long iopa(unsigned long addr)
-    return pa;
+@@ -106,16 +108,22 @@ do {                          \
+
+ #ifndef __PAGETABLE_PMD_FOLDED
+
+-static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
++static inline pmd_t *
++__pmd_alloc_one(struct mm_struct *mm, unsigned long address, gfp_t gfp_mask)
+ {
+    pmd_t *pmd;
+
+-   pmd = (pmd_t *) __get_free_pages(GFP_KERNEL|__GFP_REPEAT, PMD_ORDER);
++   pmd = (pmd_t *) __get_free_pages(gfp_mask|__GFP_REPEAT, PMD_ORDER);
+    if (pmd)
+        pmd_init((unsigned long)pmd, (unsigned long)invalid_pte_table);
+    return pmd;
  }
 
--__init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
--       unsigned long address)
-+__init_refok pte_t *__pte_alloc_one_kernel(struct mm_struct *mm,
-+       unsigned long address, gfp_t gfp_mask)
- {
-    pte_t *pte;
-    if (mem_init_done) {
--       pte = (pte_t *)__get_free_page(GFP_KERNEL |
-+       pte = (pte_t *)__get_free_page(gfp_mask |
-                    __GFP_REPEAT | __GFP_ZERO);
-    } else {
-        pte = (pte_t *)early_get_page();
-@@ -254,3 +254,9 @@ __init_refok pte_t *pte_alloc_one_kernel(struct
-mm_struct *mm,
-    }
-    return pte;
- }
-+
-+__init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-+       unsigned long address)
++static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
 +{
-+   return __pte_alloc_one_kernel(mm, address, GFP_KERNEL);
++   return __pmd_alloc_one(mm, address, GFP_KERNEL);
 +}
++
+ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ {
+    free_pages((unsigned long)pmd, PMD_ORDER);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
