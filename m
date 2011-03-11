@@ -1,221 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 901CE8D003A
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2011 21:04:37 -0500 (EST)
-Date: Fri, 11 Mar 2011 03:04:10 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH] thp: mremap support and TLB optimization
-Message-ID: <20110311020410.GH5641@random.random>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BE7D8D003A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 01:08:37 -0500 (EST)
+Received: by fxm18 with SMTP id 18so922139fxm.14
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2011 22:08:34 -0800 (PST)
+Message-ID: <4D79BC60.1040106@gmail.com>
+Date: Fri, 11 Mar 2011 09:08:32 +0300
+From: "avagin@gmail.com" <avagin@gmail.com>
+Reply-To: avagin@gmail.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH] mm: check zone->all_unreclaimable in all_unreclaimable()
+References: <1299325456-2687-1-git-send-email-avagin@openvz.org>	<20110305152056.GA1918@barrios-desktop>	<4D72580D.4000208@gmail.com>	<20110305155316.GB1918@barrios-desktop>	<4D7267B6.6020406@gmail.com>	<20110305170759.GC1918@barrios-desktop>	<20110307135831.9e0d7eaa.akpm@linux-foundation.org>	<AANLkTinDhorLusBju=Gn3bh1VsH1jrv0qixbU3SGWiqa@mail.gmail.com>	<20110309143704.194e8ee1.kamezawa.hiroyu@jp.fujitsu.com>	<AANLkTi=q=YMrT7Uta+wGm47VZ5N6meybAQTgjKGsDWFw@mail.gmail.com>	<20110311085833.874c6c0e.kamezawa.hiroyu@jp.fujitsu.com> <AANLkTi=1695Wp9UheV_OKk5MixNUY2aHWfQ2WO1evSe2@mail.gmail.com>
+In-Reply-To: <AANLkTi=1695Wp9UheV_OKk5MixNUY2aHWfQ2WO1evSe2@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Vagin <avagin@openvz.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello everyone,
+On 03/11/2011 03:18 AM, Minchan Kim wrote:
+> On Fri, Mar 11, 2011 at 8:58 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com>  wrote:
+>> On Thu, 10 Mar 2011 15:58:29 +0900
+>> Minchan Kim<minchan.kim@gmail.com>  wrote:
+>>
+>>> Hi Kame,
+>>>
+>>> Sorry for late response.
+>>> I had a time to test this issue shortly because these day I am very busy.
+>>> This issue was interesting to me.
+>>> So I hope taking a time for enough testing when I have a time.
+>>> I should find out root cause of livelock.
+>>>
+>>
+>> Thanks. I and Kosaki-san reproduced the bug with swapless system.
+>> Now, Kosaki-san is digging and found some issue with scheduler boost at OOM
+>> and lack of enough "wait" in vmscan.c.
+>>
+>> I myself made patch like attached one. This works well for returning TRUE at
+>> all_unreclaimable() but livelock(deadlock?) still happens.
+>
+> I saw the deadlock.
+> It seems to happen by following code by my quick debug but not sure. I
+> need to investigate further but don't have a time now. :(
+>
+>
+>                   * Note: this may have a chance of deadlock if it gets
+>                   * blocked waiting for another task which itself is waiting
+>                   * for memory. Is there a better alternative?
+>                   */
+>                  if (test_tsk_thread_flag(p, TIF_MEMDIE))
+>                          return ERR_PTR(-1UL);
+> It would be wait to die the task forever without another victim selection.
+> If it's right, It's a known BUG and we have no choice until now. Hmm.
 
-I've been wondering why mremap is sending one IPI for each page that
-it moves. I tried to remove that so we send an IPI for each
-vma/syscall (not for each pte/page). I also added native THP support
-without calling split_huge_page unconditionally if both the source and
-destination alignment allows a pmd_trans_huge to be preserved (the
-mremap extension and truncation already preserved existing hugepages
-but the move into new place didn't yet). If the destination alignment
-isn't ok, split_huge_page is unavoidable but that is an
-userland/hardware limitation, not really something we can optimize
-further in the kernel.
 
-I've no real numbers yet (volanomark results are mostly unchanged,
-it's a tinybit faster but it may be measurement error, and it doesn't
-seem to call mremap enough, but the thp_split number in /proc/vmstat
-seem to go down close to zero, maybe other JIT workloads will
-benefit?).
+I fixed this bug too and sent patch "mm: skip zombie in OOM-killer".
 
-In the meantime I'm posting this for review. I'm not entirely sure
-this is safe at this point (I mean the tlb part especially). Also note
-if any arch needs the tlb flush after ptep_get_and_clear, move_pte can
-provide it. The huge_memory.c part has no move_pmd equivalent because
-the only arch that needs move_pte (sparc64) doesn't supports THP yet
-(I've no idea if sparc64 is one of the candidates of future THP
-capable archs, arm/ppcembedded should make it eventually).
+http://groups.google.com/group/linux.kernel/browse_thread/thread/b9c6ddf34d1671ab/2941e1877ca4f626?lnk=raot&pli=1
 
-I applied this to my aa.git tree and I'm running this on all my
-systems with no adverse effects for more than a day, so if you want to
-test the usual procedure works.
+-		if (test_tsk_thread_flag(p, TIF_MEMDIE))
++		if (test_tsk_thread_flag(p, TIF_MEMDIE) && p->mm)
+   			return ERR_PTR(-1UL);
 
-first: git clone git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-or first: git clone --reference linux-2.6 git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-later: git fetch; git checkout -f origin/master
-
-===
-Subject: thp: mremap support and TLB optimization
-
-From: Andrea Arcangeli <aarcange@redhat.com>
-
-This adds THP support to mremap (decreases the number of split_huge_page
-called).
-
-This also replaces ptep_clear_flush with ptep_get_and_clear and replaces it
-with a final flush_tlb_range to send a single tlb flush IPI instead of one IPI
-for each page.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- include/linux/huge_mm.h |    3 +++
- mm/huge_memory.c        |   44 ++++++++++++++++++++++++++++++++++++++++++++
- mm/mremap.c             |   31 ++++++++++++++++++++++++-------
- 3 files changed, 71 insertions(+), 7 deletions(-)
-
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -22,6 +22,9 @@ extern int zap_huge_pmd(struct mmu_gathe
- extern int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			unsigned long addr, unsigned long end,
- 			unsigned char *vec);
-+extern int move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
-+			 unsigned long new_addr, unsigned long old_end,
-+			 pmd_t *old_pmd, pmd_t *new_pmd);
- extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			unsigned long addr, pgprot_t newprot);
- 
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -42,7 +42,7 @@ static pmd_t *get_old_pmd(struct mm_stru
- 
- 	pmd = pmd_offset(pud, addr);
- 	split_huge_page_pmd(mm, pmd);
--	if (pmd_none_or_clear_bad(pmd))
-+	if (pmd_none(*pmd))
- 		return NULL;
- 
- 	return pmd;
-@@ -80,11 +80,7 @@ static void move_ptes(struct vm_area_str
- 	struct mm_struct *mm = vma->vm_mm;
- 	pte_t *old_pte, *new_pte, pte;
- 	spinlock_t *old_ptl, *new_ptl;
--	unsigned long old_start;
- 
--	old_start = old_addr;
--	mmu_notifier_invalidate_range_start(vma->vm_mm,
--					    old_start, old_end);
- 	if (vma->vm_file) {
- 		/*
- 		 * Subtle point from Rajesh Venkatasubramanian: before
-@@ -112,7 +108,7 @@ static void move_ptes(struct vm_area_str
- 				   new_pte++, new_addr += PAGE_SIZE) {
- 		if (pte_none(*old_pte))
- 			continue;
--		pte = ptep_clear_flush(vma, old_addr, old_pte);
-+		pte = ptep_get_and_clear(mm, old_addr, old_pte);
- 		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
- 		set_pte_at(mm, new_addr, new_pte, pte);
- 	}
-@@ -124,7 +120,6 @@ static void move_ptes(struct vm_area_str
- 	pte_unmap_unlock(old_pte - 1, old_ptl);
- 	if (mapping)
- 		spin_unlock(&mapping->i_mmap_lock);
--	mmu_notifier_invalidate_range_end(vma->vm_mm, old_start, old_end);
- }
- 
- #define LATENCY_LIMIT	(64 * PAGE_SIZE)
-@@ -139,6 +134,8 @@ unsigned long move_page_tables(struct vm
- 	old_end = old_addr + len;
- 	flush_cache_range(vma, old_addr, old_end);
- 
-+	mmu_notifier_invalidate_range_start(vma->vm_mm, old_addr, old_end);
-+
- 	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
- 		cond_resched();
- 		next = (old_addr + PMD_SIZE) & PMD_MASK;
-@@ -151,6 +148,23 @@ unsigned long move_page_tables(struct vm
- 		new_pmd = alloc_new_pmd(vma->vm_mm, vma, new_addr);
- 		if (!new_pmd)
- 			break;
-+		if (pmd_trans_huge(*old_pmd)) {
-+			int err = move_huge_pmd(vma, old_addr, new_addr,
-+						old_end, old_pmd, new_pmd);
-+			if (err > 0) {
-+				old_addr += HPAGE_PMD_SIZE;
-+				new_addr += HPAGE_PMD_SIZE;
-+				continue;
-+			}
-+		}
-+		/*
-+		 * split_huge_page_pmd() must run outside the
-+		 * pmd_trans_huge() block above because that check
-+		 * racy. split_huge_page_pmd() will recheck
-+		 * pmd_trans_huge() but in a not racy way under the
-+		 * page_table_lock.
-+		 */
-+		split_huge_page_pmd(vma->vm_mm, old_pmd);
- 		next = (new_addr + PMD_SIZE) & PMD_MASK;
- 		if (extent > next - new_addr)
- 			extent = next - new_addr;
-@@ -159,6 +173,9 @@ unsigned long move_page_tables(struct vm
- 		move_ptes(vma, old_pmd, old_addr, old_addr + extent,
- 				new_vma, new_pmd, new_addr);
- 	}
-+	flush_tlb_range(vma, old_end-len, old_addr);
-+
-+	mmu_notifier_invalidate_range_end(vma->vm_mm, old_end-len, old_end);
- 
- 	return len + old_addr - old_end;	/* how much done */
- }
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1048,6 +1048,50 @@ int mincore_huge_pmd(struct vm_area_stru
- 	return ret;
- }
- 
-+int move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
-+		  unsigned long new_addr, unsigned long old_end,
-+		  pmd_t *old_pmd, pmd_t *new_pmd)
-+{
-+	int ret = 0;
-+	pmd_t pmd;
-+
-+	struct mm_struct *mm = vma->vm_mm;
-+
-+	if ((old_addr & ~HPAGE_PMD_MASK) ||
-+	    (new_addr & ~HPAGE_PMD_MASK) ||
-+	    (old_addr + HPAGE_PMD_SIZE) > old_end)
-+		goto out;
-+
-+	/* if the new area is all for our destination it must be unmapped */
-+	VM_BUG_ON(!pmd_none(*new_pmd));
-+	/* mostly to remember this locking isn't enough with filebacked vma */
-+	VM_BUG_ON(vma->vm_file);
-+
-+	spin_lock(&mm->page_table_lock);
-+	if (likely(pmd_trans_huge(*old_pmd))) {
-+		if (pmd_trans_splitting(*old_pmd)) {
-+			spin_unlock(&vma->vm_mm->page_table_lock);
-+			/*
-+			 * It's not mandatory to wait here as the
-+			 * caller will run split_huge_page_pmd(), but
-+			 * this is faster and it will avoid the caller
-+			 * to invoke __split_huge_page_pmd() (and to
-+			 * take the page_table_lock again).
-+			 */
-+			wait_split_huge_page(vma->anon_vma, old_pmd);
-+		} else {
-+			pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
-+			set_pmd_at(mm, new_addr, new_pmd, pmd);
-+			spin_unlock(&mm->page_table_lock);
-+			ret = 1;
-+		}
-+	} else
-+		spin_unlock(&mm->page_table_lock);
-+
-+out:
-+	return ret;
-+}
-+
- int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long addr, pgprot_t newprot)
- {
+It is not committed yet, because Devid Rientjes and company think what 
+to do with "[patch] oom: prevent unnecessary oom kills or kernel panics.".
+>
+>> I wonder vmscan itself isn't a key for fixing issue.
+>
+> I agree.
+>
+>> Then, I'd like to wait for Kosaki-san's answer ;)
+>
+> Me, too. :)
+>
+>>
+>> I'm now wondering how to catch fork-bomb and stop it (without using cgroup).
+>
+> Yes. Fork throttling without cgroup is very important.
+> And as off-topic, mem_notify without memcontrol you mentioned is
+> important to embedded people, I gues.
+>
+>> I think the problem is that fork-bomb is faster than killall...
+>
+> And deadlock problem I mentioned.
+>
+>>
+>> Thanks,
+>> -Kame
+>
+> Thanks for the investigation, Kame.
+>
+>> ==
+>>
+>> This is just a debug patch.
+>>
+>> ---
+>>   mm/vmscan.c |   58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+>>   1 file changed, 54 insertions(+), 4 deletions(-)
+>>
+>> Index: mmotm-0303/mm/vmscan.c
+>> ===================================================================
+>> --- mmotm-0303.orig/mm/vmscan.c
+>> +++ mmotm-0303/mm/vmscan.c
+>> @@ -1983,9 +1983,55 @@ static void shrink_zones(int priority, s
+>>         }
+>>   }
+>>
+>> -static bool zone_reclaimable(struct zone *zone)
+>> +static bool zone_seems_empty(struct zone *zone, struct scan_control *sc)
+>>   {
+>> -       return zone->pages_scanned<  zone_reclaimable_pages(zone) * 6;
+>> +       unsigned long nr, wmark, free, isolated, lru;
+>> +
+>> +       /*
+>> +        * If scanned, zone->pages_scanned is incremented and this can
+>> +        * trigger OOM.
+>> +        */
+>> +       if (sc->nr_scanned)
+>> +               return false;
+>> +
+>> +       free = zone_page_state(zone, NR_FREE_PAGES);
+>> +       isolated = zone_page_state(zone, NR_ISOLATED_FILE);
+>> +       if (nr_swap_pages)
+>> +               isolated += zone_page_state(zone, NR_ISOLATED_ANON);
+>> +
+>> +       /* In we cannot do scan, don't count LRU pages. */
+>> +       if (!zone->all_unreclaimable) {
+>> +               lru = zone_page_state(zone, NR_ACTIVE_FILE);
+>> +               lru += zone_page_state(zone, NR_INACTIVE_FILE);
+>> +               if (nr_swap_pages) {
+>> +                       lru += zone_page_state(zone, NR_ACTIVE_ANON);
+>> +                       lru += zone_page_state(zone, NR_INACTIVE_ANON);
+>> +               }
+>> +       } else
+>> +               lru = 0;
+>> +       nr = free + isolated + lru;
+>> +       wmark = min_wmark_pages(zone);
+>> +       wmark += zone->lowmem_reserve[gfp_zone(sc->gfp_mask)];
+>> +       wmark += 1<<  sc->order;
+>> +       printk("thread %d/%ld all %d scanned %ld pages %ld/%ld/%ld/%ld/%ld/%ld\n",
+>> +               current->pid, sc->nr_scanned, zone->all_unreclaimable,
+>> +               zone->pages_scanned,
+>> +               nr,free,isolated,lru,
+>> +               zone_reclaimable_pages(zone), wmark);
+>> +       /*
+>> +        * In some case (especially noswap), almost all page cache are paged out
+>> +        * and we'll see the amount of reclaimable+free pages is smaller than
+>> +        * zone->min. In this case, we canoot expect any recovery other
+>> +        * than OOM-KILL. We can't reclaim memory enough for usual tasks.
+>> +        */
+>> +
+>> +       return nr<= wmark;
+>> +}
+>> +
+>> +static bool zone_reclaimable(struct zone *zone, struct scan_control *sc)
+>> +{
+>> +       /* zone_reclaimable_pages() can return 0, we need<= */
+>> +       return zone->pages_scanned<= zone_reclaimable_pages(zone) * 6;
+>>   }
+>>
+>>   /*
+>> @@ -2006,11 +2052,15 @@ static bool all_unreclaimable(struct zon
+>>                         continue;
+>>                 if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+>>                         continue;
+>> -               if (zone_reclaimable(zone)) {
+>> +               if (zone_seems_empty(zone, sc))
+>> +                       continue;
+>> +               if (zone_reclaimable(zone, sc)) {
+>>                         all_unreclaimable = false;
+>>                         break;
+>>                 }
+>>         }
+>> +       if (all_unreclaimable)
+>> +               printk("all_unreclaimable() returns TRUE\n");
+>>
+>>         return all_unreclaimable;
+>>   }
+>> @@ -2456,7 +2506,7 @@ loop_again:
+>>                         if (zone->all_unreclaimable)
+>>                                 continue;
+>>                         if (!compaction&&  nr_slab == 0&&
+>> -                           !zone_reclaimable(zone))
+>> +                           !zone_reclaimable(zone,&sc))
+>>                                 zone->all_unreclaimable = 1;
+>>                         /*
+>>                          * If we've done a decent amount of scanning and
+>>
+>>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
