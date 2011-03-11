@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 907108D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 16:04:09 -0500 (EST)
-Received: by qwa26 with SMTP id 26so107894qwa.14
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 13:04:06 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B23E08D003A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 16:05:02 -0500 (EST)
+Received: by qwa26 with SMTP id 26so108507qwa.14
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 13:05:00 -0800 (PST)
 MIME-Version: 1.0
-Date: Fri, 11 Mar 2011 21:04:06 +0000
-Message-ID: <AANLkTikeoXcL6Up=0bL-zq13nHu7qPLye=Wjh3z4Z9sW@mail.gmail.com>
-Subject: [RFC][PATCH 21/25]: Propagating GFP_NOFS inside __vmalloc()
+Date: Fri, 11 Mar 2011 21:05:00 +0000
+Message-ID: <AANLkTi=S_R4VB5v2HHMTOqBnyUUzstcpx1xynT+ACTtW@mail.gmail.com>
+Subject: [RFC][PATCH 22/25]: Propagating GFP_NOFS inside __vmalloc()
 From: Prasad Joshi <prasadjoshi124@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
@@ -17,170 +17,69 @@ To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Anand Mitra <
 Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
 Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
 ---
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index f9b1667..908c7b6 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -87,8 +87,8 @@ static void vunmap_page_range(unsigned long addr,
-unsigned long end)
-    } while (pgd++, addr = next, addr != end);
- }
+diff --git a/arch/frv/include/asm/pgalloc.h b/arch/frv/include/asm/pgalloc.h
+index 416d19a..bfc4f7c 100644
+--- a/arch/frv/include/asm/pgalloc.h
++++ b/arch/frv/include/asm/pgalloc.h
+@@ -35,8 +35,10 @@ extern pgd_t *pgd_alloc(struct mm_struct *);
+ extern void pgd_free(struct mm_struct *mm, pgd_t *);
 
--static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
--       unsigned long end, pgprot_t prot, struct page **pages, int *nr)
-+static int vmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-+       pgprot_t prot, struct page **pages, int *nr, gfp_t gfp_mask)
+ extern pte_t *pte_alloc_one_kernel(struct mm_struct *, unsigned long);
++extern pte_t *__pte_alloc_one_kernel(struct mm_struct *, unsigned long, gfp_t);
+
+ extern pgtable_t pte_alloc_one(struct mm_struct *, unsigned long);
++extern pgtable_t __pte_alloc_one(struct mm_struct *, unsigned long, gfp_t);
+
+ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
  {
-    pte_t *pte;
-
-@@ -97,7 +97,7 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
-     * callers keep track of where we're up to.
-     */
-
--   pte = pte_alloc_kernel(pmd, addr);
-+   pte = pte_alloc_kernel_with_mask(pmd, addr, gfp_mask);
-    if (!pte)
-        return -ENOMEM;
-    do {
-@@ -114,34 +114,35 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
- }
-
- static int vmap_pmd_range(pud_t *pud, unsigned long addr,
--       unsigned long end, pgprot_t prot, struct page **pages, int *nr)
-+       unsigned long end, pgprot_t prot, struct page **pages, int
-*nr, gfp_t gfp_mask)
- {
-    pmd_t *pmd;
-    unsigned long next;
-
--   pmd = pmd_alloc(&init_mm, pud, addr);
-+   pmd = pmd_alloc_with_mask(&init_mm, pud, addr, gfp_mask);
-    if (!pmd)
-        return -ENOMEM;
-    do {
-        next = pmd_addr_end(addr, end);
--       if (vmap_pte_range(pmd, addr, next, prot, pages, nr))
-+       /* XXX TODO */
-+       if (vmap_pte_range(pmd, addr, next, prot, pages, nr, gfp_mask))
-            return -ENOMEM;
-    } while (pmd++, addr = next, addr != end);
-    return 0;
- }
-
--static int vmap_pud_range(pgd_t *pgd, unsigned long addr,
--       unsigned long end, pgprot_t prot, struct page **pages, int *nr)
-+static int vmap_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
-+       pgprot_t prot, struct page **pages, int *nr, gfp_t gfp_mask)
- {
-    pud_t *pud;
-    unsigned long next;
-
--   pud = pud_alloc(&init_mm, pgd, addr);
-+   pud = pud_alloc_with_mask(&init_mm, pgd, addr, gfp_mask);
-    if (!pud)
-        return -ENOMEM;
-    do {
-        next = pud_addr_end(addr, end);
--       if (vmap_pmd_range(pud, addr, next, prot, pages, nr))
-+       if (vmap_pmd_range(pud, addr, next, prot, pages, nr, gfp_mask))
-            return -ENOMEM;
-    } while (pud++, addr = next, addr != end);
-    return 0;
-@@ -153,8 +154,8 @@ static int vmap_pud_range(pgd_t *pgd, unsigned long addr,
-  *
-  * Ie. pte at addr+N*PAGE_SIZE shall point to pfn corresponding to pages[N]
+@@ -60,6 +62,7 @@ do {                          \
+  * inside the pgd, so has no extra memory associated with it.
+  * (In the PAE case we free the pmds as part of the pgd.)
   */
--static int vmap_page_range_noflush(unsigned long start, unsigned long end,
--                  pgprot_t prot, struct page **pages)
-+static int __vmap_page_range_noflush(unsigned long start, unsigned long end,
-+                  pgprot_t prot, struct page **pages, gfp_t gfp_mask)
++#define __pmd_alloc_one(mm, addr,mask)     ({ BUG(); ((pmd_t *) 2); })
+ #define pmd_alloc_one(mm, addr)        ({ BUG(); ((pmd_t *) 2); })
+ #define pmd_free(mm, x)            do { } while (0)
+ #define __pmd_free_tlb(tlb,x,a)        do { } while (0)
+diff --git a/arch/frv/include/asm/pgtable.h b/arch/frv/include/asm/pgtable.h
+index 6bc241e..698e280 100644
+--- a/arch/frv/include/asm/pgtable.h
++++ b/arch/frv/include/asm/pgtable.h
+@@ -223,6 +223,7 @@ static inline pud_t *pud_offset(pgd_t *pgd,
+unsigned long address)
+  * allocating and freeing a pud is trivial: the 1-entry pud is
+  * inside the pgd, so has no extra memory associated with it.
+  */
++#define __pud_alloc_one(mm, address, mask)     NULL
+ #define pud_alloc_one(mm, address)     NULL
+ #define pud_free(mm, x)                do { } while (0)
+ #define __pud_free_tlb(tlb, x, address)        do { } while (0)
+diff --git a/arch/frv/mm/pgalloc.c b/arch/frv/mm/pgalloc.c
+index c42c83d..c74ace1 100644
+--- a/arch/frv/mm/pgalloc.c
++++ b/arch/frv/mm/pgalloc.c
+@@ -20,14 +20,19 @@
+
+ pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((aligned(PAGE_SIZE)));
+
+-pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
++pte_t *__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long
+address, gfp_t gfp_mask)
  {
-    pgd_t *pgd;
-    unsigned long next;
-@@ -166,7 +167,7 @@ static int vmap_page_range_noflush(unsigned long
-start, unsigned long end,
-    pgd = pgd_offset_k(addr);
-    do {
-        next = pgd_addr_end(addr, end);
--       err = vmap_pud_range(pgd, addr, next, prot, pages, &nr);
-+       err = vmap_pud_range(pgd, addr, next, prot, pages, &nr, gfp_mask);
-        if (err)
-            return err;
-    } while (pgd++, addr = next, addr != end);
-@@ -174,16 +175,29 @@ static int vmap_page_range_noflush(unsigned long
-start, unsigned long end,
-    return nr;
+-   pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
++   pte_t *pte = (pte_t *)__get_free_page(gfp_mask|__GFP_REPEAT);
+    if (pte)
+        clear_page(pte);
+    return pte;
  }
 
--static int vmap_page_range(unsigned long start, unsigned long end,
--              pgprot_t prot, struct page **pages)
-+
-+static int vmap_page_range_noflush(unsigned long start, unsigned long end,
-+                  pgprot_t prot, struct page **pages)
++pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 +{
-+   return __vmap_page_range_noflush(start, end, prot, pages, GFP_KERNEL);
++   return __pte_alloc_one_kernel(mm, address, GFP_KERNEL);
 +}
 +
-+static int __vmap_page_range(unsigned long start, unsigned long end,
-+              pgprot_t prot, struct page **pages, gfp_t gfp_mask)
+ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
  {
-    int ret;
-
--   ret = vmap_page_range_noflush(start, end, prot, pages);
-+   ret = __vmap_page_range_noflush(start, end, prot, pages, gfp_mask);
-    flush_cache_vmap(start, end);
-    return ret;
- }
-
-+static int vmap_page_range(unsigned long start, unsigned long end,
-+              pgprot_t prot, struct page **pages)
-+{
-+   return __vmap_page_range(start, end, prot, pages, GFP_KERNEL);
-+}
-+
- int is_vmalloc_or_module_addr(const void *x)
- {
-    /*
-@@ -1194,13 +1208,14 @@ void unmap_kernel_range(unsigned long addr,
-unsigned long size)
-    flush_tlb_kernel_range(addr, end);
- }
-
--int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
-+int __map_vm_area(struct vm_struct *area, pgprot_t prot,
-+       struct page ***pages, gfp_t gfp_mask)
- {
-    unsigned long addr = (unsigned long)area->addr;
-    unsigned long end = addr + area->size - PAGE_SIZE;
-    int err;
-
--   err = vmap_page_range(addr, end, prot, *pages);
-+   err = __vmap_page_range(addr, end, prot, *pages, gfp_mask);
-    if (err > 0) {
-        *pages += err;
-        err = 0;
-@@ -1208,6 +1223,11 @@ int map_vm_area(struct vm_struct *area,
-pgprot_t prot, struct page ***pages)
-
-    return err;
- }
-+
-+int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
-+{
-+   return __map_vm_area(area, prot, pages, GFP_KERNEL);
-+}
- EXPORT_SYMBOL_GPL(map_vm_area);
-
- /*** Old vmalloc interfaces ***/
-@@ -1522,7 +1542,7 @@ static void *__vmalloc_area_node(struct
-vm_struct *area, gfp_t gfp_mask,
-        area->pages[i] = page;
-    }
-
--   if (map_vm_area(area, prot, &pages))
-+   if (__map_vm_area(area, prot, &pages, gfp_mask))
-        goto fail;
-    return area->addr;
+    struct page *page;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
