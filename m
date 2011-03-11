@@ -1,38 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id EBC8A8D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 10:15:45 -0500 (EST)
-Date: Fri, 11 Mar 2011 09:15:42 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: COW userspace memory mapping question
-In-Reply-To: <474da85b78a7bd1e16726b72e9162f5c@anilinux.org>
-Message-ID: <alpine.DEB.2.00.1103110914290.18585@router.home>
-References: <056c7b49e7540a910b8a4f664415e638@anilinux.org> <alpine.DEB.2.00.1103101309090.2161@router.home> <faf1c53253ae791c39448de707b96c15@anilinux.org> <alpine.DEB.2.00.1103101532230.2161@router.home> <474da85b78a7bd1e16726b72e9162f5c@anilinux.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 82A1C8D003A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 10:46:41 -0500 (EST)
+Message-ID: <4D7A3CC7.1010008@redhat.com>
+Date: Fri, 11 Mar 2011 10:16:23 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] thp: mremap support and TLB optimization
+References: <20110311020410.GH5641@random.random>
+In-Reply-To: <20110311020410.GH5641@random.random>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mordae <mordae@anilinux.org>
-Cc: linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>
 
-On Thu, 10 Mar 2011, Mordae wrote:
-
-> On Thu, 10 Mar 2011 15:33:31 -0600 (CST), Christoph Lameter <cl@linux.com>
-> wrote:
-> > First establish an RW mapping of the file.
-> > Then -- when you want to take the snapshot -- unmap it and do two mmaps
-> to
-> > the old and new location. Make both readonly and MAP_PRIVATE. That will
-> > cause the kernel to create readonly pages that are subject to COW.
+On 03/10/2011 09:04 PM, Andrea Arcangeli wrote:
+> Hello everyone,
 >
-> I see, that seems reasonable. But what if I was picky and want to snapshot
-> that piece of memory continuously? Let's say once in several minutes, then
-> let some thread to do stuffs to the original using consistent information
-> from the snapshot.
+> I've been wondering why mremap is sending one IPI for each page that
+> it moves. I tried to remove that so we send an IPI for each
+> vma/syscall (not for each pte/page). I also added native THP support
+> without calling split_huge_page unconditionally if both the source and
+> destination alignment allows a pmd_trans_huge to be preserved (the
+> mremap extension and truncation already preserved existing hugepages
+> but the move into new place didn't yet). If the destination alignment
+> isn't ok, split_huge_page is unavoidable but that is an
+> userland/hardware limitation, not really something we can optimize
+> further in the kernel.
+>
+> I've no real numbers yet (volanomark results are mostly unchanged,
+> it's a tinybit faster but it may be measurement error, and it doesn't
+> seem to call mremap enough, but the thp_split number in /proc/vmstat
+> seem to go down close to zero, maybe other JIT workloads will
+> benefit?).
 
-Keep the RW mapping around and tear down and repeat the MAP_PRIVATE mmaps
-areas as needed? Updates would have to be done to the RW mapping.
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
