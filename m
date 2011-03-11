@@ -1,49 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D33B38D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 14:44:10 -0500 (EST)
-Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
-	by smtp-out.google.com with ESMTP id p2BJi5VI013653
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 11:44:05 -0800
-Received: from vxc34 (vxc34.prod.google.com [10.241.33.162])
-	by wpaz17.hot.corp.google.com with ESMTP id p2BJi3dp012993
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B967C8D003A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 14:46:06 -0500 (EST)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id p2BJk4IO011984
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 11:46:04 -0800
+Received: from pxi2 (pxi2.prod.google.com [10.243.27.2])
+	by kpbe13.cbf.corp.google.com with ESMTP id p2BJk39T017939
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 11:44:04 -0800
-Received: by vxc34 with SMTP id 34so3270036vxc.13
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 11:44:03 -0800 (PST)
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 11:46:03 -0800
+Received: by pxi2 with SMTP id 2so754801pxi.24
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 11:46:03 -0800 (PST)
+Date: Fri, 11 Mar 2011 11:45:58 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] oom: prevent unnecessary oom kills or kernel panics
+In-Reply-To: <20110309151946.dea51cde.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1103111142260.30699@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1103011108400.28110@chino.kir.corp.google.com> <20110303100030.B936.A69D9226@jp.fujitsu.com> <20110308134233.GA26884@redhat.com> <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com>
+ <20110309151946.dea51cde.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20110311020410.GH5641@random.random>
-References: <20110311020410.GH5641@random.random>
-Date: Fri, 11 Mar 2011 11:44:03 -0800
-Message-ID: <AANLkTikZJqTtVF48cc-AQ1z9iF29Z+f35Qdn_1m_SFQi@mail.gmail.com>
-Subject: Re: [PATCH] thp: mremap support and TLB optimization
-From: Hugh Dickins <hughd@google.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrey Vagin <avagin@openvz.org>
 
-On Thu, Mar 10, 2011 at 6:04 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
->
-> I've been wondering why mremap is sending one IPI for each page that
-> it moves. I tried to remove that so we send an IPI for each
-> vma/syscall (not for each pte/page).
+On Wed, 9 Mar 2011, Andrew Morton wrote:
 
-(It wouldn't usually have been sending an IPI for each page, only if
-the mm were active on another cpu, but...)
+> If Oleg's test program cause a hang with
+> oom-prevent-unnecessary-oom-kills-or-kernel-panics.patch and doesn't
+> cause a hang without
+> oom-prevent-unnecessary-oom-kills-or-kernel-panics.patch then that's a
+> big problem for
+> oom-prevent-unnecessary-oom-kills-or-kernel-panics.patch, no?
+> 
 
-That looks like a good optimization to me: I can't think of a good
-reason for it to be the way it was, just it started out like that and
-none of us ever thought to change it before.  Plus it's always nice to
-see the flush_tlb_range() afterwards complementing the
-flush_cache_range() beforehand, as you now have in move_page_tables().
-
-And don't forget that move_page_tables() is also used by exec's
-shift_arg_pages(): no IPI saving there, but it should be more
-efficient when exec'ing with many arguments.
-
-Hugh
+It's a problem, but not because of 
+oom-prevent-unnecessary-oom-kills-or-kernel-panics.patch.  If we don't 
+have this patch, then we have a trivial panic when an oom kill occurs in a 
+cpuset with no other eligible processes, the oom killed thread group 
+leader exits but its other threads do not and they trigger oom kills 
+themselves.  for_each_process() does not iterate over these threads and so 
+it finds no eligible threads to kill and then panics (and we have many 
+examples of that happening in production).  I'll look at Oleg's test case 
+and see what can be done to fix that condition, but the answer isn't to 
+ignore eligible threads that can be killed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
