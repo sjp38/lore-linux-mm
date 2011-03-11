@@ -1,81 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C268A8D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:48:50 -0500 (EST)
-Received: by qwa26 with SMTP id 26so97406qwa.14
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 12:48:48 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B4D78D003A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:51:14 -0500 (EST)
+Received: by qyk30 with SMTP id 30so3212136qyk.14
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 12:51:12 -0800 (PST)
 MIME-Version: 1.0
-Date: Fri, 11 Mar 2011 20:48:48 +0000
-Message-ID: <AANLkTi=EBZG0BSJwaM5-1L4CSESYZHfKmODfXpK9VES6@mail.gmail.com>
-Subject: [RFC][PATCH 05/25]: Propagating GFP_NOFS inside __vmalloc()
+Date: Fri, 11 Mar 2011 20:51:11 +0000
+Message-ID: <AANLkTinZHxopnQzkuKmk_hVdcPmsCut04c_gzSy+Cgo3@mail.gmail.com>
+Subject: [RFC][PATCH 06/25]: Propagating GFP_NOFS inside __vmalloc()
 From: Prasad Joshi <prasadjoshi124@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Anand Mitra <mitra@kqinfotech.com>
 
-PARISC changes
+Changes for PowerPC architecture.
 
 Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
 Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
 ---
-diff --git a/arch/parisc/include/asm/pgalloc.h
-b/arch/parisc/include/asm/pgalloc.h
-index fc987a1..b09e358 100644
---- a/arch/parisc/include/asm/pgalloc.h
-+++ b/arch/parisc/include/asm/pgalloc.h
-@@ -61,15 +61,21 @@ static inline void pgd_populate(struct mm_struct
-*mm, pgd_t *pgd, pmd_t *pmd)
-                (__u32)(__pa((unsigned long)pmd) >> PxD_VALUE_SHIFT));
+diff --git a/arch/powerpc/include/asm/pgalloc-32.h
+b/arch/powerpc/include/asm/pgalloc-32.h
+index 580cf73..21b7a94 100644
+--- a/arch/powerpc/include/asm/pgalloc-32.h
++++ b/arch/powerpc/include/asm/pgalloc-32.h
+@@ -35,6 +35,8 @@ extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
+ #endif
+
+ extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr);
++extern pte_t *__pte_alloc_one_kernel(struct mm_struct *, unsigned long, gfp_t);
++
+ extern pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long addr);
+
+ static inline void pgtable_free(void *table, unsigned index_size)
+diff --git a/arch/powerpc/include/asm/pgalloc-64.h
+b/arch/powerpc/include/asm/pgalloc-64.h
+index 292725c..ed0c62e 100644
+--- a/arch/powerpc/include/asm/pgalloc-64.h
++++ b/arch/powerpc/include/asm/pgalloc-64.h
+@@ -51,10 +51,16 @@ static inline void pgd_free(struct mm_struct *mm,
+pgd_t *pgd)
+
+ #define pgd_populate(MM, PGD, PUD) pgd_set(PGD, PUD)
+
+-static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
++static inline pud_t *
++__pud_alloc_one(struct mm_struct *mm, unsigned long addr, gfp_t gfp_mask)
+ {
+    return kmem_cache_alloc(PGT_CACHE(PUD_INDEX_SIZE),
+-               GFP_KERNEL|__GFP_REPEAT);
++               gfp_mask|__GFP_REPEAT);
++}
++
++static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
++{
++   return __pud_alloc_one(mm, addr, GFP_KERNEL);
  }
 
--static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
+ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
+@@ -89,10 +95,16 @@ static inline void pmd_populate_kernel(struct
+mm_struct *mm, pmd_t *pmd,
+
+ #endif /* CONFIG_PPC_64K_PAGES */
+
+-static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 +static inline pmd_t *
-+__pmd_alloc_one(struct mm_struct *mm, unsigned long address, gfp_t gfp_mask)
++__pmd_alloc_one(struct mm_struct *mm, unsigned long addr, gfp_t gfp_mask)
  {
--   pmd_t *pmd = (pmd_t *)__get_free_pages(GFP_KERNEL|__GFP_REPEAT,
-+   pmd_t *pmd = (pmd_t *)__get_free_pages(gfp_mask|__GFP_REPEAT,
-                           PMD_ORDER);
-    if (pmd)
-        memset(pmd, 0, PAGE_SIZE<<PMD_ORDER);
-    return pmd;
- }
-
-+static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
-+{
-+   return __pmd_alloc_one(mm, address, GFP_KERNEL);
+    return kmem_cache_alloc(PGT_CACHE(PMD_INDEX_SIZE),
+-               GFP_KERNEL|__GFP_REPEAT);
++               gfp_mask|__GFP_REPEAT);
 +}
 +
++static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
++{
++   return __pmd_alloc_one(mm, addr, GFP_KERNEL);
+ }
+
  static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
- {
- #ifdef CONFIG_64BIT
-@@ -90,6 +96,7 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
-  * inside the pgd, so has no extra memory associated with it.
-  */
-
-+#define __pmd_alloc_one(mm, addr, mask)        ({ BUG(); ((pmd_t *)2); })
- #define pmd_alloc_one(mm, addr)        ({ BUG(); ((pmd_t *)2); })
- #define pmd_free(mm, x)            do { } while (0)
- #define pgd_populate(mm, pmd, pte) BUG()
-@@ -127,10 +134,15 @@ pte_alloc_one(struct mm_struct *mm, unsigned long address)
+@@ -100,10 +112,17 @@ static inline void pmd_free(struct mm_struct
+*mm, pmd_t *pmd)
+    kmem_cache_free(PGT_CACHE(PMD_INDEX_SIZE), pmd);
  }
 
- static inline pte_t *
-+__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr,
-gfp_t gfp_mask)
++static inline pte_t *
++__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address,
++       gfp_t gfp_mask)
 +{
-+   return (pte_t *)__get_free_page(gfp_mask|__GFP_REPEAT|__GFP_ZERO);
++        return (pte_t *)__get_free_page(gfp_mask | __GFP_REPEAT | __GFP_ZERO);
 +}
 +
-+static inline pte_t *
- pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr)
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+                      unsigned long address)
  {
--   pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
--   return pte;
-+   return __pte_alloc_one_kernel(mm, addr, GFP_KERNEL);
+-        return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_REPEAT |
+__GFP_ZERO);
++   return __pte_alloc_one_kernel(mm, address, GFP_KERNEL);
  }
 
- static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+diff --git a/arch/powerpc/mm/pgtable_32.c b/arch/powerpc/mm/pgtable_32.c
+index 8dc41c0..8e3c0b4 100644
+--- a/arch/powerpc/mm/pgtable_32.c
++++ b/arch/powerpc/mm/pgtable_32.c
+@@ -95,14 +95,15 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+ #endif
+ }
+
+-__init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+unsigned long address)
++__init_refok pte_t *
++__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address,
+gfp_t gfp_mask)
+ {
+    pte_t *pte;
+    extern int mem_init_done;
+    extern void *early_get_page(void);
+
+    if (mem_init_done) {
+-       pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
++       pte = (pte_t *)__get_free_page(gfp_mask|__GFP_REPEAT|__GFP_ZERO);
+    } else {
+        pte = (pte_t *)early_get_page();
+        if (pte)
+@@ -111,6 +112,11 @@ __init_refok pte_t *pte_alloc_one_kernel(struct
+mm_struct *mm, unsigned long add
+    return pte;
+ }
+
++__init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+unsigned long address)
++{
++   return __pte_alloc_one_kernel(mm, address, GFP_KERNEL);
++}
++
+ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
+ {
+    struct page *ptepage;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
