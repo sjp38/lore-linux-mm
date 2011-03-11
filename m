@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 06C258D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 05:12:34 -0500 (EST)
-Received: by qwd7 with SMTP id 7so2610945qwd.14
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 02:12:33 -0800 (PST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BE4858D003A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 05:20:05 -0500 (EST)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp04.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2BAJrL0018385
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:49:53 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2BAJqnY4386820
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:49:53 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2BAJpJg001243
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 21:19:52 +1100
+Date: Fri, 11 Mar 2011 15:49:51 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 1/9] memcg: document cgroup dirty memory interfaces
+Message-ID: <20110311101951.GX2868@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1298669760-26344-1-git-send-email-gthelen@google.com>
+ <1298669760-26344-2-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
-In-Reply-To: <20110310000324.GC22723@ZenIV.linux.org.uk>
-References: <1299575700-6901-1-git-send-email-lliubbo@gmail.com>
-	<20110309145859.dbe31df5.akpm@linux-foundation.org>
-	<20110310000324.GC22723@ZenIV.linux.org.uk>
-Date: Fri, 11 Mar 2011 18:12:32 +0800
-Message-ID: <AANLkTikRyhwOEhPyxKW9G5ST7WJSqi4h0=T9duiYf9Cu@mail.gmail.com>
-Subject: Re: [PATCH] shmem: put inode if alloc_file failed
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1298669760-26344-2-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, hch@lst.de, hughd@google.com, npiggin@kernel.dk
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Vivek Goyal <vgoyal@redhat.com>
 
-On Thu, Mar 10, 2011 at 8:03 AM, Al Viro <viro@zeniv.linux.org.uk> wrote:
-> On Wed, Mar 09, 2011 at 02:58:59PM -0800, Andrew Morton wrote:
->
->> > +put_inode:
->> > + =C2=A0 iput(inode);
->> > =C2=A0put_dentry:
->> > =C2=A0 =C2=A0 path_put(&path);
->> > =C2=A0put_memory:
->>
->> Is this correct? =C2=A0We've linked the inode to the dentry with
->> d_instantiate(), so the d_put() will do the iput() on the inode.
->
->
-> ITYM path_put() and yes, it will. =C2=A0There's no leak.
->
+* Greg Thelen <gthelen@google.com> [2011-02-25 13:35:52]:
 
-Hi,
+> Document cgroup dirty memory interfaces and statistics.
+> 
+> Signed-off-by: Andrea Righi <arighi@develer.com>
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> ---
 
-Yes, I also think path_put() should, But it seems iput() can't free
-that memory during NO-MMU arch.
 
-Would you please take a look at thread: [BUG?] shmem: memory leak on
-NO-MMU arch ?
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
 
-http://www.spinics.net/lists/linux-mm/msg15668.html
-
-Thanks
---=20
-Regards,
---Bob
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
