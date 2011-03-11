@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 535218D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:56:12 -0500 (EST)
-Received: by qwa26 with SMTP id 26so102513qwa.14
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 12:56:11 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BE1698D003B
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:57:07 -0500 (EST)
+Received: by qwa26 with SMTP id 26so103085qwa.14
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 12:57:05 -0800 (PST)
 MIME-Version: 1.0
-Date: Fri, 11 Mar 2011 20:56:11 +0000
-Message-ID: <AANLkTi=2u+4C8J0qtYjekJUj_Kgs0mXn0E6Gqg-_1W9j@mail.gmail.com>
-Subject: [RFC][PATCH 10/25]: Propagating GFP_NOFS inside __vmalloc()
+Date: Fri, 11 Mar 2011 20:57:05 +0000
+Message-ID: <AANLkTikD4Z3jVuTjrLYzjf4zSdH=OVGY3i33GYRLbvAR@mail.gmail.com>
+Subject: [RFC][PATCH 11/25]: Propagating GFP_NOFS inside __vmalloc()
 From: Prasad Joshi <prasadjoshi124@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
@@ -17,51 +17,79 @@ To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Anand Mitra <
 Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
 Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
 ---
-diff --git a/arch/sh/include/asm/pgalloc.h b/arch/sh/include/asm/pgalloc.h
-index 8c00785..1214abd 100644
---- a/arch/sh/include/asm/pgalloc.h
-+++ b/arch/sh/include/asm/pgalloc.h
-@@ -31,10 +31,16 @@ static inline void pmd_populate(struct mm_struct
-*mm, pmd_t *pmd,
- /*
-  * Allocate and free page tables.
-  */
-+static inline pte_t *__pte_alloc_one_kernel(struct mm_struct *mm,
-+                     unsigned long address, gfp_t gfp_mask)
+diff --git a/arch/sparc/include/asm/pgalloc_32.h
+b/arch/sparc/include/asm/pgalloc_32.h
+index ca2b344..ad68597 100644
+--- a/arch/sparc/include/asm/pgalloc_32.h
++++ b/arch/sparc/include/asm/pgalloc_32.h
+@@ -41,6 +41,9 @@ BTFIXUPDEF_CALL(void, pgd_set, pgd_t *, pmd_t *)
+ BTFIXUPDEF_CALL(pmd_t *, pmd_alloc_one, struct mm_struct *, unsigned long)
+ #define pmd_alloc_one(mm, address) BTFIXUP_CALL(pmd_alloc_one)(mm, address)
+
++BTFIXUPDEF_CALL(pmd_t *, __pmd_alloc_one, struct mm_struct *,
+unsigned long, gfp_t)
++#define __pmd_alloc_one(mm, address, gfp_mask)
+BTFIXUP_CALL(pmd_alloc_one)(mm, address)
++
+ BTFIXUPDEF_CALL(void, free_pmd_fast, pmd_t *)
+ #define free_pmd_fast(pmd) BTFIXUP_CALL(free_pmd_fast)(pmd)
+
+@@ -57,6 +60,8 @@ BTFIXUPDEF_CALL(pgtable_t , pte_alloc_one, struct
+mm_struct *, unsigned long)
+ #define pte_alloc_one(mm, address) BTFIXUP_CALL(pte_alloc_one)(mm, address)
+ BTFIXUPDEF_CALL(pte_t *, pte_alloc_one_kernel, struct mm_struct *,
+unsigned long)
+ #define pte_alloc_one_kernel(mm, addr)
+BTFIXUP_CALL(pte_alloc_one_kernel)(mm, addr)
++BTFIXUPDEF_CALL(pte_t *, __pte_alloc_one_kernel, struct mm_struct *,
+unsigned long, gfp_t)
++#define __pte_alloc_one_kernel(mm, addr, gfp_mask)
+BTFIXUP_CALL(pte_alloc_one_kernel)(mm, addr)
+
+ BTFIXUPDEF_CALL(void, free_pte_fast, pte_t *)
+ #define pte_free_kernel(mm, pte)   BTFIXUP_CALL(free_pte_fast)(pte)
+diff --git a/arch/sparc/include/asm/pgalloc_64.h
+b/arch/sparc/include/asm/pgalloc_64.h
+index 5bdfa2c..a7952a5 100644
+--- a/arch/sparc/include/asm/pgalloc_64.h
++++ b/arch/sparc/include/asm/pgalloc_64.h
+@@ -26,9 +26,15 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+
+ #define pud_populate(MM, PUD, PMD) pud_set(PUD, PMD)
+
++static inline pmd_t *
++__pmd_alloc_one(struct mm_struct *mm, unsigned long addr, gfp_t gfp_mask)
 +{
-+   return quicklist_alloc(QUICK_PT, gfp_mask | __GFP_REPEAT, NULL);
++   return quicklist_alloc(0, gfp_mask, NULL);
++}
++
+ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+-   return quicklist_alloc(0, GFP_KERNEL, NULL);
++   return __pmd_alloc_one(mm, addr, GFP_KERNEL);
+ }
+
+ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+@@ -36,10 +42,17 @@ static inline void pmd_free(struct mm_struct *mm,
+pmd_t *pmd)
+    quicklist_free(0, NULL, pmd);
+ }
+
++static inline pte_t *
++__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address,
++       gfp_t gfp_mask)
++{
++   return quicklist_alloc(0, gfp_mask, NULL);
 +}
 +
  static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
                       unsigned long address)
  {
--   return quicklist_alloc(QUICK_PT, GFP_KERNEL | __GFP_REPEAT, NULL);
+-   return quicklist_alloc(0, GFP_KERNEL, NULL);
 +   return __pte_alloc_one_kernel(mm, address, GFP_KERNEL);
  }
 
  static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
-diff --git a/arch/sh/mm/pgtable.c b/arch/sh/mm/pgtable.c
-index 26e03a1..3b93198 100644
---- a/arch/sh/mm/pgtable.c
-+++ b/arch/sh/mm/pgtable.c
-@@ -45,9 +45,15 @@ void pud_populate(struct mm_struct *mm, pud_t *pud,
-pmd_t *pmd)
-    set_pud(pud, __pud((unsigned long)pmd));
- }
-
-+pmd_t *
-+__pmd_alloc_one(struct mm_struct *mm, unsigned long address, gfp_t gfp_mask)
-+{
-+   return kmem_cache_alloc(pmd_cachep, gfp_mask | __GFP_REPEAT | __GFP_ZERO);
-+}
-+
- pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
- {
--   return kmem_cache_alloc(pmd_cachep, PGALLOC_GFP);
-+   return __pmd_alloc_one(mm, address, GFP_KERNEL);
- }
-
- void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
