@@ -1,67 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C35EA8D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 16:13:19 -0500 (EST)
-Received: by qwa26 with SMTP id 26so114475qwa.14
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 13:13:18 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1103111258340.31216@chino.kir.corp.google.com>
-References: <AANLkTimU2QGc_BVxSWCN8GEhr8hCOi1Zp+eaA20_pE-w@mail.gmail.com>
-	<alpine.DEB.2.00.1103111258340.31216@chino.kir.corp.google.com>
-Date: Fri, 11 Mar 2011 21:13:18 +0000
-Message-ID: <AANLkTimu-42CC3pv57njj6-UqwDO3iNLtiem9=y9ggng@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 55C108D003A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 18:08:45 -0500 (EST)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
+	by smtp-out.google.com with ESMTP id p2BN8ggf013977
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:08:42 -0800
+Received: from pxi7 (pxi7.prod.google.com [10.243.27.7])
+	by hpaq14.eem.corp.google.com with ESMTP id p2BN84Rx020546
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:08:40 -0800
+Received: by pxi7 with SMTP id 7so805604pxi.16
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:08:38 -0800 (PST)
+Date: Fri, 11 Mar 2011 15:08:32 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [RFC][PATCH 00/25]: Propagating GFP_NOFS inside __vmalloc()
-From: Prasad Joshi <prasadjoshi124@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <AANLkTimu-42CC3pv57njj6-UqwDO3iNLtiem9=y9ggng@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1103111505450.4900@chino.kir.corp.google.com>
+References: <AANLkTimU2QGc_BVxSWCN8GEhr8hCOi1Zp+eaA20_pE-w@mail.gmail.com> <alpine.DEB.2.00.1103111258340.31216@chino.kir.corp.google.com> <AANLkTimu-42CC3pv57njj6-UqwDO3iNLtiem9=y9ggng@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
+To: Prasad Joshi <prasadjoshi124@gmail.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Anand Mitra <mitra@kqinfotech.com>
 
-On Fri, Mar 11, 2011 at 9:01 PM, David Rientjes <rientjes@google.com> wrote=
-:
-> On Fri, 11 Mar 2011, Prasad Joshi wrote:
->
->> A filesystem might run into a problem while calling
->> __vmalloc(GFP_NOFS) inside a lock.
->>
->> It is expected than __vmalloc when called with GFP_NOFS should not
->> callback the filesystem code even incase of the increased memory
->> pressure. But the problem is that even if we pass this flag, __vmalloc
->> itself allocates memory with GFP_KERNEL.
->>
->> Using GFP_KERNEL allocations may go into the memory reclaim path and
->> try to free memory by calling file system clear_inode/evict_inode
->> function. Which might lead into deadlock.
->>
->> For further details
->> https://bugzilla.kernel.org/show_bug.cgi?id=3D30702
->> http://marc.info/?l=3Dlinux-mm&m=3D128942194520631&w=3D4
->>
->> The patch passes the gfp allocation flag all the way down to those
->> allocating functions.
->>
->
-> You're going to run into trouble by hard-wiring __GFP_REPEAT into all of
-> the pte allocations because if GFP_NOFS is used then direct reclaim will
-> usually fail (see the comment for do_try_to_free_pages(): If the caller i=
-s
-> !__GFP_FS then the probability of a failure is reasonably high) and, if
-> it does so continuously, then the page allocator will loop forever. =A0Th=
-is
-> bit should probably be moved a level higher in your architecture changes
-> to the caller passing GFP_KERNEL.
+On Fri, 11 Mar 2011, Prasad Joshi wrote:
 
-Thanks a lot for your reply. I should have seen your mail before
-sending 23 mails :(
-I will make the changes suggested by you and will resend all of the
-patches again.
+> Thanks a lot for your reply. I should have seen your mail before
+> sending 23 mails :(
+> I will make the changes suggested by you and will resend all of the
+> patches again.
+> 
 
-Thanks and Regards,
-Prasad
+Thanks for taking this effort on.  A couple other points:
 
->
+ - each patch should have a different subject prefixed with the subsystem 
+   that it touches (for example: "x86: add gfp flags variant of 
+   pte_alloc_one") and the maintainers should be cc'd.  Check 
+   scripts/get_maintainer.pl or the MAINTAINERS file.  Also, for changes 
+   that touch all arch code you'll want to cc linux-arch@vger.kernel.org 
+   as well.
+
+ - each change needs to have a proper changelog prior to your
+   signed-off-by line to explain why the change is being done and in 
+   preparation for supporting non-GFP_KERNEL allocations from __vmalloc().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
