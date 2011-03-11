@@ -1,81 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B773B8D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:35:51 -0500 (EST)
-Received: by qwa26 with SMTP id 26so88316qwa.14
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 12:35:47 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B07DA8D003A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 15:38:30 -0500 (EST)
+Received: by qwa26 with SMTP id 26so90210qwa.14
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 12:38:28 -0800 (PST)
 MIME-Version: 1.0
-Date: Fri, 11 Mar 2011 20:35:47 +0000
-Message-ID: <AANLkTimU2QGc_BVxSWCN8GEhr8hCOi1Zp+eaA20_pE-w@mail.gmail.com>
-Subject: [RFC][PATCH 00/25]: Propagating GFP_NOFS inside __vmalloc()
+Date: Fri, 11 Mar 2011 20:38:28 +0000
+Message-ID: <AANLkTinouSdEbKbpbegybPdNshRAf_OniQEoyv_vTT4x@mail.gmail.com>
+Subject: [RFC][PATCH 01/25]: Propagating GFP_NOFS inside __vmalloc()
 From: Prasad Joshi <prasadjoshi124@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Anand Mitra <mitra@kqinfotech.com>
 
-A filesystem might run into a problem while calling
-__vmalloc(GFP_NOFS) inside a lock.
+alpha architecture changes
 
-It is expected than __vmalloc when called with GFP_NOFS should not
-callback the filesystem code even incase of the increased memory
-pressure. But the problem is that even if we pass this flag, __vmalloc
-itself allocates memory with GFP_KERNEL.
+Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
+Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
+---
+diff --git a/arch/alpha/include/asm/pgalloc.h b/arch/alpha/include/asm/pgalloc.h
+index bc2a0da..faccc2b 100644
+--- a/arch/alpha/include/asm/pgalloc.h
++++ b/arch/alpha/include/asm/pgalloc.h
+@@ -38,10 +38,15 @@ pgd_free(struct mm_struct *mm, pgd_t *pgd)
+ }
 
-Using GFP_KERNEL allocations may go into the memory reclaim path and
-try to free memory by calling file system clear_inode/evict_inode
-function. Which might lead into deadlock.
+ static inline pmd_t *
++__pmd_alloc_one(struct mm_struct *mm, unsigned long address, gfp_t gfp_mask)
++{
++   return (pmd_t *)__get_free_page(gfp_mask|__GFP_REPEAT|__GFP_ZERO);
++}
++
++static inline pmd_t *
+ pmd_alloc_one(struct mm_struct *mm, unsigned long address)
+ {
+-   pmd_t *ret = (pmd_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
+-   return ret;
++   return __pmd_alloc_one(mm, address, GFP_KERNEL);
+ }
 
-For further details
-https://bugzilla.kernel.org/show_bug.cgi?id=30702
-http://marc.info/?l=linux-mm&m=128942194520631&w=4
+ static inline void
+@@ -51,10 +56,15 @@ pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ }
 
-The patch passes the gfp allocation flag all the way down to those
-allocating functions.
+ static inline pte_t *
++__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addressi,
+gfp_t gfp_mask)
++{
++   return (pte_t *)__get_free_page(gfp_mask|__GFP_REPEAT|__GFP_ZERO);
++}
++
++static inline pte_t *
+ pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+ {
+-   pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
+-   return pte;
++   return __pte_alloc_one_kernel(mm, address, GFP_KERNEL);
+ }
 
- arch/alpha/include/asm/pgalloc.h         |   18 ++-------
- arch/arm/include/asm/pgalloc.h           |   12 +-----
- arch/avr32/include/asm/pgalloc.h         |    8 +----
- arch/cris/include/asm/pgalloc.h          |   10 +----
- arch/frv/include/asm/pgalloc.h           |    3 --
- arch/frv/include/asm/pgtable.h           |    1 -
- arch/frv/mm/pgalloc.c                    |    9 +----
- arch/ia64/include/asm/pgalloc.h          |   24 ++-----------
- arch/m32r/include/asm/pgalloc.h          |   11 ++----
- arch/m68k/include/asm/motorola_pgalloc.h |   19 ++--------
- arch/m68k/include/asm/sun3_pgalloc.h     |   14 ++------
- arch/m68k/mm/memory.c                    |    9 +----
- arch/microblaze/include/asm/pgalloc.h    |    3 --
- arch/microblaze/mm/pgtable.c             |   12 ++-----
- arch/mips/include/asm/pgalloc.h          |   22 ++++--------
- arch/mn10300/include/asm/pgalloc.h       |    2 -
- arch/mn10300/mm/pgtable.c                |   10 +----
- arch/parisc/include/asm/pgalloc.h        |   20 ++--------
- arch/powerpc/include/asm/pgalloc-32.h    |    2 -
- arch/powerpc/include/asm/pgalloc-64.h    |   29 +++------------
- arch/powerpc/mm/pgtable_32.c             |   10 +----
- arch/s390/include/asm/pgalloc.h          |   28 +++------------
- arch/s390/mm/pgtable.c                   |   22 +++---------
- arch/score/include/asm/pgalloc.h         |   14 +++----
- arch/sh/include/asm/pgalloc.h            |    8 +----
- arch/sh/mm/pgtable.c                     |    8 +----
- arch/sparc/include/asm/pgalloc_32.h      |    5 ---
- arch/sparc/include/asm/pgalloc_64.h      |   17 +--------
- arch/tile/include/asm/pgalloc.h          |   11 +-----
- arch/tile/mm/pgtable.c                   |   10 +----
- arch/um/include/asm/pgalloc.h            |    1 -
- arch/um/kernel/mem.c                     |   21 +++--------
- arch/x86/include/asm/pgalloc.h           |   17 +--------
- arch/x86/mm/pgtable.c                    |    9 +----
- arch/xtensa/include/asm/pgalloc.h        |    9 +----
- arch/xtensa/mm/pgtable.c                 |   10 +----
- include/asm-generic/4level-fixup.h       |    8 +---
- include/asm-generic/pgtable-nopmd.h      |    3 +-
- include/asm-generic/pgtable-nopud.h      |    1 -
- include/linux/mm.h                       |   40 +++++---------------
- mm/memory.c                              |   14 +++----
- mm/vmalloc.c                             |   58 ++++++++++--------------------
- 42 files changed, 121 insertions(+), 441 deletions(-)
+ static inline void
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
