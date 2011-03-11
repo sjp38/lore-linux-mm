@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A4E018D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 13:44:50 -0500 (EST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DD5908D003A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 13:45:06 -0500 (EST)
 From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH v6 3/9] memcg: add dirty page accounting infrastructure
-Date: Fri, 11 Mar 2011 10:43:25 -0800
-Message-Id: <1299869011-26152-4-git-send-email-gthelen@google.com>
+Subject: [PATCH v6 4/9] memcg: add kernel calls for memcg dirty page stats
+Date: Fri, 11 Mar 2011 10:43:26 -0800
+Message-Id: <1299869011-26152-5-git-send-email-gthelen@google.com>
 In-Reply-To: <1299869011-26152-1-git-send-email-gthelen@google.com>
 References: <1299869011-26152-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,193 +13,123 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Vivek Goyal <vgoyal@redhat.com>, Greg Thelen <gthelen@google.com>
 
-Add memcg routines to track dirty, writeback, and unstable_NFS pages.
-These routines are not yet used by the kernel to count such pages.
-A later change adds kernel calls to these new routines.
+Add calls into memcg dirty page accounting.  Notify memcg when pages
+transition between clean, file dirty, writeback, and unstable nfs.
+This allows the memory controller to maintain an accurate view of
+the amount of its memory that is dirty.
 
 Signed-off-by: Greg Thelen <gthelen@google.com>
 Signed-off-by: Andrea Righi <arighi@develer.com>
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 ---
 Changelog since v5:
-- Updated enum mem_cgroup_page_stat_item comment.
+- moved accounting site in test_clear_page_writeback() and
+  test_set_page_writeback().
 
-Changelog since v1:
-- Renamed "nfs"/"total_nfs" to "nfs_unstable"/"total_nfs_unstable" in per cgroup
-  memory.stat to match /proc/meminfo.
-- Rename (for clarity):
-  - mem_cgroup_write_page_stat_item -> mem_cgroup_page_stat_item
-  - mem_cgroup_read_page_stat_item -> mem_cgroup_nr_pages_item
-- Remove redundant comments.
-- Made mem_cgroup_move_account_page_stat() inline.
+ fs/nfs/write.c      |    4 ++++
+ mm/filemap.c        |    1 +
+ mm/page-writeback.c |   10 ++++++++--
+ mm/truncate.c       |    1 +
+ 4 files changed, 14 insertions(+), 2 deletions(-)
 
- include/linux/memcontrol.h |    8 ++++-
- mm/memcontrol.c            |   87 ++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 86 insertions(+), 9 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 5a5ce70..549fa7c 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -25,9 +25,15 @@ struct page_cgroup;
- struct page;
- struct mm_struct;
+diff --git a/fs/nfs/write.c b/fs/nfs/write.c
+index 42b92d7..7863777 100644
+--- a/fs/nfs/write.c
++++ b/fs/nfs/write.c
+@@ -451,6 +451,7 @@ nfs_mark_request_commit(struct nfs_page *req)
+ 			NFS_PAGE_TAG_COMMIT);
+ 	nfsi->ncommit++;
+ 	spin_unlock(&inode->i_lock);
++	mem_cgroup_inc_page_stat(req->wb_page, MEMCG_NR_FILE_UNSTABLE_NFS);
+ 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+ 	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_RECLAIMABLE);
+ 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+@@ -462,6 +463,7 @@ nfs_clear_request_commit(struct nfs_page *req)
+ 	struct page *page = req->wb_page;
  
--/* Stats that can be updated by kernel. */
-+/*
-+ * Per mem_cgroup page counts tracked by kernel.  As pages enter and leave these
-+ * states, the kernel notifies memcg using mem_cgroup_{inc,dec}_page_stat().
-+ */
- enum mem_cgroup_page_stat_item {
- 	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
-+	MEMCG_NR_FILE_DIRTY, /* # of dirty pages in page cache */
-+	MEMCG_NR_FILE_WRITEBACK, /* # of pages under writeback */
-+	MEMCG_NR_FILE_UNSTABLE_NFS, /* # of NFS unstable pages */
- };
- 
- extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4407dd0..b8f517d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -83,8 +83,11 @@ enum mem_cgroup_stat_index {
+ 	if (test_and_clear_bit(PG_CLEAN, &(req)->wb_flags)) {
++		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_UNSTABLE_NFS);
+ 		dec_zone_page_state(page, NR_UNSTABLE_NFS);
+ 		dec_bdi_stat(page->mapping->backing_dev_info, BDI_RECLAIMABLE);
+ 		return 1;
+@@ -1319,6 +1321,8 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
+ 		req = nfs_list_entry(head->next);
+ 		nfs_list_remove_request(req);
+ 		nfs_mark_request_commit(req);
++		mem_cgroup_dec_page_stat(req->wb_page,
++					 MEMCG_NR_FILE_UNSTABLE_NFS);
+ 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+ 		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
+ 				BDI_RECLAIMABLE);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index a6cfecf..7e751fe 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -143,6 +143,7 @@ void __delete_from_page_cache(struct page *page)
+ 	 * having removed the page entirely.
  	 */
- 	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
- 	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
--	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
- 	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
-+	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
-+	MEM_CGROUP_STAT_FILE_DIRTY,	/* # of dirty pages in page cache */
-+	MEM_CGROUP_STAT_FILE_WRITEBACK,		/* # of pages under writeback */
-+	MEM_CGROUP_STAT_FILE_UNSTABLE_NFS,	/* # of NFS unstable pages */
- 	MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
- 	MEM_CGROUP_ON_MOVE,	/* someone is moving account between groups */
- 	MEM_CGROUP_STAT_NSTATS,
-@@ -1692,6 +1695,44 @@ void mem_cgroup_update_page_stat(struct page *page,
- 			ClearPageCgroupFileMapped(pc);
- 		idx = MEM_CGROUP_STAT_FILE_MAPPED;
- 		break;
-+
-+	case MEMCG_NR_FILE_DIRTY:
-+		/* Use Test{Set,Clear} to only un/charge the memcg once. */
-+		if (val > 0) {
-+			if (TestSetPageCgroupFileDirty(pc))
-+				val = 0;
-+		} else {
-+			if (!TestClearPageCgroupFileDirty(pc))
-+				val = 0;
-+		}
-+		idx = MEM_CGROUP_STAT_FILE_DIRTY;
-+		break;
-+
-+	case MEMCG_NR_FILE_WRITEBACK:
-+		/*
-+		 * This counter is adjusted while holding the mapping's
-+		 * tree_lock.  Therefore there is no race between settings and
-+		 * clearing of this flag.
-+		 */
-+		if (val > 0)
-+			SetPageCgroupFileWriteback(pc);
-+		else
-+			ClearPageCgroupFileWriteback(pc);
-+		idx = MEM_CGROUP_STAT_FILE_WRITEBACK;
-+		break;
-+
-+	case MEMCG_NR_FILE_UNSTABLE_NFS:
-+		/* Use Test{Set,Clear} to only un/charge the memcg once. */
-+		if (val > 0) {
-+			if (TestSetPageCgroupFileUnstableNFS(pc))
-+				val = 0;
-+		} else {
-+			if (!TestClearPageCgroupFileUnstableNFS(pc))
-+				val = 0;
-+		}
-+		idx = MEM_CGROUP_STAT_FILE_UNSTABLE_NFS;
-+		break;
-+
- 	default:
- 		BUG();
+ 	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
++		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_DIRTY);
+ 		dec_zone_page_state(page, NR_FILE_DIRTY);
+ 		dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
  	}
-@@ -2251,6 +2292,17 @@ void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail)
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 632b464..d8005b0 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1118,6 +1118,7 @@ int __set_page_dirty_no_writeback(struct page *page)
+ void account_page_dirtied(struct page *page, struct address_space *mapping)
+ {
+ 	if (mapping_cap_account_dirty(mapping)) {
++		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_DIRTY);
+ 		__inc_zone_page_state(page, NR_FILE_DIRTY);
+ 		__inc_zone_page_state(page, NR_DIRTIED);
+ 		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+@@ -1317,6 +1318,7 @@ int clear_page_dirty_for_io(struct page *page)
+ 		 * for more comments.
+ 		 */
+ 		if (TestClearPageDirty(page)) {
++			mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_DIRTY);
+ 			dec_zone_page_state(page, NR_FILE_DIRTY);
+ 			dec_bdi_stat(mapping->backing_dev_info,
+ 					BDI_RECLAIMABLE);
+@@ -1352,8 +1354,10 @@ int test_clear_page_writeback(struct page *page)
+ 	} else {
+ 		ret = TestClearPageWriteback(page);
+ 	}
+-	if (ret)
++	if (ret) {
++		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_WRITEBACK);
+ 		dec_zone_page_state(page, NR_WRITEBACK);
++	}
+ 	return ret;
  }
- #endif
  
-+static inline
-+void mem_cgroup_move_account_page_stat(struct mem_cgroup *from,
-+				       struct mem_cgroup *to,
-+				       enum mem_cgroup_stat_index idx)
-+{
-+	preempt_disable();
-+	__this_cpu_dec(from->stat->count[idx]);
-+	__this_cpu_inc(to->stat->count[idx]);
-+	preempt_enable();
-+}
-+
- /**
-  * mem_cgroup_move_account - move account of the page
-  * @page: the page
-@@ -2299,13 +2351,18 @@ static int mem_cgroup_move_account(struct page *page,
- 
- 	move_lock_page_cgroup(pc, &flags);
- 
--	if (PageCgroupFileMapped(pc)) {
--		/* Update mapped_file data for mem_cgroup */
--		preempt_disable();
--		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
--		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
--		preempt_enable();
--	}
-+	if (PageCgroupFileMapped(pc))
-+		mem_cgroup_move_account_page_stat(from, to,
-+					MEM_CGROUP_STAT_FILE_MAPPED);
-+	if (PageCgroupFileDirty(pc))
-+		mem_cgroup_move_account_page_stat(from, to,
-+					MEM_CGROUP_STAT_FILE_DIRTY);
-+	if (PageCgroupFileWriteback(pc))
-+		mem_cgroup_move_account_page_stat(from, to,
-+					MEM_CGROUP_STAT_FILE_WRITEBACK);
-+	if (PageCgroupFileUnstableNFS(pc))
-+		mem_cgroup_move_account_page_stat(from, to,
-+					MEM_CGROUP_STAT_FILE_UNSTABLE_NFS);
- 	mem_cgroup_charge_statistics(from, PageCgroupCache(pc), -nr_pages);
- 	if (uncharge)
- 		/* This is not "cancel", but cancel_charge does all we need. */
-@@ -3772,6 +3829,9 @@ enum {
- 	MCS_PGPGIN,
- 	MCS_PGPGOUT,
- 	MCS_SWAP,
-+	MCS_FILE_DIRTY,
-+	MCS_WRITEBACK,
-+	MCS_UNSTABLE_NFS,
- 	MCS_INACTIVE_ANON,
- 	MCS_ACTIVE_ANON,
- 	MCS_INACTIVE_FILE,
-@@ -3794,6 +3854,9 @@ struct {
- 	{"pgpgin", "total_pgpgin"},
- 	{"pgpgout", "total_pgpgout"},
- 	{"swap", "total_swap"},
-+	{"dirty", "total_dirty"},
-+	{"writeback", "total_writeback"},
-+	{"nfs_unstable", "total_nfs_unstable"},
- 	{"inactive_anon", "total_inactive_anon"},
- 	{"active_anon", "total_active_anon"},
- 	{"inactive_file", "total_inactive_file"},
-@@ -3823,6 +3886,14 @@ mem_cgroup_get_local_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
- 		s->stat[MCS_SWAP] += val * PAGE_SIZE;
+@@ -1386,8 +1390,10 @@ int test_set_page_writeback(struct page *page)
+ 	} else {
+ 		ret = TestSetPageWriteback(page);
  	}
+-	if (!ret)
++	if (!ret) {
++		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_WRITEBACK);
+ 		account_page_writeback(page);
++	}
+ 	return ret;
  
-+	/* dirty stat */
-+	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_DIRTY);
-+	s->stat[MCS_FILE_DIRTY] += val * PAGE_SIZE;
-+	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_WRITEBACK);
-+	s->stat[MCS_WRITEBACK] += val * PAGE_SIZE;
-+	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_UNSTABLE_NFS);
-+	s->stat[MCS_UNSTABLE_NFS] += val * PAGE_SIZE;
-+
- 	/* per zone stat */
- 	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_ANON);
- 	s->stat[MCS_INACTIVE_ANON] += val * PAGE_SIZE;
+ }
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 5e5a43a..18d0304 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -76,6 +76,7 @@ void cancel_dirty_page(struct page *page, unsigned int account_size)
+ 	if (TestClearPageDirty(page)) {
+ 		struct address_space *mapping = page->mapping;
+ 		if (mapping && mapping_cap_account_dirty(mapping)) {
++			mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_DIRTY);
+ 			dec_zone_page_state(page, NR_FILE_DIRTY);
+ 			dec_bdi_stat(mapping->backing_dev_info,
+ 					BDI_RECLAIMABLE);
 -- 
 1.7.3.1
 
