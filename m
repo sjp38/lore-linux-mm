@@ -1,77 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id EA4618D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 23:02:52 -0500 (EST)
-Date: Sat, 12 Mar 2011 05:02:23 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 161748D003A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 23:28:34 -0500 (EST)
+Date: Sat, 12 Mar 2011 05:28:06 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [PATCH] thp: mremap support and TLB optimization
-Message-ID: <20110312040223.GL5641@random.random>
+Message-ID: <20110312042806.GM5641@random.random>
 References: <20110311020410.GH5641@random.random>
  <AANLkTikZJqTtVF48cc-AQ1z9iF29Z+f35Qdn_1m_SFQi@mail.gmail.com>
+ <AANLkTi=EWW=uaHZbW95_eqabVHTsMdX5N2h_axqi27nn@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <AANLkTikZJqTtVF48cc-AQ1z9iF29Z+f35Qdn_1m_SFQi@mail.gmail.com>
+In-Reply-To: <AANLkTi=EWW=uaHZbW95_eqabVHTsMdX5N2h_axqi27nn@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
 Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>
 
-Hi Hugh,
+On Fri, Mar 11, 2011 at 12:25:42PM -0800, Hugh Dickins wrote:
+> Perhaps I should qualify that answer: although I still think it's the
+> right change to make (it matches mprotect, for example), and an
+> optimization in many cases, it will be a pessimization for anyone who
+> mremap moves unpopulated areas (I doubt that's common), and for anyone
+> who moves around single page areas (on x86 and probably some others).
+> But the exec args case has, I think, few useful tlb entries to lose
+> from the mm-wide tlb flush.
 
-On Fri, Mar 11, 2011 at 11:44:03AM -0800, Hugh Dickins wrote:
-> On Thu, Mar 10, 2011 at 6:04 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> >
-> > I've been wondering why mremap is sending one IPI for each page that
-> > it moves. I tried to remove that so we send an IPI for each
-> > vma/syscall (not for each pte/page).
-> 
-> (It wouldn't usually have been sending an IPI for each page, only if
-> the mm were active on another cpu, but...)
+The pessimization of the totally unmapped areas I didn't consider it
+as a real life possibility. At least the mmu notifier isn't pessimized
+if the pmd wasn't none but the pte was none, only the TLB flush really
+is pessimized in that case (if all old ptes are none regardless of the
+pmd). But the range TLB flush is real easy to optimize for unmapped
+areas if we want, just skip the flush_tlb_range if all old ptes were
+none and we actually changed nothing, right? Fixing the mmu notifier
+isn't possible but that's not a concern and it'll surely be fine to
+stay in move_page_tables.
 
-Correct, it mostly applies to threaded applications (but it also
-applies to regular apps that migrate to one idle cpu to the next).  In
-these cases it's very likely to send IPIs for each page, especially if
-some other thread is running in another CPU. The IPI won't alter the
-mm_cpumask(). So it can make quite some performance difference in some
-microbenchmark using threads (which I didn't try to run yet). But more
-interesting than microbenchmarks, is to see if this makes any
-difference with real life JITs.
+So do we want one more branch to avoid one IPI if mremap runs on an
+unmapped area? That's ok with me if it's a real life possibility. At
+the moment I think any app doing that is pretty stupid and shouldn't
+call mremap in the first place, and it should have used
+mmap(MAP_FIXED) or a bigger mmap size in the first place though... If
+we add a branch for that case, maybe we should also printk if we
+detect that, in addition to skipping the tlb flush.
 
-> That looks like a good optimization to me: I can't think of a good
-> reason for it to be the way it was, just it started out like that and
-> none of us ever thought to change it before.  Plus it's always nice to
-> see the flush_tlb_range() afterwards complementing the
-> flush_cache_range() beforehand, as you now have in move_page_tables().
+> flush_tlb_range() ought to special case small areas, doing at most one
+> IPI, but up to some number of flush_tlb_one()s; but that would
+> certainly have to be another patch.
 
-Same here. I couldn't see a good reason for it to be the way it
-was.
-
-> And don't forget that move_page_tables() is also used by exec's
-> shift_arg_pages(): no IPI saving there, but it should be more
-> efficient when exec'ing with many arguments.
-
-Yep I didn't forget it's also called from execve, that is an area we
-had to fix too for the (hopefully) last migrate rmap SMP race with Mel
-recently. I think the big saving is in the IPI reduction on large CPU
-systems with plenty of threads running during mremap, that should be
-measurable, execve I doubt because like you said there's no IPI
-savings there but it sure will help a bit there too.
-
-On this execve/move_page_tables very topic one thought I had last time
-I read it, is that I don't get why we don't randomize the top of the
-stack address _before_ allocating the stack, instead randomizing it
-after it's created requiring an mremap. There shall be a good reason
-for it but I didn't search for it too hard yet... so I may figure this
-out myself if I look into the execve paths just a bit deeper (I assume
-there's good reason for it, otherwise my point is we shouldn't have
-been calling move_page_tables inside execve in the first place). Maybe
-something in the randomization of the top of the stack seeds from
-something that is known only after the stack exists, dunno yet. But
-that's a separate issue...
-
-Thanks a lot to you and Rik for reviewing it,
-Andrea
+That's probably a good tradeoff. Even better would be if x86 would be
+extended to allow range flushes so we don't have to do guesswork in
+software.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
