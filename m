@@ -1,58 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DDC388D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 20:11:05 -0500 (EST)
-Date: Fri, 11 Mar 2011 17:10:06 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
-Message-Id: <20110311171006.ec0d9c37.akpm@linux-foundation.org>
-In-Reply-To: <1299869011-26152-1-git-send-email-gthelen@google.com>
-References: <1299869011-26152-1-git-send-email-gthelen@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DD1C48D003A
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 21:05:42 -0500 (EST)
+Received: by vxk12 with SMTP id 12so43887vxk.14
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2011 18:05:39 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1103111258340.31216@chino.kir.corp.google.com>
+References: <AANLkTimU2QGc_BVxSWCN8GEhr8hCOi1Zp+eaA20_pE-w@mail.gmail.com>
+	<alpine.DEB.2.00.1103111258340.31216@chino.kir.corp.google.com>
+Date: Fri, 11 Mar 2011 18:05:39 -0800
+Message-ID: <AANLkTiniwDx0wjYT439JSBuT=DA12OF_eAVQ782GfJ7W@mail.gmail.com>
+Subject: Re: [RFC][PATCH 00/25]: Propagating GFP_NOFS inside __vmalloc()
+From: Anand Mitra <anand.mitra@gmail.com>
+Content-Type: multipart/alternative; boundary=20cf3071cb2ae545c7049e3f8398
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Vivek Goyal <vgoyal@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Prasad Joshi <prasadjoshi124@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, 11 Mar 2011 10:43:22 -0800
-Greg Thelen <gthelen@google.com> wrote:
+--20cf3071cb2ae545c7049e3f8398
+Content-Type: text/plain; charset=ISO-8859-1
 
+On Fri, Mar 11, 2011 at 1:01 PM, David Rientjes <rientjes@google.com> wrote:
 >
-> ...
-> 
-> This patch set provides the ability for each cgroup to have independent dirty
-> page limits.
-
-Here, it would be helpful to describe the current kernel behaviour. 
-And to explain what is wrong with it and why the patch set improves
-things!
-
-> 
-> ...
 >
-> Known shortcomings (see the patch 1/9 update to Documentation/cgroups/memory.txt
-> for more details):
-> - When a cgroup dirty limit is exceeded, then bdi writeback is employed to
->   writeback dirty inodes.  Bdi writeback considers inodes from any cgroup, not
->   just inodes contributing dirty pages to the cgroup exceeding its limit.  
+> You're going to run into trouble by hard-wiring __GFP_REPEAT into all of
+> the pte allocations because if GFP_NOFS is used then direct reclaim will
+> usually fail (see the comment for do_try_to_free_pages(): If the caller is
+> !__GFP_FS then the probability of a failure is reasonably high) and, if
+> it does so continuously, then the page allocator will loop forever.  This
+> bit should probably be moved a level higher in your architecture changes
+> to the caller passing GFP_KERNEL.
+>
 
-This is a pretty large shortcoming, I suspect.  Will it be addressed?
+I'll repeat my understanding of the scenario you have pointed out to
+make sure we have understood you correctly.
 
-There's a risk that a poorly (or maliciously) configured memcg could
-have a pretty large affect upon overall system behaviour.  Would
-elevated premissions be needed to do this?
+On the broad level the changes will cause a __GFP_NOFS flag to be
+present in pte allocation which were earlier absent. The impact of
+this is serious when both __GFP_REPEAT and __GFP_NOFS is set because
 
-We could just crawl the memcg's page LRU and bring things under control
-that way, couldn't we?  That would fix it.  What were the reasons for
-not doing this?
+1) __GFP_NOFS will result in very few pages being reclaimed (can't go
+   to the filesystems)
+2) __GFP_REPEAT will cause both the reclaim and allocation to retry
+   more aggressively if not indefinitely based on the influence the
+   flag in functions should_alloc_retry & should_continue_reclaim
 
-> - A cgroup may exceed its dirty limit if the memory is dirtied by a process in a
->   different memcg.
+Effectively we need memory for use by the filesystem but we can't go
+back to the filesystem to claim it. Without the suggested patch we
+would actually try to claim space from the filesystem which would work
+most of the times but would deadlock occasionally. With the suggested
+patch as you have pointed out we can possibly get into a low memory
+hang. I am not sure there is a way out of this, should this be
+considered as genuinely low memory condition out of which the system
+might or might not crawl out of ?
 
-Please describe this scenario in (a lot) more detail?
+regards
+-- 
+Anand Mitra
 
+--20cf3071cb2ae545c7049e3f8398
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div class=3D"gmail_quote"><br></div><div class=3D"gmail_quote">On Fri, Mar=
+ 11, 2011 at 1:01 PM, David Rientjes <span dir=3D"ltr">&lt;<a href=3D"mailt=
+o:rientjes@google.com">rientjes@google.com</a>&gt;</span> wrote:<blockquote=
+ class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc soli=
+d;padding-left:1ex;">
+<div class=3D"im">
+<br>
+</div>You&#39;re going to run into trouble by hard-wiring __GFP_REPEAT into=
+ all of<br>
+the pte allocations because if GFP_NOFS is used then direct reclaim will<br=
+>
+usually fail (see the comment for do_try_to_free_pages(): If the caller is<=
+br>
+!__GFP_FS then the probability of a failure is reasonably high) and, if<br>
+it does so continuously, then the page allocator will loop forever. =A0This=
+<br>
+bit should probably be moved a level higher in your architecture changes<br=
+>
+to the caller passing GFP_KERNEL.<br>
+</blockquote></div><br><div><div>I&#39;ll repeat my understanding of the sc=
+enario you have pointed out to</div><div>make sure we have understood you c=
+orrectly.</div><div><br></div><div>On the broad level the changes will caus=
+e a __GFP_NOFS flag to be</div>
+<div>present in pte allocation which were earlier absent. The impact of</di=
+v><div>this is serious when both __GFP_REPEAT and __GFP_NOFS is set because=
+</div><div><br></div><div>1) __GFP_NOFS will result in very few pages being=
+ reclaimed (can&#39;t go</div>
+<div>=A0=A0 to the filesystems)</div><div>2) __GFP_REPEAT will cause both t=
+he reclaim and allocation to retry</div><div>=A0=A0 more aggressively if no=
+t indefinitely based on the influence the</div><div>=A0=A0 flag in function=
+s should_alloc_retry &amp; should_continue_reclaim</div>
+<div><br></div><div>Effectively we need memory for use by the filesystem bu=
+t we can&#39;t go</div><div>back to the filesystem to claim it. Without the=
+ suggested patch we</div><div>would actually try to claim space from the fi=
+lesystem which would work</div>
+<div>most of the times but would deadlock occasionally. With the suggested<=
+/div><div>patch as you have pointed out we can possibly get into a low memo=
+ry</div><div>hang. I am not sure there is a way out of this, should this be=
+</div>
+<div>considered as genuinely low memory condition out of which the system</=
+div><div>might or might not crawl out of ?</div><div><br></div><div>regards=
+</div><div>--=A0</div><div>Anand Mitra</div></div><div><br></div>
+
+--20cf3071cb2ae545c7049e3f8398--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
