@@ -1,57 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 161748D003A
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2011 23:28:34 -0500 (EST)
-Date: Sat, 12 Mar 2011 05:28:06 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] thp: mremap support and TLB optimization
-Message-ID: <20110312042806.GM5641@random.random>
-References: <20110311020410.GH5641@random.random>
- <AANLkTikZJqTtVF48cc-AQ1z9iF29Z+f35Qdn_1m_SFQi@mail.gmail.com>
- <AANLkTi=EWW=uaHZbW95_eqabVHTsMdX5N2h_axqi27nn@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 16EB78D003A
+	for <linux-mm@kvack.org>; Sat, 12 Mar 2011 07:43:00 -0500 (EST)
+Date: Sat, 12 Mar 2011 13:34:13 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [patch] oom: prevent unnecessary oom kills or kernel panics
+Message-ID: <20110312123413.GA18351@redhat.com>
+References: <alpine.DEB.2.00.1103011108400.28110@chino.kir.corp.google.com> <20110303100030.B936.A69D9226@jp.fujitsu.com> <20110308134233.GA26884@redhat.com> <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com> <20110309151946.dea51cde.akpm@linux-foundation.org> <alpine.DEB.2.00.1103111142260.30699@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <AANLkTi=EWW=uaHZbW95_eqabVHTsMdX5N2h_axqi27nn@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1103111142260.30699@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrey Vagin <avagin@openvz.org>
 
-On Fri, Mar 11, 2011 at 12:25:42PM -0800, Hugh Dickins wrote:
-> Perhaps I should qualify that answer: although I still think it's the
-> right change to make (it matches mprotect, for example), and an
-> optimization in many cases, it will be a pessimization for anyone who
-> mremap moves unpopulated areas (I doubt that's common), and for anyone
-> who moves around single page areas (on x86 and probably some others).
-> But the exec args case has, I think, few useful tlb entries to lose
-> from the mm-wide tlb flush.
+On 03/11, David Rientjes wrote:
+>
+> On Wed, 9 Mar 2011, Andrew Morton wrote:
+>
+> > If Oleg's test program cause a hang with
+> > oom-prevent-unnecessary-oom-kills-or-kernel-panics.patch and doesn't
+> > cause a hang without
+> > oom-prevent-unnecessary-oom-kills-or-kernel-panics.patch then that's a
+> > big problem for
+> > oom-prevent-unnecessary-oom-kills-or-kernel-panics.patch, no?
+> >
+>
+> It's a problem, but not because of
+> oom-prevent-unnecessary-oom-kills-or-kernel-panics.patch.
 
-The pessimization of the totally unmapped areas I didn't consider it
-as a real life possibility. At least the mmu notifier isn't pessimized
-if the pmd wasn't none but the pte was none, only the TLB flush really
-is pessimized in that case (if all old ptes are none regardless of the
-pmd). But the range TLB flush is real easy to optimize for unmapped
-areas if we want, just skip the flush_tlb_range if all old ptes were
-none and we actually changed nothing, right? Fixing the mmu notifier
-isn't possible but that's not a concern and it'll surely be fine to
-stay in move_page_tables.
+It is, afaics. oom-killer can't ussume that a single PF_EXITING && p->mm
+thread is going to free the memory.
 
-So do we want one more branch to avoid one IPI if mremap runs on an
-unmapped area? That's ok with me if it's a real life possibility. At
-the moment I think any app doing that is pretty stupid and shouldn't
-call mremap in the first place, and it should have used
-mmap(MAP_FIXED) or a bigger mmap size in the first place though... If
-we add a branch for that case, maybe we should also printk if we
-detect that, in addition to skipping the tlb flush.
+> If we don't
+> have this patch, then we have a trivial panic when an oom kill occurs in a
+> cpuset with no other eligible processes, the oom killed thread group
+> leader exits
 
-> flush_tlb_range() ought to special case small areas, doing at most one
-> IPI, but up to some number of flush_tlb_one()s; but that would
-> certainly have to be another patch.
+It is not clear what "leader exits" actually mean. OK, perhaps you mean
+its ->mm == NULL.
 
-That's probably a good tradeoff. Even better would be if x86 would be
-extended to allow range flushes so we don't have to do guesswork in
-software.
+> but its other threads do not and they trigger oom kills
+> themselves.  for_each_process() does not iterate over these threads and so
+> it finds no eligible threads to kill and then panics
+
+Could you explain what do you mean? No need to kill these threads, they
+are already killed, we should wait until they all exit.
+
+> I'll look at Oleg's test case
+> and see what can be done to fix that condition, but the answer isn't to
+> ignore eligible threads that can be killed.
+
+Once again, they are already killed. Or I do not understand what you meant.
+
+Could you please explain the problem in more details?
+
+
+Also. Could you please look at the patches I sent?
+
+	[PATCH 1/1] oom_kill_task: mark every thread as TIF_MEMDIE
+	[PATCH v2 1/1] select_bad_process: improve the PF_EXITING check
+
+Note also the note about "p == current" check. it should be fixed too.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
