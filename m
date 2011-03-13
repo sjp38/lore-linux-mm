@@ -1,75 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id AB3368D003A
-	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 13:14:23 -0400 (EDT)
-Date: Sun, 13 Mar 2011 18:14:19 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [REVIEW] NVM Express driver
-Message-ID: <20110313171419.GL2499@one.firstfloor.org>
-References: <20110303204749.GY3663@linux.intel.com> <m24o79cmv4.fsf@firstfloor.org> <20110312055146.GA4183@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110312055146.GA4183@linux.intel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8627D8D003A
+	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 15:50:09 -0400 (EDT)
+From: Stephen Wilson <wilsons@start.ca>
+Subject: [PATCH v2 0/12] enable writing to /proc/pid/mem
+Date: Sun, 13 Mar 2011 15:49:12 -0400
+Message-Id: <1300045764-24168-1-git-send-email-wilsons@start.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Michel Lespinasse <walken@google.com>, Andi Kleen <ak@linux.intel.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, Mar 12, 2011 at 12:51:46AM -0500, Matthew Wilcox wrote:
-> Is there a good API to iterate through each socket, then each core in a
-> socket, then each HT sibling?  eg, if I have 20 queues and 2x6x2 CPUs,
+For a long time /proc/pid/mem has provided a read-only interface, at least
+since 2.4.0.  However, a write capability has existed "forever" in tree via the
+function mem_write(), disabled with an #ifdef along with the comment "this is a
+security hazard".  Currently, the main problem with mem_write() is that between
+the time permissions are checked and the actual write the target task could
+exec a setuid-root binary.
 
-Not for this particular order. And also you have to handle
-hotplug in any case anyways.
+This patch series enables safe writes to /proc/pid/mem.  Such functionality is
+useful as it gives debuggers a simple and efficient mechanism to manipulate a
+process' address space.  Memory can be read and written using single calls to
+pread(2) and pwrite(2) instead of iteratively calling into ptrace(2).  In
+addition, /proc/pid/mem has always had write permissions enabled, so clearly it
+*wants* to be written to. 
 
-And whatever you do, don't add NR_CPUS arrays.
 
-> I want to assign at least one queue to each core; some threads will get
-> their own queues and others will have to share with their HT sibling.
+The first version of these patches was split into two series.  Here they are
+combined together for easier reference and review.
 
-Please write a generic library function for this if you do this.
 
-> 
-> > > +	nprps = DIV_ROUND_UP(length, PAGE_SIZE);
-> > > +	npages = DIV_ROUND_UP(8 * nprps, PAGE_SIZE);
-> > > +	prps = kmalloc(sizeof(*prps) + sizeof(__le64 *) * npages, GFP_ATOMIC);
-> > > +	prp_page = 0;
-> > > +	if (nprps <= (256 / 8)) {
-> > > +		pool = dev->prp_small_pool;
-> > > +		prps->npages = 0;
-> > 
-> > 
-> > Unchecked GFP_ATOMIC allocation? That will oops soon.
-> > Besides GFP_ATOMIC a very risky thing to do on a low memory situation,
-> > which can trigger writeouts.
-> 
-> Ah yes, thank you.  There are a few other places like this.  Bizarrely,
-> they've not oopsed during the xfstests runs.
+Patches 1-5 make is_gate_vma() and in_gate_vma() functions of mm_struct, not
+task_struct.  These patches are of particular interest to the x86 architecture
+maintainers and were originally distributed as a stand alone series[1].  From a
+conceptual point of view, the question of whether an address lies in a gate vma
+should be asked with respect to a particular mm, not a particular task.  From a
+practical point of view, this change will help simplify current and future
+operations on mm's.  In particular, it allows some code paths to avoid the need
+to hold task_lock.  The principle change there is to mirror TIF_IA32 via a new
+flag in mm_context_t. 
 
-You need suitable background load. If you run it in LTP the harness has
-support for background load. For GFP_ATOMIC exhaustion you typically
-need something interrupt intensive, like a lot of networking.
 
-> 
-> My plan for this is, instead of using a mempool, to submit partial I/Os
-> in the rare cases where a write cannot allocate memory.  I have the
-> design in my head, just not committed to code yet.  The design also
-> avoids allocating any memory in the driver for I/Os that do not cross
-> a page boundary.
+Patches 6-12 build on the new flexibility to enable secure writes to
+/proc/pid/mem.  These patches impact the memory and procfs subsystems and were
+originally distributed as a stand alone series[2].   The principle strategy is
+to get a reference to the target task's mm before the permission check, and to
+hold that reference until after the write completes.
 
-I forgot the latest status, but there were a lot of improvements
-with dirty pages handling since that "no memory allocation on writeout"
-rule was introduced. It may not be as big a problem as it used to 
-be with GFP_NOFS. 
+This patch set is based on v2.6.38-rc8.
+ 
+The general approach used was suggested to me by Alexander Viro, but any
+mistakes present in these patches are entirely my own.
 
-Copying linux-mm in case there are deep thoughts on this there.
+--
+steve
 
-Just GFP_ATOMIC is definitely still a bad idea there. 
 
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only.
+[1] lkml.org/lkml/2011/3/8/409
+[2] lkml.org/lkml/2011/3/8/418
+
+
+Changes since v1:
+
+  - Rename mm_context_t.compat to ia32_compat as suggested by Michel
+    Lespinasse.
+
+  - Rework check_mem_permission() to return ERR_PTR and hold cred_guard_mutex
+    as suggested by Alexander Viro.
+
+  - Collapse patches into a single series.
+
+Stephen Wilson (12):
+      x86: add context tag to mark mm when running a task in 32-bit compatibility mode
+      x86: mark associated mm when running a task in 32 bit compatibility mode
+      mm: arch: make get_gate_vma take an mm_struct instead of a task_struct
+      mm: arch: make in_gate_area take an mm_struct instead of a task_struct
+      mm: arch: rename in_gate_area_no_task to in_gate_area_no_mm
+      mm: use mm_struct to resolve gate vma's in __get_user_pages
+      mm: factor out main logic of access_process_vm
+      mm: implement access_remote_vm
+      proc: disable mem_write after exec
+      proc: hold cred_guard_mutex in check_mem_permission()
+      proc: make check_mem_permission() return an mm_struct on success
+      proc: enable writing to /proc/pid/mem
+
+
+ arch/powerpc/kernel/vdso.c         |    6 +-
+ arch/s390/kernel/vdso.c            |    6 +-
+ arch/sh/kernel/vsyscall/vsyscall.c |    6 +-
+ arch/x86/ia32/ia32_aout.c          |    1 +
+ arch/x86/include/asm/mmu.h         |    6 +++
+ arch/x86/kernel/process_64.c       |    8 ++++
+ arch/x86/mm/init_64.c              |   16 ++++----
+ arch/x86/vdso/vdso32-setup.c       |   15 ++++---
+ fs/binfmt_elf.c                    |    2 +-
+ fs/proc/base.c                     |   79 ++++++++++++++++++++++++------------
+ fs/proc/task_mmu.c                 |    8 ++-
+ include/linux/mm.h                 |   12 +++--
+ kernel/kallsyms.c                  |    4 +-
+ mm/memory.c                        |   73 ++++++++++++++++++++++++---------
+ mm/mlock.c                         |    4 +-
+ mm/nommu.c                         |    2 +-
+ 16 files changed, 165 insertions(+), 83 deletions(-)
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
