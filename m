@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A2AC8D003B
-	for <linux-mm@kvack.org>; Sat, 12 Mar 2011 20:06:15 -0500 (EST)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id p2D16C9m014691
-	for <linux-mm@kvack.org>; Sat, 12 Mar 2011 17:06:12 -0800
-Received: from pxi7 (pxi7.prod.google.com [10.243.27.7])
-	by kpbe16.cbf.corp.google.com with ESMTP id p2D166DU015219
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 529EA8D003B
+	for <linux-mm@kvack.org>; Sat, 12 Mar 2011 20:08:49 -0500 (EST)
+Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
+	by smtp-out.google.com with ESMTP id p2D18lpK000432
+	for <linux-mm@kvack.org>; Sat, 12 Mar 2011 17:08:47 -0800
+Received: from pwi3 (pwi3.prod.google.com [10.241.219.3])
+	by kpbe19.cbf.corp.google.com with ESMTP id p2D18jrf007004
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 12 Mar 2011 17:06:11 -0800
-Received: by pxi7 with SMTP id 7so772292pxi.2
-        for <linux-mm@kvack.org>; Sat, 12 Mar 2011 17:06:06 -0800 (PST)
-Date: Sat, 12 Mar 2011 17:06:01 -0800 (PST)
+	for <linux-mm@kvack.org>; Sat, 12 Mar 2011 17:08:46 -0800
+Received: by pwi3 with SMTP id 3so688238pwi.9
+        for <linux-mm@kvack.org>; Sat, 12 Mar 2011 17:08:45 -0800 (PST)
+Date: Sat, 12 Mar 2011 17:08:43 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] oom: prevent unnecessary oom kills or kernel panics
-In-Reply-To: <20110310120519.GA18415@redhat.com>
-Message-ID: <alpine.DEB.2.00.1103121704050.10317@chino.kir.corp.google.com>
+Subject: Re: [PATCH 1/1] oom_kill_task: mark every thread as TIF_MEMDIE
+In-Reply-To: <20110310154110.GB29044@redhat.com>
+Message-ID: <alpine.DEB.2.00.1103121706210.10317@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1103011108400.28110@chino.kir.corp.google.com> <20110303100030.B936.A69D9226@jp.fujitsu.com> <20110308134233.GA26884@redhat.com> <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com> <20110309110606.GA16719@redhat.com>
- <alpine.DEB.2.00.1103091222420.13353@chino.kir.corp.google.com> <20110310120519.GA18415@redhat.com>
+ <alpine.DEB.2.00.1103091222420.13353@chino.kir.corp.google.com> <20110310120519.GA18415@redhat.com> <20110310154032.GA29044@redhat.com> <20110310154110.GB29044@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,23 +27,51 @@ Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-
 
 On Thu, 10 Mar 2011, Oleg Nesterov wrote:
 
-> > That leader may exit and leave behind several other
-> > threads
+> --- 38/mm/oom_kill.c~oom_kill_spread_memdie	2011-03-08 14:45:49.000000000 +0100
+> +++ 38/mm/oom_kill.c	2011-03-10 16:08:51.000000000 +0100
+> @@ -401,6 +401,17 @@ static void dump_header(struct task_stru
+>  		dump_tasks(mem, nodemask);
+>  }
+>  
+> +static void do_oom_kill(struct task_struct *p)
+> +{
+> +	struct task_struct *t;
+> +
+> +	do {
+> +		set_tsk_thread_flag(t, TIF_MEMDIE);
+> +	} while_each_thread(p, t);
+> +
+> +	force_sig(SIGKILL, p);
+> +}
+> +
+>  #define K(x) ((x) << (PAGE_SHIFT-10))
+>  static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+>  {
+> @@ -436,12 +447,10 @@ static int oom_kill_task(struct task_str
+>  			pr_err("Kill process %d (%s) sharing same memory\n",
+>  				task_pid_nr(q), q->comm);
+>  			task_unlock(q);
+> -			force_sig(SIGKILL, q);
+> +			do_oom_kill(q);
+>  		}
+>  
+> -	set_tsk_thread_flag(p, TIF_MEMDIE);
+> -	force_sig(SIGKILL, p);
+> -
+> +	do_oom_kill(p);
+>  	/*
+>  	 * We give our sacrificial lamb high priority and access to
+>  	 * all the memory it needs. That way it should be able to
 > 
-> No, it can't.
-> 
-> More precisely, it can, and it can even exit _before_ this process starts
-> to use a lot of memory, then later this process can be oom-killed.
-> 
-> But, until all threads disappear, the leader can't go away and
-> for_each_process() must see it.
 > 
 
-for_each_process() sees the parent, but it is filtered because we no 
-longer consider threads without an ->mm.  We only want to pass threads 
-with valid ->mm pointers to oom_badness(), otherwise it ignores the thread 
-anyway.  Please note that Andrey's patch to filter !p->mm is nothing new, 
-it's more of a cleanup.
+This isn't appropriate: we specifically try to limit TIF_MEMDIE to only 
+threads that need it (those that need it in the exit path), otherwise we 
+risk completely depleting all memory, which would result in an oom 
+deadlock.  TIF_MEMDIE isn't supposed to be used as a flag to detect oom 
+killed task despite its use in select_bad_process() -- if a thread needs 
+access to memory reserves after receiving a SIGKILL then out_of_memory() 
+provides that appropriately.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
