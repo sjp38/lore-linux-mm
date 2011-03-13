@@ -1,70 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 102268D003B
-	for <linux-mm@kvack.org>; Sat, 12 Mar 2011 20:22:45 -0500 (EST)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id p2D1MfYq010969
-	for <linux-mm@kvack.org>; Sat, 12 Mar 2011 17:22:41 -0800
-Received: from pvf33 (pvf33.prod.google.com [10.241.210.97])
-	by wpaz1.hot.corp.google.com with ESMTP id p2D1MaxW020664
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 12 Mar 2011 17:22:39 -0800
-Received: by pvf33 with SMTP id 33so924317pvf.24
-        for <linux-mm@kvack.org>; Sat, 12 Mar 2011 17:22:39 -0800 (PST)
-Date: Sat, 12 Mar 2011 17:22:37 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC][PATCH 00/25]: Propagating GFP_NOFS inside __vmalloc()
-In-Reply-To: <AANLkTiniwDx0wjYT439JSBuT=DA12OF_eAVQ782GfJ7W@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1103121717500.10317@chino.kir.corp.google.com>
-References: <AANLkTimU2QGc_BVxSWCN8GEhr8hCOi1Zp+eaA20_pE-w@mail.gmail.com> <alpine.DEB.2.00.1103111258340.31216@chino.kir.corp.google.com> <AANLkTiniwDx0wjYT439JSBuT=DA12OF_eAVQ782GfJ7W@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C8EF8D003A
+	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 04:53:56 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D8FE13EE0B6
+	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 17:53:51 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C294245DE4E
+	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 17:53:51 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A1FDA45DD73
+	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 17:53:51 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 951B5E08001
+	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 17:53:51 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C58C1DB8038
+	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 17:53:51 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 0/3] oom: TIF_MEMDIE/PF_EXITING fixes
+In-Reply-To: <AANLkTinHGSb2_jfkwx=Wjv96phzPCjBROfCTFCKi4Wey@mail.gmail.com>
+References: <20110312134341.GA27275@redhat.com> <AANLkTinHGSb2_jfkwx=Wjv96phzPCjBROfCTFCKi4Wey@mail.gmail.com>
+Message-Id: <20110313173210.4110.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Sun, 13 Mar 2011 17:53:50 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anand Mitra <anand.mitra@gmail.com>
-Cc: Prasad Joshi <prasadjoshi124@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Andrey Vagin <avagin@openvz.org>, David Rientjes <rientjes@google.com>
 
-On Fri, 11 Mar 2011, Anand Mitra wrote:
-
-> I'll repeat my understanding of the scenario you have pointed out to
-> make sure we have understood you correctly.
+> I've spent much of the week building up to join in, but the more I
+> look around, the more I find to say or investigate, and therefore
+> never quite get to write the mail.  Let this be a placeholder, that I
+> probably disagree (in an amicable way!) with all of you, and maybe
+> I'll finally manage to collect my thoughts into mail later today.
 > 
-> On the broad level the changes will cause a __GFP_NOFS flag to be
-> present in pte allocation which were earlier absent. The impact of
-> this is serious when both __GFP_REPEAT and __GFP_NOFS is set because
+> I guess my main point will be that TIF_MEMDIE serves a number of
+> slightly different, even conflicting, purposes; and one of those
+> purposes, which present company seems to ignore repeatedly, is to
+> serialize access to final reserves of memory - as a comment by Nick in
+> select_bad_process() makes clear. (This is distinct from the
+> serialization to avoid OOM-killing rampage.)
+>
+> We _might_ choose to abandon that, but if so, it should be a decision,
+> not an oversight.  So I cannot blindly agree with just setting
+> TIF_MEMDIE on more and more tasks, even if they share the same mm.  I
+> wonder if use of your find_lock_task_mm() in   select_bad_process()
+> might bring together my wish to continue serialization, David's wish
+> to avoid stupid panics, and your wish to avoid deadlocks.
 > 
-> 1) __GFP_NOFS will result in very few pages being reclaimed (can't go
->    to the filesystems)
-> 2) __GFP_REPEAT will cause both the reclaim and allocation to retry
->    more aggressively if not indefinitely based on the influence the
->    flag in functions should_alloc_retry & should_continue_reclaim
+> Though any serialization has a risk of deadlock: we probably need to
+> weigh up how realistic different cases are.   Which brings me neatly
+> to your little pthread_create, ptrace proggy... I dare say you and
+> Kosaki and David know exactly what it's doing and why it's a problem,
+> but even after repeated skims of the ptrace manpage,  I'll admit to
+> not having a clue, nor the inclination to run and then debug it to
+> find out the answer.  Please, Oleg, would you mind very much
+> explaining it to me? I don't even know if the double pthread_create is
+> a vital part of the scheme, or just a typo.  I see it doesn't even
+> allocate any special memory, so I assume it leaves a PF_EXITING around
+> forever, but I couldn't quite see how (with PF_EXITING being set after
+> the tracehook_report_exit).  And I wonder if a similar case can be
+> constructed to deadlock the for_each_process version of
+> select_bad_process().
 > 
-
-Yes, __GFP_REPEAT will loop in the page allocator forever if no pages can 
-be reclaimed, probably as the result of being !__GFP_FS -- the oom killer 
-also won't kill any processes to free memory because it requires __GFP_FS 
-(to ensure we don't kill something unnecessarily just because this 
-allocation is !__GFP_FS and direct reclaim has a high liklihood of 
-failure).
-
-> Effectively we need memory for use by the filesystem but we can't go
-> back to the filesystem to claim it. Without the suggested patch we
-> would actually try to claim space from the filesystem which would work
-> most of the times but would deadlock occasionally. With the suggested
-> patch as you have pointed out we can possibly get into a low memory
-> hang. I am not sure there is a way out of this, should this be
-> considered as genuinely low memory condition out of which the system
-> might or might not crawl out of ?
+> I worry more about someone holding a reference to the mm via /proc (I
+> see memory allocations after getting the mm).
 > 
+> Thanks; until later,
+> Hugh
 
-As suggested in my email, I think you should pass "GFP_KERNEL | 
-__GFP_REPEAT" into the lower level functions in this patchset instead of 
-just GFP_KERNEL and not hard-wire __GFP_REPEAT into the lower level 
-functions.  GFP_NOFS | __GFP_REPEAT is a very risky combination that 
-shouldn't be used anywhere in the kernel because it risks infinitely 
-looping in the page allocator when memory is low.  The callers passing 
-only GFP_NOFS should handle the possiblity of returning NULL 
-appropraitely.
+Hi Hugh,
+
+Andrew Vagin showed us actual deadlock case in "[PATCH] mm: check 
+zone->all_unreclaimable in all_unreclaimable()" thread. and I'm
+now digging it. Unfortunatelly the cause is not single. then, I
+couln't explained how exact event was occur and what should we do.
+
+However, I can say, at least, TIF_MEMDIE is one of root cause of the
+andrey's deadlock. I could observed TIF_MEMDIE process never die and
+all other process continue to wait. then, the system become hang up.
+
+I'm still continue to investigate and I wish I find minimum negative 
+impact solution, but I'm not wonder I finally decide to abandon both 
+TIF_MEMDIE and boost_dying_task_prio. The hang-up can be reproduced 
+too easily.
+
+Unfortunatelly, my country is under slightly rare natural disaster
+and I don't think I'm going to concentrate a debug activity awhile.
+I'm sorry for the lazy activity.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
