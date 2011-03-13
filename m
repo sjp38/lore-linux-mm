@@ -1,63 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 43B308D003A
-	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 07:36:51 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2441D3EE0AE
-	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 20:36:46 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0EFE345DE50
-	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 20:36:46 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EC28545DE4D
-	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 20:36:45 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DE3981DB803F
-	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 20:36:45 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A7D111DB802F
-	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 20:36:45 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/3] oom: TIF_MEMDIE/PF_EXITING fixes
-In-Reply-To: <20110312134341.GA27275@redhat.com>
-References: <20110312123413.GA18351@redhat.com> <20110312134341.GA27275@redhat.com>
-Message-Id: <20110313202321.411F.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Sun, 13 Mar 2011 20:36:44 +0900 (JST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id AB3368D003A
+	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 13:14:23 -0400 (EDT)
+Date: Sun, 13 Mar 2011 18:14:19 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [REVIEW] NVM Express driver
+Message-ID: <20110313171419.GL2499@one.firstfloor.org>
+References: <20110303204749.GY3663@linux.intel.com> <m24o79cmv4.fsf@firstfloor.org> <20110312055146.GA4183@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110312055146.GA4183@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Andrey Vagin <avagin@openvz.org>, David Rientjes <rientjes@google.com>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-> > Note also the note about "p == current" check. it should be fixed too.
+On Sat, Mar 12, 2011 at 12:51:46AM -0500, Matthew Wilcox wrote:
+> Is there a good API to iterate through each socket, then each core in a
+> socket, then each HT sibling?  eg, if I have 20 queues and 2x6x2 CPUs,
+
+Not for this particular order. And also you have to handle
+hotplug in any case anyways.
+
+And whatever you do, don't add NR_CPUS arrays.
+
+> I want to assign at least one queue to each core; some threads will get
+> their own queues and others will have to share with their HT sibling.
+
+Please write a generic library function for this if you do this.
+
 > 
-> I am resending the fixes above plus the new one.
+> > > +	nprps = DIV_ROUND_UP(length, PAGE_SIZE);
+> > > +	npages = DIV_ROUND_UP(8 * nprps, PAGE_SIZE);
+> > > +	prps = kmalloc(sizeof(*prps) + sizeof(__le64 *) * npages, GFP_ATOMIC);
+> > > +	prp_page = 0;
+> > > +	if (nprps <= (256 / 8)) {
+> > > +		pool = dev->prp_small_pool;
+> > > +		prps->npages = 0;
+> > 
+> > 
+> > Unchecked GFP_ATOMIC allocation? That will oops soon.
+> > Besides GFP_ATOMIC a very risky thing to do on a low memory situation,
+> > which can trigger writeouts.
 > 
-> David, Kosaki, what do you think?
+> Ah yes, thank you.  There are a few other places like this.  Bizarrely,
+> they've not oopsed during the xfstests runs.
 
-Oleg, could you please give me some testing time? Now TIF_MEMDIE has
-really unclear and nasty meanings. mainly 1) to prevent multiple oom-killer
-(see select_bad_process) and 2) to allow to use zone's last resort reserved
-memory (see gfp_to_alloc_flags).  The latter has really problematic even if
-apply or not apply your patch.
+You need suitable background load. If you run it in LTP the harness has
+support for background load. For GFP_ATOMIC exhaustion you typically
+need something interrupt intensive, like a lot of networking.
 
-If no apply your patch, multi thread application have a lot of risk
-to fail to exit when oom killed. because sub threads can't use reserved
-memory and may get stucked exiting path.
+> 
+> My plan for this is, instead of using a mempool, to submit partial I/Os
+> in the rare cases where a write cannot allocate memory.  I have the
+> design in my head, just not committed to code yet.  The design also
+> avoids allocating any memory in the driver for I/Os that do not cross
+> a page boundary.
 
-if apply your patch, multi thread application also have a lot of risk
-to fail to exit when oom killed. because if all thread used a little
-reserved memory but it is not enough successful exit. It become deadlock.
+I forgot the latest status, but there were a lot of improvements
+with dirty pages handling since that "no memory allocation on writeout"
+rule was introduced. It may not be as big a problem as it used to 
+be with GFP_NOFS. 
 
-The optimal way is, take a bonus one thread and successfull thread exiting
-pass a bonus to sibling thread. But, who want to put performance overhead
-into thread exiting path for only really really rare oom events? this is
-the problem. therefore, I can't put ack until I've finished some test.
+Copying linux-mm in case there are deep thoughts on this there.
 
-Thanks.
+Just GFP_ATOMIC is definitely still a bad idea there. 
 
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
