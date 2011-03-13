@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 108708D003A
-	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 15:55:32 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 12DB38D003A
+	for <linux-mm@kvack.org>; Sun, 13 Mar 2011 15:56:20 -0400 (EDT)
 From: Stephen Wilson <wilsons@start.ca>
-Subject: [PATCH 09/12] proc: disable mem_write after exec
-Date: Sun, 13 Mar 2011 15:49:21 -0400
-Message-Id: <1300045764-24168-10-git-send-email-wilsons@start.ca>
+Subject: [PATCH 10/12] proc: hold cred_guard_mutex in check_mem_permission()
+Date: Sun, 13 Mar 2011 15:49:22 -0400
+Message-Id: <1300045764-24168-11-git-send-email-wilsons@start.ca>
 In-Reply-To: <1300045764-24168-1-git-send-email-wilsons@start.ca>
 References: <1300045764-24168-1-git-send-email-wilsons@start.ca>
 Sender: owner-linux-mm@kvack.org
@@ -13,31 +13,62 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
 Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Michel Lespinasse <walken@google.com>, Andi Kleen <ak@linux.intel.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Stephen Wilson <wilsons@start.ca>
 
-This change makes mem_write() observe the same constraints as mem_read().  This
-is particularly important for mem_write as an accidental leak of the fd across
-an exec could result in arbitrary modification of the target process' memory.
-IOW, /proc/pid/mem is implicitly close-on-exec.
+Avoid a potential race when task exec's and we get a new ->mm but check against
+the old credentials in ptrace_may_access().
+
+Holding of the mutex is implemented by factoring out the body of the code into a
+helper function __check_mem_permission().  Performing this factorization now
+simplifies upcoming changes and minimizes churn in the diff's.
 
 Signed-off-by: Stephen Wilson <wilsons@start.ca>
 ---
- fs/proc/base.c |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
+ fs/proc/base.c |   26 ++++++++++++++++++++++----
+ 1 files changed, 22 insertions(+), 4 deletions(-)
 
 diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 9d096e8..e52702d 100644
+index e52702d..f6b644f 100644
 --- a/fs/proc/base.c
 +++ b/fs/proc/base.c
-@@ -848,6 +848,10 @@ static ssize_t mem_write(struct file * file, const char __user *buf,
- 	if (check_mem_permission(task))
- 		goto out;
+@@ -191,10 +191,7 @@ static int proc_root_link(struct inode *inode, struct path *path)
+ 	return result;
+ }
  
-+	copied = -EIO;
-+	if (file->private_data != (void *)((long)current->self_exec_id))
-+		goto out;
+-/*
+- * Return zero if current may access user memory in @task, -error if not.
+- */
+-static int check_mem_permission(struct task_struct *task)
++static int __check_mem_permission(struct task_struct *task)
+ {
+ 	/*
+ 	 * A task can always look at itself, in case it chooses
+@@ -222,6 +219,27 @@ static int check_mem_permission(struct task_struct *task)
+ 	return -EPERM;
+ }
+ 
++/*
++ * Return zero if current may access user memory in @task, -error if not.
++ */
++static int check_mem_permission(struct task_struct *task)
++{
++	int err;
 +
- 	copied = -ENOMEM;
- 	page = (char *)__get_free_page(GFP_TEMPORARY);
- 	if (!page)
++	/*
++	 * Avoid racing if task exec's as we might get a new mm but validate
++	 * against old credentials.
++	 */
++	err = mutex_lock_killable(&task->signal->cred_guard_mutex);
++	if (err)
++		return err;
++
++	err = __check_mem_permission(task);
++	mutex_unlock(&task->signal->cred_guard_mutex);
++
++	return err;
++}
++
+ struct mm_struct *mm_for_maps(struct task_struct *task)
+ {
+ 	struct mm_struct *mm;
 -- 
 1.7.3.5
 
