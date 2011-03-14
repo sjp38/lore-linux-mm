@@ -1,46 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B24958D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 15:46:29 -0400 (EDT)
-Date: Mon, 14 Mar 2011 20:05:08 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH 2/3 for 2.6.38] oom: select_bad_process: ignore TIF_MEMDIE
-	zombies
-Message-ID: <20110314190508.GC21845@redhat.com>
-References: <20110303100030.B936.A69D9226@jp.fujitsu.com> <20110308134233.GA26884@redhat.com> <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com> <20110309151946.dea51cde.akpm@linux-foundation.org> <alpine.DEB.2.00.1103111142260.30699@chino.kir.corp.google.com> <20110312123413.GA18351@redhat.com> <20110312134341.GA27275@redhat.com> <AANLkTinHGSb2_jfkwx=Wjv96phzPCjBROfCTFCKi4Wey@mail.gmail.com> <20110313212726.GA24530@redhat.com> <20110314190419.GA21845@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id AF24A8D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 15:58:29 -0400 (EDT)
+Date: Mon, 14 Mar 2011 20:58:23 +0100
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [PATCH] thp+memcg-numa: fix BUG at include/linux/mm.h:370!
+Message-ID: <20110314195823.GC2140@redhat.com>
+References: <alpine.LSU.2.00.1103140059510.1661@sister.anvils>
+ <20110314155232.GB10696@random.random>
+ <alpine.LSU.2.00.1103140910570.2601@sister.anvils>
+ <AANLkTikvt+o+UaksmvM5C7FWt7hTMJyaPiUGhQ+6OKBg@mail.gmail.com>
+ <20110314171730.GF10696@random.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110314190419.GA21845@redhat.com>
+In-Reply-To: <20110314171730.GF10696@random.random>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>, David Rientjes <rientjes@google.com>, Frantisek Hrbata <fhrbata@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>
 
-select_bad_process() assumes that a TIF_MEMDIE process should go away.
-But it can only go away it its parent does wait(). Change this check to
-ignore the TIF_MEMDIE zombies.
+On Mon, Mar 14, 2011 at 06:17:31PM +0100, Andrea Arcangeli wrote:
+> On Mon, Mar 14, 2011 at 09:56:10AM -0700, Linus Torvalds wrote:
+> > Does mem_cgroup_newpage_charge() even _need_ the mmap_sem at all? And
+> > if not, why not release the read-lock early? And even if it _does_
+> > need it, why not do
 
-Note: this is _not_ enough. Just a minimal fix.
+[...]
 
-Signed-off-by: Oleg Nesterov <oleg@redhat.com>
----
+> About mem_cgroup_newpage_charge I think you're right it won't need the
+> mmap_sem. Running it under it is sure safe. But if it's not needed we
+> can move the up_read before the mem_cgroup_newpage_charge like you
+> suggested. Johannes/Minchan could you confirm the mmap_sem isn't
+> needed around mem_cgroup_newpage_charge? The mm and new_page are
+> stable without the mmap_sem, only the vma goes away but the memcg
+> shouldn't care.
 
- mm/oom_kill.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+We don't care about the vma.  It's all about assigning the physical
+page to the memcg that mm->owner belongs to.
 
---- 38/mm/oom_kill.c~2_tif_memdie_zombie	2011-03-14 18:51:49.000000000 +0100
-+++ 38/mm/oom_kill.c	2011-03-14 18:52:39.000000000 +0100
-@@ -311,7 +311,8 @@ static struct task_struct *select_bad_pr
- 		 * blocked waiting for another task which itself is waiting
- 		 * for memory. Is there a better alternative?
- 		 */
--		if (test_tsk_thread_flag(p, TIF_MEMDIE))
-+		if (test_tsk_thread_flag(p, TIF_MEMDIE) &&
-+		    !p->exit_state && thread_group_empty(p))
- 			return ERR_PTR(-1UL);
- 
- 		/*
+It would be the first callsite not holding the mmap_sem, but that is
+only because all existing sites are fault handlers that don't drop the
+lock for other reasons.
+
+I am not aware of anything that would rely on the lock in there, or
+would not deserve to break if it did.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
