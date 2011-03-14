@@ -1,259 +1,223 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 064ED8D003E
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 09:42:16 -0400 (EDT)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp06.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2EDgAIp013366
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 19:12:10 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2EDg9w44481212
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 19:12:10 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2EDg8ga015635
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 00:42:09 +1100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A69C18D003E
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 09:42:28 -0400 (EDT)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp06.au.ibm.com (8.14.4/8.13.1) with ESMTP id p2EDgJ1a006742
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 00:42:19 +1100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2EDgNLl2551988
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 00:42:23 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2EDgMLX002764
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 00:42:23 +1100
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Mon, 14 Mar 2011 19:06:30 +0530
-Message-Id: <20110314133630.27435.74825.sendpatchset@localhost6.localdomain6>
+Date: Mon, 14 Mar 2011 19:06:40 +0530
+Message-Id: <20110314133640.27435.95105.sendpatchset@localhost6.localdomain6>
 In-Reply-To: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
 References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
-Subject: [PATCH v2 2.6.38-rc8-tip 13/20] 13: x86: x86 specific probe handling
+Subject: [PATCH v2 2.6.38-rc8-tip 14/20] 14: uprobes: Handing int3 and singlestep exception.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
 
-Provides x86 specific implementations for setting the current
-instruction pointer, pre single-step and post-singlestep handling,
-enabling and disabling singlestep.
+On int3, set the TIF_UPROBE flag and if a task specific info is
+available, indicate the task state as breakpoint hit.  Setting the
+TIF_UPROBE flag results in uprobe_notify_resume being called.
+uprobe_notify_resume walks thro the list of vmas and then matches the
+inode and offset corresponding to the instruction pointer to enteries in
+rbtree. Once a matcing uprobes is found, run the handlers for all the
+consumers that have registered.
 
-This patch also introduces TIF_UPROBE which is set by uprobes notifier
-code. TIF_UPROBE indicates that there is pending work that needs to be
-done at do_notify_resume time.
+On singlestep exception, perform the necessary fixups and allow the
+process to continue. The necessary fixups are determined at instruction
+analysis time.
+
+TODO: If there is no matching uprobe, signal a trap to the process.
 
 Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 ---
- arch/x86/include/asm/thread_info.h |    2 
- arch/x86/include/asm/uprobes.h     |   10 ++
- arch/x86/kernel/uprobes.c          |  157 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 168 insertions(+), 1 deletions(-)
+ include/linux/uprobes.h |    4 +
+ kernel/uprobes.c        |  146 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 150 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
-index f0b6e5d..5b9c9f0 100644
---- a/arch/x86/include/asm/thread_info.h
-+++ b/arch/x86/include/asm/thread_info.h
-@@ -84,6 +84,7 @@ struct thread_info {
- #define TIF_SECCOMP		8	/* secure computing */
- #define TIF_MCE_NOTIFY		10	/* notify userspace of an MCE */
- #define TIF_USER_RETURN_NOTIFY	11	/* notify kernel of userspace return */
-+#define TIF_UPROBE		12	/* breakpointed or singlestepping */
- #define TIF_NOTSC		16	/* TSC is not accessible in userland */
- #define TIF_IA32		17	/* 32bit process */
- #define TIF_FORK		18	/* ret_from_fork */
-@@ -107,6 +108,7 @@ struct thread_info {
- #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
- #define _TIF_MCE_NOTIFY		(1 << TIF_MCE_NOTIFY)
- #define _TIF_USER_RETURN_NOTIFY	(1 << TIF_USER_RETURN_NOTIFY)
-+#define _TIF_UPROBE		(1 << TIF_UPROBE)
- #define _TIF_NOTSC		(1 << TIF_NOTSC)
- #define _TIF_IA32		(1 << TIF_IA32)
- #define _TIF_FORK		(1 << TIF_FORK)
-diff --git a/arch/x86/include/asm/uprobes.h b/arch/x86/include/asm/uprobes.h
-index e38950f..0e1b23f 100644
---- a/arch/x86/include/asm/uprobes.h
-+++ b/arch/x86/include/asm/uprobes.h
-@@ -37,11 +37,19 @@ struct uprobe_arch_info {
- 
- struct uprobe_task_arch_info {
- 	unsigned long saved_scratch_register;
-+	int oflags;
- };
- #else
- struct uprobe_arch_info {};
--struct uprobe_task_arch_info {};
-+struct uprobe_task_arch_info {
-+	int oflags;
-+};
- #endif
- struct uprobe;
- extern int analyze_insn(struct task_struct *tsk, struct uprobe *uprobe);
-+extern void set_ip(struct pt_regs *regs, unsigned long vaddr);
-+extern int pre_xol(struct uprobe *uprobe, struct pt_regs *regs);
-+extern int post_xol(struct uprobe *uprobe, struct pt_regs *regs);
-+extern void arch_uprobe_enable_sstep(struct pt_regs *regs);
-+extern void arch_uprobe_disable_sstep(struct pt_regs *regs);
- #endif	/* _ASM_UPROBES_H */
-diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
-index cf223a4..5667e90 100644
---- a/arch/x86/kernel/uprobes.c
-+++ b/arch/x86/kernel/uprobes.c
-@@ -25,6 +25,7 @@
- #include <linux/sched.h>
- #include <linux/ptrace.h>
- #include <linux/uprobes.h>
-+#include <linux/uaccess.h>
- 
- #include <linux/kdebug.h>
- #include <asm/insn.h>
-@@ -412,3 +413,159 @@ int analyze_insn(struct task_struct *tsk, struct uprobe *uprobe)
- 	prepare_fixups(uprobe, &insn);
+diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
+index aef55de..b7fd925 100644
+--- a/include/linux/uprobes.h
++++ b/include/linux/uprobes.h
+@@ -149,6 +149,9 @@ extern void uprobe_mmap(struct vm_area_struct *vma);
+ extern unsigned long uprobes_get_bkpt_addr(struct pt_regs *regs);
+ extern void uprobe_dup_mmap(struct mm_struct *old_mm, struct mm_struct *mm);
+ extern void uprobes_free_xol_area(struct mm_struct *mm);
++extern int uprobe_post_notifier(struct pt_regs *regs);
++extern int uprobe_bkpt_notifier(struct pt_regs *regs);
++extern void uprobe_notify_resume(struct pt_regs *regs);
+ #else /* CONFIG_UPROBES is not defined */
+ static inline int register_uprobe(struct inode *inode, loff_t offset,
+ 				struct uprobe_consumer *consumer)
+@@ -166,6 +169,7 @@ static inline void uprobe_dup_mmap(struct mm_struct *old_mm,
+ static inline void uprobe_free_utask(struct task_struct *tsk) {}
+ static inline void uprobe_mmap(struct vm_area_struct *vma) { }
+ static inline void uprobes_free_xol_area(struct mm_struct *mm) {}
++static inline void uprobe_notify_resume(struct pt_regs *regs) {}
+ static inline unsigned long uprobes_get_bkpt_addr(struct pt_regs *regs)
+ {
  	return 0;
+diff --git a/kernel/uprobes.c b/kernel/uprobes.c
+index 307f0cd..d8d4574 100644
+--- a/kernel/uprobes.c
++++ b/kernel/uprobes.c
+@@ -1096,3 +1096,149 @@ static struct uprobe_task *add_utask(void)
+ 	current->utask = utask;
+ 	return utask;
  }
 +
-+/*
-+ * @reg: reflects the saved state of the task
-+ * @vaddr: the virtual address to jump to.
-+ * Return 0 on success or a -ve number on error.
-+ */
-+void set_ip(struct pt_regs *regs, unsigned long vaddr)
++/* Prepare to single-step probed instruction out of line. */
++static int pre_ssout(struct uprobe *uprobe, struct pt_regs *regs,
++				unsigned long vaddr)
 +{
-+	regs->ip = vaddr;
-+}
-+
-+/*
-+ * pre_xol - prepare to execute out of line.
-+ * @uprobe: the probepoint information.
-+ * @regs: reflects the saved user state of @tsk.
-+ *
-+ * If we're emulating a rip-relative instruction, save the contents
-+ * of the scratch register and store the target address in that register.
-+ *
-+ * Returns true if @uprobe->opcode is @bkpt_insn.
-+ */
-+int pre_xol(struct uprobe *uprobe, struct pt_regs *regs)
-+{
-+	struct uprobe_task_arch_info *tskinfo = &current->utask->tskinfo;
-+
-+	regs->ip = current->utask->xol_vaddr;
-+#ifdef CONFIG_X86_64
-+	if (uprobe->fixups & UPROBES_FIX_RIP_AX) {
-+		tskinfo->saved_scratch_register = regs->ax;
-+		regs->ax = current->utask->vaddr;
-+		regs->ax += uprobe->arch_info.rip_rela_target_address;
-+	} else if (uprobe->fixups & UPROBES_FIX_RIP_CX) {
-+		tskinfo->saved_scratch_register = regs->cx;
-+		regs->cx = current->utask->vaddr;
-+		regs->cx += uprobe->arch_info.rip_rela_target_address;
++	xol_get_insn_slot(uprobe, vaddr);
++	BUG_ON(!current->utask->xol_vaddr);
++	if (!pre_xol(uprobe, regs)) {
++		set_ip(regs, current->utask->xol_vaddr);
++		return 0;
 +	}
-+#endif
-+	return 0;
-+}
-+
-+/*
-+ * Called by post_xol() to adjust the return address pushed by a call
-+ * instruction executed out of line.
-+ */
-+static int adjust_ret_addr(unsigned long sp, long correction)
-+{
-+	int rasize, ncopied;
-+	long ra = 0;
-+
-+	if (is_32bit_app(current))
-+		rasize = 4;
-+	else
-+		rasize = 8;
-+	ncopied = copy_from_user(&ra, (void __user *) sp, rasize);
-+	if (unlikely(ncopied))
-+		goto fail;
-+	ra += correction;
-+	ncopied = copy_to_user((void __user *) sp, &ra, rasize);
-+	if (unlikely(ncopied))
-+		goto fail;
-+	return 0;
-+
-+fail:
-+	printk(KERN_ERR
-+		"uprobes: Failed to adjust return address after"
-+		" single-stepping call instruction;"
-+		" pid=%d, sp=%#lx\n", current->pid, sp);
 +	return -EFAULT;
 +}
 +
-+#ifdef CONFIG_X86_64
-+static bool is_riprel_insn(struct uprobe *uprobe)
++/*
++ * Verify from Instruction Pointer if singlestep has indeed occurred.
++ * If Singlestep has occurred, then do post singlestep fix-ups.
++ */
++static bool sstep_complete(struct uprobe *uprobe, struct pt_regs *regs)
 +{
-+	return ((uprobe->fixups &
-+			(UPROBES_FIX_RIP_AX | UPROBES_FIX_RIP_CX)) != 0);
-+}
++	unsigned long vaddr = instruction_pointer(regs);
 +
-+#endif	/* CONFIG_X86_64 */
++	/*
++	 * If we have executed out of line, Instruction pointer
++	 * cannot be same as virtual address of XOL slot.
++	 */
++	if (vaddr == current->utask->xol_vaddr)
++		return false;
++	post_xol(uprobe, regs);
++	return true;
++}
 +
 +/*
-+ * Called after single-stepping. To avoid the SMP problems that can
-+ * occur when we temporarily put back the original opcode to
-+ * single-step, we single-stepped a copy of the instruction.
++ * uprobe_notify_resume gets called in task context just before returning
++ * to userspace.
 + *
-+ * This function prepares to resume execution after the single-step.
-+ * We have to fix things up as follows:
-+ *
-+ * Typically, the new ip is relative to the copied instruction.  We need
-+ * to make it relative to the original instruction (FIX_IP).  Exceptions
-+ * are return instructions and absolute or indirect jump or call instructions.
-+ *
-+ * If the single-stepped instruction was a call, the return address that
-+ * is atop the stack is the address following the copied instruction.  We
-+ * need to make it the address following the original instruction (FIX_CALL).
-+ *
-+ * If the original instruction was a rip-relative instruction such as
-+ * "movl %edx,0xnnnn(%rip)", we have instead executed an equivalent
-+ * instruction using a scratch register -- e.g., "movl %edx,(%rax)".
-+ * We need to restore the contents of the scratch register and adjust
-+ * the ip, keeping in mind that the instruction we executed is 4 bytes
-+ * shorter than the original instruction (since we squeezed out the offset
-+ * field).  (FIX_RIP_AX or FIX_RIP_CX)
++ *  If its the first time the probepoint is hit, slot gets allocated here.
++ *  If its the first time the thread hit a breakpoint, utask gets
++ *  allocated here.
 + */
-+int post_xol(struct uprobe *uprobe, struct pt_regs *regs)
++void uprobe_notify_resume(struct pt_regs *regs)
 +{
-+	struct uprobe_task *utask = current->utask;
-+	int result = 0;
-+	long correction;
++	struct vm_area_struct *vma;
++	struct uprobe_task *utask;
++	struct mm_struct *mm;
++	struct uprobe *u = NULL;
++	unsigned long probept;
 +
-+	correction = (long)(utask->vaddr - utask->xol_vaddr);
-+#ifdef CONFIG_X86_64
-+	if (is_riprel_insn(uprobe)) {
-+		struct uprobe_task_arch_info *tskinfo;
-+		tskinfo = &current->utask->tskinfo;
++	utask = current->utask;
++	mm = current->mm;
++	if (unlikely(!utask)) {
++		utask = add_utask();
 +
-+		if (uprobe->fixups & UPROBES_FIX_RIP_AX)
-+			regs->ax = tskinfo->saved_scratch_register;
-+		else
-+			regs->cx = tskinfo->saved_scratch_register;
-+		/*
-+		 * The original instruction includes a displacement, and so
-+		 * is 4 bytes longer than what we've just single-stepped.
-+		 * Fall through to handle stuff like "jmpq *...(%rip)" and
-+		 * "callq *...(%rip)".
-+		 */
-+		correction += 4;
++		/* Failed to allocate utask for the current task. */
++		BUG_ON(!utask);
++		utask->state = UTASK_BP_HIT;
 +	}
-+#endif
-+	if (uprobe->fixups & UPROBES_FIX_IP)
-+		regs->ip += correction;
-+	if (uprobe->fixups & UPROBES_FIX_CALL)
-+		result = adjust_ret_addr(regs->sp, correction);
-+	return result;
++	if (utask->state == UTASK_BP_HIT) {
++		probept = uprobes_get_bkpt_addr(regs);
++		down_read(&mm->mmap_sem);
++		for (vma = mm->mmap; vma; vma = vma->vm_next) {
++			if (!valid_vma(vma))
++				continue;
++			if (probept < vma->vm_start || probept > vma->vm_end)
++				continue;
++			u = find_uprobe(vma->vm_file->f_mapping->host,
++					probept - vma->vm_start);
++			if (u)
++				break;
++		}
++		up_read(&mm->mmap_sem);
++		/*TODO Return SIGTRAP signal */
++		if (!u) {
++			set_ip(regs, probept);
++			utask->state = UTASK_RUNNING;
++			return;
++		}
++		/* TODO Start queueing signals. */
++		utask->active_uprobe = u;
++		handler_chain(u, regs);
++		utask->state = UTASK_SSTEP;
++		if (!pre_ssout(u, regs, probept))
++			arch_uprobe_enable_sstep(regs);
++	} else if (utask->state == UTASK_SSTEP) {
++		u = utask->active_uprobe;
++		if (sstep_complete(u, regs)) {
++			put_uprobe(u);
++			utask->active_uprobe = NULL;
++			utask->state = UTASK_RUNNING;
++		/* TODO Stop queueing signals. */
++			arch_uprobe_disable_sstep(regs);
++		}
++	}
 +}
 +
-+void arch_uprobe_enable_sstep(struct pt_regs *regs)
++/*
++ * uprobe_bkpt_notifier gets called from interrupt context
++ * it gets a reference to the ppt and sets TIF_UPROBE flag,
++ */
++int uprobe_bkpt_notifier(struct pt_regs *regs)
 +{
-+	/*
-+	 * Enable single-stepping by
-+	 * - Set TF on stack
-+	 * - Set TIF_SINGLESTEP: Guarantees that TF is set when
-+	 *	returning to user mode.
-+	 *  - Indicate that TF is set by us.
-+	 */
-+	regs->flags |= X86_EFLAGS_TF;
-+	set_thread_flag(TIF_SINGLESTEP);
-+	set_thread_flag(TIF_FORCED_TF);
++	struct uprobe_task *utask;
++
++	if (!current->mm || !atomic_read(&current->mm->uprobes_count))
++		/* task is currently not uprobed */
++		return 0;
++
++	utask = current->utask;
++	if (utask)
++		utask->state = UTASK_BP_HIT;
++	set_thread_flag(TIF_UPROBE);
++	return 1;
 +}
 +
-+void arch_uprobe_disable_sstep(struct pt_regs *regs)
++/*
++ * uprobe_post_notifier gets called in interrupt context.
++ * It completes the single step operation.
++ */
++int uprobe_post_notifier(struct pt_regs *regs)
 +{
-+	/* Disable single-stepping by clearing what we set */
-+	clear_thread_flag(TIF_SINGLESTEP);
-+	clear_thread_flag(TIF_FORCED_TF);
-+	regs->flags &= ~X86_EFLAGS_TF;
++	struct uprobe *uprobe;
++	struct uprobe_task *utask;
++
++	if (!current->mm || !current->utask || !current->utask->active_uprobe)
++		/* task is currently not uprobed */
++		return 0;
++
++	utask = current->utask;
++	uprobe = utask->active_uprobe;
++	if (!uprobe)
++		return 0;
++
++	if (uprobes_resume_can_sleep(uprobe)) {
++		set_thread_flag(TIF_UPROBE);
++		return 1;
++	}
++	if (sstep_complete(uprobe, regs)) {
++		put_uprobe(uprobe);
++		utask->active_uprobe = NULL;
++		utask->state = UTASK_RUNNING;
++		/* TODO Stop queueing signals. */
++		arch_uprobe_disable_sstep(regs);
++		return 1;
++	}
++	return 0;
 +}
 
 --
