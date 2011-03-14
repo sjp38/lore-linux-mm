@@ -1,389 +1,356 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E7D918D003E
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 09:40:29 -0400 (EDT)
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by e28smtp05.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2EDeJmx008477
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 19:10:19 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2EDeD622617562
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 19:10:13 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2EDeBqB007719
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 00:40:12 +1100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 58C538D003E
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 09:40:52 -0400 (EDT)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp05.au.ibm.com (8.14.4/8.13.1) with ESMTP id p2EDYx58004021
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 00:34:59 +1100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2EDebrf2535570
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 00:40:37 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2EDeZIY031521
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 00:40:37 +1100
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Mon, 14 Mar 2011 19:04:33 +0530
-Message-Id: <20110314133433.27435.49566.sendpatchset@localhost6.localdomain6>
+Date: Mon, 14 Mar 2011 19:04:54 +0530
+Message-Id: <20110314133454.27435.81020.sendpatchset@localhost6.localdomain6>
 In-Reply-To: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
 References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
-Subject: [PATCH v2 2.6.38-rc8-tip 3/20]  3: uprobes: Breakground page replacement.
+Subject: [PATCH v2 2.6.38-rc8-tip 5/20]  5: Uprobes: register/unregister probes.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
 
-Provides Background page replacement using replace_page() routine.
-Also provides routines to read an opcode from a given virtual address
-and for verifying if a instruction is a breakpoint instruction.
+A probe is specified by a file:offset.  While registering, a breakpoint
+is inserted for the first consumer, On subsequent probes, the consumer
+gets appended to the existing consumers. While unregistering a
+breakpoint is removed if the consumer happens to be the last consumer.
+All other unregisterations, the consumer is deleted from the list of
+consumers.
+
+Probe specifications are maintained in a rb tree. A probe specification
+is converted into a uprobe before store in a rb tree.  A uprobe can be
+shared by many consumers.
+
+Given a inode, we get a list of mm's that have mapped the inode.
+However we want to limit the probes to certain processes/threads.  The
+filtering should be at thread level. To limit the probes to a certain
+processes/threads, we would want to walk through the list of threads
+whose mm member refer to a given mm.
+
+Here are the options that I thought of:
+1. Use mm->owner and walk thro the thread_group of mm->owner, siblings
+of mm->owner, siblings of parent of mm->owner.  This should be
+good list to traverse. Not sure if this is an exhaustive
+enough list that all tasks that have a mm set to this mm_struct are
+walked through.
+
+2. Install probes on all mm's that have mapped the probes and filter
+only at probe hit time.
+
+3. walk thro do_each_thread; while_each_thread; I think this will catch
+all tasks that have a mm set to the given mm. However this might
+be too heavy esp if mm corresponds to a library.
+
+4. add a list_head element to the mm struct and update the list whenever
+the task->mm thread gets updated. This could mean extending the current
+mm->owner. However there is some maintainance overhead.
+
+Currently we use the second approach, i.e probe all mm's that have mapped
+the probes and filter only at probe hit.
+
+Also would be interested to know if there are ways to call
+replace_page without having to take mmap_sem.
 
 Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Signed-off-by: Jim Keniston <jkenisto@us.ibm.com>
 ---
- arch/Kconfig            |   12 ++
- include/linux/uprobes.h |   70 ++++++++++++++
- kernel/Makefile         |    1 
- kernel/uprobes.c        |  230 +++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 313 insertions(+), 0 deletions(-)
- create mode 100644 include/linux/uprobes.h
- create mode 100644 kernel/uprobes.c
+ include/linux/mm_types.h |    5 +
+ include/linux/uprobes.h  |   32 ++++++++
+ kernel/uprobes.c         |  195 +++++++++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 221 insertions(+), 11 deletions(-)
 
-diff --git a/arch/Kconfig b/arch/Kconfig
-index f78c2be..c681f16 100644
---- a/arch/Kconfig
-+++ b/arch/Kconfig
-@@ -61,6 +61,18 @@ config OPTPROBES
- 	depends on KPROBES && HAVE_OPTPROBES
- 	depends on !PREEMPT
- 
-+config UPROBES
-+	bool "User-space probes (EXPERIMENTAL)"
-+	depends on ARCH_SUPPORTS_UPROBES
-+	depends on MMU
-+	select MM_OWNER
-+	help
-+	  Uprobes enables kernel subsystems to establish probepoints
-+	  in user applications and execute handler functions when
-+	  the probepoints are hit.
-+
-+	  If in doubt, say "N".
-+
- config HAVE_EFFICIENT_UNALIGNED_ACCESS
- 	bool
- 	help
-diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-new file mode 100644
-index 0000000..350ccb0
---- /dev/null
-+++ b/include/linux/uprobes.h
-@@ -0,0 +1,70 @@
-+#ifndef _LINUX_UPROBES_H
-+#define _LINUX_UPROBES_H
-+/*
-+ * Userspace Probes (UProbes)
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation; either version 2 of the License, or
-+ * (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-+ *
-+ * Copyright (C) IBM Corporation, 2008-2010
-+ * Authors:
-+ *	Srikar Dronamraju
-+ *	Jim Keniston
-+ */
-+
-+#ifdef CONFIG_ARCH_SUPPORTS_UPROBES
-+#include <asm/uprobes.h>
-+#else
-+/*
-+ * ARCH_SUPPORTS_UPROBES is not defined.
-+ */
-+typedef u8 uprobe_opcode_t;
-+
-+/* Post-execution fixups.  Some architectures may define others. */
-+#endif /* CONFIG_ARCH_SUPPORTS_UPROBES */
-+
-+/* No fixup needed */
-+#define UPROBES_FIX_NONE	0x0
-+/* Adjust IP back to vicinity of actual insn */
-+#define UPROBES_FIX_IP	0x1
-+/* Adjust the return address of a call insn */
-+#define UPROBES_FIX_CALL	0x2
-+/* Might sleep while doing Fixup */
-+#define UPROBES_FIX_SLEEPY	0x4
-+
-+#ifndef UPROBES_FIX_DEFAULT
-+#define UPROBES_FIX_DEFAULT UPROBES_FIX_IP
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 26bc4e2..96e4a77 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -315,6 +315,11 @@ struct mm_struct {
+ #endif
+ 	/* How many tasks sharing this mm are OOM_DISABLE */
+ 	atomic_t oom_disable_count;
++#ifdef CONFIG_UPROBES
++	unsigned long uprobes_vaddr;
++	struct list_head uprobes_list;
++	atomic_t uprobes_count;
 +#endif
-+
-+/* Unexported functions & macros for use by arch-specific code */
-+#define uprobe_opcode_sz (sizeof(uprobe_opcode_t))
-+
-+/*
-+ * Most architectures can use the default versions of @read_opcode(),
-+ * @set_bkpt(), @set_orig_insn(), and @is_bkpt_insn();
-+ *
-+ * @set_ip:
-+ *	Set the instruction pointer in @regs to @vaddr.
-+ * @analyze_insn:
-+ *	Analyze @user_bkpt->insn.  Return 0 if @user_bkpt->insn is an
-+ *	instruction you can probe, or a negative errno (typically -%EPERM)
-+ *	otherwise. Determine what sort of
-+ * @pre_xol:
-+ * @post_xol:
-+ *	XOL-related fixups @post_xol() (and possibly @pre_xol()) will need
-+ *	to do for this instruction, and annotate @user_bkpt accordingly.
-+ *	You may modify @user_bkpt->insn (e.g., the x86_64 port does this
-+ *	for rip-relative instructions).
-+ */
-+#endif	/* _LINUX_UPROBES_H */
-diff --git a/kernel/Makefile b/kernel/Makefile
-index 353d3fe..d562285 100644
---- a/kernel/Makefile
-+++ b/kernel/Makefile
-@@ -107,6 +107,7 @@ obj-$(CONFIG_PERF_EVENTS) += perf_event.o
- obj-$(CONFIG_HAVE_HW_BREAKPOINT) += hw_breakpoint.o
- obj-$(CONFIG_USER_RETURN_NOTIFIER) += user-return-notifier.o
- obj-$(CONFIG_PADATA) += padata.o
-+obj-$(CONFIG_UPROBES) += uprobes.o
+ };
  
- ifneq ($(CONFIG_SCHED_OMIT_FRAME_POINTER),y)
- # According to Alan Modra <alan@linuxcare.com.au>, the -fno-omit-frame-pointer is
-diff --git a/kernel/uprobes.c b/kernel/uprobes.c
-new file mode 100644
-index 0000000..4f0f61b
---- /dev/null
-+++ b/kernel/uprobes.c
-@@ -0,0 +1,230 @@
-+/*
-+ * Userspace Probes (UProbes)
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation; either version 2 of the License, or
-+ * (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-+ *
-+ * Copyright (C) IBM Corporation, 2008-2010
-+ * Authors:
-+ *	Srikar Dronamraju
-+ *	Jim Keniston
-+ */
-+#include <linux/kernel.h>
-+#include <linux/init.h>
-+#include <linux/module.h>
-+#include <linux/sched.h>
-+#include <linux/ptrace.h>
-+#include <linux/mm.h>
-+#include <linux/highmem.h>
-+#include <linux/pagemap.h>
-+#include <linux/slab.h>
-+#include <linux/uprobes.h>
-+#include <linux/rmap.h> /* needed for anon_vma_prepare */
-+
+ /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
+diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
+index f422bc6..8654a06 100644
+--- a/include/linux/uprobes.h
++++ b/include/linux/uprobes.h
+@@ -31,6 +31,7 @@
+  * ARCH_SUPPORTS_UPROBES is not defined.
+  */
+ typedef u8 uprobe_opcode_t;
++struct uprobe_arch_info	{};		/* arch specific info*/
+ 
+ /* Post-execution fixups.  Some architectures may define others. */
+ #endif /* CONFIG_ARCH_SUPPORTS_UPROBES */
+@@ -62,6 +63,19 @@ struct uprobe_consumer {
+ 	struct uprobe_consumer *next;
+ };
+ 
 +struct uprobe {
-+	u8			insn[MAX_UINSN_BYTES];
++	struct rb_node		rb_node;	/* node in the rb tree */
++	atomic_t		ref;
++	struct rw_semaphore	consumer_rwsem;
++	struct uprobe_arch_info	arch_info;	/* arch specific info if any */
++	struct uprobe_consumer	*consumers;
++	struct inode		*inode;		/* Also hold a ref to inode */
++	loff_t			offset;
++	u8			insn[MAX_UINSN_BYTES];	/* orig instruction */
 +	u16			fixups;
++	int			copy;
 +};
 +
-+/*
-+ * Called with tsk->mm->mmap_sem held (either for read or write and
-+ * with a reference to tsk->mm.
-+ */
-+static int write_opcode(struct task_struct *tsk, struct uprobe * uprobe,
-+			unsigned long vaddr, uprobe_opcode_t opcode)
-+{
-+	struct page *old_page, *new_page;
-+	void *vaddr_old, *vaddr_new;
-+	struct vm_area_struct *vma;
-+	spinlock_t *ptl;
-+	pte_t *orig_pte;
-+	unsigned long addr;
-+	int ret = -EINVAL;
+ /*
+  * Most architectures can use the default versions of @read_opcode(),
+  * @set_bkpt(), @set_orig_insn(), and @is_bkpt_insn();
+@@ -79,4 +93,22 @@ struct uprobe_consumer {
+  *	You may modify @user_bkpt->insn (e.g., the x86_64 port does this
+  *	for rip-relative instructions).
+  */
 +
-+	/* Read the page with vaddr into memory */
-+	ret = get_user_pages(tsk, tsk->mm, vaddr, 1, 1, 1, &old_page, &vma);
-+	if (ret <= 0)
++#ifdef CONFIG_UPROBES
++extern int register_uprobe(struct inode *inode, loff_t offset,
++				struct uprobe_consumer *consumer);
++extern void unregister_uprobe(struct inode *inode, loff_t offset,
++				struct uprobe_consumer *consumer);
++#else /* CONFIG_UPROBES is not defined */
++static inline int register_uprobe(struct inode *inode, loff_t offset,
++				struct uprobe_consumer *consumer)
++{
++	return -ENOSYS;
++}
++static inline void unregister_uprobe(struct inode *inode, loff_t offset,
++				struct uprobe_consumer *consumer)
++{
++}
++
++#endif /* CONFIG_UPROBES */
+ #endif	/* _LINUX_UPROBES_H */
+diff --git a/kernel/uprobes.c b/kernel/uprobes.c
+index 6e692a8..4dbb90f 100644
+--- a/kernel/uprobes.c
++++ b/kernel/uprobes.c
+@@ -32,17 +32,6 @@
+ #include <linux/uprobes.h>
+ #include <linux/rmap.h> /* needed for anon_vma_prepare */
+ 
+-struct uprobe {
+-	struct rb_node		rb_node;	/* node in the rb tree */
+-	atomic_t		ref;		/* lifetime muck */
+-	struct rw_semaphore	consumer_rwsem;
+-	struct uprobe_consumer	*consumers;
+-	struct inode		*inode;		/* we hold a ref */
+-	loff_t			offset;
+-	u8			insn[MAX_UINSN_BYTES];
+-	u16			fixups;
+-};
+-
+ static int valid_vma(struct vm_area_struct *vma)
+ {
+ 	if (!vma->vm_file)
+@@ -445,3 +434,187 @@ static int del_consumer(struct uprobe *uprobe,
+ 	up_write(&uprobe->consumer_rwsem);
+ 	return ret;
+ }
++
++static int install_uprobe(struct mm_struct *mm, struct uprobe *uprobe)
++{
++	int ret = 0;
++
++	/*TODO: install breakpoint */
++	if (!ret)
++		atomic_inc(&mm->uprobes_count);
++	return ret;
++}
++
++static int remove_uprobe(struct mm_struct *mm, struct uprobe *uprobe)
++{
++	int ret = 0;
++
++	/*TODO: remove breakpoint */
++	if (!ret)
++		atomic_dec(&mm->uprobes_count);
++
++	return ret;
++}
++
++/* Returns 0 if it can install one probe */
++int register_uprobe(struct inode *inode, loff_t offset,
++				struct uprobe_consumer *consumer)
++{
++	struct prio_tree_iter iter;
++	struct list_head tmp_list;
++	struct address_space *mapping;
++	struct mm_struct *mm, *tmpmm;
++	struct vm_area_struct *vma;
++	struct uprobe *uprobe;
++	int ret = -1;
++
++	if (!inode || !consumer || consumer->next)
 +		return -EINVAL;
-+	ret = -EINVAL;
++	uprobe = uprobes_add(inode, offset);
++	INIT_LIST_HEAD(&tmp_list);
 +
-+	/*
-+	 * check if the page we are interested is read-only mapped
-+	 * Since we are interested in text pages, Our pages of interest
-+	 * should be mapped read-only.
-+	 */
-+	if ((vma->vm_flags & (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)) ==
-+						(VM_READ|VM_EXEC))
-+		goto put_out;
++	mapping = inode->i_mapping;
 +
-+	/* Allocate a page */
-+	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vaddr);
-+	if (!new_page) {
-+		ret = -ENOMEM;
-+		goto put_out;
++	mutex_lock(&uprobes_mutex);
++	if (uprobe->consumers) {
++		ret = 0;
++		goto consumers_add;
 +	}
 +
-+	/*
-+	 * lock page will serialize against do_wp_page()'s
-+	 * PageAnon() handling
-+	 */
-+	lock_page(old_page);
-+	/* copy the page now that we've got it stable */
-+	vaddr_old = kmap_atomic(old_page, KM_USER0);
-+	vaddr_new = kmap_atomic(new_page, KM_USER1);
++	spin_lock(&mapping->i_mmap_lock);
++	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, 0) {
++		loff_t vaddr;
 +
-+	memcpy(vaddr_new, vaddr_old, PAGE_SIZE);
-+	/* poke the new insn in, ASSUMES we don't cross page boundary */
-+	addr = vaddr;
-+	vaddr &= ~PAGE_MASK;
-+	memcpy(vaddr_new + vaddr, &opcode, uprobe_opcode_sz);
++		if (!atomic_inc_not_zero(&vma->vm_mm->mm_users))
++			continue;
 +
-+	kunmap_atomic(vaddr_new, KM_USER1);
-+	kunmap_atomic(vaddr_old, KM_USER0);
++		mm = vma->vm_mm;
++		if (!valid_vma(vma)) {
++			mmput(mm);
++			continue;
++		}
 +
-+	orig_pte = page_check_address(old_page, tsk->mm, addr, &ptl, 0);
-+	if (!orig_pte)
-+		goto unlock_out;
-+	pte_unmap_unlock(orig_pte, ptl);
++		vaddr = vma->vm_start + offset;
++		vaddr -= vma->vm_pgoff << PAGE_SHIFT;
++		if (vaddr > ULONG_MAX) {
++			/*
++			 * We cannot have a virtual address that is
++			 * greater than ULONG_MAX
++			 */
++			mmput(mm);
++			continue;
++		}
++		mm->uprobes_vaddr = (unsigned long) vaddr;
++		list_add(&mm->uprobes_list, &tmp_list);
++	}
++	spin_unlock(&mapping->i_mmap_lock);
 +
-+	lock_page(new_page);
-+	if (!anon_vma_prepare(vma))
-+		/* flip pages, do_wp_page() will fail pte_same() and bail */
-+		ret = replace_page(vma, old_page, new_page, *orig_pte);
++	if (list_empty(&tmp_list)) {
++		ret = 0;
++		goto consumers_add;
++	}
++	list_for_each_entry_safe(mm, tmpmm, &tmp_list, uprobes_list) {
++		down_read(&mm->mmap_sem);
++		if (!install_uprobe(mm, uprobe))
++			ret = 0;
++		list_del(&mm->uprobes_list);
++		up_read(&mm->mmap_sem);
++		mmput(mm);
++	}
 +
-+	unlock_page(new_page);
-+	if (ret != 0)
-+		page_cache_release(new_page);
-+unlock_out:
-+	unlock_page(old_page);
-+
-+put_out:
-+	put_page(old_page); /* we did a get_page in the beginning */
++consumers_add:
++	add_consumer(uprobe, consumer);
++	mutex_unlock(&uprobes_mutex);
++	put_uprobe(uprobe);
 +	return ret;
 +}
 +
-+/**
-+ * read_opcode - read the opcode at a given virtual address.
-+ * @tsk: the probed task.
-+ * @vaddr: the virtual address to store the opcode.
-+ * @opcode: location to store the read opcode.
-+ *
-+ * For task @tsk, read the opcode at @vaddr and store it in @opcode.
-+ * Return 0 (success) or a negative errno.
-+ */
-+int __weak read_opcode(struct task_struct *tsk, unsigned long vaddr,
-+						uprobe_opcode_t *opcode)
++void unregister_uprobe(struct inode *inode, loff_t offset,
++				struct uprobe_consumer *consumer)
 +{
++	struct prio_tree_iter iter;
++	struct list_head tmp_list;
++	struct address_space *mapping;
++	struct mm_struct *mm, *tmpmm;
 +	struct vm_area_struct *vma;
-+	struct page *page;
-+	void *vaddr_new;
-+	int ret;
++	struct uprobe *uprobe;
++	unsigned long flags;
 +
-+	ret = get_user_pages(tsk, tsk->mm, vaddr, 1, 0, 0, &page, &vma);
-+	if (ret <= 0)
-+		return -EFAULT;
-+	ret = -EFAULT;
++	if (!inode || !consumer)
++		return;
++
++	uprobe = find_uprobe(inode, offset);
++	if (!uprobe) {
++		printk(KERN_ERR "No uprobe found with inode:offset %p %lld\n",
++				inode, offset);
++		return;
++	}
++
++	if (!del_consumer(uprobe, consumer)) {
++		printk(KERN_ERR "No uprobe found with consumer %p\n",
++				consumer);
++		return;
++	}
++
++	INIT_LIST_HEAD(&tmp_list);
++
++	mapping = inode->i_mapping;
++
++	mutex_lock(&uprobes_mutex);
++	if (uprobe->consumers)
++		goto put_unlock;
++
++	spin_lock(&mapping->i_mmap_lock);
++	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, 0) {
++		if (!atomic_inc_not_zero(&vma->vm_mm->mm_users))
++			continue;
++
++		mm = vma->vm_mm;
++
++		if (!atomic_read(&mm->uprobes_count)) {
++			mmput(mm);
++			continue;
++		}
++
++		if (valid_vma(vma)) {
++			loff_t vaddr;
++
++			vaddr = vma->vm_start + offset;
++			vaddr -= vma->vm_pgoff << PAGE_SHIFT;
++			if (vaddr > ULONG_MAX) {
++				/*
++				 * We cannot have a virtual address that is
++				 * greater than ULONG_MAX
++				 */
++				mmput(mm);
++				continue;
++			}
++			mm->uprobes_vaddr = (unsigned long) vaddr;
++			list_add(&mm->uprobes_list, &tmp_list);
++		} else
++			mmput(mm);
++	}
++	spin_unlock(&mapping->i_mmap_lock);
++	list_for_each_entry_safe(mm, tmpmm, &tmp_list, uprobes_list) {
++		down_read(&mm->mmap_sem);
++		remove_uprobe(mm, uprobe);
++		list_del(&mm->uprobes_list);
++		up_read(&mm->mmap_sem);
++		mmput(mm);
++	}
 +
 +	/*
-+	 * check if the page we are interested is read-only mapped
-+	 * Since we are interested in text pages, Our pages of interest
-+	 * should be mapped read-only.
++	 * There could be other threads that could be spinning on
++	 * treelock; some of these threads could be interested in this
++	 * uprobe.  Give these threads a chance to run.
 +	 */
-+	if ((vma->vm_flags & (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)) ==
-+						(VM_READ|VM_EXEC))
-+		goto put_out;
++	synchronize_sched();
++	spin_lock_irqsave(&treelock, flags);
++	rb_erase(&uprobe->rb_node, &uprobes_tree);
++	spin_unlock_irqrestore(&treelock, flags);
++	iput(uprobe->inode);
 +
-+	lock_page(page);
-+	vaddr_new = kmap_atomic(page, KM_USER0);
-+	vaddr &= ~PAGE_MASK;
-+	memcpy(&opcode, vaddr_new + vaddr, uprobe_opcode_sz);
-+	kunmap_atomic(vaddr_new, KM_USER0);
-+	unlock_page(page);
-+	ret =  uprobe_opcode_sz;
-+
-+put_out:
-+	put_page(page); /* we did a get_page in the beginning */
-+	return ret;
-+}
-+
-+/**
-+ * set_bkpt - store breakpoint at a given address.
-+ * @tsk: the probed task.
-+ * @uprobe: the probepoint information.
-+ * @vaddr: the virtual address to insert the opcode.
-+ *
-+ * For task @tsk, store the breakpoint instruction at @vaddr.
-+ * Return 0 (success) or a negative errno.
-+ */
-+int __weak set_bkpt(struct task_struct *tsk, struct uprobe *uprobe,
-+						unsigned long vaddr)
-+{
-+	return write_opcode(tsk, uprobe, vaddr, UPROBES_BKPT_INSN);
-+}
-+
-+/**
-+ * set_orig_insn - Restore the original instruction.
-+ * @tsk: the probed task.
-+ * @uprobe: the probepoint information.
-+ * @vaddr: the virtual address to insert the opcode.
-+ * @verify: if true, verify existance of breakpoint instruction.
-+ *
-+ * For task @tsk, restore the original opcode (opcode) at @vaddr.
-+ * Return 0 (success) or a negative errno.
-+ */
-+int __weak set_orig_insn(struct task_struct *tsk, struct uprobe *uprobe,
-+				unsigned long vaddr, bool verify)
-+{
-+	if (verify) {
-+		uprobe_opcode_t opcode;
-+		int result = read_opcode(tsk, vaddr, &opcode);
-+		if (result)
-+			return result;
-+		if (opcode != UPROBES_BKPT_INSN)
-+			return -EINVAL;
-+	}
-+	return write_opcode(tsk, uprobe, vaddr,
-+			*(uprobe_opcode_t *) uprobe->insn);
-+}
-+
-+static void print_insert_fail(struct task_struct *tsk,
-+			unsigned long vaddr, const char *why)
-+{
-+	printk(KERN_ERR "Can't place breakpoint at pid %d vaddr %#lx: %s\n",
-+					tsk->pid, vaddr, why);
-+}
-+
-+/*
-+ * uprobes_resume_can_sleep - Check if fixup might result in sleep.
-+ * @uprobes: the probepoint information.
-+ *
-+ * Returns true if fixup might result in sleep.
-+ */
-+static bool uprobes_resume_can_sleep(struct uprobe *uprobe)
-+{
-+	return uprobe->fixups & UPROBES_FIX_SLEEPY;
-+}
-+
-+/**
-+ * is_bkpt_insn - check if instruction is breakpoint instruction.
-+ * @insn: instruction to be checked.
-+ * Default implementation of is_bkpt_insn
-+ * Returns true if @insn is a breakpoint instruction.
-+ */
-+bool __weak is_bkpt_insn(u8 *insn)
-+{
-+	uprobe_opcode_t opcode;
-+
-+	memcpy(&opcode, insn, UPROBES_BKPT_INSN_SIZE);
-+	return (opcode == UPROBES_BKPT_INSN);
++put_unlock:
++	mutex_unlock(&uprobes_mutex);
++	put_uprobe(uprobe);
 +}
 
 --
