@@ -1,46 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 332748D003E
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 11:29:11 -0400 (EDT)
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 3/20]  3: uprobes: Breakground page
- replacement.
-From: Steven Rostedt <rostedt@goodmis.org>
-In-Reply-To: <20110314133433.27435.49566.sendpatchset@localhost6.localdomain6>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
-	 <20110314133433.27435.49566.sendpatchset@localhost6.localdomain6>
-Content-Type: text/plain; charset="ISO-8859-15"
-Date: Mon, 14 Mar 2011 11:29:06 -0400
-Message-ID: <1300116546.9910.107.camel@gandalf.stny.rr.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 633EF8D003E
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 11:33:45 -0400 (EDT)
+Received: by iwl42 with SMTP id 42so7070259iwl.14
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 08:33:21 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.LSU.2.00.1103140059510.1661@sister.anvils>
+References: <alpine.LSU.2.00.1103140059510.1661@sister.anvils>
+Date: Tue, 15 Mar 2011 00:25:32 +0900
+Message-ID: <AANLkTimEmv66taMnmNqTHHtoYu4bGAz3BRGbF0ncB40L@mail.gmail.com>
+Subject: Re: [PATCH] thp+memcg-numa: fix BUG at include/linux/mm.h:370!
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2011-03-14 at 19:04 +0530, Srikar Dronamraju wrote:
-> +/*
-> + * Most architectures can use the default versions of @read_opcode(),
-> + * @set_bkpt(), @set_orig_insn(), and @is_bkpt_insn();
-> + *
-> + * @set_ip:
-> + *     Set the instruction pointer in @regs to @vaddr.
-> + * @analyze_insn:
-> + *     Analyze @user_bkpt->insn.  Return 0 if @user_bkpt->insn is an
-> + *     instruction you can probe, or a negative errno (typically -%EPERM)
-> + *     otherwise. Determine what sort of
+On Mon, Mar 14, 2011 at 5:08 PM, Hugh Dickins <hughd@google.com> wrote:
+> THP's collapse_huge_page() has an understandable but ugly difference
+> in when its huge page is allocated: inside if NUMA but outside if not.
+> It's hardly surprising that the memcg failure path forgot that, freeing
+> the page in the non-NUMA case, then hitting a VM_BUG_ON in get_page()
+> (or even worse, using the freed page).
+>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-sort of ... what?
-
--- Steve
-
-> + * @pre_xol:
-> + * @post_xol:
-> + *     XOL-related fixups @post_xol() (and possibly @pre_xol()) will need
-> + *     to do for this instruction, and annotate @user_bkpt accordingly.
-> + *     You may modify @user_bkpt->insn (e.g., the x86_64 port does this
-> + *     for rip-relative instructions).
-> + */ 
+Thanks, Hugh.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
