@@ -1,82 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CD438D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 14:12:11 -0400 (EDT)
-Received: by qyk2 with SMTP id 2so1855775qyk.14
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 11:12:09 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2855C8D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 14:15:01 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so2034468qwa.14
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 11:14:59 -0700 (PDT)
 MIME-Version: 1.0
-Date: Mon, 14 Mar 2011 18:12:09 +0000
-Message-ID: <AANLkTim8nHe1jXagKg-5g0ZLh7J61LzAi0ww__Kgaerx@mail.gmail.com>
-Subject: [RFC][PATCH v2 21/23] (um) __vmalloc: add gfp flags variant of pte
- and pmd allocation
+Date: Mon, 14 Mar 2011 18:14:58 +0000
+Message-ID: <AANLkTik=m5dCx_9bmnXfXJ9LPMwoS8Bc3CUoT7OAB5gY@mail.gmail.com>
+Subject: [RFC][PATCH v2 22/23] (asm-generic) __vmalloc: add gfp flags variant
+ of pte, pmd, and pud allocation
 From: Prasad Joshi <prasadjoshi124@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Dike <jdike@addtoit.com>, Tejun Heo <tj@kernel.org>, user-mode-linux-devel@lists.sourceforge.net, UML Mailing List <user-mode-linux-user@lists.sourceforge.net>, Prasad Joshi <prasadjoshi124@gmail.com>, Anand Mitra <mitra@kqinfotech.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Prasad Joshi <prasadjoshi124@gmail.com>, Anand Mitra <mitra@kqinfotech.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-diff --git a/arch/um/include/asm/pgalloc.h b/arch/um/include/asm/pgalloc.h
-index 32c8ce4..8b6257e 100644
---- a/arch/um/include/asm/pgalloc.h
-+++ b/arch/um/include/asm/pgalloc.h
-@@ -27,6 +27,7 @@ extern pgd_t *pgd_alloc(struct mm_struct *);
- extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
+__vmalloc: propagating GFP allocation flag.
 
- extern pte_t *pte_alloc_one_kernel(struct mm_struct *, unsigned long);
-+extern pte_t *__pte_alloc_one_kernel(struct mm_struct *, unsigned long, gfp_t);
- extern pgtable_t pte_alloc_one(struct mm_struct *, unsigned long);
+- adds functions to allow caller to pass the GFP flag for memory allocation
+- helps in fixing the Bug 30702 (__vmalloc(GFP_NOFS) can callback
+		  file system evict_inode).
 
- static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
-diff --git a/arch/um/kernel/mem.c b/arch/um/kernel/mem.c
-index 8137ccc..e4caf17 100644
---- a/arch/um/kernel/mem.c
-+++ b/arch/um/kernel/mem.c
-@@ -284,12 +284,15 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
-    free_page((unsigned long) pgd);
- }
+Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
+Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
+---
+Chnagelog:
+include/asm-generic/4level-fixup.h  |    8 ++++++--
+include/asm-generic/pgtable-nopmd.h |    3 ++-
+include/asm-generic/pgtable-nopud.h |    1 +
+3 files changed, 9 insertions(+), 3 deletions(-)
+---
+diff --git a/include/asm-generic/4level-fixup.h
+b/include/asm-generic/4level-fixup.h
+index 77ff547..f638309 100644
+--- a/include/asm-generic/4level-fixup.h
++++ b/include/asm-generic/4level-fixup.h
+@@ -10,10 +10,14 @@
 
--pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
-+pte_t *
-+__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address,
-gfp_t gfp_mask)
- {
--   pte_t *pte;
-+   return (pte_t *)__get_free_page(gfp_mask | __GFP_ZERO);
-+}
+ #define pud_t				pgd_t
 
--   pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
--   return pte;
-+pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
-+{
-+   return __pte_alloc_one_kernel(mm, address, GFP_KERNEL | __GFP_REPEAT);
- }
+-#define pmd_alloc(mm, pud, address) \
+-	((unlikely(pgd_none(*(pud))) && __pmd_alloc(mm, pud, address))? \
++#define pmd_alloc_with_mask(mm, pud, address, mask) \
++	((unlikely(pgd_none(*(pud))) && __pmd_alloc(mm, pud, address, mask))? \
+  		NULL: pmd_offset(pud, address))
 
- pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
-@@ -303,15 +306,21 @@ pgtable_t pte_alloc_one(struct mm_struct *mm,
-unsigned long address)
- }
-
- #ifdef CONFIG_3_LEVEL_PGTABLES
--pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
-+pmd_t *
-+__pmd_alloc_one(struct mm_struct *mm, unsigned long address, gfp_t gfp_mask)
- {
--   pmd_t *pmd = (pmd_t *) __get_free_page(GFP_KERNEL);
-+   pmd_t *pmd = (pmd_t *) __get_free_page(gfp_mask);
-
-    if (pmd)
-        memset(pmd, 0, PAGE_SIZE);
-
-    return pmd;
- }
++#define pmd_alloc(mm, pud, address) \
++	pmd_alloc_with_mask(mm, pud, address, GFP_KERNEL)
 +
-+pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
-+{
-+   return __pmd_alloc_one(mm, address, GFP_KERNEL);
-+}
- #endif
-
- void *uml_kmalloc(int size, int flags)
++#define pud_alloc_with_mask(mm, pgd, address, mask)	(pgd)
+ #define pud_alloc(mm, pgd, address)	(pgd)
+ #define pud_offset(pgd, start)		(pgd)
+ #define pud_none(pud)			0
+diff --git a/include/asm-generic/pgtable-nopmd.h
+b/include/asm-generic/pgtable-nopmd.h
+index 725612b..96ca8da 100644
+--- a/include/asm-generic/pgtable-nopmd.h
++++ b/include/asm-generic/pgtable-nopmd.h
+@@ -55,7 +55,8 @@ static inline pmd_t * pmd_offset(pud_t * pud,
+unsigned long address)
+  * allocating and freeing a pmd is trivial: the 1-entry pmd is
+  * inside the pud, so has no extra memory associated with it.
+  */
+-#define pmd_alloc_one(mm, address)		NULL
++#define __pmd_alloc_one(mm, address, mask)		NULL
++#define pmd_alloc_one(mm, address)				NULL
+ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ {
+ }
+diff --git a/include/asm-generic/pgtable-nopud.h
+b/include/asm-generic/pgtable-nopud.h
+index 810431d..5a21868 100644
+--- a/include/asm-generic/pgtable-nopud.h
++++ b/include/asm-generic/pgtable-nopud.h
+@@ -50,6 +50,7 @@ static inline pud_t * pud_offset(pgd_t * pgd,
+unsigned long address)
+  * allocating and freeing a pud is trivial: the 1-entry pud is
+  * inside the pgd, so has no extra memory associated with it.
+  */
++#define __pud_alloc_one(mm, address, mask)		NULL
+ #define pud_alloc_one(mm, address)		NULL
+ #define pud_free(mm, x)				do { } while (0)
+ #define __pud_free_tlb(tlb, x, a)		do { } while (0)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
