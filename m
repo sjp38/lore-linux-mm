@@ -1,150 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 853018D003E
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 12:59:26 -0400 (EDT)
-Date: Mon, 14 Mar 2011 17:59:22 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH] mm: PageBuddy and mapcount underflows robustness
-Message-ID: <20110314165922.GE10696@random.random>
-References: <alpine.LSU.2.00.1103140059510.1661@sister.anvils>
- <20110314155232.GB10696@random.random>
- <alpine.LSU.2.00.1103140910570.2601@sister.anvils>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 771E68D003E
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:02:07 -0400 (EDT)
+Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p2EGuUG9029208
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 09:56:31 -0700
+Received: by iyf13 with SMTP id 13so7153689iyf.14
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 09:56:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <alpine.LSU.2.00.1103140910570.2601@sister.anvils>
+References: <alpine.LSU.2.00.1103140059510.1661@sister.anvils>
+ <20110314155232.GB10696@random.random> <alpine.LSU.2.00.1103140910570.2601@sister.anvils>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 14 Mar 2011 09:56:10 -0700
+Message-ID: <AANLkTikvt+o+UaksmvM5C7FWt7hTMJyaPiUGhQ+6OKBg@mail.gmail.com>
+Subject: Re: [PATCH] thp+memcg-numa: fix BUG at include/linux/mm.h:370!
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Hugh,
-
-On Mon, Mar 14, 2011 at 09:37:43AM -0700, Hugh Dickins wrote:
+On Mon, Mar 14, 2011 at 9:37 AM, Hugh Dickins <hughd@google.com> wrote:
+>
+> I did try it that way at first (didn't help when I mistakenly put
+> #ifndef instead of #ifdef around the put_page!), but was repulsed
+> by seeing yet another #ifdef CONFIG_NUMA, so went with the duplicating
 > version - which Linus has now taken.
 
-That was fast, so that solves all merging order rejects in the first
-place as we'll all rebase on upstraem.
+I have to admit to being repulsed by the whole patch, but my main
+source of "that's effin ugly" was from the crazy lock handling.
 
-> I was certainly tempted to remove all the non-NUMA cases, but as you
-> say, now is not the right time for that since we needed a quick bugfix.
+Does mem_cgroup_newpage_charge() even _need_ the mmap_sem at all? And
+if not, why not release the read-lock early? And even if it _does_
+need it, why not do
 
-Correct. Too much risk in making the not-NUMA case as the NUMA case.
+    ret = mem_cgroup_newpage_charge();
+    up_read(&mm->mmap_sem);
+    if (ret) {
+        ...
 
-> I do appreciate why you did it that way, it is nicer to be allocating
+finally, the #ifdef CONFIG_NUMA is ugly, but it's ugly in the return
+path of the function too, and the nicer way would probably be to have
+it in one place and do something like
 
-BTW, one reason it was done this way is also because the not-NUMA case
-was the original code, and when I added the NUMA awareness to
-khugepaged I didn't want to risk regressions to the existing case that
-I knew worked fine.
+    /*
+     * The allocation rules are different for the NUMA/non-NUMA cases
+     * For the NUMA case, we allocate here, for the non-numa case we
+     * use the allocation in *hpage
+     */
+    static inline struct page *collapse_alloc_hugepage(struct page **hpage)
+    {
+    #ifdef CONFIG_NUMA
+        VM_BUG_ON(*hpage);
+        return alloc_hugepage_vma(khugepaged_defrag(), vma, address, node);
+    #else
+        VM_BUG_ON(!*hpage);
+        return *hpage;
+    #endif
+    }
 
-> on the outside, though unsuitable in the NUMA case.  But given how this
-> bug has passed unnoticed for so long, it seems like nobody has been
-> testing non-NUMA, so yes, best to simplify and make non-NUMA do the
-> same as NUMA in 2.6.39.
+    static inline void collapse_free_hugepage(struct page *page)
+    {
+    #ifdef CONFIG_NUMA
+        put_page(new_page);
+    #else
+        /* Nothing to do */
+    #endif
+    }
 
-These days clearly the NUMA case gets more testing than the not-NUMA
-case. Especially for features like memcg that are mostly needed on
-NUMA systems and not so much on small laptops or something not
-NUMA.
+and use that instead. The point being that the #ifdef'fery now ends up
+being in a much more targeted area and much better abstracted, rather
+than in the middle of code, and ugly as sin.
 
-I'm unsure if it's so urgent to remove it, maybe a little benchmarking
-with khugepaged at 100% load may be worth trying first, but if there's
-no real change in the frequency increase of khugepaged/pages_collapsed
-counter, I'm surely ok if it gets removed later.
+But as mentioned, the lock handling is disgusting. Why is it even safe
+to drop and re-take the lock at all?
 
-> Since Linus has taken my version that you didn't like, perhaps you can
-
-I'm ok with your version... no problem.
-
-> get even by sending him your "mm: PageBuddy cleanups" patch, the version
-> I didn't like (for its silly branches) so was reluctant to push myself.
-
-Ok that slipped even my own aa.git tree as it was more a RFC when I
-posted it and it didn't fix a real bug but just made the code more
-robust at runtime in case of hardware memory corruption or software
-bugs.
-
-> I'd really like to see that fix in, since it's a little hard to argue
-> for in -stable, being all about a system which is already unstable.
->
-> But I think it needs a stronger title than "PageBuddy cleanups" -
-> "fix BUG in bad_page()"?
-
-I think this can comfortably wait 2.6.39-rc. I think it's best if
-Andrew merges it so it gets digested through -mm for a while. But let
-me know if you prefer something else. So here it is with slightly
-updated header.
-
-===
-Subject: mm: PageBuddy and mapcount underflows robustness
-
-From: Andrea Arcangeli <aarcange@redhat.com>
-
-bad_page could VM_BUG_ON(!PageBuddy(page)) inside __ClearPageBuddy(). I prefer
-to keep the VM_BUG_ON for safety and to add a if to solve it.
-
-Change the _mapcount value indicating PageBuddy from -2 to -1024*1024 for more
-robusteness against page_mapcount() underflows.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Reported-by: Hugh Dickins <hughd@google.com>
----
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index f6385fc..fa16ba0 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -402,16 +402,22 @@ static inline void init_page_count(struct page *page)
- /*
-  * PageBuddy() indicate that the page is free and in the buddy system
-  * (see mm/page_alloc.c).
-+ *
-+ * PAGE_BUDDY_MAPCOUNT_VALUE must be <= -2 but better not too close to
-+ * -2 so that an underflow of the page_mapcount() won't be mistaken
-+ * for a genuine PAGE_BUDDY_MAPCOUNT_VALUE.
-  */
-+#define PAGE_BUDDY_MAPCOUNT_VALUE (-1024*1024)
-+
- static inline int PageBuddy(struct page *page)
- {
--	return atomic_read(&page->_mapcount) == -2;
-+	return atomic_read(&page->_mapcount) == PAGE_BUDDY_MAPCOUNT_VALUE;
- }
- 
- static inline void __SetPageBuddy(struct page *page)
- {
- 	VM_BUG_ON(atomic_read(&page->_mapcount) != -1);
--	atomic_set(&page->_mapcount, -2);
-+	atomic_set(&page->_mapcount, PAGE_BUDDY_MAPCOUNT_VALUE);
- }
- 
- static inline void __ClearPageBuddy(struct page *page)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a873e61..8aac134 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -286,7 +286,9 @@ static void bad_page(struct page *page)
- 
- 	/* Don't complain about poisoned pages */
- 	if (PageHWPoison(page)) {
--		__ClearPageBuddy(page);
-+		/* __ClearPageBuddy VM_BUG_ON(!PageBuddy(page)) */
-+		if (PageBuddy(page))
-+			__ClearPageBuddy(page);
- 		return;
- 	}
- 
-@@ -317,7 +319,8 @@ static void bad_page(struct page *page)
- 	dump_stack();
- out:
- 	/* Leave bad fields for debug, except PageBuddy could make trouble */
--	__ClearPageBuddy(page);
-+	if (PageBuddy(page)) /* __ClearPageBuddy VM_BUG_ON(!PageBuddy(page)) */
-+		__ClearPageBuddy(page);
- 	add_taint(TAINT_BAD_PAGE);
- }
- 
+                                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
