@@ -1,90 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7CA2E8D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 08:28:16 -0400 (EDT)
-Date: Mon, 14 Mar 2011 12:27:46 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: swap: Unlock swapfile inode mutex before closing file on
- bad swapfiles
-Message-ID: <20110314122746.GA32408@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DE228D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 09:39:59 -0400 (EDT)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp01.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2EDdrg1006562
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 19:09:53 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2EDdqrL3166270
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 19:09:52 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2EDdpVc002009
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 00:39:52 +1100
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Date: Mon, 14 Mar 2011 19:04:13 +0530
+Message-Id: <20110314133413.27435.67467.sendpatchset@localhost6.localdomain6>
+In-Reply-To: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+Subject: [PATCH v2 2.6.38-rc8-tip 1/20]  1: mm: Move replace_page() to mm/memory.c
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-If an administrator tries to swapon a file backed by NFS, the inode mutex is
-taken (as it is for any swapfile) but later identified to be a bad swapfile
-due to the lack of bmap and tries to cleanup. During cleanup, an attempt is
-made to close the file but with inode->i_mutex still held. Closing an NFS
-file syncs it which tries to acquire the inode mutex leading to deadlock. If
-lockdep is enabled the following appears on the console;
 
-[  120.968832] =============================================
-[  120.972757] [ INFO: possible recursive locking detected ]
-[  120.972757] 2.6.38-rc8-autobuild #1
-[  120.972757] ---------------------------------------------
-[  120.972757] swapon/2192 is trying to acquire lock:
-[  120.972757]  (&sb->s_type->i_mutex_key#13){+.+.+.}, at: [<ffffffff81130652>] vfs_fsync_range+0x47/0x7c
-[  120.972757]
-[  120.972757] but task is already holding lock:
-[  120.972757]  (&sb->s_type->i_mutex_key#13){+.+.+.}, at: [<ffffffff810f9405>] sys_swapon+0x28d/0xae7
-[  120.972757]
-[  120.972757] other info that might help us debug this:
-[  120.972757] 1 lock held by swapon/2192:
-[  120.972757]  #0:  (&sb->s_type->i_mutex_key#13){+.+.+.}, at: [<ffffffff810f9405>] sys_swapon+0x28d/0xae7
-[  120.972757]
-[  120.972757] stack backtrace:
-[  120.972757] Pid: 2192, comm: swapon Not tainted 2.6.38-rc8-autobuild #1
-[  120.972757] Call Trace:
-[  120.972757]  [<ffffffff81075ca8>] ? __lock_acquire+0x2eb/0x1623
-[  120.972757]  [<ffffffff810cd5ad>] ? find_get_pages_tag+0x14a/0x174
-[  120.972757]  [<ffffffff810d6d01>] ? pagevec_lookup_tag+0x25/0x2e
-[  120.972757]  [<ffffffff81130652>] ? vfs_fsync_range+0x47/0x7c
-[  120.972757]  [<ffffffff810770b3>] ? lock_acquire+0xd3/0x100
-[  120.972757]  [<ffffffff81130652>] ? vfs_fsync_range+0x47/0x7c
-[  120.972757]  [<ffffffffa03df8ab>] ? nfs_flush_one+0x0/0xdf [nfs]
-[  120.972757]  [<ffffffff81309cdf>] ? mutex_lock_nested+0x40/0x2b1
-[  120.972757]  [<ffffffff81130652>] ? vfs_fsync_range+0x47/0x7c
-[  120.972757]  [<ffffffff81130652>] ? vfs_fsync_range+0x47/0x7c
-[  120.972757]  [<ffffffff811306e6>] ? vfs_fsync+0x1c/0x1e
-[  120.972757]  [<ffffffffa03d0c87>] ? nfs_file_flush+0x64/0x69 [nfs]
-[  120.972757]  [<ffffffff811097c9>] ? filp_close+0x43/0x72
-[  120.972757]  [<ffffffff810f9bb1>] ? sys_swapon+0xa39/0xae7
-[  120.972757]  [<ffffffff81002b7a>] ? sysret_check+0x2e/0x69
-[  120.972757]  [<ffffffff81002b42>] ? system_call_fastpath+0x16/0x1b
+User bkpt will use background page replacement approach to insert/delete
+breakpoints. Background page replacement approach is based on
+replace_page. Hence replace_page() loses its static attribute.
 
-This patch releases the mutex if its held before calling filep_close()
-so swapon fails as expected without deadlock when the swapfile is backed
-by NFS.  If accepted for 2.6.39, it should also be considered a -stable
-candidate for 2.6.38 and 2.6.37.
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Signed-off-by: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
 ---
- mm/swapfile.c |    7 ++++++-
- 1 files changed, 6 insertions(+), 1 deletions(-)
+ include/linux/mm.h |    2 ++
+ mm/ksm.c           |   62 ----------------------------------------------------
+ mm/memory.c        |   62 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 64 insertions(+), 62 deletions(-)
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 0341c57..6d6d28c 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2149,8 +2149,13 @@ bad_swap_2:
- 	p->flags = 0;
- 	spin_unlock(&swap_lock);
- 	vfree(swap_map);
--	if (swap_file)
-+	if (swap_file) {
-+		if (did_down) {
-+			mutex_unlock(&inode->i_mutex);
-+			did_down = 0;
-+		}
- 		filp_close(swap_file, NULL);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 679300c..01a0740 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -984,6 +984,8 @@ void account_page_writeback(struct page *page);
+ int set_page_dirty(struct page *page);
+ int set_page_dirty_lock(struct page *page);
+ int clear_page_dirty_for_io(struct page *page);
++int replace_page(struct vm_area_struct *vma, struct page *page,
++					struct page *kpage, pte_t orig_pte);
+ 
+ /* Is the vma a continuation of the stack vma above it? */
+ static inline int vma_stack_continue(struct vm_area_struct *vma, unsigned long addr)
+diff --git a/mm/ksm.c b/mm/ksm.c
+index c2b2a94..f46e20d 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -765,68 +765,6 @@ out:
+ 	return err;
+ }
+ 
+-/**
+- * replace_page - replace page in vma by new ksm page
+- * @vma:      vma that holds the pte pointing to page
+- * @page:     the page we are replacing by kpage
+- * @kpage:    the ksm page we replace page by
+- * @orig_pte: the original value of the pte
+- *
+- * Returns 0 on success, -EFAULT on failure.
+- */
+-static int replace_page(struct vm_area_struct *vma, struct page *page,
+-			struct page *kpage, pte_t orig_pte)
+-{
+-	struct mm_struct *mm = vma->vm_mm;
+-	pgd_t *pgd;
+-	pud_t *pud;
+-	pmd_t *pmd;
+-	pte_t *ptep;
+-	spinlock_t *ptl;
+-	unsigned long addr;
+-	int err = -EFAULT;
+-
+-	addr = page_address_in_vma(page, vma);
+-	if (addr == -EFAULT)
+-		goto out;
+-
+-	pgd = pgd_offset(mm, addr);
+-	if (!pgd_present(*pgd))
+-		goto out;
+-
+-	pud = pud_offset(pgd, addr);
+-	if (!pud_present(*pud))
+-		goto out;
+-
+-	pmd = pmd_offset(pud, addr);
+-	BUG_ON(pmd_trans_huge(*pmd));
+-	if (!pmd_present(*pmd))
+-		goto out;
+-
+-	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
+-	if (!pte_same(*ptep, orig_pte)) {
+-		pte_unmap_unlock(ptep, ptl);
+-		goto out;
+-	}
+-
+-	get_page(kpage);
+-	page_add_anon_rmap(kpage, vma, addr);
+-
+-	flush_cache_page(vma, addr, pte_pfn(*ptep));
+-	ptep_clear_flush(vma, addr, ptep);
+-	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
+-
+-	page_remove_rmap(page);
+-	if (!page_mapped(page))
+-		try_to_free_swap(page);
+-	put_page(page);
+-
+-	pte_unmap_unlock(ptep, ptl);
+-	err = 0;
+-out:
+-	return err;
+-}
+-
+ static int page_trans_compound_anon_split(struct page *page)
+ {
+ 	int ret = 0;
+diff --git a/mm/memory.c b/mm/memory.c
+index 5823698..2a3021c 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2669,6 +2669,68 @@ void unmap_mapping_range(struct address_space *mapping,
+ }
+ EXPORT_SYMBOL(unmap_mapping_range);
+ 
++/**
++ * replace_page - replace page in vma by new ksm page
++ * @vma:      vma that holds the pte pointing to page
++ * @page:     the page we are replacing by kpage
++ * @kpage:    the ksm page we replace page by
++ * @orig_pte: the original value of the pte
++ *
++ * Returns 0 on success, -EFAULT on failure.
++ */
++int replace_page(struct vm_area_struct *vma, struct page *page,
++			struct page *kpage, pte_t orig_pte)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *ptep;
++	spinlock_t *ptl;
++	unsigned long addr;
++	int err = -EFAULT;
++
++	addr = page_address_in_vma(page, vma);
++	if (addr == -EFAULT)
++		goto out;
++
++	pgd = pgd_offset(mm, addr);
++	if (!pgd_present(*pgd))
++		goto out;
++
++	pud = pud_offset(pgd, addr);
++	if (!pud_present(*pud))
++		goto out;
++
++	pmd = pmd_offset(pud, addr);
++	BUG_ON(pmd_trans_huge(*pmd));
++	if (!pmd_present(*pmd))
++		goto out;
++
++	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
++	if (!pte_same(*ptep, orig_pte)) {
++		pte_unmap_unlock(ptep, ptl);
++		goto out;
 +	}
- out:
- 	if (page && !IS_ERR(page)) {
- 		kunmap(page);
++
++	get_page(kpage);
++	page_add_anon_rmap(kpage, vma, addr);
++
++	flush_cache_page(vma, addr, pte_pfn(*ptep));
++	ptep_clear_flush(vma, addr, ptep);
++	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
++
++	page_remove_rmap(page);
++	if (!page_mapped(page))
++		try_to_free_swap(page);
++	put_page(page);
++
++	pte_unmap_unlock(ptep, ptl);
++	err = 0;
++out:
++	return err;
++}
++
+ int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
+ {
+ 	struct address_space *mapping = inode->i_mapping;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
