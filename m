@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B1588D003B
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:44:05 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so2001115qwa.14
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:44:04 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D88D28D003B
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:46:22 -0400 (EDT)
+Received: by qyk2 with SMTP id 2so1828788qyk.14
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:46:21 -0700 (PDT)
 MIME-Version: 1.0
-Date: Mon, 14 Mar 2011 17:44:04 +0000
-Message-ID: <AANLkTinL2MHh0CtW_UKESmZPO5vnDXhHqcOrTPf9=-0W@mail.gmail.com>
-Subject: [RFC][PATCH v2 09/23] (microblaze) __vmalloc: add gfp flags variant
- of pte and pmd allocation
+Date: Mon, 14 Mar 2011 17:46:21 +0000
+Message-ID: <AANLkTin2c2wTpqBNF_ZjmeTex9m5+3h6vhH7=jD1JX0K@mail.gmail.com>
+Subject: [RFC][PATCH v2 10/23] (mips) __vmalloc: add gfp flags variant of pte
+ and pmd allocation
 From: Prasad Joshi <prasadjoshi124@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Simek <monstr@monstr.eu>, microblaze-uclinux@itee.uq.edu.au, Prasad Joshi <prasadjoshi124@gmail.com>, Anand Mitra <mitra@kqinfotech.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Prasad Joshi <prasadjoshi124@gmail.com>, Anand Mitra <mitra@kqinfotech.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org
 
 __vmalloc: propagating GFP allocation flag.
 
@@ -25,68 +25,62 @@ Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
 Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
 ---
 Chnagelog:
-arch/microblaze/include/asm/pgalloc.h |    3 +++
-arch/microblaze/mm/pgtable.c          |   13 +++++++++----
-2 files changed, 12 insertions(+), 4 deletions(-)
+arch/mips/include/asm/pgalloc.h |   22 +++++++++++++++-------
+1 files changed, 15 insertions(+), 7 deletions(-)
 ---
-diff --git a/arch/microblaze/include/asm/pgalloc.h
-b/arch/microblaze/include/asm/pgalloc.h
-index ebd3579..7df761f 100644
---- a/arch/microblaze/include/asm/pgalloc.h
-+++ b/arch/microblaze/include/asm/pgalloc.h
-@@ -106,9 +106,11 @@ extern inline void free_pgd_slow(pgd_t *pgd)
-  * the pgd will always be present..
-  */
- #define pmd_alloc_one_fast(mm, address)	({ BUG(); ((pmd_t *)1); })
-+#define __pmd_alloc_one(mm, address,mask)	({ BUG(); ((pmd_t *)2); })
- #define pmd_alloc_one(mm, address)	({ BUG(); ((pmd_t *)2); })
+diff --git a/arch/mips/include/asm/pgalloc.h b/arch/mips/include/asm/pgalloc.h
+index 881d18b..f2c5439 100644
+--- a/arch/mips/include/asm/pgalloc.h
++++ b/arch/mips/include/asm/pgalloc.h
+@@ -64,14 +64,16 @@ static inline void pgd_free(struct mm_struct *mm,
+pgd_t *pgd)
+ 	free_pages((unsigned long)pgd, PGD_ORDER);
+ }
 
- extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr);
-+extern pte_t *__pte_alloc_one_kernel(struct mm_struct *, unsigned long, gfp_t);
++static inline pte_t *__pte_alloc_one_kernel(struct mm_struct *mm,
++	unsigned long address, gfp_t gfp_mask)
++{
++	return (pte_t *) __get_free_pages(gfp_mask | __GFP_ZERO, PTE_ORDER);
++}
++
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 	unsigned long address)
+ {
+-	pte_t *pte;
+-
+-	pte = (pte_t *) __get_free_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO,
+PTE_ORDER);
+-
+-	return pte;
++	return __pte_alloc_one_kernel(mm, address, GFP_KERNEL | __GFP_REPEAT);
+ }
 
  static inline struct page *pte_alloc_one(struct mm_struct *mm,
- 		unsigned long address)
-@@ -175,6 +177,7 @@ extern inline void pte_free(struct mm_struct *mm,
-struct page *ptepage)
-  * We don't have any real pmd's, and this code never triggers because
-  * the pgd will always be present..
-  */
-+#define __pmd_alloc_one(mm, address,mask)	({ BUG(); ((pmd_t *)2); })
- #define pmd_alloc_one(mm, address)	({ BUG(); ((pmd_t *)2); })
- #define pmd_free(mm, x)			do { } while (0)
- #define __pmd_free_tlb(tlb, x, addr)	pmd_free((tlb)->mm, x)
-diff --git a/arch/microblaze/mm/pgtable.c b/arch/microblaze/mm/pgtable.c
-index 59bf233..ae4d315 100644
---- a/arch/microblaze/mm/pgtable.c
-+++ b/arch/microblaze/mm/pgtable.c
-@@ -240,13 +240,12 @@ unsigned long iopa(unsigned long addr)
- 	return pa;
+@@ -106,16 +108,22 @@ do {							\
+
+ #ifndef __PAGETABLE_PMD_FOLDED
+
+-static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
++static inline pmd_t *
++__pmd_alloc_one(struct mm_struct *mm, unsigned long address, gfp_t gfp_mask)
+ {
+ 	pmd_t *pmd;
+
+-	pmd = (pmd_t *) __get_free_pages(GFP_KERNEL|__GFP_REPEAT, PMD_ORDER);
++	pmd = (pmd_t *) __get_free_pages(gfp_mask, PMD_ORDER);
+ 	if (pmd)
+ 		pmd_init((unsigned long)pmd, (unsigned long)invalid_pte_table);
+ 	return pmd;
  }
 
--__init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
--		unsigned long address)
-+__init_refok pte_t *__pte_alloc_one_kernel(struct mm_struct *mm,
-+		unsigned long address, gfp_t gfp_mask)
- {
- 	pte_t *pte;
- 	if (mem_init_done) {
--		pte = (pte_t *)__get_free_page(GFP_KERNEL |
--					__GFP_REPEAT | __GFP_ZERO);
-+		pte = (pte_t *)__get_free_page(gfp_mask | __GFP_ZERO);
- 	} else {
- 		pte = (pte_t *)early_get_page();
- 		if (pte)
-@@ -254,3 +253,9 @@ __init_refok pte_t *pte_alloc_one_kernel(struct
-mm_struct *mm,
- 	}
- 	return pte;
- }
-+
-+__init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-+		unsigned long address)
++static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
 +{
-+	return __pte_alloc_one_kernel(mm, address, GFP_KERNEL | __GFP_REPEAT);
++	return __pmd_alloc_one(mm, address, GFP_KERNEL | __GFP_REPEAT);
 +}
++
+ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ {
+ 	free_pages((unsigned long)pmd, PMD_ORDER);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
