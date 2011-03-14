@@ -1,79 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 35DE18D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 16:47:57 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 396D48D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 16:48:27 -0400 (EDT)
+Date: Mon, 14 Mar 2011 21:48:21 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 3/5] mm: Implement IO-less balance_dirty_pages()
+Message-ID: <20110314204821.GC4998@quack.suse.cz>
+References: <1299623475-5512-1-git-send-email-jack@suse.cz>
+ <1299623475-5512-4-git-send-email-jack@suse.cz>
+ <20110310000731.GE10346@redhat.com>
 MIME-Version: 1.0
-Message-ID: <63a3434d-dc24-4dd0-9e1b-0169c4a2b219@default>
-Date: Mon, 14 Mar 2011 13:47:45 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [LSF/MM TOPIC] (revised) RAMster: peer-to-peer transcendent memory
- (was: improving in-kernel transcendent memory)
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <20110310000731.GE10346@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@linuxfoundation.org, linux-mm@kvack.org
-Cc: Nitin Gupta <ngupta@vflare.org>, kurt.hackel@oracle.com, chris.mason@oracle.com
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
 
-(NOTE: No virtualization required so even those uninterested
-in virtualization may find this interesting.)
+On Wed 09-03-11 19:07:31, Vivek Goyal wrote:
+> > +static void balance_dirty_pages(struct address_space *mapping,
+> > +				unsigned long write_chunk)
+> > +{
+> > +	struct backing_dev_info *bdi = mapping->backing_dev_info;
+> > +	struct balance_waiter bw;
+> > +	struct dirty_limit_state st;
+> > +	int dirty_exceeded = check_dirty_limits(bdi, &st);
+> > +
+> > +	if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT ||
+> > +	    (dirty_exceeded == DIRTY_MAY_EXCEED_LIMIT &&
+> > +	     !bdi_task_limit_exceeded(&st, current))) {
+> > +		if (bdi->dirty_exceeded &&
+> > +		    dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT)
+> > +			bdi->dirty_exceeded = 0;
+> >  		/*
+> > -		 * Increase the delay for each loop, up to our previous
+> > -		 * default of taking a 100ms nap.
+> > +		 * In laptop mode, we wait until hitting the higher threshold
+> > +		 * before starting background writeout, and then write out all
+> > +		 * the way down to the lower threshold.  So slow writers cause
+> > +		 * minimal disk activity.
+> > +		 *
+> > +		 * In normal mode, we start background writeout at the lower
+> > +		 * background_thresh, to keep the amount of dirty memory low.
+> >  		 */
+> > -		pause <<= 1;
+> > -		if (pause > HZ / 10)
+> > -			pause = HZ / 10;
+> > +		if (!laptop_mode && dirty_exceeded == DIRTY_EXCEED_BACKGROUND)
+> > +			bdi_start_background_writeback(bdi);
+> > +		return;
+> >  	}
+> >  
+> > -	/* Clear dirty_exceeded flag only when no task can exceed the limit */
+> > -	if (!min_dirty_exceeded && bdi->dirty_exceeded)
+> > -		bdi->dirty_exceeded = 0;
+> > +	if (!bdi->dirty_exceeded)
+> > +		bdi->dirty_exceeded = 1;
+> 
+> Will it make sense to move out bdi_task_limit_exceeded() check in a
+> separate if condition statement as follows. May be this is little
+> easier to read.
+> 
+> 	if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT) {
+> 		if (bdi->dirty_exceeded)
+> 			bdi->dirty_exceeded = 0;
+> 
+> 		if (!laptop_mode && dirty_exceeded == DIRTY_EXCEED_BACKGROUND)
+> 			bdi_start_background_writeback(bdi);
+> 
+> 		return;
+> 	}
+> 
+> 	if (dirty_exceeded == DIRTY_MAY_EXCEED_LIMIT &&
+> 	    !bdi_task_limit_exceeded(&st, current))
+> 		return;   
+  But then we have to start background writeback here as well. Which is
+actually a bug in the original patch as well! So clearly your way is more
+readable :) I'll change it. Thanks.
 
-In my original topic proposal here:
-
-http://marc.info/?l=3Dlinux-mm&m=3D129684345708855=20
-
-I concluded with the following teaser:
-
-> I also hope to also be able to describe and possibly demo a
-> brand new in-kernel (non-virtualization) user of transcendent
-> memory (including both cleancache and frontswap) that I think
-> attendees in ALL tracks will find intriguing, but I'm not ready
-> to talk about until closer to LSF/MM workshop.
-
-The code has come along well and I'd like to propose this
-now as a topic.  If other track PC members are interested,
-it can be a general talk; if not, it can be an MM track topic
-or maybe a lightning talk.  (Or if few enough people have interest,
-a hallway track topic or talk-to-myself track :-)
-
-Thanks,
-Dan Magenheimer
-
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-
-RAMSTER: Peer-to-peer Transcendent Memory
-
-Assume you have two or more independent Linux systems connected
-by a high-speed non-coherent interconnect (e.g. 10Gb ethernet).
-It is not uncommon for the memory load in each system to
-vary independently... sometimes system A has high memory
-pressure and sometimes system B has high memory pressure but
-it is exceedingly rare for both (or all) systems to have
-high memory pressure at the same time.  In fact, if you could
-magically and highly dynamically hot-plug chunks of RAM from
-one system to another in response to memory pressure, the
-sum of the RAM across all systems could be used more effectively
-to avoid swapping on any system, or the need for adding RAM to
-some or all of the individual systems.
-
-This is the promise of RAMster, a "peer-to-peer" implementation
-of Transcendent Memory.  Using the hooks already implemented
-in cleancache and frontswap, clean page cache pages and swap
-pages can be transparently moved from a system under memory
-pressure to a system not under memory pressure.  As long as
-the overhead to move a page between systems is significantly
-faster than a read from or write to disk, RAMster is a net win.
-
-The prototype implementation combines zcache (previously known
-as kztmem) with the cluster foundation of ocfs2.  All pages
-are compressed locally in zcache then, when a shrinker asks
-zcache to surrender space, some pages are sent across the wire.
-For "gets", zcache is checked first, and if the page has
-been "remotified", the page is synchronously repatriated from
-across the wire to satisfy the request and locally decompressed.
-
-The prototype is still a proof-of-concept and needs a lot more
-work, but should provoke some interesting discussion.
+									Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
