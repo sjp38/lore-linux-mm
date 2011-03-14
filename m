@@ -1,66 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CF208D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 04:09:06 -0400 (EDT)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id p2E88xSp011487
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 01:08:59 -0700
-Received: from iyf13 (iyf13.prod.google.com [10.241.50.77])
-	by kpbe12.cbf.corp.google.com with ESMTP id p2E88uD8019323
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 01:08:58 -0700
-Received: by iyf13 with SMTP id 13so6086582iyf.0
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 01:08:56 -0700 (PDT)
-Date: Mon, 14 Mar 2011 01:08:47 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] thp+memcg-numa: fix BUG at include/linux/mm.h:370!
-Message-ID: <alpine.LSU.2.00.1103140059510.1661@sister.anvils>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7CA2E8D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 08:28:16 -0400 (EDT)
+Date: Mon, 14 Mar 2011 12:27:46 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: swap: Unlock swapfile inode mutex before closing file on
+ bad swapfiles
+Message-ID: <20110314122746.GA32408@suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-THP's collapse_huge_page() has an understandable but ugly difference
-in when its huge page is allocated: inside if NUMA but outside if not.
-It's hardly surprising that the memcg failure path forgot that, freeing
-the page in the non-NUMA case, then hitting a VM_BUG_ON in get_page()
-(or even worse, using the freed page).
+If an administrator tries to swapon a file backed by NFS, the inode mutex is
+taken (as it is for any swapfile) but later identified to be a bad swapfile
+due to the lack of bmap and tries to cleanup. During cleanup, an attempt is
+made to close the file but with inode->i_mutex still held. Closing an NFS
+file syncs it which tries to acquire the inode mutex leading to deadlock. If
+lockdep is enabled the following appears on the console;
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
+[  120.968832] =============================================
+[  120.972757] [ INFO: possible recursive locking detected ]
+[  120.972757] 2.6.38-rc8-autobuild #1
+[  120.972757] ---------------------------------------------
+[  120.972757] swapon/2192 is trying to acquire lock:
+[  120.972757]  (&sb->s_type->i_mutex_key#13){+.+.+.}, at: [<ffffffff81130652>] vfs_fsync_range+0x47/0x7c
+[  120.972757]
+[  120.972757] but task is already holding lock:
+[  120.972757]  (&sb->s_type->i_mutex_key#13){+.+.+.}, at: [<ffffffff810f9405>] sys_swapon+0x28d/0xae7
+[  120.972757]
+[  120.972757] other info that might help us debug this:
+[  120.972757] 1 lock held by swapon/2192:
+[  120.972757]  #0:  (&sb->s_type->i_mutex_key#13){+.+.+.}, at: [<ffffffff810f9405>] sys_swapon+0x28d/0xae7
+[  120.972757]
+[  120.972757] stack backtrace:
+[  120.972757] Pid: 2192, comm: swapon Not tainted 2.6.38-rc8-autobuild #1
+[  120.972757] Call Trace:
+[  120.972757]  [<ffffffff81075ca8>] ? __lock_acquire+0x2eb/0x1623
+[  120.972757]  [<ffffffff810cd5ad>] ? find_get_pages_tag+0x14a/0x174
+[  120.972757]  [<ffffffff810d6d01>] ? pagevec_lookup_tag+0x25/0x2e
+[  120.972757]  [<ffffffff81130652>] ? vfs_fsync_range+0x47/0x7c
+[  120.972757]  [<ffffffff810770b3>] ? lock_acquire+0xd3/0x100
+[  120.972757]  [<ffffffff81130652>] ? vfs_fsync_range+0x47/0x7c
+[  120.972757]  [<ffffffffa03df8ab>] ? nfs_flush_one+0x0/0xdf [nfs]
+[  120.972757]  [<ffffffff81309cdf>] ? mutex_lock_nested+0x40/0x2b1
+[  120.972757]  [<ffffffff81130652>] ? vfs_fsync_range+0x47/0x7c
+[  120.972757]  [<ffffffff81130652>] ? vfs_fsync_range+0x47/0x7c
+[  120.972757]  [<ffffffff811306e6>] ? vfs_fsync+0x1c/0x1e
+[  120.972757]  [<ffffffffa03d0c87>] ? nfs_file_flush+0x64/0x69 [nfs]
+[  120.972757]  [<ffffffff811097c9>] ? filp_close+0x43/0x72
+[  120.972757]  [<ffffffff810f9bb1>] ? sys_swapon+0xa39/0xae7
+[  120.972757]  [<ffffffff81002b7a>] ? sysret_check+0x2e/0x69
+[  120.972757]  [<ffffffff81002b42>] ? system_call_fastpath+0x16/0x1b
+
+This patch releases the mutex if its held before calling filep_close()
+so swapon fails as expected without deadlock when the swapfile is backed
+by NFS.  If accepted for 2.6.39, it should also be considered a -stable
+candidate for 2.6.38 and 2.6.37.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
+ mm/swapfile.c |    7 ++++++-
+ 1 files changed, 6 insertions(+), 1 deletions(-)
 
- mm/huge_memory.c |    6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
-
---- 2.6.38-rc8/mm/huge_memory.c	2011-03-08 09:27:16.000000000 -0800
-+++ linux/mm/huge_memory.c	2011-03-13 18:26:21.000000000 -0700
-@@ -1762,6 +1762,10 @@ static void collapse_huge_page(struct mm
- #ifndef CONFIG_NUMA
- 	VM_BUG_ON(!*hpage);
- 	new_page = *hpage;
-+	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
-+		up_read(&mm->mmap_sem);
-+		return;
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 0341c57..6d6d28c 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -2149,8 +2149,13 @@ bad_swap_2:
+ 	p->flags = 0;
+ 	spin_unlock(&swap_lock);
+ 	vfree(swap_map);
+-	if (swap_file)
++	if (swap_file) {
++		if (did_down) {
++			mutex_unlock(&inode->i_mutex);
++			did_down = 0;
++		}
+ 		filp_close(swap_file, NULL);
 +	}
- #else
- 	VM_BUG_ON(*hpage);
- 	/*
-@@ -1781,12 +1785,12 @@ static void collapse_huge_page(struct mm
- 		*hpage = ERR_PTR(-ENOMEM);
- 		return;
- 	}
--#endif
- 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
- 		up_read(&mm->mmap_sem);
- 		put_page(new_page);
- 		return;
- 	}
-+#endif
- 
- 	/* after allocating the hugepage upgrade to mmap_sem write mode */
- 	up_read(&mm->mmap_sem);
+ out:
+ 	if (page && !IS_ERR(page)) {
+ 		kunmap(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
