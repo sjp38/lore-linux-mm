@@ -1,24 +1,24 @@
 From: Prasad Joshi <prasadjoshi124@gmail.com>
-Subject: [RFC][PATCH v2 06/23] (ia64) __vmalloc: add gfp flags variant of pte,
- pmd and pud allocation
-Date: Mon, 14 Mar 2011 17:37:36 +0000
-Message-ID: <AANLkTi=6TB3FAb25cdaJUdTMsNMNp7ACAhgW6YVCv6ew__16927.0470658832$1300124268$gmane$org@mail.gmail.com>
+Subject: [RFC][PATCH v2 07/23] (m32r) __vmalloc: add gfp flags variant of pte
+ and pmd allocation
+Date: Mon, 14 Mar 2011 17:39:54 +0000
+Message-ID: <AANLkTi=N6mnsHr-Cci3SOxYf=aNvPD-aEfLkQpU5-6+z__1107.1645225913$1300124455$gmane$org@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1PzBi8-0002DG-J4
-	for glkm-linux-mm-2@m.gmane.org; Mon, 14 Mar 2011 18:37:40 +0100
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id CD97D8D003B
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:37:38 -0400 (EDT)
-Received: by qyk30 with SMTP id 30so5091180qyk.14
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:37:36 -0700 (PDT)
+	id 1PzBl4-0003gk-Jj
+	for glkm-linux-mm-2@m.gmane.org; Mon, 14 Mar 2011 18:40:42 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C37D8D003B
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:40:40 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so1996887qwa.14
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:39:55 -0700 (PDT)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, linux-ia64@vger.kernel.org, Prasad Joshi <prasadjoshi124@gmail.com>, Anand Mitra <mitra@kqinfotech.com>, Andrew
+To: Hirokazu Takata <takata@linux-m32r.org>, linux-m32r@ml.linux-m32r.org, linux-m32r-ja@ml.linux-m32r.org, Prasad Joshi <prasadjoshi124@gmail.com>, Anand Mitra <mitra@kqinfotech.com>A
 
 __vmalloc: propagating GFP allocation flag.
 
@@ -30,68 +30,43 @@ Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
 Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
 ---
 Chnagelog:
-arch/ia64/include/asm/pgalloc.h |   24 +++++++++++++++++++++---
-1 files changed, 21 insertions(+), 3 deletions(-)
+arch/m32r/include/asm/pgalloc.h |   11 ++++++++---
+1 files changed, 8 insertions(+), 3 deletions(-)
 ---
-diff --git a/arch/ia64/include/asm/pgalloc.h b/arch/ia64/include/asm/pgalloc.h
-index 96a8d92..0e46e47 100644
---- a/arch/ia64/include/asm/pgalloc.h
-+++ b/arch/ia64/include/asm/pgalloc.h
-@@ -39,9 +39,15 @@ pgd_populate(struct mm_struct *mm, pgd_t *
-pgd_entry, pud_t * pud)
- 	pgd_val(*pgd_entry) = __pa(pud);
+diff --git a/arch/m32r/include/asm/pgalloc.h b/arch/m32r/include/asm/pgalloc.h
+index 0fc7361..0c1e4ae 100644
+--- a/arch/m32r/include/asm/pgalloc.h
++++ b/arch/m32r/include/asm/pgalloc.h
+@@ -30,12 +30,16 @@ static inline void pgd_free(struct mm_struct *mm,
+pgd_t *pgd)
+ 	free_page((unsigned long)pgd);
  }
 
-+static inline pud_t *
-+__pud_alloc_one(struct mm_struct *mm, unsigned long addr, gfp_t gfp_mask)
++static __inline__ pte_t *__pte_alloc_one_kernel(struct mm_struct *mm,
++	unsigned long address, gfp_t gfp_mask)
 +{
-+	return quicklist_alloc(0, gfp_mask, NULL);
++	return (pte_t *)__get_free_page(gfp_mask | __GFP_ZERO);
 +}
 +
- static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+ static __inline__ pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 	unsigned long address)
  {
--	return quicklist_alloc(0, GFP_KERNEL, NULL);
-+	return __pud_alloc_one(mm, addr, GFP_KERNEL);
+-	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
+-
+-	return pte;
++	return __pte_alloc_one_kernel(mm, address, GFP_KERNEL);
  }
 
- static inline void pud_free(struct mm_struct *mm, pud_t *pud)
-@@ -57,9 +63,15 @@ pud_populate(struct mm_struct *mm, pud_t *
-pud_entry, pmd_t * pmd)
- 	pud_val(*pud_entry) = __pa(pmd);
- }
+ static __inline__ pgtable_t pte_alloc_one(struct mm_struct *mm,
+@@ -66,6 +70,7 @@ static inline void pte_free(struct mm_struct *mm,
+pgtable_t pte)
+  * (In the PAE case we free the pmds as part of the pgd.)
+  */
 
-+static inline pmd_t *
-+__pmd_alloc_one(struct mm_struct *mm, unsigned long addr, gfp_t gfp_mask)
-+{
-+	return quicklist_alloc(0, gfp_mask, NULL);
-+}
-+
- static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
- {
--	return quicklist_alloc(0, GFP_KERNEL, NULL);
-+	return __pmd_alloc_one(mm, addr, GFP_KERNEL);
- }
-
- static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
-@@ -95,10 +107,16 @@ static inline pgtable_t pte_alloc_one(struct
-mm_struct *mm, unsigned long addr)
- 	return page;
- }
-
-+static inline pte_t *__pte_alloc_one_kernel(struct mm_struct *mm,
-+					  unsigned long addr, gfp_t gfp_mask)
-+{
-+	return quicklist_alloc(0, gfp_mask, NULL);
-+}
-+
- static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
- 					  unsigned long addr)
- {
--	return quicklist_alloc(0, GFP_KERNEL, NULL);
-+	return __pte_alloc_one_kernel(mm, addr, GFP_KERNEL);
- }
-
- static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
++#define __pmd_alloc_one(mm, addr,mask)		({ BUG(); ((pmd_t *)2); })
+ #define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
+ #define pmd_free(mm, x)			do { } while (0)
+ #define __pmd_free_tlb(tlb, x, addr)	do { } while (0)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
