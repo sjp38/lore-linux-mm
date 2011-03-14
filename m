@@ -1,88 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 396D48D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 16:48:27 -0400 (EDT)
-Date: Mon, 14 Mar 2011 21:48:21 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 3/5] mm: Implement IO-less balance_dirty_pages()
-Message-ID: <20110314204821.GC4998@quack.suse.cz>
-References: <1299623475-5512-1-git-send-email-jack@suse.cz>
- <1299623475-5512-4-git-send-email-jack@suse.cz>
- <20110310000731.GE10346@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id B479B8D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 16:50:19 -0400 (EDT)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id p2EKoHUK012919
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:50:17 -0700
+Received: from pzk5 (pzk5.prod.google.com [10.243.19.133])
+	by hpaq2.eem.corp.google.com with ESMTP id p2EKoEHZ006930
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:50:15 -0700
+Received: by pzk5 with SMTP id 5so800841pzk.8
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:50:13 -0700 (PDT)
+Date: Mon, 14 Mar 2011 13:50:11 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2/3 for 2.6.38] oom: select_bad_process: ignore TIF_MEMDIE
+ zombies
+In-Reply-To: <20110314190508.GC21845@redhat.com>
+Message-ID: <alpine.DEB.2.00.1103141344460.31514@chino.kir.corp.google.com>
+References: <20110303100030.B936.A69D9226@jp.fujitsu.com> <20110308134233.GA26884@redhat.com> <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com> <20110309151946.dea51cde.akpm@linux-foundation.org> <alpine.DEB.2.00.1103111142260.30699@chino.kir.corp.google.com>
+ <20110312123413.GA18351@redhat.com> <20110312134341.GA27275@redhat.com> <AANLkTinHGSb2_jfkwx=Wjv96phzPCjBROfCTFCKi4Wey@mail.gmail.com> <20110313212726.GA24530@redhat.com> <20110314190419.GA21845@redhat.com> <20110314190508.GC21845@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110310000731.GE10346@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>, Frantisek Hrbata <fhrbata@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 09-03-11 19:07:31, Vivek Goyal wrote:
-> > +static void balance_dirty_pages(struct address_space *mapping,
-> > +				unsigned long write_chunk)
-> > +{
-> > +	struct backing_dev_info *bdi = mapping->backing_dev_info;
-> > +	struct balance_waiter bw;
-> > +	struct dirty_limit_state st;
-> > +	int dirty_exceeded = check_dirty_limits(bdi, &st);
-> > +
-> > +	if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT ||
-> > +	    (dirty_exceeded == DIRTY_MAY_EXCEED_LIMIT &&
-> > +	     !bdi_task_limit_exceeded(&st, current))) {
-> > +		if (bdi->dirty_exceeded &&
-> > +		    dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT)
-> > +			bdi->dirty_exceeded = 0;
-> >  		/*
-> > -		 * Increase the delay for each loop, up to our previous
-> > -		 * default of taking a 100ms nap.
-> > +		 * In laptop mode, we wait until hitting the higher threshold
-> > +		 * before starting background writeout, and then write out all
-> > +		 * the way down to the lower threshold.  So slow writers cause
-> > +		 * minimal disk activity.
-> > +		 *
-> > +		 * In normal mode, we start background writeout at the lower
-> > +		 * background_thresh, to keep the amount of dirty memory low.
-> >  		 */
-> > -		pause <<= 1;
-> > -		if (pause > HZ / 10)
-> > -			pause = HZ / 10;
-> > +		if (!laptop_mode && dirty_exceeded == DIRTY_EXCEED_BACKGROUND)
-> > +			bdi_start_background_writeback(bdi);
-> > +		return;
-> >  	}
-> >  
-> > -	/* Clear dirty_exceeded flag only when no task can exceed the limit */
-> > -	if (!min_dirty_exceeded && bdi->dirty_exceeded)
-> > -		bdi->dirty_exceeded = 0;
-> > +	if (!bdi->dirty_exceeded)
-> > +		bdi->dirty_exceeded = 1;
-> 
-> Will it make sense to move out bdi_task_limit_exceeded() check in a
-> separate if condition statement as follows. May be this is little
-> easier to read.
-> 
-> 	if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT) {
-> 		if (bdi->dirty_exceeded)
-> 			bdi->dirty_exceeded = 0;
-> 
-> 		if (!laptop_mode && dirty_exceeded == DIRTY_EXCEED_BACKGROUND)
-> 			bdi_start_background_writeback(bdi);
-> 
-> 		return;
-> 	}
-> 
-> 	if (dirty_exceeded == DIRTY_MAY_EXCEED_LIMIT &&
-> 	    !bdi_task_limit_exceeded(&st, current))
-> 		return;   
-  But then we have to start background writeback here as well. Which is
-actually a bug in the original patch as well! So clearly your way is more
-readable :) I'll change it. Thanks.
+On Mon, 14 Mar 2011, Oleg Nesterov wrote:
 
-									Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+> select_bad_process() assumes that a TIF_MEMDIE process should go away.
+> But it can only go away it its parent does wait(). Change this check to
+> ignore the TIF_MEMDIE zombies.
+> 
+
+The equivalent of this change would be to set TIF_MEMDIE for all threads 
+in a thread group when choosing a process to kill; as we've already 
+discussed in your first series of patches, that has the risk of fully 
+depleting memory reserves and causing the kernel the deadlock.  We want to 
+limit TIF_MEMDIE to an oom killed task or to current when it is responding 
+to a SIGKILL or already in the exit path because we know it's exiting and 
+without memory reserves it may never exit.
+
+This patch is even more concerning, however, because select_bad_process() 
+isn't even guaranteed to select a thread from the same thread group this 
+time.
+
+> Note: this is _not_ enough. Just a minimal fix.
+> 
+> Signed-off-by: Oleg Nesterov <oleg@redhat.com>
+> ---
+> 
+>  mm/oom_kill.c |    3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> --- 38/mm/oom_kill.c~2_tif_memdie_zombie	2011-03-14 18:51:49.000000000 +0100
+> +++ 38/mm/oom_kill.c	2011-03-14 18:52:39.000000000 +0100
+> @@ -311,7 +311,8 @@ static struct task_struct *select_bad_pr
+>  		 * blocked waiting for another task which itself is waiting
+>  		 * for memory. Is there a better alternative?
+>  		 */
+> -		if (test_tsk_thread_flag(p, TIF_MEMDIE))
+> +		if (test_tsk_thread_flag(p, TIF_MEMDIE) &&
+> +		    !p->exit_state && thread_group_empty(p))
+>  			return ERR_PTR(-1UL);
+>  
+>  		/*
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
