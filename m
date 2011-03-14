@@ -1,68 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B55188D003B
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:36:47 -0400 (EDT)
-Received: from mail-gw0-f41.google.com (mail-gw0-f41.google.com [74.125.83.41])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p2EHajEH000607
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:36:45 -0700
-Received: by gwaa12 with SMTP id a12so2547077gwa.14
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:36:44 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id CD97D8D003B
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:37:38 -0400 (EDT)
+Received: by qyk30 with SMTP id 30so5091180qyk.14
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:37:36 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110314165922.GE10696@random.random>
-References: <alpine.LSU.2.00.1103140059510.1661@sister.anvils>
- <20110314155232.GB10696@random.random> <alpine.LSU.2.00.1103140910570.2601@sister.anvils>
- <20110314165922.GE10696@random.random>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 14 Mar 2011 10:30:11 -0700
-Message-ID: <AANLkTikWh5tFUZuALYRP3Dx2Zcs33u0UVdjf4d_7KhPJ@mail.gmail.com>
-Subject: Re: [PATCH] mm: PageBuddy and mapcount underflows robustness
+Date: Mon, 14 Mar 2011 17:37:36 +0000
+Message-ID: <AANLkTi=6TB3FAb25cdaJUdTMsNMNp7ACAhgW6YVCv6ew@mail.gmail.com>
+Subject: [RFC][PATCH v2 06/23] (ia64) __vmalloc: add gfp flags variant of pte,
+ pmd and pud allocation
+From: Prasad Joshi <prasadjoshi124@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, linux-ia64@vger.kernel.org, Prasad Joshi <prasadjoshi124@gmail.com>, Anand Mitra <mitra@kqinfotech.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-On Mon, Mar 14, 2011 at 9:59 AM, Andrea Arcangeli <aarcange@redhat.com> wro=
-te:
->
-> +#define PAGE_BUDDY_MAPCOUNT_VALUE (-1024*1024)
+__vmalloc: propagating GFP allocation flag.
 
-I realize that this is a nitpick, but from a code generation
-standpoint, large random constants like these are just nasty.
+- adds functions to allow caller to pass the GFP flag for memory allocation
+- helps in fixing the Bug 30702 (__vmalloc(GFP_NOFS) can callback
+		  file system evict_inode).
 
-I would suggest aiming for constants that are easy to generate and/or
-fit better in the code stream. In many encoding schemes (eg x86), -128
-is much easier to generate, since it fits in a signed byte and allows
-small instructions etc. And in most RISC encodings, 8- or 16-bit
-constants can be encoded much more easily than something like your
-current one, and bigger ones often end up resulting in a load from
-memory or at least several immediate-building instructions.
+Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
+Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
+---
+Chnagelog:
+arch/ia64/include/asm/pgalloc.h |   24 +++++++++++++++++++++---
+1 files changed, 21 insertions(+), 3 deletions(-)
+---
+diff --git a/arch/ia64/include/asm/pgalloc.h b/arch/ia64/include/asm/pgalloc.h
+index 96a8d92..0e46e47 100644
+--- a/arch/ia64/include/asm/pgalloc.h
++++ b/arch/ia64/include/asm/pgalloc.h
+@@ -39,9 +39,15 @@ pgd_populate(struct mm_struct *mm, pgd_t *
+pgd_entry, pud_t * pud)
+ 	pgd_val(*pgd_entry) = __pa(pud);
+ }
 
-> - =A0 =A0 =A0 __ClearPageBuddy(page);
-> + =A0 =A0 =A0 if (PageBuddy(page)) /* __ClearPageBuddy VM_BUG_ON(!PageBud=
-dy(page)) */
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __ClearPageBuddy(page);
++static inline pud_t *
++__pud_alloc_one(struct mm_struct *mm, unsigned long addr, gfp_t gfp_mask)
++{
++	return quicklist_alloc(0, gfp_mask, NULL);
++}
++
+ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+-	return quicklist_alloc(0, GFP_KERNEL, NULL);
++	return __pud_alloc_one(mm, addr, GFP_KERNEL);
+ }
 
-Also, this is just disgusting. It adds no safety here to have that
-VM_BUG_ON(), so it's just unnecessary code generation to do this.
-Also, we don't even WANT to do that stupid "__ClearPageBuddy()" in the
-first place! What those two code-sites actually want are just a simple
+ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
+@@ -57,9 +63,15 @@ pud_populate(struct mm_struct *mm, pud_t *
+pud_entry, pmd_t * pmd)
+ 	pud_val(*pud_entry) = __pa(pmd);
+ }
 
-    reset_page_mapcount(page);
++static inline pmd_t *
++__pmd_alloc_one(struct mm_struct *mm, unsigned long addr, gfp_t gfp_mask)
++{
++	return quicklist_alloc(0, gfp_mask, NULL);
++}
++
+ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+-	return quicklist_alloc(0, GFP_KERNEL, NULL);
++	return __pmd_alloc_one(mm, addr, GFP_KERNEL);
+ }
 
-which does the right thing in _general_, and not just for the buddy
-case - we want to reset the mapcount for other reasons than just
-pagebuddy (ie the underflow/overflow case).
+ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+@@ -95,10 +107,16 @@ static inline pgtable_t pte_alloc_one(struct
+mm_struct *mm, unsigned long addr)
+ 	return page;
+ }
 
-And it avoids the VM_BUG_ON() too, making the crazy conditionals be not nee=
-ded.
++static inline pte_t *__pte_alloc_one_kernel(struct mm_struct *mm,
++					  unsigned long addr, gfp_t gfp_mask)
++{
++	return quicklist_alloc(0, gfp_mask, NULL);
++}
++
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 					  unsigned long addr)
+ {
+-	return quicklist_alloc(0, GFP_KERNEL, NULL);
++	return __pte_alloc_one_kernel(mm, addr, GFP_KERNEL);
+ }
 
-No?
-
-                        Linus
+ static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
