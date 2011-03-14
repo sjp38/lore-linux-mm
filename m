@@ -1,188 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D39DC8D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:54:30 -0400 (EDT)
-Date: Mon, 14 Mar 2011 13:54:08 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH v6 8/9] memcg: check memcg dirty limits in page writeback
-Message-ID: <20110314175408.GE31120@redhat.com>
-References: <1299869011-26152-1-git-send-email-gthelen@google.com>
- <1299869011-26152-9-git-send-email-gthelen@google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D6A38D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:56:43 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so2013403qwa.14
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:56:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1299869011-26152-9-git-send-email-gthelen@google.com>
+Date: Mon, 14 Mar 2011 17:56:06 +0000
+Message-ID: <AANLkTim4kvRSxrfkQdhq2H5TQRs=9XPxCd_6EzAo1h-b@mail.gmail.com>
+Subject: [RFC][PATCH v2 14/23] (s390) __vmalloc: add gfp flags variant of pte,
+ pmd, and pud allocation
+From: Prasad Joshi <prasadjoshi124@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Jan Kara <jack@suse.cz>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, linux-s390@vger.kernel.org, Prasad Joshi <prasadjoshi124@gmail.com>, Anand Mitra <mitra@kqinfotech.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-On Fri, Mar 11, 2011 at 10:43:30AM -0800, Greg Thelen wrote:
-> If the current process is in a non-root memcg, then
-> balance_dirty_pages() will consider the memcg dirty limits as well as
-> the system-wide limits.  This allows different cgroups to have distinct
-> dirty limits which trigger direct and background writeback at different
-> levels.
-> 
-> If called with a mem_cgroup, then throttle_vm_writeout() queries the
-> given cgroup for its dirty memory usage limits.
-> 
-> Signed-off-by: Andrea Righi <arighi@develer.com>
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Acked-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
-> Changelog since v5:
-> - Simplified this change by using mem_cgroup_balance_dirty_pages() rather than
->   cramming the somewhat different logic into balance_dirty_pages().  This means
->   the global (non-memcg) dirty limits are not passed around in the
->   struct dirty_info, so there's less change to existing code.
+__vmalloc: propagating GFP allocation flag.
 
-Yes there is less change to existing code but now we also have a separate
-throttlig logic for cgroups. 
+- adds functions to allow caller to pass the GFP flag for memory allocation
+- helps in fixing the Bug 30702 (__vmalloc(GFP_NOFS) can callback
+		  file system evict_inode).
 
-I thought that we are moving in the direction of IO less throttling
-where bdi threads always do the IO and Jan Kara also implemented the
-logic to distribute the finished IO pages uniformly across the waiting
-threads.
+Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
+Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
+---
+Chnagelog:
+arch/s390/include/asm/pgalloc.h |   30 +++++++++++++++++++++++++-----
+arch/s390/mm/pgtable.c          |   22 +++++++++++++++++-----
+2 files changed, 42 insertions(+), 10 deletions(-)
+---
+diff --git a/arch/s390/include/asm/pgalloc.h b/arch/s390/include/asm/pgalloc.h
+index 082eb4e..459e89a 100644
+--- a/arch/s390/include/asm/pgalloc.h
++++ b/arch/s390/include/asm/pgalloc.h
+@@ -20,10 +20,12 @@
+ #define check_pgt_cache()	do {} while (0)
 
-Keeping it separate for cgroups, reduces the complexity but also forks
-off the balancing logic for root and other cgroups. So if Jan Kara's
-changes go in, it automatically does not get used for memory cgroups.
+ unsigned long *crst_table_alloc(struct mm_struct *, int);
++unsigned long * __crst_table_alloc(struct mm_struct *, int , gfp_t);
+ void crst_table_free(struct mm_struct *, unsigned long *);
+ void crst_table_free_rcu(struct mm_struct *, unsigned long *);
 
-Not sure how good a idea it is to use a separate throttling logic for
-for non-root cgroups. 
+ unsigned long *page_table_alloc(struct mm_struct *);
++unsigned long *__page_table_alloc(struct mm_struct *, gfp_t);
+ void page_table_free(struct mm_struct *, unsigned long *);
+ void page_table_free_rcu(struct mm_struct *, unsigned long *);
+ void disable_noexec(struct mm_struct *, struct task_struct *);
+@@ -62,9 +64,11 @@ static inline unsigned long pgd_entry_type(struct
+mm_struct *mm)
+ 	return _SEGMENT_ENTRY_EMPTY;
+ }
 
-Thanks
-Vivek 
++#define __pud_alloc_one(mm,address,mask)		({ BUG(); ((pud_t *)2); })
+ #define pud_alloc_one(mm,address)		({ BUG(); ((pud_t *)2); })
+ #define pud_free(mm, x)				do { } while (0)
 
-> 
-> Changelog since v4:
-> - Added missing 'struct mem_cgroup' forward declaration in writeback.h.
-> - Made throttle_vm_writeout() memcg aware.
-> - Removed previously added dirty_writeback_pages() which is no longer needed.
-> - Added logic to balance_dirty_pages() to throttle if over foreground memcg
->   limit.
-> 
-> Changelog since v3:
-> - Leave determine_dirtyable_memory() static.  v3 made is non-static.
-> - balance_dirty_pages() now considers both system and memcg dirty limits and
->   usage data.  This data is retrieved with global_dirty_info() and
->   memcg_dirty_info().  
-> 
->  include/linux/writeback.h |    3 ++-
->  mm/page-writeback.c       |   34 ++++++++++++++++++++++++++++------
->  mm/vmscan.c               |    2 +-
->  3 files changed, 31 insertions(+), 8 deletions(-)
-> 
-> diff --git a/include/linux/writeback.h b/include/linux/writeback.h
-> index 0ead399..a45d895 100644
-> --- a/include/linux/writeback.h
-> +++ b/include/linux/writeback.h
-> @@ -8,6 +8,7 @@
->  #include <linux/fs.h>
->  
->  struct backing_dev_info;
-> +struct mem_cgroup;
->  
->  extern spinlock_t inode_lock;
->  
-> @@ -92,7 +93,7 @@ void laptop_mode_timer_fn(unsigned long data);
->  #else
->  static inline void laptop_sync_completion(void) { }
->  #endif
-> -void throttle_vm_writeout(gfp_t gfp_mask);
-> +void throttle_vm_writeout(gfp_t gfp_mask, struct mem_cgroup *mem_cgroup);
->  
->  /* These are exported to sysctl. */
->  extern int dirty_background_ratio;
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index d8005b0..f6a8dd6 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -473,7 +473,8 @@ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
->   * data.  It looks at the number of dirty pages in the machine and will force
->   * the caller to perform writeback if the system is over `vm_dirty_ratio'.
->   * If we're over `background_thresh' then the writeback threads are woken to
-> - * perform some writeout.
-> + * perform some writeout.  The current task may have per-memcg dirty
-> + * limits, which are also checked.
->   */
->  static void balance_dirty_pages(struct address_space *mapping,
->  				unsigned long write_chunk)
-> @@ -488,6 +489,8 @@ static void balance_dirty_pages(struct address_space *mapping,
->  	bool dirty_exceeded = false;
->  	struct backing_dev_info *bdi = mapping->backing_dev_info;
->  
-> +	mem_cgroup_balance_dirty_pages(mapping, write_chunk);
-> +
- 
->  	for (;;) {
->  		struct writeback_control wbc = {
->  			.sync_mode	= WB_SYNC_NONE,
-> @@ -651,23 +654,42 @@ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
->  }
->  EXPORT_SYMBOL(balance_dirty_pages_ratelimited_nr);
->  
-> -void throttle_vm_writeout(gfp_t gfp_mask)
-> +/*
-> + * Throttle the current task if it is near dirty memory usage limits.  Both
-> + * global dirty memory limits and (if @mem_cgroup is given) per-cgroup dirty
-> + * memory limits are checked.
-> + *
-> + * If near limits, then wait for usage to drop.  Dirty usage should drop because
-> + * dirty producers should have used balance_dirty_pages(), which would have
-> + * scheduled writeback.
-> + */
-> +void throttle_vm_writeout(gfp_t gfp_mask, struct mem_cgroup *mem_cgroup)
->  {
->  	unsigned long background_thresh;
->  	unsigned long dirty_thresh;
-> +	struct dirty_info memcg_info;
-> +	bool do_memcg;
->  
->          for ( ; ; ) {
->  		global_dirty_limits(&background_thresh, &dirty_thresh);
-> +		do_memcg = mem_cgroup && mem_cgroup_hierarchical_dirty_info(
-> +			determine_dirtyable_memory(), true, mem_cgroup,
-> +			&memcg_info);
->  
->                  /*
->                   * Boost the allowable dirty threshold a bit for page
->                   * allocators so they don't get DoS'ed by heavy writers
->                   */
->                  dirty_thresh += dirty_thresh / 10;      /* wheeee... */
-> -
-> -                if (global_page_state(NR_UNSTABLE_NFS) +
-> -			global_page_state(NR_WRITEBACK) <= dirty_thresh)
-> -                        	break;
-> +		if (do_memcg)
-> +			memcg_info.dirty_thresh += memcg_info.dirty_thresh / 10;
-> +
-> +		if ((global_page_state(NR_UNSTABLE_NFS) +
-> +		     global_page_state(NR_WRITEBACK) <= dirty_thresh) &&
-> +		    (!do_memcg ||
-> +		     (memcg_info.nr_unstable_nfs +
-> +		      memcg_info.nr_writeback <= memcg_info.dirty_thresh)))
-> +			break;
->                  congestion_wait(BLK_RW_ASYNC, HZ/10);
->  
->  		/*
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 060e4c1..035d2ea 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1939,7 +1939,7 @@ restart:
->  					sc->nr_scanned - nr_scanned, sc))
->  		goto restart;
->  
-> -	throttle_vm_writeout(sc->gfp_mask);
-> +	throttle_vm_writeout(sc->gfp_mask, sc->mem_cgroup);
->  }
->  
->  /*
-> -- 
-> 1.7.3.1
++#define __pmd_alloc_one(mm,address,mask)		({ BUG(); ((pmd_t *)2); })
+ #define pmd_alloc_one(mm,address)		({ BUG(); ((pmd_t *)2); })
+ #define pmd_free(mm, x)				do { } while (0)
+
+@@ -88,22 +92,34 @@ static inline unsigned long pgd_entry_type(struct
+mm_struct *mm)
+ int crst_table_upgrade(struct mm_struct *, unsigned long limit);
+ void crst_table_downgrade(struct mm_struct *, unsigned long limit);
+
+-static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
++static inline pud_t *
++__pud_alloc_one(struct mm_struct *mm, unsigned long address, gfp_t gfp_mask)
+ {
+-	unsigned long *table = crst_table_alloc(mm, mm->context.noexec);
++	unsigned long *table = __crst_table_alloc(mm, mm->context.noexec, gfp_mask);
+ 	if (table)
+ 		crst_table_init(table, _REGION3_ENTRY_EMPTY);
+ 	return (pud_t *) table;
+ }
++
++static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
++{
++	return __pud_alloc_one(mm, address, GFP_KERNEL);
++}
+ #define pud_free(mm, pud) crst_table_free(mm, (unsigned long *) pud)
+
+-static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
++static inline pmd_t *
++__pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr, gfp_t gfp_mask)
+ {
+-	unsigned long *table = crst_table_alloc(mm, mm->context.noexec);
++	unsigned long *table = __crst_table_alloc(mm, mm->context.noexec, gfp_mask);
+ 	if (table)
+ 		crst_table_init(table, _SEGMENT_ENTRY_EMPTY);
+ 	return (pmd_t *) table;
+ }
++
++static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
++{
++	return __pmd_alloc_one(mm, vmaddr, GFP_KERNEL);
++}
+ #define pmd_free(mm, pmd) crst_table_free(mm, (unsigned long *) pmd)
+
+ static inline void pgd_populate_kernel(struct mm_struct *mm,
+@@ -172,7 +188,11 @@ static inline void pmd_populate(struct mm_struct *mm,
+ /*
+  * page table entry allocation/free routines.
+  */
+-#define pte_alloc_one_kernel(mm, vmaddr) ((pte_t *) page_table_alloc(mm))
++#define __pte_alloc_one_kernel(mm, vmaddr, mask) \
++	((pte_t *) __page_table_alloc((mm), (mask)))
++#define pte_alloc_one_kernel(mm, vmaddr) \
++	((pte_t *) __pte_alloc_one_kernel((mm), (vmaddr), GFP_KERNEL|__GFP_REPEAT)
++
+ #define pte_alloc_one(mm, vmaddr) ((pte_t *) page_table_alloc(mm))
+
+ #define pte_free_kernel(mm, pte) page_table_free(mm, (unsigned long *) pte)
+diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
+index e1850c2..624854a 100644
+--- a/arch/s390/mm/pgtable.c
++++ b/arch/s390/mm/pgtable.c
+@@ -125,15 +125,16 @@ static int __init parse_vmalloc(char *arg)
+ }
+ early_param("vmalloc", parse_vmalloc);
+
+-unsigned long *crst_table_alloc(struct mm_struct *mm, int noexec)
++unsigned long *
++__crst_table_alloc(struct mm_struct *mm, int noexec, gfp_t gfp_mask)
+ {
+-	struct page *page = alloc_pages(GFP_KERNEL, ALLOC_ORDER);
++	struct page *page = alloc_pages(gfp_mask, ALLOC_ORDER);
+
+ 	if (!page)
+ 		return NULL;
+ 	page->index = 0;
+ 	if (noexec) {
+-		struct page *shadow = alloc_pages(GFP_KERNEL, ALLOC_ORDER);
++		struct page *shadow = alloc_pages(gfp_mask, ALLOC_ORDER);
+ 		if (!shadow) {
+ 			__free_pages(page, ALLOC_ORDER);
+ 			return NULL;
+@@ -146,6 +147,11 @@ unsigned long *crst_table_alloc(struct mm_struct
+*mm, int noexec)
+ 	return (unsigned long *) page_to_phys(page);
+ }
+
++unsigned long *crst_table_alloc(struct mm_struct *mm, int noexec)
++{
++	return __crst_table_alloc(mm, noexec, GFP_KERNEL);
++}
++
+ static void __crst_table_free(struct mm_struct *mm, unsigned long *table)
+ {
+ 	unsigned long *shadow = get_shadow_table(table);
+@@ -267,7 +273,7 @@ void crst_table_downgrade(struct mm_struct *mm,
+unsigned long limit)
+ /*
+  * page table entry allocation/free routines.
+  */
+-unsigned long *page_table_alloc(struct mm_struct *mm)
++unsigned long *__page_table_alloc(struct mm_struct *mm, gfp_t gfp_mask)
+ {
+ 	struct page *page;
+ 	unsigned long *table;
+@@ -284,7 +290,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
+ 	}
+ 	if (!page) {
+ 		spin_unlock_bh(&mm->context.list_lock);
+-		page = alloc_page(GFP_KERNEL|__GFP_REPEAT);
++		page = alloc_page(gfp_mask);
+ 		if (!page)
+ 			return NULL;
+ 		pgtable_page_ctor(page);
+@@ -309,6 +315,12 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
+ 	return table;
+ }
+
++
++unsigned long *page_table_alloc(struct mm_struct *mm)
++{
++	return __page_table_alloc(mm, GFP_KERNEL | __GFP_REPEAT);
++}
++
+ static void __page_table_free(struct mm_struct *mm, unsigned long *table)
+ {
+ 	struct page *page;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
