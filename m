@@ -1,7 +1,7 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 406F88D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 14:21:41 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id B00998D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 14:22:45 -0400 (EDT)
 Subject: Re: [PATCH v2 2.6.38-rc8-tip 3/20]  3: uprobes: Breakground page
  replacement.
 From: Steven Rostedt <rostedt@goodmis.org>
@@ -11,8 +11,8 @@ References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
 	 <1300117137.9910.110.camel@gandalf.stny.rr.com>
 	 <20110314172439.GO24254@linux.vnet.ibm.com>
 Content-Type: text/plain; charset="ISO-8859-15"
-Date: Mon, 14 Mar 2011 14:21:35 -0400
-Message-ID: <1300126895.9910.127.camel@gandalf.stny.rr.com>
+Date: Mon, 14 Mar 2011 14:22:42 -0400
+Message-ID: <1300126962.9910.128.camel@gandalf.stny.rr.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -22,18 +22,18 @@ Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Linux-mm
 
 On Mon, 2011-03-14 at 22:54 +0530, Srikar Dronamraju wrote:
 > > 
-> > I'm also curious to why we can't modify text code that is also mapped as
-> > read/write.
-> > 
+> > I'm confused by the above comment and code. You state we are only
+> > interested text pages mapped read-only, but then if the page is mapped
+> > read/exec we exit out? It is fine if it is anything but READ/EXEC.
 > 
-> If text code is mapped read/write then on memory pressure the page gets
-> written to the disk. Hence breakpoints inserted may end up being in the
-> disk copy modifying the actual copy.
+> You are right, it should have been
+>         if ((vma->vm_flags & (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)) !=
+>                                         (VM_READ|VM_EXEC))
+>                 goto put_out;
 > 
 > 
-OK, could you put a comment about that too.
-
-Thanks,
+Golden rule #12: When the comments do not match the code, they probably
+are both wrong ;)
 
 -- Steve
 
