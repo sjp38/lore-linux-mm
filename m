@@ -1,213 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 13E238D003E
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:16:40 -0400 (EDT)
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 1/20]  1: mm: Move replace_page() to
- mm/memory.c
-From: Steven Rostedt <rostedt@goodmis.org>
-In-Reply-To: <20110314133413.27435.67467.sendpatchset@localhost6.localdomain6>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
-	 <20110314133413.27435.67467.sendpatchset@localhost6.localdomain6>
-Content-Type: text/plain; charset="ISO-8859-15"
-Date: Mon, 14 Mar 2011 10:16:35 -0400
-Message-ID: <1300112195.9910.92.camel@gandalf.stny.rr.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E01B8D003E
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:35:15 -0400 (EDT)
+Received: by pvg4 with SMTP id 4so1324442pvg.14
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 07:35:13 -0700 (PDT)
+Date: Mon, 14 Mar 2011 23:34:57 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 1/2 v4]mm: simplify code of swap.c
+Message-ID: <20110314143457.GA11699@barrios-desktop>
+References: <1299735018.2337.62.camel@sli10-conroe>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1299735018.2337.62.camel@sli10-conroe>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, 2011-03-14 at 19:04 +0530, Srikar Dronamraju wrote:
-> User bkpt will use background page replacement approach to insert/delete
-> breakpoints. Background page replacement approach is based on
-> replace_page. Hence replace_page() loses its static attribute.
+Sorry for the late review. 
+
+On Thu, Mar 10, 2011 at 01:30:18PM +0800, Shaohua Li wrote:
+> Clean up code and remove duplicate code. Next patch will use
+> pagevec_lru_move_fn introduced here too.
 > 
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-Just a nitpick, but since replace_page() is being moved, could you
-specify that in the change log. Something like:
+There is a just nitpick below but I don't care about it if you don't mind it.
+It's up to you or Andrew. 
 
-"Hence, replace_page() is moved from ksm.c into memory.c and its static
-attribute is removed."
-
-I like to see in the change log "move x to y" when that is actually
-done, because it is hard to see if anything actually changed when code
-is moved. Ideally it is best to move code in one patch and make the
-change in another. If you do cut another version of this patch set,
-could you do that. This alone is not enough to require a new release.
-
-Thanks,
-
--- Steve
-
-> Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-> Signed-off-by: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
+> 
 > ---
->  include/linux/mm.h |    2 ++
->  mm/ksm.c           |   62 ----------------------------------------------------
->  mm/memory.c        |   62 ++++++++++++++++++++++++++++++++++++++++++++++++++++
->  3 files changed, 64 insertions(+), 62 deletions(-)
+>  mm/swap.c |  133 +++++++++++++++++++++++++++-----------------------------------
+>  1 file changed, 58 insertions(+), 75 deletions(-)
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 679300c..01a0740 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -984,6 +984,8 @@ void account_page_writeback(struct page *page);
->  int set_page_dirty(struct page *page);
->  int set_page_dirty_lock(struct page *page);
->  int clear_page_dirty_for_io(struct page *page);
-> +int replace_page(struct vm_area_struct *vma, struct page *page,
-> +					struct page *kpage, pte_t orig_pte);
->  
->  /* Is the vma a continuation of the stack vma above it? */
->  static inline int vma_stack_continue(struct vm_area_struct *vma, unsigned long addr)
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index c2b2a94..f46e20d 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -765,68 +765,6 @@ out:
->  	return err;
+> Index: linux/mm/swap.c
+> ===================================================================
+> --- linux.orig/mm/swap.c	2011-03-09 12:47:09.000000000 +0800
+> +++ linux/mm/swap.c	2011-03-09 13:39:26.000000000 +0800
+> @@ -179,15 +179,13 @@ void put_pages_list(struct list_head *pa
 >  }
+>  EXPORT_SYMBOL(put_pages_list);
 >  
-> -/**
-> - * replace_page - replace page in vma by new ksm page
-> - * @vma:      vma that holds the pte pointing to page
-> - * @page:     the page we are replacing by kpage
-> - * @kpage:    the ksm page we replace page by
-> - * @orig_pte: the original value of the pte
-> - *
-> - * Returns 0 on success, -EFAULT on failure.
+> -/*
+> - * pagevec_move_tail() must be called with IRQ disabled.
+> - * Otherwise this may cause nasty races.
 > - */
-> -static int replace_page(struct vm_area_struct *vma, struct page *page,
-> -			struct page *kpage, pte_t orig_pte)
-> -{
-> -	struct mm_struct *mm = vma->vm_mm;
-> -	pgd_t *pgd;
-> -	pud_t *pud;
-> -	pmd_t *pmd;
-> -	pte_t *ptep;
-> -	spinlock_t *ptl;
-> -	unsigned long addr;
-> -	int err = -EFAULT;
-> -
-> -	addr = page_address_in_vma(page, vma);
-> -	if (addr == -EFAULT)
-> -		goto out;
-> -
-> -	pgd = pgd_offset(mm, addr);
-> -	if (!pgd_present(*pgd))
-> -		goto out;
-> -
-> -	pud = pud_offset(pgd, addr);
-> -	if (!pud_present(*pud))
-> -		goto out;
-> -
-> -	pmd = pmd_offset(pud, addr);
-> -	BUG_ON(pmd_trans_huge(*pmd));
-> -	if (!pmd_present(*pmd))
-> -		goto out;
-> -
-> -	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
-> -	if (!pte_same(*ptep, orig_pte)) {
-> -		pte_unmap_unlock(ptep, ptl);
-> -		goto out;
-> -	}
-> -
-> -	get_page(kpage);
-> -	page_add_anon_rmap(kpage, vma, addr);
-> -
-> -	flush_cache_page(vma, addr, pte_pfn(*ptep));
-> -	ptep_clear_flush(vma, addr, ptep);
-> -	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
-> -
-> -	page_remove_rmap(page);
-> -	if (!page_mapped(page))
-> -		try_to_free_swap(page);
-> -	put_page(page);
-> -
-> -	pte_unmap_unlock(ptep, ptl);
-> -	err = 0;
-> -out:
-> -	return err;
-> -}
-> -
->  static int page_trans_compound_anon_split(struct page *page)
+> -static void pagevec_move_tail(struct pagevec *pvec)
+> +static void pagevec_lru_move_fn(struct pagevec *pvec,
+> +				void (*move_fn)(struct page *page, void *arg),
+> +				void *arg)
 >  {
->  	int ret = 0;
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 5823698..2a3021c 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2669,6 +2669,68 @@ void unmap_mapping_range(struct address_space *mapping,
->  }
->  EXPORT_SYMBOL(unmap_mapping_range);
+>  	int i;
+> -	int pgmoved = 0;
+>  	struct zone *zone = NULL;
+> +	unsigned long flags = 0;
 >  
-> +/**
-> + * replace_page - replace page in vma by new ksm page
-> + * @vma:      vma that holds the pte pointing to page
-> + * @page:     the page we are replacing by kpage
-> + * @kpage:    the ksm page we replace page by
-> + * @orig_pte: the original value of the pte
-> + *
-> + * Returns 0 on success, -EFAULT on failure.
-> + */
-> +int replace_page(struct vm_area_struct *vma, struct page *page,
-> +			struct page *kpage, pte_t orig_pte)
+>  	for (i = 0; i < pagevec_count(pvec); i++) {
+>  		struct page *page = pvec->pages[i];
+> @@ -195,30 +193,50 @@ static void pagevec_move_tail(struct pag
+>  
+>  		if (pagezone != zone) {
+>  			if (zone)
+> -				spin_unlock(&zone->lru_lock);
+> +				spin_unlock_irqrestore(&zone->lru_lock, flags);
+>  			zone = pagezone;
+> -			spin_lock(&zone->lru_lock);
+> -		}
+> -		if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+> -			enum lru_list lru = page_lru_base_type(page);
+> -			list_move_tail(&page->lru, &zone->lru[lru].list);
+> -			mem_cgroup_rotate_reclaimable_page(page);
+> -			pgmoved++;
+> +			spin_lock_irqsave(&zone->lru_lock, flags);
+>  		}
+> +
+> +		(*move_fn)(page, arg);
+>  	}
+>  	if (zone)
+> -		spin_unlock(&zone->lru_lock);
+> -	__count_vm_events(PGROTATED, pgmoved);
+> +		spin_unlock_irqrestore(&zone->lru_lock, flags);
+>  	release_pages(pvec->pages, pvec->nr, pvec->cold);
+>  	pagevec_reinit(pvec);
+>  }
+>  
+> +static void pagevec_move_tail_fn(struct page *page, void *arg)
 > +{
-> +	struct mm_struct *mm = vma->vm_mm;
-> +	pgd_t *pgd;
-> +	pud_t *pud;
-> +	pmd_t *pmd;
-> +	pte_t *ptep;
-> +	spinlock_t *ptl;
-> +	unsigned long addr;
-> +	int err = -EFAULT;
+> +	int *pgmoved = arg;
+> +	struct zone *zone = page_zone(page);
 > +
-> +	addr = page_address_in_vma(page, vma);
-> +	if (addr == -EFAULT)
-> +		goto out;
-> +
-> +	pgd = pgd_offset(mm, addr);
-> +	if (!pgd_present(*pgd))
-> +		goto out;
-> +
-> +	pud = pud_offset(pgd, addr);
-> +	if (!pud_present(*pud))
-> +		goto out;
-> +
-> +	pmd = pmd_offset(pud, addr);
-> +	BUG_ON(pmd_trans_huge(*pmd));
-> +	if (!pmd_present(*pmd))
-> +		goto out;
-> +
-> +	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
-> +	if (!pte_same(*ptep, orig_pte)) {
-> +		pte_unmap_unlock(ptep, ptl);
-> +		goto out;
+> +	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+> +		enum lru_list lru = page_lru_base_type(page);
+> +		list_move_tail(&page->lru, &zone->lru[lru].list);
+> +		mem_cgroup_rotate_reclaimable_page(page);
+> +		(*pgmoved)++;
 > +	}
-> +
-> +	get_page(kpage);
-> +	page_add_anon_rmap(kpage, vma, addr);
-> +
-> +	flush_cache_page(vma, addr, pte_pfn(*ptep));
-> +	ptep_clear_flush(vma, addr, ptep);
-> +	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
-> +
-> +	page_remove_rmap(page);
-> +	if (!page_mapped(page))
-> +		try_to_free_swap(page);
-> +	put_page(page);
-> +
-> +	pte_unmap_unlock(ptep, ptl);
-> +	err = 0;
-> +out:
-> +	return err;
 > +}
 > +
->  int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
->  {
->  	struct address_space *mapping = inode->i_mapping;
+> +/*
+> + * pagevec_move_tail() must be called with IRQ disabled.
+> + * Otherwise this may cause nasty races.
+> + */
+> +static void pagevec_move_tail(struct pagevec *pvec)
+> +{
+> +	int pgmoved = 0;
+> +
+> +	pagevec_lru_move_fn(pvec, pagevec_move_tail_fn, &pgmoved);
+> +	__count_vm_events(PGROTATED, pgmoved);
+> +}
+> +
+ 
+Do we really need 3rd argument of pagevec_lru_move_fn?
+It seems to be used just only pagevec_move_tail_fn.
+But let's think about it again.
+The __count_vm_events(pgmoved) could be done in pagevec_move_tail_fn.
 
+I don't like unnecessary argument passing although it's not a big overhead.
+I want to make the code simple if we don't have any reason.
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
