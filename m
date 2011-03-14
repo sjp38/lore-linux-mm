@@ -1,72 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B479B8D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 16:50:19 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id p2EKoHUK012919
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:50:17 -0700
-Received: from pzk5 (pzk5.prod.google.com [10.243.19.133])
-	by hpaq2.eem.corp.google.com with ESMTP id p2EKoEHZ006930
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 42C4D8D003B
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 16:55:01 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id p2EKsxsq018269
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:54:59 -0700
+Received: from pxi3 (pxi3.prod.google.com [10.243.27.3])
+	by wpaz21.hot.corp.google.com with ESMTP id p2EKsvnP006697
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:50:15 -0700
-Received: by pzk5 with SMTP id 5so800841pzk.8
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:50:13 -0700 (PDT)
-Date: Mon, 14 Mar 2011 13:50:11 -0700 (PDT)
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:54:57 -0700
+Received: by pxi3 with SMTP id 3so1864047pxi.26
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:54:57 -0700 (PDT)
+Date: Mon, 14 Mar 2011 13:54:54 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/3 for 2.6.38] oom: select_bad_process: ignore TIF_MEMDIE
- zombies
-In-Reply-To: <20110314190508.GC21845@redhat.com>
-Message-ID: <alpine.DEB.2.00.1103141344460.31514@chino.kir.corp.google.com>
-References: <20110303100030.B936.A69D9226@jp.fujitsu.com> <20110308134233.GA26884@redhat.com> <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com> <20110309151946.dea51cde.akpm@linux-foundation.org> <alpine.DEB.2.00.1103111142260.30699@chino.kir.corp.google.com>
- <20110312123413.GA18351@redhat.com> <20110312134341.GA27275@redhat.com> <AANLkTinHGSb2_jfkwx=Wjv96phzPCjBROfCTFCKi4Wey@mail.gmail.com> <20110313212726.GA24530@redhat.com> <20110314190419.GA21845@redhat.com> <20110314190508.GC21845@redhat.com>
+Subject: Re: [RFC][PATCH v2 00/23] (alpha) __vmalloc: add gfp flags variant
+ of pte and pmd allocation
+In-Reply-To: <AANLkTik3qn-RVUTZp5+gTk+wB9SO_MsxySHEwE8Yzi-e@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1103141351210.31514@chino.kir.corp.google.com>
+References: <AANLkTik3qn-RVUTZp5+gTk+wB9SO_MsxySHEwE8Yzi-e@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>, Frantisek Hrbata <fhrbata@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Prasad Joshi <prasadjoshi124@gmail.com>
+Cc: Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, linux-alpha@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org
 
-On Mon, 14 Mar 2011, Oleg Nesterov wrote:
+On Mon, 14 Mar 2011, Prasad Joshi wrote:
 
-> select_bad_process() assumes that a TIF_MEMDIE process should go away.
-> But it can only go away it its parent does wait(). Change this check to
-> ignore the TIF_MEMDIE zombies.
+> __vmalloc: propagating GFP allocation flag.
 > 
 
-The equivalent of this change would be to set TIF_MEMDIE for all threads 
-in a thread group when choosing a process to kill; as we've already 
-discussed in your first series of patches, that has the risk of fully 
-depleting memory reserves and causing the kernel the deadlock.  We want to 
-limit TIF_MEMDIE to an oom killed task or to current when it is responding 
-to a SIGKILL or already in the exit path because we know it's exiting and 
-without memory reserves it may never exit.
+This isn't the correct title of the patch.  You don't need to actually 
+give them titles, the subject line will be used instead.
 
-This patch is even more concerning, however, because select_bad_process() 
-isn't even guaranteed to select a thread from the same thread group this 
-time.
+The subject line should also indicate this as patch 01/2 and it should 
+read "mm, alpha: add gfp flags variant of pte and pmd allocations".
 
-> Note: this is _not_ enough. Just a minimal fix.
+> - adds functions to allow caller to pass the GFP flag for memory allocation
+> - helps in fixing the Bug 30702 (__vmalloc(GFP_NOFS) can callback
+>   file system evict_inode).
 > 
-> Signed-off-by: Oleg Nesterov <oleg@redhat.com>
+> Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
+> Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
+
+The first signed-off-by line usually indicates the author of the change in 
+which case this would require the first line of the email to be
+
+From: Anand Mitra <mitra@kqinfotech.com>
+
+if that's the correct attribution.
+
 > ---
+> Chnagelog:
+> arch/alpha/include/asm/pgalloc.h |   18 ++++++++++++++----
+> 1 files changed, 14 insertions(+), 4 deletions(-)
+> ---
+> diff --git a/arch/alpha/include/asm/pgalloc.h b/arch/alpha/include/asm/pgalloc.h
+> index bc2a0da..d05dfc2 100644
+> --- a/arch/alpha/include/asm/pgalloc.h
+> +++ b/arch/alpha/include/asm/pgalloc.h
+> @@ -38,10 +38,15 @@ pgd_free(struct mm_struct *mm, pgd_t *pgd)
+>  }
 > 
->  mm/oom_kill.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+>  static inline pmd_t *
+> +__pmd_alloc_one(struct mm_struct *mm, unsigned long address, gfp_t gfp_mask)
+> +{
+> +	return (pmd_t *)__get_free_page(gfp_mask | __GFP_ZERO);
+> +}
+> +
+> +static inline pmd_t *
+>  pmd_alloc_one(struct mm_struct *mm, unsigned long address)
+>  {
+> -	pmd_t *ret = (pmd_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
+> -	return ret;
+> +	return __pmd_alloc_one(mm, address, GFP_KERNEL | __GFP_REPEAT);
+>  }
 > 
-> --- 38/mm/oom_kill.c~2_tif_memdie_zombie	2011-03-14 18:51:49.000000000 +0100
-> +++ 38/mm/oom_kill.c	2011-03-14 18:52:39.000000000 +0100
-> @@ -311,7 +311,8 @@ static struct task_struct *select_bad_pr
->  		 * blocked waiting for another task which itself is waiting
->  		 * for memory. Is there a better alternative?
->  		 */
-> -		if (test_tsk_thread_flag(p, TIF_MEMDIE))
-> +		if (test_tsk_thread_flag(p, TIF_MEMDIE) &&
-> +		    !p->exit_state && thread_group_empty(p))
->  			return ERR_PTR(-1UL);
->  
->  		/*
+>  static inline void
+> @@ -51,10 +56,15 @@ pmd_free(struct mm_struct *mm, pmd_t *pmd)
+>  }
 > 
+>  static inline pte_t *
+> +__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addressi,
+> gfp_t gfp_mask)
+
+This patch is corrupt probably because of your email client (and all other 
+patches in this series are corrupt, as well).  Please see 
+Documentation/email-clients.txt and try sending test patches to a 
+colleague and git-apply them first.
+
+BTW, s/addressi/address/ for this function definition.
+
+> +{
+> +	return (pte_t *)__get_free_page(gfp_mask | __GFP_ZERO);
+> +}
+> +
+> +static inline pte_t *
+>  pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+>  {
+> -	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
+> -	return pte;
+> +	return __pte_alloc_one_kernel(mm, address, GFP_KERNEL | __GFP_REPEAT);
+>  }
 > 
+>  static inline void
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
