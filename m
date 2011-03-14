@@ -1,93 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 581A48D003B
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:35:56 -0400 (EDT)
-Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
-	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2EHArQl029951
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:10:53 -0400
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 217146E8036
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:35:54 -0400 (EDT)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2EHZrY2480640
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:35:53 -0400
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2EHZq4N016757
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 11:35:53 -0600
-Date: Mon, 14 Mar 2011 23:00:04 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 3/20]  3: uprobes: Breakground page
- replacement.
-Message-ID: <20110314173004.GQ24254@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
- <20110314133433.27435.49566.sendpatchset@localhost6.localdomain6>
- <20110314165818.GA18507@fibrous.localdomain>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BBBC8D003B
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:36:36 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so1992837qwa.14
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:35:56 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20110314165818.GA18507@fibrous.localdomain>
+Date: Mon, 14 Mar 2011 17:35:56 +0000
+Message-ID: <AANLkTinMtOpFe4z6JKYRPbTEr0FR-iR0xgRjB+jnq=ME@mail.gmail.com>
+Subject: [RFC][PATCH v2 05/23] (frv) __vmalloc: add gfp flags variant of pte
+ and pmd allocation
+From: Prasad Joshi <prasadjoshi124@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Wilson <wilsons@start.ca>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: David Howells <dhowells@redhat.com>, Prasad Joshi <prasadjoshi124@gmail.com>, Anand Mitra <mitra@kqinfotech.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-* Stephen Wilson <wilsons@start.ca> [2011-03-14 12:58:18]:
+__vmalloc: propagating GFP allocation flag.
 
-> On Mon, Mar 14, 2011 at 07:04:33PM +0530, Srikar Dronamraju wrote:
-> > +/**
-> > + * read_opcode - read the opcode at a given virtual address.
-> > + * @tsk: the probed task.
-> > + * @vaddr: the virtual address to store the opcode.
-> > + * @opcode: location to store the read opcode.
-> > + *
-> > + * For task @tsk, read the opcode at @vaddr and store it in @opcode.
-> > + * Return 0 (success) or a negative errno.
-> > + */
-> > +int __weak read_opcode(struct task_struct *tsk, unsigned long vaddr,
-> > +						uprobe_opcode_t *opcode)
-> > +{
-> > +	struct vm_area_struct *vma;
-> > +	struct page *page;
-> > +	void *vaddr_new;
-> > +	int ret;
-> > +
-> > +	ret = get_user_pages(tsk, tsk->mm, vaddr, 1, 0, 0, &page, &vma);
-> > +	if (ret <= 0)
-> > +		return -EFAULT;
-> > +	ret = -EFAULT;
-> > +
-> > +	/*
-> > +	 * check if the page we are interested is read-only mapped
-> > +	 * Since we are interested in text pages, Our pages of interest
-> > +	 * should be mapped read-only.
-> > +	 */
-> > +	if ((vma->vm_flags & (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)) ==
-> > +						(VM_READ|VM_EXEC))
-> > +		goto put_out;
-> > +
-> > +	lock_page(page);
-> > +	vaddr_new = kmap_atomic(page, KM_USER0);
-> > +	vaddr &= ~PAGE_MASK;
-> > +	memcpy(&opcode, vaddr_new + vaddr, uprobe_opcode_sz);
-> > +	kunmap_atomic(vaddr_new, KM_USER0);
-> > +	unlock_page(page);
-> > +	ret =  uprobe_opcode_sz;
-> 
-> This looks wrong.  We should be setting ret = 0 on success here?
+- adds functions to allow caller to pass the GFP flag for memory allocation
+- helps in fixing the Bug 30702 (__vmalloc(GFP_NOFS) can callback
+		  file system evict_inode).
 
-Right, I should have set ret = 0 here.
+Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
+Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
+---
+Chnagelog:
+arch/frv/include/asm/pgalloc.h |    3 +++
+arch/frv/include/asm/pgtable.h |    1 +
+arch/frv/mm/pgalloc.c          |    9 +++++++--
+3 files changed, 11 insertions(+), 2 deletions(-)
+---
+diff --git a/arch/frv/include/asm/pgalloc.h b/arch/frv/include/asm/pgalloc.h
+index 416d19a..bfc4f7c 100644
+--- a/arch/frv/include/asm/pgalloc.h
++++ b/arch/frv/include/asm/pgalloc.h
+@@ -35,8 +35,10 @@ extern pgd_t *pgd_alloc(struct mm_struct *);
+ extern void pgd_free(struct mm_struct *mm, pgd_t *);
 
-> 
-> > +
-> > +put_out:
-> > +	put_page(page); /* we did a get_page in the beginning */
-> > +	return ret;
-> > +}
-> 
-> -- 
-> steve
-> 
+ extern pte_t *pte_alloc_one_kernel(struct mm_struct *, unsigned long);
++extern pte_t *__pte_alloc_one_kernel(struct mm_struct *, unsigned long, gfp_t);
+
+ extern pgtable_t pte_alloc_one(struct mm_struct *, unsigned long);
++extern pgtable_t __pte_alloc_one(struct mm_struct *, unsigned long, gfp_t);
+
+ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+ {
+@@ -60,6 +62,7 @@ do {							\
+  * inside the pgd, so has no extra memory associated with it.
+  * (In the PAE case we free the pmds as part of the pgd.)
+  */
++#define __pmd_alloc_one(mm, addr,mask)		({ BUG(); ((pmd_t *) 2); })
+ #define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *) 2); })
+ #define pmd_free(mm, x)			do { } while (0)
+ #define __pmd_free_tlb(tlb,x,a)		do { } while (0)
+diff --git a/arch/frv/include/asm/pgtable.h b/arch/frv/include/asm/pgtable.h
+index 6bc241e..698e280 100644
+--- a/arch/frv/include/asm/pgtable.h
++++ b/arch/frv/include/asm/pgtable.h
+@@ -223,6 +223,7 @@ static inline pud_t *pud_offset(pgd_t *pgd,
+unsigned long address)
+  * allocating and freeing a pud is trivial: the 1-entry pud is
+  * inside the pgd, so has no extra memory associated with it.
+  */
++#define __pud_alloc_one(mm, address, mask)		NULL
+ #define pud_alloc_one(mm, address)		NULL
+ #define pud_free(mm, x)				do { } while (0)
+ #define __pud_free_tlb(tlb, x, address)		do { } while (0)
+diff --git a/arch/frv/mm/pgalloc.c b/arch/frv/mm/pgalloc.c
+index c42c83d..374cd2c 100644
+--- a/arch/frv/mm/pgalloc.c
++++ b/arch/frv/mm/pgalloc.c
+@@ -20,14 +20,19 @@
+
+ pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((aligned(PAGE_SIZE)));
+
+-pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
++pte_t *__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long
+address, gfp_t gfp_mask)
+ {
+-	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
++	pte_t *pte = (pte_t *)__get_free_page(gfp_mask);
+ 	if (pte)
+ 		clear_page(pte);
+ 	return pte;
+ }
+
++pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
++{
++	return __pte_alloc_one_kernel(mm, address, GFP_KERNEL | __GFP_REPEAT);
++}
++
+ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
+ {
+ 	struct page *page;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
