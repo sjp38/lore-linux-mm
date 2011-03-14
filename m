@@ -1,84 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EDBB48D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 17:10:09 -0400 (EDT)
-Date: Mon, 14 Mar 2011 22:10:03 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v6 8/9] memcg: check memcg dirty limits in page
- writeback
-Message-ID: <20110314211002.GD4998@quack.suse.cz>
-References: <1299869011-26152-1-git-send-email-gthelen@google.com>
- <1299869011-26152-9-git-send-email-gthelen@google.com>
- <20110314175408.GE31120@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D73B8D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 18:27:01 -0400 (EDT)
+Received: by qyk30 with SMTP id 30so5347413qyk.14
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 15:26:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110314175408.GE31120@redhat.com>
+In-Reply-To: <AANLkTim8nHe1jXagKg-5g0ZLh7J61LzAi0ww__Kgaerx@mail.gmail.com>
+References: <AANLkTim8nHe1jXagKg-5g0ZLh7J61LzAi0ww__Kgaerx@mail.gmail.com>
+Date: Mon, 14 Mar 2011 23:26:58 +0100
+Message-ID: <AANLkTi=C-LRv_aRAc9mpdMJXkyGEQLtYQ_E82hwYUjgi@mail.gmail.com>
+Subject: Re: [RFC][PATCH v2 21/23] (um) __vmalloc: add gfp flags variant of
+ pte and pmd allocation
+From: richard -rw- weinberger <richard.weinberger@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Jan Kara <jack@suse.cz>
+To: Prasad Joshi <prasadjoshi124@gmail.com>
+Cc: Jeff Dike <jdike@addtoit.com>, Tejun Heo <tj@kernel.org>, user-mode-linux-devel@lists.sourceforge.net, UML Mailing List <user-mode-linux-user@lists.sourceforge.net>, Anand Mitra <mitra@kqinfotech.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-On Mon 14-03-11 13:54:08, Vivek Goyal wrote:
-> On Fri, Mar 11, 2011 at 10:43:30AM -0800, Greg Thelen wrote:
-> > If the current process is in a non-root memcg, then
-> > balance_dirty_pages() will consider the memcg dirty limits as well as
-> > the system-wide limits.  This allows different cgroups to have distinct
-> > dirty limits which trigger direct and background writeback at different
-> > levels.
-> > 
-> > If called with a mem_cgroup, then throttle_vm_writeout() queries the
-> > given cgroup for its dirty memory usage limits.
-> > 
-> > Signed-off-by: Andrea Righi <arighi@develer.com>
-> > Signed-off-by: Greg Thelen <gthelen@google.com>
-> > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Acked-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> > Changelog since v5:
-> > - Simplified this change by using mem_cgroup_balance_dirty_pages() rather than
-> >   cramming the somewhat different logic into balance_dirty_pages().  This means
-> >   the global (non-memcg) dirty limits are not passed around in the
-> >   struct dirty_info, so there's less change to existing code.
-> 
-> Yes there is less change to existing code but now we also have a separate
-> throttlig logic for cgroups. 
-> 
-> I thought that we are moving in the direction of IO less throttling
-> where bdi threads always do the IO and Jan Kara also implemented the
-> logic to distribute the finished IO pages uniformly across the waiting
-> threads.
-  Yes, we'd like to avoid doing IO from balance_dirty_pages(). But if the
-logic in cgroups specific part won't get too fancy (which it doesn't seem
-to be the case currently), it shouldn't be too hard to convert it to the new
-approach.
+On Mon, Mar 14, 2011 at 7:12 PM, Prasad Joshi <prasadjoshi124@gmail.com> wr=
+ote:
+> diff --git a/arch/um/include/asm/pgalloc.h b/arch/um/include/asm/pgalloc.=
+h
+> index 32c8ce4..8b6257e 100644
+> --- a/arch/um/include/asm/pgalloc.h
+> +++ b/arch/um/include/asm/pgalloc.h
+> @@ -27,6 +27,7 @@ extern pgd_t *pgd_alloc(struct mm_struct *);
+> =A0extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
+>
+> =A0extern pte_t *pte_alloc_one_kernel(struct mm_struct *, unsigned long);
+> +extern pte_t *__pte_alloc_one_kernel(struct mm_struct *, unsigned long, =
+gfp_t);
+> =A0extern pgtable_t pte_alloc_one(struct mm_struct *, unsigned long);
+>
+> =A0static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+> diff --git a/arch/um/kernel/mem.c b/arch/um/kernel/mem.c
+> index 8137ccc..e4caf17 100644
+> --- a/arch/um/kernel/mem.c
+> +++ b/arch/um/kernel/mem.c
+> @@ -284,12 +284,15 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+> =A0 =A0free_page((unsigned long) pgd);
+> =A0}
+>
+> -pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+> +pte_t *
+> +__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address,
+> gfp_t gfp_mask)
+> =A0{
+> - =A0 pte_t *pte;
+> + =A0 return (pte_t *)__get_free_page(gfp_mask | __GFP_ZERO);
+> +}
+>
+> - =A0 pte =3D (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO=
+);
+> - =A0 return pte;
+> +pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+> +{
+> + =A0 return __pte_alloc_one_kernel(mm, address, GFP_KERNEL | __GFP_REPEA=
+T);
+> =A0}
+>
+> =A0pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
+> @@ -303,15 +306,21 @@ pgtable_t pte_alloc_one(struct mm_struct *mm,
+> unsigned long address)
+> =A0}
+>
+> =A0#ifdef CONFIG_3_LEVEL_PGTABLES
+> -pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
+> +pmd_t *
+> +__pmd_alloc_one(struct mm_struct *mm, unsigned long address, gfp_t gfp_m=
+ask)
+> =A0{
+> - =A0 pmd_t *pmd =3D (pmd_t *) __get_free_page(GFP_KERNEL);
+> + =A0 pmd_t *pmd =3D (pmd_t *) __get_free_page(gfp_mask);
+>
+> =A0 =A0if (pmd)
+> =A0 =A0 =A0 =A0memset(pmd, 0, PAGE_SIZE);
+>
+> =A0 =A0return pmd;
+> =A0}
+> +
+> +pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
+> +{
+> + =A0 return __pmd_alloc_one(mm, address, GFP_KERNEL);
+> +}
+> =A0#endif
+>
+> =A0void *uml_kmalloc(int size, int flags)
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
+n
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at =A0http://www.tux.org/lkml/
+>
 
-We can talk about it at LSF but at least with my approach to IO-less
-balance_dirty_pages() it would be easy to convert cgroups throttling to
-the new way. With Fengguang's approach it might be a bit harder since he
-computes a throughput and from that necessary delay for a throttled task
-but with cgroups that is impossible to compute so he'd have to add some
-looping if we didn't write enough pages from the cgroup yet. But still it
-would be reasonable doable AFAICT.
+Sorry, this patch seems damaged.
 
-> Keeping it separate for cgroups, reduces the complexity but also forks
-> off the balancing logic for root and other cgroups. So if Jan Kara's
-> changes go in, it automatically does not get used for memory cgroups.
-> 
-> Not sure how good a idea it is to use a separate throttling logic for
-> for non-root cgroups. 
-  Yeah, it looks a bit odd. I'd think that we could just cap
-task_dirty_limit() by a value computed from a cgroup limit and be done
-with that but I probably miss something... Sure there is also a different
-background limit but that's broken anyway because a flusher thread will
-quickly stop doing writeback if global background limit is not exceeded.
-But that's a separate topic so I'll reply with this to a more appropriate
-email ;)
-
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+--=20
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
