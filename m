@@ -1,49 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 89A698D003E
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 11:16:56 -0400 (EDT)
-Received: by yib2 with SMTP id 2so2752267yib.14
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 08:16:54 -0700 (PDT)
-Date: Tue, 15 Mar 2011 00:16:30 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH v6 6/9] memcg: add cgroupfs interface to memcg dirty
- limits
-Message-ID: <20110314151630.GG11699@barrios-desktop>
-References: <1299869011-26152-1-git-send-email-gthelen@google.com>
- <1299869011-26152-7-git-send-email-gthelen@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1299869011-26152-7-git-send-email-gthelen@google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 332748D003E
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 11:29:11 -0400 (EDT)
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 3/20]  3: uprobes: Breakground page
+ replacement.
+From: Steven Rostedt <rostedt@goodmis.org>
+In-Reply-To: <20110314133433.27435.49566.sendpatchset@localhost6.localdomain6>
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+	 <20110314133433.27435.49566.sendpatchset@localhost6.localdomain6>
+Content-Type: text/plain; charset="ISO-8859-15"
+Date: Mon, 14 Mar 2011 11:29:06 -0400
+Message-ID: <1300116546.9910.107.camel@gandalf.stny.rr.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Vivek Goyal <vgoyal@redhat.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Fri, Mar 11, 2011 at 10:43:28AM -0800, Greg Thelen wrote:
-> Add cgroupfs interface to memcg dirty page limits:
->   Direct write-out is controlled with:
->   - memory.dirty_ratio
->   - memory.dirty_limit_in_bytes
-> 
->   Background write-out is controlled with:
->   - memory.dirty_background_ratio
->   - memory.dirty_background_limit_bytes
-> 
-> Other memcg cgroupfs files support 'M', 'm', 'k', 'K', 'g'
-> and 'G' suffixes for byte counts.  This patch provides the
-> same functionality for memory.dirty_limit_in_bytes and
-> memory.dirty_background_limit_bytes.
-> 
-> Signed-off-by: Andrea Righi <arighi@develer.com>
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Mon, 2011-03-14 at 19:04 +0530, Srikar Dronamraju wrote:
+> +/*
+> + * Most architectures can use the default versions of @read_opcode(),
+> + * @set_bkpt(), @set_orig_insn(), and @is_bkpt_insn();
+> + *
+> + * @set_ip:
+> + *     Set the instruction pointer in @regs to @vaddr.
+> + * @analyze_insn:
+> + *     Analyze @user_bkpt->insn.  Return 0 if @user_bkpt->insn is an
+> + *     instruction you can probe, or a negative errno (typically -%EPERM)
+> + *     otherwise. Determine what sort of
 
--- 
-Kind regards,
-Minchan Kim
+sort of ... what?
+
+-- Steve
+
+> + * @pre_xol:
+> + * @post_xol:
+> + *     XOL-related fixups @post_xol() (and possibly @pre_xol()) will need
+> + *     to do for this instruction, and annotate @user_bkpt accordingly.
+> + *     You may modify @user_bkpt->insn (e.g., the x86_64 port does this
+> + *     for rip-relative instructions).
+> + */ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
