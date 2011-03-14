@@ -1,59 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 43C8C8D003B
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:34:06 -0400 (EDT)
-Received: by qyk2 with SMTP id 2so1815507qyk.14
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:34:03 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 601048D003B
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:34:59 -0400 (EDT)
+Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2EHE3t7003238
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:14:04 -0400
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 2E0E46E8041
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:34:57 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2EHYvgV161194
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:34:57 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2EHYsAE011947
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 14:34:56 -0300
+Date: Mon, 14 Mar 2011 22:59:08 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 1/20]  1: mm: Move replace_page() to
+ mm/memory.c
+Message-ID: <20110314172908.GP24254@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+ <20110314133413.27435.67467.sendpatchset@localhost6.localdomain6>
+ <1300112195.9910.92.camel@gandalf.stny.rr.com>
+ <20110314170227.GN24254@linux.vnet.ibm.com>
+ <1300122834.9910.126.camel@gandalf.stny.rr.com>
 MIME-Version: 1.0
-Date: Mon, 14 Mar 2011 17:34:03 +0000
-Message-ID: <AANLkTimp6xeoCJYh-xXqKv9qytYU3dMK8MjUQ90-am0W@mail.gmail.com>
-Subject: [RFC][PATCH v2 04/23] (cris) __vmalloc: add gfp flags variant of pte
- and pmd allocation
-From: Prasad Joshi <prasadjoshi124@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1300122834.9910.126.camel@gandalf.stny.rr.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prasad Joshi <prasadjoshi124@gmail.com>, Anand Mitra <mitra@kqinfotech.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, linux-cris-kernel@axis.com
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-__vmalloc: propagating GFP allocation flag.
+> > 
+> > As discussed in IRC, moving and removing the static attribute had to
+> > be one patch so that mm/ksm.c compiles correctly. The other option we
+> > have is to remove the static attribute first and then moving the
+> > function.
+> 
+> Hmm, maybe that may be a good idea. Since it is really two changes. One
+> is to make it global for other usages. I'm not even sure why you moved
+> it. The change log for the move can explain that.
+> 
 
-- adds functions to allow caller to pass the GFP flag for memory allocation
-- helps in fixing the Bug 30702 (__vmalloc(GFP_NOFS) can callback
-		  file system evict_inode).
+unlike mm/memory.c; mm/ksm.c is compiled only when CONFIG_KSM is set.
+So if we dont move it out of ksm.c; we will have to make uprobes
+dependent on CONFIG_KSM. Since replace_page is the only function we are
+interested in, its better to move it out of ksm.c, rather than
+making uprobes dependent on CONFIG_KSM.
 
-Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
-Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
----
-Chnagelog:
-arch/cris/include/asm/pgalloc.h |   10 ++++++++--
-1 files changed, 8 insertions(+), 2 deletions(-)
----
-diff --git a/arch/cris/include/asm/pgalloc.h b/arch/cris/include/asm/pgalloc.h
-index 6da975d..20254ee 100644
---- a/arch/cris/include/asm/pgalloc.h
-+++ b/arch/cris/include/asm/pgalloc.h
-@@ -22,10 +22,16 @@ static inline void pgd_free(struct mm_struct *mm,
-pgd_t *pgd)
- 	free_page((unsigned long)pgd);
- }
 
-+static inline pte_t *
-+__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address,
-+	gfp_t gfp_mask)
-+{
-+  	return (pte_t *) __get_free_page(gfp_mask | __GFP_ZERO);
-+}
-+
- static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-unsigned long address)
- {
--  	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
-- 	return pte;
-+	return __pte_alloc_one_kernel(mm, address, GFP_KERNEL | __GFP_REPEAT);
- }
-
- static inline pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned
-long address)
+> -- Steve
+> 
+> > 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
