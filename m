@@ -1,77 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A41C88D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 16:22:30 -0400 (EDT)
-Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
-	by smtp-out.google.com with ESMTP id p2EKMQ2g013429
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:22:26 -0700
-Received: from pvg12 (pvg12.prod.google.com [10.241.210.140])
-	by hpaq7.eem.corp.google.com with ESMTP id p2EKM6la003578
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:22:24 -0700
-Received: by pvg12 with SMTP id 12so1078573pvg.33
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:22:20 -0700 (PDT)
-Date: Mon, 14 Mar 2011 13:22:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/3 for 2.6.38] oom: oom_kill_process: don't set TIF_MEMDIE
- if !p->mm
-In-Reply-To: <20110314190446.GB21845@redhat.com>
-Message-ID: <alpine.DEB.2.00.1103141314190.31514@chino.kir.corp.google.com>
-References: <20110303100030.B936.A69D9226@jp.fujitsu.com> <20110308134233.GA26884@redhat.com> <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com> <20110309151946.dea51cde.akpm@linux-foundation.org> <alpine.DEB.2.00.1103111142260.30699@chino.kir.corp.google.com>
- <20110312123413.GA18351@redhat.com> <20110312134341.GA27275@redhat.com> <AANLkTinHGSb2_jfkwx=Wjv96phzPCjBROfCTFCKi4Wey@mail.gmail.com> <20110313212726.GA24530@redhat.com> <20110314190419.GA21845@redhat.com> <20110314190446.GB21845@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 73B618D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 16:23:42 -0400 (EDT)
+Date: Mon, 14 Mar 2011 16:23:25 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
+Message-ID: <20110314202324.GG31120@redhat.com>
+References: <1299869011-26152-1-git-send-email-gthelen@google.com>
+ <20110311171006.ec0d9c37.akpm@linux-foundation.org>
+ <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>, Frantisek Hrbata <fhrbata@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
 
-On Mon, 14 Mar 2011, Oleg Nesterov wrote:
+On Mon, Mar 14, 2011 at 11:29:17AM -0700, Greg Thelen wrote:
 
-> oom_kill_process() simply sets TIF_MEMDIE and returns if PF_EXITING.
-> This is very wrong by many reasons. In particular, this thread can
-> be the dead group leader. Check p->mm != NULL.
+[..]
+> > We could just crawl the memcg's page LRU and bring things under control
+> > that way, couldn't we?  That would fix it.  What were the reasons for
+> > not doing this?
 > 
+> My rational for pursuing bdi writeback was I/O locality.  I have heard that
+> per-page I/O has bad locality.  Per inode bdi-style writeback should have better
+> locality.
+> 
+> My hunch is the best solution is a hybrid which uses a) bdi writeback with a
+> target memcg filter and b) using the memcg lru as a fallback to identify the bdi
+> that needed writeback.  I think the part a) memcg filtering is likely something
+> like:
+>  http://marc.info/?l=linux-kernel&m=129910424431837
+> 
+> The part b) bdi selection should not be too hard assuming that page-to-mapping
+> locking is doable.
 
-This is true only for the oom_kill_allocating_task sysctl where it is 
-required in all cases to kill current; current won't be triggering the oom 
-killer if it's dead.
+Greg, 
 
-oom_kill_process() is called with the thread selected by 
-select_bad_process() and that function will not return any thread if any 
-eligible task is found to be PF_EXITING and is not current, or any 
-eligible task is found to have TIF_MEMDIE.
+IIUC, option b) seems to be going through pages of particular memcg and
+mapping page to inode and start writeback on particular inode?
 
-In other words, for this conditional to be true in oom_kill_process(), 
-then p must be current and so it cannot be the dead group leader as 
-specified in your changelog unless PF_EXITING gets set between 
-select_bad_process() and the oom_kill_process() call: we don't care about 
-that since it's in the exit path and we therefore want to give it access 
-to memory reserves to quickly exit anyway and the check for PF_EXITING in 
-select_bad_process() prevents any infinite loop of that task getting 
-constantly reselected if it's dead.
+If yes, this might be reasonably good. In the case when cgroups are not
+sharing inodes then it automatically maps one inode to one cgroup and
+once cgroup is over limit, it starts writebacks of its own inode.
 
-> Note: this is _not_ enough. Just a minimal fix.
-> 
-> Signed-off-by: Oleg Nesterov <oleg@redhat.com>
-> ---
-> 
->  mm/oom_kill.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- 38/mm/oom_kill.c~1_kill_fix_pf_exiting	2011-03-14 17:53:05.000000000 +0100
-> +++ 38/mm/oom_kill.c	2011-03-14 18:51:49.000000000 +0100
-> @@ -470,7 +470,7 @@ static int oom_kill_process(struct task_
->  	 * If the task is already exiting, don't alarm the sysadmin or kill
->  	 * its children or threads, just set TIF_MEMDIE so it can die quickly
->  	 */
-> -	if (p->flags & PF_EXITING) {
-> +	if (p->flags & PF_EXITING && p->mm) {
->  		set_tsk_thread_flag(p, TIF_MEMDIE);
->  		boost_dying_task_prio(p, mem);
->  		return 0;
-> 
-> 
+In case inode is shared, then we get the case of one cgroup writting
+back the pages of other cgroup. Well I guess that also can be handeled
+by flusher thread where a bunch or group of pages can be compared with
+the cgroup passed in writeback structure. I guess that might hurt us
+more than benefit us.
+
+IIUC how option b) works then we don't even need option a) where an N level
+deep cache is maintained?
+
+Thanks
+Vivek 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
