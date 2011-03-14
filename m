@@ -1,109 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 42C4D8D003B
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 16:55:01 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id p2EKsxsq018269
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:54:59 -0700
-Received: from pxi3 (pxi3.prod.google.com [10.243.27.3])
-	by wpaz21.hot.corp.google.com with ESMTP id p2EKsvnP006697
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:54:57 -0700
-Received: by pxi3 with SMTP id 3so1864047pxi.26
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:54:57 -0700 (PDT)
-Date: Mon, 14 Mar 2011 13:54:54 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC][PATCH v2 00/23] (alpha) __vmalloc: add gfp flags variant
- of pte and pmd allocation
-In-Reply-To: <AANLkTik3qn-RVUTZp5+gTk+wB9SO_MsxySHEwE8Yzi-e@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1103141351210.31514@chino.kir.corp.google.com>
-References: <AANLkTik3qn-RVUTZp5+gTk+wB9SO_MsxySHEwE8Yzi-e@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EDBB48D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 17:10:09 -0400 (EDT)
+Date: Mon, 14 Mar 2011 22:10:03 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v6 8/9] memcg: check memcg dirty limits in page
+ writeback
+Message-ID: <20110314211002.GD4998@quack.suse.cz>
+References: <1299869011-26152-1-git-send-email-gthelen@google.com>
+ <1299869011-26152-9-git-send-email-gthelen@google.com>
+ <20110314175408.GE31120@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110314175408.GE31120@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prasad Joshi <prasadjoshi124@gmail.com>
-Cc: Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, linux-alpha@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Jan Kara <jack@suse.cz>
 
-On Mon, 14 Mar 2011, Prasad Joshi wrote:
-
-> __vmalloc: propagating GFP allocation flag.
+On Mon 14-03-11 13:54:08, Vivek Goyal wrote:
+> On Fri, Mar 11, 2011 at 10:43:30AM -0800, Greg Thelen wrote:
+> > If the current process is in a non-root memcg, then
+> > balance_dirty_pages() will consider the memcg dirty limits as well as
+> > the system-wide limits.  This allows different cgroups to have distinct
+> > dirty limits which trigger direct and background writeback at different
+> > levels.
+> > 
+> > If called with a mem_cgroup, then throttle_vm_writeout() queries the
+> > given cgroup for its dirty memory usage limits.
+> > 
+> > Signed-off-by: Andrea Righi <arighi@develer.com>
+> > Signed-off-by: Greg Thelen <gthelen@google.com>
+> > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+> > ---
+> > Changelog since v5:
+> > - Simplified this change by using mem_cgroup_balance_dirty_pages() rather than
+> >   cramming the somewhat different logic into balance_dirty_pages().  This means
+> >   the global (non-memcg) dirty limits are not passed around in the
+> >   struct dirty_info, so there's less change to existing code.
 > 
-
-This isn't the correct title of the patch.  You don't need to actually 
-give them titles, the subject line will be used instead.
-
-The subject line should also indicate this as patch 01/2 and it should 
-read "mm, alpha: add gfp flags variant of pte and pmd allocations".
-
-> - adds functions to allow caller to pass the GFP flag for memory allocation
-> - helps in fixing the Bug 30702 (__vmalloc(GFP_NOFS) can callback
->   file system evict_inode).
+> Yes there is less change to existing code but now we also have a separate
+> throttlig logic for cgroups. 
 > 
-> Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
-> Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
+> I thought that we are moving in the direction of IO less throttling
+> where bdi threads always do the IO and Jan Kara also implemented the
+> logic to distribute the finished IO pages uniformly across the waiting
+> threads.
+  Yes, we'd like to avoid doing IO from balance_dirty_pages(). But if the
+logic in cgroups specific part won't get too fancy (which it doesn't seem
+to be the case currently), it shouldn't be too hard to convert it to the new
+approach.
 
-The first signed-off-by line usually indicates the author of the change in 
-which case this would require the first line of the email to be
+We can talk about it at LSF but at least with my approach to IO-less
+balance_dirty_pages() it would be easy to convert cgroups throttling to
+the new way. With Fengguang's approach it might be a bit harder since he
+computes a throughput and from that necessary delay for a throttled task
+but with cgroups that is impossible to compute so he'd have to add some
+looping if we didn't write enough pages from the cgroup yet. But still it
+would be reasonable doable AFAICT.
 
-From: Anand Mitra <mitra@kqinfotech.com>
-
-if that's the correct attribution.
-
-> ---
-> Chnagelog:
-> arch/alpha/include/asm/pgalloc.h |   18 ++++++++++++++----
-> 1 files changed, 14 insertions(+), 4 deletions(-)
-> ---
-> diff --git a/arch/alpha/include/asm/pgalloc.h b/arch/alpha/include/asm/pgalloc.h
-> index bc2a0da..d05dfc2 100644
-> --- a/arch/alpha/include/asm/pgalloc.h
-> +++ b/arch/alpha/include/asm/pgalloc.h
-> @@ -38,10 +38,15 @@ pgd_free(struct mm_struct *mm, pgd_t *pgd)
->  }
+> Keeping it separate for cgroups, reduces the complexity but also forks
+> off the balancing logic for root and other cgroups. So if Jan Kara's
+> changes go in, it automatically does not get used for memory cgroups.
 > 
->  static inline pmd_t *
-> +__pmd_alloc_one(struct mm_struct *mm, unsigned long address, gfp_t gfp_mask)
-> +{
-> +	return (pmd_t *)__get_free_page(gfp_mask | __GFP_ZERO);
-> +}
-> +
-> +static inline pmd_t *
->  pmd_alloc_one(struct mm_struct *mm, unsigned long address)
->  {
-> -	pmd_t *ret = (pmd_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
-> -	return ret;
-> +	return __pmd_alloc_one(mm, address, GFP_KERNEL | __GFP_REPEAT);
->  }
-> 
->  static inline void
-> @@ -51,10 +56,15 @@ pmd_free(struct mm_struct *mm, pmd_t *pmd)
->  }
-> 
->  static inline pte_t *
-> +__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addressi,
-> gfp_t gfp_mask)
+> Not sure how good a idea it is to use a separate throttling logic for
+> for non-root cgroups. 
+  Yeah, it looks a bit odd. I'd think that we could just cap
+task_dirty_limit() by a value computed from a cgroup limit and be done
+with that but I probably miss something... Sure there is also a different
+background limit but that's broken anyway because a flusher thread will
+quickly stop doing writeback if global background limit is not exceeded.
+But that's a separate topic so I'll reply with this to a more appropriate
+email ;)
 
-This patch is corrupt probably because of your email client (and all other 
-patches in this series are corrupt, as well).  Please see 
-Documentation/email-clients.txt and try sending test patches to a 
-colleague and git-apply them first.
-
-BTW, s/addressi/address/ for this function definition.
-
-> +{
-> +	return (pte_t *)__get_free_page(gfp_mask | __GFP_ZERO);
-> +}
-> +
-> +static inline pte_t *
->  pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
->  {
-> -	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
-> -	return pte;
-> +	return __pte_alloc_one_kernel(mm, address, GFP_KERNEL | __GFP_REPEAT);
->  }
-> 
->  static inline void
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
