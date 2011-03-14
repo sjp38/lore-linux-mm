@@ -1,63 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 73B618D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 16:23:42 -0400 (EDT)
-Date: Mon, 14 Mar 2011 16:23:25 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
-Message-ID: <20110314202324.GG31120@redhat.com>
-References: <1299869011-26152-1-git-send-email-gthelen@google.com>
- <20110311171006.ec0d9c37.akpm@linux-foundation.org>
- <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B69178D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 16:32:53 -0400 (EDT)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id p2EKWnOF004608
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:32:49 -0700
+Received: from pzk1 (pzk1.prod.google.com [10.243.19.129])
+	by hpaq11.eem.corp.google.com with ESMTP id p2EKWVM4021849
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:32:48 -0700
+Received: by pzk1 with SMTP id 1so1069609pzk.2
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:32:48 -0700 (PDT)
+Date: Mon, 14 Mar 2011 13:32:45 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/3 for 2.6.38] oom: oom_kill_process: don't set TIF_MEMDIE
+ if !p->mm
+In-Reply-To: <AANLkTi=YnG7tYCSrCPTNSQANOkD2MkP0tMjbOyZbx4NG@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1103141322390.31514@chino.kir.corp.google.com>
+References: <20110303100030.B936.A69D9226@jp.fujitsu.com> <20110308134233.GA26884@redhat.com> <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com> <20110309151946.dea51cde.akpm@linux-foundation.org> <alpine.DEB.2.00.1103111142260.30699@chino.kir.corp.google.com>
+ <20110312123413.GA18351@redhat.com> <20110312134341.GA27275@redhat.com> <AANLkTinHGSb2_jfkwx=Wjv96phzPCjBROfCTFCKi4Wey@mail.gmail.com> <20110313212726.GA24530@redhat.com> <20110314190419.GA21845@redhat.com> <20110314190446.GB21845@redhat.com>
+ <AANLkTi=YnG7tYCSrCPTNSQANOkD2MkP0tMjbOyZbx4NG@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>, Frantisek Hrbata <fhrbata@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Mar 14, 2011 at 11:29:17AM -0700, Greg Thelen wrote:
+On Mon, 14 Mar 2011, Linus Torvalds wrote:
 
-[..]
-> > We could just crawl the memcg's page LRU and bring things under control
-> > that way, couldn't we?  That would fix it.  What were the reasons for
-> > not doing this?
+> The combination of testing PF_EXITING and p->mm just doesn't seem to
+> make any sense.
 > 
-> My rational for pursuing bdi writeback was I/O locality.  I have heard that
-> per-page I/O has bad locality.  Per inode bdi-style writeback should have better
-> locality.
-> 
-> My hunch is the best solution is a hybrid which uses a) bdi writeback with a
-> target memcg filter and b) using the memcg lru as a fallback to identify the bdi
-> that needed writeback.  I think the part a) memcg filtering is likely something
-> like:
->  http://marc.info/?l=linux-kernel&m=129910424431837
-> 
-> The part b) bdi selection should not be too hard assuming that page-to-mapping
-> locking is doable.
 
-Greg, 
+Right, it doesn't (and I recently removed testing the combination from 
+select_bad_process() in -mm).  The check for PF_EXITING in the oom killer 
+is purely to avoid needlessly killing tasks when something is already 
+exiting and will (hopefully) be freeing its memory soon.  If an eligible 
+thread is found to be PF_EXITING, the oom killer will defer indefinitely 
+unless it happens to be current.  If it happens to be current, then it is 
+automatically selected so it gets access to the needed memory reserves.
 
-IIUC, option b) seems to be going through pages of particular memcg and
-mapping page to inode and start writeback on particular inode?
-
-If yes, this might be reasonably good. In the case when cgroups are not
-sharing inodes then it automatically maps one inode to one cgroup and
-once cgroup is over limit, it starts writebacks of its own inode.
-
-In case inode is shared, then we get the case of one cgroup writting
-back the pages of other cgroup. Well I guess that also can be handeled
-by flusher thread where a bunch or group of pages can be compared with
-the cgroup passed in writeback structure. I guess that might hurt us
-more than benefit us.
-
-IIUC how option b) works then we don't even need option a) where an N level
-deep cache is maintained?
-
-Thanks
-Vivek 
+We do need to ensure that behavior doesn't preempt any task from being 
+killed if there's an eligible thread other than current that never 
+actually detaches its ->mm (oom-skip-zombies-when-iterating-tasklist.patch 
+in -mm filters all threads without an ->mm).  That can happen if 
+mm->mmap_sem never gets released by a thread and that's why an earlier 
+change that is already in your tree automatically gives current access to 
+memory reserves immediately upon calling the oom killer if it has a 
+pending SIGKILL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
