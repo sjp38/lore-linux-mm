@@ -1,98 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BBBC8D003B
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:36:36 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so1992837qwa.14
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:35:56 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id B55188D003B
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:36:47 -0400 (EDT)
+Received: from mail-gw0-f41.google.com (mail-gw0-f41.google.com [74.125.83.41])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p2EHajEH000607
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:36:45 -0700
+Received: by gwaa12 with SMTP id a12so2547077gwa.14
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:36:44 -0700 (PDT)
 MIME-Version: 1.0
-Date: Mon, 14 Mar 2011 17:35:56 +0000
-Message-ID: <AANLkTinMtOpFe4z6JKYRPbTEr0FR-iR0xgRjB+jnq=ME@mail.gmail.com>
-Subject: [RFC][PATCH v2 05/23] (frv) __vmalloc: add gfp flags variant of pte
- and pmd allocation
-From: Prasad Joshi <prasadjoshi124@gmail.com>
+In-Reply-To: <20110314165922.GE10696@random.random>
+References: <alpine.LSU.2.00.1103140059510.1661@sister.anvils>
+ <20110314155232.GB10696@random.random> <alpine.LSU.2.00.1103140910570.2601@sister.anvils>
+ <20110314165922.GE10696@random.random>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 14 Mar 2011 10:30:11 -0700
+Message-ID: <AANLkTikWh5tFUZuALYRP3Dx2Zcs33u0UVdjf4d_7KhPJ@mail.gmail.com>
+Subject: Re: [PATCH] mm: PageBuddy and mapcount underflows robustness
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Howells <dhowells@redhat.com>, Prasad Joshi <prasadjoshi124@gmail.com>, Anand Mitra <mitra@kqinfotech.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-__vmalloc: propagating GFP allocation flag.
+On Mon, Mar 14, 2011 at 9:59 AM, Andrea Arcangeli <aarcange@redhat.com> wro=
+te:
+>
+> +#define PAGE_BUDDY_MAPCOUNT_VALUE (-1024*1024)
 
-- adds functions to allow caller to pass the GFP flag for memory allocation
-- helps in fixing the Bug 30702 (__vmalloc(GFP_NOFS) can callback
-		  file system evict_inode).
+I realize that this is a nitpick, but from a code generation
+standpoint, large random constants like these are just nasty.
 
-Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
-Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
----
-Chnagelog:
-arch/frv/include/asm/pgalloc.h |    3 +++
-arch/frv/include/asm/pgtable.h |    1 +
-arch/frv/mm/pgalloc.c          |    9 +++++++--
-3 files changed, 11 insertions(+), 2 deletions(-)
----
-diff --git a/arch/frv/include/asm/pgalloc.h b/arch/frv/include/asm/pgalloc.h
-index 416d19a..bfc4f7c 100644
---- a/arch/frv/include/asm/pgalloc.h
-+++ b/arch/frv/include/asm/pgalloc.h
-@@ -35,8 +35,10 @@ extern pgd_t *pgd_alloc(struct mm_struct *);
- extern void pgd_free(struct mm_struct *mm, pgd_t *);
+I would suggest aiming for constants that are easy to generate and/or
+fit better in the code stream. In many encoding schemes (eg x86), -128
+is much easier to generate, since it fits in a signed byte and allows
+small instructions etc. And in most RISC encodings, 8- or 16-bit
+constants can be encoded much more easily than something like your
+current one, and bigger ones often end up resulting in a load from
+memory or at least several immediate-building instructions.
 
- extern pte_t *pte_alloc_one_kernel(struct mm_struct *, unsigned long);
-+extern pte_t *__pte_alloc_one_kernel(struct mm_struct *, unsigned long, gfp_t);
+> - =A0 =A0 =A0 __ClearPageBuddy(page);
+> + =A0 =A0 =A0 if (PageBuddy(page)) /* __ClearPageBuddy VM_BUG_ON(!PageBud=
+dy(page)) */
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __ClearPageBuddy(page);
 
- extern pgtable_t pte_alloc_one(struct mm_struct *, unsigned long);
-+extern pgtable_t __pte_alloc_one(struct mm_struct *, unsigned long, gfp_t);
+Also, this is just disgusting. It adds no safety here to have that
+VM_BUG_ON(), so it's just unnecessary code generation to do this.
+Also, we don't even WANT to do that stupid "__ClearPageBuddy()" in the
+first place! What those two code-sites actually want are just a simple
 
- static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
- {
-@@ -60,6 +62,7 @@ do {							\
-  * inside the pgd, so has no extra memory associated with it.
-  * (In the PAE case we free the pmds as part of the pgd.)
-  */
-+#define __pmd_alloc_one(mm, addr,mask)		({ BUG(); ((pmd_t *) 2); })
- #define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *) 2); })
- #define pmd_free(mm, x)			do { } while (0)
- #define __pmd_free_tlb(tlb,x,a)		do { } while (0)
-diff --git a/arch/frv/include/asm/pgtable.h b/arch/frv/include/asm/pgtable.h
-index 6bc241e..698e280 100644
---- a/arch/frv/include/asm/pgtable.h
-+++ b/arch/frv/include/asm/pgtable.h
-@@ -223,6 +223,7 @@ static inline pud_t *pud_offset(pgd_t *pgd,
-unsigned long address)
-  * allocating and freeing a pud is trivial: the 1-entry pud is
-  * inside the pgd, so has no extra memory associated with it.
-  */
-+#define __pud_alloc_one(mm, address, mask)		NULL
- #define pud_alloc_one(mm, address)		NULL
- #define pud_free(mm, x)				do { } while (0)
- #define __pud_free_tlb(tlb, x, address)		do { } while (0)
-diff --git a/arch/frv/mm/pgalloc.c b/arch/frv/mm/pgalloc.c
-index c42c83d..374cd2c 100644
---- a/arch/frv/mm/pgalloc.c
-+++ b/arch/frv/mm/pgalloc.c
-@@ -20,14 +20,19 @@
+    reset_page_mapcount(page);
 
- pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((aligned(PAGE_SIZE)));
+which does the right thing in _general_, and not just for the buddy
+case - we want to reset the mapcount for other reasons than just
+pagebuddy (ie the underflow/overflow case).
 
--pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
-+pte_t *__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long
-address, gfp_t gfp_mask)
- {
--	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
-+	pte_t *pte = (pte_t *)__get_free_page(gfp_mask);
- 	if (pte)
- 		clear_page(pte);
- 	return pte;
- }
+And it avoids the VM_BUG_ON() too, making the crazy conditionals be not nee=
+ded.
 
-+pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
-+{
-+	return __pte_alloc_one_kernel(mm, address, GFP_KERNEL | __GFP_REPEAT);
-+}
-+
- pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
- {
- 	struct page *page;
+No?
+
+                        Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
