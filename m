@@ -1,97 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EF33B8D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 16:46:33 -0400 (EDT)
-Date: Mon, 14 Mar 2011 16:46:27 -0400
-From: Ted Ts'o <tytso@mit.edu>
-Subject: Re: ext4 deep stack with mark_page_dirty reclaim
-Message-ID: <20110314204627.GB8120@thunk.org>
-References: <alpine.LSU.2.00.1103141156190.3220@sister.anvils>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 35DE18D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 16:47:57 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <63a3434d-dc24-4dd0-9e1b-0169c4a2b219@default>
+Date: Mon, 14 Mar 2011 13:47:45 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [LSF/MM TOPIC] (revised) RAMster: peer-to-peer transcendent memory
+ (was: improving in-kernel transcendent memory)
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1103141156190.3220@sister.anvils>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: lsf-pc@linuxfoundation.org, linux-mm@kvack.org
+Cc: Nitin Gupta <ngupta@vflare.org>, kurt.hackel@oracle.com, chris.mason@oracle.com
 
-On Mon, Mar 14, 2011 at 12:20:52PM -0700, Hugh Dickins wrote:
-> When testing something else on 2.6.38-rc8 last night,
-> I hit this x86_64 stack overflow.  I've never had one before,
-> it seems worth reporting.  kdb was in, I jotted it down by hand
-> (the notifier part of it will be notifying kdb of the fault).
-> CONFIG_DEBUG_STACK_OVERFLOW and DEBUG_STACK_USAGE were not set.
-> 
-> I should disclose that I have a hack in which may make my stack
-> frames slightly larger than they should be: check against yours.
-> So it may not be an overflow for anyone else, but still a trace
-> to worry about.
+(NOTE: No virtualization required so even those uninterested
+in virtualization may find this interesting.)
 
-Here's the trace translated to the stack space used by each function.
-There are a few piggy ext4 functions that we can try to shrink, but
-the real problem is just how deep the whole stack is getting.
+In my original topic proposal here:
 
->From the syscall to the lowest-level ext4 function is 3712 bytes, and
-everything from there to the schedule() which then triggered the GPF
-was another 3728 of stack space....
+http://marc.info/?l=3Dlinux-mm&m=3D129684345708855=20
 
-				- Ted
+I concluded with the following teaser:
 
- 240 schedule+0x25a
- 368 io_schedule+0x35
-  32 get_request_wait+0xc6
- 160 __make_request+0x36d
- 112 generic_make_request+0x2f2
- 208 submit_bio+0xe1
- 144 swap_writepage+0xa3
-  80 pageout+0x151
- 128 shrink_page_list+0x2db
- 176 shrink_inactive_list+0x2d3
- 256 shrink_zone+0x17d
- 224 shrink_zones+0x0xa3
- 128 do_try_to_free_pages+0x87
- 144 try_to_free_mem_cgroup_pages+0x8e
- 112 mem_cgroup_hierarchical_reclaim+0x220
- 176 mem_cgroup_do_charge+0xdc
- 128 __mem_cgroup_try_charge+0x19c
- 128 mem_cgroup_charge_common+0xa8
- 128 mem_cgroup_cache_charge+0x19a
- 128 add_to_page_cache_locked+0x57
-  96 add_to_page_cache_lru+0x3e
-  80 find_or_create_page+0x69
- 112 grow_dev_page+0x4a
-  96 grow_buffers+0x41
-  64 __getblk_slow+0xd7
-  80 __getblk+0x44
-  80 __ext4_get_inode_loc+0x12c
- 176 ext4_get_inode_loc+0x30
-  48 ext4_reserve_inode_write+0x21
-  80 ext4_mark_inode_dirty+0x3b
- 160 ext4_dirty_inode+0x3e
-  64 __mark_inode_dirty+0x32
-  80 linux/fs.h       mark_inode_dirty
-   0 linux/quotaops.h dquot_alloc_space
-   0 linux/quotaops.h dquot_alloc_block
-   0 ext4_mb_new_blocks+0xc2
- 144 ext4_alloc_blocks+0x189
- 208 ext4_alloc_branch+0x73
- 208 ext4_ind_map_blocks+0x148
- 272 ext4_map_blocks+0x148
- 112 ext4_getblk+0x5f
- 144 ext4_bread+0x36
-  96 ext4_append+0x52
-  96 do_split+0x5b
- 224 ext4_dx_add_entry+0x4b4
- 304 ext4_add_entry+0x7c
- 176 ext4_add_nondir+0x2e
-  80 ext4_create+0xf5
- 144 vfs_create+0x83
-  96 __open_namei_create+0x59
-  96 do_last+0x13b
- 112 do_filp_open+0x2ae
- 384 do_sys_open+0x72
- 128 sys_open+0x27
+> I also hope to also be able to describe and possibly demo a
+> brand new in-kernel (non-virtualization) user of transcendent
+> memory (including both cleancache and frontswap) that I think
+> attendees in ALL tracks will find intriguing, but I'm not ready
+> to talk about until closer to LSF/MM workshop.
+
+The code has come along well and I'd like to propose this
+now as a topic.  If other track PC members are interested,
+it can be a general talk; if not, it can be an MM track topic
+or maybe a lightning talk.  (Or if few enough people have interest,
+a hallway track topic or talk-to-myself track :-)
+
+Thanks,
+Dan Magenheimer
+
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+
+RAMSTER: Peer-to-peer Transcendent Memory
+
+Assume you have two or more independent Linux systems connected
+by a high-speed non-coherent interconnect (e.g. 10Gb ethernet).
+It is not uncommon for the memory load in each system to
+vary independently... sometimes system A has high memory
+pressure and sometimes system B has high memory pressure but
+it is exceedingly rare for both (or all) systems to have
+high memory pressure at the same time.  In fact, if you could
+magically and highly dynamically hot-plug chunks of RAM from
+one system to another in response to memory pressure, the
+sum of the RAM across all systems could be used more effectively
+to avoid swapping on any system, or the need for adding RAM to
+some or all of the individual systems.
+
+This is the promise of RAMster, a "peer-to-peer" implementation
+of Transcendent Memory.  Using the hooks already implemented
+in cleancache and frontswap, clean page cache pages and swap
+pages can be transparently moved from a system under memory
+pressure to a system not under memory pressure.  As long as
+the overhead to move a page between systems is significantly
+faster than a read from or write to disk, RAMster is a net win.
+
+The prototype implementation combines zcache (previously known
+as kztmem) with the cluster foundation of ocfs2.  All pages
+are compressed locally in zcache then, when a shrinker asks
+zcache to surrender space, some pages are sent across the wire.
+For "gets", zcache is checked first, and if the page has
+been "remotified", the page is synchronously repatriated from
+across the wire to satisfy the request and locally decompressed.
+
+The prototype is still a proof-of-concept and needs a lot more
+work, but should provoke some interesting discussion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
