@@ -1,72 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 450368D003B
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:29:44 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so1986188qwa.14
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:29:42 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id AB5F58D003B
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 13:30:29 -0400 (EDT)
+Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
+	by smtp-out.google.com with ESMTP id p2EHUROa015777
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:30:27 -0700
+Received: from qyk35 (qyk35.prod.google.com [10.241.83.163])
+	by hpaq6.eem.corp.google.com with ESMTP id p2EHTjdm002213
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:30:26 -0700
+Received: by qyk35 with SMTP id 35so1494468qyk.13
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 10:30:25 -0700 (PDT)
+Date: Mon, 14 Mar 2011 10:30:20 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: swap: Unlock swapfile inode mutex before closing
+ file on bad swapfiles
+In-Reply-To: <20110314122746.GA32408@suse.de>
+Message-ID: <alpine.LSU.2.00.1103141026480.2894@sister.anvils>
+References: <20110314122746.GA32408@suse.de>
 MIME-Version: 1.0
-Date: Mon, 14 Mar 2011 17:29:41 +0000
-Message-ID: <AANLkTikpM6RRNoT1nPk0Jws3SKff81wJRbJUnJAi3J=3@mail.gmail.com>
-Subject: [RFC][PATCH v2 02/23] (armho) __vmalloc: add gfp flags variant of pte
- and pmd allocation
-From: Prasad Joshi <prasadjoshi124@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-__vmalloc: propagating GFP allocation flag.
+On Mon, 14 Mar 2011, Mel Gorman wrote:
 
-- adds functions to allow caller to pass the GFP flag for memory allocation
-- helps in fixing the Bug 30702 (__vmalloc(GFP_NOFS) can callback
-		  file system evict_inode).
+> This patch releases the mutex if its held before calling filep_close()
+> so swapon fails as expected without deadlock when the swapfile is backed
+> by NFS.  If accepted for 2.6.39, it should also be considered a -stable
+> candidate for 2.6.38 and 2.6.37.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Signed-off-by: Anand Mitra <mitra@kqinfotech.com>
-Signed-off-by: Prasad Joshi <prasadjoshi124@gmail.com>
----
-Chnagelog:
-arch/arm/include/asm/pgalloc.h |   11 +++++++++--
-1 files changed, 9 insertions(+), 2 deletions(-)
----
-diff --git a/arch/arm/include/asm/pgalloc.h b/arch/arm/include/asm/pgalloc.h
-index 22de005..0696068 100644
---- a/arch/arm/include/asm/pgalloc.h
-+++ b/arch/arm/include/asm/pgalloc.h
-@@ -28,6 +28,7 @@
- /*
-  * Since we have only two-level page tables, these are trivial
-  */
-+#define __pmd_alloc_one(mm,addr,mask)	({ BUG(); ((pmd_t *)2); })
- #define pmd_alloc_one(mm,addr)		({ BUG(); ((pmd_t *)2); })
- #define pmd_free(mm, pmd)		do { } while (0)
- #define pgd_populate(mm,pmd,pte)	BUG()
-@@ -59,17 +60,23 @@ static inline void clean_pte_table(pte_t *pte)
-  *  +------------+
-  */
- static inline pte_t *
--pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr)
-+__pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr,
-gfp_t gfp_mask)
- {
- 	pte_t *pte;
+Acked-by: Hugh Dickins <hughd@google.com>
 
--	pte = (pte_t *)__get_free_page(PGALLOC_GFP);
-+	pte = (pte_t *)__get_free_page(gfp_mask | __GFP_NOTRACK | __GFP_ZERO);
- 	if (pte)
- 		clean_pte_table(pte);
-
- 	return pte;
- }
-
-+static inline pte_t *
-+pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr)
-+{
-+	return __pte_alloc_one_kernel(mm, addr, GFP_KERNEL | __GFP_REPEAT);
-+}
-+
- static inline pgtable_t
- pte_alloc_one(struct mm_struct *mm, unsigned long addr)
- {
+Thank you!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
