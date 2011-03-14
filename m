@@ -1,199 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DE228D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 09:39:59 -0400 (EDT)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp01.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2EDdrg1006562
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 19:09:53 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2EDdqrL3166270
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 19:09:52 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2EDdpVc002009
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 00:39:52 +1100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 392A58D003E
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 09:40:10 -0400 (EDT)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp07.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2EDe23k014791
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 19:10:02 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2EDdhAG2469968
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 19:09:43 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2EDdhuO016238
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 19:09:44 +0530
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Date: Mon, 14 Mar 2011 19:04:13 +0530
-Message-Id: <20110314133413.27435.67467.sendpatchset@localhost6.localdomain6>
-In-Reply-To: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
-Subject: [PATCH v2 2.6.38-rc8-tip 1/20]  1: mm: Move replace_page() to mm/memory.c
+Date: Mon, 14 Mar 2011 19:04:03 +0530
+Message-Id: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+Subject: [PATCH v2 2.6.38-rc8-tip 0/20]  0: Inode based uprobes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
 
-User bkpt will use background page replacement approach to insert/delete
-breakpoints. Background page replacement approach is based on
-replace_page. Hence replace_page() loses its static attribute.
+This patchset implements Uprobes which enables you to dynamically break
+into any routine in a user space application and collect information
+non-disruptively.
 
-Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Signed-off-by: Ananth N Mavinakayanahalli <ananth@in.ibm.com>
----
- include/linux/mm.h |    2 ++
- mm/ksm.c           |   62 ----------------------------------------------------
- mm/memory.c        |   62 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 64 insertions(+), 62 deletions(-)
+This patchset resolves most of the comments from Peter on the previous
+posting https://lkml.org/lkml/2010/12/16/65.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 679300c..01a0740 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -984,6 +984,8 @@ void account_page_writeback(struct page *page);
- int set_page_dirty(struct page *page);
- int set_page_dirty_lock(struct page *page);
- int clear_page_dirty_for_io(struct page *page);
-+int replace_page(struct vm_area_struct *vma, struct page *page,
-+					struct page *kpage, pte_t orig_pte);
- 
- /* Is the vma a continuation of the stack vma above it? */
- static inline int vma_stack_continue(struct vm_area_struct *vma, unsigned long addr)
-diff --git a/mm/ksm.c b/mm/ksm.c
-index c2b2a94..f46e20d 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -765,68 +765,6 @@ out:
- 	return err;
- }
- 
--/**
-- * replace_page - replace page in vma by new ksm page
-- * @vma:      vma that holds the pte pointing to page
-- * @page:     the page we are replacing by kpage
-- * @kpage:    the ksm page we replace page by
-- * @orig_pte: the original value of the pte
-- *
-- * Returns 0 on success, -EFAULT on failure.
-- */
--static int replace_page(struct vm_area_struct *vma, struct page *page,
--			struct page *kpage, pte_t orig_pte)
--{
--	struct mm_struct *mm = vma->vm_mm;
--	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
--	pte_t *ptep;
--	spinlock_t *ptl;
--	unsigned long addr;
--	int err = -EFAULT;
--
--	addr = page_address_in_vma(page, vma);
--	if (addr == -EFAULT)
--		goto out;
--
--	pgd = pgd_offset(mm, addr);
--	if (!pgd_present(*pgd))
--		goto out;
--
--	pud = pud_offset(pgd, addr);
--	if (!pud_present(*pud))
--		goto out;
--
--	pmd = pmd_offset(pud, addr);
--	BUG_ON(pmd_trans_huge(*pmd));
--	if (!pmd_present(*pmd))
--		goto out;
--
--	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
--	if (!pte_same(*ptep, orig_pte)) {
--		pte_unmap_unlock(ptep, ptl);
--		goto out;
--	}
--
--	get_page(kpage);
--	page_add_anon_rmap(kpage, vma, addr);
--
--	flush_cache_page(vma, addr, pte_pfn(*ptep));
--	ptep_clear_flush(vma, addr, ptep);
--	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
--
--	page_remove_rmap(page);
--	if (!page_mapped(page))
--		try_to_free_swap(page);
--	put_page(page);
--
--	pte_unmap_unlock(ptep, ptl);
--	err = 0;
--out:
--	return err;
--}
--
- static int page_trans_compound_anon_split(struct page *page)
- {
- 	int ret = 0;
-diff --git a/mm/memory.c b/mm/memory.c
-index 5823698..2a3021c 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2669,6 +2669,68 @@ void unmap_mapping_range(struct address_space *mapping,
- }
- EXPORT_SYMBOL(unmap_mapping_range);
- 
-+/**
-+ * replace_page - replace page in vma by new ksm page
-+ * @vma:      vma that holds the pte pointing to page
-+ * @page:     the page we are replacing by kpage
-+ * @kpage:    the ksm page we replace page by
-+ * @orig_pte: the original value of the pte
-+ *
-+ * Returns 0 on success, -EFAULT on failure.
-+ */
-+int replace_page(struct vm_area_struct *vma, struct page *page,
-+			struct page *kpage, pte_t orig_pte)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *ptep;
-+	spinlock_t *ptl;
-+	unsigned long addr;
-+	int err = -EFAULT;
-+
-+	addr = page_address_in_vma(page, vma);
-+	if (addr == -EFAULT)
-+		goto out;
-+
-+	pgd = pgd_offset(mm, addr);
-+	if (!pgd_present(*pgd))
-+		goto out;
-+
-+	pud = pud_offset(pgd, addr);
-+	if (!pud_present(*pud))
-+		goto out;
-+
-+	pmd = pmd_offset(pud, addr);
-+	BUG_ON(pmd_trans_huge(*pmd));
-+	if (!pmd_present(*pmd))
-+		goto out;
-+
-+	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
-+	if (!pte_same(*ptep, orig_pte)) {
-+		pte_unmap_unlock(ptep, ptl);
-+		goto out;
-+	}
-+
-+	get_page(kpage);
-+	page_add_anon_rmap(kpage, vma, addr);
-+
-+	flush_cache_page(vma, addr, pte_pfn(*ptep));
-+	ptep_clear_flush(vma, addr, ptep);
-+	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
-+
-+	page_remove_rmap(page);
-+	if (!page_mapped(page))
-+		try_to_free_swap(page);
-+	put_page(page);
-+
-+	pte_unmap_unlock(ptep, ptl);
-+	err = 0;
-+out:
-+	return err;
-+}
-+
- int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
- {
- 	struct address_space *mapping = inode->i_mapping;
+Uprobes Patches
+This patchset implements inode based uprobes which are specified as
+<file>:<offset> where offset is the offset from start of the map.
+The probehit overhead is around 3X times the overhead from pid based
+patchset.
+
+When a uprobe is registered, Uprobes makes a copy of the probed
+instruction, replaces the first byte(s) of the probed instruction with a
+breakpoint instruction. (Uprobes uses background page replacement
+mechanism and ensures that the breakpoint affects only that process.)
+
+When a CPU hits the breakpoint instruction, Uprobes gets notified of
+trap and finds the associated uprobe. It then executes the associated
+handler. Uprobes single-steps its copy of the probed instruction and
+resumes execution of the probed process at the instruction following the
+probepoint. Instruction copies to be single-stepped are stored in a
+per-mm "execution out of line (XOL) area". Currently XOL area is
+allocated as one page vma.
+
+For previous posting: please refer: http://lkml.org/lkml/2010/8/25/165
+http://lkml.org/lkml/2010/7/27/121, http://lkml.org/lkml/2010/7/12/67,
+http://lkml.org/lkml/2010/7/8/239, http://lkml.org/lkml/2010/6/29/299,
+http://lkml.org/lkml/2010/6/14/41, http://lkml.org/lkml/2010/3/20/107
+and http://lkml.org/lkml/2010/5/18/307
+
+This patchset is a rework based on suggestions from discussions on lkml
+in September, March and January 2010 (http://lkml.org/lkml/2010/1/11/92,
+http://lkml.org/lkml/2010/1/27/19, http://lkml.org/lkml/2010/3/20/107
+and http://lkml.org/lkml/2010/3/31/199 ). This implementation of uprobes
+doesnt depend on utrace.
+
+Advantages of uprobes over conventional debugging include:
+
+1. Non-disruptive.
+Unlike current ptrace based mechanisms, uprobes tracing wouldnt
+involve signals, stopping threads and context switching between the
+tracer and tracee.
+
+2. Much better handling of multithreaded programs because of XOL.
+Current ptrace based mechanisms use single stepping inline, i.e they
+copy back the original instruction on hitting a breakpoint.  In such
+mechanisms tracers have to stop all the threads on a breakpoint hit or
+tracers will not be able to handle all hits to the location of
+interest. Uprobes uses execution out of line, where the instruction to
+be traced is analysed at the time of breakpoint insertion and a copy
+of instruction is stored at a different location.  On breakpoint hit,
+uprobes jumps to that copied location and singlesteps the same
+instruction and does the necessary fixups post singlestepping.
+
+3. Multiple tracers for an application.
+Multiple uprobes based tracer could work in unison to trace an
+application. There could one tracer that could be interested in
+generic events for a particular set of process. While there could be
+another tracer that is just interested in one specific event of a
+particular process thats part of the previous set of process.
+
+4. Corelating events from kernels and userspace.
+Uprobes could be used with other tools like kprobes, tracepoints or as
+part of higher level tools like perf to give a consolidated set of
+events from kernel and userspace.  In future we could look at a single
+backtrace showing application, library and kernel calls.
+
+Here is the list of TODO Items.
+
+- Integrating perf probe with this patchset.
+- Breakpoint handling should co-exist with singlestep/blockstep from
+  another tracer/debugger.
+- Queue and dequeue signals delivered from the singlestep till
+  completion of postprocessing.
+- Prefiltering (i.e filtering at the time of probe insertion)
+- Return probes.
+- Support for other architectures.
+- Uprobes booster.
+- replace macro W with bits in inat table.
+
+To try please fetch using
+git fetch \
+git://git.kernel.org/pub/scm/linux/kernel/git/srikar/linux-uprobes.git \
+tip_inode_uprobes_140311:tip_inode_uprobes
+
+Please refer "[RFC] [PATCH 2.6.37-rc5-tip 20/20] 20: tracing: uprobes
+trace_event infrastructure" on how to use uprobe_tracer.
+
+Please do provide your valuable comments.
+
+Thanks in advance.
+Srikar
+
+ Srikar Dronamraju(20)
+ 0: Inode based uprobes
+ 1: mm: Move replace_page() to mm/memory.c
+ 2: X86 specific breakpoint definitions.
+ 3: uprobes: Breakground page replacement.
+ 4: uprobes: Adding and remove a uprobe in a rb tree.
+ 5: Uprobes: register/unregister probes.
+ 6: x86: analyze instruction and determine fixups.
+ 7: uprobes: store/restore original instruction.
+ 8: uprobes: mmap and fork hooks.
+ 9: x86: architecture specific task information.
+10: uprobes: task specific information.
+11: uprobes: slot allocation for uprobes
+12: uprobes: get the breakpoint address.
+13: x86: x86 specific probe handling
+14: uprobes: Handing int3 and singlestep exception.
+15: x86: uprobes exception notifier for x86.
+16: uprobes: register a notifier for uprobes.
+17: uprobes: filter chain
+18: uprobes: commonly used filters.
+19: tracing: Extract out common code for kprobes/uprobes traceevents.
+20: tracing: uprobes trace_event interface
+
+ arch/Kconfig                       |    4 +
+ arch/x86/Kconfig                   |    3 +
+ arch/x86/include/asm/thread_info.h |    2 +
+ arch/x86/include/asm/uprobes.h     |   58 ++
+ arch/x86/kernel/Makefile           |    1 +
+ arch/x86/kernel/signal.c           |   14 +
+ arch/x86/kernel/uprobes.c          |  600 ++++++++++++++++
+ include/linux/mm.h                 |    2 +
+ include/linux/mm_types.h           |    9 +
+ include/linux/sched.h              |    3 +
+ include/linux/uprobes.h            |  183 +++++
+ kernel/Makefile                    |    1 +
+ kernel/fork.c                      |   10 +
+ kernel/trace/Kconfig               |   20 +
+ kernel/trace/Makefile              |    2 +
+ kernel/trace/trace.h               |    5 +
+ kernel/trace/trace_kprobe.c        |  861 +-----------------------
+ kernel/trace/trace_probe.c         |  753 ++++++++++++++++++++
+ kernel/trace/trace_probe.h         |  160 +++++
+ kernel/trace/trace_uprobe.c        |  800 ++++++++++++++++++++++
+ kernel/uprobes.c                   | 1331 ++++++++++++++++++++++++++++++++++++
+ mm/ksm.c                           |   62 --
+ mm/memory.c                        |   62 ++
+ mm/mmap.c                          |    2 +
+ 24 files changed, 4044 insertions(+), 904 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
