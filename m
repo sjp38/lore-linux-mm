@@ -1,164 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BFF88D0039
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 21:02:45 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id p2G12gMo015292
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 18:02:42 -0700
-Received: from qyk27 (qyk27.prod.google.com [10.241.83.155])
-	by wpaz13.hot.corp.google.com with ESMTP id p2G12Y0m012797
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 18:02:41 -0700
-Received: by qyk27 with SMTP id 27so1035429qyk.13
-        for <linux-mm@kvack.org>; Tue, 15 Mar 2011 18:02:41 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110315225409.GD5740@redhat.com>
-References: <1299869011-26152-1-git-send-email-gthelen@google.com>
- <1299869011-26152-10-git-send-email-gthelen@google.com> <20110315225409.GD5740@redhat.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Tue, 15 Mar 2011 18:00:16 -0700
-Message-ID: <AANLkTin=N8PDK7Z4xke3M01FY0scEBx_NMGx0GC2S+ro@mail.gmail.com>
-Subject: Re: [PATCH v6 9/9] memcg: make background writeback memcg aware
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A3B988D003D
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 22:28:07 -0400 (EDT)
+Message-ID: <20110316022805.27727.qmail@science.horizon.com>
+From: George Spelvin <linux@horizon.com>
+Date: Mon, 14 Mar 2011 23:41:36 -0400
+Subject: [PATCH 7/8] mm/slub.c: Add slab randomization.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
+To: penberg@cs.helsinki.fi, herbert@gondor.apana.org.au, mpm@selenic.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@horizon.com
 
-On Tue, Mar 15, 2011 at 3:54 PM, Vivek Goyal <vgoyal@redhat.com> wrote:
-> On Fri, Mar 11, 2011 at 10:43:31AM -0800, Greg Thelen wrote:
->> Add an memcg parameter to bdi_start_background_writeback(). =A0If a memc=
-g
->> is specified then the resulting background writeback call to
->> wb_writeback() will run until the memcg dirty memory usage drops below
->> the memcg background limit. =A0This is used when balancing memcg dirty
->> memory with mem_cgroup_balance_dirty_pages().
->>
->> If the memcg parameter is not specified, then background writeback runs
->> globally system dirty memory usage falls below the system background
->> limit.
->>
->> Signed-off-by: Greg Thelen <gthelen@google.com>
->> ---
->
-> [..]
->> -static inline bool over_bground_thresh(void)
->> +static inline bool over_bground_thresh(struct mem_cgroup *mem_cgroup)
->> =A0{
->> =A0 =A0 =A0 unsigned long background_thresh, dirty_thresh;
->>
->> + =A0 =A0 if (mem_cgroup) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 struct dirty_info info;
->> +
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (!mem_cgroup_hierarchical_dirty_info(
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 determine_dirtyable_me=
-mory(), false,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup, &info))
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
->> +
->> + =A0 =A0 =A0 =A0 =A0 =A0 return info.nr_file_dirty +
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 info.nr_unstable_nfs > info.ba=
-ckground_thresh;
->> + =A0 =A0 }
->> +
->> =A0 =A0 =A0 global_dirty_limits(&background_thresh, &dirty_thresh);
->>
->> =A0 =A0 =A0 return (global_page_state(NR_FILE_DIRTY) +
->> @@ -683,7 +694,8 @@ static long wb_writeback(struct bdi_writeback *wb,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* For background writeout, stop when we a=
-re below the
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* background dirty threshold
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
->> - =A0 =A0 =A0 =A0 =A0 =A0 if (work->for_background && !over_bground_thre=
-sh())
->> + =A0 =A0 =A0 =A0 =A0 =A0 if (work->for_background &&
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 !over_bground_thresh(work->mem_cgroup)=
-)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->>
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 wbc.more_io =3D 0;
->> @@ -761,23 +773,6 @@ static unsigned long get_nr_dirty_pages(void)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 get_nr_dirty_inodes();
->> =A0}
->>
->> -static long wb_check_background_flush(struct bdi_writeback *wb)
->> -{
->> - =A0 =A0 if (over_bground_thresh()) {
->> -
->> - =A0 =A0 =A0 =A0 =A0 =A0 struct wb_writeback_work work =3D {
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 .nr_pages =A0 =A0 =A0 =3D LONG=
-_MAX,
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 .sync_mode =A0 =A0 =A0=3D WB_S=
-YNC_NONE,
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 .for_background =3D 1,
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 .range_cyclic =A0 =3D 1,
->> - =A0 =A0 =A0 =A0 =A0 =A0 };
->> -
->> - =A0 =A0 =A0 =A0 =A0 =A0 return wb_writeback(wb, &work);
->> - =A0 =A0 }
->> -
->> - =A0 =A0 return 0;
->> -}
->> -
->> =A0static long wb_check_old_data_flush(struct bdi_writeback *wb)
->> =A0{
->> =A0 =A0 =A0 unsigned long expired;
->> @@ -839,15 +834,17 @@ long wb_do_writeback(struct bdi_writeback *wb, int=
- force_wait)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (work->done)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 complete(work->done);
->> - =A0 =A0 =A0 =A0 =A0 =A0 else
->> + =A0 =A0 =A0 =A0 =A0 =A0 else {
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (work->mem_cgroup)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_bg_=
-writeback_done(work->mem_cgroup);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(work);
->> + =A0 =A0 =A0 =A0 =A0 =A0 }
->> =A0 =A0 =A0 }
->>
->> =A0 =A0 =A0 /*
->> =A0 =A0 =A0 =A0* Check for periodic writeback, kupdated() style
->> =A0 =A0 =A0 =A0*/
->> =A0 =A0 =A0 wrote +=3D wb_check_old_data_flush(wb);
->> - =A0 =A0 wrote +=3D wb_check_background_flush(wb);
->
-> Hi Greg,
->
-> So in the past we will leave the background work unfinished and try
-> to finish queued work first.
->
-> I see following line in wb_writeback().
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/*
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * Background writeout and kupdate-style w=
-riteback may
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * run forever. Stop them if there is othe=
-r work to do
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * so that e.g. sync can proceed. They'll =
-be restarted
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 * after the other works are all done.
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if ((work->for_background || work->for_kup=
-date) &&
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0!list_empty(&wb->bdi->work_list))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0break;
->
-> Now you seem to have converted background writeout also as queued
-> work item. So it sounds wb_writebac() will finish that background
-> work early and never take it up and finish other queued items. So
-> we might finish queued items still flusher thread might exit
-> without bringing down the background ratio of either root or memcg
-> depending on the ->mem_cgroup pointer.
->
-> May be requeuing the background work at the end of list might help.
+If SLAB_RANDOMIZE is set, the initial free list is shuffled into random
+order to make it harder for an attacker to control where a buffer overrun
+attack will overrun into.
 
-Good catch!  I agree that an interrupted queued bg writeback work item
-should be requeued to the tail.
+Not supported (does nothing) for SLAB and SLOB allocators.
+---
+ include/linux/slab.h |    2 +
+ mm/slub.c            |   69 +++++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 59 insertions(+), 12 deletions(-)
 
-> Thanks
-> Vivek
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index fa90866..8e812f1 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -79,6 +79,8 @@
+ /* The following flags affect the page allocator grouping pages by mobility */
+ #define SLAB_RECLAIM_ACCOUNT	0x00020000UL		/* Objects are reclaimable */
+ #define SLAB_TEMPORARY		SLAB_RECLAIM_ACCOUNT	/* Objects are short-lived */
++
++#define SLAB_RANDOMIZE		0x04000000UL	/* Randomize allocation order */
+ /*
+  * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
+  *
+diff --git a/mm/slub.c b/mm/slub.c
+index 3a20b71..4ba1db4 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -27,6 +27,7 @@
+ #include <linux/memory.h>
+ #include <linux/math64.h>
+ #include <linux/fault-inject.h>
++#include <linux/random.h>
+ 
+ #include <trace/events/kmem.h>
+ 
+@@ -1180,12 +1181,41 @@ static void setup_object(struct kmem_cache *s, void *object)
+ 		s->ctor(object);
+ }
+ 
++/*
++ * Initialize a slab's free list in random order, to make
++ * buffer overrun attacks harder.  Using a (moderately) secure
++ * random number generator, this ensures an attacker can't
++ * figure out which other object an overrun will hit.
++ */
++static void *
++setup_slab_randomized(struct kmem_cache *s, void *start, int count)
++{
++	struct cpu_random *r = get_random_mod_start();
++	void *p = start;
++	int i;
++
++	setup_object(s, p);
++	set_freepointer(s, p, p);
++
++	for (i = 1; i < count; i++) {
++		void *q = start + i * s->size;
++		setup_object(s, q);
++		/* p points to a random object in the list; link q in after */
++		set_freepointer(s, q, get_freepointer(s, p));
++		set_freepointer(s, p, q);
++		p = start + s->size * get_random_mod(r, i+1);
++	}
++	start = get_freepointer(s, p);
++	set_freepointer(s, p, NULL);
++	get_random_mod_stop(r);
++
++	return start;
++}
++
+ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
+ {
+ 	struct page *page;
+ 	void *start;
+-	void *last;
+-	void *p;
+ 
+ 	BUG_ON(flags & GFP_SLAB_BUG_MASK);
+ 
+@@ -1203,16 +1233,19 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 	if (unlikely(s->flags & SLAB_POISON))
+ 		memset(start, POISON_INUSE, PAGE_SIZE << compound_order(page));
+ 
+-	last = start;
+-	for_each_object(p, s, start, page->objects) {
++	if (s->flags & SLAB_RANDOMIZE) {
++		page->freelist = setup_slab_randomized(s, start, page->objects);
++	} else {
++		void *p, *last = start;
++		for_each_object(p, s, start, page->objects) {
++			setup_object(s, last);
++			set_freepointer(s, last, p);
++			last = p;
++		}
+ 		setup_object(s, last);
+-		set_freepointer(s, last, p);
+-		last = p;
++		set_freepointer(s, last, NULL);
++		page->freelist = start;
+ 	}
+-	setup_object(s, last);
+-	set_freepointer(s, last, NULL);
+-
+-	page->freelist = start;
+ 	page->inuse = 0;
+ out:
+ 	return page;
+@@ -1227,8 +1260,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+ 		void *p;
+ 
+ 		slab_pad_check(s, page);
+-		for_each_object(p, s, page_address(page),
+-						page->objects)
++		for_each_object(p, s, page_address(page), page->objects)
+ 			check_object(s, page, p, SLUB_RED_INACTIVE);
+ 	}
+ 
+@@ -4160,6 +4192,18 @@ static ssize_t failslab_store(struct kmem_cache *s, const char *buf,
+ SLAB_ATTR(failslab);
+ #endif
+ 
++static ssize_t randomize_show(struct kmem_cache *s, char *buf)
++{
++	return flag_show(s, buf, SLAB_RANDOMIZE);
++}
++
++static ssize_t randomize_store(struct kmem_cache *s,
++				const char *buf, size_t length)
++{
++	return flag_store(s, buf, length, SLAB_RANDOMIZE);
++}
++SLAB_ATTR(randomize);
++
+ static ssize_t shrink_show(struct kmem_cache *s, char *buf)
+ {
+ 	return 0;
+@@ -4292,6 +4336,7 @@ static struct attribute *slab_attrs[] = {
+ 	&hwcache_align_attr.attr,
+ 	&reclaim_account_attr.attr,
+ 	&destroy_by_rcu_attr.attr,
++	&randomize_attr.attr,
+ 	&shrink_attr.attr,
+ #ifdef CONFIG_SLUB_DEBUG
+ 	&total_objects_attr.attr,
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
