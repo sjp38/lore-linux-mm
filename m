@@ -1,93 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 349638D003A
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:40:46 -0400 (EDT)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1578911Ab1COPkY (ORCPT <rfc822;linux-mm@kvack.org>);
-	Tue, 15 Mar 2011 16:40:24 +0100
-Date: Tue, 15 Mar 2011 16:40:24 +0100
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: Re: Bootup fix for _brk_end being != _end
-Message-ID: <20110315154024.GA14100@router-fw-old.local.net-space.pl>
-References: <20110308214429.GA27331@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1103091359290.2968@kaball-desktop> <20110315142957.GB12730@router-fw-old.local.net-space.pl> <20110315144821.GA11586@dumpdata.com> <20110315153001.GD12730@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1103151530290.3382@kaball-desktop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1103151530290.3382@kaball-desktop>
+	by kanga.kvack.org (Postfix) with ESMTP id DCCD08D003A
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:47:27 -0400 (EDT)
+Subject: Re: [PATCH R4 4/7] xen/balloon: Protect against CPU exhaust by
+ event/x process
+From: Ian Campbell <Ian.Campbell@eu.citrix.com>
+In-Reply-To: <20110315151748.GC12730@router-fw-old.local.net-space.pl>
+References: <20110308214824.GE27331@router-fw-old.local.net-space.pl>
+	 <1300115089.17339.2183.camel@zakaz.uk.xensource.com>
+	 <20110315151748.GC12730@router-fw-old.local.net-space.pl>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 15 Mar 2011 15:47:23 +0000
+Message-ID: <1300204043.17339.2280.camel@zakaz.uk.xensource.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefano Stabellini <stefano.stabellini@eu.citrix.com>
-Cc: Daniel Kiper <dkiper@net-space.pl>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Ian Campbell <Ian.Campbell@eu.citrix.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi.kleen@intel.com" <andi.kleen@intel.com>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "jeremy@goop.org" <jeremy@goop.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, "v.tolstov@selfip.ru" <v.tolstov@selfip.ru>, "pasik@iki.fi" <pasik@iki.fi>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, "wdauchy@gmail.com" <wdauchy@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi.kleen@intel.com" <andi.kleen@intel.com>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "jeremy@goop.org" <jeremy@goop.org>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, "v.tolstov@selfip.ru" <v.tolstov@selfip.ru>, "pasik@iki.fi" <pasik@iki.fi>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, "wdauchy@gmail.com" <wdauchy@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Mar 15, 2011 at 03:31:47PM +0000, Stefano Stabellini wrote:
-> On Tue, 15 Mar 2011, Daniel Kiper wrote:
-> > On Tue, Mar 15, 2011 at 10:48:21AM -0400, Konrad Rzeszutek Wilk wrote:
-> > > > > > Additionally, I suggest to apply patch prepared by Steffano Stabellini
-> > > > > > (https://lkml.org/lkml/2011/1/31/232) which fixes memory management
-> > > > > > issue in Xen guest. I was not able boot guest machine without
-> > > > > > above mentioned patch.
-> > > > >
-> > > > > after some discussions we came up with a different approach to fix the
-> > > > > issue; I sent a couple of patches a little while ago:
-> > > > >
-> > > > > https://lkml.org/lkml/2011/2/28/410
-> > > >
-> > > > I tested git://xenbits.xen.org/people/sstabellini/linux-pvhvm.git 2.6.38-tip-fixes
-> > > > and it works on x86_64, however, it does not work on i386. Tested as
-> > > > unprivileged guest on Xen Ver. 4.1.0-rc2-pre. On i386 domain crashes
-> > > > silently at early boot stage :-(((.
-> > >
-> > > Details? Can you provide the 'xenctx' output of where it crashed?
+On Tue, 2011-03-15 at 15:17 +0000, Daniel Kiper wrote:
+> On Mon, Mar 14, 2011 at 03:04:49PM +0000, Ian Campbell wrote:
+> > On Tue, 2011-03-08 at 21:48 +0000, Daniel Kiper wrote:
+> > > Protect against CPU exhaust by event/x process during
+> > > errors by adding some delays in scheduling next event
+> > > and retry count limit.
 > >
-> > As I wrote above domain is dying and I am not able to connect to it using
-> > xenctx after crash :-(((. I do not know how to do that in another way.
->
-> try adding:
->
-> extra = "loglevel=9 debug earlyprintk=xenboot"
+> > The addition of a default retry count limit reverses the change made in
+> > bc2c0303226ec716854d3c208c7f84fe7aa35cd7. That change was made to allow
+> > system wide ballooning daemons to work as expected and I don't think a
+> > strong argument has been made for undoing it here.
+> 
+> It is possible to restore original balloon driver behavior by setting
+> balloon_stats.max_retry_count = 0 and balloon_stats.max_schedule_delay = 1
+> using sysfs.
 
-(XEN) d55:v0: unhandled page fault (ec=0002)
-(XEN) Pagetable walk from 000000000000000c:
-(XEN)  L4[0x000] = 000000010bebc027 0000000000024d28
-(XEN)  L3[0x000] = 0000000000000000 ffffffffffffffff
-(XEN) domain_crash_sync called from entry.S
-(XEN) Domain 55 (vcpu#0) crashed on cpu#3:
-(XEN) ----[ Xen-4.1.0-rc2-pre  x86_64  debug=y  Not tainted ]----
-(XEN) CPU:    3
-(XEN) RIP:    e019:[<00000000c1001180>]
-(XEN) RFLAGS: 0000000000000282   EM: 1   CONTEXT: pv guest
-(XEN) rax: 000000000000000c   rbx: 000000000000000c   rcx: 00000000c1371fd0
-(XEN) rdx: 00000000c1371fd0   rsi: 00000000c1742000   rdi: 00000000a5c03d70
-(XEN) rbp: 00000000c1371fc8   rsp: 00000000c1371fa8   r8: 0000000000000000
-(XEN) r9:  0000000000000000   r10: 0000000000000000   r11: 0000000000000000
-(XEN) r12: 0000000000000000   r13: 0000000000000000   r14: 0000000000000000
-(XEN) r15: 0000000000000000   cr0: 000000008005003b   cr4: 00000000000026f4
-(XEN) cr3: 0000000129b6e000   cr2: 000000000000000c
-(XEN) ds: e021   es: e021   fs: e021   gs: e021   ss: e021   cs: e019
-(XEN) Guest stack trace from esp=c1371fa8:
-(XEN)   00000002 c1001180 0001e019 00010082 c10037af deadbeef c1742000 a5c03d70
-(XEN)   c1371fdc c13a4aa8 00000000 00000000 00000000 c1371ffc c13a3ff2 00000000
-(XEN)   00000000 00000000 00000000 00000000 deadbeef c1753000 013fe001 00000000
-(XEN)   00000000 00000000 00000000 00000000 013fe001 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-(XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+If max_retry_count continues to exist at all then the default should be
+0, you can't just change an interface which users (in this case host
+toolstacks) rely on in this manner.
 
-Daniel
+In any case there is no reason for the guest to arbitrarily stop trying
+to reach the limit which it has been asked to shoot for (at least not by
+default). The guest should never be asked a guest to aim for a
+completely unrealistic target which it can never reach (that would be a
+toolstack bug) but it is reasonable to assume that the guest will keep
+trying to reach its target across any transient memory pressure.
+
+Allowing the guest to back off (max_schedule_delay > 1) makes sense to
+me though, although I think 32s is a pretty large default maximum.
+
+> > Also this patch seems to make the driver quite chatty:
+> >
+> > > +	pr_info("xen_balloon: Retry count: %lu/%lu\n", balloon_stats.retry_count,
+> > > +			balloon_stats.max_retry_count);
+> >
+> > Not needed. The balloon driver is a best effort background thing, it
+> > doesn't need to be spamming the system logs each time something doesn't
+> > go quite right first time, it should just continue on silently in the
+> > background. It should only be logging if something goes catastrophically
+> > wrong (in which case pr_info isn't really sufficient).
+> 
+> Here http://lists.xensource.com/archives/html/xen-devel/2011-02/msg00649.html
+> Kondrad suggested to add some printk() to inform user what is going on.
+
+> I agree with him. However, If balloon driver is controlled by external
+> process it could pollute logs to some extent. I think that issue could
+> be easliy resolved by adding quiet flag.
+> 
+> Additionally, I think that errors which are sent to logs by balloon
+> driver are not critical one. That is why I decided to use pr_info(),
+> however, I cosidered using pr_warn(). If you think that pr_warn()
+> is better I could change that part of code.
+
+Only the important messages should be logged and those should, by
+definition, be via pr_warn (if not higher). However most of the messages
+you add needn't be logged at all -- allocation failures and retries are
+simply part of the normal behaviour of the balloon driver.
+
+Perhaps some interesting statistics could be exported via sysfs, e.g.
+total number of failed allocations, number of allocation failures trying
+to reach the current target, how long the balloon driver has been trying
+to meet its current target etc, but these don't belong in the system
+logs.
+
+The message you quoted above might be acceptable if it wasn't printed
+for every retry (a first retry is not going to be all that uncommon) but
+rather only periodically after some initial threshold is met without
+progress being made. Note that retries without making progress is an
+important distinction from just retries, since if the driver is making
+some progress there is no need to say anything.
+
+Ian.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
