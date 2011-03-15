@@ -1,67 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A587D8D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 23:01:28 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8B06D3EE0C2
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:01:25 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D43E45DE4D
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:01:25 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F90845DE5B
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:01:25 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C694E18005
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:01:25 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EBB8DE08004
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:01:24 +0900 (JST)
-Date: Tue, 15 Mar 2011 11:54:51 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
-Message-Id: <20110315115451.7a7d3605.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <AANLkTineM7M1R6fVFJe0ax-DN=_Rnb+7Cmk5HTH0D+Na@mail.gmail.com>
-References: <1299869011-26152-1-git-send-email-gthelen@google.com>
-	<20110311171006.ec0d9c37.akpm@linux-foundation.org>
-	<AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
-	<20110315105612.f600a659.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTineM7M1R6fVFJe0ax-DN=_Rnb+7Cmk5HTH0D+Na@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9F4DD8D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 23:08:01 -0400 (EDT)
+Subject: Re: ext4 deep stack with mark_page_dirty reclaim
+Mime-Version: 1.0 (Apple Message framework v1082)
+Content-Type: text/plain; charset=us-ascii
+From: Andreas Dilger <adilger@dilger.ca>
+In-Reply-To: <20110314204627.GB8120@thunk.org>
+Date: Mon, 14 Mar 2011 19:25:10 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <FE7209AC-C66C-4482-945E-58CF5AF8FEE7@dilger.ca>
+References: <alpine.LSU.2.00.1103141156190.3220@sister.anvils> <20110314204627.GB8120@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Vivek Goyal <vgoyal@redhat.com>
+To: Ted Ts'o <tytso@mit.edu>
+Cc: Hugh Dickins <hughd@google.com>, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 14 Mar 2011 19:51:22 -0700
-Greg Thelen <gthelen@google.com> wrote:
+On 2011-03-14, at 1:46 PM, Ted Ts'o wrote:
+> On Mon, Mar 14, 2011 at 12:20:52PM -0700, Hugh Dickins wrote:
+>> When testing something else on 2.6.38-rc8 last night,
+>> I hit this x86_64 stack overflow.  I've never had one before,
+>> it seems worth reporting.  kdb was in, I jotted it down by hand
+>> (the notifier part of it will be notifying kdb of the fault).
+>> CONFIG_DEBUG_STACK_OVERFLOW and DEBUG_STACK_USAGE were not set.
+>>=20
+>> I should disclose that I have a hack in which may make my stack
+>> frames slightly larger than they should be: check against yours.
+>> So it may not be an overflow for anyone else, but still a trace
+>> to worry about.
+>=20
+> Here's the trace translated to the stack space used by each function.
+> There are a few piggy ext4 functions that we can try to shrink, but
+> the real problem is just how deep the whole stack is getting.
+>=20
+> =46rom the syscall to the lowest-level ext4 function is 3712 bytes, =
+and
+> everything from there to the schedule() which then triggered the GPF
+> was another 3728 of stack space....
 
-> On Mon, Mar 14, 2011 at 6:56 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Mon, 14 Mar 2011 11:29:17 -0700
-> > Greg Thelen <gthelen@google.com> wrote:
-> >
-> >> On Fri, Mar 11, 2011 at 5:10 PM, Andrew Morton
-> The foreign dirtier issue is all about identifying the memcg (or
-> possibly multiple bdi) that need balancing.    If the foreign dirtier
-> issue is not important then we can focus on identifying inodes to
-> writeback that will lower the current's memcg dirty usage.  I am fine
-> ignoring the foreign dirtier issue for now and breaking the problem
-> into smaller pieces.
-> 
-ok.
+Is there a script which you used to generate this stack trace to =
+function size mapping, or did you do it by hand?  I've always wanted =
+such a script, but the tricky part is that there is so much garbage on =
+the stack that any automated stack parsing is almost useless.  =
+Alternately, it would seem trivial to have the stack dumper print the =
+relative address of each symbol, and the delta from the previous =
+symbol...
 
-> I think this can be done with out any additional state.  Can just scan
-> the memcg lru to find dirty file pages and thus inodes to pass to
-> sync_inode(), or some other per-inode writeback routine?
-> 
+To be honest, I think the stack size limitation is becoming a serious =
+problem in itself.  While some stack-size reduction effort is actually =
+useful in removing inefficiency, I think there is a lot of crazy and =
+inefficient things to try and minimize the stack usage (e.g. lots of =
+kmalloc/kfree of temporary arrays instead of just putting them on the =
+stack), which ends up consuming _more_ total memory.
 
-I think it works, finding inodes to be cleaned by LRU scanning.
+This can be seen with deep storage stacks that are using the network on =
+both ends, like NFS+{XFS, ext4}+LVM+DM+{fcoib,iSCSI}+driver+kmalloc or =
+similar...  The below stack isn't even using something so convoluted.
 
-Thanks,
--Kame
+> 240 schedule+0x25a
+> 368 io_schedule+0x35
+>  32 get_request_wait+0xc6
+> 160 __make_request+0x36d
+> 112 generic_make_request+0x2f2
+> 208 submit_bio+0xe1
+> 144 swap_writepage+0xa3
+>  80 pageout+0x151
+> 128 shrink_page_list+0x2db
+> 176 shrink_inactive_list+0x2d3
+> 256 shrink_zone+0x17d
+> 224 shrink_zones+0x0xa3
+> 128 do_try_to_free_pages+0x87
+> 144 try_to_free_mem_cgroup_pages+0x8e
+> 112 mem_cgroup_hierarchical_reclaim+0x220
+> 176 mem_cgroup_do_charge+0xdc
+> 128 __mem_cgroup_try_charge+0x19c
+> 128 mem_cgroup_charge_common+0xa8
+> 128 mem_cgroup_cache_charge+0x19a
+> 128 add_to_page_cache_locked+0x57
+>  96 add_to_page_cache_lru+0x3e
+>  80 find_or_create_page+0x69
+> 112 grow_dev_page+0x4a
+>  96 grow_buffers+0x41
+>  64 __getblk_slow+0xd7
+>  80 __getblk+0x44
+>  80 __ext4_get_inode_loc+0x12c
+> 176 ext4_get_inode_loc+0x30
+>  48 ext4_reserve_inode_write+0x21
+>  80 ext4_mark_inode_dirty+0x3b
+> 160 ext4_dirty_inode+0x3e
+>  64 __mark_inode_dirty+0x32
+>  80 linux/fs.h       mark_inode_dirty
+>   0 linux/quotaops.h dquot_alloc_space
+>   0 linux/quotaops.h dquot_alloc_block
+>   0 ext4_mb_new_blocks+0xc2
+> 144 ext4_alloc_blocks+0x189
+> 208 ext4_alloc_branch+0x73
+> 208 ext4_ind_map_blocks+0x148
+> 272 ext4_map_blocks+0x148
+> 112 ext4_getblk+0x5f
+> 144 ext4_bread+0x36
+>  96 ext4_append+0x52
+>  96 do_split+0x5b
+> 224 ext4_dx_add_entry+0x4b4
+> 304 ext4_add_entry+0x7c
+> 176 ext4_add_nondir+0x2e
+>  80 ext4_create+0xf5
+> 144 vfs_create+0x83
+>  96 __open_namei_create+0x59
+>  96 do_last+0x13b
+> 112 do_filp_open+0x2ae
+> 384 do_sys_open+0x72
+> 128 sys_open+0x27
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-ext4" =
+in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
+
+Cheers, Andreas
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
