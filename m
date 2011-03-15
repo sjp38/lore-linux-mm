@@ -1,180 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id EF9758D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 21:53:38 -0400 (EDT)
-Subject: Re: [PATCH 2/2 v4]mm: batch activate_page() to reduce lock
- contention
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20110314144540.GC11699@barrios-desktop>
-References: <1299735019.2337.63.camel@sli10-conroe>
-	 <20110314144540.GC11699@barrios-desktop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 15 Mar 2011 09:53:34 +0800
-Message-ID: <1300154014.2337.74.camel@sli10-conroe>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F4A98D003B
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 22:02:51 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6658E3EE0C7
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:02:47 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4802945DE5B
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:02:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1749B45DE56
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:02:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EC6FFE18005
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:02:46 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A4AC0E08001
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:02:46 +0900 (JST)
+Date: Tue, 15 Mar 2011 10:56:12 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
+Message-Id: <20110315105612.f600a659.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
+References: <1299869011-26152-1-git-send-email-gthelen@google.com>
+	<20110311171006.ec0d9c37.akpm@linux-foundation.org>
+	<AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Vivek Goyal <vgoyal@redhat.com>
 
-On Mon, 2011-03-14 at 22:45 +0800, Minchan Kim wrote:
-> On Thu, Mar 10, 2011 at 01:30:19PM +0800, Shaohua Li wrote:
-> > The zone->lru_lock is heavily contented in workload where activate_page()
-> > is frequently used. We could do batch activate_page() to reduce the lock
-> > contention. The batched pages will be added into zone list when the pool
-> > is full or page reclaim is trying to drain them.
-> > 
-> > For example, in a 4 socket 64 CPU system, create a sparse file and 64 processes,
-> > processes shared map to the file. Each process read access the whole file and
-> > then exit. The process exit will do unmap_vmas() and cause a lot of
-> > activate_page() call. In such workload, we saw about 58% total time reduction
-> > with below patch. Other workloads with a lot of activate_page also benefits a
-> > lot too.
-> > 
-> > Andrew Morton suggested activate_page() and putback_lru_pages() should
-> > follow the same path to active pages, but this is hard to implement (see commit
-> > 7a608572a282a). On the other hand, do we really need putback_lru_pages() to
-> > follow the same path? I tested several FIO/FFSB benchmark (about 20 scripts for
-> > each benchmark) in 3 machines here from 2 sockets to 4 sockets. My test doesn't
-> > show anything significant with/without below patch (there is slight difference
-> > but mostly some noise which we found even without below patch before). Below
-> > patch basically returns to the same as my first post.
-> > 
-> > I tested some microbenchmarks:
-> > case-anon-cow-rand-mt               0.58%
-> > case-anon-cow-rand          -3.30%
-> > case-anon-cow-seq-mt                -0.51%
-> > case-anon-cow-seq           -5.68%
-> > case-anon-r-rand-mt         0.23%
-> > case-anon-r-rand            0.81%
-> > case-anon-r-seq-mt          -0.71%
-> > case-anon-r-seq                     -1.99%
-> > case-anon-rx-rand-mt                2.11%
-> > case-anon-rx-seq-mt         3.46%
-> > case-anon-w-rand-mt         -0.03%
-> > case-anon-w-rand            -0.50%
-> > case-anon-w-seq-mt          -1.08%
-> > case-anon-w-seq                     -0.12%
-> > case-anon-wx-rand-mt                -5.02%
-> > case-anon-wx-seq-mt         -1.43%
-> > case-fork                   1.65%
-> > case-fork-sleep                     -0.07%
-> > case-fork-withmem           1.39%
-> > case-hugetlb                        -0.59%
-> > case-lru-file-mmap-read-mt  -0.54%
-> > case-lru-file-mmap-read             0.61%
-> > case-lru-file-mmap-read-rand        -2.24%
-> > case-lru-file-readonce              -0.64%
-> > case-lru-file-readtwice             -11.69%
-> > case-lru-memcg                      -1.35%
-> > case-mmap-pread-rand-mt             1.88%
-> > case-mmap-pread-rand                -15.26%
-> > case-mmap-pread-seq-mt              0.89%
-> > case-mmap-pread-seq         -69.72%
-> > case-mmap-xread-rand-mt             0.71%
-> > case-mmap-xread-seq-mt              0.38%
-> > 
-> > The most significent are:
-> > case-lru-file-readtwice             -11.69%
-> > case-mmap-pread-rand                -15.26%
-> > case-mmap-pread-seq         -69.72%
-> > 
-> > which use activate_page a lot.  others are basically variations because
-> > each run has slightly difference.
-> > 
-> > In UP case, 'size mm/swap.o'
-> > before the two patches:
-> >    text    data     bss     dec     hex filename
-> >    6466     896       4    7366    1cc6 mm/swap.o
-> > after the two patches:
-> >    text    data     bss     dec     hex filename
-> >    6343     896       4    7243    1c4b mm/swap.o
-> > 
-> > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> > 
-> > ---
-> >  mm/swap.c |   45 ++++++++++++++++++++++++++++++++++++++++-----
-> >  1 file changed, 40 insertions(+), 5 deletions(-)
-> > 
-> > Index: linux/mm/swap.c
-> > ===================================================================
-> > --- linux.orig/mm/swap.c	2011-03-09 12:56:09.000000000 +0800
-> > +++ linux/mm/swap.c	2011-03-09 12:56:46.000000000 +0800
-> > @@ -272,14 +272,10 @@ static void update_page_reclaim_stat(str
-> >  		memcg_reclaim_stat->recent_rotated[file]++;
-> >  }
-> >  
-> > -/*
-> > - * FIXME: speed this up?
-> > - */
-> > -void activate_page(struct page *page)
-> > +static void __activate_page(struct page *page, void *arg)
-> >  {
-> >  	struct zone *zone = page_zone(page);
-> >  
-> > -	spin_lock_irq(&zone->lru_lock);
-> >  	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
-> >  		int file = page_is_file_cache(page);
-> >  		int lru = page_lru_base_type(page);
-> > @@ -292,8 +288,45 @@ void activate_page(struct page *page)
-> >  
-> >  		update_page_reclaim_stat(zone, page, file, 1);
-> >  	}
-> > +}
-> > +
-> > +#ifdef CONFIG_SMP
-> > +static DEFINE_PER_CPU(struct pagevec, activate_page_pvecs);
-> > +
-> > +static void activate_page_drain(int cpu)
-> > +{
-> > +	struct pagevec *pvec = &per_cpu(activate_page_pvecs, cpu);
-> > +
-> > +	if (pagevec_count(pvec))
-> > +		pagevec_lru_move_fn(pvec, __activate_page, NULL);
-> > +}
-> > +
-> > +void activate_page(struct page *page)
-> > +{
-> > +	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
-> > +		struct pagevec *pvec = &get_cpu_var(activate_page_pvecs);
-> > +
-> > +		page_cache_get(page);
-> > +		if (!pagevec_add(pvec, page))
-> > +			pagevec_lru_move_fn(pvec, __activate_page, NULL);
-> > +		put_cpu_var(activate_page_pvecs);
-> > +	}
-> > +}
-> > +
-> > +#else
-> > +static inline void activate_page_drain(int cpu)
-> > +{
-> > +}
-> > +
-> > +void activate_page(struct page *page)
-> > +{
-> > +	struct zone *zone = page_zone(page);
-> > +
-> > +	spin_lock_irq(&zone->lru_lock);
-> > +	__activate_page(page, NULL);
-> >  	spin_unlock_irq(&zone->lru_lock);
-> >  }
-> > +#endif
->  
-> Why do we need CONFIG_SMP in only activate_page_pvecs?
-> The per-cpu of activate_page_pvecs consumes lots of memory in UP?
-> I don't think so. But if it consumes lots of memory, it's a problem
-> of per-cpu. 
-No, not too much memory.
+On Mon, 14 Mar 2011 11:29:17 -0700
+Greg Thelen <gthelen@google.com> wrote:
 
-> I can't understand why we should hanlde activate_page_pvecs specially.
-> Please, enlighten me. 
-Not it's special. akpm asked me to do it this time. Reducing little
-memory is still worthy anyway, so that's it. We can do it for other
-pvecs too, in separate patch.
+> On Fri, Mar 11, 2011 at 5:10 PM, Andrew Morton
+
+> My rational for pursuing bdi writeback was I/O locality.  I have heard that
+> per-page I/O has bad locality.  Per inode bdi-style writeback should have better
+> locality.
+> 
+> My hunch is the best solution is a hybrid which uses a) bdi writeback with a
+> target memcg filter and b) using the memcg lru as a fallback to identify the bdi
+> that needed writeback.  I think the part a) memcg filtering is likely something
+> like:
+>  http://marc.info/?l=linux-kernel&m=129910424431837
+> 
+> The part b) bdi selection should not be too hard assuming that page-to-mapping
+> locking is doable.
+> 
+
+For now, I like b). 
+
+> An alternative approach is to bind each inode to exactly one cgroup (possibly
+> the root cgroup).  Both the cache page allocations and dirtying charges would be
+> accounted to the i_cgroup.  With this approach there is no foreign dirtier issue
+> because all pages are in a single cgroup.  I find this undesirable because the
+> first memcg to touch an inode is charged for all pages later cached even by
+> other memcg.
+> 
+
+I don't think 'foreign dirtier' is a big problem. When program does write(),
+the file to be written is tend to be under control of the application in
+the cgroup. I don't think 'written file' is shared between several cgroups, 
+typically. But /var/log/messages is a shared one ;)
+
+But I know some other OSs has 'group for file cache'. I'll not nack if you
+propose such patch. Maybe there are some guys who want to limit the amount of
+file cache.
+
+
+
+> When a page is allocated it is charged to the current task's memcg.  When a
+> memcg page is later marked dirty the dirty charge is billed to the memcg from
+> the original page allocation.  The billed memcg may be different than the
+> dirtying task's memcg.
+> 
+yes.
+
+> After a rate limited number of file backed pages have been dirtied,
+> balance_dirty_pages() is called to enforce dirty limits by a) throttling
+> production of more dirty pages by current and b) queuing background writeback to
+> the current bdi.
+> 
+> balance_dirty_pages() receives a mapping and page count, which indicate what may
+> have been dirtied and the max number of pages that may have been dirtied.  Due
+> to per cpu rate limiting and batching (when nr_pages_dirtied > 0),
+> balance_dirty_pages() does not know which memcg were charged for recently dirty
+> pages.
+> 
+> I think both bdi and system limits have the same issue in that a bdi may be
+> pushed over its dirty limit but not immediately checked due to rate limits.  If
+> future dirtied pages are backed by different bdi, then future
+> balance_dirty_page() calls will check the second, compliant bdi ignoring the
+> first, over-limit bdi.  The safety net is that the system wide limits are also
+> checked in balance_dirty_pages.  However, per bdi writeback is employed in this
+> situation.
+> 
+> Note: This memcg foreign dirtier issue does not make it any more likely that a
+> memcg is pushed above its usage limit (limit_in_bytes).  The only limit with
+> this weak contract is the dirty limit.
+> 
+> For reference, this issue was touch on in
+> http://marc.info/?l=linux-mm&m=128840780125261
+> 
+> There are ways to handle this issue (my preferred option is option #1).
+> 
+> 1) keep a (global?) foreign_dirtied_memcg list of memcg that were recently
+>   charged for dirty pages by tasks outside of memcg.  When a memcg dirty page
+>   count is elevated, the page's memcg would be queued to the list if current's
+>   memcg does not match the pages cgroup.  mem_cgroup_balance_dirty_pages()
+>   would balance the current memcg and each memcg it dequeues from this list.
+>   This should be a straightforward fix.
+> 
+
+Can you implement this in an efficient way ? (without taking any locks ?)
+It seems cost > benefit.
+
+
+
+> 2) When pages are dirtied, migrate them to the current task's memcg.
+>   mem_cgroup_balance_dirty_pages would then have a better chance at seeing all
+>   pages dirtied by the current operation.  This is still not perfect solution
+>   due to rate limiting.  This also is bad because such a migration would
+>   involve charging and possibly memcg direct reclaim because the destination
+>   memcg may be at its memory usage limit.  Doing all of this in
+>   account_page_dirtied() seems like trouble, so I do not like this approach.
+> 
+
+I think this cannot be implemented in an efficnent way.
+
+
+
+> 3) Pass in some context which is represents a set of pages recently dirtied into
+>   [mem_cgroup]_balance_dirty_pages.  What would be a good context to collect
+>   the set of memcg that should be balanced?
+>   - an extra passed in parameter - yuck.
+>   - address_space extension - does not feel quite right because address space
+>     is not a io context object, I presume it can be shared by concurrent
+>     threads.
+>   - something hanging on current.  Are there cases where pages become dirty
+>     that are not followed by a call to balance dirty pages Note: this option
+>     (3) is not a good idea because rate limiting make dirty limit enforcement
+>     an inexact science.  There is no guarantee that a caller will have context
+>     describing the pages (or bdis) recently dirtied.
+> 
+
+I'd like to have an option  'cgroup only for file cache' rather than adding more
+hooks and complicated operations.
+
+But, if we need to record 'who dirtied ?' information, record it in page_cgroup
+or radix-tree and do filtering is what I can consider, now.
+In this case, some tracking information will be required to be stored into
+struct inode, too.
+
+
+How about this ?
+
+ 1. record 'who dirtied memcg' into page_cgroup or radix-tree.
+   I prefer recording in radix-tree rather than using more field in page_cgroup.
+ 2. bdi-writeback does some extra queueing operation per memcg.
+   find a page, check 'who dirtied', enqueue it(using page_cgroup or list of pagevec)
+ 3. writeback it's own queue.(This can be done before 2. if cgroup has queue, already)
+ 4. Some GC may be required...
 
 Thanks,
-Shaohua
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
