@@ -1,62 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E476A8D0039
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 16:44:20 -0400 (EDT)
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 0/20] 0: Inode based uprobes
-From: Steven Rostedt <rostedt@goodmis.org>
-In-Reply-To: <alpine.LFD.2.00.1103152102430.2787@localhost6.localdomain6>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
-	 <20110314163028.a05cec49.akpm@linux-foundation.org>
-	 <20110314234754.GP2499@one.firstfloor.org>
-	 <alpine.LFD.2.00.1103150114590.2787@localhost6.localdomain6>
-	 <20110315180639.GQ2499@one.firstfloor.org>
-	 <alpine.LFD.2.00.1103152038280.2787@localhost6.localdomain6>
-	 <1300219261.9910.300.camel@gandalf.stny.rr.com>
-	 <alpine.LFD.2.00.1103152102430.2787@localhost6.localdomain6>
-Content-Type: text/plain; charset="ISO-8859-15"
-Date: Tue, 15 Mar 2011 16:44:16 -0400
-Message-ID: <1300221856.9910.305.camel@gandalf.stny.rr.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 860AE8D0039
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 16:54:32 -0400 (EDT)
+Date: Tue, 15 Mar 2011 13:53:34 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bugme-new] [Bug 31142] New: Large write to USB stick freezes
+ unrelated tasks for a long time
+Message-Id: <20110315135334.36e29414.akpm@linux-foundation.org>
+In-Reply-To: <bug-31142-10286@https.bugzilla.kernel.org/>
+References: <bug-31142-10286@https.bugzilla.kernel.org/>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Paul
- E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: avillaci@ceibo.fiec.espol.edu.ec
+Cc: bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-On Tue, 2011-03-15 at 21:09 +0100, Thomas Gleixner wrote:
-> On Tue, 15 Mar 2011, Steven Rostedt wrote:
 
-> I didn't say that ptrace rocks.
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
+
+On Tue, 15 Mar 2011 15:55:52 GMT
+bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=31142
 > 
-> All I'm saying is that we want a better argument than a single user
-> which is - and yes i tried it more than once - assbackwards beyond all
-> imagination.
+>            Summary: Large write to USB stick freezes unrelated tasks for a
+>                     long time
+>            Product: IO/Storage
+>            Version: 2.5
+>     Kernel Version: 2.6.38-rc8
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Block Layer
+>         AssignedTo: axboe@kernel.dk
+>         ReportedBy: avillaci@ceibo.fiec.espol.edu.ec
+>         Regression: No
 > 
-> If gdb, perf, trace can and will make use of it then we have sensible
+> 
+> Created an attachment (id=50902)
+>  --> (https://bugzilla.kernel.org/attachment.cgi?id=50902)
+> kernel backtraces from hung Eclipse task while writing to usb stick
+> 
+> System is Fedora 14 x86_64 with 4 GB RAM, running vanilla kernel 2.6.38-rc8.
+> 
+> I have a USB 2.0 high-speed memory stick with around 7.5 GB of space. Whenenver
+> I write a large amount of data (several GBs of files) through any means (cp,
+> nautilus GUI, etc), I notice some large applications that I consider unrelated
+> to the I/O operation (Firefox web browser, Thunderbird email viewer, Eclipse
+> IDE) may randomly freeze whenever I try to interact with them. I use Compiz,
+> and I notice the apps getting grayed out, but I have also seen the freeze
+> happening with Metacity and Gnome-shell, so I believe the window manager is
+> irrelevant. Sometimes other smaller tasks (gnome-terminal, gedit) also freeze.
+> For Eclipse, the hang also cause a series of kernel backtraces, attached to
+> this report. The hang usually lasts for several tens of seconds, and may freeze
+> and unfreeze several times while the file copying to USB takes place. All of
+> the hung applications unfreeze themselves after write activity (as seen from
+> the LED in the memory stick) ceases.
+> 
+> Reproducibility: always (with sufficiently large bulk write)
+> To reproduce: 
+> 1) have an usb stick with several GB of free space, with any filesystem (tried
+> vfat and udf)
+> 2) prepare several gb of files to copy from hard disk to usb stick
+> 3) start large application (firefox, eclipse, or thunderbird)
+> 4) check that application is responsive before file copy starts
+> 5) insert usb stick and (auto)mount it. Previously started app is still
+> responsive.
+> 6) start file copy to usb stick with any command
+> 7) attempt to interact with chosen application during the entirety of the file
+> write
+> Expected result: I/O to usb stick takes place in background, unrelated apps
+> continue to be responsive in foreground.
+> Actual result: some large tasks freeze for tens of seconds while write takes
+> place.
+> 
+> Feel free to reassign this bug to a different category. It involves I/O, block,
+> USB, and mmap.
 
-I'm more interested in the perf/trace than gdb, as the way gdb is mostly
-used (at least now) to debug problems in the code with a big hammer
-(single step, look at registers/variables). That is, gdb is usually very
-interactive and its best to "stop the code" from running to examine what
-has happened. gdb is not something you will run on an application that
-is being used by others.
+rofl, will we ever fix this.
 
-With perf/trace things are different, as you want the task to be as
-little affected by the tracer as it runs, perhaps even in a production
-environment. This is a completely different paradigm.
-
-If gdb uses it, great, but I don't think we should bend over backwards
-to make it usable by gdb. Debugging and tracing are different, with
-different requirements and needs.
-
-> arguments enough to go there. If systemtap can use it as well then I
-> have no problem with that..
-
-Fair enough.
-
--- Steve
-
+Please enable sysrq and do a sysrq-w when the tasks are blocked so we
+can find where things are getting stuck.  Please avoid email client
+wordwrapping when sending us the sysrq output.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
