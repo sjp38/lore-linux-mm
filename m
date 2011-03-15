@@ -1,62 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BD7D28D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 21:36:18 -0400 (EDT)
-Date: Tue, 15 Mar 2011 02:35:55 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 0/20] 0: Inode based uprobes
-In-Reply-To: <y0maagxuqx6.fsf@fche.csb>
-Message-ID: <alpine.LFD.2.00.1103150224260.2787@localhost6.localdomain6>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6> <20110314163028.a05cec49.akpm@linux-foundation.org> <y0maagxuqx6.fsf@fche.csb>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id 36B228D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 21:46:27 -0400 (EDT)
+Subject: Re: [PATCH 1/2 v4]mm: simplify code of swap.c
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20110314143457.GA11699@barrios-desktop>
+References: <1299735018.2337.62.camel@sli10-conroe>
+	 <20110314143457.GA11699@barrios-desktop>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 15 Mar 2011 09:45:21 +0800
+Message-ID: <1300153521.2337.65.camel@sli10-conroe>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Frank Ch. Eigler" <fche@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, int-list-linux-mm@kvack.orglinux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, 14 Mar 2011, Frank Ch. Eigler wrote:
-> akpm wrote:
+On Mon, 2011-03-14 at 22:34 +0800, Minchan Kim wrote:
+> Sorry for the late review. 
 > 
-> > [...]  How do you envisage these features actually get used?
+> On Thu, Mar 10, 2011 at 01:30:18PM +0800, Shaohua Li wrote:
+> > Clean up code and remove duplicate code. Next patch will use
+> > pagevec_lru_move_fn introduced here too.
+> > 
+> > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 > 
-> Patch #20/20 in the set includes an ftrace-flavoured debugfs frontend.
-
-And you really think that:
-
-# cd /sys/kernel/debug/tracing/
-
-# cat /proc/`pgrep  zsh`/maps | grep /bin/zsh | grep r-xp
-00400000-0048a000 r-xp 00000000 08:03 130904 /bin/zsh
-
-# objdump -T /bin/zsh | grep -w zfree
-0000000000446420 g    DF .text  0000000000000012  Base        zfree
-
-# echo 'p /bin/zsh:0x46420 %ip %ax' > uprobe_events
-
-# cat uprobe_events
-p:uprobes/p_zsh_0x46420 /bin/zsh:0x0000000000046420
-
-> TODO: Documentation/trace/uprobetrace.txt
-
-without a reasonable documentation how to use that is a brilliant
-argument?
-
-> Previous versions of the patchset included perf front-ends too, which
-> are probably to be seen again.
-
-Ahh, probably. What does that mean?
-
-     And if that probably happens, what interface is that supposed to
-     use?
-
-	The above magic wrapped into perf ?
-
-	Or some sensible implementation ?
+> There is a just nitpick below but I don't care about it if you don't mind it.
+> It's up to you or Andrew. 
+> 
+> > 
+> > ---
+> >  mm/swap.c |  133 +++++++++++++++++++++++++++-----------------------------------
+> >  1 file changed, 58 insertions(+), 75 deletions(-)
+> > 
+> > Index: linux/mm/swap.c
+> > ===================================================================
+> > --- linux.orig/mm/swap.c	2011-03-09 12:47:09.000000000 +0800
+> > +++ linux/mm/swap.c	2011-03-09 13:39:26.000000000 +0800
+> > @@ -179,15 +179,13 @@ void put_pages_list(struct list_head *pa
+> >  }
+> >  EXPORT_SYMBOL(put_pages_list);
+> >  
+> > -/*
+> > - * pagevec_move_tail() must be called with IRQ disabled.
+> > - * Otherwise this may cause nasty races.
+> > - */
+> > -static void pagevec_move_tail(struct pagevec *pvec)
+> > +static void pagevec_lru_move_fn(struct pagevec *pvec,
+> > +				void (*move_fn)(struct page *page, void *arg),
+> > +				void *arg)
+> >  {
+> >  	int i;
+> > -	int pgmoved = 0;
+> >  	struct zone *zone = NULL;
+> > +	unsigned long flags = 0;
+> >  
+> >  	for (i = 0; i < pagevec_count(pvec); i++) {
+> >  		struct page *page = pvec->pages[i];
+> > @@ -195,30 +193,50 @@ static void pagevec_move_tail(struct pag
+> >  
+> >  		if (pagezone != zone) {
+> >  			if (zone)
+> > -				spin_unlock(&zone->lru_lock);
+> > +				spin_unlock_irqrestore(&zone->lru_lock, flags);
+> >  			zone = pagezone;
+> > -			spin_lock(&zone->lru_lock);
+> > -		}
+> > -		if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+> > -			enum lru_list lru = page_lru_base_type(page);
+> > -			list_move_tail(&page->lru, &zone->lru[lru].list);
+> > -			mem_cgroup_rotate_reclaimable_page(page);
+> > -			pgmoved++;
+> > +			spin_lock_irqsave(&zone->lru_lock, flags);
+> >  		}
+> > +
+> > +		(*move_fn)(page, arg);
+> >  	}
+> >  	if (zone)
+> > -		spin_unlock(&zone->lru_lock);
+> > -	__count_vm_events(PGROTATED, pgmoved);
+> > +		spin_unlock_irqrestore(&zone->lru_lock, flags);
+> >  	release_pages(pvec->pages, pvec->nr, pvec->cold);
+> >  	pagevec_reinit(pvec);
+> >  }
+> >  
+> > +static void pagevec_move_tail_fn(struct page *page, void *arg)
+> > +{
+> > +	int *pgmoved = arg;
+> > +	struct zone *zone = page_zone(page);
+> > +
+> > +	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+> > +		enum lru_list lru = page_lru_base_type(page);
+> > +		list_move_tail(&page->lru, &zone->lru[lru].list);
+> > +		mem_cgroup_rotate_reclaimable_page(page);
+> > +		(*pgmoved)++;
+> > +	}
+> > +}
+> > +
+> > +/*
+> > + * pagevec_move_tail() must be called with IRQ disabled.
+> > + * Otherwise this may cause nasty races.
+> > + */
+> > +static void pagevec_move_tail(struct pagevec *pvec)
+> > +{
+> > +	int pgmoved = 0;
+> > +
+> > +	pagevec_lru_move_fn(pvec, pagevec_move_tail_fn, &pgmoved);
+> > +	__count_vm_events(PGROTATED, pgmoved);
+> > +}
+> > +
+>  
+> Do we really need 3rd argument of pagevec_lru_move_fn?
+> It seems to be used just only pagevec_move_tail_fn.
+> But let's think about it again.
+> The __count_vm_events(pgmoved) could be done in pagevec_move_tail_fn.
+> 
+> I don't like unnecessary argument passing although it's not a big overhead.
+> I want to make the code simple if we don't have any reason.
+Sure, making code simple is always preferred.
+___pagevec_lru_add_fn uses the third the parameter too.
 
 Thanks,
+Shaohua
 
-	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
