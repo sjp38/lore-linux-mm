@@ -1,58 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B6F188D0039
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 18:42:43 -0400 (EDT)
-Received: by wwb28 with SMTP id 28so1177627wwb.26
-        for <linux-mm@kvack.org>; Tue, 15 Mar 2011 15:42:40 -0700 (PDT)
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 4/20] 4: uprobes: Adding and remove a
- uprobe in a rb tree.
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <1300218499.2250.12.camel@laptop>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
-	 <20110314133444.27435.50684.sendpatchset@localhost6.localdomain6>
-	 <alpine.LFD.2.00.1103151425060.2787@localhost6.localdomain6>
-	 <20110315173041.GB24254@linux.vnet.ibm.com>
-	 <alpine.LFD.2.00.1103151916120.2787@localhost6.localdomain6>
-	 <1300218499.2250.12.camel@laptop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 15 Mar 2011 23:42:24 +0100
-Message-ID: <1300228944.2565.19.camel@edumazet-laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id D0E9D8D0039
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 18:53:29 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: [PATCH 11/13] mm: use list_move() instead of list_del()/list_add() combination
+Date: Wed, 16 Mar 2011 00:53:23 +0200
+Message-Id: <1300229605-14499-11-git-send-email-kirill@shutemov.name>
+In-Reply-To: <1300229605-14499-1-git-send-email-kirill@shutemov.name>
+References: <1300229605-14499-1-git-send-email-kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Paul
- E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: linux-kernel@vger.kernel.org
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-Le mardi 15 mars 2011 A  20:48 +0100, Peter Zijlstra a A(C)crit :
-> On Tue, 2011-03-15 at 20:22 +0100, Thomas Gleixner wrote:
-> > I am not sure if its a good idea to walk the tree
-> > > as and when the tree is changing either because of a insertion or
-> > > deletion of a probe.
-> > 
-> > I know that you cannot walk the tree lockless except you would use
-> > some rcu based container for your probes. 
-> 
-> You can in fact combine a seqlock, rb-trees and RCU to do lockless
-> walks.
-> 
->   https://lkml.org/lkml/2010/10/20/160
-> 
-> and
-> 
->   https://lkml.org/lkml/2010/10/20/437
-> 
-> But doing that would be an optimization best done once we get all this
-> working nicely.
-> 
+Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org
+---
+ mm/page_alloc.c |    5 ++---
+ 1 files changed, 2 insertions(+), 3 deletions(-)
 
-We have such schem in net/ipv4/inetpeer.c function inet_getpeer() (using
-a seqlock on latest net-next-2.6 tree), but we added a counter to make
-sure a reader could not enter an infinite loop while traversing tree
-(AVL tree in inetpeer case).
-
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index cdef1d4..55fa2ae 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -863,9 +863,8 @@ static int move_freepages(struct zone *zone,
+ 		}
+ 
+ 		order = page_order(page);
+-		list_del(&page->lru);
+-		list_add(&page->lru,
+-			&zone->free_area[order].free_list[migratetype]);
++		list_move(&page->lru,
++			  &zone->free_area[order].free_list[migratetype]);
+ 		page += 1 << order;
+ 		pages_moved += 1 << order;
+ 	}
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
