@@ -1,52 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 28E688D0039
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 15:28:52 -0400 (EDT)
-Received: from canuck.infradead.org ([2001:4978:20e::1])
-	by bombadil.infradead.org with esmtps (Exim 4.72 #1 (Red Hat Linux))
-	id 1PzZvF-0007Ee-58
-	for linux-mm@kvack.org; Tue, 15 Mar 2011 19:28:49 +0000
-Received: from j77219.upc-j.chello.nl ([24.132.77.219] helo=dyad.programming.kicks-ass.net)
-	by canuck.infradead.org with esmtpsa (Exim 4.72 #1 (Red Hat Linux))
-	id 1PzZvA-0004Ss-2k
-	for linux-mm@kvack.org; Tue, 15 Mar 2011 19:28:44 +0000
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 7/20]  7: uprobes: store/restore
- original instruction.
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20110315185841.GH3410@balbir.in.ibm.com>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
-	 <20110314133522.27435.45121.sendpatchset@localhost6.localdomain6>
-	 <20110314180914.GA18855@fibrous.localdomain>
-	 <20110315092247.GW24254@linux.vnet.ibm.com>
-	 <1300211862.2203.302.camel@twins> <20110315185841.GH3410@balbir.in.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 15 Mar 2011 20:30:32 +0100
-Message-ID: <1300217432.2250.0.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id E4CB38D0039
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 15:30:59 -0400 (EDT)
+Date: Tue, 15 Mar 2011 20:21:45 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 3/3 for 2.6.38] oom: oom_kill_process: fix the
+	child_points logic
+Message-ID: <20110315192145.GC21640@redhat.com>
+References: <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com> <20110309151946.dea51cde.akpm@linux-foundation.org> <alpine.DEB.2.00.1103111142260.30699@chino.kir.corp.google.com> <20110312123413.GA18351@redhat.com> <20110312134341.GA27275@redhat.com> <AANLkTinHGSb2_jfkwx=Wjv96phzPCjBROfCTFCKi4Wey@mail.gmail.com> <20110313212726.GA24530@redhat.com> <20110314190419.GA21845@redhat.com> <20110314190530.GD21845@redhat.com> <alpine.DEB.2.00.1103141334470.31514@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1103141334470.31514@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>, Frantisek Hrbata <fhrbata@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 2011-03-16 at 00:28 +0530, Balbir Singh wrote:
-> 
-> mm->owner should be under rcu_read_lock, unless the task is exiting
-> and mm_count is 1. mm->owner is updated under task_lock().
-> 
-> > Also, the assignments in kernel/fork.c and kernel/exit.c don't use
-> > rcu_assign_pointer() and therefore lack the needed write barrier.
+On 03/14, David Rientjes wrote:
+>
+> On Mon, 14 Mar 2011, Oleg Nesterov wrote:
+>
+> > oom_kill_process() starts with victim_points == 0. This means that
+> > (most likely) any child has more points and can be killed erroneously.
 > >
-> 
-> Those are paths when the only context using the mm->owner is single
->  
-> > Git blames Balbir for this.
-> 
-> I accept the blame and am willing to fix anything incorrect found in
-> the code. 
+> > Also, "children has a different mm" doesn't match the reality, we
+> > should check child->mm != t->mm. This check is not exactly correct
+> > if t->mm == NULL but this doesn't really matter, oom_kill_task()
+> > will kill them anyway.
+> >
+> > Note: "Kill all processes sharing p->mm" in oom_kill_task() is wrong
+> > too.
+> >
+>
+> There're two issues you're addressing in this patch.  It only kills a 
+> child in place of its selected parent when:
+>
+>  - the child has a higher badness score, and
+>
+>  - it has a different ->mm.
+>
+> In the former case, NACK, we always want to sacrifice children regardless
+> of their badness score (as long as it is non-zero) if it has a separate
+> ->mm in place of its parent,
 
-:-), ok sounds right, just wasn't entirely obvious when having a quick
-look.
+Ah. So this was intentional?
+
+OK. I was hypnotized by the security implications, and this looked so
+"obviously wrong" to me.
+
+But, of course I can't judge when it comes to oom's heuristic, and you
+certainly know better.
+
+So, thanks for correcting me.
+
+
+Just a question... what about oom_kill_allocating_task? Probably
+Documentation/sysctl/vm.txt should be updated.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
