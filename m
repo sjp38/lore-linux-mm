@@ -1,117 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D9D278D0039
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 19:12:11 -0400 (EDT)
-Date: Tue, 15 Mar 2011 19:11:39 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
-Message-ID: <20110315231139.GE5740@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 674A98D0039
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 19:12:40 -0400 (EDT)
+Date: Wed, 16 Mar 2011 00:12:30 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v6 8/9] memcg: check memcg dirty limits in page
+ writeback
+Message-ID: <20110315231230.GC4995@quack.suse.cz>
 References: <1299869011-26152-1-git-send-email-gthelen@google.com>
- <20110311171006.ec0d9c37.akpm@linux-foundation.org>
- <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
- <20110314202324.GG31120@redhat.com>
- <AANLkTinDNOLMdU7EEMPFkC_f9edCx7ZFc7=qLRNAEmBM@mail.gmail.com>
- <20110315212339.GC5740@redhat.com>
+ <1299869011-26152-9-git-send-email-gthelen@google.com>
+ <20110314175408.GE31120@redhat.com>
+ <20110314211002.GD4998@quack.suse.cz>
+ <AANLkTikCt90o2qRV=0cJijtnA_W44dcUCBOmZ53Biv07@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20110315212339.GC5740@redhat.com>
+In-Reply-To: <AANLkTikCt90o2qRV=0cJijtnA_W44dcUCBOmZ53Biv07@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
+Cc: Jan Kara <jack@suse.cz>, Vivek Goyal <vgoyal@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
 
-On Tue, Mar 15, 2011 at 05:23:39PM -0400, Vivek Goyal wrote:
-> On Mon, Mar 14, 2011 at 07:41:13PM -0700, Greg Thelen wrote:
-> > On Mon, Mar 14, 2011 at 1:23 PM, Vivek Goyal <vgoyal@redhat.com> wrote:
-> > > On Mon, Mar 14, 2011 at 11:29:17AM -0700, Greg Thelen wrote:
-> > >
-> > > [..]
-> > >> > We could just crawl the memcg's page LRU and bring things under control
-> > >> > that way, couldn't we?  That would fix it.  What were the reasons for
-> > >> > not doing this?
-> > >>
-> > >> My rational for pursuing bdi writeback was I/O locality.  I have heard that
-> > >> per-page I/O has bad locality.  Per inode bdi-style writeback should have better
-> > >> locality.
-> > >>
-> > >> My hunch is the best solution is a hybrid which uses a) bdi writeback with a
-> > >> target memcg filter and b) using the memcg lru as a fallback to identify the bdi
-> > >> that needed writeback.  I think the part a) memcg filtering is likely something
-> > >> like:
-> > >>  http://marc.info/?l=linux-kernel&m=129910424431837
-> > >>
-> > >> The part b) bdi selection should not be too hard assuming that page-to-mapping
-> > >> locking is doable.
-> > >
-> > > Greg,
-> > >
-> > > IIUC, option b) seems to be going through pages of particular memcg and
-> > > mapping page to inode and start writeback on particular inode?
-> > 
-> > Yes.
-> > 
-> > > If yes, this might be reasonably good. In the case when cgroups are not
-> > > sharing inodes then it automatically maps one inode to one cgroup and
-> > > once cgroup is over limit, it starts writebacks of its own inode.
-> > >
-> > > In case inode is shared, then we get the case of one cgroup writting
-> > > back the pages of other cgroup. Well I guess that also can be handeled
-> > > by flusher thread where a bunch or group of pages can be compared with
-> > > the cgroup passed in writeback structure. I guess that might hurt us
-> > > more than benefit us.
-> > 
-> > Agreed.  For now just writing the entire inode is probably fine.
-> > 
-> > > IIUC how option b) works then we don't even need option a) where an N level
-> > > deep cache is maintained?
-> > 
-> > Originally I was thinking that bdi-wide writeback with memcg filter
-> > was a good idea.  But this may be unnecessarily complex.  Now I am
-> > agreeing with you that option (a) may not be needed.  Memcg could
-> > queue per-inode writeback using the memcg lru to locate inodes
-> > (lru->page->inode) with something like this in
-> > [mem_cgroup_]balance_dirty_pages():
-> > 
-> >   while (memcg_usage() >= memcg_fg_limit) {
-> >     inode = memcg_dirty_inode(cg);  /* scan lru for a dirty page, then
-> > grab mapping & inode */
-> >     sync_inode(inode, &wbc);
-> >   }
+On Mon 14-03-11 20:27:33, Greg Thelen wrote:
+> On Mon, Mar 14, 2011 at 2:10 PM, Jan Kara <jack@suse.cz> wrote:
+> > On Mon 14-03-11 13:54:08, Vivek Goyal wrote:
+> >> On Fri, Mar 11, 2011 at 10:43:30AM -0800, Greg Thelen wrote:
+> >> > If the current process is in a non-root memcg, then
+> >> > balance_dirty_pages() will consider the memcg dirty limits as well as
+> >> > the system-wide limits.  This allows different cgroups to have distinct
+> >> > dirty limits which trigger direct and background writeback at different
+> >> > levels.
+> >> >
+> >> > If called with a mem_cgroup, then throttle_vm_writeout() queries the
+> >> > given cgroup for its dirty memory usage limits.
+> >> >
+> >> > Signed-off-by: Andrea Righi <arighi@develer.com>
+> >> > Signed-off-by: Greg Thelen <gthelen@google.com>
+> >> > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> >> > Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+> >> > ---
+> >> > Changelog since v5:
+> >> > - Simplified this change by using mem_cgroup_balance_dirty_pages() rather than
+> >> >   cramming the somewhat different logic into balance_dirty_pages().  This means
+> >> >   the global (non-memcg) dirty limits are not passed around in the
+> >> >   struct dirty_info, so there's less change to existing code.
+> >>
+> >> Yes there is less change to existing code but now we also have a separate
+> >> throttlig logic for cgroups.
+> >>
+> >> I thought that we are moving in the direction of IO less throttling
+> >> where bdi threads always do the IO and Jan Kara also implemented the
+> >> logic to distribute the finished IO pages uniformly across the waiting
+> >> threads.
+> >  Yes, we'd like to avoid doing IO from balance_dirty_pages(). But if the
+> > logic in cgroups specific part won't get too fancy (which it doesn't seem
+> > to be the case currently), it shouldn't be too hard to convert it to the new
+> > approach.
 > 
-> Is it possible to pass mem_cgroup in writeback_control structure or in
-> work structure which in turn will be set in writeback_control.  And
-> modify writeback_inodes_wb() which will look that ->mem_cgroup is
-> set. So instead of calling queue_io() it can call memcg_queue_io()
-> and then memory cgroup can look at lru list and take its own decision
-> on which inodes needs to be pushed for IO?
+> Handling memcg hierarchy was something that was not trivial to implement in
+> mem_cgroup_balance_dirty_pages.
+> 
+> > We can talk about it at LSF but at least with my approach to IO-less
+> > balance_dirty_pages() it would be easy to convert cgroups throttling to
+> > the new way. With Fengguang's approach it might be a bit harder since he
+> > computes a throughput and from that necessary delay for a throttled task
+> > but with cgroups that is impossible to compute so he'd have to add some
+> > looping if we didn't write enough pages from the cgroup yet. But still it
+> > would be reasonable doable AFAICT.
+> 
+> I am definitely interested in finding a way to merge these feature
+> cleanly together.
+  What my patches do is that instead of calling writeback_inodes_wb() the
+process waits for IO on enough pages to get completed. Now if we can tell
+for each page against which cgroup it is accounted (and I believe we are
+able to do so), we can as well properly account amount of pages completed
+against a particular cgroup and thus wait for right amount of pages for
+that cgroup to get written. The only difficult part is that for BDI I can
+estimate throughput, set sleep time appropriately, and thus avoid
+unnecessary looping checking whether pages have already completed or not.
+With per-cgroup this is impossible (cgroups share the resource) so we'd have
+to check relatively often...
 
-Thinking more about it, for foreground work probably your solution of
-sync_inode() and writting actively in the context of dirtier is also
-good. It has the disadvantage of that it does not take into account
-IO less throttling but if forground IO is submitted in the context
-of memcg process and we can do per process submitted IO accounting
-and move nr_requests out of request queue. 
+> >> Keeping it separate for cgroups, reduces the complexity but also forks
+> >> off the balancing logic for root and other cgroups. So if Jan Kara's
+> >> changes go in, it automatically does not get used for memory cgroups.
+> >>
+> >> Not sure how good a idea it is to use a separate throttling logic for
+> >> for non-root cgroups.
+> >  Yeah, it looks a bit odd. I'd think that we could just cap
+> > task_dirty_limit() by a value computed from a cgroup limit and be done
+> > with that but I probably miss something...
+> 
+> That is an interesting idea.  When looking at upstream balance_dirty_pages(),
+> the result of task_dirty_limit() is compared per bdi_nr_reclaimable and
+> bdi_nr_writeback.  I think we should be comparing memcg usage to memcg limits
+> to catch cases where memcg usage is above memcg limits.
+> Or am I missing something in your apporach?
+  Oh right. It was too late yesterday :).
+ 
+> > Sure there is also a different
+> > background limit but that's broken anyway because a flusher thread will
+> > quickly stop doing writeback if global background limit is not exceeded.
+> > But that's a separate topic so I'll reply with this to a more appropriate
+> > email ;)
+> ;)  I am also interested in the this bg issue, but I should also try
+> to stay on topic.
+  I found out I've already deleted the relevant email and thus have no good
+way to reply to it. So in the end I'll write it here: As Vivek pointed out,
+you try to introduce background writeback that honors per-cgroup limits but
+the way you do it it doesn't quite work. To avoid livelocking of flusher
+thread, any essentially unbounded work (and background writeback of bdi or
+in your case a cgroup pages on the bdi is in principle unbounded) has to
+give way to other work items in the queue (like a work submitted by
+sync(1)). Thus wb_writeback() stops for_background works if there are other
+works to do with the rationale that as soon as that work is finished, we
+may happily return to background cleaning (and that other work works for
+background cleaning as well anyway).
 
-using memcg_queue_io() has one disadvantage that it will take memcg's
-dirty inodes from ->b_dirty list and put on ->b_io list. That is
-equivalent to prioritizing writeback of memcg inodes and it can starve
-root cgroup inode's starvation.
+But with your introduction of per-cgroup background writeback we are going
+to loose the information in which cgroup we have to get below background
+limit. And if we stored the context somewhere and tried to return to it
+later, we'd have the above problems with livelocking and we'd have to
+really carefully handle cases where more cgroups actually want their limits
+observed.
 
-May be we can use memcg_queue_io() for background writeout and
-sync_inode() for foreground writeout. And design memcg in such a way
-so that it moves one of its own inode on io_list and at the same it
-moves one more inode which does not belong to it. That might help
-in mitigating the issue of starving root cgroup and also help making
-sure that we don't end up writting lot of other inodes before the
-dirty background ratio of a cgroup is under control.
+I'm not decided what would be a good solution for this. It seems that
+a flusher thread should check all cgroups whether they are not exceeding
+their background limit and if yes, do writeback. I'm not sure how practical
+that would be but possibly we could have a list of cgroups with exceeded
+limits and flusher thread could check that?
 
-Also need to check how it is going to interact with IO less throttling.
-My head is spinning now. It is complicated. Will read more code tomorrow.
-
-Thanks
-Vivek
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
