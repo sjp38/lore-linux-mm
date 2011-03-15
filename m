@@ -1,66 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 548308D0039
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 18:10:11 -0400 (EDT)
-Message-ID: <4D7FE3BE.4000100@xmsnet.nl>
-Date: Tue, 15 Mar 2011 23:10:06 +0100
-From: Hans de Bruin <jmdebruin@xmsnet.nl>
-MIME-Version: 1.0
-Subject: Re: 2.6.38-rc echo 3 > /proc/sys/vm/drop_caches repairs mplayer distortions
-References: <4D7E89E7.3080505@xmsnet.nl> <20110315185913.GH2140@cmpxchg.org>
-In-Reply-To: <20110315185913.GH2140@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B6F188D0039
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 18:42:43 -0400 (EDT)
+Received: by wwb28 with SMTP id 28so1177627wwb.26
+        for <linux-mm@kvack.org>; Tue, 15 Mar 2011 15:42:40 -0700 (PDT)
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 4/20] 4: uprobes: Adding and remove a
+ uprobe in a rb tree.
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <1300218499.2250.12.camel@laptop>
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+	 <20110314133444.27435.50684.sendpatchset@localhost6.localdomain6>
+	 <alpine.LFD.2.00.1103151425060.2787@localhost6.localdomain6>
+	 <20110315173041.GB24254@linux.vnet.ibm.com>
+	 <alpine.LFD.2.00.1103151916120.2787@localhost6.localdomain6>
+	 <1300218499.2250.12.camel@laptop>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 15 Mar 2011 23:42:24 +0100
+Message-ID: <1300228944.2565.19.camel@edumazet-laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Paul
+ E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On 03/15/2011 07:59 PM, Johannes Weiner wrote:
-> linux-mm cc'd
->
-> On Mon, Mar 14, 2011 at 10:34:31PM +0100, Hans de Bruin wrote:
->> Since the start of the start of 2.6.38-rc I sporadic have problems
->> with mplayer. A mpeg stream sometimes gets distorted when mplayer
->> starts. An example is at http://www.xs4all.nl/~bruinjm/mplayer.png .
->> I do not know how to trigger the behaviour, so bissecting is not
->> possible. Since yesterday however I found a way to 'repair' mplayer:
->>
->> echo 3>  /proc/sys/vm/drop_caches
->>
->> This repairs mplayer while it is running.
->
-> While echo is running?  Or does one cache drop fix the problem until
-> mplayer exits?  Could you describe exactly the steps you are going
-> through and the effects they have?
->
+Le mardi 15 mars 2011 A  20:48 +0100, Peter Zijlstra a A(C)crit :
+> On Tue, 2011-03-15 at 20:22 +0100, Thomas Gleixner wrote:
+> > I am not sure if its a good idea to walk the tree
+> > > as and when the tree is changing either because of a insertion or
+> > > deletion of a probe.
+> > 
+> > I know that you cannot walk the tree lockless except you would use
+> > some rcu based container for your probes. 
+> 
+> You can in fact combine a seqlock, rb-trees and RCU to do lockless
+> walks.
+> 
+>   https://lkml.org/lkml/2010/10/20/160
+> 
+> and
+> 
+>   https://lkml.org/lkml/2010/10/20/437
+> 
+> But doing that would be an optimization best done once we get all this
+> working nicely.
+> 
 
-mplayer either starts with a corrupt screen or not. Without interference 
-  there are no switches from good to bad or the other way around. When I 
-run echo 3> ... its completes in a blink of an eye and at the same time 
-the mplayer screen switches from bad to good.
-
-In an earlier snapshot I made 
-(http://www.xs4all.nl/~bruinjm/earlier.png) you can see (if you ignore 
-the starship) two mplayers playing the same file. The colors look the 
-same. The contens on the bad window is moving horizontaly.
-
-sometimes restarting mplayer helps, some times not. When its not the 
-corrupt screens are persistent. clearing the cache between running seems 
-mplayer seems to help in these cases (although I only tested this ones).
-
-The 8mbit/s videocapture streams to have a much higher change of going 
-wrong than 1mbit/s streams from other sources.
-
-The first incident was at 26-jan the second at 7-feb. I use mplayer to 
-watch the news 4 times a week. so its not failing often. At 26-jan my 
-tree was at commit 6663050 (I pull and rebuild every day)
-
-only mplayer is misbehaving. My other two favorite programs firefox and 
-thunderbird work fine and I have not seen corrupt files.
-
--- 
-Hans
+We have such schem in net/ipv4/inetpeer.c function inet_getpeer() (using
+a seqlock on latest net-next-2.6 tree), but we added a counter to make
+sure a reader could not enter an infinite loop while traversing tree
+(AVL tree in inetpeer case).
 
 
 
