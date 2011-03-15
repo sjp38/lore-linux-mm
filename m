@@ -1,92 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 86E0C8D003A
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:23:40 -0400 (EDT)
-Date: Tue, 15 Mar 2011 11:23:10 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 3/5] mm: Implement IO-less balance_dirty_pages()
-Message-ID: <20110315152310.GD24984@redhat.com>
-References: <1299623475-5512-1-git-send-email-jack@suse.cz>
- <1299623475-5512-4-git-send-email-jack@suse.cz>
- <20110310000731.GE10346@redhat.com>
- <20110314204821.GC4998@quack.suse.cz>
-MIME-Version: 1.0
+	by kanga.kvack.org (Postfix) with ESMTP id 4802D8D003A
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:30:22 -0400 (EDT)
+Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
+	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
+	id S1579084Ab1COPaB (ORCPT <rfc822;linux-mm@kvack.org>);
+	Tue, 15 Mar 2011 16:30:01 +0100
+Date: Tue, 15 Mar 2011 16:30:01 +0100
+From: Daniel Kiper <dkiper@net-space.pl>
+Subject: Re: Bootup fix for _brk_end being != _end
+Message-ID: <20110315153001.GD12730@router-fw-old.local.net-space.pl>
+References: <20110308214429.GA27331@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1103091359290.2968@kaball-desktop> <20110315142957.GB12730@router-fw-old.local.net-space.pl> <20110315144821.GA11586@dumpdata.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110314204821.GC4998@quack.suse.cz>
+In-Reply-To: <20110315144821.GA11586@dumpdata.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Daniel Kiper <dkiper@net-space.pl>, Stefano Stabellini <stefano.stabellini@eu.citrix.com>, Ian Campbell <Ian.Campbell@eu.citrix.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi.kleen@intel.com" <andi.kleen@intel.com>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "jeremy@goop.org" <jeremy@goop.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, "v.tolstov@selfip.ru" <v.tolstov@selfip.ru>, "pasik@iki.fi" <pasik@iki.fi>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, "wdauchy@gmail.com" <wdauchy@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Mar 14, 2011 at 09:48:21PM +0100, Jan Kara wrote:
-> On Wed 09-03-11 19:07:31, Vivek Goyal wrote:
-> > > +static void balance_dirty_pages(struct address_space *mapping,
-> > > +				unsigned long write_chunk)
-> > > +{
-> > > +	struct backing_dev_info *bdi = mapping->backing_dev_info;
-> > > +	struct balance_waiter bw;
-> > > +	struct dirty_limit_state st;
-> > > +	int dirty_exceeded = check_dirty_limits(bdi, &st);
-> > > +
-> > > +	if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT ||
-> > > +	    (dirty_exceeded == DIRTY_MAY_EXCEED_LIMIT &&
-> > > +	     !bdi_task_limit_exceeded(&st, current))) {
-> > > +		if (bdi->dirty_exceeded &&
-> > > +		    dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT)
-> > > +			bdi->dirty_exceeded = 0;
-> > >  		/*
-> > > -		 * Increase the delay for each loop, up to our previous
-> > > -		 * default of taking a 100ms nap.
-> > > +		 * In laptop mode, we wait until hitting the higher threshold
-> > > +		 * before starting background writeout, and then write out all
-> > > +		 * the way down to the lower threshold.  So slow writers cause
-> > > +		 * minimal disk activity.
-> > > +		 *
-> > > +		 * In normal mode, we start background writeout at the lower
-> > > +		 * background_thresh, to keep the amount of dirty memory low.
-> > >  		 */
-> > > -		pause <<= 1;
-> > > -		if (pause > HZ / 10)
-> > > -			pause = HZ / 10;
-> > > +		if (!laptop_mode && dirty_exceeded == DIRTY_EXCEED_BACKGROUND)
-> > > +			bdi_start_background_writeback(bdi);
-> > > +		return;
-> > >  	}
-> > >  
-> > > -	/* Clear dirty_exceeded flag only when no task can exceed the limit */
-> > > -	if (!min_dirty_exceeded && bdi->dirty_exceeded)
-> > > -		bdi->dirty_exceeded = 0;
-> > > +	if (!bdi->dirty_exceeded)
-> > > +		bdi->dirty_exceeded = 1;
-> > 
-> > Will it make sense to move out bdi_task_limit_exceeded() check in a
-> > separate if condition statement as follows. May be this is little
-> > easier to read.
-> > 
-> > 	if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT) {
-> > 		if (bdi->dirty_exceeded)
-> > 			bdi->dirty_exceeded = 0;
-> > 
-> > 		if (!laptop_mode && dirty_exceeded == DIRTY_EXCEED_BACKGROUND)
-> > 			bdi_start_background_writeback(bdi);
-> > 
-> > 		return;
-> > 	}
-> > 
-> > 	if (dirty_exceeded == DIRTY_MAY_EXCEED_LIMIT &&
-> > 	    !bdi_task_limit_exceeded(&st, current))
-> > 		return;   
->   But then we have to start background writeback here as well. Which is
-> actually a bug in the original patch as well! So clearly your way is more
-> readable :) I'll change it. Thanks.
+On Tue, Mar 15, 2011 at 10:48:21AM -0400, Konrad Rzeszutek Wilk wrote:
+> > > > Additionally, I suggest to apply patch prepared by Steffano Stabellini
+> > > > (https://lkml.org/lkml/2011/1/31/232) which fixes memory management
+> > > > issue in Xen guest. I was not able boot guest machine without
+> > > > above mentioned patch.
+> > >
+> > > after some discussions we came up with a different approach to fix the
+> > > issue; I sent a couple of patches a little while ago:
+> > >
+> > > https://lkml.org/lkml/2011/2/28/410
+> >
+> > I tested git://xenbits.xen.org/people/sstabellini/linux-pvhvm.git 2.6.38-tip-fixes
+> > and it works on x86_64, however, it does not work on i386. Tested as
+> > unprivileged guest on Xen Ver. 4.1.0-rc2-pre. On i386 domain crashes
+> > silently at early boot stage :-(((.
+>
+> Details? Can you provide the 'xenctx' output of where it crashed?
 
-I was thinking about that starting of bdi writeback here. But I was
-assuming that if we are here then we most likely have visited above
-loop of < DIRTY_MAY_EXCEED_LIMIT and started background writeback.
+As I wrote above domain is dying and I am not able to connect to it using
+xenctx after crash :-(((. I do not know how to do that in another way.
 
-Thanks
-Vivek
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
