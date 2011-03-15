@@ -1,128 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9F4DD8D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 23:08:01 -0400 (EDT)
-Subject: Re: ext4 deep stack with mark_page_dirty reclaim
-Mime-Version: 1.0 (Apple Message framework v1082)
-Content-Type: text/plain; charset=us-ascii
-From: Andreas Dilger <adilger@dilger.ca>
-In-Reply-To: <20110314204627.GB8120@thunk.org>
-Date: Mon, 14 Mar 2011 19:25:10 -0700
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A2BD68D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 23:27:59 -0400 (EDT)
+Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
+	by smtp-out.google.com with ESMTP id p2F3Rsun022449
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 20:27:54 -0700
+Received: from qyk2 (qyk2.prod.google.com [10.241.83.130])
+	by hpaq1.eem.corp.google.com with ESMTP id p2F3RlT6003091
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 20:27:53 -0700
+Received: by qyk2 with SMTP id 2so159089qyk.2
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 20:27:53 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110314211002.GD4998@quack.suse.cz>
+References: <1299869011-26152-1-git-send-email-gthelen@google.com>
+ <1299869011-26152-9-git-send-email-gthelen@google.com> <20110314175408.GE31120@redhat.com>
+ <20110314211002.GD4998@quack.suse.cz>
+From: Greg Thelen <gthelen@google.com>
+Date: Mon, 14 Mar 2011 20:27:33 -0700
+Message-ID: <AANLkTikCt90o2qRV=0cJijtnA_W44dcUCBOmZ53Biv07@mail.gmail.com>
+Subject: Re: [PATCH v6 8/9] memcg: check memcg dirty limits in page writeback
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
-Message-Id: <FE7209AC-C66C-4482-945E-58CF5AF8FEE7@dilger.ca>
-References: <alpine.LSU.2.00.1103141156190.3220@sister.anvils> <20110314204627.GB8120@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ted Ts'o <tytso@mit.edu>
-Cc: Hugh Dickins <hughd@google.com>, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: Vivek Goyal <vgoyal@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
 
-On 2011-03-14, at 1:46 PM, Ted Ts'o wrote:
-> On Mon, Mar 14, 2011 at 12:20:52PM -0700, Hugh Dickins wrote:
->> When testing something else on 2.6.38-rc8 last night,
->> I hit this x86_64 stack overflow.  I've never had one before,
->> it seems worth reporting.  kdb was in, I jotted it down by hand
->> (the notifier part of it will be notifying kdb of the fault).
->> CONFIG_DEBUG_STACK_OVERFLOW and DEBUG_STACK_USAGE were not set.
->>=20
->> I should disclose that I have a hack in which may make my stack
->> frames slightly larger than they should be: check against yours.
->> So it may not be an overflow for anyone else, but still a trace
->> to worry about.
->=20
-> Here's the trace translated to the stack space used by each function.
-> There are a few piggy ext4 functions that we can try to shrink, but
-> the real problem is just how deep the whole stack is getting.
->=20
-> =46rom the syscall to the lowest-level ext4 function is 3712 bytes, =
-and
-> everything from there to the schedule() which then triggered the GPF
-> was another 3728 of stack space....
+On Mon, Mar 14, 2011 at 2:10 PM, Jan Kara <jack@suse.cz> wrote:
+> On Mon 14-03-11 13:54:08, Vivek Goyal wrote:
+>> On Fri, Mar 11, 2011 at 10:43:30AM -0800, Greg Thelen wrote:
+>> > If the current process is in a non-root memcg, then
+>> > balance_dirty_pages() will consider the memcg dirty limits as well as
+>> > the system-wide limits. =A0This allows different cgroups to have disti=
+nct
+>> > dirty limits which trigger direct and background writeback at differen=
+t
+>> > levels.
+>> >
+>> > If called with a mem_cgroup, then throttle_vm_writeout() queries the
+>> > given cgroup for its dirty memory usage limits.
+>> >
+>> > Signed-off-by: Andrea Righi <arighi@develer.com>
+>> > Signed-off-by: Greg Thelen <gthelen@google.com>
+>> > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> > Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+>> > ---
+>> > Changelog since v5:
+>> > - Simplified this change by using mem_cgroup_balance_dirty_pages() rat=
+her than
+>> > =A0 cramming the somewhat different logic into balance_dirty_pages(). =
+=A0This means
+>> > =A0 the global (non-memcg) dirty limits are not passed around in the
+>> > =A0 struct dirty_info, so there's less change to existing code.
+>>
+>> Yes there is less change to existing code but now we also have a separat=
+e
+>> throttlig logic for cgroups.
+>>
+>> I thought that we are moving in the direction of IO less throttling
+>> where bdi threads always do the IO and Jan Kara also implemented the
+>> logic to distribute the finished IO pages uniformly across the waiting
+>> threads.
+> =A0Yes, we'd like to avoid doing IO from balance_dirty_pages(). But if th=
+e
+> logic in cgroups specific part won't get too fancy (which it doesn't seem
+> to be the case currently), it shouldn't be too hard to convert it to the =
+new
+> approach.
 
-Is there a script which you used to generate this stack trace to =
-function size mapping, or did you do it by hand?  I've always wanted =
-such a script, but the tricky part is that there is so much garbage on =
-the stack that any automated stack parsing is almost useless.  =
-Alternately, it would seem trivial to have the stack dumper print the =
-relative address of each symbol, and the delta from the previous =
-symbol...
+Handling memcg hierarchy was something that was not trivial to implement in
+mem_cgroup_balance_dirty_pages.
 
-To be honest, I think the stack size limitation is becoming a serious =
-problem in itself.  While some stack-size reduction effort is actually =
-useful in removing inefficiency, I think there is a lot of crazy and =
-inefficient things to try and minimize the stack usage (e.g. lots of =
-kmalloc/kfree of temporary arrays instead of just putting them on the =
-stack), which ends up consuming _more_ total memory.
+> We can talk about it at LSF but at least with my approach to IO-less
+> balance_dirty_pages() it would be easy to convert cgroups throttling to
+> the new way. With Fengguang's approach it might be a bit harder since he
+> computes a throughput and from that necessary delay for a throttled task
+> but with cgroups that is impossible to compute so he'd have to add some
+> looping if we didn't write enough pages from the cgroup yet. But still it
+> would be reasonable doable AFAICT.
 
-This can be seen with deep storage stacks that are using the network on =
-both ends, like NFS+{XFS, ext4}+LVM+DM+{fcoib,iSCSI}+driver+kmalloc or =
-similar...  The below stack isn't even using something so convoluted.
+I am definitely interested in finding a way to merge these feature
+cleanly together.
 
-> 240 schedule+0x25a
-> 368 io_schedule+0x35
->  32 get_request_wait+0xc6
-> 160 __make_request+0x36d
-> 112 generic_make_request+0x2f2
-> 208 submit_bio+0xe1
-> 144 swap_writepage+0xa3
->  80 pageout+0x151
-> 128 shrink_page_list+0x2db
-> 176 shrink_inactive_list+0x2d3
-> 256 shrink_zone+0x17d
-> 224 shrink_zones+0x0xa3
-> 128 do_try_to_free_pages+0x87
-> 144 try_to_free_mem_cgroup_pages+0x8e
-> 112 mem_cgroup_hierarchical_reclaim+0x220
-> 176 mem_cgroup_do_charge+0xdc
-> 128 __mem_cgroup_try_charge+0x19c
-> 128 mem_cgroup_charge_common+0xa8
-> 128 mem_cgroup_cache_charge+0x19a
-> 128 add_to_page_cache_locked+0x57
->  96 add_to_page_cache_lru+0x3e
->  80 find_or_create_page+0x69
-> 112 grow_dev_page+0x4a
->  96 grow_buffers+0x41
->  64 __getblk_slow+0xd7
->  80 __getblk+0x44
->  80 __ext4_get_inode_loc+0x12c
-> 176 ext4_get_inode_loc+0x30
->  48 ext4_reserve_inode_write+0x21
->  80 ext4_mark_inode_dirty+0x3b
-> 160 ext4_dirty_inode+0x3e
->  64 __mark_inode_dirty+0x32
->  80 linux/fs.h       mark_inode_dirty
->   0 linux/quotaops.h dquot_alloc_space
->   0 linux/quotaops.h dquot_alloc_block
->   0 ext4_mb_new_blocks+0xc2
-> 144 ext4_alloc_blocks+0x189
-> 208 ext4_alloc_branch+0x73
-> 208 ext4_ind_map_blocks+0x148
-> 272 ext4_map_blocks+0x148
-> 112 ext4_getblk+0x5f
-> 144 ext4_bread+0x36
->  96 ext4_append+0x52
->  96 do_split+0x5b
-> 224 ext4_dx_add_entry+0x4b4
-> 304 ext4_add_entry+0x7c
-> 176 ext4_add_nondir+0x2e
->  80 ext4_create+0xf5
-> 144 vfs_create+0x83
->  96 __open_namei_create+0x59
->  96 do_last+0x13b
-> 112 do_filp_open+0x2ae
-> 384 do_sys_open+0x72
-> 128 sys_open+0x27
+>> Keeping it separate for cgroups, reduces the complexity but also forks
+>> off the balancing logic for root and other cgroups. So if Jan Kara's
+>> changes go in, it automatically does not get used for memory cgroups.
+>>
+>> Not sure how good a idea it is to use a separate throttling logic for
+>> for non-root cgroups.
+> =A0Yeah, it looks a bit odd. I'd think that we could just cap
+> task_dirty_limit() by a value computed from a cgroup limit and be done
+> with that but I probably miss something...
+
+That is an interesting idea.  When looking at upstream balance_dirty_pages(=
+),
+the result of task_dirty_limit() is compared per bdi_nr_reclaimable and
+bdi_nr_writeback.  I think we should be comparing memcg usage to memcg limi=
+ts
+to catch cases where memcg usage is above memcg limits.
+Or am I missing something in your apporach?
+
+> Sure there is also a different
+> background limit but that's broken anyway because a flusher thread will
+> quickly stop doing writeback if global background limit is not exceeded.
+> But that's a separate topic so I'll reply with this to a more appropriate
+> email ;)
+
+;)  I am also interested in the this bg issue, but I should also try
+to stay on topic.
+
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Honza
 > --
-> To unsubscribe from this list: send the line "unsubscribe linux-ext4" =
-in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
-
-Cheers, Andreas
-
-
-
-
+> Jan Kara <jack@suse.cz>
+> SUSE Labs, CR
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
