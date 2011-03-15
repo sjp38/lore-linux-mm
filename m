@@ -1,64 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D0FD98D003A
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 05:28:17 -0400 (EDT)
-Date: Tue, 15 Mar 2011 10:27:50 +0100
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH] thp: mremap support and TLB optimization
-Message-ID: <20110315092750.GD2140@redhat.com>
-References: <20110311020410.GH5641@random.random>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E47B78D003A
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 05:29:01 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2F9FsF6007140
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 03:15:54 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p2F9SlTR109922
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 03:28:49 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2F9SjgT027888
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 03:28:47 -0600
+Date: Tue, 15 Mar 2011 14:52:47 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 7/20]  7: uprobes: store/restore
+ original instruction.
+Message-ID: <20110315092247.GW24254@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+ <20110314133522.27435.45121.sendpatchset@localhost6.localdomain6>
+ <20110314180914.GA18855@fibrous.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20110311020410.GH5641@random.random>
+In-Reply-To: <20110314180914.GA18855@fibrous.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>
+To: Stephen Wilson <wilsons@start.ca>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Fri, Mar 11, 2011 at 03:04:10AM +0100, Andrea Arcangeli wrote:
-> @@ -42,7 +42,7 @@ static pmd_t *get_old_pmd(struct mm_stru
->  
->  	pmd = pmd_offset(pud, addr);
->  	split_huge_page_pmd(mm, pmd);
+* Stephen Wilson <wilsons@start.ca> [2011-03-14 14:09:14]:
 
-Wasn't getting rid of this line the sole purpose of the patch? :)
+> On Mon, Mar 14, 2011 at 07:05:22PM +0530, Srikar Dronamraju wrote:
+> >  static int install_uprobe(struct mm_struct *mm, struct uprobe *uprobe)
+> >  {
+> > -	int ret = 0;
+> > +	struct task_struct *tsk;
+> > +	int ret = -EINVAL;
+> >  
+> > -	/*TODO: install breakpoint */
+> > -	if (!ret)
+> > +	get_task_struct(mm->owner);
+> > +	tsk = mm->owner;
+> > +	if (!tsk)
+> > +		return ret;
+> 
+> I think you need to check that tsk != NULL before calling
+> get_task_struct()...
+> 
 
-> -	if (pmd_none_or_clear_bad(pmd))
-> +	if (pmd_none(*pmd))
->  		return NULL;
->  
->  	return pmd;
+Guess checking for tsk != NULL would only help if and only if we are doing
+within rcu.  i.e we have to change to something like this
 
-[...]
+	rcu_read_lock()
+	if (mm->owner) {
+		get_task_struct(mm->owner)
+		tsk = mm->owner;
+	}
+	rcu_read_unlock()
+	if (!tsk)
+		return ret;
 
-> @@ -151,6 +148,23 @@ unsigned long move_page_tables(struct vm
->  		new_pmd = alloc_new_pmd(vma->vm_mm, vma, new_addr);
->  		if (!new_pmd)
->  			break;
-> +		if (pmd_trans_huge(*old_pmd)) {
-> +			int err = move_huge_pmd(vma, old_addr, new_addr,
-> +						old_end, old_pmd, new_pmd);
-> +			if (err > 0) {
-> +				old_addr += HPAGE_PMD_SIZE;
-> +				new_addr += HPAGE_PMD_SIZE;
-> +				continue;
-> +			}
-> +		}
-> +		/*
-> +		 * split_huge_page_pmd() must run outside the
-> +		 * pmd_trans_huge() block above because that check
-> +		 * racy. split_huge_page_pmd() will recheck
-> +		 * pmd_trans_huge() but in a not racy way under the
-> +		 * page_table_lock.
-> +		 */
-> +		split_huge_page_pmd(vma->vm_mm, old_pmd);
-
-I don't understand what we are racing here against.  If we see a huge
-pmd, it may split.  But we hold mmap_sem in write-mode, I don't see
-how a regular pmd could become huge all of a sudden at this point.
-
-	Hannes
+Agree?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
