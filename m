@@ -1,66 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 761E08D003A
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 10:30:18 -0400 (EDT)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1556207Ab1COO35 (ORCPT <rfc822;linux-mm@kvack.org>);
-	Tue, 15 Mar 2011 15:29:57 +0100
-Date: Tue, 15 Mar 2011 15:29:57 +0100
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: Re: [PATCH R4 0/7] xen/balloon: Memory hotplug support for Xen balloon driver
-Message-ID: <20110315142957.GB12730@router-fw-old.local.net-space.pl>
-References: <20110308214429.GA27331@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1103091359290.2968@kaball-desktop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1103091359290.2968@kaball-desktop>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 593A98D003A
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 10:37:20 -0400 (EDT)
+Date: Tue, 15 Mar 2011 15:36:59 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 6/20] 6: x86: analyze instruction and
+ determine fixups.
+In-Reply-To: <20110314133507.27435.71382.sendpatchset@localhost6.localdomain6>
+Message-ID: <alpine.LFD.2.00.1103151529130.2787@localhost6.localdomain6>
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6> <20110314133507.27435.71382.sendpatchset@localhost6.localdomain6>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefano Stabellini <stefano.stabellini@eu.citrix.com>
-Cc: Daniel Kiper <dkiper@net-space.pl>, Ian Campbell <Ian.Campbell@eu.citrix.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi.kleen@intel.com" <andi.kleen@intel.com>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "jeremy@goop.org" <jeremy@goop.org>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, "v.tolstov@selfip.ru" <v.tolstov@selfip.ru>, "pasik@iki.fi" <pasik@iki.fi>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, "wdauchy@gmail.com" <wdauchy@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Wed, Mar 09, 2011 at 02:01:25PM +0000, Stefano Stabellini wrote:
-> On Tue, 8 Mar 2011, Daniel Kiper wrote:
-> > Hi,
-> >
-> > I am sending next version of memory hotplug
-> > support for Xen balloon driver patch. It applies
-> > to Linus' git tree, v2.6.38-rc8 tag. Most of
-> > suggestions were taken into account. Thanks for
-> > everybody who tested and/or sent suggestions
-> > to my work.
-> >
-> > There are a few prerequisite patches which fixes
-> > some problems found during work on memory hotplug
-> > patch or add some futures which are needed by
-> > memory hotplug patch.
-> >
-> > Full list of fixes/futures:
-> >   - xen/balloon: Removal of driver_pages,
-> >   - xen/balloon: HVM mode support,
-> >   - xen/balloon: Migration from mod_timer() to schedule_delayed_work(),
-> >   - xen/balloon: Protect against CPU exhaust by event/x process,
-> >   - xen/balloon: Minor notation fixes,
-> >   - mm: Extend memory hotplug API to allow memory hotplug in virtual guests,
-> >   - xen/balloon: Memory hotplug support for Xen balloon driver.
-> >
-> > Additionally, I suggest to apply patch prepared by Steffano Stabellini
-> > (https://lkml.org/lkml/2011/1/31/232) which fixes memory management
-> > issue in Xen guest. I was not able boot guest machine without
-> > above mentioned patch.
->
-> after some discussions we came up with a different approach to fix the
-> issue; I sent a couple of patches a little while ago:
->
-> https://lkml.org/lkml/2011/2/28/410
+On Mon, 14 Mar 2011, Srikar Dronamraju wrote:
+> +/*
+> + * TODO:
+> + * - Where necessary, examine the modrm byte and allow only valid instructions
+> + * in the different Groups and fpu instructions.
+> + */
+> +
+> +static bool is_prefix_bad(struct insn *insn)
+> +{
+> +	int i;
+> +
+> +	for (i = 0; i < insn->prefixes.nbytes; i++) {
+> +		switch (insn->prefixes.bytes[i]) {
+> +		case 0x26:	 /*INAT_PFX_ES   */
+> +		case 0x2E:	 /*INAT_PFX_CS   */
+> +		case 0x36:	 /*INAT_PFX_DS   */
+> +		case 0x3E:	 /*INAT_PFX_SS   */
+> +		case 0xF0:	 /*INAT_PFX_LOCK */
+> +			return 1;
 
-I tested git://xenbits.xen.org/people/sstabellini/linux-pvhvm.git 2.6.38-tip-fixes
-and it works on x86_64, however, it does not work on i386. Tested as
-unprivileged guest on Xen Ver. 4.1.0-rc2-pre. On i386 domain crashes
-silently at early boot stage :-(((.
+  true
+  
+> +		}
+> +	}
+> +	return 0;
 
-Daniel
+  false
+
+> +}
+
+> +static int validate_insn_32bits(struct uprobe *uprobe, struct insn *insn)
+> +{
+> +	insn_init(insn, uprobe->insn, false);
+> +
+> +	/* Skip good instruction prefixes; reject "bad" ones. */
+> +	insn_get_opcode(insn);
+> +	if (is_prefix_bad(insn)) {
+> +		report_bad_prefix();
+> +		return -EPERM;
+
+-ENOTSUPP perhaps. That's not a permission problem
+
+> +	}
+
+> +/**
+> + * analyze_insn - instruction analysis including validity and fixups.
+> + * @tsk: the probed task.
+> + * @uprobe: the probepoint information.
+> + * Return 0 on success or a -ve number on error.
+> + */
+> +int analyze_insn(struct task_struct *tsk, struct uprobe *uprobe)
+> +{
+> +	int ret;
+> +	struct insn insn;
+> +
+> +	uprobe->fixups = 0;
+> +#ifdef CONFIG_X86_64
+> +	uprobe->arch_info.rip_rela_target_address = 0x0;
+> +#endif
+
+Please get rid of this #ifdef and use inlines (empty for 32bit)
+
+> +
+> +	if (is_32bit_app(tsk))
+> +		ret = validate_insn_32bits(uprobe, &insn);
+> +	else
+> +		ret = validate_insn_64bits(uprobe, &insn);
+> +	if (ret != 0)
+> +		return ret;
+> +#ifdef CONFIG_X86_64
+
+Ditto
+
+> +	ret = handle_riprel_insn(uprobe, &insn);
+> +	if (ret == -1)
+> +		/* rip-relative; can't XOL */
+> +		return 0;
+
+So we return -1 from handle_riprel_insn() and return success? Btw how
+deals handle_riprel_insn() with 32bit user space ?
+
+> +#endif
+> +	prepare_fixups(uprobe, &insn);
+> +	return 0;
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
