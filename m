@@ -1,71 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C5E858D003A
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:18:18 -0400 (EDT)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1578708Ab1COPRs (ORCPT <rfc822;linux-mm@kvack.org>);
-	Tue, 15 Mar 2011 16:17:48 +0100
-Date: Tue, 15 Mar 2011 16:17:48 +0100
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: Re: [PATCH R4 4/7] xen/balloon: Protect against CPU exhaust by event/x process
-Message-ID: <20110315151748.GC12730@router-fw-old.local.net-space.pl>
-References: <20110308214824.GE27331@router-fw-old.local.net-space.pl> <1300115089.17339.2183.camel@zakaz.uk.xensource.com>
-Mime-Version: 1.0
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 4283C8D003A
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:21:20 -0400 (EDT)
+Date: Tue, 15 Mar 2011 11:21:00 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 2/5] mm: Properly reflect task dirty limits in
+ dirty_exceeded logic
+Message-ID: <20110315152100.GC24984@redhat.com>
+References: <1299623475-5512-1-git-send-email-jack@suse.cz>
+ <1299623475-5512-3-git-send-email-jack@suse.cz>
+ <20110309210253.GD10346@redhat.com>
+ <20110314204418.GB4998@quack.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1300115089.17339.2183.camel@zakaz.uk.xensource.com>
+In-Reply-To: <20110314204418.GB4998@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ian Campbell <Ian.Campbell@eu.citrix.com>
-Cc: Daniel Kiper <dkiper@net-space.pl>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi.kleen@intel.com" <andi.kleen@intel.com>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "jeremy@goop.org" <jeremy@goop.org>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, "v.tolstov@selfip.ru" <v.tolstov@selfip.ru>, "pasik@iki.fi" <pasik@iki.fi>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, "wdauchy@gmail.com" <wdauchy@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
 
-On Mon, Mar 14, 2011 at 03:04:49PM +0000, Ian Campbell wrote:
-> On Tue, 2011-03-08 at 21:48 +0000, Daniel Kiper wrote:
-> > Protect against CPU exhaust by event/x process during
-> > errors by adding some delays in scheduling next event
-> > and retry count limit.
->
-> The addition of a default retry count limit reverses the change made in
-> bc2c0303226ec716854d3c208c7f84fe7aa35cd7. That change was made to allow
-> system wide ballooning daemons to work as expected and I don't think a
-> strong argument has been made for undoing it here.
+On Mon, Mar 14, 2011 at 09:44:18PM +0100, Jan Kara wrote:
+> On Wed 09-03-11 16:02:53, Vivek Goyal wrote:
+> > On Tue, Mar 08, 2011 at 11:31:12PM +0100, Jan Kara wrote:
+> > > @@ -291,6 +292,12 @@ static unsigned long task_dirty_limit(struct task_struct *tsk,
+> > >  	return max(dirty, bdi_dirty/2);
+> > >  }
+> > >  
+> > > +/* Minimum limit for any task */
+> > > +static unsigned long task_min_dirty_limit(unsigned long bdi_dirty)
+> > > +{
+> > > +	return bdi_dirty - bdi_dirty / TASK_LIMIT_FRACTION;
+> > > +}
+> > > +
+> > Should the above be called bdi_min_dirty_limit()? In essense we seem to
+> > be setting bdi->bdi_exceeded when dirty pages on bdi cross bdi_thresh and
+> > clear it when dirty pages on bdi are below 7/8*bdi_thresh. So there does
+> > not seem to be any dependency on task dirty limit here hence string
+> > "task" sounds confusing to me. In fact, would
+> > bdi_dirty_exceeded_clear_thresh() be a better name?
+>   See below...
+>   
+> > >  /*
+> > >   *
+> > >   */
+> > > @@ -484,9 +491,11 @@ static void balance_dirty_pages(struct address_space *mapping,
+> > >  	unsigned long background_thresh;
+> > >  	unsigned long dirty_thresh;
+> > >  	unsigned long bdi_thresh;
+> > > +	unsigned long min_bdi_thresh = ULONG_MAX;
+> > >  	unsigned long pages_written = 0;
+> > >  	unsigned long pause = 1;
+> > >  	bool dirty_exceeded = false;
+> > > +	bool min_dirty_exceeded = false;
+> > >  	struct backing_dev_info *bdi = mapping->backing_dev_info;
+> > >  
+> > >  	for (;;) {
+> > > @@ -513,6 +522,7 @@ static void balance_dirty_pages(struct address_space *mapping,
+> > >  			break;
+> > >  
+> > >  		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
+> > > +		min_bdi_thresh = task_min_dirty_limit(bdi_thresh);
+> > >  		bdi_thresh = task_dirty_limit(current, bdi_thresh);
+> >                 ^^^^^
+> > This patch aside, we use bdi_thresh name both for bdi threshold as well
+> > as per task per bdi threshold. will task_bdi_thresh be a better name
+> > here.
+>   I agree that the naming is a bit confusing altough it is traditional :).
+> The renaming to task_bdi_thresh makes sense to me. Then we could name the
+> limit when we clear dirty_exceeded as: min_task_bdi_thresh(). The task in
+> the name tries to say that this is a limit for "any task" so I'd like to
+> keep it there. What do you think?
 
-It is possible to restore original balloon driver behavior by setting
-balloon_stats.max_retry_count = 0 and balloon_stats.max_schedule_delay = 1
-using sysfs.
+Ok, so for a task, minimum task_bdi_thresh can be
+		(bdi_dirty - bdi_dirty / TASK_LIMIT_FRACTION).
 
-> We are talking about polling at most once a second (backing off pretty
-> quickly to once every 32s with this patch) -- is that really enough to
-> "exhaust" the CPU running event/x?
+So min_task_dirty_limit() makes sense. Or if you happen to rename above
+"bdi_thresh" to "task_bdi_thresh" then "min_task_bdi_thresh()" might
+be even better. It is up to you depending on context of your later patches.
 
-OK, it is not precise. I will change that to:
-
-xen/balloon: Reduce CPU utilization by event/x process
-
-> Also this patch seems to make the driver quite chatty:
->
-> > +	pr_info("xen_balloon: Retry count: %lu/%lu\n", balloon_stats.retry_count,
-> > +			balloon_stats.max_retry_count);
->
-> Not needed. The balloon driver is a best effort background thing, it
-> doesn't need to be spamming the system logs each time something doesn't
-> go quite right first time, it should just continue on silently in the
-> background. It should only be logging if something goes catastrophically
-> wrong (in which case pr_info isn't really sufficient).
-
-Here http://lists.xensource.com/archives/html/xen-devel/2011-02/msg00649.html
-Kondrad suggested to add some printk() to inform user what is going on.
-I agree with him. However, If balloon driver is controlled by external
-process it could pollute logs to some extent. I think that issue could
-be easliy resolved by adding quiet flag.
-
-Additionally, I think that errors which are sent to logs by balloon
-driver are not critical one. That is why I decided to use pr_info(),
-however, I cosidered using pr_warn(). If you think that pr_warn()
-is better I could change that part of code.
-
-Daniel
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
