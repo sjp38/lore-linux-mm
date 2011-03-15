@@ -1,64 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 955C08D0039
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 15:21:43 -0400 (EDT)
-Date: Tue, 15 Mar 2011 20:12:56 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 1/3 for 2.6.38] oom: oom_kill_process: don't set
-	TIF_MEMDIE if !p->mm
-Message-ID: <20110315191256.GB21640@redhat.com>
-References: <20110309151946.dea51cde.akpm@linux-foundation.org> <alpine.DEB.2.00.1103111142260.30699@chino.kir.corp.google.com> <20110312123413.GA18351@redhat.com> <20110312134341.GA27275@redhat.com> <AANLkTinHGSb2_jfkwx=Wjv96phzPCjBROfCTFCKi4Wey@mail.gmail.com> <20110313212726.GA24530@redhat.com> <20110314190419.GA21845@redhat.com> <20110314190446.GB21845@redhat.com> <AANLkTi=YnG7tYCSrCPTNSQANOkD2MkP0tMjbOyZbx4NG@mail.gmail.com> <alpine.DEB.2.00.1103141322390.31514@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1103141322390.31514@chino.kir.corp.google.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 28E688D0039
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 15:28:52 -0400 (EDT)
+Received: from canuck.infradead.org ([2001:4978:20e::1])
+	by bombadil.infradead.org with esmtps (Exim 4.72 #1 (Red Hat Linux))
+	id 1PzZvF-0007Ee-58
+	for linux-mm@kvack.org; Tue, 15 Mar 2011 19:28:49 +0000
+Received: from j77219.upc-j.chello.nl ([24.132.77.219] helo=dyad.programming.kicks-ass.net)
+	by canuck.infradead.org with esmtpsa (Exim 4.72 #1 (Red Hat Linux))
+	id 1PzZvA-0004Ss-2k
+	for linux-mm@kvack.org; Tue, 15 Mar 2011 19:28:44 +0000
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 7/20]  7: uprobes: store/restore
+ original instruction.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20110315185841.GH3410@balbir.in.ibm.com>
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+	 <20110314133522.27435.45121.sendpatchset@localhost6.localdomain6>
+	 <20110314180914.GA18855@fibrous.localdomain>
+	 <20110315092247.GW24254@linux.vnet.ibm.com>
+	 <1300211862.2203.302.camel@twins> <20110315185841.GH3410@balbir.in.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 15 Mar 2011 20:30:32 +0100
+Message-ID: <1300217432.2250.0.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>, Frantisek Hrbata <fhrbata@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: balbir@linux.vnet.ibm.com
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On 03/14, David Rientjes wrote:
->
-> On Mon, 14 Mar 2011, Linus Torvalds wrote:
->
-> > The combination of testing PF_EXITING and p->mm just doesn't seem to
-> > make any sense.
+On Wed, 2011-03-16 at 00:28 +0530, Balbir Singh wrote:
+> 
+> mm->owner should be under rcu_read_lock, unless the task is exiting
+> and mm_count is 1. mm->owner is updated under task_lock().
+> 
+> > Also, the assignments in kernel/fork.c and kernel/exit.c don't use
+> > rcu_assign_pointer() and therefore lack the needed write barrier.
 > >
->
-> Right, it doesn't (and I recently removed testing the combination from
-> select_bad_process() in -mm).  The check for PF_EXITING in the oom killer
-> is purely to avoid needlessly killing tasks when something is already
-> exiting
+> 
+> Those are paths when the only context using the mm->owner is single
+>  
+> > Git blames Balbir for this.
+> 
+> I accept the blame and am willing to fix anything incorrect found in
+> the code. 
 
-Maybe 0/3 wasn't clear enough. This patches does not try to fix things,
-it only tries to close the hole in 2.6.38. But it was already released
-today.
-
-> and will (hopefully) be freeing its memory soon.
-
-This is not clear to me.
-
-When I did this change I looked at 81236810226f71bd9ff77321c8e8276dae7efc61
-and the changelog says:
-
-	__oom_kill_task() is called to elevate the task's timeslice and give it
-	access to memory reserves so that it may quickly exit.
-
-	This privilege is unnecessary, however, if the task has already detached
-	its mm.
-
-Now you are saing this is pointless.
-
-OK. I already said I do not understand this special case. Perhaps I'll ask
-the questions later.
-
-> If an eligible
-> thread is found to be PF_EXITING,
-
-The problem is, we can't trust per-thread PF_EXITING checks. But I guess
-we will discuss this more anyway.
-
-Oleg.
+:-), ok sounds right, just wasn't entirely obvious when having a quick
+look.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
