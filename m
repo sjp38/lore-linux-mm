@@ -1,88 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DC60C8D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 22:59:39 -0400 (EDT)
-Received: by iyf13 with SMTP id 13so240253iyf.14
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 19:59:38 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110314194421.6474cfc5.akpm@linux-foundation.org>
-References: <1299735019.2337.63.camel@sli10-conroe>
-	<20110314144540.GC11699@barrios-desktop>
-	<1300154014.2337.74.camel@sli10-conroe>
-	<AANLkTin2h0YFe70vYj7cExAJbbPS+oDjvfunfGPNZfB1@mail.gmail.com>
-	<20110314192834.8ffeda55.akpm@linux-foundation.org>
-	<AANLkTimWH34vcJsykrtDq1Tb8W5qt+Os_FUtQO3+1qBX@mail.gmail.com>
-	<20110314194421.6474cfc5.akpm@linux-foundation.org>
-Date: Tue, 15 Mar 2011 11:59:37 +0900
-Message-ID: <AANLkTinzNv29zNcM0H17QPz7hg7PbMaQ=z3Yq5c9rEhf@mail.gmail.com>
-Subject: Re: [PATCH 2/2 v4]mm: batch activate_page() to reduce lock contention
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with ESMTP id A587D8D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 23:01:28 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8B06D3EE0C2
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:01:25 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D43E45DE4D
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:01:25 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F90845DE5B
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:01:25 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C694E18005
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:01:25 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EBB8DE08004
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:01:24 +0900 (JST)
+Date: Tue, 15 Mar 2011 11:54:51 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
+Message-Id: <20110315115451.7a7d3605.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <AANLkTineM7M1R6fVFJe0ax-DN=_Rnb+7Cmk5HTH0D+Na@mail.gmail.com>
+References: <1299869011-26152-1-git-send-email-gthelen@google.com>
+	<20110311171006.ec0d9c37.akpm@linux-foundation.org>
+	<AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
+	<20110315105612.f600a659.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTineM7M1R6fVFJe0ax-DN=_Rnb+7Cmk5HTH0D+Na@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Vivek Goyal <vgoyal@redhat.com>
 
-On Tue, Mar 15, 2011 at 11:44 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 15 Mar 2011 11:40:46 +0900 Minchan Kim <minchan.kim@gmail.com> wr=
-ote:
->
->> On Tue, Mar 15, 2011 at 11:28 AM, Andrew Morton
->> <akpm@linux-foundation.org> wrote:
->> > On Tue, 15 Mar 2011 11:12:37 +0900 Minchan Kim <minchan.kim@gmail.com>=
- wrote:
->> >
->> >> >> I can't understand why we should hanlde activate_page_pvecs specia=
-lly.
->> >> >> Please, enlighten me.
->> >> > Not it's special. akpm asked me to do it this time. Reducing little
->> >> > memory is still worthy anyway, so that's it. We can do it for other
->> >> > pvecs too, in separate patch.
->> >>
->> >> Understandable but I don't like code separation by CONFIG_SMP for jus=
-t
->> >> little bit enhance of memory usage. In future, whenever we use percpu=
-,
->> >> do we have to implement each functions for both SMP and non-SMP?
->> >> Is it desirable?
->> >> Andrew, Is it really valuable?
->> >
->> > It's a little saving of text footprint. __It's also probably faster th=
-is way -
->> > putting all the pages into a pagevec then later processing them won't
->> > be very L1 cache friendly.
->> >
->> >
->>
->> I am not sure how much effective it is in UP. But if L1 cache friendly
->> is important concern, we should not use per-cpu about hot operation.
->
-> It's not due to the percpu thing. =C2=A0The issue is putting 14 pages int=
-o a
-> pagevec and then later processing them after the older ones might have
-> fallen out of cache.
->
->> I think more important thing in embedded (normal UP), it is a lock laten=
-cy.
->> I don't want to hold/release the lock per page.
->
-> There is no lock on UP builds.
->
+On Mon, 14 Mar 2011 19:51:22 -0700
+Greg Thelen <gthelen@google.com> wrote:
 
-I mean _frequent_ irq disable.
-But I don't want to bother you due to this issue as I said.
-It's up to you.
+> On Mon, Mar 14, 2011 at 6:56 PM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Mon, 14 Mar 2011 11:29:17 -0700
+> > Greg Thelen <gthelen@google.com> wrote:
+> >
+> >> On Fri, Mar 11, 2011 at 5:10 PM, Andrew Morton
+> The foreign dirtier issue is all about identifying the memcg (or
+> possibly multiple bdi) that need balancing.    If the foreign dirtier
+> issue is not important then we can focus on identifying inodes to
+> writeback that will lower the current's memcg dirty usage.  I am fine
+> ignoring the foreign dirtier issue for now and breaking the problem
+> into smaller pieces.
+> 
+ok.
 
-If you merge the path as-is, I will help to clean up remained-things.
-But at least, in my point, I don't want to add frequent irq disable.
+> I think this can be done with out any additional state.  Can just scan
+> the memcg lru to find dirty file pages and thus inodes to pass to
+> sync_inode(), or some other per-inode writeback routine?
+> 
 
+I think it works, finding inodes to be cleaned by LRU scanning.
 
-
---=20
-Kind regards,
-Minchan Kim
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
