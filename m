@@ -1,160 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A3B988D003D
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9C5918D003B
 	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 22:28:07 -0400 (EDT)
-Message-ID: <20110316022805.27727.qmail@science.horizon.com>
+Message-ID: <20110316022805.27713.qmail@science.horizon.com>
 From: George Spelvin <linux@horizon.com>
-Date: Mon, 14 Mar 2011 23:41:36 -0400
-Subject: [PATCH 7/8] mm/slub.c: Add slab randomization.
+Date: Mon, 14 Mar 2011 21:58:24 -0400
+Subject: [PATCH 5/8] mm/slub: Factor out some common code.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: penberg@cs.helsinki.fi, herbert@gondor.apana.org.au, mpm@selenic.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@horizon.com
 
-If SLAB_RANDOMIZE is set, the initial free list is shuffled into random
-order to make it harder for an attacker to control where a buffer overrun
-attack will overrun into.
-
-Not supported (does nothing) for SLAB and SLOB allocators.
+For sysfs files that map a boolean to a flags bit.
 ---
- include/linux/slab.h |    2 +
- mm/slub.c            |   69 +++++++++++++++++++++++++++++++++++++++++--------
- 2 files changed, 59 insertions(+), 12 deletions(-)
+ mm/slub.c |   93 ++++++++++++++++++++++++++++--------------------------------
+ 1 files changed, 43 insertions(+), 50 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index fa90866..8e812f1 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -79,6 +79,8 @@
- /* The following flags affect the page allocator grouping pages by mobility */
- #define SLAB_RECLAIM_ACCOUNT	0x00020000UL		/* Objects are reclaimable */
- #define SLAB_TEMPORARY		SLAB_RECLAIM_ACCOUNT	/* Objects are short-lived */
-+
-+#define SLAB_RANDOMIZE		0x04000000UL	/* Randomize allocation order */
- /*
-  * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
-  *
 diff --git a/mm/slub.c b/mm/slub.c
-index 3a20b71..4ba1db4 100644
+index e15aa7f..856246f 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -27,6 +27,7 @@
- #include <linux/memory.h>
- #include <linux/math64.h>
- #include <linux/fault-inject.h>
-+#include <linux/random.h>
+@@ -3982,38 +3982,61 @@ static ssize_t objects_partial_show(struct kmem_cache *s, char *buf)
+ }
+ SLAB_ATTR_RO(objects_partial);
  
- #include <trace/events/kmem.h>
- 
-@@ -1180,12 +1181,41 @@ static void setup_object(struct kmem_cache *s, void *object)
- 		s->ctor(object);
++static ssize_t flag_show(struct kmem_cache *s, char *buf, unsigned flag)
++{
++	return sprintf(buf, "%d\n", !!(s->flags & flag));
++}
++
++static ssize_t flag_store(struct kmem_cache *s,
++				const char *buf, size_t length, unsigned flag)
++{
++	s->flags &= ~flag;
++	if (buf[0] == '1')
++		s->flags |= flag;
++	return length;
++}
++
++/* Like above, but changes allocation size; so only allowed on empty slab */
++static ssize_t flag_store_sizechange(struct kmem_cache *s,
++				const char *buf, size_t length, unsigned flag)
++{
++	if (any_slab_objects(s))
++		return -EBUSY;
++
++	flag_store(s, buf, length, flag);
++	calculate_sizes(s, -1);
++	return length;
++}
++
+ static ssize_t reclaim_account_show(struct kmem_cache *s, char *buf)
+ {
+-	return sprintf(buf, "%d\n", !!(s->flags & SLAB_RECLAIM_ACCOUNT));
++	return flag_show(s, buf, SLAB_RECLAIM_ACCOUNT);
  }
  
-+/*
-+ * Initialize a slab's free list in random order, to make
-+ * buffer overrun attacks harder.  Using a (moderately) secure
-+ * random number generator, this ensures an attacker can't
-+ * figure out which other object an overrun will hit.
-+ */
-+static void *
-+setup_slab_randomized(struct kmem_cache *s, void *start, int count)
-+{
-+	struct cpu_random *r = get_random_mod_start();
-+	void *p = start;
-+	int i;
-+
-+	setup_object(s, p);
-+	set_freepointer(s, p, p);
-+
-+	for (i = 1; i < count; i++) {
-+		void *q = start + i * s->size;
-+		setup_object(s, q);
-+		/* p points to a random object in the list; link q in after */
-+		set_freepointer(s, q, get_freepointer(s, p));
-+		set_freepointer(s, p, q);
-+		p = start + s->size * get_random_mod(r, i+1);
-+	}
-+	start = get_freepointer(s, p);
-+	set_freepointer(s, p, NULL);
-+	get_random_mod_stop(r);
-+
-+	return start;
-+}
-+
- static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
+ static ssize_t reclaim_account_store(struct kmem_cache *s,
+ 				const char *buf, size_t length)
  {
- 	struct page *page;
- 	void *start;
--	void *last;
--	void *p;
+-	s->flags &= ~SLAB_RECLAIM_ACCOUNT;
+-	if (buf[0] == '1')
+-		s->flags |= SLAB_RECLAIM_ACCOUNT;
+-	return length;
++	return flag_store(s, buf, length, SLAB_RECLAIM_ACCOUNT);
+ }
+ SLAB_ATTR(reclaim_account);
  
- 	BUG_ON(flags & GFP_SLAB_BUG_MASK);
+ static ssize_t hwcache_align_show(struct kmem_cache *s, char *buf)
+ {
+-	return sprintf(buf, "%d\n", !!(s->flags & SLAB_HWCACHE_ALIGN));
++	return flag_show(s, buf, SLAB_HWCACHE_ALIGN);
+ }
+ SLAB_ATTR_RO(hwcache_align);
  
-@@ -1203,16 +1233,19 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	if (unlikely(s->flags & SLAB_POISON))
- 		memset(start, POISON_INUSE, PAGE_SIZE << compound_order(page));
- 
--	last = start;
--	for_each_object(p, s, start, page->objects) {
-+	if (s->flags & SLAB_RANDOMIZE) {
-+		page->freelist = setup_slab_randomized(s, start, page->objects);
-+	} else {
-+		void *p, *last = start;
-+		for_each_object(p, s, start, page->objects) {
-+			setup_object(s, last);
-+			set_freepointer(s, last, p);
-+			last = p;
-+		}
- 		setup_object(s, last);
--		set_freepointer(s, last, p);
--		last = p;
-+		set_freepointer(s, last, NULL);
-+		page->freelist = start;
- 	}
--	setup_object(s, last);
--	set_freepointer(s, last, NULL);
--
--	page->freelist = start;
- 	page->inuse = 0;
- out:
- 	return page;
-@@ -1227,8 +1260,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 		void *p;
- 
- 		slab_pad_check(s, page);
--		for_each_object(p, s, page_address(page),
--						page->objects)
-+		for_each_object(p, s, page_address(page), page->objects)
- 			check_object(s, page, p, SLUB_RED_INACTIVE);
- 	}
- 
-@@ -4160,6 +4192,18 @@ static ssize_t failslab_store(struct kmem_cache *s, const char *buf,
- SLAB_ATTR(failslab);
+ #ifdef CONFIG_ZONE_DMA
+ static ssize_t cache_dma_show(struct kmem_cache *s, char *buf)
+ {
+-	return sprintf(buf, "%d\n", !!(s->flags & SLAB_CACHE_DMA));
++	return flag_show(s, buf, SLAB_CACHE_DMA);
+ }
+ SLAB_ATTR_RO(cache_dma);
  #endif
  
-+static ssize_t randomize_show(struct kmem_cache *s, char *buf)
-+{
-+	return flag_show(s, buf, SLAB_RANDOMIZE);
-+}
-+
-+static ssize_t randomize_store(struct kmem_cache *s,
-+				const char *buf, size_t length)
-+{
-+	return flag_store(s, buf, length, SLAB_RANDOMIZE);
-+}
-+SLAB_ATTR(randomize);
-+
- static ssize_t shrink_show(struct kmem_cache *s, char *buf)
+ static ssize_t destroy_by_rcu_show(struct kmem_cache *s, char *buf)
  {
- 	return 0;
-@@ -4292,6 +4336,7 @@ static struct attribute *slab_attrs[] = {
- 	&hwcache_align_attr.attr,
- 	&reclaim_account_attr.attr,
- 	&destroy_by_rcu_attr.attr,
-+	&randomize_attr.attr,
- 	&shrink_attr.attr,
- #ifdef CONFIG_SLUB_DEBUG
- 	&total_objects_attr.attr,
+-	return sprintf(buf, "%d\n", !!(s->flags & SLAB_DESTROY_BY_RCU));
++	return flag_show(s, buf, SLAB_DESTROY_BY_RCU);
+ }
+ SLAB_ATTR_RO(destroy_by_rcu);
+ 
+@@ -4032,88 +4055,61 @@ SLAB_ATTR_RO(total_objects);
+ 
+ static ssize_t sanity_checks_show(struct kmem_cache *s, char *buf)
+ {
+-	return sprintf(buf, "%d\n", !!(s->flags & SLAB_DEBUG_FREE));
++	return flag_show(s, buf, SLAB_DEBUG_FREE);
+ }
+ 
+ static ssize_t sanity_checks_store(struct kmem_cache *s,
+ 				const char *buf, size_t length)
+ {
+-	s->flags &= ~SLAB_DEBUG_FREE;
+-	if (buf[0] == '1')
+-		s->flags |= SLAB_DEBUG_FREE;
+-	return length;
++	return flag_store(s, buf, length, SLAB_DEBUG_FREE);
+ }
+ SLAB_ATTR(sanity_checks);
+ 
+ static ssize_t trace_show(struct kmem_cache *s, char *buf)
+ {
+-	return sprintf(buf, "%d\n", !!(s->flags & SLAB_TRACE));
++	return flag_show(s, buf, SLAB_TRACE);
+ }
+ 
+ static ssize_t trace_store(struct kmem_cache *s, const char *buf,
+ 							size_t length)
+ {
+-	s->flags &= ~SLAB_TRACE;
+-	if (buf[0] == '1')
+-		s->flags |= SLAB_TRACE;
+-	return length;
++	return flag_store(s, buf, length, SLAB_TRACE);
+ }
+ SLAB_ATTR(trace);
+ 
+ static ssize_t red_zone_show(struct kmem_cache *s, char *buf)
+ {
+-	return sprintf(buf, "%d\n", !!(s->flags & SLAB_RED_ZONE));
++	return flag_show(s, buf, SLAB_RED_ZONE);
+ }
+ 
+ static ssize_t red_zone_store(struct kmem_cache *s,
+ 				const char *buf, size_t length)
+ {
+-	if (any_slab_objects(s))
+-		return -EBUSY;
+-
+-	s->flags &= ~SLAB_RED_ZONE;
+-	if (buf[0] == '1')
+-		s->flags |= SLAB_RED_ZONE;
+-	calculate_sizes(s, -1);
+-	return length;
++	return flag_store_sizechange(s, buf, length, SLAB_RED_ZONE);
+ }
+ SLAB_ATTR(red_zone);
+ 
+ static ssize_t poison_show(struct kmem_cache *s, char *buf)
+ {
+-	return sprintf(buf, "%d\n", !!(s->flags & SLAB_POISON));
++	return flag_show(s, buf, SLAB_POISON);
+ }
+ 
+ static ssize_t poison_store(struct kmem_cache *s,
+ 				const char *buf, size_t length)
+ {
+-	if (any_slab_objects(s))
+-		return -EBUSY;
+-
+-	s->flags &= ~SLAB_POISON;
+-	if (buf[0] == '1')
+-		s->flags |= SLAB_POISON;
+-	calculate_sizes(s, -1);
+-	return length;
++	return flag_store_sizechange(s, buf, length, SLAB_POISON);
+ }
+ SLAB_ATTR(poison);
+ 
+ static ssize_t store_user_show(struct kmem_cache *s, char *buf)
+ {
+-	return sprintf(buf, "%d\n", !!(s->flags & SLAB_STORE_USER));
++	return flag_show(s, buf, SLAB_STORE_USER);
+ }
+ 
+ static ssize_t store_user_store(struct kmem_cache *s,
+ 				const char *buf, size_t length)
+ {
+-	if (any_slab_objects(s))
+-		return -EBUSY;
+-
+-	s->flags &= ~SLAB_STORE_USER;
+-	if (buf[0] == '1')
+-		s->flags |= SLAB_STORE_USER;
+-	calculate_sizes(s, -1);
+-	return length;
++	return flag_store_sizechange(s, buf, length, SLAB_STORE_USER);
+ }
+ SLAB_ATTR(store_user);
+ 
+@@ -4156,16 +4152,13 @@ SLAB_ATTR_RO(free_calls);
+ #ifdef CONFIG_FAILSLAB
+ static ssize_t failslab_show(struct kmem_cache *s, char *buf)
+ {
+-	return sprintf(buf, "%d\n", !!(s->flags & SLAB_FAILSLAB));
++	return flag_show(s, buf, SLAB_FAILSLAB);
+ }
+ 
+ static ssize_t failslab_store(struct kmem_cache *s, const char *buf,
+ 							size_t length)
+ {
+-	s->flags &= ~SLAB_FAILSLAB;
+-	if (buf[0] == '1')
+-		s->flags |= SLAB_FAILSLAB;
+-	return length;
++	return flag_store(s, buf, length, SLAB_FAILSLAB);
+ }
+ SLAB_ATTR(failslab);
+ #endif
 -- 
 1.7.4.1
 
