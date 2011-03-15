@@ -1,109 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4BD318D003A
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 14:48:56 -0400 (EDT)
-Date: Tue, 15 Mar 2011 14:48:39 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
-Message-ID: <20110315184839.GB5740@redhat.com>
-References: <1299869011-26152-1-git-send-email-gthelen@google.com>
- <20110311171006.ec0d9c37.akpm@linux-foundation.org>
- <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
- <20110314202324.GG31120@redhat.com>
- <AANLkTinDNOLMdU7EEMPFkC_f9edCx7ZFc7=qLRNAEmBM@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id DD9C38D003A
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 14:58:53 -0400 (EDT)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp03.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2FIwk2S016472
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 00:28:46 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2FIwkHo4264094
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 00:28:46 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2FIwj7S000668
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 05:58:46 +1100
+Date: Wed, 16 Mar 2011 00:28:41 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 7/20]  7: uprobes: store/restore
+ original instruction.
+Message-ID: <20110315185841.GH3410@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+ <20110314133522.27435.45121.sendpatchset@localhost6.localdomain6>
+ <20110314180914.GA18855@fibrous.localdomain>
+ <20110315092247.GW24254@linux.vnet.ibm.com>
+ <1300211862.2203.302.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTinDNOLMdU7EEMPFkC_f9edCx7ZFc7=qLRNAEmBM@mail.gmail.com>
+In-Reply-To: <1300211862.2203.302.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Mon, Mar 14, 2011 at 07:41:13PM -0700, Greg Thelen wrote:
-> On Mon, Mar 14, 2011 at 1:23 PM, Vivek Goyal <vgoyal@redhat.com> wrote:
-> > On Mon, Mar 14, 2011 at 11:29:17AM -0700, Greg Thelen wrote:
-> >
-> > [..]
-> >> > We could just crawl the memcg's page LRU and bring things under control
-> >> > that way, couldn't we?  That would fix it.  What were the reasons for
-> >> > not doing this?
-> >>
-> >> My rational for pursuing bdi writeback was I/O locality.  I have heard that
-> >> per-page I/O has bad locality.  Per inode bdi-style writeback should have better
-> >> locality.
-> >>
-> >> My hunch is the best solution is a hybrid which uses a) bdi writeback with a
-> >> target memcg filter and b) using the memcg lru as a fallback to identify the bdi
-> >> that needed writeback.  I think the part a) memcg filtering is likely something
-> >> like:
-> >>  http://marc.info/?l=linux-kernel&m=129910424431837
-> >>
-> >> The part b) bdi selection should not be too hard assuming that page-to-mapping
-> >> locking is doable.
-> >
-> > Greg,
-> >
-> > IIUC, option b) seems to be going through pages of particular memcg and
-> > mapping page to inode and start writeback on particular inode?
-> 
-> Yes.
-> 
-> > If yes, this might be reasonably good. In the case when cgroups are not
-> > sharing inodes then it automatically maps one inode to one cgroup and
-> > once cgroup is over limit, it starts writebacks of its own inode.
-> >
-> > In case inode is shared, then we get the case of one cgroup writting
-> > back the pages of other cgroup. Well I guess that also can be handeled
-> > by flusher thread where a bunch or group of pages can be compared with
-> > the cgroup passed in writeback structure. I guess that might hurt us
-> > more than benefit us.
-> 
-> Agreed.  For now just writing the entire inode is probably fine.
-> 
-> > IIUC how option b) works then we don't even need option a) where an N level
-> > deep cache is maintained?
-> 
-> Originally I was thinking that bdi-wide writeback with memcg filter
-> was a good idea.  But this may be unnecessarily complex.  Now I am
-> agreeing with you that option (a) may not be needed.  Memcg could
-> queue per-inode writeback using the memcg lru to locate inodes
-> (lru->page->inode) with something like this in
-> [mem_cgroup_]balance_dirty_pages():
-> 
->   while (memcg_usage() >= memcg_fg_limit) {
->     inode = memcg_dirty_inode(cg);  /* scan lru for a dirty page, then
-> grab mapping & inode */
->     sync_inode(inode, &wbc);
->   }
-> 
->   if (memcg_usage() >= memcg_bg_limit) {
->     queue per-memcg bg flush work item
->   }
+* Peter Zijlstra <peterz@infradead.org> [2011-03-15 18:57:42]:
 
-I think even for background we shall have to implement some kind of logic
-where inodes are selected by traversing memcg->lru list so that for
-background write we don't end up writting too many inodes from other
-root group in an attempt to meet the low background ratio of memcg.
+> On Tue, 2011-03-15 at 14:52 +0530, Srikar Dronamraju wrote:
+> > * Stephen Wilson <wilsons@start.ca> [2011-03-14 14:09:14]:
+> > 
+> > > On Mon, Mar 14, 2011 at 07:05:22PM +0530, Srikar Dronamraju wrote:
+> > > >  static int install_uprobe(struct mm_struct *mm, struct uprobe *uprobe)
+> > > >  {
+> > > > -	int ret = 0;
+> > > > +	struct task_struct *tsk;
+> > > > +	int ret = -EINVAL;
+> > > >  
+> > > > -	/*TODO: install breakpoint */
+> > > > -	if (!ret)
+> > > > +	get_task_struct(mm->owner);
+> > > > +	tsk = mm->owner;
+> > > > +	if (!tsk)
+> > > > +		return ret;
+> > > 
+> > > I think you need to check that tsk != NULL before calling
+> > > get_task_struct()...
+> > > 
+> > 
+> > Guess checking for tsk != NULL would only help if and only if we are doing
+> > within rcu.  i.e we have to change to something like this
+> > 
+> > 	rcu_read_lock()
+> > 	if (mm->owner) {
+> > 		get_task_struct(mm->owner)
+> > 		tsk = mm->owner;
+> > 	}
+> > 	rcu_read_unlock()
+> > 	if (!tsk)
+> > 		return ret;
+> 
+> so the whole mm->owner semantics seem vague, memcontrol.c doesn't seem
+> consistent in itself, one site uses rcu_dereference() the other site
+> doesn't.
+> 
 
-So to me it boils down to coming up a new inode selection logic for
-memcg which can be used both for background as well as foreground
-writes. This will make sure we don't end up writting pages from the
-inodes we don't want to.
+mm->owner should be under rcu_read_lock, unless the task is exiting
+and mm_count is 1. mm->owner is updated under task_lock().
 
-Though we also shall have to come up with some approximation so that
-if there are multiple inodes in the cgroup, we don't end up writting
-same inodes all the time and some inodes don't get written back at
-all. May be skipping random amount of pages from the beginning of list
-before we select an inode.
+> Also, the assignments in kernel/fork.c and kernel/exit.c don't use
+> rcu_assign_pointer() and therefore lack the needed write barrier.
+>
 
-This has the disadvantage that we are using a different logic for non
-root cgroup but until we figure out how to retrieve inodes belonging
-to a memory cgroup, it might not be a bad idea.
+Those are paths when the only context using the mm->owner is single
+ 
+> Git blames Balbir for this.
 
-Thanks
-Vivek
+I accept the blame and am willing to fix anything incorrect found in
+the code.
+
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
