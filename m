@@ -1,86 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4283C8D003A
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:21:20 -0400 (EDT)
-Date: Tue, 15 Mar 2011 11:21:00 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 2/5] mm: Properly reflect task dirty limits in
- dirty_exceeded logic
-Message-ID: <20110315152100.GC24984@redhat.com>
-References: <1299623475-5512-1-git-send-email-jack@suse.cz>
- <1299623475-5512-3-git-send-email-jack@suse.cz>
- <20110309210253.GD10346@redhat.com>
- <20110314204418.GB4998@quack.suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 080BA8D003A
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:22:40 -0400 (EDT)
+Date: Tue, 15 Mar 2011 16:22:22 +0100
+From: David Sterba <dave@jikos.cz>
+Subject: Re: ext4 deep stack with mark_page_dirty reclaim
+Message-ID: <20110315152222.GW17108@twin.jikos.cz>
+Reply-To: dave@jikos.cz
+References: <alpine.LSU.2.00.1103141156190.3220@sister.anvils>
+ <20110314204627.GB8120@thunk.org>
+ <FE7209AC-C66C-4482-945E-58CF5AF8FEE7@dilger.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110314204418.GB4998@quack.suse.cz>
+In-Reply-To: <FE7209AC-C66C-4482-945E-58CF5AF8FEE7@dilger.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: adilger@dilger.ca
 
-On Mon, Mar 14, 2011 at 09:44:18PM +0100, Jan Kara wrote:
-> On Wed 09-03-11 16:02:53, Vivek Goyal wrote:
-> > On Tue, Mar 08, 2011 at 11:31:12PM +0100, Jan Kara wrote:
-> > > @@ -291,6 +292,12 @@ static unsigned long task_dirty_limit(struct task_struct *tsk,
-> > >  	return max(dirty, bdi_dirty/2);
-> > >  }
-> > >  
-> > > +/* Minimum limit for any task */
-> > > +static unsigned long task_min_dirty_limit(unsigned long bdi_dirty)
-> > > +{
-> > > +	return bdi_dirty - bdi_dirty / TASK_LIMIT_FRACTION;
-> > > +}
-> > > +
-> > Should the above be called bdi_min_dirty_limit()? In essense we seem to
-> > be setting bdi->bdi_exceeded when dirty pages on bdi cross bdi_thresh and
-> > clear it when dirty pages on bdi are below 7/8*bdi_thresh. So there does
-> > not seem to be any dependency on task dirty limit here hence string
-> > "task" sounds confusing to me. In fact, would
-> > bdi_dirty_exceeded_clear_thresh() be a better name?
->   See below...
->   
-> > >  /*
-> > >   *
-> > >   */
-> > > @@ -484,9 +491,11 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > >  	unsigned long background_thresh;
-> > >  	unsigned long dirty_thresh;
-> > >  	unsigned long bdi_thresh;
-> > > +	unsigned long min_bdi_thresh = ULONG_MAX;
-> > >  	unsigned long pages_written = 0;
-> > >  	unsigned long pause = 1;
-> > >  	bool dirty_exceeded = false;
-> > > +	bool min_dirty_exceeded = false;
-> > >  	struct backing_dev_info *bdi = mapping->backing_dev_info;
-> > >  
-> > >  	for (;;) {
-> > > @@ -513,6 +522,7 @@ static void balance_dirty_pages(struct address_space *mapping,
-> > >  			break;
-> > >  
-> > >  		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
-> > > +		min_bdi_thresh = task_min_dirty_limit(bdi_thresh);
-> > >  		bdi_thresh = task_dirty_limit(current, bdi_thresh);
-> >                 ^^^^^
-> > This patch aside, we use bdi_thresh name both for bdi threshold as well
-> > as per task per bdi threshold. will task_bdi_thresh be a better name
-> > here.
->   I agree that the naming is a bit confusing altough it is traditional :).
-> The renaming to task_bdi_thresh makes sense to me. Then we could name the
-> limit when we clear dirty_exceeded as: min_task_bdi_thresh(). The task in
-> the name tries to say that this is a limit for "any task" so I'd like to
-> keep it there. What do you think?
+On Mon, Mar 14, 2011 at 07:25:10PM -0700, Andreas Dilger wrote:
+> Is there a script which you used to generate this stack trace to
+> function size mapping, or did you do it by hand?  I've always wanted
+> such a script, but the tricky part is that there is so much garbage on
+> the stack that any automated stack parsing is almost useless.
+> Alternately, it would seem trivial to have the stack dumper print the
+> relative address of each symbol, and the delta from the previous
+> symbol...
 
-Ok, so for a task, minimum task_bdi_thresh can be
-		(bdi_dirty - bdi_dirty / TASK_LIMIT_FRACTION).
+> > 240 schedule+0x25a
+> > 368 io_schedule+0x35
+> >  32 get_request_wait+0xc6
 
-So min_task_dirty_limit() makes sense. Or if you happen to rename above
-"bdi_thresh" to "task_bdi_thresh" then "min_task_bdi_thresh()" might
-be even better. It is up to you depending on context of your later patches.
+from the callstack:
 
-Thanks
-Vivek
+ffff88007a704338 schedule+0x25a
+ffff88007a7044a8 io_schedule+0x35
+ffff88007a7044c8 get_request_wait+0xc6
+
+subtract the values and you get the ones Ted posted,
+
+eg. for get_request_wait:
+
+0xffff88007a7044c8 - 0xffff88007a7044a8 = 32
+
+There'se a script scripts/checkstack.pl which tries to determine stack
+usage from 'objdump -d' looking for the 'sub 0x123,%rsp' instruction and
+reporting the 0x123 as stack consumption. It does not give same results,
+for the get_request_wait:
+
+ffffffff81216205:       48 83 ec 68             sub    $0x68,%rsp
+
+reported as 104.
+
+
+dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
