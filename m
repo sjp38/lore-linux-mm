@@ -1,53 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D33EC8D003A
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 14:59:19 -0400 (EDT)
-Date: Tue, 15 Mar 2011 19:59:13 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: 2.6.38-rc echo 3 > /proc/sys/vm/drop_caches repairs mplayer
- distortions
-Message-ID: <20110315185913.GH2140@cmpxchg.org>
-References: <4D7E89E7.3080505@xmsnet.nl>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 271648D003A
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 15:02:06 -0400 (EDT)
+Date: Tue, 15 Mar 2011 19:53:16 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 1/3 for 2.6.38] oom: oom_kill_process: don't set
+	TIF_MEMDIE if !p->mm
+Message-ID: <20110315185316.GA21640@redhat.com>
+References: <alpine.DEB.2.00.1103081549530.27910@chino.kir.corp.google.com> <20110309151946.dea51cde.akpm@linux-foundation.org> <alpine.DEB.2.00.1103111142260.30699@chino.kir.corp.google.com> <20110312123413.GA18351@redhat.com> <20110312134341.GA27275@redhat.com> <AANLkTinHGSb2_jfkwx=Wjv96phzPCjBROfCTFCKi4Wey@mail.gmail.com> <20110313212726.GA24530@redhat.com> <20110314190419.GA21845@redhat.com> <20110314190446.GB21845@redhat.com> <alpine.DEB.2.00.1103141314190.31514@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4D7E89E7.3080505@xmsnet.nl>
+In-Reply-To: <alpine.DEB.2.00.1103141314190.31514@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hans de Bruin <jmdebruin@xmsnet.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>, Frantisek Hrbata <fhrbata@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-linux-mm cc'd
+On 03/14, David Rientjes wrote:
+>
+> On Mon, 14 Mar 2011, Oleg Nesterov wrote:
+>
+> > oom_kill_process() simply sets TIF_MEMDIE and returns if PF_EXITING.
+> > This is very wrong by many reasons. In particular, this thread can
+> > be the dead group leader. Check p->mm != NULL.
+> >
+>
+> This is true only for the oom_kill_allocating_task sysctl where it is
+> required in all cases to kill current; current won't be triggering the oom
+> killer if it's dead.
+>
+> oom_kill_process() is called with the thread selected by
+> select_bad_process() and that function will not return any thread if any
+> eligible task is found to be PF_EXITING and is not current, or any
+> eligible task is found to have TIF_MEMDIE.
+>
+> In other words, for this conditional to be true in oom_kill_process(),
+> then p must be current and so it cannot be the dead group leader as
+> specified in your changelog unless PF_EXITING gets set between
+> select_bad_process() and the oom_kill_process() call: we don't care about
+> that since it's in the exit path and we therefore want to give it access
+> to memory reserves to quickly exit anyway and the check for PF_EXITING in
+> select_bad_process() prevents any infinite loop of that task getting
+> constantly reselected if it's dead.
 
-On Mon, Mar 14, 2011 at 10:34:31PM +0100, Hans de Bruin wrote:
-> Since the start of the start of 2.6.38-rc I sporadic have problems
-> with mplayer. A mpeg stream sometimes gets distorted when mplayer
-> starts. An example is at http://www.xs4all.nl/~bruinjm/mplayer.png .
-> I do not know how to trigger the behaviour, so bissecting is not
-> possible. Since yesterday however I found a way to 'repair' mplayer:
-> 
-> echo 3 > /proc/sys/vm/drop_caches
-> 
-> This repairs mplayer while it is running.
+Confused. I sent the test-case. OK, may be you meant the code in -mm,
+but I meant the current code.
 
-While echo is running?  Or does one cache drop fix the problem until
-mplayer exits?  Could you describe exactly the steps you are going
-through and the effects they have?
-
-Thanks!
-
-> My latop is runs on nfsroot, and the mpegstreams are payed over nfs
-> or http. I can have two instances of mplayer running the same mpeg
-> stream over nfs or http with only one instance distorded.
-> 
-> -- 
-> Hans
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
