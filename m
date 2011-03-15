@@ -1,166 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C5BD8D003A
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 09:22:45 -0400 (EDT)
-Date: Tue, 15 Mar 2011 14:22:09 +0100 (CET)
+	by kanga.kvack.org (Postfix) with ESMTP id 824738D003A
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 09:38:57 -0400 (EDT)
+Date: Tue, 15 Mar 2011 14:38:33 +0100 (CET)
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 3/20] 3: uprobes: Breakground page
- replacement.
-In-Reply-To: <20110314133433.27435.49566.sendpatchset@localhost6.localdomain6>
-Message-ID: <alpine.LFD.2.00.1103151206430.2787@localhost6.localdomain6>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6> <20110314133433.27435.49566.sendpatchset@localhost6.localdomain6>
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 4/20] 4: uprobes: Adding and remove a
+ uprobe in a rb tree.
+In-Reply-To: <20110314133444.27435.50684.sendpatchset@localhost6.localdomain6>
+Message-ID: <alpine.LFD.2.00.1103151425060.2787@localhost6.localdomain6>
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6> <20110314133444.27435.50684.sendpatchset@localhost6.localdomain6>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
 On Mon, 14 Mar 2011, Srikar Dronamraju wrote:
-> +/*
-> + * Called with tsk->mm->mmap_sem held (either for read or write and
-> + * with a reference to tsk->mm
+>  
+> +static int valid_vma(struct vm_area_struct *vma)
 
-Hmm, why is holding it for read sufficient?
-.
-> + */
-> +static int write_opcode(struct task_struct *tsk, struct uprobe * uprobe,
-> +			unsigned long vaddr, uprobe_opcode_t opcode)
+  bool perpaps ?
+
 > +{
-> +	struct page *old_page, *new_page;
-> +	void *vaddr_old, *vaddr_new;
-> +	struct vm_area_struct *vma;
-> +	spinlock_t *ptl;
-> +	pte_t *orig_pte;
-> +	unsigned long addr;
-> +	int ret = -EINVAL;
-
-That initialization is pointless.
-
-> +	/* Read the page with vaddr into memory */
-> +	ret = get_user_pages(tsk, tsk->mm, vaddr, 1, 1, 1, &old_page, &vma);
-> +	if (ret <= 0)
-> +		return -EINVAL;
-> +	ret = -EINVAL;
+> +	if (!vma->vm_file)
+> +		return 0;
 > +
-> +	/*
-> +	 * check if the page we are interested is read-only mapped
-> +	 * Since we are interested in text pages, Our pages of interest
-> +	 * should be mapped read-only.
-> +	 */
 > +	if ((vma->vm_flags & (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)) ==
 > +						(VM_READ|VM_EXEC))
-> +		goto put_out;
 
-IIRC then text pages are (VM_READ|VM_EXEC)
+Looks more correct than the code it replaces :)
 
-> +	/* Allocate a page */
-> +	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vaddr);
-> +	if (!new_page) {
-> +		ret = -ENOMEM;
-> +		goto put_out;
+> +		return 1;
+> +
+> +	return 0;
+> +}
+> +
+
+> +static struct rb_root uprobes_tree = RB_ROOT;
+> +static DEFINE_MUTEX(uprobes_mutex);
+> +static DEFINE_SPINLOCK(treelock);
+
+Why do you need a mutex and a spinlock ? Also the mutex is not
+referenced.
+
+> +static int match_inode(struct uprobe *uprobe, struct inode *inode,
+> +						struct rb_node **p)
+> +{
+> +	struct rb_node *n = *p;
+> +
+> +	if (inode < uprobe->inode)
+> +		*p = n->rb_left;
+> +	else if (inode > uprobe->inode)
+> +		*p = n->rb_right;
+> +	else
+> +		return 1;
+> +	return 0;
+> +}
+> +
+> +static int match_offset(struct uprobe *uprobe, loff_t offset,
+> +						struct rb_node **p)
+> +{
+> +	struct rb_node *n = *p;
+> +
+> +	if (offset < uprobe->offset)
+> +		*p = n->rb_left;
+> +	else if (offset > uprobe->offset)
+> +		*p = n->rb_right;
+> +	else
+> +		return 1;
+> +	return 0;
+> +}
+> +
+> +
+> +/* Called with treelock held */
+> +static struct uprobe *__find_uprobe(struct inode * inode,
+> +			 loff_t offset, struct rb_node **near_match)
+> +{
+> +	struct rb_node *n = uprobes_tree.rb_node;
+> +	struct uprobe *uprobe, *u = NULL;
+> +
+> +	while (n) {
+> +		uprobe = rb_entry(n, struct uprobe, rb_node);
+> +		if (match_inode(uprobe, inode, &n)) {
+> +			if (near_match)
+> +				*near_match = n;
+> +			if (match_offset(uprobe, offset, &n)) {
+> +				atomic_inc(&uprobe->ref);
+> +				u = uprobe;
+> +				break;
+> +			}
+> +		}
 > +	}
+> +	return u;
+> +}
 > +
-> +	/*
-> +	 * lock page will serialize against do_wp_page()'s
-> +	 * PageAnon() handling
-> +	 */
-> +	lock_page(old_page);
-> +	/* copy the page now that we've got it stable */
-> +	vaddr_old = kmap_atomic(old_page, KM_USER0);
-> +	vaddr_new = kmap_atomic(new_page, KM_USER1);
+> +/*
+> + * Find a uprobe corresponding to a given inode:offset
+> + * Acquires treelock
+> + */
+> +static struct uprobe *find_uprobe(struct inode * inode, loff_t offset)
+> +{
+> +	struct uprobe *uprobe;
+> +	unsigned long flags;
 > +
-> +	memcpy(vaddr_new, vaddr_old, PAGE_SIZE);
-> +	/* poke the new insn in, ASSUMES we don't cross page boundary */
+> +	spin_lock_irqsave(&treelock, flags);
+> +	uprobe = __find_uprobe(inode, offset, NULL);
+> +	spin_unlock_irqrestore(&treelock, flags);
 
-And what makes sure that we don't ?
+What's the calling context ? Do we really need a spinlock here for
+walking the rb tree ?
 
-> +	addr = vaddr;
-> +	vaddr &= ~PAGE_MASK;
-> +	memcpy(vaddr_new + vaddr, &opcode, uprobe_opcode_sz);
 > +
-> +	kunmap_atomic(vaddr_new, KM_USER1);
-> +	kunmap_atomic(vaddr_old, KM_USER0);
-> +
-> +	orig_pte = page_check_address(old_page, tsk->mm, addr, &ptl, 0);
-> +	if (!orig_pte)
-> +		goto unlock_out;
-> +	pte_unmap_unlock(orig_pte, ptl);
-> +
-> +	lock_page(new_page);
-> +	if (!anon_vma_prepare(vma))
-
-Why don't you get the error code of anon_vma_prepare()?
-
-> +		/* flip pages, do_wp_page() will fail pte_same() and bail */
+> +/* Should be called lock-less */
 
 -ENOPARSE
 
-> +		ret = replace_page(vma, old_page, new_page, *orig_pte);
-> +
-> +	unlock_page(new_page);
-> +	if (ret != 0)
-> +		page_cache_release(new_page);
-> +unlock_out:
-> +	unlock_page(old_page);
-> +
-> +put_out:
-> +	put_page(old_page); /* we did a get_page in the beginning */
-> +	return ret;
-> +}
-> +
-> +/**
-> + * read_opcode - read the opcode at a given virtual address.
-> + * @tsk: the probed task.
-> + * @vaddr: the virtual address to store the opcode.
-> + * @opcode: location to store the read opcode.
-> + *
-> + * For task @tsk, read the opcode at @vaddr and store it in @opcode.
-> + * Return 0 (success) or a negative errno.
-
-Wants to called with mmap_sem held as well, right ?
-
-> + */
-> +int __weak read_opcode(struct task_struct *tsk, unsigned long vaddr,
-> +						uprobe_opcode_t *opcode)
+> +static void put_uprobe(struct uprobe *uprobe)
 > +{
-> +	struct vm_area_struct *vma;
-> +	struct page *page;
-> +	void *vaddr_new;
-> +	int ret;
-> +
-> +	ret = get_user_pages(tsk, tsk->mm, vaddr, 1, 0, 0, &page, &vma);
-> +	if (ret <= 0)
-> +		return -EFAULT;
-> +	ret = -EFAULT;
-> +
-> +	/*
-> +	 * check if the page we are interested is read-only mapped
-> +	 * Since we are interested in text pages, Our pages of interest
-> +	 * should be mapped read-only.
-> +	 */
-> +	if ((vma->vm_flags & (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)) ==
-> +						(VM_READ|VM_EXEC))
-> +		goto put_out;
-
-Same as above
-
-> +	lock_page(page);
-> +	vaddr_new = kmap_atomic(page, KM_USER0);
-> +	vaddr &= ~PAGE_MASK;
-> +	memcpy(&opcode, vaddr_new + vaddr, uprobe_opcode_sz);
-> +	kunmap_atomic(vaddr_new, KM_USER0);
-> +	unlock_page(page);
-> +	ret =  uprobe_opcode_sz;
-
-  ret = 0 ?? At least, that's what the comment above says.
-
-> +
-> +put_out:
-> +	put_page(page); /* we did a get_page in the beginning */
-> +	return ret;
+> +	if (atomic_dec_and_test(&uprobe->ref))
+> +		kfree(uprobe);
 > +}
 > +
+> +static struct uprobe *uprobes_add(struct inode *inode, loff_t offset)
+> +{
+> +	struct uprobe *uprobe, *cur_uprobe;
+> +
+> +	__iget(inode);
+> +	uprobe = kzalloc(sizeof(struct uprobe), GFP_KERNEL);
+> +
+> +	if (!uprobe) {
+> +		iput(inode);
+> +		return NULL;
+> +	}
+
+Please move the __iget() after the kzalloc()
+
+> +	uprobe->inode = inode;
+> +	uprobe->offset = offset;
+> +
+> +	/* add to uprobes_tree, sorted on inode:offset */
+> +	cur_uprobe = insert_uprobe(uprobe);
+> +
+> +	/* a uprobe exists for this inode:offset combination*/
+> +	if (cur_uprobe) {
+> +		kfree(uprobe);
+> +		uprobe = cur_uprobe;
+> +		iput(inode);
+> +	} else
+> +		init_rwsem(&uprobe->consumer_rwsem);
+
+Please init stuff _before_ inserting not afterwards.
+
+> +
+> +	return uprobe;
+> +}
+> +
+> +/* Acquires uprobe->consumer_rwsem */
+> +static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
+> +{
+> +	struct uprobe_consumer *consumer;
+> +
+> +	down_read(&uprobe->consumer_rwsem);
+> +	consumer = uprobe->consumers;
+> +	while (consumer) {
+> +		if (!consumer->filter || consumer->filter(consumer, current))
+> +			consumer->handler(consumer, regs);
+> +
+> +		consumer = consumer->next;
+> +	}
+> +	up_read(&uprobe->consumer_rwsem);
+> +}
+> +
+> +/* Acquires uprobe->consumer_rwsem */
+> +static void add_consumer(struct uprobe *uprobe,
+> +				struct uprobe_consumer *consumer)
+> +{
+> +	down_write(&uprobe->consumer_rwsem);
+> +	consumer->next = uprobe->consumers;
+> +	uprobe->consumers = consumer;
+> +	up_write(&uprobe->consumer_rwsem);
+> +	return;
+
+  pointless return
+
+> +}
+> +
+> +/* Acquires uprobe->consumer_rwsem */
+
+I'd prefer a comment about the return code over this redundant
+information.
+
+> +static int del_consumer(struct uprobe *uprobe,
+> +				struct uprobe_consumer *consumer)
+> +{
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
