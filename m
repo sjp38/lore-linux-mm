@@ -1,60 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 080BA8D003A
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:22:40 -0400 (EDT)
-Date: Tue, 15 Mar 2011 16:22:22 +0100
-From: David Sterba <dave@jikos.cz>
-Subject: Re: ext4 deep stack with mark_page_dirty reclaim
-Message-ID: <20110315152222.GW17108@twin.jikos.cz>
-Reply-To: dave@jikos.cz
-References: <alpine.LSU.2.00.1103141156190.3220@sister.anvils>
- <20110314204627.GB8120@thunk.org>
- <FE7209AC-C66C-4482-945E-58CF5AF8FEE7@dilger.ca>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 86E0C8D003A
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 11:23:40 -0400 (EDT)
+Date: Tue, 15 Mar 2011 11:23:10 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 3/5] mm: Implement IO-less balance_dirty_pages()
+Message-ID: <20110315152310.GD24984@redhat.com>
+References: <1299623475-5512-1-git-send-email-jack@suse.cz>
+ <1299623475-5512-4-git-send-email-jack@suse.cz>
+ <20110310000731.GE10346@redhat.com>
+ <20110314204821.GC4998@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <FE7209AC-C66C-4482-945E-58CF5AF8FEE7@dilger.ca>
+In-Reply-To: <20110314204821.GC4998@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: adilger@dilger.ca
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
 
-On Mon, Mar 14, 2011 at 07:25:10PM -0700, Andreas Dilger wrote:
-> Is there a script which you used to generate this stack trace to
-> function size mapping, or did you do it by hand?  I've always wanted
-> such a script, but the tricky part is that there is so much garbage on
-> the stack that any automated stack parsing is almost useless.
-> Alternately, it would seem trivial to have the stack dumper print the
-> relative address of each symbol, and the delta from the previous
-> symbol...
+On Mon, Mar 14, 2011 at 09:48:21PM +0100, Jan Kara wrote:
+> On Wed 09-03-11 19:07:31, Vivek Goyal wrote:
+> > > +static void balance_dirty_pages(struct address_space *mapping,
+> > > +				unsigned long write_chunk)
+> > > +{
+> > > +	struct backing_dev_info *bdi = mapping->backing_dev_info;
+> > > +	struct balance_waiter bw;
+> > > +	struct dirty_limit_state st;
+> > > +	int dirty_exceeded = check_dirty_limits(bdi, &st);
+> > > +
+> > > +	if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT ||
+> > > +	    (dirty_exceeded == DIRTY_MAY_EXCEED_LIMIT &&
+> > > +	     !bdi_task_limit_exceeded(&st, current))) {
+> > > +		if (bdi->dirty_exceeded &&
+> > > +		    dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT)
+> > > +			bdi->dirty_exceeded = 0;
+> > >  		/*
+> > > -		 * Increase the delay for each loop, up to our previous
+> > > -		 * default of taking a 100ms nap.
+> > > +		 * In laptop mode, we wait until hitting the higher threshold
+> > > +		 * before starting background writeout, and then write out all
+> > > +		 * the way down to the lower threshold.  So slow writers cause
+> > > +		 * minimal disk activity.
+> > > +		 *
+> > > +		 * In normal mode, we start background writeout at the lower
+> > > +		 * background_thresh, to keep the amount of dirty memory low.
+> > >  		 */
+> > > -		pause <<= 1;
+> > > -		if (pause > HZ / 10)
+> > > -			pause = HZ / 10;
+> > > +		if (!laptop_mode && dirty_exceeded == DIRTY_EXCEED_BACKGROUND)
+> > > +			bdi_start_background_writeback(bdi);
+> > > +		return;
+> > >  	}
+> > >  
+> > > -	/* Clear dirty_exceeded flag only when no task can exceed the limit */
+> > > -	if (!min_dirty_exceeded && bdi->dirty_exceeded)
+> > > -		bdi->dirty_exceeded = 0;
+> > > +	if (!bdi->dirty_exceeded)
+> > > +		bdi->dirty_exceeded = 1;
+> > 
+> > Will it make sense to move out bdi_task_limit_exceeded() check in a
+> > separate if condition statement as follows. May be this is little
+> > easier to read.
+> > 
+> > 	if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT) {
+> > 		if (bdi->dirty_exceeded)
+> > 			bdi->dirty_exceeded = 0;
+> > 
+> > 		if (!laptop_mode && dirty_exceeded == DIRTY_EXCEED_BACKGROUND)
+> > 			bdi_start_background_writeback(bdi);
+> > 
+> > 		return;
+> > 	}
+> > 
+> > 	if (dirty_exceeded == DIRTY_MAY_EXCEED_LIMIT &&
+> > 	    !bdi_task_limit_exceeded(&st, current))
+> > 		return;   
+>   But then we have to start background writeback here as well. Which is
+> actually a bug in the original patch as well! So clearly your way is more
+> readable :) I'll change it. Thanks.
 
-> > 240 schedule+0x25a
-> > 368 io_schedule+0x35
-> >  32 get_request_wait+0xc6
+I was thinking about that starting of bdi writeback here. But I was
+assuming that if we are here then we most likely have visited above
+loop of < DIRTY_MAY_EXCEED_LIMIT and started background writeback.
 
-from the callstack:
-
-ffff88007a704338 schedule+0x25a
-ffff88007a7044a8 io_schedule+0x35
-ffff88007a7044c8 get_request_wait+0xc6
-
-subtract the values and you get the ones Ted posted,
-
-eg. for get_request_wait:
-
-0xffff88007a7044c8 - 0xffff88007a7044a8 = 32
-
-There'se a script scripts/checkstack.pl which tries to determine stack
-usage from 'objdump -d' looking for the 'sub 0x123,%rsp' instruction and
-reporting the 0x123 as stack consumption. It does not give same results,
-for the get_request_wait:
-
-ffffffff81216205:       48 83 ec 68             sub    $0x68,%rsp
-
-reported as 104.
-
-
-dave
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
