@@ -1,52 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6CF468D003A
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:16:19 -0400 (EDT)
-Date: Tue, 15 Mar 2011 12:15:30 -0400
-From: Stephen Wilson <wilsons@start.ca>
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 7/20]  7: uprobes: store/restore
-	original instruction.
-Message-ID: <20110315161530.GA23862@fibrous.localdomain>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6> <20110314133522.27435.45121.sendpatchset@localhost6.localdomain6> <20110314180914.GA18855@fibrous.localdomain> <20110315092247.GW24254@linux.vnet.ibm.com> <1300196879.9910.271.camel@gandalf.stny.rr.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8A73D8D003A
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:20:25 -0400 (EDT)
+Date: Tue, 15 Mar 2011 12:20:07 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH v6 8/9] memcg: check memcg dirty limits in page writeback
+Message-ID: <20110315162007.GB2587@redhat.com>
+References: <1299869011-26152-1-git-send-email-gthelen@google.com>
+ <1299869011-26152-9-git-send-email-gthelen@google.com>
+ <20110314175408.GE31120@redhat.com>
+ <20110314211002.GD4998@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1300196879.9910.271.camel@gandalf.stny.rr.com>
+In-Reply-To: <20110314211002.GD4998@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
 
-On Tue, Mar 15, 2011 at 09:47:59AM -0400, Steven Rostedt wrote:
-> > 	rcu_read_lock()
-> > 	if (mm->owner) {
-> > 		get_task_struct(mm->owner)
-> > 		tsk = mm->owner;
-> > 	}
-> > 	rcu_read_unlock()
-> > 	if (!tsk)
-> > 		return ret;
+On Mon, Mar 14, 2011 at 10:10:03PM +0100, Jan Kara wrote:
+> On Mon 14-03-11 13:54:08, Vivek Goyal wrote:
+> > On Fri, Mar 11, 2011 at 10:43:30AM -0800, Greg Thelen wrote:
+> > > If the current process is in a non-root memcg, then
+> > > balance_dirty_pages() will consider the memcg dirty limits as well as
+> > > the system-wide limits.  This allows different cgroups to have distinct
+> > > dirty limits which trigger direct and background writeback at different
+> > > levels.
+> > > 
+> > > If called with a mem_cgroup, then throttle_vm_writeout() queries the
+> > > given cgroup for its dirty memory usage limits.
+> > > 
+> > > Signed-off-by: Andrea Righi <arighi@develer.com>
+> > > Signed-off-by: Greg Thelen <gthelen@google.com>
+> > > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+> > > ---
+> > > Changelog since v5:
+> > > - Simplified this change by using mem_cgroup_balance_dirty_pages() rather than
+> > >   cramming the somewhat different logic into balance_dirty_pages().  This means
+> > >   the global (non-memcg) dirty limits are not passed around in the
+> > >   struct dirty_info, so there's less change to existing code.
 > > 
-> > Agree?
+> > Yes there is less change to existing code but now we also have a separate
+> > throttlig logic for cgroups. 
+> > 
+> > I thought that we are moving in the direction of IO less throttling
+> > where bdi threads always do the IO and Jan Kara also implemented the
+> > logic to distribute the finished IO pages uniformly across the waiting
+> > threads.
+>   Yes, we'd like to avoid doing IO from balance_dirty_pages(). But if the
+> logic in cgroups specific part won't get too fancy (which it doesn't seem
+> to be the case currently), it shouldn't be too hard to convert it to the new
+> approach.
 > 
-> Or:
+> We can talk about it at LSF but at least with my approach to IO-less
+> balance_dirty_pages() it would be easy to convert cgroups throttling to
+> the new way. With Fengguang's approach it might be a bit harder since he
+> computes a throughput and from that necessary delay for a throttled task
+> but with cgroups that is impossible to compute so he'd have to add some
+> looping if we didn't write enough pages from the cgroup yet. But still it
+> would be reasonable doable AFAICT.
 > 
-> 	rcu_read_lock();
-> 	tsk = mm->owner;
-> 	if (tsk)
-> 		get_task_struct(tsk);
-> 	rcu_read_unlock();
-> 	if (!tsk)
-> 		return ret;
-> 
-> Probably looks cleaner.
+> > Keeping it separate for cgroups, reduces the complexity but also forks
+> > off the balancing logic for root and other cgroups. So if Jan Kara's
+> > changes go in, it automatically does not get used for memory cgroups.
+> > 
+> > Not sure how good a idea it is to use a separate throttling logic for
+> > for non-root cgroups. 
+>   Yeah, it looks a bit odd. I'd think that we could just cap
+> task_dirty_limit() by a value computed from a cgroup limit and be done
+> with that but I probably miss something...
 
-Yes, plus we should do "tsk = rcu_dereference(mm->owner);" and wrap the
-whole thing in a static uprobes_get_mm_owner() or similar.
+I think previous implementation did something similar. Currently dirty
+limit is per_bdi/per_task. They made it per_cgroup/per_bdi/per_task. This
+new version tries to simplify the things by keeping mem cgroup throttling
+logic separate.
 
+> Sure there is also a different
+> background limit but that's broken anyway because a flusher thread will
+> quickly stop doing writeback if global background limit is not exceeded.
+> But that's a separate topic so I'll reply with this to a more appropriate
+> email ;)
 
--- 
-steve
+I think last patch in the series (patch 9) takes care of that. In case of
+mem_cgroup writeback, it forces flusher thread to write till we are
+below the background ratio of cgroup (and not global background ratio).
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
