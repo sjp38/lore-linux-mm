@@ -1,59 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E1D18D003A
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:27:34 -0400 (EDT)
-Content-Type: text/plain; charset=UTF-8
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: ext4 deep stack with mark_page_dirty reclaim
-In-reply-to: <20110315152222.GW17108@twin.jikos.cz>
-References: <alpine.LSU.2.00.1103141156190.3220@sister.anvils> <20110314204627.GB8120@thunk.org> <FE7209AC-C66C-4482-945E-58CF5AF8FEE7@dilger.ca> <20110315152222.GW17108@twin.jikos.cz>
-Date: Tue, 15 Mar 2011 12:26:43 -0400
-Message-Id: <1300206353-sup-9759@think>
-Content-Transfer-Encoding: 8bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 492028D003A
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:31:10 -0400 (EDT)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2FGACpT003132
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:10:13 -0400
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 75D2038C8038
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:31:04 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2FGV7Np224160
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:31:07 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2FGV6Aj014665
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 12:31:07 -0400
+Date: Tue, 15 Mar 2011 21:55:08 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 7/20] 7: uprobes: store/restore
+ original instruction.
+Message-ID: <20110315162508.GZ24254@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+ <20110314133522.27435.45121.sendpatchset@localhost6.localdomain6>
+ <alpine.LFD.2.00.1103151538200.2787@localhost6.localdomain6>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.1103151538200.2787@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave <dave@jikos.cz>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, adilger <adilger@dilger.ca>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-Excerpts from David Sterba's message of 2011-03-15 11:22:22 -0400:
-> On Mon, Mar 14, 2011 at 07:25:10PM -0700, Andreas Dilger wrote:
-> > Is there a script which you used to generate this stack trace to
-> > function size mapping, or did you do it by hand?  I've always wanted
-> > such a script, but the tricky part is that there is so much garbage on
-> > the stack that any automated stack parsing is almost useless.
-> > Alternately, it would seem trivial to have the stack dumper print the
-> > relative address of each symbol, and the delta from the previous
-> > symbol...
-> 
-> > > 240 schedule+0x25a
-> > > 368 io_schedule+0x35
-> > >  32 get_request_wait+0xc6
-> 
-> from the callstack:
-> 
-> ffff88007a704338 schedule+0x25a
-> ffff88007a7044a8 io_schedule+0x35
-> ffff88007a7044c8 get_request_wait+0xc6
-> 
-> subtract the values and you get the ones Ted posted,
-> 
-> eg. for get_request_wait:
-> 
-> 0xffff88007a7044c8 - 0xffff88007a7044a8 = 32
-> 
-> There'se a script scripts/checkstack.pl which tries to determine stack
-> usage from 'objdump -d' looking for the 'sub 0x123,%rsp' instruction and
-> reporting the 0x123 as stack consumption. It does not give same results,
-> for the get_request_wait:
-> 
-> ffffffff81216205:       48 83 ec 68             sub    $0x68,%rsp
-> 
-> reported as 104.
+* Thomas Gleixner <tglx@linutronix.de> [2011-03-15 15:41:20]:
 
-Also, the ftrace stack usage tracer gives more verbose output that
-includes the size of each function.
+> On Mon, 14 Mar 2011, Srikar Dronamraju wrote:
+> >  static int install_uprobe(struct mm_struct *mm, struct uprobe *uprobe)
+> >  {
+> > -	int ret = 0;
+> > +	struct task_struct *tsk;
+> > +	int ret = -EINVAL;
+> >  
+> > -	/*TODO: install breakpoint */
+> > -	if (!ret)
+> > +	get_task_struct(mm->owner);
+> 
+> Increment task ref before checking for NULL ?
 
--chris
+In response to earlier comments/suggestions from Stephen Wilson, we
+resolved to handle it this way 
+
+
+static uprobes_get_mm_owner() {
+	struct task_struct *tsk; 
+
+	rcu_read_lock()
+	tsk = rcu_dereference(mm->owner);
+	if (tsk)
+		get_task_struct(tsk);	
+	rcu_read_unlock();
+	return tsk;
+}
+
+Both install_uprobe and remove_uprobe will end up calling uprobes_get_mm_owner().
+
+
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
