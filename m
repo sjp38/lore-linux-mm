@@ -1,78 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CB9CB8D0039
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 15:10:24 -0400 (EDT)
-Date: Tue, 15 Mar 2011 13:10:20 -0600
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 11/20] 11: uprobes: slot allocation
- for uprobes
-Message-ID: <20110315131020.36477a1c@bike.lwn.net>
-In-Reply-To: <20110314133610.27435.93666.sendpatchset@localhost6.localdomain6>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
-	<20110314133610.27435.93666.sendpatchset@localhost6.localdomain6>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 955C08D0039
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 15:21:43 -0400 (EDT)
+Date: Tue, 15 Mar 2011 20:12:56 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 1/3 for 2.6.38] oom: oom_kill_process: don't set
+	TIF_MEMDIE if !p->mm
+Message-ID: <20110315191256.GB21640@redhat.com>
+References: <20110309151946.dea51cde.akpm@linux-foundation.org> <alpine.DEB.2.00.1103111142260.30699@chino.kir.corp.google.com> <20110312123413.GA18351@redhat.com> <20110312134341.GA27275@redhat.com> <AANLkTinHGSb2_jfkwx=Wjv96phzPCjBROfCTFCKi4Wey@mail.gmail.com> <20110313212726.GA24530@redhat.com> <20110314190419.GA21845@redhat.com> <20110314190446.GB21845@redhat.com> <AANLkTi=YnG7tYCSrCPTNSQANOkD2MkP0tMjbOyZbx4NG@mail.gmail.com> <alpine.DEB.2.00.1103141322390.31514@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1103141322390.31514@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>, Frantisek Hrbata <fhrbata@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Just a couple of minor notes while I was looking at this code...
+On 03/14, David Rientjes wrote:
+>
+> On Mon, 14 Mar 2011, Linus Torvalds wrote:
+>
+> > The combination of testing PF_EXITING and p->mm just doesn't seem to
+> > make any sense.
+> >
+>
+> Right, it doesn't (and I recently removed testing the combination from
+> select_bad_process() in -mm).  The check for PF_EXITING in the oom killer
+> is purely to avoid needlessly killing tasks when something is already
+> exiting
 
-> +static struct uprobes_xol_area *xol_alloc_area(void)
-> +{
-> +	struct uprobes_xol_area *area = NULL;
-> +
-> +	area = kzalloc(sizeof(*area), GFP_USER);
-> +	if (unlikely(!area))
-> +		return NULL;
-> +
-> +	area->bitmap = kzalloc(BITS_TO_LONGS(UINSNS_PER_PAGE) * sizeof(long),
-> +								GFP_USER);
+Maybe 0/3 wasn't clear enough. This patches does not try to fix things,
+it only tries to close the hole in 2.6.38. But it was already released
+today.
 
-Why GFP_USER?  That causes extra allocation limits to be enforced.  Given
-that in part 14 you have:
+> and will (hopefully) be freeing its memory soon.
 
-+/* Prepare to single-step probed instruction out of line. */
-+static int pre_ssout(struct uprobe *uprobe, struct pt_regs *regs,
-+				unsigned long vaddr)
-+{
-+	xol_get_insn_slot(uprobe, vaddr);
-+	BUG_ON(!current->utask->xol_vaddr);
+This is not clear to me.
 
-It seems to me that you really don't want those allocations to fail.
+When I did this change I looked at 81236810226f71bd9ff77321c8e8276dae7efc61
+and the changelog says:
 
-back to xol_alloc_area():
+	__oom_kill_task() is called to elevate the task's timeslice and give it
+	access to memory reserves so that it may quickly exit.
 
-> +	if (!area->bitmap)
-> +		goto fail;
-> +
-> +	spin_lock_init(&area->slot_lock);
-> +	if (!xol_add_vma(area) && !current->mm->uprobes_xol_area) {
-> +		task_lock(current);
-> +		if (!current->mm->uprobes_xol_area) {
-> +			current->mm->uprobes_xol_area = area;
-> +			task_unlock(current);
-> +			return area;
-> +		}
-> +		task_unlock(current);
-> +	}
-> +
-> +fail:
-> +	if (area) {
-> +		if (area->bitmap)
-> +			kfree(area->bitmap);
-> +		kfree(area);
-> +	}
+	This privilege is unnecessary, however, if the task has already detached
+	its mm.
 
-You've already checked area against NULL, and kfree() can handle null
-pointers, so both of those tests are unneeded.
+Now you are saing this is pointless.
 
-> +	return current->mm->uprobes_xol_area;
-> +}
+OK. I already said I do not understand this special case. Perhaps I'll ask
+the questions later.
 
-jon
+> If an eligible
+> thread is found to be PF_EXITING,
+
+The problem is, we can't trust per-thread PF_EXITING checks. But I guess
+we will discuss this more anyway.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
