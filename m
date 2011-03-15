@@ -1,93 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 860AE8D0039
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 16:54:32 -0400 (EDT)
-Date: Tue, 15 Mar 2011 13:53:34 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bugme-new] [Bug 31142] New: Large write to USB stick freezes
- unrelated tasks for a long time
-Message-Id: <20110315135334.36e29414.akpm@linux-foundation.org>
-In-Reply-To: <bug-31142-10286@https.bugzilla.kernel.org/>
-References: <bug-31142-10286@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 117F68D0039
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 17:23:57 -0400 (EDT)
+Date: Tue, 15 Mar 2011 17:23:39 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
+Message-ID: <20110315212339.GC5740@redhat.com>
+References: <1299869011-26152-1-git-send-email-gthelen@google.com>
+ <20110311171006.ec0d9c37.akpm@linux-foundation.org>
+ <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
+ <20110314202324.GG31120@redhat.com>
+ <AANLkTinDNOLMdU7EEMPFkC_f9edCx7ZFc7=qLRNAEmBM@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTinDNOLMdU7EEMPFkC_f9edCx7ZFc7=qLRNAEmBM@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: avillaci@ceibo.fiec.espol.edu.ec
-Cc: bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
 
+On Mon, Mar 14, 2011 at 07:41:13PM -0700, Greg Thelen wrote:
+> On Mon, Mar 14, 2011 at 1:23 PM, Vivek Goyal <vgoyal@redhat.com> wrote:
+> > On Mon, Mar 14, 2011 at 11:29:17AM -0700, Greg Thelen wrote:
+> >
+> > [..]
+> >> > We could just crawl the memcg's page LRU and bring things under control
+> >> > that way, couldn't we?  That would fix it.  What were the reasons for
+> >> > not doing this?
+> >>
+> >> My rational for pursuing bdi writeback was I/O locality.  I have heard that
+> >> per-page I/O has bad locality.  Per inode bdi-style writeback should have better
+> >> locality.
+> >>
+> >> My hunch is the best solution is a hybrid which uses a) bdi writeback with a
+> >> target memcg filter and b) using the memcg lru as a fallback to identify the bdi
+> >> that needed writeback.  I think the part a) memcg filtering is likely something
+> >> like:
+> >>  http://marc.info/?l=linux-kernel&m=129910424431837
+> >>
+> >> The part b) bdi selection should not be too hard assuming that page-to-mapping
+> >> locking is doable.
+> >
+> > Greg,
+> >
+> > IIUC, option b) seems to be going through pages of particular memcg and
+> > mapping page to inode and start writeback on particular inode?
+> 
+> Yes.
+> 
+> > If yes, this might be reasonably good. In the case when cgroups are not
+> > sharing inodes then it automatically maps one inode to one cgroup and
+> > once cgroup is over limit, it starts writebacks of its own inode.
+> >
+> > In case inode is shared, then we get the case of one cgroup writting
+> > back the pages of other cgroup. Well I guess that also can be handeled
+> > by flusher thread where a bunch or group of pages can be compared with
+> > the cgroup passed in writeback structure. I guess that might hurt us
+> > more than benefit us.
+> 
+> Agreed.  For now just writing the entire inode is probably fine.
+> 
+> > IIUC how option b) works then we don't even need option a) where an N level
+> > deep cache is maintained?
+> 
+> Originally I was thinking that bdi-wide writeback with memcg filter
+> was a good idea.  But this may be unnecessarily complex.  Now I am
+> agreeing with you that option (a) may not be needed.  Memcg could
+> queue per-inode writeback using the memcg lru to locate inodes
+> (lru->page->inode) with something like this in
+> [mem_cgroup_]balance_dirty_pages():
+> 
+>   while (memcg_usage() >= memcg_fg_limit) {
+>     inode = memcg_dirty_inode(cg);  /* scan lru for a dirty page, then
+> grab mapping & inode */
+>     sync_inode(inode, &wbc);
+>   }
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+Is it possible to pass mem_cgroup in writeback_control structure or in
+work structure which in turn will be set in writeback_control.  And
+modify writeback_inodes_wb() which will look that ->mem_cgroup is
+set. So instead of calling queue_io() it can call memcg_queue_io()
+and then memory cgroup can look at lru list and take its own decision
+on which inodes needs to be pushed for IO?
 
-On Tue, 15 Mar 2011 15:55:52 GMT
-bugzilla-daemon@bugzilla.kernel.org wrote:
-
-> https://bugzilla.kernel.org/show_bug.cgi?id=31142
-> 
->            Summary: Large write to USB stick freezes unrelated tasks for a
->                     long time
->            Product: IO/Storage
->            Version: 2.5
->     Kernel Version: 2.6.38-rc8
->           Platform: All
->         OS/Version: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Block Layer
->         AssignedTo: axboe@kernel.dk
->         ReportedBy: avillaci@ceibo.fiec.espol.edu.ec
->         Regression: No
-> 
-> 
-> Created an attachment (id=50902)
->  --> (https://bugzilla.kernel.org/attachment.cgi?id=50902)
-> kernel backtraces from hung Eclipse task while writing to usb stick
-> 
-> System is Fedora 14 x86_64 with 4 GB RAM, running vanilla kernel 2.6.38-rc8.
-> 
-> I have a USB 2.0 high-speed memory stick with around 7.5 GB of space. Whenenver
-> I write a large amount of data (several GBs of files) through any means (cp,
-> nautilus GUI, etc), I notice some large applications that I consider unrelated
-> to the I/O operation (Firefox web browser, Thunderbird email viewer, Eclipse
-> IDE) may randomly freeze whenever I try to interact with them. I use Compiz,
-> and I notice the apps getting grayed out, but I have also seen the freeze
-> happening with Metacity and Gnome-shell, so I believe the window manager is
-> irrelevant. Sometimes other smaller tasks (gnome-terminal, gedit) also freeze.
-> For Eclipse, the hang also cause a series of kernel backtraces, attached to
-> this report. The hang usually lasts for several tens of seconds, and may freeze
-> and unfreeze several times while the file copying to USB takes place. All of
-> the hung applications unfreeze themselves after write activity (as seen from
-> the LED in the memory stick) ceases.
-> 
-> Reproducibility: always (with sufficiently large bulk write)
-> To reproduce: 
-> 1) have an usb stick with several GB of free space, with any filesystem (tried
-> vfat and udf)
-> 2) prepare several gb of files to copy from hard disk to usb stick
-> 3) start large application (firefox, eclipse, or thunderbird)
-> 4) check that application is responsive before file copy starts
-> 5) insert usb stick and (auto)mount it. Previously started app is still
-> responsive.
-> 6) start file copy to usb stick with any command
-> 7) attempt to interact with chosen application during the entirety of the file
-> write
-> Expected result: I/O to usb stick takes place in background, unrelated apps
-> continue to be responsive in foreground.
-> Actual result: some large tasks freeze for tens of seconds while write takes
-> place.
-> 
-> Feel free to reassign this bug to a different category. It involves I/O, block,
-> USB, and mmap.
-
-rofl, will we ever fix this.
-
-Please enable sysrq and do a sysrq-w when the tasks are blocked so we
-can find where things are getting stuck.  Please avoid email client
-wordwrapping when sending us the sysrq output.
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
