@@ -1,37 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A0A888D003A
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 22:52:52 -0400 (EDT)
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 0/20]  0: Inode based uprobes
-From: Steven Rostedt <rostedt@goodmis.org>
-In-Reply-To: <20110314163028.a05cec49.akpm@linux-foundation.org>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
-	 <20110314163028.a05cec49.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-15"
-Date: Mon, 14 Mar 2011 22:52:47 -0400
-Message-ID: <1300157567.9910.252.camel@gandalf.stny.rr.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DC60C8D003A
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2011 22:59:39 -0400 (EDT)
+Received: by iyf13 with SMTP id 13so240253iyf.14
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2011 19:59:38 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110314194421.6474cfc5.akpm@linux-foundation.org>
+References: <1299735019.2337.63.camel@sli10-conroe>
+	<20110314144540.GC11699@barrios-desktop>
+	<1300154014.2337.74.camel@sli10-conroe>
+	<AANLkTin2h0YFe70vYj7cExAJbbPS+oDjvfunfGPNZfB1@mail.gmail.com>
+	<20110314192834.8ffeda55.akpm@linux-foundation.org>
+	<AANLkTimWH34vcJsykrtDq1Tb8W5qt+Os_FUtQO3+1qBX@mail.gmail.com>
+	<20110314194421.6474cfc5.akpm@linux-foundation.org>
+Date: Tue, 15 Mar 2011 11:59:37 +0900
+Message-ID: <AANLkTinzNv29zNcM0H17QPz7hg7PbMaQ=z3Yq5c9rEhf@mail.gmail.com>
+Subject: Re: [PATCH 2/2 v4]mm: batch activate_page() to reduce lock contention
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, mel <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, 2011-03-14 at 16:30 -0700, Andrew Morton wrote:
-> 
-> How do you envisage these features actually get used?  For example,
-> will gdb be modified?  Will other debuggers be modified or written?
-> 
-> IOW, I'm trying to get an understanding of how you expect this feature
-> will actually become useful to end users - the kernel patch is only
-> part of the story.
+On Tue, Mar 15, 2011 at 11:44 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Tue, 15 Mar 2011 11:40:46 +0900 Minchan Kim <minchan.kim@gmail.com> wr=
+ote:
+>
+>> On Tue, Mar 15, 2011 at 11:28 AM, Andrew Morton
+>> <akpm@linux-foundation.org> wrote:
+>> > On Tue, 15 Mar 2011 11:12:37 +0900 Minchan Kim <minchan.kim@gmail.com>=
+ wrote:
+>> >
+>> >> >> I can't understand why we should hanlde activate_page_pvecs specia=
+lly.
+>> >> >> Please, enlighten me.
+>> >> > Not it's special. akpm asked me to do it this time. Reducing little
+>> >> > memory is still worthy anyway, so that's it. We can do it for other
+>> >> > pvecs too, in separate patch.
+>> >>
+>> >> Understandable but I don't like code separation by CONFIG_SMP for jus=
+t
+>> >> little bit enhance of memory usage. In future, whenever we use percpu=
+,
+>> >> do we have to implement each functions for both SMP and non-SMP?
+>> >> Is it desirable?
+>> >> Andrew, Is it really valuable?
+>> >
+>> > It's a little saving of text footprint. __It's also probably faster th=
+is way -
+>> > putting all the pages into a pagevec then later processing them won't
+>> > be very L1 cache friendly.
+>> >
+>> >
+>>
+>> I am not sure how much effective it is in UP. But if L1 cache friendly
+>> is important concern, we should not use per-cpu about hot operation.
+>
+> It's not due to the percpu thing. =C2=A0The issue is putting 14 pages int=
+o a
+> pagevec and then later processing them after the older ones might have
+> fallen out of cache.
+>
+>> I think more important thing in embedded (normal UP), it is a lock laten=
+cy.
+>> I don't want to hold/release the lock per page.
+>
+> There is no lock on UP builds.
+>
 
-I'm hoping it solves this question:
+I mean _frequent_ irq disable.
+But I don't want to bother you due to this issue as I said.
+It's up to you.
 
-https://lkml.org/lkml/2011/3/10/347
+If you merge the path as-is, I will help to clean up remained-things.
+But at least, in my point, I don't want to add frequent irq disable.
 
--- Steve
 
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
