@@ -1,59 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AC7C28D003A
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 07:43:55 -0400 (EDT)
-Date: Tue, 15 Mar 2011 17:07:56 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 0/20] 0: Inode based uprobes
-Message-ID: <20110315113756.GX24254@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
- <20110314163028.a05cec49.akpm@linux-foundation.org>
- <y0maagxuqx6.fsf@fche.csb>
- <alpine.LFD.2.00.1103150224260.2787@localhost6.localdomain6>
- <20110315052133.GT24254@linux.vnet.ibm.com>
- <alpine.LFD.2.00.1103151158220.2787@localhost6.localdomain6>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id BF1508D003A
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 08:08:15 -0400 (EDT)
+Date: Tue, 15 Mar 2011 13:07:48 +0100
+From: Johannes Weiner <jweiner@redhat.com>
+Subject: Re: [PATCH] thp: mremap support and TLB optimization
+Message-ID: <20110315120748.GE2140@redhat.com>
+References: <20110311020410.GH5641@random.random>
+ <20110315092750.GD2140@redhat.com>
+ <20110315100107.GI10696@random.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.1103151158220.2787@localhost6.localdomain6>
+In-Reply-To: <20110315100107.GI10696@random.random>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: "Frank Ch. Eigler" <fche@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, int-list-linux-mm@kvack.orglinux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>
 
-> 
-> > uprobes and then draft a proposal for how the syscall should look. 
-> > There are still some areas on how we should be allowing the
-> > filter, and what restrictions we should place on the syscall
-> > defined handler. I would like to hear from you and others on your
-> > ideas for the same. If you have ideas on doing it other than using a
-> > syscall then please do let me know about the same.
-> 
-> I don't think that anything else than a proper syscall interface is
-> going to work out.
+On Tue, Mar 15, 2011 at 11:01:07AM +0100, Andrea Arcangeli wrote:
+> Does this look any better? This also optimizes away the tlb flush for
+> totally uninitialized areas.
 
-Okay, 
+Looks perfect to me, thanks!
 
+> Subject: thp: mremap support and TLB optimization
 > 
-> > I know that getting the user interface right is very important.
-> > However I think it kind of depends on what the infrastructure can
-> > provide too. So if we can decide on the kernel ABI and the
-> > underlying design (i.e can we use replace_page() based background page
-> > replacement, Are there issues with the Xol slot based mechanism that
-> > we are using, etc), we can work towards providing a stable User ABI that
-> > even normal users can use. For now I am concentrating on getting the
-> > underlying infrastructure correct.
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> Fair enough. I'll go through the existing patchset and comment there.
+> This adds THP support to mremap (decreases the number of split_huge_page
+> called).
 > 
+> This also replaces ptep_clear_flush with ptep_get_and_clear and replaces it
+> with a final flush_tlb_range to send a single tlb flush IPI instead of one IPI
+> for each page.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-Thanks for taking a look at the code. Look forward for your
-comments.
-
--- 
-Thanks and Regards
-Srikar
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
