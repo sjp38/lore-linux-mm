@@ -1,48 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6215C8D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 15:55:45 -0400 (EDT)
-Subject: Re: [PATCH 1/8] drivers/random: Cache align ip_random better
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <1300303593.3202.30.camel@edumazet-laptop>
-References: <20110316022804.27679.qmail@science.horizon.com>
-	 <alpine.LSU.2.00.1103161011370.13407@sister.anvils>
-	 <1300299787.3128.495.camel@calx> <1300303593.3202.30.camel@edumazet-laptop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 16 Mar 2011 14:55:07 -0500
-Message-ID: <1300305307.3128.528.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 524118D003A
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 15:59:00 -0400 (EDT)
+Date: Wed, 16 Mar 2011 20:58:44 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 3/5] mm: Implement IO-less balance_dirty_pages()
+Message-ID: <20110316195844.GD4456@quack.suse.cz>
+References: <1299623475-5512-1-git-send-email-jack@suse.cz>
+ <1299623475-5512-4-git-send-email-jack@suse.cz>
+ <20110316165331.GA15183@redhat.com>
+ <20110316191021.GB4456@quack.suse.cz>
+ <20110316193144.GE13562@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110316193144.GE13562@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, George Spelvin <linux@horizon.com>, penberg@cs.helsinki.fi, herbert@gondor.hengli.com.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
 
-On Wed, 2011-03-16 at 20:26 +0100, Eric Dumazet wrote:
-> > I think this alignment exists to minimize the number of cacheline
-> > bounces on SMP as this can be a pretty hot structure in the network
-> > stack. It could probably benefit from a per-cpu treatment.
-> > 
+On Wed 16-03-11 15:31:44, Vivek Goyal wrote:
+> On Wed, Mar 16, 2011 at 08:10:21PM +0100, Jan Kara wrote:
+> > On Wed 16-03-11 12:53:31, Vivek Goyal wrote:
+> > > On Tue, Mar 08, 2011 at 11:31:13PM +0100, Jan Kara wrote:
+> > > [..]
+> > > > +/*
+> > > > + * balance_dirty_pages() must be called by processes which are generating dirty
+> > > > + * data.  It looks at the number of dirty pages in the machine and will force
+> > > > + * the caller to perform writeback if the system is over `vm_dirty_ratio'.
+> > > > + * If we're over `background_thresh' then the writeback threads are woken to
+> > > > + * perform some writeout.
+> > > > + */
+> > > > +static void balance_dirty_pages(struct address_space *mapping,
+> > > > +				unsigned long write_chunk)
+> > > > +{
+> > > > +	struct backing_dev_info *bdi = mapping->backing_dev_info;
+> > > > +	struct balance_waiter bw;
+> > > > +	struct dirty_limit_state st;
+> > > > +	int dirty_exceeded = check_dirty_limits(bdi, &st);
+> > > > +
+> > > > +	if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT ||
+> > > > +	    (dirty_exceeded == DIRTY_MAY_EXCEED_LIMIT &&
+> > > > +	     !bdi_task_limit_exceeded(&st, current))) {
+> > > > +		if (bdi->dirty_exceeded &&
+> > > > +		    dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT)
+> > > > +			bdi->dirty_exceeded = 0;
+> > > >  		/*
+> > > > -		 * Increase the delay for each loop, up to our previous
+> > > > -		 * default of taking a 100ms nap.
+> > > > +		 * In laptop mode, we wait until hitting the higher threshold
+> > > > +		 * before starting background writeout, and then write out all
+> > > > +		 * the way down to the lower threshold.  So slow writers cause
+> > > > +		 * minimal disk activity.
+> > > > +		 *
+> > > > +		 * In normal mode, we start background writeout at the lower
+> > > > +		 * background_thresh, to keep the amount of dirty memory low.
+> > > >  		 */
+> > > > -		pause <<= 1;
+> > > > -		if (pause > HZ / 10)
+> > > > -			pause = HZ / 10;
+> > > > +		if (!laptop_mode && dirty_exceeded == DIRTY_EXCEED_BACKGROUND)
+> > > > +			bdi_start_background_writeback(bdi);
+> > > > +		return;
+> > > >  	}
+> > > >  
+> > > > -	/* Clear dirty_exceeded flag only when no task can exceed the limit */
+> > > > -	if (!min_dirty_exceeded && bdi->dirty_exceeded)
+> > > > -		bdi->dirty_exceeded = 0;
+> > > > +	if (!bdi->dirty_exceeded)
+> > > > +		bdi->dirty_exceeded = 1;
+> > > >  
+> > > > -	if (writeback_in_progress(bdi))
+> > > > -		return;
+> > > > +	trace_writeback_balance_dirty_pages_waiting(bdi, write_chunk);
+> > > > +	/* Kick flusher thread to start doing work if it isn't already */
+> > > > +	bdi_start_background_writeback(bdi);
+> > > >  
+> > > > +	bw.bw_wait_pages = write_chunk;
+> > > > +	bw.bw_task = current;
+> > > > +	spin_lock(&bdi->balance_lock);
+> > > >  	/*
+> > > > -	 * In laptop mode, we wait until hitting the higher threshold before
+> > > > -	 * starting background writeout, and then write out all the way down
+> > > > -	 * to the lower threshold.  So slow writers cause minimal disk activity.
+> > > > -	 *
+> > > > -	 * In normal mode, we start background writeout at the lower
+> > > > -	 * background_thresh, to keep the amount of dirty memory low.
+> > > > +	 * First item? Need to schedule distribution of IO completions among
+> > > > +	 * items on balance_list
+> > > > +	 */
+> > > > +	if (list_empty(&bdi->balance_list)) {
+> > > > +		bdi->written_start = bdi_stat_sum(bdi, BDI_WRITTEN);
+> > > > +		/* FIXME: Delay should be autotuned based on dev throughput */
+> > > > +		schedule_delayed_work(&bdi->balance_work, HZ/10);
+> > > > +	}
+> > > > +	/*
+> > > > +	 * Add work to the balance list, from now on the structure is handled
+> > > > +	 * by distribute_page_completions()
+> > > > +	 */
+> > > > +	list_add_tail(&bw.bw_list, &bdi->balance_list);
+> > > > +	bdi->balance_waiters++;
+> > > Had a query.
+> > > 
+> > > - What makes sure that flusher thread will not stop writing back till all
+> > >   the waiters on the bdi have been woken up. IIUC, flusher thread will 
+> > >   stop once global background ratio is with-in limit. Is it possible that
+> > >   there are still some waiter on some bdi waiting for more pages to finish
+> > >   writeback and that might not happen for sometime. 
+> >   Yes, this can possibly happen but once distribute_page_completions()
+> > gets called (after a given time), it will notice that we are below limits
+> > and wake all waiters.
+> > Under normal circumstances, we should have a decent
+> > estimate when distribute_page_completions() needs to be called and that
+> > should be long before flusher thread finishes it's work. But in cases when
+> > a bdi has only a small share of global dirty limit, what you describe can
+> > possibly happen.
 > 
-> Well, this is a mostly read area of memory, dirtied every 5 minutes.
-> 
-> Compare this to 'jiffies' for example ;)
-> 
-> What could be done is to embed 'ip_cnt' inside ip_keydata[0] for
-> example, to avoid wasting a cache line for one bit ;)
-> 
-> 
-> c1606c40 b ip_cnt
-> <hole>
-> c1606c80 b ip_keydata
+> So if a bdi share is small then it can happen that global background
+> threshold is fine but per bdi threshold is not. That means
+> task_bdi_threshold is also above limit and IIUC, distribute_page_completion()
+> will not wake up the waiter until bdi_task_limit_exceeded() is in control.
+  It will wake them. What you miss is the check right at the beginning of
+distribute_page_completions():
+      dirty_exceeded = check_dirty_limits(bdi, &st);
+      if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT) {
+               /* Wakeup everybody */
+...
 
-Yeah. I actually think we're due for rethinking this entire process. It
-dates back to when we introduced syncookies in the 90s and it shows. The
-fact that we've started abusing it for other things doesn't help.
+  When we are globally below (background+limit)/2, dirty_exceeded is set to
+DIRTY_OK or DIRTY_BACKGROUND and thus we just wake all the waiters.
+
+								Honza
 
 -- 
-Mathematics is the supreme nostalgia of our time.
-
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
