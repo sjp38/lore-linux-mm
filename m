@@ -1,38 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7BF378D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 16:51:41 -0400 (EDT)
-Date: 16 Mar 2011 16:51:39 -0400
-Message-ID: <20110316205139.2035.qmail@science.horizon.com>
-From: "George Spelvin" <linux@horizon.com>
-Subject: Re: [PATCH 5/8] mm/slub: Factor out some common code.
-In-Reply-To: <alpine.DEB.2.00.1103161308410.11002@chino.kir.corp.google.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 1E2578D0039
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 17:06:34 -0400 (EDT)
+Received: from j77219.upc-j.chello.nl ([24.132.77.219] helo=dyad.programming.kicks-ass.net)
+	by casper.infradead.org with esmtpsa (Exim 4.72 #1 (Red Hat Linux))
+	id 1PzxvK-0006j3-TT
+	for linux-mm@kvack.org; Wed, 16 Mar 2011 21:06:31 +0000
+Subject: Re: [PATCH 02/17] mm: mmu_gather rework
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <AANLkTimB4NFSPz5dSQCuEy3Rj5968n5k0=4c7tvhErE5@mail.gmail.com>
+References: <20110217162327.434629380@chello.nl>
+	 <20110217163234.823185666@chello.nl> <20110310155032.GB32302@csn.ul.ie>
+	 <1300301742.2203.1899.camel@twins>
+	 <AANLkTimB4NFSPz5dSQCuEy3Rj5968n5k0=4c7tvhErE5@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 16 Mar 2011 22:08:21 +0100
+Message-ID: <1300309701.2250.89.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux@horizon.com, rientjes@google.com
-Cc: herbert@gondor.hengli.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mpm@selenic.com, penberg@cs.helsinki.fi
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Tony Luck <tony.luck@intel.com>, Hugh Dickins <hughd@google.com>
 
-> Where's your signed-off-by?
-
-Somewhere under the pile of crap on my desk. :-)
-(More to the point, waiting for me to think it's good enough to submit
-For Real.)
-
-> Nice cleanup.
+On Wed, 2011-03-16 at 21:15 +0100, Geert Uytterhoeven wrote:
+> On Wed, Mar 16, 2011 at 19:55, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > On Thu, 2011-03-10 at 15:50 +0000, Mel Gorman wrote:
+> >
+> >> > +static inline void
+> >> > +tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned int full_mm_flush)
+> >> >  {
+> >>
+> >> checkpatch will bitch about line length.
+> >
+> > I did a s/full_mm_flush/fullmm/ which puts the line length at 81. At
+> > which point I'll ignore it ;-)
 > 
-> "flag" should be unsigned long in all of these functions: the constants 
-> are declared with UL suffixes in slab.h.
+> But what does "fullmm" mean here? Shouldn't that be documented.
+> BTW, the function no longer returns a struct, but void, so the documentation
+> should be updated for sure.
 
-Actually, I did that deliberately.  Because there's a problem I keep
-wondering about, which repeats many many times in the kernel:
-
-*Why* are they unsigned long?  That's an awkward type: 32 bits on many
-architectures, so we can't portably assign more than 32 bits, and on
-platforms where it's 64 bits, the upper 32 are just wasting space.
-(And REX prefixes on x86-64.)
-
-Wouldn't it be a better cleanup to convert the whole lot to unsigned
-or u32?
+You're talking about the comment right? I'll update that. I was also
+considering writing Documentation/mmugather.txt, but that's a slightly
+bigger undertaking.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
