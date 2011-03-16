@@ -1,254 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 24EB78D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 02:32:31 -0400 (EDT)
-Received: by gxk23 with SMTP id 23so710061gxk.14
-        for <linux-mm@kvack.org>; Tue, 15 Mar 2011 23:32:29 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110316022805.27713.qmail@science.horizon.com>
-References: <20110316022805.27713.qmail@science.horizon.com>
-Date: Wed, 16 Mar 2011 08:32:28 +0200
-Message-ID: <AANLkTi=asfrGTYL-vrG_xC--N+ddjj5aS2fG-i8ALvt1@mail.gmail.com>
-Subject: Re: [PATCH 5/8] mm/slub: Factor out some common code.
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EDC48D0039
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 03:52:47 -0400 (EDT)
+Received: from canuck.infradead.org ([2001:4978:20e::1])
+	by bombadil.infradead.org with esmtps (Exim 4.72 #1 (Red Hat Linux))
+	id 1PzlXA-00076j-6i
+	for linux-mm@kvack.org; Wed, 16 Mar 2011 07:52:44 +0000
+Received: from j77219.upc-j.chello.nl ([24.132.77.219] helo=dyad.programming.kicks-ass.net)
+	by canuck.infradead.org with esmtpsa (Exim 4.72 #1 (Red Hat Linux))
+	id 1PzlX8-0001GC-8l
+	for linux-mm@kvack.org; Wed, 16 Mar 2011 07:52:42 +0000
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 4/20] 4: uprobes: Adding and remove a
+ uprobe in a rb tree.
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1300228944.2565.19.camel@edumazet-laptop>
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+	 <20110314133444.27435.50684.sendpatchset@localhost6.localdomain6>
+	 <alpine.LFD.2.00.1103151425060.2787@localhost6.localdomain6>
+	 <20110315173041.GB24254@linux.vnet.ibm.com>
+	 <alpine.LFD.2.00.1103151916120.2787@localhost6.localdomain6>
+	 <1300218499.2250.12.camel@laptop>
+	 <1300228944.2565.19.camel@edumazet-laptop>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 16 Mar 2011 08:54:27 +0100
+Message-ID: <1300262067.2250.49.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: George Spelvin <linux@horizon.com>
-Cc: penberg@cs.helsinki.fi, herbert@gondor.apana.org.au, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Paul
+ E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Tue, Mar 15, 2011 at 3:58 AM, George Spelvin <linux@horizon.com> wrote:
-> For sysfs files that map a boolean to a flags bit.
+On Tue, 2011-03-15 at 23:42 +0100, Eric Dumazet wrote:
+> Le mardi 15 mars 2011 A  20:48 +0100, Peter Zijlstra a A(C)crit :
+> > On Tue, 2011-03-15 at 20:22 +0100, Thomas Gleixner wrote:
+> > > I am not sure if its a good idea to walk the tree
+> > > > as and when the tree is changing either because of a insertion or
+> > > > deletion of a probe.
+> > > 
+> > > I know that you cannot walk the tree lockless except you would use
+> > > some rcu based container for your probes. 
+> > 
+> > You can in fact combine a seqlock, rb-trees and RCU to do lockless
+> > walks.
+> > 
+> >   https://lkml.org/lkml/2010/10/20/160
+> > 
+> > and
+> > 
+> >   https://lkml.org/lkml/2010/10/20/437
+> > 
+> > But doing that would be an optimization best done once we get all this
+> > working nicely.
+> > 
+> 
+> We have such schem in net/ipv4/inetpeer.c function inet_getpeer() (using
+> a seqlock on latest net-next-2.6 tree), but we added a counter to make
+> sure a reader could not enter an infinite loop while traversing tree
 
-Looks good to me. I'll cc Christoph and David too.
+Right, Linus suggested a single lockless iteration, but a limited count
+works too.
 
-> ---
-> =A0mm/slub.c | =A0 93 ++++++++++++++++++++++++++++-----------------------=
----------
-> =A01 files changed, 43 insertions(+), 50 deletions(-)
->
-> diff --git a/mm/slub.c b/mm/slub.c
-> index e15aa7f..856246f 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -3982,38 +3982,61 @@ static ssize_t objects_partial_show(struct kmem_c=
-ache *s, char *buf)
-> =A0}
-> =A0SLAB_ATTR_RO(objects_partial);
->
-> +static ssize_t flag_show(struct kmem_cache *s, char *buf, unsigned flag)
-> +{
-> + =A0 =A0 =A0 return sprintf(buf, "%d\n", !!(s->flags & flag));
-> +}
-> +
-> +static ssize_t flag_store(struct kmem_cache *s,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 const char =
-*buf, size_t length, unsigned flag)
-> +{
-> + =A0 =A0 =A0 s->flags &=3D ~flag;
-> + =A0 =A0 =A0 if (buf[0] =3D=3D '1')
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 s->flags |=3D flag;
-> + =A0 =A0 =A0 return length;
-> +}
-> +
-> +/* Like above, but changes allocation size; so only allowed on empty sla=
-b */
-> +static ssize_t flag_store_sizechange(struct kmem_cache *s,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 const char =
-*buf, size_t length, unsigned flag)
-> +{
-> + =A0 =A0 =A0 if (any_slab_objects(s))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EBUSY;
-> +
-> + =A0 =A0 =A0 flag_store(s, buf, length, flag);
-> + =A0 =A0 =A0 calculate_sizes(s, -1);
-> + =A0 =A0 =A0 return length;
-> +}
-> +
-> =A0static ssize_t reclaim_account_show(struct kmem_cache *s, char *buf)
-> =A0{
-> - =A0 =A0 =A0 return sprintf(buf, "%d\n", !!(s->flags & SLAB_RECLAIM_ACCO=
-UNT));
-> + =A0 =A0 =A0 return flag_show(s, buf, SLAB_RECLAIM_ACCOUNT);
-> =A0}
->
-> =A0static ssize_t reclaim_account_store(struct kmem_cache *s,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0const char=
- *buf, size_t length)
-> =A0{
-> - =A0 =A0 =A0 s->flags &=3D ~SLAB_RECLAIM_ACCOUNT;
-> - =A0 =A0 =A0 if (buf[0] =3D=3D '1')
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 s->flags |=3D SLAB_RECLAIM_ACCOUNT;
-> - =A0 =A0 =A0 return length;
-> + =A0 =A0 =A0 return flag_store(s, buf, length, SLAB_RECLAIM_ACCOUNT);
-> =A0}
-> =A0SLAB_ATTR(reclaim_account);
->
-> =A0static ssize_t hwcache_align_show(struct kmem_cache *s, char *buf)
-> =A0{
-> - =A0 =A0 =A0 return sprintf(buf, "%d\n", !!(s->flags & SLAB_HWCACHE_ALIG=
-N));
-> + =A0 =A0 =A0 return flag_show(s, buf, SLAB_HWCACHE_ALIGN);
-> =A0}
-> =A0SLAB_ATTR_RO(hwcache_align);
->
-> =A0#ifdef CONFIG_ZONE_DMA
-> =A0static ssize_t cache_dma_show(struct kmem_cache *s, char *buf)
-> =A0{
-> - =A0 =A0 =A0 return sprintf(buf, "%d\n", !!(s->flags & SLAB_CACHE_DMA));
-> + =A0 =A0 =A0 return flag_show(s, buf, SLAB_CACHE_DMA);
-> =A0}
-> =A0SLAB_ATTR_RO(cache_dma);
-> =A0#endif
->
-> =A0static ssize_t destroy_by_rcu_show(struct kmem_cache *s, char *buf)
-> =A0{
-> - =A0 =A0 =A0 return sprintf(buf, "%d\n", !!(s->flags & SLAB_DESTROY_BY_R=
-CU));
-> + =A0 =A0 =A0 return flag_show(s, buf, SLAB_DESTROY_BY_RCU);
-> =A0}
-> =A0SLAB_ATTR_RO(destroy_by_rcu);
->
-> @@ -4032,88 +4055,61 @@ SLAB_ATTR_RO(total_objects);
->
-> =A0static ssize_t sanity_checks_show(struct kmem_cache *s, char *buf)
-> =A0{
-> - =A0 =A0 =A0 return sprintf(buf, "%d\n", !!(s->flags & SLAB_DEBUG_FREE))=
-;
-> + =A0 =A0 =A0 return flag_show(s, buf, SLAB_DEBUG_FREE);
-> =A0}
->
-> =A0static ssize_t sanity_checks_store(struct kmem_cache *s,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0const char=
- *buf, size_t length)
-> =A0{
-> - =A0 =A0 =A0 s->flags &=3D ~SLAB_DEBUG_FREE;
-> - =A0 =A0 =A0 if (buf[0] =3D=3D '1')
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 s->flags |=3D SLAB_DEBUG_FREE;
-> - =A0 =A0 =A0 return length;
-> + =A0 =A0 =A0 return flag_store(s, buf, length, SLAB_DEBUG_FREE);
-> =A0}
-> =A0SLAB_ATTR(sanity_checks);
->
-> =A0static ssize_t trace_show(struct kmem_cache *s, char *buf)
-> =A0{
-> - =A0 =A0 =A0 return sprintf(buf, "%d\n", !!(s->flags & SLAB_TRACE));
-> + =A0 =A0 =A0 return flag_show(s, buf, SLAB_TRACE);
-> =A0}
->
-> =A0static ssize_t trace_store(struct kmem_cache *s, const char *buf,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0size_t length)
-> =A0{
-> - =A0 =A0 =A0 s->flags &=3D ~SLAB_TRACE;
-> - =A0 =A0 =A0 if (buf[0] =3D=3D '1')
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 s->flags |=3D SLAB_TRACE;
-> - =A0 =A0 =A0 return length;
-> + =A0 =A0 =A0 return flag_store(s, buf, length, SLAB_TRACE);
-> =A0}
-> =A0SLAB_ATTR(trace);
->
-> =A0static ssize_t red_zone_show(struct kmem_cache *s, char *buf)
-> =A0{
-> - =A0 =A0 =A0 return sprintf(buf, "%d\n", !!(s->flags & SLAB_RED_ZONE));
-> + =A0 =A0 =A0 return flag_show(s, buf, SLAB_RED_ZONE);
-> =A0}
->
-> =A0static ssize_t red_zone_store(struct kmem_cache *s,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0const char=
- *buf, size_t length)
-> =A0{
-> - =A0 =A0 =A0 if (any_slab_objects(s))
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EBUSY;
-> -
-> - =A0 =A0 =A0 s->flags &=3D ~SLAB_RED_ZONE;
-> - =A0 =A0 =A0 if (buf[0] =3D=3D '1')
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 s->flags |=3D SLAB_RED_ZONE;
-> - =A0 =A0 =A0 calculate_sizes(s, -1);
-> - =A0 =A0 =A0 return length;
-> + =A0 =A0 =A0 return flag_store_sizechange(s, buf, length, SLAB_RED_ZONE)=
-;
-> =A0}
-> =A0SLAB_ATTR(red_zone);
->
-> =A0static ssize_t poison_show(struct kmem_cache *s, char *buf)
-> =A0{
-> - =A0 =A0 =A0 return sprintf(buf, "%d\n", !!(s->flags & SLAB_POISON));
-> + =A0 =A0 =A0 return flag_show(s, buf, SLAB_POISON);
-> =A0}
->
-> =A0static ssize_t poison_store(struct kmem_cache *s,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0const char=
- *buf, size_t length)
-> =A0{
-> - =A0 =A0 =A0 if (any_slab_objects(s))
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EBUSY;
-> -
-> - =A0 =A0 =A0 s->flags &=3D ~SLAB_POISON;
-> - =A0 =A0 =A0 if (buf[0] =3D=3D '1')
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 s->flags |=3D SLAB_POISON;
-> - =A0 =A0 =A0 calculate_sizes(s, -1);
-> - =A0 =A0 =A0 return length;
-> + =A0 =A0 =A0 return flag_store_sizechange(s, buf, length, SLAB_POISON);
-> =A0}
-> =A0SLAB_ATTR(poison);
->
-> =A0static ssize_t store_user_show(struct kmem_cache *s, char *buf)
-> =A0{
-> - =A0 =A0 =A0 return sprintf(buf, "%d\n", !!(s->flags & SLAB_STORE_USER))=
-;
-> + =A0 =A0 =A0 return flag_show(s, buf, SLAB_STORE_USER);
-> =A0}
->
-> =A0static ssize_t store_user_store(struct kmem_cache *s,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0const char=
- *buf, size_t length)
-> =A0{
-> - =A0 =A0 =A0 if (any_slab_objects(s))
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EBUSY;
-> -
-> - =A0 =A0 =A0 s->flags &=3D ~SLAB_STORE_USER;
-> - =A0 =A0 =A0 if (buf[0] =3D=3D '1')
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 s->flags |=3D SLAB_STORE_USER;
-> - =A0 =A0 =A0 calculate_sizes(s, -1);
-> - =A0 =A0 =A0 return length;
-> + =A0 =A0 =A0 return flag_store_sizechange(s, buf, length, SLAB_STORE_USE=
-R);
-> =A0}
-> =A0SLAB_ATTR(store_user);
->
-> @@ -4156,16 +4152,13 @@ SLAB_ATTR_RO(free_calls);
-> =A0#ifdef CONFIG_FAILSLAB
-> =A0static ssize_t failslab_show(struct kmem_cache *s, char *buf)
-> =A0{
-> - =A0 =A0 =A0 return sprintf(buf, "%d\n", !!(s->flags & SLAB_FAILSLAB));
-> + =A0 =A0 =A0 return flag_show(s, buf, SLAB_FAILSLAB);
-> =A0}
->
-> =A0static ssize_t failslab_store(struct kmem_cache *s, const char *buf,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0size_t length)
-> =A0{
-> - =A0 =A0 =A0 s->flags &=3D ~SLAB_FAILSLAB;
-> - =A0 =A0 =A0 if (buf[0] =3D=3D '1')
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 s->flags |=3D SLAB_FAILSLAB;
-> - =A0 =A0 =A0 return length;
-> + =A0 =A0 =A0 return flag_store(s, buf, length, SLAB_FAILSLAB);
-> =A0}
-> =A0SLAB_ATTR(failslab);
-> =A0#endif
-> --
-> 1.7.4.1
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+> (AVL tree in inetpeer case).
+
+Ooh, there's an AVL implementation in the kernel? I have to ask, why not
+use the RB-tree? (I know AVL has a slightly stronger balancing condition
+which reduces the max depth from 2*log(n) to 1+log(n)).
+
+Also, if it does make sense to have both and AVL and RB implementation,
+does it then also make sense to lift the AVL thing to generic code into
+lib/ ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
