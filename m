@@ -1,35 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A17F58D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 11:12:12 -0400 (EDT)
-From: "Jason L Tibbitts III" <tibbs@math.uh.edu>
-Subject: Re: [PATCH] tmpfs: implement security.capability xattrs
-References: <20110111210710.32348.1642.stgit@paris.rdu.redhat.com>
-	<AANLkTi=wyaLP6gFmNxajp+HtYu3B9_KGf2o4BnYA+rwy@mail.gmail.com>
-	<AANLkTi=7GyY=O2eTupPXQijcnT_55a3RnHAruJpm_5Jo@mail.gmail.com>
-Date: Wed, 16 Mar 2011 10:11:38 -0500
-In-Reply-To: <AANLkTi=7GyY=O2eTupPXQijcnT_55a3RnHAruJpm_5Jo@mail.gmail.com>
-	(Eric Paris's message of "Wed, 2 Mar 2011 14:29:59 -0500")
-Message-ID: <ufa7hbzje1h.fsf@epithumia.math.uh.edu>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B2A6F8D0039
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 11:26:13 -0400 (EDT)
+Message-ID: <4D80D65C.5040504@fiec.espol.edu.ec>
+Date: Wed, 16 Mar 2011 10:25:16 -0500
+From: =?ISO-8859-1?Q?Alex_Villac=ED=ADs_Lasso?=
+ <avillaci@fiec.espol.edu.ec>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [Bugme-new] [Bug 31142] New: Large write to USB stick freezes
+ unrelated tasks for a long time
+References: <bug-31142-10286@https.bugzilla.kernel.org/>	<20110315135334.36e29414.akpm@linux-foundation.org>	<4D7FEDDC.3020607@fiec.espol.edu.ec> <20110315161926.595bdb65.akpm@linux-foundation.org>
+In-Reply-To: <20110315161926.595bdb65.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Paris <eparis@parisplace.org>
-Cc: Eric Paris <eparis@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: avillaci@ceibo.fiec.espol.edu.ec, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
->>>>> "EP" == Eric Paris <eparis@parisplace.org> writes:
-
-EP> I know there exist thoughts on this patch somewhere on the
-EP> internets. Let 'em rip!  I can handle it!
-
-Well, I've been running it for a while (currently patched into Fedora
-15's 2.6.38 package) in order to be able to init Fedora chroots in tmpfs
-(for doing fast mock builds).  Seems to work fine for me.  Unfortunately
-I'm not able to comment on the patch itself, which I guess is what it
-really needs in order to make it upstream.
-
- - J<
+El 15/03/11 18:19, Andrew Morton escribio:
+> On Tue, 15 Mar 2011 17:53:16 -0500
+> Alex Villac____s Lasso<avillaci@fiec.espol.edu.ec>  wrote:
+>
+>> El 15/03/11 15:53, Andrew Morton escribi__:
+>>> rofl, will we ever fix this.
+>> Does this mean there is already a duplicate of this issue? If so, which one?
+> Nothing specific.  Nonsense like this has been happening for at least a
+> decade and it never seems to get a lot better.
+>
+>>> Please enable sysrq and do a sysrq-w when the tasks are blocked so we
+>>> can find where things are getting stuck.  Please avoid email client
+>>> wordwrapping when sending us the sysrq output.
+>>>
+Posted sysrq-w report into original bug report to avoid email word-wrap.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
