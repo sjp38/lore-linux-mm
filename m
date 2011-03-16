@@ -1,106 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EE8B8D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 01:04:29 -0400 (EDT)
-Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
-	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2G4eABf029721
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 00:40:10 -0400
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id BF3B238C8038
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 01:04:23 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2G54REC330660
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 01:04:27 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2G54PMI021536
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 01:04:26 -0400
-Date: Wed, 16 Mar 2011 10:28:20 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 11/20] 11: uprobes: slot allocation
- for uprobes
-Message-ID: <20110316045820.GF24254@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 2F51B8D0039
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 01:51:51 -0400 (EDT)
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
+	by e23smtp02.au.ibm.com (8.14.4/8.13.1) with ESMTP id p2G5kOlC017249
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 16:46:24 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2G5pkT82039950
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 16:51:46 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2G5pidH021412
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 16:51:46 +1100
+Date: Wed, 16 Mar 2011 11:21:39 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 7/20]  7: uprobes: store/restore
+ original instruction.
+Message-ID: <20110316055138.GI3410@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
- <20110314133610.27435.93666.sendpatchset@localhost6.localdomain6>
- <20110315131020.36477a1c@bike.lwn.net>
+ <20110314133522.27435.45121.sendpatchset@localhost6.localdomain6>
+ <20110314180914.GA18855@fibrous.localdomain>
+ <20110315092247.GW24254@linux.vnet.ibm.com>
+ <1300211862.2203.302.camel@twins>
+ <20110315185841.GH3410@balbir.in.ibm.com>
+ <1300217432.2250.0.camel@laptop>
+ <1300217560.9910.296.camel@gandalf.stny.rr.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20110315131020.36477a1c@bike.lwn.net>
+In-Reply-To: <1300217560.9910.296.camel@gandalf.stny.rr.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-* Jonathan Corbet <corbet@lwn.net> [2011-03-15 13:10:20]:
+* Steven Rostedt <rostedt@goodmis.org> [2011-03-15 15:32:40]:
 
-> Just a couple of minor notes while I was looking at this code...
+> On Tue, 2011-03-15 at 20:30 +0100, Peter Zijlstra wrote:
+> > On Wed, 2011-03-16 at 00:28 +0530, Balbir Singh wrote:
 > 
-> > +static struct uprobes_xol_area *xol_alloc_area(void)
-> > +{
-> > +	struct uprobes_xol_area *area = NULL;
-> > +
-> > +	area = kzalloc(sizeof(*area), GFP_USER);
-> > +	if (unlikely(!area))
-> > +		return NULL;
-> > +
-> > +	area->bitmap = kzalloc(BITS_TO_LONGS(UINSNS_PER_PAGE) * sizeof(long),
-> > +								GFP_USER);
+> > > I accept the blame and am willing to fix anything incorrect found in
+> > > the code. 
+> > 
+> > :-), ok sounds right, just wasn't entirely obvious when having a quick
+> > look.
 > 
-> Why GFP_USER?  That causes extra allocation limits to be enforced.  Given
-> that in part 14 you have:
+> Does that mean we should be adding a comment there?
+>
 
-Okay, Will use GFP_KERNEL. 
-We used GFP_USER because we thought its going to represent part of
-process address space; 
+This is what the current documentation looks like.
 
-> 
-> +/* Prepare to single-step probed instruction out of line. */
-> +static int pre_ssout(struct uprobe *uprobe, struct pt_regs *regs,
-> +				unsigned long vaddr)
-> +{
-> +	xol_get_insn_slot(uprobe, vaddr);
-> +	BUG_ON(!current->utask->xol_vaddr);
-> 
-> It seems to me that you really don't want those allocations to fail.
-> 
-> back to xol_alloc_area():
-> 
-> > +	if (!area->bitmap)
-> > +		goto fail;
-> > +
-> > +	spin_lock_init(&area->slot_lock);
-> > +	if (!xol_add_vma(area) && !current->mm->uprobes_xol_area) {
-> > +		task_lock(current);
-> > +		if (!current->mm->uprobes_xol_area) {
-> > +			current->mm->uprobes_xol_area = area;
-> > +			task_unlock(current);
-> > +			return area;
-> > +		}
-> > +		task_unlock(current);
-> > +	}
-> > +
-> > +fail:
-> > +	if (area) {
-> > +		if (area->bitmap)
-> > +			kfree(area->bitmap);
-> > +		kfree(area);
-> > +	}
-> 
-> You've already checked area against NULL, and kfree() can handle null
-> pointers, so both of those tests are unneeded.
+#ifdef CONFIG_MM_OWNER
+        /*
+         * "owner" points to a task that is regarded as the canonical
+         * user/owner of this mm. All of the following must be true in
+         * order for it to be changed:
+         *
+         * current == mm->owner
+         * current->mm != mm
+         * new_owner->mm == mm
+         * new_owner->alloc_lock is held
+         */
+        struct task_struct __rcu *owner;
+#endif
 
-Okay, 
-
-> 
-> > +	return current->mm->uprobes_xol_area;
-> > +}
-> 
-> jon
+Do you want me to document the fork/exit case?
+ 
 
 -- 
-Thanks and Regards
-Srikar
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
