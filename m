@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id DC03E8D0039
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 23:03:59 -0400 (EDT)
-Subject: Re: [PATCH 2/8] drivers/char/random: Split out __get_random_int
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C440E8D0039
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 23:09:49 -0400 (EDT)
+Subject: Re: [PATCH 4/8] drivers/char/random: Add get_random_mod() functions
 From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20110316022804.27682.qmail@science.horizon.com>
-References: <20110316022804.27682.qmail@science.horizon.com>
+In-Reply-To: <20110316022804.27701.qmail@science.horizon.com>
+References: <20110316022804.27701.qmail@science.horizon.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 15 Mar 2011 22:03:56 -0500
-Message-ID: <1300244636.3128.426.camel@calx>
+Date: Tue, 15 Mar 2011 22:09:45 -0500
+Message-ID: <1300244985.3128.430.camel@calx>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,18 +16,133 @@ List-ID: <linux-mm.kvack.org>
 To: George Spelvin <linux@horizon.com>
 Cc: penberg@cs.helsinki.fi, herbert@gondor.apana.org.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, 2011-03-13 at 20:57 -0400, George Spelvin wrote:
-> The unlocked function is needed for following work.
-> No API change.
+On Mon, 2011-03-14 at 14:26 -0400, George Spelvin wrote:
+> This is a function for generating random numbers modulo small
+> integers, with uniform distribution and parsimonious use of seed
+> material.
 
-As I mentioned last time this code was discussed, we're already one
-crypto-savvy attacker away from this code becoming a security hole. 
-We really need to give it a serious rethink before we make it look
-anything like a general-use API. 
+This actually looks pretty reasonable, ignoring the scary API foundation
+it's built on. But as popular as rand() % m constructs are with
+programmers, it's better to design things so as to avoid the modulus
+entirely. We've done pretty well at that so far, so I'd rather not have
+such a thing in the kernel.
 
-And you've got it backwards here: __ should be the unlocked, dangerous
-version. But the locked version already has a __ because it's already
-dangerous.
+> ---
+>  drivers/char/random.c  |   63 ++++++++++++++++++++++++++++++++++++++++++++++++
+>  include/linux/random.h |   14 ++++++++++
+>  2 files changed, 77 insertions(+), 0 deletions(-)
+> 
+> diff --git a/drivers/char/random.c b/drivers/char/random.c
+> index 113508e..fc36a98 100644
+> --- a/drivers/char/random.c
+> +++ b/drivers/char/random.c
+> @@ -1626,6 +1626,8 @@ EXPORT_SYMBOL(secure_dccp_sequence_number);
+>   */
+>  struct cpu_random {
+>  	u32 hash[4];
+> +	u32 lim, x;
+> +	int avail;	/* Trailing bytes of hash[] available for seed */
+>  };
+>  DEFINE_PER_CPU(struct cpu_random, get_random_int_data);
+>  static u32 __get_random_int(u32 *hash)
+> @@ -1646,10 +1648,71 @@ unsigned int get_random_int(void)
+>  	struct cpu_random *r = &get_cpu_var(get_random_int_data);
+>  	u32 ret = __get_random_int(r->hash);
+>  
+> +	r->avail = 8;
+>  	put_cpu_var(r);
+>  	return ret;
+>  }
+>  
+> +struct cpu_random *
+> +get_random_mod_start(void)
+> +{
+> +	struct cpu_random *r = &get_cpu_var(get_random_int_data);
+> +
+> +	if (r->x >= r->lim) {
+> +		r->x = 0;
+> +		r->lim = 1;
+> +		r->avail = 0;
+> +	}
+> +	return r;
+> +}
+> +
+> +/*
+> + * Return a random 0 <= x < m.  This is exacctly uniformly distributed,
+> + * which "random() % m" is not, and it is economical with seed entropy.
+> + * For example, this can shuffle 27 elements (27! > 2^93) with only
+> + * one call to half_md4_transform.
+> + *
+> + * This is limited to 24-bit moduli m; larger values risk overflow.
+> + */
+> +unsigned
+> +get_random_mod(struct cpu_random *r, unsigned m)
+> +{
+> +	unsigned x = r->x, lim = r->lim;
+> +
+> +	BUG_ON(m >= 0x1000000);
+> +	do {
+> +		BUG_ON(x >= lim);
+> +
+> +		/* Ensure lim >= m */
+> +		while (lim < m) {
+> +			/* Invoke underlying random bit source, if needed. */
+> +			if (!r->avail) {
+> +				/* Generate 12 more bytes of seed */
+> +				(void)__get_random_int(r->hash);
+> +				r->avail = 12;
+> +			}
+> +			/* Add one byte of seed material. */
+> +			x = (x << 8) |
+> +				((u8 *)r->hash)[sizeof r->hash - r->avail--];
+> +			lim <<= 8;
+> +		}
+> +		/* Now check for uniformity, and loop if necessary. */
+> +		r->lim = lim / m;
+> +		lim %= m;
+> +	} while (unlikely(x < lim));
+> +
+> +	x -= lim;
+> +	/* We now have 0 <= x < m * r->lim, so x % m is uniform */
+> +	r->x = x / m;	/* Remainder available for future use */
+> +	return x % m;
+> +}
+> +
+> +void
+> +get_random_mod_stop(struct cpu_random *r)
+> +{
+> +	put_cpu_var(r);
+> +}
+> +
+>  /*
+>   * randomize_range() returns a start address such that
+>   *
+> diff --git a/include/linux/random.h b/include/linux/random.h
+> index fb7ab9d..2e1c227 100644
+> --- a/include/linux/random.h
+> +++ b/include/linux/random.h
+> @@ -75,6 +75,20 @@ extern const struct file_operations random_fops, urandom_fops;
+>  unsigned int get_random_int(void);
+>  unsigned long randomize_range(unsigned long start, unsigned long end, unsigned long len);
+>  
+> +
+> +/*
+> + * These functions generate a sequence of values modulo a small integer m.
+> + * They are intended for shuffling operations.  "m" must be no more
+> + * than 24 bits, or they will BUG().  (Rather than suffering an internal
+> + * overflow.)
+> + * They use per-CPU data, so preemption is disabled in the _start
+> + * function and re-enabled in _stop.
+> + */
+> +struct cpu_random;	/* Opaque to acllers of this interface */
+> +struct cpu_random *get_random_mod_start(void);
+> +unsigned get_random_mod(struct cpu_random *r, unsigned m);
+> +void get_random_mod_stop(struct cpu_random *r);
+> +
+>  u32 random32(void);
+>  void srandom32(u32 seed);
+>  
+
 
 -- 
 Mathematics is the supreme nostalgia of our time.
