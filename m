@@ -1,60 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EF5988D003A
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 16:16:48 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so2660324fxm.14
-        for <linux-mm@kvack.org>; Wed, 16 Mar 2011 13:16:46 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id CD1868D0039
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 16:23:07 -0400 (EDT)
+Date: Wed, 16 Mar 2011 16:22:52 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 3/5] mm: Implement IO-less balance_dirty_pages()
+Message-ID: <20110316202252.GF13562@redhat.com>
+References: <1299623475-5512-1-git-send-email-jack@suse.cz>
+ <1299623475-5512-4-git-send-email-jack@suse.cz>
+ <20110316165331.GA15183@redhat.com>
+ <20110316191021.GB4456@quack.suse.cz>
+ <20110316193144.GE13562@redhat.com>
+ <20110316195844.GD4456@quack.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1300301742.2203.1899.camel@twins>
-References: <20110217162327.434629380@chello.nl>
-	<20110217163234.823185666@chello.nl>
-	<20110310155032.GB32302@csn.ul.ie>
-	<1300301742.2203.1899.camel@twins>
-Date: Wed, 16 Mar 2011 21:15:58 +0100
-Message-ID: <AANLkTimB4NFSPz5dSQCuEy3Rj5968n5k0=4c7tvhErE5@mail.gmail.com>
-Subject: Re: [PATCH 02/17] mm: mmu_gather rework
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110316195844.GD4456@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Tony Luck <tony.luck@intel.com>, Hugh Dickins <hughd@google.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
 
-On Wed, Mar 16, 2011 at 19:55, Peter Zijlstra <a.p.zijlstra@chello.nl> wrot=
-e:
-> On Thu, 2011-03-10 at 15:50 +0000, Mel Gorman wrote:
->
->> > +static inline void
->> > +tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned=
- int full_mm_flush)
->> > =C2=A0{
->>
->> checkpatch will bitch about line length.
->
-> I did a s/full_mm_flush/fullmm/ which puts the line length at 81. At
-> which point I'll ignore it ;-)
+On Wed, Mar 16, 2011 at 08:58:44PM +0100, Jan Kara wrote:
 
-But what does "fullmm" mean here? Shouldn't that be documented.
-BTW, the function no longer returns a struct, but void, so the documentatio=
-n
-should be updated for sure.
+[..]
+> > > > Had a query.
+> > > > 
+> > > > - What makes sure that flusher thread will not stop writing back till all
+> > > >   the waiters on the bdi have been woken up. IIUC, flusher thread will 
+> > > >   stop once global background ratio is with-in limit. Is it possible that
+> > > >   there are still some waiter on some bdi waiting for more pages to finish
+> > > >   writeback and that might not happen for sometime. 
+> > >   Yes, this can possibly happen but once distribute_page_completions()
+> > > gets called (after a given time), it will notice that we are below limits
+> > > and wake all waiters.
+> > > Under normal circumstances, we should have a decent
+> > > estimate when distribute_page_completions() needs to be called and that
+> > > should be long before flusher thread finishes it's work. But in cases when
+> > > a bdi has only a small share of global dirty limit, what you describe can
+> > > possibly happen.
+> > 
+> > So if a bdi share is small then it can happen that global background
+> > threshold is fine but per bdi threshold is not. That means
+> > task_bdi_threshold is also above limit and IIUC, distribute_page_completion()
+> > will not wake up the waiter until bdi_task_limit_exceeded() is in control.
+>   It will wake them. What you miss is the check right at the beginning of
+> distribute_page_completions():
+>       dirty_exceeded = check_dirty_limits(bdi, &st);
+>       if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT) {
+>                /* Wakeup everybody */
+> ...
+> 
+>   When we are globally below (background+limit)/2, dirty_exceeded is set to
+> DIRTY_OK or DIRTY_BACKGROUND and thus we just wake all the waiters.
 
-Gr{oetje,eeting}s,
+Ok, thanks. Now I see it. 
 
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 Geert
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k=
-.org
-
-In personal conversations with technical people, I call myself a hacker. Bu=
-t
-when I'm talking to journalists I just say "programmer" or something like t=
-hat.
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0=C2=A0 =C2=A0=C2=A0 -- Linus Torvalds
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
