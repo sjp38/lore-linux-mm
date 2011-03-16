@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C440E8D0039
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 23:09:49 -0400 (EDT)
-Subject: Re: [PATCH 4/8] drivers/char/random: Add get_random_mod() functions
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 75A988D0039
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2011 23:12:14 -0400 (EDT)
+Subject: Re: [PATCH 5/8] mm/slub: Factor out some common code.
 From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20110316022804.27701.qmail@science.horizon.com>
-References: <20110316022804.27701.qmail@science.horizon.com>
+In-Reply-To: <20110316022805.27713.qmail@science.horizon.com>
+References: <20110316022805.27713.qmail@science.horizon.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 15 Mar 2011 22:09:45 -0500
-Message-ID: <1300244985.3128.430.camel@calx>
+Date: Tue, 15 Mar 2011 22:12:08 -0500
+Message-ID: <1300245128.3128.432.camel@calx>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,132 +16,208 @@ List-ID: <linux-mm.kvack.org>
 To: George Spelvin <linux@horizon.com>
 Cc: penberg@cs.helsinki.fi, herbert@gondor.apana.org.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 2011-03-14 at 14:26 -0400, George Spelvin wrote:
-> This is a function for generating random numbers modulo small
-> integers, with uniform distribution and parsimonious use of seed
-> material.
+On Mon, 2011-03-14 at 21:58 -0400, George Spelvin wrote:
+> For sysfs files that map a boolean to a flags bit.
 
-This actually looks pretty reasonable, ignoring the scary API foundation
-it's built on. But as popular as rand() % m constructs are with
-programmers, it's better to design things so as to avoid the modulus
-entirely. We've done pretty well at that so far, so I'd rather not have
-such a thing in the kernel.
+This one's actually pretty nice. You should really try to put all the
+uncontroversial bits of a series first.
 
 > ---
->  drivers/char/random.c  |   63 ++++++++++++++++++++++++++++++++++++++++++++++++
->  include/linux/random.h |   14 ++++++++++
->  2 files changed, 77 insertions(+), 0 deletions(-)
+>  mm/slub.c |   93 ++++++++++++++++++++++++++++--------------------------------
+>  1 files changed, 43 insertions(+), 50 deletions(-)
 > 
-> diff --git a/drivers/char/random.c b/drivers/char/random.c
-> index 113508e..fc36a98 100644
-> --- a/drivers/char/random.c
-> +++ b/drivers/char/random.c
-> @@ -1626,6 +1626,8 @@ EXPORT_SYMBOL(secure_dccp_sequence_number);
->   */
->  struct cpu_random {
->  	u32 hash[4];
-> +	u32 lim, x;
-> +	int avail;	/* Trailing bytes of hash[] available for seed */
->  };
->  DEFINE_PER_CPU(struct cpu_random, get_random_int_data);
->  static u32 __get_random_int(u32 *hash)
-> @@ -1646,10 +1648,71 @@ unsigned int get_random_int(void)
->  	struct cpu_random *r = &get_cpu_var(get_random_int_data);
->  	u32 ret = __get_random_int(r->hash);
+> diff --git a/mm/slub.c b/mm/slub.c
+> index e15aa7f..856246f 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3982,38 +3982,61 @@ static ssize_t objects_partial_show(struct kmem_cache *s, char *buf)
+>  }
+>  SLAB_ATTR_RO(objects_partial);
 >  
-> +	r->avail = 8;
->  	put_cpu_var(r);
->  	return ret;
+> +static ssize_t flag_show(struct kmem_cache *s, char *buf, unsigned flag)
+> +{
+> +	return sprintf(buf, "%d\n", !!(s->flags & flag));
+> +}
+> +
+> +static ssize_t flag_store(struct kmem_cache *s,
+> +				const char *buf, size_t length, unsigned flag)
+> +{
+> +	s->flags &= ~flag;
+> +	if (buf[0] == '1')
+> +		s->flags |= flag;
+> +	return length;
+> +}
+> +
+> +/* Like above, but changes allocation size; so only allowed on empty slab */
+> +static ssize_t flag_store_sizechange(struct kmem_cache *s,
+> +				const char *buf, size_t length, unsigned flag)
+> +{
+> +	if (any_slab_objects(s))
+> +		return -EBUSY;
+> +
+> +	flag_store(s, buf, length, flag);
+> +	calculate_sizes(s, -1);
+> +	return length;
+> +}
+> +
+>  static ssize_t reclaim_account_show(struct kmem_cache *s, char *buf)
+>  {
+> -	return sprintf(buf, "%d\n", !!(s->flags & SLAB_RECLAIM_ACCOUNT));
+> +	return flag_show(s, buf, SLAB_RECLAIM_ACCOUNT);
 >  }
 >  
-> +struct cpu_random *
-> +get_random_mod_start(void)
-> +{
-> +	struct cpu_random *r = &get_cpu_var(get_random_int_data);
-> +
-> +	if (r->x >= r->lim) {
-> +		r->x = 0;
-> +		r->lim = 1;
-> +		r->avail = 0;
-> +	}
-> +	return r;
-> +}
-> +
-> +/*
-> + * Return a random 0 <= x < m.  This is exacctly uniformly distributed,
-> + * which "random() % m" is not, and it is economical with seed entropy.
-> + * For example, this can shuffle 27 elements (27! > 2^93) with only
-> + * one call to half_md4_transform.
-> + *
-> + * This is limited to 24-bit moduli m; larger values risk overflow.
-> + */
-> +unsigned
-> +get_random_mod(struct cpu_random *r, unsigned m)
-> +{
-> +	unsigned x = r->x, lim = r->lim;
-> +
-> +	BUG_ON(m >= 0x1000000);
-> +	do {
-> +		BUG_ON(x >= lim);
-> +
-> +		/* Ensure lim >= m */
-> +		while (lim < m) {
-> +			/* Invoke underlying random bit source, if needed. */
-> +			if (!r->avail) {
-> +				/* Generate 12 more bytes of seed */
-> +				(void)__get_random_int(r->hash);
-> +				r->avail = 12;
-> +			}
-> +			/* Add one byte of seed material. */
-> +			x = (x << 8) |
-> +				((u8 *)r->hash)[sizeof r->hash - r->avail--];
-> +			lim <<= 8;
-> +		}
-> +		/* Now check for uniformity, and loop if necessary. */
-> +		r->lim = lim / m;
-> +		lim %= m;
-> +	} while (unlikely(x < lim));
-> +
-> +	x -= lim;
-> +	/* We now have 0 <= x < m * r->lim, so x % m is uniform */
-> +	r->x = x / m;	/* Remainder available for future use */
-> +	return x % m;
-> +}
-> +
-> +void
-> +get_random_mod_stop(struct cpu_random *r)
-> +{
-> +	put_cpu_var(r);
-> +}
-> +
->  /*
->   * randomize_range() returns a start address such that
->   *
-> diff --git a/include/linux/random.h b/include/linux/random.h
-> index fb7ab9d..2e1c227 100644
-> --- a/include/linux/random.h
-> +++ b/include/linux/random.h
-> @@ -75,6 +75,20 @@ extern const struct file_operations random_fops, urandom_fops;
->  unsigned int get_random_int(void);
->  unsigned long randomize_range(unsigned long start, unsigned long end, unsigned long len);
+>  static ssize_t reclaim_account_store(struct kmem_cache *s,
+>  				const char *buf, size_t length)
+>  {
+> -	s->flags &= ~SLAB_RECLAIM_ACCOUNT;
+> -	if (buf[0] == '1')
+> -		s->flags |= SLAB_RECLAIM_ACCOUNT;
+> -	return length;
+> +	return flag_store(s, buf, length, SLAB_RECLAIM_ACCOUNT);
+>  }
+>  SLAB_ATTR(reclaim_account);
 >  
-> +
-> +/*
-> + * These functions generate a sequence of values modulo a small integer m.
-> + * They are intended for shuffling operations.  "m" must be no more
-> + * than 24 bits, or they will BUG().  (Rather than suffering an internal
-> + * overflow.)
-> + * They use per-CPU data, so preemption is disabled in the _start
-> + * function and re-enabled in _stop.
-> + */
-> +struct cpu_random;	/* Opaque to acllers of this interface */
-> +struct cpu_random *get_random_mod_start(void);
-> +unsigned get_random_mod(struct cpu_random *r, unsigned m);
-> +void get_random_mod_stop(struct cpu_random *r);
-> +
->  u32 random32(void);
->  void srandom32(u32 seed);
+>  static ssize_t hwcache_align_show(struct kmem_cache *s, char *buf)
+>  {
+> -	return sprintf(buf, "%d\n", !!(s->flags & SLAB_HWCACHE_ALIGN));
+> +	return flag_show(s, buf, SLAB_HWCACHE_ALIGN);
+>  }
+>  SLAB_ATTR_RO(hwcache_align);
 >  
+>  #ifdef CONFIG_ZONE_DMA
+>  static ssize_t cache_dma_show(struct kmem_cache *s, char *buf)
+>  {
+> -	return sprintf(buf, "%d\n", !!(s->flags & SLAB_CACHE_DMA));
+> +	return flag_show(s, buf, SLAB_CACHE_DMA);
+>  }
+>  SLAB_ATTR_RO(cache_dma);
+>  #endif
+>  
+>  static ssize_t destroy_by_rcu_show(struct kmem_cache *s, char *buf)
+>  {
+> -	return sprintf(buf, "%d\n", !!(s->flags & SLAB_DESTROY_BY_RCU));
+> +	return flag_show(s, buf, SLAB_DESTROY_BY_RCU);
+>  }
+>  SLAB_ATTR_RO(destroy_by_rcu);
+>  
+> @@ -4032,88 +4055,61 @@ SLAB_ATTR_RO(total_objects);
+>  
+>  static ssize_t sanity_checks_show(struct kmem_cache *s, char *buf)
+>  {
+> -	return sprintf(buf, "%d\n", !!(s->flags & SLAB_DEBUG_FREE));
+> +	return flag_show(s, buf, SLAB_DEBUG_FREE);
+>  }
+>  
+>  static ssize_t sanity_checks_store(struct kmem_cache *s,
+>  				const char *buf, size_t length)
+>  {
+> -	s->flags &= ~SLAB_DEBUG_FREE;
+> -	if (buf[0] == '1')
+> -		s->flags |= SLAB_DEBUG_FREE;
+> -	return length;
+> +	return flag_store(s, buf, length, SLAB_DEBUG_FREE);
+>  }
+>  SLAB_ATTR(sanity_checks);
+>  
+>  static ssize_t trace_show(struct kmem_cache *s, char *buf)
+>  {
+> -	return sprintf(buf, "%d\n", !!(s->flags & SLAB_TRACE));
+> +	return flag_show(s, buf, SLAB_TRACE);
+>  }
+>  
+>  static ssize_t trace_store(struct kmem_cache *s, const char *buf,
+>  							size_t length)
+>  {
+> -	s->flags &= ~SLAB_TRACE;
+> -	if (buf[0] == '1')
+> -		s->flags |= SLAB_TRACE;
+> -	return length;
+> +	return flag_store(s, buf, length, SLAB_TRACE);
+>  }
+>  SLAB_ATTR(trace);
+>  
+>  static ssize_t red_zone_show(struct kmem_cache *s, char *buf)
+>  {
+> -	return sprintf(buf, "%d\n", !!(s->flags & SLAB_RED_ZONE));
+> +	return flag_show(s, buf, SLAB_RED_ZONE);
+>  }
+>  
+>  static ssize_t red_zone_store(struct kmem_cache *s,
+>  				const char *buf, size_t length)
+>  {
+> -	if (any_slab_objects(s))
+> -		return -EBUSY;
+> -
+> -	s->flags &= ~SLAB_RED_ZONE;
+> -	if (buf[0] == '1')
+> -		s->flags |= SLAB_RED_ZONE;
+> -	calculate_sizes(s, -1);
+> -	return length;
+> +	return flag_store_sizechange(s, buf, length, SLAB_RED_ZONE);
+>  }
+>  SLAB_ATTR(red_zone);
+>  
+>  static ssize_t poison_show(struct kmem_cache *s, char *buf)
+>  {
+> -	return sprintf(buf, "%d\n", !!(s->flags & SLAB_POISON));
+> +	return flag_show(s, buf, SLAB_POISON);
+>  }
+>  
+>  static ssize_t poison_store(struct kmem_cache *s,
+>  				const char *buf, size_t length)
+>  {
+> -	if (any_slab_objects(s))
+> -		return -EBUSY;
+> -
+> -	s->flags &= ~SLAB_POISON;
+> -	if (buf[0] == '1')
+> -		s->flags |= SLAB_POISON;
+> -	calculate_sizes(s, -1);
+> -	return length;
+> +	return flag_store_sizechange(s, buf, length, SLAB_POISON);
+>  }
+>  SLAB_ATTR(poison);
+>  
+>  static ssize_t store_user_show(struct kmem_cache *s, char *buf)
+>  {
+> -	return sprintf(buf, "%d\n", !!(s->flags & SLAB_STORE_USER));
+> +	return flag_show(s, buf, SLAB_STORE_USER);
+>  }
+>  
+>  static ssize_t store_user_store(struct kmem_cache *s,
+>  				const char *buf, size_t length)
+>  {
+> -	if (any_slab_objects(s))
+> -		return -EBUSY;
+> -
+> -	s->flags &= ~SLAB_STORE_USER;
+> -	if (buf[0] == '1')
+> -		s->flags |= SLAB_STORE_USER;
+> -	calculate_sizes(s, -1);
+> -	return length;
+> +	return flag_store_sizechange(s, buf, length, SLAB_STORE_USER);
+>  }
+>  SLAB_ATTR(store_user);
+>  
+> @@ -4156,16 +4152,13 @@ SLAB_ATTR_RO(free_calls);
+>  #ifdef CONFIG_FAILSLAB
+>  static ssize_t failslab_show(struct kmem_cache *s, char *buf)
+>  {
+> -	return sprintf(buf, "%d\n", !!(s->flags & SLAB_FAILSLAB));
+> +	return flag_show(s, buf, SLAB_FAILSLAB);
+>  }
+>  
+>  static ssize_t failslab_store(struct kmem_cache *s, const char *buf,
+>  							size_t length)
+>  {
+> -	s->flags &= ~SLAB_FAILSLAB;
+> -	if (buf[0] == '1')
+> -		s->flags |= SLAB_FAILSLAB;
+> -	return length;
+> +	return flag_store(s, buf, length, SLAB_FAILSLAB);
+>  }
+>  SLAB_ATTR(failslab);
+>  #endif
 
 
 -- 
