@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 29F448D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 13:06:38 -0400 (EDT)
-Date: Wed, 16 Mar 2011 13:06:12 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
-Message-ID: <20110316170612.GB13562@redhat.com>
-References: <1299869011-26152-1-git-send-email-gthelen@google.com>
- <20110311171006.ec0d9c37.akpm@linux-foundation.org>
- <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
- <20110314202324.GG31120@redhat.com>
- <AANLkTinDNOLMdU7EEMPFkC_f9edCx7ZFc7=qLRNAEmBM@mail.gmail.com>
- <20110315184839.GB5740@redhat.com>
- <20110316131324.GM2140@cmpxchg.org>
- <20110316145959.GA13562@redhat.com>
- <20110316163510.GN2140@cmpxchg.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2681A8D0039
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 13:17:37 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id p2GHHZvq013587
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 10:17:35 -0700
+Received: from iyf13 (iyf13.prod.google.com [10.241.50.77])
+	by wpaz5.hot.corp.google.com with ESMTP id p2GHG3mW019877
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 10:17:34 -0700
+Received: by iyf13 with SMTP id 13so2380518iyf.0
+        for <linux-mm@kvack.org>; Wed, 16 Mar 2011 10:17:33 -0700 (PDT)
+Date: Wed, 16 Mar 2011 10:17:19 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 1/8] drivers/random: Cache align ip_random better
+In-Reply-To: <20110316022804.27679.qmail@science.horizon.com>
+Message-ID: <alpine.LSU.2.00.1103161011370.13407@sister.anvils>
+References: <20110316022804.27679.qmail@science.horizon.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110316163510.GN2140@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
+To: George Spelvin <linux@horizon.com>
+Cc: penberg@cs.helsinki.fi, herbert@gondor.hengli.com.au, mpm@selenic.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Mar 16, 2011 at 05:35:10PM +0100, Johannes Weiner wrote:
+On Sun, 13 Mar 2011, George Spelvin wrote:
 
-[..]
-> > IIUC, this sounds more like a solution to quickly come up with a list of
-> > inodes one should be writting back. One could also come up with this kind of
-> > list by going through memcg->lru list also (approximate). So this can be
-> > an improvement over going through memcg->lru instead go through
-> > memcg->mapping_list.
+> Cache aligning the secret[] buffer makes copying from it infinitesimally
+> more efficient.
+> ---
+>  drivers/char/random.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
-> Well, if you operate on a large file it may make a difference between
-> taking five inodes off the list and crawling through hundreds of
-> thousands of pages to get to those same five inodes.
-> 
-> And having efficient inode lookup for a memcg makes targetted
-> background writeback more feasible: pass the memcg in the background
-> writeback work and have the flusher go through memcg->mappings,
-> selecting those that match the bdi.
-> 
-> Am I missing something?  I feel like I missed your point.
+> diff --git a/drivers/char/random.c b/drivers/char/random.c
+> index 72a4fcb..4bcc4f2 100644
+> --- a/drivers/char/random.c
+> +++ b/drivers/char/random.c
+> @@ -1417,8 +1417,8 @@ static __u32 twothirdsMD4Transform(__u32 const buf[4], __u32 const in[12])
+>  #define HASH_MASK ((1 << HASH_BITS) - 1)
+>  
+>  static struct keydata {
+> -	__u32 count; /* already shifted to the final position */
+>  	__u32 secret[12];
+> +	__u32 count; /* already shifted to the final position */
+>  } ____cacheline_aligned ip_keydata[2];
+>  
+>  static unsigned int ip_cnt;
 
-No. Thanks for the explanation. I get it. Walking through the memcg->lru
-list to figure out inodes memcg is writting to will be slow and can be
-very painful for large files. Keeping a more direct mapping like
-memcg_mapping list per memcg can simplify it a lot.
-
-Thanks
-Vivek 
+I'm intrigued: please educate me.  On what architectures does cache-
+aligning a 48-byte buffer (previously offset by 4 bytes) speed up
+copying from it, and why?  Does the copying involve 8-byte or 16-byte
+instructions that benefit from that alignment, rather than cacheline
+alignment?
+ 
+Thanks,
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
