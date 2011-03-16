@@ -1,42 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 757AB8D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 13:32:22 -0400 (EDT)
-From: Tom Tromey <tromey@redhat.com>
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 0/20] 0: Inode based uprobes
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0C2BD8D0039
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 13:40:41 -0400 (EDT)
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 7/20]  7: uprobes: store/restore
+ original instruction.
+From: Steven Rostedt <rostedt@goodmis.org>
+In-Reply-To: <20110316055138.GI3410@balbir.in.ibm.com>
 References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
-	<20110314163028.a05cec49.akpm@linux-foundation.org>
-	<20110314234754.GP2499@one.firstfloor.org>
-	<alpine.LFD.2.00.1103150114590.2787@localhost6.localdomain6>
-	<20110315180639.GQ2499@one.firstfloor.org>
-	<alpine.LFD.2.00.1103152038280.2787@localhost6.localdomain6>
-	<1300219261.9910.300.camel@gandalf.stny.rr.com>
-	<alpine.LFD.2.00.1103152102430.2787@localhost6.localdomain6>
-	<1300221856.9910.305.camel@gandalf.stny.rr.com>
-Date: Wed, 16 Mar 2011 11:32:06 -0600
-In-Reply-To: <1300221856.9910.305.camel@gandalf.stny.rr.com> (Steven Rostedt's
-	message of "Tue, 15 Mar 2011 16:44:16 -0400")
-Message-ID: <m3lj0f2cq1.fsf@fleche.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	 <20110314133522.27435.45121.sendpatchset@localhost6.localdomain6>
+	 <20110314180914.GA18855@fibrous.localdomain>
+	 <20110315092247.GW24254@linux.vnet.ibm.com>
+	 <1300211862.2203.302.camel@twins> <20110315185841.GH3410@balbir.in.ibm.com>
+	 <1300217432.2250.0.camel@laptop>
+	 <1300217560.9910.296.camel@gandalf.stny.rr.com>
+	 <20110316055138.GI3410@balbir.in.ibm.com>
+Content-Type: text/plain; charset="ISO-8859-15"
+Date: Wed, 16 Mar 2011 13:40:37 -0400
+Message-ID: <1300297237.16880.42.camel@gandalf.stny.rr.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: balbir@linux.vnet.ibm.com
+Cc: Peter Zijlstra <peterz@infradead.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Stephen Wilson <wilsons@start.ca>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-Steve> I'm more interested in the perf/trace than gdb, as the way gdb is mostly
-Steve> used (at least now) to debug problems in the code with a big hammer
-Steve> (single step, look at registers/variables). That is, gdb is usually very
-Steve> interactive and its best to "stop the code" from running to examine what
-Steve> has happened. gdb is not something you will run on an application that
-Steve> is being used by others.
+On Wed, 2011-03-16 at 11:21 +0530, Balbir Singh wrote:
+> * Steven Rostedt <rostedt@goodmis.org> [2011-03-15 15:32:40]:
+> 
+> > On Tue, 2011-03-15 at 20:30 +0100, Peter Zijlstra wrote:
+> > > On Wed, 2011-03-16 at 00:28 +0530, Balbir Singh wrote:
+> > 
+> > > > I accept the blame and am willing to fix anything incorrect found in
+> > > > the code. 
+> > > 
+> > > :-), ok sounds right, just wasn't entirely obvious when having a quick
+> > > look.
+> > 
+> > Does that mean we should be adding a comment there?
+> >
+> 
+> This is what the current documentation looks like.
+> 
+> #ifdef CONFIG_MM_OWNER
+>         /*
+>          * "owner" points to a task that is regarded as the canonical
+>          * user/owner of this mm. All of the following must be true in
+>          * order for it to be changed:
+>          *
+>          * current == mm->owner
+>          * current->mm != mm
+>          * new_owner->mm == mm
+>          * new_owner->alloc_lock is held
+>          */
+>         struct task_struct __rcu *owner;
+> #endif
+> 
+> Do you want me to document the fork/exit case?
+>  
 
-It depends.  People do in fact do this stuff.  In recent years gdb got
-its own implementation of "always inserted" breakpoints (basically the
-same idea as uprobes) to support some trickier multi-thread debugging
-scenarios.
+Ah, looking at the code, I guess comments are not needed.
 
-Tom
+Thanks,
+
+-- Steve
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
