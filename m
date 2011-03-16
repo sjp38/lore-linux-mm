@@ -1,59 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 83BC88D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 14:59:18 -0400 (EDT)
-Subject: Re: [PATCH 1/8] drivers/random: Cache align ip_random better
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <alpine.LSU.2.00.1103161011370.13407@sister.anvils>
-References: <20110316022804.27679.qmail@science.horizon.com>
-	 <alpine.LSU.2.00.1103161011370.13407@sister.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 16 Mar 2011 13:23:07 -0500
-Message-ID: <1300299787.3128.495.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 7E3AD8D0039
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 15:10:26 -0400 (EDT)
+Date: Wed, 16 Mar 2011 20:10:21 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 3/5] mm: Implement IO-less balance_dirty_pages()
+Message-ID: <20110316191021.GB4456@quack.suse.cz>
+References: <1299623475-5512-1-git-send-email-jack@suse.cz>
+ <1299623475-5512-4-git-send-email-jack@suse.cz>
+ <20110316165331.GA15183@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110316165331.GA15183@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: George Spelvin <linux@horizon.com>, penberg@cs.helsinki.fi, herbert@gondor.hengli.com.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
 
-On Wed, 2011-03-16 at 10:17 -0700, Hugh Dickins wrote:
-> On Sun, 13 Mar 2011, George Spelvin wrote:
-> 
-> > Cache aligning the secret[] buffer makes copying from it infinitesimally
-> > more efficient.
-> > ---
-> >  drivers/char/random.c |    2 +-
-> >  1 files changed, 1 insertions(+), 1 deletions(-)
-> > 
-> > diff --git a/drivers/char/random.c b/drivers/char/random.c
-> > index 72a4fcb..4bcc4f2 100644
-> > --- a/drivers/char/random.c
-> > +++ b/drivers/char/random.c
-> > @@ -1417,8 +1417,8 @@ static __u32 twothirdsMD4Transform(__u32 const buf[4], __u32 const in[12])
-> >  #define HASH_MASK ((1 << HASH_BITS) - 1)
+On Wed 16-03-11 12:53:31, Vivek Goyal wrote:
+> On Tue, Mar 08, 2011 at 11:31:13PM +0100, Jan Kara wrote:
+> [..]
+> > +/*
+> > + * balance_dirty_pages() must be called by processes which are generating dirty
+> > + * data.  It looks at the number of dirty pages in the machine and will force
+> > + * the caller to perform writeback if the system is over `vm_dirty_ratio'.
+> > + * If we're over `background_thresh' then the writeback threads are woken to
+> > + * perform some writeout.
+> > + */
+> > +static void balance_dirty_pages(struct address_space *mapping,
+> > +				unsigned long write_chunk)
+> > +{
+> > +	struct backing_dev_info *bdi = mapping->backing_dev_info;
+> > +	struct balance_waiter bw;
+> > +	struct dirty_limit_state st;
+> > +	int dirty_exceeded = check_dirty_limits(bdi, &st);
+> > +
+> > +	if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT ||
+> > +	    (dirty_exceeded == DIRTY_MAY_EXCEED_LIMIT &&
+> > +	     !bdi_task_limit_exceeded(&st, current))) {
+> > +		if (bdi->dirty_exceeded &&
+> > +		    dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT)
+> > +			bdi->dirty_exceeded = 0;
+> >  		/*
+> > -		 * Increase the delay for each loop, up to our previous
+> > -		 * default of taking a 100ms nap.
+> > +		 * In laptop mode, we wait until hitting the higher threshold
+> > +		 * before starting background writeout, and then write out all
+> > +		 * the way down to the lower threshold.  So slow writers cause
+> > +		 * minimal disk activity.
+> > +		 *
+> > +		 * In normal mode, we start background writeout at the lower
+> > +		 * background_thresh, to keep the amount of dirty memory low.
+> >  		 */
+> > -		pause <<= 1;
+> > -		if (pause > HZ / 10)
+> > -			pause = HZ / 10;
+> > +		if (!laptop_mode && dirty_exceeded == DIRTY_EXCEED_BACKGROUND)
+> > +			bdi_start_background_writeback(bdi);
+> > +		return;
+> >  	}
 > >  
-> >  static struct keydata {
-> > -	__u32 count; /* already shifted to the final position */
-> >  	__u32 secret[12];
-> > +	__u32 count; /* already shifted to the final position */
-> >  } ____cacheline_aligned ip_keydata[2];
+> > -	/* Clear dirty_exceeded flag only when no task can exceed the limit */
+> > -	if (!min_dirty_exceeded && bdi->dirty_exceeded)
+> > -		bdi->dirty_exceeded = 0;
+> > +	if (!bdi->dirty_exceeded)
+> > +		bdi->dirty_exceeded = 1;
 > >  
-> >  static unsigned int ip_cnt;
+> > -	if (writeback_in_progress(bdi))
+> > -		return;
+> > +	trace_writeback_balance_dirty_pages_waiting(bdi, write_chunk);
+> > +	/* Kick flusher thread to start doing work if it isn't already */
+> > +	bdi_start_background_writeback(bdi);
+> >  
+> > +	bw.bw_wait_pages = write_chunk;
+> > +	bw.bw_task = current;
+> > +	spin_lock(&bdi->balance_lock);
+> >  	/*
+> > -	 * In laptop mode, we wait until hitting the higher threshold before
+> > -	 * starting background writeout, and then write out all the way down
+> > -	 * to the lower threshold.  So slow writers cause minimal disk activity.
+> > -	 *
+> > -	 * In normal mode, we start background writeout at the lower
+> > -	 * background_thresh, to keep the amount of dirty memory low.
+> > +	 * First item? Need to schedule distribution of IO completions among
+> > +	 * items on balance_list
+> > +	 */
+> > +	if (list_empty(&bdi->balance_list)) {
+> > +		bdi->written_start = bdi_stat_sum(bdi, BDI_WRITTEN);
+> > +		/* FIXME: Delay should be autotuned based on dev throughput */
+> > +		schedule_delayed_work(&bdi->balance_work, HZ/10);
+> > +	}
+> > +	/*
+> > +	 * Add work to the balance list, from now on the structure is handled
+> > +	 * by distribute_page_completions()
+> > +	 */
+> > +	list_add_tail(&bw.bw_list, &bdi->balance_list);
+> > +	bdi->balance_waiters++;
+> Had a query.
 > 
-> I'm intrigued: please educate me.  On what architectures does cache-
-> aligning a 48-byte buffer (previously offset by 4 bytes) speed up
-> copying from it, and why?  Does the copying involve 8-byte or 16-byte
-> instructions that benefit from that alignment, rather than cacheline
-> alignment?
+> - What makes sure that flusher thread will not stop writing back till all
+>   the waiters on the bdi have been woken up. IIUC, flusher thread will 
+>   stop once global background ratio is with-in limit. Is it possible that
+>   there are still some waiter on some bdi waiting for more pages to finish
+>   writeback and that might not happen for sometime. 
+  Yes, this can possibly happen but once distribute_page_completions()
+gets called (after a given time), it will notice that we are below limits
+and wake all waiters. Under normal circumstances, we should have a decent
+estimate when distribute_page_completions() needs to be called and that
+should be long before flusher thread finishes it's work. But in cases when
+a bdi has only a small share of global dirty limit, what you describe can
+possibly happen.
 
-I think this alignment exists to minimize the number of cacheline
-bounces on SMP as this can be a pretty hot structure in the network
-stack. It could probably benefit from a per-cpu treatment.
-
+								Honza
 -- 
-Mathematics is the supreme nostalgia of our time.
-
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
