@@ -1,102 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E736E8D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 00:24:56 -0400 (EDT)
-Date: 16 Mar 2011 00:24:52 -0400
-Message-ID: <20110316042452.21452.qmail@science.horizon.com>
-From: "George Spelvin" <linux@horizon.com>
-Subject: Re: [PATCH 2/8] drivers/char/random: Split out __get_random_int
-In-Reply-To: <1300244636.3128.426.camel@calx>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D1198D0039
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 00:57:04 -0400 (EDT)
+Received: from d01dlp01.pok.ibm.com (d01dlp01.pok.ibm.com [9.56.224.56])
+	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2G4VwqC008130
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 00:31:58 -0400
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 780EF38C803F
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 00:56:54 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2G4uvgg2519164
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 00:56:57 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2G4utg3026428
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 01:56:56 -0300
+Date: Wed, 16 Mar 2011 10:20:50 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 11/20] 11: uprobes: slot allocation
+ for uprobes
+Message-ID: <20110316045050.GE24254@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+ <20110314133610.27435.93666.sendpatchset@localhost6.localdomain6>
+ <20110315203117.GA27063@fibrous.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20110315203117.GA27063@fibrous.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux@horizon.com, mpm@selenic.com
-Cc: herbert@gondor.apana.org.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi
+To: Stephen Wilson <wilsons@start.ca>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-Thank you very much for your review!
+* Stephen Wilson <wilsons@start.ca> [2011-03-15 16:31:17]:
 
-> I've spent a while thinking about this over the past few weeks, and I
-> really don't think it's productive to try to randomize the allocators.
-> It provides negligible defense and just makes life harder for kernel
-> hackers.
 > 
-> (And you definitely can't randomize SLOB like this.)
-
-I'm not sure, either.  I *do* think it actually prevents an attacker
-reliably allocating two consecutive kernel objects, but I expect that
-most buffer overrun attacks can just allocate lots of taget objects and
-figure out which one got smashed.
-
-It's mostly for benchmarking and discussion.
-
-
->> The unlocked function is needed for following work.
->> No API change.
-
-> As I mentioned last time this code was discussed, we're already one
-> crypto-savvy attacker away from this code becoming a security hole. 
-> We really need to give it a serious rethink before we make it look
-> anything like a general-use API. 
-
-If you like, and don't mind a few more bytes of per-cpu data, I'll
-happily replace the whole dubious thing with a cryptographically secure
-high-speed PRNG.  I'm thinking ChaCha/12, as Salsa20 was selected by
-eSTREAM and ChaCha is generally agreed to be stronger.  (It's had more
-review as the basis of the BLAKE hash function, a SHA-3 finalist.)
-
-I've got some working SSE2 code for it, too.  Invoking it should be
-conditional on the amount requested; there's no point context-switching
-the FPU for one iteration.
-
-I can also add a (configurable) /dev/frandom interface for it.
-
-> And you've got it backwards here: __ should be the unlocked, dangerous
-> version. But the locked version already has a __ because it's already
-> dangerous.
-
-I don't understand.  The old version did *not* have a __, and I added
-__ in front of the dangerous unlocked version.  If, on re-reading it,
-you still think I did something wrong, can you please explain in more
-detail?
+> On Mon, Mar 14, 2011 at 07:06:10PM +0530, Srikar Dronamraju wrote:
+> > diff --git a/kernel/fork.c b/kernel/fork.c
+> > index de3d10a..0afa0cd 100644
+> > --- a/kernel/fork.c
+> > +++ b/kernel/fork.c
+> > @@ -551,6 +551,7 @@ void mmput(struct mm_struct *mm)
+> >  	might_sleep();
+> >  
+> >  	if (atomic_dec_and_test(&mm->mm_users)) {
+> > +		uprobes_free_xol_area(mm);
+> >  		exit_aio(mm);
+> >  		ksm_exit(mm);
+> >  		khugepaged_exit(mm); /* must run before exit_mmap */
+> > @@ -677,6 +678,9 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
+> >  	memcpy(mm, oldmm, sizeof(*mm));
+> >  
+> >  	/* Initializing for Swap token stuff */
+> > +#ifdef CONFIG_UPROBES
+> > +	mm->uprobes_xol_area = NULL;
+> > +#endif
+> >  	mm->token_priority = 0;
+> >  	mm->last_interval = 0;
+> 
+> Perhaps move the uprobes_xol_area initialization away from that comment?
+> A few lines down beside the hugepage #ifdef would read a bit better.
 
 
->> This is a function for generating random numbers modulo small
->> integers, with uniform distribution and parsimonious use of seed
->> material.
-
-> This actually looks pretty reasonable, ignoring the scary API foundation
-> it's built on. But as popular as rand() % m constructs are with
-> programmers, it's better to design things so as to avoid the modulus
-> entirely. We've done pretty well at that so far, so I'd rather not have
-> such a thing in the kernel.
-
-I was thinking of using it to implement randomize_range(), I just didn't
-want to be too intrusive, and I'd need to extend the code to handle 64-bit
-address spaces.
-
-If you'd like, I can do that.  (Actually, looking at it, there are
-only three callers and the range is always 0x02000000.  And the
-use of PAGE_ALIGN is wrong; it should round down rather than up.)
-On Mon, 2011-03-14 at 21:58 -0400, George Spelvin wrote:
+Okay, Will do.
 
 
->> For sysfs files that map a boolean to a flags bit.
-
-> This one's actually pretty nice.
-
-The old code just annoyed me; I couldn't stand to cut & paste one
-more time.
-
-I can probably do better; I can extend the slab_sttribute structure to
-include the bit mask, have the slab_attr_show and slab_attr_store dispatch
-functions pass the attribute pointer to the ->show and ->store functions,
-and do away with all the per-bit functions.
-
-> You should really try to put all the uncontroversial bits of a series
-> first.
-
-Is that really a more important principle than putting related changes
-together?  I get the idea, but thought it made more sense to put
-all the slub.c changes together.
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
