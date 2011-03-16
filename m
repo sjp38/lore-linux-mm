@@ -1,69 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 520518D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 17:51:29 -0400 (EDT)
-Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
-	by smtp-out.google.com with ESMTP id p2GLpLNO007607
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 14:51:22 -0700
-Received: from pzk2 (pzk2.prod.google.com [10.243.19.130])
-	by hpaq5.eem.corp.google.com with ESMTP id p2GLp4df021860
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 14:51:20 -0700
-Received: by pzk2 with SMTP id 2so470304pzk.37
-        for <linux-mm@kvack.org>; Wed, 16 Mar 2011 14:51:19 -0700 (PDT)
-Date: Wed, 16 Mar 2011 14:51:16 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 5/8] mm/slub: Factor out some common code.
-In-Reply-To: <20110316205139.2035.qmail@science.horizon.com>
-Message-ID: <alpine.DEB.2.00.1103161352150.11002@chino.kir.corp.google.com>
-References: <20110316205139.2035.qmail@science.horizon.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A9D378D0039
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 17:52:36 -0400 (EDT)
+Date: Wed, 16 Mar 2011 22:52:14 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
+Message-ID: <20110316215214.GO2140@cmpxchg.org>
+References: <1299869011-26152-1-git-send-email-gthelen@google.com>
+ <20110311171006.ec0d9c37.akpm@linux-foundation.org>
+ <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
+ <20110314202324.GG31120@redhat.com>
+ <AANLkTinDNOLMdU7EEMPFkC_f9edCx7ZFc7=qLRNAEmBM@mail.gmail.com>
+ <20110315184839.GB5740@redhat.com>
+ <20110316131324.GM2140@cmpxchg.org>
+ <AANLkTim7q3cLGjxnyBS7SDdpJsGi-z34bpPT=MJSka+C@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTim7q3cLGjxnyBS7SDdpJsGi-z34bpPT=MJSka+C@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: George Spelvin <linux@horizon.com>
-Cc: herbert@gondor.hengli.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mpm@selenic.com, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Greg Thelen <gthelen@google.com>
+Cc: Vivek Goyal <vgoyal@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
 
-On Wed, 16 Mar 2011, George Spelvin wrote:
-
-> > Where's your signed-off-by?
+On Wed, Mar 16, 2011 at 02:19:26PM -0700, Greg Thelen wrote:
+> On Wed, Mar 16, 2011 at 6:13 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > On Tue, Mar 15, 2011 at 02:48:39PM -0400, Vivek Goyal wrote:
+> >> I think even for background we shall have to implement some kind of logic
+> >> where inodes are selected by traversing memcg->lru list so that for
+> >> background write we don't end up writting too many inodes from other
+> >> root group in an attempt to meet the low background ratio of memcg.
+> >>
+> >> So to me it boils down to coming up a new inode selection logic for
+> >> memcg which can be used both for background as well as foreground
+> >> writes. This will make sure we don't end up writting pages from the
+> >> inodes we don't want to.
+> >
+> > Originally for struct page_cgroup reduction, I had the idea of
+> > introducing something like
+> >
+> >        struct memcg_mapping {
+> >                struct address_space *mapping;
+> >                struct mem_cgroup *memcg;
+> >        };
+> >
+> > hanging off page->mapping to make memcg association no longer per-page
+> > and save the pc->memcg linkage (it's not completely per-inode either,
+> > multiple memcgs can still refer to a single inode).
+> >
+> > We could put these descriptors on a per-memcg list and write inodes
+> > from this list during memcg-writeback.
+> >
+> > We would have the option of extending this structure to contain hints
+> > as to which subrange of the inode is actually owned by the cgroup, to
+> > further narrow writeback to the right pages - iff shared big files
+> > become a problem.
+> >
+> > Does that sound feasible?
 > 
-> Somewhere under the pile of crap on my desk. :-)
-> (More to the point, waiting for me to think it's good enough to submit
-> For Real.)
-> 
+> If I understand your memcg_mapping proposal, then each inode could
+> have a collection of memcg_mapping objects representing the set of
+> memcg that were charged for caching pages of the inode's data.  When a
+> new file page is charged to a memcg, then the inode's set of
+> memcg_mapping would be scanned to determine if current's memcg is
+> already in the memcg_mapping set.  If this is the first page for the
+> memcg within the inode, then a new memcg_mapping would be allocated
+> and attached to the inode.  The memcg_mapping may be reference counted
+> and would be deleted when the last inode page for a particular memcg
+> is uncharged.
 
-Patches that you would like to propose but don't think are ready for merge 
-should have s/PATCH/RFC/ done on the subject line.
+Dead-on.  Well, on which side you put the list - a per-memcg list of
+inodes, or a per-inode list of memcgs - really depends on which way
+you want to do the lookups.  But this is the idea, yes.
 
-> > Nice cleanup.
-> > 
-> > "flag" should be unsigned long in all of these functions: the constants 
-> > are declared with UL suffixes in slab.h.
-> 
-> Actually, I did that deliberately.  Because there's a problem I keep
-> wondering about, which repeats many many times in the kernel:
-> 
+>   page->mapping = &memcg_mapping
+>   inode->i_mapping = collection of memcg_mapping, grows/shrinks with [un]charge
 
-You deliberately created a helper function to take an unsigned int when 
-the actuals being passed in are all unsigned long to trigger a discussion 
-on why they are unsigned long?
+If the memcg_mapping list (or hash-table for quick find-or-create?)
+was to be on the inode side, I'd put it in struct address_space, since
+this is all about page cache, not so much an fs thing.
 
-> *Why* are they unsigned long?  That's an awkward type: 32 bits on many
-> architectures, so we can't portably assign more than 32 bits, and on
-> platforms where it's 64 bits, the upper 32 are just wasting space.
-> (And REX prefixes on x86-64.)
-> 
-
-unsigned long uses the native word size of the architecture which can 
-generate more efficient code; we typically imply that flags have a limited 
-size by including leading zeros in their definition for 32-bit 
-compatibility:
-
-#define SLAB_DEBUG_FREE         0x00000100UL    /* DEBUG: Perform (expensive) checks on free */
-#define SLAB_RED_ZONE           0x00000400UL    /* DEBUG: Red zone objs in a cache */
-#define SLAB_POISON             0x00000800UL    /* DEBUG: Poison objects */
-...
+Still, correct in general.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
