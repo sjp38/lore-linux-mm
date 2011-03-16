@@ -1,146 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 592288D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 15:31:59 -0400 (EDT)
-Date: Wed, 16 Mar 2011 15:31:44 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH 3/5] mm: Implement IO-less balance_dirty_pages()
-Message-ID: <20110316193144.GE13562@redhat.com>
-References: <1299623475-5512-1-git-send-email-jack@suse.cz>
- <1299623475-5512-4-git-send-email-jack@suse.cz>
- <20110316165331.GA15183@redhat.com>
- <20110316191021.GB4456@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110316191021.GB4456@quack.suse.cz>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BB3978D0039
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 15:45:48 -0400 (EDT)
+Date: 16 Mar 2011 15:45:42 -0400
+Message-ID: <20110316194542.22530.qmail@science.horizon.com>
+From: "George Spelvin" <linux@horizon.com>
+Subject: Re: [PATCH 1/8] drivers/random: Cache align ip_random better
+In-Reply-To: <alpine.LSU.2.00.1103161123360.14076@sister.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
+To: hughd@google.com, linux@horizon.com
+Cc: herbert@gondor.hengli.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mpm@selenic.com, penberg@cs.helsinki.fi
 
-On Wed, Mar 16, 2011 at 08:10:21PM +0100, Jan Kara wrote:
-> On Wed 16-03-11 12:53:31, Vivek Goyal wrote:
-> > On Tue, Mar 08, 2011 at 11:31:13PM +0100, Jan Kara wrote:
-> > [..]
-> > > +/*
-> > > + * balance_dirty_pages() must be called by processes which are generating dirty
-> > > + * data.  It looks at the number of dirty pages in the machine and will force
-> > > + * the caller to perform writeback if the system is over `vm_dirty_ratio'.
-> > > + * If we're over `background_thresh' then the writeback threads are woken to
-> > > + * perform some writeout.
-> > > + */
-> > > +static void balance_dirty_pages(struct address_space *mapping,
-> > > +				unsigned long write_chunk)
-> > > +{
-> > > +	struct backing_dev_info *bdi = mapping->backing_dev_info;
-> > > +	struct balance_waiter bw;
-> > > +	struct dirty_limit_state st;
-> > > +	int dirty_exceeded = check_dirty_limits(bdi, &st);
-> > > +
-> > > +	if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT ||
-> > > +	    (dirty_exceeded == DIRTY_MAY_EXCEED_LIMIT &&
-> > > +	     !bdi_task_limit_exceeded(&st, current))) {
-> > > +		if (bdi->dirty_exceeded &&
-> > > +		    dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT)
-> > > +			bdi->dirty_exceeded = 0;
-> > >  		/*
-> > > -		 * Increase the delay for each loop, up to our previous
-> > > -		 * default of taking a 100ms nap.
-> > > +		 * In laptop mode, we wait until hitting the higher threshold
-> > > +		 * before starting background writeout, and then write out all
-> > > +		 * the way down to the lower threshold.  So slow writers cause
-> > > +		 * minimal disk activity.
-> > > +		 *
-> > > +		 * In normal mode, we start background writeout at the lower
-> > > +		 * background_thresh, to keep the amount of dirty memory low.
-> > >  		 */
-> > > -		pause <<= 1;
-> > > -		if (pause > HZ / 10)
-> > > -			pause = HZ / 10;
-> > > +		if (!laptop_mode && dirty_exceeded == DIRTY_EXCEED_BACKGROUND)
-> > > +			bdi_start_background_writeback(bdi);
-> > > +		return;
-> > >  	}
-> > >  
-> > > -	/* Clear dirty_exceeded flag only when no task can exceed the limit */
-> > > -	if (!min_dirty_exceeded && bdi->dirty_exceeded)
-> > > -		bdi->dirty_exceeded = 0;
-> > > +	if (!bdi->dirty_exceeded)
-> > > +		bdi->dirty_exceeded = 1;
-> > >  
-> > > -	if (writeback_in_progress(bdi))
-> > > -		return;
-> > > +	trace_writeback_balance_dirty_pages_waiting(bdi, write_chunk);
-> > > +	/* Kick flusher thread to start doing work if it isn't already */
-> > > +	bdi_start_background_writeback(bdi);
-> > >  
-> > > +	bw.bw_wait_pages = write_chunk;
-> > > +	bw.bw_task = current;
-> > > +	spin_lock(&bdi->balance_lock);
-> > >  	/*
-> > > -	 * In laptop mode, we wait until hitting the higher threshold before
-> > > -	 * starting background writeout, and then write out all the way down
-> > > -	 * to the lower threshold.  So slow writers cause minimal disk activity.
-> > > -	 *
-> > > -	 * In normal mode, we start background writeout at the lower
-> > > -	 * background_thresh, to keep the amount of dirty memory low.
-> > > +	 * First item? Need to schedule distribution of IO completions among
-> > > +	 * items on balance_list
-> > > +	 */
-> > > +	if (list_empty(&bdi->balance_list)) {
-> > > +		bdi->written_start = bdi_stat_sum(bdi, BDI_WRITTEN);
-> > > +		/* FIXME: Delay should be autotuned based on dev throughput */
-> > > +		schedule_delayed_work(&bdi->balance_work, HZ/10);
-> > > +	}
-> > > +	/*
-> > > +	 * Add work to the balance list, from now on the structure is handled
-> > > +	 * by distribute_page_completions()
-> > > +	 */
-> > > +	list_add_tail(&bw.bw_list, &bdi->balance_list);
-> > > +	bdi->balance_waiters++;
-> > Had a query.
-> > 
-> > - What makes sure that flusher thread will not stop writing back till all
-> >   the waiters on the bdi have been woken up. IIUC, flusher thread will 
-> >   stop once global background ratio is with-in limit. Is it possible that
-> >   there are still some waiter on some bdi waiting for more pages to finish
-> >   writeback and that might not happen for sometime. 
->   Yes, this can possibly happen but once distribute_page_completions()
-> gets called (after a given time), it will notice that we are below limits
-> and wake all waiters.
-> Under normal circumstances, we should have a decent
-> estimate when distribute_page_completions() needs to be called and that
-> should be long before flusher thread finishes it's work. But in cases when
-> a bdi has only a small share of global dirty limit, what you describe can
-> possibly happen.
+>> 1) A smart compiler could note the alignment and issue wider copy
+>>    instructions.  (Especially on alignment-required architectures.)
 
-So if a bdi share is small then it can happen that global background
-threshold is fine but per bdi threshold is not. That means
-task_bdi_threshold is also above limit and IIUC, distribute_page_completion()
-will not wake up the waiter until bdi_task_limit_exceeded() is in control.
+> Right, that part of it would benefit from stronger alignment,
+> but does not generally need cacheline alignment.
 
-        /*
-         * Wake tasks that might have gotten below their limits and
-         * compute
-         * the number of pages we wait for
-         */
-        list_for_each_entry_safe(waiter, tmpw, &bdi->balance_list,
-bw_list) {
-                if (dirty_exceeded == DIRTY_MAY_EXCEED_LIMIT &&
-                    !bdi_task_limit_exceeded(&st, waiter->bw_task))
-                        balance_waiter_done(bdi, waiter);
-                else if (waiter->bw_wait_pages < min_pages)
-                        min_pages = waiter->bw_wait_pages;
-        }
+Agreed.  The only reason the structure is cacheline aligned is to keep
+it all in a single cache line, and swapping the order of the elements
+made the buffer more aligned without hurting the counter.
 
+>> 2) The cacheline fetch would get more data faster.  The data would
+>>    be transferred in the first 6 beats of the load from RAM (assuming a
+>>    64-bit data bus) rather than waiting for 7, so you'd finish the copy
+>>    1 ns sooner or so.  Similar 1-cycle win on a 128-bit Ln->L(n-1) cache
+>>    transfer.
 
-So it can happen that global background threshold is under limit but a
-specific task bdi threshold is not and I am failing to see who will
-wake up the task in that situation.
+> That argument worries me.  I don't know enough to say whether you are
+> correct or not.  But if you are correct, then it worries me that your
+> patch will be the first of a trickle growing to a stream to an avalanche
+> of patches where people align and reorder structures so that the most
+> commonly accessed fields are at the beginnng of the cacheline, so that
+> those can then be accessed minutely faster.
+> 
+> Aargh, and now I am setting off the avalanche with that remark.
+> Please, someone, save us by discrediting George's argument.
 
-Thanks
-Vivek 
+It was mostly #1 and #3.  The *important* thing is to minimize the number
+of cache lines touched by common operations, which has already been the
+subject of a lot of kernel patches.
+
+Remember, most hardware does have critical-word-first loads.  So alignment
+to the width of the data bus is enough.  "Keep it naturally aligned" is
+all that's necessary, and most kernel data structures already obey that.
+
+I was just extending it, because I wanted to make it *possible* to use
+wider loads.
+
+>> As I said, "infinitesimal".  The main reason that I bothered to
+>> generate a patch was that it appealed to my sense of neatness to
+>> keep the 3x16-byte buffer 16-byte aligned.
+
+> Ah, now you come clean!  Yes, it does feel neater to me too;
+> but I doubt that would be sufficient justification by itself.
+
+It took both factors to make it worth it to me.  The real reason was:
+1) Neater
+2) Definitely not slower
+3) Maybe a tiny bit faster
+Conclusion: do it.
+
+Sorry to alarm you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
