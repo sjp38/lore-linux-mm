@@ -1,120 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EBFB8D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 09:13:44 -0400 (EDT)
-Date: Wed, 16 Mar 2011 14:13:24 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
-Message-ID: <20110316131324.GM2140@cmpxchg.org>
-References: <1299869011-26152-1-git-send-email-gthelen@google.com>
- <20110311171006.ec0d9c37.akpm@linux-foundation.org>
- <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
- <20110314202324.GG31120@redhat.com>
- <AANLkTinDNOLMdU7EEMPFkC_f9edCx7ZFc7=qLRNAEmBM@mail.gmail.com>
- <20110315184839.GB5740@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20110315184839.GB5740@redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id 5E2A48D0039
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 10:24:10 -0400 (EDT)
+Subject: Re: [PATCH 2/8] drivers/char/random: Split out __get_random_int
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <20110316042452.21452.qmail@science.horizon.com>
+References: <20110316042452.21452.qmail@science.horizon.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 16 Mar 2011 09:24:05 -0500
+Message-ID: <1300285445.3128.485.camel@calx>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
+To: George Spelvin <linux@horizon.com>
+Cc: herbert@gondor.apana.org.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi
 
-On Tue, Mar 15, 2011 at 02:48:39PM -0400, Vivek Goyal wrote:
-> On Mon, Mar 14, 2011 at 07:41:13PM -0700, Greg Thelen wrote:
-> > On Mon, Mar 14, 2011 at 1:23 PM, Vivek Goyal <vgoyal@redhat.com> wrote:
-> > > On Mon, Mar 14, 2011 at 11:29:17AM -0700, Greg Thelen wrote:
-> > >
-> > > [..]
-> > >> > We could just crawl the memcg's page LRU and bring things under control
-> > >> > that way, couldn't we?  That would fix it.  What were the reasons for
-> > >> > not doing this?
-> > >>
-> > >> My rational for pursuing bdi writeback was I/O locality.  I have heard that
-> > >> per-page I/O has bad locality.  Per inode bdi-style writeback should have better
-> > >> locality.
-> > >>
-> > >> My hunch is the best solution is a hybrid which uses a) bdi writeback with a
-> > >> target memcg filter and b) using the memcg lru as a fallback to identify the bdi
-> > >> that needed writeback.  I think the part a) memcg filtering is likely something
-> > >> like:
-> > >>  http://marc.info/?l=linux-kernel&m=129910424431837
-> > >>
-> > >> The part b) bdi selection should not be too hard assuming that page-to-mapping
-> > >> locking is doable.
-> > >
-> > > Greg,
-> > >
-> > > IIUC, option b) seems to be going through pages of particular memcg and
-> > > mapping page to inode and start writeback on particular inode?
-> > 
-> > Yes.
-> > 
-> > > If yes, this might be reasonably good. In the case when cgroups are not
-> > > sharing inodes then it automatically maps one inode to one cgroup and
-> > > once cgroup is over limit, it starts writebacks of its own inode.
-> > >
-> > > In case inode is shared, then we get the case of one cgroup writting
-> > > back the pages of other cgroup. Well I guess that also can be handeled
-> > > by flusher thread where a bunch or group of pages can be compared with
-> > > the cgroup passed in writeback structure. I guess that might hurt us
-> > > more than benefit us.
-> > 
-> > Agreed.  For now just writing the entire inode is probably fine.
-> > 
-> > > IIUC how option b) works then we don't even need option a) where an N level
-> > > deep cache is maintained?
-> > 
-> > Originally I was thinking that bdi-wide writeback with memcg filter
-> > was a good idea.  But this may be unnecessarily complex.  Now I am
-> > agreeing with you that option (a) may not be needed.  Memcg could
-> > queue per-inode writeback using the memcg lru to locate inodes
-> > (lru->page->inode) with something like this in
-> > [mem_cgroup_]balance_dirty_pages():
-> > 
-> >   while (memcg_usage() >= memcg_fg_limit) {
-> >     inode = memcg_dirty_inode(cg);  /* scan lru for a dirty page, then
-> > grab mapping & inode */
-> >     sync_inode(inode, &wbc);
-> >   }
-> > 
-> >   if (memcg_usage() >= memcg_bg_limit) {
-> >     queue per-memcg bg flush work item
-> >   }
+On Wed, 2011-03-16 at 00:24 -0400, George Spelvin wrote:
+> Thank you very much for your review!
 > 
-> I think even for background we shall have to implement some kind of logic
-> where inodes are selected by traversing memcg->lru list so that for
-> background write we don't end up writting too many inodes from other
-> root group in an attempt to meet the low background ratio of memcg.
+> > I've spent a while thinking about this over the past few weeks, and I
+> > really don't think it's productive to try to randomize the allocators.
+> > It provides negligible defense and just makes life harder for kernel
+> > hackers.
+> > 
+> > (And you definitely can't randomize SLOB like this.)
 > 
-> So to me it boils down to coming up a new inode selection logic for
-> memcg which can be used both for background as well as foreground
-> writes. This will make sure we don't end up writting pages from the
-> inodes we don't want to.
+> I'm not sure, either.  I *do* think it actually prevents an attacker
+> reliably allocating two consecutive kernel objects, but I expect that
+> most buffer overrun attacks can just allocate lots of taget objects and
+> figure out which one got smashed.
+> 
+> It's mostly for benchmarking and discussion.
+> 
+> 
+> >> The unlocked function is needed for following work.
+> >> No API change.
+> 
+> > As I mentioned last time this code was discussed, we're already one
+> > crypto-savvy attacker away from this code becoming a security hole. 
+> > We really need to give it a serious rethink before we make it look
+> > anything like a general-use API. 
+> 
+> If you like, and don't mind a few more bytes of per-cpu data, I'll
+> happily replace the whole dubious thing with a cryptographically secure
+> high-speed PRNG.  I'm thinking ChaCha/12, as Salsa20 was selected by
+> eSTREAM and ChaCha is generally agreed to be stronger.  (It's had more
+> review as the basis of the BLAKE hash function, a SHA-3 finalist.)
 
-Originally for struct page_cgroup reduction, I had the idea of
-introducing something like
+Yes, let's do this. ChaCha looks like a fine candidate.
 
-	struct memcg_mapping {
-		struct address_space *mapping;
-		struct mem_cgroup *memcg;
-	};
+> I've got some working SSE2 code for it, too.  Invoking it should be
+> conditional on the amount requested; there's no point context-switching
+> the FPU for one iteration.
+> 
+> I can also add a (configurable) /dev/frandom interface for it.
 
-hanging off page->mapping to make memcg association no longer per-page
-and save the pc->memcg linkage (it's not completely per-inode either,
-multiple memcgs can still refer to a single inode).
+I'd rather not add an frandom until after we get rid of the
+random/urandom dichotomy.
 
-We could put these descriptors on a per-memcg list and write inodes
-from this list during memcg-writeback.
+> > And you've got it backwards here: __ should be the unlocked, dangerous
+> > version. But the locked version already has a __ because it's already
+> > dangerous.
+> 
+> I don't understand.  The old version did *not* have a __, and I added
+> __ in front of the dangerous unlocked version.  If, on re-reading it,
+> you still think I did something wrong, can you please explain in more
+> detail?
 
-We would have the option of extending this structure to contain hints
-as to which subrange of the inode is actually owned by the cgroup, to
-further narrow writeback to the right pages - iff shared big files
-become a problem.
+I probably misread your patch, sorry.
 
-Does that sound feasible?
+> 
+> >> This is a function for generating random numbers modulo small
+> >> integers, with uniform distribution and parsimonious use of seed
+> >> material.
+> 
+> > This actually looks pretty reasonable, ignoring the scary API foundation
+> > it's built on. But as popular as rand() % m constructs are with
+> > programmers, it's better to design things so as to avoid the modulus
+> > entirely. We've done pretty well at that so far, so I'd rather not have
+> > such a thing in the kernel.
+> 
+> I was thinking of using it to implement randomize_range(), I just didn't
+> want to be too intrusive, and I'd need to extend the code to handle 64-bit
+> address spaces.
+> 
+> If you'd like, I can do that.  (Actually, looking at it, there are
+> only three callers and the range is always 0x02000000.  And the
+> use of PAGE_ALIGN is wrong; it should round down rather than up.)
+> On Mon, 2011-03-14 at 21:58 -0400, George Spelvin wrote:
+> 
+> 
+> >> For sysfs files that map a boolean to a flags bit.
+> 
+> > This one's actually pretty nice.
+> 
+> The old code just annoyed me; I couldn't stand to cut & paste one
+> more time.
+> 
+> I can probably do better; I can extend the slab_sttribute structure to
+> include the bit mask, have the slab_attr_show and slab_attr_store dispatch
+> functions pass the attribute pointer to the ->show and ->store functions,
+> and do away with all the per-bit functions.
+> 
+> > You should really try to put all the uncontroversial bits of a series
+> > first.
+> 
+> Is that really a more important principle than putting related changes
+> together?  I get the idea, but thought it made more sense to put
+> all the slub.c changes together.
+
+Think of it as a way of making forward progress. You should explicitly
+call out 'hey, these bits are cleanups you should just merge' so they
+don't get lost in the debate. Then the next time around, you have that
+many fewer patches.
+
+-- 
+Mathematics is the supreme nostalgia of our time.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
