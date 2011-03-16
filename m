@@ -1,169 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 37C0A8D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 12:35:35 -0400 (EDT)
-Date: Wed, 16 Mar 2011 17:35:10 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
-Message-ID: <20110316163510.GN2140@cmpxchg.org>
-References: <1299869011-26152-1-git-send-email-gthelen@google.com>
- <20110311171006.ec0d9c37.akpm@linux-foundation.org>
- <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
- <20110314202324.GG31120@redhat.com>
- <AANLkTinDNOLMdU7EEMPFkC_f9edCx7ZFc7=qLRNAEmBM@mail.gmail.com>
- <20110315184839.GB5740@redhat.com>
- <20110316131324.GM2140@cmpxchg.org>
- <20110316145959.GA13562@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 5FA308D0039
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 12:54:03 -0400 (EDT)
+Date: Wed, 16 Mar 2011 12:53:31 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH 3/5] mm: Implement IO-less balance_dirty_pages()
+Message-ID: <20110316165331.GA15183@redhat.com>
+References: <1299623475-5512-1-git-send-email-jack@suse.cz>
+ <1299623475-5512-4-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20110316145959.GA13562@redhat.com>
+In-Reply-To: <1299623475-5512-4-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
 
-On Wed, Mar 16, 2011 at 10:59:59AM -0400, Vivek Goyal wrote:
-> On Wed, Mar 16, 2011 at 02:13:24PM +0100, Johannes Weiner wrote:
-> > On Tue, Mar 15, 2011 at 02:48:39PM -0400, Vivek Goyal wrote:
-> > > On Mon, Mar 14, 2011 at 07:41:13PM -0700, Greg Thelen wrote:
-> > > > On Mon, Mar 14, 2011 at 1:23 PM, Vivek Goyal <vgoyal@redhat.com> wrote:
-> > > > > On Mon, Mar 14, 2011 at 11:29:17AM -0700, Greg Thelen wrote:
-> > > > >
-> > > > > [..]
-> > > > >> > We could just crawl the memcg's page LRU and bring things under control
-> > > > >> > that way, couldn't we?  That would fix it.  What were the reasons for
-> > > > >> > not doing this?
-> > > > >>
-> > > > >> My rational for pursuing bdi writeback was I/O locality.  I have heard that
-> > > > >> per-page I/O has bad locality.  Per inode bdi-style writeback should have better
-> > > > >> locality.
-> > > > >>
-> > > > >> My hunch is the best solution is a hybrid which uses a) bdi writeback with a
-> > > > >> target memcg filter and b) using the memcg lru as a fallback to identify the bdi
-> > > > >> that needed writeback.  I think the part a) memcg filtering is likely something
-> > > > >> like:
-> > > > >>  http://marc.info/?l=linux-kernel&m=129910424431837
-> > > > >>
-> > > > >> The part b) bdi selection should not be too hard assuming that page-to-mapping
-> > > > >> locking is doable.
-> > > > >
-> > > > > Greg,
-> > > > >
-> > > > > IIUC, option b) seems to be going through pages of particular memcg and
-> > > > > mapping page to inode and start writeback on particular inode?
-> > > > 
-> > > > Yes.
-> > > > 
-> > > > > If yes, this might be reasonably good. In the case when cgroups are not
-> > > > > sharing inodes then it automatically maps one inode to one cgroup and
-> > > > > once cgroup is over limit, it starts writebacks of its own inode.
-> > > > >
-> > > > > In case inode is shared, then we get the case of one cgroup writting
-> > > > > back the pages of other cgroup. Well I guess that also can be handeled
-> > > > > by flusher thread where a bunch or group of pages can be compared with
-> > > > > the cgroup passed in writeback structure. I guess that might hurt us
-> > > > > more than benefit us.
-> > > > 
-> > > > Agreed.  For now just writing the entire inode is probably fine.
-> > > > 
-> > > > > IIUC how option b) works then we don't even need option a) where an N level
-> > > > > deep cache is maintained?
-> > > > 
-> > > > Originally I was thinking that bdi-wide writeback with memcg filter
-> > > > was a good idea.  But this may be unnecessarily complex.  Now I am
-> > > > agreeing with you that option (a) may not be needed.  Memcg could
-> > > > queue per-inode writeback using the memcg lru to locate inodes
-> > > > (lru->page->inode) with something like this in
-> > > > [mem_cgroup_]balance_dirty_pages():
-> > > > 
-> > > >   while (memcg_usage() >= memcg_fg_limit) {
-> > > >     inode = memcg_dirty_inode(cg);  /* scan lru for a dirty page, then
-> > > > grab mapping & inode */
-> > > >     sync_inode(inode, &wbc);
-> > > >   }
-> > > > 
-> > > >   if (memcg_usage() >= memcg_bg_limit) {
-> > > >     queue per-memcg bg flush work item
-> > > >   }
-> > > 
-> > > I think even for background we shall have to implement some kind of logic
-> > > where inodes are selected by traversing memcg->lru list so that for
-> > > background write we don't end up writting too many inodes from other
-> > > root group in an attempt to meet the low background ratio of memcg.
-> > > 
-> > > So to me it boils down to coming up a new inode selection logic for
-> > > memcg which can be used both for background as well as foreground
-> > > writes. This will make sure we don't end up writting pages from the
-> > > inodes we don't want to.
-> > 
-> > Originally for struct page_cgroup reduction, I had the idea of
-> > introducing something like
-> > 
-> > 	struct memcg_mapping {
-> > 		struct address_space *mapping;
-> > 		struct mem_cgroup *memcg;
-> > 	};
-> > 
-> > hanging off page->mapping to make memcg association no longer per-page
-> > and save the pc->memcg linkage (it's not completely per-inode either,
-> > multiple memcgs can still refer to a single inode).
-> 
-> So page->mapping will basically be a list where multiple memcg_mappings
-> are hanging?
+On Tue, Mar 08, 2011 at 11:31:13PM +0100, Jan Kara wrote:
 
-No, a single memcg_mapping per page.  A page can only be part of one
-mapping, and only be part of one memcg at any point in time.
+[..]
+> +/*
+> + * balance_dirty_pages() must be called by processes which are generating dirty
+> + * data.  It looks at the number of dirty pages in the machine and will force
+> + * the caller to perform writeback if the system is over `vm_dirty_ratio'.
+> + * If we're over `background_thresh' then the writeback threads are woken to
+> + * perform some writeout.
+> + */
+> +static void balance_dirty_pages(struct address_space *mapping,
+> +				unsigned long write_chunk)
+> +{
+> +	struct backing_dev_info *bdi = mapping->backing_dev_info;
+> +	struct balance_waiter bw;
+> +	struct dirty_limit_state st;
+> +	int dirty_exceeded = check_dirty_limits(bdi, &st);
+> +
+> +	if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT ||
+> +	    (dirty_exceeded == DIRTY_MAY_EXCEED_LIMIT &&
+> +	     !bdi_task_limit_exceeded(&st, current))) {
+> +		if (bdi->dirty_exceeded &&
+> +		    dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT)
+> +			bdi->dirty_exceeded = 0;
+>  		/*
+> -		 * Increase the delay for each loop, up to our previous
+> -		 * default of taking a 100ms nap.
+> +		 * In laptop mode, we wait until hitting the higher threshold
+> +		 * before starting background writeout, and then write out all
+> +		 * the way down to the lower threshold.  So slow writers cause
+> +		 * minimal disk activity.
+> +		 *
+> +		 * In normal mode, we start background writeout at the lower
+> +		 * background_thresh, to keep the amount of dirty memory low.
+>  		 */
+> -		pause <<= 1;
+> -		if (pause > HZ / 10)
+> -			pause = HZ / 10;
+> +		if (!laptop_mode && dirty_exceeded == DIRTY_EXCEED_BACKGROUND)
+> +			bdi_start_background_writeback(bdi);
+> +		return;
+>  	}
+>  
+> -	/* Clear dirty_exceeded flag only when no task can exceed the limit */
+> -	if (!min_dirty_exceeded && bdi->dirty_exceeded)
+> -		bdi->dirty_exceeded = 0;
+> +	if (!bdi->dirty_exceeded)
+> +		bdi->dirty_exceeded = 1;
+>  
+> -	if (writeback_in_progress(bdi))
+> -		return;
+> +	trace_writeback_balance_dirty_pages_waiting(bdi, write_chunk);
+> +	/* Kick flusher thread to start doing work if it isn't already */
+> +	bdi_start_background_writeback(bdi);
+>  
+> +	bw.bw_wait_pages = write_chunk;
+> +	bw.bw_task = current;
+> +	spin_lock(&bdi->balance_lock);
+>  	/*
+> -	 * In laptop mode, we wait until hitting the higher threshold before
+> -	 * starting background writeout, and then write out all the way down
+> -	 * to the lower threshold.  So slow writers cause minimal disk activity.
+> -	 *
+> -	 * In normal mode, we start background writeout at the lower
+> -	 * background_thresh, to keep the amount of dirty memory low.
+> +	 * First item? Need to schedule distribution of IO completions among
+> +	 * items on balance_list
+> +	 */
+> +	if (list_empty(&bdi->balance_list)) {
+> +		bdi->written_start = bdi_stat_sum(bdi, BDI_WRITTEN);
+> +		/* FIXME: Delay should be autotuned based on dev throughput */
+> +		schedule_delayed_work(&bdi->balance_work, HZ/10);
+> +	}
+> +	/*
+> +	 * Add work to the balance list, from now on the structure is handled
+> +	 * by distribute_page_completions()
+> +	 */
+> +	list_add_tail(&bw.bw_list, &bdi->balance_list);
+> +	bdi->balance_waiters++;
 
-But not all pages backing an inode belong to the same memcg.  So the
-two extremes are 1) every page associated individually with one memcg,
-which is what we have now or 2) all pages in an inode collectively
-associated with one memcg, which is not feasible.
+Hi Jan,
 
-The trade-off I propose is grouping all pages backing an inode that
-are associated with the same memcg.  struct memcg_mapping would be the
-representation of this group.
+Had a query.
 
-> That will essentially tell what memory cgroups own pages
-> in this inode?
+- What makes sure that flusher thread will not stop writing back till all
+  the waiters on the bdi have been woken up. IIUC, flusher thread will 
+  stop once global background ratio is with-in limit. Is it possible that
+  there are still some waiter on some bdi waiting for more pages to finish
+  writeback and that might not happen for sometime. 
 
-The idea is to have it efficiently the other way round: quickly find
-all inodes referenced by one memcg.
-
-> And similary every cgroup will have a list where these memcg_mapping
-> are hanging allowing to trace which memcg is doing IO on which inodes?
-
-Yes.
-
-> > We could put these descriptors on a per-memcg list and write inodes
-> > from this list during memcg-writeback.
-> > 
-> > We would have the option of extending this structure to contain hints
-> > as to which subrange of the inode is actually owned by the cgroup, to
-> > further narrow writeback to the right pages - iff shared big files
-> > become a problem.
-> > 
-> > Does that sound feasible?
-> 
-> May be. I am really not an expert in this area.
-> 
-> IIUC, this sounds more like a solution to quickly come up with a list of
-> inodes one should be writting back. One could also come up with this kind of
-> list by going through memcg->lru list also (approximate). So this can be
-> an improvement over going through memcg->lru instead go through
-> memcg->mapping_list.
-
-Well, if you operate on a large file it may make a difference between
-taking five inodes off the list and crawling through hundreds of
-thousands of pages to get to those same five inodes.
-
-And having efficient inode lookup for a memcg makes targetted
-background writeback more feasible: pass the memcg in the background
-writeback work and have the flusher go through memcg->mappings,
-selecting those that match the bdi.
-
-Am I missing something?  I feel like I missed your point.
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
