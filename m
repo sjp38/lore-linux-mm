@@ -1,74 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C49A8D0041
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2011 18:27:29 -0400 (EDT)
-Date: Thu, 17 Mar 2011 15:25:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bugme-new] [Bug 31142] New: Large write to USB stick freezes
- unrelated tasks for a long time
-Message-Id: <20110317152545.adb55e3b.akpm@linux-foundation.org>
-In-Reply-To: <4D8286F9.7050107@fiec.espol.edu.ec>
-References: <bug-31142-10286@https.bugzilla.kernel.org/>
-	<20110315135334.36e29414.akpm@linux-foundation.org>
-	<4D7FEDDC.3020607@fiec.espol.edu.ec>
-	<20110315161926.595bdb65.akpm@linux-foundation.org>
-	<4D80D65C.5040504@fiec.espol.edu.ec>
-	<20110316150208.7407c375.akpm@linux-foundation.org>
-	<4D827CC1.4090807@fiec.espol.edu.ec>
-	<20110317144727.87a461f9.akpm@linux-foundation.org>
-	<4D8286F9.7050107@fiec.espol.edu.ec>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0FF3E8D0041
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2011 18:58:12 -0400 (EDT)
+Date: Thu, 17 Mar 2011 18:56:57 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH RFC 0/5] IO-less balance_dirty_pages() v2 (simple
+ approach)
+Message-ID: <20110317225657.GI10482@redhat.com>
+References: <1299623475-5512-1-git-send-email-jack@suse.cz>
+ <AANLkTimeH-hFiqtALfzyyrHiLz52qQj0gCisaJ-taCdq@mail.gmail.com>
+ <20110317173223.GG4116@quack.suse.cz>
+ <AANLkTimwUrvyEJdF7s2XZCv4JaC_rsTA1Rg9u68xMs=O@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTimwUrvyEJdF7s2XZCv4JaC_rsTA1Rg9u68xMs=O@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex =?ISO-8859-1?Q?Villac=ED=ADs?= Lasso <avillaci@fiec.espol.edu.ec>
-Cc: avillaci@ceibo.fiec.espol.edu.ec, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: Curt Wohlgemuth <curtw@google.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Christoph Hellwig <hch@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Justin TerAvest <teravest@google.com>
 
-On Thu, 17 Mar 2011 17:11:05 -0500
-Alex Villac____s Lasso <avillaci@fiec.espol.edu.ec> wrote:
+On Thu, Mar 17, 2011 at 11:55:34AM -0700, Curt Wohlgemuth wrote:
+> On Thu, Mar 17, 2011 at 10:32 AM, Jan Kara <jack@suse.cz> wrote:
+> > On Thu 17-03-11 08:46:23, Curt Wohlgemuth wrote:
+> >> On Tue, Mar 8, 2011 at 2:31 PM, Jan Kara <jack@suse.cz> wrote:
+> >> The design of IO-less foreground throttling of writeback in the context of
+> >> memory cgroups is being discussed in the memcg patch threads (e.g.,
+> >> "[PATCH v6 0/9] memcg: per cgroup dirty page accounting"), but I've got
+> >> another concern as well.  And that's how restricting per-BDI writeback to a
+> >> single task will affect proposed changes for tracking and accounting of
+> >> buffered writes to the IO scheduler ("[RFC] [PATCH 0/6] Provide cgroup
+> >> isolation for buffered writes", https://lkml.org/lkml/2011/3/8/332 ).
+> >>
+> >> It seems totally reasonable that reducing competition for write requests to
+> >> a BDI -- by using the flusher thread to "handle" foreground writeout --
+> >> would increase throughput to that device.  At Google, we experiemented with
+> >> this in a hacked-up fashion several months ago (FG task would enqueue a work
+> >> item and sleep for some period of time, wake up and see if it was below the
+> >> dirty limit), and found that we were indeed getting better throughput.
+> >>
+> >> But if one of one's goals is to provide some sort of disk isolation based on
+> >> cgroup parameters, than having at most one stream of write requests
+> >> effectively neuters the IO scheduler.  We saw that in practice, which led to
+> >> abandoning our attempt at "IO-less throttling."
+> 
+> >  Let me check if I understand: The problem you have with one flusher
+> > thread is that when written pages all belong to a single memcg, there is
+> > nothing IO scheduler can prioritize, right?
+> 
+> Correct.  Well, perhaps.  Given that the memory cgroups and the IO
+> cgroups may not overlap, it's possible that write requests from a
+> single memcg might be targeted to multiple IO cgroups, and scheduling
+> priorities can be maintained.  Of course, the other way round might be
+> the case as well.
 
-> El 17/03/11 16:47, Andrew Morton escribi__:
-> >
-> > ah, the epic 12309.  https://bugzilla.kernel.org/show_bug.cgi?id=12309.
-> > If you're ever wondering how much we suck, go read that one.
-> >
-> > I think what we're seeing in 31142 is a large amount of dirty data
-> > buffered against a slow device.  Innocent processes enter page reclaim
-> > and end up getting stuck trying to write to that heavily-queued and
-> > slow device.
-> >
-> > If so, that's probably what some of the 12309 participants are seeing.
-> > But there are lots of other things in that report too.
-> >
-> >
-> > Now, the problem you're seeing in 31142 isn't really supposed to
-> > happen.  In the direct-reclaim case the code will try to avoid
-> > initiation of blocking I/O against a congested device, via the
-> > bdi_write_congested() test in may_write_to_queue().  Although that code
-> > now looks a bit busted for the order>PAGE_ALLOC_COSTLY_ORDER case,
-> > whodidthat.
-> >
-> > However in the case of the new(ish) compaction/migration code I don't
-> > think we're performing that test.  migrate_pages()->unmap_and_move()
-> > will get stuck behind that large&slow IO queue if page reclaim decided
-> > to pass it down sync==true, as it apparently has done.
-> >
-> > IOW, Mel broke it ;)
-> >
-> I don't quite follow. In my case, the congested device is the USB stick, but the affected processes should be reading/writing on the hard disk. What kind of queue(s) implementation results in pending writes to the USB stick interfering with I/O to the hard 
-> disk? Or am I misunderstanding? I had the (possibly incorrect) impression that each block device had its own I/O queue.
+[CCing some folks who were involved in other mail thread]
 
-Your web browser is just trying to allocate some memory.  As part of
-that operation it entered the kernel's page reclaim and while scanning
-for memory to free, page reclaim encountered a page which was queued
-for IO.  Then page reclaim waited for the IO to complete against that
-page.  So the browser got stuck.
+I think that for buffered write case it would make most sense when memory
+controller and IO controller are co-mounted and working with each other.
+The reason being that for async writes we need to control the dirty share of
+a cgroup as well as try to prioritize the IO at device level from cgroup.
 
-Page reclaim normally tries to avoid this situation by not waiting on
-such pages, unless the calling processes was itself involved in writing
-to the page's device (stored in current->backing_dev_info).  But afaict
-the new compaction/migration code forgot to do this.
+It would not make any sense that a low prio async group is choked at device
+level and its footprint in page cache is increasing resulting in choking
+other fast writers. 
+
+So we need to make sure that slow writers don't have huge page cache
+footprint and hence I think using memory and IO controller together
+makes sense. Do you have other use cases where it does not make sense?
+
+> 
+> The point is just that from however many memcgs the flusher thread is
+> working on behalf of, there's only a single stream of requests, which
+> are *likely* for a single IO cgroup, and hence there's nothing to
+> prioritize.
+
+I think even single submitter stream can also make sense if underlying
+device/bdi is slow and submitter is fast and switches frequently between
+memory cgroups for selection of inodes.
+
+So we have IO control at device level and we have IO queues for each
+cgroup and if flusher thread can move quickly (say submit 512 pages
+from one cgroup and then move to next), from one cgroup to other,
+then we should automatically get the IO difference.
+
+In other mail I suggested that if we can keep per memory cgroup per BDI stats
+for number of writes in progress, then flusher thread can skip submitting
+IO from cgroups which are slow and there are many pending writebacks. That is
+a hint to flusher thread that IO scheduler is giving this cgroup a lower
+priority hence high number of writes in flight which are simply queued up at
+IO schduler. For high priority cgroups which are making progress, pending
+writebacks will be small or zero and flusher can submit more inodes/pages
+from that memory cgroup. That way a higher weight group should get more IO
+done as compared to a slower group.
+
+I am assuming that prioritizing async request is primarily is for slow
+media like single SATA disk. If yes, then flusher thread should be
+able to submit pages much faster then device can complete those and
+can cgroup IO queues busy at end device hence IO scheduler should be
+able to prioritize.
+
+Thoughts?
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
