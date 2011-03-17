@@ -1,96 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id ED0D98D0039
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2011 04:52:06 -0400 (EDT)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1547710Ab1CQIvS (ORCPT <rfc822;linux-mm@kvack.org>);
-	Thu, 17 Mar 2011 09:51:18 +0100
-Date: Thu, 17 Mar 2011 09:51:18 +0100
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: Re: Bootup fix for _brk_end being != _end
-Message-ID: <20110317085118.GA11346@router-fw-old.local.net-space.pl>
-References: <20110308214429.GA27331@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1103091359290.2968@kaball-desktop> <20110315142957.GB12730@router-fw-old.local.net-space.pl> <20110315144821.GA11586@dumpdata.com> <20110315153001.GD12730@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1103151530290.3382@kaball-desktop> <20110315154024.GA14100@router-fw-old.local.net-space.pl>
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D44A68D0039
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2011 08:44:18 -0400 (EDT)
+Date: Thu, 17 Mar 2011 13:43:50 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
+Message-ID: <20110317124350.GQ2140@cmpxchg.org>
+References: <1299869011-26152-1-git-send-email-gthelen@google.com>
+ <20110311171006.ec0d9c37.akpm@linux-foundation.org>
+ <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
+ <20110314202324.GG31120@redhat.com>
+ <AANLkTinDNOLMdU7EEMPFkC_f9edCx7ZFc7=qLRNAEmBM@mail.gmail.com>
+ <20110315184839.GB5740@redhat.com>
+ <20110316131324.GM2140@cmpxchg.org>
+ <AANLkTim7q3cLGjxnyBS7SDdpJsGi-z34bpPT=MJSka+C@mail.gmail.com>
+ <20110316215214.GO2140@cmpxchg.org>
+ <AANLkTinCErw+0QGpXJ4+JyZ1O96BC7SJAyXaP4t5v17c@mail.gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110315154024.GA14100@router-fw-old.local.net-space.pl>
+In-Reply-To: <AANLkTinCErw+0QGpXJ4+JyZ1O96BC7SJAyXaP4t5v17c@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: Stefano Stabellini <stefano.stabellini@eu.citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Ian Campbell <Ian.Campbell@eu.citrix.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi.kleen@intel.com" <andi.kleen@intel.com>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "jeremy@goop.org" <jeremy@goop.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, "v.tolstov@selfip.ru" <v.tolstov@selfip.ru>, "pasik@iki.fi" <pasik@iki.fi>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, "wdauchy@gmail.com" <wdauchy@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Jan Kara <jack@suse.cz>, Vivek Goyal <vgoyal@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Curt Wohlgemuth <curtw@google.com>
 
-On Tue, Mar 15, 2011 at 04:40:24PM +0100, Daniel Kiper wrote:
-> On Tue, Mar 15, 2011 at 03:31:47PM +0000, Stefano Stabellini wrote:
-> > On Tue, 15 Mar 2011, Daniel Kiper wrote:
-> > > On Tue, Mar 15, 2011 at 10:48:21AM -0400, Konrad Rzeszutek Wilk wrote:
-> > > > > > > Additionally, I suggest to apply patch prepared by Steffano Stabellini
-> > > > > > > (https://lkml.org/lkml/2011/1/31/232) which fixes memory management
-> > > > > > > issue in Xen guest. I was not able boot guest machine without
-> > > > > > > above mentioned patch.
-> > > > > >
-> > > > > > after some discussions we came up with a different approach to fix the
-> > > > > > issue; I sent a couple of patches a little while ago:
-> > > > > >
-> > > > > > https://lkml.org/lkml/2011/2/28/410
-> > > > >
-> > > > > I tested git://xenbits.xen.org/people/sstabellini/linux-pvhvm.git 2.6.38-tip-fixes
-> > > > > and it works on x86_64, however, it does not work on i386. Tested as
-> > > > > unprivileged guest on Xen Ver. 4.1.0-rc2-pre. On i386 domain crashes
-> > > > > silently at early boot stage :-(((.
-> > > >
-> > > > Details? Can you provide the 'xenctx' output of where it crashed?
-> > >
-> > > As I wrote above domain is dying and I am not able to connect to it using
-> > > xenctx after crash :-(((. I do not know how to do that in another way.
-> >
-> > try adding:
-> >
-> > extra = "loglevel=9 debug earlyprintk=xenboot"
->
-> (XEN) d55:v0: unhandled page fault (ec=0002)
-> (XEN) Pagetable walk from 000000000000000c:
-> (XEN)  L4[0x000] = 000000010bebc027 0000000000024d28
-> (XEN)  L3[0x000] = 0000000000000000 ffffffffffffffff
-> (XEN) domain_crash_sync called from entry.S
-> (XEN) Domain 55 (vcpu#0) crashed on cpu#3:
-> (XEN) ----[ Xen-4.1.0-rc2-pre  x86_64  debug=y  Not tainted ]----
-> (XEN) CPU:    3
-> (XEN) RIP:    e019:[<00000000c1001180>]
-> (XEN) RFLAGS: 0000000000000282   EM: 1   CONTEXT: pv guest
-> (XEN) rax: 000000000000000c   rbx: 000000000000000c   rcx: 00000000c1371fd0
-> (XEN) rdx: 00000000c1371fd0   rsi: 00000000c1742000   rdi: 00000000a5c03d70
-> (XEN) rbp: 00000000c1371fc8   rsp: 00000000c1371fa8   r8: 0000000000000000
-> (XEN) r9:  0000000000000000   r10: 0000000000000000   r11: 0000000000000000
-> (XEN) r12: 0000000000000000   r13: 0000000000000000   r14: 0000000000000000
-> (XEN) r15: 0000000000000000   cr0: 000000008005003b   cr4: 00000000000026f4
-> (XEN) cr3: 0000000129b6e000   cr2: 000000000000000c
-> (XEN) ds: e021   es: e021   fs: e021   gs: e021   ss: e021   cs: e019
-> (XEN) Guest stack trace from esp=c1371fa8:
-> (XEN)   00000002 c1001180 0001e019 00010082 c10037af deadbeef c1742000 a5c03d70
-> (XEN)   c1371fdc c13a4aa8 00000000 00000000 00000000 c1371ffc c13a3ff2 00000000
-> (XEN)   00000000 00000000 00000000 00000000 deadbeef c1753000 013fe001 00000000
-> (XEN)   00000000 00000000 00000000 00000000 013fe001 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
-> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+On Wed, Mar 16, 2011 at 09:41:48PM -0700, Greg Thelen wrote:
+> In '[PATCH v6 8/9] memcg: check memcg dirty limits in page writeback' Jan and
+> Vivek have had some discussion around how memcg and writeback mesh.
+> In my mind, the
+> discussions in 8/9 are starting to blend with this thread.
+> 
+> I have been thinking about Johannes' struct memcg_mapping.  I think the idea
+> may address several of the issues being discussed, especially
+> interaction between
+> IO-less balance_dirty_pages() and memcg writeback.
+> 
+> Here is my thinking.  Feedback is most welcome!
+> 
+> The data structures:
+> - struct memcg_mapping {
+>        struct address_space *mapping;
+>        struct mem_cgroup *memcg;
+>        int refcnt;
+>   };
+> - each memcg contains a (radix, hash_table, etc.) mapping from bdi to memcg_bdi.
+> - each memcg_bdi contains a mapping from inode to memcg_mapping.  This may be a
+>   very large set representing many cached inodes.
+> - each memcg_mapping represents all pages within an bdi,inode,memcg.  All
+>   corresponding cached inode pages point to the same memcg_mapping via
+>   pc->mapping.  I assume that all pages of inode belong to no more than one bdi.
+> - manage a global list of memcg that are over their respective background dirty
+>   limit.
+> - i_mapping continues to point to a traditional non-memcg mapping (no change
+>   here).
+> - none of these memcg_* structures affect root cgroup or kernels with memcg
+>   configured out.
 
-Any progress ??? Can I help you in something ???
+So structures roughly like this:
 
-Daniel
+struct mem_cgroup {
+	...
+	/* key is struct backing_dev_info * */
+	struct rb_root memcg_bdis;
+};
+
+struct memcg_bdi {
+	/* key is struct address_space * */
+	struct rb_root memcg_mappings;
+	struct rb_node node;
+};
+
+struct memcg_mapping {
+	struct address_space *mapping;
+	struct mem_cgroup *memcg;
+	struct rb_node node;
+	atomic_t count;
+};
+
+struct page_cgroup {
+	...
+	struct memcg_mapping *memcg_mapping;
+};
+
+> The routines under discussion:
+> - memcg charging a new inode page to a memcg: will use inode->mapping and inode
+>   to walk memcg -> memcg_bdi -> memcg_mapping and lazily allocating missing
+>   levels in data structure.
+> 
+> - Uncharging a inode page from a memcg: will use pc->mapping->memcg to locate
+>   memcg.  If refcnt drops to zero, then remove memcg_mapping from the memcg_bdi.
+>   Also delete memcg_bdi if last memcg_mapping is removed.
+> 
+> - account_page_dirtied(): nothing new here, continue to set the per-page flags
+>   and increment the memcg per-cpu dirty page counter.  Same goes for routines
+>   that mark pages in writeback and clean states.
+
+We may want to remember the dirty memcg_mappings so that on writeback
+we don't have to go through every single one that the memcg refers to?
+
+> - mem_cgroup_balance_dirty_pages(): if memcg dirty memory usage if above
+>   background limit, then add memcg to global memcg_over_bg_limit list and use
+>   memcg's set of memcg_bdi to wakeup each(?) corresponding bdi flusher.  If over
+>   fg limit, then use IO-less style foreground throttling with per-memcg per-bdi
+>   (aka memcg_bdi) accounting structure.
+
+I wonder if we could just schedule a for_background work manually in
+the memcg case that writes back the corresponding memcg_bdi set (and
+e.g. having it continue until either the memcg is below bg thresh OR
+the global bg thresh is exceeded OR there is other work scheduled)?
+Then we would get away without the extra list, and it doesn't sound
+overly complex to implement.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
