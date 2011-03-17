@@ -1,40 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B13F8D0046
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2011 12:44:04 -0400 (EDT)
-Date: Thu, 17 Mar 2011 12:43:54 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH RFC 0/5] IO-less balance_dirty_pages() v2 (simple
- approach)
-Message-ID: <20110317164354.GA26093@infradead.org>
-References: <1299623475-5512-1-git-send-email-jack@suse.cz>
- <AANLkTimeH-hFiqtALfzyyrHiLz52qQj0gCisaJ-taCdq@mail.gmail.com>
- <20110317155139.GA16195@infradead.org>
- <AANLkTikxEQfzFOrc1Kyu+eC8EnTpDfKYHNswLu+0AtZS@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 97EEC8D0046
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2011 13:12:38 -0400 (EDT)
+Date: Thu, 17 Mar 2011 13:12:19 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
+Message-ID: <20110317171219.GD32392@redhat.com>
+References: <20110311171006.ec0d9c37.akpm@linux-foundation.org>
+ <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
+ <20110314202324.GG31120@redhat.com>
+ <AANLkTinDNOLMdU7EEMPFkC_f9edCx7ZFc7=qLRNAEmBM@mail.gmail.com>
+ <20110315184839.GB5740@redhat.com>
+ <20110316131324.GM2140@cmpxchg.org>
+ <AANLkTim7q3cLGjxnyBS7SDdpJsGi-z34bpPT=MJSka+C@mail.gmail.com>
+ <20110316215214.GO2140@cmpxchg.org>
+ <AANLkTinCErw+0QGpXJ4+JyZ1O96BC7SJAyXaP4t5v17c@mail.gmail.com>
+ <20110317144641.GC4116@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <AANLkTikxEQfzFOrc1Kyu+eC8EnTpDfKYHNswLu+0AtZS@mail.gmail.com>
+In-Reply-To: <20110317144641.GC4116@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Curt Wohlgemuth <curtw@google.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Curt Wohlgemuth <curtw@google.com>
 
-On Thu, Mar 17, 2011 at 09:24:28AM -0700, Curt Wohlgemuth wrote:
-> Which is indeed part of the patchset I referred to above ("[RFC]
-> [PATCH 0/6] Provide cgroup isolation for buffered writes",
-> https://lkml.org/lkml/2011/3/8/332 ).
+On Thu, Mar 17, 2011 at 03:46:41PM +0100, Jan Kara wrote:
 
-So what about letting us fix normal writeback first and then later look
-into cgroups properly.  And to do it properly we'll need to implement
-something similar to the I/O less balance dirty pages - be that targeted
-writeback from the flusher thread including proper tagging of pages,
-or be that writeback from balance_dirty_pages in a why that we keep
-multiple processes from writing at the same time.  Although I'd prefer
-something that keeps the CG case as close as possible to the normal
-code, right now we already have a huge mess with memcg and it's own
-handrolled version of direct reclaim which is an even worse stack
-hog than the already overly painfull "normal" direct reclaim.
+[..]
+> > - bdi writeback: will revert some of the mmotm memcg dirty limit changes to
+> >   fs-writeback.c so that wb_do_writeback() will return to checking
+> >   wb_check_background_flush() to check background limits and being
+> > interruptible if
+> >   sync flush occurs.  wb_check_background_flush() will check the global
+> >   memcg_over_bg_limit list for memcg that are over their dirty limit.
+> >   wb_writeback() will either (I am not sure):
+> >   a) scan memcg's bdi_memcg list of inodes (only some of them are dirty)
+> >   b) scan bdi dirty inode list (only some of them in memcg) using
+> >      inode_in_memcg() to identify inodes to write.  inode_in_memcg(inode,memcg),
+> >      would walk memcg- -> memcg_bdi -> memcg_mapping to determine if the memcg
+> >      is caching pages from the inode.
+> Hmm, both has its problems. With a) we could queue all the dirty inodes
+> from the memcg for writeback but then we'd essentially write all dirty data
+> for a memcg, not only enough data to get below bg limit. And if we started
+> skipping inodes when memcg(s) inode belongs to get below bg limit, we'd
+> risk copying inodes there and back without reason, cases where some inodes
+> never get written because they always end up skipped etc. Also the question
+> whether some of the memcgs inode belongs to is still over limit is the
+> hardest part of solution b) so we wouldn't help ourselves much.
+
+May be I am missing something but can't we just start traversing
+through list of memcg_over_bg_list and take option a) to traverse
+through list of inodes and write them till we are below limit of
+that group. We of course skip inodes which are not dirty.
+
+This is assuming that root group is also part of that list so that
+inodes in root group do not starve writeback.
+
+We still continue to have all the inodes on bdi wb structure and
+memcg will just give us pointers to those inodes. So for background
+write, instead of going serially through dirty inodes list, we
+will first pick the cgroup to write and then inode to write. As
+we will be doing round robin among cgroup list, it will make sure
+that none of the cgroups (including root) as well as inode are not
+starved.
+
+What am I missing?
+
+Thanks
+Vivek 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
