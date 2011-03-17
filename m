@@ -1,149 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 46A928D0039
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 18:53:26 -0400 (EDT)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id p2GMrLV2020161
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 15:53:21 -0700
-Received: from qyk7 (qyk7.prod.google.com [10.241.83.135])
-	by kpbe17.cbf.corp.google.com with ESMTP id p2GMqENS007365
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 55E128D0039
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2011 00:42:18 -0400 (EDT)
+Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
+	by smtp-out.google.com with ESMTP id p2H4gGv1001295
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 21:42:16 -0700
+Received: from qwg5 (qwg5.prod.google.com [10.241.194.133])
+	by kpbe20.cbf.corp.google.com with ESMTP id p2H4g9c9020443
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 15:53:19 -0700
-Received: by qyk7 with SMTP id 7so3695712qyk.12
-        for <linux-mm@kvack.org>; Wed, 16 Mar 2011 15:53:15 -0700 (PDT)
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2011 21:42:15 -0700
+Received: by qwg5 with SMTP id 5so1701710qwg.3
+        for <linux-mm@kvack.org>; Wed, 16 Mar 2011 21:42:09 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <AANLkTikshHSaqfs7_CzL3ofyAV96_NZsOw4dcNbPtnC1@mail.gmail.com>
-References: <1299623475-5512-1-git-send-email-jack@suse.cz>
-	<1299623475-5512-4-git-send-email-jack@suse.cz>
-	<20110310000731.GE10346@redhat.com>
-	<20110314204821.GC4998@quack.suse.cz>
-	<20110315152310.GD24984@redhat.com>
-	<AANLkTikshHSaqfs7_CzL3ofyAV96_NZsOw4dcNbPtnC1@mail.gmail.com>
-Date: Wed, 16 Mar 2011 15:53:15 -0700
-Message-ID: <AANLkTikMv02oQC685RhSNvKnN1bsP=KNRpWfTgnuXF9g@mail.gmail.com>
-Subject: Re: [PATCH 3/5] mm: Implement IO-less balance_dirty_pages()
-From: Curt Wohlgemuth <curtw@google.com>
+In-Reply-To: <20110316215214.GO2140@cmpxchg.org>
+References: <1299869011-26152-1-git-send-email-gthelen@google.com>
+ <20110311171006.ec0d9c37.akpm@linux-foundation.org> <AANLkTimT-kRMQW3JKcJAZP4oD3EXuE-Bk3dqumH_10Oe@mail.gmail.com>
+ <20110314202324.GG31120@redhat.com> <AANLkTinDNOLMdU7EEMPFkC_f9edCx7ZFc7=qLRNAEmBM@mail.gmail.com>
+ <20110315184839.GB5740@redhat.com> <20110316131324.GM2140@cmpxchg.org>
+ <AANLkTim7q3cLGjxnyBS7SDdpJsGi-z34bpPT=MJSka+C@mail.gmail.com> <20110316215214.GO2140@cmpxchg.org>
+From: Greg Thelen <gthelen@google.com>
+Date: Wed, 16 Mar 2011 21:41:48 -0700
+Message-ID: <AANLkTinCErw+0QGpXJ4+JyZ1O96BC7SJAyXaP4t5v17c@mail.gmail.com>
+Subject: Re: [PATCH v6 0/9] memcg: per cgroup dirty page accounting
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>, jack@suse.cz
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>
+Cc: Vivek Goyal <vgoyal@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, linux-fsdevel@vger.kernel.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Chad Talbott <ctalbott@google.com>, Justin TerAvest <teravest@google.com>, Curt Wohlgemuth <curtw@google.com>
 
-On Wed, Mar 16, 2011 at 2:26 PM, Curt Wohlgemuth <curtw@google.com> wrote:
-> Hi Jan:
->
-> On Tue, Mar 15, 2011 at 8:23 AM, Vivek Goyal <vgoyal@redhat.com> wrote:
->> On Mon, Mar 14, 2011 at 09:48:21PM +0100, Jan Kara wrote:
->>> On Wed 09-03-11 19:07:31, Vivek Goyal wrote:
->>> > > +static void balance_dirty_pages(struct address_space *mapping,
->>> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned long wri=
-te_chunk)
->>> > > +{
->>> > > + struct backing_dev_info *bdi =3D mapping->backing_dev_info;
->>> > > + struct balance_waiter bw;
->>> > > + struct dirty_limit_state st;
->>> > > + int dirty_exceeded =3D check_dirty_limits(bdi, &st);
->>> > > +
->>> > > + if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT ||
->>> > > + =A0 =A0 (dirty_exceeded =3D=3D DIRTY_MAY_EXCEED_LIMIT &&
->>> > > + =A0 =A0 =A0!bdi_task_limit_exceeded(&st, current))) {
->>> > > + =A0 =A0 =A0 =A0 if (bdi->dirty_exceeded &&
->>> > > + =A0 =A0 =A0 =A0 =A0 =A0 dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT)
->>> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bdi->dirty_exceeded =3D 0;
->>> > > =A0 =A0 =A0 =A0 =A0 /*
->>> > > - =A0 =A0 =A0 =A0 =A0* Increase the delay for each loop, up to our =
-previous
->>> > > - =A0 =A0 =A0 =A0 =A0* default of taking a 100ms nap.
->>> > > + =A0 =A0 =A0 =A0 =A0* In laptop mode, we wait until hitting the hi=
-gher threshold
->>> > > + =A0 =A0 =A0 =A0 =A0* before starting background writeout, and the=
-n write out all
->>> > > + =A0 =A0 =A0 =A0 =A0* the way down to the lower threshold. =A0So s=
-low writers cause
->>> > > + =A0 =A0 =A0 =A0 =A0* minimal disk activity.
->>> > > + =A0 =A0 =A0 =A0 =A0*
->>> > > + =A0 =A0 =A0 =A0 =A0* In normal mode, we start background writeout=
- at the lower
->>> > > + =A0 =A0 =A0 =A0 =A0* background_thresh, to keep the amount of dir=
-ty memory low.
->>> > > =A0 =A0 =A0 =A0 =A0 =A0*/
->>> > > - =A0 =A0 =A0 =A0 pause <<=3D 1;
->>> > > - =A0 =A0 =A0 =A0 if (pause > HZ / 10)
->>> > > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pause =3D HZ / 10;
->>> > > + =A0 =A0 =A0 =A0 if (!laptop_mode && dirty_exceeded =3D=3D DIRTY_E=
-XCEED_BACKGROUND)
->>> > > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bdi_start_background_writeback(bd=
-i);
->>> > > + =A0 =A0 =A0 =A0 return;
->>> > > =A0 }
->>> > >
->>> > > - /* Clear dirty_exceeded flag only when no task can exceed the lim=
-it */
->>> > > - if (!min_dirty_exceeded && bdi->dirty_exceeded)
->>> > > - =A0 =A0 =A0 =A0 bdi->dirty_exceeded =3D 0;
->>> > > + if (!bdi->dirty_exceeded)
->>> > > + =A0 =A0 =A0 =A0 bdi->dirty_exceeded =3D 1;
->>> >
->>> > Will it make sense to move out bdi_task_limit_exceeded() check in a
->>> > separate if condition statement as follows. May be this is little
->>> > easier to read.
->>> >
->>> > =A0 =A0 if (dirty_exceeded < DIRTY_MAY_EXCEED_LIMIT) {
->>> > =A0 =A0 =A0 =A0 =A0 =A0 if (bdi->dirty_exceeded)
->>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bdi->dirty_exceeded =3D 0;
->>> >
->>> > =A0 =A0 =A0 =A0 =A0 =A0 if (!laptop_mode && dirty_exceeded =3D=3D DIR=
-TY_EXCEED_BACKGROUND)
->>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 bdi_start_background_writebac=
-k(bdi);
->>> >
->>> > =A0 =A0 =A0 =A0 =A0 =A0 return;
->>> > =A0 =A0 }
->>> >
->>> > =A0 =A0 if (dirty_exceeded =3D=3D DIRTY_MAY_EXCEED_LIMIT &&
->>> > =A0 =A0 =A0 =A0 !bdi_task_limit_exceeded(&st, current))
->>> > =A0 =A0 =A0 =A0 =A0 =A0 return;
->>> =A0 But then we have to start background writeback here as well. Which =
-is
->>> actually a bug in the original patch as well! So clearly your way is mo=
-re
->>> readable :) I'll change it. Thanks.
+On Wed, Mar 16, 2011 at 2:52 PM, Johannes Weiner <hannes@cmpxchg.org> wrote=
+:
+> On Wed, Mar 16, 2011 at 02:19:26PM -0700, Greg Thelen wrote:
+>> On Wed, Mar 16, 2011 at 6:13 AM, Johannes Weiner <hannes@cmpxchg.org> wr=
+ote:
+>> > On Tue, Mar 15, 2011 at 02:48:39PM -0400, Vivek Goyal wrote:
+>> >> I think even for background we shall have to implement some kind of l=
+ogic
+>> >> where inodes are selected by traversing memcg->lru list so that for
+>> >> background write we don't end up writting too many inodes from other
+>> >> root group in an attempt to meet the low background ratio of memcg.
+>> >>
+>> >> So to me it boils down to coming up a new inode selection logic for
+>> >> memcg which can be used both for background as well as foreground
+>> >> writes. This will make sure we don't end up writting pages from the
+>> >> inodes we don't want to.
+>> >
+>> > Originally for struct page_cgroup reduction, I had the idea of
+>> > introducing something like
+>> >
+>> > =A0 =A0 =A0 =A0struct memcg_mapping {
+>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct address_space *mapping;
+>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct mem_cgroup *memcg;
+>> > =A0 =A0 =A0 =A0};
+>> >
+>> > hanging off page->mapping to make memcg association no longer per-page
+>> > and save the pc->memcg linkage (it's not completely per-inode either,
+>> > multiple memcgs can still refer to a single inode).
+>> >
+>> > We could put these descriptors on a per-memcg list and write inodes
+>> > from this list during memcg-writeback.
+>> >
+>> > We would have the option of extending this structure to contain hints
+>> > as to which subrange of the inode is actually owned by the cgroup, to
+>> > further narrow writeback to the right pages - iff shared big files
+>> > become a problem.
+>> >
+>> > Does that sound feasible?
 >>
->> I was thinking about that starting of bdi writeback here. But I was
->> assuming that if we are here then we most likely have visited above
->> loop of < DIRTY_MAY_EXCEED_LIMIT and started background writeback.
+>> If I understand your memcg_mapping proposal, then each inode could
+>> have a collection of memcg_mapping objects representing the set of
+>> memcg that were charged for caching pages of the inode's data. =A0When a
+>> new file page is charged to a memcg, then the inode's set of
+>> memcg_mapping would be scanned to determine if current's memcg is
+>> already in the memcg_mapping set. =A0If this is the first page for the
+>> memcg within the inode, then a new memcg_mapping would be allocated
+>> and attached to the inode. =A0The memcg_mapping may be reference counted
+>> and would be deleted when the last inode page for a particular memcg
+>> is uncharged.
 >
-> Maybe I'm missing something, but at the point in balance_dirty_pages()
-> where we kick the flusher thread , before we put the current task to
-> sleep, how do you know that background writeback is taking place? =A0Are
-> you simply assuming that in previous calls to balance_dirty_pages(),
-> that background writeback has been started, and is still taking place
-> at the time we need to do throttling?
+> Dead-on. =A0Well, on which side you put the list - a per-memcg list of
+> inodes, or a per-inode list of memcgs - really depends on which way
+> you want to do the lookups. =A0But this is the idea, yes.
+>
+>> =A0 page->mapping =3D &memcg_mapping
+>> =A0 inode->i_mapping =3D collection of memcg_mapping, grows/shrinks with=
+ [un]charge
+>
+> If the memcg_mapping list (or hash-table for quick find-or-create?)
+> was to be on the inode side, I'd put it in struct address_space, since
+> this is all about page cache, not so much an fs thing.
+>
+> Still, correct in general.
+>
 
-Never mind, I see that I'm not completely familiar with the writeback
-changes for 2.6.38.  I see where we'll kick of BG writeback in
-wb_check_background_flush() once we kick the flusher thread.
+In '[PATCH v6 8/9] memcg: check memcg dirty limits in page writeback' Jan a=
+nd
+Vivek have had some discussion around how memcg and writeback mesh.
+In my mind, the
+discussions in 8/9 are starting to blend with this thread.
 
-Curt
+I have been thinking about Johannes' struct memcg_mapping.  I think the ide=
+a
+may address several of the issues being discussed, especially
+interaction between
+IO-less balance_dirty_pages() and memcg writeback.
 
->
-> Thanks,
-> Curt
->
->>
->> Thanks
->> Vivek
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org. =A0For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Fight unfair telecom internet charges in Canada: sign http://stopthemete=
-r.ca/
->> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->>
->
+Here is my thinking.  Feedback is most welcome!
+
+The data structures:
+- struct memcg_mapping {
+       struct address_space *mapping;
+       struct mem_cgroup *memcg;
+       int refcnt;
+  };
+- each memcg contains a (radix, hash_table, etc.) mapping from bdi to memcg=
+_bdi.
+- each memcg_bdi contains a mapping from inode to memcg_mapping.  This may =
+be a
+  very large set representing many cached inodes.
+- each memcg_mapping represents all pages within an bdi,inode,memcg.  All
+  corresponding cached inode pages point to the same memcg_mapping via
+  pc->mapping.  I assume that all pages of inode belong to no more than one=
+ bdi.
+- manage a global list of memcg that are over their respective background d=
+irty
+  limit.
+- i_mapping continues to point to a traditional non-memcg mapping (no chang=
+e
+  here).
+- none of these memcg_* structures affect root cgroup or kernels with memcg
+  configured out.
+
+The routines under discussion:
+- memcg charging a new inode page to a memcg: will use inode->mapping and i=
+node
+  to walk memcg -> memcg_bdi -> memcg_mapping and lazily allocating missing
+  levels in data structure.
+
+- Uncharging a inode page from a memcg: will use pc->mapping->memcg to loca=
+te
+  memcg.  If refcnt drops to zero, then remove memcg_mapping from the memcg=
+_bdi.
+  Also delete memcg_bdi if last memcg_mapping is removed.
+
+- account_page_dirtied(): nothing new here, continue to set the per-page fl=
+ags
+  and increment the memcg per-cpu dirty page counter.  Same goes for routin=
+es
+  that mark pages in writeback and clean states.
+
+- mem_cgroup_balance_dirty_pages(): if memcg dirty memory usage if above
+  background limit, then add memcg to global memcg_over_bg_limit list and u=
+se
+  memcg's set of memcg_bdi to wakeup each(?) corresponding bdi flusher.  If=
+ over
+  fg limit, then use IO-less style foreground throttling with per-memcg per=
+-bdi
+  (aka memcg_bdi) accounting structure.
+
+- bdi writeback: will revert some of the mmotm memcg dirty limit changes to
+  fs-writeback.c so that wb_do_writeback() will return to checking
+  wb_check_background_flush() to check background limits and being
+interruptible if
+  sync flush occurs.  wb_check_background_flush() will check the global
+  memcg_over_bg_limit list for memcg that are over their dirty limit.
+  wb_writeback() will either (I am not sure):
+  a) scan memcg's bdi_memcg list of inodes (only some of them are dirty)
+  b) scan bdi dirty inode list (only some of them in memcg) using
+     inode_in_memcg() to identify inodes to write.  inode_in_memcg(inode,me=
+mcg),
+     would walk memcg- -> memcg_bdi -> memcg_mapping to determine if the me=
+mcg
+     is caching pages from the inode.
+
+- over_bground_thresh() will determine if memcg is still over bg limit.
+  If over limit, then it per bdi per memcg background flushing will continu=
+e.
+  If not over limit then memcg will be removed from memcg_over_bg_limit lis=
+t.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
