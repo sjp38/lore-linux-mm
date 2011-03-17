@@ -1,46 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AEA6D8D0039
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2011 04:01:46 -0400 (EDT)
-Received: by gwaa12 with SMTP id a12so1320351gwa.14
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2011 01:01:44 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110317070705.15100.qmail@science.horizon.com>
-References: <AANLkTikDAEuTcrgo0YcUO40A9x5jaL-d+ZPviCXANe3r@mail.gmail.com>
-	<20110317070705.15100.qmail@science.horizon.com>
-Date: Thu, 17 Mar 2011 10:01:44 +0200
-Message-ID: <AANLkTinsiWXHtrU0aN1Fsavs-2M2VD=vRYLjNhLQiO0s@mail.gmail.com>
-Subject: Re: [PATCH 5/8] mm/slub: Factor out some common code.
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id ED0D98D0039
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2011 04:52:06 -0400 (EDT)
+Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
+	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
+	id S1547710Ab1CQIvS (ORCPT <rfc822;linux-mm@kvack.org>);
+	Thu, 17 Mar 2011 09:51:18 +0100
+Date: Thu, 17 Mar 2011 09:51:18 +0100
+From: Daniel Kiper <dkiper@net-space.pl>
+Subject: Re: Bootup fix for _brk_end being != _end
+Message-ID: <20110317085118.GA11346@router-fw-old.local.net-space.pl>
+References: <20110308214429.GA27331@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1103091359290.2968@kaball-desktop> <20110315142957.GB12730@router-fw-old.local.net-space.pl> <20110315144821.GA11586@dumpdata.com> <20110315153001.GD12730@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1103151530290.3382@kaball-desktop> <20110315154024.GA14100@router-fw-old.local.net-space.pl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110315154024.GA14100@router-fw-old.local.net-space.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: George Spelvin <linux@horizon.com>
-Cc: herbert@gondor.hengli.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mpm@selenic.com, penberg@cs.helsinki.fi, rientjes@google.com, Christoph Lameter <cl@linux-foundation.org>
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: Stefano Stabellini <stefano.stabellini@eu.citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Ian Campbell <Ian.Campbell@eu.citrix.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi.kleen@intel.com" <andi.kleen@intel.com>, "haicheng.li@linux.intel.com" <haicheng.li@linux.intel.com>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "jeremy@goop.org" <jeremy@goop.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, "v.tolstov@selfip.ru" <v.tolstov@selfip.ru>, "pasik@iki.fi" <pasik@iki.fi>, "dave@linux.vnet.ibm.com" <dave@linux.vnet.ibm.com>, "wdauchy@gmail.com" <wdauchy@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "xen-devel@lists.xensource.com" <xen-devel@lists.xensource.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Mar 17, 2011 at 9:07 AM, George Spelvin <linux@horizon.com> wrote:
->> I certainly don't but I'd still like to ask you to change it to
->> 'unsigned long'. That's a Linux kernel idiom and we're not going to
->> change the whole kernel.
+On Tue, Mar 15, 2011 at 04:40:24PM +0100, Daniel Kiper wrote:
+> On Tue, Mar 15, 2011 at 03:31:47PM +0000, Stefano Stabellini wrote:
+> > On Tue, 15 Mar 2011, Daniel Kiper wrote:
+> > > On Tue, Mar 15, 2011 at 10:48:21AM -0400, Konrad Rzeszutek Wilk wrote:
+> > > > > > > Additionally, I suggest to apply patch prepared by Steffano Stabellini
+> > > > > > > (https://lkml.org/lkml/2011/1/31/232) which fixes memory management
+> > > > > > > issue in Xen guest. I was not able boot guest machine without
+> > > > > > > above mentioned patch.
+> > > > > >
+> > > > > > after some discussions we came up with a different approach to fix the
+> > > > > > issue; I sent a couple of patches a little while ago:
+> > > > > >
+> > > > > > https://lkml.org/lkml/2011/2/28/410
+> > > > >
+> > > > > I tested git://xenbits.xen.org/people/sstabellini/linux-pvhvm.git 2.6.38-tip-fixes
+> > > > > and it works on x86_64, however, it does not work on i386. Tested as
+> > > > > unprivileged guest on Xen Ver. 4.1.0-rc2-pre. On i386 domain crashes
+> > > > > silently at early boot stage :-(((.
+> > > >
+> > > > Details? Can you provide the 'xenctx' output of where it crashed?
+> > >
+> > > As I wrote above domain is dying and I am not able to connect to it using
+> > > xenctx after crash :-(((. I do not know how to do that in another way.
+> >
+> > try adding:
+> >
+> > extra = "loglevel=9 debug earlyprintk=xenboot"
 >
-> Damn, and I just prepared the following patch. =A0Should I, instead, do
->
-> --- a/include/linux/slab_def.h
-> +++ b/include/linux/slab_def.h
-> @@ -62,5 +62,5 @@ struct kmem_cache {
-> =A0/* 3) touched by every alloc & free from the backend */
->
-> - =A0 =A0 =A0 unsigned int flags; =A0 =A0 =A0 =A0 =A0 =A0 /* constant fla=
-gs */
-> + =A0 =A0 =A0 unsigned long flags; =A0 =A0 =A0 =A0 =A0 =A0/* constant fla=
-gs */
-> =A0 =A0 =A0 =A0unsigned int num; =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* # of objs=
- per slab */
->
-> ... because the original slab code uses an unsigned int.
+> (XEN) d55:v0: unhandled page fault (ec=0002)
+> (XEN) Pagetable walk from 000000000000000c:
+> (XEN)  L4[0x000] = 000000010bebc027 0000000000024d28
+> (XEN)  L3[0x000] = 0000000000000000 ffffffffffffffff
+> (XEN) domain_crash_sync called from entry.S
+> (XEN) Domain 55 (vcpu#0) crashed on cpu#3:
+> (XEN) ----[ Xen-4.1.0-rc2-pre  x86_64  debug=y  Not tainted ]----
+> (XEN) CPU:    3
+> (XEN) RIP:    e019:[<00000000c1001180>]
+> (XEN) RFLAGS: 0000000000000282   EM: 1   CONTEXT: pv guest
+> (XEN) rax: 000000000000000c   rbx: 000000000000000c   rcx: 00000000c1371fd0
+> (XEN) rdx: 00000000c1371fd0   rsi: 00000000c1742000   rdi: 00000000a5c03d70
+> (XEN) rbp: 00000000c1371fc8   rsp: 00000000c1371fa8   r8: 0000000000000000
+> (XEN) r9:  0000000000000000   r10: 0000000000000000   r11: 0000000000000000
+> (XEN) r12: 0000000000000000   r13: 0000000000000000   r14: 0000000000000000
+> (XEN) r15: 0000000000000000   cr0: 000000008005003b   cr4: 00000000000026f4
+> (XEN) cr3: 0000000129b6e000   cr2: 000000000000000c
+> (XEN) ds: e021   es: e021   fs: e021   gs: e021   ss: e021   cs: e019
+> (XEN) Guest stack trace from esp=c1371fa8:
+> (XEN)   00000002 c1001180 0001e019 00010082 c10037af deadbeef c1742000 a5c03d70
+> (XEN)   c1371fdc c13a4aa8 00000000 00000000 00000000 c1371ffc c13a3ff2 00000000
+> (XEN)   00000000 00000000 00000000 00000000 deadbeef c1753000 013fe001 00000000
+> (XEN)   00000000 00000000 00000000 00000000 013fe001 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+> (XEN)   00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
 
-Looks good to me.
+Any progress ??? Can I help you in something ???
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
