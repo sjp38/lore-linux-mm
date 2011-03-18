@@ -1,184 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id D71338D0039
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2011 23:04:41 -0400 (EDT)
-From: Chen Gong <gong.chen@linux.intel.com>
-Subject: [PATCH V3] page-types.c: auto debugfs mount for hwpoison operation
-Date: Fri, 18 Mar 2011 11:04:50 +0800
-Message-Id: <1300417490-5778-1-git-send-email-gong.chen@linux.intel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C69208D0039
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 00:10:35 -0400 (EDT)
+Message-ID: <4D82DBA3.5020306@cn.fujitsu.com>
+Date: Fri, 18 Mar 2011 12:12:19 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: [PATCH 33/36] vmalloc,rcu: convert call_rcu(rcu_free_va) to kfree_rcu()
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Chen Gong <gong.chen@linux.intel.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Namhyung Kim <namhyung@gmail.com>, Pekka Enberg <penberg@kernel.org>, Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-page-types.c doesn't supply a way to specify the debugfs path and
-the original debugfs path is not usual on most machines. This patch
-supplies a way to auto mount debugfs if needed.
 
-This patch is heavily inspired by tools/perf/utils/debugfs.c
 
-V3 -> V2 add static definiton and prompt when debugfs is mounted
-V2 -> V1 add auto debugfs mount
+The rcu callback rcu_free_va() just calls a kfree(),
+so we use kfree_rcu() instead of the call_rcu(rcu_free_va).
 
-Signed-off-by: Chen Gong <gong.chen@linux.intel.com>
+Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 ---
- Documentation/vm/page-types.c |  106 +++++++++++++++++++++++++++++++++++++++--
- 1 files changed, 102 insertions(+), 4 deletions(-)
+ mm/vmalloc.c |    9 +--------
+ 1 files changed, 1 insertions(+), 8 deletions(-)
 
-diff --git a/Documentation/vm/page-types.c b/Documentation/vm/page-types.c
-index cc96ee2..c594883 100644
---- a/Documentation/vm/page-types.c
-+++ b/Documentation/vm/page-types.c
-@@ -32,8 +32,20 @@
- #include <sys/types.h>
- #include <sys/errno.h>
- #include <sys/fcntl.h>
-+#include <sys/mount.h>
-+#include <sys/statfs.h>
-+#include "../../include/linux/magic.h"
- 
- 
-+#ifndef MAX_PATH
-+# define MAX_PATH 256
-+#endif
-+
-+#ifndef STR
-+# define _STR(x) #x
-+# define STR(x) _STR(x)
-+#endif
-+
- /*
-  * pagemap kernel ABI bits
-  */
-@@ -152,6 +164,12 @@ static const char *page_flag_names[] = {
- };
- 
- 
-+static const char *debugfs_known_mountpoints[] = {
-+	"/sys/kernel/debug",
-+	"/debug",
-+	0,
-+};
-+
- /*
-  * data structures
-  */
-@@ -184,7 +202,7 @@ static int		kpageflags_fd;
- static int		opt_hwpoison;
- static int		opt_unpoison;
- 
--static const char	hwpoison_debug_fs[] = "/debug/hwpoison";
-+static char		hwpoison_debug_fs[MAX_PATH+1];
- static int		hwpoison_inject_fd;
- static int		hwpoison_forget_fd;
- 
-@@ -464,21 +482,101 @@ static uint64_t kpageflags_flags(uint64_t flags)
- 	return flags;
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index f9b1667..fe38e30 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -416,13 +416,6 @@ overflow:
+ 	return va;
  }
  
-+/* verify that a mountpoint is actually a debugfs instance */
-+static int debugfs_valid_mountpoint(const char *debugfs)
-+{
-+	struct statfs st_fs;
-+
-+	if (statfs(debugfs, &st_fs) < 0)
-+		return -ENOENT;
-+	else if (st_fs.f_type != (long) DEBUGFS_MAGIC)
-+		return -ENOENT;
-+
-+	return 0;
-+}
-+
-+/* find the path to the mounted debugfs */
-+static const char *debugfs_find_mountpoint(void)
-+{
-+	const char **ptr;
-+	char type[100];
-+	FILE *fp;
-+
-+	ptr = debugfs_known_mountpoints;
-+	while (*ptr) {
-+		if (debugfs_valid_mountpoint(*ptr) == 0) {
-+			strcpy(hwpoison_debug_fs, *ptr);
-+			return hwpoison_debug_fs;
-+		}
-+		ptr++;
-+	}
-+
-+	/* give up and parse /proc/mounts */
-+	fp = fopen("/proc/mounts", "r");
-+	if (fp == NULL)
-+		perror("Can't open /proc/mounts for read");
-+
-+	while (fscanf(fp, "%*s %"
-+		      STR(MAX_PATH)
-+		      "s %99s %*s %*d %*d\n",
-+		      hwpoison_debug_fs, type) == 2) {
-+		if (strcmp(type, "debugfs") == 0)
-+			break;
-+	}
-+	fclose(fp);
-+
-+	if (strcmp(type, "debugfs") != 0)
-+		return NULL;
-+
-+	return hwpoison_debug_fs;
-+}
-+
-+/* mount the debugfs somewhere if it's not mounted */
-+
-+static void debugfs_mount()
-+{
-+	const char **ptr;
-+
-+	/* see if it's already mounted */
-+	if (debugfs_find_mountpoint())
-+		return;
-+
-+	printf("debugfs is auto mounted\n");
-+	ptr = debugfs_known_mountpoints;
-+	while (*ptr) {
-+		if (mount(NULL, *ptr, "debugfs", 0, NULL) == 0) {
-+			/* save the mountpoint */
-+			strcpy(hwpoison_debug_fs, *ptr);
-+			break;
-+		}
-+		ptr++;
-+	}
-+
-+	if (*ptr == NULL) {
-+		perror("mount debugfs");
-+		exit(EXIT_FAILURE);
-+	}
-+}
-+
- /*
-  * page actions
-  */
- 
- static void prepare_hwpoison_fd(void)
+-static void rcu_free_va(struct rcu_head *head)
+-{
+-	struct vmap_area *va = container_of(head, struct vmap_area, rcu_head);
+-
+-	kfree(va);
+-}
+-
+ static void __free_vmap_area(struct vmap_area *va)
  {
--	char buf[100];
-+	char buf[MAX_PATH + 1];
-+
-+	debugfs_mount();
+ 	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
+@@ -439,7 +432,7 @@ static void __free_vmap_area(struct vmap_area *va)
+ 	if (va->va_end > VMALLOC_START && va->va_end <= VMALLOC_END)
+ 		vmap_area_pcpu_hole = max(vmap_area_pcpu_hole, va->va_end);
  
- 	if (opt_hwpoison && !hwpoison_inject_fd) {
--		sprintf(buf, "%s/corrupt-pfn", hwpoison_debug_fs);
-+		snprintf(buf, MAX_PATH, "%s/hwpoison/corrupt-pfn",
-+			hwpoison_debug_fs);
- 		hwpoison_inject_fd = checked_open(buf, O_WRONLY);
- 	}
- 
- 	if (opt_unpoison && !hwpoison_forget_fd) {
--		sprintf(buf, "%s/unpoison-pfn", hwpoison_debug_fs);
-+		snprintf(buf, MAX_PATH, "%s/hwpoison/unpoison-pfn",
-+			hwpoison_debug_fs);
- 		hwpoison_forget_fd = checked_open(buf, O_WRONLY);
- 	}
+-	call_rcu(&va->rcu_head, rcu_free_va);
++	kfree_rcu(va, rcu_head);
  }
+ 
+ /*
 -- 
-1.7.3.1.120.g38a18
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
