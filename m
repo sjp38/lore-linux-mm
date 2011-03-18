@@ -1,57 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EB658D0039
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 15:34:57 -0400 (EDT)
-Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
-	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2IJGITr032190
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 15:16:18 -0400
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 9C1A86E8036
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 15:34:54 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2IJYsOc329336
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 15:34:54 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2IJYqIi007111
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 15:34:54 -0400
-Date: Sat, 19 Mar 2011 00:58:11 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 16/20] 16: uprobes: register a
- notifier for uprobes.
-Message-ID: <20110318192811.GE31152@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
- <20110314133708.27435.81257.sendpatchset@localhost6.localdomain6>
- <20110315195636.GB24972@fibrous.localdomain>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id DFFDB8D0039
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 15:41:03 -0400 (EDT)
+Received: by wyf19 with SMTP id 19so5197568wyf.14
+        for <linux-mm@kvack.org>; Fri, 18 Mar 2011 12:40:58 -0700 (PDT)
+Date: Fri, 18 Mar 2011 19:41:35 +0000
+From: Prasad Joshi <prasadjoshi124@gmail.com>
+Subject: [RFC][PATCH v3 00/22] __vmalloc: Propagating GFP allocation flag
+ inside __vmalloc()
+Message-ID: <20110318194135.GA4746@prasad-kvm>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110315195636.GB24972@fibrous.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Wilson <wilsons@start.ca>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: akpm@linux-foundation.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, prasadjoshi124@gmail.com, mitra@kqinfotech.com
+Cc: chris@zankel.net, x86@kernel.org, jdike@addtoit.com, tj@kernel.org, cmetcalf@tilera.com, linux-sh@vger.kernel.org, liqin.chen@sunplusct.com, lennox.wu@gmail.com, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, linux390@de.ibm.com, benh@kernel.crashing.org, paulus@samba.org, linuxppc-dev@lists.ozlabs.org, kyle@mcmartin.ca, deller@gmx.de, jejb@parisc-linux.org, linux-parisc@vger.kernel.org, dhowells@redhat.com, yasutake.koichi@jp.panasonic.com, linux-am33-list@redhat.com, ralf@linux-mips.org, linux-mips@linux-mips.org, monstr@monstr.eu, microblaze-uclinux@itee.uq.edu.au, geert@linux-m68k.org, zippel@linux-m68k.org, sammy@sammy.net, linux-m68k@lists.linux-m68k.org, takata@linux-m32r.org, linux-m32r@ml.linux-m32r.org, tony.luck@intel.com, fenghua.yu@intel.com, linux-ia64@vger.kernel.org, starvik@axis.com, jesper.nilsson@axis.com, linux-cris-kernel@axis.com, hans-christian.egtvedt@atmel.com, linux@arm.linux.org.uk, rth@twiddle.net, linux-alpha@vger.kernel.org
 
-* Stephen Wilson <wilsons@start.ca> [2011-03-15 15:56:36]:
+A filesystem might run into a problem while calling __vmalloc(GFP_NOFS)
+inside a lock.
 
-> On Mon, Mar 14, 2011 at 07:07:08PM +0530, Srikar Dronamraju wrote:
-> > +static int __init init_uprobes(void)
-> > +{
-> > +	register_die_notifier(&uprobes_exception_nb);
-> > +	return 0;
-> > +}
-> > +
-> 
-> Although not currently needed, perhaps it would be best to return the
-> result of register_die_notifier() ? 
-> 
+It is expected than __vmalloc when called with GFP_NOFS should not
+callback the filesystem code even incase of the increased memory
+pressure. But the problem is that even if we pass this flag, __vmalloc
+itself allocates memory with GFP_KERNEL.
 
-Okay, I can do that but notifier_chain_register() that gets called from
-register_die_notifier() always return 0.
+Using GFP_KERNEL allocations may go into the memory reclaim path and try
+to free memory by calling file system evict_inode function. Which might
+lead into deadlock.
 
--- 
-Thanks and Regards
-Srikar
+For further details
+http://marc.info/?l=linux-mm&m=128942194520631&w=4
+https://bugzilla.kernel.org/show_bug.cgi?id=30702
+
+The patch passes the gfp allocation flag all the way down to those
+allocating functions.
+
+ arch/arm/include/asm/pgalloc.h           |   11 +++++-
+ arch/avr32/include/asm/pgalloc.h         |    8 ++++-
+ arch/cris/include/asm/pgalloc.h          |   10 ++++-
+ arch/frv/include/asm/pgalloc.h           |    3 ++
+ arch/frv/include/asm/pgtable.h           |    1 +
+ arch/frv/mm/pgalloc.c                    |    9 ++++-
+ arch/ia64/include/asm/pgalloc.h          |   24 +++++++++++--
+ arch/m32r/include/asm/pgalloc.h          |   11 ++++--
+ arch/m68k/include/asm/motorola_pgalloc.h |   20 +++++++++--
+ arch/m68k/include/asm/sun3_pgalloc.h     |   14 ++++++--
+ arch/m68k/mm/memory.c                    |    9 ++++-
+ arch/microblaze/include/asm/pgalloc.h    |    3 ++
+ arch/microblaze/mm/pgtable.c             |   13 +++++--
+ arch/mips/include/asm/pgalloc.h          |   22 ++++++++----
+ arch/mn10300/include/asm/pgalloc.h       |    2 +
+ arch/mn10300/mm/pgtable.c                |   10 ++++-
+ arch/parisc/include/asm/pgalloc.h        |   21 ++++++++---
+ arch/powerpc/include/asm/pgalloc-32.h    |    2 +
+ arch/powerpc/include/asm/pgalloc-64.h    |   27 +++++++++++---
+ arch/powerpc/mm/pgtable_32.c             |   10 ++++-
+ arch/s390/include/asm/pgalloc.h          |   30 +++++++++++++---
+ arch/s390/mm/pgtable.c                   |   22 +++++++++---
+ arch/score/include/asm/pgalloc.h         |   13 ++++---
+ arch/sh/include/asm/pgalloc.h            |    8 ++++-
+ arch/sh/mm/pgtable.c                     |    8 ++++-
+ arch/sparc/include/asm/pgalloc_32.h      |    5 +++
+ arch/sparc/include/asm/pgalloc_64.h      |   17 ++++++++-
+ arch/tile/include/asm/pgalloc.h          |   13 ++++++-
+ arch/tile/mm/pgtable.c                   |   10 ++++-
+ arch/um/include/asm/pgalloc.h            |    1 +
+ arch/um/kernel/mem.c                     |   21 ++++++++---
+ arch/x86/include/asm/pgalloc.h           |   17 ++++++++-
+ arch/x86/mm/pgtable.c                    |    8 ++++-
+ arch/xtensa/include/asm/pgalloc.h        |    9 ++++-
+ arch/xtensa/mm/pgtable.c                 |   11 +++++-
+ include/asm-generic/4level-fixup.h       |    8 +++-
+ include/asm-generic/pgtable-nopmd.h      |    3 +-
+ include/asm-generic/pgtable-nopud.h      |    1 +
+ include/linux/mm.h                       |   40 ++++++++++++++++-----
+ mm/memory.c                              |   14 ++++---
+ mm/vmalloc.c                             |   57 ++++++++++++++++++++----------
+ 41 files changed, 427 insertions(+), 119 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
