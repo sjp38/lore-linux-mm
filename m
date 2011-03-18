@@ -1,89 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 464948D0039
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 03:17:00 -0400 (EDT)
-Received: by iyf13 with SMTP id 13so5076838iyf.14
-        for <linux-mm@kvack.org>; Fri, 18 Mar 2011 00:16:58 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E16658D0039
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 03:30:26 -0400 (EDT)
+Received: by iwl42 with SMTP id 42so5137855iwl.14
+        for <linux-mm@kvack.org>; Fri, 18 Mar 2011 00:29:58 -0700 (PDT)
 From: Nai Xia <nai.xia@gmail.com>
 Reply-To: nai.xia@gmail.com
 Subject: Re: [PATCH] ksm: add vm_stat and meminfo entry to reflect pte mapping to ksm pages
-Date: Fri, 18 Mar 2011 15:16:37 +0800
-References: <201102262256.31565.nai.xia@gmail.com> <20110301154100.212c4ff9.akpm@linux-foundation.org>
-In-Reply-To: <20110301154100.212c4ff9.akpm@linux-foundation.org>
+Date: Fri, 18 Mar 2011 15:29:43 +0800
+References: <201102262256.31565.nai.xia@gmail.com> <20110302143142.a3c0002b.akpm@linux-foundation.org>
+In-Reply-To: <20110302143142.a3c0002b.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
   charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Message-Id: <201103181516.37671.nai.xia@gmail.com>
+Message-Id: <201103181529.43659.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
 
 
->On Wednesday 02 March 2011, at 07:41:00, <Andrew Morton <akpm@linux-foundation.org>> wrote
-> On Sat, 26 Feb 2011 22:56:31 +0800
-> Nai Xia <nai.xia@gmail.com> wrote:
-> 
-> > ksm_pages_sharing is updated by ksmd periodically.  In some cases, it cannot 
-> > reflect the actual savings and makes the benchmarks on volatile VMAs very 
-> > inaccurate.
-> > 
-> > This patch add a vm_stat entry and let the /proc/meminfo show information 
-> > about how much virutal address pte is being mapped to ksm pages.  With default 
-> > ksm paramters (pages_to_scan==100 && sleep_millisecs==20), this can result in 
-> > 50% more accurate averaged savings result for the following test program. 
-> > Bigger sleep_millisecs values will increase this deviation. 
-> 
-> So I think you're saying that the existing ksm_pages_sharing sysfs file
-> is no good.
-> 
-> You added a new entry to /proc/meminfo and left ksm_pages_sharing
-> as-is.  Why not leave /proc/meminfo alone, and fix up the existing
-> ksm_pages_sharing?
+>On Thursday 03 March 2011, at 06:31:42, <Andrew Morton <akpm@linux-foundation.org>> wrote
+> This patch obviously wasn't tested with CONFIG_KSM=n, which was a
+> pretty basic patch-testing failure :(
 
-
-The ksm_pages_sharing is really a count for how many "rmap_item"s is currently
-linked in stable_nodes. ksmd updates ksm_pages_sharing whenever it's waken up.
-However, just during the time ksmd is sleeping, many shared KSM pages can be 
-broken because of page writes. So ksm_pages_sharing means much more an internal
-state for ksm than a real count for how much pages is being shared at some time
-point. Since the state of the internal data structures of ksm is only updated 
-by ksmd privately. I think it's hard to make it correctly reflect the real time
-memory saving. So I just added another count and let ksm_pages_sharing still 
-focus on it original role.
+Oops, I will be careful to avoid similar mistakes next time.
 
 > 
-> Also, the patch accumulates the NR_KSM_PAGES_SHARING counts on a
-> per-zone basis as well as on a global basis, but only provides the
-> global count to userspace.  The per-zone counts are potentially
-> interesting?  If not, maintaining the per-zone counters is wasted
-> overhead.
+> I fixed up my tree with the below, but really the amount of ifdeffing
+> is unacceptable - please find a cleaner way to fix up this patch.
 
-Yes, I will make it to the zoneinfo, soon. 
+Ok, I will have a try in my next patch submit. 
 
+Thanks,
+-Nai
 > 
-> > 
-> > --- test.c-----
-> >
+> --- a/mm/ksm.c~ksm-add-vm_stat-and-meminfo-entry-to-reflect-pte-mapping-to-ksm-pages-fix
+> +++ a/mm/ksm.c
+> @@ -883,7 +883,6 @@ static int try_to_merge_one_page(struct 
+>  	 */
+>  	if (write_protect_page(vma, page, &orig_pte) == 0) {
+>  		if (!kpage) {
+> -			long mapcount = page_mapcount(page);
+>  			/*
+>  			 * While we hold page lock, upgrade page from
+>  			 * PageAnon+anon_vma to PageKsm+NULL stable_node:
+> @@ -891,10 +890,12 @@ static int try_to_merge_one_page(struct 
+>  			 */
+>  			set_page_stable_node(page, NULL);
+>  			mark_page_accessed(page);
+> -			if (mapcount)
+> +#ifdef CONFIG_KSM
+> +			if (page_mapcount(page))
+>  				add_zone_page_state(page_zone(page),
+>  						    NR_KSM_PAGES_SHARING,
+>  						    mapcount);
+> +#endif
+>  			err = 0;
+>  		} else if (pages_identical(page, kpage))
+>  			err = replace_page(vma, page, kpage, orig_pte);
+> --- a/mm/memory.c~ksm-add-vm_stat-and-meminfo-entry-to-reflect-pte-mapping-to-ksm-pages-fix
+> +++ a/mm/memory.c
+> @@ -719,8 +719,10 @@ copy_one_pte(struct mm_struct *dst_mm, s
+>  			rss[MM_ANONPAGES]++;
+>  		else
+>  			rss[MM_FILEPAGES]++;
+> +#ifdef CONFIG_KSM
+>  		if (PageKsm(page)) /* follows page_dup_rmap() */
+>  			inc_zone_page_state(page, NR_KSM_PAGES_SHARING);
+> +#endif
+>  	}
+>  
+>  out_set_pte:
+> --- a/mm/rmap.c~ksm-add-vm_stat-and-meminfo-entry-to-reflect-pte-mapping-to-ksm-pages-fix
+> +++ a/mm/rmap.c
+> @@ -893,11 +893,12 @@ void do_page_add_anon_rmap(struct page *
+>  			__inc_zone_page_state(page,
+>  					      NR_ANON_TRANSPARENT_HUGEPAGES);
+>  	}
+> +#ifdef CONFIG_KSM
+>  	if (unlikely(PageKsm(page))) {
+>  		__inc_zone_page_state(page, NR_KSM_PAGES_SHARING);
+>  		return;
+>  	}
+> -
+> +#endif
+>  	VM_BUG_ON(!PageLocked(page));
+>  	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+>  	if (first)
+> @@ -955,9 +956,10 @@ void page_add_file_rmap(struct page *pag
+>   */
+>  void page_remove_rmap(struct page *page)
+>  {
+> +#ifdef CONFIG_KSM
+>  	if (PageKsm(page))
+>  		__dec_zone_page_state(page, NR_KSM_PAGES_SHARING);
+> -
+> +#endif
+>  	/* page still mapped by someone else? */
+>  	if (!atomic_add_negative(-1, &page->_mapcount))
+>  		return;
+> _
 > 
-> The "^---" token conventionally means "end of changelog".  Please avoid
-> inserting it into the middle of the changelog.
-
-OK, I understand now. :)
-
-> 
-> > +++ b/mm/ksm.c
-> > @@ -897,6 +897,7 @@ static int try_to_merge_one_page(struct vm_area_struct 
-> > *vma,
-> 
-> Your email client wordwraps the patches.
-
-Oops, sorry for the crappy client it is also responsible for my late reply.
-I will fix it soon.
-
-Nai
-
 > 
 
 --
