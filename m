@@ -1,59 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A56E28D0039
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 14:06:15 -0400 (EDT)
-Message-ID: <4D839EDB.9080703@fiec.espol.edu.ec>
-Date: Fri, 18 Mar 2011 13:05:15 -0500
-From: =?ISO-8859-15?Q?Alex_Villac=ED=ADs_Lasso?=
- <avillaci@fiec.espol.edu.ec>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B6008D0039
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 14:31:55 -0400 (EDT)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2IIT2OY016675
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 12:29:02 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2IIVevb083066
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 12:31:40 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2IIVcx6031440
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 12:31:39 -0600
+Date: Fri, 18 Mar 2011 23:54:57 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 6/20] 6: x86: analyze instruction and
+ determine fixups.
+Message-ID: <20110318182457.GA24048@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+ <20110314133507.27435.71382.sendpatchset@localhost6.localdomain6>
+ <alpine.LFD.2.00.1103151529130.2787@localhost6.localdomain6>
 MIME-Version: 1.0
-Subject: Re: [Bugme-new] [Bug 31142] New: Large write to USB stick freezes
- unrelated tasks for a long time
-References: <bug-31142-10286@https.bugzilla.kernel.org/> <20110315135334.36e29414.akpm@linux-foundation.org> <4D7FEDDC.3020607@fiec.espol.edu.ec> <20110315161926.595bdb65.akpm@linux-foundation.org> <4D80D65C.5040504@fiec.espol.edu.ec> <20110316150208.7407c375.akpm@linux-foundation.org> <4D827CC1.4090807@fiec.espol.edu.ec> <20110317144727.87a461f9.akpm@linux-foundation.org> <20110318111300.GF707@csn.ul.ie>
-In-Reply-To: <20110318111300.GF707@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.1103151529130.2787@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, avillaci@ceibo.fiec.espol.edu.ec, bugzilla-daemon@bugzilla.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-El 18/03/11 06:13, Mel Gorman escribio:
->
-> \o/ ... no wait, it's the other one - :(
->
-> If you look at the stack traces though, all of them had called
-> do_huge_pmd_anonymous_page() so while it looks similar to 12309, the trigger
-> is new because it's THP triggering compaction that is causing the stalls
-> rather than page reclaim doing direct writeback which was the culprit in
-> the past.
->
-> To confirm if this is the case, I'd be very interested in hearing if this
-> problem persists in the following cases
->
-> 1. 2.6.38-rc8 with defrag disabled by
->     echo never>/sys/kernel/mm/transparent_hugepage/defrag
->     (this will stop THP allocations calling into compaction)
-> 2. 2.6.38-rc8 with THP disabled by
->     echo never>
-> /sys/kernel/mm/transparent_hugepage/enabled
->     (if the problem still persists, then page reclaim is still a problem
->      but we should still stop THP doing sync writes)
-> 3. 2.6.37 vanilla
->     (in case this is a new regression introduced since then)
->
-> Migration can do sync writes on dirty pages which is why it looks so similar
-> to page reclaim but this can be controlled by the value of sync_migration
-> passed into try_to_compact_pages(). If we find that option 1 above makes
-> the regression go away or at least helps a lot, then a reasonable fix may
-> be to never set sync_migration if __GFP_NO_KSWAPD which is always set for
-> THP allocations. I've added Andrea to the cc to see what he thinks.
->
-> Thanks for the report.
->
-I have just done tests 1 and 2 on 2.6.38 (final, not -rc8), and I have verified that echoing "never" on either /sys/kernel/mm/transparent_hugepage/defrag or /sys/kernel/mm/transparent_hugepage/enabled does allow the file copy to USB to proceed smoothly 
-(copying 4GB of data). Just to verify, I later wrote "always" to both files, and sure enough, some applications stalled when I repeated the same file copy. So I have at least a workaround for the issue. Given this evidence, will the patch at comment #14 
-fix the issue for good?
+> 
+> > +	ret = handle_riprel_insn(uprobe, &insn);
+> > +	if (ret == -1)
+> > +		/* rip-relative; can't XOL */
+> > +		return 0;
+> 
+> So we return -1 from handle_riprel_insn() and return success?
+
+
+handle_riprel_insn() returns 0 if the instruction is not rip-relative
+returns 1 if its rip-relative but can use XOL slots.
+returns -1 if its rip-relative but cannot use XOL.
+
+We dont see any instructions that are rip-relative and cannot use XOL.
+so the check and return are redundant and I will remove that in the next
+patch.
+
+
+Btw how
+> deals handle_riprel_insn() with 32bit user space ?
+> 
+
+handle_riprel_insn() calls insn_rip_relative() which fails if
+instruction isnot rip-relative and handle_riprel_insn returns
+immediately.
+
+The rest of your suggestions for this patch are taken.
+
+> > +#endif
+> > +	prepare_fixups(uprobe, &insn);
+> > +	return 0;
+> 
+
+-- 
+Thanks and Regards
+Srikar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
