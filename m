@@ -1,58 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 4946C8D0039
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 18:11:54 -0400 (EDT)
-Date: Fri, 18 Mar 2011 18:10:42 -0400
-From: Stephen Wilson <wilsons@start.ca>
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 17/20] 17: uprobes: filter chain
-Message-ID: <20110318221042.GA3586@fibrous.localdomain>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6> <20110314133722.27435.55663.sendpatchset@localhost6.localdomain6> <20110315194914.GA24972@fibrous.localdomain> <20110318191648.GD31152@linux.vnet.ibm.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B61A68D0039
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 18:40:25 -0400 (EDT)
+Subject: Patch "x86: Flush TLB if PGD entry is changed in i386 PAE mode" has been added to the 2.6.33-longterm tree
+From: <gregkh@suse.de>
+Date: Fri, 18 Mar 2011 15:38:48 -0700
+Message-ID: <13004879282800@kroah.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110318191648.GD31152@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ANSI_X3.4-1968
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: shaohua.li@intel.com, 1300246649.2337.95.camel@sli10-conroe.kvack.org, akpm@linux-foundation.org, asit.k.mallick@intel.com, gregkh@suse.de, linux-mm@kvack.org, mingo@elte.hu, riel@redhat.com, torvalds@linux-foundation.org, y-goto@jp.fujitsu.com
+Cc: stable@kernel.org, stable-commits@vger.kernel.org
 
 
-On Sat, Mar 19, 2011 at 12:46:48AM +0530, Srikar Dronamraju wrote:
-> > > +	for (consumer = uprobe->consumers; consumer;
-> > > +					consumer = consumer->next) {
-> > > +		if (!consumer->filter || consumer->filter(consumer, t)) {
-> > 
-> > The implementation does not seem to match the changelog description.
-> > Should this not be:
-> > 
-> >                 if (consumer->filter && consumer->filter(consumer, t))
-> > 
-> >   ?
-> 
-> filter is optional; if filter is present, then it means that the
-> tracer is interested in a specific set of processes that maps this
-> inode. If there is no filter; it means that it is interested in all
-> processes that map this filter. 
+This is a note to let you know that I've just added the patch titled
 
-Ah OK.  That does make sense then.  Thanks!
+    x86: Flush TLB if PGD entry is changed in i386 PAE mode
 
+to the 2.6.33-longterm tree which can be found at:
+    http://www.kernel.org/git/?p=linux/kernel/git/longterm/longterm-queue-2.6.33.git;a=summary
 
-> filter_chain() should return true if any consumer is interested in
-> tracing this task.  if there is a consumer who hasnt defined a filter
-> then we dont need to loop thro remaining consumers.
-> 
-> Hence 
-> 
-> if (!consumer->filter || consumer->filter(consumer, t)) {
->  
-> seems better suited to me.
+The filename of the patch is:
+     x86-flush-tlb-if-pgd-entry-is-changed-in-i386-pae-mode.patch
+and it can be found in the queue-2.6.33 subdirectory.
 
--- 
-steve
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+If you, or anyone else, feels it should not be added to the 2.6.33 longterm tree,
+please let <stable@kernel.org> know about it.
