@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C69208D0039
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 00:10:35 -0400 (EDT)
-Message-ID: <4D82DBA3.5020306@cn.fujitsu.com>
-Date: Fri, 18 Mar 2011 12:12:19 +0800
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id DF3458D0039
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 00:11:25 -0400 (EDT)
+Message-ID: <4D82DBD4.8040407@cn.fujitsu.com>
+Date: Fri, 18 Mar 2011 12:13:08 +0800
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH 33/36] vmalloc,rcu: convert call_rcu(rcu_free_va) to kfree_rcu()
+Subject: [PATCH 34/36] vmalloc,rcu: convert call_rcu(rcu_free_vb) to kfree_rcu()
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -15,8 +15,8 @@ To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>
 
 
 
-The rcu callback rcu_free_va() just calls a kfree(),
-so we use kfree_rcu() instead of the call_rcu(rcu_free_va).
+The rcu callback rcu_free_vb() just calls a kfree(),
+so we use kfree_rcu() instead of the call_rcu(rcu_free_vb).
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 ---
@@ -24,32 +24,32 @@ Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
  1 files changed, 1 insertions(+), 8 deletions(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index f9b1667..fe38e30 100644
+index fe38e30..2f3c614 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -416,13 +416,6 @@ overflow:
- 	return va;
+@@ -778,13 +778,6 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
+ 	return vb;
  }
  
--static void rcu_free_va(struct rcu_head *head)
+-static void rcu_free_vb(struct rcu_head *head)
 -{
--	struct vmap_area *va = container_of(head, struct vmap_area, rcu_head);
+-	struct vmap_block *vb = container_of(head, struct vmap_block, rcu_head);
 -
--	kfree(va);
+-	kfree(vb);
 -}
 -
- static void __free_vmap_area(struct vmap_area *va)
+ static void free_vmap_block(struct vmap_block *vb)
  {
- 	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
-@@ -439,7 +432,7 @@ static void __free_vmap_area(struct vmap_area *va)
- 	if (va->va_end > VMALLOC_START && va->va_end <= VMALLOC_END)
- 		vmap_area_pcpu_hole = max(vmap_area_pcpu_hole, va->va_end);
+ 	struct vmap_block *tmp;
+@@ -797,7 +790,7 @@ static void free_vmap_block(struct vmap_block *vb)
+ 	BUG_ON(tmp != vb);
  
--	call_rcu(&va->rcu_head, rcu_free_va);
-+	kfree_rcu(va, rcu_head);
+ 	free_vmap_area_noflush(vb->va);
+-	call_rcu(&vb->rcu_head, rcu_free_vb);
++	kfree_rcu(vb, rcu_head);
  }
  
- /*
+ static void purge_fragmented_blocks(int cpu)
 -- 
 1.7.4
 
