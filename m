@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CDBC8D0039
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 18:41:07 -0400 (EDT)
-Subject: Patch "x86: Flush TLB if PGD entry is changed in i386 PAE mode" has been added to the 2.6.32-longterm tree
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A46D8D0039
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 18:52:31 -0400 (EDT)
+Subject: Patch "x86: Flush TLB if PGD entry is changed in i386 PAE mode" has been added to the 2.6.37-stable tree
 From: <gregkh@suse.de>
-Date: Fri, 18 Mar 2011 15:40:28 -0700
-Message-ID: <13004880282614@kroah.org>
+Date: Fri, 18 Mar 2011 15:51:41 -0700
+Message-ID: <1300488701477@kroah.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 8bit
@@ -19,12 +19,12 @@ This is a note to let you know that I've just added the patch titled
 
     x86: Flush TLB if PGD entry is changed in i386 PAE mode
 
-to the 2.6.32-longterm tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/longterm/longterm-queue-2.6.32.git;a=summary
+to the 2.6.37-stable tree which can be found at:
+    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
 
 The filename of the patch is:
      x86-flush-tlb-if-pgd-entry-is-changed-in-i386-pae-mode.patch
-and it can be found in the queue-2.6.32 subdirectory.
+and it can be found in the queue-2.6.37 subdirectory.
 
-If you, or anyone else, feels it should not be added to the 2.6.32 longterm tree,
+If you, or anyone else, feels it should not be added to the stable tree,
 please let <stable@kernel.org> know about it.
