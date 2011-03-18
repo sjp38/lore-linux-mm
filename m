@@ -1,100 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 2F2A28D0039
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 08:29:28 -0400 (EDT)
-Date: Fri, 18 Mar 2011 13:26:40 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [Bugme-new] [Bug 31142] New: Large write to USB stick freezes
- unrelated tasks for a long time
-Message-ID: <20110318122640.GD10696@random.random>
-References: <bug-31142-10286@https.bugzilla.kernel.org/>
- <20110315135334.36e29414.akpm@linux-foundation.org>
- <4D7FEDDC.3020607@fiec.espol.edu.ec>
- <20110315161926.595bdb65.akpm@linux-foundation.org>
- <4D80D65C.5040504@fiec.espol.edu.ec>
- <20110316150208.7407c375.akpm@linux-foundation.org>
- <4D827CC1.4090807@fiec.espol.edu.ec>
- <20110317144727.87a461f9.akpm@linux-foundation.org>
- <20110318111300.GF707@csn.ul.ie>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 460A68D0039
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 08:47:53 -0400 (EDT)
+Date: Fri, 18 Mar 2011 12:47:37 GMT
+From: tip-bot for Shaohua Li <shaohua.li@intel.com>
+Reply-To: mingo@redhat.com, hpa@zytor.com, linux-kernel@vger.kernel.org,
+        torvalds@linux-foundation.org, shaohua.li@intel.com,
+        asit.k.mallick@intel.com, y-goto@jp.fujitsu.com, riel@redhat.com,
+        akpm@linux-foundation.org, stable@kernel.org, tglx@linutronix.de,
+        linux-mm@kvack.org, mingo@elte.hu
+In-Reply-To: <1300246649.2337.95.camel@sli10-conroe>
+References: <1300246649.2337.95.camel@sli10-conroe>
+Subject: [tip:x86/urgent] x86: Flush TLB if PGD entry is changed in i386 PAE mode
+Message-ID: <tip-4981d01eada5354d81c8929d5b2836829ba3df7b@git.kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=UTF-8
 Content-Disposition: inline
-In-Reply-To: <20110318111300.GF707@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alex Villac??s Lasso <avillaci@fiec.espol.edu.ec>, avillaci@ceibo.fiec.espol.edu.ec, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: linux-tip-commits@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, hpa@zytor.com, mingo@redhat.com, torvalds@linux-foundation.org, asit.k.mallick@intel.com, shaohua.li@intel.com, y-goto@jp.fujitsu.com, riel@redhat.com, akpm@linux-foundation.org, stable@kernel.org, tglx@linutronix.de, linux-mm@kvack.org, mingo@elte.hu
 
-On Fri, Mar 18, 2011 at 11:13:00AM +0000, Mel Gorman wrote:
-> To confirm if this is the case, I'd be very interested in hearing if this
-> problem persists in the following cases
-> 
-> 1. 2.6.38-rc8 with defrag disabled by
->    echo never >/sys/kernel/mm/transparent_hugepage/defrag
->    (this will stop THP allocations calling into compaction)
-> 2. 2.6.38-rc8 with THP disabled by
->    echo never > /sys/kernel/mm/transparent_hugepage/enabled
->    (if the problem still persists, then page reclaim is still a problem
->     but we should still stop THP doing sync writes)
-> 3. 2.6.37 vanilla
->    (in case this is a new regression introduced since then)
-> 
-> Migration can do sync writes on dirty pages which is why it looks so similar
-> to page reclaim but this can be controlled by the value of sync_migration
-> passed into try_to_compact_pages(). If we find that option 1 above makes
-> the regression go away or at least helps a lot, then a reasonable fix may
-> be to never set sync_migration if __GFP_NO_KSWAPD which is always set for
-> THP allocations. I've added Andrea to the cc to see what he thinks.
+Commit-ID:  4981d01eada5354d81c8929d5b2836829ba3df7b
+Gitweb:     http://git.kernel.org/tip/4981d01eada5354d81c8929d5b2836829ba3df7b
+Author:     Shaohua Li <shaohua.li@intel.com>
+AuthorDate: Wed, 16 Mar 2011 11:37:29 +0800
+Committer:  Ingo Molnar <mingo@elte.hu>
+CommitDate: Fri, 18 Mar 2011 11:44:01 +0100
 
-I agree. Forcing sync=0 when __GFP_NO_KSWAPD is set, sounds good to
-me, if it is proven to resolve these I/O waits.
+x86: Flush TLB if PGD entry is changed in i386 PAE mode
 
-Also note that 2.6.38 upstream still misses a couple of important
-compaction fixes that are in aa.git (everything relevant is already
-queued in -mm but it was a bit late for 2.6.38), so I'd also be
-interested to know if you can reproduce in current aa.git
-origin/master branch.
+According to intel CPU manual, every time PGD entry is changed in i386 PAE
+mode, we need do a full TLB flush. Current code follows this and there is
+comment for this too in the code.
 
-If it's a __GFP_NO_KSWAPD allocation (do_huge_pmd_anonymous_page())
-that is present in the hanging stack traces, I strongly doubt any of
-the changes in aa.git is going to help at all, but it worth a try to
-be sure.
+But current code misses the multi-threaded case. A changed page table
+might be used by several CPUs, every such CPU should flush TLB. Usually
+this isn't a problem, because we prepopulate all PGD entries at process
+fork. But when the process does munmap and follows new mmap, this issue
+will be triggered.
 
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=shortlog
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=48ad57f498835621d8bad83b972ee6e6c395523a
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=8f6854f7cbf71bc61758bcd92497378e1f677552
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=8ff6d16eb15d2b328bbe715fcaf453b6fedb2cf9
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=e31adb46cd8c4f331cfb02c938e88586d5846bf8
+When it happens, some CPUs keep doing page faults:
 
-This is the implementation of Mel's idea that you can apply to
-upstream or aa.git to see what happens...
+  http://marc.info/?l=linux-kernel&m=129915020508238&w=2
 
-===
-Subject: compaction: use async migrate for __GFP_NO_KSWAPD
-
-From: Andrea Arcangeli <aarcange@redhat.com>
-
-__GFP_NO_KSWAPD allocations are usually very expensive and not mandatory to
-succeed (they have graceful fallback). Waiting for I/O in those, tends to be
-overkill in terms of latencies, so we can reduce their latency by disabling
-sync migrate.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Reported-by: Yasunori Goto<y-goto@jp.fujitsu.com>
+Tested-by: Yasunori Goto<y-goto@jp.fujitsu.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Shaohua Li<shaohua.li@intel.com>
+Cc: Mallick Asit K <asit.k.mallick@intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>
+Cc: stable <stable@kernel.org>
+LKML-Reference: <1300246649.2337.95.camel@sli10-conroe>
+Signed-off-by: Ingo Molnar <mingo@elte.hu>
 ---
+ arch/x86/include/asm/pgtable-3level.h |   11 +++--------
+ arch/x86/mm/pgtable.c                 |    3 +--
+ 2 files changed, 4 insertions(+), 10 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bd76256..36d1c79 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2085,7 +2085,7 @@ rebalance:
- 					sync_migration);
- 	if (page)
- 		goto got_pg;
--	sync_migration = true;
-+	sync_migration = !(gfp_mask & __GFP_NO_KSWAPD);
+diff --git a/arch/x86/include/asm/pgtable-3level.h b/arch/x86/include/asm/pgtable-3level.h
+index 94b979d..effff47 100644
+--- a/arch/x86/include/asm/pgtable-3level.h
++++ b/arch/x86/include/asm/pgtable-3level.h
+@@ -69,8 +69,6 @@ static inline void native_pmd_clear(pmd_t *pmd)
  
- 	/* Try direct reclaim and then allocating */
- 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
+ static inline void pud_clear(pud_t *pudp)
+ {
+-	unsigned long pgd;
+-
+ 	set_pud(pudp, __pud(0));
+ 
+ 	/*
+@@ -79,13 +77,10 @@ static inline void pud_clear(pud_t *pudp)
+ 	 * section 8.1: in PAE mode we explicitly have to flush the
+ 	 * TLB via cr3 if the top-level pgd is changed...
+ 	 *
+-	 * Make sure the pud entry we're updating is within the
+-	 * current pgd to avoid unnecessary TLB flushes.
++	 * Currently all places where pud_clear() is called either have
++	 * flush_tlb_mm() followed or don't need TLB flush (x86_64 code or
++	 * pud_clear_bad()), so we don't need TLB flush here.
+ 	 */
+-	pgd = read_cr3();
+-	if (__pa(pudp) >= pgd && __pa(pudp) <
+-	    (pgd + sizeof(pgd_t)*PTRS_PER_PGD))
+-		write_cr3(pgd);
+ }
+ 
+ #ifdef CONFIG_SMP
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 0113d19..8573b83 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -168,8 +168,7 @@ void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
+ 	 * section 8.1: in PAE mode we explicitly have to flush the
+ 	 * TLB via cr3 if the top-level pgd is changed...
+ 	 */
+-	if (mm == current->active_mm)
+-		write_cr3(read_cr3());
++	flush_tlb_mm(mm);
+ }
+ #else  /* !CONFIG_X86_PAE */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
