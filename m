@@ -1,65 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 98BFC8D0039
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 14:59:56 -0400 (EDT)
-Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
-	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2IIdPnr018438
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 14:39:29 -0400
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id D6C3E6E8036
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 14:59:54 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2IIxsxe231508
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 14:59:54 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2IIxrG0018212
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 14:59:54 -0400
-Date: Sat, 19 Mar 2011 00:23:14 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 5/20] 5: Uprobes: register/unregister
- probes.
-Message-ID: <20110318185314.GB24048@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
- <20110314133454.27435.81020.sendpatchset@localhost6.localdomain6>
- <alpine.LFD.2.00.1103151439400.2787@localhost6.localdomain6>
- <20110315171536.GA24254@linux.vnet.ibm.com>
- <1300211262.9910.295.camel@gandalf.stny.rr.com>
- <1300211411.2203.290.camel@twins>
- <20110315180423.GA10429@linux.vnet.ibm.com>
- <1300212949.2203.324.camel@twins>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C29628D0039
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 15:12:15 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1300212949.2203.324.camel@twins>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+From: Roland McGrath <roland@hack.frob.com>
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 6/20] 6: x86: analyze instruction and
+ determine fixups.
+In-Reply-To: Srikar Dronamraju's message of  Saturday, 19 March 2011 00:19:22 +0530 <20110318184922.GA31152@linux.vnet.ibm.com>
+References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
+	<20110314133507.27435.71382.sendpatchset@localhost6.localdomain6>
+	<alpine.LFD.2.00.1103151529130.2787@localhost6.localdomain6>
+	<20110318182457.GA24048@linux.vnet.ibm.com>
+	<20110318183629.2AB052C286@topped-with-meat.com>
+	<20110318184922.GA31152@linux.vnet.ibm.com>
+Message-Id: <20110318191047.4BAF12C183@topped-with-meat.com>
+Date: Fri, 18 Mar 2011 12:10:47 -0700 (PDT)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-> > 
-> > One of the install_uprobe could be failing because the process was
-> > almost exiting, something like there was no mm->owner. Also lets
-> > assume that the first few install_uprobes go thro and the last
-> > install_uprobe fails. There could be breakpoint hits corresponding to
-> > the already installed uprobes that get displayed. i.e all
-> > breakpoint hits from the first install_uprobe to the time we detect a
-> > failed a install_uprobe and revert all inserted breakpoints will be
-> > shown as being captured.
-> 
-> I think you can gracefully deal with the exit case and simply ignore
-> that one. But you cannot let arbitrary installs fail and still report
-> success, that gives very weak and nearly useless semantics.
+> So we rewrite the copy of instruction (stored in XOL) such that it
+> accesses its memory operand indirectly thro a scratch register.
+> The contents of the scratch register are stored before singlestep and
+> restored later.
 
-If there are more than one instance of a process running and if one
-instance of a process has a probe thro ptrace, install_uprobe would fail
-for that process with -EEXIST since we dont want to probe locations that
-have breakpoints already. Should we then act similar to the exit case,
-do we also deal gracefully?
+I see.  That should work fine in principle, assuming you use a register
+that is not otherwise involved, of course.  I hope you arrange to restore
+the register if the copied instruction is never run because of a signal or
+suchlike.  In that case, it's important that the signal context get the
+original register and original PC rather than the fiddled state for running
+the copy.  Likewise, if anyone is inspecting the registers right after the
+step.
 
--- 
-Thanks and Regards
-Srikar
+
+Thanks,
+Roland
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
