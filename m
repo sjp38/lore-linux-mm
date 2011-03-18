@@ -1,77 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A59F78D0039
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 15:23:35 -0400 (EDT)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2IJ8FYp007516
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 13:08:15 -0600
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2IJNUvT100498
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 13:23:30 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2IJNSow027379
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 13:23:30 -0600
-Date: Sat, 19 Mar 2011 00:46:48 +0530
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EB658D0039
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 15:34:57 -0400 (EDT)
+Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2IJGITr032190
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 15:16:18 -0400
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 9C1A86E8036
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 15:34:54 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2IJYsOc329336
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 15:34:54 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2IJYqIi007111
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 15:34:54 -0400
+Date: Sat, 19 Mar 2011 00:58:11 +0530
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2.6.38-rc8-tip 17/20] 17: uprobes: filter chain
-Message-ID: <20110318191648.GD31152@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 2.6.38-rc8-tip 16/20] 16: uprobes: register a
+ notifier for uprobes.
+Message-ID: <20110318192811.GE31152@linux.vnet.ibm.com>
 Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 References: <20110314133403.27435.7901.sendpatchset@localhost6.localdomain6>
- <20110314133722.27435.55663.sendpatchset@localhost6.localdomain6>
- <20110315194914.GA24972@fibrous.localdomain>
+ <20110314133708.27435.81257.sendpatchset@localhost6.localdomain6>
+ <20110315195636.GB24972@fibrous.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20110315194914.GA24972@fibrous.localdomain>
+In-Reply-To: <20110315195636.GB24972@fibrous.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Stephen Wilson <wilsons@start.ca>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, SystemTap <systemtap@sources.redhat.com>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Linux-mm <linux-mm@kvack.org>, Arnaldo Carvalho de Melo <acme@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Christoph Hellwig <hch@infradead.org>, Ananth N Mavinakayanahalli <ananth@in.ibm.com>, Andi Kleen <andi@firstfloor.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jim Keniston <jkenisto@linux.vnet.ibm.com>, Roland McGrath <roland@hack.frob.com>, SystemTap <systemtap@sources.redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-* Stephen Wilson <wilsons@start.ca> [2011-03-15 15:49:14]:
+* Stephen Wilson <wilsons@start.ca> [2011-03-15 15:56:36]:
 
-> 
-> 
-> 
-> On Mon, Mar 14, 2011 at 07:07:22PM +0530, Srikar Dronamraju wrote:
-> > 
-> > Loops through the filters callbacks of currently registered
-> > consumers to see if any consumer is interested in tracing this task.
-> 
-> Should this be part of the series?  It is not currently used.
-> 
-> >  /* Acquires uprobe->consumer_rwsem */
-> > +static bool filter_chain(struct uprobe *uprobe, struct task_struct *t)
+> On Mon, Mar 14, 2011 at 07:07:08PM +0530, Srikar Dronamraju wrote:
+> > +static int __init init_uprobes(void)
 > > +{
-> > +	struct uprobe_consumer *consumer;
-> > +	bool ret = false;
+> > +	register_die_notifier(&uprobes_exception_nb);
+> > +	return 0;
+> > +}
 > > +
-> > +	down_read(&uprobe->consumer_rwsem);
-> > +	for (consumer = uprobe->consumers; consumer;
-> > +					consumer = consumer->next) {
-> > +		if (!consumer->filter || consumer->filter(consumer, t)) {
 > 
-> The implementation does not seem to match the changelog description.
-> Should this not be:
+> Although not currently needed, perhaps it would be best to return the
+> result of register_die_notifier() ? 
 > 
->                 if (consumer->filter && consumer->filter(consumer, t))
-> 
->   ?
 
-filter is optional; if filter is present, then it means that the
-tracer is interested in a specific set of processes that maps this
-inode. If there is no filter; it means that it is interested in all
-processes that map this filter. 
-
-filter_chain() should return true if any consumer is interested in
-tracing this task.
-if there is a consumer who hasnt defined a filter then we dont need to loop thro remaining consumers.
-
-Hence 
-
-if (!consumer->filter || consumer->filter(consumer, t)) {
- 
-seems better suited to me.
+Okay, I can do that but notifier_chain_register() that gets called from
+register_die_notifier() always return 0.
 
 -- 
 Thanks and Regards
