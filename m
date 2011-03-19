@@ -1,72 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 80A358D0039
-	for <linux-mm@kvack.org>; Sat, 19 Mar 2011 12:05:03 -0400 (EDT)
-Message-ID: <4D84D3F2.4010200@fiec.espol.edu.ec>
-Date: Sat, 19 Mar 2011 11:04:02 -0500
-From: =?ISO-8859-15?Q?Alex_Villac=ED=ADs_Lasso?=
- <avillaci@fiec.espol.edu.ec>
-MIME-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 7BF4A8D0039
+	for <linux-mm@kvack.org>; Sat, 19 Mar 2011 19:52:45 -0400 (EDT)
+Date: Sun, 20 Mar 2011 00:51:44 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [Bugme-new] [Bug 31142] New: Large write to USB stick freezes
  unrelated tasks for a long time
-References: <bug-31142-10286@https.bugzilla.kernel.org/> <20110315135334.36e29414.akpm@linux-foundation.org> <4D7FEDDC.3020607@fiec.espol.edu.ec> <20110315161926.595bdb65.akpm@linux-foundation.org> <4D80D65C.5040504@fiec.espol.edu.ec> <20110316150208.7407c375.akpm@linux-foundation.org> <4D827CC1.4090807@fiec.espol.edu.ec> <20110317144727.87a461f9.akpm@linux-foundation.org> <20110318111300.GF707@csn.ul.ie> <4D839EDB.9080703@fiec.espol.edu.ec> <20110319134628.GG707@csn.ul.ie>
-In-Reply-To: <20110319134628.GG707@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Message-ID: <20110319235144.GG10696@random.random>
+References: <4D7FEDDC.3020607@fiec.espol.edu.ec>
+ <20110315161926.595bdb65.akpm@linux-foundation.org>
+ <4D80D65C.5040504@fiec.espol.edu.ec>
+ <20110316150208.7407c375.akpm@linux-foundation.org>
+ <4D827CC1.4090807@fiec.espol.edu.ec>
+ <20110317144727.87a461f9.akpm@linux-foundation.org>
+ <20110318111300.GF707@csn.ul.ie>
+ <4D839EDB.9080703@fiec.espol.edu.ec>
+ <20110319134628.GG707@csn.ul.ie>
+ <4D84D3F2.4010200@fiec.espol.edu.ec>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <4D84D3F2.4010200@fiec.espol.edu.ec>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, avillaci@ceibo.fiec.espol.edu.ec, bugzilla-daemon@bugzilla.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Alex =?iso-8859-1?B?VmlsbGFj7a1z?= Lasso <avillaci@fiec.espol.edu.ec>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, avillaci@ceibo.fiec.espol.edu.ec, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-El 19/03/11 08:46, Mel Gorman escribio:
-> On Fri, Mar 18, 2011 at 01:05:15PM -0500, Alex Villac??s Lasso wrote:
->> El 18/03/11 06:13, Mel Gorman escribio:
->>> \o/ ... no wait, it's the other one - :(
->>>
->>> If you look at the stack traces though, all of them had called
->>> do_huge_pmd_anonymous_page() so while it looks similar to 12309, the trigger
->>> is new because it's THP triggering compaction that is causing the stalls
->>> rather than page reclaim doing direct writeback which was the culprit in
->>> the past.
->>>
->>> To confirm if this is the case, I'd be very interested in hearing if this
->>> problem persists in the following cases
->>>
->>> 1. 2.6.38-rc8 with defrag disabled by
->>>     echo never>/sys/kernel/mm/transparent_hugepage/defrag
->>>     (this will stop THP allocations calling into compaction)
->>> 2. 2.6.38-rc8 with THP disabled by
->>>     echo never>
->>> /sys/kernel/mm/transparent_hugepage/enabled
->>>     (if the problem still persists, then page reclaim is still a problem
->>>      but we should still stop THP doing sync writes)
->>> 3. 2.6.37 vanilla
->>>     (in case this is a new regression introduced since then)
->>>
->>> Migration can do sync writes on dirty pages which is why it looks so similar
->>> to page reclaim but this can be controlled by the value of sync_migration
->>> passed into try_to_compact_pages(). If we find that option 1 above makes
->>> the regression go away or at least helps a lot, then a reasonable fix may
->>> be to never set sync_migration if __GFP_NO_KSWAPD which is always set for
->>> THP allocations. I've added Andrea to the cc to see what he thinks.
->>>
->>> Thanks for the report.
->>>
->> I have just done tests 1 and 2 on 2.6.38 (final, not -rc8), and I
->> have verified that echoing "never" on either
->> /sys/kernel/mm/transparent_hugepage/defrag or
->> /sys/kernel/mm/transparent_hugepage/enabled does allow the file copy
->> to USB to proceed smoothly (copying 4GB of data). Just to verify, I
->> later wrote "always" to both files, and sure enough, some
->> applications stalled when I repeated the same file copy. So I have
->> at least a workaround for the issue. Given this evidence, will the
->> patch at comment #14 fix the issue for good?
->>
-> Thanks for testing and reporting, it's very helpful. Based on that that
-> report the patch should help. Can you test it to be absolutly sure please?
->
->
-The patch did not help. I have attached a sysrq-w trace with the patch applied in the bug report.
+On Sat, Mar 19, 2011 at 11:04:02AM -0500, Alex Villaci-s Lasso wrote:
+> The patch did not help. I have attached a sysrq-w trace with the patch applied in the bug report.
+
+Most processes are stuck in udf_writepage. That's because migrate is
+calling ->writepage on dirty pages even when sync=0.
+
+This may do better, can you test it in replacement of the previous
+patch?
+
+Thanks,
+Andrea
+
+===
+Subject: compaction: use async migrate for __GFP_NO_KSWAPD
+
+From: Andrea Arcangeli <aarcange@redhat.com>
+
+__GFP_NO_KSWAPD allocations are usually very expensive and not mandatory to
+succeed (they have graceful fallback). Waiting for I/O in those, tends to be
+overkill in terms of latencies, so we can reduce their latency by disabling
+sync migrate.
+
+Stop calling ->writepage on dirty cache when migrate sync mode is not set.
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ mm/migrate.c    |   35 ++++++++++++++++++++++++++---------
+ mm/page_alloc.c |    2 +-
+ 2 files changed, 27 insertions(+), 10 deletions(-)
+
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2085,7 +2085,7 @@ rebalance:
+ 					sync_migration);
+ 	if (page)
+ 		goto got_pg;
+-	sync_migration = true;
++	sync_migration = !(gfp_mask & __GFP_NO_KSWAPD);
+ 
+ 	/* Try direct reclaim and then allocating */
+ 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -536,10 +536,15 @@ static int writeout(struct address_space
+  * Default handling if a filesystem does not provide a migration function.
+  */
+ static int fallback_migrate_page(struct address_space *mapping,
+-	struct page *newpage, struct page *page)
++				 struct page *newpage, struct page *page,
++				 int sync)
+ {
+-	if (PageDirty(page))
+-		return writeout(mapping, page);
++	if (PageDirty(page)) {
++		if (sync)
++			return writeout(mapping, page);
++		else
++			return -EBUSY;
++	}
+ 
+ 	/*
+ 	 * Buffers may be managed in a filesystem specific way.
+@@ -564,7 +569,7 @@ static int fallback_migrate_page(struct 
+  *  == 0 - success
+  */
+ static int move_to_new_page(struct page *newpage, struct page *page,
+-						int remap_swapcache)
++			    int remap_swapcache, int sync)
+ {
+ 	struct address_space *mapping;
+ 	int rc;
+@@ -597,7 +602,7 @@ static int move_to_new_page(struct page 
+ 		rc = mapping->a_ops->migratepage(mapping,
+ 						newpage, page);
+ 	else
+-		rc = fallback_migrate_page(mapping, newpage, page);
++		rc = fallback_migrate_page(mapping, newpage, page, sync);
+ 
+ 	if (rc) {
+ 		newpage->mapping = NULL;
+@@ -641,6 +646,10 @@ static int unmap_and_move(new_page_t get
+ 	rc = -EAGAIN;
+ 
+ 	if (!trylock_page(page)) {
++		if (!sync) {
++			rc = -EBUSY;
++			goto move_newpage;
++		}
+ 		if (!force)
+ 			goto move_newpage;
+ 
+@@ -686,7 +695,11 @@ static int unmap_and_move(new_page_t get
+ 	BUG_ON(charge);
+ 
+ 	if (PageWriteback(page)) {
+-		if (!force || !sync)
++		if (!sync) {
++			rc = -EBUSY;
++			goto uncharge;
++		}
++		if (!force)
+ 			goto uncharge;
+ 		wait_on_page_writeback(page);
+ 	}
+@@ -757,7 +770,7 @@ static int unmap_and_move(new_page_t get
+ 
+ skip_unmap:
+ 	if (!page_mapped(page))
+-		rc = move_to_new_page(newpage, page, remap_swapcache);
++		rc = move_to_new_page(newpage, page, remap_swapcache, sync);
+ 
+ 	if (rc && remap_swapcache)
+ 		remove_migration_ptes(page, page);
+@@ -834,7 +847,11 @@ static int unmap_and_move_huge_page(new_
+ 	rc = -EAGAIN;
+ 
+ 	if (!trylock_page(hpage)) {
+-		if (!force || !sync)
++		if (!sync) {
++			rc = -EBUSY;
++			goto out;
++		}
++		if (!force)
+ 			goto out;
+ 		lock_page(hpage);
+ 	}
+@@ -850,7 +867,7 @@ static int unmap_and_move_huge_page(new_
+ 	try_to_unmap(hpage, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+ 
+ 	if (!page_mapped(hpage))
+-		rc = move_to_new_page(new_hpage, hpage, 1);
++		rc = move_to_new_page(new_hpage, hpage, 1, sync);
+ 
+ 	if (rc)
+ 		remove_migration_ptes(hpage, hpage);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
