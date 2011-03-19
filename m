@@ -1,79 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 59D9A8D0039
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 23:59:05 -0400 (EDT)
-Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
-	by smtp-out.google.com with ESMTP id p2J3wuEA022888
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 20:58:58 -0700
-Received: from iyf40 (iyf40.prod.google.com [10.241.50.104])
-	by hpaq6.eem.corp.google.com with ESMTP id p2J3woKf008614
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C0C718D0039
+	for <linux-mm@kvack.org>; Sat, 19 Mar 2011 01:34:57 -0400 (EDT)
+Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
+	by smtp-out.google.com with ESMTP id p2J5Ytgt026981
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 22:34:55 -0700
+Received: from iwn9 (iwn9.prod.google.com [10.241.68.73])
+	by kpbe16.cbf.corp.google.com with ESMTP id p2J5Ynv7019726
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 20:58:55 -0700
-Received: by iyf40 with SMTP id 40so7250220iyf.22
-        for <linux-mm@kvack.org>; Fri, 18 Mar 2011 20:58:50 -0700 (PDT)
-Date: Fri, 18 Mar 2011 20:58:38 -0700 (PDT)
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2011 22:34:54 -0700
+Received: by iwn9 with SMTP id 9so5885112iwn.37
+        for <linux-mm@kvack.org>; Fri, 18 Mar 2011 22:34:49 -0700 (PDT)
+Date: Fri, 18 Mar 2011 22:34:36 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/4] slub,rcu: don't assume the size of struct rcu_head
-In-Reply-To: <alpine.DEB.2.00.1103171006270.12540@router.home>
-Message-ID: <alpine.LSU.2.00.1103182037340.18458@sister.anvils>
-References: <4D6CA852.3060303@cn.fujitsu.com> <AANLkTimXy2Yaj+NTDMNTWuLqHHfKZJhVDpeXj3CfMvBf@mail.gmail.com> <alpine.DEB.2.00.1103010909320.6253@router.home> <AANLkTim0Zjc7c9-7LCnEaYpV5PVN=5fNQpjMYqtZe-fk@mail.gmail.com> <alpine.DEB.2.00.1103020625290.10180@router.home>
- <AANLkTikk02f6kLiPFqqAGroJErQkHbJFfHzpHy4Y5P8Y@mail.gmail.com> <alpine.DEB.2.00.1103171006270.12540@router.home>
+Subject: Re: [PATCH] mm: fix possible cause of a page_mapped BUG
+In-Reply-To: <AANLkTimv66fV1+JDqSAxRwddvy_kggCuhoJLMTpMTtJM@mail.gmail.com>
+Message-ID: <alpine.LSU.2.00.1103182158200.18771@sister.anvils>
+References: <alpine.LSU.2.00.1102232136020.2239@sister.anvils> <AANLkTi==MQV=_qq1HaCxGLRu8DdT6FYddqzBkzp1TQs7@mail.gmail.com> <AANLkTimv66fV1+JDqSAxRwddvy_kggCuhoJLMTpMTtJM@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: Robert Swiecki <robert@swiecki.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, Michel Lespinasse <walken@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 17 Mar 2011, Christoph Lameter wrote:
-> On Sun, 6 Mar 2011, Hugh Dickins wrote:
+On Thu, 17 Mar 2011, Robert Swiecki wrote:
+> On Tue, Mar 1, 2011 at 12:35 AM, Robert Swiecki <robert@swiecki.net> wrote:
 > 
-> > >> That was so for a long time, but I stopped it just over a year ago
-> > >> with commit a70caa8ba48f21f46d3b4e71b6b8d14080bbd57a, stop ptlock
-> > >> enlarging struct page.
-> > >
-> > > Strange. I just played around with in in January and the page struct size
-> > > changes when I build kernels with full debugging. I have some
-> > > cmpxchg_double patches here that depend on certain alignment in the page
-> > > struct. Debugging causes all that stuff to get out of whack so that I had
-> > > to do some special patches to make sure fields following the spinlock are
-> > > properly aligned when the sizes change.
-> >
-> > That puzzles me, it's not my experience and I don't have an
-> > explanation: do you have time to investigate?
-> >
-> > Uh oh, you're going to tell me you're working on an out-of-tree
-> > architecture with a million cpus ;)  In that case, yes, I'm afraid
-> > I'll have to update the SPLIT_PTLOCK_CPUS defaulting (for a million -
-> > 1 even).
-> 
-> No I am not working on any out of tree structure. Just regular dual socket
-> server boxes with 24 processors (which is a normal business machine
-> configuration these days).
-> 
-> But then there is also CONFIG_GENERIC_LOCKBREAK. That does not affect
-> things?
+> So, I compiled 2.6.38 and started fuzzing it. I'm bumping into other
+> problems, and never seen anything about mremap in 2.6.38 (yet),
 
-CONFIG_GENERIC_LOCKBREAK adds an unsigned int break_lock after the
-int-sized arch_spinlock_t: which would make no difference on 64-bit
-anyway (the two ints fitting into one long), and makes no difference
-on 32-bit because we have put
-	struct {
-		unsigned long private;
-		struct address_space *mapping;
-	};
-into the union with spinlock_t ptl - the arch_spinlock_t then
-overlays private and the break_lock overlays mapping.
+Thanks a lot for getting back to this, Robert, and thanks for the update.
+I won't be celebrating, but this sounds like good news for my mremap patch.
 
-I'd much rather have had simple elements in that union, but it's
-precisely because of 32-bit CONFIG_GENERIC_LOCKBREAK that we need
-that structure in there.
+> as it had been happening in 2.6.37-rc2. The output goes to
+> http://alt.swiecki.net/linux_kernel/ - I'm still trying.
 
-(It is important to the KSM assumption about page->mapping that
-what goes into break_lock is either 0 or 1: in neither case could
-page->mapping look like a kmem address + 3.)
+A problem in sys_mlock: I've Cc'ed Michel who is the current expert.
+
+A problem in sys_munlock: Michel again, except vma_prio_tree_add is
+implicated, and I used to be involved with that.  I've appended below
+a debug patch which I wrote years ago, and have largely forgotten, but
+Andrew keeps it around in mmotm: we might learn more if you add that
+into your kernel build.
+
+A problem in next_pidmap from find_ge_pid from ... proc_pid_readdir.
+I did spend a while looking into that when you first reported it.
+I'm pretty sure, from the register values, that it's a result of
+a pid number (in some places signed int, in some places unsigned)
+getting unexpectedly sign-extended to negative, so indexing before
+the beginning of an array; but I never tracked down the root of the
+problem, and failed to reproduce it with odd lseeks on the directory.
+
+Ah, the one you report now comes from compat_sys_getdents,
+whereas the original one came from compat_sys_old_readdir: okay,
+I had been wondering whether it was peculiar to the old_readdir case,
+but no, it's reproduced with getdents too.  Might be peculiar to compat.
+
+Anyway, I've Cc'ed Eric who will be the best for that one.
+
+And a couple of watchdog problems: I haven't even glanced at
+those, hope someone else can suggest a good way forward on them.
 
 Hugh
+
+> 
+> > Btw, the fuzzer is here: http://code.google.com/p/iknowthis/
+> >
+> > I think i was trying it with this revision:
+> > http://code.google.com/p/iknowthis/source/detail?r=11 (i386 mode,
+> > newest 'iknowthis' supports x86-64 natively), so feel free to try it.
+> >
+> > It used to crash the machine (it's BUG_ON but the system became
+> > unusable) in matter of hours. Btw, when I was testing it for the last
+> > time it Ooopsed much more frequently in proc_readdir (I sent report in
+> > one of earliet e-mails).
+
+From: Hugh Dickins <hughd@google.com>
+
+Jayson Santos has sighted mm/prio_tree.c:78,79 BUGs (kernel bugzilla 8446),
+and one was sighted a couple of years ago.  No reason yet to suppose
+they're prio_tree bugs, but we can't tell much about them without seeing
+the vmas.
+
+So dump vma and the one it's supposed to resemble: I had expected to use
+print_hex_dump(), but that's designed for u8 dumps, whereas almost every
+field of vm_area_struct is either a pointer or an unsigned long - which
+look nonsense dumped as u8s.
+
+Replace the two BUG_ONs by a single WARN_ON; and if it fires, just keep
+this vma out of the tree (truncation and swapout won't be able to find it).
+ How safe this is depends on what the error really is; but we hold a file's
+i_mmap_lock here, so it may be impossible to recover from BUG_ON.
+
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: Jayson Santos <jaysonsantos2003@yahoo.com.br>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/prio_tree.c |   33 ++++++++++++++++++++++++++++-----
+ 1 file changed, 28 insertions(+), 5 deletions(-)
+
+diff -puN mm/prio_tree.c~prio_tree-debugging-patch mm/prio_tree.c
+--- a/mm/prio_tree.c~prio_tree-debugging-patch
++++ a/mm/prio_tree.c
+@@ -67,6 +67,20 @@
+  * 	vma->shared.vm_set.head == NULL ==> a list node
+  */
+ 
++static void dump_vma(struct vm_area_struct *vma)
++{
++	void **ptr = (void **) vma;
++	int i;
++
++	printk("vm_area_struct at %p:", ptr);
++	for (i = 0; i < sizeof(*vma)/sizeof(*ptr); i++, ptr++) {
++		if (!(i & 3))
++			printk("\n");
++		printk(" %p", *ptr);
++	}
++	printk("\n");
++}
++
+ /*
+  * Add a new vma known to map the same set of pages as the old vma:
+  * useful for fork's dup_mmap as well as vma_prio_tree_insert below.
+@@ -74,14 +88,23 @@
+  */
+ void vma_prio_tree_add(struct vm_area_struct *vma, struct vm_area_struct *old)
+ {
+-	/* Leave these BUG_ONs till prio_tree patch stabilizes */
+-	BUG_ON(RADIX_INDEX(vma) != RADIX_INDEX(old));
+-	BUG_ON(HEAP_INDEX(vma) != HEAP_INDEX(old));
+-
+ 	vma->shared.vm_set.head = NULL;
+ 	vma->shared.vm_set.parent = NULL;
+ 
+-	if (!old->shared.vm_set.parent)
++	if (WARN_ON(RADIX_INDEX(vma) != RADIX_INDEX(old) ||
++		    HEAP_INDEX(vma)  != HEAP_INDEX(old))) {
++		/*
++		 * This should never happen, yet it has been seen a few times:
++		 * we cannot say much about it without seeing the vma contents.
++		 */
++		dump_vma(vma);
++		dump_vma(old);
++		/*
++		 * Don't try to link this (corrupt?) vma into the (corrupt?)
++		 * prio_tree, but arrange for its removal to succeed later.
++		 */
++		INIT_LIST_HEAD(&vma->shared.vm_set.list);
++	} else if (!old->shared.vm_set.parent)
+ 		list_add(&vma->shared.vm_set.list,
+ 				&old->shared.vm_set.list);
+ 	else if (old->shared.vm_set.head)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
