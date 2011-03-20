@@ -1,137 +1,263 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id EE2A08D0039
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 15:16:00 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so6435296fxm.14
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2011 12:15:56 -0700 (PDT)
-Date: Mon, 21 Mar 2011 00:15:47 +0500
-From: Mike Kazantsev <mk.fraggod@gmail.com>
-Subject: kswapd0 thread 100% cpu usage with recent kernels
-Message-ID: <20110321001547.5038fe7f@sacrilege>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1;
- boundary="Sig_/mdSeYNtB4rk4cWcUeP2yOum"; protocol="application/pgp-signature"
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 220128D0039
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 16:36:12 -0400 (EDT)
+Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
+	by smtp-out.google.com with ESMTP id p2KKa6aU029387
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 13:36:09 -0700
+Received: from pwi3 (pwi3.prod.google.com [10.241.219.3])
+	by kpbe20.cbf.corp.google.com with ESMTP id p2KKa1a5000653
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 13:36:04 -0700
+Received: by pwi3 with SMTP id 3so637359pwi.9
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2011 13:36:01 -0700 (PDT)
+Date: Sun, 20 Mar 2011 13:35:50 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [BUG?] shmem: memory leak on NO-MMU arch
+In-Reply-To: <1299575863-7069-1-git-send-email-lliubbo@gmail.com>
+Message-ID: <alpine.LSU.2.00.1103201258280.3776@sister.anvils>
+References: <1299575863-7069-1-git-send-email-lliubbo@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: linux-mm@kvack.org, viro@zeniv.linux.org.uk, hch@lst.de, npiggin@kernel.dk, tj@kernel.org, David Howells <dhowells@redhat.com>, Paul Mundt <lethal@linux-sh.org>, Magnus Damm <magnus.damm@gmail.com>
 
---Sig_/mdSeYNtB4rk4cWcUeP2yOum
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Tue, 8 Mar 2011, Bob Liu wrote:
+> Hi, folks
 
-Good day,
+Of course I agree with Al and Andrew about your other patch,
+I don't know of any shmem inode leak in the MMU case.
 
-I have a strange situation with "kswapd0" thread using 100% of one
-cpu core, reproducable with (maybe specific) combination of CPU and I/O
-load.
+I'm afraid we MM folks tend to be very ignorant of the NOMMU case.
+I've sometimes wished we had a NOMMU variant of the x86 architecture,
+that we could at least build and test changes on.
 
-Recently I've updated OS (from old gentoo linux to exherbo linux) on
-fairly low-spec mini-ITX machine and noticed a strange problem.
+Let's Cc David, Paul and Magnus: they do understand NOMMU.
 
-Machine was showing higher load averages than before and the top
-process with highest cpu usage seem to be quite often kswapd0 kernel
-thread.
+> 
+> I got a problem about shmem on NO-MMU arch, it seems memory leak
+> happened.
+> 
+> A simple test file is like this:
+> =========
+> #include <stdio.h>
+> #include <stdlib.h>
+> #include <sys/types.h>
+> #include <sys/ipc.h>
+> #include <sys/shm.h>
+> #include <errno.h>
+> #include <string.h>
+> 
+> int main(void)
+> {
+> 	int i;
+> 	key_t k = ftok("/etc", 42);
+> 
+> 	for ( i=0; i<2; ++i) {
+> 		int id = shmget(k, 10000, 0644|IPC_CREAT);
+> 		if (id == -1) {
+> 			printf("shmget error\n");
+> 		}
+> 		if(shmctl(id, IPC_RMID, NULL ) == -1) {
+> 			printf("shm  rm error\n");
+> 			return -1;
+> 		}
+> 	}
+> 	printf("run ok...\n");
+> 	return 0;
+> }
+> 
+> The test results:
+> root:/> free 
+>               total         used         free       shared      buffers
+>   Mem:        60528        13876        46652            0            0
+> root:/> ./shmem 
+> run ok...
+> root:/> free 
+>               total         used         free       shared      buffers
+>   Mem:        60528        15104        45424            0            0
+> root:/> ./shmem 
+> run ok...
+> root:/> free 
+>               total         used         free       shared      buffers
+>   Mem:        60528        16292        44236            0            0
+> root:/> ./shmem 
+> run ok...
+> root:/> free 
+>               total         used         free       shared      buffers
+>   Mem:        60528        17496        43032            0            0
+> root:/> ./shmem 
+> run ok...
+> root:/> free 
+>               total         used         free       shared      buffers
+>   Mem:        60528        18700        41828            0            0
+> root:/> ./shmem 
+> run ok...
+> root:/> free 
+>               total         used         free       shared      buffers
+>   Mem:        60528        19904        40624            0            0
+> root:/> ./shmem 
+> run ok...
+> root:/> free 
+>               total         used         free       shared      buffers
+>   Mem:        60528        21104        39424            0            0
+> root:/>
+> 
+> It seems the shmem didn't free it's memory after using shmctl(IPC_RMID) to rm
+> it.
 
-Judging from atop and top utils' output, it seem to have 100% (one core,
-or close to that) cpu usage and very high disk write activity.
+There does indeed appear to be a leak there.  But I'm feeling very
+stupid, the leak of ~1200kB per run looks a lot more than the ~20kB
+that each run of your test program would lose if the bug is as you say.
+Maybe I can't count today.
 
-atop:
-  PID RUID     EUID      THR   SYSCPU  USRCPU  VGROW   RGROW  RDDSK  WRDSK =
- ST EXC S  CPUNR  CPU CMD
-   38 root     root        1    9.49s   0.00s     0K      0K     0K 83280K =
- --   - R      2  95% kswapd0
+> =========
+> 
+> Patch below can work, but I know it's too simple and may cause other problems.
+> Any ideas is welcome.
+> 
+> Thanks!
+> 
+> Signed-off-by: Bob Liu <lliubbo@gmail.com>
 
-top:
-  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
-   38 root      20   0     0    0    0 R   92  0.0 291:20.79 kswapd0
+I don't think any patch with a global ramfs_pages, ignoring the
+inode in question, can possibly work beyond the simplest of cases.
 
-iotop:
-  TID  PRIO  USER     DISK READ  DISK WRITE  SWAPIN     IO>    COMMAND
-   38 be/4 root        0.00 B/s    5.06 M/s  0.00 %  0.00 % [kswapd0]
+Yet it does look to me that you're right that ramfs_nommu_expand_for_mapping
+forgets to release a reference to its pages; though it's hard to believe
+that could go unnoticed for so long - more likely we're both overlooking
+something.
 
+> ---
+> diff --git a/fs/ramfs/file-nommu.c b/fs/ramfs/file-nommu.c
+> index 9eead2c..831e6d5 100644
+> --- a/fs/ramfs/file-nommu.c
+> +++ b/fs/ramfs/file-nommu.c
+> @@ -59,6 +59,8 @@ const struct inode_operations ramfs_file_inode_operations = {
+>   * size 0 on the assumption that it's going to be used for an mmap of shared
+>   * memory
+>   */
+> +struct page *ramfs_pages;
+> +unsigned long ramfs_nr_pages;
+>  int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
+>  {
+>  	unsigned long npages, xpages, loop;
+> @@ -114,6 +116,8 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
+>  		unlock_page(page);
+>  	}
+>  
+> +	ramfs_pages = pages;
+> +	ramfs_nr_pages = loop;
+>  	return 0;
+>  
+>  add_error:
+> diff --git a/fs/ramfs/inode.c b/fs/ramfs/inode.c
+> index eacb166..2eb33e5 100644
+> --- a/fs/ramfs/inode.c
+> +++ b/fs/ramfs/inode.c
+> @@ -139,6 +139,23 @@ static int ramfs_symlink(struct inode * dir, struct dentry *dentry, const char *
+>  	return error;
+>  }
+>  
+> +static void ramfs_delete_inode(struct inode *inode)
+> +{
+> +	int loop;
+> +	struct page *page;
+> +
+> +	truncate_inode_pages(&inode->i_data, 0);
+> +	clear_inode(inode);
+> +
+> +	for (loop = 0; loop < ramfs_nr_pages; loop++ ){
+> +		page = ramfs_pages[loop];
+> +		page->flags &= ~PAGE_FLAGS_CHECK_AT_FREE;
+> +		if(page)
+> +			__free_pages(page, 0);
+> +	}
+> +	kfree(ramfs_pages);
+> +}
+> +
+>  static const struct inode_operations ramfs_dir_inode_operations = {
+>  	.create		= ramfs_create,
+>  	.lookup		= simple_lookup,
+> @@ -153,6 +170,7 @@ static const struct inode_operations ramfs_dir_inode_operations = {
+>  
+>  static const struct super_operations ramfs_ops = {
+>  	.statfs		= simple_statfs,
+> +	.delete_inode   = ramfs_delete_inode,
+>  	.drop_inode	= generic_delete_inode,
+>  	.show_options	= generic_show_options,
+>  };
+> diff --git a/fs/ramfs/internal.h b/fs/ramfs/internal.h
+> index 6b33063..0b7b222 100644
+> --- a/fs/ramfs/internal.h
+> +++ b/fs/ramfs/internal.h
+> @@ -12,3 +12,5 @@
+>  
+>  extern const struct address_space_operations ramfs_aops;
+>  extern const struct inode_operations ramfs_file_inode_operations;
+> +extern struct page *ramfs_pages;
+> +extern unsigned long ramfs_nr_pages;
+> -- 
+> 1.6.3.3
 
-Activity doesn't seem to be swapping-out though, as swap is empty and
-there's still enough RAM to go around:
+Here's my own suggestion for a patch; but I've not even tried to
+compile it, let alone test it, so I'm certainly not signing it.
 
-  MEM | tot     1.9G | free   77.6M  | cache 462.1M | dirty   0.1M | buff  =
- 10.3M |  slab  286.3M |
-  SWP | tot     4.0G | free    4.0G  | vmcom   1.5G | vmlim   5.0G |
+Hugh
+---
 
-  ~# free
-               total       used       free     shared    buffers     cached
-  Mem:       2040412    1941784      98628          0      10580     454048
-  -/+ buffers/cache:    1477156     563256
-  Swap:      4194300        536    4193764
+ fs/ramfs/file-nommu.c |   19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)
 
-  ~# swapon -s
-  Filename                                Type            Size    Used    P=
-riority
-  /dev/mapper/prime-swap                  partition       4194300 572     -1
-
-Furthermore, these "disk writes" seem to be purely virtual, as neither
-iostat nor atop show any writes to disks at the time kswapd0 works like
-that.
-
-Also, I've noticed that kswapd0 reproducibly acts like that when read
-I/O activity is high (not 100% disk utilization, but about 60-70) in
-the system along with some significant CPU load (about 100% of one
-core), although I tend to think that latter is probably irrelevant.
-
-And that's actually what drew my attention to it: trying to checksum a
-lot of data from distributed fs (moosefs) with local chunkserver
-resulted invariably in kswapd0 getting the first place in "top" output.
-
-As I've mentioned, system in question is quite low-spec mini-ITX
-platform featuring dualcore atom cpu with hyper threading and 2G of RAM
-plus fairly slow sata (WD Green) disks, so "high I/O activity" here
-means no more than 10 MBytes/s.
-
-I'm observing this behavior now with 2.6.38 kernel (from kernel.org,
-arch is x86_64), but I'm fairly sure I've seen this before with 2.6.37
-and 2.6.37.3 releases.
-Kernel .config file: http://goo.gl/Msk8I
-
-To do something about it, I've tried to disable swap (swapoff), set
-vm.swappiness to 0 (otherwise it's set to 20), lower
-vm.vfs_cache_pressure to 20, raise vm.vfs_cache_pressure to 200.
-None of these actions seemed to have any effect within a few minutes.
-Checksumming processes I ran spanned for hours with kswapd0 being there
-the whole time, while not consuming any resources before that and
-becoming dormant again right after they were finished.
-
-What can possibly result in such behavior of kswapd0?
-Is there anything else I can tweak to lessen cpu usage of this thread?
-
-I've found similar reports from much older kernels and indications that
-the problem has been fixed since, but not much details to make sure if
-it's the really the same problem or not.
-
-Is there anything I can do to provide more info on the issue?
-
-I'm afraid I'm not familiar with kernel debugging, but if anyone is
-interested in finding out what's going on there and will point me to
-the right tools, I'll be happy to provide any information I can get.
-
-Will appreciate any advice or insight on that.
-Thank you for your attention.
-
-
---=20
-Mike Kazantsev // fraggod.net
-
---Sig_/mdSeYNtB4rk4cWcUeP2yOum
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Disposition: attachment; filename=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.17 (GNU/Linux)
-
-iEYEARECAAYFAk2GUmYACgkQASbOZpzyXnEZ/ACfduixiRGZeTjPPjTJW2MWe4hN
-/lUAoMdlqWsm7EoV3ywH8KKBPy/yPLYu
-=I6NA
------END PGP SIGNATURE-----
-
---Sig_/mdSeYNtB4rk4cWcUeP2yOum--
+--- 2.6.38/fs/ramfs/file-nommu.c	2010-10-20 13:30:22.000000000 -0700
++++ linux/fs/ramfs/file-nommu.c	2011-03-20 12:55:35.000000000 -0700
+@@ -90,23 +90,19 @@ int ramfs_nommu_expand_for_mapping(struc
+ 
+ 	split_page(pages, order);
+ 
+-	/* trim off any pages we don't actually require */
+-	for (loop = npages; loop < xpages; loop++)
+-		__free_page(pages + loop);
+-
+ 	/* clear the memory we allocated */
+ 	newsize = PAGE_SIZE * npages;
+ 	data = page_address(pages);
+ 	memset(data, 0, newsize);
+ 
+-	/* attach all the pages to the inode's address space */
++	/* attach the pages we require to the inode's address space */
+ 	for (loop = 0; loop < npages; loop++) {
+ 		struct page *page = pages + loop;
+ 
+ 		ret = add_to_page_cache_lru(page, inode->i_mapping, loop,
+ 					GFP_KERNEL);
+ 		if (ret < 0)
+-			goto add_error;
++			break;
+ 
+ 		/* prevent the page from being discarded on memory pressure */
+ 		SetPageDirty(page);
+@@ -114,11 +110,14 @@ int ramfs_nommu_expand_for_mapping(struc
+ 		unlock_page(page);
+ 	}
+ 
+-	return 0;
++	/*
++	 * release our reference to the pages now added to cache,
++	 * and trim off any pages we don't actually require.
++	 * truncate inode back to 0 if not all pages could be added??
++	 */
++	for (loop = 0; loop < xpages; loop++)
++		put_page(pages + loop);
+ 
+-add_error:
+-	while (loop < npages)
+-		__free_page(pages + loop++);
+ 	return ret;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
