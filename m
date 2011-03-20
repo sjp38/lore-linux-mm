@@ -1,109 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 420598D0039
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 13:48:22 -0400 (EDT)
-Date: Sun, 20 Mar 2011 18:47:50 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: compaction beware writeback
-Message-ID: <20110320174750.GA5653@random.random>
-References: <alpine.LSU.2.00.1103192318100.1877@sister.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1103192318100.1877@sister.anvils>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id EE2A08D0039
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 15:16:00 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so6435296fxm.14
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2011 12:15:56 -0700 (PDT)
+Date: Mon, 21 Mar 2011 00:15:47 +0500
+From: Mike Kazantsev <mk.fraggod@gmail.com>
+Subject: kswapd0 thread 100% cpu usage with recent kernels
+Message-ID: <20110321001547.5038fe7f@sacrilege>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=PGP-SHA1;
+ boundary="Sig_/mdSeYNtB4rk4cWcUeP2yOum"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 
-On Sat, Mar 19, 2011 at 11:27:38PM -0700, Hugh Dickins wrote:
-> I notice there's a Bug 31142 "Large write to USB stick freezes"
-> discussion happening (which I've not digested), for which Andrea
-> is proposing a patch which reminds me of this one.  Thought I'd
-> better throw this into the mix for consideration.
+--Sig_/mdSeYNtB4rk4cWcUeP2yOum
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-With regard to that bug:
+Good day,
 
-https://bugzilla.kernel.org/attachment.cgi?id=51262
+I have a strange situation with "kswapd0" thread using 100% of one
+cpu core, reproducable with (maybe specific) combination of CPU and I/O
+load.
 
-there's no sign of __wait_on_bit called by migrate_pages. I think the
-problem there are the ->writepage run on udf to writeout dirty pages
-(to retry migration in the next iteration of the loop when the page
-isn't dirty anymore), which hopefully it's solved by the patch I sent.
+Recently I've updated OS (from old gentoo linux to exherbo linux) on
+fairly low-spec mini-ITX machine and noticed a strange problem.
 
-> D  loop0:
-> schedule +0x670
-> io_schedule +0x50
-> sync_page +0x84
-> __wait_on_bit +0x90
-> wait_on_page_bit +0xa4
-> unmap_and_move +0x180
-> migrate_pages +0xbc
-> compact_zone +0xbc
-> compact_zone_order +0xc8
-> try_to_compact_pages +0x104
-> __alloc_pages_direct_compact +0xc0
-> __alloc_pages_nodemask +0x68c
-> allocate_slab +0x84
-> new_slab +0x58
-> __slab_alloc +0x1ec
-> kmem_cache_alloc +0x7c
-> radix_tree_preload +0x94
-> add_to_page_cache_locked +0x78
-> shmem_getpage +0x208
-> pagecache_write_begin +0x2c
-> do_lo_send_aops +0xc0
-> do_bio_filebacked +0x11c
-> loop_thread +0x204
-> kthread +0xac
-> kernel_thread +0x54
+Machine was showing higher load averages than before and the top
+process with highest cpu usage seem to be quite often kswapd0 kernel
+thread.
 
-So your patch will avoid waiting above in writeback if called by
-direct compaction like above, agreed (currently we only avoid to call
-lock_page but we could still wait in wait_on_page_writeback if force=1
-goes on at the third pass of the migrate_pages loop). This seems a
-separate issue to the last trace posted in bug 31142 as there was no
-wait_on_bit in that last trace.
+Judging from atop and top utils' output, it seem to have 100% (one core,
+or close to that) cpu usage and very high disk write activity.
 
-Interesting that slab allocates with order > 0 an object that is <4096
-bytes. Is this related to slab_break_gfp_order? The comment talks
-about fragmentation resistance in low memory, if that's the same
-fragmentation that anti-frag solves, is this logic still actual? I
-guess we still need it for cache coloring. However I noticed there's
-no fallback to that, so once kmem_cache_create decided that an optimal
-gfporder is > 0 (even if it doesn't need to be > 0) if the order 1
-allocation fails, kmem_cache_alloc will fail too without fallback to
-order 0. It could be more reliable than that.
+atop:
+  PID RUID     EUID      THR   SYSCPU  USRCPU  VGROW   RGROW  RDDSK  WRDSK =
+ ST EXC S  CPUNR  CPU CMD
+   38 root     root        1    9.49s   0.00s     0K      0K     0K 83280K =
+ --   - R      2  95% kswapd0
 
-A large allocation if nothing else reduces the frequency of gfp calls.
+top:
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+   38 root      20   0     0    0    0 R   92  0.0 291:20.79 kswapd0
 
-> So I've extended your earlier PF_MEMALLOC patch to prevent waiting for
-> writeback as well as waiting for pagelock.  And I've never seen the
-> hang again since putting this patch in.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
+iotop:
+  TID  PRIO  USER     DISK READ  DISK WRITE  SWAPIN     IO>    COMMAND
+   38 be/4 root        0.00 B/s    5.06 M/s  0.00 %  0.00 % [kswapd0]
 
-This change looks good to me, it will make compaction a little less
-reliable with regard to writeback. You are still going to execute
-->writepage on dirty pages though (except for __GFP_NO_KSWAPD
-allocations that signals the fact they don't need to be reliable with
-my last patch for bug 31142 and foces sync=0 and have that sync
-parameter checked before calling ->writepage too).
 
-compaction usually has an huge amount of "source" memory to move, in
-the destination space, so it's not so good that migration is so
-aggressive and blocks when there may be another couple of contiguous
-source page to move without waiting. Ideally we should move to the
-next block of source pages in compaction, before setting force=1 in a
-final pass. We insist a lot in migrate_pages when breaking the loop
-after 1 pass could be enough, and then it should be compaction that if
-it fails migration on all candidate source pages, tries an "harder
-migrate" in a second pass. We could achieve that by having compaction
-twiddle with the sync bit instead of the caller and only run one pass
-of migrate when sync = 0. That's a bit larger change though and it may
-consume more cpu in compaction (compaction loop not so cheap), so I'm
-unsure if it would be an overall improvement.
+Activity doesn't seem to be swapping-out though, as swap is empty and
+there's still enough RAM to go around:
+
+  MEM | tot     1.9G | free   77.6M  | cache 462.1M | dirty   0.1M | buff  =
+ 10.3M |  slab  286.3M |
+  SWP | tot     4.0G | free    4.0G  | vmcom   1.5G | vmlim   5.0G |
+
+  ~# free
+               total       used       free     shared    buffers     cached
+  Mem:       2040412    1941784      98628          0      10580     454048
+  -/+ buffers/cache:    1477156     563256
+  Swap:      4194300        536    4193764
+
+  ~# swapon -s
+  Filename                                Type            Size    Used    P=
+riority
+  /dev/mapper/prime-swap                  partition       4194300 572     -1
+
+Furthermore, these "disk writes" seem to be purely virtual, as neither
+iostat nor atop show any writes to disks at the time kswapd0 works like
+that.
+
+Also, I've noticed that kswapd0 reproducibly acts like that when read
+I/O activity is high (not 100% disk utilization, but about 60-70) in
+the system along with some significant CPU load (about 100% of one
+core), although I tend to think that latter is probably irrelevant.
+
+And that's actually what drew my attention to it: trying to checksum a
+lot of data from distributed fs (moosefs) with local chunkserver
+resulted invariably in kswapd0 getting the first place in "top" output.
+
+As I've mentioned, system in question is quite low-spec mini-ITX
+platform featuring dualcore atom cpu with hyper threading and 2G of RAM
+plus fairly slow sata (WD Green) disks, so "high I/O activity" here
+means no more than 10 MBytes/s.
+
+I'm observing this behavior now with 2.6.38 kernel (from kernel.org,
+arch is x86_64), but I'm fairly sure I've seen this before with 2.6.37
+and 2.6.37.3 releases.
+Kernel .config file: http://goo.gl/Msk8I
+
+To do something about it, I've tried to disable swap (swapoff), set
+vm.swappiness to 0 (otherwise it's set to 20), lower
+vm.vfs_cache_pressure to 20, raise vm.vfs_cache_pressure to 200.
+None of these actions seemed to have any effect within a few minutes.
+Checksumming processes I ran spanned for hours with kswapd0 being there
+the whole time, while not consuming any resources before that and
+becoming dormant again right after they were finished.
+
+What can possibly result in such behavior of kswapd0?
+Is there anything else I can tweak to lessen cpu usage of this thread?
+
+I've found similar reports from much older kernels and indications that
+the problem has been fixed since, but not much details to make sure if
+it's the really the same problem or not.
+
+Is there anything I can do to provide more info on the issue?
+
+I'm afraid I'm not familiar with kernel debugging, but if anyone is
+interested in finding out what's going on there and will point me to
+the right tools, I'll be happy to provide any information I can get.
+
+Will appreciate any advice or insight on that.
+Thank you for your attention.
+
+
+--=20
+Mike Kazantsev // fraggod.net
+
+--Sig_/mdSeYNtB4rk4cWcUeP2yOum
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.17 (GNU/Linux)
+
+iEYEARECAAYFAk2GUmYACgkQASbOZpzyXnEZ/ACfduixiRGZeTjPPjTJW2MWe4hN
+/lUAoMdlqWsm7EoV3ywH8KKBPy/yPLYu
+=I6NA
+-----END PGP SIGNATURE-----
+
+--Sig_/mdSeYNtB4rk4cWcUeP2yOum--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
