@@ -1,111 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 557BE8D003A
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 05:59:13 -0400 (EDT)
-Date: Mon, 21 Mar 2011 09:59:07 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mm: compaction beware writeback
-Message-ID: <20110321095907.GI707@csn.ul.ie>
-References: <alpine.LSU.2.00.1103192318100.1877@sister.anvils>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6B4878D003A
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 06:24:24 -0400 (EDT)
+Date: Mon, 21 Mar 2011 11:24:20 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH] memcg: consider per-cpu stock reserves when returning
+ RES_USAGE for _MEM
+Message-ID: <20110321102420.GB26047@tiehlicka.suse.cz>
+References: <20110318152532.GB18450@tiehlicka.suse.cz>
+ <20110321093419.GA26047@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1103192318100.1877@sister.anvils>
+In-Reply-To: <20110321093419.GA26047@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Sat, Mar 19, 2011 at 11:27:38PM -0700, Hugh Dickins wrote:
-> I notice there's a Bug 31142 "Large write to USB stick freezes"
-> discussion happening (which I've not digested), for which Andrea
-> is proposing a patch which reminds me of this one.  Thought I'd
-> better throw this into the mix for consideration.
-> 
-> I'd not sent it in yet, because I only see the problem on one machine,
-> and then only with a shmem patch I'm working up; but can't see how
-> that patch would actually be necessary to create the problem.
-> 
-> It happens in my extfs-on-loop-on-tmpfs swapping tests, when copying
-> in the kernel tree.  I believe the relevant traces are these three:
-> I notice sync_supers there every time it hangs, but I guess it comes
-> along after, and gets stuck on the same page which cp is waiting for.
-> 
-> D  sync_supers:
-> schedule +0x670
-> io_schedule +0x50
-> sync_buffer +0x68
-> __wait_on_bit +0x90
-> out_of_line_wait_on_bit +0x98
-> __wait_on_buffer +0x30
-> __sync_dirty_buffer +0xc0
-> ext4_commit_super +0x2c4
-> ext4_write_super +0x28
-> sync_supers +0xdc
-> bdi_sync_supers +0x40
-> kthread +0xac
-> kernel_thread +0x54
-> 
-> D  loop0:
-> schedule +0x670
-> io_schedule +0x50
-> sync_page +0x84
-> __wait_on_bit +0x90
-> wait_on_page_bit +0xa4
-> unmap_and_move +0x180
-> migrate_pages +0xbc
-> compact_zone +0xbc
-> compact_zone_order +0xc8
-> try_to_compact_pages +0x104
-> __alloc_pages_direct_compact +0xc0
-> __alloc_pages_nodemask +0x68c
-> allocate_slab +0x84
-> new_slab +0x58
-> __slab_alloc +0x1ec
-> kmem_cache_alloc +0x7c
-> radix_tree_preload +0x94
-> add_to_page_cache_locked +0x78
-> shmem_getpage +0x208
-> pagecache_write_begin +0x2c
-> do_lo_send_aops +0xc0
-> do_bio_filebacked +0x11c
-> loop_thread +0x204
-> kthread +0xac
-> kernel_thread +0x54
-> 
-> D  cp:
-> schedule +0x670
-> io_schedule +0x50
-> sync_buffer +0x68
-> __wait_on_bit +0x90
-> out_of_line_wait_on_bit +0x98
-> __wait_on_buffer +0x30
-> ext4_find_entry +0x230
-> ext4_lookup +0x44
-> d_alloc_and_lookup +0x74
-> do_last +0xe0
-> do_filp_open +0x2b8
-> do_sys_open +0x8c
-> compat_sys_open +0x24
-> syscall_exit +0x0
-> 
-> I believe (but haven't verified for sure) that what happens is that
-> compaction (when trying to allocate a radix_tree node - SLUB asks
-> for order 2 - in the loop0 daemon trace) chooses the cp page under
-> writeback which is waiting for loop0 to write it.
-> 
-> So I've extended your earlier PF_MEMALLOC patch to prevent waiting for
-> writeback as well as waiting for pagelock.  And I've never seen the
-> hang again since putting this patch in.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+[Sorry for reposting but I forgot to fully refresh the patch before
+posting...]
 
-Yes, it is the case that waiting on page writeback can also cause
-badness and I think this should also be considered for -stable.
+On Mon 21-03-11 10:34:19, Michal Hocko wrote:
+> On Fri 18-03-11 16:25:32, Michal Hocko wrote:
+> [...]
+> > According to our documention this is a reasonable test case:
+> > Documentation/cgroups/memory.txt:
+> > memory.usage_in_bytes           # show current memory(RSS+Cache) usage.
+> > 
+> > This however doesn't work after your commit:
+> > cdec2e4265d (memcg: coalesce charging via percpu storage)
+> > 
+> > because since then we are charging in bulks so we can end up with
+> > rss+cache <= usage_in_bytes.
+> [...]
+> > I think we have several options here
+> > 	1) document that the value is actually >= rss+cache and it shows
+> > 	   the guaranteed charges for the group
+> > 	2) use rss+cache rather then res->count
+> > 	3) remove the file
+> > 	4) call drain_all_stock_sync before asking for the value in
+> > 	   mem_cgroup_read
+> > 	5) collect the current amount of stock charges and subtract it
+> > 	   from the current res->count value
+> > 
+> > 1) and 2) would suggest that the file is actually not very much useful.
+> > 3) is basically the interface change as well
+> > 4) sounds little bit invasive as we basically lose the advantage of the
+> > pool whenever somebody reads the file. Btw. for who is this file
+> > intended?
+> > 5) sounds like a compromise
+> 
+> I guess that 4) is really too invasive - for no good reason so here we
+> go with the 5) solution.
+--- 
+From: Michal Hocko <mhocko@suse.cz>
+Subject: memcg: consider per-cpu stock reserves when returning RES_USAGE for _MEM
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Since cdec2e4265d (memcg: coalesce charging via percpu storage) commit we
+are charging resource counter in batches. This means that the current
+res->count value doesn't show the real consumed value (rss+cache as we
+describe in the documentation) but rather a promissed charges for future.
+We are pre-charging CHARGE_SIZE bulk at once and subsequent charges are
+satisfied from the per-cpu cgroup_stock pool.
 
-Thanks
+We have seen a report that one of the LTP testcases checks exactly this
+condition so the test fails.
+
+As this exported value is a part of kernel->userspace interface we should
+try to preserve the original (and documented) semantic.
+
+This patch fixes the issue by collecting the current usage of each per-cpu
+stock and subtracting it from the current res counter value.
+
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Index: linus_tree/mm/memcontrol.c
+===================================================================
+--- linus_tree.orig/mm/memcontrol.c	2011-03-18 16:09:11.000000000 +0100
++++ linus_tree/mm/memcontrol.c	2011-03-21 10:21:55.000000000 +0100
+@@ -3579,13 +3579,30 @@ static unsigned long mem_cgroup_recursiv
+ 	return val;
+ }
+ 
++static u64 mem_cgroup_current_usage(struct mem_cgroup *mem)
++{
++	u64 val = res_counter_read_u64(&mem->res, RES_USAGE);
++	u64 per_cpu_val = 0;
++	int cpu;
++
++	get_online_cpus();
++	for_each_online_cpu(cpu) {
++		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
++
++		per_cpu_val += stock->nr_pages * PAGE_SIZE;
++	}
++	put_online_cpus();
++
++	return (val > per_cpu_val)? val - per_cpu_val: 0;
++}
++
+ static inline u64 mem_cgroup_usage(struct mem_cgroup *mem, bool swap)
+ {
+ 	u64 val;
+ 
+ 	if (!mem_cgroup_is_root(mem)) {
+ 		if (!swap)
+-			return res_counter_read_u64(&mem->res, RES_USAGE);
++			return mem_cgroup_current_usage(mem);
+ 		else
+ 			return res_counter_read_u64(&mem->memsw, RES_USAGE);
+ 	}
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
