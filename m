@@ -1,101 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E990D8D0039
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 13:11:21 -0400 (EDT)
-Subject: Re: [PATCH] tmpfs: implement security.capability xattrs
-From: Eric Paris <eparis@redhat.com>
-In-Reply-To: <alpine.LSU.2.00.1103202108160.21738@sister.anvils>
-References: <20110111210710.32348.1642.stgit@paris.rdu.redhat.com>
-	 <AANLkTi=wyaLP6gFmNxajp+HtYu3B9_KGf2o4BnYA+rwy@mail.gmail.com>
-	 <AANLkTi=7GyY=O2eTupPXQijcnT_55a3RnHAruJpm_5Jo@mail.gmail.com>
-	 <alpine.LSU.2.00.1103202108160.21738@sister.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 21 Mar 2011 12:43:05 -0400
-Message-ID: <1300725785.2744.57.camel@unknown001a4b0c2895>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ABCD8D0039
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 13:23:00 -0400 (EDT)
+Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
+	by smtp-out.google.com with ESMTP id p2LHMiBs026511
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 10:22:46 -0700
+Received: from qwj9 (qwj9.prod.google.com [10.241.195.73])
+	by wpaz33.hot.corp.google.com with ESMTP id p2LHLpeF019252
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 10:22:43 -0700
+Received: by qwj9 with SMTP id 9so5314961qwj.35
+        for <linux-mm@kvack.org>; Mon, 21 Mar 2011 10:22:42 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110321093419.GA26047@tiehlicka.suse.cz>
+References: <20110318152532.GB18450@tiehlicka.suse.cz>
+	<20110321093419.GA26047@tiehlicka.suse.cz>
+Date: Mon, 21 Mar 2011 10:22:41 -0700
+Message-ID: <AANLkTimkcYcZVifaq4pH4exkWUVNXpwXA=9oyeAn_EqR@mail.gmail.com>
+Subject: Re: cgroup: real meaning of memory.usage_in_bytes
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Eric Paris <eparis@parisplace.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, Christoph Hellwig <hch@infradead.org>, James Morris <jmorris@namei.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Sun, 2011-03-20 at 22:17 -0700, Hugh Dickins wrote:
-> On Wed, 2 Mar 2011, Eric Paris wrote:
+On Mon, Mar 21, 2011 at 2:34 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Fri 18-03-11 16:25:32, Michal Hocko wrote:
+> [...]
+>> According to our documention this is a reasonable test case:
+>> Documentation/cgroups/memory.txt:
+>> memory.usage_in_bytes =A0 =A0 =A0 =A0 =A0 # show current memory(RSS+Cach=
+e) usage.
+>>
+>> This however doesn't work after your commit:
+>> cdec2e4265d (memcg: coalesce charging via percpu storage)
+>>
+>> because since then we are charging in bulks so we can end up with
+>> rss+cache <=3D usage_in_bytes.
+> [...]
+>> I think we have several options here
+>> =A0 =A0 =A0 1) document that the value is actually >=3D rss+cache and it=
+ shows
+>> =A0 =A0 =A0 =A0 =A0the guaranteed charges for the group
+>> =A0 =A0 =A0 2) use rss+cache rather then res->count
+>> =A0 =A0 =A0 3) remove the file
+>> =A0 =A0 =A0 4) call drain_all_stock_sync before asking for the value in
+>> =A0 =A0 =A0 =A0 =A0mem_cgroup_read
+>> =A0 =A0 =A0 5) collect the current amount of stock charges and subtract =
+it
+>> =A0 =A0 =A0 =A0 =A0from the current res->count value
+>>
+>> 1) and 2) would suggest that the file is actually not very much useful.
+>> 3) is basically the interface change as well
+>> 4) sounds little bit invasive as we basically lose the advantage of the
+>> pool whenever somebody reads the file. Btw. for who is this file
+>> intended?
+>> 5) sounds like a compromise
+>
+> I guess that 4) is really too invasive - for no good reason so here we
+> go with the 5) solution.
+> ---
+> From: Michal Hocko <mhocko@suse.cz>
+> Subject: Drain memcg_stock before returning res->count value
+>
+> Since cdec2e4265d (memcg: coalesce charging via percpu storage) commit we
+> are charging resource counter in batches. This means that the current
+> res->count value doesn't show the real consumed value (rss+cache as we
+> describe in the documentation) but rather a promissed charges for future.
+> We are pre-charging CHARGE_SIZE bulk at once and subsequent charges are
+> satisfied from the per-cpu cgroup_stock pool.
+>
+> We have seen a report that one of the LTP testcases checks exactly this
+> condition so the test fails.
+>
+> As this exported value is a part of kernel->userspace interface we should
+> try to preserve the original (and documented) semantic.
+>
+> This patch fixes the issue by collecting the current usage of each per-cp=
+u
+> stock and subtracting it from the current res counter value.
+>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Index: linus_tree/mm/memcontrol.c
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- linus_tree.orig/mm/memcontrol.c =A0 =A0 2011-03-18 16:09:11.000000000=
+ +0100
+> +++ linus_tree/mm/memcontrol.c =A02011-03-21 10:21:55.000000000 +0100
+> @@ -3579,13 +3579,30 @@ static unsigned long mem_cgroup_recursiv
+> =A0 =A0 =A0 =A0return val;
+> =A0}
+>
+> +static u64 mem_cgroup_current_usage(struct mem_cgroup *mem)
+> +{
+> + =A0 =A0 =A0 u64 val =3D res_counter_read_u64(&mem->res, RES_USAGE);
+> + =A0 =A0 =A0 u64 per_cpu_val =3D 0;
+> + =A0 =A0 =A0 int cpu;
+> +
+> + =A0 =A0 =A0 get_online_cpus();
+> + =A0 =A0 =A0 for_each_online_cpu(cpu) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct memcg_stock_pcp *stock =3D &per_cpu(=
+memcg_stock, cpu);
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 per_cpu_val +=3D stock->nr_pages * PAGE_SIZ=
+E;
+> + =A0 =A0 =A0 }
+> + =A0 =A0 =A0 put_online_cpus();
+> +
+> + =A0 =A0 =A0 return (val > per_cpu_val)? val - per_cpu_val: 0;
+> +}
+> +
+> =A0static inline u64 mem_cgroup_usage(struct mem_cgroup *mem, bool swap)
+> =A0{
+> =A0 =A0 =A0 =A0u64 val;
+>
+> =A0 =A0 =A0 =A0if (!mem_cgroup_is_root(mem)) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (!swap)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return res_counter_read_u64=
+(&mem->res, RES_USAGE);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return mem_cgroup_current_u=
+sage(mem);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0else
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return res_counter_read_u6=
+4(&mem->memsw, RES_USAGE);
+> =A0 =A0 =A0 =A0}
 
-> > >>  include/linux/shmem_fs.h |    8 +++
-> > >>  mm/shmem.c               |  112 ++++++++++++++++++++++++++++++++++++++++++++--
-> > >>  2 files changed, 116 insertions(+), 4 deletions(-)
-> 
-> No change to fs/Kconfig?  You seem to smuggle the xattr and security
-> support in under CONFIG_TMPFS_POSIX_ACL, and leave it unsupported
-> without.  It's probably a fair assumption that the people with that
-> option selected are the people who will be interested in this, so
-> no need for the maze of separate config options which a grownup
-> filesystem would have here.  But at the very least you need to say
-> more in the TMPFS_POSIX_ACL Kconfig entry (a new name may be more
-> trouble than it's worth).
+Michal,
 
-Will update text.
+Can you help to post the test result after applying the patch?
 
-> > >> @@ -2071,24 +2076,123 @@ static size_t shmem_xattr_security_list(struct dentry *dentry, char *list,
-> > >>                                        size_t list_len, const char *name,
-> > >>                                        size_t name_len, int handler_flags)
-> > >>  {
-> > >> -       return security_inode_listsecurity(dentry->d_inode, list, list_len);
-> > >> +       struct shmem_xattr *xattr;
-> > >> +       struct shmem_inode_info *shmem_i;
-> 
-> It's a nit, but (almost) everywhere else in shmem.c the shmem_inode_info
-> pointer is known as "info": easy for me to fix up if I care, but nicer
-> if you follow local custom.
+--Ying
 
-Will fix.  I certainly don't like breaking conventions needlessly.
-
-> > >> +       size_t used;
-> > >> +       char *buf = NULL;
-> > >> +
-> > >> +       used = security_inode_listsecurity(dentry->d_inode, list, list_len);
-> > >> +
-> > >> +       shmem_i = SHMEM_I(dentry->d_inode);
-> > >> +       if (list)
-> > >> +               buf = list + used;
-> 
-> This is the place that caused me most trouble.  On a minor note:
-> it worried me that security_inode_listsecurity() might return an
-> error, whereas I think you know and assume that the worst it can
-> return is 0 - might be worth a comment.
-
-Will fix.
-
-> But more major: I found it very odd that you collect one set of things
-> from security_inode_listsecurity(), then proceed to tack on some more
-> below from the shmem inode.  I looked at other filesystems (well, ext2!)
-> and couldn't find a precedent.  What's this about?  Is it because other
-> filesystems have an on-disk format which determines what they're capable
-> of, whereas tmpfs is plastic and can reflect what the running system has?
-> Or is it to allow for future xattrs which might be added to tmpfs, but
-> frankly I'd rather do without until they're defined?
-
-So there is a belief (based I think on an erroneous comment in the code
-somewhere which I plan to find and fix) that the VFS provides some form
-of generic xattr support if filesystems do not provide their own xattr
-support.  This isn't true.  What actually happens is that the VFS will
-directly call special LSM functions, if the filesystem provides no xattr
-methods.  If the filesystem provides any xattr methods, which tmpfs does
-when CONFIG_TMPFS_POSIX_ACL is set, then the VFS does different
-stupi^wmagic things with regard to xattr calls.  I only really know the
-SELinux LSM and will use it as an example, but I believe that SMACK does
-very similar things.  When you run with SELinux enabled it will provide
-support for ONLY security.selinux.  It provides this support by storing
-the security.selinux xattr information inside the inode->i_security->sid
-field.  I might be making this already weird interface even worse
-because I'm trying to take advantage of the SELinux handling for
-security.selinux rather than be required to store those in the
-shmem_inode_info as well.  Other filesystems don't play this trick.
-
-I'll try to rewrite the code to just be completely generic for
-security.* and see if it is cleaner even if we waste some space storing
-strings in ram we don't technically need to....
+> --
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9
+> Czech Republic
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
+.ca/
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
