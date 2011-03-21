@@ -1,38 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 034348D0039
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 04:48:40 -0400 (EDT)
-Message-ID: <4D87109A.1010005@redhat.com>
-Date: Mon, 21 Mar 2011 10:47:22 +0200
-From: Avi Kivity <avi@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3310F8D003A
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 05:34:28 -0400 (EDT)
+Date: Mon, 21 Mar 2011 10:34:19 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: cgroup: real meaning of memory.usage_in_bytes
+Message-ID: <20110321093419.GA26047@tiehlicka.suse.cz>
+References: <20110318152532.GB18450@tiehlicka.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/17] mm: mmu_gather rework
-References: <20110217162327.434629380@chello.nl>	 <20110217163234.823185666@chello.nl>  <20110310155032.GB32302@csn.ul.ie> <1300301742.2203.1899.camel@twins>
-In-Reply-To: <1300301742.2203.1899.camel@twins>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110318152532.GB18450@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@kernel.dk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Yanmin Zhang <yanmin_zhang@linux.intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Russell King <rmk@arm.linux.org.uk>, Paul Mundt <lethal@linux-sh.org>, Jeff Dike <jdike@addtoit.com>, Tony Luck <tony.luck@intel.com>, Hugh Dickins <hughd@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 03/16/2011 08:55 PM, Peter Zijlstra wrote:
-> On Thu, 2011-03-10 at 15:50 +0000, Mel Gorman wrote:
->
-> >  >  +static inline void
-> >  >  +tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned int full_mm_flush)
-> >  >   {
-> >
-> >  checkpatch will bitch about line length.
->
-> I did a s/full_mm_flush/fullmm/ which puts the line length at 81. At
-> which point I'll ignore it ;-)
+On Fri 18-03-11 16:25:32, Michal Hocko wrote:
+[...]
+> According to our documention this is a reasonable test case:
+> Documentation/cgroups/memory.txt:
+> memory.usage_in_bytes           # show current memory(RSS+Cache) usage.
+> 
+> This however doesn't work after your commit:
+> cdec2e4265d (memcg: coalesce charging via percpu storage)
+> 
+> because since then we are charging in bulks so we can end up with
+> rss+cache <= usage_in_bytes.
+[...]
+> I think we have several options here
+> 	1) document that the value is actually >= rss+cache and it shows
+> 	   the guaranteed charges for the group
+> 	2) use rss+cache rather then res->count
+> 	3) remove the file
+> 	4) call drain_all_stock_sync before asking for the value in
+> 	   mem_cgroup_read
+> 	5) collect the current amount of stock charges and subtract it
+> 	   from the current res->count value
+> 
+> 1) and 2) would suggest that the file is actually not very much useful.
+> 3) is basically the interface change as well
+> 4) sounds little bit invasive as we basically lose the advantage of the
+> pool whenever somebody reads the file. Btw. for who is this file
+> intended?
+> 5) sounds like a compromise
 
-How about s/unsigned int/bool/?  IIRC you aren't a "bool was invented 
-after 1971, therefore it is evil" type.
+I guess that 4) is really too invasive - for no good reason so here we
+go with the 5) solution.
+--- 
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Drain memcg_stock before returning res->count value
 
+Since cdec2e4265d (memcg: coalesce charging via percpu storage) commit we
+are charging resource counter in batches. This means that the current
+res->count value doesn't show the real consumed value (rss+cache as we
+describe in the documentation) but rather a promissed charges for future.
+We are pre-charging CHARGE_SIZE bulk at once and subsequent charges are
+satisfied from the per-cpu cgroup_stock pool.
+
+We have seen a report that one of the LTP testcases checks exactly this
+condition so the test fails.
+
+As this exported value is a part of kernel->userspace interface we should
+try to preserve the original (and documented) semantic.
+
+This patch fixes the issue by collecting the current usage of each per-cpu
+stock and subtracting it from the current res counter value.
+
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Index: linus_tree/mm/memcontrol.c
+===================================================================
+--- linus_tree.orig/mm/memcontrol.c	2011-03-18 16:09:11.000000000 +0100
++++ linus_tree/mm/memcontrol.c	2011-03-21 10:21:55.000000000 +0100
+@@ -3579,13 +3579,30 @@ static unsigned long mem_cgroup_recursiv
+ 	return val;
+ }
+ 
++static u64 mem_cgroup_current_usage(struct mem_cgroup *mem)
++{
++	u64 val = res_counter_read_u64(&mem->res, RES_USAGE);
++	u64 per_cpu_val = 0;
++	int cpu;
++
++	get_online_cpus();
++	for_each_online_cpu(cpu) {
++		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
++
++		per_cpu_val += stock->nr_pages * PAGE_SIZE;
++	}
++	put_online_cpus();
++
++	return (val > per_cpu_val)? val - per_cpu_val: 0;
++}
++
+ static inline u64 mem_cgroup_usage(struct mem_cgroup *mem, bool swap)
+ {
+ 	u64 val;
+ 
+ 	if (!mem_cgroup_is_root(mem)) {
+ 		if (!swap)
+-			return res_counter_read_u64(&mem->res, RES_USAGE);
++			return mem_cgroup_current_usage(mem);
+ 		else
+ 			return res_counter_read_u64(&mem->memsw, RES_USAGE);
+ 	}
 -- 
-error compiling committee.c: too many arguments to function
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
