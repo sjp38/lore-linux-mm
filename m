@@ -1,81 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 131868D0039
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 22:15:34 -0400 (EDT)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp07.au.ibm.com (8.14.4/8.13.1) with ESMTP id p2L2FVNx003349
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 13:15:31 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2L2FVu41347606
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 13:15:31 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2L2FVWA025272
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 13:15:31 +1100
-Date: Mon, 21 Mar 2011 12:45:32 +1030
-From: Christopher Yeoh <cyeoh@au1.ibm.com>
-Subject: Re: [Resend] Cross Memory Attach v3 [PATCH]
-Message-ID: <20110321124532.252f51b2@lilo>
-In-Reply-To: <20110320185532.08394018.akpm@linux-foundation.org>
-References: <20110315143547.1b233cd4@lilo>
-	<20110315161623.4099664b.akpm@linux-foundation.org>
-	<20110317154026.61ddd925@lilo>
-	<20110317125427.eebbfb51.akpm@linux-foundation.org>
-	<20110321122018.6306d067@lilo>
-	<20110320185532.08394018.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 78C658D0039
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 22:37:24 -0400 (EDT)
+Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
+	by smtp-out.google.com with ESMTP id p2L2bH5c012059
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 19:37:17 -0700
+Received: from iwr19 (iwr19.prod.google.com [10.241.69.83])
+	by kpbe20.cbf.corp.google.com with ESMTP id p2L2bBrA025720
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 19:37:16 -0700
+Received: by iwr19 with SMTP id 19so7988719iwr.35
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2011 19:37:11 -0700 (PDT)
+Date: Sun, 20 Mar 2011 19:37:02 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: compaction beware writeback
+In-Reply-To: <20110320174750.GA5653@random.random>
+Message-ID: <alpine.LSU.2.00.1103201927420.7353@sister.anvils>
+References: <alpine.LSU.2.00.1103192318100.1877@sister.anvils> <20110320174750.GA5653@random.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Sun, 20 Mar 2011 18:55:32 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > The pagecache trick potentially gives zero-copy access, whereas
-> > > the proposed code is single-copy.  Although the expected benefits
-> > > of that may not be so great due to TLB manipulation overheads.
-> > > 
-> > > I worry that one day someone will come along and implement the
-> > > pagecache trick, then we're stuck with obsolete code which we
-> > > have to maintain for ever.
-> > 
-> > Perhaps I don't understand what you're saying correctly but I think
-> > that one problem with the zero copy page flipping approach is that
-> > there is no guarantee with the data that the MPI apps want to send 
-> > resides in a page or pages all by itself.
+On Sun, 20 Mar 2011, Andrea Arcangeli wrote:
 > 
-> Well.  The applications could of course be changed.  But if the
-> applications are changeable then they could be changed to use
-> MAP_SHARED memory sharing and we wouldn't be having this discussion,
-> yes?
-> 
-> (Why can't the applications be changed to use existing shared memory
-> capabilities, btw?)
+> Interesting that slab allocates with order > 0 an object that is <4096
+> bytes. Is this related to slab_break_gfp_order?
 
-An MPI application commonly doesn't know in advance when allocating
-memory if the data it will eventually be sending will be to a local
-node or remote node process.  It will depend on the configuration of the
-cluster that you run the application on and parameters when you start
-it up (eg how many processes per node to start etc), and exactly how
-the program ends up executing.
+No, it's SLUB I'm using (partly for its excellent debugging, partly
+to trigger issues like this).  Remember, that's SLUB's great weakness,
+that for optimal efficiency it relies upon higher order pages than you'd
+expect.  It's much better since Christoph put in the ORDER_FALLBACK, but
+still makes a first attempt for a higher order page, which is liable to
+stir up page_alloc more than we'd like.
 
-So short of allocating everything to be shared memory just in case you
-want intranode communication we can't use shared memory
-cooperatively like that to reduce copies. Shared memory *is*
-often used for intranode communication, but in a copy-in to shared
-memory on the sender and copy-out on the receiver side.
-
-We did originally do some early hacking on hpcc where we did allocate
-everything from a shared memory pool just to see what sort of
-theoretical gain we could have from a single-copy model, but its not a
-solution we can use in general.
-
-Regards,
-
-Chris
--- 
-cyeoh@au.ibm.com
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
