@@ -1,76 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BD078D0039
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 10:25:52 -0400 (EDT)
-From: Ben Hutchings <ben@decadent.org.uk>
-In-Reply-To: <20110321140812.GD5719@random.random>
-References: <1300676431.26693.317.camel@localhost>
-	 <20110321124203.GB5719@random.random>
-	 <1300713183.26693.343.camel@localhost>
-	 <20110321140812.GD5719@random.random>
-Content-Type: multipart/signed; micalg="pgp-sha512"; protocol="application/pgp-signature"; boundary="=-c3uRqJOBC4EAD1sSvLWJ"
-Date: Mon, 21 Mar 2011 14:25:42 +0000
-Message-ID: <1300717542.26693.352.camel@localhost>
-Mime-Version: 1.0
-Subject: Re: sysfs interface to transparent hugepages
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B44678D0039
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 10:32:27 -0400 (EDT)
+Message-ID: <4D8761D1.6010605@ladisch.de>
+Date: Mon, 21 Mar 2011 15:33:53 +0100
+From: Clemens Ladisch <clemens@ladisch.de>
+MIME-Version: 1.0
+Subject: Re: BUG in vb_alloc() (was: [Bug 31572] New: firewire crash at boot)
+References: <bug-31572-4803@https.bugzilla.kernel.org/>	<20110321143203.0fb19bee@stein> <20110321145002.5aa8114d@stein>
+In-Reply-To: <20110321145002.5aa8114d@stein>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Stefan Richter <stefanr@s5r6.in-berlin.de>, Nick Piggin <npiggin@suse.de>
+Cc: linux1394-devel@lists.sourceforge.net, Pavel Kysilka <goldenfish@linuxsoft.cz>, linux-mm@kvack.org
+
+Stefan Richter wrote:
+> > > https://bugzilla.kernel.org/show_bug.cgi?id=31572
+> > > Created an attachment (id=51502)
+> > >  --> (https://bugzilla.kernel.org/attachment.cgi?id=51502)
+> > > photo of oops
+> 
+> EIP is at vm_map_ram+0xff/0x363.
+
+This is in some inlined part of vb_alloc (which means that the FireWire
+code is not directly at fault, it's just the first one that happens to
+use this code).
+
+> Clemens, does the hex dump tell you anything?
+
+Half of it is missing.  (What's going on with that video output?
+This GPU works fine in my machine, with a 64-bit kernel.  (And why
+is an 8 GB machine using a 32-bit kernel?))
+
+Anyway, the part immediately before the crashing instruction is:
+c109c993:   31 d2                   xor    %edx,%edx
+c109c995:   f7 f1                   div    %ecx
+c109c997:   31 d2                   xor    %edx,%edx
+c109c999:   89 c7                   mov    %eax,%edi
+c109c99b:   8b 45 cc                mov    -0x34(%ebp),%eax
+c109c99e:   f7 f1                   div    %ecx
+c109c9a0:   39 c7                   cmp    %eax,%edi
+c109c9a2:   74 04                   je     0xc109c9a8
+c109c9a4:   ??...                   ???                   <-- crash here
+
+This looks as if this check in vb_alloc triggered:
+
+                BUG_ON(addr_to_vb_idx(addr) !=
+                                addr_to_vb_idx(vb->va->va_start));
+
+On x86, we call vm_map_ram() with 8+2 pages, so the parameters here
+are vb_alloc(40960, GFP_KERNEL).
+
+I've never tested this code during bootup; I always loaded firewire-ohci
+later.
 
 
---=-c3uRqJOBC4EAD1sSvLWJ
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-On Mon, 2011-03-21 at 15:08 +0100, Andrea Arcangeli wrote:
-> On Mon, Mar 21, 2011 at 01:13:03PM +0000, Ben Hutchings wrote:
-> > You have tristates {never, madvise, always} for various THM features.
-> > Internally, these are represented as a pair of flags.  They are exposed
-> > through sysfs as tristates, but then they are also exposed as flags.
->=20
-> They must be bitflags for performance and cacheline saving reasons in
-> the kernel (1 bitflag not enough in kernel for a userland
-> tristate). They're more intuitive as tristate in the same file for the
-> user to set (some combination of these flags is forbidden so exposing
-> the flags to the user doesn't sound good idea, also considering it's
-> an internal representation which may change, keeping the two separated
-> is best, especially if you want your current lib not to break).
-[...]
-
-I understand all that.  However when I first looked at this I somehow
-thought that the tristate values were *also* exposed as flags, but I was
-mistaken.  Sorry to bother you with this non-issue.
-
-Ben.
-
---=20
-Ben Hutchings
-Once a job is fouled up, anything done to improve it makes it worse.
-
---=-c3uRqJOBC4EAD1sSvLWJ
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iQIVAwUATYdf4Oe/yOyVhhEJAQoJpA//WpUvIShbVKXUDUdL7S5ZrAplysIw70Mv
-GfrThf1wjBsPpPU8DTsnihRp4agW3m9nt7/UPks4jAMoz13fNioMBlzI+aVXRU4G
-7VpJ7W6uVlWYeGGIG5hFy2axhSmdI6A9uPhyR8cJxSgTfXYxhu0nCv0Pest84n1d
-IuTmQiYojhhRac/7CZzL2ikarAAN0BWF+xiuHsZyXl9DG6VXVnlshYbeGhYi7h1k
-5eJD26rDXxhZMW6A/OqLakxx9A1sECsrCm8Lcb/R8lOD41Xk8vY18VViswURqAH+
-BaSSav+ZbJAMfO90QdfbZyAOEl5i/pu7tJ/J8YSKZ/wXhvkkR2izuM1wb/Dt3VDN
-g9+VoiU+QmdbmeaWo6yluINp+J/lu1IEB+lK5nr5wvOmkerF4MahTtS92bcs35rY
-k06de9osb0lrFhQCKEbw/ll9NmpkCV8SF6kIYU1qF1uxbwvtKnMzAi0vp6oSyA2E
-o9S1K/o1KwW3342+VeOk9OgbfAnZiPZcON6/vMdjiZVqpAYZa4Be2NpS37xKzQqS
-WoZ3HffW2/LBFCbMnGFnYTwOAf4prmRQ/1SlGoCUpNN0Ee1zS0gllrQTOx1N/3SS
-mh0/VtKH3riKovjeoqw0bVh0KoSqTDvCHZ7gLf7xFSVvox8KCOdCwlEPQhBVgTAU
-/RPsQ7y8bdo=
-=hzN1
------END PGP SIGNATURE-----
-
---=-c3uRqJOBC4EAD1sSvLWJ--
+Regards,
+Clemens
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
