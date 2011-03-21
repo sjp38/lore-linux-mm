@@ -1,42 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 78C658D0039
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 22:37:24 -0400 (EDT)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id p2L2bH5c012059
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 19:37:17 -0700
-Received: from iwr19 (iwr19.prod.google.com [10.241.69.83])
-	by kpbe20.cbf.corp.google.com with ESMTP id p2L2bBrA025720
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 19:37:16 -0700
-Received: by iwr19 with SMTP id 19so7988719iwr.35
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2011 19:37:11 -0700 (PDT)
-Date: Sun, 20 Mar 2011 19:37:02 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: compaction beware writeback
-In-Reply-To: <20110320174750.GA5653@random.random>
-Message-ID: <alpine.LSU.2.00.1103201927420.7353@sister.anvils>
-References: <alpine.LSU.2.00.1103192318100.1877@sister.anvils> <20110320174750.GA5653@random.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 781E28D0039
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2011 23:00:41 -0400 (EDT)
+From: Ben Hutchings <ben@decadent.org.uk>
+Content-Type: multipart/signed; micalg="pgp-sha512"; protocol="application/pgp-signature"; boundary="=-O+qF2uxBCW/A31lX6g0r"
+Date: Mon, 21 Mar 2011 03:00:31 +0000
+Message-ID: <1300676431.26693.317.camel@localhost>
+Mime-Version: 1.0
+Subject: sysfs interface to transparent hugepages
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 
-On Sun, 20 Mar 2011, Andrea Arcangeli wrote:
-> 
-> Interesting that slab allocates with order > 0 an object that is <4096
-> bytes. Is this related to slab_break_gfp_order?
 
-No, it's SLUB I'm using (partly for its excellent debugging, partly
-to trigger issues like this).  Remember, that's SLUB's great weakness,
-that for optimal efficiency it relies upon higher order pages than you'd
-expect.  It's much better since Christoph put in the ORDER_FALLBACK, but
-still makes a first attempt for a higher order page, which is liable to
-stir up page_alloc more than we'd like.
+--=-O+qF2uxBCW/A31lX6g0r
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Hugh
+This kind of cute format:
+
+       if (test_bit(enabled, &transparent_hugepage_flags)) {
+               VM_BUG_ON(test_bit(req_madv, &transparent_hugepage_flags));
+               return sprintf(buf, "[always] madvise never\n");
+       } else if (test_bit(req_madv, &transparent_hugepage_flags))
+               return sprintf(buf, "always [madvise] never\n");
+       else
+               return sprintf(buf, "always madvise [never]\n");
+
+is probably nice for a kernel developer or experimental user poking
+around in sysfs.  But sysfs is mostly meant for programs to read and
+write, and this format is unnecessarily complex for a program to parse.
+
+Please use separate attributes for the current value and available
+values, like cpufreq does.  I know there are other examples of the above
+format, but not everything already in sysfs is a *good* example!
+
+This, on the other hand, is totally ridiculous:
+
+       if (test_bit(flag, &transparent_hugepage_flags))
+               return sprintf(buf, "[yes] no\n");
+       else
+               return sprintf(buf, "yes [no]\n");
+
+Why show the possible values of a boolean?  I can't even find any
+examples of 'yes' and 'no' rather than '1' and '0'.
+
+And really, why add boolean flags for a tristate at all?
+
+Ben.
+
+--=20
+Ben Hutchings
+Once a job is fouled up, anything done to improve it makes it worse.
+
+--=-O+qF2uxBCW/A31lX6g0r
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQIVAwUATYa/See/yOyVhhEJAQq32BAAkIexI4kzTTknyOeu8LQ1dRiqIHBC7IPL
+o0DHLG/HF+ytw/s/x5y0PAYj/SbzXoZrkLC/AWjQOCCej1D7JYke4t9u0ge7GnHG
+QR2WoVKR+8SLw8ypCKbz0yFpZUWAPXTgsnj7dTUDXl4OgCejztnansBOXO/0gUpt
+gWmkOUy/ONGZUVmzyGawXMHHM2CBAwPuPA1qRH/nu8Jpthrb6useaaaF0OnAeMcS
+gxT82qJfVj9I8jmhcZ6tTHovUKw3zUPPm8Ls05kETzETZfsX+XT20Sfz9OG7+AG7
+1N6uKdycMtyHYuAuOa2CtYfhV9yyVf7Oe5I6iEdVuX3uq/8qL2roITOQ83JrrTBw
+gqxgkFWs5749WSE3fiCcBch7LKNuNSxlJYGteS/m6B5KGyTTyvIVxdlCSg8ZpYAd
+OeLwPf4qijWbWfpWzRhIRB/xiQqfekOAqFqeh7MxGPZkU+feNiPD4I7qc845EBB0
+ErF+4knYoTQLzI3BH5pQdQ/8x5yR1yMw5iScO29wMLHQi+lb9GtjdHK7pvJqf0mt
+Cpks+Unh6RhcnCfAz+2dEgcGS4SJeBTLaO3SIRJQ0mb7MT8q5nKDQtjWkPqhgWzS
+NinYY6Wpq2vwet40nlnNC9f4+Fe2KNVWuWqax+iY6mNlnenkb5nB9Ze4HOJ/k/vo
+WlR+r0vVfAY=
+=Tz/2
+-----END PGP SIGNATURE-----
+
+--=-O+qF2uxBCW/A31lX6g0r--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
