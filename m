@@ -1,64 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B44678D0039
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 10:32:27 -0400 (EDT)
-Message-ID: <4D8761D1.6010605@ladisch.de>
-Date: Mon, 21 Mar 2011 15:33:53 +0100
-From: Clemens Ladisch <clemens@ladisch.de>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5F1948D0039
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 11:23:47 -0400 (EDT)
+Message-ID: <4D876D43.3020409@fiec.espol.edu.ec>
+Date: Mon, 21 Mar 2011 10:22:43 -0500
+From: =?ISO-8859-1?Q?Alex_Villac=ED=ADs_Lasso?=
+ <avillaci@fiec.espol.edu.ec>
 MIME-Version: 1.0
-Subject: Re: BUG in vb_alloc() (was: [Bug 31572] New: firewire crash at boot)
-References: <bug-31572-4803@https.bugzilla.kernel.org/>	<20110321143203.0fb19bee@stein> <20110321145002.5aa8114d@stein>
-In-Reply-To: <20110321145002.5aa8114d@stein>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Subject: Re: [Bugme-new] [Bug 31142] New: Large write to USB stick freezes
+ unrelated tasks for a long time
+References: <4D80D65C.5040504@fiec.espol.edu.ec> <20110316150208.7407c375.akpm@linux-foundation.org> <4D827CC1.4090807@fiec.espol.edu.ec> <20110317144727.87a461f9.akpm@linux-foundation.org> <20110318111300.GF707@csn.ul.ie> <4D839EDB.9080703@fiec.espol.edu.ec> <20110319134628.GG707@csn.ul.ie> <4D84D3F2.4010200@fiec.espol.edu.ec> <20110319235144.GG10696@random.random> <20110321094149.GH707@csn.ul.ie> <20110321134832.GC5719@random.random>
+In-Reply-To: <20110321134832.GC5719@random.random>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Richter <stefanr@s5r6.in-berlin.de>, Nick Piggin <npiggin@suse.de>
-Cc: linux1394-devel@lists.sourceforge.net, Pavel Kysilka <goldenfish@linuxsoft.cz>, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, avillaci@ceibo.fiec.espol.edu.ec, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-Stefan Richter wrote:
-> > > https://bugzilla.kernel.org/show_bug.cgi?id=31572
-> > > Created an attachment (id=51502)
-> > >  --> (https://bugzilla.kernel.org/attachment.cgi?id=51502)
-> > > photo of oops
-> 
-> EIP is at vm_map_ram+0xff/0x363.
+El 21/03/11 08:48, Andrea Arcangeli escribio:
+>
+> ===
+> Subject: mm: compaction: Use async migration for __GFP_NO_KSWAPD and enforce no writeback
+>
+> From: Andrea Arcangeli<aarcange@redhat.com>
+>
+> __GFP_NO_KSWAPD allocations are usually very expensive and not mandatory
+> to succeed as they have graceful fallback. Waiting for I/O in those, tends
+> to be overkill in terms of latencies, so we can reduce their latency by
+> disabling sync migrate.
+>
+> Unfortunately, even with async migration it's still possible for the
+> process to be blocked waiting for a request slot (e.g. get_request_wait
+> in the block layer) when ->writepage is called. To prevent __GFP_NO_KSWAPD
+> blocking, this patch prevents ->writepage being called on dirty page cache
+> for asynchronous migration.
+>
+> [mel@csn.ul.ie: Avoid writebacks for NFS, retry locked pages, use bool]
+> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+> Signed-off-by: Mel Gorman<mel@csn.ul.ie>
+> ---
+>   mm/migrate.c    |   48 +++++++++++++++++++++++++++++++++---------------
+>   mm/page_alloc.c |    2 +-
+>   2 files changed, 34 insertions(+), 16 deletions(-)
+The latest patch fails to apply in vanilla 2.6.38:
 
-This is in some inlined part of vb_alloc (which means that the FireWire
-code is not directly at fault, it's just the first one that happens to
-use this code).
+[alex@srv64 linux-2.6.38]$ patch -p1 --dry-run < ../\[Bug\ 31142\]\ Large\ write\ to\ USB\ stick\ freezes\ unrelated\ tasks\ for\ a\ long\ time.eml
+(Stripping trailing CRs from patch.)
+patching file mm/migrate.c
+Hunk #1 FAILED at 564.
+Hunk #2 FAILED at 586.
+Hunk #3 FAILED at 641.
+Hunk #4 FAILED at 686.
+Hunk #5 FAILED at 757.
+Hunk #6 FAILED at 850.
+6 out of 6 hunks FAILED -- saving rejects to file mm/migrate.c.rej
+(Stripping trailing CRs from patch.)
+patching file mm/page_alloc.c
+Hunk #1 FAILED at 2085.
+1 out of 1 hunk FAILED -- saving rejects to file mm/page_alloc.c.rej
 
-> Clemens, does the hex dump tell you anything?
-
-Half of it is missing.  (What's going on with that video output?
-This GPU works fine in my machine, with a 64-bit kernel.  (And why
-is an 8 GB machine using a 32-bit kernel?))
-
-Anyway, the part immediately before the crashing instruction is:
-c109c993:   31 d2                   xor    %edx,%edx
-c109c995:   f7 f1                   div    %ecx
-c109c997:   31 d2                   xor    %edx,%edx
-c109c999:   89 c7                   mov    %eax,%edi
-c109c99b:   8b 45 cc                mov    -0x34(%ebp),%eax
-c109c99e:   f7 f1                   div    %ecx
-c109c9a0:   39 c7                   cmp    %eax,%edi
-c109c9a2:   74 04                   je     0xc109c9a8
-c109c9a4:   ??...                   ???                   <-- crash here
-
-This looks as if this check in vb_alloc triggered:
-
-                BUG_ON(addr_to_vb_idx(addr) !=
-                                addr_to_vb_idx(vb->va->va_start));
-
-On x86, we call vm_map_ram() with 8+2 pages, so the parameters here
-are vb_alloc(40960, GFP_KERNEL).
-
-I've never tested this code during bootup; I always loaded firewire-ohci
-later.
-
-
-Regards,
-Clemens
+I will try to apply the patch manually.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
