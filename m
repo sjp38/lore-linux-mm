@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B7F38D0039
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 19:14:08 -0400 (EDT)
-Message-Id: <20110321231054.162297660@clark.kroah.org>
-Date: Mon, 21 Mar 2011 16:10:14 -0700
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A05DC8D0039
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 19:16:20 -0400 (EDT)
+Message-Id: <20110321230717.230905118@clark.kroah.org>
+Date: Mon, 21 Mar 2011 16:07:17 -0700
 From: Greg KH <gregkh@suse.de>
-Subject: [34/44] x86: Flush TLB if PGD entry is changed in i386 PAE mode
-In-Reply-To: <20110321231105.GA1744@kroah.com>
+Subject: [78/87] x86: Flush TLB if PGD entry is changed in i386 PAE mode
+In-Reply-To: <20110321230732.GA26510@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, stable@kernel.org
 Cc: stable-review@kernel.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, alan@lxorguk.ukuu.org.uk, Shaohua Li <shaohua.li@intel.com>, Mallick Asit K <asit.k.mallick@intel.com>, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 
-2.6.32-longterm review patch.  If anyone has any objections, please let us know.
+2.6.37-stable review patch.  If anyone has any objections, please let us know.
 
 ------------------
 
@@ -81,7 +81,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@suse.de>
  #ifdef CONFIG_SMP
 --- a/arch/x86/mm/pgtable.c
 +++ b/arch/x86/mm/pgtable.c
-@@ -159,8 +159,7 @@ void pud_populate(struct mm_struct *mm,
+@@ -168,8 +168,7 @@ void pud_populate(struct mm_struct *mm,
  	 * section 8.1: in PAE mode we explicitly have to flush the
  	 * TLB via cr3 if the top-level pgd is changed...
  	 */
