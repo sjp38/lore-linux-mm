@@ -1,66 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D28A8D0039
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 03:23:17 -0400 (EDT)
-Message-ID: <4D884EBC.1040307@ladisch.de>
-Date: Tue, 22 Mar 2011 08:24:44 +0100
-From: Clemens Ladisch <clemens@ladisch.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8B2AC8D0039
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 03:31:57 -0400 (EDT)
+Date: Tue, 22 Mar 2011 08:31:50 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: consider per-cpu stock reserves when returning
+ RES_USAGE for _MEM
+Message-ID: <20110322073150.GA12940@tiehlicka.suse.cz>
+References: <20110318152532.GB18450@tiehlicka.suse.cz>
+ <20110321093419.GA26047@tiehlicka.suse.cz>
+ <20110321102420.GB26047@tiehlicka.suse.cz>
+ <20110322091014.27677ab3.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110322104723.fd81dddc.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Subject: Re: BUG in vb_alloc() (was: [Bug 31572] New: firewire crash at boot)
-References: <bug-31572-4803@https.bugzilla.kernel.org/>	<20110321143203.0fb19bee@stein>	<20110321145002.5aa8114d@stein> <4D8761D1.6010605@ladisch.de>
-In-Reply-To: <4D8761D1.6010605@ladisch.de>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20110322104723.fd81dddc.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Richter <stefanr@s5r6.in-berlin.de>, Nick Piggin <npiggin@kernel.dk>
-Cc: linux-mm@kvack.org, linux1394-devel@lists.sourceforge.net, Pavel Kysilka <goldenfish@linuxsoft.cz>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-(now with Nick's correct address)
-
-Stefan Richter wrote:
-> > > https://bugzilla.kernel.org/show_bug.cgi?id=31572
-> > > Created an attachment (id=51502)
-> > >  --> (https://bugzilla.kernel.org/attachment.cgi?id=51502)
-> > > photo of oops
+On Tue 22-03-11 10:47:23, Daisuke Nishimura wrote:
+> On Tue, 22 Mar 2011 09:10:14 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> EIP is at vm_map_ram+0xff/0x363.
+> > On Mon, 21 Mar 2011 11:24:20 +0100
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> > 
+> > > [Sorry for reposting but I forgot to fully refresh the patch before
+> > > posting...]
+> > > 
+> > > On Mon 21-03-11 10:34:19, Michal Hocko wrote:
+> > > > On Fri 18-03-11 16:25:32, Michal Hocko wrote:
+> > > > [...]
+> > > > > According to our documention this is a reasonable test case:
+> > > > > Documentation/cgroups/memory.txt:
+> > > > > memory.usage_in_bytes           # show current memory(RSS+Cache) usage.
+> > > > > 
+> > > > > This however doesn't work after your commit:
+> > > > > cdec2e4265d (memcg: coalesce charging via percpu storage)
+> > > > > 
+> > > > > because since then we are charging in bulks so we can end up with
+> > > > > rss+cache <= usage_in_bytes.
+> > > > [...]
+> > > > > I think we have several options here
+> > > > > 	1) document that the value is actually >= rss+cache and it shows
+> > > > > 	   the guaranteed charges for the group
+> > > > > 	2) use rss+cache rather then res->count
+> > > > > 	3) remove the file
+> > > > > 	4) call drain_all_stock_sync before asking for the value in
+> > > > > 	   mem_cgroup_read
+> > > > > 	5) collect the current amount of stock charges and subtract it
+> > > > > 	   from the current res->count value
+> > > > > 
+> > > > > 1) and 2) would suggest that the file is actually not very much useful.
+> > > > > 3) is basically the interface change as well
+> > > > > 4) sounds little bit invasive as we basically lose the advantage of the
+> > > > > pool whenever somebody reads the file. Btw. for who is this file
+> > > > > intended?
+> > > > > 5) sounds like a compromise
+> > > > 
+> > > > I guess that 4) is really too invasive - for no good reason so here we
+> > > > go with the 5) solution.
+> > 
+> > I think the test in LTP is bad...(it should be fuzzy.) because we cannot
+> > avoid races...
+> I agree.
 
-This is in some inlined part of vb_alloc (which means that the FireWire
-code is not directly at fault, it's just the first one that happens to
-use this code).
+I think that as well. In fact, I quite do not understand what it is
+testing actually (that we account charges correctly? If yes then what if
+both values are wrong?). The other point is, though, we have exported this
+interface and documented its semantic. This is the reason I have asked
+for the initial purpose of the file in the first place. Is this
+something for debugging only? Can we make use of the value somehow
+(other than a shortcut for rss+cache)?
 
-> Clemens, does the hex dump tell you anything?
+If there is realy no strong reason for the file existence I would rather
+vote for its removing than having a unusable semantic.
 
-Half of it is missing.  (What's going on with that video output?
-This GPU works fine in my machine, with a 64-bit kernel.  (And why
-is an 8 GB machine using a 32-bit kernel?))
+[...]
+> > > Index: linus_tree/mm/memcontrol.c
+> > > ===================================================================
+> > > --- linus_tree.orig/mm/memcontrol.c	2011-03-18 16:09:11.000000000 +0100
+> > > +++ linus_tree/mm/memcontrol.c	2011-03-21 10:21:55.000000000 +0100
+> > > @@ -3579,13 +3579,30 @@ static unsigned long mem_cgroup_recursiv
+> > >  	return val;
+> > >  }
+> > >  
+> > > +static u64 mem_cgroup_current_usage(struct mem_cgroup *mem)
+> > > +{
+> > > +	u64 val = res_counter_read_u64(&mem->res, RES_USAGE);
+> > > +	u64 per_cpu_val = 0;
+> > > +	int cpu;
+> > > +
+> > > +	get_online_cpus();
+> > > +	for_each_online_cpu(cpu) {
+> > > +		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
+> > > +
+> > > +		per_cpu_val += stock->nr_pages * PAGE_SIZE;
+> > 
+> > 		if (memcg_stock->cached == mem)
+> > 			per_cpu_val += stock->nr_pages * PAGE_SIZE;
 
-Anyway, the part immediately before the crashing instruction is:
-c109c993:   31 d2                   xor    %edx,%edx
-c109c995:   f7 f1                   div    %ecx
-c109c997:   31 d2                   xor    %edx,%edx
-c109c999:   89 c7                   mov    %eax,%edi
-c109c99b:   8b 45 cc                mov    -0x34(%ebp),%eax
-c109c99e:   f7 f1                   div    %ecx
-c109c9a0:   39 c7                   cmp    %eax,%edi
-c109c9a2:   74 04                   je     0xc109c9a8
-c109c9a4:   ??...                   ???                   <-- crash here
+OK, thanks for pointing that out.
 
-This looks as if this check in vb_alloc triggered:
+> > AND I think you doesn't handle batched uncharge.
+> > Do you have any idea ?
 
-                BUG_ON(addr_to_vb_idx(addr) !=
-                                addr_to_vb_idx(vb->va->va_start));
+Hmm, missed that... And this will be really hard as the batch structure
+is embeded in the task struct (strange why we simply cannot uncharge
+same way as we do charges?).
 
-On x86, we call vm_map_ram() with 8+2 pages, so the parameters here
-are vb_alloc(40960, GFP_KERNEL).
+> > (Peter Zilstra's patch will make error size of
+> > bached uncharge bigger.)
+> > 
+> > So....rather than this, just always using root memcg's code is
+> > a good way. Could you try ?
+> > ==
+> >         usage = mem_cgroup_recursive_stat(mem, MEM_CGROUP_STAT_CACHE);
+> >         usage += mem_cgroup_recursive_stat(mem, MEM_CGROUP_STAT_RSS);
+> > 
+> >         if (swap)
+> >                 val += mem_cgroup_recursive_stat(mem, MEM_CGROUP_STAT_SWAPOUT);
+> > 
+> >         return val << PAGE_SHIFT;
+> > ==
+> > 
+> So, option 2) above.
+> 
 
-I've never tested this code during bootup; I always loaded firewire-ohci
-later.
+I have tried that and it really works but what is the point of the file
+then? Or should we do this as a workaround for some time frame until we
+remove the file completely?
 
+> As Michal already said, this change will make *.usage_in_bytes not so useful,
+> i.e. we can use memory.stat instead.
 
-Regards,
-Clemens
+It would be useful in that regard that we do not have to grep out two
+values from .stat file and sum them up. But I am missing the point. If
+we want to have a sum we should add it to the .stat file, right? (like
+we do in other exported files - e.g. meminfo etc...)
+
+> 
+> I don't have any good idea, but I tend to agree to 1) or 3)(or rename the file names) now.
+
+The more I think about it the more I think the same.
+
+> Considering batched uncharge, I think 4) and 5) is difficult.
+
+Thanks for comments.
+-- 
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
