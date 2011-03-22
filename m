@@ -1,46 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 39C4F8D0039
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 20:06:09 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 154CC3EE0BC
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 09:06:06 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id F175345DE55
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 09:06:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DBFA345DE4D
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 09:06:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CE2171DB803A
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 09:06:05 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B4781DB802C
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 09:06:05 +0900 (JST)
-Date: Tue, 22 Mar 2011 08:59:38 +0900
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EEC168D0039
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2011 20:16:52 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C794C3EE0C1
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 09:16:42 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A988345DE5C
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 09:16:42 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 908E345DE57
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 09:16:42 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 838E8E08003
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 09:16:42 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 451F4E18002
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 09:16:42 +0900 (JST)
+Date: Tue, 22 Mar 2011 09:10:14 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] memcg: move page-freeing code outside of lock
-Message-Id: <20110322085938.0691f7f4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1300452855-10194-3-git-send-email-namhyung@gmail.com>
-References: <1300452855-10194-1-git-send-email-namhyung@gmail.com>
-	<1300452855-10194-3-git-send-email-namhyung@gmail.com>
+Subject: Re: [PATCH] memcg: consider per-cpu stock reserves when returning
+ RES_USAGE for _MEM
+Message-Id: <20110322091014.27677ab3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110321102420.GB26047@tiehlicka.suse.cz>
+References: <20110318152532.GB18450@tiehlicka.suse.cz>
+	<20110321093419.GA26047@tiehlicka.suse.cz>
+	<20110321102420.GB26047@tiehlicka.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namhyung Kim <namhyung@gmail.com>
-Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 18 Mar 2011 21:54:15 +0900
-Namhyung Kim <namhyung@gmail.com> wrote:
+On Mon, 21 Mar 2011 11:24:20 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
 
-> Signed-off-by: Namhyung Kim <namhyung@gmail.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> [Sorry for reposting but I forgot to fully refresh the patch before
+> posting...]
+> 
+> On Mon 21-03-11 10:34:19, Michal Hocko wrote:
+> > On Fri 18-03-11 16:25:32, Michal Hocko wrote:
+> > [...]
+> > > According to our documention this is a reasonable test case:
+> > > Documentation/cgroups/memory.txt:
+> > > memory.usage_in_bytes           # show current memory(RSS+Cache) usage.
+> > > 
+> > > This however doesn't work after your commit:
+> > > cdec2e4265d (memcg: coalesce charging via percpu storage)
+> > > 
+> > > because since then we are charging in bulks so we can end up with
+> > > rss+cache <= usage_in_bytes.
+> > [...]
+> > > I think we have several options here
+> > > 	1) document that the value is actually >= rss+cache and it shows
+> > > 	   the guaranteed charges for the group
+> > > 	2) use rss+cache rather then res->count
+> > > 	3) remove the file
+> > > 	4) call drain_all_stock_sync before asking for the value in
+> > > 	   mem_cgroup_read
+> > > 	5) collect the current amount of stock charges and subtract it
+> > > 	   from the current res->count value
+> > > 
+> > > 1) and 2) would suggest that the file is actually not very much useful.
+> > > 3) is basically the interface change as well
+> > > 4) sounds little bit invasive as we basically lose the advantage of the
+> > > pool whenever somebody reads the file. Btw. for who is this file
+> > > intended?
+> > > 5) sounds like a compromise
+> > 
+> > I guess that 4) is really too invasive - for no good reason so here we
+> > go with the 5) solution.
 
-What is the benefit of this patch ?
+I think the test in LTP is bad...(it should be fuzzy.) because we cannot
+avoid races...
+But ok, this itself will be a problem with a large machine with many cpus.
 
+
+> --- 
+> From: Michal Hocko <mhocko@suse.cz>
+> Subject: memcg: consider per-cpu stock reserves when returning RES_USAGE for _MEM
+> 
+> Since cdec2e4265d (memcg: coalesce charging via percpu storage) commit we
+> are charging resource counter in batches. This means that the current
+> res->count value doesn't show the real consumed value (rss+cache as we
+> describe in the documentation) but rather a promissed charges for future.
+> We are pre-charging CHARGE_SIZE bulk at once and subsequent charges are
+> satisfied from the per-cpu cgroup_stock pool.
+> 
+> We have seen a report that one of the LTP testcases checks exactly this
+> condition so the test fails.
+> 
+> As this exported value is a part of kernel->userspace interface we should
+> try to preserve the original (and documented) semantic.
+> 
+> This patch fixes the issue by collecting the current usage of each per-cpu
+> stock and subtracting it from the current res counter value.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+
+This doesn't seems correct.
+
+> Index: linus_tree/mm/memcontrol.c
+> ===================================================================
+> --- linus_tree.orig/mm/memcontrol.c	2011-03-18 16:09:11.000000000 +0100
+> +++ linus_tree/mm/memcontrol.c	2011-03-21 10:21:55.000000000 +0100
+> @@ -3579,13 +3579,30 @@ static unsigned long mem_cgroup_recursiv
+>  	return val;
+>  }
+>  
+> +static u64 mem_cgroup_current_usage(struct mem_cgroup *mem)
+> +{
+> +	u64 val = res_counter_read_u64(&mem->res, RES_USAGE);
+> +	u64 per_cpu_val = 0;
+> +	int cpu;
+> +
+> +	get_online_cpus();
+> +	for_each_online_cpu(cpu) {
+> +		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
+> +
+> +		per_cpu_val += stock->nr_pages * PAGE_SIZE;
+
+		if (memcg_stock->cached == mem)
+			per_cpu_val += stock->nr_pages * PAGE_SIZE;
+
+AND I think you doesn't handle batched uncharge.
+Do you have any idea ? (Peter Zilstra's patch will make error size of
+bached uncharge bigger.)
+
+So....rather than this, just always using root memcg's code is
+a good way. Could you try ?
+==
+        usage = mem_cgroup_recursive_stat(mem, MEM_CGROUP_STAT_CACHE);
+        usage += mem_cgroup_recursive_stat(mem, MEM_CGROUP_STAT_RSS);
+
+        if (swap)
+                val += mem_cgroup_recursive_stat(mem, MEM_CGROUP_STAT_SWAPOUT);
+
+        return val << PAGE_SHIFT;
+==
+
+Thanks,
 -Kame
+
+
+> +	}
+> +	put_online_cpus();
+> +
+> +	return (val > per_cpu_val)? val - per_cpu_val: 0;
+> +}
+> +
+>  static inline u64 mem_cgroup_usage(struct mem_cgroup *mem, bool swap)
+>  {
+>  	u64 val;
+>  
+>  	if (!mem_cgroup_is_root(mem)) {
+>  		if (!swap)
+> -			return res_counter_read_u64(&mem->res, RES_USAGE);
+> +			return mem_cgroup_current_usage(mem);
+>  		else
+>  			return res_counter_read_u64(&mem->memsw, RES_USAGE);
+>  	}
+> -- 
+> Michal Hocko
+> SUSE Labs
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9    
+> Czech Republic
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
