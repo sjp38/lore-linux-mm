@@ -1,39 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 243BF8D0039
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 05:04:06 -0400 (EDT)
-Date: Tue, 22 Mar 2011 17:03:50 +0800
-From: Herbert Xu <herbert@gondor.apana.org.au>
-Subject: Re: [PATCH 1/8] drivers/random: Cache align ip_random better
-Message-ID: <20110322090350.GA23736@gondor.apana.org.au>
-References: <alpine.LSU.2.00.1103161123360.14076@sister.anvils> <20110316194542.22530.qmail@science.horizon.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 44AF28D0039
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 05:24:43 -0400 (EDT)
+Date: Tue, 22 Mar 2011 10:24:21 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: +
+ page_cgroup-reduce-allocation-overhead-for-page_cgroup-array-for-config_sparsemem.patch
+ added to -mm tree
+Message-ID: <20110322092421.GY2140@cmpxchg.org>
+References: <201103090035.p290ZJ78004080@imap1.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20110316194542.22530.qmail@science.horizon.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <201103090035.p290ZJ78004080@imap1.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: George Spelvin <linux@horizon.com>
-Cc: hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mpm@selenic.com, penberg@cs.helsinki.fi
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.cz, balbir@in.ibm.com, dave@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
 
-On Wed, Mar 16, 2011 at 03:45:42PM -0400, George Spelvin wrote:
->
-> > Ah, now you come clean!  Yes, it does feel neater to me too;
-> > but I doubt that would be sufficient justification by itself.
-> 
-> It took both factors to make it worth it to me.  The real reason was:
-> 1) Neater
-> 2) Definitely not slower
-> 3) Maybe a tiny bit faster
-> Conclusion: do it.
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: do not define unused free_page_cgroup without memory hotplug
 
-I'm with Hugh on this, the justification seems pretty weak.
+Without memory hotplug configured in, the page cgroup array is never
+actually freed again:
 
-Cheers,
+mm/page_cgroup.c:149:13: warning: a??free_page_cgroupa?? defined but not used
+
+Wrap the definition in ifdefs.  Rather than moving it into an existing
+ifdef section, to keep it close to its allocation counterpart.
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/page_cgroup.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index 885b2ac..a12cc3f 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -146,6 +146,7 @@ static void *__init_refok alloc_page_cgroup(size_t size, int nid)
+ 	return addr;
+ }
+ 
++#ifdef CONFIG_MEMORY_HOTPLUG
+ static void free_page_cgroup(void *addr)
+ {
+ 	if (is_vmalloc_addr(addr)) {
+@@ -159,6 +160,7 @@ static void free_page_cgroup(void *addr)
+ 		free_pages_exact(addr, table_size);
+ 	}
+ }
++#endif
+ 
+ static int __init_refok init_section_page_cgroup(unsigned long pfn)
+ {
 -- 
-Email: Herbert Xu <herbert@gondor.apana.org.au>
-Home Page: http://gondor.apana.org.au/~herbert/
-PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
