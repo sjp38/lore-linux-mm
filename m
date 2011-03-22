@@ -1,40 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B4C748D0040
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 15:25:16 -0400 (EDT)
-Date: Tue, 22 Mar 2011 21:25:11 +0200 (EET)
-From: Pekka Enberg <penberg@kernel.org>
-Subject: [GIT PULL] SLAB fixes for v2.6.39-rc1
-Message-ID: <alpine.DEB.2.00.1103222122150.5166@tiger>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 07EE98D0040
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 15:42:57 -0400 (EDT)
+Date: Tue, 22 Mar 2011 20:42:54 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC][PATCH 1/2] rename alloc_pages_exact()
+Message-ID: <20110322194254.GB21838@one.firstfloor.org>
+References: <20110322191501.7EEC645D@kernel>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110322191501.7EEC645D@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: cl@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Timur Tabi <timur@freescale.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>
 
-Hi Linus,
+On Tue, Mar 22, 2011 at 12:15:02PM -0700, Dave Hansen wrote:
+> 
+> alloc_pages_exact() returns a virtual address.  But, alloc_pages() returns
+> a 'struct page *'.  That makes for very confused kernel hackers.
+> 
+> __get_free_pages(), on the other hand, returns virtual addresses.  That
+> makes alloc_pages_exact() a much closer match to __get_free_pages(), so
+> rename it to get_free_pages_exact().
+> 
+> Note that alloc_pages_exact()'s partner, free_pages_exact() already
+> matches free_pages(), so we do not have to touch the free side of things.
 
-Here's a OOM path fix for lockless SLUB fastpath and a small debugging 
-statistics improvement (both from Christoph).
+Yes, that was wrong from the start. Thanks for fixing.
 
-                         Pekka
+Acked-by: Andi Kleen <ak@linux.intel.com>
 
-The following changes since commit f741a79e982cf56d7584435bad663553ffe6715f:
-   Linus Torvalds (1):
-         Merge branch 'for-linus' of git://git.kernel.org/.../mszeredi/fuse
-
-are available in the git repository at:
-
-   ssh://master.kernel.org/pub/scm/linux/kernel/git/penberg/slab-2.6.git slab/urgent
-
-Christoph Lameter (2):
-       slub: Add missing irq restore for the OOM path
-       slub: Add statistics for this_cmpxchg_double failures
-
-  include/linux/slub_def.h |    1 +
-  mm/slub.c                |    6 +++++-
-  2 files changed, 6 insertions(+), 1 deletions(-)
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
