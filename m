@@ -1,155 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8B2AC8D0039
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 03:31:57 -0400 (EDT)
-Date: Tue, 22 Mar 2011 08:31:50 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id DD3078D0039
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 03:35:19 -0400 (EDT)
+Date: Tue, 22 Mar 2011 08:35:14 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: consider per-cpu stock reserves when returning
- RES_USAGE for _MEM
-Message-ID: <20110322073150.GA12940@tiehlicka.suse.cz>
+Subject: Re: cgroup: real meaning of memory.usage_in_bytes
+Message-ID: <20110322073514.GB12940@tiehlicka.suse.cz>
 References: <20110318152532.GB18450@tiehlicka.suse.cz>
  <20110321093419.GA26047@tiehlicka.suse.cz>
- <20110321102420.GB26047@tiehlicka.suse.cz>
- <20110322091014.27677ab3.kamezawa.hiroyu@jp.fujitsu.com>
- <20110322104723.fd81dddc.nishimura@mxp.nes.nec.co.jp>
+ <AANLkTimkcYcZVifaq4pH4exkWUVNXpwXA=9oyeAn_EqR@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110322104723.fd81dddc.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <AANLkTimkcYcZVifaq4pH4exkWUVNXpwXA=9oyeAn_EqR@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Ying Han <yinghan@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 22-03-11 10:47:23, Daisuke Nishimura wrote:
-> On Tue, 22 Mar 2011 09:10:14 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > On Mon, 21 Mar 2011 11:24:20 +0100
-> > Michal Hocko <mhocko@suse.cz> wrote:
-> > 
-> > > [Sorry for reposting but I forgot to fully refresh the patch before
-> > > posting...]
-> > > 
-> > > On Mon 21-03-11 10:34:19, Michal Hocko wrote:
-> > > > On Fri 18-03-11 16:25:32, Michal Hocko wrote:
-> > > > [...]
-> > > > > According to our documention this is a reasonable test case:
-> > > > > Documentation/cgroups/memory.txt:
-> > > > > memory.usage_in_bytes           # show current memory(RSS+Cache) usage.
-> > > > > 
-> > > > > This however doesn't work after your commit:
-> > > > > cdec2e4265d (memcg: coalesce charging via percpu storage)
-> > > > > 
-> > > > > because since then we are charging in bulks so we can end up with
-> > > > > rss+cache <= usage_in_bytes.
-> > > > [...]
-> > > > > I think we have several options here
-> > > > > 	1) document that the value is actually >= rss+cache and it shows
-> > > > > 	   the guaranteed charges for the group
-> > > > > 	2) use rss+cache rather then res->count
-> > > > > 	3) remove the file
-> > > > > 	4) call drain_all_stock_sync before asking for the value in
-> > > > > 	   mem_cgroup_read
-> > > > > 	5) collect the current amount of stock charges and subtract it
-> > > > > 	   from the current res->count value
-> > > > > 
-> > > > > 1) and 2) would suggest that the file is actually not very much useful.
-> > > > > 3) is basically the interface change as well
-> > > > > 4) sounds little bit invasive as we basically lose the advantage of the
-> > > > > pool whenever somebody reads the file. Btw. for who is this file
-> > > > > intended?
-> > > > > 5) sounds like a compromise
-> > > > 
-> > > > I guess that 4) is really too invasive - for no good reason so here we
-> > > > go with the 5) solution.
-> > 
-> > I think the test in LTP is bad...(it should be fuzzy.) because we cannot
-> > avoid races...
-> I agree.
-
-I think that as well. In fact, I quite do not understand what it is
-testing actually (that we account charges correctly? If yes then what if
-both values are wrong?). The other point is, though, we have exported this
-interface and documented its semantic. This is the reason I have asked
-for the initial purpose of the file in the first place. Is this
-something for debugging only? Can we make use of the value somehow
-(other than a shortcut for rss+cache)?
-
-If there is realy no strong reason for the file existence I would rather
-vote for its removing than having a unusable semantic.
-
+On Mon 21-03-11 10:22:41, Ying Han wrote:
 [...]
-> > > Index: linus_tree/mm/memcontrol.c
-> > > ===================================================================
-> > > --- linus_tree.orig/mm/memcontrol.c	2011-03-18 16:09:11.000000000 +0100
-> > > +++ linus_tree/mm/memcontrol.c	2011-03-21 10:21:55.000000000 +0100
-> > > @@ -3579,13 +3579,30 @@ static unsigned long mem_cgroup_recursiv
-> > >  	return val;
-> > >  }
-> > >  
-> > > +static u64 mem_cgroup_current_usage(struct mem_cgroup *mem)
-> > > +{
-> > > +	u64 val = res_counter_read_u64(&mem->res, RES_USAGE);
-> > > +	u64 per_cpu_val = 0;
-> > > +	int cpu;
-> > > +
-> > > +	get_online_cpus();
-> > > +	for_each_online_cpu(cpu) {
-> > > +		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
-> > > +
-> > > +		per_cpu_val += stock->nr_pages * PAGE_SIZE;
-> > 
-> > 		if (memcg_stock->cached == mem)
-> > 			per_cpu_val += stock->nr_pages * PAGE_SIZE;
-
-OK, thanks for pointing that out.
-
-> > AND I think you doesn't handle batched uncharge.
-> > Do you have any idea ?
-
-Hmm, missed that... And this will be really hard as the batch structure
-is embeded in the task struct (strange why we simply cannot uncharge
-same way as we do charges?).
-
-> > (Peter Zilstra's patch will make error size of
-> > bached uncharge bigger.)
-> > 
-> > So....rather than this, just always using root memcg's code is
-> > a good way. Could you try ?
-> > ==
-> >         usage = mem_cgroup_recursive_stat(mem, MEM_CGROUP_STAT_CACHE);
-> >         usage += mem_cgroup_recursive_stat(mem, MEM_CGROUP_STAT_RSS);
-> > 
-> >         if (swap)
-> >                 val += mem_cgroup_recursive_stat(mem, MEM_CGROUP_STAT_SWAPOUT);
-> > 
-> >         return val << PAGE_SHIFT;
-> > ==
-> > 
-> So, option 2) above.
 > 
-
-I have tried that and it really works but what is the point of the file
-then? Or should we do this as a workaround for some time frame until we
-remove the file completely?
-
-> As Michal already said, this change will make *.usage_in_bytes not so useful,
-> i.e. we can use memory.stat instead.
-
-It would be useful in that regard that we do not have to grep out two
-values from .stat file and sum them up. But I am missing the point. If
-we want to have a sum we should add it to the .stat file, right? (like
-we do in other exported files - e.g. meminfo etc...)
-
+> Michal,
 > 
-> I don't have any good idea, but I tend to agree to 1) or 3)(or rename the file names) now.
+> Can you help to post the test result after applying the patch?
 
-The more I think about it the more I think the same.
+The result of the LTP test is:
+TEST 4: MEMORY CONTROLLER TESTING
+RUNNING SETUP.....
+WARN:/dev/memctl already exist..overwriting
+Cleanup called
+TEST STARTED: Please avoid using system while this test executes
+memory usage from memory.usage_in_bytes= 62955520
+memory usage from memory.stat= 62955520
+TINFO   Memory Resource Controller: stat check test passes first run
+Test continues to run the second step.
+memory usage from memory.usage_in_bytes= 78643200
+memory usage from memory.stat=78643200
+TPASS   Memory Resource Controller: stat check test PASSED
+Memory Resource Controller test executed successfully.
+Cleanup called
 
-> Considering batched uncharge, I think 4) and 5) is difficult.
+The attached simple test case result is:
+# mkdir /dev/memctl; mount -t cgroup -omemory cgroup /dev/memctl; cd /dev/memctl
+# mkdir group_1; cd group_1; echo 100M > memory.limit_in_bytes
+# cat memory.{usage_in_bytes,stat} 
+0
+cache 0
+rss 0
+[start the test case, add its pid to the group and let it fault in]
 
-Thanks for comments.
+# cat memory.{usage_in_bytes,stat} 
+4096
+cache 0
+rss 4096
+
+[let it finish]
+# cat memory.{usage_in_bytes,stat} 
+0
+cache 0
+rss 0
+
+Thanks
 -- 
 Michal Hocko
 SUSE Labs
