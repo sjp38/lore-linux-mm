@@ -1,170 +1,320 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 901E08D0040
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 17:43:19 -0400 (EDT)
-Date: Tue, 22 Mar 2011 22:43:14 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH RFC 0/5] IO-less balance_dirty_pages() v2 (simple
- approach)
-Message-ID: <20110322214314.GC19716@quack.suse.cz>
-References: <1299623475-5512-1-git-send-email-jack@suse.cz>
- <20110318143001.GA6173@localhost>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E4C48D0040
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 18:58:29 -0400 (EDT)
+Received: by iyf13 with SMTP id 13so10893006iyf.14
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2011 15:58:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110318143001.GA6173@localhost>
+In-Reply-To: <201103222153.p2MLrD0x029642@imap1.linux-foundation.org>
+References: <201103222153.p2MLrD0x029642@imap1.linux-foundation.org>
+Date: Wed, 23 Mar 2011 07:58:24 +0900
+Message-ID: <AANLkTi=1krqzHY1mg2T-k52C-VNruWsnXO33qS7BzeL+@mail.gmail.com>
+Subject: Re: + mm-compaction-use-async-migration-for-__gfp_no_kswapd-and-enforce-no-writeback.patch
+ added to -mm tree
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: mm-commits@vger.kernel.org, arthur.marsh@internode.on.net, cladisch@googlemail.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>
 
-  Hello Fengguang,
+Hi Andrea,
 
-On Fri 18-03-11 22:30:01, Wu Fengguang wrote:
-> On Wed, Mar 09, 2011 at 06:31:10AM +0800, Jan Kara wrote:
-> > 
-> >   Hello,
-> > 
-> >   I'm posting second version of my IO-less balance_dirty_pages() patches. This
-> > is alternative approach to Fengguang's patches - much simpler I believe (only
-> > 300 lines added) - but obviously I does not provide so sophisticated control.
-> 
-> Well, it may be too early to claim "simplicity" as an advantage, until
-> you achieve the following performance/feature comparability (most of
-> them are not optional ones). AFAICS this work is kind of heavy lifting
-> that will consume a lot of time and attention. You'd better find some
-> more fundamental needs before go on the reworking.
-> 
-> (1)  latency
-> (2)  fairness
-> (3)  smoothness
-> (4)  scalability
-> (5)  per-task IO controller
-> (6)  per-cgroup IO controller (TBD)
-> (7)  free combinations of per-task/per-cgroup and bandwidth/priority controllers
-> (8)  think time compensation
-> (9)  backed by both theory and tests
-> (10) adapt pause time up on 100+ dirtiers
-> (11) adapt pause time down on low dirty pages 
-> (12) adapt to new dirty threshold/goal
-> (13) safeguard against dirty exceeding
-> (14) safeguard against device queue underflow
-  I think this is a misunderstanding of my goals ;). My main goal is to
-explore, how far we can get with a relatively simple approach to IO-less
-balance_dirty_pages(). I guess what I have is better than the current
-balance_dirty_pages() but it sure does not even try to provide all the
-features you try to provide.
+I didn't follow up USB stick freeze issue but the patch's concept
+looks good to me. But there are some comments about this patch.
 
-I'm thinking about tweaking ratelimiting logic to reduce latencies in some
-tests, possibly add compensation when we waited for too long in
-balance_dirty_pages() (e.g. because of bumpy IO completion) but that's
-about it...
+1. __GFP_NO_KSWAPD
 
-Basically I do this so that we can compare and decide whether what my
-simple approach offers is OK or whether we want some more complex solution
-like your patches...
+This patch is based on assumption that hugepage allocation have a good
+fallback and now hugepage allocation uses __GFP_NO_KSWAPD.
 
-> > The basic idea (implemented in the third patch) is that processes throttled
-> > in balance_dirty_pages() wait for enough IO to complete. The waiting is
-> > implemented as follows: Whenever we decide to throttle a task in
-> > balance_dirty_pages(), task adds itself to a list of tasks that are throttled
-> > against that bdi and goes to sleep waiting to receive specified amount of page
-> > IO completions. Once in a while (currently HZ/10, in patch 5 the interval is
-> > autotuned based on observed IO rate), accumulated page IO completions are
-> > distributed equally among waiting tasks.
-> > 
-> > This waiting scheme has been chosen so that waiting time in
-> > balance_dirty_pages() is proportional to
-> >   number_waited_pages * number_of_waiters.
-> > In particular it does not depend on the total number of pages being waited for,
-> > thus providing possibly a fairer results.
-> 
-> When there comes no IO completion in 1 second (normal in NFS), the
-> tasks will all get stuck. It is fixable based on your v2 code base
-> (detailed below), however will likely bring the same level of
-> complexity as the base bandwidth solution.
-  I have some plans how to account for bumpy IO completion when we wait for
-a long time and then get completion of much more IO than we actually need.
-But in case where processes use all the bandwidth and the latency of the
-device is high, sure they take the penalty and have to wait for a long time
-in balance_dirty_pages().
+__GFP_NO_KSWAPD's goal is just prevent unnecessary wakeup kswapd and
+only user is just thp now so I can understand why you use it but how
+about __GFP_NORETRY?
 
-> As for v2, there are still big gap to fill. NFS dirtiers are
-> constantly doing 20-25 seconds long delays
-> 
-> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/jan-bdp-v2b/3G/nfs-1dd-1M-8p-2945M-20%25-2.6.38-rc8-jan-bdp+-2011-03-10-16-31/balance_dirty_pages-pause.png
-> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/jan-bdp-v2b/3G/nfs-10dd-1M-8p-2945M-20%25-2.6.38-rc8-jan-bdp+-2011-03-10-16-38/balance_dirty_pages-pause.png
-  Yeah, this is because they want lots of pages each
-(3/2*MAX_WRITEBACK_PAGES). I'll try to change ratelimiting to make several
-shorter sleeps. But ultimately you have to wait this much. Just you can
-split those big sleeps in more of smaller ones.
- 
-> and the tasks are bumping forwards
-> 
-> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/jan-bdp-v2b/3G/nfs-10dd-1M-8p-2945M-20%25-2.6.38-rc8-jan-bdp+-2011-03-10-16-38/balance_dirty_pages-task-bw.png
-  Yeah, that's a result of bumpy NFS writeout and basically the consequence
-of the above. Maybe it can be helped but I don't find this to be a problem on
-its own...
+I think __GFP_NORETRY assume caller has a fallback mechanism(ex, SLUB)
+and he think latency is important in such context.
 
-> > Since last version I've implemented cleanups as suggested by Peter Zilstra.
-> > The patches undergone more throughout testing. So far I've tested different
-> > filesystems (ext2, ext3, ext4, xfs, nfs), also a combination of a local
-> > filesystem and nfs. The load was either various number of dd threads or
-> > fio with several threads each dirtying pages at different speed.
-> > 
-> > Results and test scripts can be found at
-> >   http://beta.suse.com/private/jack/balance_dirty_pages-v2/
-> > See README file for some explanation of test framework, tests, and graphs.
-> > Except for ext3 in data=ordered mode, where kjournald creates high
-> > fluctuations in waiting time of throttled processes (and also high latencies),
-> > the results look OK. Parallel dd threads are being throttled in the same way
-> > (in a 2s window threads spend the same time waiting) and also latencies of
-> > individual waits seem OK - except for ext3 they fit in 100 ms for local
-> > filesystems. They are in 200-500 ms range for NFS, which isn't that nice but
-> > to fix that we'd have to modify current ratelimiting scheme to take into
-> > account on which bdi a page is dirtied. Then we could ratelimit slower BDIs
-> > more often thus reducing latencies in individual waits...
-> 
-> Yes the per-cpu rate limit is a problem, so I'm switching to per-task
-> rate limit.
-  BTW: Have you considered per-bdi ratelimiting? Both per-task and per-bdi
-make sense just they are going to have slightly different properties...
-Current per-cpu ratelimit counters tend to behave like per-task
-ratelimiting at least for fast dirtiers because once a task is blocked in
-balance_dirty_pages() another task runs on that cpu and uses the counter
-for itself. So I wouldn't expect big differences from per-task
-ratelimiting...
+2. LRU churn
 
-> The direct input from IO completion is another issue. It leaves the
-> dirty tasks at the mercy of low layer (VFS/FS/bdev) fluctuations and
-> latencies. So I'm introducing the base bandwidth as a buffer layer.
-> You may employ the similar technique: to simulate a more smooth flow
-> of IO completion events based on the average write bandwidth. Then it
-> naturally introduce the problem of rate mismatch between
-> simulated/real IO completions, and the need to do more elaborated
-> position control.
-  Exacttly, that's why I don't want to base throttling on some computed
-value (well, I also somehow estimate necessary sleep time but that's more a
-performance optimization) but rather leave tasks "at the mercy of lower
-layers" as you write ;) I don't think it's necessarily a bad thing. 
- 
-> > The results for different bandwidths fio load is interesting. There are 8
-> > threads dirtying pages at 1,2,4,..,128 MB/s rate. Due to different task
-> > bdi dirty limits, what happens is that three most aggresive tasks get
-> > throttled so they end up at bandwidths 24, 26, and 30 MB/s and the lighter
-> > dirtiers run unthrottled.
-> 
-> The base bandwidth based throttling can do better and provide almost
-> perfect fairness, because all tasks writing to one bdi derive their
-> own throttle bandwidth based on the same per-bdi base bandwidth. So
-> the heavier dirtiers will converge to equal dirty rate and weight.
-  So what do you consider a perfect fairness in this case and are you sure
-it is desirable? I was thinking about this and I'm not sure...
+By this patch, async migration can't migrate dirty page of normal fs.
+It can move the victim page to head of LRU. I hope we can reduce LRU
+churning as possible. For it, we can do it when we isolate the LRU
+pages.
+If compaction mode is async, we can exclude the dirty pages in
+isolate_migratepages.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+
+On Wed, Mar 23, 2011 at 6:53 AM,  <akpm@linux-foundation.org> wrote:
+>
+> The patch titled
+> =C2=A0 =C2=A0 mm: compaction: Use async migration for __GFP_NO_KSWAPD and=
+ enforce no writeback
+> has been added to the -mm tree. =C2=A0Its filename is
+> =C2=A0 =C2=A0 mm-compaction-use-async-migration-for-__gfp_no_kswapd-and-e=
+nforce-no-writeback.patch
+>
+> Before you just go and hit "reply", please:
+> =C2=A0 a) Consider who else should be cc'ed
+> =C2=A0 b) Prefer to cc a suitable mailing list as well
+> =C2=A0 c) Ideally: find the original patch on the mailing list and do a
+> =C2=A0 =C2=A0 =C2=A0reply-to-all to that, adding suitable additional cc's
+>
+> *** Remember to use Documentation/SubmitChecklist when testing your code =
+***
+>
+> See http://userweb.kernel.org/~akpm/stuff/added-to-mm.txt to find
+> out what to do about this
+>
+> The current -mm tree may be found at http://userweb.kernel.org/~akpm/mmot=
+m/
+>
+> ------------------------------------------------------
+> Subject: mm: compaction: Use async migration for __GFP_NO_KSWAPD and enfo=
+rce no writeback
+> From: Andrea Arcangeli <aarcange@redhat.com>
+>
+> __GFP_NO_KSWAPD allocations are usually very expensive and not mandatory
+> to succeed as they have graceful fallback. =C2=A0Waiting for I/O in those=
+,
+> tends to be overkill in terms of latencies, so we can reduce their latenc=
+y
+> by disabling sync migrate.
+>
+> Unfortunately, even with async migration it's still possible for the
+> process to be blocked waiting for a request slot (e.g. =C2=A0get_request_=
+wait
+> in the block layer) when ->writepage is called. =C2=A0To prevent
+> __GFP_NO_KSWAPD blocking, this patch prevents ->writepage being called on
+> dirty page cache for asynchronous migration.
+>
+> [mel@csn.ul.ie: Avoid writebacks for NFS, retry locked pages, use bool]
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Cc: Arthur Marsh <arthur.marsh@internode.on.net>
+> Cc: Clemens Ladisch <cladisch@googlemail.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> Signed-off-by: Andrew Morton <>
+> ---
+>
+> =C2=A0mm/migrate.c =C2=A0 =C2=A0| =C2=A0 48 +++++++++++++++++++++++++++++=
+++---------------
+> =C2=A0mm/page_alloc.c | =C2=A0 =C2=A02 -
+> =C2=A02 files changed, 34 insertions(+), 16 deletions(-)
+>
+> diff -puN mm/migrate.c~mm-compaction-use-async-migration-for-__gfp_no_ksw=
+apd-and-enforce-no-writeback mm/migrate.c
+> --- a/mm/migrate.c~mm-compaction-use-async-migration-for-__gfp_no_kswapd-=
+and-enforce-no-writeback
+> +++ a/mm/migrate.c
+> @@ -564,7 +564,7 @@ static int fallback_migrate_page(struct
+> =C2=A0* =C2=A0=3D=3D 0 - success
+> =C2=A0*/
+> =C2=A0static int move_to_new_page(struct page *newpage, struct page *page=
+,
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 int remap_swapcache)
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int remap_sw=
+apcache, bool sync)
+> =C2=A0{
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct address_space *mapping;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0int rc;
+> @@ -586,18 +586,28 @@ static int move_to_new_page(struct page
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0mapping =3D page_mapping(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!mapping)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0rc =3D migrate_pag=
+e(mapping, newpage, page);
+> - =C2=A0 =C2=A0 =C2=A0 else if (mapping->a_ops->migratepage)
+> + =C2=A0 =C2=A0 =C2=A0 else {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* Most pages hav=
+e a mapping and most filesystems
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* should provide=
+ a migration function. Anonymous
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* pages are part=
+ of swap space which also has its
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* own migration =
+function. This is the most common
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* path for page =
+migration.
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* Do not writeba=
+ck pages if !sync and migratepage is
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* not pointing t=
+o migrate_page() which is nonblocking
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* (swapcache/tmp=
+fs uses migratepage =3D migrate_page).
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 rc =3D mapping->a_ops-=
+>migratepage(mapping,
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 newpage, page);
+> - =C2=A0 =C2=A0 =C2=A0 else
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 rc =3D fallback_migrat=
+e_page(mapping, newpage, page);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (PageDirty(page) &&=
+ !sync &&
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mapping-=
+>a_ops->migratepage !=3D migrate_page)
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 rc =3D -EBUSY;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else if (mapping->a_op=
+s->migratepage)
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 /*
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* Most pages have a mapping and most filesystems
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* should provide a migration function. Anonymous
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* pages are part of swap space which also has its
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* own migration function. This is the most common
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0* path for page migration.
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0*/
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 rc =3D mapping->a_ops->migratepage(mapping,
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 newpage, page);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 rc =3D fallback_migrate_page(mapping, newpage, page);
+> + =C2=A0 =C2=A0 =C2=A0 }
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (rc) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0newpage->mapping =
+=3D NULL;
+> @@ -641,7 +651,7 @@ static int unmap_and_move(new_page_t get
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0rc =3D -EAGAIN;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!trylock_page(page)) {
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!force)
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!force || !sync)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0goto move_newpage;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
+> @@ -686,7 +696,15 @@ static int unmap_and_move(new_page_t get
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0BUG_ON(charge);
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (PageWriteback(page)) {
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!force || !sync)
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* For !sync, the=
+re is no point retrying as the retry loop
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* is expected to=
+ be too short for PageWriteback to be cleared
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!sync) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 rc =3D -EBUSY;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 goto uncharge;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!force)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0goto uncharge;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0wait_on_page_write=
+back(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> @@ -757,7 +775,7 @@ static int unmap_and_move(new_page_t get
+>
+> =C2=A0skip_unmap:
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!page_mapped(page))
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 rc =3D move_to_new_pag=
+e(newpage, page, remap_swapcache);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 rc =3D move_to_new_pag=
+e(newpage, page, remap_swapcache, sync);
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (rc && remap_swapcache)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0remove_migration_p=
+tes(page, page);
+> @@ -850,7 +868,7 @@ static int unmap_and_move_huge_page(new_
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0try_to_unmap(hpage, TTU_MIGRATION|TTU_IGNORE_M=
+LOCK|TTU_IGNORE_ACCESS);
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!page_mapped(hpage))
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 rc =3D move_to_new_pag=
+e(new_hpage, hpage, 1);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 rc =3D move_to_new_pag=
+e(new_hpage, hpage, 1, sync);
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (rc)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0remove_migration_p=
+tes(hpage, hpage);
+> diff -puN mm/page_alloc.c~mm-compaction-use-async-migration-for-__gfp_no_=
+kswapd-and-enforce-no-writeback mm/page_alloc.c
+> --- a/mm/page_alloc.c~mm-compaction-use-async-migration-for-__gfp_no_kswa=
+pd-and-enforce-no-writeback
+> +++ a/mm/page_alloc.c
+> @@ -2103,7 +2103,7 @@ rebalance:
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0sync_migr=
+ation);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (page)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0goto got_pg;
+> - =C2=A0 =C2=A0 =C2=A0 sync_migration =3D true;
+> + =C2=A0 =C2=A0 =C2=A0 sync_migration =3D !(gfp_mask & __GFP_NO_KSWAPD);
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* Try direct reclaim and then allocating */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D __alloc_pages_direct_reclaim(gfp_mask=
+, order,
+> _
+>
+> Patches currently in -mm which might be from aarcange@redhat.com are
+>
+> origin.patch
+> mm-compaction-prevent-kswapd-compacting-memory-to-reduce-cpu-usage.patch
+> mm-compaction-check-migrate_pagess-return-value-instead-of-list_empty.pat=
+ch
+> mm-deactivate-invalidated-pages.patch
+> memcg-move-memcg-reclaimable-page-into-tail-of-inactive-list.patch
+> memcg-move-memcg-reclaimable-page-into-tail-of-inactive-list-fix.patch
+> mm-reclaim-invalidated-page-asap.patch
+> pagewalk-only-split-huge-pages-when-necessary.patch
+> smaps-break-out-smaps_pte_entry-from-smaps_pte_range.patch
+> smaps-pass-pte-size-argument-in-to-smaps_pte_entry.patch
+> smaps-teach-smaps_pte_range-about-thp-pmds.patch
+> smaps-have-smaps-show-transparent-huge-pages.patch
+> mm-vmscan-kswapd-should-not-free-an-excessive-number-of-pages-when-balanc=
+ing-small-zones.patch
+> mm-compaction-minimise-the-time-irqs-are-disabled-while-isolating-free-pa=
+ges.patch
+> mm-compaction-minimise-the-time-irqs-are-disabled-while-isolating-pages-f=
+or-migration.patch
+> mm-compaction-minimise-the-time-irqs-are-disabled-while-isolating-pages-f=
+or-migration-fix.patch
+> mm-compaction-use-async-migration-for-__gfp_no_kswapd-and-enforce-no-writ=
+eback.patch
+> mm-add-__gfp_other_node-flag.patch
+> mm-use-__gfp_other_node-for-transparent-huge-pages.patch
+> ksm-add-vm_stat-and-meminfo-entry-to-reflect-pte-mapping-to-ksm-pages.pat=
+ch
+> ksm-add-vm_stat-and-meminfo-entry-to-reflect-pte-mapping-to-ksm-pages-fix=
+.patch
+> ksm-add-vm_stat-and-meminfo-entry-to-reflect-pte-mapping-to-ksm-pages-fix=
+-fix.patch
+> ksm-add-vm_stat-and-meminfo-entry-to-reflect-pte-mapping-to-ksm-pages-fix=
+-fix-fix.patch
+> mm-add-vm-counters-for-transparent-hugepages.patch
+> memcg-use-native-word-page-statistics-counters-fix-event-counter-breakage=
+-with-thp.patch
+>
+>
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
