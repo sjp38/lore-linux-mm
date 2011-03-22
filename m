@@ -1,77 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8233F8D0039
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 01:45:21 -0400 (EDT)
-From: Ben Hutchings <ben@decadent.org.uk>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Tue, 22 Mar 2011 05:45:11 +0000
-Message-ID: <1300772711.26693.473.camel@localhost>
-Mime-Version: 1.0
-Subject: [PATCH] mm/thp: Use conventional format for boolean attributes
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D28A8D0039
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 03:23:17 -0400 (EDT)
+Message-ID: <4D884EBC.1040307@ladisch.de>
+Date: Tue, 22 Mar 2011 08:24:44 +0100
+From: Clemens Ladisch <clemens@ladisch.de>
+MIME-Version: 1.0
+Subject: Re: BUG in vb_alloc() (was: [Bug 31572] New: firewire crash at boot)
+References: <bug-31572-4803@https.bugzilla.kernel.org/>	<20110321143203.0fb19bee@stein>	<20110321145002.5aa8114d@stein> <4D8761D1.6010605@ladisch.de>
+In-Reply-To: <4D8761D1.6010605@ladisch.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Stefan Richter <stefanr@s5r6.in-berlin.de>, Nick Piggin <npiggin@kernel.dk>
+Cc: linux-mm@kvack.org, linux1394-devel@lists.sourceforge.net, Pavel Kysilka <goldenfish@linuxsoft.cz>
 
-The conventional format for boolean attributes in sysfs is numeric
-("0" or "1" followed by new-line).  Any boolean attribute can then be
-read and written using a generic function.  Using the strings
-"yes [no]", "[yes] no" (read), "yes" and "no" (write) will frustrate
-this.
+(now with Nick's correct address)
 
-Cc'd to stable in order to change this before many scripts depend on
-the current strings.
+Stefan Richter wrote:
+> > > https://bugzilla.kernel.org/show_bug.cgi?id=31572
+> > > Created an attachment (id=51502)
+> > >  --> (https://bugzilla.kernel.org/attachment.cgi?id=51502)
+> > > photo of oops
+> 
+> EIP is at vm_map_ram+0xff/0x363.
 
-Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
-Cc: stable@kernel.org [2.6.38]
----
- mm/huge_memory.c |   21 +++++++++++----------
- 1 files changed, 11 insertions(+), 10 deletions(-)
+This is in some inlined part of vb_alloc (which means that the FireWire
+code is not directly at fault, it's just the first one that happens to
+use this code).
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 113e35c..dc0b3f0 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -244,24 +244,25 @@ static ssize_t single_flag_show(struct kobject *kobj,
- 				struct kobj_attribute *attr, char *buf,
- 				enum transparent_hugepage_flag flag)
- {
--	if (test_bit(flag, &transparent_hugepage_flags))
--		return sprintf(buf, "[yes] no\n");
--	else
--		return sprintf(buf, "yes [no]\n");
-+	return sprintf(buf, "%d\n",
-+		       test_bit(flag, &transparent_hugepage_flags));
- }
- static ssize_t single_flag_store(struct kobject *kobj,
- 				 struct kobj_attribute *attr,
- 				 const char *buf, size_t count,
- 				 enum transparent_hugepage_flag flag)
- {
--	if (!memcmp("yes", buf,
--		    min(sizeof("yes")-1, count))) {
-+	unsigned long value;
-+	char *endp;
-+
-+	value =3D simple_strtoul(buf, &endp, 0);
-+	if (endp =3D=3D buf || value > 1)
-+		return -EINVAL;
-+
-+	if (value)
- 		set_bit(flag, &transparent_hugepage_flags);
--	} else if (!memcmp("no", buf,
--			   min(sizeof("no")-1, count))) {
-+	else
- 		clear_bit(flag, &transparent_hugepage_flags);
--	} else
--		return -EINVAL;
-=20
- 	return count;
- }
---=20
-1.7.4.1
+> Clemens, does the hex dump tell you anything?
 
+Half of it is missing.  (What's going on with that video output?
+This GPU works fine in my machine, with a 64-bit kernel.  (And why
+is an 8 GB machine using a 32-bit kernel?))
+
+Anyway, the part immediately before the crashing instruction is:
+c109c993:   31 d2                   xor    %edx,%edx
+c109c995:   f7 f1                   div    %ecx
+c109c997:   31 d2                   xor    %edx,%edx
+c109c999:   89 c7                   mov    %eax,%edi
+c109c99b:   8b 45 cc                mov    -0x34(%ebp),%eax
+c109c99e:   f7 f1                   div    %ecx
+c109c9a0:   39 c7                   cmp    %eax,%edi
+c109c9a2:   74 04                   je     0xc109c9a8
+c109c9a4:   ??...                   ???                   <-- crash here
+
+This looks as if this check in vb_alloc triggered:
+
+                BUG_ON(addr_to_vb_idx(addr) !=
+                                addr_to_vb_idx(vb->va->va_start));
+
+On x86, we call vm_map_ram() with 8+2 pages, so the parameters here
+are vb_alloc(40960, GFP_KERNEL).
+
+I've never tested this code during bootup; I always loaded firewire-ohci
+later.
+
+
+Regards,
+Clemens
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
