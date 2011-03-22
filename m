@@ -1,114 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B93D8D0039
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 07:06:53 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 431E83EE0C2
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:06:50 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 28A3D45DE55
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:06:50 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 060F345DE4E
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:06:50 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EAD2A1DB8038
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:06:49 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A717D1DB803C
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:06:49 +0900 (JST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id ECE018D0039
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 07:08:07 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C24193EE0C2
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:08:03 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A82CA45DE5B
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:08:03 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F15945DE59
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:08:03 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7ED7EE08006
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:08:03 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D011E08003
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:08:03 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 2/5] Revert "oom: give the dying task a higher priority"
+Subject: [PATCH 3/5] oom: create oom autogroup
 In-Reply-To: <20110322194721.B05E.A69D9226@jp.fujitsu.com>
 References: <20110315153801.3526.A69D9226@jp.fujitsu.com> <20110322194721.B05E.A69D9226@jp.fujitsu.com>
-Message-Id: <20110322200657.B064.A69D9226@jp.fujitsu.com>
+Message-Id: <20110322200759.B067.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 22 Mar 2011 20:06:48 +0900 (JST)
+Date: Tue, 22 Mar 2011 20:08:02 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mike Galbraith <efault@gmx.de>
 
-This reverts commit 93b43fa55088fe977503a156d1097cc2055449a2.
+When plenty processes (eg fork bomb) are running, the TIF_MEMDIE task
+never exit, at least, human feel it's never. therefore kernel become
+hang-up.
 
-The commit dramatically improve oom killer logic when fork-bomb
-occur. But, I've found it has nasty corner case. Now cpu cgroup
-has strange default RT runtime. It's 0! That said, if a process
-under cpu cgroup promote RT scheduling class, the process never
-run at all.
+"perf sched" tell us a hint.
 
-Eventually, kernel may hang up when oom kill occur.
+ ------------------------------------------------------------------------------
+  Task                  |   Runtime ms  | Average delay ms | Maximum delay ms |
+ ------------------------------------------------------------------------------
+  python:1754           |      0.197 ms | avg: 1731.727 ms | max: 3433.805 ms |
+  python:1843           |      0.489 ms | avg: 1707.433 ms | max: 3622.955 ms |
+  python:1715           |      0.220 ms | avg: 1707.125 ms | max: 3623.246 ms |
+  python:1818           |      2.127 ms | avg: 1527.331 ms | max: 3622.553 ms |
+  ...
+  ...
 
-The author need to resubmit it as adding knob and disabled
-by default if he really need this feature.
+Processes flood makes crazy scheduler delay. and then the victim process
+can't run enough. Grr. Should we do?
 
-Cc: Luis Claudio R. Goncalves <lclaudio@uudg.org>
+Fortunately, we already have anti process flood framework, autogroup!
+This patch reuse this framework and avoid kernel live lock.
+
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/oom_kill.c |   27 ---------------------------
- 1 files changed, 0 insertions(+), 27 deletions(-)
+ include/linux/oom.h      |    1 +
+ include/linux/sched.h    |    4 ++++
+ init/main.c              |    2 ++
+ kernel/sched_autogroup.c |    4 ++--
+ mm/oom_kill.c            |   23 +++++++++++++++++++++++
+ 5 files changed, 32 insertions(+), 2 deletions(-)
 
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index 5e3aa83..86bcea3 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -67,6 +67,7 @@ extern unsigned long badness(struct task_struct *p, struct mem_cgroup *mem,
+ 		      const nodemask_t *nodemask, unsigned long uptime);
+ 
+ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
++extern void oom_init(void);
+ 
+ /* sysctls */
+ extern int sysctl_oom_dump_tasks;
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 98fc7ed..bdaad3f 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1947,6 +1947,8 @@ int sched_rt_handler(struct ctl_table *table, int write,
+ #ifdef CONFIG_SCHED_AUTOGROUP
+ extern unsigned int sysctl_sched_autogroup_enabled;
+ 
++extern struct autogroup *autogroup_create(void);
++extern void autogroup_move_group(struct task_struct *p, struct autogroup *ag);
+ extern void sched_autogroup_create_attach(struct task_struct *p);
+ extern void sched_autogroup_detach(struct task_struct *p);
+ extern void sched_autogroup_fork(struct signal_struct *sig);
+@@ -1956,6 +1958,8 @@ extern void proc_sched_autogroup_show_task(struct task_struct *p, struct seq_fil
+ extern int proc_sched_autogroup_set_nice(struct task_struct *p, int *nice);
+ #endif
+ #else
++extern struct autogroup *autogroup_create(void) { return NULL; }
++extern void autogroup_move_group(struct task_struct *p, struct autogroup *ag) {}
+ static inline void sched_autogroup_create_attach(struct task_struct *p) { }
+ static inline void sched_autogroup_detach(struct task_struct *p) { }
+ static inline void sched_autogroup_fork(struct signal_struct *sig) { }
+diff --git a/init/main.c b/init/main.c
+index 4a9479e..2c6e8da 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -68,6 +68,7 @@
+ #include <linux/shmem_fs.h>
+ #include <linux/slab.h>
+ #include <linux/perf_event.h>
++#include <linux/oom.h>
+ 
+ #include <asm/io.h>
+ #include <asm/bugs.h>
+@@ -549,6 +550,7 @@ asmlinkage void __init start_kernel(void)
+ 	gfp_allowed_mask = __GFP_BITS_MASK;
+ 
+ 	kmem_cache_init_late();
++	oom_init();
+ 
+ 	/*
+ 	 * HACK ALERT! This is early. We're enabling the console before
+diff --git a/kernel/sched_autogroup.c b/kernel/sched_autogroup.c
+index 5946ac5..6a1a2c4 100644
+--- a/kernel/sched_autogroup.c
++++ b/kernel/sched_autogroup.c
+@@ -63,7 +63,7 @@ static inline struct autogroup *autogroup_task_get(struct task_struct *p)
+ static void free_rt_sched_group(struct task_group *tg);
+ #endif
+ 
+-static inline struct autogroup *autogroup_create(void)
++struct autogroup *autogroup_create(void)
+ {
+ 	struct autogroup *ag = kzalloc(sizeof(*ag), GFP_KERNEL);
+ 	struct task_group *tg;
+@@ -143,7 +143,7 @@ autogroup_task_group(struct task_struct *p, struct task_group *tg)
+ 	return tg;
+ }
+ 
+-static void
++void
+ autogroup_move_group(struct task_struct *p, struct autogroup *ag)
+ {
+ 	struct autogroup *prev;
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 3100bc5..739dee4 100644
+index 739dee4..2519e6a 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -84,24 +84,6 @@ static bool has_intersects_mems_allowed(struct task_struct *tsk,
- #endif /* CONFIG_NUMA */
+@@ -38,6 +38,28 @@ int sysctl_oom_kill_allocating_task;
+ int sysctl_oom_dump_tasks = 1;
+ static DEFINE_SPINLOCK(zone_scan_lock);
  
- /*
-- * If this is a system OOM (not a memcg OOM) and the task selected to be
-- * killed is not already running at high (RT) priorities, speed up the
-- * recovery by boosting the dying task to the lowest FIFO priority.
-- * That helps with the recovery and avoids interfering with RT tasks.
-- */
--static void boost_dying_task_prio(struct task_struct *p,
--				  struct mem_cgroup *mem)
--{
--	struct sched_param param = { .sched_priority = 1 };
--
--	if (mem)
--		return;
--
--	if (!rt_task(p))
--		sched_setscheduler_nocheck(p, SCHED_FIFO, &param);
--}
--
--/*
-  * The process p may have detached its own ->mm while exiting or through
-  * use_mm(), but one or more of its subthreads may still have a valid
-  * pointer.  Return p, or any of its subthreads with a valid ->mm, with
-@@ -452,13 +434,6 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
++#ifdef CONFIG_SCHED_AUTOGROUP
++struct autogroup *oom_ag;
++
++void __init oom_init(void)
++{
++	oom_ag = autogroup_create();
++}
++
++static void oom_move_oom_ag(struct task_struct *p)
++{
++	autogroup_move_group(p, oom_ag);
++}
++#else
++void __init oom_init(void)
++{
++}
++
++static void oom_move_oom_ag(struct task_struct *p)
++{
++}
++#endif
++
+ #ifdef CONFIG_NUMA
+ /**
+  * has_intersects_mems_allowed() - check task eligiblity for kill
+@@ -432,6 +454,7 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+ 		}
+ 
  	set_tsk_thread_flag(p, TIF_MEMDIE);
++	oom_move_oom_ag(p);
  	force_sig(SIGKILL, p);
  
--	/*
--	 * We give our sacrificial lamb high priority and access to
--	 * all the memory it needs. That way it should be able to
--	 * exit() and clear out its resources quickly...
--	 */
--	boost_dying_task_prio(p, mem);
--
  	return 0;
- }
- #undef K
-@@ -482,7 +457,6 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	 */
- 	if (p->flags & PF_EXITING) {
- 		set_tsk_thread_flag(p, TIF_MEMDIE);
--		boost_dying_task_prio(p, mem);
- 		return 0;
- 	}
- 
-@@ -701,7 +675,6 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 	 */
- 	if (fatal_signal_pending(current)) {
- 		set_thread_flag(TIF_MEMDIE);
--		boost_dying_task_prio(current, NULL);
- 		return;
- 	}
- 
 -- 
 1.6.5.2
 
