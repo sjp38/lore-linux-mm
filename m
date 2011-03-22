@@ -1,107 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id EC0348D0039
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 07:48:27 -0400 (EDT)
-Date: Tue, 22 Mar 2011 20:47:56 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [BUG?] shmem: memory leak on NO-MMU arch
-Message-ID: <20110322114756.GI25925@linux-sh.org>
-References: <1299575863-7069-1-git-send-email-lliubbo@gmail.com> <alpine.LSU.2.00.1103201258280.3776@sister.anvils>
-Mime-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B2038D0039
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 08:58:09 -0400 (EDT)
+Date: Tue, 22 Mar 2011 13:57:36 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] xfs: flush vmap aliases when mapping fails
+Message-ID: <20110322125736.GZ2140@cmpxchg.org>
+References: <1299713876-7747-1-git-send-email-david@fromorbit.com>
+ <20110310073751.GB25374@infradead.org>
+ <20110310224945.GA15097@dastard>
+ <20110321122526.GX2140@cmpxchg.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1103201258280.3776@sister.anvils>
+In-Reply-To: <20110321122526.GX2140@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hch@lst.de, npiggin@kernel.dk, tj@kernel.org, David Howells <dhowells@redhat.com>, Magnus Damm <magnus.damm@gmail.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Nick Piggin <npiggin@kernel.dk>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, xfs@oss.sgi.com, linux-mm@kvack.org
 
-On Sun, Mar 20, 2011 at 01:35:50PM -0700, Hugh Dickins wrote:
-> On Tue, 8 Mar 2011, Bob Liu wrote:
-> > Hi, folks
-> 
-> Of course I agree with Al and Andrew about your other patch,
-> I don't know of any shmem inode leak in the MMU case.
-> 
-> I'm afraid we MM folks tend to be very ignorant of the NOMMU case.
-> I've sometimes wished we had a NOMMU variant of the x86 architecture,
-> that we could at least build and test changes on.
-> 
-NOMMU folks tend to be very ignorant of the MM cases, so it all balances
-out :-)
-
-> Let's Cc David, Paul and Magnus: they do understand NOMMU.
-> 
-> > root:/> ./shmem 
-> > run ok...
-> > root:/> free 
-> >               total         used         free       shared      buffers
-> >   Mem:        60528        19904        40624            0            0
-> > root:/> ./shmem 
-> > run ok...
-> > root:/> free 
-> >               total         used         free       shared      buffers
-> >   Mem:        60528        21104        39424            0            0
-> > root:/>
+On Mon, Mar 21, 2011 at 01:25:26PM +0100, Johannes Weiner wrote:
+> On Fri, Mar 11, 2011 at 09:49:45AM +1100, Dave Chinner wrote:
+> > FWIW, while the VM folk might be paying attention about vmap realted
+> > stuff, this vmap BUG() also needs triage:
 > > 
-> > It seems the shmem didn't free it's memory after using shmctl(IPC_RMID) to rm
-> > it.
+> > https://bugzilla.kernel.org/show_bug.cgi?id=27002
 > 
-> There does indeed appear to be a leak there.  But I'm feeling very
-> stupid, the leak of ~1200kB per run looks a lot more than the ~20kB
-> that each run of your test program would lose if the bug is as you say.
-> Maybe I can't count today.
+> I stared at this bug and the XFS code for a while over the weekend.
+> What you are doing in there is really scary!
 > 
-Your 1200 figure looks accurate, I came up with the same figure. In any
-event, it would be interesting to know what page size is being used. It's
-not uncommon to see a 64kB PAGE_SIZE on a system with 64M of memory, but
-that still wouldn't account for that level of discrepancy.
-
-My initial thought was that perhaps we were missing a
-truncate_pagecache() for a caller of ramfs_nommu_expand_for_mapping() on
-an existing inode with an established size (which assumes that one is
-always expanding from 0 up, and so doesn't bother with truncating), but
-the shmem user in this case is fetching a new inode on each iteration so
-this seems improbable, and the same 1200kB discrepancy is visible even
-after the initial shmget. I'm likely overlooking something obvious.
-
-> Yet it does look to me that you're right that ramfs_nommu_expand_for_mapping
-> forgets to release a reference to its pages; though it's hard to believe
-> that could go unnoticed for so long - more likely we're both overlooking
-> something.
+> So xfs_buf_free() does vm_unmap_ram if the buffer has the XBF_MAPPED
+> flag set and spans multiple pages (b_page_count > 1).
 > 
-page refcounting on nommu has a rather tenuous relationship with reality
-at the best of times; surprise was indeed not the first thought that came
-to mind.
-
-My guess is that this used to be caught by virtue of the __put_page()
-hack we used to have in __free_pages_ok() for the nommu case, prior to
-the conversion to compound pages.
-
-> Here's my own suggestion for a patch; but I've not even tried to
-> compile it, let alone test it, so I'm certainly not signing it.
+> In xlog_sync() you have that split case where you do XFS_BUF_SET_PTR
+> on that in-core log's l_xbuf which changes that buffer to, as far as I
+> could understand, linear kernel memory.  Later in xlog_dealloc_log you
+> call xfs_buf_free() on that buffer.
 > 
-This definitely looks like an improvement, but I wonder if it's not
-easier to simply use alloc_pages_exact() and throw out the bulk of the
-function entirely (a __GFP_ZERO would further simplify things, too)?
+> I was unable to determine if this can ever be more than one page in
+> the buffer for the split case.  But if this is the case, you end up
+> invoking vm_unmap_ram() on something you never vm_map_ram'd, which
+> could explain why this triggers the BUG_ON() for the dirty area map.
 
-> @@ -114,11 +110,14 @@ int ramfs_nommu_expand_for_mapping(struc
->  		unlock_page(page);
->  	}
->  
-> -	return 0;
-> +	/*
-> +	 * release our reference to the pages now added to cache,
-> +	 * and trim off any pages we don't actually require.
-> +	 * truncate inode back to 0 if not all pages could be added??
-> +	 */
-> +	for (loop = 0; loop < xpages; loop++)
-> +		put_page(pages + loop);
->  
-Unless you have some callchain in mind that I'm not aware of, an error is
-handed back when add_to_page_cache_lru() fails and the inode is destroyed
-by the caller in each case. As such, we should make it down to
-truncate_inode_pages(..., 0) via natural iput() eviction.
+Blech, that's bogus, please pardon my rashness.
+
+I looked over the vmalloc side several times but could not spot
+anything that would explain this crash.
+
+However, when you switched from vunmap to vm_unmap_ram you had to add
+the area size parameter.
+
+I am guessing that the base address was always correct, vunmap would
+have caught an error with it.  But the new size argument could be too
+large and crash the kernel when it would reach into the next area that
+had already been freed (and marked in the dirty bitmap).
+
+I have given up on verifying that what xlog_sync() does to l_xbuf is
+okay.  It would be good if you could confirm that it leaves the buffer
+in a state so that its b_addr - b_offset, b_page_count are correctly
+describing the exact vmap area.
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
