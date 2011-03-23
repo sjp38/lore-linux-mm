@@ -1,79 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5318F8D0040
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 22:03:28 -0400 (EDT)
-From: Cesar Eduardo Barros <cesarb@cesarb.net>
-Subject: [PATCH] sys_swapon: fix inode locking
-Date: Tue, 22 Mar 2011 23:03:13 -0300
-Message-Id: <1300845793-6068-1-git-send-email-cesarb@cesarb.net>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B8F28D0040
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 22:06:03 -0400 (EDT)
+Received: by yib2 with SMTP id 2so4150062yib.14
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2011 19:05:57 -0700 (PDT)
+From: Valerie Aurora <valerie.aurora@gmail.com>
+Subject: [PATCH 59/74] fallthru: tmpfs support for lookup of d_type/d_ino in fallthrus
+Date: Tue, 22 Mar 2011 19:04:50 -0700
+Message-Id: <1300845905-14433-16-git-send-email-valerie.aurora@gmail.com>
+In-Reply-To: <1300845905-14433-1-git-send-email-valerie.aurora@gmail.com>
+References: <1300845905-14433-1-git-send-email-valerie.aurora@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Cesar Eduardo Barros <cesarb@cesarb.net>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Eric B Munson <emunson@mgebm.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-fsdevel@vger.kernel.org, linux@vger.kernel.org
+Cc: viro@zeniv.linux.org.uk, Valerie Aurora <vaurora@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Valerie Aurora <valerie.aurora@gmail.com>
 
-A conflict between 52c50567d8ab0a0a87f12cceaa4194967854f0bd (mm: swap:
-unlock swapfile inode mutex before closing file on bad swapfiles) and
-83ef99befc324803a54cf2a5fab5a322df3a99d6 (sys_swapon: remove did_down
-variable) caused a double unlock of the inode mutex (once in bad_swap:
-before the filp_close, once at the end just before returning).
+From: Valerie Aurora <vaurora@redhat.com>
 
-The patch which added the extra unlock cleared did_down to avoid
-unlocking twice, but the other patch removed the did_down variable.
+Now that we have full union lookup support, lookup the true d_type and
+d_ino of a fallthru.
 
-To fix, set inode to NULL after the first unlock, since it will be used
-after that point only for the final unlock.
-
-While checking this patch, I found a path which could unlock without
-locking, in case the same inode was added as a swapfile twice. To fix,
-move the setting of the inode variable further down, to just before
-claim_swapfile, which will lock the inode before doing anything else.
-
-Cc: Mel Gorman <mgorman@suse.de>
 Cc: Hugh Dickins <hughd@google.com>
-Cc: Eric B Munson <emunson@mgebm.net>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
+Cc: linux-mm@kvack.org
+Signed-off-by: Valerie Aurora <valerie.aurora@gmail.com>
 ---
- mm/swapfile.c |    7 +++++--
- 1 files changed, 5 insertions(+), 2 deletions(-)
+ fs/libfs.c |   11 ++++++++---
+ 1 files changed, 8 insertions(+), 3 deletions(-)
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index aafcf36..71b42ec 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2088,7 +2088,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+diff --git a/fs/libfs.c b/fs/libfs.c
+index a73423d..8453c75 100644
+--- a/fs/libfs.c
++++ b/fs/libfs.c
+@@ -132,6 +132,7 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
+ 	ino_t ino;
+ 	char d_type;
+ 	int i = filp->f_pos;
++	int err = 0;
  
- 	p->swap_file = swap_file;
- 	mapping = swap_file->f_mapping;
--	inode = mapping->host;
+ 	switch (i) {
+ 		case 0:
+@@ -161,9 +162,13 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
  
- 	for (i = 0; i < nr_swapfiles; i++) {
- 		struct swap_info_struct *q = swap_info[i];
-@@ -2101,6 +2100,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		}
- 	}
- 
-+	inode = mapping->host;
-+	/* If S_ISREG(inode->i_mode) will do mutex_lock(&inode->i_mutex); */
- 	error = claim_swapfile(p, inode);
- 	if (unlikely(error))
- 		goto bad_swap;
-@@ -2187,8 +2188,10 @@ bad_swap:
- 	spin_unlock(&swap_lock);
- 	vfree(swap_map);
- 	if (swap_file) {
--		if (inode && S_ISREG(inode->i_mode))
-+		if (inode && S_ISREG(inode->i_mode)) {
- 			mutex_unlock(&inode->i_mutex);
-+			inode = NULL;
-+		}
- 		filp_close(swap_file, NULL);
- 	}
- out:
+ 				spin_unlock(&dcache_lock);
+ 				if (d_is_fallthru(next)) {
+-					/* XXX placeholder until generic_readdir_fallthru() arrives */
+-					ino = 1;
+-					d_type = DT_UNKNOWN;
++					/* On tmpfs, should only fail with ENOMEM, EIO, etc. */
++					err = generic_readdir_fallthru(filp->f_path.dentry,
++								       next->d_name.name,
++								       next->d_name.len,
++								       &ino, &d_type);
++					if (err)
++						return err;
+ 				} else {
+ 					ino = next->d_inode->i_ino;
+ 					d_type = dt_type(next->d_inode);
 -- 
-1.7.4
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
