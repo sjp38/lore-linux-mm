@@ -1,54 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F92E8D0040
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 06:38:44 -0400 (EDT)
-Date: Wed, 23 Mar 2011 10:38:36 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mm: page allocator: Silence build_all_zonelists()
- section mismatch.
-Message-ID: <20110323103836.GC6802@csn.ul.ie>
-References: <20110322133045.GA24498@linux-sh.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20110322133045.GA24498@linux-sh.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D4DA8D0040
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 07:59:34 -0400 (EDT)
+Received: by pwi10 with SMTP id 10so1602961pwi.14
+        for <linux-mm@kvack.org>; Wed, 23 Mar 2011 04:59:32 -0700 (PDT)
+From: Namhyung Kim <namhyung@gmail.com>
+Subject: [PATCH] memcg: move page-freeing code out of lock
+Date: Wed, 23 Mar 2011 20:59:18 +0900
+Message-Id: <1300881558-13523-1-git-send-email-namhyung@gmail.com>
+In-Reply-To: <20110323133614.95553de8.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110323133614.95553de8.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
 
-On Tue, Mar 22, 2011 at 10:30:45PM +0900, Paul Mundt wrote:
-> The memory hotplug case involves calling to build_all_zonelists() which
-> in turns calls in to setup_zone_pageset(). The latter is marked
-> __meminit while build_all_zonelists() itself has no particular
-> annotation. build_all_zonelists() is only handed a non-NULL pointer in
-> the case of memory hotplug through an existing __meminit path, so the
-> setup_zone_pageset() reference is always safe.
-> 
-> The options as such are either to flag build_all_zonelists() as __ref (as
-> per __build_all_zonelists()), or to simply discard the __meminit
-> annotation from setup_zone_pageset().
-> 
-> Signed-off-by: Paul Mundt <lethal@linux-sh.org>
-> 
-> ---
-> 
-> While discarding the __meminit annotation from setup_zone_pageset() is
-> probably cleanest I expected some people would take issue with this so
-> opted for the more visually offensive __ref route. I can resend for the
-> other way if people prefer, or someone else can do it given that it's a
-> trivial change.
-> 
->  mm/page_alloc.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
+Move page-freeing code out of swap_cgroup_mutex in the hope that it
+could reduce few of theoretical contentions between swapons and/or
+swapoffs.
 
-Discarding __meminit from setup_zone_pageset() would unnecessarily grow
-the kernel image in the !HOTPLUG case and setting __meminit on
-build_all_zonelists() looks like it would just cause other section
-mistmatch warnings so;
+This is just a cleanup, no functional changes.
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Namhyung Kim <namhyung@gmail.com>
+Cc: Paul Menage <menage@google.com>
+Cc: Li Zefan <lizf@cn.fujitsu.com>
+Cc: containers@lists.linux-foundation.org
+---
+ mm/page_cgroup.c |   22 +++++++++++++---------
+ 1 files changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index 29951abc852e..17eb5eb95bab 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -463,8 +463,8 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
+ 		/* memory shortage */
+ 		ctrl->map = NULL;
+ 		ctrl->length = 0;
+-		vfree(array);
+ 		mutex_unlock(&swap_cgroup_mutex);
++		vfree(array);
+ 		goto nomem;
+ 	}
+ 	mutex_unlock(&swap_cgroup_mutex);
+@@ -479,7 +479,8 @@ nomem:
+ 
+ void swap_cgroup_swapoff(int type)
+ {
+-	int i;
++	struct page **map;
++	unsigned long i, length;
+ 	struct swap_cgroup_ctrl *ctrl;
+ 
+ 	if (!do_swap_account)
+@@ -487,17 +488,20 @@ void swap_cgroup_swapoff(int type)
+ 
+ 	mutex_lock(&swap_cgroup_mutex);
+ 	ctrl = &swap_cgroup_ctrl[type];
+-	if (ctrl->map) {
+-		for (i = 0; i < ctrl->length; i++) {
+-			struct page *page = ctrl->map[i];
++	map = ctrl->map;
++	length = ctrl->length;
++	ctrl->map = NULL;
++	ctrl->length = 0;
++	mutex_unlock(&swap_cgroup_mutex);
++
++	if (map) {
++		for (i = 0; i < length; i++) {
++			struct page *page = map[i];
+ 			if (page)
+ 				__free_page(page);
+ 		}
+-		vfree(ctrl->map);
+-		ctrl->map = NULL;
+-		ctrl->length = 0;
++		vfree(map);
+ 	}
+-	mutex_unlock(&swap_cgroup_mutex);
+ }
+ 
+ #endif
+-- 
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
