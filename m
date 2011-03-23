@@ -1,69 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 451A98D0040
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:38:02 -0400 (EDT)
-Date: Wed, 23 Mar 2011 01:37:18 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [Bugme-new] [Bug 31142] New: Large write to USB stick freezes
- unrelated tasks for a long time
-Message-ID: <20110323003718.GH5698@random.random>
-References: <20110319235144.GG10696@random.random>
- <20110321094149.GH707@csn.ul.ie>
- <20110321134832.GC5719@random.random>
- <20110321163742.GA24244@csn.ul.ie>
- <4D878564.6080608@fiec.espol.edu.ec>
- <20110321201641.GA5698@random.random>
- <20110322112032.GD24244@csn.ul.ie>
- <20110322150314.GC5698@random.random>
- <4D8907C2.7010304@fiec.espol.edu.ec>
- <20110322214020.GD5698@random.random>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 39D838D0040
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 21:27:42 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 59AA43EE0C1
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 10:27:37 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 395C545DE54
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 10:27:37 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1498245DE4E
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 10:27:37 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 05A94E78004
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 10:27:37 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C28C11DB803E
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 10:27:36 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 3/5] oom: create oom autogroup
+In-Reply-To: <AANLkTikN835dfU9xozTWbOh6cjSEG0XgU_Ayn+dRqDug@mail.gmail.com>
+References: <20110322200759.B067.A69D9226@jp.fujitsu.com> <AANLkTikN835dfU9xozTWbOh6cjSEG0XgU_Ayn+dRqDug@mail.gmail.com>
+Message-Id: <20110323102738.1AC2.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110322214020.GD5698@random.random>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Wed, 23 Mar 2011 10:27:35 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex =?iso-8859-1?B?VmlsbGFj7a1z?= Lasso <avillaci@fiec.espol.edu.ec>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, avillaci@ceibo.fiec.espol.edu.ec, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mike Galbraith <efault@gmx.de>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>
 
-Hi Alex,
+> On Tue, Mar 22, 2011 at 8:08 PM, KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > When plenty processes (eg fork bomb) are running, the TIF_MEMDIE task
+> > never exit, at least, human feel it's never. therefore kernel become
+> > hang-up.
+> >
+> > "perf sched" tell us a hint.
+> >
+> > A ------------------------------------------------------------------------------
+> > A Task A  A  A  A  A  A  A  A  A | A  Runtime ms A | Average delay ms | Maximum delay ms |
+> > A ------------------------------------------------------------------------------
+> > A python:1754 A  A  A  A  A  | A  A  A 0.197 ms | avg: 1731.727 ms | max: 3433.805 ms |
+> > A python:1843 A  A  A  A  A  | A  A  A 0.489 ms | avg: 1707.433 ms | max: 3622.955 ms |
+> > A python:1715 A  A  A  A  A  | A  A  A 0.220 ms | avg: 1707.125 ms | max: 3623.246 ms |
+> > A python:1818 A  A  A  A  A  | A  A  A 2.127 ms | avg: 1527.331 ms | max: 3622.553 ms |
+> > A ...
+> > A ...
+> >
+> > Processes flood makes crazy scheduler delay. and then the victim process
+> > can't run enough. Grr. Should we do?
+> >
+> > Fortunately, we already have anti process flood framework, autogroup!
+> > This patch reuse this framework and avoid kernel live lock.
+> 
+> That's cool idea but I have a concern.
+> 
+> You remove boosting priority in [2/5] and move victim tasks into autogroup.
+> If I understand autogroup right, victim process and threads in the
+> process take less schedule chance than now.
 
-could you also try to reverse this below bit (not the whole previous
-patch: only the bit below quoted below) with "patch -p1 -R < thismail"
-on top of your current aa.git tree, and see if you notice any
-regression compared to the previous aa.git build that worked well?
+Right. Icky cpu-cgroup rt-runtime default enforce me to seek another solution.
+Today, I got private mail from Luis and he seems to have another improvement
+idea. so, I might drop this patch if his one works fine.
 
-This is part of the fix, but I'd need to be sure this really makes a
-difference before sticking to it for long. I'm not concerned by
-keeping it, but it adds dirt, and the closer THP allocations are to
-any other high order allocation the better. So the less
-__GFP_NO_KSWAPD affects the better. The hint about not telling kswapd
-to insist in the background for order 9 allocations with fallback
-(like THP) is the maximum I consider clean because there's khugepaged
-with its alloc_sleep_millisecs that replaces the kswapd task for THP
-allocations. So that is clean enough, but when __GFP_NO_KSWAPD starts
-to make compaction behave slightly different from a SLUB order 2
-allocation I don't like it (especially because if you later enable
-SLUB or some driver you may run into the same compaction issue again
-if the below change is making a difference).
+> Could it make unnecessary killing of other tasks?
+> I am not sure. Just out of curiosity.
 
-If things works fine even after you reverse the below, we can safely
-undo this change and also feel safer for all other high order
-allocations, so it'll make life easier. (plus we don't want
-unnecessary special changes, we need to be sure this makes a
-difference to keep it for long)
+If you are talking about OOM serialization, It isn't. I don't change
+OOM serialization stuff. at least for now.
+If you are talking about scheduler fairness, both current and this patch
+have scheduler unfairness. But that's ok. 1) When OOM situation, scheduling
+fairness has been broken already by heavy memory reclaim effort 2) autogroup
+mean to change scheduling grouping *automatically*. then, the patch change it
+again for exiting memory starvation.
 
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2085,7 +2085,7 @@ rebalance:
- 					sync_migration);
- 	if (page)
- 		goto got_pg;
--	sync_migration = true;
-+	sync_migration = !(gfp_mask & __GFP_NO_KSWAPD);
- 
- 	/* Try direct reclaim and then allocating */
- 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
+> 
+> Thanks for nice work, Kosaki.
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
