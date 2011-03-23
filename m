@@ -1,68 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5B3AE8D0040
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 10:26:50 -0400 (EDT)
-Date: Wed, 23 Mar 2011 15:26:45 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: cgroup: real meaning of memory.usage_in_bytes
-Message-ID: <20110323142645.GB15474@tiehlicka.suse.cz>
-References: <20110318152532.GB18450@tiehlicka.suse.cz>
- <20110321093419.GA26047@tiehlicka.suse.cz>
- <AANLkTimkcYcZVifaq4pH4exkWUVNXpwXA=9oyeAn_EqR@mail.gmail.com>
- <20110322073514.GB12940@tiehlicka.suse.cz>
- <AANLkTi=2t_tL=Vt4athAyQ1tDhLDGpqtmu-iAOjdbPBJ@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 81BCC8D0040
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 10:35:37 -0400 (EDT)
+Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p2NEZ4Lo006947
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 07:35:04 -0700
+Received: by iyf13 with SMTP id 13so11848505iyf.14
+        for <linux-mm@kvack.org>; Wed, 23 Mar 2011 07:35:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTi=2t_tL=Vt4athAyQ1tDhLDGpqtmu-iAOjdbPBJ@mail.gmail.com>
+In-Reply-To: <20110323171051.1ADA.A69D9226@jp.fujitsu.com>
+References: <20110322200945.B06D.A69D9226@jp.fujitsu.com> <20110323164949.5be6aa48.kamezawa.hiroyu@jp.fujitsu.com>
+ <20110323171051.1ADA.A69D9226@jp.fujitsu.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 23 Mar 2011 07:34:43 -0700
+Message-ID: <AANLkTimLbaMTHKiuWu5edS4Offf4KZv2TJ+g8BUgzLYt@mail.gmail.com>
+Subject: Re: [PATCH 5/5] x86,mm: make pagefault killable
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>
 
-On Tue 22-03-11 10:06:27, Ying Han wrote:
-> On Tue, Mar 22, 2011 at 12:35 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Mon 21-03-11 10:22:41, Ying Han wrote:
-> > [...]
-> >>
-> >> Michal,
-> >>
-> >> Can you help to post the test result after applying the patch?
-> >
-> > The result of the LTP test is:
-> > TEST 4: MEMORY CONTROLLER TESTING
-> > RUNNING SETUP.....
-> > WARN:/dev/memctl already exist..overwriting
-> > Cleanup called
-> > TEST STARTED: Please avoid using system while this test executes
-> > memory usage from memory.usage_in_bytes= 62955520
-> > memory usage from memory.stat= 62955520
-> > TINFO ? Memory Resource Controller: stat check test passes first run
-> > Test continues to run the second step.
-> > memory usage from memory.usage_in_bytes= 78643200
-> > memory usage from memory.stat=78643200
-> > TPASS ? Memory Resource Controller: stat check test PASSED
-> > Memory Resource Controller test executed successfully.
-> > Cleanup called
-[...]
-> Thanks Michal for fixing it up. Regardless of the performance
-> overhead, the change make sense to me.
+On Wed, Mar 23, 2011 at 1:09 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>
+> When __lock_page_or_retry() return 0, It call up_read(mmap_sem) in this
+> function.
 
-As you can see in the other email in this thread the patch is not 100%
-correct because it doesn't consider batched uncharges which are stored
-in the task_struct. Make it 100% correct would be harder and probably
-not worth the overhead. Daisuke Nishimura is working on the
-documentation update patch which will most likely describe that
-usage_in_bytes is not exactly rss+cache and that nobody should rely on
-it.
+Indeed.
 
--- 
-Michal Hocko
-SUSE Labs
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+> I agree this is strange (or ugly). but I don't want change this spec in
+> this time.
+
+I agree that it is strange, and I don't like functions that touch
+locks that they didn't take themselves, but since the original point
+of the whole thing was to wait for the page without holding the
+mmap_sem lock, that function has to do the up_read() early.
+
+                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
