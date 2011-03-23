@@ -1,45 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 81BCC8D0040
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 10:35:37 -0400 (EDT)
-Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p2NEZ4Lo006947
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 07:35:04 -0700
-Received: by iyf13 with SMTP id 13so11848505iyf.14
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2011 07:35:04 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0E2D98D0040
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 10:37:13 -0400 (EDT)
+Date: Wed, 23 Mar 2011 15:36:32 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: +
+ mm-compaction-use-async-migration-for-__gfp_no_kswapd-and-enforce-no-writeback.patch
+ added to -mm tree
+Message-ID: <20110323143632.GL5698@random.random>
+References: <201103222153.p2MLrD0x029642@imap1.linux-foundation.org>
+ <AANLkTi=1krqzHY1mg2T-k52C-VNruWsnXO33qS7BzeL+@mail.gmail.com>
+ <20110323002536.GG5698@random.random>
+ <AANLkTikdhswcngKzksQcxeY5U4Kku6N8Kf5HXqpy0LNK@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20110323171051.1ADA.A69D9226@jp.fujitsu.com>
-References: <20110322200945.B06D.A69D9226@jp.fujitsu.com> <20110323164949.5be6aa48.kamezawa.hiroyu@jp.fujitsu.com>
- <20110323171051.1ADA.A69D9226@jp.fujitsu.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 23 Mar 2011 07:34:43 -0700
-Message-ID: <AANLkTimLbaMTHKiuWu5edS4Offf4KZv2TJ+g8BUgzLYt@mail.gmail.com>
-Subject: Re: [PATCH 5/5] x86,mm: make pagefault killable
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTikdhswcngKzksQcxeY5U4Kku6N8Kf5HXqpy0LNK@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, arthur.marsh@internode.on.net, cladisch@googlemail.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>
 
-On Wed, Mar 23, 2011 at 1:09 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->
-> When __lock_page_or_retry() return 0, It call up_read(mmap_sem) in this
-> function.
+On Wed, Mar 23, 2011 at 03:01:33PM +0900, Minchan Kim wrote:
+> Okay. I will look at result.
+> If the problem happens again with reverted patch of page_alloc.c,
+> Don't we have to investigate further the problem happens with SLUB or
+> some driver's big memory allocation which is lower than 2M? We didn't
+> see the problem allocation under 2M but async migration's history was
+> short so we can't make sure it.
 
-Indeed.
+Yes, probably. This is also why I hope the page_alloc.c part didn't
+make a difference. We kept it to be sure to make any sign of sync
+migration to go away from the stack traces, but I hope it's not so
+important anymore now. Reclaim eventually also becomes synchronous.
 
-> I agree this is strange (or ugly). but I don't want change this spec in
-> this time.
+> Don't you want to add async migration for low order allocation like SLUB?
+> If you don't want to do async migration low order allocation, we can
+> add the check if (gfp_flags & __GFP_RETRY) && (order >= 9 or some
+> threshold) for async migration?
+> 
+> My point is to avoid implicit hidden meaning of __GFP_NO_KSWAPD
+> although __GFP_REPEAT already does it.
 
-I agree that it is strange, and I don't like functions that touch
-locks that they didn't take themselves, but since the original point
-of the whole thing was to wait for the page without holding the
-mmap_sem lock, that function has to do the up_read() early.
+I see your point, so let's think about it after testing of the
+reversal of the page_alloc.c change. If that's not necessary we just
+reverse it and it already solves these concerns.
 
-                   Linus
+> If async migration is going on and meet the dirty page, the patch can
+> return the -EBUSY so the page could put back to head of LRU but the
+> old migration can be going on although the page is dirty.
+
+Ok, but in term of LRU it's not like we're going to help much in
+skipping the page in compaction, it'd leave the sync pages there, and
+only list_del the async pages. I think it's mostly a cpu saving
+optimization, I doubt the lru ordering will be much more accurate by
+not doing list_del on the sync pages considering we would list_del
+the rest but not the sync part.
+
+> Totally agree with you.
+> It's another topic and goes next time.
+> 
+> Thanks, Andrea.
+
+Thanks to you for pointing out these problems.
+
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
