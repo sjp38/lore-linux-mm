@@ -1,88 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D4DA8D0040
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 07:59:34 -0400 (EDT)
-Received: by pwi10 with SMTP id 10so1602961pwi.14
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2011 04:59:32 -0700 (PDT)
-From: Namhyung Kim <namhyung@gmail.com>
-Subject: [PATCH] memcg: move page-freeing code out of lock
-Date: Wed, 23 Mar 2011 20:59:18 +0900
-Message-Id: <1300881558-13523-1-git-send-email-namhyung@gmail.com>
-In-Reply-To: <20110323133614.95553de8.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110323133614.95553de8.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E73328D0040
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 09:40:49 -0400 (EDT)
+Received: by yxt33 with SMTP id 33so4388175yxt.14
+        for <linux-mm@kvack.org>; Wed, 23 Mar 2011 06:40:48 -0700 (PDT)
+Date: Wed, 23 Mar 2011 10:40:37 -0300
+From: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>
+Subject: Re: [PATCH 2/5] Revert "oom: give the dying task a higher priority"
+Message-ID: <20110323134037.GP5212@uudg.org>
+References: <20110315153801.3526.A69D9226@jp.fujitsu.com>
+ <20110322194721.B05E.A69D9226@jp.fujitsu.com>
+ <20110322200657.B064.A69D9226@jp.fujitsu.com>
+ <20110323164229.6b647004.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20110323164229.6b647004.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>
 
-Move page-freeing code out of swap_cgroup_mutex in the hope that it
-could reduce few of theoretical contentions between swapons and/or
-swapoffs.
+On Wed, Mar 23, 2011 at 04:42:29PM +0900, KAMEZAWA Hiroyuki wrote:
+| On Tue, 22 Mar 2011 20:06:48 +0900 (JST)
+| KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+| 
+| > This reverts commit 93b43fa55088fe977503a156d1097cc2055449a2.
+| > 
+| > The commit dramatically improve oom killer logic when fork-bomb
+| > occur. But, I've found it has nasty corner case. Now cpu cgroup
+| > has strange default RT runtime. It's 0! That said, if a process
+| > under cpu cgroup promote RT scheduling class, the process never
+| > run at all.
+| > 
+| > Eventually, kernel may hang up when oom kill occur.
+| > 
+| > The author need to resubmit it as adding knob and disabled
+| > by default if he really need this feature.
+| > 
+| > Cc: Luis Claudio R. Goncalves <lclaudio@uudg.org>
+| > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+| 
+| Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-This is just a cleanup, no functional changes.
+The original patch was written to fix an issue observed in 2.6.24.7-rt.
+As the logic sounded useful, I ported it to upstream. Anyway,I am trying
+a few ideas to rework that patch. In the meantime, I'm pretty fine with
+reverting the commit.
 
-Signed-off-by: Namhyung Kim <namhyung@gmail.com>
-Cc: Paul Menage <menage@google.com>
-Cc: Li Zefan <lizf@cn.fujitsu.com>
-Cc: containers@lists.linux-foundation.org
----
- mm/page_cgroup.c |   22 +++++++++++++---------
- 1 files changed, 13 insertions(+), 9 deletions(-)
+Acked-by: Luis Claudio R. Goncalves <lgoncalv@uudg.org>
 
-diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 29951abc852e..17eb5eb95bab 100644
---- a/mm/page_cgroup.c
-+++ b/mm/page_cgroup.c
-@@ -463,8 +463,8 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
- 		/* memory shortage */
- 		ctrl->map = NULL;
- 		ctrl->length = 0;
--		vfree(array);
- 		mutex_unlock(&swap_cgroup_mutex);
-+		vfree(array);
- 		goto nomem;
- 	}
- 	mutex_unlock(&swap_cgroup_mutex);
-@@ -479,7 +479,8 @@ nomem:
- 
- void swap_cgroup_swapoff(int type)
- {
--	int i;
-+	struct page **map;
-+	unsigned long i, length;
- 	struct swap_cgroup_ctrl *ctrl;
- 
- 	if (!do_swap_account)
-@@ -487,17 +488,20 @@ void swap_cgroup_swapoff(int type)
- 
- 	mutex_lock(&swap_cgroup_mutex);
- 	ctrl = &swap_cgroup_ctrl[type];
--	if (ctrl->map) {
--		for (i = 0; i < ctrl->length; i++) {
--			struct page *page = ctrl->map[i];
-+	map = ctrl->map;
-+	length = ctrl->length;
-+	ctrl->map = NULL;
-+	ctrl->length = 0;
-+	mutex_unlock(&swap_cgroup_mutex);
-+
-+	if (map) {
-+		for (i = 0; i < length; i++) {
-+			struct page *page = map[i];
- 			if (page)
- 				__free_page(page);
- 		}
--		vfree(ctrl->map);
--		ctrl->map = NULL;
--		ctrl->length = 0;
-+		vfree(map);
- 	}
--	mutex_unlock(&swap_cgroup_mutex);
- }
- 
- #endif
 -- 
-1.7.4
+[ Luis Claudio R. Goncalves                    Bass - Gospel - RT ]
+[ Fingerprint: 4FDD B8C4 3C59 34BD 8BE9  2696 7203 D980 A448 C8F8 ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
