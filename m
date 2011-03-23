@@ -1,104 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C3DC08D0040
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 03:13:26 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8BA243EE0BD
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:13:22 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7183045DE56
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:13:22 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B58C45DE51
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:13:22 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D76EE78003
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:13:22 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EA9A41DB803E
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:13:21 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/5] vmscan: remove all_unreclaimable check from direct reclaim path completely
-In-Reply-To: <AANLkTim1HcdkPcxnWrv+VbMUSh3kQBC=-myZ-j-a8Wiy@mail.gmail.com>
-References: <20110323142133.1AC6.A69D9226@jp.fujitsu.com> <AANLkTim1HcdkPcxnWrv+VbMUSh3kQBC=-myZ-j-a8Wiy@mail.gmail.com>
-Message-Id: <20110323161354.1AD2.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C1BEA8D0040
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 03:18:46 -0400 (EDT)
+Received: by gyg10 with SMTP id 10so3460849gyg.14
+        for <linux-mm@kvack.org>; Wed, 23 Mar 2011 00:18:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Wed, 23 Mar 2011 16:13:21 +0900 (JST)
+Date: Wed, 23 Mar 2011 10:18:44 +0300
+Message-ID: <AANLkTinkeB=TxCaM3UjLoyM5Qaf9zyvRJ+tX0inFnuZr@mail.gmail.com>
+Subject: 2.6.39-rc: panic at rcu_kthread()
+From: Alexander Beregalov <a.beregalov@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-> Okay. I got it.
-> 
-> The problem is following as.
-> By the race the free_pcppages_bulk and balance_pgdat, it is possible
-> zone->all_unreclaimable = 1 and zone->pages_scanned = 0.
-> DMA zone have few LRU pages and in case of no-swap and big memory
-> pressure, there could be a just a page in inactive file list like your
-> example. (anon lru pages isn't important in case of non-swap system)
-> In such case, shrink_zones doesn't scan the page at all until priority
-> become 0 as get_scan_count does scan >>= priority(it's mostly zero).
+Hi
 
-Nope.
+I do not have a testcase to reproduce it.
+Kernel is 2.6.38-07035-g6447f55d
 
-                        if (zone->all_unreclaimable && priority != DEF_PRIORITY)
-                                continue;
+BUG (null): Not a valid slab page
+-----------------------------------------------------------------------------
+INFO: Slab 0xf6c1dcc0 objects=65535 used=65535 fp=0x  (null) flags=0x40000401
+Pid: 6, comm: rcu_kthread Tainted: G        W   2.6.38-07035-g6447f55d #1
+Call Trace:
+ [<c1366f9f>] ? printk+0x18/0x21
+ [<c109866c>] slab_err+0x6c/0x80
+ [<c1098a2f>] ? slab_pad_check+0x2f/0x150
+ [<c1098a2f>] ? slab_pad_check+0x2f/0x150
+ [<c1047b2d>] ? sched_clock_cpu+0x7d/0xf0
+ [<c1098c1c>] check_slab+0xcc/0x120
+ [<c1099408>] ? init_object+0x38/0x70
+ [<c1066125>] ? rcu_process_callbacks+0x55/0x90
+ [<c10999fa>] free_debug_processing+0x1a/0x220
+ [<c105197b>] ? trace_hardirqs_off+0xb/0x10
+ [<c10544d9>] ? debug_check_no_locks_freed+0x129/0x140
+ [<c1066125>] ? rcu_process_callbacks+0x55/0x90
+ [<c1099cac>] __slab_free+0xac/0x140
+ [<c13079f0>] ? inetpeer_free_rcu+0x10/0x20
+ [<c1066125>] ? rcu_process_callbacks+0x55/0x90
+ [<c1099f7b>] kmem_cache_free+0xeb/0x100
+ [<c13079f0>] ? inetpeer_free_rcu+0x10/0x20
+ [<c13079f0>] ? inetpeer_free_rcu+0x10/0x20
+ [<c109efd0>] ? file_free_rcu+0x0/0x30
+ [<c13079f0>] inetpeer_free_rcu+0x10/0x20
+ [<c106612a>] ? rcu_process_callbacks+0x5a/0x90
+ [<c1066245>] ? rcu_kthread+0xe5/0x100
+ [<c1042100>] ? autoremove_wake_function+0x0/0x50
+ [<c1066160>] ? rcu_kthread+0x0/0x100
+ [<c1041e14>] ? kthread+0x74/0x80
+ [<c1041da0>] ? kthread+0x0/0x80
+ [<c136f5fa>] ? kernel_thread_helper+0x6/0xd
+FIX (null): Object at 0xc1066125 not freed
+BUG: unable to handle kernel NULL pointer dereference at 00000002
+IP: [<f64665e0>] 0xf64665e0
+*pde = 00000000
+Oops: 0002 [#1]
+last sysfs file: /sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed
+Modules linked in: hwmon_vid sata_sil i2c_nforce2
 
-This tow lines mean, all_unreclaimable prevent priority 0 reclaim.
-
-
-> And although priority become 0, nr_scan_try_batch returns zero until
-> saved pages become 32. So for scanning the page, at least, we need 32
-> times iteration of priority 12..0.  If system has fork-bomb, it is
-> almost livelock.
-
-Therefore, 1000 times get_scan_count(DEF_PRIORITY) takes 1000 times no-op.
-
-> 
-> If is is right, how about this?
-
-Boo.
-You seems forgot why you introduced current all_unreclaimable() function.
-While hibernation, we can't trust all_unreclaimable.
-
-That's the reason why I proposed following patch when you introduced
-all_unreclaimable().
-
-
----
- mm/vmscan.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c391c32..1919d8a 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -40,6 +40,7 @@
- #include <linux/memcontrol.h>
- #include <linux/delayacct.h>
- #include <linux/sysctl.h>
-+#include <linux/oom.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -1931,7 +1932,7 @@ out:
- 		return sc->nr_reclaimed;
- 
- 	/* top priority shrink_zones still had more to do? don't OOM, then */
--	if (scanning_global_lru(sc) && !all_unreclaimable)
-+	if (scanning_global_lru(sc) && !all_unreclaimable && !oom_killer_disabled)
- 		return 1;
- 
- 	return 0;
--- 
-1.6.5.2
-
-
-
-
+Pid: 6, comm: rcu_kthread Tainted: G        W   2.6.38-07035-g6447f55d
+#1    /NF7-S/NF7,NF7-V (nVidia-nForce2)
+EIP: 0060:[<f64665e0>] EFLAGS: 00010286 CPU: 0
+EIP is at 0xf64665e0
+EAX: 00000002 EBX: db384030 ECX: 00000000 EDX: 00000000
+ESI: d8805700 EDI: 00000283 EBP: c106612a ESP: f6479f58
+ DS: 007b ES: 007b FS: 0000 GS: 0000 SS: 0068
+Process rcu_kthread (pid: 6, ti=f6478000 task=f64665e0 task.ti=f6478000)
+Stack:
+ f6479f74 f6479f80 f6479f94 c1066245 00000001 f64665e0 00000202 00000000
+ f64665e0 c1042100 f6479f80 f6479f80 f6469f30 00000000 c1066160 f6479fe4
+ c1041e14 00000000 00000000 00000000 00000001 dead4ead ffffffff ffffffff
+Call Trace:
+ [<c1066245>] ? rcu_kthread+0xe5/0x100
+ [<c1042100>] ? autoremove_wake_function+0x0/0x50
+ [<c1066160>] ? rcu_kthread+0x0/0x100
+ [<c1041e14>] ? kthread+0x74/0x80
+ [<c1041da0>] ? kthread+0x0/0x80
+ [<c136f5fa>] ? kernel_thread_helper+0x6/0xd
+Code: 94 02 c1 00 00 00 00 1b 08 00 00 bf c8 02 00 89 8c 02 c1 00 00
+00 00 06 00 00 00 8c c8 02 00 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
+00 00 00 00 80 47 f6 02 00 00 00 40 a0 20 80 00 00 00 00 ff
+EIP: [<f64665e0>] 0xf64665e0 SS:ESP 0068:f6479f58
+CR2: 0000000000000002
+---[ end trace 8a45d2bc24cd677d ]---
+Kernel panic - not syncing: Fatal exception in interrupt
+Pid: 6, comm: rcu_kthread Tainted: G      D W   2.6.38-07035-g6447f55d #1
+Call Trace:
+ [<c1366f9f>] ? printk+0x18/0x21
+ [<c1366e9e>] panic+0x57/0x140
+ [<c136afcf>] oops_end+0x8f/0x90
+ [<c101b284>] no_context+0xb4/0x150
+ [<c101b3ad>] __bad_area_nosemaphore+0x8d/0x130
+ [<c104fbea>] ? tick_dev_program_event+0x3a/0x130
+ [<c136cc7e>] ? do_page_fault+0x1ee/0x480
+ [<c136ca90>] ? do_page_fault+0x0/0x480
+ [<c136ca90>] ? do_page_fault+0x0/0x480
+ [<c101b462>] bad_area_nosemaphore+0x12/0x20
+ [<c136cd6c>] do_page_fault+0x2dc/0x480
+ [<c103020d>] ? irq_exit+0x3d/0x90
+ [<c136a24c>] ? restore_all_notrace+0x0/0x18
+ [<c11e0134>] ? trace_hardirqs_on_thunk+0xc/0x10
+ [<c136a24c>] ? restore_all_notrace+0x0/0x18
+ [<c1066125>] ? rcu_process_callbacks+0x55/0x90
+ [<c106612a>] ? rcu_process_callbacks+0x5a/0x90
+ [<c136ca90>] ? do_page_fault+0x0/0x480
+ [<c106612a>] ? rcu_process_callbacks+0x5a/0x90
+ [<c136a5d1>] error_code+0x5d/0x64
+ [<c106612a>] ? rcu_process_callbacks+0x5a/0x90
+ [<c136ca90>] ? do_page_fault+0x0/0x480
+ [<c1066245>] ? rcu_kthread+0xe5/0x100
+ [<c1042100>] ? autoremove_wake_function+0x0/0x50
+ [<c1066160>] ? rcu_kthread+0x0/0x100
+ [<c1041e14>] ? kthread+0x74/0x80
+ [<c1041da0>] ? kthread+0x0/0x80
+ [<c136f5fa>] ? kernel_thread_helper+0x6/0xd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
