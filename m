@@ -1,113 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B99DB8D0040
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 00:47:12 -0400 (EDT)
-Date: Wed, 23 Mar 2011 15:41:52 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH RFC 0/5] IO-less balance_dirty_pages() v2 (simple
- approach)
-Message-ID: <20110323044152.GI15270@dastard>
-References: <1299623475-5512-1-git-send-email-jack@suse.cz>
- <20110318143001.GA6173@localhost>
- <20110322214314.GC19716@quack.suse.cz>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 72D5A8D0040
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 01:21:14 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3D62E3EE0BD
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 14:21:11 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E51C45DE6A
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 14:21:11 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DDCF045DE61
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 14:21:10 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CE21B1DB803A
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 14:21:10 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 89B0CE08002
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 14:21:10 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/5] vmscan: remove all_unreclaimable check from direct reclaim path completely
+In-Reply-To: <20110322144950.GA2628@barrios-desktop>
+References: <20110322200523.B061.A69D9226@jp.fujitsu.com> <20110322144950.GA2628@barrios-desktop>
+Message-Id: <20110323142133.1AC6.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110322214314.GC19716@quack.suse.cz>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 23 Mar 2011 14:21:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Tue, Mar 22, 2011 at 10:43:14PM +0100, Jan Kara wrote:
->   Hello Fengguang,
+Hi Minchan,
+
+> > zone->all_unreclaimable and zone->pages_scanned are neigher atomic
+> > variables nor protected by lock. Therefore a zone can become a state
+> > of zone->page_scanned=0 and zone->all_unreclaimable=1. In this case,
 > 
-> On Fri 18-03-11 22:30:01, Wu Fengguang wrote:
-> > On Wed, Mar 09, 2011 at 06:31:10AM +0800, Jan Kara wrote:
-> > > 
-> > >   Hello,
-> > > 
-> > >   I'm posting second version of my IO-less balance_dirty_pages() patches. This
-> > > is alternative approach to Fengguang's patches - much simpler I believe (only
-> > > 300 lines added) - but obviously I does not provide so sophisticated control.
-> > 
-> > Well, it may be too early to claim "simplicity" as an advantage, until
-> > you achieve the following performance/feature comparability (most of
-> > them are not optional ones). AFAICS this work is kind of heavy lifting
-> > that will consume a lot of time and attention. You'd better find some
-> > more fundamental needs before go on the reworking.
-> > 
-> > (1)  latency
-> > (2)  fairness
-> > (3)  smoothness
-> > (4)  scalability
-> > (5)  per-task IO controller
-> > (6)  per-cgroup IO controller (TBD)
-> > (7)  free combinations of per-task/per-cgroup and bandwidth/priority controllers
-> > (8)  think time compensation
-> > (9)  backed by both theory and tests
-> > (10) adapt pause time up on 100+ dirtiers
-> > (11) adapt pause time down on low dirty pages 
-> > (12) adapt to new dirty threshold/goal
-> > (13) safeguard against dirty exceeding
-> > (14) safeguard against device queue underflow
->   I think this is a misunderstanding of my goals ;). My main goal is to
-> explore, how far we can get with a relatively simple approach to IO-less
-> balance_dirty_pages(). I guess what I have is better than the current
-> balance_dirty_pages() but it sure does not even try to provide all the
-> features you try to provide.
+> Possible although it's very rare.
 
-This is my major concern - maintainability of the code. It's all
-well and good to evaluate the code based on it's current
-performance, but what about 2 or 3 years down the track when for
-some reason it's not working like it was intended - just like what
-happened with slow degradation in writeback performance between
-~2.6.15 and ~2.6.30.
+Can you test by yourself andrey's case on x86 box? It seems
+reprodusable. 
 
-Fundamentally, the _only_ thing I want balance_dirty_pages() to do
-is _not issue IO_. Issuing IO in balance_dirty_pages() simply does
-not scale, especially for devices that have no inherent concurrency.
-I don't care if the solution is not perfectly fair or that there is
-some latency jitter between threads, I just want to avoid having the
-IO issue patterns change drastically when the system runs out of
-clean pages.
-
-IMO, that's all we should be trying to acheive with IO-less write
-throttling right now. Get that algorithm and infrastructure right
-first, then we can work out how to build on that to do more fancy
-stuff.
-
-> I'm thinking about tweaking ratelimiting logic to reduce latencies in some
-> tests, possibly add compensation when we waited for too long in
-> balance_dirty_pages() (e.g. because of bumpy IO completion) but that's
-> about it...
+> > current all_unreclaimable() return false even though
+> > zone->all_unreclaimabe=1.
 > 
-> Basically I do this so that we can compare and decide whether what my
-> simple approach offers is OK or whether we want some more complex solution
-> like your patches...
+> The case is very rare since we reset zone->all_unreclaimabe to zero
+> right before resetting zone->page_scanned to zero.
+> But I admit it's possible.
 
-I agree completely.
+Please apply this patch and run oom-killer. You may see following
+pages_scanned:0 and all_unreclaimable:yes combination. likes below.
+(but you may need >30min)
 
-FWIW (and that may not be much), the IO-less write throttling that I
-wrote for Irix back in 2004 was very simple and very effective -
-input and output bandwidth estimation updated once per second, with
-a variable write syscall delay applied on each syscall also
-calculated once per second. The change to the delay was based on the
-difference between input and output rates and the number of write
-syscalls per second.
+	Node 0 DMA free:4024kB min:40kB low:48kB high:60kB active_anon:11804kB 
+	inactive_anon:0kB active_file:0kB inactive_file:4kB unevictable:0kB 
+	isolated(anon):0kB isolated(file):0kB present:15676kB mlocked:0kB 
+	dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB 
+	slab_unreclaimable:0kB kernel_stack:0kB pagetables:68kB unstable:0kB 
+	bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
 
-I tried all sorts of fancy stuff to improve it, but the corner cases
-in anything fancy led to substantial complexity of algorithms and
-code and workloads that just didn't work well.  In the end, simple
-worked better than fancy and complex and was easier to understand,
-predict and tune....
 
-Cheers,
+> 
+>         CPU 0                                           CPU 1
+> free_pcppages_bulk                              balance_pgdat
+>         zone->all_unreclaimabe = 0
+>                                                         zone->all_unreclaimabe = 1
+>         zone->pages_scanned = 0
+> > 
+> > Is this ignorable minor issue? No. Unfortunatelly, x86 has very
+> > small dma zone and it become zone->all_unreclamble=1 easily. and
+> > if it becase all_unreclaimable, it never return all_unreclaimable=0
+>         ^^^^^ it's very important verb.    ^^^^^ return? reset?
+> 
+>         I can't understand your point due to the typo. Please correct the typo.
+> 
+> > beucase it typicall don't have reclaimable pages.
+> 
+> If DMA zone have very small reclaimable pages or zero reclaimable pages,
+> zone_reclaimable() can return false easily so all_unreclaimable() could return
+> true. Eventually oom-killer might works.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+The point is, vmscan has following all_unreclaimable check in several place.
+
+                        if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+                                continue;
+
+But, if the zone has only a few lru pages, get_scan_count(DEF_PRIORITY) return
+{0, 0, 0, 0} array. It mean zone will never scan lru pages anymore. therefore
+false negative smaller pages_scanned can't be corrected.
+
+Then, false negative all_unreclaimable() also can't be corrected.
+
+
+btw, Why get_scan_count() return 0 instead 1? Why don't we round up?
+Git log says it is intentionally.
+
+	commit e0f79b8f1f3394bb344b7b83d6f121ac2af327de
+	Author: Johannes Weiner <hannes@saeurebad.de>
+	Date:   Sat Oct 18 20:26:55 2008 -0700
+
+	    vmscan: don't accumulate scan pressure on unrelated lists
+
+> 
+> In my test, I saw the livelock, too so apparently we have a problem.
+> I couldn't dig in it recently by another urgent my work.
+> I think you know root cause but the description in this patch isn't enough
+> for me to be persuaded.
+> 
+> Could you explain the root cause in detail?
+
+If you have an another fixing idea, please let me know. :)
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
