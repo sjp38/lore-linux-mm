@@ -1,63 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B8F28D0040
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 22:06:03 -0400 (EDT)
-Received: by yib2 with SMTP id 2so4150062yib.14
-        for <linux-mm@kvack.org>; Tue, 22 Mar 2011 19:05:57 -0700 (PDT)
-From: Valerie Aurora <valerie.aurora@gmail.com>
-Subject: [PATCH 59/74] fallthru: tmpfs support for lookup of d_type/d_ino in fallthrus
-Date: Tue, 22 Mar 2011 19:04:50 -0700
-Message-Id: <1300845905-14433-16-git-send-email-valerie.aurora@gmail.com>
-In-Reply-To: <1300845905-14433-1-git-send-email-valerie.aurora@gmail.com>
-References: <1300845905-14433-1-git-send-email-valerie.aurora@gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 90F6C8D0040
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 22:22:20 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp07.au.ibm.com (8.14.4/8.13.1) with ESMTP id p2N2MDtp017043
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 13:22:13 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2N2MDsE1314950
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 13:22:13 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2N2MDep001571
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 13:22:13 +1100
+Date: Wed, 23 Mar 2011 12:52:13 +1030
+From: Christopher Yeoh <cyeoh@au1.ibm.com>
+Subject: Re: [Resend] Cross Memory Attach v3 [PATCH]
+Message-ID: <20110323125213.69a7a914@lilo>
+In-Reply-To: <20110320185532.08394018.akpm@linux-foundation.org>
+References: <20110315143547.1b233cd4@lilo>
+	<20110315161623.4099664b.akpm@linux-foundation.org>
+	<20110317154026.61ddd925@lilo>
+	<20110317125427.eebbfb51.akpm@linux-foundation.org>
+	<20110321122018.6306d067@lilo>
+	<20110320185532.08394018.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel@vger.kernel.org, linux@vger.kernel.org
-Cc: viro@zeniv.linux.org.uk, Valerie Aurora <vaurora@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Valerie Aurora <valerie.aurora@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>, rusty@rustcorp.com.au
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-From: Valerie Aurora <vaurora@redhat.com>
+On Sun, 20 Mar 2011 18:55:32 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Mon, 21 Mar 2011 12:20:18 +1030 Christopher Yeoh
+> <cyeoh@au1.ibm.com> wrote:
+> 
+> > On Thu, 17 Mar 2011 12:54:27 -0700
+> > Andrew Morton <akpm@linux-foundation.org> wrote:
+> > > On Thu, 17 Mar 2011 15:40:26 +1030
+> > > Christopher Yeoh <cyeoh@au1.ibm.com> wrote:
+> > > 
+> > > > > Thinking out loud: if we had a way in which a process can add
+> > > > > and remove a local anonymous page into pagecache then other
+> > > > > processes could access that page via mmap.  If both processes
+> > > > > map the file with a nonlinear vma they they can happily sit
+> > > > > there flipping pages into and out of the shared mmap at
+> > > > > arbitrary file offsets. The details might get hairy ;) We
+> > > > > wouldn't want all the regular mmap semantics of
+> > > > 
+> > > > Yea, its the complexity of trying to do it that way that
+> > > > eventually lead me to implementing it via a syscall and
+> > > > get_user_pages instead, trying to keep things as simple as
+> > > > possible.
+> > > 
+> > > The pagecache trick potentially gives zero-copy access, whereas
+> > > the proposed code is single-copy.  Although the expected benefits
+> > > of that may not be so great due to TLB manipulation overheads.
+> > > 
+> > > I worry that one day someone will come along and implement the
+> > > pagecache trick, then we're stuck with obsolete code which we
+> > > have to maintain for ever.
+> > 
+> > Perhaps I don't understand what you're saying correctly but I think
+> > that one problem with the zero copy page flipping approach is that
+> > there is no guarantee with the data that the MPI apps want to send 
+> > resides in a page or pages all by itself.
+> 
+> Well.  The applications could of course be changed.  But if the
+> applications are changeable then they could be changed to use
+> MAP_SHARED memory sharing and we wouldn't be having this discussion,
+> yes?
 
-Now that we have full union lookup support, lookup the true d_type and
-d_ino of a fallthru.
+Yup, the applications can't be changed.
 
-Cc: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org
-Signed-off-by: Valerie Aurora <valerie.aurora@gmail.com>
----
- fs/libfs.c |   11 ++++++++---
- 1 files changed, 8 insertions(+), 3 deletions(-)
+> But yes, I'm assuming that it will be acceptable for the sending app
+> to expose some memory (up to PAGE_SIZE-1) below and above the actual
+> payload which is to be transferred.
 
-diff --git a/fs/libfs.c b/fs/libfs.c
-index a73423d..8453c75 100644
---- a/fs/libfs.c
-+++ b/fs/libfs.c
-@@ -132,6 +132,7 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
- 	ino_t ino;
- 	char d_type;
- 	int i = filp->f_pos;
-+	int err = 0;
- 
- 	switch (i) {
- 		case 0:
-@@ -161,9 +162,13 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
- 
- 				spin_unlock(&dcache_lock);
- 				if (d_is_fallthru(next)) {
--					/* XXX placeholder until generic_readdir_fallthru() arrives */
--					ino = 1;
--					d_type = DT_UNKNOWN;
-+					/* On tmpfs, should only fail with ENOMEM, EIO, etc. */
-+					err = generic_readdir_fallthru(filp->f_path.dentry,
-+								       next->d_name.name,
-+								       next->d_name.len,
-+								       &ino, &d_type);
-+					if (err)
-+						return err;
- 				} else {
- 					ino = next->d_inode->i_ino;
- 					d_type = dt_type(next->d_inode);
+So in addition to this restriction and the TLB manipulation overhead
+you mention, I believe that in practice if you need to use the data soon
+(as opposed to just sending it out a network interface for example)
+then the gain you get for zero copy vs single copy is not as high as
+you might expect except for quite large sizes of data. The reason being
+that that with page flipping the data will be cache cold whereas if you
+have done a single copy it will be hot.
+
+Rusty (CC'd) has experience in this area and can explain it better than
+me :-)
+
+My feeling is that waiting for a perfect solution (which has its own
+problems such as the page size/alignment restrictions and high
+complexity for implementation) we'll be putting off a good solution for
+a long time.
+
+Regards,
+
+Chris
 -- 
-1.7.0.4
+cyeoh@au.ibm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
