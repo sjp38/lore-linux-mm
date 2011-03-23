@@ -1,62 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C7EE38D0040
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 03:55:18 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7C4FD3EE0C1
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:55:15 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 634E345DE5A
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:55:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B03745DE55
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:55:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 34D2CE38004
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:55:15 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F03EEE38001
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:55:14 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/5] vmscan: remove all_unreclaimable check from direct reclaim path completely
-In-Reply-To: <20110323164122.ea25bdf0.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20110322200523.B061.A69D9226@jp.fujitsu.com> <20110323164122.ea25bdf0.kamezawa.hiroyu@jp.fujitsu.com>
-Message-Id: <20110323165552.1AD6.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F6918D0040
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 03:56:21 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CF3F03EE0BD
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:56:18 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B117345DE56
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:56:18 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9711C45DE51
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:56:18 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 81358E78002
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:56:18 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AE991DB8037
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:56:18 +0900 (JST)
+Date: Wed, 23 Mar 2011 16:49:49 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 5/5] x86,mm: make pagefault killable
+Message-Id: <20110323164949.5be6aa48.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110322200945.B06D.A69D9226@jp.fujitsu.com>
+References: <20110315153801.3526.A69D9226@jp.fujitsu.com>
+	<20110322194721.B05E.A69D9226@jp.fujitsu.com>
+	<20110322200945.B06D.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Wed, 23 Mar 2011 16:55:12 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, Nick Piggin <npiggin@kernel.dk>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>
 
-> > Reported-by: Andrey Vagin <avagin@openvz.org>
-> > Cc: Nick Piggin <npiggin@kernel.dk>
-> > Cc: Minchan Kim <minchan.kim@gmail.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Rik van Riel <riel@redhat.com>
-> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Tue, 22 Mar 2011 20:09:29 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+
+> When oom killer occured, almost processes are getting stuck following
+> two points.
 > 
-> IIUC, I saw the pehnomenon which you pointed out, as
->  - all zone->all_unreclaimable = yes
->  - zone_reclaimable() returns true
->  - no pgscan proceeds.
+> 	1) __alloc_pages_nodemask
+> 	2) __lock_page_or_retry
 > 
-> on a swapless system. So, I'd like to vote for this patch.
+> 1) is not much problematic because TIF_MEMDIE lead to make allocation
+> failure and get out from page allocator. 2) is more problematic. When
+> OOM situation, Zones typically don't have page cache at all and Memory
+> starvation might lead to reduce IO performance largely. When fork bomb
+> occur, TIF_MEMDIE task don't die quickly mean fork bomb may create
+> new process quickly rather than oom-killer kill it. Then, the system
+> may become livelock.
 > 
-> But hmm...what happens all of pages are isolated or locked and now under freeing ?
-> I think we should have alternative safe-guard logic for avoiding to call
-> oom-killer. Hmm.
+> This patch makes pagefault interruptible by SIGKILL.
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  arch/x86/mm/fault.c |    9 +++++++++
+>  include/linux/mm.h  |    1 +
+>  mm/filemap.c        |   22 +++++++++++++++++-----
+>  3 files changed, 27 insertions(+), 5 deletions(-)
+> 
+> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> index 20e3f87..797c7d0 100644
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -1035,6 +1035,7 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
+>  	if (user_mode_vm(regs)) {
+>  		local_irq_enable();
+>  		error_code |= PF_USER;
+> +		flags |= FAULT_FLAG_KILLABLE;
+>  	} else {
+>  		if (regs->flags & X86_EFLAGS_IF)
+>  			local_irq_enable();
+> @@ -1138,6 +1139,14 @@ good_area:
+>  	}
+>  
+>  	/*
+> +	 * Pagefault was interrupted by SIGKILL. We have no reason to
+> +	 * continue pagefault.
+> +	 */
+> +	if ((flags & FAULT_FLAG_KILLABLE) && (fault & VM_FAULT_RETRY) &&
+> +	    fatal_signal_pending(current))
+> +		return;
+> +
 
-Yes, this patch has small risk. but 1) this logic didn't work about two
-years (see changelog) 2) memcg haven't use this logic and I haven't get
-any bug report from memcg developers. therefore I decided to take most
-simple way.
+Hmm? up_read(&mm->mmap_sem) ?
 
-Of cource, I'll make another protection if I'll get any regression report.
-
+Thanks,
+-Kame
 
 
 --
