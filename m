@@ -1,96 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C2D3A8D0040
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:32:20 -0400 (EDT)
-Date: Wed, 23 Mar 2011 09:27:08 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH] memcg: consider per-cpu stock reserves when returning
- RES_USAGE for _MEM
-Message-Id: <20110323092708.021d555d.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20110322073150.GA12940@tiehlicka.suse.cz>
-References: <20110318152532.GB18450@tiehlicka.suse.cz>
-	<20110321093419.GA26047@tiehlicka.suse.cz>
-	<20110321102420.GB26047@tiehlicka.suse.cz>
-	<20110322091014.27677ab3.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110322104723.fd81dddc.nishimura@mxp.nes.nec.co.jp>
-	<20110322073150.GA12940@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 451A98D0040
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:38:02 -0400 (EDT)
+Date: Wed, 23 Mar 2011 01:37:18 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [Bugme-new] [Bug 31142] New: Large write to USB stick freezes
+ unrelated tasks for a long time
+Message-ID: <20110323003718.GH5698@random.random>
+References: <20110319235144.GG10696@random.random>
+ <20110321094149.GH707@csn.ul.ie>
+ <20110321134832.GC5719@random.random>
+ <20110321163742.GA24244@csn.ul.ie>
+ <4D878564.6080608@fiec.espol.edu.ec>
+ <20110321201641.GA5698@random.random>
+ <20110322112032.GD24244@csn.ul.ie>
+ <20110322150314.GC5698@random.random>
+ <4D8907C2.7010304@fiec.espol.edu.ec>
+ <20110322214020.GD5698@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110322214020.GD5698@random.random>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Alex =?iso-8859-1?B?VmlsbGFj7a1z?= Lasso <avillaci@fiec.espol.edu.ec>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, avillaci@ceibo.fiec.espol.edu.ec, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-On Tue, 22 Mar 2011 08:31:50 +0100
-Michal Hocko <mhocko@suse.cz> wrote:
+Hi Alex,
 
-> On Tue 22-03-11 10:47:23, Daisuke Nishimura wrote:
-> > On Tue, 22 Mar 2011 09:10:14 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > 
-> > > On Mon, 21 Mar 2011 11:24:20 +0100
-> > > Michal Hocko <mhocko@suse.cz> wrote:
-> > > 
-> > > > [Sorry for reposting but I forgot to fully refresh the patch before
-> > > > posting...]
-> > > > 
-> > > > On Mon 21-03-11 10:34:19, Michal Hocko wrote:
-> > > > > On Fri 18-03-11 16:25:32, Michal Hocko wrote:
-> > > > > [...]
-> > > > > > According to our documention this is a reasonable test case:
-> > > > > > Documentation/cgroups/memory.txt:
-> > > > > > memory.usage_in_bytes           # show current memory(RSS+Cache) usage.
-> > > > > > 
-> > > > > > This however doesn't work after your commit:
-> > > > > > cdec2e4265d (memcg: coalesce charging via percpu storage)
-> > > > > > 
-> > > > > > because since then we are charging in bulks so we can end up with
-> > > > > > rss+cache <= usage_in_bytes.
-> > > > > [...]
-> > > > > > I think we have several options here
-> > > > > > 	1) document that the value is actually >= rss+cache and it shows
-> > > > > > 	   the guaranteed charges for the group
-> > > > > > 	2) use rss+cache rather then res->count
-> > > > > > 	3) remove the file
-> > > > > > 	4) call drain_all_stock_sync before asking for the value in
-> > > > > > 	   mem_cgroup_read
-> > > > > > 	5) collect the current amount of stock charges and subtract it
-> > > > > > 	   from the current res->count value
-> > > > > > 
-> > > > > > 1) and 2) would suggest that the file is actually not very much useful.
-> > > > > > 3) is basically the interface change as well
-> > > > > > 4) sounds little bit invasive as we basically lose the advantage of the
-> > > > > > pool whenever somebody reads the file. Btw. for who is this file
-> > > > > > intended?
-> > > > > > 5) sounds like a compromise
-> > > > > 
-> > > > > I guess that 4) is really too invasive - for no good reason so here we
-> > > > > go with the 5) solution.
-> > > 
-> > > I think the test in LTP is bad...(it should be fuzzy.) because we cannot
-> > > avoid races...
-> > I agree.
-> 
-> I think that as well. In fact, I quite do not understand what it is
-> testing actually (that we account charges correctly? If yes then what if
-> both values are wrong?). The other point is, though, we have exported this
-> interface and documented its semantic. This is the reason I have asked
-> for the initial purpose of the file in the first place. Is this
-> something for debugging only? Can we make use of the value somehow
-> (other than a shortcut for rss+cache)?
-> 
-> If there is realy no strong reason for the file existence I would rather
-> vote for its removing than having a unusable semantic.
-> 
-Considering more, without these files, we cannot know the actual usage of
-a res_counter, although we set a limit to a res_counter. So, I want to keep
-these files.
+could you also try to reverse this below bit (not the whole previous
+patch: only the bit below quoted below) with "patch -p1 -R < thismail"
+on top of your current aa.git tree, and see if you notice any
+regression compared to the previous aa.git build that worked well?
 
-If no-one have any objections, I'll prepare a patch to update the documentation.
+This is part of the fix, but I'd need to be sure this really makes a
+difference before sticking to it for long. I'm not concerned by
+keeping it, but it adds dirt, and the closer THP allocations are to
+any other high order allocation the better. So the less
+__GFP_NO_KSWAPD affects the better. The hint about not telling kswapd
+to insist in the background for order 9 allocations with fallback
+(like THP) is the maximum I consider clean because there's khugepaged
+with its alloc_sleep_millisecs that replaces the kswapd task for THP
+allocations. So that is clean enough, but when __GFP_NO_KSWAPD starts
+to make compaction behave slightly different from a SLUB order 2
+allocation I don't like it (especially because if you later enable
+SLUB or some driver you may run into the same compaction issue again
+if the below change is making a difference).
 
-Thanks,
-Daisuke Nishimura.
+If things works fine even after you reverse the below, we can safely
+undo this change and also feel safer for all other high order
+allocations, so it'll make life easier. (plus we don't want
+unnecessary special changes, we need to be sure this makes a
+difference to keep it for long)
+
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2085,7 +2085,7 @@ rebalance:
+ 					sync_migration);
+ 	if (page)
+ 		goto got_pg;
+-	sync_migration = true;
++	sync_migration = !(gfp_mask & __GFP_NO_KSWAPD);
+ 
+ 	/* Try direct reclaim and then allocating */
+ 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
