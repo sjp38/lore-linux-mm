@@ -1,103 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 90F6C8D0040
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 22:22:20 -0400 (EDT)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp07.au.ibm.com (8.14.4/8.13.1) with ESMTP id p2N2MDtp017043
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 13:22:13 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2N2MDsE1314950
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 13:22:13 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2N2MDep001571
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 13:22:13 +1100
-Date: Wed, 23 Mar 2011 12:52:13 +1030
-From: Christopher Yeoh <cyeoh@au1.ibm.com>
-Subject: Re: [Resend] Cross Memory Attach v3 [PATCH]
-Message-ID: <20110323125213.69a7a914@lilo>
-In-Reply-To: <20110320185532.08394018.akpm@linux-foundation.org>
-References: <20110315143547.1b233cd4@lilo>
-	<20110315161623.4099664b.akpm@linux-foundation.org>
-	<20110317154026.61ddd925@lilo>
-	<20110317125427.eebbfb51.akpm@linux-foundation.org>
-	<20110321122018.6306d067@lilo>
-	<20110320185532.08394018.akpm@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 8A2198D0040
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 22:41:54 -0400 (EDT)
+Subject: Re: [PATCH 3/5] oom: create oom autogroup
+From: Mike Galbraith <efault@gmx.de>
+In-Reply-To: <20110323102738.1AC2.A69D9226@jp.fujitsu.com>
+References: <20110322200759.B067.A69D9226@jp.fujitsu.com>
+	 <AANLkTikN835dfU9xozTWbOh6cjSEG0XgU_Ayn+dRqDug@mail.gmail.com>
+	 <20110323102738.1AC2.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 23 Mar 2011 03:41:39 +0100
+Message-ID: <1300848099.7492.14.camel@marge.simson.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, rusty@rustcorp.com.au
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>
 
-On Sun, 20 Mar 2011 18:55:32 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Mon, 21 Mar 2011 12:20:18 +1030 Christopher Yeoh
-> <cyeoh@au1.ibm.com> wrote:
-> 
-> > On Thu, 17 Mar 2011 12:54:27 -0700
-> > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > On Thu, 17 Mar 2011 15:40:26 +1030
-> > > Christopher Yeoh <cyeoh@au1.ibm.com> wrote:
-> > > 
-> > > > > Thinking out loud: if we had a way in which a process can add
-> > > > > and remove a local anonymous page into pagecache then other
-> > > > > processes could access that page via mmap.  If both processes
-> > > > > map the file with a nonlinear vma they they can happily sit
-> > > > > there flipping pages into and out of the shared mmap at
-> > > > > arbitrary file offsets. The details might get hairy ;) We
-> > > > > wouldn't want all the regular mmap semantics of
-> > > > 
-> > > > Yea, its the complexity of trying to do it that way that
-> > > > eventually lead me to implementing it via a syscall and
-> > > > get_user_pages instead, trying to keep things as simple as
-> > > > possible.
-> > > 
-> > > The pagecache trick potentially gives zero-copy access, whereas
-> > > the proposed code is single-copy.  Although the expected benefits
-> > > of that may not be so great due to TLB manipulation overheads.
-> > > 
-> > > I worry that one day someone will come along and implement the
-> > > pagecache trick, then we're stuck with obsolete code which we
-> > > have to maintain for ever.
+On Wed, 2011-03-23 at 10:27 +0900, KOSAKI Motohiro wrote:
+> > On Tue, Mar 22, 2011 at 8:08 PM, KOSAKI Motohiro
+> > <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > > When plenty processes (eg fork bomb) are running, the TIF_MEMDIE task
+> > > never exit, at least, human feel it's never. therefore kernel become
+> > > hang-up.
+> > >
+> > > "perf sched" tell us a hint.
+> > >
+> > >  ------------------------------------------------------------------------------
+> > >  Task                  |   Runtime ms  | Average delay ms | Maximum delay ms |
+> > >  ------------------------------------------------------------------------------
+> > >  python:1754           |      0.197 ms | avg: 1731.727 ms | max: 3433.805 ms |
+> > >  python:1843           |      0.489 ms | avg: 1707.433 ms | max: 3622.955 ms |
+> > >  python:1715           |      0.220 ms | avg: 1707.125 ms | max: 3623.246 ms |
+> > >  python:1818           |      2.127 ms | avg: 1527.331 ms | max: 3622.553 ms |
+> > >  ...
+> > >  ...
+> > >
+> > > Processes flood makes crazy scheduler delay. and then the victim process
+> > > can't run enough. Grr. Should we do?
+> > >
+> > > Fortunately, we already have anti process flood framework, autogroup!
+> > > This patch reuse this framework and avoid kernel live lock.
 > > 
-> > Perhaps I don't understand what you're saying correctly but I think
-> > that one problem with the zero copy page flipping approach is that
-> > there is no guarantee with the data that the MPI apps want to send 
-> > resides in a page or pages all by itself.
+> > That's cool idea but I have a concern.
+> > 
+> > You remove boosting priority in [2/5] and move victim tasks into autogroup.
+> > If I understand autogroup right, victim process and threads in the
+> > process take less schedule chance than now.
 > 
-> Well.  The applications could of course be changed.  But if the
-> applications are changeable then they could be changed to use
-> MAP_SHARED memory sharing and we wouldn't be having this discussion,
-> yes?
+> Right. Icky cpu-cgroup rt-runtime default enforce me to seek another solution.
 
-Yup, the applications can't be changed.
+I was going to mention rt, and there's s/fork/clone as well.
 
-> But yes, I'm assuming that it will be acceptable for the sending app
-> to expose some memory (up to PAGE_SIZE-1) below and above the actual
-> payload which is to be transferred.
+> Today, I got private mail from Luis and he seems to have another improvement
+> idea. so, I might drop this patch if his one works fine.
 
-So in addition to this restriction and the TLB manipulation overhead
-you mention, I believe that in practice if you need to use the data soon
-(as opposed to just sending it out a network interface for example)
-then the gain you get for zero copy vs single copy is not as high as
-you might expect except for quite large sizes of data. The reason being
-that that with page flipping the data will be cache cold whereas if you
-have done a single copy it will be hot.
+Perhaps if TIF_MEMDIE threads needs special treatment, preemption tests
+could take that into account?  (though I don't like touching fast path
+for oddball cases)
 
-Rusty (CC'd) has experience in this area and can explain it better than
-me :-)
+	-Mike
 
-My feeling is that waiting for a perfect solution (which has its own
-problems such as the page size/alignment restrictions and high
-complexity for implementation) we'll be putting off a good solution for
-a long time.
 
-Regards,
 
-Chris
--- 
-cyeoh@au.ibm.com
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
