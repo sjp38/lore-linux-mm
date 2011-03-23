@@ -1,118 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 72D5A8D0040
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 01:21:14 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3D62E3EE0BD
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 14:21:11 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E51C45DE6A
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 14:21:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DDCF045DE61
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 14:21:10 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CE21B1DB803A
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 14:21:10 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 89B0CE08002
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 14:21:10 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/5] vmscan: remove all_unreclaimable check from direct reclaim path completely
-In-Reply-To: <20110322144950.GA2628@barrios-desktop>
-References: <20110322200523.B061.A69D9226@jp.fujitsu.com> <20110322144950.GA2628@barrios-desktop>
-Message-Id: <20110323142133.1AC6.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 056C38D0040
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 02:01:34 -0400 (EDT)
+Received: by iwl42 with SMTP id 42so11324914iwl.14
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2011 23:01:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 23 Mar 2011 14:21:08 +0900 (JST)
+In-Reply-To: <20110323002536.GG5698@random.random>
+References: <201103222153.p2MLrD0x029642@imap1.linux-foundation.org>
+	<AANLkTi=1krqzHY1mg2T-k52C-VNruWsnXO33qS7BzeL+@mail.gmail.com>
+	<20110323002536.GG5698@random.random>
+Date: Wed, 23 Mar 2011 15:01:33 +0900
+Message-ID: <AANLkTikdhswcngKzksQcxeY5U4Kku6N8Kf5HXqpy0LNK@mail.gmail.com>
+Subject: Re: + mm-compaction-use-async-migration-for-__gfp_no_kswapd-and-enforce-no-writeback.patch
+ added to -mm tree
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, arthur.marsh@internode.on.net, cladisch@googlemail.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>
 
-Hi Minchan,
+On Wed, Mar 23, 2011 at 9:25 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> Hello Minchan,
+>
+> On Wed, Mar 23, 2011 at 07:58:24AM +0900, Minchan Kim wrote:
+>> Hi Andrea,
+>>
+>> I didn't follow up USB stick freeze issue but the patch's concept
+>> looks good to me. But there are some comments about this patch.
+>>
+>> 1. __GFP_NO_KSWAPD
+>>
+>> This patch is based on assumption that hugepage allocation have a good
+>> fallback and now hugepage allocation uses __GFP_NO_KSWAPD.
+>
+> Yes, the only goal was to bypass kswapd. We don't want an overwork to
+> try to generate those.
+>
+>> __GFP_NO_KSWAPD's goal is just prevent unnecessary wakeup kswapd and
+>> only user is just thp now so I can understand why you use it but how
+>> about __GFP_NORETRY?
+>>
+>> I think __GFP_NORETRY assume caller has a fallback mechanism(ex, SLUB)
+>> and he think latency is important in such context.
+>
+> __GFP_NORETRY sounds the opposite of __GFP_REPEAT. So it gets a bit
+> confusing as one would expect if you don't pass __GFP_REPEAT you're
+> already in __GFP_NORETRY mode.
+>
+> OTOH it's like __GFP_NORETRY -> normal -> __GFP_REPEAT, so it wouldn't
+> be wrong either. Where __GFP_REPEAT does it best at not failing even
+> when the kernel stack allocation would have failed.
+>
+> Now before thinking further into this, we should probably ask Alex how
+> thing goes if we undo the change to page_alloc.c so that
+> __GFP_NO_KSWAPD will only affect kswapd like before (so without
+> requiring a rename).
 
-> > zone->all_unreclaimable and zone->pages_scanned are neigher atomic
-> > variables nor protected by lock. Therefore a zone can become a state
-> > of zone->page_scanned=0 and zone->all_unreclaimable=1. In this case,
-> 
-> Possible although it's very rare.
+Okay. I will look at result.
+If the problem happens again with reverted patch of page_alloc.c,
+Don't we have to investigate further the problem happens with SLUB or
+some driver's big memory allocation which is lower than 2M? We didn't
+see the problem allocation under 2M but async migration's history was
+short so we can't make sure it.
 
-Can you test by yourself andrey's case on x86 box? It seems
-reprodusable. 
+>
+> It's possible that such change wasn't needed. The less things
+> __GFP_NO_KSWAPD does and the closer THP allocations are to "default"
+> high order allocations the better/simpler. Now that we solved the
+> problem we can more easily refine these bits. __GFP_NO_KSWAPD is
+> absolutely needed for frequent huge allocations especially with a
+> kswapd that doesn't use compaction (and we found compaction in kswapd
+> is detrimental even for small order allocations, so __GFP_NO_KSWAPD
+> isn't going away too soon, but if we can make it again only specific
+> to kswapd it's better). I ideally would like THP allocation not having
+> to specify anything and the allocator to work just fine by itself.
 
-> > current all_unreclaimable() return false even though
-> > zone->all_unreclaimabe=1.
-> 
-> The case is very rare since we reset zone->all_unreclaimabe to zero
-> right before resetting zone->page_scanned to zero.
-> But I admit it's possible.
+Absolutely.
 
-Please apply this patch and run oom-killer. You may see following
-pages_scanned:0 and all_unreclaimable:yes combination. likes below.
-(but you may need >30min)
+>
+> __GFP_REPEAT is a magic needed for hugetlbfs to insist forever to be
+> paranoid in trying to increase nr_hugepages with the highest possible
+> effort no matter how much swapping or slowdown/hang it generates
+> during the "echo". In the same way __GFP_NO_KSWAPD is to avoid
+> interference with kswapd that can't use compaction without leading to
+> too much wasted CPU yet. But the less stuff these bitflags do, the
+> better.
 
-	Node 0 DMA free:4024kB min:40kB low:48kB high:60kB active_anon:11804kB 
-	inactive_anon:0kB active_file:0kB inactive_file:4kB unevictable:0kB 
-	isolated(anon):0kB isolated(file):0kB present:15676kB mlocked:0kB 
-	dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB 
-	slab_unreclaimable:0kB kernel_stack:0kB pagetables:68kB unstable:0kB 
-	bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
+Don't you want to add async migration for low order allocation like SLUB?
+If you don't want to do async migration low order allocation, we can
+add the check if (gfp_flags & __GFP_RETRY) && (order >= 9 or some
+threshold) for async migration?
 
+My point is to avoid implicit hidden meaning of __GFP_NO_KSWAPD
+although __GFP_REPEAT already does it.
 
-> 
->         CPU 0                                           CPU 1
-> free_pcppages_bulk                              balance_pgdat
->         zone->all_unreclaimabe = 0
->                                                         zone->all_unreclaimabe = 1
->         zone->pages_scanned = 0
-> > 
-> > Is this ignorable minor issue? No. Unfortunatelly, x86 has very
-> > small dma zone and it become zone->all_unreclamble=1 easily. and
-> > if it becase all_unreclaimable, it never return all_unreclaimable=0
->         ^^^^^ it's very important verb.    ^^^^^ return? reset?
-> 
->         I can't understand your point due to the typo. Please correct the typo.
-> 
-> > beucase it typicall don't have reclaimable pages.
-> 
-> If DMA zone have very small reclaimable pages or zero reclaimable pages,
-> zone_reclaimable() can return false easily so all_unreclaimable() could return
-> true. Eventually oom-killer might works.
+>
+>> 2. LRU churn
+>>
+>> By this patch, async migration can't migrate dirty page of normal fs.
+>> It can move the victim page to head of LRU. I hope we can reduce LRU
+>> churning as possible. For it, we can do it when we isolate the LRU
+>> pages.
+>> If compaction mode is async, we can exclude the dirty pages in
+>> isolate_migratepages.
+>
+> I've no trivial solution for the lru churning but, at least we're not
+> making the lru churning any worse with this patch.
 
-The point is, vmscan has following all_unreclaimable check in several place.
+If async migration is going on and meet the dirty page, the patch can
+return the -EBUSY so the page could put back to head of LRU but the
+old migration can be going on although the page is dirty.
 
-                        if (zone->all_unreclaimable && priority != DEF_PRIORITY)
-                                continue;
+>
+> I see your point that we could reduce the lru churning further after
+> this patch, and that is cleaner if done as an incremental change
+> considering it's a new improvement that become possible after the
+> patch and it doesn't fix any regression.
 
-But, if the zone has only a few lru pages, get_scan_count(DEF_PRIORITY) return
-{0, 0, 0, 0} array. It mean zone will never scan lru pages anymore. therefore
-false negative smaller pages_scanned can't be corrected.
+Okay.
 
-Then, false negative all_unreclaimable() also can't be corrected.
+>
+> To reduce it, we'd need to expose the migrate internal details to the
+> compaction code. It's not good enough to just check PageDirty
+> considering that dirty pages are migrated perfectly even when they're
+> not anonymous with a page_mapping != 0, if ->migratepage is
+> migrate_page (like for tmpfs/swapcache). So to optimize that, I guess
+> we could add a can_migrate_async(page) to the migrate code, to call in
+> the compaction loop. It should work.
+>
 
+Totally agree with you.
+It's another topic and goes next time.
 
-btw, Why get_scan_count() return 0 instead 1? Why don't we round up?
-Git log says it is intentionally.
-
-	commit e0f79b8f1f3394bb344b7b83d6f121ac2af327de
-	Author: Johannes Weiner <hannes@saeurebad.de>
-	Date:   Sat Oct 18 20:26:55 2008 -0700
-
-	    vmscan: don't accumulate scan pressure on unrelated lists
-
-> 
-> In my test, I saw the livelock, too so apparently we have a problem.
-> I couldn't dig in it recently by another urgent my work.
-> I think you know root cause but the description in this patch isn't enough
-> for me to be persuaded.
-> 
-> Could you explain the root cause in detail?
-
-If you have an another fixing idea, please let me know. :)
-
-
+Thanks, Andrea.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
