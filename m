@@ -1,50 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2C22A8D0040
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:46:25 -0400 (EDT)
-Date: Wed, 23 Mar 2011 15:46:20 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: vmstat: Update comment in stat_threshold
-Message-ID: <alpine.DEB.2.00.1103231542200.14654@router.home>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B31738D0040
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 19:07:18 -0400 (EDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [Resend] Cross Memory Attach v3 [PATCH]
+In-Reply-To: <20110323125213.69a7a914@lilo>
+References: <20110315143547.1b233cd4@lilo> <20110315161623.4099664b.akpm@linux-foundation.org> <20110317154026.61ddd925@lilo> <20110317125427.eebbfb51.akpm@linux-foundation.org> <20110321122018.6306d067@lilo> <20110320185532.08394018.akpm@linux-foundation.org> <20110323125213.69a7a914@lilo>
+Date: Thu, 24 Mar 2011 09:20:41 +1030
+Message-ID: <877hbpcuym.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Christopher Yeoh <cyeoh@au1.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-This has been in my tree for awhile. I thought it would be merged
-at some point into another patch but that did not happen.
+On Wed, 23 Mar 2011 12:52:13 +1030, Christopher Yeoh <cyeoh@au1.ibm.com> wrote:
+> On Sun, 20 Mar 2011 18:55:32 -0700
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+> > On Mon, 21 Mar 2011 12:20:18 +1030 Christopher Yeoh
+> > <cyeoh@au1.ibm.com> wrote:
+> > 
+> > > On Thu, 17 Mar 2011 12:54:27 -0700
+> > > Andrew Morton <akpm@linux-foundation.org> wrote:
+> > > > On Thu, 17 Mar 2011 15:40:26 +1030
+> > > > Christopher Yeoh <cyeoh@au1.ibm.com> wrote:
+> > > > 
+> > > > > > Thinking out loud: if we had a way in which a process can add
+> > > > > > and remove a local anonymous page into pagecache then other
+> > > > > > processes could access that page via mmap.  If both processes
+> > > > > > map the file with a nonlinear vma they they can happily sit
+> > > > > > there flipping pages into and out of the shared mmap at
+> > > > > > arbitrary file offsets. The details might get hairy ;) We
+> > > > > > wouldn't want all the regular mmap semantics of
+> > > > > 
+> > > > > Yea, its the complexity of trying to do it that way that
+> > > > > eventually lead me to implementing it via a syscall and
+> > > > > get_user_pages instead, trying to keep things as simple as
+> > > > > possible.
+> > > > 
+> > > > The pagecache trick potentially gives zero-copy access, whereas
+> > > > the proposed code is single-copy.  Although the expected benefits
+> > > > of that may not be so great due to TLB manipulation overheads.
+> > > > 
+> > > > I worry that one day someone will come along and implement the
+> > > > pagecache trick, then we're stuck with obsolete code which we
+> > > > have to maintain for ever.
 
-It was first posted in a discussion of the vmstat changes for per cpu
-atomics: http://www.gossamer-threads.com/lists/linux/kernel/1317000#1317000
+Since this is for MPI (ie. message passing), they really want copy
+semantics.  If they didn't want copy semantics, they could just
+MAP_SHARED some memory and away they go...
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+You don't want to implement copy semantics with page-flipping; you would
+need to COW the outgoing pages, so you end up copying *and* trapping.
 
+If you are allowed to replace "sent" pages with zeroed ones or something
+then you don't have to COW.  Yet even if your messages were a few MB,
+it's still not clear you'd win; in a NUMA world you're better off
+copying into a local page and then working on it.
 
----
- mm/vmstat.c |    9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+Copying just isn't that bad when it's cache-hot on the sender and you
+are about to use it on the receiver, as MPI tends to be.  And it's damn
+simple.
 
-Index: linux-2.6/mm/vmstat.c
-===================================================================
---- linux-2.6.orig/mm/vmstat.c	2011-03-15 11:16:48.000000000 -0500
-+++ linux-2.6/mm/vmstat.c	2011-03-17 09:25:26.000000000 -0500
-@@ -321,9 +321,12 @@ static inline void mod_state(struct zone
- 		/*
- 		 * The fetching of the stat_threshold is racy. We may apply
- 		 * a counter threshold to the wrong the cpu if we get
--		 * rescheduled while executing here. However, the following
--		 * will apply the threshold again and therefore bring the
--		 * counter under the threshold.
-+		 * rescheduled while executing here. However, the next
-+		 * counter update will apply the threshold again and
-+		 * therefore bring the counter under the threshold again.
-+		 *
-+		 * Most of the time the thresholds are the same anyways
-+		 * for all cpus in a zone.
- 		 */
- 		t = this_cpu_read(pcp->stat_threshold);
+But we should be able to benchmark an approximation to the page-flipping
+approach anyway, by not copying the data and doing the appropriate tlb
+flushes in the system call.
+
+Cheers,
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
