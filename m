@@ -1,103 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C15928D0040
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:26:15 -0400 (EDT)
-Date: Wed, 23 Mar 2011 01:25:36 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: +
- mm-compaction-use-async-migration-for-__gfp_no_kswapd-and-enforce-no-writeback.patch
- added to -mm tree
-Message-ID: <20110323002536.GG5698@random.random>
-References: <201103222153.p2MLrD0x029642@imap1.linux-foundation.org>
- <AANLkTi=1krqzHY1mg2T-k52C-VNruWsnXO33qS7BzeL+@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTi=1krqzHY1mg2T-k52C-VNruWsnXO33qS7BzeL+@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id C2D3A8D0040
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2011 20:32:20 -0400 (EDT)
+Date: Wed, 23 Mar 2011 09:27:08 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH] memcg: consider per-cpu stock reserves when returning
+ RES_USAGE for _MEM
+Message-Id: <20110323092708.021d555d.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20110322073150.GA12940@tiehlicka.suse.cz>
+References: <20110318152532.GB18450@tiehlicka.suse.cz>
+	<20110321093419.GA26047@tiehlicka.suse.cz>
+	<20110321102420.GB26047@tiehlicka.suse.cz>
+	<20110322091014.27677ab3.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110322104723.fd81dddc.nishimura@mxp.nes.nec.co.jp>
+	<20110322073150.GA12940@tiehlicka.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, arthur.marsh@internode.on.net, cladisch@googlemail.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Hello Minchan,
+On Tue, 22 Mar 2011 08:31:50 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
 
-On Wed, Mar 23, 2011 at 07:58:24AM +0900, Minchan Kim wrote:
-> Hi Andrea,
+> On Tue 22-03-11 10:47:23, Daisuke Nishimura wrote:
+> > On Tue, 22 Mar 2011 09:10:14 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > 
+> > > On Mon, 21 Mar 2011 11:24:20 +0100
+> > > Michal Hocko <mhocko@suse.cz> wrote:
+> > > 
+> > > > [Sorry for reposting but I forgot to fully refresh the patch before
+> > > > posting...]
+> > > > 
+> > > > On Mon 21-03-11 10:34:19, Michal Hocko wrote:
+> > > > > On Fri 18-03-11 16:25:32, Michal Hocko wrote:
+> > > > > [...]
+> > > > > > According to our documention this is a reasonable test case:
+> > > > > > Documentation/cgroups/memory.txt:
+> > > > > > memory.usage_in_bytes           # show current memory(RSS+Cache) usage.
+> > > > > > 
+> > > > > > This however doesn't work after your commit:
+> > > > > > cdec2e4265d (memcg: coalesce charging via percpu storage)
+> > > > > > 
+> > > > > > because since then we are charging in bulks so we can end up with
+> > > > > > rss+cache <= usage_in_bytes.
+> > > > > [...]
+> > > > > > I think we have several options here
+> > > > > > 	1) document that the value is actually >= rss+cache and it shows
+> > > > > > 	   the guaranteed charges for the group
+> > > > > > 	2) use rss+cache rather then res->count
+> > > > > > 	3) remove the file
+> > > > > > 	4) call drain_all_stock_sync before asking for the value in
+> > > > > > 	   mem_cgroup_read
+> > > > > > 	5) collect the current amount of stock charges and subtract it
+> > > > > > 	   from the current res->count value
+> > > > > > 
+> > > > > > 1) and 2) would suggest that the file is actually not very much useful.
+> > > > > > 3) is basically the interface change as well
+> > > > > > 4) sounds little bit invasive as we basically lose the advantage of the
+> > > > > > pool whenever somebody reads the file. Btw. for who is this file
+> > > > > > intended?
+> > > > > > 5) sounds like a compromise
+> > > > > 
+> > > > > I guess that 4) is really too invasive - for no good reason so here we
+> > > > > go with the 5) solution.
+> > > 
+> > > I think the test in LTP is bad...(it should be fuzzy.) because we cannot
+> > > avoid races...
+> > I agree.
 > 
-> I didn't follow up USB stick freeze issue but the patch's concept
-> looks good to me. But there are some comments about this patch.
+> I think that as well. In fact, I quite do not understand what it is
+> testing actually (that we account charges correctly? If yes then what if
+> both values are wrong?). The other point is, though, we have exported this
+> interface and documented its semantic. This is the reason I have asked
+> for the initial purpose of the file in the first place. Is this
+> something for debugging only? Can we make use of the value somehow
+> (other than a shortcut for rss+cache)?
 > 
-> 1. __GFP_NO_KSWAPD
+> If there is realy no strong reason for the file existence I would rather
+> vote for its removing than having a unusable semantic.
 > 
-> This patch is based on assumption that hugepage allocation have a good
-> fallback and now hugepage allocation uses __GFP_NO_KSWAPD.
+Considering more, without these files, we cannot know the actual usage of
+a res_counter, although we set a limit to a res_counter. So, I want to keep
+these files.
 
-Yes, the only goal was to bypass kswapd. We don't want an overwork to
-try to generate those.
+If no-one have any objections, I'll prepare a patch to update the documentation.
 
-> __GFP_NO_KSWAPD's goal is just prevent unnecessary wakeup kswapd and
-> only user is just thp now so I can understand why you use it but how
-> about __GFP_NORETRY?
-> 
-> I think __GFP_NORETRY assume caller has a fallback mechanism(ex, SLUB)
-> and he think latency is important in such context.
-
-__GFP_NORETRY sounds the opposite of __GFP_REPEAT. So it gets a bit
-confusing as one would expect if you don't pass __GFP_REPEAT you're
-already in __GFP_NORETRY mode.
-
-OTOH it's like __GFP_NORETRY -> normal -> __GFP_REPEAT, so it wouldn't
-be wrong either. Where __GFP_REPEAT does it best at not failing even
-when the kernel stack allocation would have failed.
-
-Now before thinking further into this, we should probably ask Alex how
-thing goes if we undo the change to page_alloc.c so that
-__GFP_NO_KSWAPD will only affect kswapd like before (so without
-requiring a rename).
-
-It's possible that such change wasn't needed. The less things
-__GFP_NO_KSWAPD does and the closer THP allocations are to "default"
-high order allocations the better/simpler. Now that we solved the
-problem we can more easily refine these bits. __GFP_NO_KSWAPD is
-absolutely needed for frequent huge allocations especially with a
-kswapd that doesn't use compaction (and we found compaction in kswapd
-is detrimental even for small order allocations, so __GFP_NO_KSWAPD
-isn't going away too soon, but if we can make it again only specific
-to kswapd it's better). I ideally would like THP allocation not having
-to specify anything and the allocator to work just fine by itself.
-
-__GFP_REPEAT is a magic needed for hugetlbfs to insist forever to be
-paranoid in trying to increase nr_hugepages with the highest possible
-effort no matter how much swapping or slowdown/hang it generates
-during the "echo". In the same way __GFP_NO_KSWAPD is to avoid
-interference with kswapd that can't use compaction without leading to
-too much wasted CPU yet. But the less stuff these bitflags do, the
-better.
-
-> 2. LRU churn
-> 
-> By this patch, async migration can't migrate dirty page of normal fs.
-> It can move the victim page to head of LRU. I hope we can reduce LRU
-> churning as possible. For it, we can do it when we isolate the LRU
-> pages.
-> If compaction mode is async, we can exclude the dirty pages in
-> isolate_migratepages.
-
-I've no trivial solution for the lru churning but, at least we're not
-making the lru churning any worse with this patch.
-
-I see your point that we could reduce the lru churning further after
-this patch, and that is cleaner if done as an incremental change
-considering it's a new improvement that become possible after the
-patch and it doesn't fix any regression.
-
-To reduce it, we'd need to expose the migrate internal details to the
-compaction code. It's not good enough to just check PageDirty
-considering that dirty pages are migrated perfectly even when they're
-not anonymous with a page_mapping != 0, if ->migratepage is
-migrate_page (like for tmpfs/swapcache). So to optimize that, I guess
-we could add a can_migrate_async(page) to the migrate code, to call in
-the compaction loop. It should work.
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
