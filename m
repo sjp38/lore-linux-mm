@@ -1,83 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C57C8D0040
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 00:42:46 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 88A913EE0B5
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 13:42:42 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D36D45DE55
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 13:42:42 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 460F945DE56
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 13:42:42 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 314E1E18003
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 13:42:42 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E9432E08003
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 13:42:41 +0900 (JST)
-Date: Wed, 23 Mar 2011 13:36:14 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] memcg: move page-freeing code outside of lock
-Message-Id: <20110323133614.95553de8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1300788417.1492.2.camel@leonhard>
-References: <1300452855-10194-1-git-send-email-namhyung@gmail.com>
-	<1300452855-10194-3-git-send-email-namhyung@gmail.com>
-	<20110322085938.0691f7f4.kamezawa.hiroyu@jp.fujitsu.com>
-	<1300763079.1483.21.camel@leonhard>
-	<20110322135619.90593f5d.kamezawa.hiroyu@jp.fujitsu.com>
-	<1300788417.1492.2.camel@leonhard>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id B99DB8D0040
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 00:47:12 -0400 (EDT)
+Date: Wed, 23 Mar 2011 15:41:52 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH RFC 0/5] IO-less balance_dirty_pages() v2 (simple
+ approach)
+Message-ID: <20110323044152.GI15270@dastard>
+References: <1299623475-5512-1-git-send-email-jack@suse.cz>
+ <20110318143001.GA6173@localhost>
+ <20110322214314.GC19716@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110322214314.GC19716@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namhyung Kim <namhyung@gmail.com>
-Cc: Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 22 Mar 2011 19:06:57 +0900
-Namhyung Kim <namhyung@gmail.com> wrote:
-
-> 2011-03-22 (i??), 13:56 +0900, KAMEZAWA Hiroyuki:
-> > On Tue, 22 Mar 2011 12:04:39 +0900
-> > Namhyung Kim <namhyung@gmail.com> wrote:
-> > 
-> > > 2011-03-22 (i??), 08:59 +0900, KAMEZAWA Hiroyuki:
-> > > > On Fri, 18 Mar 2011 21:54:15 +0900
-> > > > Namhyung Kim <namhyung@gmail.com> wrote:
-> > > > 
-> > > > > Signed-off-by: Namhyung Kim <namhyung@gmail.com>
-> > > > > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > 
-> > > > What is the benefit of this patch ?
-> > > > 
-> > > > -Kame
-> > > > 
-> > > 
-> > > Oh, I just thought generally it'd better call such a (potentially)
-> > > costly function outside of locks and it could reduce few of theoretical
-> > > contentions between swapons and/or offs. If it doesn't help any
-> > > realistic cases I don't mind discarding it.
-> > > 
-> > 
-> > My point is, please write patch description which shows for what this patc is.
-> > All cleanup are okay to me if it reasonable. But without patch description as
-> > "this is just a cleanup, no functional change, and the reason is...."
-> > we cannot maintain patches.
-> > 
-> > Thanks,
-> > -Kame
-> > 
+On Tue, Mar 22, 2011 at 10:43:14PM +0100, Jan Kara wrote:
+>   Hello Fengguang,
 > 
-> OK, I will do that in the future. Anyway, do you want me to resend the
-> patch with new description?
+> On Fri 18-03-11 22:30:01, Wu Fengguang wrote:
+> > On Wed, Mar 09, 2011 at 06:31:10AM +0800, Jan Kara wrote:
+> > > 
+> > >   Hello,
+> > > 
+> > >   I'm posting second version of my IO-less balance_dirty_pages() patches. This
+> > > is alternative approach to Fengguang's patches - much simpler I believe (only
+> > > 300 lines added) - but obviously I does not provide so sophisticated control.
+> > 
+> > Well, it may be too early to claim "simplicity" as an advantage, until
+> > you achieve the following performance/feature comparability (most of
+> > them are not optional ones). AFAICS this work is kind of heavy lifting
+> > that will consume a lot of time and attention. You'd better find some
+> > more fundamental needs before go on the reworking.
+> > 
+> > (1)  latency
+> > (2)  fairness
+> > (3)  smoothness
+> > (4)  scalability
+> > (5)  per-task IO controller
+> > (6)  per-cgroup IO controller (TBD)
+> > (7)  free combinations of per-task/per-cgroup and bandwidth/priority controllers
+> > (8)  think time compensation
+> > (9)  backed by both theory and tests
+> > (10) adapt pause time up on 100+ dirtiers
+> > (11) adapt pause time down on low dirty pages 
+> > (12) adapt to new dirty threshold/goal
+> > (13) safeguard against dirty exceeding
+> > (14) safeguard against device queue underflow
+>   I think this is a misunderstanding of my goals ;). My main goal is to
+> explore, how far we can get with a relatively simple approach to IO-less
+> balance_dirty_pages(). I guess what I have is better than the current
+> balance_dirty_pages() but it sure does not even try to provide all the
+> features you try to provide.
+
+This is my major concern - maintainability of the code. It's all
+well and good to evaluate the code based on it's current
+performance, but what about 2 or 3 years down the track when for
+some reason it's not working like it was intended - just like what
+happened with slow degradation in writeback performance between
+~2.6.15 and ~2.6.30.
+
+Fundamentally, the _only_ thing I want balance_dirty_pages() to do
+is _not issue IO_. Issuing IO in balance_dirty_pages() simply does
+not scale, especially for devices that have no inherent concurrency.
+I don't care if the solution is not perfectly fair or that there is
+some latency jitter between threads, I just want to avoid having the
+IO issue patterns change drastically when the system runs out of
+clean pages.
+
+IMO, that's all we should be trying to acheive with IO-less write
+throttling right now. Get that algorithm and infrastructure right
+first, then we can work out how to build on that to do more fancy
+stuff.
+
+> I'm thinking about tweaking ratelimiting logic to reduce latencies in some
+> tests, possibly add compensation when we waited for too long in
+> balance_dirty_pages() (e.g. because of bumpy IO completion) but that's
+> about it...
 > 
+> Basically I do this so that we can compare and decide whether what my
+> simple approach offers is OK or whether we want some more complex solution
+> like your patches...
 
-please. I'll never ack a patch without description.
+I agree completely.
 
-Thanks,
--Kame
+FWIW (and that may not be much), the IO-less write throttling that I
+wrote for Irix back in 2004 was very simple and very effective -
+input and output bandwidth estimation updated once per second, with
+a variable write syscall delay applied on each syscall also
+calculated once per second. The change to the delay was based on the
+difference between input and output rates and the number of write
+syscalls per second.
+
+I tried all sorts of fancy stuff to improve it, but the corner cases
+in anything fancy led to substantial complexity of algorithms and
+code and workloads that just didn't work well.  In the end, simple
+worked better than fancy and complex and was easier to understand,
+predict and tune....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
