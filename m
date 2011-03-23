@@ -1,173 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D0D18D0040
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 02:59:07 -0400 (EDT)
-Received: by iyf13 with SMTP id 13so11322486iyf.14
-        for <linux-mm@kvack.org>; Tue, 22 Mar 2011 23:59:04 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C3DC08D0040
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 03:13:26 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 8BA243EE0BD
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:13:22 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7183045DE56
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:13:22 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B58C45DE51
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:13:22 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D76EE78003
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:13:22 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EA9A41DB803E
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 16:13:21 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/5] vmscan: remove all_unreclaimable check from direct reclaim path completely
+In-Reply-To: <AANLkTim1HcdkPcxnWrv+VbMUSh3kQBC=-myZ-j-a8Wiy@mail.gmail.com>
+References: <20110323142133.1AC6.A69D9226@jp.fujitsu.com> <AANLkTim1HcdkPcxnWrv+VbMUSh3kQBC=-myZ-j-a8Wiy@mail.gmail.com>
+Message-Id: <20110323161354.1AD2.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20110323142133.1AC6.A69D9226@jp.fujitsu.com>
-References: <20110322200523.B061.A69D9226@jp.fujitsu.com>
-	<20110322144950.GA2628@barrios-desktop>
-	<20110323142133.1AC6.A69D9226@jp.fujitsu.com>
-Date: Wed, 23 Mar 2011 15:59:04 +0900
-Message-ID: <AANLkTim1HcdkPcxnWrv+VbMUSh3kQBC=-myZ-j-a8Wiy@mail.gmail.com>
-Subject: Re: [PATCH 1/5] vmscan: remove all_unreclaimable check from direct
- reclaim path completely
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Wed, 23 Mar 2011 16:13:21 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, Mar 23, 2011 at 2:21 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> Hi Minchan,
->
->> > zone->all_unreclaimable and zone->pages_scanned are neigher atomic
->> > variables nor protected by lock. Therefore a zone can become a state
->> > of zone->page_scanned=3D0 and zone->all_unreclaimable=3D1. In this cas=
-e,
->>
->> Possible although it's very rare.
->
-> Can you test by yourself andrey's case on x86 box? It seems
-> reprodusable.
->
->> > current all_unreclaimable() return false even though
->> > zone->all_unreclaimabe=3D1.
->>
->> The case is very rare since we reset zone->all_unreclaimabe to zero
->> right before resetting zone->page_scanned to zero.
->> But I admit it's possible.
->
-> Please apply this patch and run oom-killer. You may see following
-> pages_scanned:0 and all_unreclaimable:yes combination. likes below.
-> (but you may need >30min)
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0Node 0 DMA free:4024kB min:40kB low:48kB high:=
-60kB active_anon:11804kB
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0inactive_anon:0kB active_file:0kB inactive_fil=
-e:4kB unevictable:0kB
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0isolated(anon):0kB isolated(file):0kB present:=
-15676kB mlocked:0kB
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0dirty:0kB writeback:0kB mapped:0kB shmem:0kB s=
-lab_reclaimable:0kB
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0slab_unreclaimable:0kB kernel_stack:0kB pageta=
-bles:68kB unstable:0kB
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0bounce:0kB writeback_tmp:0kB pages_scanned:0 a=
-ll_unreclaimable? yes
->
->
->>
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 CPU 0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 CPU 1
->> free_pcppages_bulk =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0balance_pgdat
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 zone->all_unreclaimabe =3D 0
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 zone->all_unreclaimabe=
- =3D 1
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 zone->pages_scanned =3D 0
->> >
->> > Is this ignorable minor issue? No. Unfortunatelly, x86 has very
->> > small dma zone and it become zone->all_unreclamble=3D1 easily. and
->> > if it becase all_unreclaimable, it never return all_unreclaimable=3D0
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 ^^^^^ it's very important verb. =C2=A0 =C2=
-=A0^^^^^ return? reset?
->>
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 I can't understand your point due to the typ=
-o. Please correct the typo.
->>
->> > beucase it typicall don't have reclaimable pages.
->>
->> If DMA zone have very small reclaimable pages or zero reclaimable pages,
->> zone_reclaimable() can return false easily so all_unreclaimable() could =
-return
->> true. Eventually oom-killer might works.
->
-> The point is, vmscan has following all_unreclaimable check in several pla=
-ce.
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0if (zone->all_unreclaimable && priority !=3D DEF_PRIORITY)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0continue;
->
-> But, if the zone has only a few lru pages, get_scan_count(DEF_PRIORITY) r=
-eturn
-> {0, 0, 0, 0} array. It mean zone will never scan lru pages anymore. there=
-fore
-> false negative smaller pages_scanned can't be corrected.
->
-> Then, false negative all_unreclaimable() also can't be corrected.
->
->
-> btw, Why get_scan_count() return 0 instead 1? Why don't we round up?
-> Git log says it is intentionally.
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0commit e0f79b8f1f3394bb344b7b83d6f121ac2af327d=
-e
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0Author: Johannes Weiner <hannes@saeurebad.de>
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0Date: =C2=A0 Sat Oct 18 20:26:55 2008 -0700
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0vmscan: don't accumulate scan pr=
-essure on unrelated lists
->
->>
->> In my test, I saw the livelock, too so apparently we have a problem.
->> I couldn't dig in it recently by another urgent my work.
->> I think you know root cause but the description in this patch isn't enou=
-gh
->> for me to be persuaded.
->>
->> Could you explain the root cause in detail?
->
-> If you have an another fixing idea, please let me know. :)
->
->
->
->
+> Okay. I got it.
+> 
+> The problem is following as.
+> By the race the free_pcppages_bulk and balance_pgdat, it is possible
+> zone->all_unreclaimable = 1 and zone->pages_scanned = 0.
+> DMA zone have few LRU pages and in case of no-swap and big memory
+> pressure, there could be a just a page in inactive file list like your
+> example. (anon lru pages isn't important in case of non-swap system)
+> In such case, shrink_zones doesn't scan the page at all until priority
+> become 0 as get_scan_count does scan >>= priority(it's mostly zero).
 
-Okay. I got it.
+Nope.
 
-The problem is following as.
-By the race the free_pcppages_bulk and balance_pgdat, it is possible
-zone->all_unreclaimable =3D 1 and zone->pages_scanned =3D 0.
-DMA zone have few LRU pages and in case of no-swap and big memory
-pressure, there could be a just a page in inactive file list like your
-example. (anon lru pages isn't important in case of non-swap system)
-In such case, shrink_zones doesn't scan the page at all until priority
-become 0 as get_scan_count does scan >>=3D priority(it's mostly zero).
-And although priority become 0, nr_scan_try_batch returns zero until
-saved pages become 32. So for scanning the page, at least, we need 32
-times iteration of priority 12..0.  If system has fork-bomb, it is
-almost livelock.
+                        if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+                                continue;
 
-If is is right, how about this?
+This tow lines mean, all_unreclaimable prevent priority 0 reclaim.
+
+
+> And although priority become 0, nr_scan_try_batch returns zero until
+> saved pages become 32. So for scanning the page, at least, we need 32
+> times iteration of priority 12..0.  If system has fork-bomb, it is
+> almost livelock.
+
+Therefore, 1000 times get_scan_count(DEF_PRIORITY) takes 1000 times no-op.
+
+> 
+> If is is right, how about this?
+
+Boo.
+You seems forgot why you introduced current all_unreclaimable() function.
+While hibernation, we can't trust all_unreclaimable.
+
+That's the reason why I proposed following patch when you introduced
+all_unreclaimable().
+
+
+---
+ mm/vmscan.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 148c6e6..34983e1 100644
+index c391c32..1919d8a 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1973,6 +1973,9 @@ static void shrink_zones(int priority, struct
-zonelist *zonelist,
+@@ -40,6 +40,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/delayacct.h>
+ #include <linux/sysctl.h>
++#include <linux/oom.h>
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/div64.h>
+@@ -1931,7 +1932,7 @@ out:
+ 		return sc->nr_reclaimed;
+ 
+ 	/* top priority shrink_zones still had more to do? don't OOM, then */
+-	if (scanning_global_lru(sc) && !all_unreclaimable)
++	if (scanning_global_lru(sc) && !all_unreclaimable && !oom_killer_disabled)
+ 		return 1;
+ 
+ 	return 0;
+-- 
+1.6.5.2
 
- static bool zone_reclaimable(struct zone *zone)
- {
-+       if (zone->all_unreclaimable)
-+               return false;
-+
-        return zone->pages_scanned < zone_reclaimable_pages(zone) * 6;
- }
 
 
---=20
-Kind regards,
-Minchan Kim
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
