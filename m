@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B8DAF8D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 05:36:29 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id BDD783EE0BC
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:36:26 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A700F45DE4E
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:36:26 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F4C145DE4D
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:36:26 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 82D621DB803A
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:36:26 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 456431DB802C
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:36:26 +0900 (JST)
-Date: Thu, 24 Mar 2011 18:29:59 +0900
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C72FB8D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 05:37:12 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 4FDD33EE0B6
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:37:08 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3861945DE55
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:37:08 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D0D645DE4D
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:37:08 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FE4AE08002
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:37:08 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C7984E08001
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:37:07 +0900 (JST)
+Date: Thu, 24 Mar 2011 18:30:40 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 4/5] forkbomb : periodic flushing mm history information
-Message-Id: <20110324182959.ffbc6dd2.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 5/5] forkbomb killer
+Message-Id: <20110324183040.ce3c3b57.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110324182240.5fe56de2.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110324182240.5fe56de2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -31,239 +31,174 @@ List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rientjes@google.com" <rientjes@google.com>, Andrey Vagin <avagin@openvz.org>
 
-At 1st, this patch adds a control knob for enable/disable mm_history
-tracking.
+A forkbomb killer implementation.
 
-2nd, at tracking mm's history for forkbomb detection, information of
-processes which doesn't seem to be important for fork-bomb detection
-is just a noise.
+This patch implements a forkbomb killer which makes use of mm_histroy
+record. This calculates badness of each tree of mm_history and kills
+all alive processes in the worst tree. This function assumes that
+all not-guilty task's mm_history is already removed.
 
-This patch adds a knob for forgetting information with a periodic
-check routine.
+Tested with several known types of forkbombs and works well.
 
-At every 30secs (can be configured),
- 1. check nr_procesess doesn't increase
- 2. check kswapd doesn't run
- 3. check allocstall doesn't occur.
-
-If all don't happens, clear mm_history which is older than 30secs.
-
-Note: reorder of objects in makefile was required because
-      mm_kobj's initcall should be called before oom's...
+Note:
+ This doesn't have memory cgroup support because
+   1. it's difficult.
+   2. memory cgroup has oom_notify and oom_disable. The userland
+      management daemon can do better job than kernels.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/Makefile   |    4 -
- mm/oom_kill.c |  144 +++++++++++++++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 139 insertions(+), 9 deletions(-)
+ mm/oom_kill.c |  123 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 123 insertions(+)
 
 Index: mm-work2/mm/oom_kill.c
 ===================================================================
 --- mm-work2.orig/mm/oom_kill.c
 +++ mm-work2/mm/oom_kill.c
-@@ -768,6 +768,7 @@ void pagefault_out_of_memory(void)
- static DEFINE_PER_CPU(unsigned long, pcpu_history_lock);
- static DECLARE_RWSEM(hist_rwsem);
- static int need_global_history_lock;
-+static int mm_tracking_enabled = 1;
- 
- static void update_history_lock(void)
- {
-@@ -841,6 +842,9 @@ void track_mm_history(struct mm_struct *
- {
- 	struct mm_history *hist, *phist;
- 
-+	if (!mm_tracking_enabled)
-+		return;
-+
- 	hist = kmalloc(sizeof(*hist), GFP_KERNEL);
- 	if (!hist)
- 		return;
-@@ -864,19 +868,19 @@ void track_mm_history(struct mm_struct *
- 	return;
+@@ -83,6 +83,18 @@ static bool has_intersects_mems_allowed(
  }
+ #endif /* CONFIG_NUMA */
  
--void delete_mm_history(struct mm_struct *mm)
-+static void __delete_mm_history(struct mm_history *hist, bool check_ancestors)
- {
--	struct mm_history *hist, *phist;
-+	struct mm_history *phist;
- 	bool nochild;
- 
--	if (!mm->history)
-+	if (!hist)
- 		return;
--	update_history_lock();
--	hist = mm->history;
- 	spin_lock(&hist->lock);
- 	nochild = list_empty(&hist->children);
--	mm->history = NULL;
--	hist->mm = NULL;
-+	if (hist->mm) {
-+		hist->mm->history = NULL;
-+		hist->mm = NULL;
-+	}
- 	spin_unlock(&hist->lock);
- 	/* delete if we have no child */
- 	while (nochild && hist != &init_hist) {
-@@ -887,8 +891,16 @@ void delete_mm_history(struct mm_struct 
- 		nochild = (phist->mm == NULL && list_empty(&phist->children));
- 		spin_unlock(&phist->lock);
- 		kfree(hist);
-+		if (!check_ancestors)
-+			break;
- 		hist = phist;
- 	}
-+}
-+
-+void delete_mm_history(struct mm_struct *mm)
++#ifdef CONFIG_FORKBOMB_KILLER
++static bool fork_bomb_killer(unsigned long totalpages, struct mem_cgroup *mem,
++                       const nodemask_t *nodemask);
++#else
++static bool fork_bomb_killer(unsigned long totalpages, struct mem_cgroup *mem,
++                       const nodemask_t *nodemask)
 +{
-+	update_history_lock();
-+	__delete_mm_history(mm->history, true);
- 	update_history_unlock();
- }
++	return false;
++}
++#endif
++
++
+ /*
+  * If this is a system OOM (not a memcg OOM) and the task selected to be
+  * killed is not already running at high (RT) priorities, speed up the
+@@ -705,6 +717,10 @@ void out_of_memory(struct zonelist *zone
+ 	mpol_mask = (constraint == CONSTRAINT_MEMORY_POLICY) ? nodemask : NULL;
+ 	check_panic_on_oom(constraint, gfp_mask, order, mpol_mask);
  
-@@ -951,4 +963,122 @@ static struct mm_history *mm_history_sca
++	if (!sysctl_oom_kill_allocating_task)
++		if (fork_bomb_killer(totalpages, NULL, mpol_mask))
++			return;
++
+ 	read_lock(&tasklist_lock);
+ 	if (sysctl_oom_kill_allocating_task &&
+ 	    !oom_unkillable_task(current, NULL, nodemask) &&
+@@ -963,6 +979,113 @@ static struct mm_history *mm_history_sca
  #define for_each_mm_history_safe(pos, tmp)\
  	for_each_mm_history_safe_under((pos), &init_hist, (tmp))
  
-+static unsigned long reset_interval_jiffies = 30*HZ;
-+unsigned long last_nr_procs;
-+unsigned long last_pageout_run;
-+unsigned long last_allocstall;
-+static void reset_mm_tracking(struct work_struct *w);
-+DECLARE_DELAYED_WORK(reset_mm_tracking_work, reset_mm_tracking);
++atomic_t forkbomb_killing;
++bool nobomb = false;
 +
-+static void reset_mm_tracking(struct work_struct *w)
++void clear_forkbomb_killing(struct work_struct *w)
 +{
-+	struct mm_history *pos, *tmp;
-+	unsigned long nr_procs;
-+	unsigned long events[NR_VM_EVENT_ITEMS];
-+	bool forget = true;
++	atomic_set(&forkbomb_killing, 0);
++	nobomb = false;
++}
++DECLARE_DELAYED_WORK(fork_bomb_work, clear_forkbomb_killing);
 +
-+	nr_procs = nr_processes();
-+	if (nr_procs > last_nr_procs)
-+		forget = false;
-+	last_nr_procs = nr_procs;
++void reset_forkbomb_killing(void)
++{
++	schedule_delayed_work(&fork_bomb_work, 10*HZ);
++}
 +
-+	all_vm_events(events);
-+	if (last_pageout_run != events[PAGEOUTRUN])
-+		forget = false;
-+	last_pageout_run = events[PAGEOUTRUN];
-+	if (last_allocstall != events[ALLOCSTALL])
-+		forget = false;
-+	last_allocstall = events[ALLOCSTALL];
++static void get_badness_score(struct mm_history *pos, struct mem_cgroup *mem,
++	const nodemask_t *nodemask, unsigned long totalpages)
++{
++	struct task_struct *task;
 +
-+	if (forget) {
-+		unsigned long thresh = jiffies - reset_interval_jiffies;
-+		scan_history_lock();
-+		for_each_mm_history_safe(pos, tmp) {
-+			if (time_before(pos->start_time, thresh))
-+				__delete_mm_history(pos, false);
-+		}
-+		scan_history_unlock();
++	if (!pos->mm)
++		return;
++	/* task struct is freed by RCU and we;re under rcu_read_lock() */
++	task = pos->mm->owner;
++	if (task && !oom_unkillable_task(task, mem, nodemask))
++		pos->score += oom_badness(task, mem, nodemask, totalpages);
++}
++
++static void propagate_oom_info(struct mm_history *pos)
++{
++	struct mm_history *ppos;
++
++	ppos = pos->parent;
++	if (ppos == &init_hist) /* deadlink by timeout */
++		return;
++	/* +1 means that the child is a burden of the parent */
++	if (pos->mm) {
++		ppos->score += pos->score + 1;
++		ppos->family += pos->family;
++	} else {
++		ppos->score += pos->score;
++		ppos->family += pos->family;
 +	}
-+	if (mm_tracking_enabled)
-+		schedule_delayed_work(&reset_mm_tracking_work,
-+			reset_interval_jiffies);
-+	return;
 +}
 +
-+#define OOM_ATTR(_name)\
-+	static struct kobj_attribute _name##_attr =\
-+		__ATTR(_name, 0644, _name##_show, _name##_store)
-+
-+static ssize_t mm_tracker_reset_interval_msecs_show(struct kobject *obj,
-+		struct kobj_attribute *attr, char *buf)
++static bool fork_bomb_killer(unsigned long totalpages, struct mem_cgroup *mem,
++		const nodemask_t *nodemask)
 +{
-+	return sprintf(buf, "%u", jiffies_to_msecs(reset_interval_jiffies));
++	struct mm_history *pos, *bomb;
++	unsigned int max_score;
++	struct task_struct *p;
++
++	if (nobomb || !mm_tracking_enabled)
++		return false;
++
++	if (atomic_inc_return(&forkbomb_killing) != 1)
++		return true;
++	/* reset information */
++	scan_history_lock();
++	nobomb = false;
++	pr_err("forkbomb detection running....\n");
++	for_each_mm_history(pos) {
++		pos->score = 0;
++		if (pos->mm)
++			pos->family = 1;
++		pos->need_to_kill = 0;
++	}
++	max_score = 0;
++	bomb = NULL;
++	for_each_mm_history(pos) {
++		get_badness_score(pos, mem, nodemask, totalpages);
++		propagate_oom_info(pos);
++		if (pos->score > max_score) {
++			bomb = pos;
++			max_score = pos->score;
++		}
++	}
++	if (!bomb || bomb->family < 10) {
++		scan_history_unlock();
++		nobomb = true;
++		reset_forkbomb_killing();
++		pr_err("no forkbomb found \n");
++		return false;
++	}
++
++	pr_err("Possible forkbomb. Killing _all_ doubtful tasks\n");
++	for_each_mm_history_under(pos, bomb) {
++		pos->need_to_kill = 1;
++	}
++	read_lock(&tasklist_lock);
++	for_each_process(p) {
++		if (!p->mm || oom_unkillable_task(p, mem, nodemask))
++			continue;
++		if (p->signal->oom_score_adj == -1000)
++			continue;
++		if (p->mm->history && p->mm->history->need_to_kill) {
++			pr_err("kill %d(%s)->%ld\n", task_pid_nr(p),
++				p->comm, p->mm->history->score);
++			force_sig(SIGKILL, p);
++		}
++	}
++	read_unlock(&tasklist_lock);
++	scan_history_unlock();
++	reset_forkbomb_killing();
++	return true;
 +}
 +
-+static ssize_t mm_tracker_reset_interval_msecs_store(struct kobject *obj,
-+		struct kobj_attribute *attr, const char *buf, size_t count)
-+{
-+	unsigned long msecs;
-+	int err;
-+
-+	err = strict_strtoul(buf, 10, &msecs);
-+	if (err || msecs > UINT_MAX)
-+		return -EINVAL;
-+
-+	reset_interval_jiffies = msecs_to_jiffies(msecs);
-+	return count;
-+}
-+OOM_ATTR(mm_tracker_reset_interval_msecs);
-+
-+static ssize_t mm_tracker_enable_show(struct kobject *obj,
-+		struct kobj_attribute *attr, char *buf)
-+{
-+	if (mm_tracking_enabled)
-+		return sprintf(buf, "enabled");
-+	return sprintf(buf, "disabled");
-+}
-+
-+static ssize_t mm_tracker_enable_store(struct kobject *obj,
-+		struct kobj_attribute *attr, const char *buf, size_t count)
-+{
-+	if (!memcmp("disable", buf, min(sizeof("disable")-1, count)))
-+		mm_tracking_enabled = 0;
-+	else if (!memcmp("enable", buf, min(sizeof("enable")-1, count)))
-+		mm_tracking_enabled = 1;
-+	else
-+		return -EINVAL;
-+	if (mm_tracking_enabled
-+		&& delayed_work_pending(&reset_mm_tracking_work))
-+		schedule_delayed_work(&reset_mm_tracking_work,
-+			reset_interval_jiffies);
-+
-+	return count;
-+}
-+OOM_ATTR(mm_tracker_enable);
-+
-+static struct attribute *oom_attrs[] = {
-+	&mm_tracker_reset_interval_msecs_attr.attr,
-+	&mm_tracker_enable_attr.attr,
-+	NULL,
-+};
-+
-+static struct attribute_group oom_attr_group = {
-+	.attrs = oom_attrs,
-+	.name  = "oom",
-+};
-+
-+static int __init init_mm_history(void)
-+{
-+	int err = 0;
-+
-+#ifdef CONFIG_SYSFS
-+	err = sysfs_create_group(mm_kobj, &oom_attr_group);
-+	if (err)
-+		printk(KERN_ERR
-+			"failed to register mm history tracking for oom\n");
-+#endif
-+	schedule_delayed_work(&reset_mm_tracking_work, reset_interval_jiffies);
-+	return 0;
-+}
-+module_init(init_mm_history);
- #endif
-Index: mm-work2/mm/Makefile
-===================================================================
---- mm-work2.orig/mm/Makefile
-+++ mm-work2/mm/Makefile
-@@ -7,11 +7,11 @@ mmu-$(CONFIG_MMU)	:= fremap.o highmem.o 
- 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
- 			   vmalloc.o pagewalk.o pgtable-generic.o
- 
--obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
-+obj-y			:= mm_init.o filemap.o mempool.o oom_kill.o fadvise.o \
- 			   maccess.o page_alloc.o page-writeback.o \
- 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
- 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
--			   page_isolation.o mm_init.o mmu_context.o percpu.o \
-+			   page_isolation.o mmu_context.o percpu.o \
- 			   $(mmu-y)
- obj-y += init-mm.o
- 
+ static unsigned long reset_interval_jiffies = 30*HZ;
+ unsigned long last_nr_procs;
+ unsigned long last_pageout_run;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
