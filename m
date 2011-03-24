@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id DA50B8D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 13:27:01 -0400 (EDT)
-Date: Thu, 24 Mar 2011 18:26:53 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [GIT PULL] SLAB changes for v2.6.39-rc1
-Message-ID: <20110324172653.GA28507@elte.hu>
-References: <alpine.DEB.2.00.1103221635400.4521@tiger>
- <20110324142146.GA11682@elte.hu>
- <alpine.DEB.2.00.1103240940570.32226@router.home>
- <AANLkTikb8rtSX5hQG6MQF4quymFUuh5Tw97TcpB0YfwS@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 797BA8D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 13:35:35 -0400 (EDT)
+Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p2OHZ6uw004636
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 10:35:06 -0700
+Received: by iyf13 with SMTP id 13so263747iyf.14
+        for <linux-mm@kvack.org>; Thu, 24 Mar 2011 10:35:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTikb8rtSX5hQG6MQF4quymFUuh5Tw97TcpB0YfwS@mail.gmail.com>
+In-Reply-To: <20110324171319.GA20182@redhat.com>
+References: <20110315153801.3526.A69D9226@jp.fujitsu.com> <20110322194721.B05E.A69D9226@jp.fujitsu.com>
+ <20110322200945.B06D.A69D9226@jp.fujitsu.com> <20110324171319.GA20182@redhat.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 24 Mar 2011 10:34:46 -0700
+Message-ID: <AANLkTinsabm-AHTdc2X550jkAqb=TrBLfrk5CV-WEjGx@mail.gmail.com>
+Subject: Re: [PATCH 5/5] x86,mm: make pagefault killable
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, torvalds@linux-foundation.org, akpm@linux-foundation.org, tj@kernel.org, npiggin@kernel.dk, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+On Thu, Mar 24, 2011 at 10:13 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+>
+> I am wondering, can't we set FAULT_FLAG_KILLABLE unconditionally
+> but check PF_USER when we get VM_FAULT_RETRY? I mean,
+>
+> =A0 =A0 =A0 =A0if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(curre=
+nt)) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (!(error_code & PF_USER))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0no_context(...);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
+> =A0 =A0 =A0 =A0}
 
-* Pekka Enberg <penberg@kernel.org> wrote:
+I agree, we should do this.
 
-> On Thu, Mar 24, 2011 at 4:41 PM, Christoph Lameter <cl@linux.com> wrote:
-> > On Thu, 24 Mar 2011, Ingo Molnar wrote:
-> >
-> >> FYI, some sort of boot crash has snuck upstream in the last 24 hours:
-> >>
-> >>  BUG: unable to handle kernel paging request at ffff87ffc147e020
-> >>  IP: [<ffffffff811aa762>] this_cpu_cmpxchg16b_emu+0x2/0x1c
-> >
-> > Hmmm.. This is the fallback code for the case that the processor does not
-> > support cmpxchg16b.
-> 
-> How does alternative_io() work? Does it require
-> alternative_instructions() to be executed. If so, the fallback code
-> won't be active when we enter kmem_cache_init(). Is there any reason
-> check_bugs() is called so late during boot? Can we do something like
-> the totally untested attached patch?
+> Probably not... but I can't find any example of in-kernel fault which
+> can be broken by -EFAULT if current was killed.
 
-Does the config i sent you boot on your box? I think the bug is pretty generic 
-and should trigger on any box.
+There's no way that can validly break anything, since any such
+codepath has to be able to handle -EFAULT for other reasons anyway.
 
-Thanks,
+The only issue is whether we're ok with a regular write() system call
+(for example) not being atomic in the presence of a fatal signal. So
+it does change semantics, but I think it changes it in a good way
+(technically POSIX requires atomicity, but on the other hand,
+technically POSIX also doesn't talk about the process being killed,
+and writes would still be atomic for the case where they actually
+return. Not to mention NFS etc where writes have never been atomic
+anyway, so a program that relies on strict "all or nothing" write
+behavior is fundamentally broken to begin with).
 
-	Ingo
+                         Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
