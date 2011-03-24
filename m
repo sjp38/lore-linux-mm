@@ -1,30 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E07B18D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 17:47:20 -0400 (EDT)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id p2OLlIoP002240
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 14:47:19 -0700
-Received: from pwj4 (pwj4.prod.google.com [10.241.219.68])
-	by kpbe17.cbf.corp.google.com with ESMTP id p2OLkoxt029753
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 14:47:16 -0700
-Received: by pwj4 with SMTP id 4so72725pwj.30
-        for <linux-mm@kvack.org>; Thu, 24 Mar 2011 14:47:14 -0700 (PDT)
-Date: Thu, 24 Mar 2011 14:47:11 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id ACBBA8D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 19:41:37 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id A063D3EE081
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 08:41:33 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 80AE845DE55
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 08:41:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A07545DE54
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 08:41:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B0B7E38002
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 08:41:33 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 25891E08001
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 08:41:33 +0900 (JST)
+Date: Fri, 25 Mar 2011 08:35:00 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH] Accelerate OOM killing
+Message-Id: <20110325083500.0ec98acb.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <1300960353-2596-1-git-send-email-minchan.kim@gmail.com>
-Message-ID: <alpine.DEB.2.00.1103241446520.20718@chino.kir.corp.google.com>
 References: <1300960353-2596-1-git-send-email-minchan.kim@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>
 
-On Thu, 24 Mar 2011, Minchan Kim wrote:
+On Thu, 24 Mar 2011 18:52:33 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
 > When I test Andrey's problem, I saw the livelock and sysrq-t says
 > there are many tasks in cond_resched after try_to_free_pages.
@@ -41,7 +49,7 @@ On Thu, 24 Mar 2011, Minchan Kim wrote:
 > Cc: Andrey Vagin <avagin@openvz.org>
 > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
-Acked-by: David Rientjes <rientjes@google.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
