@@ -1,47 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 1736E8D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 05:55:54 -0400 (EDT)
-Subject: Re: kmemleak for MIPS
-From: Catalin Marinas <catalin.marinas@arm.com>
-In-Reply-To: <AANLkTinnqtXf5DE+qxkTyZ9p9Mb8dXai6UxWP2HaHY3D@mail.gmail.com>
-References: <9bde694e1003020554p7c8ff3c2o4ae7cb5d501d1ab9@mail.gmail.com>
-	 <AANLkTinnqtXf5DE+qxkTyZ9p9Mb8dXai6UxWP2HaHY3D@mail.gmail.com>
-Date: Thu, 24 Mar 2011 09:55:40 +0000
-Message-ID: <1300960540.32158.13.camel@e102109-lin.cambridge.arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 07F818D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 06:05:42 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id DF6823EE0BC
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 19:05:38 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 59D6145DE68
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 19:05:34 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 40D5845DE55
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 19:05:34 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 28C0DE08002
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 19:05:34 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DC9051DB802C
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 19:05:33 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] Accelerate OOM killing
+In-Reply-To: <1300960353-2596-1-git-send-email-minchan.kim@gmail.com>
+References: <1300960353-2596-1-git-send-email-minchan.kim@gmail.com>
+Message-Id: <20110324190534.5CC9.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 24 Mar 2011 19:05:30 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Baluta <dbaluta@ixiacom.com>
-Cc: naveen yadav <yad.naveen@gmail.com>, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>
 
-On Thu, 2011-03-24 at 09:27 +0000, Daniel Baluta wrote:
-> > I want to check kmemleak for both ARM/MIPS. i am able to find kernel
-> > patch for ARM at
-> > http://linux.derkeiler.com/Mailing-Lists/Kernel/2009-04/msg11830.html.
-> > But I could not able to trace patch for MIPS.
->=20
-> It seems that kmemleak is not supported on MIPS.
->=20
-> According to 'depends on' config entry it is supported on:
-> x86, arm, ppc, s390, sparc64, superh, microblaze and tile.
->=20
-> C=C4=83t=C4=83lin, can you confirm this? I will send a patch to update
-> Documentation/kmemleak.txt.
->=20
-> Also, looking forward to work on making kmemleak available on MIPS.
+> When I test Andrey's problem, I saw the livelock and sysrq-t says
+> there are many tasks in cond_resched after try_to_free_pages.
+> 
+> If did_some_progress is false, cond_resched could delay oom killing so
+> It might be killing another task.
+> 
+> This patch accelerates oom killing without unnecessary giving CPU
+> to another task. It could help avoding unnecessary another task killing
+> and livelock situation a litte bit.
+> 
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Andrey Vagin <avagin@openvz.org>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
-It's not supported probably because no-one tried it, kmemleak is pretty
-architecture-independent. You may need to add some standard symbols to
-the vmlinux.lds.S if the linker complains and possibly annotate some
-false positives if you get any.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Just add "depends on MIPS" and give it a try.
 
---=20
-Catalin
+
 
 
 --
