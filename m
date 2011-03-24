@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8510A8D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 05:32:26 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 6423A3EE0BD
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:32:23 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 414DA45DE56
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:32:23 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E57145DE50
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:32:23 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DB296E7800E
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:32:22 +0900 (JST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A1518D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 05:33:30 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 040033EE0BD
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:33:27 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DC22345DD74
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:33:26 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C284245DE4D
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:33:26 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B2E1D1DB8040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:33:26 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 859C7E78005
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:32:22 +0900 (JST)
-Date: Thu, 24 Mar 2011 18:25:58 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F44F1DB802C
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:33:26 +0900 (JST)
+Date: Thu, 24 Mar 2011 18:26:59 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 1/5] forkbomb killer config and documentation
-Message-Id: <20110324182558.f5f811ab.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 2/5] forkbomb: mm tracking subsystem
+Message-Id: <20110324182659.ca1f4847.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110324182240.5fe56de2.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110324182240.5fe56de2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -31,108 +31,176 @@ List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rientjes@google.com" <rientjes@google.com>, Andrey Vagin <avagin@openvz.org>
 
-Kconfig and Documentation for forkbomb killer.
+
+This patch adds a subsystem for recording a history of mm.
+This patch records relation ship of each mm_structs and
+preserve them in a tree. New record is added at fork()
+and exec(). If all children disapperas at exit(), the record
+will be removed.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- Documentation/vm/forkbomb.txt |   62 ++++++++++++++++++++++++++++++++++++++++++
- mm/Kconfig                    |   16 ++++++++++
- 2 files changed, 78 insertions(+)
+ fs/exec.c                |    1 
+ include/linux/mm_types.h |    3 +
+ include/linux/oom.h      |   14 ++++++++
+ kernel/fork.c            |    3 +
+ mm/oom_kill.c            |   75 +++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 96 insertions(+)
 
-Index: mm-work2/Documentation/vm/forkbomb.txt
+Index: mm-work2/include/linux/oom.h
 ===================================================================
---- /dev/null
-+++ mm-work2/Documentation/vm/forkbomb.txt
-@@ -0,0 +1,62 @@
-+Forkbomb.txt
+--- mm-work2.orig/include/linux/oom.h
++++ mm-work2/include/linux/oom.h
+@@ -72,5 +72,19 @@ extern struct task_struct *find_lock_tas
+ extern int sysctl_oom_dump_tasks;
+ extern int sysctl_oom_kill_allocating_task;
+ extern int sysctl_panic_on_oom;
 +
-+1. Intruduction
-+   Maybe many programmer have an experience to write a fork-bomb program.
++#ifdef CONFIG_FORKBOMB_KILLER
++extern void track_mm_history(struct mm_struct *new, struct mm_struct *old);
++extern void delete_mm_history(struct mm_struct *mm);
++#else
++static inline void
++track_mm_history(struct mm_struct *new, struct mm_struct *old)
++{
++}
++static inline void delete_mm_history(struct mm_struct *mm)
++{
++}
++#endif
 +
-+   One example of fork-bomb is a bomb which make system unstable by the
-+   memory pressure caused by the number of tasks. This kind of fork-bomb
-+   can be limited by ulimit(max user processes). If it happens, the user
-+   who has the same owner ID of forkbomb will not be able to do anything
-+   but other users(admin) may have a chance to kill them. (Of course,
-+   if forkbomb is created by root, we have no chance to recover.)
-+
-+   Another example of fork-bomb is a bomb which eats much memory. This
-+   kind of forkbomb causes huge swapout and make system slow and finally,
-+   OOM. In swapless system, the system will see OOM soon. To prevent this
-+   type of bomb, memory cgroup or overcommit_memory will be a help. But
-+   troubles happen when we don't expected.....
-+
-+   To recover from fork-bomb, we need to kill all tasks which is in the
-+   forkbomb tree, in general. But if the system is in OOM state, killing
-+   them all tends to be difficult.
-+
-+2. Forkbomb Killer.
-+   The kernel provides a forkbomb killer. (see mm/Kconfig FORKBOMB_KILLER)
-+   If enabled, the forkbomb killer will provides 2 system files.
-+
-+   /sys/kernel/mm/oom/mm_tracking_enabled
-+   /sys/kernel/mm/oom/mm_tracking_reset_interval_msecs
-+
-+
-+   If /sys/kernel/mm/oom/mm_tracking_enabled == enabled, the kernel records
-+   all fork/vfork/exec information by an extra structure than usual task
-+   management. This information is used for tracking a task tree. Unlike
-+   process tree, this doesn't discard parent<->children information even
-+   when the parent exits before children and make children as orphan processes.
-+   By this, even with following script, task tracking information can be
-+   preserved and we have a chance to chase all proceesses in a fork bomb.
-+
-+   (example) # forkbomb(){ forkbomb|forkbomb & } ; forkbomb
-+
-+   But this information tracking adds a small overhead at fork/vfork/exec/exit.
-+   Default is enabled.
-+
-+   /sys/kernel/mm/oom/mm_tracking_reset_interval_msecs
-+
-+   Because we cannot preserve all information since the system boot, we need
-+   to forget information. Forkbomb killer checks the system status in each
-+   period. What checked now is
-+   1. the number of process.
-+   2. the number of kswapd runs.
-+   3. the number of alloc stalls. (memory reclaim)
-+   If all of 1,2,3 aren't increased for mm_tracking_reset_interval_msecs,
-+   all tracking information recorded before previous period will be
-+   removed.
-+   IOW, by making mm_tracking_reset_interval_msecs larger, you can check
-+   forkbomb in a long period but will have more overheads. By making it
-+   smaller, tracking records are removed earlier and tasks killed by
-+   forkbomb killer will decrease (and you can avoid unnecessary kills.)
-+   Default is 30secs.
-+
-+
-+
-Index: mm-work2/mm/Kconfig
+ #endif /* __KERNEL__*/
+ #endif /* _INCLUDE_LINUX_OOM_H */
+Index: mm-work2/mm/oom_kill.c
 ===================================================================
---- mm-work2.orig/mm/Kconfig
-+++ mm-work2/mm/Kconfig
-@@ -274,6 +274,22 @@ config HWPOISON_INJECT
- 	depends on MEMORY_FAILURE && DEBUG_KERNEL && PROC_FS
- 	select PROC_PAGE_MONITOR
+--- mm-work2.orig/mm/oom_kill.c
++++ mm-work2/mm/oom_kill.c
+@@ -761,3 +761,78 @@ void pagefault_out_of_memory(void)
+ 	if (!test_thread_flag(TIF_MEMDIE))
+ 		schedule_timeout_uninterruptible(1);
+ }
++
++#ifdef CONFIG_FORKBOMB_KILLER
++
++struct mm_history {
++	spinlock_t	lock;
++	struct mm_struct *mm;
++	struct mm_history *parent;
++	struct list_head siblings;
++	struct list_head children;
++	/* scores */
++	unsigned long start_time;
++	unsigned long score;
++	unsigned int family;
++	int           need_to_kill;
++};
++
++struct mm_history init_hist = {
++	.parent	= &init_hist,
++	.lock = __SPIN_LOCK_UNLOCKED(init_hist.lock),
++	.siblings = LIST_HEAD_INIT(init_hist.siblings),
++	.children = LIST_HEAD_INIT(init_hist.children),
++};
++
++void track_mm_history(struct mm_struct *new, struct mm_struct *parent)
++{
++	struct mm_history *hist, *phist;
++
++	hist = kmalloc(sizeof(*hist), GFP_KERNEL);
++	if (!hist)
++		return;
++	spin_lock_init(&hist->lock);
++	INIT_LIST_HEAD(&hist->children);
++	hist->mm = new;
++	hist->start_time = jiffies;
++	if (parent)
++		phist = parent->history;
++	else
++		phist = NULL;
++	if (!phist)
++		phist = &init_hist;
++	new->history = hist;
++	hist->parent = phist;
++	spin_lock(&phist->lock);
++	list_add_tail(&hist->siblings, &phist->children);
++	spin_unlock(&phist->lock);
++	return;
++}
++
++void delete_mm_history(struct mm_struct *mm)
++{
++	struct mm_history *hist, *phist;
++	bool nochild;
++
++	if (!mm->history)
++		return;
++	hist = mm->history;
++	spin_lock(&hist->lock);
++	nochild = list_empty(&hist->children);
++	mm->history = NULL;
++	hist->mm = NULL;
++	spin_unlock(&hist->lock);
++	/* delete if we have no child */
++	while (nochild && hist != &init_hist) {
++		phist = hist->parent;
++		spin_lock(&phist->lock);
++		list_del(&hist->siblings);
++		/* delete parent if it's dead & no more child other than me.*/
++		nochild = (phist->mm == NULL && list_empty(&phist->children));
++		spin_unlock(&phist->lock);
++		kfree(hist);
++		hist = phist;
++	}
++}
++
++#endif
+Index: mm-work2/fs/exec.c
+===================================================================
+--- mm-work2.orig/fs/exec.c
++++ mm-work2/fs/exec.c
+@@ -802,6 +802,7 @@ static int exec_mmap(struct mm_struct *m
+ 	}
+ 	task_unlock(tsk);
+ 	arch_pick_mmap_layout(mm);
++	track_mm_history(mm, old_mm);
+ 	if (old_mm) {
+ 		up_read(&old_mm->mmap_sem);
+ 		BUG_ON(active_mm != old_mm);
+Index: mm-work2/kernel/fork.c
+===================================================================
+--- mm-work2.orig/kernel/fork.c
++++ mm-work2/kernel/fork.c
+@@ -559,6 +559,7 @@ void mmput(struct mm_struct *mm)
+ 		ksm_exit(mm);
+ 		khugepaged_exit(mm); /* must run before exit_mmap */
+ 		exit_mmap(mm);
++		delete_mm_history(mm);
+ 		set_mm_exe_file(mm, NULL);
+ 		if (!list_empty(&mm->mmlist)) {
+ 			spin_lock(&mmlist_lock);
+@@ -706,6 +707,8 @@ struct mm_struct *dup_mm(struct task_str
+ 	if (mm->binfmt && !try_module_get(mm->binfmt->module))
+ 		goto free_pt;
  
-+config FORKBOMB_KILLER
-+	bool "Killing a tree of tasks when a forkbomb is found"
-+	depends on EXPERIMENTAL
-+	default n
-+	select MM_OWNER
-+	help
-+	  Provide a fork-bomb-killer, which is triggered at OOM.
-+	  In usual case, OOM-Killer kills a memory eater processes.
-+	  But it kills tasks in conservative way and cannot be a help
-+          if forkbomb is running. The admin may need to reboot system
-+	  if the influence of the bomb cannot be limited by rlimits or
-+	  some security settings. FORKBOMB Killer kills a tree of process
-+	  which have started recently and eats much memory. Please see,
-+	  Documentation/vm/forkbomb.txt for details. If unsure, say N.
++	track_mm_history(mm, oldmm);
 +
-+
- config NOMMU_INITIAL_TRIM_EXCESS
- 	int "Turn on mmap() excess space trimming before booting"
- 	depends on !MMU
+ 	return mm;
+ 
+ free_pt:
+Index: mm-work2/include/linux/mm_types.h
+===================================================================
+--- mm-work2.orig/include/linux/mm_types.h
++++ mm-work2/include/linux/mm_types.h
+@@ -317,6 +317,9 @@ struct mm_struct {
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
+ #endif
++#ifdef CONFIG_FORKBOMB_KILLER
++	struct mm_history *history;
++#endif
+ };
+ 
+ /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
