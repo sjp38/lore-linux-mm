@@ -1,70 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A8F228D0040
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 20:07:08 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C794A3EE0C0
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 09:07:05 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A60FF45DE5F
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 09:07:05 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C25645DE5A
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 09:07:05 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 71271E08002
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 09:07:05 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 33D9E1DB8044
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 09:07:05 +0900 (JST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B4D88D0040
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2011 21:53:01 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 1FDD63EE0BB
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 10:52:56 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 07D4F45DE4E
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 10:52:56 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D963645DE4D
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 10:52:55 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C764F1DB803A
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 10:52:55 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 93F551DB802C
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 10:52:55 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/5] Revert "oom: give the dying task a higher priority"
-In-Reply-To: <20110323134037.GP5212@uudg.org>
-References: <20110323164229.6b647004.kamezawa.hiroyu@jp.fujitsu.com> <20110323134037.GP5212@uudg.org>
-Message-Id: <20110324090635.1AEC.A69D9226@jp.fujitsu.com>
+Subject: [Q] PGPGIN underflow?
+Message-Id: <20110324105307.1AF3.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Date: Thu, 24 Mar 2011 09:06:44 +0900 (JST)
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 24 Mar 2011 10:52:54 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>
+To: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 
-> On Wed, Mar 23, 2011 at 04:42:29PM +0900, KAMEZAWA Hiroyuki wrote:
-> | On Tue, 22 Mar 2011 20:06:48 +0900 (JST)
-> | KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> |=20
-> | > This reverts commit 93b43fa55088fe977503a156d1097cc2055449a2.
-> | >=20
-> | > The commit dramatically improve oom killer logic when fork-bomb
-> | > occur. But, I've found it has nasty corner case. Now cpu cgroup
-> | > has strange default RT runtime. It's 0! That said, if a process
-> | > under cpu cgroup promote RT scheduling class, the process never
-> | > run at all.
-> | >=20
-> | > Eventually, kernel may hang up when oom kill occur.
-> | >=20
-> | > The author need to resubmit it as adding knob and disabled
-> | > by default if he really need this feature.
-> | >=20
-> | > Cc: Luis Claudio R. Goncalves <lclaudio@uudg.org>
-> | > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> |=20
-> | Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->=20
-> The original patch was written to fix an issue observed in 2.6.24.7-rt.
-> As the logic sounded useful, I ported it to upstream. Anyway,I am trying
-> a few ideas to rework that patch. In the meantime, I'm pretty fine with
-> reverting the commit.
->=20
-> Acked-by: Luis Claudio R. Gon=E7alves <lgoncalv@uudg.org>
+Hi all,
 
-Ok, and then, I'll drop [patch 3/5] too. I hope to focus to discuss your id=
-ea.
+Recently, vmstast show crazy big "bi" value even though the system has
+no stress. Is this known issue?
+
+Thanks.
 
 
-
+% vmstat 1
+procs -----------memory---------- ---swap-- -----io---- --system-- -----cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0 1133060 151336 479708    0    0     0     0   50   50  0  0 100  0  0
+ 1  0      0 1133060 151336 479708    0    0     0     0   35   30  0  0 100  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0   27   24  0  0 100  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0   29   26  0  0 100  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0   26   22  0  0 100  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0   27   24  0  0 100  0  0
+ 1  0      0 1133060 151336 479708    0    0     0     0   45   49  0  0 100  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0   62   54  1  0 99  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0   54   56  0  0 100  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0   28   24  0  1 99  0  0
+ 1  0      0 1133060 151336 479708    0    0     0     0   54   54  0  0 100  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0   42   38  0  1 100  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0   31   24  0  0 100  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0   33   24  0  0 100  0  0
+ 1  0      0 1133060 151336 479708    0    0     0     0   56   58  1  0 100  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0  157  225  1  0 98  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0   40   37  0  0 100  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0   51   47  0  0 100  0  0
+ 1  0      0 1133060 151336 479708    0    0     0     0   51   46  1  0 99  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0  296  418  2  0 97  0  0
+ 0  0      0 1133060 151336 479708    0    0     0     0  295  419  3  2 95  0  0
+ 0  0      0 1133060 151336 479708   16    0     0     0  313  449  3  1 96  0  0
+ 0  0      0 1132936 151336 479708    0    0 4294967293     0  331  448  5  1 95  0  0
+ 1  0      0 1132936 151336 479708    0    0     0     0  303  445  3  1 96  0  0
+ 0  0      0 1132936 151336 479708   16    0     0     0  308  433  3  1 96  0  0
+ 0  0      0 1132936 151336 479708    0    0     0     0  307  450  4  0 96  0  0
+ 1  0      0 1132936 151344 479704   96    0     0     0  255  222  6  1 93  0  0
+ 1  0      0 1132812 151344 479708    0    0 4294967293     0  397  310 11  1 88  0  0
+ 0  0      0 1132688 151344 479708    0    0 4294967293     0  410  365  9  1 90  0  0
+ 1  0      0 1132812 151344 479708    0    0     3     0   33   32  0  0 100  0  0
+ 0  0      0 1132812 151344 479708    0    0     0     0   31   23  0  0 100  0  0
+ 0  0      0 1132812 151344 479708    0    0     0     0   35   34  0  0 100  0  0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
