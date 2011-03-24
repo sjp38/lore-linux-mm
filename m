@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A1518D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 05:33:30 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 040033EE0BD
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:33:27 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DC22345DD74
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:33:26 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C284245DE4D
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:33:26 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B2E1D1DB8040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:33:26 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F44F1DB802C
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:33:26 +0900 (JST)
-Date: Thu, 24 Mar 2011 18:26:59 +0900
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D4FE8D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 05:34:43 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4BE833EE0BD
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:34:40 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A54845DE62
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:34:40 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EBB9145DE5F
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:34:39 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D5621E08003
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:34:39 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A929E18004
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 18:34:39 +0900 (JST)
+Date: Thu, 24 Mar 2011 18:28:12 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 2/5] forkbomb: mm tracking subsystem
-Message-Id: <20110324182659.ca1f4847.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 3/5] forkbomb : mm histroy scanning and locks
+Message-Id: <20110324182812.df71e831.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20110324182240.5fe56de2.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110324182240.5fe56de2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -31,176 +31,180 @@ List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rientjes@google.com" <rientjes@google.com>, Andrey Vagin <avagin@openvz.org>
 
+This patch adds a code for scanning mm_history tree. Later, we need
+to scan all mm_histroy from children->parent direction.
 
-This patch adds a subsystem for recording a history of mm.
-This patch records relation ship of each mm_structs and
-preserve them in a tree. New record is added at fork()
-and exec(). If all children disapperas at exit(), the record
-will be removed.
+And this patch adds a global lock which will be required for scanning.
+Because scanning isn't called frequently, using rwsem with a help of
+percpu variable.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- fs/exec.c                |    1 
- include/linux/mm_types.h |    3 +
- include/linux/oom.h      |   14 ++++++++
- kernel/fork.c            |    3 +
- mm/oom_kill.c            |   75 +++++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 96 insertions(+)
+ mm/oom_kill.c |  116 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 116 insertions(+)
 
-Index: mm-work2/include/linux/oom.h
-===================================================================
---- mm-work2.orig/include/linux/oom.h
-+++ mm-work2/include/linux/oom.h
-@@ -72,5 +72,19 @@ extern struct task_struct *find_lock_tas
- extern int sysctl_oom_dump_tasks;
- extern int sysctl_oom_kill_allocating_task;
- extern int sysctl_panic_on_oom;
-+
-+#ifdef CONFIG_FORKBOMB_KILLER
-+extern void track_mm_history(struct mm_struct *new, struct mm_struct *old);
-+extern void delete_mm_history(struct mm_struct *mm);
-+#else
-+static inline void
-+track_mm_history(struct mm_struct *new, struct mm_struct *old)
-+{
-+}
-+static inline void delete_mm_history(struct mm_struct *mm)
-+{
-+}
-+#endif
-+
- #endif /* __KERNEL__*/
- #endif /* _INCLUDE_LINUX_OOM_H */
 Index: mm-work2/mm/oom_kill.c
 ===================================================================
 --- mm-work2.orig/mm/oom_kill.c
 +++ mm-work2/mm/oom_kill.c
-@@ -761,3 +761,78 @@ void pagefault_out_of_memory(void)
- 	if (!test_thread_flag(TIF_MEMDIE))
- 		schedule_timeout_uninterruptible(1);
- }
+@@ -31,6 +31,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/mempolicy.h>
+ #include <linux/security.h>
++#include <linux/cpu.h>
+ 
+ int sysctl_panic_on_oom;
+ int sysctl_oom_kill_allocating_task;
+@@ -764,6 +765,58 @@ void pagefault_out_of_memory(void)
+ 
+ #ifdef CONFIG_FORKBOMB_KILLER
+ 
++static DEFINE_PER_CPU(unsigned long, pcpu_history_lock);
++static DECLARE_RWSEM(hist_rwsem);
++static int need_global_history_lock;
 +
-+#ifdef CONFIG_FORKBOMB_KILLER
-+
-+struct mm_history {
-+	spinlock_t	lock;
-+	struct mm_struct *mm;
-+	struct mm_history *parent;
-+	struct list_head siblings;
-+	struct list_head children;
-+	/* scores */
-+	unsigned long start_time;
-+	unsigned long score;
-+	unsigned int family;
-+	int           need_to_kill;
-+};
-+
-+struct mm_history init_hist = {
-+	.parent	= &init_hist,
-+	.lock = __SPIN_LOCK_UNLOCKED(init_hist.lock),
-+	.siblings = LIST_HEAD_INIT(init_hist.siblings),
-+	.children = LIST_HEAD_INIT(init_hist.children),
-+};
-+
-+void track_mm_history(struct mm_struct *new, struct mm_struct *parent)
++static void update_history_lock(void)
 +{
-+	struct mm_history *hist, *phist;
-+
-+	hist = kmalloc(sizeof(*hist), GFP_KERNEL);
-+	if (!hist)
-+		return;
-+	spin_lock_init(&hist->lock);
-+	INIT_LIST_HEAD(&hist->children);
-+	hist->mm = new;
-+	hist->start_time = jiffies;
-+	if (parent)
-+		phist = parent->history;
-+	else
-+		phist = NULL;
-+	if (!phist)
-+		phist = &init_hist;
-+	new->history = hist;
-+	hist->parent = phist;
-+	spin_lock(&phist->lock);
-+	list_add_tail(&hist->siblings, &phist->children);
-+	spin_unlock(&phist->lock);
-+	return;
-+}
-+
-+void delete_mm_history(struct mm_struct *mm)
-+{
-+	struct mm_history *hist, *phist;
-+	bool nochild;
-+
-+	if (!mm->history)
-+		return;
-+	hist = mm->history;
-+	spin_lock(&hist->lock);
-+	nochild = list_empty(&hist->children);
-+	mm->history = NULL;
-+	hist->mm = NULL;
-+	spin_unlock(&hist->lock);
-+	/* delete if we have no child */
-+	while (nochild && hist != &init_hist) {
-+		phist = hist->parent;
-+		spin_lock(&phist->lock);
-+		list_del(&hist->siblings);
-+		/* delete parent if it's dead & no more child other than me.*/
-+		nochild = (phist->mm == NULL && list_empty(&phist->children));
-+		spin_unlock(&phist->lock);
-+		kfree(hist);
-+		hist = phist;
++retry:
++	preempt_disable();
++	this_cpu_inc(pcpu_history_lock);
++	smp_rmb();
++	if (need_global_history_lock) {
++		this_cpu_dec(pcpu_history_lock);
++		preempt_enable();
++		down_read(&hist_rwsem);
++		up_read(&hist_rwsem);
++		goto retry;
 +	}
 +}
 +
-+#endif
-Index: mm-work2/fs/exec.c
-===================================================================
---- mm-work2.orig/fs/exec.c
-+++ mm-work2/fs/exec.c
-@@ -802,6 +802,7 @@ static int exec_mmap(struct mm_struct *m
- 	}
- 	task_unlock(tsk);
- 	arch_pick_mmap_layout(mm);
-+	track_mm_history(mm, old_mm);
- 	if (old_mm) {
- 		up_read(&old_mm->mmap_sem);
- 		BUG_ON(active_mm != old_mm);
-Index: mm-work2/kernel/fork.c
-===================================================================
---- mm-work2.orig/kernel/fork.c
-+++ mm-work2/kernel/fork.c
-@@ -559,6 +559,7 @@ void mmput(struct mm_struct *mm)
- 		ksm_exit(mm);
- 		khugepaged_exit(mm); /* must run before exit_mmap */
- 		exit_mmap(mm);
-+		delete_mm_history(mm);
- 		set_mm_exe_file(mm, NULL);
- 		if (!list_empty(&mm->mmlist)) {
- 			spin_lock(&mmlist_lock);
-@@ -706,6 +707,8 @@ struct mm_struct *dup_mm(struct task_str
- 	if (mm->binfmt && !try_module_get(mm->binfmt->module))
- 		goto free_pt;
- 
-+	track_mm_history(mm, oldmm);
++static void update_history_unlock(void)
++{
++	this_cpu_dec(pcpu_history_lock);
++	preempt_enable();
++}
 +
- 	return mm;
++static void scan_history_lock(void)
++{
++	int cpu;
++	bool loop;
++
++	down_write(&hist_rwsem);
++	need_global_history_lock++;
++	do {
++		loop = false;
++		get_online_cpus();
++		for_each_online_cpu(cpu)
++			if (per_cpu(pcpu_history_lock, cpu)) {
++				loop = true;
++				break;
++			}
++		put_online_cpus();
++		cpu_relax();
++	} while (loop);
++}
++
++static void scan_history_unlock(void)
++{
++	need_global_history_lock--;
++	up_write(&hist_rwsem);
++}
++
++
+ struct mm_history {
+ 	spinlock_t	lock;
+ 	struct mm_struct *mm;
+@@ -791,6 +844,7 @@ void track_mm_history(struct mm_struct *
+ 	hist = kmalloc(sizeof(*hist), GFP_KERNEL);
+ 	if (!hist)
+ 		return;
++	update_history_lock();
+ 	spin_lock_init(&hist->lock);
+ 	INIT_LIST_HEAD(&hist->children);
+ 	hist->mm = new;
+@@ -806,6 +860,7 @@ void track_mm_history(struct mm_struct *
+ 	spin_lock(&phist->lock);
+ 	list_add_tail(&hist->siblings, &phist->children);
+ 	spin_unlock(&phist->lock);
++	update_history_unlock();
+ 	return;
+ }
  
- free_pt:
-Index: mm-work2/include/linux/mm_types.h
-===================================================================
---- mm-work2.orig/include/linux/mm_types.h
-+++ mm-work2/include/linux/mm_types.h
-@@ -317,6 +317,9 @@ struct mm_struct {
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
+@@ -816,6 +871,7 @@ void delete_mm_history(struct mm_struct 
+ 
+ 	if (!mm->history)
+ 		return;
++	update_history_lock();
+ 	hist = mm->history;
+ 	spin_lock(&hist->lock);
+ 	nochild = list_empty(&hist->children);
+@@ -833,6 +889,66 @@ void delete_mm_history(struct mm_struct 
+ 		kfree(hist);
+ 		hist = phist;
+ 	}
++	update_history_unlock();
+ }
+ 
++/* Because we have global scan lock, we need no lock at scaning. */
++static struct mm_history* __first_child(struct mm_history *p)
++{
++	if (list_empty(&p->children))
++		return NULL;
++	return list_first_entry(&p->children, struct mm_history, siblings);
++}
++
++static struct mm_history* __next_sibling(struct mm_history *p)
++{
++	if (p->siblings.next == &p->parent->children)
++		return NULL;
++	return list_first_entry(&p->siblings, struct mm_history, siblings);
++}
++
++static struct mm_history *first_deepest_child(struct mm_history *p)
++{
++	struct mm_history *tmp;
++
++	do {
++		tmp = __first_child(p);
++		if (!tmp)
++			return p;
++		p = tmp;
++	} while (1);
++}
++
++static struct mm_history *mm_history_scan_start(struct mm_history *hist)
++{
++	return first_deepest_child(hist);
++}
++
++static struct mm_history *mm_history_scan_next(struct mm_history *pos)
++{
++	struct mm_history *tmp;
++
++	tmp = __next_sibling(pos);
++	if (!tmp)
++		return pos->parent;
++	pos = tmp;
++	pos = first_deepest_child(pos);
++	return pos;
++}
++
++#define for_each_mm_history_under(pos, root)\
++	for (pos = mm_history_scan_start(root);\
++		pos != root;\
++		pos = mm_history_scan_next(pos))
++
++#define for_each_mm_history_safe_under(pos, root, tmp)\
++	for (pos =  mm_history_scan_start(root),\
++		tmp = mm_history_scan_next(pos);\
++		pos != root;\
++		pos = tmp, tmp = mm_history_scan_next(pos))
++
++#define for_each_mm_history(pos) for_each_mm_history_under((pos), &init_hist)
++#define for_each_mm_history_safe(pos, tmp)\
++	for_each_mm_history_safe_under((pos), &init_hist, (tmp))
++
  #endif
-+#ifdef CONFIG_FORKBOMB_KILLER
-+	struct mm_history *history;
-+#endif
- };
- 
- /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
