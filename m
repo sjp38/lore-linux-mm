@@ -1,55 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A2E5F8D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 13:22:18 -0400 (EDT)
-Date: Thu, 24 Mar 2011 18:13:19 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 5/5] x86,mm: make pagefault killable
-Message-ID: <20110324171319.GA20182@redhat.com>
-References: <20110315153801.3526.A69D9226@jp.fujitsu.com> <20110322194721.B05E.A69D9226@jp.fujitsu.com> <20110322200945.B06D.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id DA50B8D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 13:27:01 -0400 (EDT)
+Date: Thu, 24 Mar 2011 18:26:53 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [GIT PULL] SLAB changes for v2.6.39-rc1
+Message-ID: <20110324172653.GA28507@elte.hu>
+References: <alpine.DEB.2.00.1103221635400.4521@tiger>
+ <20110324142146.GA11682@elte.hu>
+ <alpine.DEB.2.00.1103240940570.32226@router.home>
+ <AANLkTikb8rtSX5hQG6MQF4quymFUuh5Tw97TcpB0YfwS@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20110322200945.B06D.A69D9226@jp.fujitsu.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTikb8rtSX5hQG6MQF4quymFUuh5Tw97TcpB0YfwS@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-On 03/22, KOSAKI Motohiro wrote:
->
-> This patch makes pagefault interruptible by SIGKILL.
-
-Not a comment, but the question...
-
-> --- a/arch/x86/mm/fault.c
-> +++ b/arch/x86/mm/fault.c
-> @@ -1035,6 +1035,7 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
->  	if (user_mode_vm(regs)) {
->  		local_irq_enable();
->  		error_code |= PF_USER;
-> +		flags |= FAULT_FLAG_KILLABLE;
-
-OK, this is clear.
-
-I am wondering, can't we set FAULT_FLAG_KILLABLE unconditionally
-but check PF_USER when we get VM_FAULT_RETRY? I mean,
-
-	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
-		if (!(error_code & PF_USER))
-			no_context(...);
-		return;
-	}
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, torvalds@linux-foundation.org, akpm@linux-foundation.org, tj@kernel.org, npiggin@kernel.dk, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 
-Probably not... but I can't find any example of in-kernel fault which
-can be broken by -EFAULT if current was killed.
+* Pekka Enberg <penberg@kernel.org> wrote:
 
-mm_release()->put_user(clear_child_tid) should be fine...
+> On Thu, Mar 24, 2011 at 4:41 PM, Christoph Lameter <cl@linux.com> wrote:
+> > On Thu, 24 Mar 2011, Ingo Molnar wrote:
+> >
+> >> FYI, some sort of boot crash has snuck upstream in the last 24 hours:
+> >>
+> >>  BUG: unable to handle kernel paging request at ffff87ffc147e020
+> >>  IP: [<ffffffff811aa762>] this_cpu_cmpxchg16b_emu+0x2/0x1c
+> >
+> > Hmmm.. This is the fallback code for the case that the processor does not
+> > support cmpxchg16b.
+> 
+> How does alternative_io() work? Does it require
+> alternative_instructions() to be executed. If so, the fallback code
+> won't be active when we enter kmem_cache_init(). Is there any reason
+> check_bugs() is called so late during boot? Can we do something like
+> the totally untested attached patch?
 
-Just curious, I feel I missed something obvious.
+Does the config i sent you boot on your box? I think the bug is pretty generic 
+and should trigger on any box.
 
-Oleg.
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
