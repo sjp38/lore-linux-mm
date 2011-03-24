@@ -1,57 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 588E98D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 14:13:41 -0400 (EDT)
-Date: Thu, 24 Mar 2011 20:13:18 +0200 (EET)
-From: Pekka Enberg <penberg@kernel.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 487988D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 14:15:58 -0400 (EDT)
+Date: Thu, 24 Mar 2011 13:15:42 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: [GIT PULL] SLAB changes for v2.6.39-rc1
-In-Reply-To: <20110324172653.GA28507@elte.hu>
-Message-ID: <alpine.DEB.2.00.1103242011540.4990@tiger>
+In-Reply-To: <AANLkTi=KZQd-GrXaq4472V3XnEGYqnCheYcgrdPFE0LJ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1103241312280.32226@router.home>
 References: <alpine.DEB.2.00.1103221635400.4521@tiger> <20110324142146.GA11682@elte.hu> <alpine.DEB.2.00.1103240940570.32226@router.home> <AANLkTikb8rtSX5hQG6MQF4quymFUuh5Tw97TcpB0YfwS@mail.gmail.com> <20110324172653.GA28507@elte.hu>
+ <alpine.DEB.2.00.1103241242450.32226@router.home> <AANLkTimMcP-GikCCndQppNBsS7y=4beesZ4PaD6yh5y5@mail.gmail.com> <alpine.DEB.2.00.1103241300420.32226@router.home> <AANLkTi=KZQd-GrXaq4472V3XnEGYqnCheYcgrdPFE0LJ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323329-1280347503-1300990398=:4990"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Christoph Lameter <cl@linux.com>, torvalds@linux-foundation.org, akpm@linux-foundation.org, tj@kernel.org, npiggin@kernel.dk, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Ingo Molnar <mingo@elte.hu>, torvalds@linux-foundation.org, akpm@linux-foundation.org, tj@kernel.org, npiggin@kernel.dk, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Thu, 24 Mar 2011, Pekka Enberg wrote:
 
---8323329-1280347503-1300990398=:4990
-Content-Type: TEXT/PLAIN; charset=iso-8859-1; format=flowed
-Content-Transfer-Encoding: 8BIT
-
-Hi Ingo,
-
-On Thu, 24 Mar 2011, Ingo Molnar wrote:
-> * Pekka Enberg <penberg@kernel.org> wrote:
+> > I forced the fallback to the _emu function to occur but could not trigger
+> > the bug in kvm.
 >
->> On Thu, Mar 24, 2011 at 4:41 PM, Christoph Lameter <cl@linux.com> wrote:
->>> On Thu, 24 Mar 2011, Ingo Molnar wrote:
->>>
->>>> FYI, some sort of boot crash has snuck upstream in the last 24 hours:
->>>>
->>>>  BUG: unable to handle kernel paging request at ffff87ffc147e020
->>>>  IP: [<ffffffff811aa762>] this_cpu_cmpxchg16b_emu+0x2/0x1c
->>>
->>> Hmmm.. This is the fallback code for the case that the processor does not
->>> support cmpxchg16b.
->>
->> How does alternative_io() work? Does it require
->> alternative_instructions() to be executed. If so, the fallback code
->> won't be active when we enter kmem_cache_init(). Is there any reason
->> check_bugs() is called so late during boot? Can we do something like
->> the totally untested attached patch?
->
-> Does the config i sent you boot on your box? I think the bug is pretty generic
-> and should trigger on any box.
+> That's not the problem. I'm sure the fallback is just fine. What I'm
+> saying is that the fallback is *not patched* to kernel text on Ingo's
+> machines because alternative_instructions() happens late in the boot!
+> So the problem is that on Ingo's boxes (that presumably have old AMD
+> CPUs) we execute cmpxchg16b, not the fallback code.
 
-Here's a patch that reorganizes the alternatives fixup to happen earlier 
-so that the fallback should work. It boots on my machine so please give it 
-a spin if possible.
+But then we would get the bug in kmem_cache_alloc() and not in the
+*_emu() function. So the _emu is executing but failing on Ingo's system
+but not on mine. Question is why.
 
-I'll try out your .config next.
+For some reason the first reference to %gs:(%rsi) wont work right on his
+system:
 
- 			Pekka
---8323329-1280347503-1300990398=:4990--
+>From arch/x86/lib/cmpxchg16b_emu
+
+#
+# Emulate 'cmpxchg16b %gs:(%rsi)' except we return the result in %al not
+# via the ZF.  Caller will access %al to get result.
+#
+# Note that this is only useful for a cpuops operation.  Meaning that we
+# do *not* have a fully atomic operation but just an operation that is
+# *atomic* on a single cpu (as provided by the this_cpu_xx class of
+# macros).
+#
+this_cpu_cmpxchg16b_emu:
+        pushf
+        cli
+
+        cmpq %gs:(%rsi), %rax
+        jne not_same
+        cmpq %gs:8(%rsi), %rdx
+        jne not_same
+
+        movq %rbx, %gs:(%rsi)
+        movq %rcx, %gs:8(%rsi)
+
+        popf
+        mov $1, %al
+        ret
+
+ not_same:
+        popf
+        xor %al,%al
+        ret
+
+CFI_ENDPROC
+
+
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
