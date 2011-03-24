@@ -1,60 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 797BA8D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 13:35:35 -0400 (EDT)
-Received: from mail-iy0-f169.google.com (mail-iy0-f169.google.com [209.85.210.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id p2OHZ6uw004636
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 10:35:06 -0700
-Received: by iyf13 with SMTP id 13so263747iyf.14
-        for <linux-mm@kvack.org>; Thu, 24 Mar 2011 10:35:06 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F9868D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 13:43:19 -0400 (EDT)
+Date: Thu, 24 Mar 2011 13:43:11 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: XFS memory allocation deadlock in 2.6.38
+Message-ID: <20110324174311.GA31576@infradead.org>
+References: <081DDE43F61F3D43929A181B477DCA95639B52FD@MSXAOA6.twosigma.com>
+ <081DDE43F61F3D43929A181B477DCA95639B5327@MSXAOA6.twosigma.com>
 MIME-Version: 1.0
-In-Reply-To: <20110324171319.GA20182@redhat.com>
-References: <20110315153801.3526.A69D9226@jp.fujitsu.com> <20110322194721.B05E.A69D9226@jp.fujitsu.com>
- <20110322200945.B06D.A69D9226@jp.fujitsu.com> <20110324171319.GA20182@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 24 Mar 2011 10:34:46 -0700
-Message-ID: <AANLkTinsabm-AHTdc2X550jkAqb=TrBLfrk5CV-WEjGx@mail.gmail.com>
-Subject: Re: [PATCH 5/5] x86,mm: make pagefault killable
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <081DDE43F61F3D43929A181B477DCA95639B5327@MSXAOA6.twosigma.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Sean Noonan <Sean.Noonan@twosigma.com>
+Cc: "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, Martin Bligh <Martin.Bligh@twosigma.com>, Trammell Hudson <Trammell.Hudson@twosigma.com>, Christos Zoulas <Christos.Zoulas@twosigma.com>, "'linux-xfs@oss.sgi.com'" <linux-xfs@oss.sgi.com>, Stephen Degler <Stephen.Degler@twosigma.com>, walken@google.com, linux-mm@kvack.org
 
-On Thu, Mar 24, 2011 at 10:13 AM, Oleg Nesterov <oleg@redhat.com> wrote:
->
-> I am wondering, can't we set FAULT_FLAG_KILLABLE unconditionally
-> but check PF_USER when we get VM_FAULT_RETRY? I mean,
->
-> =A0 =A0 =A0 =A0if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(curre=
-nt)) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (!(error_code & PF_USER))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0no_context(...);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
-> =A0 =A0 =A0 =A0}
+Michel,
 
-I agree, we should do this.
+can you take a look at this bug report?  It looks like a regression
+in your mlock handling changes.
 
-> Probably not... but I can't find any example of in-kernel fault which
-> can be broken by -EFAULT if current was killed.
 
-There's no way that can validly break anything, since any such
-codepath has to be able to handle -EFAULT for other reasons anyway.
-
-The only issue is whether we're ok with a regular write() system call
-(for example) not being atomic in the presence of a fatal signal. So
-it does change semantics, but I think it changes it in a good way
-(technically POSIX requires atomicity, but on the other hand,
-technically POSIX also doesn't talk about the process being killed,
-and writes would still be atomic for the case where they actually
-return. Not to mention NFS etc where writes have never been atomic
-anyway, so a program that relies on strict "all or nothing" write
-behavior is fundamentally broken to begin with).
-
-                         Linus
+On Wed, Mar 23, 2011 at 03:39:05PM -0400, Sean Noonan wrote:
+> I believe this patch fixes the behavior:
+> diff --git a/mm/memory.c b/mm/memory.c
+> index e48945a..740d5ab 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3461,7 +3461,9 @@ int make_pages_present(unsigned long addr, unsigned long end)
+>          * to break COW, except for shared mappings because these don't COW
+>          * and we would not want to dirty them for nothing.
+>          */
+> -       write = (vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE;
+> +       write = (vma->vm_flags & VM_WRITE) != 0;
+> +       if (write && ((vma->vm_flags & VM_SHARED) !=0) && (vma->vm_file == NULL))
+> +               write = 0;
+>         BUG_ON(addr >= end);
+>         BUG_ON(end > vma->vm_end);
+>         len = DIV_ROUND_UP(end, PAGE_SIZE) - addr/PAGE_SIZE;
+> 
+> 
+> This was traced to the following commit:
+> 5ecfda041e4b4bd858d25bbf5a16c2a6c06d7272 is the first bad commit
+> commit 5ecfda041e4b4bd858d25bbf5a16c2a6c06d7272
+> Author: Michel Lespinasse <walken@google.com>
+> Date:   Thu Jan 13 15:46:09 2011 -0800
+> 
+>     mlock: avoid dirtying pages and triggering writeback
+>     
+>     When faulting in pages for mlock(), we want to break COW for anonymous or
+>     file pages within VM_WRITABLE, non-VM_SHARED vmas.  However, there is no
+>     need to write-fault into VM_SHARED vmas since shared file pages can be
+>     mlocked first and dirtied later, when/if they actually get written to.
+>     Skipping the write fault is desirable, as we don't want to unnecessarily
+>     cause these pages to be dirtied and queued for writeback.
+>     
+>     Signed-off-by: Michel Lespinasse <walken@google.com>
+>     Cc: Hugh Dickins <hughd@google.com>
+>     Cc: Rik van Riel <riel@redhat.com>
+>     Cc: Kosaki Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>     Cc: Peter Zijlstra <peterz@infradead.org>
+>     Cc: Nick Piggin <npiggin@kernel.dk>
+>     Cc: Theodore Tso <tytso@google.com>
+>     Cc: Michael Rubin <mrubin@google.com>
+>     Cc: Suleiman Souhlal <suleiman@google.com>
+>     Cc: Dave Chinner <david@fromorbit.com>
+>     Cc: Christoph Hellwig <hch@infradead.org>
+>     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> 
+> :040000 040000 604eede2f45b7e5276ce9725b715ed15a868861d 3c175eadf4cf33d4f78d4d455c9a04f3df2c199e M	mm
+> 
+> 
+> -----Original Message-----
+> From: Sean Noonan 
+> Sent: Monday, March 21, 2011 12:20
+> To: 'linux-kernel@vger.kernel.org'
+> Cc: Trammell Hudson; Martin Bligh; Stephen Degler; Christos Zoulas
+> Subject: XFS memory allocation deadlock in 2.6.38
+> 
+> This message was originally posted to the XFS mailing list, but received no responses.  Thus, I am sending it to LKML on the advice of Martin.
+> 
+> Using the attached program, we are able to reproduce this bug reliably.
+> $ make vmtest
+> $ ./vmtest /xfs/hugefile.dat $(( 16 * 1024 * 1024 * 1024 )) # vmtest <path_to_file> <size_in_bytes>
+> /xfs/hugefile.dat: mapped 17179869184 bytes in 33822066943 ticks
+> 749660: avg 13339 max 234667 ticks
+> 371945: avg 26885 max 281616 ticks
+> ---
+> At this point, we see the following on the console:
+> [593492.694806] XFS: possible memory allocation deadlock in kmem_alloc (mode:0x250)
+> [593506.724367] XFS: possible memory allocation deadlock in kmem_alloc (mode:0x250)
+> [593524.837717] XFS: possible memory allocation deadlock in kmem_alloc (mode:0x250)
+> [593556.742386] XFS: possible memory allocation deadlock in kmem_alloc (mode:0x250)
+> 
+> This is the same message presented in
+> http://oss.sgi.com/bugzilla/show_bug.cgi?id=410
+> 
+> We started testing with 2.6.38-rc7 and have seen this bug through to the .0 release.  This does not appear to be present in 2.6.33, but we have not done testing in between.  We have tested with ext4 and do not encounter this bug.
+> CONFIG_XFS_FS=y
+> CONFIG_XFS_QUOTA=y
+> CONFIG_XFS_POSIX_ACL=y
+> CONFIG_XFS_RT=y
+> # CONFIG_XFS_DEBUG is not set
+> # CONFIG_VXFS_FS is not set
+> 
+> Here is the stack from the process:
+> [<ffffffff81357553>] call_rwsem_down_write_failed+0x13/0x20
+> [<ffffffff812ddf1e>] xfs_ilock+0x7e/0x110
+> [<ffffffff8130132f>] __xfs_get_blocks+0x8f/0x4e0
+> [<ffffffff813017b1>] xfs_get_blocks+0x11/0x20
+> [<ffffffff8114ba3e>] __block_write_begin+0x1ee/0x5b0
+> [<ffffffff8114be9d>] block_page_mkwrite+0x9d/0xf0
+> [<ffffffff81307e05>] xfs_vm_page_mkwrite+0x15/0x20
+> [<ffffffff810f2ddb>] do_wp_page+0x54b/0x820
+> [<ffffffff810f347c>] handle_pte_fault+0x3cc/0x820
+> [<ffffffff810f5145>] handle_mm_fault+0x175/0x2f0
+> [<ffffffff8102e399>] do_page_fault+0x159/0x470
+> [<ffffffff816cf6cf>] page_fault+0x1f/0x30
+> [<ffffffffffffffff>] 0xffffffffffffffff
+> 
+> # uname -a
+> Linux testhost 2.6.38 #2 SMP PREEMPT Fri Mar 18 15:00:59 GMT 2011 x86_64 GNU/Linux
+> 
+> Please let me know if additional information is required.
+> 
+> Thanks!
+> 
+> Sean
+> 
+> _______________________________________________
+> xfs mailing list
+> xfs@oss.sgi.com
+> http://oss.sgi.com/mailman/listinfo/xfs
+---end quoted text---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
