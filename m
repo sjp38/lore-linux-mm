@@ -1,96 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2F7248D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 08:22:40 -0400 (EDT)
-Date: Thu, 24 Mar 2011 14:22:06 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH 2/2] KVM: Enable async page fault processing.
-Message-ID: <20110324122206.GE32408@redhat.com>
-References: <1296559307-14637-1-git-send-email-gleb@redhat.com>
- <1296559307-14637-3-git-send-email-gleb@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id EBA3E8D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 08:53:32 -0400 (EDT)
+Date: Thu, 24 Mar 2011 13:53:16 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: +
+ ksm-add-vm_stat-and-meminfo-entry-to-reflect-pte-mapping-to-ksm-pages.patch
+ added to -mm tree
+Message-ID: <20110324125316.GA2310@cmpxchg.org>
+References: <201103012341.p21Nf64e006469@imap1.linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1296559307-14637-3-git-send-email-gleb@redhat.com>
+In-Reply-To: <201103012341.p21Nf64e006469@imap1.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: avi@redhat.com, mtosatti@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: nai.xia@gmail.com, aarcange@redhat.com, chrisw@sous-sol.org, hugh.dickins@tiscali.co.uk, ieidus@redhat.com, riel@redhat.com, mm-commits@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Feb 01, 2011 at 01:21:47PM +0200, Gleb Natapov wrote:
-> If asynchronous hva_to_pfn() is requested call GUP with FOLL_NOWAIT to
-> avoid sleeping on IO. Check for hwpoison is done at the same time,
-> otherwise check_user_page_hwpoison() will call GUP again and will put
-> vcpu to sleep.
-> 
-FOLL_NOWAIT is now in Linus tree, so this patch can be applied now. I
-verified that it still applies and works.
+On Tue, Mar 01, 2011 at 03:41:06PM -0800, akpm@linux-foundation.org wrote:
+> diff -puN include/linux/mmzone.h~ksm-add-vm_stat-and-meminfo-entry-to-reflect-pte-mapping-to-ksm-pages include/linux/mmzone.h
+> --- a/include/linux/mmzone.h~ksm-add-vm_stat-and-meminfo-entry-to-reflect-pte-mapping-to-ksm-pages
+> +++ a/include/linux/mmzone.h
+> @@ -115,6 +115,9 @@ enum zone_stat_item {
+>  	NUMA_OTHER,		/* allocation from other node */
+>  #endif
+>  	NR_ANON_TRANSPARENT_HUGEPAGES,
+> +#ifdef CONFIG_KSM
+> +	NR_KSM_PAGES_SHARING,
+> +#endif
+>  	NR_VM_ZONE_STAT_ITEMS };
 
-> Signed-off-by: Gleb Natapov <gleb@redhat.com>
-> ---
->  virt/kvm/kvm_main.c |   23 +++++++++++++++++++++--
->  1 files changed, 21 insertions(+), 2 deletions(-)
-> 
-> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-> index 74d032a..80f42ab 100644
-> --- a/virt/kvm/kvm_main.c
-> +++ b/virt/kvm/kvm_main.c
-> @@ -1029,6 +1029,17 @@ static pfn_t get_fault_pfn(void)
->  	return fault_pfn;
->  }
->  
-> +int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
-> +	unsigned long start, int write, struct page **page)
-> +{
-> +	int flags = FOLL_TOUCH | FOLL_NOWAIT | FOLL_HWPOISON | FOLL_GET;
-> +
-> +	if (write)
-> +		flags |= FOLL_WRITE;
-> +
-> +	return __get_user_pages(tsk, mm, start, 1, flags, page, NULL, NULL);
-> +}
-> +
->  static inline int check_user_page_hwpoison(unsigned long addr)
->  {
->  	int rc, flags = FOLL_TOUCH | FOLL_HWPOISON | FOLL_WRITE;
-> @@ -1062,7 +1073,14 @@ static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr, bool atomic,
->  		if (writable)
->  			*writable = write_fault;
->  
-> -		npages = get_user_pages_fast(addr, 1, write_fault, page);
-> +		if (async) {
-> +			down_read(&current->mm->mmap_sem);
-> +			npages = get_user_page_nowait(current, current->mm,
-> +						     addr, write_fault, page);
-> +			up_read(&current->mm->mmap_sem);
-> +		} else
-> +			npages = get_user_pages_fast(addr, 1, write_fault,
-> +						     page);
->  
->  		/* map read fault as writable if possible */
->  		if (unlikely(!write_fault) && npages == 1) {
-> @@ -1085,7 +1103,8 @@ static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr, bool atomic,
->  			return get_fault_pfn();
->  
->  		down_read(&current->mm->mmap_sem);
-> -		if (check_user_page_hwpoison(addr)) {
-> +		if (npages == -EHWPOISON ||
-> +			(!async && check_user_page_hwpoison(addr))) {
->  			up_read(&current->mm->mmap_sem);
->  			get_page(hwpoison_page);
->  			return page_to_pfn(hwpoison_page);
-> -- 
-> 1.7.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+This adds a zone stat item without a corresponding entry in
+vm_stat_text.  As a result, all vm event entries in /proc/vmstat show
+the value of the respective previous counter.
 
---
-			Gleb.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 5ce2d0a..fca991c 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -886,6 +886,9 @@ static const char * const vmstat_text[] = {
+ 	"numa_other",
+ #endif
+ 	"nr_anon_transparent_hugepages",
++#ifdef CONFIG_KSM
++	"nr_ksm_pages_sharing",
++#endif
+ 	"nr_dirty_threshold",
+ 	"nr_dirty_background_threshold",
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
