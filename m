@@ -1,33 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6DECF8D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 16:43:31 -0400 (EDT)
-Date: Thu, 24 Mar 2011 15:43:25 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [GIT PULL] SLAB changes for v2.6.39-rc1
-In-Reply-To: <1300997290.2714.2.camel@edumazet-laptop>
-Message-ID: <alpine.DEB.2.00.1103241541560.8108@router.home>
-References: <alpine.DEB.2.00.1103241300420.32226@router.home>  <AANLkTi=KZQd-GrXaq4472V3XnEGYqnCheYcgrdPFE0LJ@mail.gmail.com>  <alpine.DEB.2.00.1103241312280.32226@router.home>  <1300990853.3747.189.camel@edumazet-laptop>  <alpine.DEB.2.00.1103241346060.32226@router.home>
-  <AANLkTik3rkNvLG-rgiWxKaPc-v9sZQq96ok0CXfAU+r_@mail.gmail.com>  <20110324185903.GA30510@elte.hu>  <AANLkTi=66Q-8=AV3Y0K28jZbT3ddCHy9azWedoCC4Nrn@mail.gmail.com>  <alpine.DEB.2.00.1103241404490.5576@router.home>  <AANLkTimWYCHEsZjswLpD-xDcu_cL=GqsMshKRtkHt5Vn@mail.gmail.com>
-  <20110324193647.GA7957@elte.hu>  <AANLkTinBwKT3s=1En5Urs56gmt_zCNgPXnQzzy52Tgdo@mail.gmail.com>  <alpine.DEB.2.00.1103241451060.5576@router.home> <1300997290.2714.2.camel@edumazet-laptop>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E07B18D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 17:47:20 -0400 (EDT)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id p2OLlIoP002240
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 14:47:19 -0700
+Received: from pwj4 (pwj4.prod.google.com [10.241.219.68])
+	by kpbe17.cbf.corp.google.com with ESMTP id p2OLkoxt029753
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 14:47:16 -0700
+Received: by pwj4 with SMTP id 4so72725pwj.30
+        for <linux-mm@kvack.org>; Thu, 24 Mar 2011 14:47:14 -0700 (PDT)
+Date: Thu, 24 Mar 2011 14:47:11 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] Accelerate OOM killing
+In-Reply-To: <1300960353-2596-1-git-send-email-minchan.kim@gmail.com>
+Message-ID: <alpine.DEB.2.00.1103241446520.20718@chino.kir.corp.google.com>
+References: <1300960353-2596-1-git-send-email-minchan.kim@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Ingo Molnar <mingo@elte.hu>, torvalds@linux-foundation.org, akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>, npiggin@kernel.dk, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>
 
-On Thu, 24 Mar 2011, Eric Dumazet wrote:
+On Thu, 24 Mar 2011, Minchan Kim wrote:
 
-> Thats strange, alloc_percpu() is supposed to zero the memory already ...
+> When I test Andrey's problem, I saw the livelock and sysrq-t says
+> there are many tasks in cond_resched after try_to_free_pages.
+> 
+> If did_some_progress is false, cond_resched could delay oom killing so
+> It might be killing another task.
+> 
+> This patch accelerates oom killing without unnecessary giving CPU
+> to another task. It could help avoding unnecessary another task killing
+> and livelock situation a litte bit.
+> 
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Andrey Vagin <avagin@openvz.org>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
-True.
-
-> Are you sure its really this problem of interrupts being disabled ?
-
-Guess so since Ingo and Pekka reported that it fixed the problem.
-
-Tejun: Can you help us with this mystery?
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
