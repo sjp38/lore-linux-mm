@@ -1,50 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EBC78D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 11:34:07 -0400 (EDT)
-Received: by pzk32 with SMTP id 32so7656pzk.14
-        for <linux-mm@kvack.org>; Thu, 24 Mar 2011 08:11:05 -0700 (PDT)
-Date: Fri, 25 Mar 2011 00:10:48 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 5/5] x86,mm: make pagefault killable
-Message-ID: <20110324151048.GB1938@barrios-desktop>
-References: <20110315153801.3526.A69D9226@jp.fujitsu.com>
- <20110322194721.B05E.A69D9226@jp.fujitsu.com>
- <20110322200945.B06D.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A2F2D8D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 12:03:24 -0400 (EDT)
+Date: Thu, 24 Mar 2011 17:03:10 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [GIT PULL] SLAB changes for v2.6.39-rc1
+Message-ID: <20110324160310.GA27127@elte.hu>
+References: <alpine.DEB.2.00.1103221635400.4521@tiger>
+ <20110324142146.GA11682@elte.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110322200945.B06D.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20110324142146.GA11682@elte.hu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: torvalds@linux-foundation.org, cl@linux-foundation.org, akpm@linux-foundation.org, tj@kernel.org, npiggin@kernel.dk, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Mar 22, 2011 at 08:09:29PM +0900, KOSAKI Motohiro wrote:
-> When oom killer occured, almost processes are getting stuck following
-> two points.
-> 
-> 	1) __alloc_pages_nodemask
-> 	2) __lock_page_or_retry
-> 
-> 1) is not much problematic because TIF_MEMDIE lead to make allocation
-> failure and get out from page allocator. 2) is more problematic. When
-> OOM situation, Zones typically don't have page cache at all and Memory
-> starvation might lead to reduce IO performance largely. When fork bomb
-> occur, TIF_MEMDIE task don't die quickly mean fork bomb may create
-> new process quickly rather than oom-killer kill it. Then, the system
-> may become livelock.
-> 
-> This patch makes pagefault interruptible by SIGKILL.
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-Looks like a cool idea.
+* Ingo Molnar <mingo@elte.hu> wrote:
 
--- 
-Kind regards,
-Minchan Kim
+> FYI, some sort of boot crash has snuck upstream in the last 24 hours:
+> 
+>  BUG: unable to handle kernel paging request at ffff87ffc147e020                               
+>  IP: [<ffffffff811aa762>] this_cpu_cmpxchg16b_emu+0x2/0x1c           
+> 
+>      [<ffffffff810d9cbc>] ? kmem_cache_alloc+0x4c/0x110                                           
+>      [<ffffffff8151cf06>] kmem_cache_init+0xeb/0x2b0                                              
+>      [<ffffffff81504a06>] start_kernel+0x1de/0x49b                                                
+>      [<ffffffff8150432b>] x86_64_start_reservations+0x132/0x136                                   
+>      [<ffffffff81504140>] ? early_idt_handlers+0x140/0x140         
+> 
+> And the SLAB changes are one of the suspects. It triggers in about 5% of all 
+> randconfigs. I'm bisecting it currently.
+
+Caused by:
+
+| 8a5ec0ba42c4919e2d8f4c3138cc8b987fdb0b79 is the first bad commit
+| commit 8a5ec0ba42c4919e2d8f4c3138cc8b987fdb0b79
+| Author: Christoph Lameter <cl@linux.com>
+| Date:   Fri Feb 25 11:38:54 2011 -0600
+|
+|    Lockless (and preemptless) fastpaths for slub
+
+I'll try to revert these:
+
+ 2fd66c517d5e: slub: Add missing irq restore for the OOM path
+ a24c5a0ea902: slub: Dont define useless label in the !CONFIG_CMPXCHG_LOCAL case
+ 8a5ec0ba42c4: Lockless (and preemptless) fastpaths for slub
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
