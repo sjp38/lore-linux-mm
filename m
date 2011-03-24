@@ -1,63 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 818448D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 13:22:11 -0400 (EDT)
-Date: Thu, 24 Mar 2011 18:21:55 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [GIT PULL] SLAB changes for v2.6.39-rc1
-Message-ID: <20110324172155.GD2414@elte.hu>
-References: <alpine.DEB.2.00.1103221635400.4521@tiger>
- <20110324142146.GA11682@elte.hu>
- <20110324160310.GA27127@elte.hu>
- <20110324161446.GA32068@elte.hu>
- <AANLkTimppcCuKYPQjRhEhRyRUNZ06NxZ_SMVYhem3ur2@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id A2E5F8D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 13:22:18 -0400 (EDT)
+Date: Thu, 24 Mar 2011 18:13:19 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 5/5] x86,mm: make pagefault killable
+Message-ID: <20110324171319.GA20182@redhat.com>
+References: <20110315153801.3526.A69D9226@jp.fujitsu.com> <20110322194721.B05E.A69D9226@jp.fujitsu.com> <20110322200945.B06D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTimppcCuKYPQjRhEhRyRUNZ06NxZ_SMVYhem3ur2@mail.gmail.com>
+In-Reply-To: <20110322200945.B06D.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: torvalds@linux-foundation.org, cl@linux-foundation.org, akpm@linux-foundation.org, tj@kernel.org, npiggin@kernel.dk, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+On 03/22, KOSAKI Motohiro wrote:
+>
+> This patch makes pagefault interruptible by SIGKILL.
+
+Not a comment, but the question...
+
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -1035,6 +1035,7 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
+>  	if (user_mode_vm(regs)) {
+>  		local_irq_enable();
+>  		error_code |= PF_USER;
+> +		flags |= FAULT_FLAG_KILLABLE;
+
+OK, this is clear.
+
+I am wondering, can't we set FAULT_FLAG_KILLABLE unconditionally
+but check PF_USER when we get VM_FAULT_RETRY? I mean,
+
+	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
+		if (!(error_code & PF_USER))
+			no_context(...);
+		return;
+	}
 
 
-* Pekka Enberg <penberg@kernel.org> wrote:
+Probably not... but I can't find any example of in-kernel fault which
+can be broken by -EFAULT if current was killed.
 
-> On Thu, Mar 24, 2011 at 6:14 PM, Ingo Molnar <mingo@elte.hu> wrote:
-> > The combo revert below solves the boot crash.
-> >
-> > Thanks,
-> >
-> >        Ingo
-> >
-> > ------------------------------->
-> > From 1b322eee05a96e8395b62e04a3d1f10fb483c259 Mon Sep 17 00:00:00 2001
-> > From: Ingo Molnar <mingo@elte.hu>
-> > Date: Thu, 24 Mar 2011 17:03:51 +0100
-> > Subject: [PATCH] Revert various slub patches
-> >
-> > Revert "slub: Add missing irq restore for the OOM path"
-> >
-> > This reverts commit 2fd66c517d5e98de2528d86e0e62f5069ff99f59.
-> >
-> > Revert "slub: Dont define useless label in the !CONFIG_CMPXCHG_LOCAL case"
-> >
-> > This reverts commit a24c5a0ea902bcda348f086bd909cc2d6e305bf8.
-> >
-> > Revert "slub,rcu: don't assume the size of struct rcu_head"
-> >
-> > This reverts commit da9a638c6f8fc0633fa94a334f1c053f5e307177.
-> 
-> Btw, this RCU commit is unrelated. It just happens to have a merge
-> conflict with the lockless patches which is why you needed to revert
-> it.
+mm_release()->put_user(clear_child_tid) should be fine...
 
-Yeah - this was just a brute-force combo patch to remove the buggy commit.
+Just curious, I feel I missed something obvious.
 
-Thanks,
-
-	Ingo
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
