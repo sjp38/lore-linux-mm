@@ -1,55 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 14B7A8D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 05:52:55 -0400 (EDT)
-Received: by pzk32 with SMTP id 32so1794284pzk.14
-        for <linux-mm@kvack.org>; Thu, 24 Mar 2011 02:52:51 -0700 (PDT)
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH] Accelerate OOM killing
-Date: Thu, 24 Mar 2011 18:52:33 +0900
-Message-Id: <1300960353-2596-1-git-send-email-minchan.kim@gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 1736E8D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 05:55:54 -0400 (EDT)
+Subject: Re: kmemleak for MIPS
+From: Catalin Marinas <catalin.marinas@arm.com>
+In-Reply-To: <AANLkTinnqtXf5DE+qxkTyZ9p9Mb8dXai6UxWP2HaHY3D@mail.gmail.com>
+References: <9bde694e1003020554p7c8ff3c2o4ae7cb5d501d1ab9@mail.gmail.com>
+	 <AANLkTinnqtXf5DE+qxkTyZ9p9Mb8dXai6UxWP2HaHY3D@mail.gmail.com>
+Date: Thu, 24 Mar 2011 09:55:40 +0000
+Message-ID: <1300960540.32158.13.camel@e102109-lin.cambridge.arm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>
+To: Daniel Baluta <dbaluta@ixiacom.com>
+Cc: naveen yadav <yad.naveen@gmail.com>, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-When I test Andrey's problem, I saw the livelock and sysrq-t says
-there are many tasks in cond_resched after try_to_free_pages.
+On Thu, 2011-03-24 at 09:27 +0000, Daniel Baluta wrote:
+> > I want to check kmemleak for both ARM/MIPS. i am able to find kernel
+> > patch for ARM at
+> > http://linux.derkeiler.com/Mailing-Lists/Kernel/2009-04/msg11830.html.
+> > But I could not able to trace patch for MIPS.
+>=20
+> It seems that kmemleak is not supported on MIPS.
+>=20
+> According to 'depends on' config entry it is supported on:
+> x86, arm, ppc, s390, sparc64, superh, microblaze and tile.
+>=20
+> C=C4=83t=C4=83lin, can you confirm this? I will send a patch to update
+> Documentation/kmemleak.txt.
+>=20
+> Also, looking forward to work on making kmemleak available on MIPS.
 
-If did_some_progress is false, cond_resched could delay oom killing so
-It might be killing another task.
+It's not supported probably because no-one tried it, kmemleak is pretty
+architecture-independent. You may need to add some standard symbols to
+the vmlinux.lds.S if the linker complains and possibly annotate some
+false positives if you get any.
 
-This patch accelerates oom killing without unnecessary giving CPU
-to another task. It could help avoding unnecessary another task killing
-and livelock situation a litte bit.
+Just add "depends on MIPS" and give it a try.
 
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrey Vagin <avagin@openvz.org>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- mm/page_alloc.c |    3 +--
- 1 files changed, 1 insertions(+), 2 deletions(-)
+--=20
+Catalin
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index cdef1d4..b962575 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1887,11 +1887,10 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 	lockdep_clear_current_reclaim_state();
- 	current->flags &= ~PF_MEMALLOC;
- 
--	cond_resched();
--
- 	if (unlikely(!(*did_some_progress)))
- 		return NULL;
- 
-+	cond_resched();
- retry:
- 	page = get_page_from_freelist(gfp_mask, nodemask, order,
- 					zonelist, high_zoneidx,
--- 
-1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
