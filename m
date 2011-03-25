@@ -1,30 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 88B128D0040
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 09:45:18 -0400 (EDT)
-Received: by wwi36 with SMTP id 36so641496wwi.26
-        for <linux-mm@kvack.org>; Fri, 25 Mar 2011 06:45:15 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id B05268D0040
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 11:14:23 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so1534861fxm.14
+        for <linux-mm@kvack.org>; Fri, 25 Mar 2011 08:14:18 -0700 (PDT)
+Date: Fri, 25 Mar 2011 16:13:53 +0100
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [GIT PULL] SLAB changes for v2.6.39-rc1
+Message-ID: <20110325151353.GG1409@htj.dyndns.org>
+References: <AANLkTik3rkNvLG-rgiWxKaPc-v9sZQq96ok0CXfAU+r_@mail.gmail.com>
+ <20110324185903.GA30510@elte.hu>
+ <AANLkTi=66Q-8=AV3Y0K28jZbT3ddCHy9azWedoCC4Nrn@mail.gmail.com>
+ <alpine.DEB.2.00.1103241404490.5576@router.home>
+ <AANLkTimWYCHEsZjswLpD-xDcu_cL=GqsMshKRtkHt5Vn@mail.gmail.com>
+ <20110324193647.GA7957@elte.hu>
+ <AANLkTinBwKT3s=1En5Urs56gmt_zCNgPXnQzzy52Tgdo@mail.gmail.com>
+ <alpine.DEB.2.00.1103241451060.5576@router.home>
+ <1300997290.2714.2.camel@edumazet-laptop>
+ <alpine.DEB.2.00.1103241541560.8108@router.home>
 MIME-Version: 1.0
-In-Reply-To: <BANLkTim3fFe3VzvaWRwzaCT6aRd-yeyfiQ@mail.gmail.com>
-References: <20110324182240.5fe56de2.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110324105222.GA2625@barrios-desktop>
-	<20110325090411.56c5e5b2.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTi=f3gu7-8uNiT4qz6s=BOhto5s=7g@mail.gmail.com>
-	<20110325115453.82a9736d.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTim3fFe3VzvaWRwzaCT6aRd-yeyfiQ@mail.gmail.com>
-Date: Fri, 25 Mar 2011 09:45:15 -0400
-Message-ID: <AANLkTin51sZ2fsOzfaSWQCWkrQ+JkyVWNnM022E2GFwQ@mail.gmail.com>
-Subject: Re: [PATCH 0/4] forkbomb killer
-From: Colin Walters <walters@verbum.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1103241541560.8108@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rientjes@google.com" <rientjes@google.com>, Andrey Vagin <avagin@openvz.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Pekka Enberg <penberg@kernel.org>, Ingo Molnar <mingo@elte.hu>, torvalds@linux-foundation.org, akpm@linux-foundation.org, npiggin@kernel.dk, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Is there anything here that couldn't be solved with a proper cgroups
-configuration?  In fact, wasn't this type of problem the original
-cgroups motivation?
+Hello,
+
+On Thu, Mar 24, 2011 at 03:43:25PM -0500, Christoph Lameter wrote:
+> > Thats strange, alloc_percpu() is supposed to zero the memory already ...
+> 
+> True.
+> 
+> > Are you sure its really this problem of interrupts being disabled ?
+> 
+> Guess so since Ingo and Pekka reported that it fixed the problem.
+> 
+> Tejun: Can you help us with this mystery?
+
+I've looked through the code but can't figure out what the difference
+is.  The memset code is in mm/percpu-vm.c::pcpu_populate_chunk().
+
+	for_each_possible_cpu(cpu)
+		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
+
+(pcpu_chunk_addr(chunk, cpu, 0) + off) is the same vaddr as will be
+obtained by per_cpu_ptr(ptr, cpu), so all allocated memory regions are
+accessed before being returned.  Dazed and confused (seems like the
+theme of today for me).
+
+Could it be that the vmalloc page is taking more than one faults?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
