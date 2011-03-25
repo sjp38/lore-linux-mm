@@ -1,81 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id BF1848D0040
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 19:45:45 -0400 (EDT)
-Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
-	by smtp-out.google.com with ESMTP id p2ONjgHB009965
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 16:45:42 -0700
-Received: from ywa8 (ywa8.prod.google.com [10.192.1.8])
-	by wpaz33.hot.corp.google.com with ESMTP id p2ONjK9a014733
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 16:45:40 -0700
-Received: by ywa8 with SMTP id 8so225151ywa.9
-        for <linux-mm@kvack.org>; Thu, 24 Mar 2011 16:45:40 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110324174311.GA31576@infradead.org>
-References: <081DDE43F61F3D43929A181B477DCA95639B52FD@MSXAOA6.twosigma.com>
-	<081DDE43F61F3D43929A181B477DCA95639B5327@MSXAOA6.twosigma.com>
-	<20110324174311.GA31576@infradead.org>
-Date: Thu, 24 Mar 2011 16:45:40 -0700
-Message-ID: <AANLkTikwwRm6FHFtEdUg54NvmKdswQw-NPH5dtq1mXBK@mail.gmail.com>
-Subject: Re: XFS memory allocation deadlock in 2.6.38
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 8647D8D0040
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2011 20:10:48 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 232983EE0B6
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 09:10:44 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B62245DE92
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 09:10:44 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E761245DE91
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 09:10:43 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D7998E08002
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 09:10:43 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 95087E08001
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 09:10:43 +0900 (JST)
+Date: Fri, 25 Mar 2011 09:04:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/4] forkbomb killer
+Message-Id: <20110325090411.56c5e5b2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110324105222.GA2625@barrios-desktop>
+References: <20110324182240.5fe56de2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110324105222.GA2625@barrios-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Sean Noonan <Sean.Noonan@twosigma.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Martin Bligh <Martin.Bligh@twosigma.com>, Trammell Hudson <Trammell.Hudson@twosigma.com>, Christos Zoulas <Christos.Zoulas@twosigma.com>, "linux-xfs@oss.sgi.com" <linux-xfs@oss.sgi.com>, Stephen Degler <Stephen.Degler@twosigma.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rientjes@google.com" <rientjes@google.com>, Andrey Vagin <avagin@openvz.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 
-On Thu, Mar 24, 2011 at 10:43 AM, Christoph Hellwig <hch@infradead.org> wro=
-te:
-> Michel,
->
-> can you take a look at this bug report? =A0It looks like a regression
-> in your mlock handling changes.
+On Thu, 24 Mar 2011 19:52:22 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-I had a quick look and at this point I can describe how the patch will
-affect behavior of this test, but not why this causes a deadlock with
-xfs.
+> Hi Kame,
+> 
+Hi.
 
-The test creates a writable, shared mapping of a file that does not
-have data blocks allocated on disk, and also uses the MAP_POPULATE
-flag.
+> On Thu, Mar 24, 2011 at 06:22:40PM +0900, KAMEZAWA Hiroyuki wrote:
+> > 
+> > I tested with several forkbomb cases and this patch seems work fine.
+> > 
+> > Maybe some more 'heuristics' can be added....but I think this simple
+> > one works enough. Any comments are welcome.
+> 
+> Sorry for the late review. Recently I dont' have enough time to review patches.
+> Even I didn't start to review this series but I want to review this series.
+> It's one of my interest features. :)
+> 
+> But before digging in code, I would like to make a consensus to others to 
+> need this feature. Let's Cc others.
+> 
+> What I think is that about "cost(frequent case) VS effectiveness(very rare case)"
+> as you expected. :)
+> 
+> 1. At least, I don't meet any fork-bomb case for a few years. My primary linux usage
+> is just desktop and developement enviroment, NOT server. Only thing I have seen is
+> just ltp or intentional fork-bomb test like hackbench. AFAIR, ltp case was fixed
+> a few years ago. Although it happens suddenly, reboot in desktop isn't critical 
+> as much as server's one.
+> 
 
-Before 5ecfda041e4b4bd858d25bbf5a16c2a6c06d7272, make_pages_present
-during the mmap would cause data blocks to get allocated on disk with
-an xfs_vm_page_mkwrite call, and then the file pages would get mapped
-as writable ptes.
+Personally, I've met forkbombs several times by typing "make -j" .....by mistake.
 
-After 5ecfda041e4b4bd858d25bbf5a16c2a6c06d7272, make_pages_present
-does NOT cause data blocks to get allocated on disk. Instead,
-xfs_vm_readpages is called, which (I suppose) does not allocate the
-data blocks and returns zero filled pages instead, which get mapped as
-readonly ptes. Later, the test tries writing into the mmap'ed block,
-causing minor page faults, xfs_vm_page_mkwrite calls and data block
-allocations to occur.
+I met a forkbomb on production system by buggy script, once.
+That happens because
+ 1. $PATH includes "."
+ 2. a programmer write a scirpt "date" and call "date" in the script.
 
+Maybe this is a one of typical case of forkbomb. I needed to dig crashdump to find
+fragile of page-caches and see what happens...But, I guess, if appearent forkbomb
+happens, the issue will not be sent to my team because we're 2nd line support team 
+and 1st line should block it ;).
 
-Regarding the deadlock: I am curious to see if it could be made to
-happen before 5ecfda041e4b4bd858d25bbf5a16c2a6c06d7272. Could you test
-what happens if you remove the MAP_POPULATE flag from your mmap call,
-and instead read all pages from userspace right after the mmap ? I
-expect you would then be able to trigger the deadlock before
-5ecfda041e4b4bd858d25bbf5a16c2a6c06d7272.
+So, I'm not sure how many forkbombs happens in server world in a year. But I guess
+forkbomb still happens in many development systems because there is no guard
+against it.
 
 
-This leaves the issue of the change of behavior for MAP_POPULATE on
-ftruncated file holes. I'm not sure what to say there though, because
-MAP_POPULATE is documented to cause file read-ahead (and it still does
-after 5ecfda041e4b4bd858d25bbf5a16c2a6c06d7272), but that doesn't say
-anything about block allocation.
+> 2. I don't know server enviroment but I think applications executing on server
+> are selected by admin carefully. So virus program like fork-bomb is unlikely in there.
+> (Maybe I am wrong. You know than me).
+> If some normal program becomes fork-bomb unexpectedly, it's critical.
+> Admin should select application with much testing very carefully. But I don't know
+> the reality. :(
+> 
+
+Yes, admin selects applications carefully. There is no 100% protection by human's hand.
 
 
-Hope this helps,
+> Of course, although he did such efforts, he could meet OOM hang situation. 
+> In the case, he can't avoid rebooting. Sad. But for helping him, should we pay cost 
+> in normal situation?(Again said, I didn't start looking at your code so 
+> I can't expect the cost but at least it's more than as-is).
+> It could help developing many virus program and to make careless admins.
+> 
+> It's just my private opinion. 
+> I don't have enough experience so I hope listen other's opinions 
+> about generic fork-bomb killer, not memcg.
+> 
+> I don't intend to ignore your effort but justify your and my effort rightly.
+> 
 
---=20
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+To me, the fact "the system _can_ be broken by a normal user program" is the most
+terrible thing. With Andrey's case or make -j, a user doesn't need to be an admin.
+I believe it's worth to pay costs.
+(and I made this function configurable and can be turned off by sysfs.)
+
+And while testing Andrey's case, I used KVM finaly becasue cost of rebooting was small.
+My development server is on other building and I need to push server's button
+to reboot it when forkbomb happens ;)
+In some environement, cost of rebooting is not small even if it's a development system.
+
+
+Thanks,
+-Kame
+
+
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
