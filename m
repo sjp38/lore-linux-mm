@@ -1,47 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 05B388D0040
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 11:47:20 -0400 (EDT)
-Date: Fri, 25 Mar 2011 10:45:24 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [GIT PULL] SLAB changes for v2.6.39-rc1
-In-Reply-To: <20110325151353.GG1409@htj.dyndns.org>
-Message-ID: <alpine.DEB.2.00.1103251041240.27814@router.home>
-References: <AANLkTik3rkNvLG-rgiWxKaPc-v9sZQq96ok0CXfAU+r_@mail.gmail.com> <20110324185903.GA30510@elte.hu> <AANLkTi=66Q-8=AV3Y0K28jZbT3ddCHy9azWedoCC4Nrn@mail.gmail.com> <alpine.DEB.2.00.1103241404490.5576@router.home> <AANLkTimWYCHEsZjswLpD-xDcu_cL=GqsMshKRtkHt5Vn@mail.gmail.com>
- <20110324193647.GA7957@elte.hu> <AANLkTinBwKT3s=1En5Urs56gmt_zCNgPXnQzzy52Tgdo@mail.gmail.com> <alpine.DEB.2.00.1103241451060.5576@router.home> <1300997290.2714.2.camel@edumazet-laptop> <alpine.DEB.2.00.1103241541560.8108@router.home>
- <20110325151353.GG1409@htj.dyndns.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8435C8D0040
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2011 12:48:53 -0400 (EDT)
+Date: Fri, 25 Mar 2011 17:48:47 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: get_page() vs __split_huge_page_refcount()
+Message-ID: <20110325164847.GD431@random.random>
+References: <AANLkTinHBouEU2pAVOfuakxYqA_QFVLz=qY-f8ZW6fTG@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTinHBouEU2pAVOfuakxYqA_QFVLz=qY-f8ZW6fTG@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Pekka Enberg <penberg@kernel.org>, Ingo Molnar <mingo@elte.hu>, torvalds@linux-foundation.org, akpm@linux-foundation.org, npiggin@kernel.dk, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm <linux-mm@kvack.org>
 
-On Fri, 25 Mar 2011, Tejun Heo wrote:
+Hi Michel,
 
-> I've looked through the code but can't figure out what the difference
-> is.  The memset code is in mm/percpu-vm.c::pcpu_populate_chunk().
->
-> 	for_each_possible_cpu(cpu)
-> 		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
->
-> (pcpu_chunk_addr(chunk, cpu, 0) + off) is the same vaddr as will be
-> obtained by per_cpu_ptr(ptr, cpu), so all allocated memory regions are
-> accessed before being returned.  Dazed and confused (seems like the
-> theme of today for me).
->
-> Could it be that the vmalloc page is taking more than one faults?
+On Thu, Mar 24, 2011 at 10:00:16PM -0700, Michel Lespinasse wrote:
+> My question is this: After someone obtains a page reference using
+> get_user_pages(), what prevents them from getting additional
+> references with get_page() ? I always thought it was legal to
+> duplicate references that way, but now I don't see how it'd be safe
+> doing so on anon pages with THP enabled.
 
-The vmalloc page only contains per cpu data from a single cpu right?
+It's not legal anymore as you noticed, but I'm not aware of anything
+doing that. I don't see an useful case where a driver could need to
+take one extra refcount after GUP returned. The normal API is
+GUP/put_page. We could make it legal again by taking the compound_lock
+after a PageCompound check though. I hope it's not needed though. It's
+unavoidable in put_page because put_page will run out of order with
+regard to __split_huge_page_refcount. But serializing get_page in GUP
+against __split_huge_page_refcount is automatic through the
+pmd_trans_splitting bit and needed for all page table walkers anyway.
 
-Could anyone have set write access restrictions that would require a fault
-to get rid of?
+Maybe it's good idea to add a comment to transhuge.txt about that? I
+don't think I added it.
 
-Or does an access from a different cpu require a "page table sync"?
-
-There is some rather strange looking code in arch/x86/mm/fault.c:vmalloc_fault
-
-
+Grepping for get_page in drivers doesn't show too many, they mostly
+run through the vm_ops->fault handler. Most important I can't see how
+possibly it could be useful to run a get_page after
+get_user_pages(FOLL_GET) returns.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
