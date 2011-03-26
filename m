@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 189978D0040
-	for <linux-mm@kvack.org>; Sat, 26 Mar 2011 15:57:37 -0400 (EDT)
-Date: Sat, 26 Mar 2011 20:57:22 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D1DEB8D0040
+	for <linux-mm@kvack.org>; Sat, 26 Mar 2011 16:00:59 -0400 (EDT)
+Date: Sat, 26 Mar 2011 21:00:50 +0100
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH] slub: Disable the lockless allocator
-Message-ID: <20110326195722.GA7748@elte.hu>
+Message-ID: <20110326200050.GA9689@elte.hu>
 References: <20110324185258.GA28370@elte.hu>
  <alpine.LFD.2.00.1103242005530.31464@localhost6.localdomain6>
  <20110324192247.GA5477@elte.hu>
@@ -35,25 +35,10 @@ Cc: Eric Dumazet <eric.dumazet@gmail.com>, Pekka Enberg <penberg@kernel.org>, Th
 > 
 > Its a UP kernel running on dual Athlon. So its okay ... Argh.... The
 > following patch fixes it by using the fallback code for cmpxchg_double:
-> 
-> 
-> 
-> Subject: per_cpu: Fixup cmpxchg_double for !SMP
-> 
-> cmpxchg_double should only be provided for SMP. In the UP case
-> the GS register is not defined and the function will fail.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-I.e. the bug got introduced by:
+The fix works here too:
 
- | commit b9ec40af0e18fb7d02106be148036c2ea490fdf9
- | Author: Christoph Lameter <cl@linux.com>
- | Date:   Mon Feb 28 11:02:24 2011 +0100
- |
- |     percpu, x86: Add arch-specific this_cpu_cmpxchg_double() support
-
-and then the lockless allocator made use of it, right?
+Tested-by: Ingo Molnar <mingo@elte.hu>
 
 Thanks,
 
