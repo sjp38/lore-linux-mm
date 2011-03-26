@@ -1,42 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id BDC0D8D0040
-	for <linux-mm@kvack.org>; Sat, 26 Mar 2011 16:27:42 -0400 (EDT)
-Date: Sat, 26 Mar 2011 13:27:01 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: [PATCH] mm: fix memory.c incorrect kernel-doc
-Message-Id: <20110326132701.f0014b20.randy.dunlap@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id A80398D0040
+	for <linux-mm@kvack.org>; Sat, 26 Mar 2011 17:36:56 -0400 (EDT)
+Date: Sat, 26 Mar 2011 16:36:51 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: Disable the lockless allocator
+In-Reply-To: <20110326195722.GA7748@elte.hu>
+Message-ID: <alpine.DEB.2.00.1103261636210.29331@router.home>
+References: <20110324185258.GA28370@elte.hu> <alpine.LFD.2.00.1103242005530.31464@localhost6.localdomain6> <20110324192247.GA5477@elte.hu> <AANLkTinBwM9egao496WnaNLAPUxhMyJmkusmxt+ARtnV@mail.gmail.com> <20110326112725.GA28612@elte.hu> <20110326114736.GA8251@elte.hu>
+ <1301161507.2979.105.camel@edumazet-laptop> <alpine.DEB.2.00.1103261406420.24195@router.home> <alpine.DEB.2.00.1103261428200.25375@router.home> <alpine.DEB.2.00.1103261440160.25375@router.home> <20110326195722.GA7748@elte.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>
-Cc: akpm <akpm@linux-foundation.org>, torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Pekka Enberg <penberg@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, torvalds@linux-foundation.org, akpm@linux-foundation.org, tj@kernel.org, npiggin@kernel.dk, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Randy Dunlap <randy.dunlap@oracle.com>
+On Sat, 26 Mar 2011, Ingo Molnar wrote:
 
-Fix mm/memory.c incorrect kernel-doc function notation:
+> > Subject: per_cpu: Fixup cmpxchg_double for !SMP
+> >
+> > cmpxchg_double should only be provided for SMP. In the UP case
+> > the GS register is not defined and the function will fail.
+> >
+> > Signed-off-by: Christoph Lameter <cl@linux.com>
+>
+> I.e. the bug got introduced by:
+>
+>  | commit b9ec40af0e18fb7d02106be148036c2ea490fdf9
+>  | Author: Christoph Lameter <cl@linux.com>
+>  | Date:   Mon Feb 28 11:02:24 2011 +0100
+>  |
+>  |     percpu, x86: Add arch-specific this_cpu_cmpxchg_double() support
+>
+> and then the lockless allocator made use of it, right?
 
-Warning(mm/memory.c:3718): Cannot understand  * @access_remote_vm - access another process' address space
- on line 3718 - I thought it was a doc line
-
-Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
----
- mm/memory.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
---- linux-2.6.38-git18.orig/mm/memory.c
-+++ linux-2.6.38-git18/mm/memory.c
-@@ -3715,7 +3715,7 @@ static int __access_remote_vm(struct tas
- }
- 
- /**
-- * @access_remote_vm - access another process' address space
-+ * access_remote_vm - access another process' address space
-  * @mm:		the mm_struct of the target address space
-  * @addr:	start address to access
-  * @buf:	source or destination buffer
+Correct.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
