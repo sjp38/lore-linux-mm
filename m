@@ -1,57 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 31F218D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:56:34 -0400 (EDT)
-Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
-	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2SFTJpq015501
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:29:19 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 554DC6E803C
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:56:32 -0400 (EDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2SFtVja108128
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:55:39 -0400
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2SFtTSJ009665
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 09:55:30 -0600
-Subject: Re: [PATCH] xen/balloon: Memory hotplug support for Xen balloon
- driver
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110328094757.GJ13826@router-fw-old.local.net-space.pl>
-References: <20110328094757.GJ13826@router-fw-old.local.net-space.pl>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Mon, 28 Mar 2011 08:55:27 -0700
-Message-ID: <1301327727.31700.8354.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id D9E638D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 12:06:41 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so3649721fxm.14
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 09:06:37 -0700 (PDT)
+Date: Mon, 28 Mar 2011 18:06:32 +0200
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] percpu: avoid extra NOP in percpu_cmpxchg16b_double
+Message-ID: <20110328160632.GD6736@htj.dyndns.org>
+References: <1301161507.2979.105.camel@edumazet-laptop>
+ <alpine.DEB.2.00.1103261406420.24195@router.home>
+ <alpine.DEB.2.00.1103261428200.25375@router.home>
+ <alpine.DEB.2.00.1103261440160.25375@router.home>
+ <AANLkTinTzKQkRcE2JvP_BpR0YMj82gppAmNo7RqgftCG@mail.gmail.com>
+ <alpine.DEB.2.00.1103262028170.1004@router.home>
+ <alpine.DEB.2.00.1103262054410.1373@router.home>
+ <1301212347.32248.1.camel@edumazet-laptop>
+ <1301308335.3182.12.camel@edumazet-laptop>
+ <alpine.DEB.2.00.1103280845480.7590@router.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1103280845480.7590@router.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, akpm@linux-foundation.org, npiggin@kernel.dk, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2011-03-28 at 11:47 +0200, Daniel Kiper wrote:
+On Mon, Mar 28, 2011 at 08:46:05AM -0500, Christoph Lameter wrote:
+> On Mon, 28 Mar 2011, Eric Dumazet wrote:
 > 
-> +static enum bp_state reserve_additional_memory(long credit)
-> +{
-> +       int nid, rc;
-> +       u64 start;
-> +       unsigned long balloon_hotplug = credit;
-> +
-> +       start = PFN_PHYS(SECTION_ALIGN_UP(max_pfn));
-> +       balloon_hotplug = (balloon_hotplug & PAGE_SECTION_MASK) + PAGES_PER_SECTION;
-> +       nid = memory_add_physaddr_to_nid(start); 
+> > Therefore, NOPX should be :
+> >
+> > P6_NOP3 on SMP
+> > P6_NOP2 on !SMP
+> 
+> Acked-by: Christoph Lameter <cl@linux.com>
 
-Is the 'balloon_hotplug' calculation correct?  I _think_ you're trying
-to round up to the SECTION_SIZE_PAGES.  But, if 'credit' was already
-section-aligned I think you'll unnecessarily round up to the next
-SECTION_SIZE_PAGES boundary.  Should it just be:
+Applied to percpu#fixes-2.6.39.
 
-	balloon_hotplug = ALIGN(balloon_hotplug, PAGES_PER_SECTION);
+Thanks.
 
-You might also want to consider some nicer units for those suckers.
-'start_paddr' is _much_ easier to grok than 'start', for instance.
-
--- Dave
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
