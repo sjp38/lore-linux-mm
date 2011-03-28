@@ -1,94 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E3B308D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 06:32:23 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so3284861fxm.14
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 03:32:20 -0700 (PDT)
-Subject: [PATCH] percpu: avoid extra NOP in percpu_cmpxchg16b_double
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <1301212347.32248.1.camel@edumazet-laptop>
-References: <alpine.DEB.2.00.1103221635400.4521@tiger>
-	 <20110324142146.GA11682@elte.hu>
-	 <alpine.DEB.2.00.1103240940570.32226@router.home>
-	 <AANLkTikb8rtSX5hQG6MQF4quymFUuh5Tw97TcpB0YfwS@mail.gmail.com>
-	 <20110324172653.GA28507@elte.hu> <20110324185258.GA28370@elte.hu>
-	 <alpine.LFD.2.00.1103242005530.31464@localhost6.localdomain6>
-	 <20110324192247.GA5477@elte.hu>
-	 <AANLkTinBwM9egao496WnaNLAPUxhMyJmkusmxt+ARtnV@mail.gmail.com>
-	 <20110326112725.GA28612@elte.hu> <20110326114736.GA8251@elte.hu>
-	 <1301161507.2979.105.camel@edumazet-laptop>
-	 <alpine.DEB.2.00.1103261406420.24195@router.home>
-	 <alpine.DEB.2.00.1103261428200.25375@router.home>
-	 <alpine.DEB.2.00.1103261440160.25375@router.home>
-	 <AANLkTinTzKQkRcE2JvP_BpR0YMj82gppAmNo7RqgftCG@mail.gmail.com>
-	 <alpine.DEB.2.00.1103262028170.1004@router.home>
-	 <alpine.DEB.2.00.1103262054410.1373@router.home>
-	 <1301212347.32248.1.camel@edumazet-laptop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 28 Mar 2011 12:32:15 +0200
-Message-ID: <1301308335.3182.12.camel@edumazet-laptop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id AD52F8D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 06:37:38 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 0111A3EE0B6
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 19:37:35 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D455745DE6E
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 19:37:34 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B59CE45DE55
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 19:37:34 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A47441DB8041
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 19:37:34 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C5D81DB8038
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 19:37:34 +0900 (JST)
+Date: Mon, 28 Mar 2011 19:31:08 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: update documentation to describe usage_in_bytes
+Message-Id: <20110328193108.07965b4a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110328094820.GC5693@tiehlicka.suse.cz>
+References: <20110321102420.GB26047@tiehlicka.suse.cz>
+	<20110322091014.27677ab3.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110322104723.fd81dddc.nishimura@mxp.nes.nec.co.jp>
+	<20110322073150.GA12940@tiehlicka.suse.cz>
+	<20110323092708.021d555d.nishimura@mxp.nes.nec.co.jp>
+	<20110323133517.de33d624.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110328085508.c236e929.nishimura@mxp.nes.nec.co.jp>
+	<20110328132550.08be4389.nishimura@mxp.nes.nec.co.jp>
+	<20110328074341.GA5693@tiehlicka.suse.cz>
+	<20110328181127.b8a2a1c5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110328094820.GC5693@tiehlicka.suse.cz>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, akpm@linux-foundation.org, tj@kernel.org, npiggin@kernel.dk, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-percpu_cmpxchg16b_double() uses alternative_io() and looks like :
+On Mon, 28 Mar 2011 11:48:20 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-e8 .. .. .. ..  call this_cpu_cmpxchg16b_emu
-X bytes		NOPX
+> On Mon 28-03-11 18:11:27, KAMEZAWA Hiroyuki wrote:
+> > On Mon, 28 Mar 2011 09:43:42 +0200
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> > 
+> > > On Mon 28-03-11 13:25:50, Daisuke Nishimura wrote:
+> > > > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> [...]
+> > > > +5.5 usage_in_bytes
+> > > > +
+> > > > +As described in 2.1, memory cgroup uses res_counter for tracking and limiting
+> > > > +the memory usage. memory.usage_in_bytes shows the current res_counter usage for
+> > > > +memory, and DOESN'T show a actual usage of RSS and Cache. It is usually bigger
+> > > > +than the actual usage for a performance improvement reason. 
+> > > 
+> > > Isn't an explicit mention about caching charges better?
+> > > 
+> > 
+> > It's difficult to distinguish which is spec. and which is implemnation details...
+> 
+> Sure. At least commit log should contain the implementation details IMO,
+> though.
+> 
+> > 
+> > My one here ;)
+> > ==
+> > 5.5 usage_in_bytes
+> > 
+> > For efficiency, as other kernel components, memory cgroup uses some optimization to
+> > avoid unnecessary cacheline false sharing. usage_in_bytes is affected by the
+> > method and doesn't show 'exact' value of usage, it's an fuzz value for efficient
+> > access. (Of course, when necessary, it's synchronized.)
+> > In usual, the value (RSS+CACHE) in memory.stat shows more exact value. IOW,
+> 
+> - In usual, the value (RSS+CACHE) in memory.stat shows more exact value. IOW,
+> + (RSS+CACHE) value from memory.stat shows more exact value and should be used
+> + by userspace. IOW,
+> 
+> ?
+> 
 
-or, once patched (if cpu supports native instruction) on SMP build :
+seems good. Nishimura-san, could you update ?
 
-65 48 0f c7 0e  cmpxchg16b %gs:(%rsi)
-0f 94 c0        sete %al
-
-on !SMP build :
-
-48 0f c7 0e     cmpxchg16b (%rsi)
-0f 94 c0        sete %al
-
-Therefore, NOPX should be :
-
-P6_NOP3 on SMP
-P6_NOP2 on !SMP
-
-Signed-off-by: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Ingo Molnar <mingo@elte.hu>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>
----
- arch/x86/include/asm/percpu.h |    7 ++++++-
- 1 files changed, 6 insertions(+), 1 deletion(-)
-
-diff --git a/arch/x86/include/asm/percpu.h b/arch/x86/include/asm/percpu.h
-index d475b43..d68fca6 100644
---- a/arch/x86/include/asm/percpu.h
-+++ b/arch/x86/include/asm/percpu.h
-@@ -509,6 +509,11 @@ do {									\
-  * it in software.  The address used in the cmpxchg16 instruction must be
-  * aligned to a 16 byte boundary.
-  */
-+#ifdef CONFIG_SMP
-+#define CMPXCHG16B_EMU_CALL "call this_cpu_cmpxchg16b_emu\n\t" P6_NOP3
-+#else
-+#define CMPXCHG16B_EMU_CALL "call this_cpu_cmpxchg16b_emu\n\t" P6_NOP2
-+#endif
- #define percpu_cmpxchg16b_double(pcp1, o1, o2, n1, n2)			\
- ({									\
- 	char __ret;							\
-@@ -517,7 +522,7 @@ do {									\
- 	typeof(o2) __o2 = o2;						\
- 	typeof(o2) __n2 = n2;						\
- 	typeof(o2) __dummy;						\
--	alternative_io("call this_cpu_cmpxchg16b_emu\n\t" P6_NOP4,	\
-+	alternative_io(CMPXCHG16B_EMU_CALL,				\
- 		       "cmpxchg16b " __percpu_prefix "(%%rsi)\n\tsetz %0\n\t",	\
- 		       X86_FEATURE_CX16,				\
- 		       ASM_OUTPUT2("=a"(__ret), "=d"(__dummy)),		\
-
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
