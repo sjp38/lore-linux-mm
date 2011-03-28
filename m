@@ -1,191 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 9597A8D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 13:35:19 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id p2SHZF8x001290
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 10:35:15 -0700
-Received: from ywl41 (ywl41.prod.google.com [10.192.12.41])
-	by hpaq2.eem.corp.google.com with ESMTP id p2SHZ8P7026563
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D32368D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 14:01:26 -0400 (EDT)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id p2SI1Oa5032647
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:01:24 -0700
+Received: from gwj16 (gwj16.prod.google.com [10.200.10.16])
+	by wpaz24.hot.corp.google.com with ESMTP id p2SI1IQc004303
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 10:35:14 -0700
-Received: by ywl41 with SMTP id 41so1499436ywl.4
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 10:35:08 -0700 (PDT)
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:01:23 -0700
+Received: by gwj16 with SMTP id 16so1522483gwj.37
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:01:18 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110328174421.6ac9ada0.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1301292775-4091-1-git-send-email-yinghan@google.com>
-	<1301292775-4091-2-git-send-email-yinghan@google.com>
-	<20110328154033.F068.A69D9226@jp.fujitsu.com>
-	<20110328174421.6ac9ada0.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 28 Mar 2011 10:35:07 -0700
-Message-ID: <AANLkTi=_GbgB6xVcBws+-3FOYM-4h+-xsVYq-Kegygi+@mail.gmail.com>
-Subject: Re: [PATCH 1/2] check the return value of soft_limit reclaim
+In-Reply-To: <20110328093957.089007035@suse.cz>
+References: <20110328093957.089007035@suse.cz>
+Date: Mon, 28 Mar 2011 11:01:18 -0700
+Message-ID: <AANLkTi=CPMxOg3juDiD-_hnBsXKdZ+at+i9c1YYM=vv1@mail.gmail.com>
+Subject: Re: [RFC 0/3] Implementation of cgroup isolation
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Suleiman Souhlal <suleiman@google.com>
 
-On Mon, Mar 28, 2011 at 1:44 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Mon, 28 Mar 2011 15:39:59 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Mon, Mar 28, 2011 at 2:39 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> Hi all,
 >
->> > In the global background reclaim, we do soft reclaim before scanning t=
-he
->> > per-zone LRU. However, the return value is ignored. This patch adds th=
-e logic
->> > where no per-zone reclaim happens if the soft reclaim raise the free p=
-ages
->> > above the zone's high_wmark.
->> >
->> > I did notice a similar check exists but instead leaving a "gap" above =
-the
->> > high_wmark(the code right after my change in vmscan.c). There are disc=
-ussions
->> > on whether or not removing the "gap" which intends to balance pressure=
-s across
->> > zones over time. Without fully understand the logic behind, I didn't t=
-ry to
->> > merge them into one, but instead adding the condition only for memcg u=
-sers
->> > who care a lot on memory isolation.
->> >
->> > Signed-off-by: Ying Han <yinghan@google.com>
->>
->> Looks good to me. But this depend on "memcg soft limit" spec. To be hone=
-st,
->> I don't know this return value ignorance is intentional or not. So I thi=
-nk
->> you need to get ack from memcg folks.
->>
->>
-> Hi,
+> Memory cgroups can be currently used to throttle memory usage of a group =
+of
+> processes. It, however, cannot be used for an isolation of processes from
+> the rest of the system because all the pages that belong to the group are
+> also placed on the global LRU lists and so they are eligible for the glob=
+al
+> memory reclaim.
 >
->
->> > ---
->> > =A0mm/vmscan.c | =A0 16 +++++++++++++++-
->> > =A01 files changed, 15 insertions(+), 1 deletions(-)
->> >
->> > diff --git a/mm/vmscan.c b/mm/vmscan.c
->> > index 060e4c1..e4601c5 100644
->> > --- a/mm/vmscan.c
->> > +++ b/mm/vmscan.c
->> > @@ -2320,6 +2320,7 @@ static unsigned long balance_pgdat(pg_data_t *pg=
-dat, int order,
->> > =A0 =A0 int end_zone =3D 0; =A0 =A0 =A0 /* Inclusive. =A00 =3D ZONE_DM=
-A */
->> > =A0 =A0 unsigned long total_scanned;
->> > =A0 =A0 struct reclaim_state *reclaim_state =3D current->reclaim_state=
-;
->> > + =A0 unsigned long nr_soft_reclaimed;
->> > =A0 =A0 struct scan_control sc =3D {
->> > =A0 =A0 =A0 =A0 =A0 =A0 .gfp_mask =3D GFP_KERNEL,
->> > =A0 =A0 =A0 =A0 =A0 =A0 .may_unmap =3D 1,
->> > @@ -2413,7 +2414,20 @@ loop_again:
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Call soft limit reclaim b=
-efore calling shrink_zone.
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* For now we ignore the ret=
-urn value
->> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
->> > - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_soft_limit_reclaim(zo=
-ne, order, sc.gfp_mask);
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_soft_reclaimed =3D mem_cgroup=
-_soft_limit_reclaim(zone,
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 order, sc.gfp_mask);
->> > +
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Check the watermark after t=
-he soft limit reclaim. If
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* the free pages is above the=
- watermark, no need to
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* proceed to the zone reclaim=
-.
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (nr_soft_reclaimed && zone_wa=
-termark_ok_safe(zone,
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-order, high_wmark_pages(zone),
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-end_zone, 0)) {
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __inc_zone_state=
-(zone, NR_SKIP_RECLAIM_GLOBAL);
->>
->> NR_SKIP_RECLAIM_GLOBAL is defined by patch 2/2. please don't break bisec=
-tability.
->>
->>
->>
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
->> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->
-> Hmm, this "continue" seems not good to me. And, IIUC, this was a reason
-> we ignore the result. But yes, ignore the result is bad.
-> I think you should just do sc.nr_reclaimed +=3D nr_soft_reclaimed.
-> Or mem_cgroup_soft_limit_reclaim() should update sc.
->
->
-> And allow kswapd to do some jobs as
-> =A0- call shrink_slab()
-> =A0- update total_scanned
-> =A0- update other flags.. etc...etc..
+> This patchset aims at providing an opt-in memory cgroup isolation. This
+> means that a cgroup can be configured to be isolated from the rest of the
+> system by means of cgroup virtual filesystem (/dev/memctl/group/memory.is=
+olated).
 
-The change make sense to me. I will make the next patch to update
-total_scanned and sc.nr_reclaimed.
-Also, we might not want to skip shrink_slab() in this case, so i will add t=
-hat.
+Thank you Hugh pointing me to the thread. We are working on similar
+problem in memcg currently
 
->
-> If extra shink_zone() seems bad, please skip it, if mem_cgroup_soft_limit=
-_reclaim()
-> did enough jobs.
->
-> IOW, mem_cgroup_soft_limit_reclaim() can't do enough jobs to satisfy
-> =3D=3D
-> =A0 2426 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 balance_gap =3D =
-min(low_wmark_pages(zone),
-> =A0 2427 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-(zone->present_pages +
-> =A0 2428 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
-> =A0 2429 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-KSWAPD_ZONE_BALANCE_GAP_RATIO);
-> =A0 2430 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!zone_waterm=
-ark_ok_safe(zone, order,
-> =A0 2431 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 high_wmark_pages(zone) + balance_gap,
-> =A0 2432 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 end_zone, 0))
-> =A0 2433 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-shrink_zone(priority, zone, &sc);
-> =3D=3D
-> This condition, you should update mem_cgroup_soft_limit_relcaim() to sati=
-sfy this,
-> rather than continue here.
->
-> I guess this is not easy...So, how about starting from updating 'sc' pass=
-ed to
-> mem_cgroup_soft_limit_reclaim() ? Then, we can think of algorithm.
+Here is the problem we see:
+1. In memcg, a page is both on per-memcg-per-zone lru and global-lru.
+2. Global memory reclaim will throw page away regardless of cgroup.
+3. The zone->lru_lock is shared between per-memcg-per-zone lru and global-l=
+ru.
 
-The original patch introducing the "gap" was doing memory pressure
-balancing across physical zones. Eventually we should get rid of
-global per-zone reclaim in memcg(due to isolation), and maybe we need
-something similar on per-memcg-per-zone. I will think about that.
+And we know:
+1. We shouldn't do global reclaim since it breaks memory isolation.
+2. There is no need for a page to be on both LRU list, especially
+after having per-memcg background reclaim.
 
-So i will make the change on updating the two counters in scan_control
-in next patch.
+So our approach is to take off page from global lru after it is
+charged to a memcg. Only pages allocated at root cgroup remains in
+global LRU, and each memcg reclaims pages on its isolated LRU.
+
+By doing this, we can further solve the lock contention mentioned in
+3) to have per-memcg-per-zone lock. I can post the patch later if that
+helps better understanding.
 
 Thanks
 
 --Ying
 
 >
-> Thanks,
-> -Kame
+> Isolated mem cgroup can be particularly helpful in deployments where we h=
+ave
+> a primary service which needs to have a certain guarantees for memory
+> resources (e.g. a database server) and we want to shield it off the
+> rest of the system (e.g. a burst memory activity in another group). This =
+is
+> currently possible only with mlocking memory that is essential for the
+> application(s) or a rather hacky configuration where the primary app is i=
+n
+> the root mem cgroup while all the other system activity happens in other
+> groups.
 >
+> mlocking is not an ideal solution all the time because sometimes the work=
+ing
+> set is very large and it depends on the workload (e.g. number of incoming
+> requests) so it can end up not fitting in into memory (leading to a OOM
+> killer). If we use mem. cgroup isolation instead we are keeping memory re=
+sident
+> and if the working set goes wild we can still do per-cgroup reclaim so th=
+e
+> service is less prone to be OOM killed.
+>
+> The patch series is split into 3 patches. First one adds a new flag into
+> mem_cgroup structure which controls whether the group is isolated (false =
+by
+> default) and a cgroup fs interface to set it.
+> The second patch implements interaction with the global LRU. The current
+> semantic is that we are putting a page into a global LRU only if mem cgro=
+up
+> LRU functions say they do not want the page for themselves.
+> The last patch prevents from soft reclaim if the group is isolated.
+>
+> I have tested the patches with the simple memory consumer (allocating
+> private and shared anon memory and SYSV SHM).
+>
+> One instance (call it big consumer) running in the group and paging in th=
+e
+> memory (>90% of cgroup limit) and sleeping for the rest of its life. Then=
+ I
+> had a pool of consumers running in the same cgroup which page in smaller
+> amount of memory and paging them in the loop to simulate in group memory
+> pressure (call them sharks).
+> The sum of consumed memory is more than memory.limit_in_bytes so some
+> portion of the memory is swapped out.
+> There is one consumer running in the root cgroup running in parallel whic=
+h
+> makes a pressure on the memory (to trigger background reclaim).
+>
+> Rss+cache of the group drops down significantly (~66% of the limit) if th=
+e
+> group is not isolated. On the other hand if we isolate the group we are
+> still saturating the group (~97% of the limit). I can show more
+> comprehensive results if somebody is interested.
+>
+> Thanks for comments.
+>
+> ---
+> =A0include/linux/memcontrol.h | =A0 24 ++++++++------
+> =A0include/linux/mm_inline.h =A0| =A0 10 ++++-
+> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 76 ++++++++++++++++++++++=
+++++++++++++++---------
+> =A0mm/swap.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 12 ++++---
+> =A0mm/vmscan.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 43 +++++++++++++++---=
+-------
+> =A05 files changed, 118 insertions(+), 47 deletions(-)
+>
+> --
+> Michal Hocko
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
+.ca/
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 >
 
 --
