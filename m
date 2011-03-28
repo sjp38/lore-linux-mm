@@ -1,71 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 92FCB8D003B
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 02:13:28 -0400 (EDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH 1/2] check the return value of soft_limit reclaim
-Date: Sun, 27 Mar 2011 23:12:54 -0700
-Message-Id: <1301292775-4091-2-git-send-email-yinghan@google.com>
-In-Reply-To: <1301292775-4091-1-git-send-email-yinghan@google.com>
-References: <1301292775-4091-1-git-send-email-yinghan@google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 96DAE8D003B
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 02:19:48 -0400 (EDT)
+Date: Mon, 28 Mar 2011 08:19:29 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH] slub: Disable the lockless allocator
+Message-ID: <20110328061929.GA24328@elte.hu>
+References: <20110326112725.GA28612@elte.hu>
+ <20110326114736.GA8251@elte.hu>
+ <1301161507.2979.105.camel@edumazet-laptop>
+ <alpine.DEB.2.00.1103261406420.24195@router.home>
+ <alpine.DEB.2.00.1103261428200.25375@router.home>
+ <alpine.DEB.2.00.1103261440160.25375@router.home>
+ <AANLkTinTzKQkRcE2JvP_BpR0YMj82gppAmNo7RqgftCG@mail.gmail.com>
+ <alpine.DEB.2.00.1103262028170.1004@router.home>
+ <alpine.DEB.2.00.1103262054410.1373@router.home>
+ <4D9026C8.6060905@cs.helsinki.fi>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4D9026C8.6060905@cs.helsinki.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Eric Dumazet <eric.dumazet@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, akpm@linux-foundation.org, tj@kernel.org, npiggin@kernel.dk, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-In the global background reclaim, we do soft reclaim before scanning the
-per-zone LRU. However, the return value is ignored. This patch adds the logic
-where no per-zone reclaim happens if the soft reclaim raise the free pages
-above the zone's high_wmark.
 
-I did notice a similar check exists but instead leaving a "gap" above the
-high_wmark(the code right after my change in vmscan.c). There are discussions
-on whether or not removing the "gap" which intends to balance pressures across
-zones over time. Without fully understand the logic behind, I didn't try to
-merge them into one, but instead adding the condition only for memcg users
-who care a lot on memory isolation.
+* Pekka Enberg <penberg@cs.helsinki.fi> wrote:
 
-Signed-off-by: Ying Han <yinghan@google.com>
----
- mm/vmscan.c |   16 +++++++++++++++-
- 1 files changed, 15 insertions(+), 1 deletions(-)
+> On 3/27/11 4:57 AM, Christoph Lameter wrote:
+> >But then the same fix must also be used in the asm code or the fallback
+> >(turns out that the fallback is always used in kmem_cache_init since
+> >the instruction patching comes later).
+> >
+> >Patch boots fine both in UP and SMP mode
+> >
+> >
+> >
+> >
+> >Subject: percpu: Omit segment prefix in the UP case for cmpxchg_double
+> >
+> >Omit the segment prefix in the UP case. GS is not used then
+> >and we will generate segfaults if cmpxchg16b is used otherwise.
+> >
+> >Signed-off-by: Linus Torvalds<torvalds@linux-foundation.org>
+> >Signed-off-by: Christoph Lameter<cl@linux.com>
+> >
+> >  arch/x86/include/asm/percpu.h |   10 ++++++----
+> >  1 files changed, 6 insertions(+), 4 deletions(-)
+> >
+> >Index: linux-2.6/arch/x86/include/asm/percpu.h
+> >===================================================================
+> >--- linux-2.6.orig/arch/x86/include/asm/percpu.h	2011-03-26 20:43:03.994089001 -0500
+> >+++ linux-2.6/arch/x86/include/asm/percpu.h	2011-03-26 20:43:22.414089004 -0500
+> >@@ -45,7 +45,7 @@
+> >  #include<linux/stringify.h>
+> >
+> >  #ifdef CONFIG_SMP
+> >-#define __percpu_arg(x)		"%%"__stringify(__percpu_seg)":%P" #x
+> >+#define __percpu_prefix		"%%"__stringify(__percpu_seg)":"
+> >  #define __my_cpu_offset		percpu_read(this_cpu_off)
+> >
+> >  /*
+> >@@ -62,9 +62,11 @@
+> >  	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;	\
+> >  })
+> >  #else
+> >-#define __percpu_arg(x)		"%P" #x
+> >+#define __percpu_prefix		""
+> >  #endif
+> >
+> >+#define __percpu_arg(x)		__percpu_prefix "%P" #x
+> >+
+> >  /*
+> >   * Initialized pointers to per-cpu variables needed for the boot
+> >   * processor need to use these macros to get the proper address
+> >@@ -516,11 +518,11 @@
+> >  	typeof(o2) __n2 = n2;						\
+> >  	typeof(o2) __dummy;						\
+> >  	alternative_io("call this_cpu_cmpxchg16b_emu\n\t" P6_NOP4,	\
+> >-		       "cmpxchg16b %%gs:(%%rsi)\n\tsetz %0\n\t",	\
+> >+		       "cmpxchg16b " __percpu_prefix "(%%rsi)\n\tsetz %0\n\t",	\
+> >  		       X86_FEATURE_CX16,				\
+> >  		       ASM_OUTPUT2("=a"(__ret), "=d"(__dummy)),		\
+> >  		       "S" (&pcp1), "b"(__n1), "c"(__n2),		\
+> >-		       "a"(__o1), "d"(__o2));				\
+> >+		       "a"(__o1), "d"(__o2) : "memory");		\
+> >  	__ret;								\
+> >  })
+> >
+> >Index: linux-2.6/arch/x86/lib/cmpxchg16b_emu.S
+> >===================================================================
+> >--- linux-2.6.orig/arch/x86/lib/cmpxchg16b_emu.S	2011-03-26 20:43:57.384089004 -0500
+> >+++ linux-2.6/arch/x86/lib/cmpxchg16b_emu.S	2011-03-26 20:48:42.684088999 -0500
+> >@@ -10,6 +10,12 @@
+> >  #include<asm/frame.h>
+> >  #include<asm/dwarf2.h>
+> >
+> >+#ifdef CONFIG_SMP
+> >+#define SEG_PREFIX %gs:
+> >+#else
+> >+#define SEG_PREFIX
+> >+#endif
+> >+
+> >  .text
+> >
+> >  /*
+> >@@ -37,13 +43,13 @@
+> >  	pushf
+> >  	cli
+> >
+> >-	cmpq %gs:(%rsi), %rax
+> >+	cmpq SEG_PREFIX(%rsi), %rax
+> >  	jne not_same
+> >-	cmpq %gs:8(%rsi), %rdx
+> >+	cmpq SEG_PREFIX 8(%rsi), %rdx
+> >  	jne not_same
+> >
+> >-	movq %rbx, %gs:(%rsi)
+> >-	movq %rcx, %gs:8(%rsi)
+> >+	movq %rbx, SEG_PREFIX(%rsi)
+> >+	movq %rcx, SEG_PREFIX 8(%rsi)
+> >
+> >  	popf
+> >  	mov $1, %al
+> 
+> Tejun, does this look good to you as well? I think it should go
+> through the percpu tree. It's needed to fix a boot crash with
+> lockless SLUB fastpaths enabled.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 060e4c1..e4601c5 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2320,6 +2320,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
- 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
- 	unsigned long total_scanned;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
-+	unsigned long nr_soft_reclaimed;
- 	struct scan_control sc = {
- 		.gfp_mask = GFP_KERNEL,
- 		.may_unmap = 1,
-@@ -2413,7 +2414,20 @@ loop_again:
- 			 * Call soft limit reclaim before calling shrink_zone.
- 			 * For now we ignore the return value
- 			 */
--			mem_cgroup_soft_limit_reclaim(zone, order, sc.gfp_mask);
-+			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
-+							order, sc.gfp_mask);
-+
-+			/*
-+			 * Check the watermark after the soft limit reclaim. If
-+			 * the free pages is above the watermark, no need to
-+			 * proceed to the zone reclaim.
-+			 */
-+			if (nr_soft_reclaimed && zone_watermark_ok_safe(zone,
-+					order, high_wmark_pages(zone),
-+					end_zone, 0)) {
-+				__inc_zone_state(zone, NR_SKIP_RECLAIM_GLOBAL);
-+				continue;
-+			}
- 
- 			/*
- 			 * We put equal pressure on every zone, unless
--- 
-1.7.3.1
+AFAICS Linus applied it already:
+
+d7c3f8cee81f: percpu: Omit segment prefix in the UP case for cmpxchg_double
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
