@@ -1,41 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F97B8D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 09:57:20 -0400 (EDT)
-Received: by mail-pz0-f41.google.com with SMTP id 32so783784pzk.14
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 06:57:19 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EE548D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 09:57:25 -0400 (EDT)
+Received: by mail-pv0-f169.google.com with SMTP id 4so777017pvg.14
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 06:57:24 -0700 (PDT)
 From: Namhyung Kim <namhyung@gmail.com>
-Subject: [PATCH 5/6] nommu: fix a potential memory leak in do_mmap_private()
-Date: Mon, 28 Mar 2011 22:56:46 +0900
-Message-Id: <1301320607-7259-6-git-send-email-namhyung@gmail.com>
+Subject: [PATCH 6/6] nommu: fix a compile warning in do_mmap_pgoff()
+Date: Mon, 28 Mar 2011 22:56:47 +0900
+Message-Id: <1301320607-7259-7-git-send-email-namhyung@gmail.com>
 In-Reply-To: <1301320607-7259-1-git-send-email-namhyung@gmail.com>
 References: <1301320607-7259-1-git-send-email-namhyung@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Paul Mundt <lethal@linux-sh.org>, David Howells <dhowells@redhat.com>, Greg Ungerer <gerg@snapgear.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-If f_op->read() fails and sysctl_nr_trim_pages > 1, there could be a
-memory leak between @region->vm_end and @region->vm_top.
+Because 'ret' is declared as int, not unsigned long, no need to cast the
+error contants into unsigned long. If you compile this code on a 64-bit
+machine somehow, you'll see following warning:
+
+  CC      mm/nommu.o
+mm/nommu.c: In function a??do_mmap_pgoffa??:
+mm/nommu.c:1411: warning: overflow in implicit constant conversion
 
 Signed-off-by: Namhyung Kim <namhyung@gmail.com>
 ---
- mm/nommu.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ mm/nommu.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mm/nommu.c b/mm/nommu.c
-index 33f5d23c6d44..662fd46449a6 100644
+index 662fd46449a6..c7af249076ac 100644
 --- a/mm/nommu.c
 +++ b/mm/nommu.c
-@@ -1241,7 +1241,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
- 	return 0;
+@@ -1400,15 +1400,15 @@ unsigned long do_mmap_pgoff(struct file *file,
+ 		if (capabilities & BDI_CAP_MAP_DIRECT) {
+ 			addr = file->f_op->get_unmapped_area(file, addr, len,
+ 							     pgoff, flags);
+-			if (IS_ERR((void *) addr)) {
++			if (IS_ERR_VALUE(addr)) {
+ 				ret = addr;
+-				if (ret != (unsigned long) -ENOSYS)
++				if (ret != -ENOSYS)
+ 					goto error_just_free;
  
- error_free:
--	free_page_series(region->vm_start, region->vm_end);
-+	free_page_series(region->vm_start, region->vm_top);
- 	region->vm_start = vma->vm_start = 0;
- 	region->vm_end   = vma->vm_end = 0;
- 	region->vm_top   = 0;
+ 				/* the driver refused to tell us where to site
+ 				 * the mapping so we'll have to attempt to copy
+ 				 * it */
+-				ret = (unsigned long) -ENODEV;
++				ret = -ENODEV;
+ 				if (!(capabilities & BDI_CAP_MAP_COPY))
+ 					goto error_just_free;
+ 
 -- 
 1.7.4
 
