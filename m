@@ -1,65 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D48818D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:01:38 -0400 (EDT)
-Date: Mon, 28 Mar 2011 15:01:02 -0700
+	by kanga.kvack.org (Postfix) with ESMTP id 4EAFF8D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:38:33 -0400 (EDT)
+Date: Mon, 28 Mar 2011 15:37:35 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC/RFT 0/6] nommu: improve the vma list handling
-Message-Id: <20110328150102.11bcfca8.akpm@linux-foundation.org>
-In-Reply-To: <1301320607-7259-1-git-send-email-namhyung@gmail.com>
-References: <1301320607-7259-1-git-send-email-namhyung@gmail.com>
+Subject: Re: [PATCH 3/3] mm: Extend memory hotplug API to allow memory
+ hotplug in virtual machines
+Message-Id: <20110328153735.d797c5b3.akpm@linux-foundation.org>
+In-Reply-To: <20110328092507.GD13826@router-fw-old.local.net-space.pl>
+References: <20110328092507.GD13826@router-fw-old.local.net-space.pl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namhyung Kim <namhyung@gmail.com>
-Cc: Paul Mundt <lethal@linux-sh.org>, David Howells <dhowells@redhat.com>, Greg Ungerer <gerg@snapgear.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: ian.campbell@citrix.com, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 28 Mar 2011 22:56:41 +0900
-Namhyung Kim <namhyung@gmail.com> wrote:
+On Mon, 28 Mar 2011 11:25:07 +0200
+Daniel Kiper <dkiper@net-space.pl> wrote:
 
-> When I was reading nommu code, I found that it handles the vma list/tree in
-> an unusual way. IIUC, because there can be more than one identical/overrapped
-> vmas in the list/tree, it sorts the tree more strictly and does a linear
-> search on the tree. But it doesn't applied to the list (i.e. the list could
-> be constructed in a different order than the tree so that we can't use the
-> list when finding the first vma in that order).
+> This patch contains online_page_chain and apropriate functions
+> for registering/unregistering online page notifiers. It allows
+> to do some machine specific tasks during online page stage which
+> is required to implement memory hotplug in virtual machines.
+> Additionally, __online_page_increment_counters() and
+> __online_page_free() function was add to ease generic
+> hotplug operation.
 > 
-> Since inserting/sorting a vma in the tree and link is done at the same time,
-> we can easily construct both of them in the same order. And linear searching
-> on the tree could be more costly than doing it on the list, it can be
-> converted to use the list.
-> 
-> Also, after the commit 297c5eee3724 ("mm: make the vma list be doubly linked")
-> made the list be doubly linked, there were a couple of code need to be fixed
-> to construct the list properly.
-> 
-> Patch 1/6 is a preparation. It maintains the list sorted same as the tree and
-> construct doubly-linked list properly. Patch 2/6 is a simple optimization for
-> the vma deletion. Patch 3/6 and 4/6 convert tree traversal to list traversal
-> and the rest are simple fixes and cleanups.
-> 
-> Note that I don't have a system to test on, so these are *totally untested*
-> patches. There could be some basic errors in the code. In that case, please
-> kindly let me know. :)
-> 
-> Anyway, I just compiled them on my x86_64 desktop using this command:
-> 
->   make mm/nommu.o
-> 
-> (Of course this required few of dirty-fixes to proceed)
-> 
-> Also note that these are on top of v2.6.38.
-> 
-> Any comments are welcome.
+>  
+>  void lock_memory_hotplug(void)
+> @@ -361,27 +373,91 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+>  }
+>  EXPORT_SYMBOL_GPL(__remove_pages);
+>  
+> -void online_page(struct page *page)
+> +int register_online_page_notifier(struct notifier_block *nb)
+> +{
+> +	int rc;
+> +
+> +	lock_memory_hotplug();
+> +	rc = raw_notifier_chain_register(&online_page_chain, nb);
+> +	unlock_memory_hotplug();
+> +
+> +	return rc;
+> +}
+> +EXPORT_SYMBOL_GPL(register_online_page_notifier);
+> +
+> +int unregister_online_page_notifier(struct notifier_block *nb)
+> +{
+> +	int rc;
+> +
+> +	lock_memory_hotplug();
+> +	rc = raw_notifier_chain_unregister(&online_page_chain, nb);
+> +	unlock_memory_hotplug();
+> +
+> +	return rc;
+> +}
+> +EXPORT_SYMBOL_GPL(unregister_online_page_notifier);
+> +
+> +void __online_page_increment_counters(struct page *page, int inc_total)
+>  {
+>  	unsigned long pfn = page_to_pfn(page);
+>  
+> -	totalram_pages++;
+> +	if (inc_total == OP_INCREMENT_TOTAL_COUNTERS)
+> +		totalram_pages++;
+> +
+>  	if (pfn >= num_physpages)
+>  		num_physpages = pfn + 1;
+>  
+>  #ifdef CONFIG_HIGHMEM
+> -	if (PageHighMem(page))
+> +	if (inc_total == OP_INCREMENT_TOTAL_COUNTERS && PageHighMem(page))
+>  		totalhigh_pages++;
+>  #endif
+>  
+>  #ifdef CONFIG_FLATMEM
+>  	max_mapnr = max(pfn, max_mapnr);
+>  #endif
+> +}
+> +EXPORT_SYMBOL_GPL(__online_page_increment_counters);
+>  
+> +void __online_page_free(struct page *page)
+> +{
+>  	ClearPageReserved(page);
+>  	init_page_count(page);
+>  	__free_page(page);
+>  }
+> +EXPORT_SYMBOL_GPL(__online_page_free);
+> +
+> +static int generic_online_page_notifier(struct notifier_block *nb, unsigned long val, void *v)
+> +{
+> +	struct page *page = v;
+> +
+> +	__online_page_increment_counters(page, OP_INCREMENT_TOTAL_COUNTERS);
+> +	__online_page_free(page);
+> +
+> +	return NOTIFY_OK;
+> +}
+> +
+> +/*
+> + * 0 priority makes this the fallthrough default. All
+> + * architectures wanting to override this should set
+> + * a higher priority and return NOTIFY_STOP to keep
+> + * this from running.
+> + */
+> +
+> +static struct notifier_block generic_online_page_nb = {
+> +	.notifier_call = generic_online_page_notifier,
+> +	.priority = 0
+> +};
+> +
+> +static int __init init_online_page_chain(void)
+> +{
+> +	return register_online_page_notifier(&generic_online_page_nb);
+> +}
+> +pure_initcall(init_online_page_chain);
+> +
+> +static void online_page(struct page *page)
+> +{
+> +	raw_notifier_call_chain(&online_page_chain, 0, page);
+> +}
+>  
 
-That seems like a nice set of changes.  There isn't much I can do with
-them at this tims - hopefully some of the nommu people will be able to
-find time to review and test the patches.  
+This is a bit strange.  Normally we'll use a notifier chain to tell
+listeners "hey, X just happened".  But this code is different - it
+instead uses a notifier chain to tell handlers "hey, do X".  Where in
+this case, X is "free a page".
 
-(Is there a way in which one can run a nommu kernel on a regular PC?  Under
-an emulator?)
+And this (ab)use of notifiers is not a good fit!  Because we have the
+obvious problem that if there are three registered noftifiers, we don't
+want to be freeing the page three times.  Hence the tricks with
+notifier callout return values.
+
+If there are multiple independent notifier handlers, how do we manage
+their priorities?  And what are the effects of the ordering of the
+registration calls?
+
+And when one callback overrides an existing one, is there any point in
+leaving the original one installed at all?
+
+I dunno, it's all a bit confusing and strange.  Perhaps it would help
+if you were to explain exactly what behaviour you want here, and we can
+look to see if there is a more idiomatic way of doing it.
+
+
+
+Also...  I don't think we need (the undocumented)
+OP_DO_NOT_INCREMENT_TOTAL_COUNTERS and OP_INCREMENT_TOTAL_COUNTERS. 
+Just do
+
+void __online_page_increment_counters(struct page *page,
+					bool inc_total_counters);
+
+and pass it "true" or false".
+
+And then document it, please.  The code as you have it contains no
+explanation of the inc_total_counters argument and hence no guidance to
+others regarding how to use it.
+
+
+I merged your patch 1/3.
+
+I skipped your patch 2/3, as the new macros appear to have no callers
+in this patchset.
+
+I suggest that once we're happy with them, your patches 2 and 3 be
+merged up via whichever tree merges the Xen balloon driver changes. 
+That might be my tree, I forget :) Was anyone else thinking of grabbing
+them?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
