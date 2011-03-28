@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 792138D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 05:34:26 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C1878D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 05:36:16 -0400 (EDT)
 Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
 	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1577721Ab1C1JeK (ORCPT <rfc822;linux-mm@kvack.org>);
-	Mon, 28 Mar 2011 11:34:10 +0200
-Date: Mon, 28 Mar 2011 11:34:10 +0200
+	id S1577721Ab1C1Jf7 (ORCPT <rfc822;linux-mm@kvack.org>);
+	Mon, 28 Mar 2011 11:35:59 +0200
+Date: Mon, 28 Mar 2011 11:35:59 +0200
 From: Daniel Kiper <dkiper@net-space.pl>
-Subject: [PATCH 3/4] xen/balloon: Clarify credit calculation
-Message-ID: <20110328093410.GH13826@router-fw-old.local.net-space.pl>
+Subject: [PATCH 4/4] xen/balloon: Move dec_totalhigh_pages() from __balloon_append() to balloon_append()
+Message-ID: <20110328093559.GI13826@router-fw-old.local.net-space.pl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -17,54 +17,52 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Move credit calculation to current_target()
-and rename it to current_credit().
+git commit 9be4d4575906af9698de660e477f949a076c87e1 (xen: add
+extra pages to balloon) splited balloon_append() into two functions
+(balloon_append() and __balloon_append()) and left decrementation
+of totalram_pages counter in __balloon_append(). In this situation
+if __balloon_append() is called on i386 with highmem page referenced
+then totalhigh_pages is decremented, however, it should not. This
+patch corrects that issue and moves dec_totalhigh_pages() from
+__balloon_append() to balloon_append(). Now totalram_pages and
+totalhigh_pages are decremented simultaneously only when
+balloon_append() is called.
 
 Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
 ---
- drivers/xen/balloon.c |    8 ++++----
- 1 files changed, 4 insertions(+), 4 deletions(-)
+ drivers/xen/balloon.c |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index 42a0ba0..a6d8e59 100644
+index a6d8e59..f54290b 100644
 --- a/drivers/xen/balloon.c
 +++ b/drivers/xen/balloon.c
-@@ -193,7 +193,7 @@ static enum bp_state update_schedule(enum bp_state state)
- 	return BP_EAGAIN;
- }
- 
--static unsigned long current_target(void)
-+static long current_credit(void)
+@@ -114,7 +114,6 @@ static void __balloon_append(struct page *page)
+ 	if (PageHighMem(page)) {
+ 		list_add_tail(&page->lru, &ballooned_pages);
+ 		balloon_stats.balloon_high++;
+-		dec_totalhigh_pages();
+ 	} else {
+ 		list_add(&page->lru, &ballooned_pages);
+ 		balloon_stats.balloon_low++;
+@@ -124,6 +123,8 @@ static void __balloon_append(struct page *page)
+ static void balloon_append(struct page *page)
  {
- 	unsigned long target = balloon_stats.target_pages;
- 
-@@ -202,7 +202,7 @@ static unsigned long current_target(void)
- 		     balloon_stats.balloon_low +
- 		     balloon_stats.balloon_high);
- 
--	return target;
-+	return target - balloon_stats.current_pages;
+ 	__balloon_append(page);
++	if (PageHighMem(page))
++		dec_totalhigh_pages();
+ 	totalram_pages--;
  }
  
- static enum bp_state increase_reservation(unsigned long nr_pages)
-@@ -337,7 +337,7 @@ static void balloon_process(struct work_struct *work)
- 	mutex_lock(&balloon_mutex);
- 
- 	do {
--		credit = current_target() - balloon_stats.current_pages;
-+		credit = current_credit();
- 
- 		if (credit > 0)
- 			state = increase_reservation(credit);
-@@ -420,7 +420,7 @@ void free_xenballooned_pages(int nr_pages, struct page** pages)
+@@ -462,7 +463,7 @@ static int __init balloon_init(void)
+ 	     pfn < extra_pfn_end;
+ 	     pfn++) {
+ 		page = pfn_to_page(pfn);
+-		/* totalram_pages doesn't include the boot-time
++		/* totalram_pages and totalhigh_pages do not include the boot-time
+ 		   balloon extension, so don't subtract from it. */
+ 		__balloon_append(page);
  	}
- 
- 	/* The balloon may be too large now. Shrink it if needed. */
--	if (current_target() != balloon_stats.current_pages)
-+	if (current_credit())
- 		schedule_delayed_work(&balloon_worker, 0);
- 
- 	mutex_unlock(&balloon_mutex);
 -- 
 1.5.6.5
 
