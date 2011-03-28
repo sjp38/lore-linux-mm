@@ -1,90 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AF9568D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 05:03:40 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C27153EE0BC
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:03:36 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A7BFC45DE55
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:03:36 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E18C45DE4D
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:03:36 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 80B5B1DB803C
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:03:36 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.240.81.133])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C04D1DB802C
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:03:36 +0900 (JST)
-Date: Mon, 28 Mar 2011 17:57:01 +0900
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id E02A58D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 05:17:58 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9A1003EE0B6
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:17:55 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 82B3345DE50
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:17:55 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 634F345DE4F
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:17:55 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5341C1DB803E
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:17:55 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 118AA1DB802F
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:17:55 +0900 (JST)
+Date: Mon, 28 Mar 2011 18:11:27 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH V2] Add the pagefault count into memcg stats
-Message-Id: <20110328175701.51d49be3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1301282760-30730-1-git-send-email-yinghan@google.com>
-References: <1301282760-30730-1-git-send-email-yinghan@google.com>
+Subject: Re: [PATCH] memcg: update documentation to describe usage_in_bytes
+Message-Id: <20110328181127.b8a2a1c5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110328074341.GA5693@tiehlicka.suse.cz>
+References: <20110318152532.GB18450@tiehlicka.suse.cz>
+	<20110321093419.GA26047@tiehlicka.suse.cz>
+	<20110321102420.GB26047@tiehlicka.suse.cz>
+	<20110322091014.27677ab3.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110322104723.fd81dddc.nishimura@mxp.nes.nec.co.jp>
+	<20110322073150.GA12940@tiehlicka.suse.cz>
+	<20110323092708.021d555d.nishimura@mxp.nes.nec.co.jp>
+	<20110323133517.de33d624.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110328085508.c236e929.nishimura@mxp.nes.nec.co.jp>
+	<20110328132550.08be4389.nishimura@mxp.nes.nec.co.jp>
+	<20110328074341.GA5693@tiehlicka.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Sun, 27 Mar 2011 20:26:00 -0700
-Ying Han <yinghan@google.com> wrote:
+On Mon, 28 Mar 2011 09:43:42 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-> Two new stats in per-memcg memory.stat which tracks the number of
-> page faults and number of major page faults.
+> On Mon 28-03-11 13:25:50, Daisuke Nishimura wrote:
+> > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > 
+> > Update the meaning of *.usage_in_bytes. They doesn't show the actual usage of
+> > RSS+Cache(+Swap). They show the res_counter->usage for memory and memory+swap.
 > 
-> "pgfault"
-> "pgmajfault"
+> Don't we want to add why this is not rss+cache? The reason is really non
+> trivial for somebody who is not familiar with the code and with the fact
+> that we are heavily caching charges.
 > 
-> They are different from "pgpgin"/"pgpgout" stat which count number of
-> pages charged/discharged to the cgroup and have no meaning of reading/
-> writing page to disk.
+> > 
+> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > ---
+> >  Documentation/cgroups/memory.txt |   16 ++++++++++++++--
+> >  1 files changed, 14 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> > index 7781857..ab7d4c1 100644
+> > --- a/Documentation/cgroups/memory.txt
+> > +++ b/Documentation/cgroups/memory.txt
+> > @@ -52,8 +52,10 @@ Brief summary of control files.
+> >   tasks				 # attach a task(thread) and show list of threads
+> >   cgroup.procs			 # show list of processes
+> >   cgroup.event_control		 # an interface for event_fd()
+> > - memory.usage_in_bytes		 # show current memory(RSS+Cache) usage.
+> > - memory.memsw.usage_in_bytes	 # show current memory+Swap usage
+> > + memory.usage_in_bytes		 # show current res_counter usage for memory
+> > +				 (See 5.5 for details)
+> > + memory.memsw.usage_in_bytes	 # show current res_counter usage for memory+Swap
+> > +				 (See 5.5 for details)
+> >   memory.limit_in_bytes		 # set/show limit of memory usage
+> >   memory.memsw.limit_in_bytes	 # set/show limit of memory+Swap usage
+> >   memory.failcnt			 # show the number of memory usage hits limits
+> > @@ -453,6 +455,16 @@ memory under it will be reclaimed.
+> >  You can reset failcnt by writing 0 to failcnt file.
+> >  # echo 0 > .../memory.failcnt
+> >  
+> > +5.5 usage_in_bytes
+> > +
+> > +As described in 2.1, memory cgroup uses res_counter for tracking and limiting
+> > +the memory usage. memory.usage_in_bytes shows the current res_counter usage for
+> > +memory, and DOESN'T show a actual usage of RSS and Cache. It is usually bigger
+> > +than the actual usage for a performance improvement reason. 
 > 
-> It is valuable to track the two stats for both measuring application's
-> performance as well as the efficiency of the kernel page reclaim path.
-> Counting pagefaults per process is useful, but we also need the aggregated
-> value since processes are monitored and controlled in cgroup basis in memcg.
+> Isn't an explicit mention about caching charges better?
 > 
-> Functional test: check the total number of pgfault/pgmajfault of all
-> memcgs and compare with global vmstat value:
-> 
-> $ cat /proc/vmstat | grep fault
-> pgfault 1070751
-> pgmajfault 553
-> 
-> $ cat /dev/cgroup/memory.stat | grep fault
-> pgfault 1071138
-> pgmajfault 553
-> total_pgfault 1071142
-> total_pgmajfault 553
-> 
-> $ cat /dev/cgroup/A/memory.stat | grep fault
-> pgfault 199
-> pgmajfault 0
-> total_pgfault 199
-> total_pgmajfault 0
-> 
-> Performance test: run page fault test(pft) wit 16 thread on faulting in 15G
-> anon pages in 16G container. There is no regression noticed on the "flt/cpu/s"
-> 
-> Sample output from pft:
-> TAG pft:anon-sys-default:
->   Gb  Thr CLine   User     System     Wall    flt/cpu/s fault/wsec
->   15   16   1     0.69s   230.99s    14.62s   16972.539 268876.196
-> 
-> +-------------------------------------------------------------------------+
->     N           Min           Max        Median           Avg        Stddev
-> x  10     16682.962     17344.027     16913.524     16928.812      166.5362
-> +  10      16718.92     17023.453     16907.164     16902.399     88.468851
-> No difference proven at 95.0% confidence
-> 
-> Signed-off-by: Ying Han <yinghan@google.com>
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+It's difficult to distinguish which is spec. and which is implemnation details...
+
+My one here ;)
+==
+5.5 usage_in_bytes
+
+For efficiency, as other kernel components, memory cgroup uses some optimization to
+avoid unnecessary cacheline false sharing. usage_in_bytes is affected by the
+method and doesn't show 'exact' value of usage, it's an fuzz value for efficient
+access. (Of course, when necessary, it's synchronized.)
+In usual, the value (RSS+CACHE) in memory.stat shows more exact value. IOW,
+usage_in_bytes is less exact than memory.stat. The error will be larger on the larger
+hardwares which have many cpus and tasks.
+==
+
+Hmm ?
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
