@@ -1,35 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8D7B68D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 10:58:57 -0400 (EDT)
-From: Sean Noonan <Sean.Noonan@twosigma.com>
-Date: Mon, 28 Mar 2011 10:58:53 -0400
-Subject: RE: XFS memory allocation deadlock in 2.6.38
-Message-ID: <081DDE43F61F3D43929A181B477DCA95639B5349@MSXAOA6.twosigma.com>
-References: <081DDE43F61F3D43929A181B477DCA95639B52FD@MSXAOA6.twosigma.com>
-	<081DDE43F61F3D43929A181B477DCA95639B5327@MSXAOA6.twosigma.com>
-	<20110324174311.GA31576@infradead.org>
- <AANLkTikwwRm6FHFtEdUg54NvmKdswQw-NPH5dtq1mXBK@mail.gmail.com>
-In-Reply-To: <AANLkTikwwRm6FHFtEdUg54NvmKdswQw-NPH5dtq1mXBK@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6BB5A8D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:01:34 -0400 (EDT)
+Received: by mail-ww0-f54.google.com with SMTP id 20so3833020wwd.11
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 08:01:02 -0700 (PDT)
+Message-ID: <4D90A236.9030200@ravellosystems.com>
+Date: Mon, 28 Mar 2011 16:59:02 +0200
+From: Izik Eidus <izik.eidus@ravellosystems.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH 0/2] ksm: take dirty bit as reference to avoid volatile
+ pages
+References: <201103282214.19345.nai.xia@gmail.com>
+In-Reply-To: <201103282214.19345.nai.xia@gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michel Lespinasse' <walken@google.com>, Christoph Hellwig <hch@infradead.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Martin Bligh <Martin.Bligh@twosigma.com>, Trammell Hudson <Trammell.Hudson@twosigma.com>, Christos Zoulas <Christos.Zoulas@twosigma.com>, "linux-xfs@oss.sgi.com" <linux-xfs@oss.sgi.com>, Stephen Degler <Stephen.Degler@twosigma.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: nai.xia@gmail.com
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Chris Wright <chrisw@sous-sol.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-> Regarding the deadlock: I am curious to see if it could be made to
-> happen before 5ecfda041e4b4bd858d25bbf5a16c2a6c06d7272. Could you test
-> what happens if you remove the MAP_POPULATE flag from your mmap call,
-> and instead read all pages from userspace right after the mmap ? I
-> expect you would then be able to trigger the deadlock before
-> 5ecfda041e4b4bd858d25bbf5a16c2a6c06d7272.
+On 03/28/2011 04:14 PM, Nai Xia wrote:
+> Currently, ksm uses page checksum to detect volatile pages. Izik Eidus
+> suggested that we could use pte dirty bit to optimize. This patch series
+> adds this new logic.
+>
 
-I still see the deadlock without MAP_POPULATE
+Hi,
 
-Sean
+One small note:
+When kvm will use ksm on intel cpu with extended page tables support, 
+the cpu won`t track
+dirty bit, therefore the calc_hash() logic should be used in such cases
+(untill intel will fadd this support in their cpus)...
+
+Moreover I think that even though that AMD nested page tables does 
+update dirty bit, you still need
+to sync it with the host page table using mmu notifiers ?
+
+(Not that on regular application use case of ksm any of this should be 
+an issue)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
