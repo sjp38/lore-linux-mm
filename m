@@ -1,96 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B2F38D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 12:26:57 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2SGLTgp014235
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 10:21:29 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p2SGQoUW112814
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 10:26:50 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2SGQm1W022514
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 10:26:49 -0600
-Subject: Re: [PATCH 3/3] mm: Extend memory hotplug API to allow memory
- hotplug in virtual machines
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110328092507.GD13826@router-fw-old.local.net-space.pl>
-References: <20110328092507.GD13826@router-fw-old.local.net-space.pl>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Mon, 28 Mar 2011 09:25:24 -0700
-Message-ID: <1301329524.31700.8440.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F9B48D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 12:44:19 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id p2SGi3iQ017778
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 09:44:05 -0700
+Received: from gwj16 (gwj16.prod.google.com [10.200.10.16])
+	by wpaz9.hot.corp.google.com with ESMTP id p2SGhAxl021440
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 09:44:02 -0700
+Received: by gwj16 with SMTP id 16so1212212gwj.9
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 09:44:02 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110328154033.F068.A69D9226@jp.fujitsu.com>
+References: <1301292775-4091-1-git-send-email-yinghan@google.com>
+	<1301292775-4091-2-git-send-email-yinghan@google.com>
+	<20110328154033.F068.A69D9226@jp.fujitsu.com>
+Date: Mon, 28 Mar 2011 09:44:01 -0700
+Message-ID: <AANLkTikpPpNBg5bzG=cjaeArXXzzoZa_-T2ybSR38o+K@mail.gmail.com>
+Subject: Re: [PATCH 1/2] check the return value of soft_limit reclaim
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Mon, 2011-03-28 at 11:25 +0200, Daniel Kiper wrote:
-> This patch contains online_page_chain and apropriate functions
-> for registering/unregistering online page notifiers. It allows
-> to do some machine specific tasks during online page stage which
-> is required to implement memory hotplug in virtual machines.
-> Additionally, __online_page_increment_counters() and
-> __online_page_free() function was add to ease generic
-> hotplug operation.
+On Sun, Mar 27, 2011 at 11:39 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> In the global background reclaim, we do soft reclaim before scanning the
+>> per-zone LRU. However, the return value is ignored. This patch adds the =
+logic
+>> where no per-zone reclaim happens if the soft reclaim raise the free pag=
+es
+>> above the zone's high_wmark.
+>>
+>> I did notice a similar check exists but instead leaving a "gap" above th=
+e
+>> high_wmark(the code right after my change in vmscan.c). There are discus=
+sions
+>> on whether or not removing the "gap" which intends to balance pressures =
+across
+>> zones over time. Without fully understand the logic behind, I didn't try=
+ to
+>> merge them into one, but instead adding the condition only for memcg use=
+rs
+>> who care a lot on memory isolation.
+>>
+>> Signed-off-by: Ying Han <yinghan@google.com>
+>
+> Looks good to me. But this depend on "memcg soft limit" spec. To be hones=
+t,
+> I don't know this return value ignorance is intentional or not. So I thin=
+k
+> you need to get ack from memcg folks.
+>
+>
+>> ---
+>> =A0mm/vmscan.c | =A0 16 +++++++++++++++-
+>> =A01 files changed, 15 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 060e4c1..e4601c5 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -2320,6 +2320,7 @@ static unsigned long balance_pgdat(pg_data_t *pgda=
+t, int order,
+>> =A0 =A0 =A0 int end_zone =3D 0; =A0 =A0 =A0 /* Inclusive. =A00 =3D ZONE_=
+DMA */
+>> =A0 =A0 =A0 unsigned long total_scanned;
+>> =A0 =A0 =A0 struct reclaim_state *reclaim_state =3D current->reclaim_sta=
+te;
+>> + =A0 =A0 unsigned long nr_soft_reclaimed;
+>> =A0 =A0 =A0 struct scan_control sc =3D {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 .gfp_mask =3D GFP_KERNEL,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 .may_unmap =3D 1,
+>> @@ -2413,7 +2414,20 @@ loop_again:
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Call soft limit reclaim=
+ before calling shrink_zone.
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* For now we ignore the r=
+eturn value
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_soft_limit_reclaim(=
+zone, order, sc.gfp_mask);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_soft_reclaimed =3D mem_cgro=
+up_soft_limit_reclaim(zone,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 order, sc.gfp_mask);
+>> +
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Check the watermark after=
+ the soft limit reclaim. If
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* the free pages is above t=
+he watermark, no need to
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* proceed to the zone recla=
+im.
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (nr_soft_reclaimed && zone_=
+watermark_ok_safe(zone,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 order, high_wmark_pages(zone),
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 end_zone, 0)) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __inc_zone_sta=
+te(zone, NR_SKIP_RECLAIM_GLOBAL);
+>
+> NR_SKIP_RECLAIM_GLOBAL is defined by patch 2/2. please don't break bisect=
+ability.
 
-I really like that you added some symbolic constants there.  It makes it
-potentially a lot more readable.
+Thanks and I will fix that.
 
-My worry is that the next person who comes along is going to _really_
-scratch their head asking why they would use:
-OP_DO_NOT_INCREMENT_TOTAL_COUNTERS or: OP_INCREMENT_TOTAL_COUNTERS.
-There aren't any code comments about it, and the patch description
-doesn't really help.
-
-In the end, we're only talking about a couple of lines of code for each
-case (reordering the function a bit too):
-
-        void online_page(struct page *page)
-        {
-        // 1. pfn-based bits upping the max physical address markers:
-                unsigned long pfn = page_to_pfn(page);
-                if (pfn >= num_physpages)
-                        num_physpages = pfn + 1;
-        #ifdef CONFIG_FLATMEM
-                max_mapnr = max(page_to_pfn(page), max_mapnr);
-        #endif
-        
-        // 2. number of pages counters:
-                totalram_pages++;
-        #ifdef CONFIG_HIGHMEM
-                if (PageHighMem(page))
-                        totalhigh_pages++;
-        #endif
-        
-        // 3. preparing 'struct page' and freeing:
-                ClearPageReserved(page);
-                init_page_count(page);
-                __free_page(page);
-        }
-        
-Your stuff already extracted the free stuff very nicely.  I think now we
-just need to separate out the totalram_pages/totalhigh_pages bits from
-the num_physpages/max_mapnr ones.
-
-If done right, this should also help the totalram_pages/totalhigh_pages
-go away balloon_retrieve(), and make Xen less likely to break in the
-future.  It also makes it immediately obvious why Xen skips incrementing
-those counters: it does it later.
-
-I also note that Xen has a copy of a part of online_page() in its
-increase_reservation(): 
-
-                /* Relinquish the page back to the allocator. */
-                ClearPageReserved(page);
-                init_page_count(page);
-                __free_page(page);
-
-That means that Xen is basically carrying an open-coded copy of
-online_page() all by itself today.  
-
--- Dave
+--Ying
+>
+>
+>
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>>
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* We put equal pressure o=
+n every zone, unless
+>> --
+>> 1.7.3.1
+>>
+>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
