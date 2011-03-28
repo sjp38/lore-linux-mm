@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 45FCB8D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:41:45 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 31F218D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:56:34 -0400 (EDT)
 Received: from d01dlp02.pok.ibm.com (d01dlp02.pok.ibm.com [9.56.224.85])
-	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2SFHFia029961
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:17:24 -0400
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 185D96E8043
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:41:40 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2SFfdZS342894
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:41:39 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2SFfXYX014852
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 12:41:38 -0300
-Subject: Re: [PATCH 2/3] mm: Add SECTION_ALIGN_UP() and
- SECTION_ALIGN_DOWN() macro
+	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2SFTJpq015501
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:29:19 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 554DC6E803C
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:56:32 -0400 (EDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2SFtVja108128
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 11:55:39 -0400
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2SFtTSJ009665
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 09:55:30 -0600
+Subject: Re: [PATCH] xen/balloon: Memory hotplug support for Xen balloon
+ driver
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110328092412.GC13826@router-fw-old.local.net-space.pl>
-References: <20110328092412.GC13826@router-fw-old.local.net-space.pl>
+In-Reply-To: <20110328094757.GJ13826@router-fw-old.local.net-space.pl>
+References: <20110328094757.GJ13826@router-fw-old.local.net-space.pl>
 Content-Type: text/plain; charset="ISO-8859-1"
-Date: Mon, 28 Mar 2011 08:41:24 -0700
-Message-ID: <1301326884.31700.8321.camel@nimitz>
+Date: Mon, 28 Mar 2011 08:55:27 -0700
+Message-ID: <1301327727.31700.8354.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -29,31 +29,27 @@ List-ID: <linux-mm.kvack.org>
 To: Daniel Kiper <dkiper@net-space.pl>
 Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2011-03-28 at 11:24 +0200, Daniel Kiper wrote:
-> Add SECTION_ALIGN_UP() and SECTION_ALIGN_DOWN() macro which aligns
-> given pfn to upper section and lower section boundary accordingly.
+On Mon, 2011-03-28 at 11:47 +0200, Daniel Kiper wrote:
 > 
-> Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
-> ---
->  include/linux/mmzone.h |    3 +++
->  1 files changed, 3 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 02ecb01..d342820 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -931,6 +931,9 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
->  #define pfn_to_section_nr(pfn) ((pfn) >> PFN_SECTION_SHIFT)
->  #define section_nr_to_pfn(sec) ((sec) << PFN_SECTION_SHIFT)
-> 
-> +#define SECTION_ALIGN_UP(pfn)	(((pfn) + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK)
-> +#define SECTION_ALIGN_DOWN(pfn)	((pfn) & PAGE_SECTION_MASK)
+> +static enum bp_state reserve_additional_memory(long credit)
+> +{
+> +       int nid, rc;
+> +       u64 start;
+> +       unsigned long balloon_hotplug = credit;
+> +
+> +       start = PFN_PHYS(SECTION_ALIGN_UP(max_pfn));
+> +       balloon_hotplug = (balloon_hotplug & PAGE_SECTION_MASK) + PAGES_PER_SECTION;
+> +       nid = memory_add_physaddr_to_nid(start); 
 
-There are certainly a lot of different ways to do this, including using
-the existing ALIGN() macro, but you won't be the first to open-code
-it. :)
+Is the 'balloon_hotplug' calculation correct?  I _think_ you're trying
+to round up to the SECTION_SIZE_PAGES.  But, if 'credit' was already
+section-aligned I think you'll unnecessarily round up to the next
+SECTION_SIZE_PAGES boundary.  Should it just be:
 
-Acked-by: Dave Hansen <dave@linux.vnet.ibm.com>
+	balloon_hotplug = ALIGN(balloon_hotplug, PAGES_PER_SECTION);
+
+You might also want to consider some nicer units for those suckers.
+'start_paddr' is _much_ easier to grok than 'start', for instance.
 
 -- Dave
 
