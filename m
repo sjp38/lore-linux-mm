@@ -1,252 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 27DFC8D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 17:15:59 -0400 (EDT)
-Received: by qwa26 with SMTP id 26so3092595qwa.14
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 14:15:56 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9C3998D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 17:34:12 -0400 (EDT)
+From: Sean Noonan <Sean.Noonan@twosigma.com>
+Date: Mon, 28 Mar 2011 17:34:09 -0400
+Subject: RE: XFS memory allocation deadlock in 2.6.38
+Message-ID: <081DDE43F61F3D43929A181B477DCA95639B534E@MSXAOA6.twosigma.com>
+References: <081DDE43F61F3D43929A181B477DCA95639B52FD@MSXAOA6.twosigma.com>
+	<081DDE43F61F3D43929A181B477DCA95639B5327@MSXAOA6.twosigma.com>
+	<20110324174311.GA31576@infradead.org>
+	<AANLkTikwwRm6FHFtEdUg54NvmKdswQw-NPH5dtq1mXBK@mail.gmail.com>
+	<081DDE43F61F3D43929A181B477DCA95639B5349@MSXAOA6.twosigma.com>
+ <BANLkTin0jJevStg5P2hqsLbqMzo3o30sYg@mail.gmail.com>
+In-Reply-To: <BANLkTin0jJevStg5P2hqsLbqMzo3o30sYg@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <1300960540.32158.13.camel@e102109-lin.cambridge.arm.com>
-References: <9bde694e1003020554p7c8ff3c2o4ae7cb5d501d1ab9@mail.gmail.com>
-	<AANLkTinnqtXf5DE+qxkTyZ9p9Mb8dXai6UxWP2HaHY3D@mail.gmail.com>
-	<1300960540.32158.13.camel@e102109-lin.cambridge.arm.com>
-Date: Tue, 29 Mar 2011 00:15:55 +0300
-Message-ID: <AANLkTim139fpJsMJFLiyUYvFgGMz-Ljgd_yDrks-tqhE@mail.gmail.com>
-Subject: Re: kmemleak for MIPS
-From: Maxin John <maxin.john@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Daniel Baluta <dbaluta@ixiacom.com>, naveen yadav <yad.naveen@gmail.com>, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: 'Michel Lespinasse' <walken@google.com>
+Cc: Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Martin Bligh <Martin.Bligh@twosigma.com>, Trammell Hudson <Trammell.Hudson@twosigma.com>, Christos Zoulas <Christos.Zoulas@twosigma.com>, "linux-xfs@oss.sgi.com" <linux-xfs@oss.sgi.com>, Stephen Degler <Stephen.Degler@twosigma.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi,
+> Could you test if you see the deadlock before
+> 5ecfda041e4b4bd858d25bbf5a16c2a6c06d7272 without MAP_POPULATE ?
 
-> Just add "depends on MIPS" and give it a try.
-As per your suggestion, I have tried it in my qemu environment (MIPS malta).
+Built and tested 72ddc8f72270758951ccefb7d190f364d20215ab.
+Confirmed that the original bug does not present in this version.
+Confirmed that removing MAP_POPULATE does cause the deadlock to occur.
 
-With a minor modification in arch/mips/kernel/vmlinux.lds.S (added the
-symbol  _sdata ), I was able to add kmemleak support for MIPS.
+Here is the stack of the test:
+# cat /proc/3846/stack
+[<ffffffff812e8a64>] call_rwsem_down_read_failed+0x14/0x30
+[<ffffffff81271c1d>] xfs_ilock+0x9d/0x110
+[<ffffffff81271cae>] xfs_ilock_map_shared+0x1e/0x50
+[<ffffffff81294985>] __xfs_get_blocks+0xc5/0x4e0
+[<ffffffff81294dcc>] xfs_get_blocks+0xc/0x10
+[<ffffffff811322c2>] do_mpage_readpage+0x462/0x660
+[<ffffffff8113250a>] mpage_readpage+0x4a/0x60
+[<ffffffff81295433>] xfs_vm_readpage+0x13/0x20
+[<ffffffff810bb850>] filemap_fault+0x2d0/0x4e0
+[<ffffffff810d8680>] __do_fault+0x50/0x510
+[<ffffffff810da542>] handle_mm_fault+0x1a2/0xe60
+[<ffffffff8102a466>] do_page_fault+0x146/0x440
+[<ffffffff8164e6cf>] page_fault+0x1f/0x30
+[<ffffffffffffffff>] 0xffffffffffffffff
 
-Output in MIPS (Malta):
+xfssyncd is stuck in D state.
+# cat /proc/2484/stack
+[<ffffffff8106ee1c>] down+0x3c/0x50
+[<ffffffff81297802>] xfs_buf_lock+0x72/0x170
+[<ffffffff8128762d>] xfs_getsb+0x1d/0x50
+[<ffffffff8128e6af>] xfs_trans_getsb+0x5f/0x150
+[<ffffffff8128821e>] xfs_mod_sb+0x4e/0xe0
+[<ffffffff8126e4ea>] xfs_fs_log_dummy+0x5a/0xb0
+[<ffffffff812a2a13>] xfs_sync_worker+0x83/0x90
+[<ffffffff812a28e2>] xfssyncd+0x172/0x220
+[<ffffffff81069576>] kthread+0x96/0xa0
+[<ffffffff81003354>] kernel_thread_helper+0x4/0x10
+[<ffffffffffffffff>] 0xffffffffffffffff
 
-debian-mips:~# uname -a
-Linux debian-mips 2.6.38-08826-g1788c20-dirty #4 SMP Mon Mar 28
-23:22:04 EEST 2011 mips GNU/Linux
-debian-mips:~# mount -t debugfs nodev /sys/kernel/debug/
-debian-mips:~# cat /sys/kernel/debug/kmemleak
-unreferenced object 0x8f95d000 (size 4096):
-  comm "swapper", pid 1, jiffies 4294937330 (age 467.240s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<80529644>] alloc_large_system_hash+0x2f8/0x410
-    [<8053864c>] udp_table_init+0x4c/0x158
-    [<80538774>] udp_init+0x1c/0x94
-    [<80538b34>] inet_init+0x184/0x2a0
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0x8f95e000 (size 4096):
-  comm "swapper", pid 1, jiffies 4294937330 (age 467.240s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<80529644>] alloc_large_system_hash+0x2f8/0x410
-    [<8053864c>] udp_table_init+0x4c/0x158
-    [<8053881c>] udplite4_register+0x24/0xa8
-    [<80538b3c>] inet_init+0x18c/0x2a0
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0x8f982b80 (size 128):
-  comm "swapper", pid 1, jiffies 4294937331 (age 467.230s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<801b9b4c>] kmem_cache_alloc+0xe4/0x128
-    [<8052d960>] kmemleak_test_init+0x4c/0x298
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0x8f982b00 (size 128):
-  comm "swapper", pid 1, jiffies 4294937331 (age 467.230s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<801b9b4c>] kmem_cache_alloc+0xe4/0x128
-    [<8052d97c>] kmemleak_test_init+0x68/0x298
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0x8f980800 (size 1024):
-  comm "swapper", pid 1, jiffies 4294937331 (age 467.230s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<801b9b4c>] kmem_cache_alloc+0xe4/0x128
-    [<8052d998>] kmemleak_test_init+0x84/0x298
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0x8f980400 (size 1024):
-  comm "swapper", pid 1, jiffies 4294937331 (age 467.240s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<801b9b4c>] kmem_cache_alloc+0xe4/0x128
-    [<8052d9b4>] kmemleak_test_init+0xa0/0x298
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0x8f98a800 (size 2048):
-  comm "swapper", pid 1, jiffies 4294937331 (age 467.240s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<801b9b4c>] kmem_cache_alloc+0xe4/0x128
-    [<8052d9d0>] kmemleak_test_init+0xbc/0x298
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0x8f98a000 (size 2048):
-  comm "swapper", pid 1, jiffies 4294937331 (age 467.270s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<801b9b4c>] kmem_cache_alloc+0xe4/0x128
-    [<8052d9ec>] kmemleak_test_init+0xd8/0x298
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0x8f98b000 (size 4096):
-  comm "swapper", pid 1, jiffies 4294937331 (age 467.270s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<801b9b4c>] kmem_cache_alloc+0xe4/0x128
-    [<8052da24>] kmemleak_test_init+0x110/0x298
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0xc0003000 (size 64):
-  comm "swapper", pid 1, jiffies 4294937331 (age 467.270s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<801b1b58>] __vmalloc_node_range+0x16c/0x1e0
-    [<801b1bfc>] __vmalloc_node+0x30/0x3c
-    [<801b1d94>] vmalloc+0x2c/0x38
-    [<8052da38>] kmemleak_test_init+0x124/0x298
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0xc0006000 (size 64):
-  comm "swapper", pid 1, jiffies 4294937331 (age 467.270s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<801b1b58>] __vmalloc_node_range+0x16c/0x1e0
-    [<801b1bfc>] __vmalloc_node+0x30/0x3c
-    [<801b1d94>] vmalloc+0x2c/0x38
-    [<8052da4c>] kmemleak_test_init+0x138/0x298
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0xc0009000 (size 64):
-  comm "swapper", pid 1, jiffies 4294937331 (age 467.270s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<801b1b58>] __vmalloc_node_range+0x16c/0x1e0
-    [<801b1bfc>] __vmalloc_node+0x30/0x3c
-    [<801b1d94>] vmalloc+0x2c/0x38
-    [<8052da60>] kmemleak_test_init+0x14c/0x298
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0xc000c000 (size 64):
-  comm "swapper", pid 1, jiffies 4294937331 (age 467.270s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<801b1b58>] __vmalloc_node_range+0x16c/0x1e0
-    [<801b1bfc>] __vmalloc_node+0x30/0x3c
-    [<801b1d94>] vmalloc+0x2c/0x38
-    [<8052da74>] kmemleak_test_init+0x160/0x298
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0xc000f000 (size 64):
-  comm "swapper", pid 1, jiffies 4294937331 (age 467.270s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<801b1b58>] __vmalloc_node_range+0x16c/0x1e0
-    [<801b1bfc>] __vmalloc_node+0x30/0x3c
-    [<801b1d94>] vmalloc+0x2c/0x38
-    [<8052da88>] kmemleak_test_init+0x174/0x298
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-unreferenced object 0x8f072000 (size 4096):
-  comm "swapper", pid 1, jiffies 4294937680 (age 463.840s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<801ba3d8>] __kmalloc+0x130/0x180
-    [<805461bc>] flow_cache_cpu_prepare+0x50/0xa8
-    [<8053746c>] flow_cache_init_global+0x90/0x138
-    [<80100584>] do_one_initcall+0x174/0x1e0
-    [<8051f348>] kernel_init+0xe4/0x174
-    [<80103d4c>] kernel_thread_helper+0x10/0x18
-
-
-Please let me know your comments.
-
-Signed-off-by: Maxin B. John <maxin.john@gmail.com>
----
-diff --git a/arch/mips/kernel/vmlinux.lds.S b/arch/mips/kernel/vmlinux.lds.S
-index 832afbb..f5356fc 100644
---- a/arch/mips/kernel/vmlinux.lds.S
-+++ b/arch/mips/kernel/vmlinux.lds.S
-@@ -68,6 +68,7 @@ SECTIONS
-        RODATA
-
-        /* writeable */
-+       _sdata = .;                  /* Start of data section */
-        .data : {       /* Data */
-                . = . + DATAOFFSET;             /* for CONFIG_MAPPED_KERNEL */
-
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index df9234c..5042421 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -398,7 +398,7 @@ config SLUB_STATS
- config DEBUG_KMEMLEAK
-        bool "Kernel memory leak detector"
-        depends on DEBUG_KERNEL && EXPERIMENTAL && !MEMORY_HOTPLUG && \
--               (X86 || ARM || PPC || S390 || SPARC64 || SUPERH ||
-MICROBLAZE || TILE)
-+               (X86 || ARM || PPC || MIPS || S390 || SPARC64 ||
-SUPERH || MICROBLAZE || TILE)
-
-        select DEBUG_FS if SYSFS
-        select STACKTRACE if STACKTRACE_SUPPORT
+Sean
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
