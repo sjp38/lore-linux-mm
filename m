@@ -1,28 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 253358D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:42:02 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id p2SMfwem025208
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 15:41:58 -0700
-Received: from pwi15 (pwi15.prod.google.com [10.241.219.15])
-	by wpaz21.hot.corp.google.com with ESMTP id p2SMfd14030289
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 15:41:57 -0700
-Received: by pwi15 with SMTP id 15so597635pwi.19
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 15:41:56 -0700 (PDT)
-Date: Mon, 28 Mar 2011 15:41:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 271508D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:44:39 -0400 (EDT)
+Date: Tue, 29 Mar 2011 00:44:39 +0200 (CEST)
+From: Jesper Juhl <jj@chaosbits.net>
 Subject: Re: [PATCH 1/3] mm: Optimize pfn calculation in online_page()
 In-Reply-To: <20110328092310.GB13826@router-fw-old.local.net-space.pl>
-Message-ID: <alpine.DEB.2.00.1103281541420.7148@chino.kir.corp.google.com>
+Message-ID: <alpine.LNX.2.00.1103290043480.23292@swampdragon.chaosbits.net>
 References: <20110328092310.GB13826@router-fw-old.local.net-space.pl>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On Mon, 28 Mar 2011, Daniel Kiper wrote:
 
@@ -32,7 +23,15 @@ On Mon, 28 Mar 2011, Daniel Kiper wrote:
 > 
 > Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
 
-Acked-by: David Rientjes <rientjes@google.com>
+This looks sane to me.
+
+Reviewed-by: Jesper Juhl <jj@chaosbits.net>
+
+
+-- 
+Jesper Juhl <jj@chaosbits.net>       http://www.chaosbits.net/
+Don't top-post http://www.catb.org/jargon/html/T/top-post.html
+Plain text mails only, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
