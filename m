@@ -1,49 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0376A8D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:46:35 -0400 (EDT)
-Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
-	by smtp-out.google.com with ESMTP id p2SMkWDG002311
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 15:46:32 -0700
-Received: from pwi5 (pwi5.prod.google.com [10.241.219.5])
-	by hpaq13.eem.corp.google.com with ESMTP id p2SMkUOr017420
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 15:46:31 -0700
-Received: by pwi5 with SMTP id 5so914656pwi.17
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 15:46:29 -0700 (PDT)
-Date: Mon, 28 Mar 2011 15:46:27 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/3] mm: Add SECTION_ALIGN_UP() and SECTION_ALIGN_DOWN()
- macro
-In-Reply-To: <20110328092412.GC13826@router-fw-old.local.net-space.pl>
-Message-ID: <alpine.DEB.2.00.1103281545220.7148@chino.kir.corp.google.com>
-References: <20110328092412.GC13826@router-fw-old.local.net-space.pl>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 31EA58D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 18:52:18 -0400 (EDT)
+Received: by iyf13 with SMTP id 13so5782668iyf.14
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 15:52:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20110328215344.GC3008@dastard>
+References: <AANLkTinFqqmE+fTMTLVU-_CwPE+LQv7CpXSQ5+CdAKLK@mail.gmail.com>
+	<20110328215344.GC3008@dastard>
+Date: Tue, 29 Mar 2011 07:52:14 +0900
+Message-ID: <BANLkTimHPFMUOCFAruF5J4OMHSkZsMsAgA@mail.gmail.com>
+Subject: Re: Very aggressive memory reclaim
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: John Lepikhin <johnlepikhin@gmail.com>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-mm@kvack.org
 
-On Mon, 28 Mar 2011, Daniel Kiper wrote:
+On Tue, Mar 29, 2011 at 6:53 AM, Dave Chinner <david@fromorbit.com> wrote:
+> [cc xfs and mm lists]
+>
+> On Mon, Mar 28, 2011 at 08:39:29PM +0400, John Lepikhin wrote:
+>> Hello,
+>>
+>> I use high-loaded machine with 10M+ inodes inside XFS, 50+ GB of
+>> memory, intensive HDD traffic and 20..50 forks per second. Vanilla
+>> kernel 2.6.37.4. The problem is that kernel frees memory very
+>> aggressively.
+>>
+>> For example:
+>>
+>> 25% of memory is used by processes
+>> 50% for page caches
+>> 7% for slabs, etc.
+>> 18% free.
+>>
+>> That's bad but works. After few hours:
+>>
+>> 25% of memory is used by processes
+>> 62% for page caches
+>> 7% for slabs, etc.
+>> 5% free.
+>>
+>> Most of files are cached, works perfectly. This is the moment when
+>> kernel decides to free some memory. After memory reclaim:
+>>
+>> 25% of memory is used by processes
+>> 25% for page caches(!)
+>> 7% for slabs, etc.
+>> 43% free(!)
+>>
+>> Page cache is dropped, server becomes too slow. This is the beginning
+>> of new cycle.
+>>
+>> I didn't found any huge mallocs at that moment. Looks like because of
+>> large number of small mallocs (forks) kernel have pessimistic forecast
+>> about future memory usage and frees too much memory. Is there any
+>> options of tuning this? Any other variants?
+>
+> First it would be useful to determine why the VM is reclaiming so
+> much memory. If it is somewhat predictable when the excessive
+> reclaim is going to happen, it might be worth capturing an event
+> trace from the VM so we can see more precisely what it is doiing
+> during this event. In that case, recording the kmem/* and vmscan/*
+> events is probably sufficient to tell us what memory allocations
+> triggered reclaim and how much reclaim was done on each event.
+>
+> Cheers,
+>
+> Dave.
+> --
+> Dave Chinner
+> david@fromorbit.com
+>
 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 02ecb01..d342820 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -931,6 +931,9 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
->  #define pfn_to_section_nr(pfn) ((pfn) >> PFN_SECTION_SHIFT)
->  #define section_nr_to_pfn(sec) ((sec) << PFN_SECTION_SHIFT)
->  
-> +#define SECTION_ALIGN_UP(pfn)	(((pfn) + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK)
-> +#define SECTION_ALIGN_DOWN(pfn)	((pfn) & PAGE_SECTION_MASK)
-> +
->  #ifdef CONFIG_SPARSEMEM
->  
->  /*
+Recently, We had a similar issue.
+http://www.spinics.net/lists/linux-mm/msg12243.html
+But it seems to not merge. I don't know why since I didn't follow up the thread.
+Maybe Cced guys can help you.
 
-These are only valid for CONFIG_SPARSEMEM, so they need to be defined 
-conditionally.
+Is it a sudden big cache drop at the moment or accumulated small cache
+drop for long time?
+What's your zones' size?
+
+Please attach the result of cat /proc/zoneinfo for others.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
