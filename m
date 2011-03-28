@@ -1,75 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C2008D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 09:56:16 -0400 (EDT)
-Received: by eyd9 with SMTP id 9so1018134eyd.14
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 06:56:13 -0700 (PDT)
-Date: Mon, 28 Mar 2011 10:56:01 -0300
-From: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>
-Subject: Re: [PATCH 2/5] Revert "oom: give the dying task a higher priority"
-Message-ID: <20110328135601.GO19007@uudg.org>
-References: <20110315153801.3526.A69D9226@jp.fujitsu.com>
- <20110322194721.B05E.A69D9226@jp.fujitsu.com>
- <20110322200657.B064.A69D9226@jp.fujitsu.com>
- <20110324152757.GC1938@barrios-desktop>
- <1301305896.4859.8.camel@twins>
- <20110328122125.GA1892@barrios-desktop>
- <1301315307.4859.13.camel@twins>
- <20110328124025.GC1892@barrios-desktop>
- <20110328131029.GN19007@uudg.org>
- <1301318293.4859.19.camel@twins>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B7F1E8D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 09:56:58 -0400 (EDT)
+Received: by pzk32 with SMTP id 32so783784pzk.14
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 06:56:57 -0700 (PDT)
+From: Namhyung Kim <namhyung@gmail.com>
+Subject: [RFC/RFT 0/6] nommu: improve the vma list handling
+Date: Mon, 28 Mar 2011 22:56:41 +0900
+Message-Id: <1301320607-7259-1-git-send-email-namhyung@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1301318293.4859.19.camel@twins>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Andrey Vagin <avagin@openvz.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Paul Mundt <lethal@linux-sh.org>, David Howells <dhowells@redhat.com>, Greg Ungerer <gerg@snapgear.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Mar 28, 2011 at 03:18:13PM +0200, Peter Zijlstra wrote:
-| On Mon, 2011-03-28 at 10:10 -0300, Luis Claudio R. Goncalves wrote:
-| > | There was meaningless code in there. I guess it was in there from CFS.
-| > | Thanks for the explanation, Peter.
-| > 
-| > Yes, it was CFS related:
-| > 
-| >         p = find_lock_task_mm(p);
-| >         ...
-| >         p->rt.time_slice = HZ; <<---- THIS
-| 
-| CFS has never used rt.time_slice, that's always been a pure SCHED_RR
-| thing.
-| 
-| > Peter, would that be effective to boost the priority of the dying task?
-| 
-| The thing you're currently doing, making it SCHED_FIFO ?
+Hello,
 
-I meant the p->rt.time_slice line, but you already answered my question.
-Thanks :)
- 
-| > I mean, in the context of SCHED_OTHER tasks would it really help the dying
-| > task to be scheduled sooner to release its resources? 
-| 
-| That very much depends on how all this stuff works, I guess if everybody
-| serializes on OOM and only the first will actually kill a task and all
-| the waiting tasks will try to allocate a page again before also doing
-| the OOM thing, and the pending tasks are woken after the OOM target task
-| has completed dying.. then I don't see much point in boosting things,
-| since everybody interested in memory will block and eventually only the
-| dying task will be left running.
-| 
-| Its been a very long while since I stared at the OOM code..
-| 
-| > If so, as we remove
-| > the code in commit 93b43fa5508 we should re-add that old code. 
-| 
-| It doesn't make any sense to fiddle with rt.time_slice afaict.
----end quoted text---
+When I was reading nommu code, I found that it handles the vma list/tree in
+an unusual way. IIUC, because there can be more than one identical/overrapped
+vmas in the list/tree, it sorts the tree more strictly and does a linear
+search on the tree. But it doesn't applied to the list (i.e. the list could
+be constructed in a different order than the tree so that we can't use the
+list when finding the first vma in that order).
 
--- 
-[ Luis Claudio R. Goncalves             Red Hat  -  Realtime Team ]
-[ Fingerprint: 4FDD B8C4 3C59 34BD 8BE9  2696 7203 D980 A448 C8F8 ]
+Since inserting/sorting a vma in the tree and link is done at the same time,
+we can easily construct both of them in the same order. And linear searching
+on the tree could be more costly than doing it on the list, it can be
+converted to use the list.
+
+Also, after the commit 297c5eee3724 ("mm: make the vma list be doubly linked")
+made the list be doubly linked, there were a couple of code need to be fixed
+to construct the list properly.
+
+Patch 1/6 is a preparation. It maintains the list sorted same as the tree and
+construct doubly-linked list properly. Patch 2/6 is a simple optimization for
+the vma deletion. Patch 3/6 and 4/6 convert tree traversal to list traversal
+and the rest are simple fixes and cleanups.
+
+Note that I don't have a system to test on, so these are *totally untested*
+patches. There could be some basic errors in the code. In that case, please
+kindly let me know. :)
+
+Anyway, I just compiled them on my x86_64 desktop using this command:
+
+  make mm/nommu.o
+
+(Of course this required few of dirty-fixes to proceed)
+
+Also note that these are on top of v2.6.38.
+
+Any comments are welcome.
+
+Thanks.
+
+
+---
+Namhyung Kim (6):
+  nommu: sort mm->mmap list properly
+  nommu: don't scan the vma list when deleting
+  nommu: find vma using the sorted vma list
+  nommu: check the vma list when unmapping file-mapped vma
+  nommu: fix a potential memory leak in do_mmap_private()
+  nommu: fix a compile warning in do_mmap_pgoff()
+
+ mm/nommu.c |  103 +++++++++++++++++++++++++++++++++--------------------------
+ 1 files changed, 58 insertions(+), 45 deletions(-)
+
+--
+1.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
