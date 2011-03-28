@@ -1,183 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 584C38D003B
-	for <linux-mm@kvack.org>; Sun, 27 Mar 2011 22:48:10 -0400 (EDT)
-Date: Mon, 28 Mar 2011 10:44:45 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH RFC 0/5] IO-less balance_dirty_pages() v2 (simple
- approach)
-Message-ID: <20110328024445.GA11816@localhost>
-References: <1299623475-5512-1-git-send-email-jack@suse.cz>
- <20110318143001.GA6173@localhost>
- <20110322214314.GC19716@quack.suse.cz>
- <20110325134411.GA8645@localhost>
- <20110325230544.GD26932@quack.suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2868C8D003B
+	for <linux-mm@kvack.org>; Sun, 27 Mar 2011 23:16:34 -0400 (EDT)
+Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
+	by smtp-out.google.com with ESMTP id p2S3GUHp014999
+	for <linux-mm@kvack.org>; Sun, 27 Mar 2011 20:16:30 -0700
+Received: from ywg4 (ywg4.prod.google.com [10.192.7.4])
+	by hpaq1.eem.corp.google.com with ESMTP id p2S3GRBK018553
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 27 Mar 2011 20:16:29 -0700
+Received: by ywg4 with SMTP id 4so1266344ywg.24
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2011 20:16:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110325230544.GD26932@quack.suse.cz>
+In-Reply-To: <20110328090752.9dd5d968.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1301184884-17155-1-git-send-email-yinghan@google.com>
+	<20110328090752.9dd5d968.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Sun, 27 Mar 2011 20:16:27 -0700
+Message-ID: <AANLkTimBMEOTCKZGzzbKGmrt156XsnK0cBrugBqe0EZJ@mail.gmail.com>
+Subject: Re: [PATCH] Add the pagefault count into memcg stats.
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, linux-mm@kvack.org
 
-Hi Jan,
+On Sun, Mar 27, 2011 at 5:07 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Sat, 26 Mar 2011 17:14:44 -0700
+> Ying Han <yinghan@google.com> wrote:
+>
+>> Two new stats in per-memcg memory.stat which tracks the number of
+>> page faults and number of major page faults.
+>>
+>> "pgfault"
+>> "pgmajfault"
+>>
+>> It is valuable to track the two stats for both measuring application's
+>> performance as well as the efficiency of the kernel page reclaim path.
+>>
+>> Functional test: check the total number of pgfault/pgmajfault of all
+>> memcgs and compare with global vmstat value:
+>>
+>> $ cat /proc/vmstat | grep fault
+>> pgfault 1070751
+>> pgmajfault 553
+>>
+>> $ cat /dev/cgroup/memory.stat | grep fault
+>> pgfault 1069962
+>> pgmajfault 553
+>> total_pgfault 1069966
+>> total_pgmajfault 553
+>>
+>> $ cat /dev/cgroup/A/memory.stat | grep fault
+>> pgfault 199
+>> pgmajfault 0
+>> total_pgfault 199
+>> total_pgmajfault 0
+>>
+>> Performance test: run page fault test(pft) wit 16 thread on faulting in =
+15G
+>> anon pages in 16G container. There is no regression noticed on the "flt/=
+cpu/s"
+>>
+>> Sample output from pft:
+>> TAG pft:anon-sys-default:
+>> =A0 Gb =A0Thr CLine =A0 User =A0 =A0 System =A0 =A0 Wall =A0 =A0flt/cpu/=
+s fault/wsec
+>> =A0 15 =A0 16 =A0 1 =A0 =A0 0.67s =A0 232.11s =A0 =A014.68s =A0 16892.13=
+0 267796.518
+>>
+>> $ ./ministat mmotm.txt mmotm_fault.txt
+>> x mmotm.txt (w/o patch)
+>> + mmotm_fault.txt (w/ patch)
+>> +-----------------------------------------------------------------------=
+--+
+>> =A0 =A0 N =A0 =A0 =A0 =A0 =A0 Min =A0 =A0 =A0 =A0 =A0 Max =A0 =A0 =A0 =
+=A0Median =A0 =A0 =A0 =A0 =A0 Avg =A0 =A0 =A0 =A0Stddev
+>> x =A010 =A0 =A0 16682.962 =A0 =A0 17344.027 =A0 =A0 16913.524 =A0 =A0 16=
+928.812 =A0 =A0 =A0166.5362
+>> + =A010 =A0 =A0 =A016696.49 =A0 =A0 =A017480.09 =A0 =A0 16949.143 =A0 =
+=A0 16951.448 =A0 =A0 223.56288
+>> No difference proven at 95.0% confidence
+>>
+>> Signed-off-by: Ying Han <yinghan@google.com>
+>
+> Hmm, maybe useful ? (It's good to describe what is difference with PGPGIN=
+)
+> Especially, you should show why this is useful than per process pgfault c=
+ount.
+> What I thought of this, I thought that I need per-process information, fi=
+nally...
+> and didn't add this.
+>
+> Anyway, I have a request for the style of the function. (see below)
 
-On Sat, Mar 26, 2011 at 07:05:44AM +0800, Jan Kara wrote:
->   Hello Fengguang,
-> 
-> On Fri 25-03-11 21:44:11, Wu Fengguang wrote:
-> > On Wed, Mar 23, 2011 at 05:43:14AM +0800, Jan Kara wrote:
-> > >   Hello Fengguang,
-> > > 
-> > > On Fri 18-03-11 22:30:01, Wu Fengguang wrote:
-> > > > On Wed, Mar 09, 2011 at 06:31:10AM +0800, Jan Kara wrote:
-> > > > > 
-> > > > >   Hello,
-> > > > > 
-> > > > >   I'm posting second version of my IO-less balance_dirty_pages() patches. This
-> > > > > is alternative approach to Fengguang's patches - much simpler I believe (only
-> > > > > 300 lines added) - but obviously I does not provide so sophisticated control.
-> > > > 
-> > > > Well, it may be too early to claim "simplicity" as an advantage, until
-> > > > you achieve the following performance/feature comparability (most of
-> > > > them are not optional ones). AFAICS this work is kind of heavy lifting
-> > > > that will consume a lot of time and attention. You'd better find some
-> > > > more fundamental needs before go on the reworking.
-> > > > 
-> > > > (1)  latency
-> > > > (2)  fairness
-> > > > (3)  smoothness
-> > > > (4)  scalability
-> > > > (5)  per-task IO controller
-> > > > (6)  per-cgroup IO controller (TBD)
-> > > > (7)  free combinations of per-task/per-cgroup and bandwidth/priority controllers
-> > > > (8)  think time compensation
-> > > > (9)  backed by both theory and tests
-> > > > (10) adapt pause time up on 100+ dirtiers
-> > > > (11) adapt pause time down on low dirty pages 
-> > > > (12) adapt to new dirty threshold/goal
-> > > > (13) safeguard against dirty exceeding
-> > > > (14) safeguard against device queue underflow
-> > >   I think this is a misunderstanding of my goals ;). My main goal is to
-> > > explore, how far we can get with a relatively simple approach to IO-less
-> > > balance_dirty_pages(). I guess what I have is better than the current
-> > > balance_dirty_pages() but it sure does not even try to provide all the
-> > > features you try to provide.
-> > 
-> > OK.
-> > 
-> > > I'm thinking about tweaking ratelimiting logic to reduce latencies in some
-> > > tests, possibly add compensation when we waited for too long in
-> > > balance_dirty_pages() (e.g. because of bumpy IO completion) but that's
-> > > about it...
-> > > 
-> > > Basically I do this so that we can compare and decide whether what my
-> > > simple approach offers is OK or whether we want some more complex solution
-> > > like your patches...
-> > 
-> > Yeah, now both results are on the website. Let's see whether they are
-> > acceptable for others.
->   Yes. BTW, I think we'll discuss this at LSF so it would be beneficial if
-> we both prepared a fairly short explanation of our algorithm and some
-> summary of the measured results. I think it would be good to keep each of
-> us below 5 minutes so that we don't bore the audience - people will ask for
-> details where they are interested... What do you think?
+Thanks for your comment, and I will post V2 shortly.
 
-That looks good, however I'm not able to attend LSF this year, would
-you help show my slides?
+>
+>
+>> ---
+>> =A0Documentation/cgroups/memory.txt | =A0 =A04 +++
+>> =A0fs/ncpfs/mmap.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A02 +
+>> =A0include/linux/memcontrol.h =A0 =A0 =A0 | =A0 22 +++++++++++++++
+>> =A0mm/filemap.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A01 +
+>> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 54 +++++++++=
++++++++++++++++++++++++++++++
+>> =A0mm/memory.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A02 +
+>> =A0mm/shmem.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A01 +
+>> =A07 files changed, 86 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/me=
+mory.txt
+>> index b6ed61c..2db6103 100644
+>> --- a/Documentation/cgroups/memory.txt
+>> +++ b/Documentation/cgroups/memory.txt
+>> @@ -385,6 +385,8 @@ mapped_file =A0 =A0 =A0 - # of bytes of mapped file =
+(includes tmpfs/shmem)
+>> =A0pgpgin =A0 =A0 =A0 =A0 =A0 =A0 =A0 - # of pages paged in (equivalent =
+to # of charging events).
+>> =A0pgpgout =A0 =A0 =A0 =A0 =A0 =A0 =A0- # of pages paged out (equivalent=
+ to # of uncharging events).
+>> =A0swap =A0 =A0 =A0 =A0 - # of bytes of swap usage
+>> +pgfault =A0 =A0 =A0 =A0 =A0 =A0 =A0- # of page faults.
+>> +pgmajfault =A0 - # of major page faults.
+>> =A0inactive_anon =A0 =A0 =A0 =A0- # of bytes of anonymous memory and swa=
+p cache memory on
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 LRU list.
+>> =A0active_anon =A0- # of bytes of anonymous and swap cache memory on act=
+ive
+>> @@ -406,6 +408,8 @@ total_mapped_file - sum of all children's "cache"
+>> =A0total_pgpgin =A0 =A0 =A0 =A0 - sum of all children's "pgpgin"
+>> =A0total_pgpgout =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0- sum of all children's =
+"pgpgout"
+>> =A0total_swap =A0 =A0 =A0 =A0 =A0 - sum of all children's "swap"
+>> +total_pgfault =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0- sum of all children's "p=
+gfault"
+>> +total_pgmajfault =A0 =A0 - sum of all children's "pgmajfault"
+>> =A0total_inactive_anon =A0- sum of all children's "inactive_anon"
+>> =A0total_active_anon =A0 =A0- sum of all children's "active_anon"
+>> =A0total_inactive_file =A0- sum of all children's "inactive_file"
+>> diff --git a/fs/ncpfs/mmap.c b/fs/ncpfs/mmap.c
+>> index a7c07b4..adb3f45 100644
+>> --- a/fs/ncpfs/mmap.c
+>> +++ b/fs/ncpfs/mmap.c
+>> @@ -16,6 +16,7 @@
+>> =A0#include <linux/mman.h>
+>> =A0#include <linux/string.h>
+>> =A0#include <linux/fcntl.h>
+>> +#include <linux/memcontrol.h>
+>>
+>> =A0#include <asm/uaccess.h>
+>> =A0#include <asm/system.h>
+>> @@ -92,6 +93,7 @@ static int ncp_file_mmap_fault(struct vm_area_struct *=
+area,
+>> =A0 =A0 =A0 =A0* -- wli
+>> =A0 =A0 =A0 =A0*/
+>> =A0 =A0 =A0 count_vm_event(PGMAJFAULT);
+>> + =A0 =A0 mem_cgroup_pgmajfault_from_mm(area->vm_mm);
+>
+> Could you do this as =A0mem_cgroup_count_vm_event(area->vm_mm, PGMAJFAULT=
+) ?
 
-> I'll try to run also your patches on my setup to see how they work :) V6
-> from your website is the latest version, isn't it?
+will be included in V2.
 
-Thank you. You can run 
-http://git.kernel.org/?p=linux/kernel/git/wfg/writeback.git;a=shortlog;h=refs/heads/dirty-throttling-v6
-or 
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/dirty-throttling-v6-2.6.38-rc6.patch
-whatever convenient for you.
 
-If you are ready with v3, I can also help test it out and do some
-comparison on the results.
+>
+> <snip>
+>
+>> +void mem_cgroup_pgfault_from_mm(struct mm_struct *mm)
+>> +{
+>> + =A0 =A0 struct mem_cgroup *mem;
+>> +
+>> + =A0 =A0 if (!mm)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return;
+>> +
+>> + =A0 =A0 rcu_read_lock();
+>> + =A0 =A0 mem =3D mem_cgroup_from_task(rcu_dereference(mm->owner));
+>> + =A0 =A0 if (unlikely(!mem))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 goto out;
+>> + =A0 =A0 mem_cgroup_pgfault(mem, 1);
+>> +
+>> +out:
+>> + =A0 =A0 rcu_read_unlock();
+>> +}
+>> +
+>> +void mem_cgroup_pgmajfault_from_mm(struct mm_struct *mm)
+>> +{
+>> + =A0 =A0 struct mem_cgroup *mem;
+>> +
+>> + =A0 =A0 if (!mm)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return;
+>> +
+>> + =A0 =A0 rcu_read_lock();
+>> + =A0 =A0 mem =3D mem_cgroup_from_task(rcu_dereference(mm->owner));
+>> + =A0 =A0 if (unlikely(!mem))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 goto out;
+>> + =A0 =A0 mem_cgroup_pgmajfault(mem, 1);
+>> +out:
+>> + =A0 =A0 rcu_read_unlock();
+>> +}
+>> +EXPORT_SYMBOL(mem_cgroup_pgmajfault_from_mm);
+>> +
+>
+> Then, you can do above 2 in a function.
 
-> > > > > The basic idea (implemented in the third patch) is that processes throttled
-> > > > > in balance_dirty_pages() wait for enough IO to complete. The waiting is
-> > > > > implemented as follows: Whenever we decide to throttle a task in
-> > > > > balance_dirty_pages(), task adds itself to a list of tasks that are throttled
-> > > > > against that bdi and goes to sleep waiting to receive specified amount of page
-> > > > > IO completions. Once in a while (currently HZ/10, in patch 5 the interval is
-> > > > > autotuned based on observed IO rate), accumulated page IO completions are
-> > > > > distributed equally among waiting tasks.
-> > > > > 
-> > > > > This waiting scheme has been chosen so that waiting time in
-> > > > > balance_dirty_pages() is proportional to
-> > > > >   number_waited_pages * number_of_waiters.
-> > > > > In particular it does not depend on the total number of pages being waited for,
-> > > > > thus providing possibly a fairer results.
-> > > > 
-> > > > When there comes no IO completion in 1 second (normal in NFS), the
-> > > > tasks will all get stuck. It is fixable based on your v2 code base
-> > > > (detailed below), however will likely bring the same level of
-> > > > complexity as the base bandwidth solution.
-> > >   I have some plans how to account for bumpy IO completion when we wait for
-> > > a long time and then get completion of much more IO than we actually need.
-> > > But in case where processes use all the bandwidth and the latency of the
-> > > device is high, sure they take the penalty and have to wait for a long time
-> > > in balance_dirty_pages().
-> > 
-> > No, I don't think it's good to block for long time in
-> > balance_dirty_pages(). This seems to be our biggest branch point.
->   I agree we should not block for several seconds under normal load but
-> when something insane like 1000 dds is running, I don't think it's a big
-> problem :)
-
-I don't think so. The client does not care whether the server is
-accepting files from 1000+ clients and its writeback algorithm does
-not scale well beyond that point; it will simply notice its upload
-goes slow and paused from time to time, which is rather annoying.
-
-> And actually the NFS traces you pointed to originally seem to be different
-> problem, in fact not directly related to what balance_dirty_pages() does...
-> And with local filesystem the results seem to be reasonable (although there
-> are some longer sleeps in your JBOD measurements I don't understand yet).
-
-Yeah the NFS case can be improved on the FS side (for now you may just
-reuse my NFS patches and focus on other generic improvements).
-
-The JBOD issue is also beyond my understanding.
-
-Note that XFS will also see one big IO completion per 0.5-1 seconds,
-when we are to increase the write chunk size from the current 4MB to
-near the bdi's write bandwidth. As illustrated by this graph:
-
-http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/4G/xfs-1dd-1M-8p-3927M-20%25-2.6.38-rc6-dt6+-2011-02-27-22-58/global_dirtied_written-500.png
-
-> > > > > The results for different bandwidths fio load is interesting. There are 8
-> > > > > threads dirtying pages at 1,2,4,..,128 MB/s rate. Due to different task
-> > > > > bdi dirty limits, what happens is that three most aggresive tasks get
-> > > > > throttled so they end up at bandwidths 24, 26, and 30 MB/s and the lighter
-> > > > > dirtiers run unthrottled.
-> > > > 
-> > > > The base bandwidth based throttling can do better and provide almost
-> > > > perfect fairness, because all tasks writing to one bdi derive their
-> > > > own throttle bandwidth based on the same per-bdi base bandwidth. So
-> > > > the heavier dirtiers will converge to equal dirty rate and weight.
-> > >   So what do you consider a perfect fairness in this case and are you sure
-> > > it is desirable? I was thinking about this and I'm not sure...
-> > 
-> > Perfect fairness could be 1, 2, 4, 8, N, N, N MB/s, where
-> > 
-> >         N = (write_bandwidth - 1 - 2 - 4 - 8) / 3.
-> > 
-> > I guess its usefulness is largely depending on the user space
-> > applications.  Most of them should not be sensible to it.
->   I see, that makes some sense although it makes it advantageous to split
-> heavy dirtier task into two less heavy dirtiers which is a bit strange. But
-> as you say, precise results here probably do not matter much.
-
-Right.
-
-Thanks,
-Fengguang
+--Ying
+>
+>
+> Thanks,
+> -Kame
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
