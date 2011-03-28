@@ -1,81 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 38E7E8D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 12:21:53 -0400 (EDT)
-Received: by iwg8 with SMTP id 8so4542807iwg.14
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 09:21:49 -0700 (PDT)
-Date: Tue, 29 Mar 2011 01:21:37 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 0/4] forkbomb killer
-Message-ID: <20110328162137.GA2904@barrios-desktop>
-References: <20110324182240.5fe56de2.kamezawa.hiroyu@jp.fujitsu.com>
- <20110324105222.GA2625@barrios-desktop>
- <20110325090411.56c5e5b2.kamezawa.hiroyu@jp.fujitsu.com>
- <BANLkTi=f3gu7-8uNiT4qz6s=BOhto5s=7g@mail.gmail.com>
- <20110325115453.82a9736d.kamezawa.hiroyu@jp.fujitsu.com>
- <BANLkTim3fFe3VzvaWRwzaCT6aRd-yeyfiQ@mail.gmail.com>
- <20110326023452.GA8140@google.com>
- <AANLkTi=ng9vwoMJ=tseWwTsXMf9XZkMKUexcpEmQ45M_@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTi=ng9vwoMJ=tseWwTsXMf9XZkMKUexcpEmQ45M_@mail.gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B2F38D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 12:26:57 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2SGLTgp014235
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 10:21:29 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p2SGQoUW112814
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 10:26:50 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2SGQm1W022514
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 10:26:49 -0600
+Subject: Re: [PATCH 3/3] mm: Extend memory hotplug API to allow memory
+ hotplug in virtual machines
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20110328092507.GD13826@router-fw-old.local.net-space.pl>
+References: <20110328092507.GD13826@router-fw-old.local.net-space.pl>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Mon, 28 Mar 2011 09:25:24 -0700
+Message-ID: <1301329524.31700.8440.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: Michel Lespinasse <walken@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rientjes@google.com" <rientjes@google.com>, Andrey Vagin <avagin@openvz.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, Mar 26, 2011 at 05:48:45PM +0900, Hiroyuki Kamezawa wrote:
-> 2011/3/26 Michel Lespinasse <walken@google.com>:
-> > On Fri, Mar 25, 2011 at 01:05:50PM +0900, Minchan Kim wrote:
-> >> Okay. Each approach has a pros and cons and at least, now anyone
-> >> doesn't provide any method and comments but I agree it is needed(ex,
-> >> careless and lazy admin could need it strongly). Let us wait a little
-> >> bit more. Maybe google guys or redhat/suse guys would have a opinion.
-> >
-> > I haven't heard of fork bombs being an issue for us (and it's not been
-> > for me on my desktop, either).
-> >
-> > Also, I want to point out that there is a classical userspace solution
-> > for this, as implemented by killall5 for example. One can do
-> > kill(-1, SIGSTOP) to stop all processes that they can send
-> > signals to (except for init and itself). Target processes
-> > can never catch or ignore the SIGSTOP. This stops the fork bomb
-> > from causing further damage. Then, one can look at the process
-> > tree and do whatever is appropriate - including killing by uid,
-> > by cgroup or whatever policies one wants to implement in userspace.
-> > Finally, the remaining processes can be restarted using SIGCONT.
-> >
-> 
-> Can that solution work even under OOM situation without new login/commands ?
-> Please show us your solution, how to avoid Andrey's Bomb  with your way.
-> Then, we can add Documentation, at least. Or you can show us your tool.
-> 
-> Maybe it is....
-> - running as a daemon. (because it has to lock its work memory before OOM.)
-> - mlockall its own memory to work under OOM.
-> - It can show process tree of users/admin or do all in automatic way
-> with user's policy.
-> - tell us which process is guilty.
-> - wakes up automatically when OOM happens.....IOW, OOM should have some notifier
->   to userland.
-> - never allocate any memory at running. (maybe it can't use libc.)
-> - never be blocked by any locks, for example, some other task's mmap_sem.
->   One of typical mistakes of admins at OOM is typing 'ps' to see what
-> happens.....
-> - Can be used even with GUI system, which can't show console.
+On Mon, 2011-03-28 at 11:25 +0200, Daniel Kiper wrote:
+> This patch contains online_page_chain and apropriate functions
+> for registering/unregistering online page notifiers. It allows
+> to do some machine specific tasks during online page stage which
+> is required to implement memory hotplug in virtual machines.
+> Additionally, __online_page_increment_counters() and
+> __online_page_free() function was add to ease generic
+> hotplug operation.
 
-Hi Kame,
+I really like that you added some symbolic constants there.  It makes it
+potentially a lot more readable.
 
-I am worried about run-time cost. 
-Should we care of mistake of users for robustness of OS?
-Mostly right but we can't handle all mistakes of user so we need admin.
-For exampe, what happens if admin execute "rm -rf /"?
-For avoiding it, we get a solution "backup" about critical data.
+My worry is that the next person who comes along is going to _really_
+scratch their head asking why they would use:
+OP_DO_NOT_INCREMENT_TOTAL_COUNTERS or: OP_INCREMENT_TOTAL_COUNTERS.
+There aren't any code comments about it, and the patch description
+doesn't really help.
 
-In the same manner, if the system is very critical of forkbomb, 
-admin should consider it using memcg, virtualization, ulimit and so on.
-If he don't want it, he should become a hard worker who have to 
-cross over other building to reboot it. Although he is a diligent man, 
-Reboot isn't good. So I suggest following patch which is just RFC. 
-For making formal patch, I have to add more comment and modify sysrq.txt.
+In the end, we're only talking about a couple of lines of code for each
+case (reordering the function a bit too):
+
+        void online_page(struct page *page)
+        {
+        // 1. pfn-based bits upping the max physical address markers:
+                unsigned long pfn = page_to_pfn(page);
+                if (pfn >= num_physpages)
+                        num_physpages = pfn + 1;
+        #ifdef CONFIG_FLATMEM
+                max_mapnr = max(page_to_pfn(page), max_mapnr);
+        #endif
+        
+        // 2. number of pages counters:
+                totalram_pages++;
+        #ifdef CONFIG_HIGHMEM
+                if (PageHighMem(page))
+                        totalhigh_pages++;
+        #endif
+        
+        // 3. preparing 'struct page' and freeing:
+                ClearPageReserved(page);
+                init_page_count(page);
+                __free_page(page);
+        }
+        
+Your stuff already extracted the free stuff very nicely.  I think now we
+just need to separate out the totalram_pages/totalhigh_pages bits from
+the num_physpages/max_mapnr ones.
+
+If done right, this should also help the totalram_pages/totalhigh_pages
+go away balloon_retrieve(), and make Xen less likely to break in the
+future.  It also makes it immediately obvious why Xen skips incrementing
+those counters: it does it later.
+
+I also note that Xen has a copy of a part of online_page() in its
+increase_reservation(): 
+
+                /* Relinquish the page back to the allocator. */
+                ClearPageReserved(page);
+                init_page_count(page);
+                __free_page(page);
+
+That means that Xen is basically carrying an open-coded copy of
+online_page() all by itself today.  
+
+-- Dave
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Fight unfair telecom internet charges in Canada: sign http://stopthemeter.ca/
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
