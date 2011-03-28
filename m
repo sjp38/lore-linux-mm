@@ -1,61 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EE548D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 09:57:25 -0400 (EDT)
-Received: by mail-pv0-f169.google.com with SMTP id 4so777017pvg.14
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 06:57:24 -0700 (PDT)
-From: Namhyung Kim <namhyung@gmail.com>
-Subject: [PATCH 6/6] nommu: fix a compile warning in do_mmap_pgoff()
-Date: Mon, 28 Mar 2011 22:56:47 +0900
-Message-Id: <1301320607-7259-7-git-send-email-namhyung@gmail.com>
-In-Reply-To: <1301320607-7259-1-git-send-email-namhyung@gmail.com>
-References: <1301320607-7259-1-git-send-email-namhyung@gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 16BE28D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 10:14:54 -0400 (EDT)
+Received: by pwi10 with SMTP id 10so805591pwi.14
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 07:14:38 -0700 (PDT)
+From: Nai Xia <nai.xia@gmail.com>
+Reply-To: nai.xia@gmail.com
+Subject: [PATCH 0/2] ksm: take dirty bit as reference to avoid volatile pages
+Date: Mon, 28 Mar 2011 22:14:18 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201103282214.19345.nai.xia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul Mundt <lethal@linux-sh.org>, David Howells <dhowells@redhat.com>, Greg Ungerer <gerg@snapgear.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Izik Eidus <izik.eidus@ravellosystems.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Chris Wright <chrisw@sous-sol.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-Because 'ret' is declared as int, not unsigned long, no need to cast the
-error contants into unsigned long. If you compile this code on a 64-bit
-machine somehow, you'll see following warning:
+Currently, ksm uses page checksum to detect volatile pages. Izik Eidus 
+suggested that we could use pte dirty bit to optimize. This patch series
+adds this new logic.
 
-  CC      mm/nommu.o
-mm/nommu.c: In function a??do_mmap_pgoffa??:
-mm/nommu.c:1411: warning: overflow in implicit constant conversion
+Preliminary benchmarks show that the scan speed is improved by up to 16 
+times on volatile transparent huge pages and up to 8 times on volatile 
+regular pages.
 
-Signed-off-by: Namhyung Kim <namhyung@gmail.com>
----
- mm/nommu.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
+Following is the test program to show this top speed up (you need to make 
+ksmd takes about more than 90% of the cpu and watch the ksm/full_scans).
 
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 662fd46449a6..c7af249076ac 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -1400,15 +1400,15 @@ unsigned long do_mmap_pgoff(struct file *file,
- 		if (capabilities & BDI_CAP_MAP_DIRECT) {
- 			addr = file->f_op->get_unmapped_area(file, addr, len,
- 							     pgoff, flags);
--			if (IS_ERR((void *) addr)) {
-+			if (IS_ERR_VALUE(addr)) {
- 				ret = addr;
--				if (ret != (unsigned long) -ENOSYS)
-+				if (ret != -ENOSYS)
- 					goto error_just_free;
- 
- 				/* the driver refused to tell us where to site
- 				 * the mapping so we'll have to attempt to copy
- 				 * it */
--				ret = (unsigned long) -ENODEV;
-+				ret = -ENODEV;
- 				if (!(capabilities & BDI_CAP_MAP_COPY))
- 					goto error_just_free;
- 
--- 
-1.7.4
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <errno.h>
+  #include <string.h>
+  #include <unistd.h>
+  #include <sys/mman.h>
+  
+  #define MADV_MERGEABLE   12
+  
+  
+  #define SIZE (2000*1024*1024)
+  #define PAGE_SIZE 4096
+  
+  int main(int argc, char **argv)
+  {
+  	unsigned char *p;
+  	int j;
+  	int ret;
+  
+          p = mmap(NULL, SIZE, PROT_WRITE|PROT_READ,
+                   MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+  	
+  	if (p == MAP_FAILED) {
+  		printf("mmap error\n");
+  		return 0;
+  	}
+      
+          ret = madvise(p, SIZE, MADV_MERGEABLE);
+      
+          if (ret==-1) {
+                  printf("madvise failed \n");
+                  return 0;
+          }
+  
+  	
+  	memset(p, 1, SIZE);
+  
+  	while (1) {
+  		for (j=0; j<SIZE; j+=PAGE_SIZE) {
+  			*((long*)(p+j+PAGE_SIZE-4)) = random();
+  		}
+  	}
+  
+  	return 0;
+  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
