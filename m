@@ -1,47 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 73F558D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 17:13:27 -0400 (EDT)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id p2TLBvoJ000679
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 14:11:57 -0700
-Received: from pvf33 (pvf33.prod.google.com [10.241.210.97])
-	by wpaz9.hot.corp.google.com with ESMTP id p2TLBcwB003843
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 14:11:56 -0700
-Received: by pvf33 with SMTP id 33so106574pvf.38
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2011 14:11:55 -0700 (PDT)
-Date: Tue, 29 Mar 2011 14:11:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/3] mm: Add SECTION_ALIGN_UP() and SECTION_ALIGN_DOWN()
- macro
-In-Reply-To: <20110329173221.GB30387@router-fw-old.local.net-space.pl>
-Message-ID: <alpine.DEB.2.00.1103291408150.1844@chino.kir.corp.google.com>
-References: <20110328092412.GC13826@router-fw-old.local.net-space.pl> <alpine.DEB.2.00.1103281545220.7148@chino.kir.corp.google.com> <20110329173221.GB30387@router-fw-old.local.net-space.pl>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 1C9368D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 17:22:24 -0400 (EDT)
+Message-ID: <4D924D8C.8060201@redhat.com>
+Date: Tue, 29 Mar 2011 17:22:20 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [Lsf] [LSF][MM] page allocation & direct reclaim latency
+References: <1301373398.2590.20.camel@mulgrave.site> <4D91FC2D.4090602@redhat.com> <20110329190520.GJ12265@random.random>
+In-Reply-To: <20110329190520.GJ12265@random.random>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, dave@linux.vnet.ibm.com, wdauchy@gmail.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
 
-On Tue, 29 Mar 2011, Daniel Kiper wrote:
+On 03/29/2011 03:05 PM, Andrea Arcangeli wrote:
 
-> > These are only valid for CONFIG_SPARSEMEM, so they need to be defined 
-> > conditionally.
-> 
-> OK, however, I think that pfn_to_section_nr()/section_nr_to_pfn()
-> should be defined conditionally, too.
-> 
+> Should the latency issues be discussed in that track?
 
-Yes, and you could try removing this from include/linux/mm.h:
+Sounds good.  I don't think we'll spend more than 5-10 minutes
+on the latency thing, probably less than that.
 
-#ifndef PFN_SECTION_SHIFT
-#define PFN_SECTION_SHIFT 0 
-#endif
+> The MM schedule has still a free slot 14-14:30 on Monday, I wonder if
+> there's interest on a "NUMA automatic migration and scheduling
+> awareness" topic or if it's still too vapourware for a real topic and
+> we should keep it for offtrack discussions,
 
-then we'll reveal anything using these conversion macros that don't rely 
-on sparsemem.
+I believe that problem is complex enough to warrant a 30
+minute discussion.  Even if we do not come up with solutions,
+it would be a good start if we could all agree on the problem.
+
+Things this complex often end up getting shot down later, not
+because people do not agree on the solution, but because people
+do not agree on the PROBLEM (and the patches in question only
+solve a subset of the problem).
+
+I would be willing to lead the NUMA scheduling and memory
+allocation discussion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
