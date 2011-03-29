@@ -1,88 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 584D18D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:39:16 -0400 (EDT)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp07.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2TFd32r013023
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 21:09:03 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2TFcwXK4354274
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 21:09:03 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2TFcvCA002489
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 02:38:58 +1100
-Date: Tue, 29 Mar 2011 21:08:53 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/2] check the return value of soft_limit reclaim
-Message-ID: <20110329153853.GD2879@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1301292775-4091-1-git-send-email-yinghan@google.com>
- <1301292775-4091-2-git-send-email-yinghan@google.com>
- <20110328163311.127575fa.nishimura@mxp.nes.nec.co.jp>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 300C88D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:53:20 -0400 (EDT)
+Received: by pxi10 with SMTP id 10so72930pxi.8
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2011 08:53:16 -0700 (PDT)
+Message-ID: <4D920066.7000609@gmail.com>
+Date: Tue, 29 Mar 2011 21:23:10 +0530
+From: Balbir Singh <bsingharora@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20110328163311.127575fa.nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC 0/3] Implementation of cgroup isolation
+References: <20110328093957.089007035@suse.cz> <20110328200332.17fb4b78.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110328200332.17fb4b78.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Ying Han <yinghan@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2011-03-28 16:33:11]:
+On 03/28/11 16:33, KAMEZAWA Hiroyuki wrote:
+> On Mon, 28 Mar 2011 11:39:57 +0200
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+>> Hi all,
+>>
+>> Memory cgroups can be currently used to throttle memory usage of a group of
+>> processes. It, however, cannot be used for an isolation of processes from
+>> the rest of the system because all the pages that belong to the group are
+>> also placed on the global LRU lists and so they are eligible for the global
+>> memory reclaim.
+>>
+>> This patchset aims at providing an opt-in memory cgroup isolation. This
+>> means that a cgroup can be configured to be isolated from the rest of the
+>> system by means of cgroup virtual filesystem (/dev/memctl/group/memory.isolated).
+>>
+>> Isolated mem cgroup can be particularly helpful in deployments where we have
+>> a primary service which needs to have a certain guarantees for memory
+>> resources (e.g. a database server) and we want to shield it off the
+>> rest of the system (e.g. a burst memory activity in another group). This is
+>> currently possible only with mlocking memory that is essential for the
+>> application(s) or a rather hacky configuration where the primary app is in
+>> the root mem cgroup while all the other system activity happens in other
+>> groups.
+>>
+>> mlocking is not an ideal solution all the time because sometimes the working
+>> set is very large and it depends on the workload (e.g. number of incoming
+>> requests) so it can end up not fitting in into memory (leading to a OOM
+>> killer). If we use mem. cgroup isolation instead we are keeping memory resident
+>> and if the working set goes wild we can still do per-cgroup reclaim so the
+>> service is less prone to be OOM killed.
+>>
+>> The patch series is split into 3 patches. First one adds a new flag into
+>> mem_cgroup structure which controls whether the group is isolated (false by
+>> default) and a cgroup fs interface to set it.
+>> The second patch implements interaction with the global LRU. The current
+>> semantic is that we are putting a page into a global LRU only if mem cgroup
+>> LRU functions say they do not want the page for themselves.
+>> The last patch prevents from soft reclaim if the group is isolated.
+>>
+>> I have tested the patches with the simple memory consumer (allocating
+>> private and shared anon memory and SYSV SHM). 
+>>
+>> One instance (call it big consumer) running in the group and paging in the
+>> memory (>90% of cgroup limit) and sleeping for the rest of its life. Then I
+>> had a pool of consumers running in the same cgroup which page in smaller
+>> amount of memory and paging them in the loop to simulate in group memory
+>> pressure (call them sharks).
+>> The sum of consumed memory is more than memory.limit_in_bytes so some
+>> portion of the memory is swapped out.
+>> There is one consumer running in the root cgroup running in parallel which
+>> makes a pressure on the memory (to trigger background reclaim).
+>>
+>> Rss+cache of the group drops down significantly (~66% of the limit) if the
+>> group is not isolated. On the other hand if we isolate the group we are
+>> still saturating the group (~97% of the limit). I can show more
+>> comprehensive results if somebody is interested.
+>>
+> 
+> Isn't it the same result with the case where no cgroup is used ?
+> What is the problem ?
+> Why it's not a problem of configuration ?
+> IIUC, you can put all logins to some cgroup by using cgroupd/libgcgroup.
+> 
 
-> Hi,
-> 
-> This patch looks good to me, except for one nitpick.
-> 
-> On Sun, 27 Mar 2011 23:12:54 -0700
-> Ying Han <yinghan@google.com> wrote:
-> 
-> > In the global background reclaim, we do soft reclaim before scanning the
-> > per-zone LRU. However, the return value is ignored. This patch adds the logic
-> > where no per-zone reclaim happens if the soft reclaim raise the free pages
-> > above the zone's high_wmark.
-> > 
-> > I did notice a similar check exists but instead leaving a "gap" above the
-> > high_wmark(the code right after my change in vmscan.c). There are discussions
-> > on whether or not removing the "gap" which intends to balance pressures across
-> > zones over time. Without fully understand the logic behind, I didn't try to
-> > merge them into one, but instead adding the condition only for memcg users
-> > who care a lot on memory isolation.
-> > 
-> > Signed-off-by: Ying Han <yinghan@google.com>
-> > ---
-> >  mm/vmscan.c |   16 +++++++++++++++-
-> >  1 files changed, 15 insertions(+), 1 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 060e4c1..e4601c5 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2320,6 +2320,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
-> >  	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
-> >  	unsigned long total_scanned;
-> >  	struct reclaim_state *reclaim_state = current->reclaim_state;
-> > +	unsigned long nr_soft_reclaimed;
-> >  	struct scan_control sc = {
-> >  		.gfp_mask = GFP_KERNEL,
-> >  		.may_unmap = 1,
-> > @@ -2413,7 +2414,20 @@ loop_again:
-> >  			 * Call soft limit reclaim before calling shrink_zone.
-> >  			 * For now we ignore the return value
-> 
-> You should remove this comment too.
-> 
-> But, Balbir-san, do you remember why did you ignore the return value here ?
->
+I agree with Kame, I am still at loss in terms of understand the use
+case, I should probably see the rest of the patches
 
-We do that since soft limit reclaim cannot help us make a decision
-from the return value. balance_gap is recomputed following this
-routine. May be it might make sense to increment sc.nr_reclaimed based
-on the return value? 
+>> Thanks for comments.
+>>
+> 
+> 
+> Maybe you just want "guarantee".
+> At 1st thought, this approarch has 3 problems. And memcg is desgined
+> never to prevent global vm scans,
+> 
+> 1. This cannot be used as "guarantee". Just a way for "don't steal from me!!!"
+>    This just implements a "first come, first served" system.
+>    I guess this can be used for server desgines.....only with very very careful play.
+>    If an application exits and lose its memory, there is no guarantee anymore.
+> 
+> 2. Even with isolation, a task in memcg can be killed by OOM-killer at
+>    global memory shortage.
+> 
+> 3. it seems this will add more page fragmentation if implemented poorly, IOW,
+>    can this be work with compaction ?
+> 
 
--- 
-	Three Cheers,
-	Balbir
+Good points
+
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
