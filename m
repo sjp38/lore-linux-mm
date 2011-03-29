@@ -1,237 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 03D788D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 01:57:02 -0400 (EDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH V3 1/2] count the soft_limit reclaim in global background reclaim
-Date: Mon, 28 Mar 2011 22:56:25 -0700
-Message-Id: <1301378186-23199-2-git-send-email-yinghan@google.com>
-In-Reply-To: <1301378186-23199-1-git-send-email-yinghan@google.com>
-References: <1301378186-23199-1-git-send-email-yinghan@google.com>
+	by kanga.kvack.org (Postfix) with SMTP id 6602F8D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 02:00:15 -0400 (EDT)
+Date: Tue, 29 Mar 2011 16:59:47 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH RFC 0/5] IO-less balance_dirty_pages() v2 (simple
+ approach)
+Message-ID: <20110329055947.GG3008@dastard>
+References: <1299623475-5512-1-git-send-email-jack@suse.cz>
+ <20110318143001.GA6173@localhost>
+ <20110322214314.GC19716@quack.suse.cz>
+ <20110325134411.GA8645@localhost>
+ <20110325230544.GD26932@quack.suse.cz>
+ <20110328024445.GA11816@localhost>
+ <20110329021458.GF3008@dastard>
+ <20110329024120.GA9416@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110329024120.GA9416@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>
 
-In the global background reclaim, we do soft reclaim before scanning the
-per-zone LRU. However, the return value is ignored.
+On Tue, Mar 29, 2011 at 10:41:20AM +0800, Wu Fengguang wrote:
+> On Tue, Mar 29, 2011 at 10:14:58AM +0800, Dave Chinner wrote:
+> > -printable
+> > Content-Length: 2034
+> > Lines: 51
+> > 
+> > On Mon, Mar 28, 2011 at 10:44:45AM +0800, Wu Fengguang wrote:
+> > > On Sat, Mar 26, 2011 at 07:05:44AM +0800, Jan Kara wrote:
+> > > > And actually the NFS traces you pointed to originally seem to be different
+> > > > problem, in fact not directly related to what balance_dirty_pages() does...
+> > > > And with local filesystem the results seem to be reasonable (although there
+> > > > are some longer sleeps in your JBOD measurements I don't understand yet).
+> > > 
+> > > Yeah the NFS case can be improved on the FS side (for now you may just
+> > > reuse my NFS patches and focus on other generic improvements).
+> > > 
+> > > The JBOD issue is also beyond my understanding.
+> > > 
+> > > Note that XFS will also see one big IO completion per 0.5-1 seconds,
+> > > when we are to increase the write chunk size from the current 4MB to
+> > > near the bdi's write bandwidth. As illustrated by this graph:
+> > > 
+> > > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/4G/xfs-1dd-1M-8p-3927M-20%25-2.6.38-rc6-dt6+-2011-02-27-22-58/global_dirtied_written-500.png
+> > 
+> > Which is _bad_.
+> > 
+> > Increasing the writeback chunk size simply causes dirty queue
+> > starvation issues when there are lots of dirty files and lots more
+> > memory than there is writeback bandwidth. Think of a machine with
+> > 1TB of RAM (that's a 200GB dirty limit) and 1GB/s of disk
+> > throughput. Thats 3 minutes worth of writeback and increasing the
+> > chunk size to ~1s worth of throughput means that the 200th dirty
+> > file won't get serviced for 3 minutes....
+> > 
+> > We used to have behaviour similar to this this (prior to 2.6.16, IIRC),
+> > and it caused all sorts of problems where people were losing 10-15
+> > minute old data when the system crashed because writeback didn't
+> > process the dirty inode list fast enough in the presence of lots of
+> > large files....
+>  
+> Yes it is a problem, and can be best solved by automatically lowering
+> bdi dirty limit to (bdi->write_bandwidth * dirty_expire_interval/100).
+> Then we reliably control the lost data size to < 30s by default.
 
-We would like to skip shrink_zone() if soft_limit reclaim does enough work.
-Also, we need to make the memory pressure balanced across per-memcg zones,
-like the logic vm-core. This patch is the first step where we start with
-counting the nr_scanned and nr_reclaimed from soft_limit reclaim into the
-global scan_control.
+Perhaps, though I see problems with that also. e.g. write bandwidth
+is 100MB/s (dirty limit ~= 3GB), then someone runs a find on the
+same disk and write bandwidth drops to 10MB/s (dirty limit changes
+to ~300MB). Then we are 10x over the new dirty limit and the
+writing application will be completely throttled for the next 270s
+until the dirty pages drop below the new dirty limit or the find
+stops.
 
-No change from V2.
+IOWs, it changing IO workloads will cause interesting corner cases
+to be discovered and hence further complexity to handle effectively.
+And trying to diagnose problems because of such changes in IO load
+will be nigh on impossible - how would you gather sufficient
+information to determine that application A stalled for a minute
+because application B read a bunch of stuff from disk at the wrong
+time? Then how would you prove that you'd fixed the problem without
+introducing some other regression triggered by different workload
+changes?
 
-Signed-off-by: Ying Han <yinghan@google.com>
----
- include/linux/memcontrol.h |    6 ++++--
- include/linux/swap.h       |    3 ++-
- mm/memcontrol.c            |   29 ++++++++++++++++++++---------
- mm/vmscan.c                |   16 +++++++++++++---
- 4 files changed, 39 insertions(+), 15 deletions(-)
+> > A small writeback chunk size has no adverse impact on XFS as long as
+> > the elevator does it's job of merging IOs (which in 99.9% of cases
+> > it does) so I'm wondering what the reason for making this change
+> > is.
+> 
+> It's explained in this changelog (is the XFS paragraph still valid?)
+> 
+>         https://patchwork.kernel.org/patch/605151/
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 5a5ce70..01281ac 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -144,7 +144,8 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
- }
- 
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
--						gfp_t gfp_mask);
-+						gfp_t gfp_mask,
-+						unsigned long *total_scanned);
- u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-@@ -338,7 +339,8 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
- 
- static inline
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
--					    gfp_t gfp_mask)
-+					    gfp_t gfp_mask,
-+					    unsigned long *total_scanned)
- {
- 	return 0;
- }
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index ed6ebe6..3c6a9cd 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -257,7 +257,8 @@ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
- extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
- 						gfp_t gfp_mask, bool noswap,
- 						unsigned int swappiness,
--						struct zone *zone);
-+						struct zone *zone,
-+						unsigned long *nr_scanned);
- extern int __isolate_lru_page(struct page *page, int mode, int file);
- extern unsigned long shrink_all_memory(unsigned long nr_pages);
- extern int vm_swappiness;
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4407dd0..67fff28 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1433,7 +1433,8 @@ mem_cgroup_select_victim(struct mem_cgroup *root_mem)
- static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- 						struct zone *zone,
- 						gfp_t gfp_mask,
--						unsigned long reclaim_options)
-+						unsigned long reclaim_options,
-+						unsigned long *total_scanned)
- {
- 	struct mem_cgroup *victim;
- 	int ret, total = 0;
-@@ -1442,6 +1443,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- 	bool shrink = reclaim_options & MEM_CGROUP_RECLAIM_SHRINK;
- 	bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
- 	unsigned long excess;
-+	unsigned long nr_scanned;
- 
- 	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
- 
-@@ -1484,10 +1486,12 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- 			continue;
- 		}
- 		/* we use swappiness of local cgroup */
--		if (check_soft)
-+		if (check_soft) {
- 			ret = mem_cgroup_shrink_node_zone(victim, gfp_mask,
--				noswap, get_swappiness(victim), zone);
--		else
-+				noswap, get_swappiness(victim), zone,
-+				&nr_scanned);
-+			*total_scanned += nr_scanned;
-+		} else
- 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
- 						noswap, get_swappiness(victim));
- 		css_put(&victim->css);
-@@ -1928,7 +1932,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *mem, gfp_t gfp_mask,
- 		return CHARGE_WOULDBLOCK;
- 
- 	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
--					      gfp_mask, flags);
-+					      gfp_mask, flags, NULL);
- 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
- 		return CHARGE_RETRY;
- 	/*
-@@ -3211,7 +3215,8 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
- 			break;
- 
- 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
--						MEM_CGROUP_RECLAIM_SHRINK);
-+						MEM_CGROUP_RECLAIM_SHRINK,
-+						NULL);
- 		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
- 		/* Usage is reduced ? */
-   		if (curusage >= oldusage)
-@@ -3271,7 +3276,8 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- 
- 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
- 						MEM_CGROUP_RECLAIM_NOSWAP |
--						MEM_CGROUP_RECLAIM_SHRINK);
-+						MEM_CGROUP_RECLAIM_SHRINK,
-+						NULL);
- 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
- 		/* Usage is reduced ? */
- 		if (curusage >= oldusage)
-@@ -3285,7 +3291,8 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- }
- 
- unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
--					    gfp_t gfp_mask)
-+					    gfp_t gfp_mask,
-+					    unsigned long *total_scanned)
- {
- 	unsigned long nr_reclaimed = 0;
- 	struct mem_cgroup_per_zone *mz, *next_mz = NULL;
-@@ -3293,6 +3300,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 	int loop = 0;
- 	struct mem_cgroup_tree_per_zone *mctz;
- 	unsigned long long excess;
-+	unsigned long nr_scanned;
- 
- 	if (order > 0)
- 		return 0;
-@@ -3311,10 +3319,13 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 		if (!mz)
- 			break;
- 
-+		nr_scanned = 0;
- 		reclaimed = mem_cgroup_hierarchical_reclaim(mz->mem, zone,
- 						gfp_mask,
--						MEM_CGROUP_RECLAIM_SOFT);
-+						MEM_CGROUP_RECLAIM_SOFT,
-+						&nr_scanned);
- 		nr_reclaimed += reclaimed;
-+		*total_scanned += nr_scanned;
- 		spin_lock(&mctz->lock);
- 
- 		/*
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 060e4c1..3755ad5 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2147,9 +2147,11 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
- 						gfp_t gfp_mask, bool noswap,
- 						unsigned int swappiness,
--						struct zone *zone)
-+						struct zone *zone,
-+						unsigned long *nr_scanned)
- {
- 	struct scan_control sc = {
-+		.nr_scanned = 0,
- 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
- 		.may_writepage = !laptop_mode,
- 		.may_unmap = 1,
-@@ -2158,6 +2160,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
- 		.order = 0,
- 		.mem_cgroup = mem,
- 	};
-+
- 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
- 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
- 
-@@ -2176,6 +2179,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
- 
- 	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
- 
-+	*nr_scanned = sc.nr_scanned;
- 	return sc.nr_reclaimed;
- }
- 
-@@ -2320,6 +2324,8 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
- 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
- 	unsigned long total_scanned;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
-+	unsigned long nr_soft_reclaimed;
-+	unsigned long nr_soft_scanned;
- 	struct scan_control sc = {
- 		.gfp_mask = GFP_KERNEL,
- 		.may_unmap = 1,
-@@ -2409,11 +2415,15 @@ loop_again:
- 
- 			sc.nr_scanned = 0;
- 
-+			nr_soft_scanned = 0;
- 			/*
- 			 * Call soft limit reclaim before calling shrink_zone.
--			 * For now we ignore the return value
- 			 */
--			mem_cgroup_soft_limit_reclaim(zone, order, sc.gfp_mask);
-+			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
-+							order, sc.gfp_mask,
-+							&nr_soft_scanned);
-+			sc.nr_reclaimed += nr_soft_reclaimed;
-+			total_scanned += nr_soft_scanned;
- 
- 			/*
- 			 * We put equal pressure on every zone, unless
+You mean this paragraph?
+
+"According to Christoph, the current writeback size is way too
+small, and XFS had a hack that bumped out nr_to_write to four times
+the value sent by the VM to be able to saturate medium-sized RAID
+arrays.  This value was also problematic for ext4 as well, as it
+caused large files to be come interleaved on disk by in 8 megabyte
+chunks (we bumped up the nr_to_write by a factor of two)."
+
+We _used_ to have such a hack. It was there from 2.6.30 through to
+2.6.35 - from when we realised writeback had bitrotted into badness
+to when we fixed the last set of bugs that the nr_to_write windup
+was papering over. between 2.6.30 and 2.6.35 we changed to dedicated
+flusher threads, got rid of congestion backoff, fixed up a bunch
+of queueing issues and finally stopped nr_to_write from going and
+staying negative and getting stuck on single inodes until they had
+no more dirty pages left. That was when this was committed:
+
+commit 254c8c2dbf0e06a560a5814eb90cb628adb2de66
+Author: Dave Chinner <dchinner@redhat.com>
+Date:   Wed Jun 9 10:37:19 2010 +1000
+
+    xfs: remove nr_to_write writeback windup.
+    
+    Now that the background flush code has been fixed, we shouldn't need to
+    silently multiply the wbc->nr_to_write to get good writeback. Remove
+    that code.
+    
+    Signed-off-by: Dave Chinner <dchinner@redhat.com>
+    Reviewed-by: Christoph Hellwig <hch@lst.de>
+    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+
+And writeback throughput is now as good as it ever was....
+
+> The larger write chunk size generally helps ext4 and RAID setups.
+
+Is this still true with ext4's new submit_bio()-based writeback IO
+submission path that was copied from the XFS? It's a lot more
+efficient so should be much better on RAID setups.
+
+Cheers,
+
+Dave.
 -- 
-1.7.3.1
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
