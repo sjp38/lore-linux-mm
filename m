@@ -1,72 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 315848D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 22:15:03 -0400 (EDT)
-Date: Tue, 29 Mar 2011 13:14:58 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH RFC 0/5] IO-less balance_dirty_pages() v2 (simple
- approach)
-Message-ID: <20110329021458.GF3008@dastard>
-References: <1299623475-5512-1-git-send-email-jack@suse.cz>
- <20110318143001.GA6173@localhost>
- <20110322214314.GC19716@quack.suse.cz>
- <20110325134411.GA8645@localhost>
- <20110325230544.GD26932@quack.suse.cz>
- <20110328024445.GA11816@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110328024445.GA11816@localhost>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B795F8D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 22:36:10 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C22DE3EE0AE
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:36:06 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A70FE45DE52
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:36:06 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D02545DE50
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:36:06 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7883E1DB8045
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:36:06 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 425B91DB802F
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:36:06 +0900 (JST)
+Date: Tue, 29 Mar 2011 11:29:40 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC 0/3] Implementation of cgroup isolation
+Message-Id: <20110329112940.fcccd175.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110329094756.49af153d.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110328093957.089007035@suse.cz>
+	<AANLkTi=CPMxOg3juDiD-_hnBsXKdZ+at+i9c1YYM=vv1@mail.gmail.com>
+	<20110329091254.20c7cfcb.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTin4J5kiysPdQD2aTC52U4-dy04C1g@mail.gmail.com>
+	<20110329094756.49af153d.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ying Han <yinghan@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Suleiman Souhlal <suleiman@google.com>
 
-On Mon, Mar 28, 2011 at 10:44:45AM +0800, Wu Fengguang wrote:
-> On Sat, Mar 26, 2011 at 07:05:44AM +0800, Jan Kara wrote:
-> > And actually the NFS traces you pointed to originally seem to be different
-> > problem, in fact not directly related to what balance_dirty_pages() does...
-> > And with local filesystem the results seem to be reasonable (although there
-> > are some longer sleeps in your JBOD measurements I don't understand yet).
+On Tue, 29 Mar 2011 09:47:56 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> On Mon, 28 Mar 2011 17:37:02 -0700
+> Ying Han <yinghan@google.com> wrote:
+
+> > The approach we are thinking to make the page->lru exclusive solve the
+> > problem. and also we should be able to break the zone->lru_lock
+> > sharing.
+> > 
+> Is zone->lru_lock is a problem even with the help of pagevecs ?
 > 
-> Yeah the NFS case can be improved on the FS side (for now you may just
-> reuse my NFS patches and focus on other generic improvements).
+> If LRU management guys acks you to isolate LRUs and to make kswapd etc..
+> more complex, okay, we'll go that way. This will _change_ the whole
+> memcg design and concepts Maybe memcg should have some kind of balloon driver to
+> work happy with isolated lru.
 > 
-> The JBOD issue is also beyond my understanding.
+> But my current standing position is "never bad effects global reclaim".
+> So, I'm not very happy with the solution.
 > 
-> Note that XFS will also see one big IO completion per 0.5-1 seconds,
-> when we are to increase the write chunk size from the current 4MB to
-> near the bdi's write bandwidth. As illustrated by this graph:
+> If we go that way, I guess we'll think we should have pseudo nodes/zones, which
+> was proposed in early days of resource controls.(not cgroup).
 > 
-> http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/4G/xfs-1dd-1M-8p-3927M-20%25-2.6.38-rc6-dt6+-2011-02-27-22-58/global_dirtied_written-500.png
 
-Which is _bad_.
+BTW, against isolation, I have one thought.
 
-Increasing the writeback chunk size simply causes dirty queue
-starvation issues when there are lots of dirty files and lots more
-memory than there is writeback bandwidth. Think of a machine with
-1TB of RAM (that's a 200GB dirty limit) and 1GB/s of disk
-throughput. Thats 3 minutes worth of writeback and increasing the
-chunk size to ~1s worth of throughput means that the 200th dirty
-file won't get serviced for 3 minutes....
+Now, soft_limit_reclaim is not called in direct-reclaim path just because we thought
+kswapd works enough well. If necessary, I think we can put soft-reclaim call in
+generic do_try_to_free_pages(order=0). 
 
-We used to have behaviour similar to this this (prior to 2.6.16, IIRC),
-and it caused all sorts of problems where people were losing 10-15
-minute old data when the system crashed because writeback didn't
-process the dirty inode list fast enough in the presence of lots of
-large files....
+So, isolation problem can be reduced to some extent, isn't it ?
+Algorithm of softlimit _should_ be updated. I guess it's not heavily tested feature.
 
-A small writeback chunk size has no adverse impact on XFS as long as
-the elevator does it's job of merging IOs (which in 99.9% of cases
-it does) so I'm wondering what the reason for making this change
-is.
+About ROOT cgroup, I think some daemon application should put _all_ process to
+some controled cgroup. So, I don't want to think about limiting on ROOT cgroup
+without any justification.
 
-Cheers,
+I'd like you to devide 'the talk on performance' and 'the talk on feature'.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+"This makes makes performance better! ...and add an feature" sounds bad to me.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
