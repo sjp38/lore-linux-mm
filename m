@@ -1,38 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 775718D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 18:45:19 -0400 (EDT)
-From: Sean Noonan <Sean.Noonan@twosigma.com>
-Date: Tue, 29 Mar 2011 18:45:15 -0400
-Subject: RE: XFS memory allocation deadlock in 2.6.38
-Message-ID: <081DDE43F61F3D43929A181B477DCA95639B5361@MSXAOA6.twosigma.com>
-References: <081DDE43F61F3D43929A181B477DCA95639B5327@MSXAOA6.twosigma.com>
- <20110324174311.GA31576@infradead.org>
- <AANLkTikwwRm6FHFtEdUg54NvmKdswQw-NPH5dtq1mXBK@mail.gmail.com>
- <081DDE43F61F3D43929A181B477DCA95639B5349@MSXAOA6.twosigma.com>
- <BANLkTin0jJevStg5P2hqsLbqMzo3o30sYg@mail.gmail.com>
- <081DDE43F61F3D43929A181B477DCA95639B534E@MSXAOA6.twosigma.com>
- <081DDE43F61F3D43929A181B477DCA95639B5359@MSXAOA6.twosigma.com>
- <20110329192434.GA10536@infradead.org>
- <081DDE43F61F3D43929A181B477DCA95639B535C@MSXAOA6.twosigma.com>
- <20110329200256.GA6019@infradead.org> <20110329224230.GH3008@dastard>
-In-Reply-To: <20110329224230.GH3008@dastard>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A1C0D8D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 19:12:07 -0400 (EDT)
+Date: Wed, 30 Mar 2011 01:12:00 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [Lsf] [LSF][MM] page allocation & direct reclaim latency
+Message-ID: <20110329231200.GQ12265@random.random>
+References: <1301373398.2590.20.camel@mulgrave.site>
+ <4D91FC2D.4090602@redhat.com>
+ <20110329190520.GJ12265@random.random>
+ <BANLkTikDwfQaSGtrKOSvgA9oaRC1Lbx3cw@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BANLkTikDwfQaSGtrKOSvgA9oaRC1Lbx3cw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Dave Chinner' <david@fromorbit.com>, 'Christoph Hellwig' <hch@infradead.org>
-Cc: Trammell Hudson <Trammell.Hudson@twosigma.com>, Christos Zoulas <Christos.Zoulas@twosigma.com>, Martin Bligh <Martin.Bligh@twosigma.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, Stephen Degler <Stephen.Degler@twosigma.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-xfs@oss.sgi.com'" <linux-xfs@oss.sgi.com>, 'Michel Lespinasse' <walken@google.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Rik van Riel <riel@redhat.com>, lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-> Need to keep the if (!irbuf) check as KM_MAYFAIL is passed.
+On Wed, Mar 30, 2011 at 07:13:42AM +0900, Minchan Kim wrote:
+> It's okay to me. LRU ordering issue wouldn't take much time.
+> But I am not sure Mel would have a long time. :)
+> 
+> About reclaim latency, I sent a patch in the old days.
+> http://marc.info/?l=linux-mm&m=129187231129887&w=4
+> 
+> And some guys on embedded had a concern about latency.
+> They want OOM rather than eviction of working set and undeterministic
+> latency of reclaim.
+> 
+> As another issue of related to latency, there is a OOM.
+> To accelerate task's exit, we raise a priority of the victim process
+> but it had a problem so Kosaki decided reverting the patch. It's
+> totally related to latency issue but it would
+> 
+> In addition, Kame and I sent a patch to prevent forkbomb. Kame's
+> apprach is to track the history of mm and mine is to use sysrq to kill
+> recently created tasks. The approaches have pros and cons.
+> But anyone seem to not has a interest about forkbomb protection.
+> So I want to listen other's opinion we really need it
 
-It wasn't in before the bug presented, so leaving it in wouldn't be a true =
-test as to whether the bug has been tracked to the correct place.  I'll tes=
-t again with the if (!irbuf).
+The sysrq won't help on large servers, virtual clouds or android
+devices where there's no keyboard attached and not sysrqd running. So
+I'd prefer not requiring sysrq for that, even if you can run a sysrq,
+few people would know how to activate an obscure sysrq feature meant
+to be more selective than SYSRQ+I (or SYSRQ+B..) for forkbombs, if it
+works without human intervention I think it's more valuable.
 
-Sean
+> I am not sure this could become a topic of LSF/MM
+
+Now the forkbomb detection would fit nicely as a subtopic into Hugh's
+OOM topic. I found one more spare MM slot on 5 April 12:30-13, so for
+now I filled it with OOM and forkbomb.
+
+> If it is proper, I would like to talk above issues in "Reclaim,
+> compaction and LRU ordering" slot.
+
+Sounds good to me. I added "allocation latency" to your slot.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
