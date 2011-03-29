@@ -1,116 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 504728D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 06:40:14 -0400 (EDT)
-Subject: Re: kmemleak for MIPS
-From: Catalin Marinas <catalin.marinas@arm.com>
-In-Reply-To: <AANLkTim139fpJsMJFLiyUYvFgGMz-Ljgd_yDrks-tqhE@mail.gmail.com>
-References: <9bde694e1003020554p7c8ff3c2o4ae7cb5d501d1ab9@mail.gmail.com>
-	 <AANLkTinnqtXf5DE+qxkTyZ9p9Mb8dXai6UxWP2HaHY3D@mail.gmail.com>
-	 <1300960540.32158.13.camel@e102109-lin.cambridge.arm.com>
-	 <AANLkTim139fpJsMJFLiyUYvFgGMz-Ljgd_yDrks-tqhE@mail.gmail.com>
-Date: Tue, 29 Mar 2011 11:40:06 +0100
-Message-ID: <1301395206.583.53.camel@e102109-lin.cambridge.arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 53CE38D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 06:40:49 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 4ACA03EE0BD
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 19:40:46 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 30B7D45DE5C
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 19:40:46 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B5F545DE58
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 19:40:46 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CF38BE38003
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 19:40:45 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 574D3E08006
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 19:40:45 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 2/4] remove boost_dying_task_prio()
+In-Reply-To: <20110329193953.2B7E.A69D9226@jp.fujitsu.com>
+References: <20110329193953.2B7E.A69D9226@jp.fujitsu.com>
+Message-Id: <20110329194124.2B86.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 29 Mar 2011 19:40:44 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxin John <maxin.john@gmail.com>
-Cc: Daniel Baluta <dbaluta@ixiacom.com>, naveen yadav <yad.naveen@gmail.com>, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrey Vagin <avagin@openvz.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Mon, 2011-03-28 at 22:15 +0100, Maxin John wrote:
-> > Just add "depends on MIPS" and give it a try.
-> As per your suggestion, I have tried it in my qemu environment (MIPS malt=
-a).
->=20
-> With a minor modification in arch/mips/kernel/vmlinux.lds.S (added the
-> symbol  _sdata ), I was able to add kmemleak support for MIPS.
->=20
-> Output in MIPS (Malta):
+This is a almost revert commit 93b43fa (oom: give the dying
+task a higher priority).
 
-You may want to disable the kmemleak testing to reduce the amount of
-leaks reported.
+The commit dramatically improve oom killer logic when fork-bomb
+occur. But, I've found it has nasty corner case. Now cpu cgroup
+has strange default RT runtime. It's 0! That said, if a process
+under cpu cgroup promote RT scheduling class, the process never
+run at all.
 
-> debian-mips:~# uname -a
-> Linux debian-mips 2.6.38-08826-g1788c20-dirty #4 SMP Mon Mar 28
-> 23:22:04 EEST 2011 mips GNU/Linux
-> debian-mips:~# mount -t debugfs nodev /sys/kernel/debug/
-> debian-mips:~# cat /sys/kernel/debug/kmemleak
-> unreferenced object 0x8f95d000 (size 4096):
->   comm "swapper", pid 1, jiffies 4294937330 (age 467.240s)
->   hex dump (first 32 bytes):
->     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
->     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
->   backtrace:
->     [<80529644>] alloc_large_system_hash+0x2f8/0x410
->     [<8053864c>] udp_table_init+0x4c/0x158
->     [<80538774>] udp_init+0x1c/0x94
->     [<80538b34>] inet_init+0x184/0x2a0
->     [<80100584>] do_one_initcall+0x174/0x1e0
->     [<8051f348>] kernel_init+0xe4/0x174
->     [<80103d4c>] kernel_thread_helper+0x10/0x18
-> unreferenced object 0x8f95e000 (size 4096):
->   comm "swapper", pid 1, jiffies 4294937330 (age 467.240s)
->   hex dump (first 32 bytes):
->     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
->     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
->   backtrace:
->     [<80529644>] alloc_large_system_hash+0x2f8/0x410
->     [<8053864c>] udp_table_init+0x4c/0x158
->     [<8053881c>] udplite4_register+0x24/0xa8
->     [<80538b3c>] inet_init+0x18c/0x2a0
->     [<80100584>] do_one_initcall+0x174/0x1e0
->     [<8051f348>] kernel_init+0xe4/0x174
->     [<80103d4c>] kernel_thread_helper+0x10/0x18
+Eventually, kernel may hang up when oom kill occur.
+I and Luis who original author agreed to disable this logic at
+once.
 
-These are probably false positives. Since the pointer referring this
-block (udp_table) is __read_mostly, is it possible that the
-corresponding section gets placed outside the _sdata.._edata range?
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Acked-by: Luis Claudio R. Goncalves <lclaudio@uudg.org>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/oom_kill.c |   28 ----------------------------
+ 1 files changed, 0 insertions(+), 28 deletions(-)
 
-diff --git a/arch/mips/include/asm/cache.h b/arch/mips/include/asm/cache.h
-index 650ac9b..b4db69f 100644
---- a/arch/mips/include/asm/cache.h
-+++ b/arch/mips/include/asm/cache.h
-@@ -17,6 +17,6 @@
- #define SMP_CACHE_SHIFT=09=09L1_CACHE_SHIFT
- #define SMP_CACHE_BYTES=09=09L1_CACHE_BYTES
-=20
--#define __read_mostly __attribute__((__section__(".data.read_mostly")))
-+#define __read_mostly __attribute__((__section__(".data..read_mostly")))
-=20
- #endif /* _ASM_CACHE_H */
-diff --git a/arch/mips/kernel/vmlinux.lds.S b/arch/mips/kernel/vmlinux.lds.=
-S
-index 570607b..6f6d5d0 100644
---- a/arch/mips/kernel/vmlinux.lds.S
-+++ b/arch/mips/kernel/vmlinux.lds.S
-@@ -74,6 +74,7 @@ SECTIONS
- =09=09INIT_TASK_DATA(PAGE_SIZE)
- =09=09NOSAVE_DATA
- =09=09CACHELINE_ALIGNED_DATA(1 << CONFIG_MIPS_L1_CACHE_SHIFT)
-+=09=09READ_MOSTLY_DATA(1 << CONFIG_MIPS_L1_CACHE_SHIFT)
- =09=09DATA_DATA
- =09=09CONSTRUCTORS
- =09}
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 6a819d1..83fb72c 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -84,24 +84,6 @@ static bool has_intersects_mems_allowed(struct task_struct *tsk,
+ #endif /* CONFIG_NUMA */
+ 
+ /*
+- * If this is a system OOM (not a memcg OOM) and the task selected to be
+- * killed is not already running at high (RT) priorities, speed up the
+- * recovery by boosting the dying task to the lowest FIFO priority.
+- * That helps with the recovery and avoids interfering with RT tasks.
+- */
+-static void boost_dying_task_prio(struct task_struct *p,
+-				  struct mem_cgroup *mem)
+-{
+-	struct sched_param param = { .sched_priority = 1 };
+-
+-	if (mem)
+-		return;
+-
+-	if (!rt_task(p))
+-		sched_setscheduler_nocheck(p, SCHED_FIFO, &param);
+-}
+-
+-/*
+  * The process p may have detached its own ->mm while exiting or through
+  * use_mm(), but one or more of its subthreads may still have a valid
+  * pointer.  Return p, or any of its subthreads with a valid ->mm, with
+@@ -452,13 +434,6 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+ 	set_tsk_thread_flag(p, TIF_MEMDIE);
+ 	force_sig(SIGKILL, p);
+ 
+-	/*
+-	 * We give our sacrificial lamb high priority and access to
+-	 * all the memory it needs. That way it should be able to
+-	 * exit() and clear out its resources quickly...
+-	 */
+-	boost_dying_task_prio(p, mem);
+-
+ 	return 0;
+ }
+ #undef K
+@@ -482,7 +457,6 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	 */
+ 	if (p->flags & PF_EXITING) {
+ 		set_tsk_thread_flag(p, TIF_MEMDIE);
+-		boost_dying_task_prio(p, mem);
+ 		return 0;
+ 	}
+ 
+@@ -556,7 +530,6 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
+ 	 */
+ 	if (fatal_signal_pending(current)) {
+ 		set_thread_flag(TIF_MEMDIE);
+-		boost_dying_task_prio(current, NULL);
+ 		return;
+ 	}
+ 
+@@ -712,7 +685,6 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 	 */
+ 	if (fatal_signal_pending(current)) {
+ 		set_thread_flag(TIF_MEMDIE);
+-		boost_dying_task_prio(current, NULL);
+ 		return;
+ 	}
+ 
+-- 
+1.7.1
 
-> unreferenced object 0x8f072000 (size 4096):
->   comm "swapper", pid 1, jiffies 4294937680 (age 463.840s)
->   hex dump (first 32 bytes):
->     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
->     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
->   backtrace:
->     [<801ba3d8>] __kmalloc+0x130/0x180
->     [<805461bc>] flow_cache_cpu_prepare+0x50/0xa8
->     [<8053746c>] flow_cache_init_global+0x90/0x138
->     [<80100584>] do_one_initcall+0x174/0x1e0
->     [<8051f348>] kernel_init+0xe4/0x174
->     [<80103d4c>] kernel_thread_helper+0x10/0x18
-
-Same here, flow_cachep pointer is __read_mostly.
-
---=20
-Catalin
 
 
 --
