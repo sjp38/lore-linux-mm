@@ -1,53 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E69EE8D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 22:55:14 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 1CB793EE0B5
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:55:05 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 031B345DE96
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:55:05 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E12C245DE95
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:55:04 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D5892E18001
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:55:04 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A240AE08001
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:55:04 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: Very aggressive memory reclaim
-In-Reply-To: <BANLkTimHPFMUOCFAruF5J4OMHSkZsMsAgA@mail.gmail.com>
-References: <20110328215344.GC3008@dastard> <BANLkTimHPFMUOCFAruF5J4OMHSkZsMsAgA@mail.gmail.com>
-Message-Id: <20110329115546.C08C.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 43E638D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 23:02:53 -0400 (EDT)
+Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
+	by smtp-out.google.com with ESMTP id p2T32nXx015780
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 20:02:49 -0700
+Received: from qwb7 (qwb7.prod.google.com [10.241.193.71])
+	by kpbe16.cbf.corp.google.com with ESMTP id p2T32ffu024953
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 20:02:48 -0700
+Received: by qwb7 with SMTP id 7so2334793qwb.12
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 20:02:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Tue, 29 Mar 2011 11:55:03 +0900 (JST)
+In-Reply-To: <20110329112940.fcccd175.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110328093957.089007035@suse.cz>
+	<AANLkTi=CPMxOg3juDiD-_hnBsXKdZ+at+i9c1YYM=vv1@mail.gmail.com>
+	<20110329091254.20c7cfcb.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTin4J5kiysPdQD2aTC52U4-dy04C1g@mail.gmail.com>
+	<20110329094756.49af153d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110329112940.fcccd175.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 28 Mar 2011 20:02:43 -0700
+Message-ID: <BANLkTikt_wJaVqUBKJYJ6rOqvL1GhqJxDw@mail.gmail.com>
+Subject: Re: [RFC 0/3] Implementation of cgroup isolation
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Dave Chinner <david@fromorbit.com>, John Lepikhin <johnlepikhin@gmail.com>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>
 
-> Recently, We had a similar issue.
-> http://www.spinics.net/lists/linux-mm/msg12243.html
-> But it seems to not merge. I don't know why since I didn't follow up the thread.
-> Maybe Cced guys can help you.
-> 
-> Is it a sudden big cache drop at the moment or accumulated small cache
-> drop for long time?
-> What's your zones' size?
-> 
-> Please attach the result of cat /proc/zoneinfo for others.
+On Mon, Mar 28, 2011 at 7:29 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 29 Mar 2011 09:47:56 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>
+>> On Mon, 28 Mar 2011 17:37:02 -0700
+>> Ying Han <yinghan@google.com> wrote:
+>
+>> > The approach we are thinking to make the page->lru exclusive solve the
+>> > problem. and also we should be able to break the zone->lru_lock
+>> > sharing.
+>> >
+>> Is zone->lru_lock is a problem even with the help of pagevecs ?
+>>
+>> If LRU management guys acks you to isolate LRUs and to make kswapd etc..
+>> more complex, okay, we'll go that way. This will _change_ the whole
+>> memcg design and concepts Maybe memcg should have some kind of balloon driver to
+>> work happy with isolated lru.
+>>
+>> But my current standing position is "never bad effects global reclaim".
+>> So, I'm not very happy with the solution.
+>>
+>> If we go that way, I guess we'll think we should have pseudo nodes/zones, which
+>> was proposed in early days of resource controls.(not cgroup).
+>>
+>
+> BTW, against isolation, I have one thought.
+>
+> Now, soft_limit_reclaim is not called in direct-reclaim path just because we thought
+> kswapd works enough well. If necessary, I think we can put soft-reclaim call in
+> generic do_try_to_free_pages(order=0).
 
-If my remember is correct, 2.6.38 is included Mel's anti agressive 
-reclaim patch. And original report seems to be using 2.6.37.x. 
+We were talking about that internally and that definitely make sense to add.
 
-John, can you try 2.6.38?
+>
+> So, isolation problem can be reduced to some extent, isn't it ?
+> Algorithm of softlimit _should_ be updated. I guess it's not heavily tested feature.
 
+Agree and that is something we might want to go and fix. soft_limit in
+general provides a nice way to
+over_committing the machine, and still have control of doing target
+reclaim under system memory pressure.
 
+>
+> About ROOT cgroup, I think some daemon application should put _all_ process to
+> some controled cgroup. So, I don't want to think about limiting on ROOT cgroup
+> without any justification.
+>
+> I'd like you to devide 'the talk on performance' and 'the talk on feature'.
+>
+> "This makes makes performance better! ...and add an feature" sounds bad to me.
+
+Ok, then let's stick on the memory isolation feature now :)
+
+--Ying
+>
+> Thanks,
+> -Kame
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
