@@ -1,146 +1,291 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6602F8D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 02:00:15 -0400 (EDT)
-Date: Tue, 29 Mar 2011 16:59:47 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH RFC 0/5] IO-less balance_dirty_pages() v2 (simple
- approach)
-Message-ID: <20110329055947.GG3008@dastard>
-References: <1299623475-5512-1-git-send-email-jack@suse.cz>
- <20110318143001.GA6173@localhost>
- <20110322214314.GC19716@quack.suse.cz>
- <20110325134411.GA8645@localhost>
- <20110325230544.GD26932@quack.suse.cz>
- <20110328024445.GA11816@localhost>
- <20110329021458.GF3008@dastard>
- <20110329024120.GA9416@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20110329024120.GA9416@localhost>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 56DF48D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 02:16:39 -0400 (EDT)
+From: Ying Han <yinghan@google.com>
+Subject: [PATCH V3] Add the pagefault count into memcg stats
+Date: Mon, 28 Mar 2011 23:16:24 -0700
+Message-Id: <1301379384-17568-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-On Tue, Mar 29, 2011 at 10:41:20AM +0800, Wu Fengguang wrote:
-> On Tue, Mar 29, 2011 at 10:14:58AM +0800, Dave Chinner wrote:
-> > -printable
-> > Content-Length: 2034
-> > Lines: 51
-> > 
-> > On Mon, Mar 28, 2011 at 10:44:45AM +0800, Wu Fengguang wrote:
-> > > On Sat, Mar 26, 2011 at 07:05:44AM +0800, Jan Kara wrote:
-> > > > And actually the NFS traces you pointed to originally seem to be different
-> > > > problem, in fact not directly related to what balance_dirty_pages() does...
-> > > > And with local filesystem the results seem to be reasonable (although there
-> > > > are some longer sleeps in your JBOD measurements I don't understand yet).
-> > > 
-> > > Yeah the NFS case can be improved on the FS side (for now you may just
-> > > reuse my NFS patches and focus on other generic improvements).
-> > > 
-> > > The JBOD issue is also beyond my understanding.
-> > > 
-> > > Note that XFS will also see one big IO completion per 0.5-1 seconds,
-> > > when we are to increase the write chunk size from the current 4MB to
-> > > near the bdi's write bandwidth. As illustrated by this graph:
-> > > 
-> > > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/4G/xfs-1dd-1M-8p-3927M-20%25-2.6.38-rc6-dt6+-2011-02-27-22-58/global_dirtied_written-500.png
-> > 
-> > Which is _bad_.
-> > 
-> > Increasing the writeback chunk size simply causes dirty queue
-> > starvation issues when there are lots of dirty files and lots more
-> > memory than there is writeback bandwidth. Think of a machine with
-> > 1TB of RAM (that's a 200GB dirty limit) and 1GB/s of disk
-> > throughput. Thats 3 minutes worth of writeback and increasing the
-> > chunk size to ~1s worth of throughput means that the 200th dirty
-> > file won't get serviced for 3 minutes....
-> > 
-> > We used to have behaviour similar to this this (prior to 2.6.16, IIRC),
-> > and it caused all sorts of problems where people were losing 10-15
-> > minute old data when the system crashed because writeback didn't
-> > process the dirty inode list fast enough in the presence of lots of
-> > large files....
->  
-> Yes it is a problem, and can be best solved by automatically lowering
-> bdi dirty limit to (bdi->write_bandwidth * dirty_expire_interval/100).
-> Then we reliably control the lost data size to < 30s by default.
+Two new stats in per-memcg memory.stat which tracks the number of
+page faults and number of major page faults.
 
-Perhaps, though I see problems with that also. e.g. write bandwidth
-is 100MB/s (dirty limit ~= 3GB), then someone runs a find on the
-same disk and write bandwidth drops to 10MB/s (dirty limit changes
-to ~300MB). Then we are 10x over the new dirty limit and the
-writing application will be completely throttled for the next 270s
-until the dirty pages drop below the new dirty limit or the find
-stops.
+"pgfault"
+"pgmajfault"
 
-IOWs, it changing IO workloads will cause interesting corner cases
-to be discovered and hence further complexity to handle effectively.
-And trying to diagnose problems because of such changes in IO load
-will be nigh on impossible - how would you gather sufficient
-information to determine that application A stalled for a minute
-because application B read a bunch of stuff from disk at the wrong
-time? Then how would you prove that you'd fixed the problem without
-introducing some other regression triggered by different workload
-changes?
+They are different from "pgpgin"/"pgpgout" stat which count number of
+pages charged/discharged to the cgroup and have no meaning of reading/
+writing page to disk.
 
-> > A small writeback chunk size has no adverse impact on XFS as long as
-> > the elevator does it's job of merging IOs (which in 99.9% of cases
-> > it does) so I'm wondering what the reason for making this change
-> > is.
-> 
-> It's explained in this changelog (is the XFS paragraph still valid?)
-> 
->         https://patchwork.kernel.org/patch/605151/
+It is valuable to track the two stats for both measuring application's
+performance as well as the efficiency of the kernel page reclaim path.
+Counting pagefaults per process is useful, but we also need the aggregated
+value since processes are monitored and controlled in cgroup basis in memcg.
 
-You mean this paragraph?
+Functional test: check the total number of pgfault/pgmajfault of all
+memcgs and compare with global vmstat value:
 
-"According to Christoph, the current writeback size is way too
-small, and XFS had a hack that bumped out nr_to_write to four times
-the value sent by the VM to be able to saturate medium-sized RAID
-arrays.  This value was also problematic for ext4 as well, as it
-caused large files to be come interleaved on disk by in 8 megabyte
-chunks (we bumped up the nr_to_write by a factor of two)."
+$ cat /proc/vmstat | grep fault
+pgfault 1070751
+pgmajfault 553
 
-We _used_ to have such a hack. It was there from 2.6.30 through to
-2.6.35 - from when we realised writeback had bitrotted into badness
-to when we fixed the last set of bugs that the nr_to_write windup
-was papering over. between 2.6.30 and 2.6.35 we changed to dedicated
-flusher threads, got rid of congestion backoff, fixed up a bunch
-of queueing issues and finally stopped nr_to_write from going and
-staying negative and getting stuck on single inodes until they had
-no more dirty pages left. That was when this was committed:
+$ cat /dev/cgroup/memory.stat | grep fault
+pgfault 1071138
+pgmajfault 553
+total_pgfault 1071142
+total_pgmajfault 553
 
-commit 254c8c2dbf0e06a560a5814eb90cb628adb2de66
-Author: Dave Chinner <dchinner@redhat.com>
-Date:   Wed Jun 9 10:37:19 2010 +1000
+$ cat /dev/cgroup/A/memory.stat | grep fault
+pgfault 199
+pgmajfault 0
+total_pgfault 199
+total_pgmajfault 0
 
-    xfs: remove nr_to_write writeback windup.
-    
-    Now that the background flush code has been fixed, we shouldn't need to
-    silently multiply the wbc->nr_to_write to get good writeback. Remove
-    that code.
-    
-    Signed-off-by: Dave Chinner <dchinner@redhat.com>
-    Reviewed-by: Christoph Hellwig <hch@lst.de>
-    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Performance test: run page fault test(pft) wit 16 thread on faulting in 15G
+anon pages in 16G container. There is no regression noticed on the "flt/cpu/s"
 
-And writeback throughput is now as good as it ever was....
+Sample output from pft:
+TAG pft:anon-sys-default:
+  Gb  Thr CLine   User     System     Wall    flt/cpu/s fault/wsec
+  15   16   1     0.67s   233.41s    14.76s   16798.546 266356.260
 
-> The larger write chunk size generally helps ext4 and RAID setups.
++-------------------------------------------------------------------------+
+    N           Min           Max        Median           Avg        Stddev
+x  10     16682.962     17344.027     16913.524     16928.812      166.5362
++  10     16695.568     16923.896     16820.604     16824.652     84.816568
+No difference proven at 95.0% confidence
 
-Is this still true with ext4's new submit_bio()-based writeback IO
-submission path that was copied from the XFS? It's a lot more
-efficient so should be much better on RAID setups.
+Change V3..v2
+1. removed the unnecessary function definition in memcontrol.h
 
-Cheers,
+Signed-off-by: Ying Han <yinghan@google.com>
+---
+ Documentation/cgroups/memory.txt |    4 +++
+ fs/ncpfs/mmap.c                  |    2 +
+ include/linux/memcontrol.h       |    6 +++++
+ mm/filemap.c                     |    1 +
+ mm/memcontrol.c                  |   47 ++++++++++++++++++++++++++++++++++++++
+ mm/memory.c                      |    2 +
+ mm/shmem.c                       |    2 +
+ 7 files changed, 64 insertions(+), 0 deletions(-)
 
-Dave.
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index b6ed61c..2db6103 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -385,6 +385,8 @@ mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
+ pgpgin		- # of pages paged in (equivalent to # of charging events).
+ pgpgout		- # of pages paged out (equivalent to # of uncharging events).
+ swap		- # of bytes of swap usage
++pgfault		- # of page faults.
++pgmajfault	- # of major page faults.
+ inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+ 		LRU list.
+ active_anon	- # of bytes of anonymous and swap cache memory on active
+@@ -406,6 +408,8 @@ total_mapped_file	- sum of all children's "cache"
+ total_pgpgin		- sum of all children's "pgpgin"
+ total_pgpgout		- sum of all children's "pgpgout"
+ total_swap		- sum of all children's "swap"
++total_pgfault		- sum of all children's "pgfault"
++total_pgmajfault	- sum of all children's "pgmajfault"
+ total_inactive_anon	- sum of all children's "inactive_anon"
+ total_active_anon	- sum of all children's "active_anon"
+ total_inactive_file	- sum of all children's "inactive_file"
+diff --git a/fs/ncpfs/mmap.c b/fs/ncpfs/mmap.c
+index a7c07b4..e5d71b2 100644
+--- a/fs/ncpfs/mmap.c
++++ b/fs/ncpfs/mmap.c
+@@ -16,6 +16,7 @@
+ #include <linux/mman.h>
+ #include <linux/string.h>
+ #include <linux/fcntl.h>
++#include <linux/memcontrol.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/system.h>
+@@ -92,6 +93,7 @@ static int ncp_file_mmap_fault(struct vm_area_struct *area,
+ 	 * -- wli
+ 	 */
+ 	count_vm_event(PGMAJFAULT);
++	mem_cgroup_count_vm_event(area->vm_mm, PGMAJFAULT);
+ 	return VM_FAULT_MAJOR;
+ }
+ 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 5a5ce70..8a48f5b 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -24,6 +24,7 @@ struct mem_cgroup;
+ struct page_cgroup;
+ struct page;
+ struct mm_struct;
++enum vm_event_item;
+ 
+ /* Stats that can be updated by kernel. */
+ enum mem_cgroup_page_stat_item {
+@@ -147,6 +148,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+ 						gfp_t gfp_mask);
+ u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
+ 
++void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail);
+ #endif
+@@ -354,6 +356,10 @@ static inline void mem_cgroup_split_huge_fixup(struct page *head,
+ {
+ }
+ 
++static inline
++void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
++{
++}
+ #endif /* CONFIG_CGROUP_MEM_CONT */
+ 
+ #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
+diff --git a/mm/filemap.c b/mm/filemap.c
+index a6cfecf..e022229 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1683,6 +1683,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 		/* No page in the page cache at all */
+ 		do_sync_mmap_readahead(vma, ra, file, offset);
+ 		count_vm_event(PGMAJFAULT);
++		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
+ 		ret = VM_FAULT_MAJOR;
+ retry_find:
+ 		page = find_get_page(mapping, offset);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4407dd0..8f9cf7b 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -94,6 +94,8 @@ enum mem_cgroup_events_index {
+ 	MEM_CGROUP_EVENTS_PGPGIN,	/* # of pages paged in */
+ 	MEM_CGROUP_EVENTS_PGPGOUT,	/* # of pages paged out */
+ 	MEM_CGROUP_EVENTS_COUNT,	/* # of pages paged in/out */
++	MEM_CGROUP_EVENTS_PGFAULT,	/* # of page-faults */
++	MEM_CGROUP_EVENTS_PGMAJFAULT,	/* # of major page-faults */
+ 	MEM_CGROUP_EVENTS_NSTATS,
+ };
+ /*
+@@ -585,6 +587,16 @@ static void mem_cgroup_swap_statistics(struct mem_cgroup *mem,
+ 	this_cpu_add(mem->stat->count[MEM_CGROUP_STAT_SWAPOUT], val);
+ }
+ 
++void mem_cgroup_pgfault(struct mem_cgroup *mem, int val)
++{
++	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_PGFAULT], val);
++}
++
++void mem_cgroup_pgmajfault(struct mem_cgroup *mem, int val)
++{
++	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_PGMAJFAULT], val);
++}
++
+ static unsigned long mem_cgroup_read_events(struct mem_cgroup *mem,
+ 					    enum mem_cgroup_events_index idx)
+ {
+@@ -813,6 +825,33 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
+ 	return (mem == root_mem_cgroup);
+ }
+ 
++void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
++{
++	struct mem_cgroup *mem;
++
++	if (!mm)
++		return;
++
++	rcu_read_lock();
++	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
++	if (unlikely(!mem))
++		goto out;
++
++	switch (idx) {
++	case PGMAJFAULT:
++		mem_cgroup_pgmajfault(mem, 1);
++		break;
++	case PGFAULT:
++		mem_cgroup_pgfault(mem, 1);
++		break;
++	default:
++		BUG();
++	}
++out:
++	rcu_read_unlock();
++}
++EXPORT_SYMBOL(mem_cgroup_count_vm_event);
++
+ /*
+  * Following LRU functions are allowed to be used without PCG_LOCK.
+  * Operations are called by routine of global LRU independently from memcg.
+@@ -3772,6 +3811,8 @@ enum {
+ 	MCS_PGPGIN,
+ 	MCS_PGPGOUT,
+ 	MCS_SWAP,
++	MCS_PGFAULT,
++	MCS_PGMAJFAULT,
+ 	MCS_INACTIVE_ANON,
+ 	MCS_ACTIVE_ANON,
+ 	MCS_INACTIVE_FILE,
+@@ -3794,6 +3835,8 @@ struct {
+ 	{"pgpgin", "total_pgpgin"},
+ 	{"pgpgout", "total_pgpgout"},
+ 	{"swap", "total_swap"},
++	{"pgfault", "total_pgfault"},
++	{"pgmajfault", "total_pgmajfault"},
+ 	{"inactive_anon", "total_inactive_anon"},
+ 	{"active_anon", "total_active_anon"},
+ 	{"inactive_file", "total_inactive_file"},
+@@ -3822,6 +3865,10 @@ mem_cgroup_get_local_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
+ 		val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_SWAPOUT);
+ 		s->stat[MCS_SWAP] += val * PAGE_SIZE;
+ 	}
++	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_PGFAULT);
++	s->stat[MCS_PGFAULT] += val;
++	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_PGMAJFAULT);
++	s->stat[MCS_PGMAJFAULT] += val;
+ 
+ 	/* per zone stat */
+ 	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_ANON);
+diff --git a/mm/memory.c b/mm/memory.c
+index 8617d39..28d19b6 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2836,6 +2836,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		/* Had to read the page from swap area: Major fault */
+ 		ret = VM_FAULT_MAJOR;
+ 		count_vm_event(PGMAJFAULT);
++		mem_cgroup_count_vm_event(mm, PGMAJFAULT);
+ 	} else if (PageHWPoison(page)) {
+ 		/*
+ 		 * hwpoisoned dirty swapcache pages are kept for killing
+@@ -3375,6 +3376,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	__set_current_state(TASK_RUNNING);
+ 
+ 	count_vm_event(PGFAULT);
++	mem_cgroup_count_vm_event(mm, PGFAULT);
+ 
+ 	/* do counter updates before entering really critical section. */
+ 	check_sync_rss_stat(current);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index ad8346b..fa0b2b8 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1289,6 +1289,8 @@ repeat:
+ 			/* here we actually do the io */
+ 			if (type && !(*type & VM_FAULT_MAJOR)) {
+ 				__count_vm_event(PGMAJFAULT);
++				mem_cgroup_count_vm_event(current->mm,
++							  PGMAJFAULT);
+ 				*type |= VM_FAULT_MAJOR;
+ 			}
+ 			spin_unlock(&info->lock);
 -- 
-Dave Chinner
-david@fromorbit.com
+1.7.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
