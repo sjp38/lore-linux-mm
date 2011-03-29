@@ -1,71 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 709C48D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 16:33:29 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2TKS0dk022231
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 14:28:00 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id p2TKXMWk106984
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 14:33:22 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2TKXI2w013240
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 14:33:21 -0600
-Subject: Re: [PATCH 3/3] mm: Extend memory hotplug API to allow memory
- hotplug in virtual machines
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110329121541.d9a27c2e.akpm@linux-foundation.org>
-References: <20110328092507.GD13826@router-fw-old.local.net-space.pl>
-	 <20110328153735.d797c5b3.akpm@linux-foundation.org>
-	 <20110329185913.GF30387@router-fw-old.local.net-space.pl>
-	 <20110329121541.d9a27c2e.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Tue, 29 Mar 2011 13:33:14 -0700
-Message-ID: <1301430794.21454.638.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B40808D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 16:35:39 -0400 (EDT)
+Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
+	by smtp-out.google.com with ESMTP id p2TKZRPe008020
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 13:35:27 -0700
+Received: from qwi4 (qwi4.prod.google.com [10.241.195.4])
+	by hpaq5.eem.corp.google.com with ESMTP id p2TKZEet013228
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 13:35:25 -0700
+Received: by qwi4 with SMTP id 4so847034qwi.1
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2011 13:35:25 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110329190520.GJ12265@random.random>
+References: <1301373398.2590.20.camel@mulgrave.site>
+	<4D91FC2D.4090602@redhat.com>
+	<20110329190520.GJ12265@random.random>
+Date: Tue, 29 Mar 2011 13:35:24 -0700
+Message-ID: <BANLkTi=cysSDYUaRX3nXHgKmEB9acjCMsA@mail.gmail.com>
+Subject: Re: [Lsf] [LSF][MM] page allocation & direct reclaim latency
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Daniel Kiper <dkiper@net-space.pl>, ian.campbell@citrix.com, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
+Cc: lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
 
-On Tue, 2011-03-29 at 12:15 -0700, Andrew Morton wrote:
-> On Tue, 29 Mar 2011 20:59:13 +0200
-> Daniel Kiper <dkiper@net-space.pl> wrote:
+On Tue, Mar 29, 2011 at 12:05 PM, Andrea Arcangeli <aarcange@redhat.com> wr=
+ote:
+> Hi Rik, Hugh and everyone,
+>
+> On Tue, Mar 29, 2011 at 11:35:09AM -0400, Rik van Riel wrote:
+>> On 03/29/2011 12:36 AM, James Bottomley wrote:
+>> > Hi All,
+>> >
+>> > Since LSF is less than a week away, the programme committee put togeth=
+er
+>> > a just in time preliminary agenda for LSF. =A0As you can see there is
+>> > still plenty of empty space, which you can make suggestions
+>>
+>> There have been a few patches upstream by people for who
+>> page allocation latency is a concern.
+>>
+>> It may be worthwhile to have a short discussion on what
+>> we can do to keep page allocation (and direct reclaim?)
+>> latencies down to a minimum, reducing the slowdown that
+>> direct reclaim introduces on some workloads.
+>
+> I don't see the patches you refer to, but checking schedule we've a
+> slot with Mel&Minchan about "Reclaim, compaction and LRU
+> ordering". Compaction only applies to high order allocations and it
+> changes nothing to PAGE_SIZE allocations, but it surely has lower
+> latency than the older lumpy reclaim logic so overall it should be a
+> net improvement compared to what we had before.
+>
+> Should the latency issues be discussed in that track?
+>
+> The MM schedule has still a free slot 14-14:30 on Monday, I wonder if
+> there's interest on a "NUMA automatic migration and scheduling
+> awareness" topic or if it's still too vapourware for a real topic and
+> we should keep it for offtrack discussions, and maybe we should
+> reserve it for something more tangible with patches already floating
+> around. Comments welcome.
 
-> > OK. I am looking for simple generic mechanism which allow runtime
-> > registration/unregistration of generic or module specific (in that
-> > case Xen) page onlining function. Dave Hansen sugested compile time
-> > solution (https://lkml.org/lkml/2011/2/8/235), however, it does not
-> > fit well in my new project on which I am working on (I am going post
-> > details at the end of April).
-> 
-> Well, without a complete description of what you're trying to do and
-> without any indication of what "does not fit well" means, I'm at a bit
-> of a loss to suggest anything.
 
-We need (the arch-independent) online_page() to act differently when
-we're hotplugging a Xen ballooned page versus a normal memory hotplug
-operation.  We've basically run out of pages to take out of the balloon
-and we need some more with which to fill it up (thus the hotplug).  But,
-pages _in_ the balloon are not currently in use.  We want to hot-add
-pages to the system, but keep them unused.
+In page reclaim, I would like to discuss on the magic "8" *
+high_wmark() in balance_pgdat(). I recently found the discussion on
+thread "too big min_free_kbytes", where I didn't find where we proved
+it is still a problem or not. This might not need reserve time slot,
+but something I want to learn more on.
 
-online_page(page)
-{
-	// add page to counters and max_pfn 
-	...
-	
-	if (xen_doing_hotplug(page))
-		put_page_in_balloon(page);
-	else
-		free_page(page);
-}
+--Ying
 
-Daniel also seems to want to avoid incrementing the counters and then
-immediately decrementing them in the Xen code.  I'm not sure it matters.
 
--- Dave
+>
+> Thanks,
+> Andrea
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
+.ca/
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
