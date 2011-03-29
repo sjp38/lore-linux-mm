@@ -1,89 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 43E638D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 23:02:53 -0400 (EDT)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id p2T32nXx015780
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 20:02:49 -0700
-Received: from qwb7 (qwb7.prod.google.com [10.241.193.71])
-	by kpbe16.cbf.corp.google.com with ESMTP id p2T32ffu024953
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 221B88D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 00:03:56 -0400 (EDT)
+Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
+	by smtp-out.google.com with ESMTP id p2T43qSs003446
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 21:03:52 -0700
+Received: from qyk7 (qyk7.prod.google.com [10.241.83.135])
+	by hpaq5.eem.corp.google.com with ESMTP id p2T43kk7010658
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 20:02:48 -0700
-Received: by qwb7 with SMTP id 7so2334793qwb.12
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 20:02:43 -0700 (PDT)
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 21:03:51 -0700
+Received: by qyk7 with SMTP id 7so3001418qyk.17
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 21:03:46 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110329112940.fcccd175.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110329114555.cb5d5c51.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20110328093957.089007035@suse.cz>
 	<AANLkTi=CPMxOg3juDiD-_hnBsXKdZ+at+i9c1YYM=vv1@mail.gmail.com>
 	<20110329091254.20c7cfcb.kamezawa.hiroyu@jp.fujitsu.com>
 	<BANLkTin4J5kiysPdQD2aTC52U4-dy04C1g@mail.gmail.com>
 	<20110329094756.49af153d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110329112940.fcccd175.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 28 Mar 2011 20:02:43 -0700
-Message-ID: <BANLkTikt_wJaVqUBKJYJ6rOqvL1GhqJxDw@mail.gmail.com>
+	<BANLkTikgop4m9ngX6Dd1K6Jk7jsMMU0xig@mail.gmail.com>
+	<20110329114555.cb5d5c51.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 28 Mar 2011 21:03:46 -0700
+Message-ID: <BANLkTingVR7QvT9xyfs6o2Y4K=tZ_A9-Lw@mail.gmail.com>
 Subject: Re: [RFC 0/3] Implementation of cgroup isolation
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Suleiman Souhlal <suleiman@google.com>, Greg Thelen <gthelen@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Suleiman Souhlal <suleiman@google.com>
 
-On Mon, Mar 28, 2011 at 7:29 PM, KAMEZAWA Hiroyuki
+On Mon, Mar 28, 2011 at 7:45 PM, KAMEZAWA Hiroyuki
 <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Tue, 29 Mar 2011 09:47:56 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 28 Mar 2011 19:46:41 -0700
+> Ying Han <yinghan@google.com> wrote:
 >
->> On Mon, 28 Mar 2011 17:37:02 -0700
->> Ying Han <yinghan@google.com> wrote:
+>> On Mon, Mar 28, 2011 at 5:47 PM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 >
->> > The approach we are thinking to make the page->lru exclusive solve the
->> > problem. and also we should be able to break the zone->lru_lock
->> > sharing.
 >> >
->> Is zone->lru_lock is a problem even with the help of pagevecs ?
+>> >> By saying that, memcg simplified the memory accounting per-cgroup but
+>> >> the memory isolation is broken. This is one of examples where pages
+>> >> are shared between global LRU and per-memcg LRU. It is easy to get
+>> >> cgroup-A's page evicted by adding memory pressure to cgroup-B.
+>> >>
+>> > If you overcommit....Right ?
 >>
->> If LRU management guys acks you to isolate LRUs and to make kswapd etc..
->> more complex, okay, we'll go that way. This will _change_ the whole
->> memcg design and concepts Maybe memcg should have some kind of balloon driver to
->> work happy with isolated lru.
->>
->> But my current standing position is "never bad effects global reclaim".
->> So, I'm not very happy with the solution.
->>
->> If we go that way, I guess we'll think we should have pseudo nodes/zones, which
->> was proposed in early days of resource controls.(not cgroup).
+>> yes, we want to support the configuration of over-committing the
+>> machine w/ limit_in_bytes.
 >>
 >
-> BTW, against isolation, I have one thought.
->
-> Now, soft_limit_reclaim is not called in direct-reclaim path just because we thought
-> kswapd works enough well. If necessary, I think we can put soft-reclaim call in
-> generic do_try_to_free_pages(order=0).
+> Then, soft_limit is a feature for fixing the problem. If you have problem
+> with soft_limit, let's fix it.
 
-We were talking about that internally and that definitely make sense to add.
-
->
-> So, isolation problem can be reduced to some extent, isn't it ?
-> Algorithm of softlimit _should_ be updated. I guess it's not heavily tested feature.
-
-Agree and that is something we might want to go and fix. soft_limit in
-general provides a nice way to
-over_committing the machine, and still have control of doing target
-reclaim under system memory pressure.
+The current implementation of soft_limit works as best-effort and some
+improvement are needed. Without distracting much from this thread,
+simply saying it is not optimized on which cgroup to pick from the
+per-zone RB-tree.
 
 >
-> About ROOT cgroup, I think some daemon application should put _all_ process to
-> some controled cgroup. So, I don't want to think about limiting on ROOT cgroup
-> without any justification.
 >
-> I'd like you to devide 'the talk on performance' and 'the talk on feature'.
+>> >
+>> >
+>> >> The approach we are thinking to make the page->lru exclusive solve the
+>> >> problem. and also we should be able to break the zone->lru_lock
+>> >> sharing.
+>> >>
+>> > Is zone->lru_lock is a problem even with the help of pagevecs ?
+>>
+>> > If LRU management guys acks you to isolate LRUs and to make kswapd etc..
+>> > more complex, okay, we'll go that way.
+>>
+>> I would assume the change only apply to memcg users , otherwise
+>> everything is leaving in the global LRU list.
+>>
+>> This will _change_ the whole memcg design and concepts Maybe memcg
+>> should have some kind of balloon driver to
+>> > work happy with isolated lru.
+>>
+>> We have soft_limit hierarchical reclaim for system memory pressure,
+>> and also we will add per-memcg background reclaim. Both of them do
+>> targeting reclaim on per-memcg LRUs, and where is the balloon driver
+>> needed?
+>>
 >
-> "This makes makes performance better! ...and add an feature" sounds bad to me.
+> If soft_limit is _not_ enough. And I think you background reclaim should
+> be work with soft_limit and be triggered by global memory pressure.
 
-Ok, then let's stick on the memory isolation feature now :)
+This is something i can think about. Also i think we agree that we
+should have efficient target reclaim
+so the global LRU scanning should be eliminated.
+
+>
+> As wrote in other mail, it's not called via direct reclaim.
+> Maybe its the 1st point to be shooted rather than trying big change.
+
+Agree on this.
 
 --Ying
+
+>
+>
+>
 >
 > Thanks,
 > -Kame
