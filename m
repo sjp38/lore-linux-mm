@@ -1,89 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A41B18D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 22:36:16 -0400 (EDT)
-Date: Tue, 29 Mar 2011 11:32:59 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH V2 2/2] add stats to monitor soft_limit reclaim
-Message-Id: <20110329113259.7e0111ee.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <1301356270-26859-3-git-send-email-yinghan@google.com>
-References: <1301356270-26859-1-git-send-email-yinghan@google.com>
-	<1301356270-26859-3-git-send-email-yinghan@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1ED4D8D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 22:41:28 -0400 (EDT)
+Date: Tue, 29 Mar 2011 10:41:20 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH RFC 0/5] IO-less balance_dirty_pages() v2 (simple
+ approach)
+Message-ID: <20110329024120.GA9416@localhost>
+References: <1299623475-5512-1-git-send-email-jack@suse.cz>
+ <20110318143001.GA6173@localhost>
+ <20110322214314.GC19716@quack.suse.cz>
+ <20110325134411.GA8645@localhost>
+ <20110325230544.GD26932@quack.suse.cz>
+ <20110328024445.GA11816@localhost>
+ <20110329021458.GF3008@dastard>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20110329021458.GF3008@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <chris.mason@oracle.com>
 
-On Mon, 28 Mar 2011 16:51:10 -0700
-Ying Han <yinghan@google.com> wrote:
+On Tue, Mar 29, 2011 at 10:14:58AM +0800, Dave Chinner wrote:
+> -printable
+> Content-Length: 2034
+> Lines: 51
+> 
+> On Mon, Mar 28, 2011 at 10:44:45AM +0800, Wu Fengguang wrote:
+> > On Sat, Mar 26, 2011 at 07:05:44AM +0800, Jan Kara wrote:
+> > > And actually the NFS traces you pointed to originally seem to be different
+> > > problem, in fact not directly related to what balance_dirty_pages() does...
+> > > And with local filesystem the results seem to be reasonable (although there
+> > > are some longer sleeps in your JBOD measurements I don't understand yet).
+> > 
+> > Yeah the NFS case can be improved on the FS side (for now you may just
+> > reuse my NFS patches and focus on other generic improvements).
+> > 
+> > The JBOD issue is also beyond my understanding.
+> > 
+> > Note that XFS will also see one big IO completion per 0.5-1 seconds,
+> > when we are to increase the write chunk size from the current 4MB to
+> > near the bdi's write bandwidth. As illustrated by this graph:
+> > 
+> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/4G/xfs-1dd-1M-8p-3927M-20%25-2.6.38-rc6-dt6+-2011-02-27-22-58/global_dirtied_written-500.png
+> 
+> Which is _bad_.
+> 
+> Increasing the writeback chunk size simply causes dirty queue
+> starvation issues when there are lots of dirty files and lots more
+> memory than there is writeback bandwidth. Think of a machine with
+> 1TB of RAM (that's a 200GB dirty limit) and 1GB/s of disk
+> throughput. Thats 3 minutes worth of writeback and increasing the
+> chunk size to ~1s worth of throughput means that the 200th dirty
+> file won't get serviced for 3 minutes....
+> 
+> We used to have behaviour similar to this this (prior to 2.6.16, IIRC),
+> and it caused all sorts of problems where people were losing 10-15
+> minute old data when the system crashed because writeback didn't
+> process the dirty inode list fast enough in the presence of lots of
+> large files....
+ 
+Yes it is a problem, and can be best solved by automatically lowering
+bdi dirty limit to (bdi->write_bandwidth * dirty_expire_interval/100).
+Then we reliably control the lost data size to < 30s by default.
 
-> The stat is added:
-> 
-> /dev/cgroup/*/memory.stat
-> soft_steal:        - # of pages reclaimed from soft_limit hierarchical reclaim
-> total_soft_steal:  - # sum of all children's "soft_steal"
-> 
-> Change log v2...v1
-> 1. removed the counting on number of skips on shrink_zone. This is due to the
-> change on the previous patch.
-> 
-> Signed-off-by: Ying Han <yinghan@google.com>
-> ---
->  Documentation/cgroups/memory.txt |    2 ++
->  include/linux/memcontrol.h       |    5 +++++
->  mm/memcontrol.c                  |   14 ++++++++++++++
->  3 files changed, 21 insertions(+), 0 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index b6ed61c..dcda6c5 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -385,6 +385,7 @@ mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
->  pgpgin		- # of pages paged in (equivalent to # of charging events).
->  pgpgout		- # of pages paged out (equivalent to # of uncharging events).
->  swap		- # of bytes of swap usage
-> +soft_steal	- # of pages reclaimed from global hierarchical reclaim
->  inactive_anon	- # of bytes of anonymous memory and swap cache memory on
->  		LRU list.
->  active_anon	- # of bytes of anonymous and swap cache memory on active
-> @@ -406,6 +407,7 @@ total_mapped_file	- sum of all children's "cache"
->  total_pgpgin		- sum of all children's "pgpgin"
->  total_pgpgout		- sum of all children's "pgpgout"
->  total_swap		- sum of all children's "swap"
-> +total_soft_steal	- sum of all children's "soft_steal"
->  total_inactive_anon	- sum of all children's "inactive_anon"
->  total_active_anon	- sum of all children's "active_anon"
->  total_inactive_file	- sum of all children's "inactive_file"
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 01281ac..151ab40 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -115,6 +115,7 @@ struct zone_reclaim_stat*
->  mem_cgroup_get_reclaim_stat_from_page(struct page *page);
->  extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
->  					struct task_struct *p);
-> +void mem_cgroup_soft_steal(struct mem_cgroup *memcg, int val);
->  
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
->  extern int do_swap_account;
-> @@ -356,6 +357,10 @@ static inline void mem_cgroup_split_huge_fixup(struct page *head,
->  {
->  }
->  
-> +static inline void mem_cgroup_soft_steal(struct mem_cgroup *memcg,
-> +					 int val)
-> +{
-> +}
->  #endif /* CONFIG_CGROUP_MEM_CONT */
->  
-Do you use this function outside of memcontrol.c in future, right ?
-I'm asking just for clarification, and I'm sorry if I miss some past discussions.
+> A small writeback chunk size has no adverse impact on XFS as long as
+> the elevator does it's job of merging IOs (which in 99.9% of cases
+> it does) so I'm wondering what the reason for making this change
+> is.
+
+It's explained in this changelog (is the XFS paragraph still valid?)
+
+        https://patchwork.kernel.org/patch/605151/
+
+The larger write chunk size generally helps ext4 and RAID setups.
 
 Thanks,
-Daisuke Nishimura.
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
