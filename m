@@ -1,34 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BEB98D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 00:38:58 -0400 (EDT)
-Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
-	by smtp-out.google.com with ESMTP id p2T4ctX5008616
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 21:38:55 -0700
-Received: from qyk36 (qyk36.prod.google.com [10.241.83.164])
-	by hpaq5.eem.corp.google.com with ESMTP id p2T4cSp1002357
+	by kanga.kvack.org (Postfix) with ESMTP id 087458D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 00:55:22 -0400 (EDT)
+Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
+	by smtp-out.google.com with ESMTP id p2T4tJZ7020201
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 21:55:19 -0700
+Received: from qwc9 (qwc9.prod.google.com [10.241.193.137])
+	by kpbe14.cbf.corp.google.com with ESMTP id p2T4tHqj003576
 	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 21:38:54 -0700
-Received: by qyk36 with SMTP id 36so2129885qyk.4
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 21:38:49 -0700 (PDT)
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 21:55:17 -0700
+Received: by qwc9 with SMTP id 9so3085889qwc.41
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 21:55:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20110329102242.d2f6d583.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110329113259.7e0111ee.nishimura@mxp.nes.nec.co.jp>
 References: <1301356270-26859-1-git-send-email-yinghan@google.com>
 	<1301356270-26859-3-git-send-email-yinghan@google.com>
-	<20110329102242.d2f6d583.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 28 Mar 2011 21:38:48 -0700
-Message-ID: <BANLkTi=oYYNuOP1E0BvhMtRVgpMxA6S_Hw@mail.gmail.com>
+	<20110329113259.7e0111ee.nishimura@mxp.nes.nec.co.jp>
+Date: Mon, 28 Mar 2011 21:55:17 -0700
+Message-ID: <BANLkTi=5LjFYSQF=TvE93M+P8Fs7XsnB4w@mail.gmail.com>
 Subject: Re: [PATCH V2 2/2] add stats to monitor soft_limit reclaim
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Mon, Mar 28, 2011 at 6:22 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Mon, Mar 28, 2011 at 7:32 PM, Daisuke Nishimura
+<nishimura@mxp.nes.nec.co.jp> wrote:
 > On Mon, 28 Mar 2011 16:51:10 -0700
 > Ying Han <yinghan@google.com> wrote:
 >
@@ -45,10 +45,6 @@ o the
 >> change on the previous patch.
 >>
 >> Signed-off-by: Ying Han <yinghan@google.com>
->
-> Hmm...
->
->
 >> ---
 >> =A0Documentation/cgroups/memory.txt | =A0 =A02 ++
 >> =A0include/linux/memcontrol.h =A0 =A0 =A0 | =A0 =A05 +++++
@@ -108,72 +104,16 @@ ct page *head,
 >> +}
 >> =A0#endif /* CONFIG_CGROUP_MEM_CONT */
 >>
->> =A0#if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 67fff28..5e4aa41 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -94,6 +94,8 @@ enum mem_cgroup_events_index {
->> =A0 =A0 =A0 MEM_CGROUP_EVENTS_PGPGIN, =A0 =A0 =A0 /* # of pages paged in=
- */
->> =A0 =A0 =A0 MEM_CGROUP_EVENTS_PGPGOUT, =A0 =A0 =A0/* # of pages paged ou=
-t */
->> =A0 =A0 =A0 MEM_CGROUP_EVENTS_COUNT, =A0 =A0 =A0 =A0/* # of pages paged =
-in/out */
->> + =A0 =A0 MEM_CGROUP_EVENTS_SOFT_STEAL, =A0 /* # of pages reclaimed from=
- */
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 /* oft reclaim =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
->> =A0 =A0 =A0 MEM_CGROUP_EVENTS_NSTATS,
->> =A0};
->> =A0/*
->> @@ -624,6 +626,11 @@ static void mem_cgroup_charge_statistics(struct mem=
-_cgroup *mem,
->> =A0 =A0 =A0 preempt_enable();
->> =A0}
->>
->> +void mem_cgroup_soft_steal(struct mem_cgroup *mem, int val)
->> +{
->> + =A0 =A0 this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_SOFT_STEAL], =
-val);
->> +}
->> +
->> =A0static unsigned long mem_cgroup_get_local_zonestat(struct mem_cgroup =
-*mem,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 enum lru_list idx)
->> =A0{
->> @@ -3326,6 +3333,9 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct=
- zone *zone, int order,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 &nr_scanned);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_reclaimed +=3D reclaimed;
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 *total_scanned +=3D nr_scanned;
->> +
->> + =A0 =A0 =A0 =A0 =A0 =A0 mem_cgroup_soft_steal(mz->mem, reclaimed);
->> +
->
-> Here, you add "the number of reclaimed pages from the all descendants und=
-er me".
-> Could you move this to mem_cgroup_hierarchical_reclaim() ? Then, you can =
-report
-> the correct stats even with hierarchy enabled.
->
-> Even if the value is recorded into hierarchy, total_steal will show total=
-.
+> Do you use this function outside of memcontrol.c in future, right ?
+> I'm asking just for clarification, and I'm sorry if I miss some past disc=
+ussions.
 
-good point. I will make that change.
-
->
-> BTW, soft_scan and soft_total_scan aren't necessary ?
-
-Hmm, i can look into that.
+No, you didn't miss the discussion. That is a reasonable change. thanks
 
 --Ying
 >
 > Thanks,
-> -Kame
->
+> Daisuke Nishimura.
 >
 
 --
