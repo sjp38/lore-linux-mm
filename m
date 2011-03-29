@@ -1,53 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D01E8D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 13:39:49 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 87F9D8D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 14:19:24 -0400 (EDT)
 Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
 	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1580019Ab1C2Rjb (ORCPT <rfc822;linux-mm@kvack.org>);
-	Tue, 29 Mar 2011 19:39:31 +0200
-Date: Tue, 29 Mar 2011 19:39:31 +0200
+	id S1576541Ab1C2SSw (ORCPT <rfc822;linux-mm@kvack.org>);
+	Tue, 29 Mar 2011 20:18:52 +0200
+Date: Tue, 29 Mar 2011 20:18:52 +0200
 From: Daniel Kiper <dkiper@net-space.pl>
-Subject: Re: [PATCH 2/3] mm: Add SECTION_ALIGN_UP() and SECTION_ALIGN_DOWN() macro
-Message-ID: <20110329173931.GC30387@router-fw-old.local.net-space.pl>
-References: <20110328092412.GC13826@router-fw-old.local.net-space.pl> <1301326884.31700.8321.camel@nimitz>
+Subject: Re: [PATCH] xen/balloon: Memory hotplug support for Xen balloon driver
+Message-ID: <20110329181852.GD30387@router-fw-old.local.net-space.pl>
+References: <20110328094757.GJ13826@router-fw-old.local.net-space.pl> <1301327727.31700.8354.camel@nimitz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1301326884.31700.8321.camel@nimitz>
+In-Reply-To: <1301327727.31700.8354.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave@linux.vnet.ibm.com>
 Cc: Daniel Kiper <dkiper@net-space.pl>, ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Mar 28, 2011 at 08:41:24AM -0700, Dave Hansen wrote:
-> On Mon, 2011-03-28 at 11:24 +0200, Daniel Kiper wrote:
-> > Add SECTION_ALIGN_UP() and SECTION_ALIGN_DOWN() macro which aligns
-> > given pfn to upper section and lower section boundary accordingly.
+On Mon, Mar 28, 2011 at 08:55:27AM -0700, Dave Hansen wrote:
+> On Mon, 2011-03-28 at 11:47 +0200, Daniel Kiper wrote:
 > >
-> > Signed-off-by: Daniel Kiper <dkiper@net-space.pl>
-> > ---
-> >  include/linux/mmzone.h |    3 +++
-> >  1 files changed, 3 insertions(+), 0 deletions(-)
-> >
-> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > index 02ecb01..d342820 100644
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -931,6 +931,9 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
-> >  #define pfn_to_section_nr(pfn) ((pfn) >> PFN_SECTION_SHIFT)
-> >  #define section_nr_to_pfn(sec) ((sec) << PFN_SECTION_SHIFT)
-> >
-> > +#define SECTION_ALIGN_UP(pfn)	(((pfn) + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK)
-> > +#define SECTION_ALIGN_DOWN(pfn)	((pfn) & PAGE_SECTION_MASK)
+> > +static enum bp_state reserve_additional_memory(long credit)
+> > +{
+> > +       int nid, rc;
+> > +       u64 start;
+> > +       unsigned long balloon_hotplug = credit;
+> > +
+> > +       start = PFN_PHYS(SECTION_ALIGN_UP(max_pfn));
+> > +       balloon_hotplug = (balloon_hotplug & PAGE_SECTION_MASK) + PAGES_PER_SECTION;
+> > +       nid = memory_add_physaddr_to_nid(start);
 >
-> There are certainly a lot of different ways to do this, including using
-> the existing ALIGN() macro, but you won't be the first to open-code
-> it. :)
+> Is the 'balloon_hotplug' calculation correct?  I _think_ you're trying
+> to round up to the SECTION_SIZE_PAGES.  But, if 'credit' was already
+> section-aligned I think you'll unnecessarily round up to the next
+> SECTION_SIZE_PAGES boundary.  Should it just be:
+>
+> 	balloon_hotplug = ALIGN(balloon_hotplug, PAGES_PER_SECTION);
 
-Sorry, I forgot about ALIGN(). However, there is only up version available.
-That is why I prefer open-code version here. It is clearer in both
-cases what is going on.
+Yes, you are right. I am wrong. I will correct that. However, as I said
+ealier I do not like ALIGN() in size context. For me ALIGN() is operation
+on an address which aligns this address to specified boundary. That is
+why I prefer use here open coded version (I agree that it is the same
+to ALIGN()). I think that ROUND() macro would be better in size context.
+However, I am not native english speaker and if I missed something correct
+me, please.
+
+> You might also want to consider some nicer units for those suckers.
+
+What do you mind ??? I think that in that context PAGES_PER_SECTION
+is quite good.
+
+> 'start_paddr' is _much_ easier to grok than 'start', for instance.
+
+OK.
 
 Daniel
 
