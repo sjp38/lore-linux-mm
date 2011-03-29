@@ -1,44 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1C9368D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 17:22:24 -0400 (EDT)
-Message-ID: <4D924D8C.8060201@redhat.com>
-Date: Tue, 29 Mar 2011 17:22:20 -0400
-From: Rik van Riel <riel@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 253378D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 17:36:47 -0400 (EDT)
+Received: by iwg8 with SMTP id 8so802412iwg.14
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2011 14:36:45 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [Lsf] [LSF][MM] page allocation & direct reclaim latency
-References: <1301373398.2590.20.camel@mulgrave.site> <4D91FC2D.4090602@redhat.com> <20110329190520.GJ12265@random.random>
-In-Reply-To: <20110329190520.GJ12265@random.random>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1301379384-17568-1-git-send-email-yinghan@google.com>
+References: <1301379384-17568-1-git-send-email-yinghan@google.com>
+Date: Wed, 30 Mar 2011 06:36:44 +0900
+Message-ID: <BANLkTinNnOS5JethdjiCrTwpKuW+apEwQQ@mail.gmail.com>
+Subject: Re: [PATCH V3] Add the pagefault count into memcg stats
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
+To: Ying Han <yinghan@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On 03/29/2011 03:05 PM, Andrea Arcangeli wrote:
+On Tue, Mar 29, 2011 at 3:16 PM, Ying Han <yinghan@google.com> wrote:
+> Two new stats in per-memcg memory.stat which tracks the number of
+> page faults and number of major page faults.
+>
+> "pgfault"
+> "pgmajfault"
+>
+> They are different from "pgpgin"/"pgpgout" stat which count number of
+> pages charged/discharged to the cgroup and have no meaning of reading/
+> writing page to disk.
+>
+> It is valuable to track the two stats for both measuring application's
+> performance as well as the efficiency of the kernel page reclaim path.
+> Counting pagefaults per process is useful, but we also need the aggregate=
+d
+> value since processes are monitored and controlled in cgroup basis in mem=
+cg.
+>
+> Functional test: check the total number of pgfault/pgmajfault of all
+> memcgs and compare with global vmstat value:
+>
+> $ cat /proc/vmstat | grep fault
+> pgfault 1070751
+> pgmajfault 553
+>
+> $ cat /dev/cgroup/memory.stat | grep fault
+> pgfault 1071138
+> pgmajfault 553
+> total_pgfault 1071142
+> total_pgmajfault 553
+>
+> $ cat /dev/cgroup/A/memory.stat | grep fault
+> pgfault 199
+> pgmajfault 0
+> total_pgfault 199
+> total_pgmajfault 0
+>
+> Performance test: run page fault test(pft) wit 16 thread on faulting in 1=
+5G
+> anon pages in 16G container. There is no regression noticed on the "flt/c=
+pu/s"
+>
+> Sample output from pft:
+> TAG pft:anon-sys-default:
+> =C2=A0Gb =C2=A0Thr CLine =C2=A0 User =C2=A0 =C2=A0 System =C2=A0 =C2=A0 W=
+all =C2=A0 =C2=A0flt/cpu/s fault/wsec
+> =C2=A015 =C2=A0 16 =C2=A0 1 =C2=A0 =C2=A0 0.67s =C2=A0 233.41s =C2=A0 =C2=
+=A014.76s =C2=A0 16798.546 266356.260
+>
+> +------------------------------------------------------------------------=
+-+
+> =C2=A0 =C2=A0N =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Min =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 Max =C2=A0 =C2=A0 =C2=A0 =C2=A0Median =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 Avg =C2=A0 =C2=A0 =C2=A0 =C2=A0Stddev
+> x =C2=A010 =C2=A0 =C2=A0 16682.962 =C2=A0 =C2=A0 17344.027 =C2=A0 =C2=A0 =
+16913.524 =C2=A0 =C2=A0 16928.812 =C2=A0 =C2=A0 =C2=A0166.5362
+> + =C2=A010 =C2=A0 =C2=A0 16695.568 =C2=A0 =C2=A0 16923.896 =C2=A0 =C2=A0 =
+16820.604 =C2=A0 =C2=A0 16824.652 =C2=A0 =C2=A0 84.816568
+> No difference proven at 95.0% confidence
+>
+> Change V3..v2
+> 1. removed the unnecessary function definition in memcontrol.h
+>
+> Signed-off-by: Ying Han <yinghan@google.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-> Should the latency issues be discussed in that track?
-
-Sounds good.  I don't think we'll spend more than 5-10 minutes
-on the latency thing, probably less than that.
-
-> The MM schedule has still a free slot 14-14:30 on Monday, I wonder if
-> there's interest on a "NUMA automatic migration and scheduling
-> awareness" topic or if it's still too vapourware for a real topic and
-> we should keep it for offtrack discussions,
-
-I believe that problem is complex enough to warrant a 30
-minute discussion.  Even if we do not come up with solutions,
-it would be a good start if we could all agree on the problem.
-
-Things this complex often end up getting shot down later, not
-because people do not agree on the solution, but because people
-do not agree on the PROBLEM (and the patches in question only
-solve a subset of the problem).
-
-I would be willing to lead the NUMA scheduling and memory
-allocation discussion.
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
