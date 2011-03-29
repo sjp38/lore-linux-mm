@@ -1,147 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 76ACE8D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 21:29:13 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1476D8D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 21:31:16 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E79373EE0C3
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 10:29:10 +0900 (JST)
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 162B13EE0C0
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 10:31:12 +0900 (JST)
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CC69145DE95
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 10:29:10 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EED7E45DE76
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 10:31:11 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A24B345DE92
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 10:29:10 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BA5EF45DE92
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 10:31:11 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 93F0AE08007
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 10:29:10 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 55FB7E08005
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 10:29:10 +0900 (JST)
-Date: Tue, 29 Mar 2011 10:22:42 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AD128E18001
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 10:31:11 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 797EBE08002
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 10:31:11 +0900 (JST)
+Date: Tue, 29 Mar 2011 10:24:45 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH V2 2/2] add stats to monitor soft_limit reclaim
-Message-Id: <20110329102242.d2f6d583.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1301356270-26859-3-git-send-email-yinghan@google.com>
-References: <1301356270-26859-1-git-send-email-yinghan@google.com>
-	<1301356270-26859-3-git-send-email-yinghan@google.com>
+Subject: Re: [PATCH v2] memcg: update documentation to describe
+ usage_in_bytes
+Message-Id: <20110329102445.a46760ef.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20110329101511.d30f3518.nishimura@mxp.nes.nec.co.jp>
+References: <20110321102420.GB26047@tiehlicka.suse.cz>
+	<20110322091014.27677ab3.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110322104723.fd81dddc.nishimura@mxp.nes.nec.co.jp>
+	<20110322073150.GA12940@tiehlicka.suse.cz>
+	<20110323092708.021d555d.nishimura@mxp.nes.nec.co.jp>
+	<20110323133517.de33d624.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110328085508.c236e929.nishimura@mxp.nes.nec.co.jp>
+	<20110328132550.08be4389.nishimura@mxp.nes.nec.co.jp>
+	<20110328074341.GA5693@tiehlicka.suse.cz>
+	<20110328181127.b8a2a1c5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110328094820.GC5693@tiehlicka.suse.cz>
+	<20110328193108.07965b4a.kamezawa.hiroyu@jp.fujitsu.com>
+	<20110329101511.d30f3518.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 28 Mar 2011 16:51:10 -0700
-Ying Han <yinghan@google.com> wrote:
+On Tue, 29 Mar 2011 10:15:11 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> The stat is added:
+> ===
+> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > 
-> /dev/cgroup/*/memory.stat
-> soft_steal:        - # of pages reclaimed from soft_limit hierarchical reclaim
-> total_soft_steal:  - # sum of all children's "soft_steal"
+> Since 569b846d(memcg: coalesce uncharge during unmap/truncate), we do batched
+> (delayed) uncharge at truncation/unmap. And since cdec2e42(memcg: coalesce
+> charging via percpu storage), we have percpu cache for res_counter.
 > 
-> Change log v2...v1
-> 1. removed the counting on number of skips on shrink_zone. This is due to the
-> change on the previous patch.
+> These changes improved performance of memory cgroup very much, but made
+> res_counter->usage usually have a bigger value than the actual value of memory usage.
+> So, *.usage_in_bytes, which show res_counter->usage, are not desirable for precise
+> values of memory(and swap) usage anymore.
 > 
-> Signed-off-by: Ying Han <yinghan@google.com>
-
-Hmm...
-
-
-> ---
->  Documentation/cgroups/memory.txt |    2 ++
->  include/linux/memcontrol.h       |    5 +++++
->  mm/memcontrol.c                  |   14 ++++++++++++++
->  3 files changed, 21 insertions(+), 0 deletions(-)
+> Instead of removing these files completely(because we cannot know res_counter->usage
+> without them), this patch updates the meaning of those files.
 > 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index b6ed61c..dcda6c5 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -385,6 +385,7 @@ mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
->  pgpgin		- # of pages paged in (equivalent to # of charging events).
->  pgpgout		- # of pages paged out (equivalent to # of uncharging events).
->  swap		- # of bytes of swap usage
-> +soft_steal	- # of pages reclaimed from global hierarchical reclaim
->  inactive_anon	- # of bytes of anonymous memory and swap cache memory on
->  		LRU list.
->  active_anon	- # of bytes of anonymous and swap cache memory on active
-> @@ -406,6 +407,7 @@ total_mapped_file	- sum of all children's "cache"
->  total_pgpgin		- sum of all children's "pgpgin"
->  total_pgpgout		- sum of all children's "pgpgout"
->  total_swap		- sum of all children's "swap"
-> +total_soft_steal	- sum of all children's "soft_steal"
->  total_inactive_anon	- sum of all children's "inactive_anon"
->  total_active_anon	- sum of all children's "active_anon"
->  total_inactive_file	- sum of all children's "inactive_file"
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 01281ac..151ab40 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -115,6 +115,7 @@ struct zone_reclaim_stat*
->  mem_cgroup_get_reclaim_stat_from_page(struct page *page);
->  extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
->  					struct task_struct *p);
-> +void mem_cgroup_soft_steal(struct mem_cgroup *memcg, int val);
->  
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
->  extern int do_swap_account;
-> @@ -356,6 +357,10 @@ static inline void mem_cgroup_split_huge_fixup(struct page *head,
->  {
->  }
->  
-> +static inline void mem_cgroup_soft_steal(struct mem_cgroup *memcg,
-> +					 int val)
-> +{
-> +}
->  #endif /* CONFIG_CGROUP_MEM_CONT */
->  
->  #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 67fff28..5e4aa41 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -94,6 +94,8 @@ enum mem_cgroup_events_index {
->  	MEM_CGROUP_EVENTS_PGPGIN,	/* # of pages paged in */
->  	MEM_CGROUP_EVENTS_PGPGOUT,	/* # of pages paged out */
->  	MEM_CGROUP_EVENTS_COUNT,	/* # of pages paged in/out */
-> +	MEM_CGROUP_EVENTS_SOFT_STEAL,	/* # of pages reclaimed from */
-> +					/* oft reclaim               */
->  	MEM_CGROUP_EVENTS_NSTATS,
->  };
->  /*
-> @@ -624,6 +626,11 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
->  	preempt_enable();
->  }
->  
-> +void mem_cgroup_soft_steal(struct mem_cgroup *mem, int val)
-> +{
-> +	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_SOFT_STEAL], val);
-> +}
-> +
->  static unsigned long mem_cgroup_get_local_zonestat(struct mem_cgroup *mem,
->  					enum lru_list idx)
->  {
-> @@ -3326,6 +3333,9 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
->  						&nr_scanned);
->  		nr_reclaimed += reclaimed;
->  		*total_scanned += nr_scanned;
-> +
-> +		mem_cgroup_soft_steal(mz->mem, reclaimed);
-> +
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Here, you add "the number of reclaimed pages from the all descendants under me".
-Could you move this to mem_cgroup_hierarchical_reclaim() ? Then, you can report
-the correct stats even with hierarchy enabled.
-
-Even if the value is recorded into hierarchy, total_steal will show total.
-
-BTW, soft_scan and soft_total_scan aren't necessary ?
-
-Thanks,
--Kame
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
