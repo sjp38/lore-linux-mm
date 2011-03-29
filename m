@@ -1,163 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DBD218D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 06:40:08 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CF9413EE0C0
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 19:40:05 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B62B745DE6D
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 19:40:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8896045DE6A
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 19:40:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 78EF61DB8041
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 19:40:05 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 35DC01DB803C
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 19:40:05 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 1/4] vmscan: all_unreclaimable() use zone->all_unreclaimable as the name
-In-Reply-To: <20110329193953.2B7E.A69D9226@jp.fujitsu.com>
-References: <20110329193953.2B7E.A69D9226@jp.fujitsu.com>
-Message-Id: <20110329194044.2B82.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 29 Mar 2011 19:40:04 +0900 (JST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 504728D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 06:40:14 -0400 (EDT)
+Subject: Re: kmemleak for MIPS
+From: Catalin Marinas <catalin.marinas@arm.com>
+In-Reply-To: <AANLkTim139fpJsMJFLiyUYvFgGMz-Ljgd_yDrks-tqhE@mail.gmail.com>
+References: <9bde694e1003020554p7c8ff3c2o4ae7cb5d501d1ab9@mail.gmail.com>
+	 <AANLkTinnqtXf5DE+qxkTyZ9p9Mb8dXai6UxWP2HaHY3D@mail.gmail.com>
+	 <1300960540.32158.13.camel@e102109-lin.cambridge.arm.com>
+	 <AANLkTim139fpJsMJFLiyUYvFgGMz-Ljgd_yDrks-tqhE@mail.gmail.com>
+Date: Tue, 29 Mar 2011 11:40:06 +0100
+Message-ID: <1301395206.583.53.camel@e102109-lin.cambridge.arm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrey Vagin <avagin@openvz.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Maxin John <maxin.john@gmail.com>
+Cc: Daniel Baluta <dbaluta@ixiacom.com>, naveen yadav <yad.naveen@gmail.com>, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-all_unreclaimable check in direct reclaim has been introduced at 2.6.19
-by following commit.
+On Mon, 2011-03-28 at 22:15 +0100, Maxin John wrote:
+> > Just add "depends on MIPS" and give it a try.
+> As per your suggestion, I have tried it in my qemu environment (MIPS malt=
+a).
+>=20
+> With a minor modification in arch/mips/kernel/vmlinux.lds.S (added the
+> symbol  _sdata ), I was able to add kmemleak support for MIPS.
+>=20
+> Output in MIPS (Malta):
 
-	2006 Sep 25; commit 408d8544; oom: use unreclaimable info
+You may want to disable the kmemleak testing to reduce the amount of
+leaks reported.
 
-And it went through strange history. firstly, following commit broke
-the logic unintentionally.
+> debian-mips:~# uname -a
+> Linux debian-mips 2.6.38-08826-g1788c20-dirty #4 SMP Mon Mar 28
+> 23:22:04 EEST 2011 mips GNU/Linux
+> debian-mips:~# mount -t debugfs nodev /sys/kernel/debug/
+> debian-mips:~# cat /sys/kernel/debug/kmemleak
+> unreferenced object 0x8f95d000 (size 4096):
+>   comm "swapper", pid 1, jiffies 4294937330 (age 467.240s)
+>   hex dump (first 32 bytes):
+>     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+>     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+>   backtrace:
+>     [<80529644>] alloc_large_system_hash+0x2f8/0x410
+>     [<8053864c>] udp_table_init+0x4c/0x158
+>     [<80538774>] udp_init+0x1c/0x94
+>     [<80538b34>] inet_init+0x184/0x2a0
+>     [<80100584>] do_one_initcall+0x174/0x1e0
+>     [<8051f348>] kernel_init+0xe4/0x174
+>     [<80103d4c>] kernel_thread_helper+0x10/0x18
+> unreferenced object 0x8f95e000 (size 4096):
+>   comm "swapper", pid 1, jiffies 4294937330 (age 467.240s)
+>   hex dump (first 32 bytes):
+>     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+>     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+>   backtrace:
+>     [<80529644>] alloc_large_system_hash+0x2f8/0x410
+>     [<8053864c>] udp_table_init+0x4c/0x158
+>     [<8053881c>] udplite4_register+0x24/0xa8
+>     [<80538b3c>] inet_init+0x18c/0x2a0
+>     [<80100584>] do_one_initcall+0x174/0x1e0
+>     [<8051f348>] kernel_init+0xe4/0x174
+>     [<80103d4c>] kernel_thread_helper+0x10/0x18
 
-	2008 Apr 29; commit a41f24ea; page allocator: smarter retry of
-				      costly-order allocations
+These are probably false positives. Since the pointer referring this
+block (udp_table) is __read_mostly, is it possible that the
+corresponding section gets placed outside the _sdata.._edata range?
 
-Two years later, I've found obvious meaningless code fragment and
-restored original intention by following commit.
+diff --git a/arch/mips/include/asm/cache.h b/arch/mips/include/asm/cache.h
+index 650ac9b..b4db69f 100644
+--- a/arch/mips/include/asm/cache.h
++++ b/arch/mips/include/asm/cache.h
+@@ -17,6 +17,6 @@
+ #define SMP_CACHE_SHIFT=09=09L1_CACHE_SHIFT
+ #define SMP_CACHE_BYTES=09=09L1_CACHE_BYTES
+=20
+-#define __read_mostly __attribute__((__section__(".data.read_mostly")))
++#define __read_mostly __attribute__((__section__(".data..read_mostly")))
+=20
+ #endif /* _ASM_CACHE_H */
+diff --git a/arch/mips/kernel/vmlinux.lds.S b/arch/mips/kernel/vmlinux.lds.=
+S
+index 570607b..6f6d5d0 100644
+--- a/arch/mips/kernel/vmlinux.lds.S
++++ b/arch/mips/kernel/vmlinux.lds.S
+@@ -74,6 +74,7 @@ SECTIONS
+ =09=09INIT_TASK_DATA(PAGE_SIZE)
+ =09=09NOSAVE_DATA
+ =09=09CACHELINE_ALIGNED_DATA(1 << CONFIG_MIPS_L1_CACHE_SHIFT)
++=09=09READ_MOSTLY_DATA(1 << CONFIG_MIPS_L1_CACHE_SHIFT)
+ =09=09DATA_DATA
+ =09=09CONSTRUCTORS
+ =09}
 
-	2010 Jun 04; commit bb21c7ce; vmscan: fix do_try_to_free_pages()
-				      return value when priority==0
+> unreferenced object 0x8f072000 (size 4096):
+>   comm "swapper", pid 1, jiffies 4294937680 (age 463.840s)
+>   hex dump (first 32 bytes):
+>     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+>     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+>   backtrace:
+>     [<801ba3d8>] __kmalloc+0x130/0x180
+>     [<805461bc>] flow_cache_cpu_prepare+0x50/0xa8
+>     [<8053746c>] flow_cache_init_global+0x90/0x138
+>     [<80100584>] do_one_initcall+0x174/0x1e0
+>     [<8051f348>] kernel_init+0xe4/0x174
+>     [<80103d4c>] kernel_thread_helper+0x10/0x18
 
-But, the logic didn't works when 32bit highmem system goes hibernation
-and Minchan slightly changed the algorithm and fixed it .
+Same here, flow_cachep pointer is __read_mostly.
 
-	2010 Sep 22: commit d1908362: vmscan: check all_unreclaimable
-				      in direct reclaim path
-
-But, recently, Andrey Vagin found the new corner case. Look,
-
-	struct zone {
-	  ..
-	        int                     all_unreclaimable;
-	  ..
-	        unsigned long           pages_scanned;
-	  ..
-	}
-
-zone->all_unreclaimable and zone->pages_scanned are neigher atomic
-variables nor protected by lock. Therefore zones can become a state
-of zone->page_scanned=0 and zone->all_unreclaimable=1. In this case,
-current all_unreclaimable() return false even though
-zone->all_unreclaimabe=1.
-
-Is this ignorable minor issue? No. Unfortunatelly, x86 has very
-small dma zone and it become zone->all_unreclamble=1 easily. and
-if it become all_unreclaimable=1, it never restore all_unreclaimable=0.
-Why? if all_unreclaimable=1, vmscan only try DEF_PRIORITY reclaim and
-a-few-lru-pages>>DEF_PRIORITY always makes 0. that mean no page scan
-at all!
-
-Eventually, oom-killer never works on such systems. That said, we
-can't use zone->pages_scanned for this purpose. This patch restore
-all_unreclaimable() use zone->all_unreclaimable as old. and in addition,
-to add oom_killer_disabled check to avoid reintroduce the issue of
-commit d1908362.
-
-Reported-by: Andrey Vagin <avagin@openvz.org>
-Cc: Nick Piggin <npiggin@kernel.dk>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/vmscan.c |   24 +++++++++++++-----------
- 1 files changed, 13 insertions(+), 11 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f73b865..c3c095d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -41,6 +41,7 @@
- #include <linux/memcontrol.h>
- #include <linux/delayacct.h>
- #include <linux/sysctl.h>
-+#include <linux/oom.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -1988,17 +1989,12 @@ static bool zone_reclaimable(struct zone *zone)
- 	return zone->pages_scanned < zone_reclaimable_pages(zone) * 6;
- }
- 
--/*
-- * As hibernation is going on, kswapd is freezed so that it can't mark
-- * the zone into all_unreclaimable. It can't handle OOM during hibernation.
-- * So let's check zone's unreclaimable in direct reclaim as well as kswapd.
-- */
-+/* All zones in zonelist are unreclaimable? */
- static bool all_unreclaimable(struct zonelist *zonelist,
- 		struct scan_control *sc)
- {
- 	struct zoneref *z;
- 	struct zone *zone;
--	bool all_unreclaimable = true;
- 
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
- 			gfp_zone(sc->gfp_mask), sc->nodemask) {
-@@ -2006,13 +2002,11 @@ static bool all_unreclaimable(struct zonelist *zonelist,
- 			continue;
- 		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
- 			continue;
--		if (zone_reclaimable(zone)) {
--			all_unreclaimable = false;
--			break;
--		}
-+		if (!zone->all_unreclaimable)
-+			return false;
- 	}
- 
--	return all_unreclaimable;
-+	return true;
- }
- 
- /*
-@@ -2108,6 +2102,14 @@ out:
- 	if (sc->nr_reclaimed)
- 		return sc->nr_reclaimed;
- 
-+	/*
-+	 * As hibernation is going on, kswapd is freezed so that it can't mark
-+	 * the zone into all_unreclaimable. Thus bypassing all_unreclaimable
-+	 * check.
-+	 */
-+	if (oom_killer_disabled)
-+		return 0;
-+
- 	/* top priority shrink_zones still had more to do? don't OOM, then */
- 	if (scanning_global_lru(sc) && !all_unreclaimable(zonelist, sc))
- 		return 1;
--- 
-1.7.1
-
+--=20
+Catalin
 
 
 --
