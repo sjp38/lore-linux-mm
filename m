@@ -1,58 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 920888D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 15:05:28 -0400 (EDT)
-Date: Tue, 29 Mar 2011 21:05:20 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [Lsf] [LSF][MM] page allocation & direct reclaim latency
-Message-ID: <20110329190520.GJ12265@random.random>
-References: <1301373398.2590.20.camel@mulgrave.site>
- <4D91FC2D.4090602@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id F135F8D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 15:06:57 -0400 (EDT)
+From: Sean Noonan <Sean.Noonan@twosigma.com>
+Date: Tue, 29 Mar 2011 15:05:28 -0400
+Subject: RE: XFS memory allocation deadlock in 2.6.38
+Message-ID: <081DDE43F61F3D43929A181B477DCA95639B5359@MSXAOA6.twosigma.com>
+References: <081DDE43F61F3D43929A181B477DCA95639B52FD@MSXAOA6.twosigma.com>
+	<081DDE43F61F3D43929A181B477DCA95639B5327@MSXAOA6.twosigma.com>
+	<20110324174311.GA31576@infradead.org>
+	<AANLkTikwwRm6FHFtEdUg54NvmKdswQw-NPH5dtq1mXBK@mail.gmail.com>
+	<081DDE43F61F3D43929A181B477DCA95639B5349@MSXAOA6.twosigma.com>
+ <BANLkTin0jJevStg5P2hqsLbqMzo3o30sYg@mail.gmail.com>
+ <081DDE43F61F3D43929A181B477DCA95639B534E@MSXAOA6.twosigma.com>
+In-Reply-To: <081DDE43F61F3D43929A181B477DCA95639B534E@MSXAOA6.twosigma.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4D91FC2D.4090602@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
+To: Sean Noonan <Sean.Noonan@twosigma.com>, 'Michel Lespinasse' <walken@google.com>
+Cc: 'Christoph Hellwig' <hch@infradead.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, Martin Bligh <Martin.Bligh@twosigma.com>, Trammell Hudson <Trammell.Hudson@twosigma.com>, Christos Zoulas <Christos.Zoulas@twosigma.com>, "'linux-xfs@oss.sgi.com'" <linux-xfs@oss.sgi.com>, Stephen Degler <Stephen.Degler@twosigma.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
 
-Hi Rik, Hugh and everyone,
+>> Could you test if you see the deadlock before
+>> 5ecfda041e4b4bd858d25bbf5a16c2a6c06d7272 without MAP_POPULATE ?
 
-On Tue, Mar 29, 2011 at 11:35:09AM -0400, Rik van Riel wrote:
-> On 03/29/2011 12:36 AM, James Bottomley wrote:
-> > Hi All,
-> >
-> > Since LSF is less than a week away, the programme committee put together
-> > a just in time preliminary agenda for LSF.  As you can see there is
-> > still plenty of empty space, which you can make suggestions
-> 
-> There have been a few patches upstream by people for who
-> page allocation latency is a concern.
-> 
-> It may be worthwhile to have a short discussion on what
-> we can do to keep page allocation (and direct reclaim?)
-> latencies down to a minimum, reducing the slowdown that
-> direct reclaim introduces on some workloads.
+> Built and tested 72ddc8f72270758951ccefb7d190f364d20215ab.
+> Confirmed that the original bug does not present in this version.
+> Confirmed that removing MAP_POPULATE does cause the deadlock to occur.
 
-I don't see the patches you refer to, but checking schedule we've a
-slot with Mel&Minchan about "Reclaim, compaction and LRU
-ordering". Compaction only applies to high order allocations and it
-changes nothing to PAGE_SIZE allocations, but it surely has lower
-latency than the older lumpy reclaim logic so overall it should be a
-net improvement compared to what we had before.
+git bisect leads to this:
 
-Should the latency issues be discussed in that track?
+bdfb04301fa5fdd95f219539a9a5b9663b1e5fc2 is the first bad commit
+commit bdfb04301fa5fdd95f219539a9a5b9663b1e5fc2
+Author: Christoph Hellwig <hch@infradead.org>
+Date:   Wed Jan 20 21:55:30 2010 +0000
 
-The MM schedule has still a free slot 14-14:30 on Monday, I wonder if
-there's interest on a "NUMA automatic migration and scheduling
-awareness" topic or if it's still too vapourware for a real topic and
-we should keep it for offtrack discussions, and maybe we should
-reserve it for something more tangible with patches already floating
-around. Comments welcome.
+    xfs: replace KM_LARGE with explicit vmalloc use
+   =20
+    We use the KM_LARGE flag to make kmem_alloc and friends use vmalloc
+    if necessary.  As we only need this for a few boot/mount time
+    allocations just switch to explicit vmalloc calls there.
+   =20
+    Signed-off-by: Christoph Hellwig <hch@lst.de>
+    Signed-off-by: Alex Elder <aelder@sgi.com>
 
-Thanks,
-Andrea
+:040000 040000 1eed68ced17d8794fa842396c01c3b9677c6e709 d462932a318f8c823fa=
+2a73156e980a688968cb2 M	fs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
