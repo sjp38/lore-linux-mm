@@ -1,123 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 06C598D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 21:44:26 -0400 (EDT)
-Date: Tue, 29 Mar 2011 09:44:22 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH RFC 0/5] IO-less balance_dirty_pages() v2 (simple
- approach)
-Message-ID: <20110329014422.GA6711@localhost>
-References: <1299623475-5512-1-git-send-email-jack@suse.cz>
- <20110318143001.GA6173@localhost>
- <20110322214314.GC19716@quack.suse.cz>
- <20110325134411.GA8645@localhost>
- <20110325230544.GD26932@quack.suse.cz>
- <20110328024445.GA11816@localhost>
- <20110328150815.GA7184@quack.suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 6FA548D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 21:51:42 -0400 (EDT)
+Date: Tue, 29 Mar 2011 12:51:37 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: XFS memory allocation deadlock in 2.6.38
+Message-ID: <20110329015137.GD3008@dastard>
+References: <081DDE43F61F3D43929A181B477DCA95639B52FD@MSXAOA6.twosigma.com>
+ <081DDE43F61F3D43929A181B477DCA95639B5327@MSXAOA6.twosigma.com>
+ <20110324174311.GA31576@infradead.org>
+ <AANLkTikwwRm6FHFtEdUg54NvmKdswQw-NPH5dtq1mXBK@mail.gmail.com>
+ <081DDE43F61F3D43929A181B477DCA95639B5349@MSXAOA6.twosigma.com>
+ <BANLkTin0jJevStg5P2hqsLbqMzo3o30sYg@mail.gmail.com>
+ <081DDE43F61F3D43929A181B477DCA95639B534E@MSXAOA6.twosigma.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20110328150815.GA7184@quack.suse.cz>
+In-Reply-To: <081DDE43F61F3D43929A181B477DCA95639B534E@MSXAOA6.twosigma.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
+To: Sean Noonan <Sean.Noonan@twosigma.com>
+Cc: 'Michel Lespinasse' <walken@google.com>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Martin Bligh <Martin.Bligh@twosigma.com>, Trammell Hudson <Trammell.Hudson@twosigma.com>, Christos Zoulas <Christos.Zoulas@twosigma.com>, "linux-xfs@oss.sgi.com" <linux-xfs@oss.sgi.com>, Stephen Degler <Stephen.Degler@twosigma.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Mar 28, 2011 at 11:08:15PM +0800, Jan Kara wrote:
-> On Mon 28-03-11 10:44:45, Wu Fengguang wrote:
-> > Hi Jan,
-> > 
-> > On Sat, Mar 26, 2011 at 07:05:44AM +0800, Jan Kara wrote:
-> > >   Hello Fengguang,
-> > > 
-> > > On Fri 25-03-11 21:44:11, Wu Fengguang wrote:
-> > > > On Wed, Mar 23, 2011 at 05:43:14AM +0800, Jan Kara wrote:
-> > > > >   Hello Fengguang,
-> > > > > 
-> > > > > On Fri 18-03-11 22:30:01, Wu Fengguang wrote:
-> > > > > > On Wed, Mar 09, 2011 at 06:31:10AM +0800, Jan Kara wrote:
-> > > > > > > 
-> > > > > > >   Hello,
-> > > > > > > 
-> > > > > > >   I'm posting second version of my IO-less balance_dirty_pages() patches. This
-> > > > > > > is alternative approach to Fengguang's patches - much simpler I believe (only
-> > > > > > > 300 lines added) - but obviously I does not provide so sophisticated control.
-> > > > > > 
-> > > > > > Well, it may be too early to claim "simplicity" as an advantage, until
-> > > > > > you achieve the following performance/feature comparability (most of
-> > > > > > them are not optional ones). AFAICS this work is kind of heavy lifting
-> > > > > > that will consume a lot of time and attention. You'd better find some
-> > > > > > more fundamental needs before go on the reworking.
-> > > > > > 
-> > > > > > (1)  latency
-> > > > > > (2)  fairness
-> > > > > > (3)  smoothness
-> > > > > > (4)  scalability
-> > > > > > (5)  per-task IO controller
-> > > > > > (6)  per-cgroup IO controller (TBD)
-> > > > > > (7)  free combinations of per-task/per-cgroup and bandwidth/priority controllers
-> > > > > > (8)  think time compensation
-> > > > > > (9)  backed by both theory and tests
-> > > > > > (10) adapt pause time up on 100+ dirtiers
-> > > > > > (11) adapt pause time down on low dirty pages 
-> > > > > > (12) adapt to new dirty threshold/goal
-> > > > > > (13) safeguard against dirty exceeding
-> > > > > > (14) safeguard against device queue underflow
-> > > > >   I think this is a misunderstanding of my goals ;). My main goal is to
-> > > > > explore, how far we can get with a relatively simple approach to IO-less
-> > > > > balance_dirty_pages(). I guess what I have is better than the current
-> > > > > balance_dirty_pages() but it sure does not even try to provide all the
-> > > > > features you try to provide.
-> > > > 
-> > > > OK.
-> > > > 
-> > > > > I'm thinking about tweaking ratelimiting logic to reduce latencies in some
-> > > > > tests, possibly add compensation when we waited for too long in
-> > > > > balance_dirty_pages() (e.g. because of bumpy IO completion) but that's
-> > > > > about it...
-> > > > > 
-> > > > > Basically I do this so that we can compare and decide whether what my
-> > > > > simple approach offers is OK or whether we want some more complex solution
-> > > > > like your patches...
-> > > > 
-> > > > Yeah, now both results are on the website. Let's see whether they are
-> > > > acceptable for others.
-> > >   Yes. BTW, I think we'll discuss this at LSF so it would be beneficial if
-> > > we both prepared a fairly short explanation of our algorithm and some
-> > > summary of the measured results. I think it would be good to keep each of
-> > > us below 5 minutes so that we don't bore the audience - people will ask for
-> > > details where they are interested... What do you think?
-> > That looks good, however I'm not able to attend LSF this year, would
-> > you help show my slides?
->   Ah, that's a pity :(. If you send me a few slides I can show them, that's
-> no problem. I'll also try to understand your patches in enough detail so
-> that I can answer possible questinons but author is always the best to
-> present his work :).
+On Mon, Mar 28, 2011 at 05:34:09PM -0400, Sean Noonan wrote:
+> > Could you test if you see the deadlock before
+> > 5ecfda041e4b4bd858d25bbf5a16c2a6c06d7272 without MAP_POPULATE ?
+> 
+> Built and tested 72ddc8f72270758951ccefb7d190f364d20215ab.
+> Confirmed that the original bug does not present in this version.
+> Confirmed that removing MAP_POPULATE does cause the deadlock to occur.
+> 
+> Here is the stack of the test:
+> # cat /proc/3846/stack
+> [<ffffffff812e8a64>] call_rwsem_down_read_failed+0x14/0x30
+> [<ffffffff81271c1d>] xfs_ilock+0x9d/0x110
+> [<ffffffff81271cae>] xfs_ilock_map_shared+0x1e/0x50
+> [<ffffffff81294985>] __xfs_get_blocks+0xc5/0x4e0
+> [<ffffffff81294dcc>] xfs_get_blocks+0xc/0x10
+> [<ffffffff811322c2>] do_mpage_readpage+0x462/0x660
+> [<ffffffff8113250a>] mpage_readpage+0x4a/0x60
+> [<ffffffff81295433>] xfs_vm_readpage+0x13/0x20
+> [<ffffffff810bb850>] filemap_fault+0x2d0/0x4e0
+> [<ffffffff810d8680>] __do_fault+0x50/0x510
+> [<ffffffff810da542>] handle_mm_fault+0x1a2/0xe60
+> [<ffffffff8102a466>] do_page_fault+0x146/0x440
+> [<ffffffff8164e6cf>] page_fault+0x1f/0x30
+> [<ffffffffffffffff>] 0xffffffffffffffff
 
-Thank you very much :)
+Something else is holding the inode locked here.
 
-> > > I'll try to run also your patches on my setup to see how they work :) V6
-> > > from your website is the latest version, isn't it?
-> > 
-> > Thank you. You can run 
-> > http://git.kernel.org/?p=linux/kernel/git/wfg/writeback.git;a=shortlog;h=refs/heads/dirty-throttling-v6
-> > or 
-> > http://www.kernel.org/pub/linux/kernel/people/wfg/writeback/dirty-throttling-v6/dirty-throttling-v6-2.6.38-rc6.patch
-> > whatever convenient for you.
-> > 
-> > If you are ready with v3, I can also help test it out and do some
-> > comparison on the results.
->   I have done a couple of smaller fixes but I don't expect them to affect
-> performance in the loads we use. But I'll send you the patches when I
-> implement some significant change (but for that I need to reproduce the
-> latencies you sometimes see first...).
+> xfssyncd is stuck in D state.
+> # cat /proc/2484/stack
+> [<ffffffff8106ee1c>] down+0x3c/0x50
+> [<ffffffff81297802>] xfs_buf_lock+0x72/0x170
+> [<ffffffff8128762d>] xfs_getsb+0x1d/0x50
+> [<ffffffff8128e6af>] xfs_trans_getsb+0x5f/0x150
+> [<ffffffff8128821e>] xfs_mod_sb+0x4e/0xe0
+> [<ffffffff8126e4ea>] xfs_fs_log_dummy+0x5a/0xb0
+> [<ffffffff812a2a13>] xfs_sync_worker+0x83/0x90
+> [<ffffffff812a28e2>] xfssyncd+0x172/0x220
+> [<ffffffff81069576>] kthread+0x96/0xa0
+> [<ffffffff81003354>] kernel_thread_helper+0x4/0x10
+> [<ffffffffffffffff>] 0xffffffffffffffff
 
-OK. I can conveniently test the single disk cases. For JBOD and RAID
-cases, I don't own the servers so normally have to wait for some time
-before being able to carry out the tests..
+And this is indicating that something else is holding the superblock
+locked here. IOWs, whatever thread is having trouble with memory
+allocation is causing these threads to block and so they can be
+ignored. What's the stack trace of the thread that is throwing the
+"I can't allocating a page" errors?
 
-Thanks,
-Fengguang
+As it is, the question I'd really like answered is how a machine with
+48GB RAM can possibly be short of memory when running mmap() on a
+16GB file.  The error that XFS is throwing indicates that the
+machine cannot allocate a single page of memory, so where has all
+your memory gone, and why hasn't the OOM killer been let off the
+leash?  What is consuming the other 32GB of RAM or preventing it
+from being allocated? 
+
+Also, I was unable to reproduce this at all on a machine with only
+2GB of RAM, regardless of the kernel version and/or MAP_POPULATE, so
+I'm left to wonder what is special about your test system...
+
+Perhaps the output of xfs_bmap -vvp <file> after a successful vs
+deadlocked run would be instructive....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
