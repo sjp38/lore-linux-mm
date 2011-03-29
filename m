@@ -1,86 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F0A0D8D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 20:03:04 -0400 (EDT)
-Date: Mon, 28 Mar 2011 17:02:20 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] ramfs: fix memleak on no-mmu arch
-Message-Id: <20110328170220.fc61fb5c.akpm@linux-foundation.org>
-In-Reply-To: <1301290355-8980-1-git-send-email-lliubbo@gmail.com>
-References: <1301290355-8980-1-git-send-email-lliubbo@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 28EF98D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 20:12:51 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 81EE33EE0C2
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 09:12:47 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 65BA145DE98
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 09:12:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D28E45DE95
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 09:12:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D1FDE08004
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 09:12:47 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 080F1E08003
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 09:12:47 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [Q] PGPGIN underflow?
+In-Reply-To: <4D8C4953.8020808@kernel.dk>
+References: <20110324095735.61bfa370.randy.dunlap@oracle.com> <4D8C4953.8020808@kernel.dk>
+Message-Id: <20110329091252.C07A.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 29 Mar 2011 09:12:46 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, hughd@google.com, viro@zeniv.linux.org.uk, hch@lst.de, npiggin@kernel.dk, tj@kernel.org, dhowells@redhat.com, lethal@linux-sh.org, magnus.damm@gmail.com
+To: Jens Axboe <axboe@kernel.dk>
+Cc: kosaki.motohiro@jp.fujitsu.com, Randy Dunlap <randy.dunlap@oracle.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 28 Mar 2011 13:32:35 +0800
-Bob Liu <lliubbo@gmail.com> wrote:
-
-> On no-mmu arch, there is a memleak duirng shmem test.
-> The cause of this memleak is ramfs_nommu_expand_for_mapping() added page
-> refcount to 2 which makes iput() can't free that pages.
+> On 2011-03-24 17:57, Randy Dunlap wrote:
+> > On Thu, 24 Mar 2011 10:52:54 +0900 (JST) KOSAKI Motohiro wrote:
+> > 
+> >> Hi all,
+> >>
+> >> Recently, vmstast show crazy big "bi" value even though the system has
+> >> no stress. Is this known issue?
+> >>
+> >> Thanks.
+> > 
+> > underflow?  also looks like -3 or -ESRCH.
+> > 
+> > Adding Jens in case he has any idea about it.
 > 
-> The simple test file is like this:
-> int main(void)
-> {
-> 	int i;
-> 	key_t k = ftok("/etc", 42);
-> 
-> 	for ( i=0; i<100; ++i) {
-> 		int id = shmget(k, 10000, 0644|IPC_CREAT);
-> 		if (id == -1) {
-> 			printf("shmget error\n");
-> 		}
-> 		if(shmctl(id, IPC_RMID, NULL ) == -1) {
-> 			printf("shm  rm error\n");
-> 			return -1;
-> 		}
-> 	}
-> 	printf("run ok...\n");
-> 	return 0;
-> }
-> 
-> ...
-> 
-> diff --git a/fs/ramfs/file-nommu.c b/fs/ramfs/file-nommu.c
-> index 9eead2c..fbb0b47 100644
-> --- a/fs/ramfs/file-nommu.c
-> +++ b/fs/ramfs/file-nommu.c
-> @@ -112,6 +112,7 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
->  		SetPageDirty(page);
->  
->  		unlock_page(page);
-> +		put_page(page);
->  	}
->  
->  	return 0;
+> First question, what does 'recently' mean? In other words, in what
+> kernel did you first notice this behaviour?
 
-Something is still wrong here.
+Thans, Randy, Jens.
+I dagged awhile and I've found this is -mm specific and known issue.
+It was fixed by Hannes. (ref Message-ID: <20110324125316.GA2310@cmpxchg.org>)
 
-A live, in-use page should have a refcount of three.  One for the
-existence of the page, one for its presence on the page LRU and one for
-its existence in the pagecache radix tree.
 
-So allocation should do:
-
-	alloc_pages()
-	add_to_page_cache()
-	add_to_lru()
-
-and deallocation should do
-
-	remove_from_lru()
-	remove_from_page_cache()
-	put_page()
-
-If this protocol is followed correctly, there is no need to do a
-put_page() during the allocation/setup phase!
-
-I suspect that the problem in nommu really lies in the
-deallocation/teardown phase.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
