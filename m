@@ -1,45 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5E1888D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 18:38:18 -0400 (EDT)
-Date: Tue, 29 Mar 2011 17:38:13 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH]mmap: add alignment for some variables
-In-Reply-To: <20110329152434.d662706f.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1103291734001.11817@router.home>
-References: <1301277536.3981.27.camel@sli10-conroe> <m2oc4v18x8.fsf@firstfloor.org> <1301360054.3981.31.camel@sli10-conroe> <20110329152434.d662706f.akpm@linux-foundation.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 543BC8D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 18:39:01 -0400 (EDT)
+Date: Wed, 30 Mar 2011 00:38:58 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [Lsf] [LSF][MM] page allocation & direct reclaim latency
+Message-ID: <20110329223858.GO12265@random.random>
+References: <1301373398.2590.20.camel@mulgrave.site>
+ <4D91FC2D.4090602@redhat.com>
+ <20110329190520.GJ12265@random.random>
+ <4D924D8C.8060201@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4D924D8C.8060201@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shaohua Li <shaohua.li@intel.com>, Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
 
-On Tue, 29 Mar 2011, Andrew Morton wrote:
+On Tue, Mar 29, 2011 at 05:22:20PM -0400, Rik van Riel wrote:
+> I believe that problem is complex enough to warrant a 30
+> minute discussion.  Even if we do not come up with solutions,
+> it would be a good start if we could all agree on the problem.
+> 
+> Things this complex often end up getting shot down later, not
+> because people do not agree on the solution, but because people
+> do not agree on the PROBLEM (and the patches in question only
+> solve a subset of the problem).
+> 
+> I would be willing to lead the NUMA scheduling and memory
+> allocation discussion.
 
-> > -struct percpu_counter vm_committed_as;
-> > +struct percpu_counter vm_committed_as ____cacheline_internodealigned_in_smp;
->
-> Why ____cacheline_internodealigned_in_smp?  That's pretty aggressive.
->
-> afacit the main benefit from this will occur if the read-only
-> vm_committed_as.counters lands in the same cacheline as some
-> write-frequently storage.
->
-> But that's a complete mad guess and I'd prefer not to have to guess.
+Well, for now I added it to schedule.
 
-It would  be useful to have some functionality that allows us to give
-hints as to which variables are accessed together and therefore would be
-useful to put in the same cacheline. Thus avoiding things like the
-readmostly segment and the above aberration.
+The problem I think exists as without bindings and NUMA hinting, the
+current automatic behavior deviates significantly from the tuned-NUMA
+binding performance as also shown by the migrate-on-fault patches.
 
-Andi had a special pda area in earlier version before the merger of 32 and
-64 bit code for x86 that resulted in placement of the most performance
-critical variables near one another. I am afraid now they are all spread
-out.
+Now THP pages can't even be migrated before being splitted, and
+migrating 2M on fault isn't optimal even after we teach migrate how to
+migrate 2M pages without splitting [a separate issue]. Migrate on
+fault to me looks a great improvement but it doesn't look the most
+optimal design we can have as the page fault can be avoided with a
+background migration from kernel thread, without requiring page faults.
 
-So maybe something that allows us to define multiple pdas? Or just structs
-that are cacheline aligned?
+Hugh if you think of some other topic being more urgent feel free to
+update. One other topic that comes to mind right now that could be
+good candidate for the floating slot would be Hugh's OOM topic. I
+think it'd be nice to somehow squeeze that into the schedule too if
+Hugh has interest to lead it.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
