@@ -1,91 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D93B8D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 20:32:18 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id DDA183EE0C5
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 09:32:14 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C2C5045DE69
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 09:32:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F80345DE4E
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 09:32:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 902AD1DB802C
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 09:32:14 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.240.81.146])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DDA81DB803C
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 09:32:14 +0900 (JST)
-Date: Tue, 29 Mar 2011 09:25:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/4] forkbomb killer
-Message-Id: <20110329092542.190fa31d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <BANLkTi=BJrqsTTAuxz-ZDeioCZ=Sc6hbSw@mail.gmail.com>
-References: <20110324182240.5fe56de2.kamezawa.hiroyu@jp.fujitsu.com>
-	<20110324105222.GA2625@barrios-desktop>
-	<20110325090411.56c5e5b2.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTi=f3gu7-8uNiT4qz6s=BOhto5s=7g@mail.gmail.com>
-	<20110325115453.82a9736d.kamezawa.hiroyu@jp.fujitsu.com>
-	<BANLkTim3fFe3VzvaWRwzaCT6aRd-yeyfiQ@mail.gmail.com>
-	<20110326023452.GA8140@google.com>
-	<AANLkTi=ng9vwoMJ=tseWwTsXMf9XZkMKUexcpEmQ45M_@mail.gmail.com>
-	<BANLkTi=BJrqsTTAuxz-ZDeioCZ=Sc6hbSw@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id ECCAE8D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 20:37:06 -0400 (EDT)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id p2T0b4ZQ020443
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 17:37:04 -0700
+Received: from qyk36 (qyk36.prod.google.com [10.241.83.164])
+	by hpaq2.eem.corp.google.com with ESMTP id p2T0aVMH012666
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 17:37:02 -0700
+Received: by qyk36 with SMTP id 36so2029637qyk.18
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2011 17:37:02 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110329091254.20c7cfcb.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20110328093957.089007035@suse.cz>
+	<AANLkTi=CPMxOg3juDiD-_hnBsXKdZ+at+i9c1YYM=vv1@mail.gmail.com>
+	<20110329091254.20c7cfcb.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 28 Mar 2011 17:37:02 -0700
+Message-ID: <BANLkTin4J5kiysPdQD2aTC52U4-dy04C1g@mail.gmail.com>
+Subject: Re: [RFC 0/3] Implementation of cgroup isolation
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rientjes@google.com" <rientjes@google.com>, Andrey Vagin <avagin@openvz.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Suleiman Souhlal <suleiman@google.com>
 
-On Mon, 28 Mar 2011 16:46:42 -0700
-Michel Lespinasse <walken@google.com> wrote:
+On Mon, Mar 28, 2011 at 5:12 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 28 Mar 2011 11:01:18 -0700
+> Ying Han <yinghan@google.com> wrote:
+>
+>> On Mon, Mar 28, 2011 at 2:39 AM, Michal Hocko <mhocko@suse.cz> wrote:
+>> > Hi all,
+>> >
+>> > Memory cgroups can be currently used to throttle memory usage of a group of
+>> > processes. It, however, cannot be used for an isolation of processes from
+>> > the rest of the system because all the pages that belong to the group are
+>> > also placed on the global LRU lists and so they are eligible for the global
+>> > memory reclaim.
+>> >
+>> > This patchset aims at providing an opt-in memory cgroup isolation. This
+>> > means that a cgroup can be configured to be isolated from the rest of the
+>> > system by means of cgroup virtual filesystem (/dev/memctl/group/memory.isolated).
+>>
+>> Thank you Hugh pointing me to the thread. We are working on similar
+>> problem in memcg currently
+>>
+>> Here is the problem we see:
+>> 1. In memcg, a page is both on per-memcg-per-zone lru and global-lru.
+>> 2. Global memory reclaim will throw page away regardless of cgroup.
+>> 3. The zone->lru_lock is shared between per-memcg-per-zone lru and global-lru.
+>>
+>> And we know:
+>> 1. We shouldn't do global reclaim since it breaks memory isolation.
+>> 2. There is no need for a page to be on both LRU list, especially
+>> after having per-memcg background reclaim.
+>>
+>> So our approach is to take off page from global lru after it is
+>> charged to a memcg. Only pages allocated at root cgroup remains in
+>> global LRU, and each memcg reclaims pages on its isolated LRU.
+>>
+>
+> Why you don't use cpuset and virtual nodes ? It's what you want.
 
-> On Sat, Mar 26, 2011 at 1:48 AM, Hiroyuki Kamezawa
-> <kamezawa.hiroyuki@gmail.com> wrote:
-> > 2011/3/26 Michel Lespinasse <walken@google.com>:
-> >> I haven't heard of fork bombs being an issue for us (and it's not been
-> >> for me on my desktop, either).
-> >>
-> >> Also, I want to point out that there is a classical userspace solution
-> >> for this, as implemented by killall5 for example. One can do
-> >> kill(-1, SIGSTOP) to stop all processes that they can send
-> >> signals to (except for init and itself). Target processes
-> >> can never catch or ignore the SIGSTOP. This stops the fork bomb
-> >> from causing further damage. Then, one can look at the process
-> >> tree and do whatever is appropriate - including killing by uid,
-> >> by cgroup or whatever policies one wants to implement in userspace.
-> >> Finally, the remaining processes can be restarted using SIGCONT.
-> >>
-> >
-> > Can that solution work even under OOM situation without new login/commands ?
-> > Please show us your solution, how to avoid Andrey's Bomb A with your way.
-> > Then, we can add Documentation, at least. Or you can show us your tool.
-> 
-> To be clear, I don't have a full solution. I just think that the
-> problem is approachable from userspace by freezing processes and then
-> sorting them out. The killall5 utility is an example of that, though
-> you would possibly want to add more smarts to it. If we want to
-> include a kernel solution, I do like the simplicity of Minchan's
-> proposal, too. But, I don't have a strong opinion on this matter, so
-> feel free to ignore me if this is not useful feedback.
-> 
+We've been running cpuset + fakenuma nodes configuration in google to
+provide memory isolation. The configuration of having the virtual box
+is complex which user needs to know great details of the which node to
+assign to which cgroup. That is one of the motivations for us moving
+towards to memory controller which simply do memory accounting no
+matter where pages are allocated.
 
-I don't have strong opinion, too. I just think easily breakable kernel
-by an user application is not ideal thing for me. To go to other buildings
-to press reset-button is good for my health. I just implemnted a solution and
-it seems to work well. Then, just want to ask how my patch looks.
+By saying that, memcg simplified the memory accounting per-cgroup but
+the memory isolation is broken. This is one of examples where pages
+are shared between global LRU and per-memcg LRU. It is easy to get
+cgroup-A's page evicted by adding memory pressure to cgroup-B.
 
-But no one see patches, and it seems this feature is not welcome.
-I'll continue to walk or just use virtual machines for testing OOM.
+The approach we are thinking to make the page->lru exclusive solve the
+problem. and also we should be able to break the zone->lru_lock
+sharing.
 
-Thanks,
--Kame
+--Ying
 
 
 
 
+>
+> Thanks,
+> -Kame
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
