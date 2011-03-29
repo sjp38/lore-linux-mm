@@ -1,88 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9E06C8D0040
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 22:49:36 -0400 (EDT)
-From: Sean Noonan <Sean.Noonan@twosigma.com>
-Date: Mon, 28 Mar 2011 22:49:33 -0400
-Subject: RE: XFS memory allocation deadlock in 2.6.38
-Message-ID: <081DDE43F61F3D43929A181B477DCA95639B534F@MSXAOA6.twosigma.com>
-References: <081DDE43F61F3D43929A181B477DCA95639B52FD@MSXAOA6.twosigma.com>
- <081DDE43F61F3D43929A181B477DCA95639B5327@MSXAOA6.twosigma.com>
- <20110324174311.GA31576@infradead.org>
- <AANLkTikwwRm6FHFtEdUg54NvmKdswQw-NPH5dtq1mXBK@mail.gmail.com>
- <081DDE43F61F3D43929A181B477DCA95639B5349@MSXAOA6.twosigma.com>
- <BANLkTin0jJevStg5P2hqsLbqMzo3o30sYg@mail.gmail.com>
- <081DDE43F61F3D43929A181B477DCA95639B534E@MSXAOA6.twosigma.com>
- <20110329015137.GD3008@dastard>
-In-Reply-To: <20110329015137.GD3008@dastard>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 96DA98D0040
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2011 22:52:27 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CB64E3EE0BC
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:52:23 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B335D45DE58
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:52:23 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D87645DE3E
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:52:23 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 90DE7E38001
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:52:23 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.240.81.145])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C605E08001
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 11:52:23 +0900 (JST)
+Date: Tue, 29 Mar 2011 11:45:55 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC 0/3] Implementation of cgroup isolation
+Message-Id: <20110329114555.cb5d5c51.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <BANLkTikgop4m9ngX6Dd1K6Jk7jsMMU0xig@mail.gmail.com>
+References: <20110328093957.089007035@suse.cz>
+	<AANLkTi=CPMxOg3juDiD-_hnBsXKdZ+at+i9c1YYM=vv1@mail.gmail.com>
+	<20110329091254.20c7cfcb.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTin4J5kiysPdQD2aTC52U4-dy04C1g@mail.gmail.com>
+	<20110329094756.49af153d.kamezawa.hiroyu@jp.fujitsu.com>
+	<BANLkTikgop4m9ngX6Dd1K6Jk7jsMMU0xig@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Dave Chinner' <david@fromorbit.com>
-Cc: 'Michel Lespinasse' <walken@google.com>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Martin Bligh <Martin.Bligh@twosigma.com>, Trammell Hudson <Trammell.Hudson@twosigma.com>, Christos Zoulas <Christos.Zoulas@twosigma.com>, "linux-xfs@oss.sgi.com" <linux-xfs@oss.sgi.com>, Stephen Degler <Stephen.Degler@twosigma.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Ying Han <yinghan@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Suleiman Souhlal <suleiman@google.com>
 
-> As it is, the question I'd really like answered is how a machine with
-> 48GB RAM can possibly be short of memory when running mmap() on a
-> 16GB file.  The error that XFS is throwing indicates that the
-> machine cannot allocate a single page of memory, so where has all
-> your memory gone, and why hasn't the OOM killer been let off the
-> leash?  What is consuming the other 32GB of RAM or preventing it
-> from being allocated?=20
-Here's meminfo while a test was deadlocking.  As you can see, we certainly =
-aren't running out of RAM.
-# cat /proc/meminfo=20
-MemTotal:       49551548 kB
-MemFree:        44139876 kB
-Buffers:            5324 kB
-Cached:          4970552 kB
-SwapCached:            0 kB
-Active:            52772 kB
-Inactive:        4960624 kB
-Active(anon):      37864 kB
-Inactive(anon):        0 kB
-Active(file):      14908 kB
-Inactive(file):  4960624 kB
-Unevictable:           0 kB
-Mlocked:               0 kB
-SwapTotal:             0 kB
-SwapFree:              0 kB
-Dirty:           4914084 kB
-Writeback:             0 kB
-AnonPages:         37636 kB
-Mapped:          4925460 kB
-Shmem:               280 kB
-Slab:             223212 kB
-SReclaimable:     176280 kB
-SUnreclaim:        46932 kB
-KernelStack:        3968 kB
-PageTables:        35228 kB
-NFS_Unstable:          0 kB
-Bounce:                0 kB
-WritebackTmp:          0 kB
-CommitLimit:    47073968 kB
-Committed_AS:      86556 kB
-VmallocTotal:   34359738367 kB
-VmallocUsed:      380892 kB
-VmallocChunk:   34331773836 kB
-HugePages_Total:       0
-HugePages_Free:        0
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-Hugepagesize:       2048 kB
-DirectMap4k:        2048 kB
-DirectMap2M:     2086912 kB
-DirectMap1G:    48234496 kB
+On Mon, 28 Mar 2011 19:46:41 -0700
+Ying Han <yinghan@google.com> wrote:
+
+> On Mon, Mar 28, 2011 at 5:47 PM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> >
+> >> By saying that, memcg simplified the memory accounting per-cgroup but
+> >> the memory isolation is broken. This is one of examples where pages
+> >> are shared between global LRU and per-memcg LRU. It is easy to get
+> >> cgroup-A's page evicted by adding memory pressure to cgroup-B.
+> >>
+> > If you overcommit....Right ?
+> 
+> yes, we want to support the configuration of over-committing the
+> machine w/ limit_in_bytes.
+> 
+
+Then, soft_limit is a feature for fixing the problem. If you have problem
+with soft_limit, let's fix it.
 
 
-> Perhaps the output of xfs_bmap -vvp <file> after a successful vs
-deadlocked run would be instructive....
+> >
+> >
+> >> The approach we are thinking to make the page->lru exclusive solve the
+> >> problem. and also we should be able to break the zone->lru_lock
+> >> sharing.
+> >>
+> > Is zone->lru_lock is a problem even with the help of pagevecs ?
+> 
+> > If LRU management guys acks you to isolate LRUs and to make kswapd etc..
+> > more complex, okay, we'll go that way.
+> 
+> I would assume the change only apply to memcg users , otherwise
+> everything is leaving in the global LRU list.
+> 
+> This will _change_ the whole memcg design and concepts Maybe memcg
+> should have some kind of balloon driver to
+> > work happy with isolated lru.
+> 
+> We have soft_limit hierarchical reclaim for system memory pressure,
+> and also we will add per-memcg background reclaim. Both of them do
+> targeting reclaim on per-memcg LRUs, and where is the balloon driver
+> needed?
+> 
 
-I will try to get this tomorrow.
+If soft_limit is _not_ enough. And I think you background reclaim should
+be work with soft_limit and be triggered by global memory pressure. 
 
-Sean
+As wrote in other mail, it's not called via direct reclaim.
+Maybe its the 1st point to be shooted rather than trying big change.
+
+
+
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
