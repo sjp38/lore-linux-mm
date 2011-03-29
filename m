@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EAE468D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 01:56:59 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 03D788D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 01:57:02 -0400 (EDT)
 From: Ying Han <yinghan@google.com>
-Subject: [PATCH V3 2/2] add stats to monitor soft_limit reclaim
-Date: Mon, 28 Mar 2011 22:56:26 -0700
-Message-Id: <1301378186-23199-3-git-send-email-yinghan@google.com>
+Subject: [PATCH V3 1/2] count the soft_limit reclaim in global background reclaim
+Date: Mon, 28 Mar 2011 22:56:25 -0700
+Message-Id: <1301378186-23199-2-git-send-email-yinghan@google.com>
 In-Reply-To: <1301378186-23199-1-git-send-email-yinghan@google.com>
 References: <1301378186-23199-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,138 +13,223 @@ List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org
 
-The stat is added:
+In the global background reclaim, we do soft reclaim before scanning the
+per-zone LRU. However, the return value is ignored.
 
-/dev/cgroup/*/memory.stat
-soft_steal:        - # of pages reclaimed from soft_limit hierarchical reclaim
-soft_scan:         - # of pages scanned from soft_limit hierarchical reclaim
-total_soft_steal:  - # sum of all children's "soft_steal"
-total_soft_scan:   - # sum of all children's "soft_scan"
+We would like to skip shrink_zone() if soft_limit reclaim does enough work.
+Also, we need to make the memory pressure balanced across per-memcg zones,
+like the logic vm-core. This patch is the first step where we start with
+counting the nr_scanned and nr_reclaimed from soft_limit reclaim into the
+global scan_control.
 
-Change v3..v2
-1. add the soft_scan stat
-2. count the soft_scan and soft_steal within hierarchical reclaim
-3. removed the unnecessary export in memcontrol.h
+No change from V2.
 
 Signed-off-by: Ying Han <yinghan@google.com>
 ---
- Documentation/cgroups/memory.txt |    4 ++++
- include/linux/memcontrol.h       |    1 -
- mm/memcontrol.c                  |   25 +++++++++++++++++++++++++
- 3 files changed, 29 insertions(+), 1 deletions(-)
+ include/linux/memcontrol.h |    6 ++++--
+ include/linux/swap.h       |    3 ++-
+ mm/memcontrol.c            |   29 ++++++++++++++++++++---------
+ mm/vmscan.c                |   16 +++++++++++++---
+ 4 files changed, 39 insertions(+), 15 deletions(-)
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index b6ed61c..3bf0047 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -385,6 +385,8 @@ mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
- pgpgin		- # of pages paged in (equivalent to # of charging events).
- pgpgout		- # of pages paged out (equivalent to # of uncharging events).
- swap		- # of bytes of swap usage
-+soft_steal	- # of pages reclaimed from global hierarchical reclaim
-+soft_scan	- # of pages scanned from global hierarchical reclaim
- inactive_anon	- # of bytes of anonymous memory and swap cache memory on
- 		LRU list.
- active_anon	- # of bytes of anonymous and swap cache memory on active
-@@ -406,6 +408,8 @@ total_mapped_file	- sum of all children's "cache"
- total_pgpgin		- sum of all children's "pgpgin"
- total_pgpgout		- sum of all children's "pgpgout"
- total_swap		- sum of all children's "swap"
-+total_soft_steal	- sum of all children's "soft_steal"
-+total_soft_scan		- sum of all children's "soft_scan"
- total_inactive_anon	- sum of all children's "inactive_anon"
- total_active_anon	- sum of all children's "active_anon"
- total_inactive_file	- sum of all children's "inactive_file"
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 01281ac..9d094fc 100644
+index 5a5ce70..01281ac 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -115,7 +115,6 @@ struct zone_reclaim_stat*
- mem_cgroup_get_reclaim_stat_from_page(struct page *page);
- extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
- 					struct task_struct *p);
--
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
- extern int do_swap_account;
- #endif
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 67fff28..29f213c 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -94,6 +94,10 @@ enum mem_cgroup_events_index {
- 	MEM_CGROUP_EVENTS_PGPGIN,	/* # of pages paged in */
- 	MEM_CGROUP_EVENTS_PGPGOUT,	/* # of pages paged out */
- 	MEM_CGROUP_EVENTS_COUNT,	/* # of pages paged in/out */
-+	MEM_CGROUP_EVENTS_SOFT_STEAL,	/* # of pages reclaimed from */
-+					/* soft reclaim               */
-+	MEM_CGROUP_EVENTS_SOFT_SCAN,	/* # of pages scanned from */
-+					/* soft reclaim               */
- 	MEM_CGROUP_EVENTS_NSTATS,
- };
- /*
-@@ -624,6 +628,16 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
- 	preempt_enable();
+@@ -144,7 +144,8 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
  }
  
-+static void mem_cgroup_soft_steal(struct mem_cgroup *mem, int val)
-+{
-+	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_SOFT_STEAL], val);
-+}
-+
-+static void mem_cgroup_soft_scan(struct mem_cgroup *mem, int val)
-+{
-+	this_cpu_add(mem->stat->events[MEM_CGROUP_EVENTS_SOFT_SCAN], val);
-+}
-+
- static unsigned long mem_cgroup_get_local_zonestat(struct mem_cgroup *mem,
- 					enum lru_list idx)
+ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+-						gfp_t gfp_mask);
++						gfp_t gfp_mask,
++						unsigned long *total_scanned);
+ u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+@@ -338,7 +339,8 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
+ 
+ static inline
+ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+-					    gfp_t gfp_mask)
++					    gfp_t gfp_mask,
++					    unsigned long *total_scanned)
  {
-@@ -1491,6 +1505,8 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- 				noswap, get_swappiness(victim), zone,
- 				&nr_scanned);
- 			*total_scanned += nr_scanned;
-+			mem_cgroup_soft_steal(victim, ret);
-+			mem_cgroup_soft_scan(victim, nr_scanned);
- 		} else
+ 	return 0;
+ }
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index ed6ebe6..3c6a9cd 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -257,7 +257,8 @@ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+ extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+ 						gfp_t gfp_mask, bool noswap,
+ 						unsigned int swappiness,
+-						struct zone *zone);
++						struct zone *zone,
++						unsigned long *nr_scanned);
+ extern int __isolate_lru_page(struct page *page, int mode, int file);
+ extern unsigned long shrink_all_memory(unsigned long nr_pages);
+ extern int vm_swappiness;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4407dd0..67fff28 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1433,7 +1433,8 @@ mem_cgroup_select_victim(struct mem_cgroup *root_mem)
+ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 						struct zone *zone,
+ 						gfp_t gfp_mask,
+-						unsigned long reclaim_options)
++						unsigned long reclaim_options,
++						unsigned long *total_scanned)
+ {
+ 	struct mem_cgroup *victim;
+ 	int ret, total = 0;
+@@ -1442,6 +1443,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 	bool shrink = reclaim_options & MEM_CGROUP_RECLAIM_SHRINK;
+ 	bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
+ 	unsigned long excess;
++	unsigned long nr_scanned;
+ 
+ 	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
+ 
+@@ -1484,10 +1486,12 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 			continue;
+ 		}
+ 		/* we use swappiness of local cgroup */
+-		if (check_soft)
++		if (check_soft) {
+ 			ret = mem_cgroup_shrink_node_zone(victim, gfp_mask,
+-				noswap, get_swappiness(victim), zone);
+-		else
++				noswap, get_swappiness(victim), zone,
++				&nr_scanned);
++			*total_scanned += nr_scanned;
++		} else
  			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
  						noswap, get_swappiness(victim));
-@@ -3326,6 +3342,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 						&nr_scanned);
+ 		css_put(&victim->css);
+@@ -1928,7 +1932,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *mem, gfp_t gfp_mask,
+ 		return CHARGE_WOULDBLOCK;
+ 
+ 	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
+-					      gfp_mask, flags);
++					      gfp_mask, flags, NULL);
+ 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+ 		return CHARGE_RETRY;
+ 	/*
+@@ -3211,7 +3215,8 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 			break;
+ 
+ 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
+-						MEM_CGROUP_RECLAIM_SHRINK);
++						MEM_CGROUP_RECLAIM_SHRINK,
++						NULL);
+ 		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
+ 		/* Usage is reduced ? */
+   		if (curusage >= oldusage)
+@@ -3271,7 +3276,8 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+ 
+ 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
+ 						MEM_CGROUP_RECLAIM_NOSWAP |
+-						MEM_CGROUP_RECLAIM_SHRINK);
++						MEM_CGROUP_RECLAIM_SHRINK,
++						NULL);
+ 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+ 		/* Usage is reduced ? */
+ 		if (curusage >= oldusage)
+@@ -3285,7 +3291,8 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+ }
+ 
+ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+-					    gfp_t gfp_mask)
++					    gfp_t gfp_mask,
++					    unsigned long *total_scanned)
+ {
+ 	unsigned long nr_reclaimed = 0;
+ 	struct mem_cgroup_per_zone *mz, *next_mz = NULL;
+@@ -3293,6 +3300,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+ 	int loop = 0;
+ 	struct mem_cgroup_tree_per_zone *mctz;
+ 	unsigned long long excess;
++	unsigned long nr_scanned;
+ 
+ 	if (order > 0)
+ 		return 0;
+@@ -3311,10 +3319,13 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+ 		if (!mz)
+ 			break;
+ 
++		nr_scanned = 0;
+ 		reclaimed = mem_cgroup_hierarchical_reclaim(mz->mem, zone,
+ 						gfp_mask,
+-						MEM_CGROUP_RECLAIM_SOFT);
++						MEM_CGROUP_RECLAIM_SOFT,
++						&nr_scanned);
  		nr_reclaimed += reclaimed;
- 		*total_scanned += nr_scanned;
-+
++		*total_scanned += nr_scanned;
  		spin_lock(&mctz->lock);
  
  		/*
-@@ -3783,6 +3800,8 @@ enum {
- 	MCS_PGPGIN,
- 	MCS_PGPGOUT,
- 	MCS_SWAP,
-+	MCS_SOFT_STEAL,
-+	MCS_SOFT_SCAN,
- 	MCS_INACTIVE_ANON,
- 	MCS_ACTIVE_ANON,
- 	MCS_INACTIVE_FILE,
-@@ -3805,6 +3824,8 @@ struct {
- 	{"pgpgin", "total_pgpgin"},
- 	{"pgpgout", "total_pgpgout"},
- 	{"swap", "total_swap"},
-+	{"soft_steal", "total_soft_steal"},
-+	{"soft_scan", "total_soft_scan"},
- 	{"inactive_anon", "total_inactive_anon"},
- 	{"active_anon", "total_active_anon"},
- 	{"inactive_file", "total_inactive_file"},
-@@ -3833,6 +3854,10 @@ mem_cgroup_get_local_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
- 		val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_SWAPOUT);
- 		s->stat[MCS_SWAP] += val * PAGE_SIZE;
- 	}
-+	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_SOFT_STEAL);
-+	s->stat[MCS_SOFT_STEAL] += val;
-+	val = mem_cgroup_read_events(mem, MEM_CGROUP_EVENTS_SOFT_SCAN);
-+	s->stat[MCS_SOFT_SCAN] += val;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 060e4c1..3755ad5 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2147,9 +2147,11 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+ 						gfp_t gfp_mask, bool noswap,
+ 						unsigned int swappiness,
+-						struct zone *zone)
++						struct zone *zone,
++						unsigned long *nr_scanned)
+ {
+ 	struct scan_control sc = {
++		.nr_scanned = 0,
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+ 		.may_writepage = !laptop_mode,
+ 		.may_unmap = 1,
+@@ -2158,6 +2160,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+ 		.order = 0,
+ 		.mem_cgroup = mem,
+ 	};
++
+ 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+ 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
  
- 	/* per zone stat */
- 	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_ANON);
+@@ -2176,6 +2179,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+ 
+ 	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
+ 
++	*nr_scanned = sc.nr_scanned;
+ 	return sc.nr_reclaimed;
+ }
+ 
+@@ -2320,6 +2324,8 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+ 	unsigned long total_scanned;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
++	unsigned long nr_soft_reclaimed;
++	unsigned long nr_soft_scanned;
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_KERNEL,
+ 		.may_unmap = 1,
+@@ -2409,11 +2415,15 @@ loop_again:
+ 
+ 			sc.nr_scanned = 0;
+ 
++			nr_soft_scanned = 0;
+ 			/*
+ 			 * Call soft limit reclaim before calling shrink_zone.
+-			 * For now we ignore the return value
+ 			 */
+-			mem_cgroup_soft_limit_reclaim(zone, order, sc.gfp_mask);
++			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
++							order, sc.gfp_mask,
++							&nr_soft_scanned);
++			sc.nr_reclaimed += nr_soft_reclaimed;
++			total_scanned += nr_soft_scanned;
+ 
+ 			/*
+ 			 * We put equal pressure on every zone, unless
 -- 
 1.7.3.1
 
