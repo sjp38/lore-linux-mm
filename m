@@ -1,75 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B27118D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 09:27:13 -0400 (EDT)
-Received: by fxm18 with SMTP id 18so1419568fxm.14
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2011 06:27:06 -0700 (PDT)
-Subject: Re: kmemleak for MIPS
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <AANLkTi=RXoEOVmTPiL=dfO97aOVKWOJWE7hoQduPPsCZ@mail.gmail.com>
-References: <9bde694e1003020554p7c8ff3c2o4ae7cb5d501d1ab9@mail.gmail.com>
-	 <AANLkTinnqtXf5DE+qxkTyZ9p9Mb8dXai6UxWP2HaHY3D@mail.gmail.com>
-	 <1300960540.32158.13.camel@e102109-lin.cambridge.arm.com>
-	 <AANLkTim139fpJsMJFLiyUYvFgGMz-Ljgd_yDrks-tqhE@mail.gmail.com>
-	 <1301395206.583.53.camel@e102109-lin.cambridge.arm.com>
-	 <AANLkTim-4v5Cbp6+wHoXjgKXoS0axk1cgQ5AHF_zot80@mail.gmail.com>
-	 <1301399454.583.66.camel@e102109-lin.cambridge.arm.com>
-	 <AANLkTin0_gT0E3=oGyfMwk+1quqonYBExeN9a3=v=Lob@mail.gmail.com>
-	 <AANLkTi=gMP6jQuQFovfsOX=7p-SSnwXoVLO_DVEpV63h@mail.gmail.com>
-	 <1301476505.29074.47.camel@e102109-lin.cambridge.arm.com>
-	 <AANLkTi=YB+nBG7BYuuU+rB9TC-BbWcJ6mVfkxq0iUype@mail.gmail.com>
-	 <AANLkTi=L0zqwQ869khH1efFUghGeJjoyTaBXs-O2icaM@mail.gmail.com>
-	 <AANLkTi=vcn5jHpk0O8XS9XJ8s5k-mCnzUwu70mFTx4=g@mail.gmail.com>
-	 <1301485085.29074.61.camel@e102109-lin.cambridge.arm.com>
-	 <AANLkTikXfVNkyFE2MpW9ZtfX2G=QKvT7kvEuDE-YE5xO@mail.gmail.com>
-	 <1301488032.3283.42.camel@edumazet-laptop>
-	 <AANLkTikX0jxdkyYgPoqjvC5HzY8VydTbFh_gFDzM8zJ7@mail.gmail.com>
-	 <AANLkTi=RXoEOVmTPiL=dfO97aOVKWOJWE7hoQduPPsCZ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 30 Mar 2011 15:27:02 +0200
-Message-ID: <1301491622.3283.46.camel@edumazet-laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 76A148D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 09:48:09 -0400 (EDT)
+Date: Wed, 30 Mar 2011 21:48:05 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: Very aggressive memory reclaim
+Message-ID: <20110330134804.GA10113@localhost>
+References: <AANLkTinFqqmE+fTMTLVU-_CwPE+LQv7CpXSQ5+CdAKLK@mail.gmail.com>
+ <4D90C071.7040205@mnsu.edu>
+ <AANLkTikmQJFq633VNqNOMC-BfEC=BU=g7j5uW78P4B4Z@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTikmQJFq633VNqNOMC-BfEC=BU=g7j5uW78P4B4Z@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxin John <maxin.john@gmail.com>
-Cc: Daniel Baluta <daniel.baluta@gmail.com>, Catalin Marinas <catalin.marinas@arm.com>, naveen yadav <yad.naveen@gmail.com>, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: John Lepikhin <johnlepikhin@gmail.com>
+Cc: Jeffrey Hundstad <jeffrey.hundstad@mnsu.edu>, "linux-kernel@vger.kernel.org. Alexander Viro" <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
-Le mercredi 30 mars 2011 A  14:17 +0100, Maxin John a A(C)crit :
-> Hi,
+Hi John,
+
+On Mon, Mar 28, 2011 at 10:50:56PM +0400, John Lepikhin wrote:
+> 2011/3/28 Jeffrey Hundstad <jeffrey.hundstad@mnsu.edu>:
 > 
-> I have compiled the kernel with below given modification in .config
+> > I'd take a look here:
+> > http://www.linuxinsight.com/proc_sys_vm_hierarchy.html
 > 
-> CONFIG_CMDLINE="uhash_entries=256"
+> Yes, I already played with dirty_*, min_free_kbytes (3000kb),
+> swappiness (0..100), vfs_cache_pressure (1..200) and zone_reclaim_mode
+> (currently 0). Other parameters are set to defaults.
 > 
-> After booting with the new kernel, the "kmemleak" no longer complains
-> about the "udp_table_init".
-> However it do report another possible leak :)
-> 
-> debian-mips:~# cat /sys/kernel/debug/kmemleak
-> unreferenced object 0x8f085000 (size 4096):
->   comm "swapper", pid 1, jiffies 4294937670 (age 1043.280s)
->   hex dump (first 32 bytes):
->     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
->     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
->   backtrace:
->     [<801ac7a8>] __kmalloc+0x130/0x180
->     [<80532500>] flow_cache_cpu_prepare+0x50/0xa8
->     [<8052378c>] flow_cache_init_global+0x90/0x138
->     [<80100584>] do_one_initcall+0x174/0x1e0
->     [<8050c348>] kernel_init+0xe4/0x174
->     [<80103d4c>] kernel_thread_helper+0x10/0x18
-> debian-mips:~#
+> By the way, there is no swap enabled. Instead of just dropping 50% of
+> page caches, kernel was intensively swapping then there was a swap
+> device.
 
-Hmm, then MIPS kmemleak port might have a problem with percpu data ?
+Is your memory usage balanced across the nodes? You can check it via
+/sys/devices/system/node/node*/meminfo.
 
-fcp->hash_table = kzalloc_node(sz, GFP_KERNEL, cpu_to_node(cpu));
+Are there lots of high-order memory allocations?  /proc/buddyinfo will
+disclose some of them.
 
-fcp is a per cpu "struct flow_cache_percpu"
-
-> I completely agree with Daniel. Shall we move on and integrate the
-> kmemleak support for MIPS ?
-
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
