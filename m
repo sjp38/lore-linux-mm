@@ -1,55 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CE798D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 17:43:08 -0400 (EDT)
-Date: Wed, 30 Mar 2011 14:36:17 -0700
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 158F68D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 17:56:07 -0400 (EDT)
+Date: Wed, 30 Mar 2011 14:45:07 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Accelerate OOM killing
-Message-Id: <20110330143617.3d57aad2.akpm@linux-foundation.org>
-In-Reply-To: <1300960353-2596-1-git-send-email-minchan.kim@gmail.com>
-References: <1300960353-2596-1-git-send-email-minchan.kim@gmail.com>
+Subject: Re: [PATCH 8/8] Add VM counters for transparent hugepages
+Message-Id: <20110330144507.2c0ecf73.akpm@linux-foundation.org>
+In-Reply-To: <20110308114159.7EAD.A69D9226@jp.fujitsu.com>
+References: <20110307172609.8A01.A69D9226@jp.fujitsu.com>
+	<20110307163513.GC13384@alboin.amr.corp.intel.com>
+	<20110308114159.7EAD.A69D9226@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrey Vagin <avagin@openvz.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 24 Mar 2011 18:52:33 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+On Tue,  8 Mar 2011 11:43:23 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> When I test Andrey's problem, I saw the livelock and sysrq-t says
-> there are many tasks in cond_resched after try_to_free_pages.
-
-__alloc_pages_direct_reclaim() has two cond_resched()s, in
-straight-line code.  So I think you're concluding that the first
-cond_resched() is a no-op, but the second one frequently schedules
-away.
-
-For this to be true, the try_to_free_pages() call must be doing
-something to cause it, such as taking a large amount of time, or
-delivering wakeups, etc.  Do we know?
-
-The patch is really a bit worrisome and ugly.  If the CPU scheduler has
-decided that this task should be preempted then *that* is the problem,
-and we need to work out why it is happening and see if there is anything
-we should fix.  Instead the patch simply ignores the scheduler's
-directive, which is known as "papering over a bug".
-
-IOW, we should work out why need_resched is getting set so frequently
-rather than just ignoring it (and potentially worsening kernel
-scheduling latency).
-
-> If did_some_progress is false, cond_resched could delay oom killing so
-> It might be killing another task.
+> > > Don't we need to make per zone stastics? I'm afraid small dma zone 
+> > > makes much thp-splitting and screw up this stastics.
+> > 
+> > Does it? I haven't seen that so far.
+> > 
+> > If it happens a lot it would be better to disable THP for the 16MB DMA
+> > zone at least. Or did you mean the 4GB zone?
 > 
-> This patch accelerates oom killing without unnecessary giving CPU
-> to another task. It could help avoding unnecessary another task killing
-> and livelock situation a litte bit.
+> I assumered 4GB. And cpusets/mempolicy binding might makes similar 
+> issue. It can make only one zone high pressure.
+> 
+> But, hmmm...
+> Do you mean you don't hit any issue then? I don't think do don't tested
+> NUMA machine. So, it has  no practical problem I can agree this.
+> 
 
-Well...  _does_ it help?  What were the results of your testing of this
-patch?
+I didn't actually merge this patch because I assumed you guys were
+still arguing over it.  But I now see you weren't.
+
+Do we still want it?  Are we sure we don't want the per-zone numbers?
+
+
+From: Andi Kleen <ak@linux.intel.com>
+
+I found it difficult to make sense of transparent huge pages without
+having any counters for its actions.  Add some counters to vmstat for
+allocation of transparent hugepages and fallback to smaller pages.
+
+Optional patch, but useful for development and understanding the system.
+
+Contains improvements from Andrea Arcangeli and Johannes Weiner
+
+[akpm@linux-foundation.org: coding-style fixes]
+[hannes@cmpxchg.org: fix vmstat_text[] entries]
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+Acked-by: Andrea Arcangeli <aarcange@redhat.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ include/linux/vmstat.h |    7 +++++++
+ mm/huge_memory.c       |   25 +++++++++++++++++++++----
+ mm/vmstat.c            |    9 +++++++++
+ 3 files changed, 37 insertions(+), 4 deletions(-)
+
+diff -puN include/linux/vmstat.h~mm-add-vm-counters-for-transparent-hugepages include/linux/vmstat.h
+--- a/include/linux/vmstat.h~mm-add-vm-counters-for-transparent-hugepages
++++ a/include/linux/vmstat.h
+@@ -58,6 +58,13 @@ enum vm_event_item { PGPGIN, PGPGOUT, PS
+ 		UNEVICTABLE_PGCLEARED,	/* on COW, page truncate */
+ 		UNEVICTABLE_PGSTRANDED,	/* unable to isolate on unlock */
+ 		UNEVICTABLE_MLOCKFREED,
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++		THP_FAULT_ALLOC,
++		THP_FAULT_FALLBACK,
++		THP_COLLAPSE_ALLOC,
++		THP_COLLAPSE_ALLOC_FAILED,
++		THP_SPLIT,
++#endif
+ 		NR_VM_EVENT_ITEMS
+ };
+ 
+diff -puN mm/huge_memory.c~mm-add-vm-counters-for-transparent-hugepages mm/huge_memory.c
+--- a/mm/huge_memory.c~mm-add-vm-counters-for-transparent-hugepages
++++ a/mm/huge_memory.c
+@@ -680,8 +680,11 @@ int do_huge_pmd_anonymous_page(struct mm
+ 			return VM_FAULT_OOM;
+ 		page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+ 					  vma, haddr, numa_node_id(), 0);
+-		if (unlikely(!page))
++		if (unlikely(!page)) {
++			count_vm_event(THP_FAULT_FALLBACK);
+ 			goto out;
++		}
++		count_vm_event(THP_FAULT_ALLOC);
+ 		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
+ 			put_page(page);
+ 			goto out;
+@@ -909,11 +912,13 @@ int do_huge_pmd_wp_page(struct mm_struct
+ 		new_page = NULL;
+ 
+ 	if (unlikely(!new_page)) {
++		count_vm_event(THP_FAULT_FALLBACK);
+ 		ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
+ 						   pmd, orig_pmd, page, haddr);
+ 		put_page(page);
+ 		goto out;
+ 	}
++	count_vm_event(THP_FAULT_ALLOC);
+ 
+ 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
+ 		put_page(new_page);
+@@ -1390,6 +1395,7 @@ int split_huge_page(struct page *page)
+ 
+ 	BUG_ON(!PageSwapBacked(page));
+ 	__split_huge_page(page, anon_vma);
++	count_vm_event(THP_SPLIT);
+ 
+ 	BUG_ON(PageCompound(page));
+ out_unlock:
+@@ -1784,9 +1790,11 @@ static void collapse_huge_page(struct mm
+ 				      node, __GFP_OTHER_NODE);
+ 	if (unlikely(!new_page)) {
+ 		up_read(&mm->mmap_sem);
++		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
+ 		*hpage = ERR_PTR(-ENOMEM);
+ 		return;
+ 	}
++	count_vm_event(THP_COLLAPSE_ALLOC);
+ 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
+ 		up_read(&mm->mmap_sem);
+ 		put_page(new_page);
+@@ -2151,8 +2159,11 @@ static void khugepaged_do_scan(struct pa
+ #ifndef CONFIG_NUMA
+ 		if (!*hpage) {
+ 			*hpage = alloc_hugepage(khugepaged_defrag());
+-			if (unlikely(!*hpage))
++			if (unlikely(!*hpage)) {
++				count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
+ 				break;
++			}
++			count_vm_event(THP_COLLAPSE_ALLOC);
+ 		}
+ #else
+ 		if (IS_ERR(*hpage))
+@@ -2192,8 +2203,11 @@ static struct page *khugepaged_alloc_hug
+ 
+ 	do {
+ 		hpage = alloc_hugepage(khugepaged_defrag());
+-		if (!hpage)
++		if (!hpage) {
++			count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
+ 			khugepaged_alloc_sleep();
++		} else
++			count_vm_event(THP_COLLAPSE_ALLOC);
+ 	} while (unlikely(!hpage) &&
+ 		 likely(khugepaged_enabled()));
+ 	return hpage;
+@@ -2210,8 +2224,11 @@ static void khugepaged_loop(void)
+ 	while (likely(khugepaged_enabled())) {
+ #ifndef CONFIG_NUMA
+ 		hpage = khugepaged_alloc_hugepage();
+-		if (unlikely(!hpage))
++		if (unlikely(!hpage)) {
++			count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
+ 			break;
++		}
++		count_vm_event(THP_COLLAPSE_ALLOC);
+ #else
+ 		if (IS_ERR(hpage)) {
+ 			khugepaged_alloc_sleep();
+diff -puN mm/vmstat.c~mm-add-vm-counters-for-transparent-hugepages mm/vmstat.c
+--- a/mm/vmstat.c~mm-add-vm-counters-for-transparent-hugepages
++++ a/mm/vmstat.c
+@@ -951,7 +951,16 @@ static const char * const vmstat_text[] 
+ 	"unevictable_pgs_cleared",
+ 	"unevictable_pgs_stranded",
+ 	"unevictable_pgs_mlockfreed",
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	"thp_fault_alloc",
++	"thp_fault_fallback",
++	"thp_collapse_alloc",
++	"thp_collapse_alloc_failed",
++	"thp_split",
+ #endif
++
++#endif /* CONFIG_VM_EVENTS_COUNTERS */
+ };
+ 
+ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
