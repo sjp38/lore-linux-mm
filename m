@@ -1,157 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 66BB38D004C
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D6E108D004E
 	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 16:24:24 -0400 (EDT)
-Message-Id: <20110330202420.741455023@linux.com>
-Date: Wed, 30 Mar 2011 15:23:51 -0500
+Message-Id: <20110330202421.349168617@linux.com>
+Date: Wed, 30 Mar 2011 15:23:52 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [slubll1 09/19] mm: Rearrange struct page
+Subject: [slubll1 10/19] slub: Add cmpxchg_double_slab()
 References: <20110330202342.669400887@linux.com>
-Content-Disposition: inline; filename=resort_struct_page
+Content-Disposition: inline; filename=cmpxchg_double_slab
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Eric Dumazet <eric.dumazet@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 
-We need to be able to use cmpxchg_double on the freelist and object count
-field in struct page. Rearrange the fields in struct page according to
-doubleword entities so that the freelist pointer comes before the counters.
-Do the rearranging with a future in mind where we use more doubleword
-atomics to avoid locking of updates to flags/mapping or lru pointers.
-
-Create another union to allow access to counters in struct page as a
-single unsigned long value.
-
-The doublewords must be properly aligned for cmpxchg_double to work.
-Sadly this increases the size of page struct by one word but as a result
-page structs are now cacheline aligned on x86_64.
+Add a function that operates on the second doubleword in the page struct
+and manipulates the object counters, the freelist and the frozen attribute.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- include/linux/mm_types.h |   85 ++++++++++++++++++++++++++++++-----------------
- 1 file changed, 55 insertions(+), 30 deletions(-)
+ include/linux/slub_def.h |    1 +
+ mm/slub.c                |   38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)
 
-Index: linux-2.6/include/linux/mm_types.h
+Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/include/linux/mm_types.h	2011-03-30 13:54:14.000000000 -0500
-+++ linux-2.6/include/linux/mm_types.h	2011-03-30 13:58:07.000000000 -0500
-@@ -30,52 +30,68 @@ struct address_space;
-  * moment. Note that we have no way to track which tasks are using
-  * a page, though if it is a pagecache page, rmap structures can tell us
-  * who is mapping it.
-+ *
-+ * The objects in struct page are organized in double word blocks in
-+ * order to allows us to use atomic double word operations on portions
-+ * of struct page. That is currently only used by slub but the arrangement
-+ * allows the use of atomic double word operations on the flags/mapping
-+ * and lru list pointers also.
-  */
- struct page {
-+	/* First double word block */
- 	unsigned long flags;		/* Atomic flags, some possibly
- 					 * updated asynchronously */
--	atomic_t _count;		/* Usage count, see below. */
--	union {
--		atomic_t _mapcount;	/* Count of ptes mapped in mms,
--					 * to show when page is mapped
--					 * & limit reverse map searches.
-+	struct address_space *mapping;	/* If low bit clear, points to
-+					 * inode address_space, or NULL.
-+					 * If page mapped as anonymous
-+					 * memory, low bit is set, and
-+					 * it points to anon_vma object:
-+					 * see PAGE_MAPPING_ANON below.
- 					 */
--		struct {		/* SLUB */
--			unsigned inuse:16;
--			unsigned objects:15;
--			unsigned frozen:1;
-+	/* Second double word block used by SLUB */
-+	union {
-+		pgoff_t index;		/* Our offset within mapping. */
-+		void *freelist;		/* SLUB: freelist req. slab lock */
-+	};
-+	union {
-+		unsigned long counters;
-+		struct {
-+			union {
-+				struct {		/* SLUB */
-+					unsigned inuse:16;
-+					unsigned objects:15;
-+					unsigned frozen:1;
-+				};
-+				atomic_t _mapcount;	/* Count of ptes mapped in mms,
-+							 * to show when page is mapped
-+							 * & limit reverse map searches.
-+							 */
-+			};
-+			atomic_t _count;		/* Usage count, see below. */
- 		};
- 	};
-+
-+	/* Third double word block */
-+	struct list_head lru;		/* Pageout list, eg. active_list
-+					 * protected by zone->lru_lock !
-+					 */
-+
-+	/* Remainder is not double word aligned */
- 	union {
--	    struct {
--		unsigned long private;		/* Mapping-private opaque data:
-+	 	unsigned long private;		/* Mapping-private opaque data:
- 					 	 * usually used for buffer_heads
- 						 * if PagePrivate set; used for
- 						 * swp_entry_t if PageSwapCache;
- 						 * indicates order in the buddy
- 						 * system if PG_buddy is set.
- 						 */
--		struct address_space *mapping;	/* If low bit clear, points to
--						 * inode address_space, or NULL.
--						 * If page mapped as anonymous
--						 * memory, low bit is set, and
--						 * it points to anon_vma object:
--						 * see PAGE_MAPPING_ANON below.
--						 */
--	    };
- #if USE_SPLIT_PTLOCKS
--	    spinlock_t ptl;
-+		spinlock_t ptl;
- #endif
--	    struct kmem_cache *slab;	/* SLUB: Pointer to slab */
--	    struct page *first_page;	/* Compound tail pages */
-+		struct kmem_cache *slab;	/* SLUB: Pointer to slab */
-+		struct page *first_page;	/* Compound tail pages */
- 	};
--	union {
--		pgoff_t index;		/* Our offset within mapping. */
--		void *freelist;		/* SLUB: freelist req. slab lock */
--	};
--	struct list_head lru;		/* Pageout list, eg. active_list
--					 * protected by zone->lru_lock !
--					 */
-+
- 	/*
- 	 * On machines where all RAM is mapped into kernel address space,
- 	 * we can simply calculate the virtual address. On machines with
-@@ -101,7 +117,16 @@ struct page {
- 	 */
- 	void *shadow;
- #endif
--};
-+}
-+/*
-+ * If another subsystem starts using the double word pairing for atomic
-+ * operations on struct page then it must change the #if to ensure
-+ * proper alignment of the page struct.
-+ */
-+#if defined(CONFIG_SLUB) && defined(CONFIG_CMPXCHG_LOCAL)
-+	__attribute__((__aligned__(2*sizeof(unsigned long))))
-+#endif
-+;
+--- linux-2.6.orig/mm/slub.c	2011-03-30 14:34:59.000000000 -0500
++++ linux-2.6/mm/slub.c	2011-03-30 14:42:52.000000000 -0500
+@@ -131,6 +131,9 @@ static inline int kmem_cache_debug(struc
+ /* Enable to test recovery from slab corruption on boot */
+ #undef SLUB_RESILIENCY_TEST
  
++/* Enable to log cmpxchg failures */
++#undef SLUB_DEBUG_CMPXCHG
++
  /*
-  * A region containing a mapping of a non-memory backed file under NOMMU
+  * Mininum number of partial slabs. These will be left on the partial
+  * lists even if they are empty. kmem_cache_shrink may reclaim them.
+@@ -326,6 +329,37 @@ static inline int oo_objects(struct kmem
+ 	return x.x & OO_MASK;
+ }
+ 
++static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
++		void *freelist_old, unsigned long counters_old,
++		void *freelist_new, unsigned long counters_new,
++		const char *n)
++{
++#ifdef CONFIG_CMPXCHG_DOUBLE
++	if (!kmem_cache_debug(s)) {
++		if (cmpxchg_double(&page->freelist,
++			freelist_old, counters_old,
++			freelist_new, counters_new))
++		return 1;
++	} else
++#endif
++	{
++		if (page->freelist == freelist_old && page->counters == counters_old) {
++			page->freelist = freelist_new;
++			page->counters = counters_new;
++			return 1;
++		}
++	}
++
++	cpu_relax();
++	stat(s, CMPXCHG_DOUBLE_FAIL);
++
++#ifdef SLUB_DEBUG_CMPXCHG
++	printk(KERN_INFO "%s %s: cmpxchg double redo ", n, s->name);
++#endif
++
++	return 0;
++}
++
+ /*
+  * Determine a map of object in use on a page.
+  *
+@@ -4535,6 +4569,8 @@ STAT_ATTR(DEACTIVATE_TO_HEAD, deactivate
+ STAT_ATTR(DEACTIVATE_TO_TAIL, deactivate_to_tail);
+ STAT_ATTR(DEACTIVATE_REMOTE_FREES, deactivate_remote_frees);
+ STAT_ATTR(ORDER_FALLBACK, order_fallback);
++STAT_ATTR(CMPXCHG_DOUBLE_CPU_FAIL, cmpxchg_double_cpu_fail);
++STAT_ATTR(CMPXCHG_DOUBLE_FAIL, cmpxchg_double_fail);
+ #endif
+ 
+ static struct attribute *slab_attrs[] = {
+@@ -4592,6 +4628,8 @@ static struct attribute *slab_attrs[] =
+ 	&deactivate_to_tail_attr.attr,
+ 	&deactivate_remote_frees_attr.attr,
+ 	&order_fallback_attr.attr,
++	&cmpxchg_double_fail_attr.attr,
++	&cmpxchg_double_cpu_fail_attr.attr,
+ #endif
+ #ifdef CONFIG_FAILSLAB
+ 	&failslab_attr.attr,
+Index: linux-2.6/include/linux/slub_def.h
+===================================================================
+--- linux-2.6.orig/include/linux/slub_def.h	2011-03-30 14:34:59.000000000 -0500
++++ linux-2.6/include/linux/slub_def.h	2011-03-30 14:35:01.000000000 -0500
+@@ -33,6 +33,7 @@ enum stat_item {
+ 	DEACTIVATE_REMOTE_FREES,/* Slab contained remotely freed objects */
+ 	ORDER_FALLBACK,		/* Number of times fallback was necessary */
+ 	CMPXCHG_DOUBLE_CPU_FAIL,/* Failure of this_cpu_cmpxchg_double */
++	CMPXCHG_DOUBLE_FAIL,	/* Number of times that cmpxchg double did not match */
+ 	NR_SLUB_STAT_ITEMS };
+ 
+ struct kmem_cache_cpu {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
