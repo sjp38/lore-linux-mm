@@ -1,70 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B38D08D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 04:18:58 -0400 (EDT)
-Date: Wed, 30 Mar 2011 10:18:53 +0200
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9D4B88D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 04:55:50 -0400 (EDT)
+Date: Wed, 30 Mar 2011 10:55:45 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC 0/3] Implementation of cgroup isolation
-Message-ID: <20110330081853.GC15394@tiehlicka.suse.cz>
-References: <20110328093957.089007035@suse.cz>
- <20110328200332.17fb4b78.kamezawa.hiroyu@jp.fujitsu.com>
- <4D920066.7000609@gmail.com>
+Subject: Re: [trivial PATCH v2] Remove pointless next_mz nullification in
+ mem_cgroup_soft_limit_reclaim
+Message-ID: <20110330085544.GD15394@tiehlicka.suse.cz>
+References: <20110329132800.GA3361@tiehlicka.suse.cz>
+ <20110330110953.06ea3521.nishimura@mxp.nes.nec.co.jp>
+ <20110330070203.GA15394@tiehlicka.suse.cz>
+ <20110330161800.2e7dc268.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4D920066.7000609@gmail.com>
+In-Reply-To: <20110330161800.2e7dc268.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-On Tue 29-03-11 21:23:10, Balbir Singh wrote:
-> On 03/28/11 16:33, KAMEZAWA Hiroyuki wrote:
-> > On Mon, 28 Mar 2011 11:39:57 +0200
-> > Michal Hocko <mhocko@suse.cz> wrote:
-[...]
-> > Isn't it the same result with the case where no cgroup is used ?
-> > What is the problem ?
-> > Why it's not a problem of configuration ?
-> > IIUC, you can put all logins to some cgroup by using cgroupd/libgcgroup.
+On Wed 30-03-11 16:18:00, Daisuke Nishimura wrote:
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Subject: Remove pointless next_mz nullification in mem_cgroup_soft_limit_reclaim
 > > 
+> > next_mz is assigned to NULL if __mem_cgroup_largest_soft_limit_node selects
+> > the same mz. This doesn't make much sense as we assign to the variable
+> > right in the next loop.
+> > 
+> > Compiler will probably optimize this out but it is little bit confusing for
+> > the code reading.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
 > 
-> I agree with Kame, I am still at loss in terms of understand the use
-> case, I should probably see the rest of the patches
+> Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-OK, it looks that I am really bad at explaining the usecase. Let's try
-it again then (hopefully in a better way).
+Thanks Daisuke.
 
-Consider a service which serves requests based on the in-memory
-precomputed or preprocessed data. 
-Let's assume that getting data into memory is rather costly operation
-which considerably increases latency of the request processing. Memory
-access can be considered random from the system POV because we never
-know which requests will come from outside.
-This workflow will benefit from having the memory resident as long as
-and as much as possible because we have higher chances to be used more
-often and so the initial costs would pay off.
-Why is mlock not the right thing to do here? Well, if the memory would
-be locked and the working set would grow (again this depends on the
-incoming requests) then the application would have to unlock some
-portions of the memory or to risk OOM because it basically cannot
-overcommit.
-On the other hand, if the memory is not mlocked and there is a global
-memory pressure we can have some part of the costly memory swapped or
-paged out which will increase requests latencies. If the application is
-placed into an isolated cgroup, though, the global (or other cgroups)
-activity doesn't influence its cgroup thus the working set of the
-application.
-If we compare that to mlock we will benefit from per-group reclaim when
-we get over the limit (or soft limit). So we do not start evicting the
-memory unless somebody makes really pressure on the _application_.
-Cgroup limits would, of course, need to be selected carefully.
+Andrew, should this go though your mm tree?
+--- 
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Remove pointless next_mz nullification in mem_cgroup_soft_limit_reclaim
 
-There might be other examples when simply kernel cannot know which
-memory is important for the process and the long unused memory is not
-the ideal choice.
+next_mz is assigned to NULL if __mem_cgroup_largest_soft_limit_node selects
+the same mz. This doesn't make much sense as we assign to the variable
+right in the next loop.
 
-Makes sense?
+Compiler will probably optimize this out but it is little bit confusing for
+the code reading.
+
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Index: linux-2.6.38-rc8/mm/memcontrol.c
+===================================================================
+--- linux-2.6.38-rc8.orig/mm/memcontrol.c	2011-03-28 11:25:14.000000000 +0200
++++ linux-2.6.38-rc8/mm/memcontrol.c	2011-03-30 08:57:52.000000000 +0200
+@@ -3347,10 +3347,9 @@ unsigned long mem_cgroup_soft_limit_recl
+ 				 */
+ 				next_mz =
+ 				__mem_cgroup_largest_soft_limit_node(mctz);
+-				if (next_mz == mz) {
++				if (next_mz == mz)
+ 					css_put(&next_mz->mem->css);
+-					next_mz = NULL;
+-				} else /* next_mz == NULL or other memcg */
++				else /* next_mz == NULL or other memcg */
+ 					break;
+ 			} while (1);
+ 		}
 -- 
 Michal Hocko
 SUSE Labs
