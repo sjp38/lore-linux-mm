@@ -1,133 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3A7A48D0040
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 56C748D0048
 	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 16:24:19 -0400 (EDT)
-Message-Id: <20110330202416.864916763@linux.com>
-Date: Wed, 30 Mar 2011 15:23:45 -0500
+Message-Id: <20110330202415.596399815@linux.com>
+Date: Wed, 30 Mar 2011 15:23:43 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [slubll1 03/19] slub: Eliminate repeated use of c->page through a new page variable
+Subject: [slubll1 01/19] percpu: Fixup __this_cpu_xchg* operations
 References: <20110330202342.669400887@linux.com>
-Content-Disposition: inline; filename=avoid_c_page
+Content-Disposition: inline; filename=fixup_xchg
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Eric Dumazet <eric.dumazet@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 
-__slab_alloc is full of "c->page" repeats. Lets just use one local variable
-named "page" for this. Also avoids the need to a have another variable
-called "new".
+Somehow we got into a situation where the __this_cpu_xchg() operations were
+not defined in the same way as this_cpu_xchg() and friends. I had some build
+failures under 32 bit compiles that were addressed by these fixes.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
----
- mm/slub.c |   41 ++++++++++++++++++++++-------------------
- 1 file changed, 22 insertions(+), 19 deletions(-)
 
-Index: linux-2.6/mm/slub.c
+---
+ arch/x86/include/asm/percpu.h |   12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+Index: linux-2.6/arch/x86/include/asm/percpu.h
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2011-03-30 14:30:24.000000000 -0500
-+++ linux-2.6/mm/slub.c	2011-03-30 14:30:51.000000000 -0500
-@@ -1790,7 +1790,7 @@ static void *__slab_alloc(struct kmem_ca
- 			  unsigned long addr, struct kmem_cache_cpu *c)
- {
- 	void **object;
--	struct page *new;
-+	struct page *page;
- #ifdef CONFIG_CMPXCHG_LOCAL
- 	unsigned long flags;
+--- linux-2.6.orig/arch/x86/include/asm/percpu.h	2011-03-30 14:09:28.000000000 -0500
++++ linux-2.6/arch/x86/include/asm/percpu.h	2011-03-30 14:10:16.000000000 -0500
+@@ -388,12 +388,9 @@ do {									\
+ #define __this_cpu_xor_1(pcp, val)	percpu_to_op("xor", (pcp), val)
+ #define __this_cpu_xor_2(pcp, val)	percpu_to_op("xor", (pcp), val)
+ #define __this_cpu_xor_4(pcp, val)	percpu_to_op("xor", (pcp), val)
+-/*
+- * Generic fallback operations for __this_cpu_xchg_[1-4] are okay and much
+- * faster than an xchg with forced lock semantics.
+- */
+-#define __this_cpu_xchg_8(pcp, nval)	percpu_xchg_op(pcp, nval)
+-#define __this_cpu_cmpxchg_8(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
++#define __this_cpu_xchg_1(pcp, val)	percpu_xchg_op(pcp, val)
++#define __this_cpu_xchg_2(pcp, val)	percpu_xchg_op(pcp, val)
++#define __this_cpu_xchg_4(pcp, val)	percpu_xchg_op(pcp, val)
  
-@@ -1808,28 +1808,30 @@ static void *__slab_alloc(struct kmem_ca
- 	/* We handle __GFP_ZERO in the caller */
- 	gfpflags &= ~__GFP_ZERO;
- 
--	if (!c->page)
-+	page = c->page;
-+	if (!page)
- 		goto new_slab;
- 
--	slab_lock(c->page);
-+	slab_lock(page);
- 	if (unlikely(!node_match(c, node)))
- 		goto another_slab;
- 
- 	stat(s, ALLOC_REFILL);
- 
- load_freelist:
--	object = c->page->freelist;
-+	object = page->freelist;
- 	if (unlikely(!object))
- 		goto another_slab;
- 	if (kmem_cache_debug(s))
- 		goto debug;
- 
- 	c->freelist = get_freepointer(s, object);
--	c->page->inuse = c->page->objects;
--	c->page->freelist = NULL;
--	c->node = page_to_nid(c->page);
-+	page->inuse = page->objects;
-+	page->freelist = NULL;
-+	c->node = page_to_nid(page);
+ #define this_cpu_read_1(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+ #define this_cpu_read_2(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+@@ -471,6 +468,7 @@ do {									\
+ #define __this_cpu_cmpxchg_double_4(pcp1, pcp2, o1, o2, n1, n2)		percpu_cmpxchg8b_double(pcp1, o1, o2, n1, n2)
+ #define this_cpu_cmpxchg_double_4(pcp1, pcp2, o1, o2, n1, n2)		percpu_cmpxchg8b_double(pcp1, o1, o2, n1, n2)
+ #define irqsafe_cpu_cmpxchg_double_4(pcp1, pcp2, o1, o2, n1, n2)	percpu_cmpxchg8b_double(pcp1, o1, o2, n1, n2)
 +
- unlock_out:
--	slab_unlock(c->page);
-+	slab_unlock(page);
- #ifdef CONFIG_CMPXCHG_LOCAL
- 	c->tid = next_tid(c->tid);
- 	local_irq_restore(flags);
-@@ -1841,9 +1843,9 @@ another_slab:
- 	deactivate_slab(s, c);
+ #endif /* CONFIG_X86_CMPXCHG64 */
  
- new_slab:
--	new = get_partial(s, gfpflags, node);
--	if (new) {
--		c->page = new;
-+	page = get_partial(s, gfpflags, node);
-+	if (page) {
-+		c->page = page;
- 		stat(s, ALLOC_FROM_PARTIAL);
- 		goto load_freelist;
- 	}
-@@ -1852,19 +1854,20 @@ new_slab:
- 	if (gfpflags & __GFP_WAIT)
- 		local_irq_enable();
+ /*
+@@ -485,6 +483,8 @@ do {									\
+ #define __this_cpu_or_8(pcp, val)	percpu_to_op("or", (pcp), val)
+ #define __this_cpu_xor_8(pcp, val)	percpu_to_op("xor", (pcp), val)
+ #define __this_cpu_add_return_8(pcp, val) percpu_add_return_op(pcp, val)
++#define __this_cpu_xchg_8(pcp, nval)	percpu_xchg_op(pcp, nval)
++#define __this_cpu_cmpxchg_8(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
  
--	new = new_slab(s, gfpflags, node);
-+	page = new_slab(s, gfpflags, node);
- 
- 	if (gfpflags & __GFP_WAIT)
- 		local_irq_disable();
- 
--	if (new) {
-+	if (page) {
- 		c = __this_cpu_ptr(s->cpu_slab);
- 		stat(s, ALLOC_SLAB);
- 		if (c->page)
- 			flush_slab(s, c);
--		slab_lock(new);
--		__SetPageSlubFrozen(new);
--		c->page = new;
-+
-+		slab_lock(page);
-+		__SetPageSlubFrozen(page);
-+		c->page = page;
- 		goto load_freelist;
- 	}
- 	if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
-@@ -1874,11 +1877,11 @@ new_slab:
- #endif
- 	return NULL;
- debug:
--	if (!alloc_debug_processing(s, c->page, object, addr))
-+	if (!alloc_debug_processing(s, page, object, addr))
- 		goto another_slab;
- 
--	c->page->inuse++;
--	c->page->freelist = get_freepointer(s, object);
-+	page->inuse++;
-+	page->freelist = get_freepointer(s, object);
- 	c->node = NUMA_NO_NODE;
- 	goto unlock_out;
- }
+ #define this_cpu_read_8(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+ #define this_cpu_write_8(pcp, val)	percpu_to_op("mov", (pcp), val)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
