@@ -1,56 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C670D8D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 16:24:17 -0400 (EDT)
-Message-Id: <20110330202342.669400887@linux.com>
-Date: Wed, 30 Mar 2011 15:23:42 -0500
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3A7A48D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 16:24:19 -0400 (EDT)
+Message-Id: <20110330202416.864916763@linux.com>
+Date: Wed, 30 Mar 2011 15:23:45 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [slubll1 00/19] SLUB: Implement mostly lockless slowpaths
+Subject: [slubll1 03/19] slub: Eliminate repeated use of c->page through a new page variable
+References: <20110330202342.669400887@linux.com>
+Content-Disposition: inline; filename=avoid_c_page
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Eric Dumazet <eric.dumazet@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 
-Well here is another result of my obsession with SLAB allocators. There must be
-some way to get an allocator done that is faster without queueing and I hope
-that we are now there (maybe only almost...).
+__slab_alloc is full of "c->page" repeats. Lets just use one local variable
+named "page" for this. Also avoids the need to a have another variable
+called "new".
 
-This patchset implement wider lockless operations in slub affecting most of the
-slowpaths. In particular the patch decreases the overhead in the performance
-critical section of __slab_free.
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-One test that I ran was "hackbench 200 process 200" on 2.6.29-rc1 under KVM
+---
+ mm/slub.c |   41 ++++++++++++++++++++++-------------------
+ 1 file changed, 22 insertions(+), 19 deletions(-)
 
-Run	SLAB	SLUB	SLUB LL
-1st	35.2	35.9	31.9
-2nd	34.6	30.8	27.9
-3rd	33.8	29.9	28.8
-
-Note that the SLUB version in 2.6.29-rc1 already has an optimized allocation
-and free path using this_cpu_cmpxchg_double(). SLUB LL takes it to new heights
-by also using cmpxchg_double() in the slowpaths (especially in the kfree()
-case where we cannot queue).
-
-The patch uses a cmpxchg_double (also introduced here) to do an atomic change
-on the state of a slab page that includes the following pieces of information:
-
-1. Freelist pointer
-2. Number of objects inuse
-3. Frozen state of a slab
-
-Disabling of interrupts (which is a significant latency in the
-allocator paths) is avoided in the __slab_free case.
-
-There are some concerns with this patch. The use of cmpxchg_double on
-fields of the page struct requires alignment of the fields to double
-word boundaries. That can only be accomplished by adding some padding
-to struct page which blows it up to 64 byte  (on x86_64). Comments
-in the source describe these things in more detail.
-
-The cmpxchg_double() operation introduced here could also be used to
-update other doublewords in the page struct in a lockless fashone. One
-can envision page state changes that involved flags and mappings or
-do list operations locklessly.
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2011-03-30 14:30:24.000000000 -0500
++++ linux-2.6/mm/slub.c	2011-03-30 14:30:51.000000000 -0500
+@@ -1790,7 +1790,7 @@ static void *__slab_alloc(struct kmem_ca
+ 			  unsigned long addr, struct kmem_cache_cpu *c)
+ {
+ 	void **object;
+-	struct page *new;
++	struct page *page;
+ #ifdef CONFIG_CMPXCHG_LOCAL
+ 	unsigned long flags;
+ 
+@@ -1808,28 +1808,30 @@ static void *__slab_alloc(struct kmem_ca
+ 	/* We handle __GFP_ZERO in the caller */
+ 	gfpflags &= ~__GFP_ZERO;
+ 
+-	if (!c->page)
++	page = c->page;
++	if (!page)
+ 		goto new_slab;
+ 
+-	slab_lock(c->page);
++	slab_lock(page);
+ 	if (unlikely(!node_match(c, node)))
+ 		goto another_slab;
+ 
+ 	stat(s, ALLOC_REFILL);
+ 
+ load_freelist:
+-	object = c->page->freelist;
++	object = page->freelist;
+ 	if (unlikely(!object))
+ 		goto another_slab;
+ 	if (kmem_cache_debug(s))
+ 		goto debug;
+ 
+ 	c->freelist = get_freepointer(s, object);
+-	c->page->inuse = c->page->objects;
+-	c->page->freelist = NULL;
+-	c->node = page_to_nid(c->page);
++	page->inuse = page->objects;
++	page->freelist = NULL;
++	c->node = page_to_nid(page);
++
+ unlock_out:
+-	slab_unlock(c->page);
++	slab_unlock(page);
+ #ifdef CONFIG_CMPXCHG_LOCAL
+ 	c->tid = next_tid(c->tid);
+ 	local_irq_restore(flags);
+@@ -1841,9 +1843,9 @@ another_slab:
+ 	deactivate_slab(s, c);
+ 
+ new_slab:
+-	new = get_partial(s, gfpflags, node);
+-	if (new) {
+-		c->page = new;
++	page = get_partial(s, gfpflags, node);
++	if (page) {
++		c->page = page;
+ 		stat(s, ALLOC_FROM_PARTIAL);
+ 		goto load_freelist;
+ 	}
+@@ -1852,19 +1854,20 @@ new_slab:
+ 	if (gfpflags & __GFP_WAIT)
+ 		local_irq_enable();
+ 
+-	new = new_slab(s, gfpflags, node);
++	page = new_slab(s, gfpflags, node);
+ 
+ 	if (gfpflags & __GFP_WAIT)
+ 		local_irq_disable();
+ 
+-	if (new) {
++	if (page) {
+ 		c = __this_cpu_ptr(s->cpu_slab);
+ 		stat(s, ALLOC_SLAB);
+ 		if (c->page)
+ 			flush_slab(s, c);
+-		slab_lock(new);
+-		__SetPageSlubFrozen(new);
+-		c->page = new;
++
++		slab_lock(page);
++		__SetPageSlubFrozen(page);
++		c->page = page;
+ 		goto load_freelist;
+ 	}
+ 	if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
+@@ -1874,11 +1877,11 @@ new_slab:
+ #endif
+ 	return NULL;
+ debug:
+-	if (!alloc_debug_processing(s, c->page, object, addr))
++	if (!alloc_debug_processing(s, page, object, addr))
+ 		goto another_slab;
+ 
+-	c->page->inuse++;
+-	c->page->freelist = get_freepointer(s, object);
++	page->inuse++;
++	page->freelist = get_freepointer(s, object);
+ 	c->node = NUMA_NO_NODE;
+ 	goto unlock_out;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
