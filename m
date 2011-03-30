@@ -1,61 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D7608D0047
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 01:33:43 -0400 (EDT)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp06.in.ibm.com (8.14.4/8.13.1) with ESMTP id p2U5XUCH015696
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 11:03:30 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2U5XTcj3940522
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 11:03:29 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2U5XUtk001129
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 11:03:31 +0530
-Date: Wed, 30 Mar 2011 08:17:43 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH V3] Add the pagefault count into memcg stats
-Message-ID: <20110330024743.GI2879@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1301379384-17568-1-git-send-email-yinghan@google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 61B038D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 03:02:13 -0400 (EDT)
+Date: Wed, 30 Mar 2011 09:02:03 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [trivial PATCH v2] Remove pointless next_mz nullification in
+ mem_cgroup_soft_limit_reclaim
+Message-ID: <20110330070203.GA15394@tiehlicka.suse.cz>
+References: <20110329132800.GA3361@tiehlicka.suse.cz>
+ <20110330110953.06ea3521.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1301379384-17568-1-git-send-email-yinghan@google.com>
+In-Reply-To: <20110330110953.06ea3521.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Tejun Heo <tj@kernel.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-* Ying Han <yinghan@google.com> [2011-03-28 23:16:24]:
-
-> Two new stats in per-memcg memory.stat which tracks the number of
-> page faults and number of major page faults.
+On Wed 30-03-11 11:09:53, Daisuke Nishimura wrote:
+[...]
+> > Index: linux-2.6.38-rc8/mm/memcontrol.c
+> > ===================================================================
+> > --- linux-2.6.38-rc8.orig/mm/memcontrol.c	2011-03-28 11:25:14.000000000 +0200
+> > +++ linux-2.6.38-rc8/mm/memcontrol.c	2011-03-29 15:24:08.000000000 +0200
+> > @@ -3349,7 +3349,6 @@ unsigned long mem_cgroup_soft_limit_recl
+> >  				__mem_cgroup_largest_soft_limit_node(mctz);
+> >  				if (next_mz == mz) {
+> >  					css_put(&next_mz->mem->css);
+> > -					next_mz = NULL;
+> >  				} else /* next_mz == NULL or other memcg */
+> >  					break;
+> >  			} while (1);
+> hmm, make sense.
 > 
-> "pgfault"
-> "pgmajfault"
-> 
-> They are different from "pgpgin"/"pgpgout" stat which count number of
-> pages charged/discharged to the cgroup and have no meaning of reading/
-> writing page to disk.
-> 
-> It is valuable to track the two stats for both measuring application's
-> performance as well as the efficiency of the kernel page reclaim path.
-> Counting pagefaults per process is useful, but we also need the aggregated
-> value since processes are monitored and controlled in cgroup basis in memcg.
-> 
-> Functional test: check the total number of pgfault/pgmajfault of all
-> memcgs and compare with global vmstat value:
->
+> Can you remove the braces of the if-else statement too ?
 
-Looks much better
+Sure, makes sense and the diff is even nicer because now we can see that
+nezt_mz is assigned right before.
+Thanks
+--- 
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Remove pointless next_mz nullification in mem_cgroup_soft_limit_reclaim
 
+next_mz is assigned to NULL if __mem_cgroup_largest_soft_limit_node selects
+the same mz. This doesn't make much sense as we assign to the variable
+right in the next loop.
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
- 
- 
+Compiler will probably optimize this out but it is little bit confusing for
+the code reading.
+
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Index: linux-2.6.38-rc8/mm/memcontrol.c
+===================================================================
+--- linux-2.6.38-rc8.orig/mm/memcontrol.c	2011-03-28 11:25:14.000000000 +0200
++++ linux-2.6.38-rc8/mm/memcontrol.c	2011-03-30 08:57:52.000000000 +0200
+@@ -3347,10 +3347,9 @@ unsigned long mem_cgroup_soft_limit_recl
+ 				 */
+ 				next_mz =
+ 				__mem_cgroup_largest_soft_limit_node(mctz);
+-				if (next_mz == mz) {
++				if (next_mz == mz)
+ 					css_put(&next_mz->mem->css);
+-					next_mz = NULL;
+-				} else /* next_mz == NULL or other memcg */
++				else /* next_mz == NULL or other memcg */
+ 					break;
+ 			} while (1);
+ 		}
 -- 
-	Three Cheers,
-	Balbir
+Michal Hocko
+SUSE Labs
+SUSE LINUX s.r.o.
+Lihovarska 1060/12
+190 00 Praha 9    
+Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
