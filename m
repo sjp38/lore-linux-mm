@@ -1,46 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 486708D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:26:50 -0400 (EDT)
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by e31.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id p2UEBFRF020502
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 08:11:15 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id p2UEQOvo067742
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 08:26:25 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id p2UEQMaj011338
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 08:26:23 -0600
-Subject: Re: [PATCH 3/3] mm: Extend memory hotplug API to allow memory
- hotplug in virtual machines
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20110329183242.GE30387@router-fw-old.local.net-space.pl>
-References: <20110328092507.GD13826@router-fw-old.local.net-space.pl>
-	 <1301329524.31700.8440.camel@nimitz>
-	 <20110329183242.GE30387@router-fw-old.local.net-space.pl>
-Content-Type: text/plain; charset="ISO-8859-1"
-Date: Wed, 30 Mar 2011 07:26:16 -0700
-Message-ID: <1301495176.21454.3736.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3508C8D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:28:35 -0400 (EDT)
+Received: from localhost.localdomain ([127.0.0.1]:40221 "EHLO
+        duck.linux-mips.net" rhost-flags-OK-OK-OK-FAIL)
+        by eddie.linux-mips.org with ESMTP id S1491170Ab1C3O2c (ORCPT
+        <rfc822;linux-mm@kvack.org>); Wed, 30 Mar 2011 16:28:32 +0200
+Date: Wed, 30 Mar 2011 16:28:30 +0200
+From: Ralf Baechle <ralf@linux-mips.org>
+Subject: Re: kmemleak for MIPS
+Message-ID: <20110330142829.GA25423@linux-mips.org>
+References: <9bde694e1003020554p7c8ff3c2o4ae7cb5d501d1ab9@mail.gmail.com>
+ <AANLkTinnqtXf5DE+qxkTyZ9p9Mb8dXai6UxWP2HaHY3D@mail.gmail.com>
+ <1300960540.32158.13.camel@e102109-lin.cambridge.arm.com>
+ <AANLkTim139fpJsMJFLiyUYvFgGMz-Ljgd_yDrks-tqhE@mail.gmail.com>
+ <1301395206.583.53.camel@e102109-lin.cambridge.arm.com>
+ <AANLkTim-4v5Cbp6+wHoXjgKXoS0axk1cgQ5AHF_zot80@mail.gmail.com>
+ <1301399454.583.66.camel@e102109-lin.cambridge.arm.com>
+ <AANLkTin0_gT0E3=oGyfMwk+1quqonYBExeN9a3=v=Lob@mail.gmail.com>
+ <AANLkTi=gMP6jQuQFovfsOX=7p-SSnwXoVLO_DVEpV63h@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTi=gMP6jQuQFovfsOX=7p-SSnwXoVLO_DVEpV63h@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: ian.campbell@citrix.com, akpm@linux-foundation.org, andi.kleen@intel.com, haicheng.li@linux.intel.com, fengguang.wu@intel.com, jeremy@goop.org, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, v.tolstov@selfip.ru, pasik@iki.fi, wdauchy@gmail.com, rientjes@google.com, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Maxin John <maxin.john@gmail.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Daniel Baluta <dbaluta@ixiacom.com>, naveen yadav <yad.naveen@gmail.com>, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 2011-03-29 at 20:32 +0200, Daniel Kiper wrote:
-> > Your stuff already extracted the free stuff very nicely.  I think now we
-> > just need to separate out the totalram_pages/totalhigh_pages bits from
-> > the num_physpages/max_mapnr ones.
-> 
-> What do you think about __online_page_increment_counters()
-> (totalram_pages and totalhigh_pages) and
-> __online_page_set_limits() (num_physpages and max_mapnr) ??? 
+On Tue, Mar 29, 2011 at 10:36:02PM +0300, Maxin John wrote:
 
-I think there's a point when "online_page" in there becomes unnecessary,
-but those sound OK to me.
+Dropped as I've applied Catalin's patch
+https://patchwork.linux-mips.org/patch/2247/.
 
--- Dave
+  Ralf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
