@@ -1,64 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E73838D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 21:51:34 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C8E583EE0AE
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:51:30 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id ABF4145DE95
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:51:30 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9381345DE92
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:51:30 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 86B93E08002
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:51:30 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E23DE08007
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:51:30 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] Stack trace dedup
-In-Reply-To: <BANLkTinDON4dV9ipZYJsxBW-bENMajw-wA@mail.gmail.com>
-References: <20110330102205.E925.A69D9226@jp.fujitsu.com> <BANLkTinDON4dV9ipZYJsxBW-bENMajw-wA@mail.gmail.com>
-Message-Id: <20110330105204.E929.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A35768D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 21:54:04 -0400 (EDT)
+Subject: Re: [PATCH]mmap: add alignment for some variables
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20110329184110.0086924e.akpm@linux-foundation.org>
+References: <1301277536.3981.27.camel@sli10-conroe>
+	 <m2oc4v18x8.fsf@firstfloor.org>	<1301360054.3981.31.camel@sli10-conroe>
+	 <20110329152434.d662706f.akpm@linux-foundation.org>
+	 <1301446882.3981.33.camel@sli10-conroe>
+	 <20110329180611.a71fe829.akpm@linux-foundation.org>
+	 <1301447843.3981.48.camel@sli10-conroe>
+	 <20110329182544.6ad4eccb.akpm@linux-foundation.org>
+	 <1301449000.3981.52.camel@sli10-conroe>
+	 <20110329184110.0086924e.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 30 Mar 2011 09:54:01 +0800
+Message-ID: <1301450041.3981.55.camel@sli10-conroe>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Date: Wed, 30 Mar 2011 10:51:29 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-> On Tue, Mar 29, 2011 at 6:21 PM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
-> >> This doesn't build.
-> >> ---
-> >
-> > This is slightly reticence changelog. Can you please explain a purpose
-> > and benefit?
+On Wed, 2011-03-30 at 09:41 +0800, Andrew Morton wrote:
+> On Wed, 30 Mar 2011 09:36:40 +0800 Shaohua Li <shaohua.li@intel.com> wrote:
 > 
-> Hi:
+> > > how is it that this improves things?
+> > Hmm, it actually is:
+> > struct percpu_counter {
+> >  	spinlock_t lock;
+> >  	s64 count;
+> >  #ifdef CONFIG_HOTPLUG_CPU
+> >  	struct list_head list;	/* All percpu_counters are on a list */
+> >  #endif
+> >  	s32 __percpu *counters;
+> >  } __attribute__((__aligned__(1 << (INTERNODE_CACHE_SHIFT))))
+> > so lock and count are in one cache line.
 > 
-> Sorry about the spam. This is a patch that I was preparing to send
-> upstream but not ready yet. I don't know why it got sent out ( must be
-> myself did something wrong on my keyboard ) .
+> ____cacheline_aligned_in_smp would achieve that?
+____cacheline_aligned_in_smp can't guarantee the cache alignment for
+multiple nodes, because the variable can be updated by multiple
+nodes/cpus.
 
-No problem. I have a same experience, to be honest. 
-
-> In a short, this eliminate the duplication of task stack trace in dump
-> messages. The problem w/ fixed size of dmesg ring buffer limits how
-> many task trace to be logged. When the duplication remains high, we
-> lose important information. This patch reduces the duplication by
-> dumping the first task stack trace only for contiguous duplications.
-
-Seems reasonable.
-
-> 
-> I will prepare it later with full commit description.
-
-OK, I'm looking for it.
+Thanks,
+Shaohua
 
 
 --
