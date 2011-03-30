@@ -1,61 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B1558D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 22:09:44 -0400 (EDT)
-Date: Tue, 29 Mar 2011 19:10:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH]mmap: add alignment for some variables
-Message-Id: <20110329191007.04e8376a.akpm@linux-foundation.org>
-In-Reply-To: <1301450041.3981.55.camel@sli10-conroe>
-References: <1301277536.3981.27.camel@sli10-conroe>
-	<m2oc4v18x8.fsf@firstfloor.org>
-	<1301360054.3981.31.camel@sli10-conroe>
-	<20110329152434.d662706f.akpm@linux-foundation.org>
-	<1301446882.3981.33.camel@sli10-conroe>
-	<20110329180611.a71fe829.akpm@linux-foundation.org>
-	<1301447843.3981.48.camel@sli10-conroe>
-	<20110329182544.6ad4eccb.akpm@linux-foundation.org>
-	<1301449000.3981.52.camel@sli10-conroe>
-	<20110329184110.0086924e.akpm@linux-foundation.org>
-	<1301450041.3981.55.camel@sli10-conroe>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 63B028D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 22:12:21 -0400 (EDT)
+Date: Wed, 30 Mar 2011 11:09:53 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [trivial PATCH] Remove pointless next_mz nullification in
+ mem_cgroup_soft_limit_reclaim
+Message-Id: <20110330110953.06ea3521.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20110329132800.GA3361@tiehlicka.suse.cz>
+References: <20110329132800.GA3361@tiehlicka.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-On Wed, 30 Mar 2011 09:54:01 +0800 Shaohua Li <shaohua.li@intel.com> wrote:
+On Tue, 29 Mar 2011 15:28:00 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-> On Wed, 2011-03-30 at 09:41 +0800, Andrew Morton wrote:
-> > On Wed, 30 Mar 2011 09:36:40 +0800 Shaohua Li <shaohua.li@intel.com> wrote:
-> > 
-> > > > how is it that this improves things?
-> > > Hmm, it actually is:
-> > > struct percpu_counter {
-> > >  	spinlock_t lock;
-> > >  	s64 count;
-> > >  #ifdef CONFIG_HOTPLUG_CPU
-> > >  	struct list_head list;	/* All percpu_counters are on a list */
-> > >  #endif
-> > >  	s32 __percpu *counters;
-> > >  } __attribute__((__aligned__(1 << (INTERNODE_CACHE_SHIFT))))
-> > > so lock and count are in one cache line.
-> > 
-> > ____cacheline_aligned_in_smp would achieve that?
-> ____cacheline_aligned_in_smp can't guarantee the cache alignment for
-> multiple nodes, because the variable can be updated by multiple
-> nodes/cpus.
+> Hi,
+> while reading the code I have encountered the following thing. It is no
+> biggie but...
+> ---
+> From: Michal Hocko <mhocko@suse.cz>
+> Subject: Remove pointless next_mz nullification in mem_cgroup_soft_limit_reclaim
+> 
+> next_mz is assigned to NULL if __mem_cgroup_largest_soft_limit_node selects
+> the same mz. This doesn't make much sense as we assign to the variable
+> right in the next loop.
+> 
+> Compiler will probably optimize this out but it is little bit confusing for
+> the code reading.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> 
+> Index: linux-2.6.38-rc8/mm/memcontrol.c
+> ===================================================================
+> --- linux-2.6.38-rc8.orig/mm/memcontrol.c	2011-03-28 11:25:14.000000000 +0200
+> +++ linux-2.6.38-rc8/mm/memcontrol.c	2011-03-29 15:24:08.000000000 +0200
+> @@ -3349,7 +3349,6 @@ unsigned long mem_cgroup_soft_limit_recl
+>  				__mem_cgroup_largest_soft_limit_node(mctz);
+>  				if (next_mz == mz) {
+>  					css_put(&next_mz->mem->css);
+> -					next_mz = NULL;
+>  				} else /* next_mz == NULL or other memcg */
+>  					break;
+>  			} while (1);
+hmm, make sense.
 
-Confused.  If an object is aligned at a mulitple-of-128 address on one
-node, it is aligned at a multiple-of-128 address when viewed from other
-nodes, surely?
+Can you remove the braces of the if-else statement too ?
 
-Even if the cache alignment to which you're referring is the internode
-cache, can a 34-byte, L1-cache-aligned structure ever span multiple
-internode cachelines?
-
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
