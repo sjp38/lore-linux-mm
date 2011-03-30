@@ -1,59 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 63B028D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 22:12:21 -0400 (EDT)
-Date: Wed, 30 Mar 2011 11:09:53 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [trivial PATCH] Remove pointless next_mz nullification in
- mem_cgroup_soft_limit_reclaim
-Message-Id: <20110330110953.06ea3521.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20110329132800.GA3361@tiehlicka.suse.cz>
-References: <20110329132800.GA3361@tiehlicka.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id ACCD18D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 22:32:25 -0400 (EDT)
+Received: by pvg4 with SMTP id 4so192635pvg.14
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2011 19:32:22 -0700 (PDT)
+From: Namhyung Kim <namhyung@gmail.com>
+Subject: Re: [PATCH] Stack trace dedup
+In-Reply-To: <1301419696-2045-1-git-send-email-yinghan@google.com> (Ying Han's
+	message of "Tue, 29 Mar 2011 10:28:16 -0700")
+References: <1301419696-2045-1-git-send-email-yinghan@google.com>
+Date: Wed, 30 Mar 2011 11:32:12 +0900
+Message-ID: <87pqp92v9v.fsf@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Ying Han <yinghan@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyu <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Tue, 29 Mar 2011 15:28:00 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
+Ying Han <yinghan@google.com> writes:
 
-> Hi,
-> while reading the code I have encountered the following thing. It is no
-> biggie but...
-> ---
-> From: Michal Hocko <mhocko@suse.cz>
-> Subject: Remove pointless next_mz nullification in mem_cgroup_soft_limit_reclaim
-> 
-> next_mz is assigned to NULL if __mem_cgroup_largest_soft_limit_node selects
-> the same mz. This doesn't make much sense as we assign to the variable
-> right in the next loop.
-> 
-> Compiler will probably optimize this out but it is little bit confusing for
-> the code reading.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> 
-> Index: linux-2.6.38-rc8/mm/memcontrol.c
-> ===================================================================
-> --- linux-2.6.38-rc8.orig/mm/memcontrol.c	2011-03-28 11:25:14.000000000 +0200
-> +++ linux-2.6.38-rc8/mm/memcontrol.c	2011-03-29 15:24:08.000000000 +0200
-> @@ -3349,7 +3349,6 @@ unsigned long mem_cgroup_soft_limit_recl
->  				__mem_cgroup_largest_soft_limit_node(mctz);
->  				if (next_mz == mz) {
->  					css_put(&next_mz->mem->css);
-> -					next_mz = NULL;
->  				} else /* next_mz == NULL or other memcg */
->  					break;
->  			} while (1);
-hmm, make sense.
+> This doesn't build.
 
-Can you remove the braces of the if-else statement too ?
+Please check out the commit e8e999cf3cc7 ("x86, dumpstack: Correct stack
+dump info when frame pointer is available"). Most of internal stack
+trace functions now requires additional @bp argument.
 
-Thanks,
-Daisuke Nishimura.
+Thanks.
+
+--
+Regards,
+Namhyung Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
