@@ -1,74 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 44BFE8D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 21:29:38 -0400 (EDT)
-Date: Tue, 29 Mar 2011 18:25:44 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH]mmap: add alignment for some variables
-Message-Id: <20110329182544.6ad4eccb.akpm@linux-foundation.org>
-In-Reply-To: <1301447843.3981.48.camel@sli10-conroe>
-References: <1301277536.3981.27.camel@sli10-conroe>
-	<m2oc4v18x8.fsf@firstfloor.org>
-	<1301360054.3981.31.camel@sli10-conroe>
-	<20110329152434.d662706f.akpm@linux-foundation.org>
-	<1301446882.3981.33.camel@sli10-conroe>
-	<20110329180611.a71fe829.akpm@linux-foundation.org>
-	<1301447843.3981.48.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6C02F8D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 21:32:10 -0400 (EDT)
+From: Sean Noonan <Sean.Noonan@twosigma.com>
+Date: Tue, 29 Mar 2011 21:32:06 -0400
+Subject: RE: XFS memory allocation deadlock in 2.6.38
+Message-ID: <081DDE43F61F3D43929A181B477DCA95639B5364@MSXAOA6.twosigma.com>
+References: <081DDE43F61F3D43929A181B477DCA95639B52FD@MSXAOA6.twosigma.com>
+ <081DDE43F61F3D43929A181B477DCA95639B5327@MSXAOA6.twosigma.com>
+ <20110324174311.GA31576@infradead.org>
+ <AANLkTikwwRm6FHFtEdUg54NvmKdswQw-NPH5dtq1mXBK@mail.gmail.com>
+ <081DDE43F61F3D43929A181B477DCA95639B5349@MSXAOA6.twosigma.com>
+ <BANLkTin0jJevStg5P2hqsLbqMzo3o30sYg@mail.gmail.com>
+ <081DDE43F61F3D43929A181B477DCA95639B534E@MSXAOA6.twosigma.com>
+ <081DDE43F61F3D43929A181B477DCA95639B5359@MSXAOA6.twosigma.com>
+ <20110329192434.GA10536@infradead.org>
+ <081DDE43F61F3D43929A181B477DCA95639B535D@MSXAOA6.twosigma.com>
+ <20110330000942.GI3008@dastard>
+In-Reply-To: <20110330000942.GI3008@dastard>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: 'Dave Chinner' <david@fromorbit.com>
+Cc: 'Christoph Hellwig' <hch@infradead.org>, 'Michel Lespinasse' <walken@google.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, Martin Bligh <Martin.Bligh@twosigma.com>, Trammell Hudson <Trammell.Hudson@twosigma.com>, Christos Zoulas <Christos.Zoulas@twosigma.com>, "'linux-xfs@oss.sgi.com'" <linux-xfs@oss.sgi.com>, Stephen Degler <Stephen.Degler@twosigma.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
 
-On Wed, 30 Mar 2011 09:17:23 +0800 Shaohua Li <shaohua.li@intel.com> wrote:
+> Ok, so that looks like root cause of the problem. can you try the
+> patch below to see if it fixes the problem (without any other
+> patches applied or reverted).
 
-> On Wed, 2011-03-30 at 09:06 +0800, Andrew Morton wrote:
-> > On Wed, 30 Mar 2011 09:01:22 +0800 Shaohua Li <shaohua.li@intel.com> wrote:
-> > 
-> > > +/*
-> > > + * Make sure vm_committed_as in one cacheline and not cacheline shared with
-> > > + * other variables. It can be updated by several CPUs frequently.
-> > > + */
-> > > +struct percpu_counter vm_committed_as ____cacheline_internodealigned_in_smp;
-> > 
-> > The mystery deepens.  The only cross-cpu writeable fields in there are
-> > percpu_counter.lock and its companion percpu_counter.count.  If CPUs
-> > are contending for the lock then that itself is a problem - how does
-> > adding some padding to the struct help anything?
-> I had another patch trying to address the lock contention (for case
-> OVERCOMMIT_GUESS), will send out soon. But thought better to have the
-> correct alignment for OVERCOMMIT_NEVER case.
+It looks like this does fix the deadlock problem.  However, it appears to c=
+ome at the price of significantly higher mmap startup costs. =20
 
-I still don't understand why adding
-____cacheline_internodealigned_in_smp to vm_committed_as improves
-anything.
+# ./vmtest /xfs/hugefile.dat $(( 16 * 1024 * 1024 * 1024 ))
+/xfs/d-1/hugefile.dat: mapped 17179869184 bytes in 324387362198 ticks
 
-Here it is:
-
-struct percpu_counter {
-	spinlock_t lock;
-	s64 count;
-#ifdef CONFIG_HOTPLUG_CPU
-	struct list_head list;	/* All percpu_counters are on a list */
-#endif
-	s32 __percpu *counters;
-};
-
-and your patch effectively converts this to
-
-  struct percpu_counter {
-	spinlock_t lock;
-  	s64 count;
-  #ifdef CONFIG_HOTPLUG_CPU
-	struct list_head list;	/* All percpu_counters are on a list */
-  #endif
-	s32 __percpu *counters;
-+	char large_waste_of_space[lots];
-  };
-
-how is it that this improves things?
+Sean
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
