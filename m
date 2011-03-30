@@ -1,47 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 76A148D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 09:48:09 -0400 (EDT)
-Date: Wed, 30 Mar 2011 21:48:05 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: Very aggressive memory reclaim
-Message-ID: <20110330134804.GA10113@localhost>
-References: <AANLkTinFqqmE+fTMTLVU-_CwPE+LQv7CpXSQ5+CdAKLK@mail.gmail.com>
- <4D90C071.7040205@mnsu.edu>
- <AANLkTikmQJFq633VNqNOMC-BfEC=BU=g7j5uW78P4B4Z@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 546608D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:07:12 -0400 (EDT)
+Received: by qwa26 with SMTP id 26so1145479qwa.14
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2011 07:07:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTikmQJFq633VNqNOMC-BfEC=BU=g7j5uW78P4B4Z@mail.gmail.com>
+In-Reply-To: <1301491622.3283.46.camel@edumazet-laptop>
+References: <9bde694e1003020554p7c8ff3c2o4ae7cb5d501d1ab9@mail.gmail.com>
+	<AANLkTinnqtXf5DE+qxkTyZ9p9Mb8dXai6UxWP2HaHY3D@mail.gmail.com>
+	<1300960540.32158.13.camel@e102109-lin.cambridge.arm.com>
+	<AANLkTim139fpJsMJFLiyUYvFgGMz-Ljgd_yDrks-tqhE@mail.gmail.com>
+	<1301395206.583.53.camel@e102109-lin.cambridge.arm.com>
+	<AANLkTim-4v5Cbp6+wHoXjgKXoS0axk1cgQ5AHF_zot80@mail.gmail.com>
+	<1301399454.583.66.camel@e102109-lin.cambridge.arm.com>
+	<AANLkTin0_gT0E3=oGyfMwk+1quqonYBExeN9a3=v=Lob@mail.gmail.com>
+	<AANLkTi=gMP6jQuQFovfsOX=7p-SSnwXoVLO_DVEpV63h@mail.gmail.com>
+	<1301476505.29074.47.camel@e102109-lin.cambridge.arm.com>
+	<AANLkTi=YB+nBG7BYuuU+rB9TC-BbWcJ6mVfkxq0iUype@mail.gmail.com>
+	<AANLkTi=L0zqwQ869khH1efFUghGeJjoyTaBXs-O2icaM@mail.gmail.com>
+	<AANLkTi=vcn5jHpk0O8XS9XJ8s5k-mCnzUwu70mFTx4=g@mail.gmail.com>
+	<1301485085.29074.61.camel@e102109-lin.cambridge.arm.com>
+	<AANLkTikXfVNkyFE2MpW9ZtfX2G=QKvT7kvEuDE-YE5xO@mail.gmail.com>
+	<1301488032.3283.42.camel@edumazet-laptop>
+	<AANLkTikX0jxdkyYgPoqjvC5HzY8VydTbFh_gFDzM8zJ7@mail.gmail.com>
+	<AANLkTi=RXoEOVmTPiL=dfO97aOVKWOJWE7hoQduPPsCZ@mail.gmail.com>
+	<1301491622.3283.46.camel@edumazet-laptop>
+Date: Wed, 30 Mar 2011 15:07:09 +0100
+Message-ID: <AANLkTi=tyhbb54iHPpPjK4+jM09SQv4giOTjpsjvD33E@mail.gmail.com>
+Subject: Re: kmemleak for MIPS
+From: Maxin John <maxin.john@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Lepikhin <johnlepikhin@gmail.com>
-Cc: Jeffrey Hundstad <jeffrey.hundstad@mnsu.edu>, "linux-kernel@vger.kernel.org. Alexander Viro" <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Daniel Baluta <daniel.baluta@gmail.com>, Catalin Marinas <catalin.marinas@arm.com>, naveen yadav <yad.naveen@gmail.com>, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi John,
+Hi Eric,
 
-On Mon, Mar 28, 2011 at 10:50:56PM +0400, John Lepikhin wrote:
-> 2011/3/28 Jeffrey Hundstad <jeffrey.hundstad@mnsu.edu>:
-> 
-> > I'd take a look here:
-> > http://www.linuxinsight.com/proc_sys_vm_hierarchy.html
-> 
-> Yes, I already played with dirty_*, min_free_kbytes (3000kb),
-> swappiness (0..100), vfs_cache_pressure (1..200) and zone_reclaim_mode
-> (currently 0). Other parameters are set to defaults.
-> 
-> By the way, there is no swap enabled. Instead of just dropping 50% of
-> page caches, kernel was intensively swapping then there was a swap
-> device.
+> Hmm, then MIPS kmemleak port might have a problem with percpu data ?
+>
+> fcp->hash_table = kzalloc_node(sz, GFP_KERNEL, cpu_to_node(cpu));
+>
+> fcp is a per cpu "struct flow_cache_percpu"
 
-Is your memory usage balanced across the nodes? You can check it via
-/sys/devices/system/node/node*/meminfo.
+Thank you very much for the inputs. I will definitely investigate this.
+However, I think, the "basic" kmemleak support for MIPS is working as
+expected with the present patch.
+The kmemleak test case is also working as expected in MIPS target.
 
-Are there lots of high-order memory allocations?  /proc/buddyinfo will
-disclose some of them.
+So, as Daniel mentioned, shall we go ahead with integrating the
+kmemleak support for MIPS ?
 
-Thanks,
-Fengguang
+Please let me know your comments.
+
+Cheers,
+Maxin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
