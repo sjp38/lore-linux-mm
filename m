@@ -1,85 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9B75F8D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 21:36:57 -0400 (EDT)
-Subject: Re: [PATCH]mmap: add alignment for some variables
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20110329182544.6ad4eccb.akpm@linux-foundation.org>
-References: <1301277536.3981.27.camel@sli10-conroe>
-	 <m2oc4v18x8.fsf@firstfloor.org>	<1301360054.3981.31.camel@sli10-conroe>
-	 <20110329152434.d662706f.akpm@linux-foundation.org>
-	 <1301446882.3981.33.camel@sli10-conroe>
-	 <20110329180611.a71fe829.akpm@linux-foundation.org>
-	 <1301447843.3981.48.camel@sli10-conroe>
-	 <20110329182544.6ad4eccb.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 30 Mar 2011 09:36:40 +0800
-Message-ID: <1301449000.3981.52.camel@sli10-conroe>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 04C958D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 21:37:54 -0400 (EDT)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id p2U1bp1m028459
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 18:37:51 -0700
+Received: from qyk10 (qyk10.prod.google.com [10.241.83.138])
+	by wpaz13.hot.corp.google.com with ESMTP id p2U1bnqZ032419
+	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 18:37:49 -0700
+Received: by qyk10 with SMTP id 10so685340qyk.11
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2011 18:37:49 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20110330101716.E921.A69D9226@jp.fujitsu.com>
+References: <1301419953-2282-1-git-send-email-yinghan@google.com>
+	<20110330101716.E921.A69D9226@jp.fujitsu.com>
+Date: Tue, 29 Mar 2011 18:37:49 -0700
+Message-ID: <BANLkTik=brAxLRC4yE71nSpOY4Lah4Bb+g@mail.gmail.com>
+Subject: Re: [PATCH V3] Add the pagefault count into memcg stats
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Wed, 2011-03-30 at 09:25 +0800, Andrew Morton wrote:
-> On Wed, 30 Mar 2011 09:17:23 +0800 Shaohua Li <shaohua.li@intel.com> wrote:
-> 
-> > On Wed, 2011-03-30 at 09:06 +0800, Andrew Morton wrote:
-> > > On Wed, 30 Mar 2011 09:01:22 +0800 Shaohua Li <shaohua.li@intel.com> wrote:
-> > > 
-> > > > +/*
-> > > > + * Make sure vm_committed_as in one cacheline and not cacheline shared with
-> > > > + * other variables. It can be updated by several CPUs frequently.
-> > > > + */
-> > > > +struct percpu_counter vm_committed_as ____cacheline_internodealigned_in_smp;
-> > > 
-> > > The mystery deepens.  The only cross-cpu writeable fields in there are
-> > > percpu_counter.lock and its companion percpu_counter.count.  If CPUs
-> > > are contending for the lock then that itself is a problem - how does
-> > > adding some padding to the struct help anything?
-> > I had another patch trying to address the lock contention (for case
-> > OVERCOMMIT_GUESS), will send out soon. But thought better to have the
-> > correct alignment for OVERCOMMIT_NEVER case.
-> 
-> I still don't understand why adding
-> ____cacheline_internodealigned_in_smp to vm_committed_as improves
-> anything.
-> 
-> Here it is:
-> 
-> struct percpu_counter {
-> 	spinlock_t lock;
-> 	s64 count;
-> #ifdef CONFIG_HOTPLUG_CPU
-> 	struct list_head list;	/* All percpu_counters are on a list */
-> #endif
-> 	s32 __percpu *counters;
-> };
-> 
-> and your patch effectively converts this to
-> 
->   struct percpu_counter {
-> 	spinlock_t lock;
->   	s64 count;
->   #ifdef CONFIG_HOTPLUG_CPU
-> 	struct list_head list;	/* All percpu_counters are on a list */
->   #endif
-> 	s32 __percpu *counters;
-> +	char large_waste_of_space[lots];
->   };
-> 
-> how is it that this improves things?
-Hmm, it actually is:
-struct percpu_counter {
- 	spinlock_t lock;
- 	s64 count;
- #ifdef CONFIG_HOTPLUG_CPU
- 	struct list_head list;	/* All percpu_counters are on a list */
- #endif
- 	s32 __percpu *counters;
- } __attribute__((__aligned__(1 << (INTERNODE_CACHE_SHIFT))))
-so lock and count are in one cache line.
+On Tue, Mar 29, 2011 at 6:16 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Hi
+>
+> sorry, I didn't see past discussion of this thread. then, I may be missing
+> something.
+>
+>> Two new stats in per-memcg memory.stat which tracks the number of
+>> page faults and number of major page faults.
+>>
+>> "pgfault"
+>> "pgmajfault"
+>>
+>> They are different from "pgpgin"/"pgpgout" stat which count number of
+>> pages charged/discharged to the cgroup and have no meaning of reading/
+>> writing page to disk.
+>>
+>> It is valuable to track the two stats for both measuring application's
+>> performance as well as the efficiency of the kernel page reclaim path.
+>> Counting pagefaults per process is useful, but we also need the aggregated
+>> value since processes are monitored and controlled in cgroup basis in memcg.
+>
+> Currently, memory cgroup don't restrict number of page fault. And we already have
+> this feature by CONFIG_CGROUP_PERF if my understanding is correct. Why don't you
+> use perf cgroup?
+>
+> In the other words, after your patch, we have four pagefault counter. Do we
+> really need *four*? Can't we consolidate them?
+>
+> 1. tsk->maj_flt
+> 2. perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ)
+> 3. count_vm_event(PGMAJFAULT);
+> 4. mem_cgroup_count_vm_event(PGMAJFAULT);
+
+The first three are per-process and per-system level counters. What I
+did in this patch is to add per-memcg counters for pgfault and
+pgmajfault. This purpose is not to do any limiting but monitoring. I
+am not sure about the CONFIG_CGROUP_PERF, does it require
+CONFIG_PERF_EVENTS?
+
+Thanks
+
+--Ying
+>
+>
+>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
