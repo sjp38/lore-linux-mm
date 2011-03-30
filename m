@@ -1,58 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A14198D0040
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 21:54:31 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id AAEFF3EE0AE
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:54:28 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 61DA545DE9A
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:54:27 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A4DFD45DE95
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:54:26 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E55AE08003
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:54:26 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.240.81.147])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 56C60E08001
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:54:26 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH V3] Add the pagefault count into memcg stats
-In-Reply-To: <BANLkTik=brAxLRC4yE71nSpOY4Lah4Bb+g@mail.gmail.com>
-References: <20110330101716.E921.A69D9226@jp.fujitsu.com> <BANLkTik=brAxLRC4yE71nSpOY4Lah4Bb+g@mail.gmail.com>
-Message-Id: <20110330105455.E92D.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id CE83A8D0040
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2011 21:55:24 -0400 (EDT)
+From: Sean Noonan <Sean.Noonan@twosigma.com>
+Date: Tue, 29 Mar 2011 21:52:59 -0400
+Subject: RE: XFS memory allocation deadlock in 2.6.38
+Message-ID: <081DDE43F61F3D43929A181B477DCA95639B5365@MSXAOA6.twosigma.com>
+References: <20110324174311.GA31576@infradead.org>
+ <AANLkTikwwRm6FHFtEdUg54NvmKdswQw-NPH5dtq1mXBK@mail.gmail.com>
+ <081DDE43F61F3D43929A181B477DCA95639B5349@MSXAOA6.twosigma.com>
+ <BANLkTin0jJevStg5P2hqsLbqMzo3o30sYg@mail.gmail.com>
+ <081DDE43F61F3D43929A181B477DCA95639B534E@MSXAOA6.twosigma.com>
+ <081DDE43F61F3D43929A181B477DCA95639B5359@MSXAOA6.twosigma.com>
+ <20110329192434.GA10536@infradead.org>
+ <081DDE43F61F3D43929A181B477DCA95639B535D@MSXAOA6.twosigma.com>
+ <20110330000942.GI3008@dastard>
+ <081DDE43F61F3D43929A181B477DCA95639B5364@MSXAOA6.twosigma.com>
+ <20110330014400.GK3008@dastard>
+In-Reply-To: <20110330014400.GK3008@dastard>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 30 Mar 2011 10:54:25 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: 'Dave Chinner' <david@fromorbit.com>
+Cc: 'Christoph Hellwig' <hch@infradead.org>, 'Michel Lespinasse' <walken@google.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, Martin Bligh <Martin.Bligh@twosigma.com>, Trammell Hudson <Trammell.Hudson@twosigma.com>, Christos Zoulas <Christos.Zoulas@twosigma.com>, "'linux-xfs@oss.sgi.com'" <linux-xfs@oss.sgi.com>, Stephen Degler <Stephen.Degler@twosigma.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
 
-> > Currently, memory cgroup don't restrict number of page fault. And we already have
-> > this feature by CONFIG_CGROUP_PERF if my understanding is correct. Why don't you
-> > use perf cgroup?
-> >
-> > In the other words, after your patch, we have four pagefault counter. Do we
-> > really need *four*? Can't we consolidate them?
-> >
-> > 1. tsk->maj_flt
-> > 2. perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ)
-> > 3. count_vm_event(PGMAJFAULT);
-> > 4. mem_cgroup_count_vm_event(PGMAJFAULT);
-> 
-> The first three are per-process and per-system level counters. What I
-> did in this patch is to add per-memcg counters for pgfault and
-> pgmajfault. This purpose is not to do any limiting but monitoring. I
-> am not sure about the CONFIG_CGROUP_PERF, does it require
-> CONFIG_PERF_EVENTS?
+> Is this repeatable or is it just a one-off result?
 
-Yes, per-process counter can be enhanced per-cgroup counter naturally and easily. 
-I guess it's a background idea of that.
+It was repeated three times before I sent the email, but I can't reproduce =
+it again now.  Call it a fluke.
 
-
+Sean
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
