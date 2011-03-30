@@ -1,131 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id BBCEC8D0040
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 13:59:26 -0400 (EDT)
-Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
-	by smtp-out.google.com with ESMTP id p2UHxOYN019935
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:59:24 -0700
-Received: from qwc9 (qwc9.prod.google.com [10.241.193.137])
-	by wpaz33.hot.corp.google.com with ESMTP id p2UHvHsU004602
-	(version=TLSv1/SSLv3 cipher=RC4-SHA bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:59:23 -0700
-Received: by qwc9 with SMTP id 9so1155122qwc.13
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2011 10:59:21 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20110330081853.GC15394@tiehlicka.suse.cz>
-References: <20110328093957.089007035@suse.cz>
-	<20110328200332.17fb4b78.kamezawa.hiroyu@jp.fujitsu.com>
-	<4D920066.7000609@gmail.com>
-	<20110330081853.GC15394@tiehlicka.suse.cz>
-Date: Wed, 30 Mar 2011 10:59:21 -0700
-Message-ID: <BANLkTinTKyqv11JPwQ1GszYv5e3xOM=b8A@mail.gmail.com>
-Subject: Re: [RFC 0/3] Implementation of cgroup isolation
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C670D8D0040
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2011 16:24:17 -0400 (EDT)
+Message-Id: <20110330202342.669400887@linux.com>
+Date: Wed, 30 Mar 2011 15:23:42 -0500
+From: Christoph Lameter <cl@linux.com>
+Subject: [slubll1 00/19] SLUB: Implement mostly lockless slowpaths
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Eric Dumazet <eric.dumazet@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 
-On Wed, Mar 30, 2011 at 1:18 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Tue 29-03-11 21:23:10, Balbir Singh wrote:
->> On 03/28/11 16:33, KAMEZAWA Hiroyuki wrote:
->> > On Mon, 28 Mar 2011 11:39:57 +0200
->> > Michal Hocko <mhocko@suse.cz> wrote:
-> [...]
->> > Isn't it the same result with the case where no cgroup is used ?
->> > What is the problem ?
->> > Why it's not a problem of configuration ?
->> > IIUC, you can put all logins to some cgroup by using cgroupd/libgcgrou=
-p.
->> >
->>
->> I agree with Kame, I am still at loss in terms of understand the use
->> case, I should probably see the rest of the patches
->
-> OK, it looks that I am really bad at explaining the usecase. Let's try
-> it again then (hopefully in a better way).
->
-> Consider a service which serves requests based on the in-memory
-> precomputed or preprocessed data.
-> Let's assume that getting data into memory is rather costly operation
-> which considerably increases latency of the request processing. Memory
-> access can be considered random from the system POV because we never
-> know which requests will come from outside.
-> This workflow will benefit from having the memory resident as long as
-> and as much as possible because we have higher chances to be used more
-> often and so the initial costs would pay off.
-> Why is mlock not the right thing to do here? Well, if the memory would
-> be locked and the working set would grow (again this depends on the
-> incoming requests) then the application would have to unlock some
-> portions of the memory or to risk OOM because it basically cannot
-> overcommit.
-> On the other hand, if the memory is not mlocked and there is a global
-> memory pressure we can have some part of the costly memory swapped or
-> paged out which will increase requests latencies. If the application is
-> placed into an isolated cgroup, though, the global (or other cgroups)
-> activity doesn't influence its cgroup thus the working set of the
-> application.
+Well here is another result of my obsession with SLAB allocators. There must be
+some way to get an allocator done that is faster without queueing and I hope
+that we are now there (maybe only almost...).
 
-> If we compare that to mlock we will benefit from per-group reclaim when
-> we get over the limit (or soft limit). So we do not start evicting the
-> memory unless somebody makes really pressure on the _application_.
-> Cgroup limits would, of course, need to be selected carefully.
->
-> There might be other examples when simply kernel cannot know which
-> memory is important for the process and the long unused memory is not
-> the ideal choice.
+This patchset implement wider lockless operations in slub affecting most of the
+slowpaths. In particular the patch decreases the overhead in the performance
+critical section of __slab_free.
 
-Michal,
+One test that I ran was "hackbench 200 process 200" on 2.6.29-rc1 under KVM
 
-Reading through your example, sounds to me you can accomplish the
-"guarantee" of the high priority service using existing
-memcg mechanisms.
+Run	SLAB	SLUB	SLUB LL
+1st	35.2	35.9	31.9
+2nd	34.6	30.8	27.9
+3rd	33.8	29.9	28.8
 
-Assume you have the service named cgroup-A which needs memory
-"guarantee". Meantime we want to launch cgroup-B with no memory
-"guarantee". What you want is to have cgroup-B uses the slack memory
-(not being allocated by cgroup-A), but also volunteer to give up under
-system memory pressure.
+Note that the SLUB version in 2.6.29-rc1 already has an optimized allocation
+and free path using this_cpu_cmpxchg_double(). SLUB LL takes it to new heights
+by also using cmpxchg_double() in the slowpaths (especially in the kfree()
+case where we cannot queue).
 
-So continue w/ my previous post, you can consider the following
-configuration in 32G machine. We can only have resident size of
-cgroup-A as much as the machine capacity.
+The patch uses a cmpxchg_double (also introduced here) to do an atomic change
+on the state of a slab page that includes the following pieces of information:
 
-cgroup-A :  limit_in_bytes =3D32G soft_limit_in_bytes =3D 32G
-cgroup-B : limit_in_bytes =3D20G  soft_limit_in_bytes =3D 0G
+1. Freelist pointer
+2. Number of objects inuse
+3. Frozen state of a slab
 
-To be a little bit extreme, there shouldn't be memory pressure on
-cgroup-A unless it grows above the machine capacity. If the global
-memory contention is triggered by cgroup-B, we should steal pages from
-it always.
+Disabling of interrupts (which is a significant latency in the
+allocator paths) is avoided in the __slab_free case.
 
-However, the current implementation of soft_limit needs to be improved
-for the example above. Especially when we start having lots of cgroups
-running w/ different limit setting, we need to have soft_limit being
-efficient and we can eliminate the global lru scanning. The later one
-breaks the isolation.
+There are some concerns with this patch. The use of cmpxchg_double on
+fields of the page struct requires alignment of the fields to double
+word boundaries. That can only be accomplished by adding some padding
+to struct page which blows it up to 64 byte  (on x86_64). Comments
+in the source describe these things in more detail.
 
---Ying
-
-> Makes sense?
-> --
-> Michal Hocko
-> SUSE Labs
-> SUSE LINUX s.r.o.
-> Lihovarska 1060/12
-> 190 00 Praha 9
-> Czech Republic
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Fight unfair telecom internet charges in Canada: sign http://stopthemeter=
-.ca/
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+The cmpxchg_double() operation introduced here could also be used to
+update other doublewords in the page struct in a lockless fashone. One
+can envision page state changes that involved flags and mappings or
+do list operations locklessly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
